@@ -1,0 +1,128 @@
+/* Simple CMS Custom Theme */
+
+:root {
+	/* =~= Theme Properties =~= */
+	--theme-font-family-base: system-ui;
+	--theme-font-family-heading: system-ui;
+	--theme-font-color-base: 0 0 0;
+	--theme-font-color-dark: 255 255 255;
+	--theme-rounded-base: 4px;
+	--theme-rounded-container: 2px;
+	--theme-border-base: 1px;
+	/* =~= Theme On-X Colors =~= */
+	--on-primary: 255 255 255;
+	--on-secondary: 255 255 255;
+	--on-tertiary: 255 255 255;
+	--on-success: 255 255 255;
+	--on-warning: 255 255 255;
+	--on-error: 255 255 255;
+	--on-surface: 255 255 255;
+	/* =~= Theme Colors  =~= */
+	/* primary | #8ddd15 */
+	--color-primary-50: 238 250 220; /* ⬅ #eefadc */
+	--color-primary-100: 232 248 208; /* ⬅ #e8f8d0 */
+	--color-primary-200: 227 247 197; /* ⬅ #e3f7c5 */
+	--color-primary-300: 209 241 161; /* ⬅ #d1f1a1 */
+	--color-primary-400: 175 231 91; /* ⬅ #afe75b */
+	--color-primary-500: 141 221 21; /* ⬅ #8ddd15 */
+	--color-primary-600: 127 199 19; /* ⬅ #7fc713 */
+	--color-primary-700: 106 166 16; /* ⬅ #6aa610 */
+	--color-primary-800: 85 133 13; /* ⬅ #55850d */
+	--color-primary-900: 69 108 10; /* ⬅ #456c0a */
+	/* secondary | #6b6b6b */
+	--color-secondary-50: 233 233 233; /* ⬅ #e9e9e9 */
+	--color-secondary-100: 225 225 225; /* ⬅ #e1e1e1 */
+	--color-secondary-200: 218 218 218; /* ⬅ #dadada */
+	--color-secondary-300: 196 196 196; /* ⬅ #c4c4c4 */
+	--color-secondary-400: 151 151 151; /* ⬅ #979797 */
+	--color-secondary-500: 107 107 107; /* ⬅ #6b6b6b */
+	--color-secondary-600: 96 96 96; /* ⬅ #606060 */
+	--color-secondary-700: 80 80 80; /* ⬅ #505050 */
+	--color-secondary-800: 64 64 64; /* ⬅ #404040 */
+	--color-secondary-900: 52 52 52; /* ⬅ #343434 */
+	/* tertiary | #0078f0 */
+	--color-tertiary-50: 217 235 253; /* ⬅ #d9ebfd */
+	--color-tertiary-100: 204 228 252; /* ⬅ #cce4fc */
+	--color-tertiary-200: 191 221 251; /* ⬅ #bfddfb */
+	--color-tertiary-300: 153 201 249; /* ⬅ #99c9f9 */
+	--color-tertiary-400: 77 161 245; /* ⬅ #4da1f5 */
+	--color-tertiary-500: 0 120 240; /* ⬅ #0078f0 */
+	--color-tertiary-600: 0 108 216; /* ⬅ #006cd8 */
+	--color-tertiary-700: 0 90 180; /* ⬅ #005ab4 */
+	--color-tertiary-800: 0 72 144; /* ⬅ #004890 */
+	--color-tertiary-900: 0 59 118; /* ⬅ #003b76 */
+	/* success | #24b32c */
+	--color-success-50: 222 244 223; /* ⬅ #def4df */
+	--color-success-100: 211 240 213; /* ⬅ #d3f0d5 */
+	--color-success-200: 200 236 202; /* ⬅ #c8ecca */
+	--color-success-300: 167 225 171; /* ⬅ #a7e1ab */
+	--color-success-400: 102 202 107; /* ⬅ #66ca6b */
+	--color-success-500: 36 179 44; /* ⬅ #24b32c */
+	--color-success-600: 32 161 40; /* ⬅ #20a128 */
+	--color-success-700: 27 134 33; /* ⬅ #1b8621 */
+	--color-success-800: 22 107 26; /* ⬅ #166b1a */
+	--color-success-900: 18 88 22; /* ⬅ #125816 */
+	/* warning | #fecb01 */
+	--color-warning-50: 255 247 217; /* ⬅ #fff7d9 */
+	--color-warning-100: 255 245 204; /* ⬅ #fff5cc */
+	--color-warning-200: 255 242 192; /* ⬅ #fff2c0 */
+	--color-warning-300: 255 234 153; /* ⬅ #ffea99 */
+	--color-warning-400: 254 219 77; /* ⬅ #fedb4d */
+	--color-warning-500: 254 203 1; /* ⬅ #fecb01 */
+	--color-warning-600: 229 183 1; /* ⬅ #e5b701 */
+	--color-warning-700: 191 152 1; /* ⬅ #bf9801 */
+	--color-warning-800: 152 122 1; /* ⬅ #987a01 */
+	--color-warning-900: 124 99 0; /* ⬅ #7c6300 */
+	/* error | #ff0000 */
+	--color-error-50: 255 217 217; /* ⬅ #ffd9d9 */
+	--color-error-100: 255 204 204; /* ⬅ #ffcccc */
+	--color-error-200: 255 191 191; /* ⬅ #ffbfbf */
+	--color-error-300: 255 153 153; /* ⬅ #ff9999 */
+	--color-error-400: 255 77 77; /* ⬅ #ff4d4d */
+	--color-error-500: 255 0 0; /* ⬅ #ff0000 */
+	--color-error-600: 230 0 0; /* ⬅ #e60000 */
+	--color-error-700: 191 0 0; /* ⬅ #bf0000 */
+	--color-error-800: 153 0 0; /* ⬅ #990000 */
+	--color-error-900: 125 0 0; /* ⬅ #7d0000 */
+	/* surface | #3c4157 */
+	--color-surface-50: 226 227 230; /* ⬅ #e2e3e6 */
+	--color-surface-100: 216 217 221; /* ⬅ #d8d9dd */
+	--color-surface-200: 206 208 213; /* ⬅ #ced0d5 */
+	--color-surface-300: 177 179 188; /* ⬅ #b1b3bc */
+	--color-surface-400: 119 122 137; /* ⬅ #777a89 */
+	--color-surface-500: 60 65 87; /* ⬅ #3c4157 */
+	--color-surface-600: 54 59 78; /* ⬅ #363b4e */
+	--color-surface-700: 45 49 65; /* ⬅ #2d3141 */
+	--color-surface-800: 36 39 52; /* ⬅ #242734 */
+	--color-surface-900: 29 32 43; /* ⬅ #1d202b */
+}
+
+/* Headings */
+[data-theme='skeleton'] h1,
+[data-theme='skeleton'] h2,
+[data-theme='skeleton'] h3,
+[data-theme='skeleton'] h4,
+[data-theme='skeleton'] h5,
+[data-theme='skeleton'] h6 {
+	font-weight: bold;
+}
+
+/* Applied to body with `<body data-theme="skeleton">` */
+/* Created with: https://csshero.org/mesher/ */
+
+[data-theme='skeleton'] {
+	/* prettier-ignore */
+	/* background-color:hsla(219,13%,95%,1); */
+	/* background-image: radial-gradient(at 41% 61%, hsla(217, 13%, 95%, 1) 0px, transparent 40%),
+		radial-gradient(at 0% 100%, hsla(129, 0%, 13%, 1) 0px, transparent 20%); */
+}
+
+.dark [data-theme='skeleton'] {
+	/* prettier-ignore */
+	/* background-color:hsla(0,0%,13%,1); */
+	/* background-image: radial-gradient(at 54% 48%, hsla(268, 0%, 13%, 1) 0px, transparent 50%),
+		radial-gradient(at 83% 71%, hsla(268, 0%, 13%, 1) 0px, transparent 50%),
+		radial-gradient(at 21% 17%, hsla(0, 0%, 13%, 1) 0px, transparent 50%),
+		radial-gradient(at 100% 0%, hsla(131, 8%, 41%, 1) 0px, transparent 50%),
+		radial-gradient(at 0% 100%, hsla(131, 8%, 41%, 1) 0px, transparent 50%); */
+}
