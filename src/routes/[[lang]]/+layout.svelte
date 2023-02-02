@@ -110,7 +110,7 @@
 			{/if}
 
 			<!-- Corporate Identity -->
-			<a href="/" class="1 mt-2 flex cursor-pointer items-center justify-start !no-underline ">
+			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
 				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] " />
 				{#if switchSideBar}
 					<span class="ml-2 mt-1 text-2xl font-bold text-black dark:text-white"
@@ -163,7 +163,7 @@
 			<div class="-ml-2">
 				<button
 					on:click={toggleTheme}
-					class="btn btn-sm relative  p-2.5 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-surface-400 dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+					class="btn btn-sm relative p-2.5 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-surface-400 dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 				>
 					{#if $is_dark}
 						<Icon icon="bi:sun" width="16" />
@@ -191,7 +191,7 @@
 
 	<!-- Sidebar Right -->
 	<svelte:fragment slot="sidebarRight">
-		<div id="sidebar-right" hidden={toggleRightSideBar} class="bg-red-500 text-center h-full ">
+		<div id="sidebar-right" hidden={toggleRightSideBar} class="bg-red-500 text-center ">
 			<!-- Desktop Save -->
 			<div class="">Save button</div>
 
