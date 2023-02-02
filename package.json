@@ -18,7 +18,7 @@
 	"devDependencies": {
 		"@skeletonlabs/skeleton": "0.99.5",
 		"@sveltejs/adapter-node": "latest",
-		"@sveltejs/kit": "1.3.7",
+		"@sveltejs/kit": "1.3.9",
 		"@types/cookie": "0.5.1",
 		"@typescript-eslint/eslint-plugin": "5.50.0",
 		"@typescript-eslint/parser": "5.50.0",
