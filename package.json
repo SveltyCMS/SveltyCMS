@@ -45,7 +45,7 @@
 		"@iconify/svelte": "^3.1.0",
 		"@lucia-auth/adapter-mongoose": "0.4.0",
 		"@lucia-auth/oauth": "0.5.2",
-		"@lucia-auth/sveltekit": "0.6.1",
+		"@lucia-auth/sveltekit": "0.6.2",
 		"@tailwindcss/forms": "0.5.3",
 		"@tailwindcss/line-clamp": "0.4.2",
 		"@tailwindcss/typography": "0.5.9",

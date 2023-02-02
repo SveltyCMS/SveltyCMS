@@ -16,7 +16,7 @@ const config = {
 
 		alias: {
 			$i18n: 'src/lib/i18n',
-			$src: 'src'
+			$src: 'src/'
 		}
 	},
 	// remove inspector for production

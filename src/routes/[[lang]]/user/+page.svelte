@@ -4,8 +4,8 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 
+	// Lucia
 	import { getUser } from '@lucia-auth/sveltekit/client';
-
 	const user = getUser();
 
 	function triggerAlert(): void {
@@ -33,9 +33,11 @@
 	// 	}
 	// };
 
-	let username = 'Admin';
 	let id = '0';
-	let email = 'info@asset-trade.de';
+	let username = $user?.username;
+	let firstname = $user?.firstname || undefined;
+	let lastmame = $user?.lastname || undefined;
+	let email = $user?.email;
 	let password = '12345';
 
 	let readonly = true;
@@ -44,16 +46,26 @@
 <div>
 	<h1 class="mb-2">User Settings</h1>
 
-	<div class="flex justify-start mb-2">
+	<div class="flex justify-start items-start mb-2">
 		<button on:click={triggerAlert} class="">
 			<Avatar src="https://i.pravatar.cc/" rounded-xl class="w-32 mr-4" />
-			<div class="mt-2 text-xs">Upload Image</div>
 			<div class="mb-2 font-bold">User ID: {id}</div>
+			{#if $user?.role}
+				<div class="text-base no-underline">{$user?.role}</div>
+			{/if}
 		</button>
 		<div>
 			<label
-				>Name:
+				>Username:
 				<input bind:value={username} name="username" type="text" {readonly} />
+			</label>
+			<label
+				>First Name:
+				<input bind:value={username} name="firstname" type="text" {readonly} />
+			</label>
+			<label
+				>Last Name:
+				<input bind:value={username} name="lastname" type="text" {readonly} />
 			</label>
 			<label
 				>Email:
