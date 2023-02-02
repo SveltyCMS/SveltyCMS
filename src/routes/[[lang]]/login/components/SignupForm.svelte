@@ -1,16 +1,17 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import CMSLogo from './icons/Logo.svelte';
-	// import { goto } from '$app/navigation';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
+	import { PUBLIC_SITENAME } from '$env/static/public';
+
 	export let show: boolean = false;
 	let showPassword: boolean = false;
 
-	export let firstUserExists = false;
+	export let firstUserExists = true;
 
 	let username = '';
 	let email = '';
@@ -68,13 +69,14 @@
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
 	<div class="mx-auto mt-[15%] mb-[5%] w-full  p-4 lg:w-1/2">
 		<div class="mb-8 flex flex-row gap-2">
-			<CMSLogo className="w-10" fill="red" />
+			<CMSLogo className="w-14" fill="red" />
 
 			<h1 class="text-2xl font-bold text-white lg:text-3xl">
-				<!-- {env.SITENAME} -->
-				{$LL.LOGIN_SignUp()}
+				<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+				<div class="-mt-1">{$LL.LOGIN_SignUp()}</div>
 			</h1>
 		</div>
+		<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 		<form
 			method="post"
@@ -93,14 +95,14 @@
 					color={errorStatus.username.status ? 'red' : 'base'}
 					type="text"
 					name="floating_username"
-					class="border-surfce-300 text-surfce-900 peer block w-full appearance-none rounded-none border-0 border-b-2 !bg-transparent py-2.5 px-0 text-sm focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/>
 				<label
 					for="floating_username"
 					class="text-surfce-500 absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_Username()}</label
+					>{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span></label
 				>
 
 				{#if errorStatus.username.status}
@@ -118,14 +120,14 @@
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="floating_email"
-					class="border-surfce-300 text-surfce-900 peer block w-full appearance-none rounded-none border-0 border-b-2 !bg-transparent py-2.5 px-0 text-sm focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/>
 				<label
 					for="floating_email"
-					class="text-surfce-500 absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_EmailAddress()}</label
+					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 				>
 
 				{#if errorStatus.email.status}
@@ -147,7 +149,7 @@
 						name="floating_password"
 						autocomplete="current-password"
 						id="floating_password"
-						class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>{:else}
@@ -159,14 +161,14 @@
 						name="floating_password"
 						autocomplete="current-password"
 						id="floating_password"
-						class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>{/if}
 				<label
 					for="floating_password"
 					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_Password()}</label
+					>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 				>
 
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
@@ -198,10 +200,14 @@
 						type="text"
 						name="repeat_password"
 						id="floating_repeat_password"
-						class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
-					/>
+					/><label
+						for="floating_repeat_password"
+						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+					>
 				{:else}
 					<input
 						bind:value={confirmPassword}
@@ -210,15 +216,15 @@
 						type="password"
 						name="repeat_password"
 						id="floating_repeat_password"
-						class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
-					/>{/if}
-				<label
-					for="floating_repeat_password"
-					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_ConfirmPassword()}</label
-				>
+					/>
+					<label
+						for="floating_repeat_password"
+						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+					>{/if}
 
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
@@ -233,25 +239,43 @@
 					<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.confirm.msg}</div>
 				{/if}
 			</div>
-			<input  type=radio bind:value={firstUserExists} on:change={()=>{ firstUserExists = true }} name="sign_up_token"/> Display Token Field
+			<!-- Registration Token -->
 			{#if firstUserExists}
-				<input
-					bind:value={token}
-					on:keydown={() => (errorStatus.token.status = false)}
-					color={errorStatus.token.status ? 'red' : 'base'}
-					type="text"
-					name="floating_token"
-					id="floating_token"
-					class="border-surface-300 text-surface-900 focus:border-tertiary-600 dark:border-surface-600 dark:focus:border-tertiary-500 peer block w-full appearance-none rounded-none border-0 border-b-2 !bg-transparent py-2.5 px-0 text-sm focus:outline-none focus:ring-0 dark:text-white"
-					placeholder=" "
-					required
-				/>
+				<div class="group relative z-0 mb-6 w-full">
+					<input
+						bind:value={token}
+						on:keydown={() => (errorStatus.token.status = false)}
+						color={errorStatus.token.status ? 'red' : 'base'}
+						type="text"
+						name="Access Token"
+						id="floating_token"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						placeholder=" "
+						required
+					/>
+					<label
+						for="floating_token"
+						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
+					>
+
+					{#if errorStatus.token.status}
+						<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.token.msg}</div>
+					{/if}
+				</div>
 			{/if}
 
-			<!-- TODO Skeleton Css not working -->
-			<button type="submit" class="btn btn-sm mt-4 rounded-md bg-white text-black">
-				{$LL.LOGIN_SignUp()}
-			</button>
+			<!-- TODO: Add T&C with CHECK -->
+			<div class=" flex gap-5 items-center">
+				<button class="btn btn-sm mt-4 rounded-md bg-white text-black">
+					{$LL.LOGIN_SignUp()}
+				</button>
+				<!-- <div class="checkbox required mt-3 flex items-center space-x-2">
+					<input type="checkbox" name="checkbox_TC" />
+					<p>Confirm T&C</p>
+					<span class="ml-2 text-error-500">*</span>
+				</div> -->
+			</div>
 		</form>
 	</div>
 </div>

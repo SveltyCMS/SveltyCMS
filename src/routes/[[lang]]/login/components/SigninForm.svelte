@@ -2,14 +2,14 @@
 	import Icon from '@iconify/svelte';
 
 	import CMSLogo from './icons/Logo.svelte';
-	// import { goto } from '$app/navigation';
 
 	// typesafe-i18n
 	import LL from '../../../../lib/i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
+	import { PUBLIC_SITENAME } from '$env/static/public';
+
 	export let show: boolean = false;
-	export let singInErrorMessage: string | undefined;
 
 	let showPassword: boolean = false;
 	let forgot: boolean = false;
@@ -55,18 +55,20 @@
 	{#if !forgot}
 		<div bind:this={form} class="mx-auto mt-[15%] mb-[5%] w-full p-4 lg:w-1/2">
 			<div class="mb-8 flex flex-row gap-2">
-				<CMSLogo className="w-10" fill="red" />
+				<CMSLogo className="w-14" fill="red" />
 				<h1 class="text-2xl font-bold text-black lg:text-3xl">
-					{$LL.LOGIN_SignIn()}
+					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+					<div class="-mt-1">{$LL.LOGIN_SignUp()}</div>
 				</h1>
 			</div>
+
+			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 			<form
 				method="post"
 				action="?/authUser"
 				use:enhance={(e) => {
 					if (hasSignInError()) {
-						console.log({singIsnErr: errorStatus})
 						e.cancel();
 					}
 				}}
@@ -79,14 +81,14 @@
 						color={errorStatus.email.status ? 'red' : 'base'}
 						type="email"
 						name="floating_email"
-						class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
 						required
 					/>
 					<label
 						for="floating_email"
 						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_EmailAddress()}</label
+						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 					>
 					{#if errorStatus.email.status}
 						<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.email.msg}</div>
@@ -107,7 +109,7 @@
 							name="floating_password"
 							autocomplete="current-password"
 							id="floating_password"
-							class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
 						/>
@@ -120,7 +122,7 @@
 							name="floating_password"
 							autocomplete="current-password"
 							id="floating_password"
-							class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
 						/>
@@ -128,10 +130,11 @@
 					<label
 						for="floating_password"
 						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_Password()}</label
+						>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 					>
 
-					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)} on:keyup={()=>{}}>
+					<!-- svelte-ignore a11y-click-events-have-key-events -->
+					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 						{#if showPassword}
 							<Icon icon="bi:eye-fill" color="base" width="24" />
 						{:else}
@@ -146,42 +149,48 @@
 					{/if}
 				</div>
 				<div class="buttons">
-					<button class="btn btn-sm  mt-4 rounded-lg border bg-surface-700 text-white "
+					<button class="btn btn-sm mt-4 rounded-lg border bg-surface-700 text-white "
 						>{$LL.LOGIN_SignIn()}</button
 					>
 
 					<button
 						on:click={() => (forgot = true)}
-						class="btn btn-sm  mt-4 ml-4 rounded-lg border border-surface-700  text-surface-700 "
+						class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700 "
 						>{$LL.LOGIN_ForgottenPassword()}</button
 					>
 				</div>
 			</form>
 		</div>
 	{:else}
-		<form class="mx-auto w-full p-4 lg:w-1/2" action="?/generateToken" method="post">
-			<div class="mb-8 flex flex-row gap-2">
-				<CMSLogo className="w-10" fill="red" />
-				<h1 class="text-3xl font-bold text-black ">{$LL.LOGIN_ForgottenPassword()}</h1>
+		<!-- Forgotton Password -->
+		<form class="mx-auto w-full p-4 lg:w-1/2" action="?/forgotPassword">
+			<div class="mb-8 flex flex-row items-start gap-2">
+				<CMSLogo className="w-[3rem]" fill="red" />
+
+				<h1 class="text-2xl font-bold text-black lg:text-3xl">
+					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+					<div class="-mt-1 text-4xl">{$LL.LOGIN_ForgottenPassword()}</div>
+				</h1>
 			</div>
+			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 			<!-- Email field -->
 			<!-- TODO Error messge not working as it need to be FORGOT EMAIL -->
-			<div class="group relative z-0 mb-6 w-full">
+			<div class="group relative mb-6 w-full">
 				<input
 					bind:value={email}
 					on:keydown={() => (errorStatus.email.status = false)}
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
-					name="floating_email"
-					class="peer block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					name="floating_forgottonemail"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 					placeholder=" "
 					required
 				/>
 				<label
-					for="floating_email"
-					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_EmailAddress()}</label
+					for="floating_forgottonemail"
+					class="absolute top-3 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 				>
 
 				{#if errorStatus.email.status}
@@ -189,12 +198,14 @@
 				{/if}
 			</div>
 
-			<!-- TODO Skeleton CSS not working -->
-			<button
-				type="submit"
-				class="btn btn-sm text-whitebtn-base mt-4 rounded-lg border bg-surface-600 text-white"
-				>{$LL.LOGIN_SendResetMail()}</button
-			>
+			<div class="flex gap-4 items-center mt-4">
+				<button type="submit" class="btn btn-sm rounded-lg border bg-surface-600 text-white"
+					>{$LL.LOGIN_SendResetMail()}</button
+				>
+				<button on:click={() => (forgot = false)} class="btn btn-sm text-surface-600 "
+					><Icon icon="mdi:arrow-left-circle" width="36" /></button
+				>
+			</div>
 		</form>
 	{/if}
 </div>

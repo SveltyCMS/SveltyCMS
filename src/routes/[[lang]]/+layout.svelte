@@ -191,7 +191,7 @@
 
 	<!-- Sidebar Right -->
 	<svelte:fragment slot="sidebarRight">
-		<div id="sidebar-right" hidden={toggleRightSideBar} class="bg-red-500 text-center ">
+		<div id="sidebar-right" hidden={toggleRightSideBar} class="bg-red-500 text-center h-full">
 			<!-- Desktop Save -->
 			<div class="">Save button</div>
 
