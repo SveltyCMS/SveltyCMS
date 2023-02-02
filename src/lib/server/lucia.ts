@@ -1,6 +1,7 @@
 import '$lib/models/user-model';
 import '$lib/models/session-model';
 import '$lib/models/key-model';
+import '$lib/models/sign-up-token-model';
 
 import lucia from 'lucia-auth';
 import { dev } from '$app/environment';

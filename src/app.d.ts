@@ -1,4 +1,6 @@
 /// <reference types="lucia-auth" />
+
+
 declare namespace Lucia {
 	type Auth = import('$lib/server/lucia.js').Auth;
 
@@ -20,5 +22,8 @@ declare namespace App {
 		validate: import('@lucia-auth/sveltekit').Validate;
 		validateUser: import('@lucia-auth/sveltekit').ValidateUser;
 		setSession: import('@lucia-auth/sveltekit').SetSession;
+
+		locale: import('$i18n/i18n-types').Locales;
+		LL: import('$i18n/i18n-types').TranslationFunctions;
 	}
 }
