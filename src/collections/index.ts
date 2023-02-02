@@ -5,13 +5,13 @@ import Posts from './Posts';
 import Media from './Media';
 import Menu from './Menu';
 import ImageArray from './ImageArray';
-
+import ImageEditor from './EditorImage';
 
 let categories = [
 	{
 		category: 'Collections',
 		icon: 'bi:collection',
-		collections: [Test,Posts, Menu]
+		collections: [Test, Posts, Menu]
 	},
 	{
 		category: 'Media',

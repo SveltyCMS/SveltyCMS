@@ -2,8 +2,10 @@ import Text from './text';
 import RichText from './richText';
 import Relation from './relation';
 import MegaMenu from './megaMenu';
-import ImageUpload from './imageUpload';
 import ImageArray from './imageArray';
+import ImageEditorPage from './imageEditorPage';
+import ImageEditor from './imageEditor';
+import ImageUpload from './imageUpload';
 import Date from './date';
 import DateRange from './dateRange';
 import Email from './email';
@@ -27,6 +29,8 @@ export type Widgets = {
 	Group: typeof Group;
 	ImageUpload: typeof ImageUpload;
 	ImageArray: typeof ImageArray;
+	ImageEditorPage: typeof ImageEditorPage;
+	ImageEditor: typeof ImageEditor;
 	MegaMenu: typeof MegaMenu;
 	Number: typeof Number;
 	PhoneNumber: typeof Number;
@@ -67,6 +71,9 @@ let widgets: Widgets = {
 	ImageUpload,
 	// ImageArray - allows multiple image upload with editor
 	ImageArray,
+	// Image Editor - Crop / Blur / Rotation and Save upload to Webp
+	ImageEditor,
+	ImageEditorPage,
 	// MegaMenu - Flexible Menu with possible hierachie
 	MegaMenu,
 	// Number - field that enforces that its value be a number
