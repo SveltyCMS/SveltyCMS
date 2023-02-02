@@ -2,15 +2,17 @@
 	export let active: undefined | 0 | 1 = undefined;
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import SignupForm from './SignupForm.svelte';
+
+	export let singUpError: string | undefined
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
 	class:active={active == 1}
 	class:inactive={active !== undefined && active !== 1}
 	class:hover={active == undefined || active == 0}
 	on:click
 	on:pointerenter
+	on:keydown
 	class="relative flex flex-col items-center justify-center gap-3 "
 >
 	<SignupForm show={active == 1} />

@@ -1,18 +1,11 @@
-// Sveltekit
 import { fail, type Actions } from '@sveltejs/kit';
+import { auth } from '$lib/server/lucia';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { get } from 'svelte/store';
-
-// Lucia
-import { auth } from '$lib/server/lucia';
 import { LuciaError } from 'lucia-auth';
 import { User } from '$lib/models/user-model';
 import { SignUpToken } from '$lib/models/sign-up-token-model';
 import { randomBytes } from 'crypto';
-
-// typesafe-i18n
-import LL from '$i18n/i18n-svelte';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.validate();
@@ -25,7 +18,7 @@ export const actions: Actions = {
 		const form = await request.formData();
 
 		const email = form.get('newUserEmail');
-		const role = form.get('role'); //TODO: set role on form
+		const role = form.get('role'); //TO-DO set role on form
 
 		console.log({ email: email, role: role });
 
@@ -41,7 +34,7 @@ export const actions: Actions = {
 		if (user) {
 			return fail(400, {
 				type: 'SIGN_UP_ERROR' as const,
-				message: get(LL).USER_Fail()
+				message: 'Email already in use'
 			});
 		}
 

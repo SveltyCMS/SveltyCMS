@@ -2,20 +2,23 @@
 	export let active: undefined | 0 | 1 = undefined;
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import SigninForm from './SigninForm.svelte';
+
+	export let signInError: string | undefined;
 </script>
 
-<!-- svelte-ignore a11y-click-events-have-key-events -->
 <div
 	class:active={active == 0}
 	class:inactive={active !== undefined && active !== 0}
 	class:hover={active == undefined || active == 1}
 	on:click
 	on:pointerenter
+	on:keyup
 	class="relative flex flex-col items-center justify-center gap-3"
 >
-	<SigninForm show={active == 0} />
+	<SigninForm singInErrorMessage={signInError} show={active == 0} />
 
 	<SigninIcon show={active == 1 || active == undefined} />
+
 </div>
 
 <style>

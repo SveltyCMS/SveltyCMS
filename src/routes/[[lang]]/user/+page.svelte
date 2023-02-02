@@ -1,77 +1,69 @@
 <script lang="ts">
-	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 
-	// typesafe-i18n
-	import LL from '$i18n/i18n-svelte';
-
-	// Lucia
 	import { getUser } from '@lucia-auth/sveltekit/client';
+	import { enhance } from '$app/forms';
+
 	const user = getUser();
 
-	//modal to display edit form
 	function triggerAlert(): void {
 		const alert: ModalSettings = {
 			type: 'alert',
 			title: 'Upload Image',
 			body: 'Upload an Image.',
 			image: 'https://i.imgur.com/WOgTG96.gif',
-
-			// Optionally override button text
+			// Optionally override buttont text
 			buttonTextSubmit: 'Submit',
 			buttonTextCancel: 'Cancel'
 		};
 		modalStore.trigger(alert);
 	}
 
-	// make input readonly too modal is in use
-	let readonly = true;
+	// TODO Only ADMIN user need to generate from /user a token
 
+	//import { auth } from '@lucia-auth/';
+
+	// const authenticateUser = async (email: string, password: string) => {
+	// 	try {
+	// 		await auth.authenticateUser('email', email, password);
+	// 	} catch {
+	// 		// error (invalid provider id or password, etc)
+	// 	}
+	// };
+
+	let username = 'Admin';
 	let id = '0';
-	let username = $user?.username;
-	let firstname = $user?.firstname || undefined;
-	let lastmame = $user?.lastname || undefined;
-	let email = $user?.email;
+	let email = 'info@asset-trade.de';
 	let password = '12345';
-
-	//TODO: All user roles are required
-	let newUserRole: 'USER' | 'EDITOR' = 'USER';
 	let newUserEmail: string;
+	let newUserRole: 'USER' | 'EDITOR' =  'USER'
+
+	let readonly = true;
 </script>
 
 <div>
-	<h1 class="mb-2">{$LL.USER_Setting()}</h1>
+	<h1 class="mb-2">User Settings</h1>
 
-	<div class="flex justify-start items-start mb-2">
+	<div class="flex justify-start mb-2">
 		<button on:click={triggerAlert} class="">
 			<Avatar src="https://i.pravatar.cc/" rounded-xl class="w-32 mr-4" />
-			<div class="mb-2 font-bold">{$LL.USER_ID()} : {id}</div>
-			{#if $user?.role}
-				<div class="text-base no-underline">{$user?.role}</div>
-			{/if}
+			<div class="mt-2 text-xs">Upload Image</div>
+			<div class="mb-2 font-bold">User ID: {id}</div>
 		</button>
 		<div>
 			<label
-				>{$LL.USER_Username()}
+				>Name:
 				<input bind:value={username} name="username" type="text" {readonly} />
 			</label>
 			<label
-				>{$LL.USER_FirstName()}
-				<input bind:value={username} name="firstname" type="text" {readonly} />
-			</label>
-			<label
-				>{$LL.USER_LastName()}
-				<input bind:value={username} name="lastname" type="text" {readonly} />
-			</label>
-			<label
-				>{$LL.USER_Email()}
+				>Email:
 				<input bind:value={email} name="email" type="email" {readonly} />
 			</label>
 			<label
-				>{$LL.USER_Password()}
+				>Password:
 				<input bind:value={password} name="password" type="password" {readonly} />
 			</label>
 			{#if readonly}
@@ -81,7 +73,7 @@
 					}}
 					class="mt-1 btn btn-sm variant-filled-surface"
 				>
-					{$LL.USER_Edit()}
+					Edit User settings
 				</button>
 			{:else}
 				<button
@@ -102,14 +94,14 @@
 			<input bind:value={newUserEmail} name="newUserEmail" type="email" required />
 			<div>
 				<label>
-					<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
+					<input type=radio bind:group={newUserRole} name="role" value={'USER'}/> User
 				</label>
 				<label>
-					<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
+					<input type=radio bind:group={newUserRole} name="role" value={'EDITOR'}/> Editor
 				</label>
 			</div>
-			<button class="btn variant-filled-tertiary btn-base" type="submit">{$LL.USER_Token()}</button>
+			<button class="btn variant-filled-tertiary btn-base" type="submit">Generate new Token</button>
 		</form>
-		<button class="btn variant-filled-tertiary btn-base">{$LL.USER_Delete()}</button>
+		<button class="btn variant-filled-tertiary btn-base">Delete User</button>
 	{/if}
 </div>
