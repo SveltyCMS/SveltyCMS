@@ -89,7 +89,7 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-surface-500 text-center"
+			class="bg-white dark:bg-surface-500 text-center h-full"
 		>
 			{#if !switchSideBar}
 				<!-- mobile hamburger -->
@@ -179,8 +179,6 @@
 			</div>
 
 			<!-- CMS Version -->
-			<div class="">Version</div>
-
 			<div class="flex justify-center p-1 pb-2">
 				<a href="https://github.com/Celestialme/SimpleCMS" target="blank">
 					<span class="badge variant-filled-primary rounded-xl text-black"

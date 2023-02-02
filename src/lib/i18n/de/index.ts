@@ -49,6 +49,19 @@ const de: Translation = {
 	LOGIN_ForgottenPassword: 'Kennwort vergessen',
 	LOGIN_SendResetMail: 'Kennwortrücksetzungs-E-Mail senden',
 
+	// USER
+	USER_Setting: 'Benutzereinstellungen',
+	USER_ID: 'Benutzer-ID',
+	USER_Username: 'Benutzername',
+	USER_FirstName: 'Vorname',
+	USER_LastName: 'Nachname',
+	USER_Email: 'E-Mail',
+	USER_Password: 'Passwort',
+	USER_Edit: 'Benutzereinstellungen bearbeiten',
+	USER_Fail: 'E-Mail bereits in Gebrauch',
+	USER_Token: 'Neues Token generieren',
+	USER_Delete: 'Benutzer löschen',
+
 	// Entry List
 	ENTRYLIST_Create: 'Erstellen',
 	ENTRYLIST_Publish: 'Publizieren',

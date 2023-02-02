@@ -160,6 +160,50 @@ type RootTranslation = {
 	 */
 	LOGIN_SendResetMail: string
 	/**
+	 * U​s​e​r​ ​S​e​t​t​i​n​g​s
+	 */
+	USER_Setting: string
+	/**
+	 * U​s​e​r​ ​I​D
+	 */
+	USER_ID: string
+	/**
+	 * U​s​e​r​n​a​m​e
+	 */
+	USER_Username: string
+	/**
+	 * F​i​r​s​t​ ​N​a​m​e
+	 */
+	USER_FirstName: string
+	/**
+	 * L​a​s​t​ ​N​a​m​e
+	 */
+	USER_LastName: string
+	/**
+	 * E​m​a​i​l
+	 */
+	USER_Email: string
+	/**
+	 * P​a​s​s​w​o​r​d
+	 */
+	USER_Password: string
+	/**
+	 * E​d​i​t​ ​U​s​e​r​ ​S​e​t​t​i​n​g​s
+	 */
+	USER_Edit: string
+	/**
+	 * E​m​a​i​l​ ​a​l​r​e​a​d​y​ ​i​n​ ​u​s​e
+	 */
+	USER_Fail: string
+	/**
+	 * G​e​n​e​r​a​t​e​ ​n​e​w​ ​T​o​k​e​n
+	 */
+	USER_Token: string
+	/**
+	 * D​e​l​e​t​e​ ​U​s​e​r
+	 */
+	USER_Delete: string
+	/**
 	 * C​r​e​a​t​e
 	 */
 	ENTRYLIST_Create: string
@@ -594,6 +638,50 @@ export type TranslationFunctions = {
 	 * Send Password Reset Email
 	 */
 	LOGIN_SendResetMail: () => LocalizedString
+	/**
+	 * User Settings
+	 */
+	USER_Setting: () => LocalizedString
+	/**
+	 * User ID
+	 */
+	USER_ID: () => LocalizedString
+	/**
+	 * Username
+	 */
+	USER_Username: () => LocalizedString
+	/**
+	 * First Name
+	 */
+	USER_FirstName: () => LocalizedString
+	/**
+	 * Last Name
+	 */
+	USER_LastName: () => LocalizedString
+	/**
+	 * Email
+	 */
+	USER_Email: () => LocalizedString
+	/**
+	 * Password
+	 */
+	USER_Password: () => LocalizedString
+	/**
+	 * Edit User Settings
+	 */
+	USER_Edit: () => LocalizedString
+	/**
+	 * Email already in use
+	 */
+	USER_Fail: () => LocalizedString
+	/**
+	 * Generate new Token
+	 */
+	USER_Token: () => LocalizedString
+	/**
+	 * Delete User
+	 */
+	USER_Delete: () => LocalizedString
 	/**
 	 * Create
 	 */

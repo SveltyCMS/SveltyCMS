@@ -49,6 +49,19 @@ const en: BaseTranslation = {
 	LOGIN_ForgottenPassword: 'Forgotten Password',
 	LOGIN_SendResetMail: 'Send Password Reset Email',
 
+	// USER
+	USER_Setting: 'User Settings',
+	USER_ID: 'User ID',
+	USER_Username: 'Username',
+	USER_FirstName: 'First Name',
+	USER_LastName: 'Last Name',
+	USER_Email: 'Email',
+	USER_Password: 'Password',
+	USER_Edit: 'Edit User Settings',
+	USER_Fail: 'Email already in use',
+	USER_Token: 'Generate new Token',
+	USER_Delete: 'Delete User',
+
 	// Entry List
 	ENTRYLIST_Create: 'Create',
 	ENTRYLIST_Publish: 'Publish',

@@ -1,3 +1,4 @@
+//The session table stores the user’s sessions
 import mongoose from 'mongoose';
 
 const SessionSchema = new mongoose.Schema(

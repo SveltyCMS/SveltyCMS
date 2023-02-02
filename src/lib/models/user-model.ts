@@ -1,3 +1,4 @@
+// The user table stores the users
 import mongoose from 'mongoose';
 
 const UserSchema = new mongoose.Schema(

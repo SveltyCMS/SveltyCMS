@@ -4,7 +4,7 @@ import { get } from 'svelte/store';
 import type { Schema } from './types';
 
 // typesafe-i18n
-import LL from '@src/i18n/i18n-svelte';
+import LL from '$i18n/i18n-svelte';
 
 let schema: Schema = {
 	// Collection Name & Icon (optional) shown on Sidebar

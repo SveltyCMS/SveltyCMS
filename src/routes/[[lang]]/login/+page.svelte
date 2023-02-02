@@ -25,9 +25,4 @@
 		display: flex;
 		background: linear-gradient(90deg, #242728 50%, white 50%);
 	}
-	:global(html, body, body > div, .body) {
-		width: 100vw;
-		height: 100vh;
-		overflow: hidden;
-	}
 </style>

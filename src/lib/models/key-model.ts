@@ -1,3 +1,4 @@
+// The key table stores the user’s keys.
 import mongoose from 'mongoose';
 
 const KeySchema = new mongoose.Schema(
