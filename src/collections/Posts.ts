@@ -1,5 +1,5 @@
-import env from '@root/env';
-import { format } from '@src/utils/utils';
+import { LANGUAGE } from '$env/static/private';
+import { format } from '$src/lib/utils/utils';
 import widgets from '../components/widgets';
 
 import type { Schema } from './types';
@@ -9,14 +9,14 @@ let schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Posts',
 	icon: 'bi:card-text',
-	status:"published",
+	status: 'published',
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [
 		widgets.Group({
 			db_fieldName: 'User',
 			display: async (data: any, field: any, entry: any) => {
-				console.log(entry)
+				console.log(entry);
 				return format([
 					{
 						label: 'Name',

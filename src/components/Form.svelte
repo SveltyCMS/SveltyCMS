@@ -1,13 +1,14 @@
 <script lang="ts">
-	import { entryData, getFieldsData, language } from '@src/stores/store';
-	import env from '@root/env';
-	import type { Schema } from '@src/collections/types';
+	import { entryData, getFieldsData, language } from '$src/stores/store';
+	import { TRANSLATIONS } from '$env/static/private';
+
+	import type { Schema } from '$src/collections/types';
 	import Fields from './Fields.svelte';
 
-	import ToolTip from '@src/components/ToolTip.svelte';
+	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
 	import { menu } from '@skeletonlabs/skeleton';
@@ -53,14 +54,14 @@
 			</button>
 			<nav class="card list-nav w-40 border p-4 shadow-xl" data-menu="ContentLang">
 				<ul class="divide-y">
-					{#each Object.keys(env.translations).filter((data) => $language != data) as _language}
+					{#each Object.keys(TRANSLATIONS).filter((data) => $language != data) as _language}
 						<li
 							on:click={() => {
 								$language = _language;
 								open = false;
 							}}
 						>
-							{env.translations[_language]}
+							{TRANSLATIONS[_language]}
 						</li>
 					{/each}
 				</ul>

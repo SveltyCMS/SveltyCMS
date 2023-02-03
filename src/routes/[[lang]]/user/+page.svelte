@@ -39,12 +39,12 @@
 	let email = 'info@asset-trade.de';
 	let password = '12345';
 	let newUserEmail: string;
-	let newUserRole: 'USER' | 'EDITOR' =  'USER'
+	let newUserRole: 'USER' | 'EDITOR' = 'USER';
 
 	let readonly = true;
 </script>
 
-<div>
+<div class="">
 	<h1 class="mb-2">User Settings</h1>
 
 	<div class="flex justify-start mb-2">
@@ -94,10 +94,10 @@
 			<input bind:value={newUserEmail} name="newUserEmail" type="email" required />
 			<div>
 				<label>
-					<input type=radio bind:group={newUserRole} name="role" value={'USER'}/> User
+					<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
 				</label>
 				<label>
-					<input type=radio bind:group={newUserRole} name="role" value={'EDITOR'}/> Editor
+					<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
 				</label>
 			</div>
 			<button class="btn variant-filled-tertiary btn-base" type="submit">Generate new Token</button>

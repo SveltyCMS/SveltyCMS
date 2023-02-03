@@ -1,8 +1,8 @@
 <script lang="ts">
-	import env from '@root/env';
+	import { LANGUAGE } from '$env/static/private';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
 	import { menu } from '@skeletonlabs/skeleton';

@@ -1,4 +1,4 @@
-import env from '../../env';
+import { LANGUAGE } from '$env/static/private';
 import widgets from '../components/widgets';
 
 import Posts from './Posts';
@@ -11,7 +11,7 @@ let schema: Schema = {
 	name: 'Menu',
 	icon: 'bi:menu-button-wide',
 	strict: false,
-	status:"published",
+	status: 'published',
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [
@@ -29,8 +29,7 @@ let schema: Schema = {
 							icon: 'ri:t-box-line',
 							relation: Posts,
 							display: (data: any, field: any, entry: any) => {
-								
-								return data.name[env.LANGUAGE];
+								return data.name[LANGUAGE];
 							}
 						})
 					]

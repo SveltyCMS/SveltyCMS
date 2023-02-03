@@ -1,14 +1,14 @@
 <script lang="ts">
-	import Fields from '@src/components/Fields.svelte';
-	import { findById, find } from '@src/utils/utils';
-	import { shape_fields, saveSimpleData } from '@src/utils/utils_svelte';
-	import { getFieldsData, language } from '@src/stores/store';
+	import Fields from '$src/components/Fields.svelte';
+	import { findById, find } from '$src/lib/utils/utils';
+	import { shape_fields, saveSimpleData } from '$src/lib/utils/utils_svelte';
+	import { getFieldsData, language } from '$src/stores/store';
 
-	import DropDown from '@src/components/DropDown.svelte';
-	import ToolTip from '@src/components/ToolTip.svelte';
+	import DropDown from '$src/components/DropDown.svelte';
+	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';

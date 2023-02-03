@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { language } from '@src/stores/store';
-	import env from '@root/env';
+	import { language } from '$src/stores/store';
+	import { LANGUAGE } from '$env/static/private';
 
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
@@ -8,14 +8,14 @@
 	import Icon from '@iconify/svelte';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 
 	export let field: any = undefined;
 	export let value = '';
 
 	export let widgetValue;
 	$: widgetValue = value;
-	$: _language = field.localization ? $language : env.LANGUAGE;
+	$: _language = field.localization ? $language : LANGUAGE;
 
 	let title = '';
 	let titleCharacterWidth = 0;

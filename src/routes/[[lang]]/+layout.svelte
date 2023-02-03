@@ -53,7 +53,7 @@
 	//shape_fields(collection.fields).then((data) => (fields = data));
 
 	// show/hide Left Sidebar
-	let toggleLeftSideBar = false;
+	export let toggleLeftSideBar = false;
 	// show/hide Right Sidebar
 	let toggleRightSideBar = true;
 	// show/hide Top Sidebar
@@ -103,7 +103,7 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-surface-500 text-center px-1 h-full relative 
+			class="bg-white dark:bg-surface-500 text-center px-1 h-full overflow-visible relative 
 			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
@@ -124,9 +124,17 @@
 				</div>
 			{/if}
 
+			<!-- Corporate Identity -->
+			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
+				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
+				{#if switchSideBar}
+					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
+				{/if}
+			</a>
+
 			<!-- sidebar collapse button -->
 			<button
-				class="absolute top-2 -right-2 mr-1 rounded-full border-2 border-surface-300"
+				class="absolute top-2 z-10 -right-2 rounded-full border-2 border-surface-300"
 				on:click={() => (switchSideBar = !switchSideBar)}
 			>
 				{#if !switchSideBar}
@@ -145,13 +153,6 @@
 					/>
 				{/if}
 			</button>
-			<!-- Corporate Identity -->
-			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
-				{#if switchSideBar}
-					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
-				{/if}
-			</a>
 
 			<!-- Search Collections -->
 			<!-- TODO: perhaps overflow is better? -->
@@ -255,7 +256,7 @@
 			{/if}
 
 			<!-- Sidebar Left Footer -->
-			<div class="absolute inset-x-0 bottom-2">
+			<div class="absolute inset-x-0 bottom-1">
 				{#if switchSideBar}
 					<div
 						class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
@@ -263,7 +264,10 @@
 						<div class="md:row-span-2">
 							<!-- Avatar with user settings -->
 							<a href="/user" class="relative flex-col !no-underline ">
-								<Avatar src={'https://i.pravatar.cc/' || '/Default_User.svg'} class="mx-auto" />
+								<Avatar
+									src={'https://i.pravatar.cc/' || '/Default_User.svg'}
+									class="mx-auto w-14"
+								/>
 								<div class="text-center text-[9px] text-black dark:text-white">
 									{#if $user?.username}
 										<div class="text-xs uppercase">{$user?.username}</div>
@@ -298,6 +302,11 @@
 								rel="noreferrer"
 								>EN/DE
 							</a>
+							<ToolTip
+								position="right"
+								text={$LL.SBL_Search()}
+								class="bg-surface-500 text-black dark:text-white"
+							/>
 						</div>
 						<div class="">
 							<!-- Lucia Sign Out -->
@@ -310,9 +319,13 @@
 							>
 								<button
 									type="submit"
-									class="mt-1.5 btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-									>{$LL.SBL_SignOut()}</button
-								>
+									class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+									><Icon icon="uil:signout" width="24" /></button
+								><ToolTip
+									position="right"
+									text={$LL.SBL_Search()}
+									class="bg-surface-500 text-black dark:text-white"
+								/>
 							</form>
 						</div>
 					</div>

@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { entryData, getFieldsData, language } from '@src/stores/store';
-	import env from '@root/env';
-	import type { Schema } from '@src/collections/types';
+	import { entryData, getFieldsData, language } from '$src/stores/store';
+	import { TRANSLATIONS } from '$env/static/private';
+	import type { Schema } from '$src/collections/types';
 	import { onMount } from 'svelte';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -43,7 +43,7 @@
 				{#if field.field.localization}
 					<div class="flex items-center gap-1 px-2">
 						<Icon icon="bi:translate" color="dark" width="18" class="text-sm" />
-						<div class="text-xs font-normal text-error-500">{env.translations[$language]}</div>
+						<div class="text-xs font-normal text-error-500">{TRANSLATIONS[$language]}</div>
 					</div>
 				{/if}
 				{#if field.field.icon}
@@ -60,7 +60,9 @@
 				{collection}
 				bind:widgetValue={fieldsValue[field.field.db_fieldName]}
 				{root}
-				value={value ? value?.[field.field.db_fieldName] : $entryData?.[field.field.db_fieldName] || null}
+				value={value
+					? value?.[field.field.db_fieldName]
+					: $entryData?.[field.field.db_fieldName] || null}
 				field={field.field}
 			/>
 		{/if}

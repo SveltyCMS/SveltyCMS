@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { ImageArray_Field } from './types';
-	import Fields from '@src/components/Fields.svelte';
-	import { saveSimpleData, shape_fields } from '@src/utils/utils_svelte';
-	import { entryData } from '@src/stores/store';
+	import Fields from '$src/components/Fields.svelte';
+	import { saveSimpleData, shape_fields } from '$src/lib/utils/utils_svelte';
+	import { entryData } from '$src/stores/store';
 
 	// Skeleton
 	import { FileDropzone } from '@skeletonlabs/skeleton';

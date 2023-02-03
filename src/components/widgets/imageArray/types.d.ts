@@ -1,5 +1,5 @@
 import type { Display } from '../types';
-import type { Widgets } from '@src/components/widgets';
+import type { Widgets } from '$src/components/widgets';
 export type ImageArray_Field = {
 	widget: () => {};
 	schema: { [Key: string]: any };

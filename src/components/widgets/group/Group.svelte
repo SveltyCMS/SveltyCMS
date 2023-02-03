@@ -1,6 +1,6 @@
 <script lang="ts">
-	import Fields from '@src/components/Fields.svelte';
-	import { shape_fields } from '@src/utils/utils_svelte';
+	import Fields from '$src/components/Fields.svelte';
+	import { shape_fields } from '$src/lib/utils/utils_svelte';
 
 	export let field = { db_fieldName: '', fields: [] };
 	export let collection: any;

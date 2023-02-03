@@ -1,5 +1,5 @@
 import widgets from '../components/widgets';
-import { format } from '@src/utils/utils';
+import { format } from '$src/utils';
 import { get } from 'svelte/store';
 import type { Schema } from './types';
 

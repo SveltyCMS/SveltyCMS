@@ -1,6 +1,6 @@
 <script lang="ts">
-	import env from '@root/env';
-	import { language } from '@src/stores/store';
+	import { LANGUAGE } from '$env/static/private';
+	import { language } from '$src/stores/store';
 
 	export let dropDownData: Array<any> = [];
 	export let showDropDown: boolean;
@@ -22,7 +22,7 @@
 		for (let item of dropDownData) {
 			console.log(item);
 			temp.push({
-				item: (await display(item))[$language] || (await display(item))[env.LANGUAGE],
+				item: (await display(item))[$language] || (await display(item))[LANGUAGE],
 				_id: item._id
 			});
 		}

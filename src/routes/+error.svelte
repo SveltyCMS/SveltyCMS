@@ -44,7 +44,7 @@
 			</h1>
 			<!-- error url  -->
 			<div
-				class="absolute top-[50%] translate-x-[25%] rotate-12 mx-auto text-center rounded bg-error-600/80 px-2 text-sm font-bold text-white"
+				class="absolute top-[50%] translate-x-[25%] rotate-12 mx-auto text-center rounded-md bg-error-600/80 px-2 text-sm font-bold text-white"
 			>
 				<div>{$page.url}</div>
 				<div>{$LL.ERROR_Pagenotfound()}</div>
@@ -59,7 +59,7 @@
 		<a
 			href="/"
 			data-sveltekit-preload-data="tap"
-			class="relative mt-5 block rounded-xl bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
+			class="relative mt-5 block rounded-full bg-gradient-to-br from-error-700 via-error-600 to-error-700 px-8 py-4 font-bold uppercase !text-white shadow-xl"
 			>{$LL.ERROR_GoHome()}</a
 		>
 	</main>
@@ -74,10 +74,7 @@
 			transform: rotate(1turn);
 		}
 	}
-	.controls span {
-		display: block;
-		margin-bottom: 0.5em;
-	}
+
 	.seal {
 		position: relative;
 		width: var(--size);

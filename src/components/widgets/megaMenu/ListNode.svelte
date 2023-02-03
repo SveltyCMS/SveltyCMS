@@ -6,7 +6,7 @@
 	export let level: number = 0;
 	export let editing: boolean = false;
 	export let showLevelContent: boolean = false;
-	import { MenuCurrentChild, language } from '@src/stores/store';
+	import { MenuCurrentChild, language } from '$src/stores/store';
 
 	let expanded = false;
 </script>

@@ -1,5 +1,5 @@
 import widgets from '../components/widgets';
-
+import { LANGUAGE } from '$env/static/private';
 import type { Schema } from './types';
 
 let schema: Schema = {
@@ -7,7 +7,7 @@ let schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Media',
 	icon: 'bi:menu-button-wide',
-	status:"published",
+	status: 'published',
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [widgets.ImageUpload({ db_fieldName: 'Upload Image', path: 'media/images' })]

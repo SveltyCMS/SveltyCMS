@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { date } from 'typesafe-i18n/formatters';
-	import { language } from '@src/stores/store';
+	import { language } from '$src/stores/store';
 
 	export let field: any = undefined;
 	export let value = '';

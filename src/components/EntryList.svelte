@@ -1,15 +1,15 @@
 <script lang="ts">
 	import axios from 'axios';
-	import env from '@root/env';
-	import { entryData, language } from '@src/stores/store';
+	import { HOST, PORT, TRANSLATIONS } from '$env/static/private';
+	import { entryData, language } from '$src/stores/store';
 
 	import { onMount } from 'svelte';
 	import DeleteIcon from './icons/DeleteIcon.svelte';
-	import { never } from '@src/utils/utils_svelte';
-	import ToolTip from '@src/components/ToolTip.svelte';
+	import { never } from '$src/lib/utils/utils_svelte';
+	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
 	import { menu } from '@skeletonlabs/skeleton';
@@ -49,7 +49,7 @@
 			entryList = [];
 			({ entryList, totalCount: paging.totalCount } = await axios
 				.get(
-					`${env.HOST}:${env.PORT}/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`
+					`${HOST}:${PORT}/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`
 				)
 				.then((data) => data.data));
 			totalPages = Math.ceil(paging.totalCount / paging.entryLength);
@@ -74,7 +74,7 @@
 					if (deleteList.length == 0) return;
 					let formData = new FormData();
 					formData.append('ids', JSON.stringify(deleteList));
-					await axios.delete(`${env.HOST}:${env.PORT}/api/${collection.name}`, { data: formData });
+					await axios.delete(`${HOST}:${PORT}/api/${collection.name}`, { data: formData });
 					refresh(collection);
 				}
 			},
@@ -147,7 +147,7 @@
 	}
 
 	export let toggleSideBar = false;
-	import { flattenData } from '@src/utils/utils';
+	import { flattenData } from '$src/lib/utils/utils';
 
 	// Is not really stored on page reload
 	function changeItemsPerPage(newValue: number) {
@@ -287,14 +287,14 @@
 				data-menu="ContentLang"
 			>
 				<ul class="divide-y">
-					{#each Object.keys(env.translations).filter((data) => $language != data) as _language}
+					{#each Object.keys(TRANSLATIONS).filter((data) => $language != data) as _language}
 						<li
 							on:click={() => {
 								$language = _language;
 								open = false;
 							}}
 						>
-							{env.translations[_language]}
+							{TRANSLATIONS[_language]}
 						</li>
 					{/each}
 				</ul>

@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { Schema } from '@src/collections/types';
-	import { shape_fields } from '@src/utils/utils_svelte';
+	import type { Schema } from '$src/collections/types';
+	import { shape_fields } from '$src/lib/utils/utils_svelte';
 
-	import ToolTip from '@src/components/ToolTip.svelte';
+	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';

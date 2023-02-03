@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { Text_Field } from './types';
 
-	import { language } from '@src/stores/store';
-	import env from '@root/env';
+	import { language } from '$src/stores/store';
+	import { LANGUAGE } from '$env/static/private';
 
 	export let field: Text_Field;
 	export let value = {};
@@ -12,7 +12,7 @@
 
 	$: widgetValue = value || {};
 
-	$: _language = field.localization ? $language : env.LANGUAGE;
+	$: _language = field.localization ? $language : LANGUAGE;
 
 	// let charCount: number;
 	// $: charCount = widgetValue[_language].length;

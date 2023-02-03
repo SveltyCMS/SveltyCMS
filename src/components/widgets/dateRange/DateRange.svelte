@@ -5,7 +5,7 @@
 	export let widgetValue;
 	$: widgetValue = value;
 
-	import { languageSystem } from '@src/stores/store';
+	import { languageSystem } from '$src/stores/store';
 	import dayjs from 'dayjs';
 	import 'dayjs/locale/fr';
 
