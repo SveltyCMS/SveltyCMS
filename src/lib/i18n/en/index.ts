@@ -19,6 +19,7 @@ const en: BaseTranslation = {
 	SBL_Ver: 'Ver.',
 	SBL_Save: 'Save',
 	SBL_Save_message: 'Data saved successfully',
+	SBL_SignOut: 'Sign Out',
 
 	// SideBar Right
 

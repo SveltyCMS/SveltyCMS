@@ -19,6 +19,7 @@ const de: Translation = {
 	SBL_Ver: 'Ver.',
 	SBL_Save: 'Speichern',
 	SBL_Save_message: 'Daten erfolgreich gespeichert',
+	SBL_SignOut: 'Abmelden',
 
 	// SideBar Right
 

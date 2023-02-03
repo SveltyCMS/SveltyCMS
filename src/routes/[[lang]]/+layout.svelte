@@ -6,6 +6,9 @@
 	import { Toast, toastStore } from '@skeletonlabs/skeleton';
 	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { tooltip } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+
+	let valueSingle: string = 'books';
 
 	// Lucia
 	import { page } from '$app/stores';
@@ -29,6 +32,9 @@
 	import { is_dark } from '$src/stores/store.ts';
 	import ToolTip from '$src/components/ToolTip.svelte';
 
+	// @ts-expect-error reading from vite.config.jss
+	const pkg = __PACKAGE__;
+
 	import { PUBLIC_SITENAME, PUBLIC_PKG } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
@@ -37,6 +43,14 @@
 		$is_dark = window.document.documentElement.classList.toggle('dark');
 		localStorage.setItem('is_dark', $is_dark ? 'true' : 'false');
 	};
+
+	// search filter
+	let filterCollections = '';
+	// collection parent names should hide on search
+	function updateFilter(e: KeyboardEvent) {
+		filterCollections = (e.target as HTMLInputElement).value.toLowerCase();
+	}
+	//shape_fields(collection.fields).then((data) => (fields = data));
 
 	// show/hide Left Sidebar
 	let toggleLeftSideBar = false;
@@ -89,7 +103,8 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-surface-500 text-center h-full"
+			class="bg-white dark:bg-surface-500 text-center px-1 h-full relative 
+			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
 				<!-- mobile hamburger -->
@@ -109,21 +124,72 @@
 				</div>
 			{/if}
 
+			<!-- sidebar collapse button -->
+			<button
+				class="absolute top-2 -right-2 mr-1 rounded-full border-2 border-surface-300"
+				on:click={() => (switchSideBar = !switchSideBar)}
+			>
+				{#if !switchSideBar}
+					<!-- Icon Collpased -->
+					<Icon
+						icon="bi:arrow-left-circle-fill"
+						width="30"
+						class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600  "
+					/>
+				{:else}
+					<!-- Icon expanded -->
+					<Icon
+						icon="bi:arrow-left-circle-fill"
+						width="30"
+						class="rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
+					/>
+				{/if}
+			</button>
 			<!-- Corporate Identity -->
 			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] " />
+				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
 				{#if switchSideBar}
-					<span class="ml-2 mt-1 text-2xl font-bold text-black dark:text-white"
-						>{PUBLIC_SITENAME}</span
-					>
+					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
 				{/if}
 			</a>
 
 			<!-- Search Collections -->
-			<div>Search</div>
+			<!-- TODO: perhaps overflow is better? -->
+			<div class="mx-auto my-2 max-w-full">
+				<div class="relative mx-auto ">
+					{#if !switchSideBar}
+						<input
+							on:keyup={updateFilter}
+							on:focus={() => (switchSideBar = !switchSideBar)}
+							placeholder={$LL.SBL_Search()}
+							class="relative z-10 h-10 w-10 cursor-pointer !rounded-full border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:w-full focus:cursor-text focus:rounded-sm dark:bg-surface-600/50 dark:text-white md:mt-0 md:h-12"
+						/>
+					{:else}
+						<input
+							on:keyup={updateFilter}
+							placeholder={$LL.SBL_Search()}
+							class="relative z-10 h-10 w-full cursor-pointer rounded-md border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:cursor-text dark:bg-surface-600/50 dark:text-white"
+						/>
+					{/if}
+
+					<svg
+						xmlns="http://www.w3.org/2000/svg"
+						class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
+						fill="none"
+						viewBox="0 0 24 24"
+						stroke="currentColor"
+						stroke-width="2"
+					>
+						<path
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+						/>
+					</svg>
+				</div>
+			</div>
 
 			<!-- Display Collections -->
-			<div>Collections</div>
 			<!-- <Collections
 			data={categories}
 			{filterCollections}
@@ -134,57 +200,135 @@
 			bind:showFields
 		/> -->
 
-			<!-- Avatar with user settings -->
-			<a href="/user" class="relative flex-col">
-				<Avatar src={'https://i.pravatar.cc/' || '/Default_User.svg'} class="mx-auto" />
-				<div class="text-center text-[9px] text-surface-400 dark:text-white">
-					{#if $user?.username}
-						<div class="text-base no-underline">{$user?.username}</div>
-					{/if}
-				</div>
-			</a>
-
-			<!-- Lucia Sing Out -->
-			<form
-				action="?/signOut"
-				method="post"
-				use:enhance={async () => {
-					invalidateAll();
-				}}
-			>
-				<button type="submit">Sign out</button>
-			</form>
-
-			<!-- System Language i18n Handeling -->
-			<a class="btn btn-sm btn-ghost-surface" href="/" target="_blank" rel="noreferrer"
-				>Language
-			</a>
-			<!-- light/dark mode switch -->
-			<div class="-ml-2">
-				<button
-					on:click={toggleTheme}
-					class="btn btn-sm relative p-2.5 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-surface-400 dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-				>
-					{#if $is_dark}
-						<Icon icon="bi:sun" width="16" />
-					{:else}
-						<Icon icon="bi:moon-fill" width="16" />
-					{/if}
-					<ToolTip
-						position="right"
-						text={`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
-						class="bg-surface-500 text-black dark:text-white"
-					/>
-				</button>
-			</div>
-
-			<!-- CMS Version -->
-			<div class="flex justify-center p-1 pb-2">
-				<a href="https://github.com/Celestialme/SimpleCMS" target="blank">
-					<span class="badge variant-filled-primary rounded-xl text-black"
-						>{$LL.SBL_Version()}: {PUBLIC_PKG}</span
+			<!--SideBar Middle -->
+			<!-- Display Collections -->
+			{#if switchSideBar}
+				<ListBox padding="px-4 py-1">
+					<ListBoxItem bind:group={valueSingle} name="Collections" value="Collections">
+						<svelte:fragment slot="lead">(icon)</svelte:fragment>
+						Collection
+					</ListBoxItem>
+					<!-- TODO: Dropdown Collections -->
+					<ListBox padding="px-4 py-1">
+						<ListBoxItem bind:group={valueSingle} name="test1" value="test1">
+							<svelte:fragment slot="lead">(icon)</svelte:fragment>
+							Child1
+						</ListBoxItem>
+						<ListBoxItem bind:group={valueSingle} name="test2" value="test2">
+							<svelte:fragment slot="lead">(icon)</svelte:fragment>
+							Child2
+						</ListBoxItem>
+					</ListBox>
+				</ListBox>
+			{:else}
+				<ListBox padding="px-4 py-1">
+					<ListBoxItem
+						bind:group={valueSingle}
+						name="Collections"
+						value="Collections"
+						class="flex justify-center items-center"
 					>
-				</a>
+						<div>Collection</div>
+						<div>(icon)</div>
+					</ListBoxItem>
+					<ListBox padding="px-4 py-1">
+						<ListBoxItem
+							bind:group={valueSingle}
+							name="test1"
+							value="test1"
+							class="flex justify-center items-center"
+						>
+							<div>Test1</div>
+							<div>(icon)</div>
+						</ListBoxItem>
+						<ListBoxItem
+							bind:group={valueSingle}
+							name="test2"
+							value="test2"
+							class="flex justify-center items-center"
+						>
+							<div>Test2</div>
+							<div>(icon)</div>
+						</ListBoxItem>
+					</ListBox>
+				</ListBox>
+			{/if}
+
+			<!-- Sidebar Left Footer -->
+			<div class="absolute inset-x-0 bottom-2">
+				{#if switchSideBar}
+					<div
+						class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
+					>
+						<div class="md:row-span-2">
+							<!-- Avatar with user settings -->
+							<a href="/user" class="relative flex-col !no-underline ">
+								<Avatar src={'https://i.pravatar.cc/' || '/Default_User.svg'} class="mx-auto" />
+								<div class="text-center text-[9px] text-black dark:text-white">
+									{#if $user?.username}
+										<div class="text-xs uppercase">{$user?.username}</div>
+									{/if}
+								</div>
+							</a>
+						</div>
+						<div class="">
+							<!-- light/dark mode switch -->
+							<button
+								on:click={toggleTheme}
+								class="btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+							>
+								{#if $is_dark}
+									<Icon icon="bi:sun" width="16" />
+								{:else}
+									<Icon icon="bi:moon-fill" width="16" />
+								{/if}
+								<ToolTip
+									position="right"
+									text={`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
+									class="bg-surface-500 text-black dark:text-white"
+								/>
+							</button>
+						</div>
+						<div class="md:row-span-2">
+							<!-- System Language i18n Handeling -->
+							<a
+								class="btn btn-sm btn-ghost-surface hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+								href="/"
+								target="_blank"
+								rel="noreferrer"
+								>EN/DE
+							</a>
+						</div>
+						<div class="">
+							<!-- Lucia Sign Out -->
+							<form
+								action="?/signOut"
+								method="post"
+								use:enhance={async () => {
+									invalidateAll();
+								}}
+							>
+								<button
+									type="submit"
+									class="mt-1.5 btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+									>{$LL.SBL_SignOut()}</button
+								>
+							</form>
+						</div>
+					</div>
+
+					<!-- CMS Version -->
+					<div class="flex justify-center p-1 pb-2">
+						<a href="https://github.com/Celestialme/SimpleCMS" target="blank">
+							<span class="badge variant-filled-primary rounded-xl text-black"
+								>{$LL.SBL_Version()}: {pkg.version}</span
+							>
+						</a>
+					</div>
+
+					<div class="mt-auto border-t border-surface-500 pt-2 ">
+						<div class="my-1 flex items-center justify-between" />
+					</div>{/if}
 			</div>
 		</div>
 	</svelte:fragment>

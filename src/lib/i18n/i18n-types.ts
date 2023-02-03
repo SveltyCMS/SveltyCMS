@@ -76,6 +76,10 @@ type RootTranslation = {
 	 */
 	SBL_Save_message: string
 	/**
+	 * S​i​g​n​ ​O​u​t
+	 */
+	SBL_SignOut: string
+	/**
 	 * P​a​g​e​ ​N​o​t​ ​F​o​u​n​d
 	 */
 	ERROR_Pagenotfound: string
@@ -554,6 +558,10 @@ export type TranslationFunctions = {
 	 * Data saved successfully
 	 */
 	SBL_Save_message: () => LocalizedString
+	/**
+	 * Sign Out
+	 */
+	SBL_SignOut: () => LocalizedString
 	/**
 	 * Page Not Found
 	 */
