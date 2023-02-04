@@ -1,6 +1,7 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import CMSLogo from './icons/Logo.svelte';
+	import axios from 'axios';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -36,6 +37,7 @@
 			errorStatus.username.msg = $LL.LOGIN_usernamemsg_empty();
 		}
 
+		// Email check
 		if (!emailRegex.test(email)) {
 			errorStatus.email.status = true;
 			errorStatus.email.msg = $LL.LOGIN_emailmsg_valid();
@@ -50,6 +52,8 @@
 		if (!email) {
 			errorStatus.email.msg = $LL.LOGIN_emailmsg_empty();
 		}
+
+		// Password check
 		if (!password) {
 			errorStatus.password.msg = $LL.LOGIN_passwordmsg_empty();
 			errorStatus.password.status = true;
@@ -59,6 +63,13 @@
 		if (password !== confirmPassword) {
 			errorStatus.confirm.msg = $LL.LOGIN_passwordmsg_confirm();
 			errorStatus.confirm.status = true;
+			error = true;
+		}
+
+		// token check
+		if (token === '' || token === null || typeof token === 'undefined') {
+			errorStatus.token.msg = $LL.LOGIN_Token();
+			errorStatus.token.status = true;
 			error = true;
 		}
 

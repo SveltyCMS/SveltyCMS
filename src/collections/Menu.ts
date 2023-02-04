@@ -1,4 +1,4 @@
-import { LANGUAGE } from '$env/static/private';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 import widgets from '../components/widgets';
 
 import Posts from './Posts';
@@ -29,7 +29,7 @@ let schema: Schema = {
 							icon: 'ri:t-box-line',
 							relation: Posts,
 							display: (data: any, field: any, entry: any) => {
-								return data.name[LANGUAGE];
+								return data.name[PUBLIC_LANGUAGE];
 							}
 						})
 					]

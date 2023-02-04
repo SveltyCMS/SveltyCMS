@@ -2,7 +2,7 @@
 	import type { Text_Field } from './types';
 
 	import { language } from '$src/stores/store';
-	import { LANGUAGE } from '$env/static/private';
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
 
 	export let field: Text_Field;
 	export let value = {};
@@ -12,7 +12,7 @@
 
 	$: widgetValue = value || {};
 
-	$: _language = field.localization ? $language : LANGUAGE;
+	$: _language = field.localization ? $language : PUBLIC_LANGUAGE;
 
 	// let charCount: number;
 	// $: charCount = widgetValue[_language].length;

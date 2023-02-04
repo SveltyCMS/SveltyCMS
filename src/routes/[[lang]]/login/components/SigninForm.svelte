@@ -1,10 +1,10 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
-
 	import CMSLogo from './icons/Logo.svelte';
+	import axios from 'axios';
 
 	// typesafe-i18n
-	import LL from '../../../../lib/i18n/i18n-svelte';
+	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
 	import { PUBLIC_SITENAME } from '$env/static/public';

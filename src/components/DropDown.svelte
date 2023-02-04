@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LANGUAGE } from '$env/static/private';
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
 	import { language } from '$src/stores/store';
 
 	export let dropDownData: Array<any> = [];
@@ -22,7 +22,7 @@
 		for (let item of dropDownData) {
 			console.log(item);
 			temp.push({
-				item: (await display(item))[$language] || (await display(item))[LANGUAGE],
+				item: (await display(item))[$language] || (await display(item))[PUBLIC_LANGUAGE],
 				_id: item._id
 			});
 		}

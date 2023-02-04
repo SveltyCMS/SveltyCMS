@@ -1,4 +1,4 @@
-import { LANGUAGE } from '$env/static/private';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 import widgets from '../components/widgets';
 import Posts from './Posts';
 import type { Schema } from './types';
@@ -25,7 +25,7 @@ let schema: Schema = {
 					icon: 'mdi:relation-many-to-one',
 					relation: Posts,
 					display: async (data: any, field: any, entry: any) => {
-						return data.name[LANGUAGE];
+						return data.name[PUBLIC_LANGUAGE];
 					}
 				})
 			]

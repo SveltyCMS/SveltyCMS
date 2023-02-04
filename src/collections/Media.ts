@@ -1,5 +1,5 @@
 import widgets from '../components/widgets';
-import { LANGUAGE } from '$env/static/private';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 import type { Schema } from './types';
 
 let schema: Schema = {

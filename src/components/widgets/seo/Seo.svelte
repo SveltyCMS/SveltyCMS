@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { language } from '$src/stores/store';
-	import { LANGUAGE } from '$env/static/private';
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
 
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
@@ -15,7 +15,7 @@
 
 	export let widgetValue;
 	$: widgetValue = value;
-	$: _language = field.localization ? $language : LANGUAGE;
+	$: _language = field.localization ? $language : PUBLIC_LANGUAGE;
 
 	let title = '';
 	let titleCharacterWidth = 0;

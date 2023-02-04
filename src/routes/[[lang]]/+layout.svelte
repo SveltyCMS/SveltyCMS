@@ -35,7 +35,7 @@
 	// @ts-expect-error reading from vite.config.jss
 	const pkg = __PACKAGE__;
 
-	import { PUBLIC_SITENAME, PUBLIC_PKG } from '$env/static/public';
+	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
 	// darkmode

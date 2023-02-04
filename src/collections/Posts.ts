@@ -1,4 +1,4 @@
-import { LANGUAGE } from '$env/static/private';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 import { format } from '$src/lib/utils/utils';
 import widgets from '../components/widgets';
 

@@ -2,7 +2,8 @@ import axios from 'axios';
 import fs from 'fs';
 import schemas from '../../collections';
 import type { Schema } from '../../collections/types';
-import env from '$env/static/private';
+
+import env from '$env/static/public';
 
 export let DB = {};
 
@@ -22,7 +23,7 @@ export let fieldsToSchema = (fields: Array<any>) => {
 export function saveFiles(req: any) {
 	let files: any = {};
 	let schema = schemas.find((schema) => schema.name === req.params.endpoint);
-	let _files = (req.files as Array<Express.Multer.File>) || [];
+	let _files = req.files || [];
 	console.log(_files);
 	for (let file of _files) {
 		let { buffer, fieldname, ...meta } = file;
@@ -125,8 +126,10 @@ export function flattenData(data: any, language: string) {
 	if (!data) return [];
 	return Object.keys(data).reduce((acc: any, x) => {
 		acc[x] =
-			data[x] && data[x].constructor == Object && (data[x][language] || data[x][env.LANGUAGE])
-				? data[x][language] || data[x][env.LANGUAGE]
+			data[x] &&
+			data[x].constructor == Object &&
+			(data[x][language] || data[x][env.PUBLIC_LANGUAGE])
+				? data[x][language] || data[x][env.PUBLIC_LANGUAGE]
 				: data[x];
 
 		return acc;

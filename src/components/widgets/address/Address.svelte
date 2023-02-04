@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { LANGUAGE } from '$env/static/private';
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';

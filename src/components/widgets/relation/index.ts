@@ -1,4 +1,4 @@
-import { LANGUAGE } from '$env/static/private';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 import { findById, flattenData } from '$src/lib/utils/utils';
 
 import type { Display } from '../types';
