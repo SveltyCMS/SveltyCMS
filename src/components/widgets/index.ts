@@ -88,7 +88,7 @@ let widgets: Widgets = {
 	//Range,
 	// Relation - assign relationships to other collections
 	Relation,
-	// RemoteVideo - for youtube/vimeo/Twich/tiktok, grabbing Thumbnail and video Title
+	// RemoteVideo - for youtube/vimeo(/Twich/tiktok), grabbing Title/Duration,Dimention,User
 	RemoteVideo,
 	// Rich Text - fully extensible Lexical Rich Text editor
 	RichText,

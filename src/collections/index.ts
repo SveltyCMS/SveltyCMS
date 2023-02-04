@@ -16,7 +16,7 @@ let categories = [
 	{
 		category: 'Media',
 		icon: 'bi:images',
-		collections: [Images, Media, ImageArray]
+		collections: [Images, Media, ImageArray, ImageEditor]
 	}
 ];
 export { categories };

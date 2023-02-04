@@ -26,3 +26,23 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 
 	return await resolve(event);
 };
+
+// let collections: { [Key: string]: mongoose.Model<any> } = {};
+
+// // iterates over an array of schemas and creates a new Mongoose schema and model for each on
+// // if collections is not empty
+
+// for (let schema of schemas) {
+// 	const schema_object = new mongoose.Schema(
+// 		{ ...fieldsToSchema(schema.fields), createdAt: Number, updatedAt: Number },
+// 		{
+// 			typeKey: '$type',
+// 			strict: schema.strict || false,
+// 			timestamps: { currentTime: () => Date.now() }
+// 		}
+// 	);
+// 	collections[schema.name] = mongoose.models[schema.name]
+// 		? mongoose.model(schema.name)
+// 		: mongoose.model(schema.name, schema_object);
+// }
+// export { collections };
