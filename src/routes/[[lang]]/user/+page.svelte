@@ -1,26 +1,11 @@
 <script lang="ts">
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { Modal, modalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	import { enhance } from '$app/forms';
 
 	const user = getUser();
-
-	function triggerAlert(): void {
-		const alert: ModalSettings = {
-			type: 'alert',
-			title: 'Upload Image',
-			body: 'Upload an Image.',
-			image: 'https://i.imgur.com/WOgTG96.gif',
-			// Optionally override buttont text
-			buttonTextSubmit: 'Submit',
-			buttonTextCancel: 'Cancel'
-		};
-		modalStore.trigger(alert);
-	}
 
 	// TODO Only ADMIN user need to generate from /user a token
 
@@ -48,11 +33,12 @@
 	<h1 class="mb-2">User Settings</h1>
 
 	<div class="flex justify-start mb-2">
-		<button on:click={triggerAlert} class="">
+		<div class="mt-2 flex flex-col gap-1 mx-2 ">
 			<Avatar src="https://i.pravatar.cc/" rounded-xl class="w-32 mr-4" />
-			<div class="mt-2 text-xs">Upload Image</div>
-			<div class="mb-2 font-bold">User ID: {id}</div>
-		</button>
+
+			<div class="badge variant-filled-secondary mt-2 ">User ID:<span class="ml-2">{id}</span></div>
+			<div class="badge variant-filled-tertiary">Role:<span class="ml-2">{username}</span></div>
+		</div>
 		<div>
 			<label
 				>Name:
@@ -87,8 +73,14 @@
 			{/if}
 		</div>
 	</div>
+
+	<hr />
+	<br />
 	{#if $user?.role === 'ADMIN'}
-		<button class="btn variant-filled-secondary btn-base">Show UserList</button>
+		<a href="/user/userList">
+			<button class="btn variant-filled-secondary btn-sm">Show User List</button>
+		</a>
+
 		<div class="mt-3">Generate new User Registions token</div>
 		<form method="post" action="?/generateToken" use:enhance>
 			<input bind:value={newUserEmail} name="newUserEmail" type="email" required />

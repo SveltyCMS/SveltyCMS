@@ -19,14 +19,60 @@
 	let password = '';
 	let confirmPassword = '';
 	let token = ''; // token need to be compared to admin provided token
+	let terms = '';
 
 	let errorStatus = {
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
-		confirm: { status: false, msg: '' },
 		password: { status: false, msg: '' },
-		token: { status: false, msg: '' }
+		confirm: { status: false, msg: '' },
+		token: { status: false, msg: '' },
+		terms: { status: false, msg: '' },
 	};
+
+	// zod
+	import z from 'zod';
+	const signupSchema = z
+		.object({
+			username: z
+				.string({ required_error: 'Username is required' })
+				.regex(/^[a-zA-z\s]*$/, { message: 'Name can only contain letters and spaces.' })
+				.min(2, { message: 'Name must be at least 2 charactes' })
+				.max(24, { message: 'Name can only be 24 charactes' })
+				.trim(),
+			email: z
+				.string({ required_error: 'Email is required' })
+				.email({ message: 'Email must be a valid email' }),
+			password: z
+				.string({ required_error: 'Password is required' })
+				.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+					message:
+						'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+				}),
+			confirmPassword: z
+				.string({ required_error: 'Confirm Password is required' })
+				.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+					message:
+						'Confirm Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+				}),
+			token: z.number({ required_error: 'Auth Token is required' }).min(1),
+			terms: z.boolean({ required_error: 'Confirm Terms' })
+		})
+		.superRefine(({ confirmPassword, password }, ctx) => {
+			if (confirmPassword !== password) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'Password & Confirm password must match',
+					path: ['password']
+				});
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: 'Password & Confirm password must match',
+					path: ['confirmPassword']
+				});
+			}
+		});
+	}
 
 	function hasSignUpError() {
 		email = email.trim();

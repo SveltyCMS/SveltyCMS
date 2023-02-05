@@ -319,6 +319,7 @@
 							>
 								<button
 									type="submit"
+									value="Sign out"
 									class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 									><Icon icon="uil:signout" width="24" /></button
 								><ToolTip
@@ -332,7 +333,8 @@
 
 					<!-- CMS Version -->
 					<div class="flex justify-center p-1 pb-2">
-						<a href="https://github.com/Celestialme/SimpleCMS" target="blank">
+						<!-- <a href="https://github.com/Celestialme/SimpleCMS" target="blank"> -->
+						<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
 							<span class="badge variant-filled-primary rounded-xl text-black"
 								>{$LL.SBL_Version()}: {pkg.version}</span
 							>

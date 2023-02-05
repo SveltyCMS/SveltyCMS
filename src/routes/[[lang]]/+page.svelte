@@ -1,6 +1,17 @@
 <script lang="ts">
 	import { getUser } from '@lucia-auth/sveltekit/client';
+
 	import LL from '$i18n/i18n-svelte';
+
+	// import { sendMail } from '$src/lib/utils/send-email';
+
+	// let email = '';
+	// let resetToken = '';
+
+	// const handleSubmit = async (event) => {
+	// 	event.preventDefault();
+	// 	await sendMail(email, resetToken);
+	// };
 
 	const user = getUser();
 
@@ -11,7 +22,7 @@
 <div class="">
 	<!-- mobile hamburger -->
 	<button
-		class="btn btn-sm  -ml-2 text-white "
+		class="btn btn-sm -ml-2 text-white "
 		on:click={() => (toggleLeftSideBar = !toggleLeftSideBar)}
 	>
 		<span>
@@ -33,3 +44,15 @@
 <pre class="code">
 {JSON.stringify($user, null, 2)}
 </pre>
+
+<!-- <form on:submit={handleSubmit}>
+	<div>
+		<label for="email">Receiving Email:</label>
+		<input type="email" id="email" bind:value={email} />
+	</div>
+	<div>
+		<label for="resetToken">Reset Token:</label>
+		<input type="text" id="resetToken" bind:value={resetToken} />
+	</div>
+	<button type="submit" class="btn btn-base">Send</button>
+</form> -->
