@@ -37,35 +37,35 @@
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
-	// import collections, { categories } from '$src/collections';
-	// import Collections from '$src/components/Collections.svelte';
-	// import EntryList from '$src/components/EntryList.svelte';
-	// import Form from '$src/components/Form.svelte';
-	// import { saveFormData } from '$src/lib/utils/utils_svelte';
+	import collections, { categories } from '$src/collections';
+	import Collections from '$src/components/Collections.svelte';
+	import EntryList from '$src/components/EntryList.svelte';
+	import Form from '$src/components/Form.svelte';
+	import { saveFormData } from '$src/lib/utils/utils_svelte';
 
 	// ======================save data =======================
 
-	// async function submit() {
-	// 	await saveFormData(collection);
-	// 	refresh(collection);
-	// 	showFields = false;
-	// 	$entryData = undefined;
+	async function submit() {
+		await saveFormData(collection);
+		refresh(collection);
+		showFields = false;
+		$entryData = undefined;
 
-	// 	const t: ToastSettings = {
-	// 		message: $LL.SBL_Save_message(),
-	// 		// Optional: Presets for primary | secondary | tertiary | warning
-	// 		preset: 'success',
-	// 		// Optional: The auto-hide settings
-	// 		autohide: true,
-	// 		timeout: 3000
-	// 	};
-	// 	toastStore.trigger(t);
-	// }
+		const t: ToastSettings = {
+			message: $LL.SBL_Save_message(),
+			// Optional: Presets for primary | secondary | tertiary | warning
+			preset: 'success',
+			// Optional: The auto-hide settings
+			autohide: true,
+			timeout: 3000
+		};
+		toastStore.trigger(t);
+	}
 
-	// $: {
-	// 	$entryData = undefined;
-	// 	collection;
-	// }
+	$: {
+		$entryData = undefined;
+		collection;
+	}
 
 	// ======================save data =======================
 
@@ -94,15 +94,15 @@
 	// change sidebar width so only icons show
 	let switchSideBar = true;
 	let avatarSrc = $user?.avatar;
-	// let toggleSideBar = true;
-	// let deleteMode: boolean;
+	let toggleSideBar = true;
+	let deleteMode: boolean;
 
-	// let valid = false;
-	// let collection = collections[0];
-	// let fields: any;
-	// let refresh: (collection: any) => Promise<any>;
-	// let showFields = false;
-	// let category = categories[0].category;
+	let valid = false;
+	let collection = collections[0];
+	let fields: any;
+	let refresh: (collection: any) => Promise<any>;
+	let showFields = false;
+	let category = categories[0].category;
 </script>
 
 <!-- App Shell -->
@@ -144,7 +144,7 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-surface-500 border-r text-center px-1 h-full overflow-visible relative 
+			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full overflow-visible relative 
 			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
@@ -233,7 +233,7 @@
 
 			<!--SideBar Middle -->
 			<!-- Display Collections -->
-			<!-- <Collections
+			<Collections
 				data={categories}
 				{filterCollections}
 				{switchSideBar}
@@ -241,12 +241,12 @@
 				bind:collection
 				bind:category
 				bind:showFields
-			/> -->
+			/>
 
 			<!--SideBar Middle -->
 			<!-- Display Collections -->
 			{#if switchSideBar}
-				<ListBox padding="px-4 py-1">
+				<!-- <ListBox padding="px-4 py-1">
 					<ListBoxItem bind:group={valueSingle} name="Collections" value="Collections">
 						<svelte:fragment slot="lead">(icon)</svelte:fragment>
 						Collection
@@ -261,7 +261,7 @@
 							Child2
 						</ListBoxItem>
 					</ListBox>
-				</ListBox>
+				</ListBox> -->
 			{:else}
 				<ListBox padding="px-4 py-1">
 					<ListBoxItem

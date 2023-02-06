@@ -1,5 +1,5 @@
 {
    "adapter": "svelte",
-   "$schema": "https://unpkg.com/typesafe-i18n@5.21.0/schema/typesafe-i18n.json",
+   "$schema": "https://unpkg.com/typesafe-i18n@5.24.0/schema/typesafe-i18n.json",
    "outputPath": "./src/lib/i18n/"
 }

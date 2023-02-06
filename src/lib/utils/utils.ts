@@ -3,7 +3,7 @@ import fs from 'fs';
 import schemas from '../../collections';
 import type { Schema } from '../../collections/types';
 
-import env from '$env/static/public';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 
 export let DB = {};
 
@@ -77,19 +77,13 @@ export function parse(obj: any) {
 // find a specific document in a specified collection by ID
 export async function findById(id: string, collection: Schema) {
 	if (!id || !collection) return;
-	return (
-		await axios.get(`${env.HOST}:${env.PORT}/api/findById?collection=${collection.name}&id=${id}`)
-	).data;
+	return (await axios.get(`/api/findById?collection=${collection.name}&id=${id}`)).data;
 }
 
 // find a specific document in a specified collection
 export async function find(query: object, collection: Schema) {
 	let _query = JSON.stringify(query);
-	return (
-		await axios.get(
-			`${env.HOST}:${env.PORT}/api/find?collection=${collection.name}&query=${_query}`
-		)
-	).data;
+	return (await axios.get(`/api/find?collection=${collection.name}&query=${_query}`)).data;
 }
 
 // exports an object with a "Content-Type" of "multipart/form-data"
@@ -126,10 +120,8 @@ export function flattenData(data: any, language: string) {
 	if (!data) return [];
 	return Object.keys(data).reduce((acc: any, x) => {
 		acc[x] =
-			data[x] &&
-			data[x].constructor == Object &&
-			(data[x][language] || data[x][env.PUBLIC_LANGUAGE])
-				? data[x][language] || data[x][env.PUBLIC_LANGUAGE]
+			data[x] && data[x].constructor == Object && (data[x][language] || data[x][PUBLIC_LANGUAGE])
+				? data[x][language] || data[x][PUBLIC_LANGUAGE]
 				: data[x];
 
 		return acc;

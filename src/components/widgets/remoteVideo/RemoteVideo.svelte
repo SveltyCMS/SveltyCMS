@@ -1,13 +1,6 @@
 <script lang="ts">
-	import env from '@root/env';
-
 	export let field: any = undefined;
 	export let value = '';
-
-	let url: string = '';
-	let thumbnail: string = '';
-	let title: string = '';
-	let videoId: string = 'rsmLu5nmh4g';
 
 	export let widgetValue;
 	$: widgetValue = value;
@@ -25,27 +18,8 @@
 		const data = await (await response).json();
 		myData = data;
 	};
-
-	// Grab Youtube Video information
-	function handlePaste() {
-		console.log('value: ' + value);
-
-		const urlValue = value;
-		const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|&v=)([^#&?]*).*/;
-		const match = urlValue.match(regExp);
-		const videoId = match && match[2].length === 11 ? match[2] : null;
-	}
 </script>
 
-<!-- <input
-	id="video"
-	type="text"
-	placeholder="Paste a Video URL here"
-	on:blur={handlePaste}
-	class="input w-full rounded-md"
-/> -->
-
-<!-- ----------------------------------------- -->
 <input
 	required
 	placeholder="Paste a Video URL here"

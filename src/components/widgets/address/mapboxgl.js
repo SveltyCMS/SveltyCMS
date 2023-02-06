@@ -1,8 +1,8 @@
 import mapboxgl from 'mapbox-gl';
-import env from '@root/env';
+import {MAPBOX_API_TOKEN} from '$env/static/private';
 
 // https://docs.mapbox.com/help/glossary/access-token/
-mapboxgl.accessToken = env.MAPBOX_API_TOKEN
+mapboxgl.accessToken = MAPBOX_API_TOKEN
 
 const key = Symbol();
 

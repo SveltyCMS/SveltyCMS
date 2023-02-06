@@ -1,16 +1,16 @@
 // import { env } from '$env/dynamic/private';
-import env from '@root/env';
+import { GOOGLE_API_KEY, TWITCH_TOKEN } from '$env/static/private';
 
 import cheerio from 'cheerio';
 
 export async function youtube(id: string) {
 	const response = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${env.GOOGLE_API_KEY}`
+		`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${GOOGLE_API_KEY}`
 	);
 	const data = await response.json();
 
 	const responseDuration = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${env.GOOGLE_API_KEY}`
+		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${GOOGLE_API_KEY}`
 	);
 	const dataDuration = await responseDuration.json();
 
@@ -123,7 +123,7 @@ export async function twitch(id: string) {
 	const response = await fetch(`https://api.twitch.tv/helix/videos?id=${id}`, {
 		headers: {
 			'Client-ID': 'vdsqv7peymxi12vb3pgut0lk4ca9oc',
-			Authorization: `Bearer ${env.TWITCH_TOKEN}`
+			Authorization: `Bearer ${TWITCH_TOKEN}`
 		}
 	});
 	const data = await response.json();
