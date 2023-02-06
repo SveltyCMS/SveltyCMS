@@ -1,7 +1,7 @@
 import Posts from './Posts';
 import widgets from '../components/widgets';
 import type { Schema } from './types';
-import { PUBLIC_LANGUAGE } from '$env/static/public';';
+import { PUBLIC_LANGUAGE } from '$env/static/public';
 
 let schema: Schema = {
 	// Collection Name & Icon (optional) shown on Sidebar

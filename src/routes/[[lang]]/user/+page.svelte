@@ -1,76 +1,114 @@
 <script lang="ts">
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
+	import { Modal, modalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import ModalEditForm from './ModalEditForm.svelte';
+	import ModalEditAvatar from './ModalEditAvatar.svelte';
 
-	import { getUser } from '@lucia-auth/sveltekit/client';
+	// Lucia
+	import { page } from '$app/stores';
+	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
 	import { enhance } from '$app/forms';
 
+	handleSession(page);
 	const user = getUser();
 
-	// TODO Only ADMIN user need to generate from /user a token
+	function modalUserForm(): void {
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ModalEditForm,
+			// Add your props as key/value pairs
+			props: { background: 'bg-red-500' },
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Edit User Data',
+			body: 'Modify your data and then press Save.',
+			component: modalComponent,
+			// Pass abitrary data to the component
+			response: (r: any) => {
+				if (r) console.log('response:', r);
+			},
 
-	//import { auth } from '@lucia-auth/';
+			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditForm }
+		};
+		modalStore.trigger(d);
+	}
 
-	// const authenticateUser = async (email: string, password: string) => {
-	// 	try {
-	// 		await auth.authenticateUser('email', email, password);
-	// 	} catch {
-	// 		// error (invalid provider id or password, etc)
-	// 	}
-	// };
+	function modalEditAvatar(): void {
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ModalEditAvatar,
+			// Add your props as key/value pairs
+			props: { background: 'bg-red-500' },
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Edit Avatar',
+			body: 'Upload new Avatar Image und then press Save.',
+			component: modalComponent,
+			// Pass abitrary data to the component
+			response: (r: any) => {
+				if (r) console.log('response:', r);
+			},
 
-	let username = 'Admin';
-	let id = '0';
-	let email = 'info@asset-trade.de';
-	let password = '12345';
+			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditAvatar }
+		};
+		modalStore.trigger(d);
+	}
+
+	let username = $user?.username;
+	let id = $user?.userId;
+	let role = $user?.role;
+	let email = $user?.email;
+	let password = 'Hashed neews convert';
 	let newUserEmail: string;
 	let newUserRole: 'USER' | 'EDITOR' = 'USER';
 
-	let readonly = true;
+	let avatarEdit = true;
+	let avatarSrc = $user?.avatar;
 </script>
 
 <div class="">
 	<h1 class="mb-2">User Settings</h1>
 
 	<div class="flex justify-start mb-2">
-		<div class="mt-2 flex flex-col gap-1 mx-2 ">
-			<Avatar src="https://i.pravatar.cc/" rounded-xl class="w-32 mr-4" />
+		<div class="mt-1 flex flex-col gap-2 mx-2 relative  items-center justify-center">
+			<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
-			<div class="badge variant-filled-secondary mt-2 ">User ID:<span class="ml-2">{id}</span></div>
-			<div class="badge variant-filled-tertiary">Role:<span class="ml-2">{username}</span></div>
+			<button
+				on:click={modalEditAvatar}
+				class="badge variant-filled-primary w-20 text-black absolute top-1">Edit Avatar</button
+			>
+
+			<div class="badge variant-filled-secondary mt-1 w-full">
+				User ID:<span class="ml-2">{id}</span>
+			</div>
+			<div class="badge variant-filled-tertiary w-full">Role:<span class="ml-2">{role}</span></div>
 		</div>
 		<div>
 			<label
-				>Name:
-				<input bind:value={username} name="username" type="text" {readonly} />
+				>Username:
+				<input bind:value={username} name="username" type="text" readonly />
 			</label>
 			<label
 				>Email:
-				<input bind:value={email} name="email" type="email" {readonly} />
+				<input bind:value={email} name="email" type="email" readonly />
 			</label>
 			<label
 				>Password:
-				<input bind:value={password} name="password" type="password" {readonly} />
+				<input bind:value={password} name="password" type="password" readonly />
 			</label>
-			{#if readonly}
-				<button
-					on:click={() => {
-						readonly = false;
-					}}
-					class="mt-1 btn btn-sm variant-filled-surface"
-				>
-					Edit User settings
-				</button>
-			{:else}
-				<button
-					on:click={() => {
-						readonly = true;
-					}}
-					class="mt-1 btn btn-sm variant-filled-primary"
-				>
-					Save
-				</button>
-			{/if}
+
+			<button class="btn btn-sm variant-filled-surface mt-2" on:click={modalUserForm}
+				>Edit user data</button
+			>
 		</div>
 	</div>
 

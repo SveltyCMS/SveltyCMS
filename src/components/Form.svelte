@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { entryData, getFieldsData, language } from '$src/stores/store';
-	import { TRANSLATIONS } from '$env/static/private';
+	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 
 	import type { Schema } from '$src/collections/types';
 	import Fields from './Fields.svelte';
@@ -54,14 +54,14 @@
 			</button>
 			<nav class="card list-nav w-40 border p-4 shadow-xl" data-menu="ContentLang">
 				<ul class="divide-y">
-					{#each Object.keys(TRANSLATIONS).filter((data) => $language != data) as _language}
+					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
 						<li
 							on:click={() => {
 								$language = _language;
 								open = false;
 							}}
 						>
-							{TRANSLATIONS[_language]}
+							{PUBLIC_TRANSLATIONS[_language]}
 						</li>
 					{/each}
 				</ul>

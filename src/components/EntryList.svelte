@@ -1,6 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
-	import { HOST, PORT, TRANSLATIONS } from '$env/static/private';
+	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import { entryData, language } from '$src/stores/store';
 
 	import { onMount } from 'svelte';
@@ -47,10 +47,9 @@
 	onMount(() => {
 		refresh = async (collection: any) => {
 			entryList = [];
+
 			({ entryList, totalCount: paging.totalCount } = await axios
-				.get(
-					`${HOST}:${PORT}/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`
-				)
+				.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
 				.then((data) => data.data));
 			totalPages = Math.ceil(paging.totalCount / paging.entryLength);
 			deleteMap = {};
@@ -74,7 +73,7 @@
 					if (deleteList.length == 0) return;
 					let formData = new FormData();
 					formData.append('ids', JSON.stringify(deleteList));
-					await axios.delete(`${HOST}:${PORT}/api/${collection.name}`, { data: formData });
+					await axios.delete(`/api/${collection.name}`, { data: formData });
 					refresh(collection);
 				}
 			},
@@ -287,14 +286,15 @@
 				data-menu="ContentLang"
 			>
 				<ul class="divide-y">
-					{#each Object.keys(TRANSLATIONS).filter((data) => $language != data) as _language}
+					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
+						<!-- svelte-ignore a11y-click-events-have-key-events -->
 						<li
 							on:click={() => {
 								$language = _language;
 								open = false;
 							}}
 						>
-							{TRANSLATIONS[_language]}
+							{PUBLIC_TRANSLATIONS[_language]}
 						</li>
 					{/each}
 				</ul>

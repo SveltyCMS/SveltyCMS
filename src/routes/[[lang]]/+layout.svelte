@@ -29,7 +29,7 @@
 
 	// Sveltekit
 	import { fly } from 'svelte/transition';
-	import { is_dark } from '$src/stores/store.ts';
+	import { is_dark, entryData } from '$src/stores/store.ts';
 	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// @ts-expect-error reading from vite.config.jss
@@ -37,6 +37,37 @@
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
+	// import collections, { categories } from '$src/collections';
+	// import Collections from '$src/components/Collections.svelte';
+	// import EntryList from '$src/components/EntryList.svelte';
+	// import Form from '$src/components/Form.svelte';
+	// import { saveFormData } from '$src/lib/utils/utils_svelte';
+
+	// ======================save data =======================
+
+	// async function submit() {
+	// 	await saveFormData(collection);
+	// 	refresh(collection);
+	// 	showFields = false;
+	// 	$entryData = undefined;
+
+	// 	const t: ToastSettings = {
+	// 		message: $LL.SBL_Save_message(),
+	// 		// Optional: Presets for primary | secondary | tertiary | warning
+	// 		preset: 'success',
+	// 		// Optional: The auto-hide settings
+	// 		autohide: true,
+	// 		timeout: 3000
+	// 	};
+	// 	toastStore.trigger(t);
+	// }
+
+	// $: {
+	// 	$entryData = undefined;
+	// 	collection;
+	// }
+
+	// ======================save data =======================
 
 	// darkmode
 	const toggleTheme = () => {
@@ -62,6 +93,16 @@
 	let toggleFooter = true;
 	// change sidebar width so only icons show
 	let switchSideBar = true;
+	let avatarSrc = $user?.avatar;
+	// let toggleSideBar = true;
+	// let deleteMode: boolean;
+
+	// let valid = false;
+	// let collection = collections[0];
+	// let fields: any;
+	// let refresh: (collection: any) => Promise<any>;
+	// let showFields = false;
+	// let category = categories[0].category;
 </script>
 
 <!-- App Shell -->
@@ -71,7 +112,7 @@
 	<svelte:fragment slot="header">
 		<AppBar border="border-b">
 			<svelte:fragment slot="lead">
-				<strong class="text-xl uppercase">forTest</strong>
+				<strong class="text-xl uppercase">{PUBLIC_SITENAME}</strong>
 			</svelte:fragment>
 
 			<button on:click={() => (toggleLeftSideBar = !toggleLeftSideBar)} class="btn btn-base"
@@ -103,7 +144,7 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-surface-500 text-center px-1 h-full overflow-visible relative 
+			class="bg-white dark:bg-surface-500 border-r text-center px-1 h-full overflow-visible relative 
 			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
@@ -124,17 +165,9 @@
 				</div>
 			{/if}
 
-			<!-- Corporate Identity -->
-			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
-				{#if switchSideBar}
-					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
-				{/if}
-			</a>
-
 			<!-- sidebar collapse button -->
 			<button
-				class="absolute top-2 z-10 -right-2 rounded-full border-2 border-surface-300"
+				class="absolute top-2 -right-2 rounded-full border-2 border-surface-300"
 				on:click={() => (switchSideBar = !switchSideBar)}
 			>
 				{#if !switchSideBar}
@@ -142,7 +175,7 @@
 					<Icon
 						icon="bi:arrow-left-circle-fill"
 						width="30"
-						class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600  "
+						class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
 					/>
 				{:else}
 					<!-- Icon expanded -->
@@ -153,6 +186,14 @@
 					/>
 				{/if}
 			</button>
+
+			<!-- Corporate Identity -->
+			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
+				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
+				{#if switchSideBar}
+					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
+				{/if}
+			</a>
 
 			<!-- Search Collections -->
 			<!-- TODO: perhaps overflow is better? -->
@@ -190,16 +231,17 @@
 				</div>
 			</div>
 
+			<!--SideBar Middle -->
 			<!-- Display Collections -->
 			<!-- <Collections
-			data={categories}
-			{filterCollections}
-			{switchSideBar}
-			bind:fields
-			bind:collection
-			bind:category
-			bind:showFields
-		/> -->
+				data={categories}
+				{filterCollections}
+				{switchSideBar}
+				bind:fields
+				bind:collection
+				bind:category
+				bind:showFields
+			/> -->
 
 			<!--SideBar Middle -->
 			<!-- Display Collections -->
@@ -209,7 +251,6 @@
 						<svelte:fragment slot="lead">(icon)</svelte:fragment>
 						Collection
 					</ListBoxItem>
-					<!-- TODO: Dropdown Collections -->
 					<ListBox padding="px-4 py-1">
 						<ListBoxItem bind:group={valueSingle} name="test1" value="test1">
 							<svelte:fragment slot="lead">(icon)</svelte:fragment>
@@ -264,10 +305,7 @@
 						<div class="md:row-span-2">
 							<!-- Avatar with user settings -->
 							<a href="/user" class="relative flex-col !no-underline ">
-								<Avatar
-									src={'https://i.pravatar.cc/' || '/Default_User.svg'}
-									class="mx-auto w-14"
-								/>
+								<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-14" />
 								<div class="text-center text-[9px] text-black dark:text-white">
 									{#if $user?.username}
 										<div class="text-xs uppercase">{$user?.username}</div>

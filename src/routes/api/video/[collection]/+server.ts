@@ -3,10 +3,10 @@ import { collections } from '$src/lib/utils/db';
 import { parse, saveFiles } from '$src/lib/utils/utils';
 
 export const GET: RequestHandler = async ({ params, url }) => {
-	let page = parseInt(url.searchParams.get('page') as string) || 1;
-	let collection = collections[params.collection];
-	let length = parseInt(url.searchParams.get('length') as string) || Infinity;
-	let skip = (page - 1) * length;
+	const page = parseInt(url.searchParams.get('page') as string) || 1;
+	const collection = collections[params.collection];
+	const length = parseInt(url.searchParams.get('length') as string) || Infinity;
+	const skip = (page - 1) * length;
 
 	return new Response(
 		JSON.stringify({
@@ -17,19 +17,19 @@ export const GET: RequestHandler = async ({ params, url }) => {
 };
 
 export const PATCH: RequestHandler = async ({ params, request }) => {
-	let collection = collections[params.collection];
-	let data = await request.formData();
+	const collection = collections[params.collection];
+	const data = await request.formData();
 	let formData: any = {};
-	for (let key of data.keys()) {
+	for (const key of data.keys()) {
 		try {
 			formData[key] = JSON.parse(data.get(key) as string);
 		} catch (e) {
 			formData[key] = data.get(key) as string;
 		}
 	}
-	let _id = data.get('_id');
+	const _id = data.get('_id');
 	formData = parse(formData);
-	let files = saveFiles(data, params.collection);
+	const files = saveFiles(data, params.collection);
 
 	return new Response(
 		JSON.stringify(await collection.updateOne({ _id }, { ...formData, ...files }, { upsert: true }))
@@ -37,10 +37,12 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 };
 
 export const POST: RequestHandler = async ({ params, request }) => {
-	let collection = collections[params.collection];
-	let data = await request.formData();
-	let body: any = {};
-	for (let key of data.keys()) {
+	console.log(params);
+	const collection = collections[params.collection];
+	const data = await request.formData();
+
+	const body: any = {};
+	for (const key of data.keys()) {
 		try {
 			body[key] = JSON.parse(data.get(key) as string);
 		} catch (e) {
@@ -48,14 +50,14 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		}
 	}
 	if (!collection) return new Response('collection not found!!');
-	let files = saveFiles(data, params.collection);
+	const files = saveFiles(data, params.collection);
 
 	return new Response(JSON.stringify(await collection.insertMany({ ...body, ...files })));
 };
 
 export const DELETE: RequestHandler = async ({ params, request }) => {
-	let collection = collections[params.collection];
-	let data = await request.formData();
+	const collection = collections[params.collection];
+	const data = await request.formData();
 
 	let ids = data.get('ids') as string;
 	ids = JSON.parse(ids);

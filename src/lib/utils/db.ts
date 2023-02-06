@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
 import { DB_HOST, DB_NAME, DB_PASSWORD, DB_USER } from '$env/static/private';
 import type { Handle } from '@sveltejs/kit';
-
+import schemas from '$src/collections';
+import { fieldsToSchema } from '$src/lib/utils/utils';
 export const dbConnect: Handle = async ({ resolve, event }) => {
 	// Turn off strict mode for query filters. Default in Mongodb 7
 	mongoose.set('strictQuery', false);
@@ -18,7 +19,8 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 			dbName: DB_NAME
 		})
 		.then((res) => {
-			// console.log({dbRes: res})
+			// console.log('Connected to DB');
+			// console.log({ dbRes: res });
 		})
 		.catch((err) => {
 			console.log({ dbErr: err });
@@ -27,22 +29,22 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 	return await resolve(event);
 };
 
-// let collections: { [Key: string]: mongoose.Model<any> } = {};
+const collections: { [Key: string]: mongoose.Model<any> } = {};
 
-// // iterates over an array of schemas and creates a new Mongoose schema and model for each on
-// // if collections is not empty
+// iterates over an array of schemas and creates a new Mongoose schema and model for each on
+// if collections is not empty
 
-// for (let schema of schemas) {
-// 	const schema_object = new mongoose.Schema(
-// 		{ ...fieldsToSchema(schema.fields), createdAt: Number, updatedAt: Number },
-// 		{
-// 			typeKey: '$type',
-// 			strict: schema.strict || false,
-// 			timestamps: { currentTime: () => Date.now() }
-// 		}
-// 	);
-// 	collections[schema.name] = mongoose.models[schema.name]
-// 		? mongoose.model(schema.name)
-// 		: mongoose.model(schema.name, schema_object);
-// }
-// export { collections };
+for (const schema of schemas) {
+	const schema_object = new mongoose.Schema(
+		{ ...fieldsToSchema(schema.fields), createdAt: Number, updatedAt: Number },
+		{
+			typeKey: '$type',
+			strict: schema.strict || false,
+			timestamps: { currentTime: () => Date.now() }
+		}
+	);
+	collections[schema.name] = mongoose.models[schema.name]
+		? mongoose.model(schema.name)
+		: mongoose.model(schema.name, schema_object);
+}
+export { collections };

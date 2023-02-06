@@ -1,6 +1,6 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import getVideoId from 'get-video-id';
-import { tiktok, twitch, vimeo, youtube } from '@src/components/widgets/remoteVideo/video';
+import { tiktok, twitch, vimeo, youtube } from '$src/components/widgets/remoteVideo/video';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const data = await request.formData();

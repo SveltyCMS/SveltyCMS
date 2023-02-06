@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { entryData, getFieldsData, language } from '$src/stores/store';
-	import { TRANSLATIONS } from '$env/static/private';
+	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import type { Schema } from '$src/collections/types';
 	import { onMount } from 'svelte';
 
@@ -43,7 +43,7 @@
 				{#if field.field.localization}
 					<div class="flex items-center gap-1 px-2">
 						<Icon icon="bi:translate" color="dark" width="18" class="text-sm" />
-						<div class="text-xs font-normal text-error-500">{TRANSLATIONS[$language]}</div>
+						<div class="text-xs font-normal text-error-500">{PUBLIC_TRANSLATIONS[$language]}</div>
 					</div>
 				{/if}
 				{#if field.field.icon}

@@ -2,12 +2,12 @@
 	import Cropper from '$src/components/Cropper.svelte';
 	import { saveEditedImage } from '$src/stores/store';
 	import { saveData } from '$src/lib/utils/utils_svelte';
+
 	export let field = { title: '', path: '', image: '' };
-	let name = '';
 	export let value: any;
 	export let scale: any;
 	export let collection: any;
-	export let widgetValue;
+	export let widgetValue: any;
 	export let rotate: number | string = 0;
 	export let crop_left: object = { initialValue: 10, value: 10 };
 	export let crop_right: object = { initialValue: 10, value: 10 };
@@ -15,6 +15,8 @@
 	export let crop_bottom: object = { initialValue: 10, value: 10 };
 	export let blurs: object[] = [];
 	export let rotateDetails: object = {};
+
+	let name = '';
 	let width: number | string = 0;
 	let height: number | string = 0;
 
@@ -95,6 +97,3 @@
 <div class="w-full">
 	<input type="text" id="input-text" bind:value={name} />
 </div>
-
-<style>
-</style>

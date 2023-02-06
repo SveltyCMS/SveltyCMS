@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import { entryData, getFieldsData, language } from '$src/stores/store';
 import axios from 'axios';
-import { HOST, PORT } from '$env/static/private';
+
 import type { Schema } from '$src/collections/types';
 import { config } from './utils';
 
@@ -22,11 +22,9 @@ export async function saveFormData(collection: Schema) {
 		let data = await getData();
 
 		for (let key in data) {
-			console.log(data[key]);
 			if (data[key] instanceof FileList) {
 				for (let _key in data[key]) {
 					// for multiple files
-					console.log(data[key]);
 					formData.append(key, data[key][_key]);
 				}
 			} else if (typeof data[key] === 'object') {
@@ -69,6 +67,8 @@ export async function saveData(
 	doc_id?: string,
 	insert?: boolean
 ) {
+	console.log(collection);
+
 	let oldData_id = doc_id || (get(entryData) as any)?._id;
 	//if formData object is empty then:
 	formData.append('status', collection.status);
@@ -77,9 +77,11 @@ export async function saveData(
 	} else if (oldData_id && !insert) {
 		formData.append('_id', oldData_id);
 
-		return await axios.patch(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
+		// return await axios.patch(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
+		return await axios.patch(`/api/${collection.name}`, formData, config);
 	} else {
-		return await axios.post(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
+		// return await axios.post(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
+		return await axios.post(`/api/${collection.name}`, formData, config);
 	}
 }
 
