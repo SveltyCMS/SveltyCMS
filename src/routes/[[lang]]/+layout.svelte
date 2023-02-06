@@ -244,9 +244,9 @@
 			/>
 
 			<!--SideBar Middle -->
-			<!-- Display Collections -->
-			{#if switchSideBar}
-				<!-- <ListBox padding="px-4 py-1">
+			<!-- Display Collections via skeleton-->
+			<!-- {#if switchSideBar}
+				<ListBox padding="px-4 py-1">
 					<ListBoxItem bind:group={valueSingle} name="Collections" value="Collections">
 						<svelte:fragment slot="lead">(icon)</svelte:fragment>
 						Collection
@@ -261,7 +261,7 @@
 							Child2
 						</ListBoxItem>
 					</ListBox>
-				</ListBox> -->
+				</ListBox>
 			{:else}
 				<ListBox padding="px-4 py-1">
 					<ListBoxItem
@@ -294,7 +294,7 @@
 						</ListBoxItem>
 					</ListBox>
 				</ListBox>
-			{/if}
+			{/if} -->
 
 			<!-- Sidebar Left Footer -->
 			<div class="absolute inset-x-0 bottom-1">
@@ -417,8 +417,27 @@
 	<!-- Router Slot -->
 	<Modal />
 	<Toast />
-	<div class="m-2">
+	<!-- <div class="m-2">
 		<slot />
+	</div> -->
+
+	<div class="m-2">
+		<div class="content !mt-[60px] flex-grow md:!mt-0 md:flex-grow-0">
+			{#if showFields}
+				<Form {fields} {collection} bind:showFields />
+			{/if}
+
+			<div hidden={showFields}>
+				<EntryList
+					bind:toggleSideBar
+					bind:showFields
+					bind:deleteMode
+					{collection}
+					{category}
+					bind:refresh
+				/>
+			</div>
+		</div>
 	</div>
 
 	<!-- ---- / ---- -->

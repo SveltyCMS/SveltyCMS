@@ -27,7 +27,7 @@
 	// Initialize a filtered array of countries that will be displayed in the dropdown menu
 	let filteredCountries = countries;
 
-	function searchCountry(event) {
+	function searchCountry(event: any) {
 		// Get the search query from the input field
 		let query = event.target.value;
 
@@ -41,26 +41,20 @@
 	// TODO hide improve Mapbox add Geolocation
 
 	import { setContext } from 'svelte';
-	import { mapboxgl, key } from './mapboxgl.js';
+	import { mapboxgl, key, geocoder } from './mapboxgl.js';
 
-	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 	const language = new MapboxLanguage();
 
-	const geocoder = new MapboxGeocoder({
-		accessToken: mapboxgl.accessToken,
-		mapboxgl: mapboxgl
-	});
-
 	setContext(key, {
 		getMap: () => map
 	});
 
-	let map;
+	let map: any;
 
-	function initMap(container) {
+	function initMap(container: any) {
 		map = new mapboxgl.Map({
 			container: container, // container ID
 			// Choose from Mapbox's core styles, or make your own style with Mapbox Studio
@@ -75,12 +69,7 @@
 
 		// Add the search control to the map.
 		// TODO: display admin user language
-		map.addControl(
-			new MapboxGeocoder({
-				accessToken: mapboxgl.accessToken,
-				mapboxgl: mapboxgl
-			})
-		);
+		map.addControl(geocoder);
 
 		map.on('load', () => {
 			// Create a default Marker and add it to the map.
