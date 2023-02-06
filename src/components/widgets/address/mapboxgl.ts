@@ -1,5 +1,5 @@
 import mapboxgl from 'mapbox-gl';
-import { MAPBOX_API_TOKEN } from '$env/static/private';
+//import { MAPBOX_API_TOKEN } from '$env/static/private';
 
 import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 

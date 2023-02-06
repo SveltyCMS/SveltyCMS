@@ -23,6 +23,7 @@ specifiers:
   autoprefixer: 10.4.13
   axios: ^1.3.2
   cheerio: ^1.0.0-rc.12
+  dayjs: ^1.11.7
   devalue: 4.2.3
   eslint: 8.33.0
   eslint-config-prettier: 8.6.0
@@ -68,6 +69,7 @@ dependencies:
   '@types/nodemailer': 6.4.7
   axios: 1.3.2
   cheerio: 1.0.0-rc.12
+  dayjs: 1.11.7
   devalue: 4.2.3
   flag-icons: 6.6.6
   get-video-id: 3.6.5
@@ -2606,6 +2608,10 @@ packages:
       abab: 2.0.6
       whatwg-mimetype: 2.3.0
       whatwg-url: 8.7.0
+    dev: false
+
+  /dayjs/1.11.7:
+    resolution: {integrity: sha512-+Yw9U6YO5TQohxLcIkrXBeY73WP3ejHWVvx8XCk3gxvQDCTEmS48ZrSZCKciI7Bhl/uCMyxYtE9UqRILmFphkQ==}
     dev: false
 
   /debug/4.3.4:

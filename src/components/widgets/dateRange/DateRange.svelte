@@ -2,18 +2,18 @@
 	export let field: any = undefined;
 	export let value = '';
 
-	export let widgetValue;
+	export let widgetValue: any;
 	$: widgetValue = value;
 
-	import { languageSystem } from '$src/stores/store';
+	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import dayjs from 'dayjs';
-	import 'dayjs/locale/fr';
+	// import 'dayjs/locale/fr';
 
-	if (dayjs.isDayjsLocale(languageSystem)) {
-		dayjs.locale(languageSystem);
-	} else {
-		console.log('Invalid locale');
-	}
+	// if (dayjs.isDayjsLocale(PUBLIC_TRANSLATIONS)) {
+	// 	dayjs.locale(PUBLIC_TRANSLATIONS);
+	// } else {
+	// 	console.log('Invalid locale');
+	// }
 
 	const today: Date = new Date();
 	const tomorrow: Date = dayjs().add(1, 'day').toDate();
