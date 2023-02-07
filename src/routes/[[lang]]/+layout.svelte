@@ -7,6 +7,7 @@
 	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { tooltip } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { ProgressBar } from '@skeletonlabs/skeleton';
 
 	let valueSingle: string = 'books';
 
@@ -144,7 +145,7 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full overflow-visible relative 
+			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full relative 
 			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
@@ -298,6 +299,8 @@
 
 			<!-- Sidebar Left Footer -->
 			<div class="absolute inset-x-0 bottom-1">
+				<div class="border-t border-surface-400 mx-1 mb-2" />
+
 				{#if switchSideBar}
 					<div
 						class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
@@ -305,7 +308,7 @@
 						<div class="md:row-span-2">
 							<!-- Avatar with user settings -->
 							<a href="/user" class="relative flex-col !no-underline ">
-								<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-14" />
+								<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-12" />
 								<div class="text-center text-[9px] text-black dark:text-white">
 									{#if $user?.username}
 										<div class="text-xs uppercase">{$user?.username}</div>
@@ -313,24 +316,25 @@
 								</div>
 							</a>
 						</div>
-						<div class="">
-							<!-- light/dark mode switch -->
-							<button
-								on:click={toggleTheme}
-								class="btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-							>
-								{#if $is_dark}
-									<Icon icon="bi:sun" width="16" />
-								{:else}
-									<Icon icon="bi:moon-fill" width="16" />
-								{/if}
-								<ToolTip
-									position="right"
-									text={`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
-									class="bg-surface-500 text-black dark:text-white"
-								/>
-							</button>
-						</div>
+
+						<!-- light/dark mode switch -->
+						<!-- use:tooltip={{ content: 'Skeleton', position: 'top' }} -->
+						<button
+							on:click={toggleTheme}
+							class="!overflow-x-auto btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+						>
+							{#if $is_dark}
+								<Icon icon="bi:sun" width="16" />
+							{:else}
+								<Icon icon="bi:moon-fill" width="16" />
+							{/if}
+							<ToolTip
+								position="right"
+								text={`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
+								class="bg-surface-500 text-black dark:text-white "
+							/>
+						</button>
+
 						<div class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
 							<a
@@ -346,27 +350,26 @@
 								class="bg-surface-500 text-black dark:text-white"
 							/>
 						</div>
-						<div class="">
-							<!-- Lucia Sign Out -->
-							<form
-								action="?/signOut"
-								method="post"
-								use:enhance={async () => {
-									invalidateAll();
-								}}
-							>
-								<button
-									type="submit"
-									value="Sign out"
-									class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-									><Icon icon="uil:signout" width="24" /></button
-								><ToolTip
-									position="right"
-									text={$LL.SBL_Search()}
-									class="bg-surface-500 text-black dark:text-white"
-								/>
-							</form>
-						</div>
+						<!-- Lucia Sign Out -->
+						<form
+							action="?/"
+							method="post"
+							use:enhance={async () => {
+								invalidateAll();
+							}}
+							class="-mt-2"
+						>
+							<button
+								type="submit"
+								value="Sign out"
+								class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+								><Icon icon="uil:signout" width="24" /></button
+							><ToolTip
+								position="right"
+								text={$LL.SBL_Search()}
+								class="bg-surface-500 text-black dark:text-white"
+							/>
+						</form>
 					</div>
 
 					<!-- CMS Version -->
@@ -378,50 +381,61 @@
 							>
 						</a>
 					</div>
-
-					<div class="mt-auto border-t border-surface-500 pt-2 ">
-						<div class="my-1 flex items-center justify-between" />
-					</div>{/if}
+				{/if}
 			</div>
 		</div>
 	</svelte:fragment>
 
 	<!-- Sidebar Right -->
 	<svelte:fragment slot="sidebarRight">
-		<div id="sidebar-right" hidden={toggleRightSideBar} class="bg-red-500 text-center h-full">
+		<div
+			id="sidebar-right"
+			hidden={toggleRightSideBar}
+			class="bg-white dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative"
+		>
 			<!-- Desktop Save -->
-			<div class="">Save button</div>
+			<button class="btn variant-filled-primary my-1">Save button</button>
 
 			<!-- Desktop Center Admin area -->
 			<div class="">Admin Center Area</div>
 
 			<!-- Form Info  -->
-			<div class="">Form Info</div>
+
+			<div class="absolute inset-x-0 bottom-2">
+				<div class="border-t border-surface-400 mx-1 mb-2" />
+				Form Info
+			</div>
 		</div>
 	</svelte:fragment>
 
 	<!-- Page Header -->
 	<svelte:fragment slot="pageHeader">
-		<div id="sidebar-right" hidden={toggleTopSideBar} class="bg-pink-500 h-40 text-center">
+		<div
+			id="sidebar-right"
+			hidden={toggleTopSideBar}
+			class="bg-white dark:bg-gradient-to-t border-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 pb-2 relative"
+		>
 			<!-- Mobile Save -->
-			<div class="">Mobile Save button</div>
+
+			<button class="btn variant-filled-primary my-1">
+				<span>(icon)</span>Mobile Save button</button
+			>
+
+			<ProgressBar label="Progress" value={50} max={100} />
 
 			<!-- Mobile Close -->
-			<div class="">Close</div>
-
-			<!-- Mobile Save -->
-			<div class="">Form Progress</div>
+			<button class="btn absolute top-2 right-2">Close</button>
 		</div>
 	</svelte:fragment>
 
 	<!-- Router Slot -->
 	<Modal />
 	<Toast />
-	<!-- <div class="m-2">
-		<slot />
-	</div> -->
-
 	<div class="m-2">
+		<slot />
+	</div>
+
+	<!-- <div class="m-2">
 		<div class="content !mt-[60px] flex-grow md:!mt-0 md:flex-grow-0">
 			{#if showFields}
 				<Form {fields} {collection} bind:showFields />
@@ -438,13 +452,17 @@
 				/>
 			</div>
 		</div>
-	</div>
+	</div> -->
 
 	<!-- ---- / ---- -->
 
 	<!-- Page Footer -->
 	<svelte:fragment slot="pageFooter">
-		<div id="footer" hidden={toggleFooter} class="bg-blue-500 h-40 text-center">
+		<div
+			id="footer"
+			hidden={toggleFooter}
+			class="bg-white dark:bg-gradient-to-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 relative h-40 border-t"
+		>
 			Page Footer
 
 			<!-- Mobile  Admin area -->
