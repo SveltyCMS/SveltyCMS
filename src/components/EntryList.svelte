@@ -113,7 +113,7 @@
 
 	//$: console.log(filtered_entryList);
 	function process_deleteAll(deleteAll: boolean) {
-		triggerConfirm = true;
+		// triggerConfirm = true;
 		if (deleteAll) {
 			for (let item in entryList) {
 				deleteMap[item] = true;
@@ -227,7 +227,7 @@
 					<input
 						on:keyup={(event) => {
 							if (event.keyCode === 13) {
-								search();
+								// search();
 								showsearch = false;
 							}
 						}}
@@ -238,7 +238,7 @@
 
 					<button
 						on:click={() => {
-							search();
+							// search();
 							showsearch = false;
 						}}
 						class="btn variant-filled-primary h-full rounded-l-none rounded-b-none">Search</button
@@ -291,10 +291,10 @@
 						<li
 							on:click={() => {
 								$language = _language;
-								open = false;
+								// open = false;
 							}}
 						>
-							{PUBLIC_TRANSLATIONS[_language]}
+							{JSON.parse(PUBLIC_TRANSLATIONS)[_language]}
 						</li>
 					{/each}
 				</ul>

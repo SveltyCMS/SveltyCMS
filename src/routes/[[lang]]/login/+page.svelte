@@ -2,8 +2,6 @@
 	import type { ActionData } from './$types';
 	import RoundLogo from './components/icons/RoundLogo.svelte';
 
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import Logo from './components/icons/Logo.svelte';
 	import Signin from './components/Signin.svelte';
 	import SignUp from './components/Signup.svelte';
 

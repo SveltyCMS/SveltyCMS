@@ -33,7 +33,7 @@ export const actions: Actions = {
 		} catch (error) {
 			if (
 				error instanceof LuciaError &&
-				(error.message === 'AUTH_INVALID_KEY' || error.message === 'AUTH_INVALID_PASSWORD')
+				(error.message === 'AUTH_INVALID_KEY_ID' || error.message === 'AUTH_INVALID_PASSWORD')
 			) {
 				return fail(400, {
 					type: 'SIGN_IN_ERROR' as const,
@@ -136,7 +136,7 @@ export const actions: Actions = {
 		} catch (error) {
 			if (
 				((error as any)?.code === 'P2002' && (error as any)?.message?.includes('email')) ||
-				(error instanceof LuciaError && error.message === 'AUTH_DUPLICATE_KEY')
+				(error instanceof LuciaError && error.message === 'AUTH_DUPLICATE_KEY_ID')
 			) {
 				return fail(400, {
 					type: 'SIGN_UP_ERROR' as const,
