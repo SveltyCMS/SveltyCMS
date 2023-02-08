@@ -1,5 +1,11 @@
 <script lang="ts">
-	import { PUBLIC_LANGUAGE } from '$env/static/public';
+	import { PUBLIC_LANGUAGE, PUBLIC_MAPBOX_API_TOKEN } from '$env/static/public';
+	import mapboxgl from 'mapbox-gl';
+
+	// https://docs.mapbox.com/help/glossary/access-token/
+	mapboxgl.accessToken = PUBLIC_MAPBOX_API_TOKEN;
+
+	const key = Symbol();
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -41,12 +47,18 @@
 	// TODO hide improve Mapbox add Geolocation
 
 	import { setContext } from 'svelte';
-	import { mapboxgl, key, geocoder } from './mapboxgl.js';
+	// import { mapboxgl, key } from './mapboxgl.js';
 
+	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
 
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 	const language = new MapboxLanguage();
+
+	const geocoder = new MapboxGeocoder({
+		accessToken: mapboxgl.accessToken,
+		mapboxgl: mapboxgl
+	});
 
 	setContext(key, {
 		getMap: () => map
@@ -69,7 +81,12 @@
 
 		// Add the search control to the map.
 		// TODO: display admin user language
-		map.addControl(geocoder);
+		map.addControl(
+			new MapboxGeocoder({
+				accessToken: mapboxgl.accessToken,
+				mapboxgl: mapboxgl
+			})
+		);
 
 		map.on('load', () => {
 			// Create a default Marker and add it to the map.

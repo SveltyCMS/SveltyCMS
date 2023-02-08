@@ -16,14 +16,14 @@
 		"stop": "npx kill-port 5173"
 	},
 	"devDependencies": {
-		"@skeletonlabs/skeleton": "0.99.5",
+		"@skeletonlabs/skeleton": "0.124.2",
 		"@sveltejs/adapter-node": "latest",
-		"@sveltejs/kit": "1.3.10",
+		"@sveltejs/kit": "1.5.0",
 		"@types/cookie": "0.5.1",
 		"@types/mapbox-gl": "^2.7.10",
 		"@types/mapbox__mapbox-gl-geocoder": "^4.7.3",
-		"@typescript-eslint/eslint-plugin": "5.50.0",
-		"@typescript-eslint/parser": "5.50.0",
+		"@typescript-eslint/eslint-plugin": "5.51.0",
+		"@typescript-eslint/parser": "5.51.0",
 		"autoprefixer": "10.4.13",
 		"eslint": "8.33.0",
 		"eslint-config-prettier": "8.6.0",
@@ -65,11 +65,11 @@
 		"ioredis": "5.3.0",
 		"jsonwebtoken": "^9.0.0",
 		"lucia-auth": "0.6.0",
-		"mapbox-gl": "^2.12.0",
-		"mongoose": "6.9.0",
+		"mapbox-gl": "^2.12.1",
+		"mongoose": "6.9.1",
 		"nodemailer": "6.9.1",
 		"svelte-lexical": "0.1.8",
-		"svelte-tel-input": "^1.1.2",
+		"svelte-tel-input": "^1.1.3",
 		"tiktok-scraper": "^1.4.36",
 		"zod": "^3.20.2"
 	}
