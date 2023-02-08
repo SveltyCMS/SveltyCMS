@@ -10,7 +10,7 @@ async function sendMail(email: string, resetToken: string) {
 		// @ts-ignore
 		host: SMTP_HOST,
 		port: SMTP_PORT,
-		secure: true, // true for 465, false for other ports
+		secure: false, // true for 465, false for other ports
 		auth: {
 			user: SMTP_EMAIL, // generated ethereal user
 			pass: SMTP_PASSWORD // generated ethereal password
@@ -23,7 +23,7 @@ async function sendMail(email: string, resetToken: string) {
 				from: SMTP_EMAIL,
 				to: email, // list of receivers
 				subject: 'Password reset link for SimpleCMS', // Subject line
-				text: `The rest token for the user: ${SMTP_EMAIL} is ${resetToken}` // plain text body
+				text: `The token for the user: ${SMTP_EMAIL} is ${resetToken}` // plain text body
 			},
 			(err, info) => {
 				if (err) {

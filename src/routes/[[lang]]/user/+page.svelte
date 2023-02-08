@@ -6,6 +6,7 @@
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
 	import UserList from './UserList/UserList.svelte'
 	import type { PageData } from './$types';
+	import LL from '$i18n/i18n-svelte';
 
 	export let data: PageData;
 
@@ -128,7 +129,21 @@
 
 		<div class="mt-3">Generate new User Registions token</div>
 		<form method="post" action="?/generateToken" use:enhance>
-			<input bind:value={newUserEmail} name="newUserEmail" type="email" required />
+
+			<div class="group relative z-0 mb-6 w-56">
+				<input
+					bind:value={newUserEmail}
+					type="email"
+					name="newUserEmail"
+					placeholder=" "
+					required
+				/>
+				<label
+					for="newUserEmail"
+					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
+				>
+			</div>
 			<div>
 				<label>
 					<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
@@ -139,6 +154,6 @@
 			</div>
 			<button class="btn variant-filled-tertiary btn-base" type="submit">Generate new Token</button>
 		</form>
-		<button class="btn variant-filled-tertiary btn-base">Delete User</button>
+		<!-- <button class="btn variant-filled-tertiary btn-base">Delete User</button> -->
 	{/if}
 </div>
