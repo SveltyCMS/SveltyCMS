@@ -4,6 +4,11 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
+	import UserList from './UserList/UserList.svelte'
+	import type { PageData } from './$types';
+
+	export let data: PageData;
+
 
 	// Lucia
 	import { page } from '$app/stores';
@@ -73,6 +78,7 @@
 
 	let avatarEdit = true;
 	let avatarSrc = $user?.avatar;
+	let showUserList: boolean = false
 </script>
 
 <div class="">
@@ -115,9 +121,10 @@
 	<hr />
 	<br />
 	{#if $user?.role === 'ADMIN'}
-		<a href="/user/userList">
-			<button class="btn variant-filled-secondary btn-sm">Show User List</button>
-		</a>
+		{#if showUserList}
+			<UserList list={data} />
+		{/if}
+		<button class="btn variant-filled-secondary btn-sm" on:click={()=> showUserList=!showUserList }>{showUserList ? 'Collapse user list': 'Show user list'}</button>
 
 		<div class="mt-3">Generate new User Registions token</div>
 		<form method="post" action="?/generateToken" use:enhance>

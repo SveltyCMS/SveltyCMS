@@ -1,16 +1,18 @@
-import { fail, type Actions } from '@sveltejs/kit';
-import { auth } from '$lib/server/lucia';
-import { redirect } from '@sveltejs/kit';
-import type { PageServerLoad } from './$types';
-import { LuciaError } from 'lucia-auth';
-import { User } from '$lib/models/user-model';
 import { SignUpToken } from '$lib/models/sign-up-token-model';
+import { User } from '$lib/models/user-model';
+import { fail, redirect, type Actions, json } from '@sveltejs/kit';
 import { randomBytes } from 'crypto';
+import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.validate();
 	if (!session) throw redirect(302, '/');
-	return {};
+
+	const user = await User.find();
+	console.log(user);
+	return {
+		user: JSON.stringify(user)
+	};
 };
 
 export const actions: Actions = {
