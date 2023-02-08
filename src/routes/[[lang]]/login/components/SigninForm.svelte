@@ -1,7 +1,6 @@
 <script lang="ts">
 	import Icon from '@iconify/svelte';
 	import CMSLogo from './icons/Logo.svelte';
-	import axios from 'axios';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -163,7 +162,7 @@
 		</div>
 	{:else}
 		<!-- Forgotton Password -->
-		<form class="mx-auto w-full p-4 lg:w-1/2" action="?/forgotPassword">
+		<form class="mx-auto w-full p-4 lg:w-1/2" method="post" action="?/forgotPassword">
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
 

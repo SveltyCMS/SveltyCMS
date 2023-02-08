@@ -5,7 +5,8 @@ import type { PageServerLoad } from './$types';
 import { LuciaError } from 'lucia-auth';
 import { User } from '$lib/models/user-model';
 import { SignUpToken } from '$lib/models/sign-up-token-model';
-
+import sendMail from '$lib/utils/send-email';
+import { randomBytes } from 'crypto';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.validate();
@@ -153,14 +154,43 @@ export const actions: Actions = {
 	forgotPassword: async ({ request, locals }) => {
 		const form = await request.formData();
 
-		const email = form.get('floating_email');
+		const email = form.get('floating_forgottonemail');
 
-		// const data = User.findOneAndUpdate(
-		// 	{ provider_id: `email:${email}` },
-		// 	{
-		// 		resetRequestedAt: new Date(),
-		// 		resetToken: ''
-		// 	}
-		// );
+		console.log({ email: email });
+
+		if (!email || typeof email !== 'string') {
+			return fail(400, {
+				type: 'SIGN_UP_ERROR' as const,
+				message: 'Invalid input'
+			});
+		}
+
+		const existingUser = await User.findOne({ email: email });
+		if (!existingUser) {
+			return fail(400, {
+				type: 'SIGN_UP_ERROR' as const,
+				message: 'No account under this email'
+			});
+		}
+
+		const forgotPasswordToken = randomBytes(16).toString('base64');
+
+		await sendMail(email, forgotPasswordToken)
+			.then(async (res) => {
+				await User.findOneAndUpdate(
+					{ email: email },
+					{
+						resetRequestedAt: new Date(),
+						resetToken: forgotPasswordToken
+					}
+				);
+			})
+			.catch((err) => {
+				console.error({ sendMailError: err });
+				return fail(400, {
+					type: 'SEND_EMAIL_ERROR',
+					message: 'Cant send email to user.'
+				});
+			});
 	}
 };
