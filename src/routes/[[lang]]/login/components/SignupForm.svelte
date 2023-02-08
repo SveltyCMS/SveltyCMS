@@ -12,7 +12,7 @@
 	export let show: boolean = false;
 	let showPassword: boolean = false;
 
-	export let firstUserExists = true;
+	export let firstUserExists = false;
 
 	let username = '';
 	let email = '';

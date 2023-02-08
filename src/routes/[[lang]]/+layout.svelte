@@ -431,11 +431,11 @@
 	<!-- Router Slot -->
 	<Modal />
 	<Toast />
-	<div class="m-2">
-		<slot />
-	</div>
-
 	<!-- <div class="m-2">
+		<slot />
+	</div> -->
+
+	<div class="m-2">
 		<div class="content !mt-[60px] flex-grow md:!mt-0 md:flex-grow-0">
 			{#if showFields}
 				<Form {fields} {collection} bind:showFields />
@@ -452,8 +452,7 @@
 				/>
 			</div>
 		</div>
-	</div> -->
-
+	</div>
 	<!-- ---- / ---- -->
 
 	<!-- Page Footer -->
