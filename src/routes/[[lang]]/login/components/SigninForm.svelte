@@ -1,12 +1,13 @@
 <script lang="ts">
+	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
-	import CMSLogo from './icons/Logo.svelte';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
+	import CMSLogo from './icons/Logo.svelte';
 
 	export let show: boolean = false;
 
@@ -14,6 +15,23 @@
 	let forgot: boolean = false;
 	export let email = '';
 	export let password = '';
+
+	// zod
+	// import z from 'zod';
+	// const signInSchema = z
+	// 	.object({
+	// 		email: z
+	// 			.string({ required_error: 'Email is required' })
+	// 			.email({ message: 'Email must be a valid email' }),
+	// 		password: z
+	// 			.string({ required_error: 'Password is required' })
+	// 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+	// 				message:
+	// 					'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+	// 			}),
+	// 		});
+	// }
+
 	let errorStatus = {
 		email: { status: false, msg: '' },
 		confirm: { status: false, msg: '' },

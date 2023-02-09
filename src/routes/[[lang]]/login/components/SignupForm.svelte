@@ -1,6 +1,7 @@
 <script lang="ts">
+	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
-	import CMSLogo from './icons/Logo.svelte';
+
 	import axios from 'axios';
 
 	// typesafe-i18n
@@ -8,6 +9,7 @@
 	import { enhance } from '$app/forms';
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
+	import CMSLogo from './icons/Logo.svelte';
 
 	export let show: boolean = false;
 	let showPassword: boolean = false;
@@ -75,10 +77,12 @@
 	// }
 
 	function hasSignUpError() {
+		// Validation
 		email = email.trim();
 		let emailRegex = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
 		let error = false;
 
+		// Username check
 		if (!username) {
 			errorStatus.username.msg = $LL.LOGIN_usernamemsg_empty();
 		}
@@ -193,9 +197,6 @@
 			</div>
 
 			<!-- Password field -->
-			<!-- TODO  - not working error 'type' attribute cannot be dynamic if input uses two-way binding 
-					type={showPassword ? 'text' : 'password'}
-				-->
 			<div class="group relative z-0 mb-6 w-full">
 				{#if showPassword}
 					<input
@@ -245,9 +246,6 @@
 			</div>
 
 			<!-- Password Confirm -->
-			<!-- TODO  - not working error 'type' attribute cannot be dynamic if input uses two-way binding 
-					type={showPassword ? 'text' : 'password'}
-				-->
 			<div class="group relative z-0 mb-6 w-full">
 				{#if showPassword}
 					<input
@@ -323,7 +321,7 @@
 			{/if}
 
 			<!-- TODO: Add T&C with CHECK -->
-			<div class=" flex gap-5 items-center">
+			<div class="flex gap-5 items-center">
 				<button class="btn btn-sm mt-4 rounded-md bg-white text-black">
 					{$LL.LOGIN_SignUp()}
 				</button>
@@ -341,5 +339,25 @@
 	.hide {
 		transition: 0s;
 		opacity: 0;
+	}
+	:global(.wiggle) {
+		animation: wiggle 0.3s forwards;
+	}
+	@keyframes wiggle {
+		0% {
+			transform: translateX(0);
+		}
+		25% {
+			transform: translateX(150px);
+		}
+		50% {
+			transform: translateX(-75px);
+		}
+		75% {
+			transform: translateX(200px);
+		}
+		100% {
+			transform: translateX(0px);
+		}
 	}
 </style>

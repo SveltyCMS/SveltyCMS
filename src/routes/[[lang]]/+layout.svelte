@@ -25,12 +25,13 @@
 	import Icon from '@iconify/svelte';
 
 	// typesafe-i18n
-	import { setLocale } from '$i18n/i18n-svelte';
+	import { locale } from '$i18n/i18n-svelte';
+	import LocaleSwitcher from '$src/lib/LocaleSwitcher.svelte';
 	import LL from '$i18n/i18n-svelte';
 
 	// Sveltekit
 	import { fly } from 'svelte/transition';
-	import { is_dark, entryData } from '$src/stores/store.ts';
+	import { is_dark, entryData } from '$src/stores/store';
 	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// @ts-expect-error reading from vite.config.jss
@@ -337,6 +338,7 @@
 
 						<div class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
+							<LocaleSwitcher />
 							<a
 								class="btn btn-sm btn-ghost-surface hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 								href="/"
