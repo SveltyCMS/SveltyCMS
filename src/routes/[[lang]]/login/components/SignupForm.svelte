@@ -116,8 +116,8 @@
 			error = true;
 		}
 
-		// token check
-		if (token === '' || token === null || typeof token === 'undefined') {
+		// token chec after 1st user
+		if (firstUserExists && (token === '' || token === null || typeof token === 'undefined')) {
 			errorStatus.token.msg = $LL.LOGIN_Token();
 			errorStatus.token.status = true;
 			error = true;

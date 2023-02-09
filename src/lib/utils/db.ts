@@ -3,6 +3,7 @@ import { DB_HOST, DB_NAME, DB_PASSWORD, DB_USER } from '$env/static/private';
 import type { Handle } from '@sveltejs/kit';
 import schemas from '$src/collections';
 import { fieldsToSchema } from '$src/lib/utils/utils';
+
 export const dbConnect: Handle = async ({ resolve, event }) => {
 	// Turn off strict mode for query filters. Default in Mongodb 7
 	mongoose.set('strictQuery', false);
@@ -33,7 +34,6 @@ const collections: { [Key: string]: mongoose.Model<any> } = {};
 
 // iterates over an array of schemas and creates a new Mongoose schema and model for each on
 // if collections is not empty
-
 for (const schema of schemas) {
 	const schema_object = new mongoose.Schema(
 		{ ...fieldsToSchema(schema.fields), createdAt: Number, updatedAt: Number },

@@ -1,17 +1,18 @@
 <script lang="ts">
-	import type { PageData } from "../$types";
+	// typesafe-i18n
+	import LL from '$i18n/i18n-svelte';
 
-	export let list: PageData
+	import type { PageData } from '../$types';
 
-	const listOfUsers = JSON.parse(list.user)
+	export let list: PageData;
 
-
+	const listOfUsers = JSON.parse(list.user);
 </script>
 
 <div class="">
 	{#each listOfUsers as user}
-		<div> 
-			<span> Username: {user.username} </span>
+		<div>
+			<span>{$LL.USER_Username()}: {user.username} </span> - (edit/delete/role)
 		</div>
-	{/each}	
+	{/each}
 </div>

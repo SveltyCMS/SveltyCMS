@@ -28,8 +28,24 @@ const de: Translation = {
 	ERROR_Wrong: 'Es tut uns leid, etwas ist schief gelaufen.',
 	ERROR_GoHome: 'Zur Startseite',
 
-	// User
+	// USER
+	USER_Setting: 'Benutzereinstellungen',
+	USER_ID: 'Benutzer-ID',
+	USER_Username: 'Benutzername',
+	USER_FirstName: 'Vorname',
+	USER_LastName: 'Nachname',
+	USER_Email: 'E-Mail',
+	USER_Password: 'Passwort',
+	USER_Edit: 'Benutzereinstellungen bearbeiten',
+	USER_Fail: 'E-Mail bereits in Gebrauch',
+	USER_Token: 'Token generieren',
+	USER_Delete: 'Benutzer löschen',
 	USER_Profile: 'Benutzerprofil',
+	USER_Edit_Avatar: 'Avatar bearbeiten',
+	USER_Role: 'Rolle',
+	USER_Generate: 'Benutzerregistrierungs-Token generieren',
+	USER_ListShow: 'Benutzerliste anzeigen',
+	USER_ListCollapse: 'Benutzerliste schließen',
 
 	// Login
 	LOGIN_SignIn: 'Anmelden',
@@ -49,19 +65,6 @@ const de: Translation = {
 	LOGIN_ConfirmPassword: 'Passwort bestätigen',
 	LOGIN_ForgottenPassword: 'Kennwort vergessen',
 	LOGIN_SendResetMail: 'Kennwortrücksetzungs-E-Mail senden',
-
-	// USER
-	USER_Setting: 'Benutzereinstellungen',
-	USER_ID: 'Benutzer-ID',
-	USER_Username: 'Benutzername',
-	USER_FirstName: 'Vorname',
-	USER_LastName: 'Nachname',
-	USER_Email: 'E-Mail',
-	USER_Password: 'Passwort',
-	USER_Edit: 'Benutzereinstellungen bearbeiten',
-	USER_Fail: 'E-Mail bereits in Gebrauch',
-	USER_Token: 'Neues Token generieren',
-	USER_Delete: 'Benutzer löschen',
 
 	// Entry List
 	ENTRYLIST_Create: 'Erstellen',

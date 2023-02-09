@@ -94,6 +94,7 @@
 	// show/hide Footer
 	let toggleFooter = true;
 	// change sidebar width so only icons show
+
 	let switchSideBar = true;
 	let avatarSrc = $user?.avatar;
 	let toggleSideBar = true;
@@ -299,7 +300,9 @@
 			{/if} -->
 
 			<!-- Sidebar Left Footer -->
-			<div class="absolute inset-x-0 bottom-1">
+			<div
+				class="absolute inset-x-0 bottom-1 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
+			>
 				<div class="border-t border-surface-400 mx-1 mb-2" />
 
 				{#if switchSideBar}
@@ -339,13 +342,6 @@
 						<div class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
 							<LocaleSwitcher />
-							<a
-								class="btn btn-sm btn-ghost-surface hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-								href="/"
-								target="_blank"
-								rel="noreferrer"
-								>EN/DE
-							</a>
 							<ToolTip
 								position="right"
 								text={$LL.SBL_Search()}
@@ -433,11 +429,11 @@
 	<!-- Router Slot -->
 	<Modal />
 	<Toast />
-	<!-- <div class="m-2">
-		<slot />
-	</div> -->
-
 	<div class="m-2">
+		<slot />
+	</div>
+
+	<!-- <div class="m-2">
 		<div class="content !mt-[60px] flex-grow md:!mt-0 md:flex-grow-0">
 			{#if showFields}
 				<Form {fields} {collection} bind:showFields />
@@ -454,7 +450,7 @@
 				/>
 			</div>
 		</div>
-	</div>
+	</div> -->
 	<!-- ---- / ---- -->
 
 	<!-- Page Footer -->

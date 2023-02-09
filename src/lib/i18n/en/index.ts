@@ -28,8 +28,24 @@ const en: BaseTranslation = {
 	ERROR_Wrong: 'We are sorry, something went wrong.',
 	ERROR_GoHome: 'Go to Front Page',
 
-	// User
+	// USER
+	USER_Setting: 'User Settings',
+	USER_ID: 'User ID',
+	USER_Username: 'Username',
+	USER_FirstName: 'First Name',
+	USER_LastName: 'Last Name',
+	USER_Email: 'Email',
+	USER_Password: 'Password',
+	USER_Edit: 'Edit User Settings',
+	USER_Fail: 'Email already in use',
+	USER_Token: 'Generate new Token',
+	USER_Delete: 'Delete User',
 	USER_Profile: 'User Profile',
+	USER_Edit_Avatar: 'Edit Avatar',
+	USER_Role: 'Role',
+	USER_Generate: 'Generate new User Registions token',
+	USER_ListShow: 'Show user list',
+	USER_ListCollapse: 'Collapse user list',
 
 	// Login
 	LOGIN_SignIn: 'Sign In',
@@ -49,19 +65,6 @@ const en: BaseTranslation = {
 	LOGIN_ConfirmPassword: 'Confirm Password',
 	LOGIN_ForgottenPassword: 'Forgotten Password',
 	LOGIN_SendResetMail: 'Send Password Reset Email',
-
-	// USER
-	USER_Setting: 'User Settings',
-	USER_ID: 'User ID',
-	USER_Username: 'Username',
-	USER_FirstName: 'First Name',
-	USER_LastName: 'Last Name',
-	USER_Email: 'Email',
-	USER_Password: 'Password',
-	USER_Edit: 'Edit User Settings',
-	USER_Fail: 'Email already in use',
-	USER_Token: 'Generate new Token',
-	USER_Delete: 'Delete User',
 
 	// Entry List
 	ENTRYLIST_Create: 'Create',

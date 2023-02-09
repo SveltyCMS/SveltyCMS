@@ -8,6 +8,9 @@
 	import { loadLocaleAsync } from '$i18n/i18n-util.async';
 	import { replaceLocaleInUrl } from '$src/lib/utils/utils';
 
+	import { menu } from '@skeletonlabs/skeleton';
+	import { fade } from 'svelte/transition';
+
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
 		if (!newLocale || $locale === newLocale) return;
 
@@ -46,12 +49,20 @@
 
 <svelte:window on:popstate={handlePopStateEvent} />
 
-<ul>
-	{#each locales as l}
-		<li>
-			<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
-				{l}
-			</a>
-		</li>
-	{/each}
-</ul>
+<span class="relative" in:fade>
+	<button
+		class="btn variant-ghost-surface uppercase w-full"
+		use:menu={{ menu: 'language-dropdown' }}>{$locale}</button
+	>
+	<nav class="list-nav card p-4 w-40 shadow-xl uppercase" data-menu="language-dropdown">
+		<ul>
+			{#each locales as l}
+				<li>
+					<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
+						{l}
+					</a>
+				</li>
+			{/each}
+		</ul>
+	</nav>
+</span>

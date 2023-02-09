@@ -3,8 +3,11 @@
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
-	// Stores
+	// Skelton & Stores
 	import { modalStore } from '@skeletonlabs/skeleton';
+
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
 
 	// Lucia
 	import { getUser } from '@lucia-auth/sveltekit/client';
@@ -70,6 +73,18 @@
 	// Base Classes
 	const cBase = 'space-y-4';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+
+	//TODO: Get Roles from allowed user
+	let roles: Record<string, boolean> = {
+		Admin: true,
+		Editor: false,
+		User: false,
+		Guest: false
+	};
+
+	function filter(role: string): void {
+		roles[role] = !roles[role];
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -80,24 +95,61 @@
 	<form class="modal-form {cForm}">
 		<label class="input-label">
 			<span>Username:</span>
-			<input type="text" bind:value={formData.username} placeholder="Enter Username" />
+			<input
+				type="text"
+				bind:value={formData.username}
+				placeholder="Enter Username"
+				class="input"
+			/>
 		</label>
 		<label class="input-label">
 			<span>Email:</span>
-			<input type="email" bind:value={formData.email} placeholder="Enter email address" />
+			<input
+				type="email"
+				bind:value={formData.email}
+				placeholder="Enter email address"
+				class="input"
+			/>
 		</label>
 		<label class="input-label">
 			<span>Password:</span>
-			<input type="text" bind:value={formData.password} placeholder="Change Password" />
+			<input
+				type="text"
+				bind:value={formData.password}
+				placeholder="Change Password"
+				class="input"
+			/>
 		</label>
 		<label class="input-label">
 			<span>Confirm Password:</span>
-			<input type="text" bind:value={formData.confirmPassword} placeholder="Confirm Password" />
+			<input
+				type="text"
+				bind:value={formData.confirmPassword}
+				placeholder="Confirm Password"
+				class="input"
+			/>
 		</label>
-		<label class="input-label">
-			<span>Role:</span>
-			<input type="text" bind:value={formData.role} placeholder="Change Role" />
-		</label>
+
+		<div class="flex gap-2">
+			<div class="">Role:</div>
+			<div class="flex-auto">
+				<!-- TODO:  bind:value={formData.role}  -->
+				<div class="flex space-x-2">
+					{#each Object.keys(roles) as r}
+						<span
+							class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+							on:click={() => {
+								filter(r);
+							}}
+							on:keypress
+						>
+							{#if roles[r]}<span><Icon icon="fa:check" /></span>{/if}
+							<span class="capitalize">{r}</span>
+						</span>
+					{/each}
+				</div>
+			</div>
+		</div>
 	</form>
 	<!-- prettier-ignore -->
 	<footer class="modal-footer {parent.regionFooter}">

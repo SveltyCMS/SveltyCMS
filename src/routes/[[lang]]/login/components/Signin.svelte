@@ -15,10 +15,9 @@
 	on:keyup
 	class="relative flex flex-col items-center justify-center gap-3"
 >
-	<SigninForm singInErrorMessage={signInError} show={active == 0} />
+	<SigninForm show={active == 0} />
 
 	<SigninIcon show={active == 1 || active == undefined} />
-
 </div>
 
 <style>

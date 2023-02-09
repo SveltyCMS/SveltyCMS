@@ -1,15 +1,18 @@
 <script lang="ts">
+	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
-	import UserList from './UserList/UserList.svelte'
+
+	import UserList from './UserList/UserList.svelte';
 	import type { PageData } from './$types';
+
+	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
 	export let data: PageData;
-
 
 	// Lucia
 	import { page } from '$app/stores';
@@ -79,42 +82,45 @@
 
 	let avatarEdit = true;
 	let avatarSrc = $user?.avatar;
-	let showUserList: boolean = false
+	let showUserList: boolean = false;
 </script>
 
 <div class="">
-	<h1 class="mb-2">User Settings</h1>
+	<h1 class="mb-2">{$LL.USER_Profile()}</h1>
 
 	<div class="flex justify-start mb-2">
-		<div class="mt-1 flex flex-col gap-2 mx-2 relative  items-center justify-center">
+		<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center">
 			<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
 			<button
 				on:click={modalEditAvatar}
-				class="badge variant-filled-primary w-20 text-black absolute top-1">Edit Avatar</button
+				class="badge variant-filled-primary w-30 text-black absolute top-1"
+				>{$LL.USER_Edit_Avatar()}</button
 			>
 
 			<div class="badge variant-filled-secondary mt-1 w-full">
-				User ID:<span class="ml-2">{id}</span>
+				{$LL.USER_ID()}:<span class="ml-2">{id}</span>
 			</div>
-			<div class="badge variant-filled-tertiary w-full">Role:<span class="ml-2">{role}</span></div>
+			<div class="badge variant-filled-tertiary w-full">
+				{$LL.USER_Role()}:<span class="ml-2">{role}</span>
+			</div>
 		</div>
 		<div>
 			<label
-				>Username:
-				<input bind:value={username} name="username" type="text" readonly />
+				>{$LL.USER_Username()}:
+				<input bind:value={username} name="username" type="text" readonly class="input" />
 			</label>
 			<label
-				>Email:
-				<input bind:value={email} name="email" type="email" readonly />
+				>{$LL.USER_Email()}:
+				<input bind:value={email} name="email" type="email" readonly class="input" />
 			</label>
 			<label
-				>Password:
-				<input bind:value={password} name="password" type="password" readonly />
+				>{$LL.USER_Password()}:
+				<input bind:value={password} name="password" type="password" readonly class="input" />
 			</label>
 
 			<button class="btn btn-sm variant-filled-surface mt-2" on:click={modalUserForm}
-				>Edit user data</button
+				>{$LL.USER_Edit()}:</button
 			>
 		</div>
 	</div>
@@ -125,11 +131,14 @@
 		{#if showUserList}
 			<UserList list={data} />
 		{/if}
-		<button class="btn variant-filled-secondary btn-sm" on:click={()=> showUserList=!showUserList }>{showUserList ? 'Collapse user list': 'Show user list'}</button>
+		<button
+			class="btn variant-filled-secondary btn-sm"
+			on:click={() => (showUserList = !showUserList)}
+			>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
+		>
 
-		<div class="mt-3">Generate new User Registions token</div>
+		<div class="mt-3">{$LL.USER_Generate()}:</div>
 		<form method="post" action="?/generateToken" use:enhance>
-
 			<div class="group relative z-0 mb-6 w-56">
 				<input
 					bind:value={newUserEmail}
@@ -137,12 +146,8 @@
 					name="newUserEmail"
 					placeholder=" "
 					required
+					class="input"
 				/>
-				<label
-					for="newUserEmail"
-					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
-				>
 			</div>
 			<div>
 				<label>
@@ -152,7 +157,7 @@
 					<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
 				</label>
 			</div>
-			<button class="btn variant-filled-tertiary btn-base" type="submit">Generate new Token</button>
+			<button class="btn variant-filled-tertiary btn-base" type="submit">{$LL.USER_Token()}</button>
 		</form>
 		<!-- <button class="btn variant-filled-tertiary btn-base">Delete User</button> -->
 	{/if}

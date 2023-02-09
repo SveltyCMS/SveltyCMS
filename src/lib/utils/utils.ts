@@ -1,7 +1,7 @@
 import axios from 'axios';
 import fs from 'fs';
-import schemas from '../../collections';
-import type { Schema } from '../../collections/types';
+import schemas from '$src/collections';
+import type { Schema } from '$src/collections/types';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 

@@ -4,7 +4,6 @@ import { browser } from '$app/environment';
 
 // darkmode toggle
 const initialValue = browser ? JSON.parse(window.localStorage.getItem('is_dark') || 'true') : false;
-
 export let is_dark: Writable<boolean> = writable(initialValue);
 
 // OS Prefers Dark Scheme - TRUE: dark | FALSE: light
