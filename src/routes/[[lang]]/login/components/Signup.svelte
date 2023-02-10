@@ -1,9 +1,10 @@
 <script lang="ts">
 	export let active: undefined | 0 | 1 = undefined;
+
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import SignupForm from './SignupForm.svelte';
 
-	export let singUpError: string | undefined
+	//export let singUpError: string | undefined
 </script>
 
 <div

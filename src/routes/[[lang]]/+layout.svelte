@@ -39,6 +39,7 @@
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
+
 	import collections, { categories } from '$src/collections';
 	import Collections from '$src/components/Collections.svelte';
 	import EntryList from '$src/components/EntryList.svelte';
@@ -86,7 +87,15 @@
 	//shape_fields(collection.fields).then((data) => (fields = data));
 
 	// show/hide Left Sidebar
-	export let toggleLeftSideBar = false;
+	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+
+	export let toggleLeftSideBar = true;
+	export let open = false;
+	export let onClickHambuger = (): void => {
+		open = !open;
+		toggleLeftSideBar = !toggleLeftSideBar;
+	};
+
 	// show/hide Right Sidebar
 	let toggleRightSideBar = true;
 	// show/hide Top Sidebar
@@ -152,20 +161,7 @@
 		>
 			{#if !switchSideBar}
 				<!-- mobile hamburger -->
-				<div class="flex items-center md:hidden ml-1">
-					<button
-						class="btn btn-sm mt-2 -ml-2 text-white "
-						on:click={() => (toggleLeftSideBar = !toggleLeftSideBar)}
-					>
-						<span>
-							<svg viewBox="0 0 100 80" class="fill-token h-4 w-4">
-								<rect width="100" height="20" />
-								<rect y="30" width="100" height="20" />
-								<rect y="60" width="100" height="20" />
-							</svg>
-						</span>
-					</button>
-				</div>
+				<AnimatedHamburger {open} {onClickHambuger} />
 			{/if}
 
 			<!-- sidebar collapse button -->
@@ -307,6 +303,7 @@
 
 				{#if switchSideBar}
 					<div
+						hidden={toggleLeftSideBar}
 						class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
 					>
 						<div class="md:row-span-2">

@@ -1,9 +1,10 @@
 <script lang="ts">
 	export let active: undefined | 0 | 1 = undefined;
+
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import SigninForm from './SigninForm.svelte';
 
-	export let signInError: string | undefined;
+	//export let signInError: string | undefined;
 </script>
 
 <div
@@ -16,7 +17,6 @@
 	class="relative flex flex-col items-center justify-center gap-3"
 >
 	<SigninForm show={active == 0} />
-
 	<SigninIcon show={active == 1 || active == undefined} />
 </div>
 
