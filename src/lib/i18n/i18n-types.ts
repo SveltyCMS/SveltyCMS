@@ -148,7 +148,7 @@ type RootTranslation = {
 	 */
 	USER_Role: string
 	/**
-	 * G​e​n​e​r​a​t​e​ ​n​e​w​ ​U​s​e​r​ ​R​e​g​i​s​t​i​o​n​s​ ​t​o​k​e​n
+	 * E​m​a​i​l​ ​U​s​e​r​ ​R​e​g​i​s​t​i​o​n​ ​t​o​k​e​n
 	 */
 	USER_Generate: string
 	/**
@@ -651,7 +651,7 @@ export type TranslationFunctions = {
 	 */
 	USER_Role: () => LocalizedString
 	/**
-	 * Generate new User Registions token
+	 * Email User Registion token
 	 */
 	USER_Generate: () => LocalizedString
 	/**

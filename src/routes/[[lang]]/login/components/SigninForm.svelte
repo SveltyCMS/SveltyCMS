@@ -75,7 +75,7 @@
 				<CMSLogo className="w-14" fill="red" />
 				<h1 class="text-2xl font-bold text-black lg:text-3xl">
 					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
-					<div class="-mt-1">{$LL.LOGIN_SignUp()}</div>
+					<div class="-mt-1">{$LL.LOGIN_SignIn()}</div>
 				</h1>
 			</div>
 

@@ -38,12 +38,11 @@ const de: Translation = {
 	USER_Password: 'Passwort',
 	USER_Edit: 'Benutzereinstellungen bearbeiten',
 	USER_Fail: 'E-Mail bereits in Gebrauch',
-	USER_Token: 'Token generieren',
 	USER_Delete: 'Benutzer löschen',
 	USER_Profile: 'Benutzerprofil',
 	USER_Edit_Avatar: 'Avatar bearbeiten',
 	USER_Role: 'Rolle',
-	USER_Generate: 'Benutzerregistrierungs-Token generieren',
+	USER_Generate: 'Benutzerregistrierungs-Token Email',
 	USER_ListShow: 'Benutzerliste anzeigen',
 	USER_ListCollapse: 'Benutzerliste schließen',
 

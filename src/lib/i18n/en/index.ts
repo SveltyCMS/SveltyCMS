@@ -38,12 +38,11 @@ const en: BaseTranslation = {
 	USER_Password: 'Password',
 	USER_Edit: 'Edit User Settings',
 	USER_Fail: 'Email already in use',
-	USER_Token: 'Generate new Token',
 	USER_Delete: 'Delete User',
 	USER_Profile: 'User Profile',
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
-	USER_Generate: 'Generate new User Registions token',
+	USER_Generate: 'Email User Registion token',
 	USER_ListShow: 'Show user list',
 	USER_ListCollapse: 'Collapse user list',
 

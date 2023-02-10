@@ -12,6 +12,9 @@
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	export let data: PageData;
 
 	// Lucia
@@ -93,12 +96,24 @@
 		open = !open;
 		toggleLeftSideBar = !toggleLeftSideBar;
 	};
+
+	//TODO: Get Roles from allowed user
+	let roles: Record<string, boolean> = {
+		Admin: true,
+		Editor: false,
+		User: false,
+		Guest: false
+	};
+
+	function filter(role: string): void {
+		roles[role] = !roles[role];
+	}
 </script>
 
-<div class="flex mr-1">
+<div class="flex mr-1 align-centre mb-2">
 	<!-- mobile hamburger -->
 	<AnimatedHamburger {open} {onClickHambuger} />
-	<h1 class="mb-2">{$LL.USER_Profile()}</h1>
+	<h1 class="">{$LL.USER_Profile()}</h1>
 </div>
 
 <!-- todo: restict max width -->
@@ -142,10 +157,11 @@
 	</div>
 </div>
 
-<div class="">
-	<hr />
-	<br />
-	{#if $user?.role === 'ADMIN'}
+<!-- admin area -->
+{#if $user?.role === 'ADMIN'}
+	<div class="my-1 ">
+		<hr />
+		<h2 class="mb-2">Admin Area</h2>
 		{#if showUserList}
 			<UserList list={data} />
 		{/if}
@@ -154,57 +170,51 @@
 			on:click={() => (showUserList = !showUserList)}
 			>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
 		>
+		{#if !showUserList}
+			<div class="mt-3">{$LL.USER_Generate()}:</div>
+			<form method="post" action="?/generateToken" use:enhance>
+				<div class="group relative z-0 mb-6 w-56">
+					<input
+						bind:value={newUserEmail}
+						type="email"
+						name="newUserEmail"
+						placeholder=" Enter New User Email"
+						required
+						class="input"
+					/>
+				</div>
 
-		<div class="mt-3">{$LL.USER_Generate()}:</div>
-		<form method="post" action="?/generateToken" use:enhance>
-			<div class="group relative z-0 mb-6 w-56">
-				<input
-					bind:value={newUserEmail}
-					type="email"
-					name="newUserEmail"
-					placeholder=" "
-					required
-					class="input"
-				/>
-			</div>
-			<div>
-				<label>
-					<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
-				</label>
-				<label>
-					<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
-				</label>
-			</div>
-			<button class="btn variant-filled-tertiary btn-base" type="submit">{$LL.USER_Token()}</button>
-		</form>
-		<!-- <button class="btn variant-filled-tertiary btn-base">Delete User</button> -->
-	{/if}
-</div>
+				<!-- <div>
+					<label>
+						<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
+					</label>
+					<label>
+						<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
+					</label>
+				</div> -->
 
-<style>
-	@keyframes hamburger-animation {
-		0% {
-			transform: rotate(0deg);
-		}
-		20% {
-			transform: rotate(45deg);
-		}
-		40% {
-			transform: rotate(-45deg);
-		}
-		60% {
-			transform: rotate(45deg);
-		}
-		80% {
-			transform: rotate(-45deg);
-		}
-		100% {
-			transform: rotate(0deg);
-		}
-	}
-
-	.hamburger-icon {
-		transform-origin: center;
-		animation: hamburger-animation 0.5s ease-in-out;
-	}
-</style>
+				<div class="flex gap-2">
+					<div class="">Assign Role:</div>
+					<div class="flex-auto">
+						<!-- TODO:  bind:value={formData.role}  -->
+						<div class="flex space-x-2">
+							{#each Object.keys(roles) as r}
+								<span
+									class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+									on:click={() => {
+										filter(r);
+									}}
+									on:keypress
+								>
+									{#if roles[r]}<span><Icon icon="fa:check" /></span>{/if}
+									<span class="capitalize">{r}</span>
+								</span>
+							{/each}
+						</div>
+					</div>
+				</div>
+			</form>
+			<!-- <button class="btn variant-filled-tertiary btn-base">Delete User</button> -->
+		{/if}
+	</div>
+{/if}
