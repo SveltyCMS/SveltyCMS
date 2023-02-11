@@ -128,10 +128,6 @@ type RootTranslation = {
 	 */
 	USER_Fail: string
 	/**
-	 * G​e​n​e​r​a​t​e​ ​n​e​w​ ​T​o​k​e​n
-	 */
-	USER_Token: string
-	/**
 	 * D​e​l​e​t​e​ ​U​s​e​r
 	 */
 	USER_Delete: string
@@ -630,10 +626,6 @@ export type TranslationFunctions = {
 	 * Email already in use
 	 */
 	USER_Fail: () => LocalizedString
-	/**
-	 * Generate new Token
-	 */
-	USER_Token: () => LocalizedString
 	/**
 	 * Delete User
 	 */
