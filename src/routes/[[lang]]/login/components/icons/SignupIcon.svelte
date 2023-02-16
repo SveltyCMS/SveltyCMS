@@ -3,13 +3,14 @@
 	import LL from '$lib/i18n/i18n-svelte';
 
 	export let show = true;
+	export let forgot = false;
 </script>
 
 <div
-	class:hide={!show}
-	class="dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer "
+	class:hide={!show || forgot}
+	class="dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer flex  items-center justify-center flex-col"
 >
-	<div class="relative w-max rounded-full border-4 border-white p-3">
+	<div class=" relative w-max rounded-full border-4 border-white p-3">
 		<svg
 			class="aspect-square h-12"
 			xmlns="http://www.w3.org/2000/svg"

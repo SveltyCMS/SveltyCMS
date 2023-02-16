@@ -17,8 +17,8 @@
 	{#if showFields}
 		<Form {fields} {collection} bind:showFields />
 	{/if}
-
-	<div hidden={showFields}>
+	protected route?
+	<!-- <div hidden={showFields}>
 		<EntryList
 			bind:toggleSideBar
 			bind:showFields
@@ -27,5 +27,5 @@
 			{category}
 			bind:refresh
 		/>
-	</div>
+	</div> -->
 </div>

@@ -156,6 +156,10 @@ type RootTranslation = {
 	 */
 	USER_ListCollapse: string
 	/**
+	 * E​m​a​i​l​ ​U​s​e​r​ ​R​e​g​i​s​t​i​o​n​ ​t​o​k​e​n
+	 */
+	USER_EmailToken: string
+	/**
 	 * S​i​g​n​ ​I​n
 	 */
 	LOGIN_SignIn: string
@@ -654,6 +658,10 @@ export type TranslationFunctions = {
 	 * Collapse user list
 	 */
 	USER_ListCollapse: () => LocalizedString
+	/**
+	 * Email User Registion token
+	 */
+	USER_EmailToken: () => LocalizedString
 	/**
 	 * Sign In
 	 */

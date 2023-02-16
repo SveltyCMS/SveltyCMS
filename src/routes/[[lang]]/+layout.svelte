@@ -104,6 +104,9 @@
 	let toggleFooter = true;
 	// change sidebar width so only icons show
 
+	let progress: number = 0;
+	let submitDisabled = true;
+
 	let switchSideBar = true;
 	let avatarSrc = $user?.avatar;
 	let toggleSideBar = true;
@@ -389,7 +392,39 @@
 			class="bg-white dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative"
 		>
 			<!-- Desktop Save -->
-			<button class="btn variant-filled-primary my-1">Save button</button>
+			<div class="my-3 flex items-center justify-between">
+				<button
+					type="submit"
+					class="relative w-full max-w-[150px] h-[50px] rounded-lg bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600 px-4 py-2 font-bold hover:bg-primary-500 focus:bg-primary-500 active:bg-primary-600 md:mt-2 md:max-w-[350px]"
+					disabled={submitDisabled}
+				>
+					{#if !progress === 0}
+						<div
+							class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xl uppercase"
+						>
+							<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+							Save
+						</div>
+
+						<div class="relative mx-auto mt-[27px] h-2 w-[90%] rounded-full bg-surface-500 px-4">
+							<div
+								class="absolute bottom-0 left-0 mt-4 h-2 w-full rounded bg-tertiary-500"
+								style="width: {progress}%"
+							/>
+							<div class="absolute top-0 left-0 flex h-full w-full items-center justify-center ">
+								<div class="p-[1.7px] rounded-full variant-filled-surface text-[9px]">
+									{progress}%
+								</div>
+							</div>
+						</div>
+					{:else}
+						<div class="flex items-center justify-center text-xl uppercase">
+							<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+							Save
+						</div>
+					{/if}
+				</button>
+			</div>
 
 			<!-- Desktop Center Admin area -->
 			<div class="">Admin Center Area</div>

@@ -10,6 +10,8 @@ const KeySchema = new mongoose.Schema(
 			type: String,
 			required: true
 		},
+
+		// Not strictly required by Lucia, but we'll be using it
 		hashed_password: String,
 		primary: {
 			type: Boolean,

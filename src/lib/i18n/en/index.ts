@@ -45,6 +45,7 @@ const en: BaseTranslation = {
 	USER_Generate: 'Email User Registion token',
 	USER_ListShow: 'Show user list',
 	USER_ListCollapse: 'Collapse user list',
+	USER_EmailToken: 'Email User Registion token',
 
 	// Login
 	LOGIN_SignIn: 'Sign In',

@@ -3,10 +3,11 @@
 	import LL from '$i18n/i18n-svelte';
 
 	export let show = true;
+	export let forgot = false;
 </script>
 
 <div
-	class:hide={!show}
+	class:hide={!show || forgot}
 	class="dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer"
 >
 	<div class="relative w-max rounded-full border-4 border-[#2b2f31] p-3">

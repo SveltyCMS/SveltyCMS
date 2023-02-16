@@ -14,7 +14,18 @@
 	export let show: boolean = false;
 	let showPassword: boolean = false;
 
+	//check for first user
 	export let firstUserExists = false;
+
+	// function checkFirstUser() {
+	// 	if (auth.getUser() !== null) {
+	// 		firstUserExists = true;
+	// 	}
+	// }
+
+	// checkFirstUser();
+
+	// console.log(checkFirstUser);
 
 	let username = '';
 	let email = '';
@@ -22,15 +33,6 @@
 	let confirmPassword = '';
 	let token = ''; // token need to be compared to admin provided token
 	let terms = '';
-
-	let errorStatus = {
-		username: { status: false, msg: '' },
-		email: { status: false, msg: '' },
-		password: { status: false, msg: '' },
-		confirm: { status: false, msg: '' },
-		token: { status: false, msg: '' },
-		terms: { status: false, msg: '' }
-	};
 
 	// zod
 	// import z from 'zod';
@@ -74,7 +76,55 @@
 	// 			});
 	// 		}
 	// 	});
-	// }
+
+	// const validate = () => {
+	// 	try {
+	// 		signupSchema.parse({ email, password });
+	// 		errors = {};
+	// 		errorStatus.email.status = false;
+	// 		errorStatus.email.msg = '';
+	// 		errorStatus.password.status = false;
+	// 		errorStatus.password.msg = '';
+	// 		isWiggling = false;
+	// 		return true;
+	// 	} catch (error) {
+	// 		errors = error.formErrors.fieldErrors;
+	// 		errorStatus.email.status = true;
+	// 		errorStatus.email.msg = error.formErrors.fieldErrors.email;
+	// 		errorStatus.password.status = true;
+	// 		errorStatus.password.msg = error.formErrors.fieldErrors.password;
+	// 		isWiggling = true;
+	// 		return false;
+	// 	}
+	// };
+
+	// const handleSubmit = async (event) => {
+	// 	event.preventDefault();
+	// 	if (validate()) {
+	// 		try {
+	// 			const response = await axios.post('/signup', { email, password });
+	// 			console.log(response.data);
+	// 		} catch (error) {
+	// 			console.error(error);
+	// 		}
+	// 	}
+	// };
+
+	// onMount(() => {
+	// 	emailInput.focus();
+	// });
+
+	let errors = {};
+	let isWiggling = false;
+
+	let errorStatus = {
+		username: { status: false, msg: '' },
+		email: { status: false, msg: '' },
+		password: { status: false, msg: '' },
+		confirm: { status: false, msg: '' },
+		token: { status: false, msg: '' },
+		terms: { status: false, msg: '' }
+	};
 
 	function hasSignUpError() {
 		// Validation

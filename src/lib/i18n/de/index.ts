@@ -45,6 +45,7 @@ const de: Translation = {
 	USER_Generate: 'Benutzerregistrierungs-Token Email',
 	USER_ListShow: 'Benutzerliste anzeigen',
 	USER_ListCollapse: 'Benutzerliste schließen',
+	USER_EmailToken: 'Email Benutzerregistrierungstoken',
 
 	// Login
 	LOGIN_SignIn: 'Anmelden',

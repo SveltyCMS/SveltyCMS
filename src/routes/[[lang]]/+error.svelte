@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
+	import { PUBLIC_SITENAME } from '$env/static/public';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -43,10 +43,10 @@
 			</h1>
 			<!-- error url  -->
 			<div
-				class="absolute top-[50%] translate-x-[25%] rotate-12 mx-auto text-center rounded-md bg-error-600/80 px-2 text-sm font-bold text-white"
+				class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 rotate-12 mx-auto text-center rounded-md bg-error-600/80 px-2 text-sm font-bold text-white"
 			>
-				<div>{$page.url}</div>
-				<div>{$LL.ERROR_Pagenotfound()}</div>
+				<div class="w-min-[200px] ">{$page.url}</div>
+				<div class="flex-nowrap whitespace-nowrap">{$LL.ERROR_Pagenotfound()}</div>
 			</div>
 		</div>
 

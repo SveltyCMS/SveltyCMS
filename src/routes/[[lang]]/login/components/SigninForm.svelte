@@ -9,10 +9,42 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
+	// TODO: forgotton not working
+	import axios from 'axios';
+	let loading = false;
+	const sendResetMail = async () => {
+		if (!email) {
+			errorStatus.email.status = true;
+			errorStatus.email.msg = 'Email is required';
+			return;
+		} else if (!/\S+@\S+\.\S+/.test(email)) {
+			errorStatus.email.status = true;
+			errorStatus.email.msg = 'Invalid email format';
+			return;
+		}
+
+		loading = true;
+
+		try {
+			const { data } = await axios.post('/api/forgotPassword', { email });
+
+			if (data.type === 'success') {
+				// show success message
+			} else {
+				// show error message
+			}
+		} catch (error) {
+			// handle error
+		} finally {
+			loading = false;
+		}
+	};
+
 	export let show: boolean = false;
+	export let forgot: boolean = false;
 
 	let showPassword: boolean = false;
-	let forgot: boolean = false;
+
 	export let email = '';
 	export let password = '';
 
@@ -180,7 +212,8 @@
 		</div>
 	{:else}
 		<!-- Forgotton Password -->
-		<form class="mx-auto w-full p-4 lg:w-1/2" method="post" action="?/forgotPassword">
+		<!-- <form class="mx-auto w-full p-4 lg:w-1/2" method="post" action="?/forgotPassword"> -->
+		<form on:submit|preventDefault={sendResetMail} class="mx-auto w-full p-4 lg:w-1/2">
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
 

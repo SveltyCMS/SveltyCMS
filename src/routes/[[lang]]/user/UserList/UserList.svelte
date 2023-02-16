@@ -1,22 +1,3 @@
-<!-- <script lang="ts">
-	// typesafe-i18n
-	import LL from '$i18n/i18n-svelte';
-
-	import type { PageData } from '../$types';
-
-	export let list: PageData;
-
-	const listOfUsers = JSON.parse(list.user);
-	console.log(listOfUsers);
-</script>
-
-<div class="">
-	{#each listOfUsers as user}
-		<div>
-			<span>{$LL.USER_Username()}: {user.username} {user.role} {user.email}</span> - (edit/delete/role)
-		</div>
-	{/each}
-</div> -->
 <script lang="ts">
 	//skelton
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
@@ -119,7 +100,7 @@
 <!-- create/delete/block/unblock -->
 <div class="flex items-center justify-center">
 	<!-- the actual buttons -->
-	<div class="inline-flex shadow-md hover:shadow-lg focus:shadow-lg" role="group">
+	<div class="relative inline-flex shadow-md hover:shadow-lg focus:shadow-lg" role="group">
 		{#if multiButton == 'edit'}
 			<button
 				on:click={modalUserForm}
@@ -168,7 +149,7 @@
 		<!-- Dropdown selection -->
 		<button
 			use:menu={{ menu: 'multiSelect', interactive: true }}
-			class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
+			class="relabsolute  mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 		>
 			<Icon icon="mdi:chevron-down" width="20" /></button
 		>

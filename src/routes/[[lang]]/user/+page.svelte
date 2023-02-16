@@ -75,20 +75,60 @@
 		modalStore.trigger(d);
 	}
 
+	function modalTokenUser(): void {
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ModalTokenUser,
+			// Add your props as key/value pairs
+			props: { background: 'bg-red-500' },
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Generate Registation token',
+			body: 'Add User Email and select User Role, then press Send.',
+			component: modalComponent,
+			// Pass abitrary data to the component
+			response: (r: any) => {
+				if (r) console.log('response:', r);
+			},
+
+			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditAvatar }
+		};
+		modalStore.trigger(d);
+	}
+
+	function modalConfirm(): void {
+		const d: ModalSettings = {
+			type: 'confirm',
+			title: 'Please Confirm User Deletion',
+			body: 'This cannot be undone. Are you sure you wish to proceed?',
+			// TRUE if confirm pressed, FALSE if cancel pressed
+			response: (r: boolean) => {
+				if (r) console.log('response:', r);
+			},
+			// Optionally override the button text
+			buttonTextCancel: 'Cancel',
+			buttonTextConfirm: 'Delete User'
+		};
+		modalStore.trigger(d);
+	}
+
 	let username = $user?.username;
 	let id = $user?.userId;
 	let role = $user?.role;
 	let email = $user?.email;
 	let password = 'Hashed neews convert';
-	let newUserEmail: string;
-	let newUserRole: 'USER' | 'EDITOR' = 'USER';
 
 	let avatarEdit = true;
 	let avatarSrc = $user?.avatar;
-	let showUserList: boolean = false;
+	let showUserList: boolean = true;
 
 	// show/hide Left Sidebar
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+	import ModalTokenUser from './ModalTokenUser.svelte';
 
 	export let toggleLeftSideBar = true;
 	export let open = false;
@@ -137,7 +177,7 @@
 	</div>
 
 	<!-- user fields -->
-	<div class="">
+	<form>
 		<label
 			>{$LL.USER_Username()}:
 			<input bind:value={username} name="username" type="text" readonly class="input" />
@@ -150,71 +190,31 @@
 			>{$LL.USER_Password()}:
 			<input bind:value={password} name="password" type="password" readonly class="input" />
 		</label>
-
-		<button class="btn btn-sm variant-filled-surface mt-2 w-full md:w-auto" on:click={modalUserForm}
-			>{$LL.USER_Edit()}:</button
-		>
-	</div>
+		<div class="flex justify-between my-2">
+			<button class="btn btn-sm variant-filled-surface  w-full md:w-auto" on:click={modalUserForm}
+				>{$LL.USER_Edit()}:</button
+			>
+			<button on:click={modalConfirm} class="btn btn-sm variant-filled-error ">Delete User</button>
+		</div>
+	</form>
 </div>
 
 <!-- admin area -->
 {#if $user?.role === 'ADMIN'}
-	<div class="my-1 ">
+	<div class="my-1 gap-2">
 		<hr />
 		<h2 class="mb-2">Admin Area</h2>
-		{#if showUserList}
-			<UserList list={data} />
-		{/if}
 		<button
 			class="btn variant-filled-secondary btn-sm"
 			on:click={() => (showUserList = !showUserList)}
 			>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
 		>
-		{#if !showUserList}
-			<div class="mt-3">{$LL.USER_Generate()}:</div>
-			<form method="post" action="?/generateToken" use:enhance>
-				<div class="group relative z-0 mb-6 w-56">
-					<input
-						bind:value={newUserEmail}
-						type="email"
-						name="newUserEmail"
-						placeholder=" Enter New User Email"
-						required
-						class="input"
-					/>
-				</div>
+		<button on:click={modalTokenUser} class="btn btn-sm variant-filled-primary w-30 text-black"
+			>{$LL.USER_EmailToken()}</button
+		>
 
-				<!-- <div>
-					<label>
-						<input type="radio" bind:group={newUserRole} name="role" value={'USER'} /> User
-					</label>
-					<label>
-						<input type="radio" bind:group={newUserRole} name="role" value={'EDITOR'} /> Editor
-					</label>
-				</div> -->
-
-				<div class="flex gap-2">
-					<div class="">Assign Role:</div>
-					<div class="flex-auto">
-						<!-- TODO:  bind:value={formData.role}  -->
-						<div class="flex space-x-2">
-							{#each Object.keys(roles) as r}
-								<span
-									class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-									on:click={() => {
-										filter(r);
-									}}
-									on:keypress
-								>
-									{#if roles[r]}<span><Icon icon="fa:check" /></span>{/if}
-									<span class="capitalize">{r}</span>
-								</span>
-							{/each}
-						</div>
-					</div>
-				</div>
-			</form>
-			<!-- <button class="btn variant-filled-tertiary btn-base">Delete User</button> -->
+		{#if showUserList}
+			<UserList list={data} />
 		{/if}
 	</div>
 {/if}

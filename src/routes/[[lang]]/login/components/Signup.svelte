@@ -14,7 +14,7 @@
 	on:click
 	on:pointerenter
 	on:keydown
-	class="relative flex flex-col items-center justify-center gap-3 "
+	class="relative flex flex-col items-center justify-center gap-3"
 >
 	<SignupForm show={active == 1} />
 	<SignupIcon show={active == 0 || active == undefined} />
