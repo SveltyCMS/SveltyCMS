@@ -83,6 +83,11 @@
 	};
 
 	function filter(role: string): void {
+		for (const r in roles) {
+			if (r !== role) {
+				roles[r] = false;
+			}
+		}
 		roles[role] = !roles[role];
 	}
 </script>
@@ -130,11 +135,12 @@
 			/>
 		</label>
 
-		<div class="flex gap-2">
-			<div class="">Role:</div>
+		<div class="flex flex-col sm:flex-row gap-2">
+			<div class="sm:w-1/4">Role:</div>
 			<div class="flex-auto">
 				<!-- TODO:  bind:value={formData.role}  -->
-				<div class="flex space-x-2">
+
+				<div class="flex flex-wrap gap-2 space-x-2">
 					{#each Object.keys(roles) as r}
 						<span
 							class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
