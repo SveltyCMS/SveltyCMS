@@ -1,4 +1,5 @@
-# SimpleCMS - is a flexible Content Manage System to provide a headless backend
+#SimpleCMS
+##is a flexible Content Manage System to provide a headless backend
 
 This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 

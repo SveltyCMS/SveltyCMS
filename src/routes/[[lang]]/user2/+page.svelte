@@ -179,7 +179,7 @@
 			class="relative w-full max-w-[150px] h-[50px] rounded-lg bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600 px-4 py-2 font-bold hover:bg-primary-500 focus:bg-primary-500 active:bg-primary-600 md:mt-2 md:max-w-[350px]"
 			disabled={submitDisabled}
 		>
-			{#if !progress = 0}
+			<!--{#if (!progress = 0) }-->
 				<div
 					class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xl uppercase"
 				>
@@ -198,12 +198,12 @@
 						</div>
 					</div>
 				</div>
-			{:else}
-				<div class="flex items-center justify-center text-xl uppercase">
-					<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
-					Save
-				</div>
-			{/if}
+			<!--{:else}-->
+			<!--	<div class="flex items-center justify-center text-xl uppercase">-->
+			<!--		<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />-->
+			<!--		Save-->
+			<!--	</div>-->
+			<!--{/if}-->
 		</button>
 	</div>
 </form>
