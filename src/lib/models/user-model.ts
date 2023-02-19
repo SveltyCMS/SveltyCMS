@@ -1,5 +1,5 @@
 // The user table stores the users
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
 export const UserSchema = new mongoose.Schema(
 	{
@@ -8,19 +8,32 @@ export const UserSchema = new mongoose.Schema(
 			type: String
 		},
 
-		// Other User Properties
-		email: String,
-		role: String,
-		username: String,
-		firstname: String,
-		lastname: String,
-		avatar: String,
-		resetRequestedAt: String,
-		resetToken: String
-	},
+    // Other User Properties
+    email: String,
+    role: String,
+    username: String,
+    firstname: String,
+    lastname: String,
+    avatar: String,
+    resetRequestedAt: String,
+    resetToken: String,
+  },
 
-	// Let Lucia handle the _id field
-	{ _id: false }
+  // Let Lucia handle the _id field
+  { _id: false }
 );
 
-export const User = mongoose.model('user', UserSchema);
+export const User = mongoose.model("user", UserSchema);
+
+// Check if the first user exists in the database
+let firstUserExists = false;
+User.findOne({}, (err, user) => {
+  if (err) {
+    console.error(err);
+    return;
+  }
+
+  firstUserExists = !!user;
+});
+
+export { firstUserExists };

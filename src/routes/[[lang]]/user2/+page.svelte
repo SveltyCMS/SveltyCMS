@@ -5,6 +5,9 @@
 	import { updateUser2Errors, user2Errors } from '$src/lib/store/user2Form';
 	import { get } from 'svelte/store';
 
+	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
+	import { get } from 'svelte/store';
+
 	const inputSchemas = z.object({
 		name: z
 			.string({ required_error: 'Required Name' })
@@ -26,12 +29,12 @@
 	let phone = '';
 	let address = '';
 
-	let progress = 0;
+	let progress: number = 0;
 	let submitDisabled = true;
 	let displayErrors: any = {};
 	let touched: { [key: string]: boolean } = {};
 
-	let errors = get(user2Errors);
+	let errors: any = get(user2Errors);
 	user2Errors.subscribe((errors) => {
 		let dErrors: { [key: string]: string } = {};
 		errors.forEach((error) => {

@@ -14,18 +14,9 @@
 	export let show: boolean = false;
 	let showPassword: boolean = false;
 
-	//check for first user
-	export let firstUserExists = false;
-
-	// function checkFirstUser() {
-	// 	if (auth.getUser() !== null) {
-	// 		firstUserExists = true;
-	// 	}
-	// }
-
-	// checkFirstUser();
-
-	// console.log(checkFirstUser);
+	//import { firstUserExists } from 'user-models';
+	export let firstUserExists: boolean = false;
+	console.log(firstUserExists);
 
 	let username = '';
 	let email = '';
@@ -166,7 +157,7 @@
 			error = true;
 		}
 
-		// token chec after 1st user
+		// token check after 1st user
 		if (firstUserExists && (token === '' || token === null || typeof token === 'undefined')) {
 			errorStatus.token.msg = $LL.LOGIN_Token();
 			errorStatus.token.status = true;
