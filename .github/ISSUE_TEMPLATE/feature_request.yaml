@@ -32,7 +32,7 @@ body:
     id: CoC
     attributes:
       label: Code of Conduct
-      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/Rar9/SvelteCMS/CODE-OF-CONDUCT.md)
+      description: By submitting this issue, you agree to follow our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md)
       options:
         - label: I agree to follow this project's Code of Conduct
           required: true
