@@ -5,9 +5,6 @@
 	import { updateUser2Errors, user2Errors } from '$src/lib/store/user2Form';
 	import { get } from 'svelte/store';
 
-	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
-	import { get } from 'svelte/store';
-
 	const inputSchemas = z.object({
 		name: z
 			.string({ required_error: 'Required Name' })
@@ -18,7 +15,7 @@
 			.string()
 			.regex(/^\d{10}$/, 'Phone number must be 10 digits')
 			.optional(),
-		address: z.string().min(10, 'Address must be at least 10 characters')
+		address: z.string().min(10, 'Address must be at least 10 characters').optional()
 	});
 
 	const totalInputFields = inputSchemas._getCached().keys;
@@ -35,7 +32,7 @@
 	let touched: { [key: string]: boolean } = {};
 
 	let errors: any = get(user2Errors);
-	user2Errors.subscribe((errors) => {
+	user2Errors.subscribe((errors: z.ZodIssue[]) => {
 		let dErrors: { [key: string]: string } = {};
 		errors.forEach((error) => {
 			const name = error.path[0];
@@ -53,13 +50,22 @@
 		const data = { name, email, phone, address };
 		const result = inputSchemas.safeParse(data);
 		if (result.success === false) {
-			submitDisabled = true;
+			// submitDisabled = true;
 			updateUser2Errors(result.error.issues);
 		} else {
 			console.log(result.data);
-			submitDisabled = false;
+			// submitDisabled = false;
 			progress = 100;
 		}
+
+		const optionalSafeData: { [key: string]: any } = { name, email };
+		if (phone) {
+			optionalSafeData.phone = phone;
+		}
+		if (address) {
+			optionalSafeData.address = address;
+		}
+		submitDisabled = !inputSchemas.safeParse(optionalSafeData).success;
 	}
 
 	function handleInput(e: any) {
@@ -87,7 +93,7 @@
 		dispatch('input', { name, email, phone, address });
 	}
 
-	async function checkUserExists(query) {
+	async function checkUserExists(query: { [key: string]: any }) {
 		// const query = { email: 'bhaumikdhameliya30@gmail.com' };
 		const res = await fetch(`/api/find?collection=user&query=${JSON.stringify(query)}`, {
 			method: 'GET',
@@ -113,7 +119,6 @@
 		console.log(`Phone: ${phone}`);
 		console.log(`Address: ${address}`);
 	}
-	console.log('error', errors);
 
 	onMount(() => {
 		calculateProgressAndValidate();
