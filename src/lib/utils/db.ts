@@ -4,6 +4,8 @@ import type { Handle } from '@sveltejs/kit';
 import schemas from '$src/collections';
 import { fieldsToSchema } from '$src/lib/utils/utils';
 
+import { User } from '../models/user-model';
+
 export const dbConnect: Handle = async ({ resolve, event }) => {
 	// Turn off strict mode for query filters. Default in Mongodb 7
 	mongoose.set('strictQuery', false);
@@ -47,4 +49,6 @@ for (const schema of schemas) {
 		? mongoose.model(schema.name)
 		: mongoose.model(schema.name, schema_object);
 }
+
+collections['user'] = User;
 export { collections };

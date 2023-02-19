@@ -35,7 +35,7 @@ Create a Github OAuth app and copy-paste client id and secret into `.env`.
 ## Run the application
 
 ```bash
-pnpm dev
+pnpm run dev
 ```
 
 ## Easy Theme Change

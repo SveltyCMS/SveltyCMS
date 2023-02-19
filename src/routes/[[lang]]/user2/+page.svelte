@@ -2,7 +2,6 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import z from 'zod';
-
 	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
 	import { get } from 'svelte/store';
 
@@ -16,7 +15,7 @@
 			.string()
 			.regex(/^\d{10}$/, 'Phone number must be 10 digits')
 			.optional(),
-		address: z.string().min(10, 'Address must be at least 10 characters')
+		address: z.string().min(10, 'Address must be at least 10 characters').optional()
 	});
 
 	const totalInputFields = inputSchemas._getCached().keys;
@@ -32,10 +31,8 @@
 	let displayErrors: any = {};
 	let touched: { [key: string]: boolean } = {};
 
-	// console.log(progress);
-
 	let errors: any = get(user2Errors);
-	user2Errors.subscribe((errors) => {
+	user2Errors.subscribe((errors: z.ZodIssue[]) => {
 		let dErrors: { [key: string]: string } = {};
 		errors.forEach((error) => {
 			const name = error.path[0];
@@ -53,15 +50,22 @@
 		const data = { name, email, phone, address };
 		const result = inputSchemas.safeParse(data);
 		if (result.success === false) {
-			submitDisabled = true;
-			errors = result.error.issues;
-			//console.log('errors----->', errors);
-			progress = ((schemaLength - errors.length) * 100) / schemaLength;
+			// submitDisabled = true;
+			updateUser2Errors(result.error.issues);
 		} else {
-			//console.log(result.data);
-			submitDisabled = false;
+			console.log(result.data);
+			// submitDisabled = false;
 			progress = 100;
 		}
+
+		const optionalSafeData: { [key: string]: any } = { name, email };
+		if (phone) {
+			optionalSafeData.phone = phone;
+		}
+		if (address) {
+			optionalSafeData.address = address;
+		}
+		submitDisabled = !inputSchemas.safeParse(optionalSafeData).success;
 	}
 
 	function handleInput(e: any) {
@@ -89,15 +93,32 @@
 		dispatch('input', { name, email, phone, address });
 	}
 
-	function handleSubmit(e: any) {
+	async function checkUserExists(query: { [key: string]: any }) {
+		// const query = { email: 'bhaumikdhameliya30@gmail.com' };
+		const res = await fetch(`/api/find?collection=user&query=${JSON.stringify(query)}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		const data = (await res.json()) as [any];
+		return Boolean(data.length);
+	}
+
+	async function handleSubmit(e: any) {
 		e.preventDefault();
+		const isUserExists = await checkUserExists({ email });
+		if (isUserExists) {
+			alert('email already exists');
+			return;
+		}
+
 		console.log('Form submitted:');
 		console.log(`Name: ${name}`);
 		console.log(`Email: ${email}`);
 		console.log(`Phone: ${phone}`);
 		console.log(`Address: ${address}`);
 	}
-	console.log('error', errors);
 
 	onMount(() => {
 		calculateProgressAndValidate();
