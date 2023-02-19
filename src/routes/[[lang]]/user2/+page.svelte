@@ -2,6 +2,8 @@
 	import { createEventDispatcher, onMount } from 'svelte';
 	import Icon from '@iconify/svelte';
 	import z from 'zod';
+	import { updateUser2Errors, user2Errors } from '$src/lib/store/user2Form';
+	import { get } from 'svelte/store';
 
 	const inputSchemas = z.object({
 		name: z
@@ -26,8 +28,21 @@
 
 	let progress = 0;
 	let submitDisabled = true;
-	let errors: any = [];
 	let displayErrors: any = {};
+	let touched: { [key: string]: boolean } = {};
+
+	let errors = get(user2Errors);
+	user2Errors.subscribe((errors) => {
+		let dErrors: { [key: string]: string } = {};
+		errors.forEach((error) => {
+			const name = error.path[0];
+			if (touched[name]) {
+				dErrors[name] = error.message;
+			}
+		});
+		displayErrors = dErrors;
+		progress = ((schemaLength - errors.length) * 100) / schemaLength;
+	});
 
 	const dispatch = createEventDispatcher();
 
@@ -36,26 +51,24 @@
 		const result = inputSchemas.safeParse(data);
 		if (result.success === false) {
 			submitDisabled = true;
-			errors = result.error.issues;
-			//console.log('errors----->', errors);
-			progress = ((schemaLength - errors.length) * 100) / schemaLength;
+			updateUser2Errors(result.error.issues);
 		} else {
-			//console.log(result.data);
+			console.log(result.data);
 			submitDisabled = false;
 			progress = 100;
 		}
 	}
 
 	function handleInput(e: any) {
-		if (progress < 100) {
-			progress = progress + 2;
+		if (progress + 1 <= 100) {
+			progress = progress + 1;
 		}
 		switch (e.target.name) {
 			case 'name':
 				name = e.target.value;
 				break;
 			case 'email':
-				email = e.target.value;
+				email = e.target.value.toLowerCase();
 				break;
 			case 'phone':
 				phone = e.target.value;
@@ -71,8 +84,26 @@
 		dispatch('input', { name, email, phone, address });
 	}
 
-	function handleSubmit(e: any) {
+	async function checkUserExists(query) {
+		// const query = { email: 'bhaumikdhameliya30@gmail.com' };
+		const res = await fetch(`/api/find?collection=user&query=${JSON.stringify(query)}`, {
+			method: 'GET',
+			headers: {
+				'Content-Type': 'application/json'
+			}
+		});
+		const data = (await res.json()) as [any];
+		return Boolean(data.length);
+	}
+
+	async function handleSubmit(e: any) {
 		e.preventDefault();
+		const isUserExists = await checkUserExists({ email });
+		if (isUserExists) {
+			alert('email already exists');
+			return;
+		}
+
 		console.log('Form submitted:');
 		console.log(`Name: ${name}`);
 		console.log(`Email: ${email}`);
@@ -99,10 +130,7 @@
 			on:input={handleInput}
 			class="input"
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('name'));
-				if (nameError) {
-					displayErrors['name'] = nameError.message;
-				}
+				touched['name'] = true;
 			}}
 		/>
 		{#if displayErrors['name']}
@@ -120,10 +148,7 @@
 			bind:value={email}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('email'));
-				if (nameError) {
-					displayErrors['email'] = nameError.message;
-				}
+				touched['email'] = true;
 			}}
 		/>
 		{#if displayErrors['email']}
@@ -140,10 +165,7 @@
 			bind:value={phone}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('phone'));
-				if (nameError) {
-					displayErrors['phone'] = nameError.message;
-				}
+				touched['phone'] = true;
 			}}
 		/>
 		{#if displayErrors['phone']}
@@ -160,10 +182,7 @@
 			bind:value={address}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('address'));
-				if (nameError) {
-					displayErrors['address'] = nameError.message;
-				}
+				touched['address'] = true;
 			}}
 		/>
 		{#if displayErrors['address']}
