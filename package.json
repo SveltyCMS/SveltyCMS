@@ -18,7 +18,7 @@
 	"devDependencies": {
 		"@skeletonlabs/skeleton": "0.124.2",
 		"@sveltejs/adapter-node": "latest",
-		"@sveltejs/kit": "1.7.1",
+		"@sveltejs/kit": "1.7.2",
 		"@types/cookie": "0.5.1",
 		"@types/mapbox-gl": "^2.7.10",
 		"@types/mapbox__mapbox-gl-geocoder": "^4.7.3",
@@ -41,7 +41,7 @@
 		"tslib": "2.5.0",
 		"typesafe-i18n": "5.24.1",
 		"typescript": "~4.9.5",
-		"vite": "4.1.1"
+		"vite": "4.1.2"
 	},
 	"type": "module",
 	"dependencies": {

@@ -3,6 +3,9 @@
 	import Icon from '@iconify/svelte';
 	import z from 'zod';
 
+	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
+	import { get } from 'svelte/store';
+
 	const inputSchemas = z.object({
 		name: z
 			.string({ required_error: 'Required Name' })
@@ -26,10 +29,23 @@
 
 	let progress: number = 0;
 	let submitDisabled = true;
-	let errors: any = [];
 	let displayErrors: any = {};
+	let touched: { [key: string]: boolean } = {};
 
-	console.log(progress);
+	// console.log(progress);
+
+	let errors: any = get(user2Errors);
+	user2Errors.subscribe((errors) => {
+		let dErrors: { [key: string]: string } = {};
+		errors.forEach((error) => {
+			const name = error.path[0];
+			if (touched[name]) {
+				dErrors[name] = error.message;
+			}
+		});
+		displayErrors = dErrors;
+		progress = ((schemaLength - errors.length) * 100) / schemaLength;
+	});
 
 	const dispatch = createEventDispatcher();
 
@@ -49,15 +65,15 @@
 	}
 
 	function handleInput(e: any) {
-		if (progress < 100) {
-			progress = progress + 2;
+		if (progress + 1 <= 100) {
+			progress = progress + 1;
 		}
 		switch (e.target.name) {
 			case 'name':
 				name = e.target.value;
 				break;
 			case 'email':
-				email = e.target.value;
+				email = e.target.value.toLowerCase();
 				break;
 			case 'phone':
 				phone = e.target.value;
@@ -101,10 +117,7 @@
 			on:input={handleInput}
 			class="input"
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('name'));
-				if (nameError) {
-					displayErrors['name'] = nameError.message;
-				}
+				touched['name'] = true;
 			}}
 		/>
 		{#if displayErrors['name']}
@@ -122,10 +135,7 @@
 			bind:value={email}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('email'));
-				if (nameError) {
-					displayErrors['email'] = nameError.message;
-				}
+				touched['email'] = true;
 			}}
 		/>
 		{#if displayErrors['email']}
@@ -142,10 +152,7 @@
 			bind:value={phone}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('phone'));
-				if (nameError) {
-					displayErrors['phone'] = nameError.message;
-				}
+				touched['phone'] = true;
 			}}
 		/>
 		{#if displayErrors['phone']}
@@ -162,10 +169,7 @@
 			bind:value={address}
 			on:input={handleInput}
 			on:blur={() => {
-				const nameError = errors.length && errors.find((e) => e.path.includes('address'));
-				if (nameError) {
-					displayErrors['address'] = nameError.message;
-				}
+				touched['address'] = true;
 			}}
 		/>
 		{#if displayErrors['address']}
@@ -179,7 +183,7 @@
 			class="relative w-full max-w-[150px] h-[50px] rounded-lg bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600 px-4 py-2 font-bold hover:bg-primary-500 focus:bg-primary-500 active:bg-primary-600 md:mt-2 md:max-w-[350px]"
 			disabled={submitDisabled}
 		>
-			<!--{#if (!progress = 0) }-->
+			{#if !(progress === 0)}
 				<div
 					class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xl uppercase"
 				>
@@ -198,12 +202,12 @@
 						</div>
 					</div>
 				</div>
-			<!--{:else}-->
-			<!--	<div class="flex items-center justify-center text-xl uppercase">-->
-			<!--		<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />-->
-			<!--		Save-->
-			<!--	</div>-->
-			<!--{/if}-->
+			{:else}
+				<div class="flex items-center justify-center text-xl uppercase">
+					<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+					Save
+				</div>
+			{/if}
 		</button>
 	</div>
 </form>

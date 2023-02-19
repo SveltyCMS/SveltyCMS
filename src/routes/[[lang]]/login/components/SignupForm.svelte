@@ -14,8 +14,9 @@
 	export let show: boolean = false;
 	let showPassword: boolean = false;
 
-  // import { firstUserExists } from './user-model';
-  console.log(firstUserExists);
+	//import { firstUserExists } from 'user-models';
+	export let firstUserExists: boolean = false;
+	console.log(firstUserExists);
 
 	let username = '';
 	let email = '';
