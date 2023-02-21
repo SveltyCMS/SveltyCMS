@@ -131,7 +131,7 @@
 						color={errorStatus.email.status ? 'red' : 'base'}
 						type="email"
 						name="floating_email"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
 						required
 					/>
@@ -162,7 +162,7 @@
 							name="floating_password"
 							autocomplete="current-password"
 							id="floating_password"
-							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
 						/>
@@ -175,7 +175,7 @@
 							name="floating_password"
 							autocomplete="current-password"
 							id="floating_password"
-							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
 						/>
@@ -189,7 +189,7 @@
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<Icon icon="bi:eye-fill" color="text-surface-500" width="24" />
+							<Icon icon="bi:eye-fill" class="text-surface-500" width="24" />
 						{:else}
 							<Icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
 						{/if}
