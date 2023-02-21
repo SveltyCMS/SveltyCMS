@@ -10,14 +10,14 @@
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
+	import type { PageData } from '@lucia-auth/sveltekit/types';
+	import type { ActionData } from '../../$types';
+	import { goto } from '$app/navigation';
 
 	export let show = false;
 	let showPassword = false;
 
-	//import { firstUserExists } from 'user-models';
-	export let firstUserExists = true;
-	console.log(firstUserExists);
-
+	export let firstUserExists = false;
 	let username = '';
 	let email = '';
 	let password = '';
@@ -25,147 +25,17 @@
 	let token = ''; // token need to be compared to admin provided token
 	let terms = '';
 
-	// zod
-	// import z from 'zod';
-	// const signupSchema = z
-	// 	.object({
-	// 		username: z
-	// 			.string({ required_error: 'Username is required' })
-	// 			.regex(/^[a-zA-z\s]*$/, { message: 'Name can only contain letters and spaces.' })
-	// 			.min(2, { message: 'Name must be at least 2 charactes' })
-	// 			.max(24, { message: 'Name can only be 24 charactes' })
-	// 			.trim(),
-	// 		email: z
-	// 			.string({ required_error: 'Email is required' })
-	// 			.email({ message: 'Email must be a valid email' }),
-	// 		password: z
-	// 			.string({ required_error: 'Password is required' })
-	// 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-	// 				message:
-	// 					'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
-	// 			}),
-	// 		confirmPassword: z
-	// 			.string({ required_error: 'Confirm Password is required' })
-	// 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-	// 				message:
-	// 					'Confirm Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
-	// 			}),
-	// 		token: z.number({ required_error: 'Auth Token is required' }).min(1),
-	// 		terms: z.boolean({ required_error: 'Confirm Terms' })
-	// 	})
-	// 	.superRefine(({ confirmPassword, password }, ctx) => {
-	// 		if (confirmPassword !== password) {
-	// 			ctx.addIssue({
-	// 				code: z.ZodIssueCode.custom,
-	// 				message: 'Password & Confirm password must match',
-	// 				path: ['password']
-	// 			});
-	// 			ctx.addIssue({
-	// 				code: z.ZodIssueCode.custom,
-	// 				message: 'Password & Confirm password must match',
-	// 				path: ['confirmPassword']
-	// 			});
-	// 		}
-	// 	});
-
-	// const validate = () => {
-	// 	try {
-	// 		signupSchema.parse({ email, password });
-	// 		errors = {};
-	// 		errorStatus.email.status = false;
-	// 		errorStatus.email.msg = '';
-	// 		errorStatus.password.status = false;
-	// 		errorStatus.password.msg = '';
-	// 		isWiggling = false;
-	// 		return true;
-	// 	} catch (error) {
-	// 		errors = error.formErrors.fieldErrors;
-	// 		errorStatus.email.status = true;
-	// 		errorStatus.email.msg = error.formErrors.fieldErrors.email;
-	// 		errorStatus.password.status = true;
-	// 		errorStatus.password.msg = error.formErrors.fieldErrors.password;
-	// 		isWiggling = true;
-	// 		return false;
-	// 	}
-	// };
-
-	// const handleSubmit = async (event) => {
-	// 	event.preventDefault();
-	// 	if (validate()) {
-	// 		try {
-	// 			const response = await axios.post('/signup', { email, password });
-	// 			console.log(response.data);
-	// 		} catch (error) {
-	// 			console.error(error);
-	// 		}
-	// 	}
-	// };
-
-	// onMount(() => {
-	// 	emailInput.focus();
-	// });
-
-	let errors = {};
 	let isWiggling = false;
 
 	let errorStatus = {
+		general: { status: false, msg: '' },
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		password: { status: false, msg: '' },
-		confirm: { status: false, msg: '' },
+		confirm_password: { status: false, msg: '' },
 		token: { status: false, msg: '' },
 		terms: { status: false, msg: '' }
 	};
-
-	function hasSignUpError() {
-		// Validation
-		email = email.trim();
-		let emailRegex = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
-		let error = false;
-
-		// Username check
-		if (!username) {
-			errorStatus.username.msg = $LL.LOGIN_usernamemsg_empty();
-		}
-
-		// Email check
-		if (!emailRegex.test(email)) {
-			errorStatus.email.status = true;
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_valid();
-			error = true;
-		}
-		if (!/\.\w+$/.test(email)) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_domain();
-		}
-		if (!email.includes('@')) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_at();
-		}
-		if (!email) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_empty();
-		}
-
-		// Password check
-		if (!password) {
-			errorStatus.password.msg = $LL.LOGIN_passwordmsg_empty();
-			errorStatus.password.status = true;
-			error = true;
-		}
-
-		if (password !== confirmPassword) {
-			errorStatus.confirm.msg = $LL.LOGIN_passwordmsg_confirm();
-			errorStatus.confirm.status = true;
-			error = true;
-		}
-
-		// token check after 1st user
-		if (firstUserExists && (token === '' || token === null || typeof token === 'undefined')) {
-			errorStatus.token.msg = $LL.LOGIN_Token();
-			errorStatus.token.status = true;
-			error = true;
-		}
-
-		return error;
-	}
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
@@ -181,14 +51,31 @@
 		<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 		<form
+			class="form {isWiggling && 'wiggle'}"
 			method="post"
 			action="?/createUser"
 			use:enhance={(e) => {
-				if (hasSignUpError()) {
-					e.cancel();
-				}
+				return async ({ result }) => {
+					if (result.type === 'success') {
+						goto('/');
+					}
+
+					if (result.type === 'failure') {
+						isWiggling = true;
+						result?.data?.errors &&
+							result?.data?.errors.forEach((error) => {
+								errorStatus[error.field].status = true;
+								errorStatus[error.field].msg = error.message;
+							});
+					}
+				};
 			}}
 		>
+			{#if errorStatus.general.status}
+				<div class="text-xs text-error-500">
+					{errorStatus.general.msg}
+				</div>
+			{/if}
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<Icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400" />
@@ -295,37 +182,36 @@
 			<!-- Password Confirm -->
 			<div class="group relative z-0 mb-6 w-full">
 				<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
-
 				{#if showPassword}
 					<input
 						bind:value={confirmPassword}
-						on:keydown={() => (errorStatus.confirm.status = false)}
-						color={errorStatus.confirm.status ? 'red' : 'base'}
+						on:keydown={() => (errorStatus.confirm_password.status = false)}
+						color={errorStatus.confirm_password.status ? 'red' : 'base'}
 						type="text"
-						name="repeat_password"
-						id="floating_repeat_password"
+						name="confirm_password"
+						id="floating_confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/><label
-						for="floating_repeat_password"
+						for="floating_confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>
 				{:else}
 					<input
 						bind:value={confirmPassword}
-						on:keydown={() => (errorStatus.confirm.status = false)}
-						color={errorStatus.confirm.status ? 'red' : 'base'}
+						on:keydown={() => (errorStatus.confirm_password.status = false)}
+						color={errorStatus.confirm_password.status ? 'red' : 'base'}
 						type="password"
-						name="repeat_password"
-						id="floating_repeat_password"
+						name="confirm_password"
+						id="floating_confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>
 					<label
-						for="floating_repeat_password"
+						for="floating_confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>{/if}
@@ -339,9 +225,9 @@
 					{/if}
 				</div>
 
-				{#if errorStatus.confirm.status}
+				{#if errorStatus.confirm_password.status}
 					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.confirm.msg}
+						{errorStatus.confirm_password.msg}
 					</div>
 				{/if}
 			</div>
@@ -354,7 +240,7 @@
 						on:keydown={() => (errorStatus.token.status = false)}
 						color={errorStatus.token.status ? 'red' : 'base'}
 						type="text"
-						name="Access Token"
+						name="token"
 						id="floating_token"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "

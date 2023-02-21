@@ -7,24 +7,113 @@ import { User } from '$lib/models/user-model';
 import { SignUpToken } from '$lib/models/sign-up-token-model';
 import sendMail from '$lib/utils/send-email';
 import { randomBytes } from 'crypto';
+import z from 'zod';
+
+const checkUserExistsInDb = async () => {
+	try {
+		return Boolean(await User.count({}));
+	} catch (err) {
+		console.error(err);
+		return false;
+	}
+};
 
 export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.validate();
 	if (session) throw redirect(302, '/');
-	return {};
+	// check if firstUserExsits or not
+	// model should be checked here else it won't works econd time
+	return { firstUserExists: await checkUserExistsInDb() };
 };
+
+const zod_obj: {
+	username: z.ZodString;
+	email: z.ZodString;
+	password: z.ZodString;
+	confirm_password: z.ZodString;
+	token?: z.ZodString;
+} = {
+	username: z
+		.string({ required_error: 'Username is required' })
+		.regex(/^[a-zA-z\s]*$/, { message: 'Name can only contain letters and spaces.' })
+		.min(2, { message: 'Name must be at least 2 charactes' })
+		.max(24, { message: 'Name can only be 24 charactes' })
+		.trim(),
+	email: z
+		.string({ required_error: 'Email is required' })
+		.email({ message: 'Email must be a valid email' }),
+	password: z
+		.string({ required_error: 'Password is required' })
+		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+			message:
+				'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+		}),
+	confirm_password: z
+		.string({ required_error: 'Confirm Password is required' })
+		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+			message:
+				'Confirm Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+		}),
+	token: z.string({ required_error: 'Auth Token is required' }).min(1)
+	// terms: z.boolean({ required_error: 'Confirm Terms' })
+};
+
+// remove token validation if user is not a first time user
+if (!(await checkUserExistsInDb())) {
+	delete zod_obj.token;
+}
+
+// zod validations on signUp
+const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password }, ctx) => {
+	if (confirm_password !== password) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: 'Password & Confirm password must match',
+			path: ['confirm_password']
+		});
+	}
+});
+
+// zod validations on signIn
+const signInSchema = z.object({
+	email: z
+		.string({ required_error: 'Email is required' })
+		.email({ message: 'Email must be a valid email' }),
+	password: z
+		.string({ required_error: 'Password is required' })
+		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+			message:
+				'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+		})
+});
 
 export const actions: Actions = {
 	authUser: async ({ request, locals }) => {
 		const form = await request.formData();
+		const validationResult = signInSchema.safeParse(Object.fromEntries(form));
+		if (!validationResult.success) {
+			// Loop through the errors array and create a custom errors array
+			const errors = validationResult.error.errors.map((error) => {
+				return {
+					field: error.path[0],
+					message: error.message
+				};
+			});
+			return fail(400, { error: true, errors });
+		}
 
-		const email = form.get('floating_email');
-		const password = form.get('floating_password');
+		const email = form.get('email');
+		const password = form.get('password');
 
 		if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
 			return fail(400, {
-				type: 'SIGN_IN_ERROR' as const,
-				message: 'Invalid input'
+				error: true,
+				errors: [
+					{
+						field: 'email',
+						message: 'Invalid input'
+					}
+				]
 			});
 		}
 		try {
@@ -37,25 +126,46 @@ export const actions: Actions = {
 				(error.message === 'AUTH_INVALID_KEY_ID' || error.message === 'AUTH_INVALID_PASSWORD')
 			) {
 				return fail(400, {
-					type: 'SIGN_IN_ERROR' as const,
-					message: 'Incorrect email or password.'
+					error: true,
+					errors: [
+						{
+							field: 'email',
+							message: 'Incorrect email or password.'
+						}
+					]
 				});
 			}
 			// database connection error
 			return fail(500, {
-				type: 'SIGN_IN_ERROR' as const,
-				message: 'Unknown error occurred'
+				error: true,
+				errors: [
+					{
+						field: 'email',
+						message: 'Unknown error occurred'
+					}
+				]
 			});
 		}
 	},
 
 	createUser: async ({ request, locals }) => {
 		const form = await request.formData();
+		const validationResult = signupSchema.safeParse(Object.fromEntries(form));
+		if (!validationResult.success) {
+			// Loop through the errors array and create a custom errors array
+			const errors = validationResult.error.errors.map((error) => {
+				return {
+					field: error.path[0],
+					message: error.message
+				};
+			});
 
-		const username = form.get('floating_username');
-		const email = form.get('floating_email');
-		const password = form.get('floating_password');
-		const signUpToken = form.get('floating_token');
+			return fail(400, { error: true, errors });
+		}
+		const username = form.get('username');
+		const email = form.get('email');
+		const password = form.get('password');
+		const signUpToken = form.get('token');
 
 		if (
 			!username ||
@@ -66,8 +176,13 @@ export const actions: Actions = {
 			typeof password !== 'string'
 		) {
 			return fail(400, {
-				type: 'SIGN_UP_ERROR' as const,
-				message: 'Invalid input'
+				error: true,
+				errors: [
+					{
+						field: 'general',
+						message: 'Invalid input'
+					}
+				]
 			});
 		}
 
@@ -101,16 +216,26 @@ export const actions: Actions = {
 			const existingUser = await User.findOne({ email: email });
 			if (existingUser) {
 				return fail(400, {
-					type: 'SIGN_UP_ERROR' as const,
-					message: 'Email already in use'
+					error: true,
+					errors: [
+						{
+							field: 'email',
+							message: 'Email already in use'
+						}
+					]
 				});
 			}
 
 			const token = await SignUpToken.findOne({ email: email, resetToken: signUpToken });
 			if (!token) {
 				return fail(400, {
-					type: 'SIGN_UP_ERROR' as const,
-					message: 'Email or token is wrong!'
+					error: true,
+					errors: [
+						{
+							field: 'token',
+							message: 'Token is wrong!'
+						}
+					]
 				});
 			}
 
@@ -125,7 +250,7 @@ export const actions: Actions = {
 					firstname: undefined,
 					lastname: undefined,
 					avatar: undefined,
-					email: email,
+					email: email.toLowerCase(),
 					role: token.role,
 					resetRequestedAt: undefined,
 					resetToken: undefined
@@ -140,13 +265,23 @@ export const actions: Actions = {
 				(error instanceof LuciaError && error.message === 'AUTH_DUPLICATE_KEY_ID')
 			) {
 				return fail(400, {
-					type: 'SIGN_UP_ERROR' as const,
-					message: 'Email already in use'
+					error: true,
+					errors: [
+						{
+							field: 'email',
+							message: 'Email already in use'
+						}
+					]
 				});
 			}
-			return fail(500, {
-				type: 'SIGN_UP_ERROR' as const,
-				message: 'Unknown error occurred'
+			return fail(400, {
+				error: true,
+				errors: [
+					{
+						field: 'general',
+						message: 'Unknown error occurred'
+					}
+				]
 			});
 		}
 	},
@@ -154,7 +289,7 @@ export const actions: Actions = {
 	forgotPassword: async ({ request, locals }) => {
 		const form = await request.formData();
 
-		const email = form.get('floating_forgottonemail');
+		const email = form.get('forgottonemail');
 
 		console.log({ email: email });
 

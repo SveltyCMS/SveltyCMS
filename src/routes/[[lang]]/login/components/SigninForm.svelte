@@ -11,18 +11,28 @@
 
 	// TODO: forgotton not working
 	import axios from 'axios';
+	import { goto } from '$app/navigation';
+	import z from 'zod';
+
 	let loading = false;
+	let isWiggling = false;
+	let forgottonemail = '';
+
+	// zod validation Forgotton Password
+	const forgotPasswordSchema = z.object({
+		forgottonemail: z
+			.string({ required_error: 'Email is required' })
+			.email({ message: 'Email must be a valid email' })
+	});
+
 	const sendResetMail = async () => {
-		if (!email) {
-			errorStatus.email.status = true;
-			errorStatus.email.msg = 'Email is required';
-			return;
-		} else if (!/\S+@\S+\.\S+/.test(email)) {
-			errorStatus.email.status = true;
-			errorStatus.email.msg = 'Invalid email format';
+		const validationResult = forgotPasswordSchema.safeParse({ forgottonemail });
+		if (!validationResult.success) {
+			isWiggling = true;
+			errorStatus.forgottonemail.status = true;
+			errorStatus.forgottonemail.msg = validationResult?.error?.errors[0].message;
 			return;
 		}
-
 		loading = true;
 
 		try {
@@ -48,56 +58,14 @@
 	export let email = '';
 	export let password = '';
 
-	// zod
-	// import z from 'zod';
-	// const signInSchema = z
-	// 	.object({
-	// 		email: z
-	// 			.string({ required_error: 'Email is required' })
-	// 			.email({ message: 'Email must be a valid email' }),
-	// 		password: z
-	// 			.string({ required_error: 'Password is required' })
-	// 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-	// 				message:
-	// 					'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
-	// 			}),
-	// 		});
-	// }
-
 	let errorStatus = {
 		email: { status: false, msg: '' },
 		confirm: { status: false, msg: '' },
-		password: { status: false, msg: '' }
+		password: { status: false, msg: '' },
+		forgottonemail: { status: false, msg: '' }
 	};
+
 	let form: HTMLDivElement;
-
-	function hasSignInError() {
-		email = email.trim();
-		let emailRegex = /^([a-zA-Z0-9_\.\-])+\@(([a-zA-Z0-9\-])+\.)+([a-zA-Z0-9]{2,4})+$/;
-		let error = false;
-
-		if (!emailRegex.test(email)) {
-			errorStatus.email.status = true;
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_valid();
-			error = true;
-		}
-		if (!/\.\w+$/.test(email)) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_domain();
-		}
-		if (!email.includes('@')) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_at();
-		}
-		if (!email) {
-			errorStatus.email.msg = $LL.LOGIN_emailmsg_empty();
-		}
-		if (!password) {
-			errorStatus.password.msg = $LL.LOGIN_passwordmsg_empty();
-			errorStatus.password.status = true;
-			error = true;
-		}
-
-		return error;
-	}
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
@@ -114,12 +82,24 @@
 			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 			<form
+				class="form {isWiggling && 'wiggle'}"
 				method="post"
 				action="?/authUser"
 				use:enhance={(e) => {
-					if (hasSignInError()) {
-						e.cancel();
-					}
+					return async ({ result }) => {
+						if (result.type === 'success') {
+							goto('/');
+						}
+
+						if (result.type === 'failure') {
+							isWiggling = true;
+							result?.data?.errors &&
+								result?.data?.errors.forEach((error) => {
+									errorStatus[error.field].status = true;
+									errorStatus[error.field].msg = error.message;
+								});
+						}
+					};
 				}}
 			>
 				<!-- Email field -->
@@ -148,9 +128,7 @@
 				</div>
 
 				<!-- Password field -->
-				<!-- TODO  - not working error 'type' attribute cannot be dynamic if input uses two-way binding 
-					type={showPassword ? 'text' : 'password'}
-				-->
+
 				<div class="group relative z-0 mb-6 w-full">
 					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 					{#if showPassword}
@@ -216,7 +194,6 @@
 		</div>
 	{:else}
 		<!-- Forgotton Password -->
-		<!-- <form class="mx-auto w-full p-4 lg:w-1/2" method="post" action="?/forgotPassword"> -->
 		<form on:submit|preventDefault={sendResetMail} class="mx-auto w-full p-4 lg:w-1/2">
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
@@ -230,7 +207,7 @@
 
 			<!-- Email field -->
 			<!-- TODO Error messge not working as it need to be FORGOT EMAIL -->
-			<div class="group relative mb-6 w-full">
+			<div class="group relative z-0 mb-6 w-full">
 				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 
 				<input
@@ -239,13 +216,13 @@
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="floating_forgottonemail"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 					placeholder=" "
 					required
 				/>
 				<label
 					for="floating_forgottonemail"
-					class="absolute top-3 left-5 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 				>
 

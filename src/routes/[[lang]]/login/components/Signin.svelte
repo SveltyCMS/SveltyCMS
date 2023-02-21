@@ -1,10 +1,8 @@
 <script lang="ts">
-	export let active: undefined | 0 | 1 = undefined;
-
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import SigninForm from './SigninForm.svelte';
 
-	//export let signInError: string | undefined;
+	export let active: undefined | 0 | 1 = undefined;
 </script>
 
 <div

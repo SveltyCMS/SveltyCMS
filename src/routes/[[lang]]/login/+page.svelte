@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { ActionData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import Logo from './components/icons/Logo.svelte';
 
 	import Signin from './components/Signin.svelte';
@@ -7,24 +7,21 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import LocaleSwitcher from '$lib/LocaleSwitcher.svelte';
 
-	export let form: ActionData;
+	export let data: PageData;
+
+	const { firstUserExists } = data;
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
 </script>
 
 <div class="body" style="background:{background} ">
-	<Signin
-		signInError={form?.type === 'SIGN_IN_ERROR' ? form.message : undefined}
-		{active}
-		on:click={() => (active = 0)}
-		on:pointerenter={() => (background = '#242728')}
-	/>
+	<Signin {active} on:click={() => (active = 0)} on:pointerenter={() => (background = '#242728')} />
 	<SignUp
-		singUpError={form?.type === 'SIGN_UP_ERROR' ? form.message : undefined}
 		{active}
 		on:click={() => (active = 1)}
 		on:pointerenter={() => (background = 'white')}
+		{firstUserExists}
 	/>
 	{#if active == undefined}
 		<div

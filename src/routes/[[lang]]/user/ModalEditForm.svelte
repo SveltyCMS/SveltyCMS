@@ -223,13 +223,13 @@
 					on:keydown={() => (errorStatus.confirm.status = false)}
 					color={errorStatus.confirm.status ? 'red' : 'base'}
 					type="text"
-					name="repeat_password"
-					id="floating_repeat_password"
+					name="confirm_password"
+					id="floating_confirm_password"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/><label
-					for="floating_repeat_password"
+					for="floating_confirm_password"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 				>
@@ -239,14 +239,14 @@
 					on:keydown={() => (errorStatus.confirm.status = false)}
 					color={errorStatus.confirm.status ? 'red' : 'base'}
 					type="password"
-					name="repeat_password"
-					id="floating_repeat_password"
+					name="confirm_password"
+					id="floating_confirm_password"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/>
 				<label
-					for="floating_repeat_password"
+					for="floating_confirm_password"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 				>{/if}

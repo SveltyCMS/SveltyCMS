@@ -1,10 +1,9 @@
 <script lang="ts">
-	export let active: undefined | 0 | 1 = undefined;
-
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import SignupForm from './SignupForm.svelte';
 
-	//export let singUpError: string | undefined
+	export let active: undefined | 0 | 1 = undefined;
+	export let firstUserExists = false;
 </script>
 
 <div
@@ -16,7 +15,7 @@
 	on:keydown
 	class="relative flex flex-col items-center justify-center gap-3"
 >
-	<SignupForm show={active == 1} />
+	<SignupForm show={active == 1} {firstUserExists} />
 	<SignupIcon show={active == 0 || active == undefined} />
 </div>
 
