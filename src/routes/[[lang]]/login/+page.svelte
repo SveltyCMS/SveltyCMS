@@ -5,6 +5,7 @@
 	import Signin from './components/Signin.svelte';
 	import SignUp from './components/Signup.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
+	import LocaleSwitcher from '$lib/LocaleSwitcher.svelte';
 
 	export let form: ActionData;
 
@@ -73,7 +74,7 @@
 		<div
 			class="absolute bottom-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
 		>
-			<div class="text-surface-600 bg-white rounded-full p-3">EN</div>
+			<div class="text-surface-600 bg-white rounded-full p-1"><LocaleSwitcher /></div>
 		</div>
 	{/if}
 </div>

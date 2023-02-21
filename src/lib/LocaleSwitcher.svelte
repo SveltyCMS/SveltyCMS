@@ -21,7 +21,7 @@
 		setLocale(newLocale);
 
 		// update `lang` attribute
-		document.querySelector('html').setAttribute('lang', newLocale);
+		document.querySelector('html')!.setAttribute('lang', newLocale);
 
 		if (updateHistoryState) {
 			// update url to reflect locale changes
@@ -49,14 +49,19 @@
 
 <svelte:window on:popstate={handlePopStateEvent} />
 
-<span class="relative" in:fade>
+<!-- TODO: make a reusable Language Switcher  -->
+<span class="relative inline-block text-left border-2 border-surface-600 rounded-full" in:fade>
 	<button
-		class="btn variant-ghost-surface uppercase w-full"
-		use:menu={{ menu: 'language-dropdown' }}>{$locale}</button
-	>
-	<nav class="list-nav card p-4 w-40 shadow-xl uppercase" data-menu="language-dropdown">
+		class="btn btn-sm uppercase font-bold"
+		use:menu={{ menu: 'language-dropdown' }}
+		id="language-dropdown"
+		aria-haspopup="true"
+		aria-expanded="false"
+		>{$locale}
+	</button>
+	<nav class="text-white list-nav card shadow-xl uppercase" data-menu="language-dropdown">
 		<ul>
-			{#each locales as l}
+			{#each locales.filter((l) => l !== $locale) as l}
 				<li>
 					<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
 						{l}

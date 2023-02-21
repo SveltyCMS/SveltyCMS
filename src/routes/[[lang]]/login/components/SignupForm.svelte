@@ -15,7 +15,7 @@
 	let showPassword = false;
 
 	//import { firstUserExists } from 'user-models';
-	export let firstUserExists = false;
+	export let firstUserExists = true;
 	console.log(firstUserExists);
 
 	let username = '';
@@ -191,21 +191,23 @@
 		>
 			<!-- Username field -->
 			<div class="group relative z-0 mb-6 w-full">
+				<Icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 				<input
 					bind:value={username}
 					on:keydown={() => (errorStatus.username.status = false)}
 					color={errorStatus.username.status ? 'red' : 'base'}
 					type="text"
 					name="floating_username"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/>
 				<label
 					for="floating_username"
-					class="text-surfce-500 absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span></label
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 				>
+					{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
+				</label>
 
 				{#if errorStatus.username.status}
 					<div class="absolute top-11 left-0 text-xs text-error-500">
@@ -216,22 +218,23 @@
 
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
+				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 				<input
 					bind:value={email}
 					on:keydown={() => (errorStatus.email.status = false)}
 					color={errorStatus.email.status ? 'red' : 'base'}
 					type="email"
 					name="floating_email"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
 				/>
 				<label
 					for="floating_email"
-					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 				>
-
+					{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span>
+				</label>
 				{#if errorStatus.email.status}
 					<div class="absolute top-11 left-0 text-xs text-error-500">
 						{errorStatus.email.msg}
@@ -241,6 +244,7 @@
 
 			<!-- Password field -->
 			<div class="group relative z-0 mb-6 w-full">
+				<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 				{#if showPassword}
 					<input
 						bind:value={password}
@@ -250,7 +254,7 @@
 						name="floating_password"
 						autocomplete="current-password"
 						id="floating_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>{:else}
@@ -262,13 +266,13 @@
 						name="floating_password"
 						autocomplete="current-password"
 						id="floating_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>{/if}
 				<label
 					for="floating_password"
-					class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 				>
 
@@ -290,6 +294,8 @@
 
 			<!-- Password Confirm -->
 			<div class="group relative z-0 mb-6 w-full">
+				<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+
 				{#if showPassword}
 					<input
 						bind:value={confirmPassword}
@@ -298,12 +304,12 @@
 						type="text"
 						name="repeat_password"
 						id="floating_repeat_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/><label
 						for="floating_repeat_password"
-						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>
 				{:else}
@@ -314,13 +320,13 @@
 						type="password"
 						name="repeat_password"
 						id="floating_repeat_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>
 					<label
 						for="floating_repeat_password"
-						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>{/if}
 
@@ -342,6 +348,7 @@
 			<!-- Registration Token -->
 			{#if firstUserExists}
 				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:key-chain" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 					<input
 						bind:value={token}
 						on:keydown={() => (errorStatus.token.status = false)}
@@ -349,13 +356,13 @@
 						type="text"
 						name="Access Token"
 						id="floating_token"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-0 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-8 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
 						required
 					/>
 					<label
 						for="floating_token"
-						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
 					>
 

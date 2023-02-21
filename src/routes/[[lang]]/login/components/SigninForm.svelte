@@ -124,6 +124,7 @@
 			>
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 					<input
 						bind:value={email}
 						on:keydown={() => (errorStatus.email.status = false)}
@@ -136,7 +137,7 @@
 					/>
 					<label
 						for="floating_email"
-						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 					>
 					{#if errorStatus.email.status}
@@ -151,6 +152,7 @@
 					type={showPassword ? 'text' : 'password'}
 				-->
 				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 					{#if showPassword}
 						<input
 							bind:value={password}
@@ -180,16 +182,16 @@
 					{/if}
 					<label
 						for="floating_password"
-						class="absolute top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 					>
 
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<Icon icon="bi:eye-fill" color="base" width="24" />
+							<Icon icon="bi:eye-fill" color="text-surface-500" width="24" />
 						{:else}
-							<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+							<Icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
 						{/if}
 					</div>
 
@@ -229,6 +231,8 @@
 			<!-- Email field -->
 			<!-- TODO Error messge not working as it need to be FORGOT EMAIL -->
 			<div class="group relative mb-6 w-full">
+				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+
 				<input
 					bind:value={email}
 					on:keydown={() => (errorStatus.email.status = false)}
@@ -241,7 +245,7 @@
 				/>
 				<label
 					for="floating_forgottonemail"
-					class="absolute top-3 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					class="absolute top-3 left-5 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 				>
 
