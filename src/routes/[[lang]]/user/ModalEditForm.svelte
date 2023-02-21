@@ -9,6 +9,9 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
+	// typesafe-i18n
+	import LL from '$i18n/i18n-svelte';
+
 	// Lucia
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	const user = getUser();
@@ -17,10 +20,12 @@
 	const formData = {
 		username: $user?.username,
 		email: $user?.email,
-		password: 'Hashed PW get from seesion',
-		confirmPassword: 'Hashed PW get from seesion',
+		password: '',
+		confirmPassword: '',
 		role: $user?.role
 	};
+
+	let showPassword = false;
 
 	// zod
 	import z from 'zod';
@@ -64,6 +69,13 @@
 	// 	});
 	// }
 
+	let errorStatus = {
+		username: { status: false, msg: '' },
+		email: { status: false, msg: '' },
+		password: { status: false, msg: '' },
+		confirm: { status: false, msg: '' }
+	};
+
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
 		if ($modalStore[0].response) $modalStore[0].response(formData);
@@ -98,42 +110,163 @@
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 	<form class="modal-form {cForm}">
-		<label class="input-label">
-			<span>Username:</span>
+		<!-- Username field -->
+		<div class="group relative z-0 mb-6 w-full">
+			<Icon icon="mdi:user-circle" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 			<input
-				type="text"
 				bind:value={formData.username}
-				placeholder="Enter Username"
-				class="input"
+				on:keydown={() => (errorStatus.username.status = false)}
+				color={errorStatus.username.status ? 'red' : 'base'}
+				type="text"
+				name="floating_username"
+				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+				placeholder=" "
+				required
 			/>
-		</label>
-		<label class="input-label">
-			<span>Email:</span>
+			<label
+				for="floating_username"
+				class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+			>
+				{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
+			</label>
+
+			{#if errorStatus.username.status}
+				<div class="absolute top-11 left-0 text-xs text-error-500">
+					{errorStatus.username.msg}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Email field -->
+		<div class="group relative z-0 mb-6 w-full">
+			<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 			<input
-				type="email"
 				bind:value={formData.email}
-				placeholder="Enter email address"
-				class="input"
+				on:keydown={() => (errorStatus.email.status = false)}
+				color={errorStatus.email.status ? 'red' : 'base'}
+				type="email"
+				name="floating_email"
+				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+				placeholder=" "
+				required
 			/>
-		</label>
-		<label class="input-label">
-			<span>Password:</span>
-			<input
-				type="text"
-				bind:value={formData.password}
-				placeholder="Change Password"
-				class="input"
-			/>
-		</label>
-		<label class="input-label">
-			<span>Confirm Password:</span>
-			<input
-				type="text"
-				bind:value={formData.confirmPassword}
-				placeholder="Confirm Password"
-				class="input"
-			/>
-		</label>
+			<label
+				for="floating_email"
+				class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+			>
+				{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span>
+			</label>
+			{#if errorStatus.email.status}
+				<div class="absolute top-11 left-0 text-xs text-error-500">
+					{errorStatus.email.msg}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Password field -->
+		<div class="group relative z-0 mb-6 w-full">
+			<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+			{#if showPassword}
+				<input
+					bind:value={formData.password}
+					on:keydown={() => (errorStatus.password.status = false)}
+					color={errorStatus.password.status ? 'red' : 'base'}
+					type="text"
+					name="floating_password"
+					autocomplete="current-password"
+					id="floating_password"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					placeholder=" "
+					required
+				/>{:else}
+				<input
+					bind:value={formData.password}
+					on:keydown={() => (errorStatus.password.status = false)}
+					color={errorStatus.password.status ? 'red' : 'base'}
+					type="password"
+					name="floating_password"
+					autocomplete="current-password"
+					id="floating_password"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					placeholder=" "
+					required
+				/>{/if}
+			<label
+				for="floating_password"
+				class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+				>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
+			>
+
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+				{#if showPassword}
+					<Icon icon="bi:eye-fill" color="base" width="24" />
+				{:else}
+					<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+				{/if}
+			</div>
+
+			{#if errorStatus.password.status}
+				<div class="absolute top-11 left-0 text-xs text-error-500">
+					{errorStatus.password.msg}
+				</div>
+			{/if}
+		</div>
+
+		<!-- Password Confirm -->
+		<div class="group relative z-0 mb-6 w-full">
+			<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+
+			{#if showPassword}
+				<input
+					bind:value={formData.confirmPassword}
+					on:keydown={() => (errorStatus.confirm.status = false)}
+					color={errorStatus.confirm.status ? 'red' : 'base'}
+					type="text"
+					name="repeat_password"
+					id="floating_repeat_password"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					placeholder=" "
+					required
+				/><label
+					for="floating_repeat_password"
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+				>
+			{:else}
+				<input
+					bind:value={formData.confirmPassword}
+					on:keydown={() => (errorStatus.confirm.status = false)}
+					color={errorStatus.confirm.status ? 'red' : 'base'}
+					type="password"
+					name="repeat_password"
+					id="floating_repeat_password"
+					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+					placeholder=" "
+					required
+				/>
+				<label
+					for="floating_repeat_password"
+					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+				>{/if}
+
+			<!-- svelte-ignore a11y-click-events-have-key-events -->
+			<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+				{#if showPassword}
+					<Icon icon="bi:eye-fill" color="base" width="24" />
+				{:else}
+					<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+				{/if}
+			</div>
+
+			{#if errorStatus.confirm.status}
+				<div class="absolute top-11 left-0 text-xs text-error-500">
+					{errorStatus.confirm.msg}
+				</div>
+			{/if}
+		</div>
+
 		<!-- admin area -->
 		{#if $user?.role === 'ADMIN'}
 			<div class="flex flex-col sm:flex-row gap-2">
