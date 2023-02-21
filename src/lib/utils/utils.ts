@@ -5,13 +5,13 @@ import type { Schema } from '$src/collections/types';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 
-export let DB = {};
+export const DB = {};
 
 // takes an array of fields and creates a schema by combining
 // each field's individual schema and deleting the "widget" property.
-export let fieldsToSchema = (fields: Array<any>) => {
+export const fieldsToSchema = (fields: Array<any>) => {
 	let schema: any = {};
-	for (let field of fields) {
+	for (const field of fields) {
 		schema = { ...schema, ...field.schema };
 	}
 	delete schema.widget;
@@ -21,14 +21,14 @@ export let fieldsToSchema = (fields: Array<any>) => {
 // takes in a "req" object and processes any files associated with the request,
 // it saves them to a specified file path using the "fs" library.
 export function saveFiles(req: any) {
-	let files: any = {};
-	let schema = schemas.find((schema) => schema.name === req.params.endpoint);
-	let _files = req.files || [];
+	const files: any = {};
+	const schema = schemas.find((schema) => schema.name === req.params.endpoint);
+	const _files = req.files || [];
 	console.log(_files);
-	for (let file of _files) {
-		let { buffer, fieldname, ...meta } = file;
+	for (const file of _files) {
+		const { buffer, fieldname, ...meta } = file;
 		files[fieldname as keyof typeof files] = meta;
-		let path = _findFieldByTitle(schema, fieldname).path;
+		const path = _findFieldByTitle(schema, fieldname).path;
 
 		if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
 
@@ -39,7 +39,7 @@ export function saveFiles(req: any) {
 
 // finds field title that matches the fieldname and returns that field
 function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
-	for (let field of schema.fields) {
+	for (const field of schema.fields) {
 		if (field.db_fieldName == fieldname) {
 			console.log(field);
 			found.val = true;
@@ -56,10 +56,10 @@ function _findFieldByTitle(schema: any, fieldname: string, found = { val: false 
 
 // takes an object and recursively parses any values that can be converted to JSON
 export function parse(obj: any) {
-	for (let key in obj) {
+	for (const key in obj) {
 		try {
 			if (Array.isArray(obj[key])) {
-				for (let index of obj[key]) {
+				for (const index of obj[key]) {
 					obj[key][index] = JSON.parse(obj[key][index]);
 				}
 			} else {
@@ -82,7 +82,7 @@ export async function findById(id: string, collection: Schema) {
 
 // find a specific document in a specified collection
 export async function find(query: object, collection: Schema) {
-	let _query = JSON.stringify(query);
+	const _query = JSON.stringify(query);
 	return (await axios.get(`/api/find?collection=${collection.name}&query=${_query}`)).data;
 }
 
@@ -104,8 +104,8 @@ export function format(
 	}>
 ) {
 	let html = '';
-	for (let item of value) {
-		let htmlTag = item.newLine ? 'p' : 'span';
+	for (const item of value) {
+		const htmlTag = item.newLine ? 'p' : 'span';
 		html += ` <${htmlTag} style=color:${
 			item.textColor
 		} class=dark:text-white text-black> <span class=dark:text-white text-black style=color:${

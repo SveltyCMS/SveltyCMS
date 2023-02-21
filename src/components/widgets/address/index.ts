@@ -1,7 +1,7 @@
 import type { Display } from '../types';
 import type { Address_Field, Address_Params } from './types';
 
-let widget =  ({
+const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
 	icon,
@@ -10,7 +10,7 @@ let widget =  ({
 }: Address_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	let field = { schema: {}, db_fieldName, icon, required, display } as Address_Field;
+	const field = { schema: {}, db_fieldName, icon, required, display } as Address_Field;
 
 	field.schema[db_fieldName] = 'string';
 
@@ -21,4 +21,4 @@ let widget =  ({
 	return field;
 };
 
-export default widget
+export default widget;

@@ -9,7 +9,7 @@
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 
-	let valueSingle: string = 'books';
+	let valueSingle = 'books';
 
 	// Lucia
 	import { page } from '$app/stores';
@@ -104,7 +104,7 @@
 	let toggleFooter = true;
 	// change sidebar width so only icons show
 
-	let progress: number = 0;
+	let progress = 0;
 	let submitDisabled = true;
 
 	let switchSideBar = true;

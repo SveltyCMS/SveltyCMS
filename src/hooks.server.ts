@@ -34,7 +34,7 @@ export const handle: Handle = sequence(dbConnect, handleHooks(auth), async ({ ev
 	}
 
 	// if slug is not a locale, use base locale (e.g. api endpoints)
-	const locale = isLocale(lang) ? (lang as Locales) : getPreferredLocale(event);
+	const locale = isLocale(lang) ? lang : getPreferredLocale(event);
 	const LL = L[locale];
 
 	// bind locale and translation functions to current request

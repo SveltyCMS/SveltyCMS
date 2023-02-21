@@ -1,6 +1,6 @@
 <script lang="ts">
-	export let fill = "currentColor";
-	export let className = "";
+	export let fill = 'currentColor';
+	export let className = '';
 </script>
 
 <svg

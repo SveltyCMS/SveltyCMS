@@ -1,5 +1,5 @@
 import type { Text_Field, Text_Params } from './types';
-let widget = ({
+const widget = ({
 	// accept parameters from collection
 	db_fieldName,
 	icon,
@@ -19,7 +19,7 @@ let widget = ({
 		display = async (data: any, field: any, entry: any) => {
 			return data || 'No Value';
 		};
-	let field = {
+	const field = {
 		schema: {},
 		db_fieldName,
 		icon,

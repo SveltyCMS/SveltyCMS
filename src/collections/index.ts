@@ -7,7 +7,7 @@ import Menu from './Menu';
 import ImageArray from './ImageArray';
 import ImageEditor from './EditorImage';
 
-let categories = [
+const categories = [
 	{
 		category: 'Collections',
 		icon: 'bi:collection',

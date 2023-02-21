@@ -7,7 +7,7 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
-	export let root: boolean = true; // if field is not nested. eg. not part of menu's fields
+	export let root = true; // if field is not nested. eg. not part of menu's fields
 	export let fields: Array<any> = [];
 	export let value: any = undefined;
 	export let collection: Schema | undefined = undefined;
@@ -43,7 +43,9 @@
 				{#if field.field.localization}
 					<div class="flex items-center gap-1 px-2">
 						<Icon icon="bi:translate" color="dark" width="18" class="text-sm" />
-						<div class="text-xs font-normal text-error-500">{PUBLIC_TRANSLATIONS[$language]}</div>
+						<div class="text-xs font-normal text-error-500">
+							{PUBLIC_TRANSLATIONS[$language]}
+						</div>
 					</div>
 				{/if}
 				{#if field.field.icon}

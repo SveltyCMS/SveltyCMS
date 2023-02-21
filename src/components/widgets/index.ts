@@ -44,7 +44,7 @@ export type Widgets = {
 	RemoteVideo: typeof RemoteVideo;
 };
 
-let widgets: Widgets = {
+const widgets: Widgets = {
 	/**text widget does all good stuff*/
 
 	// Address flexible Address fields

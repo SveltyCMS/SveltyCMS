@@ -40,10 +40,10 @@
 		}
 	};
 
-	export let show: boolean = false;
-	export let forgot: boolean = false;
+	export let show = false;
+	export let forgot = false;
 
-	let showPassword: boolean = false;
+	let showPassword = false;
 
 	export let email = '';
 	export let password = '';
@@ -140,7 +140,9 @@
 						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 					>
 					{#if errorStatus.email.status}
-						<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.email.msg}</div>
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.email.msg}
+						</div>
 					{/if}
 				</div>
 
@@ -244,7 +246,9 @@
 				>
 
 				{#if errorStatus.email.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.email.msg}</div>
+					<div class="absolute top-11 left-0 text-xs text-error-500">
+						{errorStatus.email.msg}
+					</div>
 				{/if}
 			</div>
 

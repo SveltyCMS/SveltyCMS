@@ -12,7 +12,7 @@ export default ({
 }: Url_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	let field = {
+	const field = {
 		schema: {},
 		db_fieldName,
 		icon,

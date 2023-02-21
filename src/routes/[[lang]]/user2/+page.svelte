@@ -28,7 +28,7 @@
 	let phone = '';
 	let address = '';
 
-	let progress: number = 0;
+	let progress = 0;
 	let submitDisabled = true;
 	let displayErrors: any = {};
 	let touched: { [key: string]: boolean } = {};

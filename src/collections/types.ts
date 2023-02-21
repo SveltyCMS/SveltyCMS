@@ -3,5 +3,5 @@ export interface Schema {
 	icon?: string;
 	fields: Array<any>;
 	strict?: boolean;
-	status: "published"|"unpublished"|"draft";
+	status: 'published' | 'unpublished' | 'draft';
 }

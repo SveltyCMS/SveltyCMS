@@ -3,7 +3,7 @@ import widgets from '../components/widgets';
 import Posts from './Posts';
 import type { Schema } from './types';
 
-let schema: Schema = {
+const schema: Schema = {
 	// collection Name and Icon
 	name: 'Image Array',
 	icon: 'bi:images',
@@ -17,7 +17,11 @@ let schema: Schema = {
 				widgets.ImageUpload({ db_fieldName: 'Multi Image Array', path: 'media/image_array' }),
 
 				widgets.Text({ db_fieldName: 'Name', icon: 'ri:t-box-line', localization: true }),
-				widgets.Text({ db_fieldName: 'Alt-Text', icon: 'ic:outline-loyalty', localization: true }),
+				widgets.Text({
+					db_fieldName: 'Alt-Text',
+					icon: 'ic:outline-loyalty',
+					localization: true
+				}),
 				widgets.Text({ db_fieldName: 'Alt-Title', icon: 'ri:t-box-line', localization: true }),
 
 				widgets.Relation({

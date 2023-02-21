@@ -18,7 +18,7 @@
 
 	export let fields: Array<any> = [];
 	export let collection: Schema | undefined = undefined;
-	export let showFields: boolean = true;
+	export let showFields = true;
 
 	$: {
 		$getFieldsData = new Set();

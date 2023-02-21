@@ -12,7 +12,7 @@
 	export let collection: Schema;
 	export let data: Array<any>;
 	export let showFields: boolean;
-	export let category: string = '';
+	export let category = '';
 	export let switchSideBar = true;
 
 	let expanded: any = {};

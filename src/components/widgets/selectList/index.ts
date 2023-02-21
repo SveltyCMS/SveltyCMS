@@ -1,7 +1,7 @@
 import type { Display } from '../types';
 import type { SelectList_Field, SelectList_Params } from './type';
 
-let widget = ({
+const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
 	icon,
@@ -14,7 +14,7 @@ let widget = ({
 }: SelectList_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	let field = {
+	const field = {
 		schema: {},
 		db_fieldName,
 		icon,

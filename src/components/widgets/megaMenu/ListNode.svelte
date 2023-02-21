@@ -2,10 +2,10 @@
 	export let self: any = {};
 	export let parent: any = {};
 	export let children: any = [];
-	export let depth: number = 0; //this is for main menu only
-	export let level: number = 0;
-	export let editing: boolean = false;
-	export let showLevelContent: boolean = false;
+	export let depth = 0; //this is for main menu only
+	export let level = 0;
+	export let editing = false;
+	export let showLevelContent = false;
 	import { MenuCurrentChild, language } from '$src/stores/store';
 
 	let expanded = false;

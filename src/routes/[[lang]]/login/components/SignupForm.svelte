@@ -11,11 +11,11 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
-	export let show: boolean = false;
-	let showPassword: boolean = false;
+	export let show = false;
+	let showPassword = false;
 
 	//import { firstUserExists } from 'user-models';
-	export let firstUserExists: boolean = false;
+	export let firstUserExists = false;
 	console.log(firstUserExists);
 
 	let username = '';
@@ -233,7 +233,9 @@
 				>
 
 				{#if errorStatus.email.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.email.msg}</div>
+					<div class="absolute top-11 left-0 text-xs text-error-500">
+						{errorStatus.email.msg}
+					</div>
 				{/if}
 			</div>
 
@@ -332,7 +334,9 @@
 				</div>
 
 				{#if errorStatus.confirm.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.confirm.msg}</div>
+					<div class="absolute top-11 left-0 text-xs text-error-500">
+						{errorStatus.confirm.msg}
+					</div>
 				{/if}
 			</div>
 			<!-- Registration Token -->
@@ -356,7 +360,9 @@
 					>
 
 					{#if errorStatus.token.status}
-						<div class="absolute top-11 left-0 text-xs text-error-500">{errorStatus.token.msg}</div>
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.token.msg}
+						</div>
 					{/if}
 				</div>
 			{/if}

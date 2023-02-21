@@ -22,20 +22,18 @@ const config = {
 	// remove inspector for production
 	vitePlugin: {
 		experimental: {
-		  inspector: {
-		  // change shortcut
-		  toggleKeyCombo: 'meta-shift',
-		  // hold and release key to toggle inspector mode 
-		  holdMode: true,
-		  // show or hide the inspector option
-		  showToggleButton: 'always',
-		  // inspector position
-		  toggleButtonPos: 'bottom-right',
-		
-		  },
-		},
-	  }
-	
+			inspector: {
+				// change shortcut
+				toggleKeyCombo: 'meta-shift',
+				// hold and release key to toggle inspector mode
+				holdMode: true,
+				// show or hide the inspector option
+				showToggleButton: 'always',
+				// inspector position
+				toggleButtonPos: 'bottom-right'
+			}
+		}
+	}
 };
 
 export default config;

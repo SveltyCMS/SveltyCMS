@@ -7,10 +7,10 @@
 	import Icon from '@iconify/svelte';
 	export let field: any;
 	export let value: any = {};
-	export let root: boolean = true;
+	export let root = true;
 	let fieldsValue = {};
 
-	let editing: boolean = false;
+	let editing = false;
 	let menu = field.menu;
 	let showLevelContent = false;
 	let depth = 0;

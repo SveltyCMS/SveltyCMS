@@ -26,7 +26,7 @@ async function sendMail(email: string, subject: string, message: string) {
 		}
 	});
 
-	let emailOptions = {
+	const emailOptions = {
 		from: SMTP_EMAIL,
 		to: email, // list of receivers
 		subject: subject, // Subject line
@@ -34,7 +34,7 @@ async function sendMail(email: string, subject: string, message: string) {
 		text: message
 	};
 
-	let info = await transporter.sendMail(emailOptions);
+	const info = await transporter.sendMail(emailOptions);
 	return info;
 }
 

@@ -9,7 +9,7 @@ module.exports = {
 
 		screens: {
 			// Start with default and use xs/sm/md/lg/xl/2xl
-			
+
 			// min-width ----------------------------
 			xs: '360px',
 			// => @media (min-width: 360px) { ... }

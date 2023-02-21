@@ -1,5 +1,8 @@
 {
-    "explorer.compactFolders": false,
-    "workbench.tree.indent": 12,
-    "workbench.tree.renderIndentGuides": "always"
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.formatOnSave": true,
+	"eslint.rules.customizations": [{ "rule": "*", "severity": "warn" }],
+	"explorer.compactFolders": false,
+	"workbench.tree.indent": 12,
+	"workbench.tree.renderIndentGuides": "always"
 }

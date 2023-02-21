@@ -4,7 +4,7 @@ import widgets from '../components/widgets';
 
 import type { Schema } from './types';
 
-let schema: Schema = {
+const schema: Schema = {
 	// Collection Name & Icon (optional) shown on Sidebar
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Posts',

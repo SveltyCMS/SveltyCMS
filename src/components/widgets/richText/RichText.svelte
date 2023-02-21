@@ -6,10 +6,10 @@
 	import './global.css';
 	import { onMount } from 'svelte';
 	let composerComponent: RichTextComposer;
-	onMount(()=> {
+	onMount(() => {
 		const editor = composerComponent.getEditor();
-				editor.registerUpdateListener(({editorState}) => {
-      		console.log(JSON.stringify(editorState));
+		editor.registerUpdateListener(({ editorState }) => {
+			console.log(JSON.stringify(editorState));
 		});
 	});
 </script>

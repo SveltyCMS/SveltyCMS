@@ -6,7 +6,7 @@ import type { Schema } from './types';
 // typesafe-i18n
 import LL from '$i18n/i18n-svelte';
 
-let schema: Schema = {
+const schema: Schema = {
 	// Collection Name & Icon (optional) shown on Sidebar
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Test Widgets',
@@ -115,7 +115,12 @@ let schema: Schema = {
 			fields: [
 				widgets.Radio({ db_fieldName: 'Radio', color: 'red', required: true, width: '50%' }),
 
-				widgets.Checkbox({ db_fieldName: 'Checkbox', color: 'green', width: '50%', required: true })
+				widgets.Checkbox({
+					db_fieldName: 'Checkbox',
+					color: 'green',
+					width: '50%',
+					required: true
+				})
 			]
 		}),
 

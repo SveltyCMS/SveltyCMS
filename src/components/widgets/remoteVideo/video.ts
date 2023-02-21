@@ -17,8 +17,8 @@ export async function youtube(id: string) {
 	//convert the ISO 8601 duration format to a readable time format
 	const time = dataDuration?.items[0]?.contentDetails?.duration;
 	function convertDuration(duration: any) {
-		let dayTime = duration.split('T');
-		let dayDuration = dayTime[0].replace('P', '');
+		const dayTime = duration.split('T');
+		const dayDuration = dayTime[0].replace('P', '');
 		let dayList = dayDuration.split('D');
 		let day;
 		if (dayList.length === 2) {

@@ -17,9 +17,9 @@
 	export let value: any;
 	export let widgetValue: string | null; // is relative data id
 	$: widgetValue = typeof value == 'string' ? value : widgetValue; // widgetvalue is id, type is String, we need to update it later when value is changed.
-	export let root: boolean = true;
+	export let root = true;
 
-	let expanded: boolean = false;
+	let expanded = false;
 	let inputFields: HTMLDivElement[] = [];
 	let fieldsValue = {};
 	let showDropDown = false;

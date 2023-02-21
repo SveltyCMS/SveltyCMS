@@ -7,23 +7,23 @@ import { config } from './utils';
 
 export async function shape_fields(fields: Array<any>) {
 	// get fields from collection
-	let _fields = [];
+	const _fields = [];
 	if (!fields) return [];
-	for (let field of fields) {
+	for (const field of fields) {
 		_fields.push({ widget: await field.widget(), field });
 	}
 	return _fields;
 }
 
 export async function saveFormData(collection: Schema) {
-	let formData = new FormData();
+	const formData = new FormData();
 
-	for (let getData of get(getFieldsData)) {
-		let data = await getData();
+	for (const getData of get(getFieldsData)) {
+		const data = await getData();
 
-		for (let key in data) {
+		for (const key in data) {
 			if (data[key] instanceof FileList) {
-				for (let _key in data[key]) {
+				for (const _key in data[key]) {
 					// for multiple files
 					formData.append(key, data[key][_key]);
 				}
@@ -43,11 +43,11 @@ export async function saveSimpleData(
 	doc_id?: string,
 	insert?: boolean
 ) {
-	let formData = new FormData();
-	for (let key in data) {
+	const formData = new FormData();
+	for (const key in data) {
 		console.log(data[key]);
 		if (data[key] instanceof FileList) {
-			for (let _key in data[key]) {
+			for (const _key in data[key]) {
 				// for multiple files
 				console.log(data[key]);
 				formData.append(key, data[key][_key]);
@@ -69,7 +69,7 @@ export async function saveData(
 ) {
 	console.log(collection);
 
-	let oldData_id = doc_id || (get(entryData) as any)?._id;
+	const oldData_id = doc_id || get(entryData)?._id;
 	//if formData object is empty then:
 	formData.append('status', collection.status);
 	if (!formData.entries().next().value) {
@@ -86,7 +86,7 @@ export async function saveData(
 }
 
 export function any(input: any) {
-	return input as any;
+	return input;
 }
 export function never(input: any) {
 	return input as never;

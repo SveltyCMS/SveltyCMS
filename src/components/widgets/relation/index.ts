@@ -3,7 +3,7 @@ import { findById, flattenData } from '$src/lib/utils/utils';
 
 import type { Display } from '../types';
 import type { Relation_Params, Relation_Field } from './types';
-let widget = ({
+const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
 	icon,
@@ -15,15 +15,15 @@ let widget = ({
 	if (!display) display = async (data: any, field: any, entry: any) => data; //default
 	else
 		_display = async (data: any, field: any, entry: any) => {
-			let { language } = await import('$src/stores/store');
-			let { get } = await import('svelte/store');
+			const { language } = await import('$src/stores/store');
+			const { get } = await import('svelte/store');
 			let _data = await findById(data, relation);
 			_data = flattenData(_data, get(language));
 			return await (display as Display)(_data, field, entry);
 		};
 	if (!_display) _display = display;
 
-	let field = {
+	const field = {
 		schema: {},
 		db_fieldName,
 		icon,

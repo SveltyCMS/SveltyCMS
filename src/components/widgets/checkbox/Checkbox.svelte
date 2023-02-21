@@ -16,6 +16,7 @@
 	/>
 	<label
 		for="default-checkbox"
-		class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300">{field.db_fieldName}</label
+		class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
+		>{field.db_fieldName}</label
 	>
 </div>

@@ -1,6 +1,6 @@
 import type { Display } from '../types';
 
-let widget =  ({
+const widget = ({
 	db_fieldName,
 	required,
 	localization,
@@ -12,7 +12,7 @@ let widget =  ({
 	display?: Display;
 }) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
-	let field: any = {
+	const field: any = {
 		schema: {},
 		db_fieldName,
 		required,
@@ -26,4 +26,4 @@ let widget =  ({
 	};
 	return field;
 };
-export default widget
+export default widget;

@@ -124,7 +124,7 @@
 
 	let avatarEdit = true;
 	let avatarSrc = $user?.avatar;
-	let showUserList: boolean = true;
+	let showUserList = true;
 
 	// show/hide Left Sidebar
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
