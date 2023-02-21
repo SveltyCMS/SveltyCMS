@@ -13,7 +13,9 @@
 		email: z.string({ required_error: 'Required Email' }).email('Invalid email'),
 		phone: z
 			.string()
-			.regex(/^\d{10}$/, 'Phone number must be 10 digits')
+			// .regex(/^\d{10}$/, 'Phone number must be 10 digits')
+			.regex(/^(\+\d{1,2}\s)?\(?\d{3}\)?[\s.-]\d{3}[\s.-]\d{4}$/, 'Phone number must be 10 digits')
+
 			.optional(),
 		address: z.string().min(10, 'Address must be at least 10 characters').optional()
 	});
