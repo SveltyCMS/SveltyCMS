@@ -46,18 +46,11 @@ const en: BaseTranslation = {
 	USER_ListShow: 'Show user list',
 	USER_ListCollapse: 'Collapse user list',
 	USER_EmailToken: 'Email User Registion token',
-
+	
 	// Login
 	LOGIN_SignIn: 'Sign In',
 	LOGIN_SignUp: 'Sign Up',
 	LOGIN_Required: '* Required',
-	LOGIN_usernamemsg_empty: 'Username should not be empty',
-	LOGIN_emailmsg_valid: 'Please type valid Email',
-	LOGIN_emailmsg_domain: 'Email should be ending with domain (eg .com)',
-	LOGIN_emailmsg_at: 'Email should contain @ symbol',
-	LOGIN_emailmsg_empty: 'Email field should not be empty',
-	LOGIN_passwordmsg_empty: 'Password field should not be empty',
-	LOGIN_passwordmsg_confirm: 'Passwords Does not Match',
 	LOGIN_Username: 'Username',
 	LOGIN_EmailAddress: 'Email Address',
 	LOGIN_Password: 'Password',
@@ -65,6 +58,19 @@ const en: BaseTranslation = {
 	LOGIN_ConfirmPassword: 'Confirm Password',
 	LOGIN_ForgottenPassword: 'Forgotten Password',
 	LOGIN_SendResetMail: 'Send Password Reset Email',
+
+	LOGIN_ZOD_Username_string: 'Username is required',
+	LOGIN_ZOD_Username_regex: 'Name can only contain letters and spaces.',
+	LOGIN_ZOD_Username_min: 'Name must be at least 2 charactes',
+	LOGIN_ZOD_Username_max: 'Name can only be 24 charactes',
+	LOGIN_ZOD_Email_string: 'Email is required',
+	LOGIN_ZOD_Email_email: 'Email must be a valid email',
+	LOGIN_ZOD_Password_string: 'Password is required',
+	LOGIN_ZOD_Password_regex: 'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
+	LOGIN_ZOD_Confirm_password_string: 'Confirm Password is required',
+	LOGIN_ZOD_Confirm_password_regex: 'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',,
+	LOGIN_ZOD_Token_string: 'Auth Token is required',
+	LOGIN_ZOD_Password_match: 'Password & Confirm password must match',
 
 	// Entry List
 	ENTRYLIST_Create: 'Create',

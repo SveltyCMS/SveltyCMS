@@ -1,12 +1,20 @@
 import { fail, type Actions } from '@sveltejs/kit';
-import { auth } from '$lib/server/lucia';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-import { LuciaError } from 'lucia-auth';
-import { User } from '$lib/models/user-model';
-import { SignUpToken } from '$lib/models/sign-up-token-model';
+import { get } from 'svelte/store';
+
 import sendMail from '$lib/utils/send-email';
 import { randomBytes } from 'crypto';
+
+// lucia
+import { LuciaError } from 'lucia-auth';
+import { auth } from '$lib/server/lucia';
+import { User } from '$lib/models/user-model';
+import { SignUpToken } from '$lib/models/sign-up-token-model';
+
+// typesafe-i18n
+import LL from '$i18n/i18n-svelte';
+
 import z from 'zod';
 
 const checkUserExistsInDb = async () => {
@@ -34,27 +42,25 @@ const zod_obj: {
 	token?: z.ZodString;
 } = {
 	username: z
-		.string({ required_error: 'Username is required' })
-		.regex(/^[a-zA-z\s]*$/, { message: 'Name can only contain letters and spaces.' })
-		.min(2, { message: 'Name must be at least 2 charactes' })
-		.max(24, { message: 'Name can only be 24 charactes' })
+		.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
+		.regex(/^[a-zA-z\s]*$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+		.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
+		.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
 		.trim(),
 	email: z
-		.string({ required_error: 'Email is required' })
-		.email({ message: 'Email must be a valid email' }),
+		.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
+		.email({ message: get(LL).LOGIN_ZOD_Email_email() }),
 	password: z
-		.string({ required_error: 'Password is required' })
+		.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
 		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-			message:
-				'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+			message: get(LL).LOGIN_ZOD_Password_regex()
 		}),
 	confirm_password: z
-		.string({ required_error: 'Confirm Password is required' })
+		.string({ required_error: get(LL).LOGIN_ZOD_Confirm_password_string() })
 		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-			message:
-				'Confirm Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+			message: get(LL).LOGIN_ZOD_Confirm_password_regex()
 		}),
-	token: z.string({ required_error: 'Auth Token is required' }).min(1)
+	token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1)
 	// terms: z.boolean({ required_error: 'Confirm Terms' })
 };
 
@@ -68,7 +74,7 @@ const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password
 	if (confirm_password !== password) {
 		ctx.addIssue({
 			code: z.ZodIssueCode.custom,
-			message: 'Password & Confirm password must match',
+			message: get(LL).LOGIN_ZOD_Password_match(),
 			path: ['confirm_password']
 		});
 	}
@@ -77,13 +83,12 @@ const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password
 // zod validations on signIn
 const signInSchema = z.object({
 	email: z
-		.string({ required_error: 'Email is required' })
-		.email({ message: 'Email must be a valid email' }),
+		.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
+		.email({ message: get(LL).LOGIN_ZOD_Email_email() }),
 	password: z
-		.string({ required_error: 'Password is required' })
+		.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
 		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-			message:
-				'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.'
+			message: get(LL).LOGIN_ZOD_Password_regexs()
 		})
 });
 

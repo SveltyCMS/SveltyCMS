@@ -198,9 +198,9 @@
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
 
-				<h1 class="text-2xl font-bold text-black lg:text-3xl">
+				<h1 class="font-bold text-black">
 					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
-					<div class="-mt-1 text-4xl">{$LL.LOGIN_ForgottenPassword()}</div>
+					<div class="-mt-1 text-2xl sm:text-4xl">{$LL.LOGIN_ForgottenPassword()}</div>
 				</h1>
 			</div>
 			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>

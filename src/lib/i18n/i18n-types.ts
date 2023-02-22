@@ -172,34 +172,6 @@ type RootTranslation = {
 	 */
 	LOGIN_Required: string
 	/**
-	 * U​s​e​r​n​a​m​e​ ​s​h​o​u​l​d​ ​n​o​t​ ​b​e​ ​e​m​p​t​y
-	 */
-	LOGIN_usernamemsg_empty: string
-	/**
-	 * P​l​e​a​s​e​ ​t​y​p​e​ ​v​a​l​i​d​ ​E​m​a​i​l
-	 */
-	LOGIN_emailmsg_valid: string
-	/**
-	 * E​m​a​i​l​ ​s​h​o​u​l​d​ ​b​e​ ​e​n​d​i​n​g​ ​w​i​t​h​ ​d​o​m​a​i​n​ ​(​e​g​ ​.​c​o​m​)
-	 */
-	LOGIN_emailmsg_domain: string
-	/**
-	 * E​m​a​i​l​ ​s​h​o​u​l​d​ ​c​o​n​t​a​i​n​ ​@​ ​s​y​m​b​o​l
-	 */
-	LOGIN_emailmsg_at: string
-	/**
-	 * E​m​a​i​l​ ​f​i​e​l​d​ ​s​h​o​u​l​d​ ​n​o​t​ ​b​e​ ​e​m​p​t​y
-	 */
-	LOGIN_emailmsg_empty: string
-	/**
-	 * P​a​s​s​w​o​r​d​ ​f​i​e​l​d​ ​s​h​o​u​l​d​ ​n​o​t​ ​b​e​ ​e​m​p​t​y
-	 */
-	LOGIN_passwordmsg_empty: string
-	/**
-	 * P​a​s​s​w​o​r​d​s​ ​D​o​e​s​ ​n​o​t​ ​M​a​t​c​h
-	 */
-	LOGIN_passwordmsg_confirm: string
-	/**
 	 * U​s​e​r​n​a​m​e
 	 */
 	LOGIN_Username: string
@@ -227,6 +199,54 @@ type RootTranslation = {
 	 * S​e​n​d​ ​P​a​s​s​w​o​r​d​ ​R​e​s​e​t​ ​E​m​a​i​l
 	 */
 	LOGIN_SendResetMail: string
+	/**
+	 * U​s​e​r​n​a​m​e​ ​i​s​ ​r​e​q​u​i​r​e​d
+	 */
+	LOGIN_ZOD_Username_string: string
+	/**
+	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​c​o​n​t​a​i​n​ ​l​e​t​t​e​r​s​ ​a​n​d​ ​s​p​a​c​e​s​.
+	 */
+	LOGIN_ZOD_Username_regex: string
+	/**
+	 * N​a​m​e​ ​m​u​s​t​ ​b​e​ ​a​t​ ​l​e​a​s​t​ ​2​ ​c​h​a​r​a​c​t​e​s
+	 */
+	LOGIN_ZOD_Username_min: string
+	/**
+	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​b​e​ ​2​4​ ​c​h​a​r​a​c​t​e​s
+	 */
+	LOGIN_ZOD_Username_max: string
+	/**
+	 * E​m​a​i​l​ ​i​s​ ​r​e​q​u​i​r​e​d
+	 */
+	LOGIN_ZOD_Email_string: string
+	/**
+	 * E​m​a​i​l​ ​m​u​s​t​ ​b​e​ ​a​ ​v​a​l​i​d​ ​e​m​a​i​l
+	 */
+	LOGIN_ZOD_Email_email: string
+	/**
+	 * P​a​s​s​w​o​r​d​ ​i​s​ ​r​e​q​u​i​r​e​d
+	 */
+	LOGIN_ZOD_Password_string: string
+	/**
+	 * P​a​s​s​w​o​r​d​ ​m​u​s​t​ ​b​e​ ​a​ ​m​i​n​i​m​u​m​ ​o​f​ ​8​ ​c​h​a​r​a​c​t​e​r​s​ ​&​ ​c​o​n​t​a​i​n​ ​a​t​ ​l​e​a​s​t​ ​o​n​e​ ​l​e​t​t​e​r​,​ ​o​n​e​ ​n​u​m​b​e​r​,​ ​a​n​d​ ​o​n​e​ ​s​p​e​c​i​a​l​ ​c​h​a​r​a​c​t​e​r​.
+	 */
+	LOGIN_ZOD_Password_regex: string
+	/**
+	 * C​o​n​f​i​r​m​ ​P​a​s​s​w​o​r​d​ ​i​s​ ​r​e​q​u​i​r​e​d
+	 */
+	LOGIN_ZOD_Confirm_password_string: string
+	/**
+	 * P​a​s​s​w​o​r​d​ ​m​u​s​t​ ​b​e​ ​a​ ​m​i​n​i​m​u​m​ ​o​f​ ​8​ ​c​h​a​r​a​c​t​e​r​s​ ​&​ ​c​o​n​t​a​i​n​ ​a​t​ ​l​e​a​s​t​ ​o​n​e​ ​l​e​t​t​e​r​,​ ​o​n​e​ ​n​u​m​b​e​r​,​ ​a​n​d​ ​o​n​e​ ​s​p​e​c​i​a​l​ ​c​h​a​r​a​c​t​e​r​.
+	 */
+	LOGIN_ZOD_Confirm_password_regex: string
+	/**
+	 * A​u​t​h​ ​T​o​k​e​n​ ​i​s​ ​r​e​q​u​i​r​e​d
+	 */
+	LOGIN_ZOD_Token_string: string
+	/**
+	 * P​a​s​s​w​o​r​d​ ​&​ ​C​o​n​f​i​r​m​ ​p​a​s​s​w​o​r​d​ ​m​u​s​t​ ​m​a​t​c​h
+	 */
+	LOGIN_ZOD_Password_match: string
 	/**
 	 * C​r​e​a​t​e
 	 */
@@ -675,34 +695,6 @@ export type TranslationFunctions = {
 	 */
 	LOGIN_Required: () => LocalizedString
 	/**
-	 * Username should not be empty
-	 */
-	LOGIN_usernamemsg_empty: () => LocalizedString
-	/**
-	 * Please type valid Email
-	 */
-	LOGIN_emailmsg_valid: () => LocalizedString
-	/**
-	 * Email should be ending with domain (eg .com)
-	 */
-	LOGIN_emailmsg_domain: () => LocalizedString
-	/**
-	 * Email should contain @ symbol
-	 */
-	LOGIN_emailmsg_at: () => LocalizedString
-	/**
-	 * Email field should not be empty
-	 */
-	LOGIN_emailmsg_empty: () => LocalizedString
-	/**
-	 * Password field should not be empty
-	 */
-	LOGIN_passwordmsg_empty: () => LocalizedString
-	/**
-	 * Passwords Does not Match
-	 */
-	LOGIN_passwordmsg_confirm: () => LocalizedString
-	/**
 	 * Username
 	 */
 	LOGIN_Username: () => LocalizedString
@@ -730,6 +722,54 @@ export type TranslationFunctions = {
 	 * Send Password Reset Email
 	 */
 	LOGIN_SendResetMail: () => LocalizedString
+	/**
+	 * Username is required
+	 */
+	LOGIN_ZOD_Username_string: () => LocalizedString
+	/**
+	 * Name can only contain letters and spaces.
+	 */
+	LOGIN_ZOD_Username_regex: () => LocalizedString
+	/**
+	 * Name must be at least 2 charactes
+	 */
+	LOGIN_ZOD_Username_min: () => LocalizedString
+	/**
+	 * Name can only be 24 charactes
+	 */
+	LOGIN_ZOD_Username_max: () => LocalizedString
+	/**
+	 * Email is required
+	 */
+	LOGIN_ZOD_Email_string: () => LocalizedString
+	/**
+	 * Email must be a valid email
+	 */
+	LOGIN_ZOD_Email_email: () => LocalizedString
+	/**
+	 * Password is required
+	 */
+	LOGIN_ZOD_Password_string: () => LocalizedString
+	/**
+	 * Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.
+	 */
+	LOGIN_ZOD_Password_regex: () => LocalizedString
+	/**
+	 * Confirm Password is required
+	 */
+	LOGIN_ZOD_Confirm_password_string: () => LocalizedString
+	/**
+	 * Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.
+	 */
+	LOGIN_ZOD_Confirm_password_regex: () => LocalizedString
+	/**
+	 * Auth Token is required
+	 */
+	LOGIN_ZOD_Token_string: () => LocalizedString
+	/**
+	 * Password & Confirm password must match
+	 */
+	LOGIN_ZOD_Password_match: () => LocalizedString
 	/**
 	 * Create
 	 */
