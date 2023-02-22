@@ -46,7 +46,7 @@ const en: BaseTranslation = {
 	USER_ListShow: 'Show user list',
 	USER_ListCollapse: 'Collapse user list',
 	USER_EmailToken: 'Email User Registion token',
-	
+
 	// Login
 	LOGIN_SignIn: 'Sign In',
 	LOGIN_SignUp: 'Sign Up',
@@ -66,9 +66,11 @@ const en: BaseTranslation = {
 	LOGIN_ZOD_Email_string: 'Email is required',
 	LOGIN_ZOD_Email_email: 'Email must be a valid email',
 	LOGIN_ZOD_Password_string: 'Password is required',
-	LOGIN_ZOD_Password_regex: 'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
+	LOGIN_ZOD_Password_regex:
+		'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
 	LOGIN_ZOD_Confirm_password_string: 'Confirm Password is required',
-	LOGIN_ZOD_Confirm_password_regex: 'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',,
+	LOGIN_ZOD_Confirm_password_regex:
+		'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
 	LOGIN_ZOD_Token_string: 'Auth Token is required',
 	LOGIN_ZOD_Password_match: 'Password & Confirm password must match',
 

@@ -66,9 +66,11 @@ const de: Translation = {
 	LOGIN_ZOD_Email_string: 'E-Mail ist erforderlich',
 	LOGIN_ZOD_Email_email: 'E-Mail muss eine gültige E-Mail sein',
 	LOGIN_ZOD_Password_string: 'Passwort ist erforderlich',
-	LOGIN_ZOD_Password_regex: 'Das Passwort muss mindestens 8 Zeichen lang sein und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.',
+	LOGIN_ZOD_Password_regex:
+		'Das Passwort muss mindestens 8 Zeichen lang sein und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.',
 	LOGIN_ZOD_Confirm_password_string: 'Passwortbestätigung ist erforderlich',
-	LOGIN_ZOD_Confirm_password_regex: 'Das Passwort muss aus mindestens 8 Zeichen bestehen und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.',,
+	LOGIN_ZOD_Confirm_password_regex:
+		'Das Passwort muss aus mindestens 8 Zeichen bestehen und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.',
 	LOGIN_ZOD_Token_string: 'Auth Token ist erforderlich',
 	LOGIN_ZOD_Password_match: 'Passwort und Bestätigungspasswort müssen übereinstimmen',
 
