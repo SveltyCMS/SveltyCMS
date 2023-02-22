@@ -16,23 +16,24 @@
 </script>
 
 <div class="body" style="background:{background} ">
-	<Signin {active} on:click={() => (active = 0)} on:pointerenter={() => (background = '#242728')} />
+	<Signin {active} on:click={() => (active = 0)} on:pointerenter={() => (background = 'white')} />
 	<SignUp
 		{active}
 		on:click={() => (active = 1)}
-		on:pointerenter={() => (background = 'white')}
+		on:pointerenter={() => (background = '#242728')}
 		{firstUserExists}
 	/>
 	{#if active == undefined}
+		<!-- TODO: mobile Icon nor clickable, only text is -->
 		<div
-			class="absolute top-1/2 left-1/2  -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
+			class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
 		>
 			<div class="bg-white relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full">
 				<svg
 					viewBox="0 0 10 10"
 					width="380"
 					height="380"
-					class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform "
+					class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform"
 				>
 					<circle
 						cx="5"
@@ -67,9 +68,9 @@
 				</div>
 			</div>
 		</div>
-		<!-- todo:replace with i18n Language switcher -->
+		<!-- TODO:fix URL from en/login to /login for Language switcher -->
 		<div
-			class="absolute bottom-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
+			class="absolute bottom-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
 		>
 			<div class="text-surface-600 bg-white rounded-full p-1"><LocaleSwitcher /></div>
 		</div>
@@ -79,13 +80,14 @@
 <style>
 	.body {
 		width: 100vw;
-		height: 100vh;
+		min-height: 100vh;
 		display: flex;
 		background: linear-gradient(90deg, #242728 50%, white 50%);
+		background-attachment: fixed; /* add this line to fix the gradient */
+		overflow-y: auto;
 	}
 	:global(html, body, body > div, .body) {
 		width: 100vw;
 		height: 100vh;
-		overflow: hidden;
 	}
 </style>
