@@ -178,7 +178,6 @@
 
 <div class="flex mr-1 align-centre mb-2">
   <!-- mobile hamburger -->
-  <AnimatedHamburger {open} {onClickHambuger} />
   <h1 class="">{$LL.USER_Profile()}</h1>
 </div>
 
