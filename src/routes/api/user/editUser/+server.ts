@@ -7,8 +7,10 @@ export const POST: RequestHandler = async ({request}) => {
   const j = await request.json();
   const userObj = _.omit(j, 'id');
   const id = j.id;
+  const password = j.password;
 
   await auth.updateUserAttributes(id, userObj);
+  await auth.updateKeyPassword('email', userObj.email, password);
   return json({ message: 'User Edited' }, {
     status: 200
   });
