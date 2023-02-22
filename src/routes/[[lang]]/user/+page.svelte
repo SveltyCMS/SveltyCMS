@@ -84,8 +84,26 @@
       body: "Upload new Avatar Image und then press Save.",
       component: modalComponent,
       // Pass abitrary data to the component
-      response: (r: any) => {
-        if (r) console.log("response:", r);
+      response: async (r: {dataURL: string}) => {
+        if (r) {
+          console.log("response:", r);
+
+          const formData = new FormData();
+          formData.append('dataurl', r.dataURL);
+          const res = await axios({
+            method: "post",
+            url: "/api/user/editAvatar",
+            data: formData,
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+
+          if (res.status === 200) {
+            await invalidateAll();
+            const resizedDataUrl = res.data.resizedDataUrl;
+            avatarSrc = resizedDataUrl;
+            $user.avatar = resizedDataUrl;
+          }
+        }
       },
 
       meta: { foo: "bar", fizz: "buzz", fn: ModalEditAvatar }
