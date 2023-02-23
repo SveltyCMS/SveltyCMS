@@ -110,13 +110,13 @@
 						on:keydown={() => (errorStatus.email.status = false)}
 						color={errorStatus.email.status ? 'red' : 'base'}
 						type="email"
-						name="floating_email"
+						name="email"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
 						required
 					/>
 					<label
-						for="floating_email"
+						for="email"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 					>
@@ -137,9 +137,9 @@
 							on:keydown={() => (errorStatus.password.status = false)}
 							color={errorStatus.password.status ? 'red' : 'base'}
 							type="text"
-							name="floating_password"
+							name="password"
 							autocomplete="current-password"
-							id="floating_password"
+							id="password"
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
@@ -150,16 +150,16 @@
 							on:keydown={() => (errorStatus.password.status = false)}
 							color={errorStatus.password.status ? 'red' : 'base'}
 							type="password"
-							name="floating_password"
+							name="password"
 							autocomplete="current-password"
-							id="floating_password"
+							id="password"
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
 						/>
 					{/if}
 					<label
-						for="floating_password"
+						for="password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 					>
@@ -211,24 +211,24 @@
 				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 
 				<input
-					bind:value={email}
-					on:keydown={() => (errorStatus.email.status = false)}
-					color={errorStatus.email.status ? 'red' : 'base'}
+					bind:value={forgottonemail}
+					on:keydown={() => (errorStatus.forgottonemail.status = false)}
+					color={errorStatus.forgottonemail.status ? 'red' : 'base'}
 					type="email"
-					name="floating_forgottonemail"
+					name="forgottonemail"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 					placeholder=" "
 					required
 				/>
 				<label
-					for="floating_forgottonemail"
+					for="forgottonemail"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 				>
 
-				{#if errorStatus.email.status}
+				{#if errorStatus.forgottonemail.status}
 					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.email.msg}
+						{errorStatus.forgottonemail.msg}
 					</div>
 				{/if}
 			</div>

@@ -1,22 +1,28 @@
 <script lang="ts">
+	// Sveltekit
+	import { fly } from 'svelte/transition';
+	import { is_dark, entryData } from '$src/stores/store';
+	import ToolTip from '$src/components/ToolTip.svelte';
+	import { enhance } from '$app/forms';
+
 	// Skeleton
-	import { AppShell, AppBar } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { Modal, modalStore } from '@skeletonlabs/skeleton';
-	import { Toast, toastStore } from '@skeletonlabs/skeleton';
-	import type { ToastSettings } from '@skeletonlabs/skeleton';
+	import {
+		AppBar,
+		AppShell,
+		Avatar,
+		Modal,
+		ProgressBar,
+		Toast,
+		toastStore
+	} from '@skeletonlabs/skeleton';
+
 	import { tooltip } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { ProgressBar } from '@skeletonlabs/skeleton';
-
-	let valueSingle = 'books';
 
 	// Lucia
 	import { page } from '$app/stores';
 	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-
 	import { invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
 
 	handleSession(page);
 	const user = getUser();
@@ -28,11 +34,6 @@
 	import { locale } from '$i18n/i18n-svelte';
 	import LocaleSwitcher from '$src/lib/LocaleSwitcher.svelte';
 	import LL from '$i18n/i18n-svelte';
-
-	// Sveltekit
-	import { fly } from 'svelte/transition';
-	import { is_dark, entryData } from '$src/stores/store';
-	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// @ts-expect-error reading from vite.config.jss
 	const pkg = __PACKAGE__;
@@ -47,13 +48,18 @@
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
 
 	// ======================save data =======================
+	import axios from 'axios';
+
+	async function signOut() {
+		await invalidateAll();
+	}
 
 	async function submit() {
 		await saveFormData(collection);
 		refresh(collection);
+		a;
 		showFields = false;
 		$entryData = undefined;
-
 		const t: ToastSettings = {
 			message: $LL.SBL_Save_message(),
 			// Optional: Presets for primary | secondary | tertiary | warning
@@ -64,12 +70,10 @@
 		};
 		toastStore.trigger(t);
 	}
-
 	$: {
 		$entryData = undefined;
 		collection;
 	}
-
 	// ======================save data =======================
 
 	// darkmode
@@ -350,7 +354,7 @@
 						</div>
 						<!-- Lucia Sign Out -->
 						<form
-							action="?/"
+							action="?/signOut"
 							method="post"
 							use:enhance={async () => {
 								invalidateAll();
@@ -358,6 +362,7 @@
 							class="-mt-2"
 						>
 							<button
+								on:click={signOut}
 								type="submit"
 								value="Sign out"
 								class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"

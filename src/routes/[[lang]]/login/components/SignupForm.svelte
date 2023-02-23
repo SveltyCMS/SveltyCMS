@@ -84,13 +84,12 @@
 					on:keydown={() => (errorStatus.username.status = false)}
 					color={errorStatus.username.status ? 'red' : 'base'}
 					type="text"
-					name="floating_username"
+					name="username"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
-					required
 				/>
 				<label
-					for="floating_username"
+					for="username"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 				>
 					{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
@@ -110,14 +109,13 @@
 					bind:value={email}
 					on:keydown={() => (errorStatus.email.status = false)}
 					color={errorStatus.email.status ? 'red' : 'base'}
-					type="email"
-					name="floating_email"
+					type="text"
+					name="email"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
-					required
 				/>
 				<label
-					for="floating_email"
+					for="email"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 				>
 					{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span>
@@ -138,27 +136,25 @@
 						on:keydown={() => (errorStatus.password.status = false)}
 						color={errorStatus.password.status ? 'red' : 'base'}
 						type="text"
-						name="floating_password"
+						name="password"
 						autocomplete="current-password"
-						id="floating_password"
+						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
-						required
 					/>{:else}
 					<input
 						bind:value={password}
 						on:keydown={() => (errorStatus.password.status = false)}
 						color={errorStatus.password.status ? 'red' : 'base'}
 						type="password"
-						name="floating_password"
+						name="password"
 						autocomplete="current-password"
-						id="floating_password"
+						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
-						required
 					/>{/if}
 				<label
-					for="floating_password"
+					for="password"
 					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 					>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
 				>
@@ -189,12 +185,11 @@
 						color={errorStatus.confirm_password.status ? 'red' : 'base'}
 						type="text"
 						name="confirm_password"
-						id="floating_confirm_password"
+						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
-						required
 					/><label
-						for="floating_confirm_password"
+						for="confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>
@@ -205,13 +200,12 @@
 						color={errorStatus.confirm_password.status ? 'red' : 'base'}
 						type="password"
 						name="confirm_password"
-						id="floating_confirm_password"
+						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
-						required
 					/>
 					<label
-						for="floating_confirm_password"
+						for="confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
 					>{/if}
@@ -241,13 +235,12 @@
 						color={errorStatus.token.status ? 'red' : 'base'}
 						type="text"
 						name="token"
-						id="floating_token"
+						id="token"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
-						required
 					/>
 					<label
-						for="floating_token"
+						for="token"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 						>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
 					>
