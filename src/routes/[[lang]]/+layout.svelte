@@ -1,52 +1,46 @@
 <script lang="ts">
+	import { enhance } from "$app/forms";
+
+	import { invalidateAll } from "$app/navigation";
+	// Lucia
+	import { page } from "$app/stores";
+	import { PUBLIC_SITENAME } from "$env/static/public";
+
+	// typesafe-i18n
+	import LL from "$i18n/i18n-svelte";
+
+	import collections, { categories } from "$src/collections";
+	// show/hide Left Sidebar
+	import AnimatedHamburger from "$src/components/AnimatedHamburger.svelte";
+	import Collections from "$src/components/Collections.svelte";
+	import ToolTip from "$src/components/ToolTip.svelte";
+	import LocaleSwitcher from "$src/lib/LocaleSwitcher.svelte";
+	import { saveFormData } from "$src/lib/utils/utils_svelte";
+	import { entryData, is_dark } from "$src/stores/store";
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from "@iconify/svelte";
+	import { getUser, handleSession } from "@lucia-auth/sveltekit/client";
+	import type { ToastSettings } from "@skeletonlabs/skeleton";
 	// Skeleton
-	import { AppShell, AppBar } from '@skeletonlabs/skeleton';
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { Modal, modalStore } from '@skeletonlabs/skeleton';
-	import { Toast, toastStore } from '@skeletonlabs/skeleton';
-	import type { ToastSettings } from '@skeletonlabs/skeleton';
-	import { tooltip } from '@skeletonlabs/skeleton';
-	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { ProgressBar } from '@skeletonlabs/skeleton';
+	import { AppBar, AppShell, Avatar, Modal, ProgressBar, Toast, toastStore } from "@skeletonlabs/skeleton";
+	import axios from "axios";
+
+	// Sveltekit
+	import { fly } from "svelte/transition";
 
 	let valueSingle = 'books';
-
-	// Lucia
-	import { page } from '$app/stores';
-	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-
-	import { invalidateAll } from '$app/navigation';
-	import { enhance } from '$app/forms';
 
 	handleSession(page);
 	const user = getUser();
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
-	// typesafe-i18n
-	import { locale } from '$i18n/i18n-svelte';
-	import LocaleSwitcher from '$src/lib/LocaleSwitcher.svelte';
-	import LL from '$i18n/i18n-svelte';
-
-	// Sveltekit
-	import { fly } from 'svelte/transition';
-	import { is_dark, entryData } from '$src/stores/store';
-	import ToolTip from '$src/components/ToolTip.svelte';
-
 	// @ts-expect-error reading from vite.config.jss
 	const pkg = __PACKAGE__;
 
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
-
-	import collections, { categories } from '$src/collections';
-	import Collections from '$src/components/Collections.svelte';
-	import EntryList from '$src/components/EntryList.svelte';
-	import Form from '$src/components/Form.svelte';
-	import { saveFormData } from '$src/lib/utils/utils_svelte';
-
 	// ======================save data =======================
+
+	async function signOut() {
+		await invalidateAll();
+	}
 
 	async function submit() {
 		await saveFormData(collection);
@@ -85,9 +79,6 @@
 		filterCollections = (e.target as HTMLInputElement).value.toLowerCase();
 	}
 	//shape_fields(collection.fields).then((data) => (fields = data));
-
-	// show/hide Left Sidebar
-	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
 
 	export let toggleLeftSideBar = true;
 	export let open = false;
@@ -159,8 +150,8 @@
 			in:fly={{ x: -200, duration: 500 }}
 			out:fly={{ x: -200, duration: 500 }}
 			hidden={toggleLeftSideBar}
-			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full relative 
-			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
+			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full relative
+			{switchSideBar ? 'w-[275px]' : 'w-[80px]'}"
 		>
 			{#if !switchSideBar}
 				<!-- mobile hamburger -->
@@ -169,7 +160,7 @@
 
 			<!-- sidebar collapse button -->
 			<button
-				class="absolute top-2 -right-2 rounded-full border-2 border-surface-300"
+				class="absolute top-1 right-0 rounded-full border-2 border-surface-300 mx-5"
 				on:click={() => (switchSideBar = !switchSideBar)}
 			>
 				{#if !switchSideBar}
@@ -189,18 +180,10 @@
 				{/if}
 			</button>
 
-			<!-- Corporate Identity -->
-			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
-				{#if switchSideBar}
-					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
-				{/if}
-			</a>
-
 			<!-- Search Collections -->
 			<!-- TODO: perhaps overflow is better? -->
 			<div class="mx-auto my-2 max-w-full">
-				<div class="relative mx-auto ">
+				<div class="w-4/5">
 					{#if !switchSideBar}
 						<input
 							on:keyup={updateFilter}
@@ -350,7 +333,7 @@
 						</div>
 						<!-- Lucia Sign Out -->
 						<form
-							action="?/"
+							action="?/signOut"
 							method="post"
 							use:enhance={async () => {
 								invalidateAll();
@@ -360,6 +343,7 @@
 							<button
 								type="submit"
 								value="Sign out"
+								on:click={signOut}
 								class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 								><Icon icon="uil:signout" width="24" /></button
 							><ToolTip

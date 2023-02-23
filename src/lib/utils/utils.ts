@@ -146,3 +146,15 @@ export const replaceLocaleInUrl = (url: URL, locale: string, full = false): stri
 	newUrl.pathname = new_pathname;
 	return newUrl.toString();
 };
+
+
+export const fileToDataUrl = (file: File) => {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+		reader.onload = (event) => {
+			resolve((event.target as any).result);
+		};
+		reader.onerror = reject;
+		reader.readAsDataURL(file);
+	});
+}
