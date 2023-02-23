@@ -11,7 +11,13 @@
 	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
-	import { menu } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	let countrySettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'country'
+};
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -213,7 +219,7 @@
 			<input
 				bind:value={selectedCountry}
 				on:keyup={searchCountry}
-				use:menu={{ menu: 'country' }}
+				use:popup={ countrySettings }
 				id="country"
 				placeholder={$LL.WIDGET_Address_SearchCountry()}
 				class="btn btn-base relative w-full rounded-md bg-surface-300 pl-10 text-left text-white dark:bg-surface-600 "
@@ -226,7 +232,7 @@
 			/>
 			<nav
 				class="card list-nav absolute top-0 left-0 max-h-40 overflow-auto p-4 shadow-xl"
-				data-menu="country"
+				data-popup="country"
 			>
 				<ul class=" divide-y divide-surface-500">
 					<!-- add system-language -->

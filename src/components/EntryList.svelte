@@ -12,7 +12,24 @@
 	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
-	import { menu } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	
+	let ContentLangSettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'ContentLang'
+};
+
+let pageItemsSettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'pageItems'
+};
+
+
+			
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { InputChip } from '@skeletonlabs/skeleton';
@@ -274,7 +291,8 @@
 		<!-- language switcher for entryList -->
 		<span class="relative rounded-md shadow-xl">
 			<button
-				use:menu={{ menu: 'ContentLang' }}
+			
+				use:popup={ ContentLangSettings }
 				class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white "
 			>
 				<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
@@ -283,7 +301,7 @@
 			</button>
 			<nav
 				class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
-				data-menu="ContentLang"
+				data-popup="ContentLang"
 			>
 				<ul class="divide-y">
 					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
@@ -398,7 +416,7 @@
 
 				<!-- Dropdown selection -->
 				<button
-					use:menu={{ menu: 'entrySelect', interactive: true }}
+					use:popup={{ menu: 'entrySelect', interactive: true }}
 					class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 				>
 					<Icon icon="mdi:chevron-down" width="24" /></button
@@ -406,7 +424,7 @@
 
 				<nav
 					class="card list-nav mt-14 mr-1 w-52 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-					data-menu="entrySelect"
+					data-popup="entrySelect"
 				>
 					<ul>
 						{#if entryButton != 'create'}
@@ -593,7 +611,7 @@
 		<!-- ItemsPerPage -->
 		<span class="relative rounded-md">
 			<button
-				use:menu={{ menu: 'pageItems' }}
+				use:popup={ pageItemsSettings }
 				class="btn flex items-center justify-center rounded-md border border-surface-600 px-2 uppercase"
 			>
 				{paging.entryLength}
@@ -601,7 +619,7 @@
 			</button>
 			<nav
 				class="card list-nav w-[100px] cursor-pointer border bg-surface-600 p-2 text-center text-white shadow-xl dark:bg-surface-300 sm:absolute sm:top-0 sm:-left-6"
-				data-menu="pageItems"
+				data-pop="pageItems"
 			>
 				<ul class="divide-y">
 					{#each paging.lengthList as length}

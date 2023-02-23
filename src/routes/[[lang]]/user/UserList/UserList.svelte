@@ -3,7 +3,15 @@
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from '../ModalEditForm.svelte';
-	import { menu } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+
+let multiSelectSettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'multiSelect'
+};
+			
 
 	import ToolTip from '$src/components/ToolTip.svelte';
 
@@ -148,7 +156,7 @@
 
 		<!-- Dropdown selection -->
 		<button
-			use:menu={{ menu: 'multiSelect', interactive: true }}
+			use:data-popup={ multiSelectSettings }
 			class="relabsolute  mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 		>
 			<Icon icon="mdi:chevron-down" width="20" /></button
@@ -156,7 +164,7 @@
 
 		<nav
 			class="card list-nav mt-14 mr-1 w-42 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-			data-menu="multiSelect"
+			data-popup="multiSelect"
 		>
 			<ul>
 				{#if multiButton != 'edit'}

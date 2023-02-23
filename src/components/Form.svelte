@@ -11,7 +11,14 @@
 	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
-	import { menu } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	
+let ContentLangSettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'ContentLang'
+};
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -45,14 +52,14 @@
 
 		<span class="absolute right-14">
 			<button
-				use:menu={{ menu: 'ContentLang' }}
+				use:popup={ ContentLangSettings }
 				class="btn btn-sm variant-filled-surface flex items-center justify-center rounded-lg uppercase text-white"
 			>
 				<Icon icon="bi:translate" color="dark" width="22" class="mr-1 md:mr-1" />
 				{$language}
 				<Icon icon="mdi:chevron-down" width="24" />
 			</button>
-			<nav class="card list-nav w-40 border p-4 shadow-xl" data-menu="ContentLang">
+			<nav class="card list-nav w-40 border p-4 shadow-xl" data-popup="ContentLang">
 				<ul class="divide-y">
 					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
 						<li

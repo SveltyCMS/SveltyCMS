@@ -88,7 +88,7 @@ const signInSchema = z.object({
 	password: z
 		.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
 		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-			message: get(LL).LOGIN_ZOD_Password_regexs()
+			message: get(LL).LOGIN_ZOD_Password_regex()
 		})
 });
 
