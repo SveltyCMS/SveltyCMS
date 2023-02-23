@@ -8,7 +8,15 @@
 	import { loadLocaleAsync } from '$i18n/i18n-util.async';
 	import { replaceLocaleInUrl } from '$src/lib/utils/utils';
 
-	import { menu } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	
+let languageSettings: PopupSettings = {
+	// Set the event as: click | hover | hover-click
+	event: 'click',
+	// Provide a matching 'data-popup' value.
+	target: 'language-dropdown'
+};
+			
 	import { fade } from 'svelte/transition';
 
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
@@ -51,15 +59,16 @@
 
 <!-- TODO: make a reusable Language Switcher  -->
 <span class="relative inline-block text-left border-2 border-surface-600 rounded-full" in:fade>
+  
 	<button
 		class="btn btn-sm uppercase font-bold"
-		use:menu={{ menu: 'language-dropdown' }}
+		use:popup={languageSettings}
 		id="language-dropdown"
 		aria-haspopup="true"
 		aria-expanded="false"
 		>{$locale}
 	</button>
-	<nav class="text-white list-nav card shadow-xl uppercase" data-menu="language-dropdown">
+	<nav class="text-white list-nav card shadow-xl uppercase" data-popup="language-dropdown">
 		<ul>
 			{#each locales.filter((l) => l !== $locale) as l}
 				<li>
