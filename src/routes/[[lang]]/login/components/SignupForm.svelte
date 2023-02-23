@@ -13,6 +13,8 @@
 	import type { PageData } from '@lucia-auth/sveltekit/types';
 	import type { ActionData } from '../../$types';
 	import { goto } from '$app/navigation';
+	import { z } from 'zod';
+	import { get } from 'svelte/store';
 
 	export let show = false;
 	let showPassword = false;
@@ -27,7 +29,7 @@
 
 	let isWiggling = false;
 
-	let errorStatus = {
+	let errorStatus: Record<string, { status: boolean; msg: string }> = {
 		general: { status: false, msg: '' },
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
@@ -35,6 +37,89 @@
 		confirm_password: { status: false, msg: '' },
 		token: { status: false, msg: '' },
 		terms: { status: false, msg: '' }
+	};
+
+	const zod_obj: Record<string, z.ZodString> = {
+		username: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
+			.regex(/^[a-zA-z\s]*$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+			.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
+			.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
+			.trim(),
+		email: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
+			.email({ message: get(LL).LOGIN_ZOD_Email_email() }),
+		password: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
+			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+				message: get(LL).LOGIN_ZOD_Password_regex()
+			}),
+		confirm_password: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Confirm_password_string() })
+			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+				message: get(LL).LOGIN_ZOD_Confirm_password_regex()
+			}),
+		token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1)
+	};
+
+	// remove token validation if user is not a first time user
+	if (!firstUserExists) {
+		delete zod_obj.token;
+	}
+
+	let oldErrorStatus = errorStatus;
+	const resetErrorObject = (field_to_exclude: string) => {
+		errorStatus = {
+			general: { status: false, msg: '' },
+			username: { status: false, msg: '' },
+			email: { status: false, msg: '' },
+			password: { status: false, msg: '' },
+			confirm_password: { status: false, msg: '' },
+			token: { status: false, msg: '' },
+			terms: { status: false, msg: '' }
+		};
+
+		Object.keys(errorStatus).forEach((key) => {
+			if (oldErrorStatus[key].status) {
+				errorStatus[key] = oldErrorStatus[key];
+			}
+
+			if (key === field_to_exclude) {
+				errorStatus[key] = oldErrorStatus[key];
+			}
+		});
+
+		oldErrorStatus = errorStatus;
+	};
+
+	const zodValidate = (obj_to_test: string, value: string) => {
+		resetErrorObject(obj_to_test);
+		if (obj_to_test === 'confirm_password') {
+			// confirm password without zod
+			if (confirmPassword !== password) {
+				addWigglingToForm();
+				errorStatus[obj_to_test].status = true;
+				errorStatus[obj_to_test].msg = get(LL).LOGIN_ZOD_Password_match();
+			}
+			return;
+		}
+		const signupSchema = z.object({ obj_to_test: zod_obj[obj_to_test] });
+		const validationResult = signupSchema.safeParse({ obj_to_test: value });
+		if (!validationResult.success) {
+			addWigglingToForm();
+			validationResult.error.errors.forEach((error) => {
+				errorStatus[obj_to_test].status = true;
+				errorStatus[obj_to_test].msg = error.message;
+			});
+		}
+	};
+
+	const addWigglingToForm = () => {
+		isWiggling = true;
+		// to remove wiggling class
+		setTimeout(() => {
+			isWiggling = false;
+		}, 300);
 	};
 </script>
 
@@ -61,8 +146,9 @@
 					}
 
 					if (result.type === 'failure') {
-						isWiggling = true;
+						addWigglingToForm();
 						result?.data?.errors &&
+							// @ts-ignore
 							result?.data?.errors.forEach((error) => {
 								errorStatus[error.field].status = true;
 								errorStatus[error.field].msg = error.message;
@@ -87,6 +173,7 @@
 					name="username"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
+					on:blur={() => zodValidate('username', username)}
 				/>
 				<label
 					for="username"
@@ -113,6 +200,7 @@
 					name="email"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
+					on:blur={() => zodValidate('email', email)}
 				/>
 				<label
 					for="email"
@@ -141,6 +229,7 @@
 						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
+						on:blur={() => zodValidate('password', password)}
 					/>{:else}
 					<input
 						bind:value={password}
@@ -152,6 +241,7 @@
 						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
+						on:blur={() => zodValidate('password', password)}
 					/>{/if}
 				<label
 					for="password"
@@ -188,6 +278,7 @@
 						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
+						on:blur={() => zodValidate('confirm_password', confirmPassword)}
 					/><label
 						for="confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
@@ -203,6 +294,7 @@
 						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
+						on:blur={() => zodValidate('confirm_password', confirmPassword)}
 					/>
 					<label
 						for="confirm_password"
@@ -238,6 +330,7 @@
 						id="token"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 						placeholder=" "
+						on:blur={() => zodValidate('token', token)}
 					/>
 					<label
 						for="token"

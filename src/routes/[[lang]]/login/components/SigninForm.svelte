@@ -13,6 +13,7 @@
 	import axios from 'axios';
 	import { goto } from '$app/navigation';
 	import z from 'zod';
+	import { get } from 'svelte/store';
 
 	let loading = false;
 	let isWiggling = false;
@@ -58,7 +59,7 @@
 	export let email = '';
 	export let password = '';
 
-	let errorStatus = {
+	let errorStatus: Record<string, { status: boolean; msg: string }> = {
 		email: { status: false, msg: '' },
 		confirm: { status: false, msg: '' },
 		password: { status: false, msg: '' },
@@ -66,6 +67,59 @@
 	};
 
 	let form: HTMLDivElement;
+
+	let oldErrorStatus = errorStatus;
+	const resetErrorObject = (field_to_exclude: string) => {
+		errorStatus = {
+			email: { status: false, msg: '' },
+			confirm: { status: false, msg: '' },
+			password: { status: false, msg: '' },
+			forgottonemail: { status: false, msg: '' }
+		};
+
+		Object.keys(errorStatus).forEach((key) => {
+			if (oldErrorStatus[key].status) {
+				errorStatus[key] = oldErrorStatus[key];
+			}
+
+			if (key === field_to_exclude) {
+				errorStatus[key] = oldErrorStatus[key];
+			}
+		});
+
+		oldErrorStatus = errorStatus;
+	};
+	const zod_obj: Record<string, z.ZodString> = {
+		email: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
+			.email({ message: get(LL).LOGIN_ZOD_Email_email() }),
+		password: z
+			.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
+			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+				message: get(LL).LOGIN_ZOD_Password_regex()
+			})
+	};
+
+	const zodValidate = (obj_to_test: string, value: string) => {
+		resetErrorObject(obj_to_test);
+		const signInSchema = z.object({ obj_to_test: zod_obj[obj_to_test] });
+		const validationResult = signInSchema.safeParse({ obj_to_test: value });
+		if (!validationResult.success) {
+			addWigglingToForm();
+			validationResult.error.errors.forEach((error) => {
+				errorStatus[obj_to_test].status = true;
+				errorStatus[obj_to_test].msg = error.message;
+			});
+		}
+	};
+
+	const addWigglingToForm = () => {
+		isWiggling = true;
+		// to remove wiggling class
+		setTimeout(() => {
+			isWiggling = false;
+		}, 300);
+	};
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
@@ -114,6 +168,7 @@
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
 						required
+						on:blur={() => zodValidate('email', email)}
 					/>
 					<label
 						for="email"
@@ -143,6 +198,7 @@
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
+							on:blur={() => zodValidate('password', password)}
 						/>
 					{:else}
 						<input
@@ -156,6 +212,7 @@
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
+							on:blur={() => zodValidate('password', password)}
 						/>
 					{/if}
 					<label
