@@ -155,6 +155,7 @@ export const actions: Actions = {
 
 	createUser: async ({ request, locals }) => {
 		const form = await request.formData();
+		console.log('Object.fromEntries(form)', Object.fromEntries(form));
 		const validationResult = signupSchema.safeParse(Object.fromEntries(form));
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
