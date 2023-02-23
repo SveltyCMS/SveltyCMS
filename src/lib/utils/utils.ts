@@ -138,6 +138,7 @@ export function flattenData(data: any, language: string) {
 export const replaceLocaleInUrl = (url: URL, locale: string, full = false): string => {
 	const [, , ...rest] = url.pathname.split('/');
 	const new_pathname = `/${[locale, ...rest].join('/')}`;
+	//const new_pathname = /${locale === 'en' ? '' : locale}${rest.length ? /${rest.join('/')}` : ''}`;
 	if (!full) {
 		return `${new_pathname}${url.search}`;
 	}
