@@ -142,8 +142,22 @@
       title: "Please Confirm User Deletion",
       body: "This cannot be undone. Are you sure you wish to proceed?",
       // TRUE if confirm pressed, FALSE if cancel pressed
-      response: (r: boolean) => {
-        if (r) console.log("response:", r);
+      response: async (r: boolean) => {
+        if (r) {
+          console.log("response:", r)
+          const formData = new FormData();
+          formData.append('id', id);
+          const res = axios({
+            method: "post",
+            url: "/api/user/deleteUser",
+            data: formData,
+            headers: { "Content-Type": "multipart/form-data" }
+          });
+          if (res.status === 200) {
+            await invalidateAll();
+            console.log("User deleted");
+          }
+        }
       },
       // Optionally override the button text
       buttonTextCancel: "Cancel",
