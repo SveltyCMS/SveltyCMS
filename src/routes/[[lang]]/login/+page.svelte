@@ -30,32 +30,57 @@
 		>
 			<div class="bg-white relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full">
 				<svg
-					viewBox="0 0 10 10"
-					width="380"
-					height="380"
+					width="160"
+					height="160"
 					class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform"
 				>
 					<circle
-						cx="5"
-						cy="5"
-						r="2"
-						pathLength="2"
-						stroke-width=".05"
-						stroke-dasharray=".8 .2"
-						stroke-dashoffset="9%"
-						stroke-linecap="round"
+						cx="80"
+						cy="80"
+						r="75"
+						stroke-width="2"
+						stroke-dasharray="190 190"
+						stroke-dashoffset="190"
+						transform="rotate(52, 80, 80)"
 						class="fill-none stroke-error-500"
 					/>
+
 					<circle
-						cx="5"
-						cy="5"
-						r="1.9"
-						pathLength="2"
-						stroke-width=".05"
-						stroke-dasharray=".8 .2"
-						stroke-dashoffset="9%"
-						stroke-linecap="round"
-						class="fill-none stroke-surface-600"
+						cx="80"
+						cy="80"
+						r="75"
+						stroke-width="2"
+						stroke-dasharray="190 190"
+						stroke-dashoffset="190"
+						transform="rotate(232, 80, 80)"
+						class="fill-none stroke-error-500"
+					/>
+				</svg>
+
+				<svg
+					width="170"
+					height="170"
+					class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 transform"
+				>
+					<circle
+						cx="85"
+						cy="85"
+						r="80"
+						stroke-width="2"
+						stroke-dasharray="205 205"
+						stroke-dashoffset="205"
+						transform="rotate(50, 85, 85)"
+						class="fill-none stroke-black"
+					/>
+					<circle
+						cx="85"
+						cy="85"
+						r="80"
+						stroke-width="2"
+						stroke-dasharray="205 205"
+						stroke-dashoffset="205"
+						transform="rotate(230, 85, 85)"
+						class="fill-none stroke-black"
 					/>
 				</svg>
 
