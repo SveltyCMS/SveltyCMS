@@ -5,20 +5,26 @@
 	import type { Schema } from '$src/collections/types';
 	import Fields from './Fields.svelte';
 
-	import ToolTip from '$src/components/ToolTip.svelte';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
-	
-let ContentLangSettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'ContentLang'
-};
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	// Popup Tooltips
+	let CloseMenuSettings: PopupSettings = {
+		event: 'hover',
+		target: 'CloseMenuPopup',
+		placement: 'bottom'
+	};
+
+	let ContentLangSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		// Provide a matching 'data-popup' value.
+		target: 'ContentLang'
+	};
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -52,7 +58,7 @@ let ContentLangSettings: PopupSettings = {
 
 		<span class="absolute right-14">
 			<button
-				use:popup={ ContentLangSettings }
+				use:popup={ContentLangSettings}
 				class="btn btn-sm variant-filled-surface flex items-center justify-center rounded-lg uppercase text-white"
 			>
 				<Icon icon="bi:translate" color="dark" width="22" class="mr-1 md:mr-1" />
@@ -75,17 +81,19 @@ let ContentLangSettings: PopupSettings = {
 			</nav>
 		</span>
 		<button
+			use:popup={CloseMenuSettings}
 			on:click={() => {
 				showFields = false;
 				$entryData = new Set();
 			}}
 			class="btn absolute right-0 hidden dark:text-white md:block"
 		>
-			<ToolTip
-				text={$LL.FORM_CloseMenu()}
-				position="bottom"
-				class="bg-surface-500 text-black dark:text-white"
-			/>
+			<!-- Popup Tooltip with the arrow element -->
+			<div class="card variant-filled-secondary p-4" data-popup="CloseMenuPopup">
+				{$LL.FORM_CloseMenu()}
+				<div class="arrow variant-filled-secondary" />
+			</div>
+
 			<span class="sr-only">{$LL.FORM_CloseMenu()}</span>
 			<Icon icon="material-symbols:close" width="26" />
 		</button>

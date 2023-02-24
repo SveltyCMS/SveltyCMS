@@ -5,7 +5,22 @@
 	import { getFieldsData, language } from '$src/stores/store';
 
 	import DropDown from '$src/components/DropDown.svelte';
-	import ToolTip from '$src/components/ToolTip.svelte';
+
+	// Skeleton
+	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	// Popup Tooltips
+	let EditSettings: PopupSettings = {
+		event: 'hover',
+		target: 'EditPopup',
+		placement: 'bottom'
+	};
+	let AddNewSettings: PopupSettings = {
+		event: 'hover',
+		target: 'AddNewPopup',
+		placement: 'bottom'
+	};
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -71,6 +86,7 @@
 			{selectedField || display || $LL.WIDGET_Relation_ChoseExisting()}
 		</p>
 		<button
+			use:popup={EditSettings}
 			on:click={() => {
 				value = null;
 				widgetValue = null;
@@ -79,24 +95,28 @@
 			}}
 			class="btn"><Icon icon="bi:pencil-fill" width="22" /></button
 		>
-		<ToolTip
-			text={$LL.WIDGET_Relation_Edit()}
-			position="bottom"
-			class="bg-surface-500 text-black dark:text-white"
-		/>
+		<!-- Popup Tooltip with the arrow element -->
+		<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
+			{$LL.WIDGET_Relation_Edit()}
+			{collection.name}
+			<div class="arrow variant-filled-secondary" />
+		</div>
+
 		<button
+			use:popup={AddNewSettings}
 			on:click={() => {
 				expanded = !expanded;
 				selected = null;
 			}}
 			class="btn mr-1"
 			><Icon icon="ic:baseline-plus" width="22" />
-			<ToolTip
-				text={$LL.WIDGET_Relation_AddNew()}
-				position="bottom"
-				class="bg-surface-500 text-black dark:text-white"
-			/></button
-		>
+			<!-- Popup Tooltip with the arrow element -->
+			<div class="card variant-filled-secondary p-4" data-popup="AddNewPopup">
+				{$LL.WIDGET_Relation_AddNew()}
+				{collection.name}
+				<div class="arrow variant-filled-secondary" />
+			</div>
+		</button>
 	</div>
 
 	<DropDown bind:showDropDown {dropDownData} bind:selected display={field.rawDisplay} />

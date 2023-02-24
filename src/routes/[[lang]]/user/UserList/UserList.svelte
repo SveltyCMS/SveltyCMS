@@ -4,16 +4,34 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from '../ModalEditForm.svelte';
 	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
-let multiSelectSettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'multiSelect'
-};
-			
+	// Popup Tooltips
+	let EditSettings: PopupSettings = {
+		event: 'hover',
+		target: 'EditPopup',
+		placement: 'bottom'
+	};
+	let DeleteSettings: PopupSettings = {
+		event: 'hover',
+		target: 'DeletePopup',
+		placement: 'bottom'
+	};
+	let BlockSettings: PopupSettings = {
+		event: 'hover',
+		target: 'BlockPopup',
+		placement: 'bottom'
+	};
+	let UnblockSettings: PopupSettings = {
+		event: 'hover',
+		target: 'UnblockPopup',
+		placement: 'bottom'
+	};
 
-	import ToolTip from '$src/components/ToolTip.svelte';
+	let multiSelectSettings: PopupSettings = {
+		event: 'click', // Set the event as: click | hover | hover-click
+		target: 'multiSelect' // Provide a matching 'data-popup' value.
+	};
 
 	function modalUserForm(): void {
 		const modalComponent: ModalComponent = {
@@ -111,44 +129,54 @@ let multiSelectSettings: PopupSettings = {
 	<div class="relative inline-flex shadow-md hover:shadow-lg focus:shadow-lg" role="group">
 		{#if multiButton == 'edit'}
 			<button
+				use:popup={EditSettings}
 				on:click={modalUserForm}
 				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-tertiary-600 via-tertiary-500 to-tertiary-400 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
 			>
-				<ToolTip text="edit" position="bottom" class="bg-surface-500 text-black dark:text-white" />
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
+					Edit User
+					<div class="arrow variant-filled-secondary" />
+				</div>
 				<Icon icon="material-symbols:edit" width="20" class="mr-1" />
 				<div class="hidden md:block">Edit</div>
 			</button>
 		{:else if multiButton == 'delete'}
 			<button
+				use:popup={DeleteSettings}
 				on:click={modalConfirm}
 				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				><ToolTip
-					text="Delete User"
-					position="bottom"
-					class="bg-surface-500 text-black dark:text-white"
-				/>
+				><!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled-secondary p-4" data-popup="DeletePopup">
+					Delete User
+					<div class="arrow variant-filled-secondary" />
+				</div>
 				<Icon icon="bi:trash3-fill" color="white" width="20" class="mr-1" />
 				<div class="hidden md:block">Delete</div>
 			</button>
 		{:else if multiButton == 'block'}
 			<button
+				use:popup={BlockSettings}
 				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				><ToolTip
-					text="Block User"
-					position="bottom"
-					class="bg-surface-500 text-black dark:text-white"
-				/>
+			>
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled-secondary p-4" data-popup="BlockPopup">
+					Block User
+					<div class="arrow variant-filled-secondary" />
+				</div>
 				<Icon icon="material-symbols:lock" color="white" width="20" class="mr-1" />
 				<div class="hidden md:block">Block</div>
 			</button>
 		{:else if multiButton == 'unblock'}
 			<button
+				use:popup={UnblockSettings}
 				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-surface-700 via-surface-500 to-surface-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				><ToolTip
-					text="Unblock User"
-					position="bottom"
-					class="bg-surface-500 text-black dark:text-white"
-				/>
+				><!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled-secondary p-4" data-popup="UnblockPopup">
+					Unblock User
+					<div class="arrow variant-filled-secondary" />
+				</div>
+
 				<Icon icon="material-symbols:lock-open" color="white" width="20" class="mr-1" />
 				<div class="hidden md:block">Unblock</div>
 			</button>
@@ -156,7 +184,7 @@ let multiSelectSettings: PopupSettings = {
 
 		<!-- Dropdown selection -->
 		<button
-			use:data-popup={ multiSelectSettings }
+			use:popup={multiSelectSettings}
 			class="relabsolute  mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 		>
 			<Icon icon="mdi:chevron-down" width="20" /></button

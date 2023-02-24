@@ -2,7 +2,16 @@
 	import type { Schema } from '$src/collections/types';
 	import { shape_fields } from '$src/lib/utils/utils_svelte';
 
-	import ToolTip from '$src/components/ToolTip.svelte';
+	// Skeleton
+	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	// Popup Tooltips
+	let CategorySettings: PopupSettings = {
+		event: 'hover',
+		target: 'CategoryPopup',
+		placement: 'right'
+	};
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -46,13 +55,18 @@
 {#each filtered as item, index}
 	<!-- svelte-ignore a11y-click-events-have-key-events -->
 	<div
+		use:popup={CategorySettings}
 		on:click={(e) => {
 			expanded[index] = !expanded[index];
 		}}
-		class="arrow tooltip_right relative mb-1 h-[40px] cursor-pointer overflow-visible rounded-sm bg-surface-600 py-2 text-center"
+		class="relative mb-1 h-[40px] cursor-pointer overflow-visible rounded-sm bg-surface-600 py-2 text-center"
 		class:arrow_up={expanded[index]}
 	>
-		<ToolTip position="right" text={item.category} active={!switchSideBar} />
+		<!-- Popup Tooltip with the arrow element -->
+		<div class="card variant-filled-secondary p-4" data-popup="CategoryPopup">
+			{item.category}
+			<div class="arrow variant-filled-secondary" />
+		</div>
 		<Icon
 			icon={item.icon}
 			width="24"

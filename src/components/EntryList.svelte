@@ -6,35 +6,71 @@
 	import { onMount } from 'svelte';
 	import DeleteIcon from './icons/DeleteIcon.svelte';
 	import { never } from '$src/lib/utils/utils_svelte';
-	import ToolTip from '$src/components/ToolTip.svelte';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
-	
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	// Popup Tooltips
+	let CreateSettings: PopupSettings = {
+		event: 'hover',
+		target: 'CreatePopup',
+		placement: 'bottom'
+	};
+	let PublishSettings: PopupSettings = {
+		event: 'hover',
+		target: 'PublishPopup',
+		placement: 'bottom'
+	};
+	let UnpublishSettings: PopupSettings = {
+		event: 'hover',
+		target: 'UnpublishPopup',
+		placement: 'bottom'
+	};
+	let ScheduleSettings: PopupSettings = {
+		event: 'hover',
+		target: 'SchedulePopup',
+		placement: 'bottom'
+	};
+	let CloneSettings: PopupSettings = {
+		event: 'hover',
+		target: 'ClonePopup',
+		placement: 'bottom'
+	};
+	let DeleteSettings: PopupSettings = {
+		event: 'hover',
+		target: 'DeletePopup',
+		placement: 'bottom'
+	};
+
 	let ContentLangSettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'ContentLang'
-};
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		// Provide a matching 'data-popup' value.
+		target: 'ContentLang'
+	};
 
-let pageItemsSettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'pageItems'
-};
+	let pageItemsSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		// Provide a matching 'data-popup' value.
+		target: 'pageItems'
+	};
 
-
-			
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import { InputChip } from '@skeletonlabs/skeleton';
 
-	let defaultDisplay = ['ID', 'Status', 'Label', 'User', 'Email'];
+	//TODO: Get Roles from allowed user
+	let tableColumns: Record<string, boolean> = {
+		ID: true,
+		Status: true,
+		Label: true,
+		Email: true,
+		other: false
+	};
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -291,8 +327,7 @@ let pageItemsSettings: PopupSettings = {
 		<!-- language switcher for entryList -->
 		<span class="relative rounded-md shadow-xl">
 			<button
-			
-				use:popup={ ContentLangSettings }
+				use:popup={ContentLangSettings}
 				class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white "
 			>
 				<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
@@ -328,95 +363,112 @@ let pageItemsSettings: PopupSettings = {
 			>
 				{#if entryButton == 'create' && !deleteMode}
 					<button
+						use:popup={CreateSettings}
 						on:click={() => {
 							showFields = true;
 						}}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
 					>
-						<ToolTip
-							text="{$LL.ENTRYLIST_Create()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+						<!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="CreatePopup">
+							{$LL.ENTRYLIST_Create()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
+
 						<Icon icon="ic:round-plus" color="black" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Create()}</div>
 					</button>
 				{:else if entryButton == 'publish'}
 					<button
+						use:popup={PublishSettings}
 						class="flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-500 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 						on:click={() => {
 							publishEntry();
 						}}
 					>
-						<ToolTip
-							text="{$LL.ENTRYLIST_Publish()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+						<!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="PublishPopup">
+							{$LL.ENTRYLIST_Publish()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
+
 						<Icon icon="bi:hand-thumbs-up-fill" color="white" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Publish()}</div>
 					</button>
 				{:else if entryButton == 'unpublish'}
 					<button
+						use:popup={UnpublishSettings}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 						on:click={() => {
 							unpublishEntry();
 						}}
-						><ToolTip
-							text="{$LL.ENTRYLIST_Unpublish()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+					>
+						<!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="UnpublishPopup">
+							{$LL.ENTRYLIST_Unpublish()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
 						<Icon icon="bi:pause-circle" color="white" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Unpublish()}</div>
 					</button>
 				{:else if entryButton == 'schedule'}
 					<button
+						use:popup={ScheduleSettings}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 						on:click={() => {
 							scheduleEntry();
 						}}
-						><ToolTip
-							text="{$LL.ENTRYLIST_Schedule()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+					>
+						<!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+							{$LL.ENTRYLIST_Schedule()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
 						<Icon icon="bi:clock" color="white" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Schedule()}</div>
 					</button>
 				{:else if entryButton == 'clone'}
 					<button
+						use:popup={CloneSettings}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 						on:click={() => {
 							cloneEntry();
 						}}
-						><ToolTip
-							text="{$LL.ENTRYLIST_Clone()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+						><!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+							{$LL.ENTRYLIST_Clone()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
+
 						<Icon icon="bi:clipboard-data-fill" color="white" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Clone()}</div>
 					</button>
 				{:else if entryButton == 'delete' || deleteMode}
 					<button
+						use:popup={DeleteSettings}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 						on:click={() => {
 							deleteEntry();
 						}}
-						><ToolTip
-							text="{$LL.ENTRYLIST_Delete()} {collection.name}"
-							position="bottom"
-							class="bg-surface-500 text-black dark:text-white"
-						/>
+						><!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+							{$LL.ENTRYLIST_Delete()}
+							{collection.name}
+							<div class="arrow variant-filled-secondary" />
+						</div>
 						<Icon icon="bi:trash3-fill" color="white" width="22" class="mr-1" />
 						<div class="hidden md:block">{$LL.ENTRYLIST_Delete()}</div>
 					</button>
 				{/if}
 
-				<!-- Dropdown selection -->
+				<!-- Dropdown selection 
+				use:popup={{ menu: 'entrySelect', interactive: true }}-->
 				<button
-					use:popup={{ menu: 'entrySelect', interactive: true }}
 					class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 				>
 					<Icon icon="mdi:chevron-down" width="24" /></button
@@ -511,7 +563,20 @@ let pageItemsSettings: PopupSettings = {
 	</div>
 
 	<!-- TODO: Link to Colletion widgetValue -->
-	<InputChip placeholder="Add more Columns..." bind:value={defaultDisplay} />
+	<div class="flex flex-wrap gap-2 space-x-2">
+		{#each Object.keys(tableColumns) as r}
+			<span
+				class="chip {tableColumns[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+				on:click={() => {
+					filter(r);
+				}}
+				on:keypress
+			>
+				{#if tableColumns[r]}<span><Icon icon="fa:check" /></span>{/if}
+				<span class="capitalize">{r}</span>
+			</span>
+		{/each}
+	</div>
 	<!-- Show Collection Table -->
 	<!-- TODO: Add Sort/Filter -->
 	<div class="table-container max-h-[80vh] overflow-auto bg-white shadow-xl dark:bg-surface-800 ">
@@ -611,7 +676,7 @@ let pageItemsSettings: PopupSettings = {
 		<!-- ItemsPerPage -->
 		<span class="relative rounded-md">
 			<button
-				use:popup={ pageItemsSettings }
+				use:popup={pageItemsSettings}
 				class="btn flex items-center justify-center rounded-md border border-surface-600 px-2 uppercase"
 			>
 				{paging.entryLength}

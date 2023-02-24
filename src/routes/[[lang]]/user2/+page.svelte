@@ -236,9 +236,6 @@
 </form>
 
 <style lang="postcss">
-	.valid {
-		color: green;
-	}
 	.error {
 		color: red;
 	}

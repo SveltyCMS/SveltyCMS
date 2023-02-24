@@ -2,7 +2,6 @@
 	// Sveltekit
 	import { fly } from 'svelte/transition';
 	import { is_dark, entryData } from '$src/stores/store';
-	import ToolTip from '$src/components/ToolTip.svelte';
 	import { enhance } from '$app/forms';
 
 	// Skeleton
@@ -15,9 +14,29 @@
 		Toast,
 		toastStore
 	} from '@skeletonlabs/skeleton';
-
-	import { tooltip } from '@skeletonlabs/skeleton';
+	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { storePopup } from '@skeletonlabs/skeleton';
+	import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
+
+	// Popup Tooltips
+	let SwitchThemeSettings: PopupSettings = {
+		event: 'hover',
+		target: 'SwitchTheme',
+		placement: 'right'
+	};
+	let SignOutTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'SignOut',
+		placement: 'right'
+	};
+	let SystemLanguageTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'SystemLanguage',
+		placement: 'right'
+	};
 
 	// Lucia
 	import { page } from '$app/stores';
@@ -57,7 +76,6 @@
 	async function submit() {
 		await saveFormData(collection);
 		refresh(collection);
-		a;
 		showFields = false;
 		$entryData = undefined;
 		const t: ToastSettings = {
@@ -326,8 +344,8 @@
 						</div>
 
 						<!-- light/dark mode switch -->
-						<!-- use:tooltip={{ content: 'Skeleton', position: 'top' }} -->
 						<button
+							use:popup={SwitchThemeSettings}
 							on:click={toggleTheme}
 							class="!overflow-x-auto btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 						>
@@ -336,21 +354,21 @@
 							{:else}
 								<Icon icon="bi:moon-fill" width="16" />
 							{/if}
-							<ToolTip
-								position="right"
-								text={`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
-								class="bg-surface-500 text-black dark:text-white "
-							/>
+							<!-- Popup Tooltip with the arrow element -->
+							<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
+								{`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
+								<div class="arrow variant-filled-secondary" />
+							</div>
 						</button>
 
-						<div class="md:row-span-2">
+						<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
 							<LocaleSwitcher />
-							<ToolTip
-								position="right"
-								text={$LL.SBL_Search()}
-								class="bg-surface-500 text-black dark:text-white"
-							/>
+							<!-- Popup Tooltip with the arrow element -->
+							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
+								{$LL.SBL_SystemLanguage()}
+								<div class="arrow variant-filled-secondary" />
+							</div>
 						</div>
 						<!-- Lucia Sign Out -->
 						<form
@@ -362,16 +380,18 @@
 							class="-mt-2"
 						>
 							<button
+								use:popup={SignOutTooltip}
 								on:click={signOut}
 								type="submit"
 								value="Sign out"
 								class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 								><Icon icon="uil:signout" width="24" /></button
-							><ToolTip
-								position="right"
-								text={$LL.SBL_Search()}
-								class="bg-surface-500 text-black dark:text-white"
-							/>
+							>
+							<!-- Popup Tooltip with the arrow element -->
+							<div class="card variant-filled-secondary p-4" data-popup="SignOut">
+								{$LL.SBL_SignOut()}.
+								<div class="arrow variant-filled-secondary" />
+							</div>
 						</form>
 					</div>
 
