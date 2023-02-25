@@ -39,9 +39,9 @@
 						cy="80"
 						r="75"
 						stroke-width="2"
-						stroke-dasharray="190 190"
-						stroke-dashoffset="190"
-						transform="rotate(52, 80, 80)"
+						stroke-dasharray="191 191"
+						stroke-dashoffset="191"
+						transform="rotate(51.5, 80, 80)"
 						class="fill-none stroke-error-500"
 					/>
 
@@ -50,9 +50,9 @@
 						cy="80"
 						r="75"
 						stroke-width="2"
-						stroke-dasharray="190 190"
-						stroke-dashoffset="190"
-						transform="rotate(232, 80, 80)"
+						stroke-dasharray="191 191"
+						stroke-dashoffset="191"
+						transform="rotate(231.5, 80, 80)"
 						class="fill-none stroke-error-500"
 					/>
 				</svg>
@@ -85,7 +85,7 @@
 				</svg>
 
 				<div
-					class="absolute top-[75px] left-1/2 -translate-x-1/2 -translate-y-1/2 transform  flex flex-col items-center justify-center text-center"
+					class="absolute top-[77px] left-1/2 -translate-x-1/2 -translate-y-1/2 transform  flex flex-col items-center justify-center text-center"
 				>
 					<Logo fill="black" className="w-8 h-8" />
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>

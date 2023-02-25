@@ -22,7 +22,7 @@
 	"devDependencies": {
 		"@skeletonlabs/skeleton": "0.132.5",
 		"@sveltejs/adapter-node": "latest",
-		"@sveltejs/kit": "1.8.3",
+		"@sveltejs/kit": "1.8.4",
 		"@types/cookie": "0.5.1",
 		"@types/lodash": "^4.14.191",
 		"@types/mapbox-gl": "^2.7.10",
