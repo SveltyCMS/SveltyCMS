@@ -293,8 +293,10 @@ export const actions: Actions = {
 	},
 
 	forgotPassword: async ({ request, locals }) => {
-		const form = await request.formData();
+		console.log({ request });
 
+		const form = await request.formData();
+		console.log({ form });
 		const email = form.get('forgottonemail');
 
 		console.log({ email: email });

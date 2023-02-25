@@ -251,7 +251,29 @@
 		</div>
 	{:else}
 		<!-- Forgotton Password -->
-		<form on:submit|preventDefault={sendResetMail} class="mx-auto w-full p-4 lg:w-1/2">
+
+		<form
+			class="form {isWiggling && 'wiggle'} mx-auto w-full p-4 lg:w-1/2"
+			method="post"
+			action="?/forgotPassword"
+			use:enhance={(e) => {
+				return async ({ result }) => {
+					if (result.type === 'success') {
+						goto('/');
+					}
+
+					if (result.type === 'failure') {
+						isWiggling = true;
+						result?.data?.errors &&
+							result?.data?.errors.forEach((error) => {
+								errorStatus[error.field].status = true;
+								errorStatus[error.field].msg = error.message;
+							});
+					}
+				};
+			}}
+		>
+			<!-- <form on:submit|preventDefault={sendResetMail} class="mx-auto w-full p-4 lg:w-1/2"> -->
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
 

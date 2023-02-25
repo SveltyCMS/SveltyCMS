@@ -46,6 +46,7 @@
 		placement: 'bottom'
 	};
 
+	// Popup Dropdowns
 	let ContentLangSettings: PopupSettings = {
 		// Set the event as: click | hover | hover-click
 		event: 'click',

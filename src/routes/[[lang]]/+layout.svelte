@@ -20,6 +20,7 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
+	storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
 	// Popup Tooltips
 	let SwitchThemeSettings: PopupSettings = {
@@ -35,7 +36,7 @@
 	let SystemLanguageTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SystemLanguage',
-		placement: 'right'
+		placement: 'top'
 	};
 
 	// Lucia
