@@ -3,7 +3,6 @@
 	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import type { Schema } from '$src/collections/types';
 	import { onMount } from 'svelte';
-
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
@@ -44,7 +43,7 @@
 					<div class="flex items-center gap-1 px-2">
 						<Icon icon="bi:translate" color="dark" width="18" class="text-sm" />
 						<div class="text-xs font-normal text-error-500">
-							{PUBLIC_TRANSLATIONS[$language]}
+							{JSON.parse(PUBLIC_TRANSLATIONS)[$language]}
 						</div>
 					</div>
 				{/if}
