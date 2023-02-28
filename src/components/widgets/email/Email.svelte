@@ -24,7 +24,7 @@
 	placeholder={field.placeholder && field.placeholder !== ''
 		? field.placeholder
 		: field.db_fieldName}
-	class=""
+	class="input"
 	on:input={validateEmail}
 />
 

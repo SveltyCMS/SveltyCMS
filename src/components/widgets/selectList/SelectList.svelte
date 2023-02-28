@@ -10,7 +10,7 @@
 
 	let selected = 'Mr.'; // define as Placeholder
 
-	// TODO Translate Array
+	// TODO Translate Array and put into collection
 	let options = ['Mr.', 'Ms.', 'Mrs.', 'Dr.']; // replace data from collection
 </script>
 

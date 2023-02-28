@@ -321,7 +321,7 @@
 	<input
 		id="title-input"
 		type="text"
-		class="rounded-md"
+		class="input rounded-md"
 		placeholder={$LL.WIDGET_Seo_Suggetion_SeoTitle()}
 		required
 		bind:value={title}
@@ -359,7 +359,7 @@
 		cols="50"
 		bind:value={description}
 		on:input={handleDescriptionChange}
-		class="rounded-md"
+		class="input rounded-md"
 	/>
 </div>
 

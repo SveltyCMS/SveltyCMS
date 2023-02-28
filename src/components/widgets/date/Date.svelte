@@ -16,4 +16,4 @@
 </script>
 
 <!-- TODO: Enhance Date entry -->
-<input type="date" bind:value class="rounded-md" />
+<input type="date" bind:value class="input rounded-md" />

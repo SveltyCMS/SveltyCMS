@@ -12,12 +12,17 @@
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
-	let countrySettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'country'
-};
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+
+	let CountryCombobox: PopupSettings = {
+		event: 'click',
+		target: 'CountryCombobox',
+		placement: 'bottom',
+		closeQuery: '.listbox-item'
+		// state: (e: any) => console.log('tooltip', e)
+	};
+	let listboxValue: string = 'Germany';
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -120,7 +125,7 @@
 		allow user to switch maps-->
 	Mapbox needs more work
 	<div use:initMap class="max-h-[550px] w-full">
-		<div class="mb-1 flex justify-between  gap-2 ">
+		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"
 				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
 			>
@@ -143,7 +148,7 @@
 			name="latitude"
 			autocomplete="latitude"
 			placeholder={$LL.WIDGET_Address_Latitude()}
-			class="rounded-md"
+			class="input rounded-md"
 		/>
 
 		<input
@@ -153,7 +158,7 @@
 			name="longitude"
 			autocomplete="longitude"
 			placeholder={$LL.WIDGET_Address_Longitude()}
-			class="rounded-md"
+			class="input rounded-md"
 		/>
 	</div>
 	<br />
@@ -167,7 +172,7 @@
 			name="name"
 			autocomplete="name"
 			placeholder={$LL.WIDGET_Address_Name()}
-			class="rounded-md"
+			class="input rounded-md"
 		/>
 
 		<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
@@ -179,7 +184,7 @@
 			placeholder={$LL.WIDGET_Address_Street()}
 			required
 			enterkeyhint="next"
-			class="rounded-md"
+			class="input rounded-md"
 		/>
 
 		<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
@@ -191,7 +196,7 @@
 			placeholder={$LL.WIDGET_Address_Zip()}
 			autocomplete="postal-code"
 			enterkeyhint="next"
-			class="rounded-md"
+			class="input rounded-md"
 		/>
 
 		<label for="city">{$LL.WIDGET_Address_City()}</label>
@@ -203,23 +208,38 @@
 			placeholder={$LL.WIDGET_Address_City()}
 			autocomplete="city"
 			enterkeyhint="next"
-			class="rounded-md"
+			class="input rounded-md"
 		/>
-		<!-- <label for="country">Select a country</label>
-		<Svelecte
-			{selectedCountry}
-			inputId="country"
-			bind:readSelection={value}
-			bind:value
-			placeholder={$LL.WIDGET_Address_SearchCountry()}
-		/> -->
 
-		<!-- Dropdown Country with search -->
-		<label class="relative mt-3">
+		<!-- Country with search Combobox -->
+		<div>
+			<button class="btn variant-filled w-48 justify-between" use:popup={CountryCombobox}>
+				<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
+				<i class="fa-solid fa-caret-down opacity-50" />
+			</button>
+			<div class="card w-48 shadow-xl overflow-hidden" data-popup="CountryCombobox">
+				<ListBox rounded="rounded-none">
+					{#each filteredCountries as country}
+						<!-- add system-language -->
+						<ListBoxItem
+							class="flex gap-2"
+							name="medium"
+							value={country.en}
+							bind:group={listboxValue}
+						>
+							<span class="fi fi-{country.alpha2} mt-1" />
+							{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
+						</ListBoxItem>
+					{/each}
+				</ListBox>
+			</div>
+		</div>
+
+		<!-- <label class="relative mt-3">
 			<input
 				bind:value={selectedCountry}
 				on:keyup={searchCountry}
-				use:popup={ countrySettings }
+				use:popup={countrySettings}
 				id="country"
 				placeholder={$LL.WIDGET_Address_SearchCountry()}
 				class="btn btn-base relative w-full rounded-md bg-surface-300 pl-10 text-left text-white dark:bg-surface-600 "
@@ -235,7 +255,7 @@
 				data-popup="country"
 			>
 				<ul class=" divide-y divide-surface-500">
-					<!-- add system-language -->
+					
 					{#each filteredCountries as country}
 						<li
 							class="flex gap-2"
@@ -248,6 +268,6 @@
 					{/each}
 				</ul>
 			</nav>
-		</label>
+		</label> -->
 	</form>
 </address>
