@@ -65,16 +65,20 @@
 				{$language}
 				<Icon icon="mdi:chevron-down" width="24" />
 			</button>
-			<nav class="card list-nav w-40 border p-4 shadow-xl" data-popup="ContentLang">
+			<nav
+				class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
+				data-popup="ContentLang"
+			>
 				<ul class="divide-y">
-					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
+					{#each Object.keys(JSON.parse(PUBLIC_TRANSLATIONS)).filter((data) => $language != data) as _language}
+						<!-- svelte-ignore a11y-click-events-have-key-events -->
 						<li
 							on:click={() => {
 								$language = _language;
 								open = false;
 							}}
 						>
-							{PUBLIC_TRANSLATIONS[_language]}
+							{_language.toUpperCase()}
 						</li>
 					{/each}
 				</ul>

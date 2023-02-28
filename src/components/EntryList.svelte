@@ -51,7 +51,7 @@
 		// Set the event as: click | hover | hover-click
 		event: 'click',
 		// Provide a matching 'data-popup' value.
-		target: 'ContentLang'
+		target: 'entryListlanguagePopup'
 	};
 
 	let pageItemsSettings: PopupSettings = {
@@ -80,6 +80,7 @@
 	export let collection: any = undefined;
 	export let deleteMode = false;
 	export let category = 'Some';
+	export let fields: any;
 
 	// define default button
 	let entryButton = 'create';
@@ -98,17 +99,17 @@
 
 	$: refresh_deleteMap(collection);
 	export let refresh: (collection: any) => Promise<any>;
-	onMount(() => {
-		refresh = async (collection: any) => {
-			entryList = [];
+	// onMount(() => {
+	// 	refresh = async (collection: any) => {
+	// 		entryList = [];
 
-			({ entryList, totalCount: paging.totalCount } = await axios
-				.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
-				.then((data) => data.data));
-			totalPages = Math.ceil(paging.totalCount / paging.entryLength);
-			deleteMap = {};
-		};
-	});
+	// 		({ entryList, totalCount: paging.totalCount } = await axios
+	// 			.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
+	// 			.then((data) => data.data));
+	// 		totalPages = Math.ceil(paging.totalCount / paging.entryLength);
+	// 		deleteMap = {};
+	// 	};
+	// });
 	$: refresh && refresh(collection);
 
 	async function deleteEntry() {
@@ -201,6 +202,8 @@
 
 	export let toggleSideBar = false;
 	import { flattenData } from '$src/lib/utils/utils';
+	import showFieldsStore from '$src/lib/stores/fieldStore';
+	import Form from './Form.svelte';
 
 	// Is not really stored on page reload
 	function changeItemsPerPage(newValue: number) {
@@ -220,6 +223,12 @@
 	function search(e: Event) {
 		filter = (e.target as HTMLInputElement).value;
 	}
+
+	// buttons dropdown popup settings
+	const entityButtonsPopup: PopupSettings = {
+		event: 'click',
+		target: 'entityButton'
+	};
 </script>
 
 <Modal />
@@ -337,18 +346,17 @@
 			</button>
 			<nav
 				class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
-				data-popup="ContentLang"
+				data-popup="entryListlanguagePopup"
 			>
 				<ul class="divide-y">
-					{#each Object.keys(PUBLIC_TRANSLATIONS).filter((data) => $language != data) as _language}
-						<!-- svelte-ignore a11y-click-events-have-key-events -->
+					{#each Object.keys(JSON.parse(PUBLIC_TRANSLATIONS)).filter((data) => $language != data) as _language}
 						<li
 							on:click={() => {
 								$language = _language;
 								// open = false;
 							}}
 						>
-							{JSON.parse(PUBLIC_TRANSLATIONS)[_language]}
+							{_language.toUpperCase()}
 						</li>
 					{/each}
 				</ul>
@@ -366,7 +374,7 @@
 					<button
 						use:popup={CreateSettings}
 						on:click={() => {
-							showFields = true;
+							$showFieldsStore.showForm = true;
 						}}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
 					>
@@ -470,20 +478,22 @@
 				<!-- Dropdown selection 
 				use:popup={{ menu: 'entrySelect', interactive: true }}-->
 				<button
+					use:popup={entityButtonsPopup}
 					class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 				>
 					<Icon icon="mdi:chevron-down" width="24" /></button
 				>
 
 				<nav
-					class="card list-nav mt-14 mr-1 w-52 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-					data-popup="entrySelect"
+					class="card list-nav mt-1 mr-1 z-10 w-52 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
+					data-popup="entityButton"
 				>
 					<ul>
 						{#if entryButton != 'create'}
 							<li>
 								<button
 									on:click={() => {
+										console.log('first');
 										entryButton = 'create';
 									}}
 									class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
@@ -654,97 +664,9 @@
 	</div>
 </div>
 
-<div class="flex items-center justify-between border-surface-200 p-2 ">
-	<div class="flex flex-1 items-center justify-between">
-		<!-- Pagecounter -->
-		<div class="hidden text-sm text-surface-700 dark:text-surface-400 sm:block">
-			{$LL.ENTRYLIST_Showing()}
-			<span class="font-semibold text-surface-900 dark:text-white"
-				>{(paging.page - 1) * paging.entryLength + 1}</span
-			>
-			{$LL.ENTRYLIST_to()}
-			<span class="font-semibold text-surface-900 dark:text-white"
-				>{paging.entryLength * paging.page > paging.totalCount
-					? paging.totalCount
-					: paging.entryLength * paging.page}</span
-			>
-			{$LL.ENTRYLIST_of()}
-			<span class="font-semibold text-surface-900 dark:text-white">{paging.totalCount} </span>
-			<!-- TODO Correct Translation for Pluralization -->
-			{$LL.ENTRYLIST_Entries()}
-		</div>
-
-		<!-- ItemsPerPage -->
-		<span class="relative rounded-md">
-			<button
-				use:popup={pageItemsSettings}
-				class="btn flex items-center justify-center rounded-md border border-surface-600 px-2 uppercase"
-			>
-				{paging.entryLength}
-				<Icon icon="mdi:chevron-down" width="24" />
-			</button>
-			<nav
-				class="card list-nav w-[100px] cursor-pointer border bg-surface-600 p-2 text-center text-white shadow-xl dark:bg-surface-300 sm:absolute sm:top-0 sm:-left-6"
-				data-pop="pageItems"
-			>
-				<ul class="divide-y">
-					{#each paging.lengthList as length}
-						<li
-							class="-mx-2 transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700 dark:text-black hover:dark:text-white"
-							value={length}
-							on:click={() => changeItemsPerPage(length)}
-						>
-							{length}
-							{$LL.ENTRYLIST_EntriesItems()}
-						</li>
-					{/each}
-				</ul>
-			</nav>
-		</span>
-
-		<!-- Pagination -->
-		<div class="dark:text-white">
-			<nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
-				<!-- Previous -->
-				<div
-					on:click={() => {
-						paging.page > 1 && (paging.page--, refresh(collection));
-					}}
-					class="relative inline-flex items-center rounded-l-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
-				>
-					<span class="sr-only">{$LL.ENTRYLIST_Previous()}</span>
-					<Icon icon="mdi:chevron-left" width="24" />
-				</div>
-
-				<!-- pages -->
-				{#each Array(totalPages) as _, i}
-					<div
-						on:click={() => {
-							paging.page = i + 1;
-							refresh(collection);
-						}}
-						class:active={paging.page == i + 1}
-						aria-current="page"
-						class="relative inline-flex items-center border border-surface-400 px-4 py-2 text-sm font-medium text-surface-400  hover:bg-surface-400 hover:text-white focus:z-20 active:text-black "
-					>
-						{i + 1}
-					</div>
-				{/each}
-
-				<!-- Next -->
-				<div
-					on:click={() => {
-						paging.page < totalPages && (paging.page++, refresh(collection));
-					}}
-					class="relative inline-flex items-center rounded-r-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
-				>
-					<span class="sr-only">{$LL.ENTRYLIST_Next()}</span>
-					<Icon icon="mdi:chevron-right" width="24" />
-				</div>
-			</nav>
-		</div>
-	</div>
-</div>
+{#if $showFieldsStore.showForm}
+	<Form {fields} {collection} bind:showFields={$showFieldsStore.showField} />
+{/if}
 
 <style>
 	.fixed_header {

@@ -111,8 +111,10 @@
 
 	// show/hide Left Sidebar
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+	import showFieldsStore from '$src/lib/stores/fieldStore';
+	import CollectionsLatest from '$src/components/Collections_latest.svelte';
 
-	export let toggleLeftSideBar = true;
+	export let toggleLeftSideBar = false;
 	export let open = false;
 	export let switchSideBar = false;
 
@@ -130,7 +132,7 @@
 	// change sidebar width so only icons show
 
 	let progress = 0;
-	let submitDisabled = true;
+	let submitDisabled = false;
 
 	let avatarSrc = $user?.avatar;
 	let toggleSideBar = true;
@@ -140,8 +142,28 @@
 	let collection = collections[0];
 	let fields: any;
 	let refresh: (collection: any) => Promise<any>;
-	let showFields = false;
 	let category = categories[0].category;
+
+	const handleCategoryClick = (e) => {
+		console.log(e.detail);
+		$showFieldsStore.collection_index = e.detail.collection_index;
+		$showFieldsStore.category_index = e.detail.category_index;
+	};
+
+	let exampleCombobox: PopupSettings = {
+		event: 'click',
+		target: 'exampleCombobox',
+		placement: 'bottom',
+		closeQuery: '.listbox-item'
+		// state: (e: any) => console.log('tooltip', e)
+	};
+
+	let listboxValue = 'abc';
+	import { getFieldsData, language } from '$src/stores/store';
+
+	const handleSaveClick = () => {
+		console.log($getFieldsData);
+	};
 </script>
 
 <!-- App Shell -->
@@ -196,82 +218,102 @@
 				class="absolute top-2 -right-2 rounded-full border-2 border-surface-300 "
 			>
 				{#if !switchSideBar}
-					<!-- Icon Collpased -->
-					<Icon
-						icon="bi:arrow-left-circle-fill"
-						width="30"
-						class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
-					/>
-				{:else}
-					<!-- Icon expanded -->
-					<Icon
-						icon="bi:arrow-left-circle-fill"
-						width="30"
-						class="rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
-					/>
+					<!-- mobile hamburger -->
+					<AnimatedHamburger {open} {onClickHambuger} />
 				{/if}
-			</button>
 
-			<!-- Corporate Identity -->
-			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
-				{#if switchSideBar}
-					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
-				{/if}
-			</a>
-
-			<!-- Search Collections -->
-			<!-- TODO: perhaps overflow is better? -->
-			<div class="mx-auto my-2 max-w-full">
-				<div class="relative mx-auto ">
+				<!-- sidebar collapse button -->
+				<button
+					class="absolute top-2 -right-2 rounded-full border-2 border-surface-300"
+					on:click={() => (switchSideBar = !switchSideBar)}
+				>
 					{#if !switchSideBar}
-						<input
-							on:keyup={updateFilter}
-							on:focus={() => (switchSideBar = !switchSideBar)}
-							placeholder={$LL.SBL_Search()}
-							class="relative z-10 h-10 w-10 cursor-pointer !rounded-full border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:w-full focus:cursor-text focus:rounded-sm dark:bg-surface-600/50 dark:text-white md:mt-0 md:h-12"
+						<!-- Icon Collpased -->
+						<Icon
+							icon="bi:arrow-left-circle-fill"
+							width="30"
+							class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
 						/>
 					{:else}
-						<input
-							on:keyup={updateFilter}
-							placeholder={$LL.SBL_Search()}
-							class="relative z-10 h-10 w-full cursor-pointer rounded-md border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:cursor-text dark:bg-surface-600/50 dark:text-white"
+						<!-- Icon expanded -->
+						<Icon
+							icon="bi:arrow-left-circle-fill"
+							width="30"
+							class="rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
 						/>
 					{/if}
+				</button>
 
-					<svg
-						xmlns="http://www.w3.org/2000/svg"
-						class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
-						fill="none"
-						viewBox="0 0 24 24"
-						stroke="currentColor"
-						stroke-width="2"
-					>
-						<path
-							stroke-linecap="round"
-							stroke-linejoin="round"
-							d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-						/>
-					</svg>
+				<!-- Corporate Identity -->
+				<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
+					<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
+					{#if switchSideBar}
+						<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span
+						>
+					{/if}
+				</a>
+
+				<!-- Search Collections -->
+				<!-- TODO: perhaps overflow is better? -->
+				<div class="mx-auto my-2 max-w-full">
+					<div class="relative mx-auto ">
+						{#if !switchSideBar}
+							<input
+								on:keyup={updateFilter}
+								on:focus={() => (switchSideBar = !switchSideBar)}
+								placeholder={$LL.SBL_Search()}
+								class="relative z-10 h-10 w-10 cursor-pointer !rounded-full border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:w-full focus:cursor-text focus:rounded-sm dark:bg-surface-600/50 dark:text-white md:mt-0 md:h-12"
+							/>
+						{:else}
+							<input
+								on:keyup={updateFilter}
+								placeholder={$LL.SBL_Search()}
+								class="relative z-10 h-10 w-full cursor-pointer rounded-md border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:cursor-text dark:bg-surface-600/50 dark:text-white"
+							/>
+						{/if}
+
+						<svg
+							xmlns="http://www.w3.org/2000/svg"
+							class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
+							fill="none"
+							viewBox="0 0 24 24"
+							stroke="currentColor"
+							stroke-width="2"
+						>
+							<path
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+							/>
+						</svg>
+					</div>
 				</div>
-			</div>
 
-			<!--SideBar Middle -->
-			<!-- Display Collections -->
-			<Collections
-				data={categories}
-				{filterCollections}
-				{switchSideBar}
-				bind:fields
-				bind:collection
-				bind:category
-				bind:showFields
-			/>
+				<!--SideBar Middle -->
+				<!-- Display Collections -->
+				<!-- <Collections
+					on:collection_click={handleCategoryClick}
+					data={categories}
+					{filterCollections}
+					{switchSideBar}
+					bind:fields
+					bind:collection
+					bind:category
+				/> -->
 
-			<!--SideBar Middle -->
-			<!-- Display Collections via skeleton-->
-			<!-- {#if switchSideBar}
-				<ListBox padding="px-4 py-1">
+				<!--SideBar Middle -->
+				<!-- Display Collections via skeleton-->
+				<!-- {#if switchSideBar} -->
+				<CollectionsLatest
+					on:collection_click={handleCategoryClick}
+					{switchSideBar}
+					data={categories}
+					{filterCollections}
+					bind:fields
+					bind:collection
+					bind:category
+				/>
+				<!-- <ListBox padding="px-4 py-1">
 					<ListBoxItem bind:group={valueSingle} name="Collections" value="Collections">
 						<svelte:fragment slot="lead">(icon)</svelte:fragment>
 						Collection
@@ -286,128 +328,129 @@
 							Child2
 						</ListBoxItem>
 					</ListBox>
-				</ListBox>
-			{:else}
-				<ListBox padding="px-4 py-1">
-					<ListBoxItem
-						bind:group={valueSingle}
-						name="Collections"
-						value="Collections"
-						class="flex justify-center items-center"
-					>
-						<div>Collection</div>
-						<div>(icon)</div>
-					</ListBoxItem>
-					<ListBox padding="px-4 py-1">
+				</ListBox> -->
+				<!-- {:else} -->
+				<!-- <ListBox padding="px-4 py-1">
 						<ListBoxItem
-							bind:group={valueSingle}
-							name="test1"
-							value="test1"
+							bind:group={listboxValue}
+							name="Collections"
+							value="Collections"
 							class="flex justify-center items-center"
 						>
-							<div>Test1</div>
+							<div>Collection</div>
 							<div>(icon)</div>
 						</ListBoxItem>
-						<ListBoxItem
-							bind:group={valueSingle}
-							name="test2"
-							value="test2"
-							class="flex justify-center items-center"
+						<ListBox padding="px-4 py-1">
+							<ListBoxItem
+								bind:group={listboxValue}
+								name="test1"
+								value="test1"
+								class="flex justify-center items-center"
+							>
+								<div>Test1</div>
+								<div>(icon)</div>
+							</ListBoxItem>
+							<ListBoxItem
+								bind:group={listboxValue}
+								name="test2"
+								value="test2"
+								class="flex justify-center items-center"
+							>
+								<div>Test2</div>
+								<div>(icon)</div>
+							</ListBoxItem>
+						</ListBox>
+					</ListBox> -->
+				<!-- {/if} -->
+
+				<!-- Sidebar Left Footer -->
+				<div
+					class="absolute inset-x-0 bottom-1 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
+				>
+					<div class="border-t border-surface-400 mx-1 mb-2" />
+
+					{#if switchSideBar}
+						<div
+							hidden={toggleLeftSideBar}
+							class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
 						>
-							<div>Test2</div>
-							<div>(icon)</div>
-						</ListBoxItem>
-					</ListBox>
-				</ListBox>
-			{/if} -->
+							<div class="md:row-span-2">
+								<!-- Avatar with user settings -->
+								<a href="/user" class="relative flex-col !no-underline ">
+									<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-12" />
+									<div class="text-center text-[9px] text-black dark:text-white">
+										{#if $user?.username}
+											<div class="text-xs uppercase">{$user?.username}</div>
+										{/if}
+									</div>
+								</a>
+							</div>
 
-			<!-- Sidebar Left Footer -->
-			<div
-				class="absolute inset-x-0 bottom-1 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
-			>
-				<div class="border-t border-surface-400 mx-1 mb-2" />
-
-				{#if switchSideBar}
-					<div
-						hidden={toggleLeftSideBar}
-						class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
-					>
-						<div class="md:row-span-2">
-							<!-- Avatar with user settings -->
-							<a href="/user" class="relative flex-col !no-underline ">
-								<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-12" />
-								<div class="text-center text-[9px] text-black dark:text-white">
-									{#if $user?.username}
-										<div class="text-xs uppercase">{$user?.username}</div>
-									{/if}
+							<!-- light/dark mode switch -->
+							<button
+								use:popup={SwitchThemeSettings}
+								on:click={toggleTheme}
+								class="!overflow-x-auto btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+							>
+								{#if $is_dark}
+									<Icon icon="bi:sun" width="16" />
+								{:else}
+									<Icon icon="bi:moon-fill" width="16" />
+								{/if}
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
+									{`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
+									<div class="arrow variant-filled-secondary" />
 								</div>
+							</button>
+
+							<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
+								<!-- System Language i18n Handeling -->
+								<LocaleSwitcher />
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
+									{$LL.SBL_SystemLanguage()}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+							</div>
+							<!-- Lucia Sign Out -->
+							<form
+								action="?/signOut"
+								method="post"
+								use:enhance={async () => {
+									invalidateAll();
+								}}
+								class="-mt-2"
+							>
+								<button
+									use:popup={SignOutTooltip}
+									on:click={signOut}
+									type="submit"
+									value="Sign out"
+									class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+									><Icon icon="uil:signout" width="24" /></button
+								>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SignOut">
+									{$LL.SBL_SignOut()}.
+									<div class="arrow variant-filled-secondary" />
+								</div>
+							</form>
+						</div>
+
+						<!-- CMS Version -->
+						<div class="flex justify-center p-1 pb-2">
+							<!-- <a href="https://github.com/Celestialme/SimpleCMS" target="blank"> -->
+							<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
+								<span class="badge variant-filled-primary rounded-xl text-black"
+									>{$LL.SBL_Version()}: {pkg.version}</span
+								>
 							</a>
 						</div>
-
-						<!-- light/dark mode switch -->
-						<button
-							use:popup={SwitchThemeSettings}
-							on:click={toggleTheme}
-							class="!overflow-x-auto btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-						>
-							{#if $is_dark}
-								<Icon icon="bi:sun" width="16" />
-							{:else}
-								<Icon icon="bi:moon-fill" width="16" />
-							{/if}
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
-								{`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-						</button>
-
-						<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
-							<!-- System Language i18n Handeling -->
-							<LocaleSwitcher />
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-								{$LL.SBL_SystemLanguage()}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-						</div>
-						<!-- Lucia Sign Out -->
-						<form
-							action="?/signOut"
-							method="post"
-							use:enhance={async () => {
-								invalidateAll();
-							}}
-							class="-mt-2"
-						>
-							<button
-								use:popup={SignOutTooltip}
-								on:click={signOut}
-								type="submit"
-								value="Sign out"
-								class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-								><Icon icon="uil:signout" width="24" /></button
-							>
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SignOut">
-								{$LL.SBL_SignOut()}.
-								<div class="arrow variant-filled-secondary" />
-							</div>
-						</form>
-					</div>
-
-					<!-- CMS Version -->
-					<div class="flex justify-center p-1 pb-2">
-						<!-- <a href="https://github.com/Celestialme/SimpleCMS" target="blank"> -->
-						<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
-							<span class="badge variant-filled-primary rounded-xl text-black"
-								>{$LL.SBL_Version()}: {pkg.version}</span
-							>
-						</a>
-					</div>
-				{/if}
+					{/if}
+				</div>
 			</div>
-		</div>
+		{/if}
 	</svelte:fragment>
 
 	<!-- Sidebar Right -->
@@ -420,6 +463,7 @@
 			<!-- Desktop Save -->
 			<div class="my-3 flex items-center justify-between">
 				<button
+					on:click={submit}
 					type="submit"
 					class="relative w-full max-w-[150px] h-[50px] rounded-lg bg-gradient-to-br from-primary-400 via-primary-500 to-primary-600 px-4 py-2 font-bold hover:bg-primary-500 focus:bg-primary-500 active:bg-primary-600 md:mt-2 md:max-w-[350px]"
 					disabled={submitDisabled}
