@@ -116,6 +116,8 @@
 
 	export let toggleLeftSideBar = false;
 	export let open = false;
+	export let switchSideBar = false;
+
 	export let onClickHambuger = (): void => {
 		open = !open;
 		toggleLeftSideBar = !toggleLeftSideBar;
@@ -132,7 +134,6 @@
 	let progress = 0;
 	let submitDisabled = false;
 
-	let switchSideBar = true;
 	let avatarSrc = $user?.avatar;
 	let toggleSideBar = true;
 	let deleteMode: boolean;
@@ -199,13 +200,22 @@
 
 	<!-- Sidebar Left -->
 	<svelte:fragment slot="sidebarLeft">
-		{#if toggleLeftSideBar}
-			<div
-				id="sidebar-right"
-				in:fly={{ x: -200, duration: 500 }}
-				out:fly={{ x: -200, duration: 500 }}
-				class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500 text-center px-1 h-full relative 
-			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}"
+		<div
+			id="sidebar-left"
+			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
+			dark:to-surface-500 text-center px-1 h-full relative
+			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}
+			{toggleLeftSideBar ? 'hidden' : 'block'}"
+		>
+			{#if !switchSideBar}
+				<!-- mobile and tablet hamburger -->
+				<AnimatedHamburger {open} {onClickHambuger} />
+			{/if}
+
+			<!-- sidebar collapse button -->
+			<button
+				on:click={() => (switchSideBar = !switchSideBar)}
+				class="absolute top-2 -right-2 rounded-full border-2 border-surface-300 "
 			>
 				{#if !switchSideBar}
 					<!-- mobile hamburger -->

@@ -1,19 +1,32 @@
 <script>
 	import { Configuration, OpenAIApi } from 'openai';
 
-	const config = new Configuration({
-		apiKey: import.meta.env.VITE_OPEN_AI_KEY
-	});
+	let config;
+
+	function createConfig() {
+		if (!import.meta.env.VITE_OPEN_AI_KEY) {
+			throw new Error('API key is missing or invalid.');
+		}
+
+		config = new Configuration({
+			apiKey: import.meta.env.VITE_OPEN_AI_KEY
+		});
+
+		return config;
+	}
 
 	const openapi = new OpenAIApi(config);
 
 	// send a Completion request
 	const genchat = async (msg) => {
 		const res = await openapi.createCompletion({
-			model: 'text-davinci-003',
-			prompt: msg,
-			temperature: 0.7,
-			max_tokens: 500,
+			model: 'text-davinci-003', // Most capable GPT-3 model, Taining Data Up to Jun 2021
+			prompt: msg, // input text value of the form input box in sveltekit app ui
+			temperature: 0.7, // Higher values means the model will take more risks. Try 0.9 for more creative applications, and 0 (argmax sampling) for ones with a well-defined answer.
+			max_tokens: 50, // The maximum number of tokens to generate in the completion. (Max 4.000)
+			top_p: 1, // alternative to sampling with temperature, called nucleus sampling
+			frequency_penalty: 0.5, // Number between -2.0 and 2.0. Positive values penalize new tokens based on their existing frequency in the text so far, decreasing the model's likelihood to repeat the same line verbatim.
+			presence_penalty: 0.0, // Number between -2.0 and 2.0. Positive values penalize new tokens based on whether they appear in the text so far, increasing the model's likelihood to talk about new topics.
 			n: 1,
 			stop: '###' // Use this to indicate the end of the response
 		});
@@ -64,32 +77,36 @@
 <!-- Todo: add propper formating support -->
 <h2>OpenAI Chat</h2>
 
-<div class="mt-2">
-	{#each allchat as res_msg}
-		<div class="p-2 mb-1 flex items-center bg-surface-500 gap {res_msg.type}">
-			<span
-				class="rounded-l-full px-2 py-1 mr-3 mb-1 border-r-2 border-white
+{#if !import.meta.env.VITE_OPEN_AI_KEY}
+	<p>Error: API key is missing or invalid.</p>
+{:else}
+	<div class="mt-2">
+		{#each allchat as res_msg}
+			<div class="p-2 mb-1 flex items-center bg-surface-500 gap {res_msg.type}">
+				<span
+					class="rounded-l-full px-2 py-1 mr-3 mb-1 border-r-2 border-white
           {res_msg.type === 'user' ? 'bg-tertiary-500 text-white' : 'bg-success-500 text-white'}"
-			>
-				{res_msg.type === 'user' ? 'You' : 'chatBot'}
-			</span>
-			{#if res_msg.type === 'user'}
-				{res_msg.text}
-			{:else}
-				<p>{@html res_msg.text}</p>
-			{/if}
-		</div>
-	{/each}
-</div>
+				>
+					{res_msg.type === 'user' ? 'You' : 'chatBot'}
+				</span>
+				{#if res_msg.type === 'user'}
+					{res_msg.text}
+				{:else}
+					<p>{@html res_msg.text}</p>
+				{/if}
+			</div>
+		{/each}
+	</div>
 
-<!-- CREATE INPUT TEXT MESSAGE -->
-<div style="display: flex;flex-direction: row;justify-content: center;">
-	<input
-		placeholder="Type Message You Here ....."
-		class="input"
-		type="text"
-		bind:value={mymessage}
-	/>
+	<!-- CREATE INPUT TEXT MESSAGE -->
+	<div style="display: flex;flex-direction: row;justify-content: center;">
+		<input
+			placeholder="Type Message You Here ....."
+			class="input"
+			type="text"
+			bind:value={mymessage}
+		/>
 
-	<button class="ml-1 btn variant-filled-tertiary" on:click={btnsend}>Send</button>
-</div>
+		<button class="ml-1 btn variant-filled-tertiary" on:click={btnsend}>Send</button>
+	</div>
+{/if}

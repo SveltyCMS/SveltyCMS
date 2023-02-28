@@ -56,6 +56,7 @@ specifiers:
   svelte-lexical: 0.2.0
   svelte-preprocess: 5.0.1
   svelte-tel-input: ^1.2.0
+  sveltekit-superforms: ^0.5.9
   tabulator-tables: ^5.4.4
   tailwindcss: 3.2.7
   tiktok-scraper: ^1.4.36
@@ -98,7 +99,6 @@ dependencies:
   svelte-tel-input: 1.2.0
   tabulator-tables: 5.4.4
   tiktok-scraper: 1.4.36
-  zod: 3.20.6
 
 devDependencies:
   '@skeletonlabs/skeleton': 0.132.5
@@ -126,11 +126,13 @@ devDependencies:
   svelte: 3.55.1
   svelte-check: 3.0.4_gqx7lw3sljhsd4bstor5m2aa2u
   svelte-preprocess: 5.0.1_b25a55hc532q56kmuqlrolam2i
+  sveltekit-superforms: 0.5.9_v4hgirlfmlwe4tzvuoq4cqprgu
   tailwindcss: 3.2.7_postcss@8.4.21
   tslib: 2.5.0
   typesafe-i18n: 5.24.1_typescript@4.9.5
   typescript: 4.9.5
   vite: 4.1.4
+  zod: 3.20.6
 
 packages:
 
@@ -6305,6 +6307,18 @@ packages:
     resolution: {integrity: sha512-S+87/P0Ve67HxKkEV23iCdAh/SX1xiSfjF1HOglno/YTbSTW7RniICMCofWGdJJbdjw3S+0PfFb1JtGfTXE0oQ==}
     engines: {node: '>= 8'}
 
+  /sveltekit-superforms/0.5.9_v4hgirlfmlwe4tzvuoq4cqprgu:
+    resolution: {integrity: sha512-i69YncBGSQbCNOwrKCmkS6HeFiWFNnnCG5teqQ/pZ8ctu2sW4hDjIwru2mCyIr27AEFrPYWpyA2cZ55Txk8EXQ==}
+    peerDependencies:
+      '@sveltejs/kit': 1.x
+      svelte: 3.x
+      zod: 3.x
+    dependencies:
+      '@sveltejs/kit': 1.8.4_svelte@3.55.1+vite@4.1.4
+      svelte: 3.55.1
+      zod: 3.20.6
+    dev: true
+
   /symbol-tree/3.2.4:
     resolution: {integrity: sha512-9QNk5KwDF+Bvz+PyObkmSYjI5ksVUYtjW7AU22r2NKcfLJcXp96hkDWU3+XndOsUb+AQ9QhfzfCT2O+CNWT5Tw==}
     dev: false
@@ -6984,4 +6998,4 @@ packages:
 
   /zod/3.20.6:
     resolution: {integrity: sha512-oyu0m54SGCtzh6EClBVqDDlAYRz4jrVtKwQ7ZnsEmMI9HnzuZFj8QFwAY1M5uniIYACdGvv0PBWPF2kO0aNofA==}
-    dev: false
+    dev: true
