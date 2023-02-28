@@ -43,7 +43,11 @@
 
 {#each filtered as item, index}
 	{#if switchSideBar}
-		<button class="btn variant-filled w-48 mb-2 justify-between" use:popup={categoriesPopup[index]}>
+		<!-- Desktop Collection Parent -->
+		<button
+			class="btn variant-filled w-48  mb-1 justify-between"
+			use:popup={categoriesPopup[index]}
+		>
 			<span class="capitalize">
 				<Icon icon={item.icon} width="24" class="text-error-600" />
 			</span>
@@ -54,8 +58,10 @@
 		</button>
 		{console.log(categoriesPopup[index])}
 		{console.log(item.category)}
-		<div class="card w-48 shadow-xl overflow-hidden" data-popup={item.category}>
-			<ListBox padding="px-4 py-1" rounded="rounded-none">
+
+		<!-- Desktop Collection Childern -->
+		<div class="card w-48 shadow-xl overflow-hidden " data-popup={item.category}>
+			<ListBox padding="px-4 py-1" rounded="rounded-none" class="divide-surface-400 divide-y-2">
 				{#each item.collections as _collection, collection_index}
 					<ListBoxItem
 						bind:group={item.category}
@@ -65,6 +71,7 @@
 							$showFieldsStore.showField = true;
 							dispatch('collection_click', { category_index: index, collection_index });
 						}}
+						class="hover:!bg-error-200"
 					>
 						<svelte:fragment slot="lead">
 							<Icon icon={_collection.icon} width="24" class="text-error-600" />
@@ -75,6 +82,7 @@
 			</ListBox>
 		</div>
 	{:else}
+		<!-- Collapsed/Mobile Collection Parent -->
 		<button class="btn variant-filled mb-2 justify-between p-2" use:popup={categoriesPopup[index]}>
 			<span class="capitalize">
 				<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -83,6 +91,7 @@
 				<Icon icon={'fa-caret-down'} class="opacity-50" />
 			</span>
 		</button>
+		<!-- Collapsed/Mobile Collection Child -->
 		<div class="card shadow-xl overflow-hidden" data-popup={item.category}>
 			<ListBox padding="p-0" rounded="rounded-none">
 				{#each item.collections as _collection}
