@@ -33,13 +33,13 @@ User = mongoose.model('user', UserSchema);
 
 // Check if the first user exists in the database
 let firstUserExists = false;
-User.findOne({}, (err, user) => {
-	if (err) {
+// Use then() and catch() to handle the result and error
+User.findOne({})
+	.then((user) => {
+		// Check if user is not null
+		firstUserExists = !!user;
+	})
+	.catch((err) => {
 		console.error(err);
-		return;
-	}
-
-	firstUserExists = !!user;
-});
-
+	});
 export { firstUserExists, User };
