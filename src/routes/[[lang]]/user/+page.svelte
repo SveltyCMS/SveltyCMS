@@ -80,7 +80,7 @@
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
 			// Add your props as key/value pairs
-			props: { background: 'bg-red-500' },
+			// props: { background: 'bg-pink-500' },
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
