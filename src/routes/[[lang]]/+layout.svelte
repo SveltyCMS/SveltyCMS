@@ -145,7 +145,6 @@
 	let category = categories[0].category;
 
 	const handleCategoryClick = (e) => {
-		console.log(e.detail);
 		$showFieldsStore.collection_index = e.detail.collection_index;
 		$showFieldsStore.category_index = e.detail.category_index;
 	};
@@ -344,7 +343,7 @@
 
 						<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
-							<LocaleSwitcher />
+							<!-- <LocaleSwitcher /> -->
 							<!-- Popup Tooltip with the arrow element -->
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
 								{$LL.SBL_SystemLanguage()}
@@ -355,7 +354,8 @@
 						<form
 							action="?/signOut"
 							method="post"
-							use:enhance={async () => {
+							use:enhance={async (e) => {
+								console.log(e);
 								invalidateAll();
 							}}
 							class="-mt-2"

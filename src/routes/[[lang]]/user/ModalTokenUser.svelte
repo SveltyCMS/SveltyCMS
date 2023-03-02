@@ -13,12 +13,6 @@
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
-	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		if ($modalStore[0].response) $modalStore[0].response(FormData);
-		modalStore.close();
-	}
-
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold';
@@ -47,6 +41,8 @@
 	let errorStatus = {
 		email: { status: false, msg: '' }
 	};
+
+	let roleSelected = 'Admin';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -54,7 +50,27 @@
 <div class="modal-example-form {cBase}">
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
-	<form class="modal-form {cForm}">
+	<form
+		class="modal-form {cForm}"
+		method="post"
+		action="?/generateToken"
+		use:enhance={({ data }) => {
+			data.append('role', roleSelected);
+			return async ({ result }) => {
+				if (result.type === 'success') {
+					modalStore.close();
+				}
+				if (result.type === 'failure') {
+					result?.data?.errors &&
+						// @ts-ignore
+						result?.data?.errors.forEach((error) => {
+							errorStatus[error.field].status = true;
+							errorStatus[error.field].msg = error.message;
+						});
+				}
+			};
+		}}
+	>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
 			<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400" />
@@ -62,8 +78,7 @@
 				bind:value={email}
 				on:keydown={() => (errorStatus.email.status = false)}
 				color={errorStatus.email.status ? 'red' : 'base'}
-				type="email"
-				name="email"
+				name="newUserEmail"
 				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 				placeholder=" "
 				required
@@ -92,6 +107,7 @@
 							class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 							on:click={() => {
 								filter(r);
+								roleSelected = r;
 							}}
 							on:keypress
 						>
@@ -102,10 +118,12 @@
 				</div>
 			</div>
 		</div>
+		<footer class="modal-footer {parent.regionFooter}">
+			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}
+				>{parent.buttonTextCancel}</button
+			>
+			<button type="submit" class="btn {parent.buttonPositive}">Send</button>
+		</footer>
 	</form>
 	<!-- prettier-ignore -->
-	<footer class="modal-footer {parent.regionFooter}">
-        <button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Send</button>
-    </footer>
 </div>

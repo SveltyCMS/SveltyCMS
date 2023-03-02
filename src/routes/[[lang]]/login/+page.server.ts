@@ -68,7 +68,6 @@ const zod_obj: {
 if (!(await checkUserExistsInDb())) {
 	delete zod_obj.token;
 }
-
 // zod validations on signUp
 const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password }, ctx) => {
 	if (confirm_password !== password) {
@@ -155,7 +154,6 @@ export const actions: Actions = {
 
 	createUser: async ({ request, locals }) => {
 		const form = await request.formData();
-		console.log('Object.fromEntries(form)', Object.fromEntries(form));
 		const validationResult = signupSchema.safeParse(Object.fromEntries(form));
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
@@ -244,7 +242,6 @@ export const actions: Actions = {
 					]
 				});
 			}
-
 			const res = await auth.createUser({
 				key: {
 					providerId: 'email',
@@ -259,7 +256,7 @@ export const actions: Actions = {
 					email: email.toLowerCase(),
 					role: token.role,
 					resetRequestedAt: undefined,
-					resetToken: undefined
+					resetToken: token.resetToken
 				}
 			});
 
@@ -293,13 +290,8 @@ export const actions: Actions = {
 	},
 
 	forgotPassword: async ({ request, locals }) => {
-		console.log({ request });
-
 		const form = await request.formData();
-		console.log({ form });
 		const email = form.get('forgottonemail');
-
-		console.log({ email: email });
 
 		if (!email || typeof email !== 'string') {
 			return fail(400, {
@@ -318,7 +310,7 @@ export const actions: Actions = {
 
 		const forgotPasswordToken = randomBytes(16).toString('base64');
 
-		await sendMail(email, forgotPasswordToken)
+		await sendMail(email, "Forgot password", forgotPasswordToken)
 			.then(async (res) => {
 				await User.findOneAndUpdate(
 					{ email: email },

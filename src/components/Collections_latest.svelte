@@ -56,8 +56,6 @@
 				<Icon icon={'fa-caret-down'} class="opacity-50" />
 			</span>
 		</button>
-		{console.log(categoriesPopup[index])}
-		{console.log(item.category)}
 
 		<!-- Desktop Collection Childern -->
 		<div class="card w-48 shadow-xl overflow-hidden " data-popup={item.category}>

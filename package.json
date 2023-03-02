@@ -25,8 +25,8 @@
 		"@sveltejs/kit": "1.9.2",
 		"@types/cookie": "0.5.1",
 		"@types/lodash": "^4.14.191",
-		"@types/mapbox-gl": "^2.7.10",
 		"@types/mapbox__mapbox-gl-geocoder": "^4.7.3",
+		"@types/mapbox-gl": "^2.7.10",
 		"@types/sharp": "^0.31.1",
 		"@typescript-eslint/eslint-plugin": "5.54.0",
 		"@typescript-eslint/parser": "5.54.0",
@@ -58,8 +58,8 @@
 		"@floating-ui/dom": "^1.2.3",
 		"@iconify/svelte": "^3.1.0",
 		"@lucia-auth/adapter-mongoose": "0.5.0",
-		"@lucia-auth/oauth": "0.5.3",
-		"@lucia-auth/sveltekit": "0.6.5",
+		"@lucia-auth/oauth": "^0.5.3",
+		"@lucia-auth/sveltekit": "^0.6.5",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.1",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tailwindcss/forms": "0.5.3",
@@ -78,7 +78,7 @@
 		"ioredis": "5.3.1",
 		"jsonwebtoken": "^9.0.0",
 		"lodash": "^4.17.21",
-		"lucia-auth": "0.7.1",
+		"lucia-auth": "^0.7.1",
 		"mapbox-gl": "^2.13.0",
 		"mongoose": "7.0.0",
 		"nodemailer": "6.9.1",
@@ -86,6 +86,7 @@
 		"svelte-lexical": "0.2.0",
 		"svelte-tel-input": "^1.2.0",
 		"tabulator-tables": "^5.4.4",
-		"tiktok-scraper": "^1.4.36"
+		"tiktok-scraper": "^1.4.36",
+		"uuid": "^9.0.0"
 	}
 }
