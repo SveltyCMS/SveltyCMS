@@ -493,7 +493,6 @@
 							<li>
 								<button
 									on:click={() => {
-										console.log('first');
 										entryButton = 'create';
 									}}
 									class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
