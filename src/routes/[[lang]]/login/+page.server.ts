@@ -64,21 +64,6 @@ const zod_obj: {
 	// terms: z.boolean({ required_error: 'Confirm Terms' })
 };
 
-// remove token validation if user is not a first time user
-if (!(await checkUserExistsInDb())) {
-	delete zod_obj.token;
-}
-// zod validations on signUp
-const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password }, ctx) => {
-	if (confirm_password !== password) {
-		ctx.addIssue({
-			code: z.ZodIssueCode.custom,
-			message: get(LL).LOGIN_ZOD_Password_match(),
-			path: ['confirm_password']
-		});
-	}
-});
-
 // zod validations on signIn
 const signInSchema = z.object({
 	email: z
@@ -154,6 +139,20 @@ export const actions: Actions = {
 
 	createUser: async ({ request, locals }) => {
 		const form = await request.formData();
+		// remove token validation if user is not a first time user
+		if (!(await checkUserExistsInDb())) {
+			delete zod_obj.token;
+		}
+		// zod validations on signUp
+		const signupSchema = z.object(zod_obj).superRefine(({ confirm_password, password }, ctx) => {
+			if (confirm_password !== password) {
+				ctx.addIssue({
+					code: z.ZodIssueCode.custom,
+					message: get(LL).LOGIN_ZOD_Password_match(),
+					path: ['confirm_password']
+				});
+			}
+		});
 		const validationResult = signupSchema.safeParse(Object.fromEntries(form));
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
