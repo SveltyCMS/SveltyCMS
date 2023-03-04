@@ -22,7 +22,9 @@ export const actions: Actions = {
 
 		const email = form.get('newUserEmail');
 		const role = form.get('role');
-		const valid = form.get('valid');
+		const expires_in = parseInt(form.get('expires_in') as string);
+
+		const epoch_expires_at = new Date().getTime() + expires_in
 
 		if (!email || typeof email !== 'string' || !role) {
 			return fail(400, {
@@ -35,11 +37,12 @@ export const actions: Actions = {
 				]
 			});
 		}
-
 		const tokenAlreadySentToUser = await SignUpToken.findOne({ email, role });
 		if (tokenAlreadySentToUser) {
-			// send already present token
+			// send already present token and update expiresAt
 			try {
+				tokenAlreadySentToUser.expiresAt = epoch_expires_at
+				await tokenAlreadySentToUser.save()
 				await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken);
 			} catch (err) {
 				return fail(400, {
@@ -75,7 +78,8 @@ export const actions: Actions = {
 				email: email,
 				role: role,
 				resetRequestedAt: new Date(),
-				resetToken: registrationToken
+				resetToken: registrationToken,
+				expiresAt: epoch_expires_at
 			});
 		} catch (err) {
 			console.error({ signUpTokenDb: err });
