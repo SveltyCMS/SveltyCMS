@@ -129,8 +129,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: 'Generate Registation token',
-			body: 'Add User Email and select User Role, then press Send.',
+			title: 'Generate New User Registation token',
+			body: 'Add User Email and select User Role & Duration, then press Send.',
 			component: modalComponent,
 			// Pass abitrary data to the component
 			response: (r: any) => {

@@ -204,7 +204,7 @@ type RootTranslation = {
 	 */
 	LOGIN_ZOD_Username_string: string
 	/**
-	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​c​o​n​t​a​i​n​ ​l​e​t​t​e​r​s​ ​a​n​d​ ​s​p​a​c​e​s​.
+	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​c​o​n​t​a​i​n​ ​l​e​t​t​e​r​s​,​ ​d​i​g​i​t​s​ ​a​n​d​ ​@​$​!​%​*​#
 	 */
 	LOGIN_ZOD_Username_regex: string
 	/**
@@ -727,7 +727,7 @@ export type TranslationFunctions = {
 	 */
 	LOGIN_ZOD_Username_string: () => LocalizedString
 	/**
-	 * Name can only contain letters and spaces.
+	 * Name can only contain letters, digits and @$!%*#
 	 */
 	LOGIN_ZOD_Username_regex: () => LocalizedString
 	/**

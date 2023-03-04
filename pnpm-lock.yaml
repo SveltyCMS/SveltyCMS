@@ -4,13 +4,13 @@ specifiers:
   '@floating-ui/dom': ^1.2.3
   '@iconify/svelte': ^3.1.0
   '@lucia-auth/adapter-mongoose': 0.5.0
-  '@lucia-auth/oauth': 0.5.3
-  '@lucia-auth/sveltekit': 0.6.5
+  '@lucia-auth/oauth': ^0.5.3
+  '@lucia-auth/sveltekit': ^0.6.5
   '@mapbox/mapbox-gl-geocoder': ^5.0.1
   '@mapbox/mapbox-gl-language': ^1.0.1
   '@skeletonlabs/skeleton': 0.132.5
   '@sveltejs/adapter-node': latest
-  '@sveltejs/kit': 1.9.2
+  '@sveltejs/kit': 1.10.0
   '@tailwindcss/forms': 0.5.3
   '@tailwindcss/line-clamp': 0.4.2
   '@tailwindcss/typography': 0.5.9
@@ -40,7 +40,7 @@ specifiers:
   jsonwebtoken: ^9.0.0
   lint-staged: ^13.1.2
   lodash: ^4.17.21
-  lucia-auth: 0.7.1
+  lucia-auth: ^0.7.1
   mapbox-gl: ^2.13.0
   mongoose: 7.0.0
   nodemailer: 6.9.1
@@ -61,8 +61,9 @@ specifiers:
   tailwindcss: 3.2.7
   tiktok-scraper: ^1.4.36
   tslib: 2.5.0
-  typesafe-i18n: 5.24.1
+  typesafe-i18n: 5.24.2
   typescript: ~4.9.5
+  uuid: ^9.0.0
   vite: 4.1.4
   zod: ^3.20.6
 
@@ -99,11 +100,12 @@ dependencies:
   svelte-tel-input: 1.2.0
   tabulator-tables: 5.4.4
   tiktok-scraper: 1.4.36
+  uuid: 9.0.0
 
 devDependencies:
   '@skeletonlabs/skeleton': 0.132.5
-  '@sveltejs/adapter-node': 1.2.0_@sveltejs+kit@1.9.2
-  '@sveltejs/kit': 1.9.2_svelte@3.55.1+vite@4.1.4
+  '@sveltejs/adapter-node': 1.2.1_@sveltejs+kit@1.10.0
+  '@sveltejs/kit': 1.10.0_svelte@3.55.1+vite@4.1.4
   '@types/cookie': 0.5.1
   '@types/lodash': 4.14.191
   '@types/mapbox-gl': 2.7.10
@@ -126,10 +128,10 @@ devDependencies:
   svelte: 3.55.1
   svelte-check: 3.0.4_gqx7lw3sljhsd4bstor5m2aa2u
   svelte-preprocess: 5.0.1_b25a55hc532q56kmuqlrolam2i
-  sveltekit-superforms: 0.5.16_6vao766geumg57hwcwqqhozdhu
+  sveltekit-superforms: 0.5.16_olaaze4meyni26jegdwt7jhqci
   tailwindcss: 3.2.7_postcss@8.4.21
   tslib: 2.5.0
-  typesafe-i18n: 5.24.1_typescript@4.9.5
+  typesafe-i18n: 5.24.2_typescript@4.9.5
   typescript: 4.9.5
   vite: 4.1.4
   zod: 3.20.6
@@ -1678,20 +1680,20 @@ packages:
       svelte: 3.55.1
     dev: true
 
-  /@sveltejs/adapter-node/1.2.0_@sveltejs+kit@1.9.2:
-    resolution: {integrity: sha512-j0nxkrNZ4zBkOIOtqHUET5l8qvcFo64xNL2xv8F1QICkz746o5DVCGaJEPC3B2X2fTklXExxe80yXZhf38p6zg==}
+  /@sveltejs/adapter-node/1.2.1_@sveltejs+kit@1.10.0:
+    resolution: {integrity: sha512-mEGDCaZVU3qvFdUI8CMKv+BSzpBYpTpcx85u8bfJ+vcv57pu4UXjZg7ivOoxWZdunUeqq4oEyE+kHmlgBRAalg==}
     peerDependencies:
       '@sveltejs/kit': ^1.0.0
     dependencies:
       '@rollup/plugin-commonjs': 24.0.1_rollup@3.15.0
       '@rollup/plugin-json': 6.0.0_rollup@3.15.0
       '@rollup/plugin-node-resolve': 15.0.1_rollup@3.15.0
-      '@sveltejs/kit': 1.9.2_svelte@3.55.1+vite@4.1.4
+      '@sveltejs/kit': 1.10.0_svelte@3.55.1+vite@4.1.4
       rollup: 3.15.0
     dev: true
 
-  /@sveltejs/kit/1.9.2_svelte@3.55.1+vite@4.1.4:
-    resolution: {integrity: sha512-KYDrzs9bdoK+3typr5eBa+8q+RFwZdI80tuSL1yU99Rn5hZsEbcj4tlBGVvlL7SHxJdMUiDUYhTznbpb7CIs9A==}
+  /@sveltejs/kit/1.10.0_svelte@3.55.1+vite@4.1.4:
+    resolution: {integrity: sha512-0P35zHrByfbF3Ym3RdQL+RvzgsCDSyO3imSwuZ67XAD5HoCQFF3a8Mhh0V3sObz3rc5aJd4Qn82UpAihJqZ6gQ==}
     engines: {node: ^16.14 || >=18}
     hasBin: true
     requiresBuild: true
@@ -6367,14 +6369,14 @@ packages:
     resolution: {integrity: sha512-S+87/P0Ve67HxKkEV23iCdAh/SX1xiSfjF1HOglno/YTbSTW7RniICMCofWGdJJbdjw3S+0PfFb1JtGfTXE0oQ==}
     engines: {node: '>= 8'}
 
-  /sveltekit-superforms/0.5.16_6vao766geumg57hwcwqqhozdhu:
+  /sveltekit-superforms/0.5.16_olaaze4meyni26jegdwt7jhqci:
     resolution: {integrity: sha512-PLET6z5qGMZoBVNtyH66LmjIo4RdBkQzSUBc175rekd3L1N4ojyg51FNPQjKYLV6or+GjY0IYw4GKeqBdtcCwQ==}
     peerDependencies:
       '@sveltejs/kit': 1.x
       svelte: 3.x
       zod: 3.x
     dependencies:
-      '@sveltejs/kit': 1.9.2_svelte@3.55.1+vite@4.1.4
+      '@sveltejs/kit': 1.10.0_svelte@3.55.1+vite@4.1.4
       svelte: 3.55.1
       zod: 3.20.6
     dev: true
@@ -6617,8 +6619,8 @@ packages:
       is-typed-array: 1.1.10
     dev: true
 
-  /typesafe-i18n/5.24.1_typescript@4.9.5:
-    resolution: {integrity: sha512-CN5UcrRoqLZZXzJuhlg02hCCQNdOIprU/NQmT+p0S4tsGyl8330oSygev9RLibxpj4EyqThqG7cX8mNGl41c6g==}
+  /typesafe-i18n/5.24.2_typescript@4.9.5:
+    resolution: {integrity: sha512-7To75fKQvaWzPPWymKVsq7zR4ufsLJ/LxrQPZeNo5sspayaiOdVyoZ/UjkYqzfBJdvbHkGuZN6yt2JoVVwTRyQ==}
     hasBin: true
     peerDependencies:
       typescript: '>=3.5.1'
@@ -6690,6 +6692,11 @@ packages:
     hasBin: true
     dev: false
     optional: true
+
+  /uuid/9.0.0:
+    resolution: {integrity: sha512-MXcSTerfPa4uqyzStbRoTgt5XIe3x5+42+q1sDuy3R5MDk66URdLMOZe5aPX/SQd+kuYAh0FdP/pO28IkQyTeg==}
+    hasBin: true
+    dev: false
 
   /validate-npm-package-license/3.0.4:
     resolution: {integrity: sha512-DpKm2Ui/xN7/HQKCtpZxoRWBhZ9Z0kqtygG8XCgNQ8ZlDnxuQmWhj566j8fN4Cu3/JmbhsDo7fcAJq4s9h27Ew==}

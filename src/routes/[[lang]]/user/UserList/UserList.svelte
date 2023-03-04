@@ -75,7 +75,6 @@
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
-
 	import type { PageData } from '../$types';
 
 	export let list: PageData;
@@ -91,12 +90,108 @@
 
 	// define Multifuntion default button
 	let multiButton = 'edit';
+
+	import { writable } from 'svelte/store';
+
+	// tanStack Table
+	// import {
+	// 	ColumnDef,
+	// 	createSvelteTable,
+	// 	flexRender,
+	// 	getCoreRowModel,
+	// 	TableOptions
+	// } from '@tanstack/svelte-table';
+
+	// type Person = {
+	// 	firstName: string;
+	// 	lastName: string;
+	// 	age: number;
+	// 	visits: number;
+	// 	status: string;
+	// 	progress: number;
+	// };
+
+	// const defaultData: Person[] = [
+	// 	{
+	// 		firstName: 'tanner',
+	// 		lastName: 'linsley',
+	// 		age: 24,
+	// 		visits: 100,
+	// 		status: 'In Relationship',
+	// 		progress: 50
+	// 	},
+	// 	{
+	// 		firstName: 'tandy',
+	// 		lastName: 'miller',
+	// 		age: 40,
+	// 		visits: 40,
+	// 		status: 'Single',
+	// 		progress: 80
+	// 	},
+	// 	{
+	// 		firstName: 'joe',
+	// 		lastName: 'dirte',
+	// 		age: 45,
+	// 		visits: 20,
+	// 		status: 'Complicated',
+	// 		progress: 10
+	// 	}
+	// ];
+
+	// const defaultColumns: ColumnDef<Person>[] = [
+	// 	{
+	// 		accessorKey: 'firstName',
+	// 		cell: (info) => info.getValue(),
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorFn: (row) => row.lastName,
+	// 		id: 'lastName',
+	// 		cell: (info) => info.getValue(),
+	// 		header: () => 'Last Name',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'age',
+	// 		header: () => 'Age',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'visits',
+	// 		header: () => 'Visits',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'status',
+	// 		header: 'Status',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'progress',
+	// 		header: 'Profile Progress',
+	// 		footer: (info) => info.column.id
+	// 	}
+	// ];
+
+	// const options = writable<TableOptions<Person>>({
+	// 	data: defaultData,
+	// 	columns: defaultColumns,
+	// 	getCoreRowModel: getCoreRowModel()
+	// });
+
+	// const rerender = () => {
+	// 	options.update((options) => ({
+	// 		...options,
+	// 		data: defaultData
+	// 	}));
+	// };
+
+	// const table = createSvelteTable(options);
 </script>
 
-<h4 class="mb-2">List of Users:</h4>
+<h4 class="mb-2">List of Users Skelton:</h4>
 <table>
 	<thead class="bg-surface-600 rounded-t border-b-2">
-		<!-- TODO: Grab variable Data -->
 		<tr class="divide-x-2">
 			<th class="px-2">Username</th>
 			<th class="px-2">Role</th>
@@ -122,6 +217,43 @@
 		{/each}
 	</tbody>
 </table>
+
+<!-- /////////////////////////////////////// -->
+
+<h4 class="mb-2 text-error-500">List of Users Tanstack:</h4>
+
+This breaks
+<!-- <div class="table-container">
+	<table class="table table-hover">
+		<thead>
+			{#each $table.getHeaderGroups() as headerGroup}
+				<tr>
+					{#each headerGroup.headers as header}
+						<th>
+							{#if !header.isPlaceholder}
+								<svelte:component
+									this={flexRender(header.column.columnDef.header, header.getContext())}
+								/>
+							{/if}
+						</th>
+					{/each}
+				</tr>
+			{/each}
+		</thead>
+
+		<tbody>
+			{#each $table.getRowModel().rows as row}
+				<tr>
+					{#each row.getVisibleCells() as cell}
+						<td>
+							<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
+						</td>
+					{/each}
+				</tr>
+			{/each}
+		</tbody>
+	</table>
+</div> -->
 
 <!-- create/delete/block/unblock -->
 <div class="flex items-center justify-center">

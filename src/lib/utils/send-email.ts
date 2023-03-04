@@ -8,12 +8,11 @@ import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/pri
  * @param {string} subject - Email subject
  * @param {string} message - Email message
  *
- *
  * Optional args: html - send html message to client
  * Suggest: Move secure to true (probably will need in future)
  */
 
-async function sendMail(email: string, subject: string, message: string) {
+async function sendMail(email: string, subject: string, message: string, html?: string) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
@@ -30,8 +29,9 @@ async function sendMail(email: string, subject: string, message: string) {
 		from: SMTP_EMAIL,
 		to: email, // list of receivers
 		subject: subject, // Subject line
-		//text: `The token for the user: ${SMTP_EMAIL} is ${resetToken}` // plain text body
-		text: message
+		text: message, // plain text body
+		//text: `The token for the user: ${SMTP_EMAIL} is ${resetToken}`
+		html: html // optionally include an HTML message
 	};
 
 	const info = await transporter.sendMail(emailOptions);

@@ -60,7 +60,7 @@ const de: Translation = {
 	LOGIN_SendResetMail: 'E-Mail Passwort senden',
 
 	LOGIN_ZOD_Username_string: 'Benutzername ist erforderlich',
-	LOGIN_ZOD_Username_regex: 'Der Name darf nur Buchstaben und Leerzeichen enthalten.',
+	LOGIN_ZOD_Username_regex: 'Der Name darf nur Buchstaben, Ziffern und @$!%*# enthalten',
 	LOGIN_ZOD_Username_min: 'Name muss aus mindestens 2 Zeichen bestehen',
 	LOGIN_ZOD_Username_max: 'Der Name darf nur 24 Zeichen lang sein',
 	LOGIN_ZOD_Email_string: 'E-Mail ist erforderlich',

@@ -195,7 +195,7 @@ export const actions: Actions = {
 				const res = await auth.createUser({
 					key: {
 						providerId: 'email',
-						providerUserId: email,
+						providerUserId: email.toLowerCase(),
 						password
 					},
 					attributes: {
@@ -203,7 +203,7 @@ export const actions: Actions = {
 						firstname: undefined,
 						lastname: undefined,
 						avatar: undefined,
-						email: email,
+						email: email.toLowerCase(),
 						role: 'ADMIN',
 						resetRequestedAt: undefined,
 						resetToken: undefined
@@ -244,7 +244,7 @@ export const actions: Actions = {
 			const res = await auth.createUser({
 				key: {
 					providerId: 'email',
-					providerUserId: email,
+					providerUserId: email.toLowerCase(),
 					password
 				},
 				attributes: {
@@ -309,7 +309,7 @@ export const actions: Actions = {
 
 		const forgotPasswordToken = randomBytes(16).toString('base64');
 
-		await sendMail(email, "Forgot password", forgotPasswordToken)
+		await sendMail(email, 'Forgot password', forgotPasswordToken)
 			.then(async (res) => {
 				await User.findOneAndUpdate(
 					{ email: email },

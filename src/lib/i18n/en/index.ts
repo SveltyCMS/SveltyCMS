@@ -60,7 +60,7 @@ const en: BaseTranslation = {
 	LOGIN_SendResetMail: 'Send Password Reset Email',
 
 	LOGIN_ZOD_Username_string: 'Username is required',
-	LOGIN_ZOD_Username_regex: 'Name can only contain letters and spaces.',
+	LOGIN_ZOD_Username_regex: 'Name can only contain letters, digits and @$!%*#',
 	LOGIN_ZOD_Username_min: 'Name must be at least 2 charactes',
 	LOGIN_ZOD_Username_max: 'Name can only be 24 charactes',
 	LOGIN_ZOD_Email_string: 'Email is required',

@@ -42,7 +42,7 @@
 	const zod_obj: Record<string, z.ZodString> = {
 		username: z
 			.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
-			.regex(/^[a-zA-z\s]*$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+			.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
 			.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
 			.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
 			.trim(),

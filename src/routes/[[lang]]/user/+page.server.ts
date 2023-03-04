@@ -22,6 +22,7 @@ export const actions: Actions = {
 
 		const email = form.get('newUserEmail');
 		const role = form.get('role');
+		const valid = form.get('valid');
 
 		if (!email || typeof email !== 'string' || !role) {
 			return fail(400, {
@@ -39,7 +40,7 @@ export const actions: Actions = {
 		if (tokenAlreadySentToUser) {
 			// send already present token
 			try {
-				await sendMail(email, "New user registration", tokenAlreadySentToUser.resetToken);
+				await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken);
 			} catch (err) {
 				return fail(400, {
 					error: true,
@@ -75,9 +76,9 @@ export const actions: Actions = {
 				role: role,
 				resetRequestedAt: new Date(),
 				resetToken: registrationToken
-			})
+			});
 		} catch (err) {
-			console.error({ signUpTokenDb: err })
+			console.error({ signUpTokenDb: err });
 			return fail(400, {
 				error: true,
 				errors: [
@@ -90,7 +91,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await sendMail(email, "New user registration", registrationToken);
+			await sendMail(email, 'New user registration', registrationToken);
 		} catch (err) {
 			return fail(400, {
 				error: true,

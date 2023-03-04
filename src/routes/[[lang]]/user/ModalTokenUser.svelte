@@ -22,14 +22,20 @@
 
 	//TODO: Get Roles from allowed user
 	let roles: Record<string, boolean> = {
-		Admin: true,
-		Editor: false,
+		Admin: false,
+		Editor: true,
 		User: false,
 		Guest: false,
 		other: false
 	};
 
-	function filter(role: string): void {
+	let roleSelected = 'Editor';
+	let errorStatus = {
+		email: { status: false, msg: '' },
+		valid: { status: false, msg: '' }
+	};
+
+	function filterRole(role: string): void {
 		for (const r in roles) {
 			if (r !== role) {
 				roles[r] = false;
@@ -38,16 +44,30 @@
 		roles[role] = !roles[role];
 	}
 
-	let errorStatus = {
-		email: { status: false, msg: '' }
+	// Token Valid Duration
+	let valids: Record<string, boolean> = {
+		'2 hrs': false,
+		'12 hrs': true,
+		'48 hrs': false
 	};
 
-	let roleSelected = 'Admin';
+	let validSelected = '12';
+
+	function filterValid(valid: string): void {
+		for (const v in valids) {
+			if (v !== valid) {
+				valids[v] = false;
+			}
+		}
+		valids[valid] = !valids[valid];
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
 
 <div class="modal-example-form {cBase}">
+	<header class={cHeader}>{$modalStore[0]?.title ?? '(title missing)'}</header>
+	<article>{$modalStore[0]?.body ?? '(body missing)'}</article>
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 	<form
@@ -97,7 +117,7 @@
 		</div>
 
 		<div class="flex flex-col sm:flex-row gap-2">
-			<div class="sm:w-1/4">Role:</div>
+			<div class="sm:w-1/4">User Role:</div>
 			<div class="flex-auto">
 				<!-- TODO:  bind:value={formData.role}  -->
 
@@ -106,7 +126,7 @@
 						<span
 							class="chip {roles[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 							on:click={() => {
-								filter(r);
+								filterRole(r);
 								roleSelected = r;
 							}}
 							on:keypress
@@ -118,6 +138,28 @@
 				</div>
 			</div>
 		</div>
+
+		<div class="flex flex-col sm:flex-row gap-2">
+			<div class="sm:w-1/4">Token validity:</div>
+			<div class="flex-auto">
+				<div class="flex flex-wrap gap-2 space-x-2">
+					{#each Object.keys(valids) as v}
+						<span
+							class="chip {valids[v] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+							on:click={() => {
+								filterValid(v);
+								validSelected = v;
+							}}
+							on:keypress
+						>
+							{#if valids[v]}<span><Icon icon="fa:check" /></span>{/if}
+							<span class="capitalize">{v}</span>
+						</span>
+					{/each}
+				</div>
+			</div>
+		</div>
+
 		<footer class="modal-footer {parent.regionFooter}">
 			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}
 				>{parent.buttonTextCancel}</button
