@@ -9,7 +9,8 @@ const SignUpTokenSchema = new mongoose.Schema(
 		email: String,
 		role: String,
 		resetRequestedAt: Date,
-		resetToken: String
+		resetToken: String,
+		expiresAt: Date,
 	},
 	{ _id: false }
 );

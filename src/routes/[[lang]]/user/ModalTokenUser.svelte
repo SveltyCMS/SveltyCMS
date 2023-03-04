@@ -12,6 +12,8 @@
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
+	import Error from '$src/routes/+error.svelte';
+	import { error, fail } from '@sveltejs/kit';
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
@@ -51,7 +53,7 @@
 		'48 hrs': false
 	};
 
-	let validSelected = '12';
+	let validSelected = '12 hrs';
 
 	function filterValid(valid: string): void {
 		for (const v in valids) {
@@ -74,8 +76,26 @@
 		class="modal-form {cForm}"
 		method="post"
 		action="?/generateToken"
-		use:enhance={({ data }) => {
+		use:enhance={({ data, cancel }) => {
 			data.append('role', roleSelected);
+			let expires_in = 120;
+			// converting it in milliseconds
+			switch (validSelected) {
+				case '2 hrs':
+					expires_in = 1000;
+					break;
+				case '12 hrs':
+					expires_in = 12 * 60 * 60 * 1000;
+					break;
+				case '48 hrs':
+					expires_in = 48 * 60 * 60 * 1000;
+					break;
+				default:
+					errorStatus['valid'].status = true;
+					errorStatus['valid'].msg = 'Invalid value for token validity';
+					cancel();
+			}
+			data.append('expires_in', expires_in.toString());
 			return async ({ result }) => {
 				if (result.type === 'success') {
 					modalStore.close();
@@ -157,6 +177,11 @@
 						</span>
 					{/each}
 				</div>
+				{#if errorStatus.valid.status}
+					<div class="text-xs mt-1 text-error-500">
+						{errorStatus.valid.msg}
+					</div>
+				{/if}
 			</div>
 		</div>
 

@@ -241,6 +241,19 @@ export const actions: Actions = {
 					]
 				});
 			}
+
+			if (token.expiresAt < new Date()) {
+				return fail(400, {
+					error: true,
+					errors: [
+						{
+							field: 'token',
+							message: 'Token has expired!'
+						}
+					]
+				});
+			}
+
 			const res = await auth.createUser({
 				key: {
 					providerId: 'email',
