@@ -226,7 +226,7 @@
 	function changeCenter(e) {
 		TR_X -= e.layerX - WHOLE_WIDTH / 2;
 		TR_Y -= e.layerY - WHOLE_HEIGHT / 2;
-		console.log(TR_X, TR_Y);
+		//console.log(TR_X, TR_Y);
 		e.target.removeEventListener('click', changeCenter);
 		e.target.classList.remove('cursor-crosshair');
 	}

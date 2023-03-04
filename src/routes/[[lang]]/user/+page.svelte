@@ -30,6 +30,8 @@
 	import UserList from './UserList/UserList.svelte';
 
 	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
 
 	// Skeleton
@@ -157,9 +159,10 @@
 	}
 
 	export let toggleLeftSideBar = true;
-	export let open = false;
+	//export let open = false;
+	export let switchSideBar = false;
+
 	export let onClickHambuger = (): void => {
-		open = !open;
 		toggleLeftSideBar = !toggleLeftSideBar;
 	};
 
@@ -177,11 +180,14 @@
 </script>
 
 <div class="flex mr-1 align-centre mb-2">
+	{#if !switchSideBar}
+		<!-- mobile and tablet hamburger -->
+		<AnimatedHamburger {onClickHambuger} />
+	{/if}
 	<!-- mobile hamburger -->
 	<h1 class="">{$LL.USER_Profile()}</h1>
 </div>
 
-<!-- todo: restict max width -->
 <div class="grid overflow-hidden grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1 gap-1">
 	<!-- Avatar with user info -->
 	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center ">
@@ -216,27 +222,36 @@
 			<input bind:value={password} name="password" type="password" readonly class="input" />
 		</label>
 		<div class="flex justify-between my-2">
-			<button class="btn btn-sm variant-filled-surface  w-full md:w-auto" on:click={modalUserForm}
-				>{$LL.USER_Edit()}:
+			<button class="btn btn-sm variant-filled-surface md:w-auto" on:click={modalUserForm}>
+				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 			</button>
-			<button on:click={modalConfirm} class="btn btn-sm variant-filled-error ">Delete User</button>
+			<button on:click={modalConfirm} class="btn btn-sm variant-filled-error "
+				><Icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />Delete User</button
+			>
 		</div>
 	</form>
 </div>
 
 <!-- admin area -->
 {#if $user?.role === 'ADMIN'}
-	<div class="my-1 gap-2">
+	<div class="my-2 gap-2 border-t-2">
 		<hr />
 		<h2 class="mb-2">Admin Area</h2>
-		<button
-			class="btn variant-filled-secondary btn-sm"
-			on:click={() => (showUserList = !showUserList)}
-			>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
-		>
-		<button on:click={modalTokenUser} class="btn btn-sm variant-filled-primary w-30 text-black"
-			>{$LL.USER_EmailToken()}</button
-		>
+		<div class="flex justify-between my-2">
+			<button
+				class="btn variant-filled-secondary btn-sm"
+				on:click={() => (showUserList = !showUserList)}
+				>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
+			>
+			<button on:click={modalTokenUser} class="btn btn-sm variant-filled-primary w-30"
+				><Icon
+					icon="material-symbols:mail"
+					color="white"
+					width="18"
+					class="mr-1"
+				/>{$LL.USER_EmailToken()}</button
+			>
+		</div>
 
 		{#if showUserList}
 			<UserList list={data} />

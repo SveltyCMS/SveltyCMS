@@ -45,11 +45,11 @@ export async function saveSimpleData(
 ) {
 	const formData = new FormData();
 	for (const key in data) {
-		console.log(data[key]);
+		//console.log(data[key]);
 		if (data[key] instanceof FileList) {
 			for (const _key in data[key]) {
 				// for multiple files
-				console.log(data[key]);
+				//console.log(data[key]);
 				formData.append(key, data[key][_key]);
 			}
 		} else if (typeof data[key] === 'object') {
@@ -67,7 +67,7 @@ export async function saveData(
 	doc_id?: string,
 	insert?: boolean
 ) {
-	console.log(collection);
+	// console.log(collection);
 
 	const oldData_id = doc_id || get(entryData)?._id;
 	//if formData object is empty then:

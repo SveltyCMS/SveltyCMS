@@ -3,7 +3,7 @@ import type { ImageUpload_Field, ImageUpload_Params } from './types';
 const widget = ({ db_fieldName, path = '', display }: ImageUpload_Params) => {
 	if (!display)
 		display = async (data: any, field: any, entry: any) => {
-			console.log(data);
+			// console.log(data);
 			return `<img class='max-w-[200px] inline-block' src="${path}/${data.originalname}" />`;
 		};
 
