@@ -185,7 +185,7 @@ export const actions: Actions = {
 				errors: [
 					{
 						field: 'general',
-						message: 'Invalid input'
+						message: get(LL).LOGIN_ZOD_General_Error()
 					}
 				]
 			});
@@ -225,7 +225,7 @@ export const actions: Actions = {
 					errors: [
 						{
 							field: 'email',
-							message: 'Email already in use'
+							message: get(LL).LOGIN_ZOD_Email_Error_inUse()
 						}
 					]
 				});
@@ -238,7 +238,7 @@ export const actions: Actions = {
 					errors: [
 						{
 							field: 'token',
-							message: 'Token is wrong!'
+							message: get(LL).LOGIN_ZOD_Token_Error()
 						}
 					]
 				});
@@ -246,13 +246,13 @@ export const actions: Actions = {
 
 			if (token.expiresAt < new Date()) {
 				// delete the token
-				await token.delete()
+				await token.delete();
 				return fail(400, {
 					error: true,
 					errors: [
 						{
 							field: 'token',
-							message: 'Token has expired!'
+							message: get(LL).LOGIN_ZOD_Token_Expired()
 						}
 					]
 				});
@@ -277,7 +277,7 @@ export const actions: Actions = {
 			});
 
 			// delete the token
-			await token.delete()
+			await token.delete();
 
 			const session = await auth.createSession(res.userId);
 			locals.setSession(session);
@@ -291,7 +291,7 @@ export const actions: Actions = {
 					errors: [
 						{
 							field: 'email',
-							message: 'Email already in use'
+							message: get(LL).LOGIN_ZOD_Email_Error_inUse()
 						}
 					]
 				});
@@ -301,7 +301,7 @@ export const actions: Actions = {
 				errors: [
 					{
 						field: 'general',
-						message: 'Unknown error occurred'
+						message: get(LL).LOGIN_ZOD_General_Unkown()
 					}
 				]
 			});
@@ -315,7 +315,7 @@ export const actions: Actions = {
 		if (!email || typeof email !== 'string') {
 			return fail(400, {
 				type: 'SIGN_UP_ERROR' as const,
-				message: 'Invalid input'
+				message: get(LL).LOGIN_ZOD_General_Error()
 			});
 		}
 
@@ -326,7 +326,7 @@ export const actions: Actions = {
 				errors: [
 					{
 						field: 'forgottonemail',
-						message: 'No account under this email'
+						message: get(LL).LOGIN_ZOD_Forgotton_Error()
 					}
 				]
 			});
@@ -334,21 +334,27 @@ export const actions: Actions = {
 
 		const forgotPasswordToken = randomBytes(16).toString('base64');
 		// 2 hrs expiry time
-		const epoch_expires_at = new Date().getTime() + (2 * 60 * 60 * 1000)
+		const epoch_expires_at = new Date().getTime() + 2 * 60 * 60 * 1000;
 
 		// take site host from .env and generate a password-reset link
-		const link = `${HOST}/password-reset/${user._id}?token=${encodeURIComponent(forgotPasswordToken)}`
+		const link = `${HOST}/password-reset/${user._id}?token=${encodeURIComponent(
+			forgotPasswordToken
+		)}`;
 
-		const html = `Hi there,<br>
-		<br>We received a request to reset your password. Your password reset token is:<br>
-		<br>${forgotPasswordToken}<br>
-		<br>Please follow the link below to reset your password:<br>
-		<br>${link}<br>
-		<br>If you did not request this reset, please disregard this message.<br>
-		<br>Best regards,<br>The Support Team`
+		const html = get(LL).LOGIN_ZOD_Forgotton_email({
+			token: `${forgotPasswordToken}`,
+			link: `${link}`
+		});
+		// `Hi there,<br>
+		// <br>We received a request to reset your password. Your password reset token is:<br>
+		// <br>${forgotPasswordToken}<br>
+		// <br>Please follow the link below to reset your password:<br>
+		// <br>${link}<br>
+		// <br>If you did not request this reset, please disregard this message.<br>
+		// <br>Best regards,<br>The Support Team`;
 
 		try {
-			await sendMail(email, 'Forgot password', forgotPasswordToken, html)
+			await sendMail(email, 'Forgot password', forgotPasswordToken, html);
 			await User.findOneAndUpdate(
 				{ email: email },
 				{
@@ -364,7 +370,7 @@ export const actions: Actions = {
 				errors: [
 					{
 						field: 'email',
-						message: 'Error sending mail'
+						message: get(LL).LOGIN_ZOD_Email_Error_send()
 					}
 				]
 			});

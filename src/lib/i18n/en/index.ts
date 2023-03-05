@@ -76,6 +76,18 @@ const en: BaseTranslation = {
 	LOGIN_ZOD_Token_string: 'Auth Token is required',
 	LOGIN_ZOD_Password_match: 'Password & Confirm password must match',
 
+	LOGIN_ZOD_General_Unkown: 'Unknown error occurred',
+	LOGIN_ZOD_General_Error: 'Invalid input',
+	LOGIN_ZOD_Email_Error_inUse: 'Email already in use',
+	LOGIN_ZOD_Email_Error_send: 'Error sending mail',
+	LOGIN_ZOD_Email_Error_Signup: 'LOGIN_ZOD_Signup_unkown',
+	LOGIN_ZOD_Email_Error_SignupKey: 'Incorrect email or password.',
+	LOGIN_ZOD_Token_Error: 'Token is wrong!',
+	LOGIN_ZOD_Token_Expired: 'Token has expired!',
+	LOGIN_ZOD_Forgotton_Error: 'No account under this email',
+	LOGIN_ZOD_Forgotton_email:
+		'Hi there,<br><br>We received a request to reset your password. Your password reset token is:<br><br>{token:string}<br> <br>Please follow the link below to reset your password:<br>{link:string}<br><br>If you did not request this reset, please disregard this message.<br><br>Best regards,<br>The Support Team',
+
 	// Entry List
 	ENTRYLIST_Create: 'Create',
 	ENTRYLIST_Publish: 'Publish',

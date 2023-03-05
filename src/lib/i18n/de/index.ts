@@ -74,7 +74,19 @@ const de: Translation = {
 	LOGIN_ZOD_Confirm_password_regex:
 		'Das Passwort muss aus mindestens 8 Zeichen bestehen und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.',
 	LOGIN_ZOD_Token_string: 'Auth Token ist erforderlich',
-	LOGIN_ZOD_Password_match: 'Passwort und Bestätigungspasswort müssen übereinstimmen',
+	LOGIN_ZOD_Password_match: 'Passwort und Bestätigung müssen übereinstimmen',
+
+	LOGIN_ZOD_General_Unkown: 'Unbekannter Fehler aufgetreten',
+	LOGIN_ZOD_General_Error: 'Ungültige Eingabe',
+	LOGIN_ZOD_Email_Error_inUse: 'E-Mail bereits in Gebrauch',
+	LOGIN_ZOD_Email_Error_send: 'Fehler beim Senden einer E-Mail',
+	LOGIN_ZOD_Email_Error_Signup: 'LOGIN_ZOD_Signup_unkown',
+	LOGIN_ZOD_Email_Error_SignupKey: 'Falsche E-Mail oder falsches Passwort',
+	LOGIN_ZOD_Token_Error: 'Token ist falsch!',
+	LOGIN_ZOD_Token_Expired: 'Token ist abgelaufen!',
+	LOGIN_ZOD_Forgotton_Error: 'Kein Konto unter dieser E-Mail-Adresse',
+	LOGIN_ZOD_Forgotton_email:
+		'Hallo,<br><br>Wir haben eine Anfrage erhalten, Ihr Passwort zurückzusetzen. Ihr Passwort-Reset-Token lautet:<br><br>{token:string}<br><br>Bitte folgen Sie dem untenstehenden Link, um Ihr Passwort zurückzusetzen:<br>{link:string}<br><br>Falls Sie diese Rücksetzung nicht angefordert haben, ignorieren Sie bitte diese Nachricht.<br><br>Mit freundlichen Grüßen,<br>Ihr Support Team',
 
 	// Entry List
 	ENTRYLIST_Create: 'Erstellen',

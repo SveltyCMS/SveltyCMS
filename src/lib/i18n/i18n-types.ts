@@ -256,6 +256,48 @@ type RootTranslation = {
 	 */
 	LOGIN_ZOD_Password_match: string
 	/**
+	 * U​n​k​n​o​w​n​ ​e​r​r​o​r​ ​o​c​c​u​r​r​e​d
+	 */
+	LOGIN_ZOD_General_Unkown: string
+	/**
+	 * I​n​v​a​l​i​d​ ​i​n​p​u​t
+	 */
+	LOGIN_ZOD_General_Error: string
+	/**
+	 * E​m​a​i​l​ ​a​l​r​e​a​d​y​ ​i​n​ ​u​s​e
+	 */
+	LOGIN_ZOD_Email_Error_inUse: string
+	/**
+	 * E​r​r​o​r​ ​s​e​n​d​i​n​g​ ​m​a​i​l
+	 */
+	LOGIN_ZOD_Email_Error_send: string
+	/**
+	 * L​O​G​I​N​_​Z​O​D​_​S​i​g​n​u​p​_​u​n​k​o​w​n
+	 */
+	LOGIN_ZOD_Email_Error_Signup: string
+	/**
+	 * I​n​c​o​r​r​e​c​t​ ​e​m​a​i​l​ ​o​r​ ​p​a​s​s​w​o​r​d​.
+	 */
+	LOGIN_ZOD_Email_Error_SignupKey: string
+	/**
+	 * T​o​k​e​n​ ​i​s​ ​w​r​o​n​g​!
+	 */
+	LOGIN_ZOD_Token_Error: string
+	/**
+	 * T​o​k​e​n​ ​h​a​s​ ​e​x​p​i​r​e​d​!
+	 */
+	LOGIN_ZOD_Token_Expired: string
+	/**
+	 * N​o​ ​a​c​c​o​u​n​t​ ​u​n​d​e​r​ ​t​h​i​s​ ​e​m​a​i​l
+	 */
+	LOGIN_ZOD_Forgotton_Error: string
+	/**
+	 * H​i​ ​t​h​e​r​e​,​<​b​r​>​<​b​r​>​W​e​ ​r​e​c​e​i​v​e​d​ ​a​ ​r​e​q​u​e​s​t​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​.​ ​Y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​r​e​s​e​t​ ​t​o​k​e​n​ ​i​s​:​<​b​r​>​<​b​r​>​{​t​o​k​e​n​}​<​b​r​>​ ​<​b​r​>​P​l​e​a​s​e​ ​f​o​l​l​o​w​ ​t​h​e​ ​l​i​n​k​ ​b​e​l​o​w​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​:​<​b​r​>​{​l​i​n​k​}​<​b​r​>​<​b​r​>​I​f​ ​y​o​u​ ​d​i​d​ ​n​o​t​ ​r​e​q​u​e​s​t​ ​t​h​i​s​ ​r​e​s​e​t​,​ ​p​l​e​a​s​e​ ​d​i​s​r​e​g​a​r​d​ ​t​h​i​s​ ​m​e​s​s​a​g​e​.​<​b​r​>​<​b​r​>​B​e​s​t​ ​r​e​g​a​r​d​s​,​<​b​r​>​T​h​e​ ​S​u​p​p​o​r​t​ ​T​e​a​m
+	 * @param {string} link
+	 * @param {string} token
+	 */
+	LOGIN_ZOD_Forgotton_email: RequiredParams<'link' | 'token'>
+	/**
 	 * C​r​e​a​t​e
 	 */
 	ENTRYLIST_Create: string
@@ -786,6 +828,46 @@ export type TranslationFunctions = {
 	 * Password & Confirm password must match
 	 */
 	LOGIN_ZOD_Password_match: () => LocalizedString
+	/**
+	 * Unknown error occurred
+	 */
+	LOGIN_ZOD_General_Unkown: () => LocalizedString
+	/**
+	 * Invalid input
+	 */
+	LOGIN_ZOD_General_Error: () => LocalizedString
+	/**
+	 * Email already in use
+	 */
+	LOGIN_ZOD_Email_Error_inUse: () => LocalizedString
+	/**
+	 * Error sending mail
+	 */
+	LOGIN_ZOD_Email_Error_send: () => LocalizedString
+	/**
+	 * LOGIN_ZOD_Signup_unkown
+	 */
+	LOGIN_ZOD_Email_Error_Signup: () => LocalizedString
+	/**
+	 * Incorrect email or password.
+	 */
+	LOGIN_ZOD_Email_Error_SignupKey: () => LocalizedString
+	/**
+	 * Token is wrong!
+	 */
+	LOGIN_ZOD_Token_Error: () => LocalizedString
+	/**
+	 * Token has expired!
+	 */
+	LOGIN_ZOD_Token_Expired: () => LocalizedString
+	/**
+	 * No account under this email
+	 */
+	LOGIN_ZOD_Forgotton_Error: () => LocalizedString
+	/**
+	 * Hi there,<br><br>We received a request to reset your password. Your password reset token is:<br><br>{token}<br> <br>Please follow the link below to reset your password:<br>{link}<br><br>If you did not request this reset, please disregard this message.<br><br>Best regards,<br>The Support Team
+	 */
+	LOGIN_ZOD_Forgotton_email: (arg: { link: string, token: string }) => LocalizedString
 	/**
 	 * Create
 	 */
