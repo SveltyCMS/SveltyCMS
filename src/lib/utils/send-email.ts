@@ -30,7 +30,6 @@ async function sendMail(email: string, subject: string, message: string, html?: 
 		to: email, // list of receivers
 		subject: subject, // Subject line
 		text: message, // plain text body
-		//text: `The token for the user: ${SMTP_EMAIL} is ${resetToken}`
 		html: html // optionally include an HTML message
 	};
 

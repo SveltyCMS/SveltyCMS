@@ -41,6 +41,14 @@
 
 			if (data.type === 'success') {
 				// show success message
+				const emailSubject = 'Password Forgotten Request';
+				// const emailMessage = `Hi there,<br>
+				// <br>We received a request to reset your password. Your password reset token is:<br>
+				// <br>${data.token}<br>
+				// <br>Please follow the link below to reset your password:<br>
+				// <br>${resetUrl}<br>
+				// <br>If you did not request this reset, please disregard this message.<br>
+				// <br>Best regards,<br>The Support Team`;
 			} else {
 				// show error message
 			}
@@ -251,7 +259,6 @@
 		</div>
 	{:else}
 		<!-- Forgotton Password -->
-
 		<form
 			class="form {isWiggling && 'wiggle'} mx-auto w-full p-4 lg:w-1/2"
 			method="post"
@@ -259,7 +266,8 @@
 			use:enhance={(e) => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						goto('/');
+						forgot = false; // switch back to the signup page by changing the forgot variable
+						goto('/login');
 					}
 
 					if (result.type === 'failure') {
@@ -273,7 +281,6 @@
 				};
 			}}
 		>
-			<!-- <form on:submit|preventDefault={sendResetMail} class="mx-auto w-full p-4 lg:w-1/2"> -->
 			<div class="mb-8 flex flex-row items-start gap-2">
 				<CMSLogo className="w-[3rem]" fill="red" />
 
@@ -285,7 +292,6 @@
 			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
 			<!-- Email field -->
-			<!-- TODO Error messge not working as it need to be FORGOT EMAIL -->
 			<div class="group relative z-0 mb-6 w-full">
 				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 

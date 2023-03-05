@@ -97,7 +97,7 @@
 		<!-- Collapsed/Mobile Collection Child -->
 		<div class="card shadow-xl overflow-hidden" data-popup={item.category}>
 			<ListBox padding="p-0" rounded="rounded-none">
-				{#each item.collections as _collection}
+				<!-- {#each item.collections as _collection}
 					<ListBoxItem
 						bind:group={item.category}
 						name={_collection.name}
@@ -108,6 +108,24 @@
 						<svelte:fragment slot="lead">
 							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
 						</svelte:fragment>
+					</ListBoxItem>
+				{/each} -->
+
+				{#each item.collections as _collection, collection_index}
+					<ListBoxItem
+						bind:group={item.category}
+						name={_collection.name}
+						value={_collection.name}
+						on:click={async () => {
+							$showFieldsStore.showField = true;
+							dispatch('collection_click', { category_index: index, collection_index });
+						}}
+						class="px-0 py-0 flex justify-center items-center flex-col hover:bg-[#65dfff] h-[50px] overflow-clip truncate text-clip text-[9px] switchSideBar-listbox"
+					>
+						<svelte:fragment slot="lead">
+							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
+						</svelte:fragment>
+						{_collection.name}
 					</ListBoxItem>
 				{/each}
 			</ListBox>

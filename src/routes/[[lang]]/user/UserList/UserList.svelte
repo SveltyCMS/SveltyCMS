@@ -126,10 +126,10 @@
 	import {
 		createSvelteTable,
 		flexRender,
-		ColumnDef,
+		type ColumnDef,
 		getCoreRowModel,
 		getSortedRowModel,
-		TableOptions
+		type TableOptions
 	} from '@tanstack/svelte-table';
 
 	// TODO: Grab real data
