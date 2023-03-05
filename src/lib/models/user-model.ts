@@ -16,7 +16,8 @@ const UserSchema = new mongoose.Schema(
 		lastname: String,
 		avatar: String,
 		resetRequestedAt: String,
-		resetToken: String
+		resetToken: String,
+		expiresAt: Date,
 	},
 
 	// Let Lucia handle the _id field

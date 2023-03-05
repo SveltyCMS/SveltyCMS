@@ -16,6 +16,7 @@ import { SignUpToken } from '$lib/models/sign-up-token-model';
 import LL from '$i18n/i18n-svelte';
 
 import z from 'zod';
+import { HOST } from '$env/static/private';
 
 const checkUserExistsInDb = async () => {
 	try {
@@ -243,6 +244,8 @@ export const actions: Actions = {
 			}
 
 			if (token.expiresAt < new Date()) {
+				// delete the token
+				await token.delete()
 				return fail(400, {
 					error: true,
 					errors: [
@@ -271,6 +274,9 @@ export const actions: Actions = {
 					resetToken: token.resetToken
 				}
 			});
+
+			// delete the token
+			await token.delete()
 
 			const session = await auth.createSession(res.userId);
 			locals.setSession(session);
@@ -301,7 +307,7 @@ export const actions: Actions = {
 		}
 	},
 
-	forgotPassword: async ({ request, locals }) => {
+	forgotPassword: async ({ request }) => {
 		const form = await request.formData();
 		const email = form.get('forgottonemail');
 
@@ -312,32 +318,55 @@ export const actions: Actions = {
 			});
 		}
 
-		const existingUser = await User.findOne({ email: email });
-		if (!existingUser) {
+		const user = await User.findOne({ email: email });
+		if (!user) {
 			return fail(400, {
-				type: 'SIGN_UP_ERROR' as const,
-				message: 'No account under this email'
+				error: true,
+				errors: [
+					{
+						field: 'forgottonemail',
+						message: 'No account under this email'
+					}
+				]
 			});
 		}
 
 		const forgotPasswordToken = randomBytes(16).toString('base64');
+		// 2 hrs expiry time
+		const epoch_expires_at = new Date().getTime() + (2 * 60 * 60 * 1000)
 
-		await sendMail(email, 'Forgot password', forgotPasswordToken)
-			.then(async (res) => {
-				await User.findOneAndUpdate(
-					{ email: email },
+		// take site host from .env and generate a password-reset link
+		const link = `${HOST}/password-reset/${user._id}?token=${encodeURIComponent(forgotPasswordToken)}`
+
+		const html = `Hi there,<br>
+		<br>We received a request to reset your password. Your password reset token is:<br>
+		<br>${forgotPasswordToken}<br>
+		<br>Please follow the link below to reset your password:<br>
+		<br>${link}<br>
+		<br>If you did not request this reset, please disregard this message.<br>
+		<br>Best regards,<br>The Support Team`
+
+		try {
+			await sendMail(email, 'Forgot password', forgotPasswordToken, html)
+			await User.findOneAndUpdate(
+				{ email: email },
+				{
+					resetRequestedAt: new Date(),
+					resetToken: forgotPasswordToken,
+					expiresAt: epoch_expires_at
+				}
+			);
+		} catch (err) {
+			console.error({ sendMailError: err });
+			return fail(400, {
+				error: true,
+				errors: [
 					{
-						resetRequestedAt: new Date(),
-						resetToken: forgotPasswordToken
+						field: 'email',
+						message: 'Error sending mail'
 					}
-				);
-			})
-			.catch((err) => {
-				console.error({ sendMailError: err });
-				return fail(400, {
-					type: 'SEND_EMAIL_ERROR',
-					message: 'Cant send email to user.'
-				});
+				]
 			});
+		}
 	}
 };

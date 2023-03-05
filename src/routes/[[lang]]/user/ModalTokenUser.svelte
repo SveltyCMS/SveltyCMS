@@ -82,7 +82,7 @@
 			// converting it in milliseconds
 			switch (validSelected) {
 				case '2 hrs':
-					expires_in = 1000;
+					expires_in = 2 * 60 * 60 * 1000;
 					break;
 				case '12 hrs':
 					expires_in = 12 * 60 * 60 * 1000;
