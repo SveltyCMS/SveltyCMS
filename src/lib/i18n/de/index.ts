@@ -58,6 +58,8 @@ const de: Translation = {
 	LOGIN_ConfirmPassword: 'Passwort bestätigen',
 	LOGIN_ForgottenPassword: 'Kennwort vergessen',
 	LOGIN_SendResetMail: 'E-Mail Passwort senden',
+	LOGIN_ResetPassword: 'Passwort zurücksetzen',
+	LOGIN_ResetPasswordSave: 'Neues Password speichern',
 
 	LOGIN_ZOD_Username_string: 'Benutzername ist erforderlich',
 	LOGIN_ZOD_Username_regex: 'Der Name darf nur Buchstaben, Ziffern und @$!%*# enthalten',

@@ -200,6 +200,14 @@ type RootTranslation = {
 	 */
 	LOGIN_SendResetMail: string
 	/**
+	 * R​e​s​e​t​ ​P​a​s​s​w​o​r​d
+	 */
+	LOGIN_ResetPassword: string
+	/**
+	 * S​a​v​e​ ​N​e​w​ ​P​a​s​s​w​o​r​d
+	 */
+	LOGIN_ResetPasswordSave: string
+	/**
 	 * U​s​e​r​n​a​m​e​ ​i​s​ ​r​e​q​u​i​r​e​d
 	 */
 	LOGIN_ZOD_Username_string: string
@@ -722,6 +730,14 @@ export type TranslationFunctions = {
 	 * Send Password Reset Email
 	 */
 	LOGIN_SendResetMail: () => LocalizedString
+	/**
+	 * Reset Password
+	 */
+	LOGIN_ResetPassword: () => LocalizedString
+	/**
+	 * Save New Password
+	 */
+	LOGIN_ResetPasswordSave: () => LocalizedString
 	/**
 	 * Username is required
 	 */
