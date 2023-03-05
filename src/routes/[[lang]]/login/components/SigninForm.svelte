@@ -14,6 +14,7 @@
 	import { goto } from '$app/navigation';
 	import z from 'zod';
 	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
 
 	let isWiggling = false;
 
@@ -134,6 +135,12 @@
 			isWiggling = false;
 		}, 300);
 	};
+
+	// show the reset password screen
+	if ($page.url.searchParams.get('token')) {
+		resetPW = true;
+		token = $page.url.searchParams.get('token') as string;
+	}
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
@@ -310,7 +317,6 @@
 						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
-						on:blur={() => zodValidate('password', password)}
 					/>{:else}
 					<input
 						bind:value={password}
@@ -322,7 +328,6 @@
 						id="password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
-						on:blur={() => zodValidate('password', password)}
 					/>{/if}
 				<label
 					for="password"
@@ -359,7 +364,6 @@
 						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
-						on:blur={() => zodValidate('confirm_password', confirmPassword)}
 					/><label
 						for="confirm_password"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
@@ -375,7 +379,6 @@
 						id="confirm_password"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
-						on:blur={() => zodValidate('confirm_password', confirmPassword)}
 					/>
 					<label
 						for="confirm_password"
@@ -411,7 +414,6 @@
 					id="token"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 					placeholder=" "
-					on:blur={() => zodValidate('token', token)}
 				/>
 				<label
 					for="token"

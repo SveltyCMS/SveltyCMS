@@ -78,6 +78,29 @@ const signInSchema = z.object({
 		})
 });
 
+// zod validations on reset password
+const resetPasswordSchema = z.object({
+	password: z
+		.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
+		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+			message: get(LL).LOGIN_ZOD_Password_regex()
+		}),
+	confirm_password: z
+		.string({ required_error: get(LL).LOGIN_ZOD_Confirm_password_string() })
+		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
+			message: get(LL).LOGIN_ZOD_Confirm_password_regex()
+		}),
+	token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1)
+}).superRefine(({ confirm_password, password }, ctx) => {
+	if (confirm_password !== password) {
+		ctx.addIssue({
+			code: z.ZodIssueCode.custom,
+			message: get(LL).LOGIN_ZOD_Password_match(),
+			path: ['confirm_password']
+		});
+	}
+});;
+
 export const actions: Actions = {
 	authUser: async ({ request, locals }) => {
 		const form = await request.formData();
@@ -337,7 +360,7 @@ export const actions: Actions = {
 		const epoch_expires_at = new Date().getTime() + 2 * 60 * 60 * 1000;
 
 		// take site host from .env and generate a password-reset link
-		const link = `${HOST}/password-reset/${user._id}?token=${encodeURIComponent(
+		const link = `${HOST}/login?token=${encodeURIComponent(
 			forgotPasswordToken
 		)}`;
 
@@ -375,5 +398,50 @@ export const actions: Actions = {
 				]
 			});
 		}
+	},
+
+	resetPassword: async ({ request }) => {
+		const form = await request.formData();
+		const validationResult = resetPasswordSchema.safeParse(Object.fromEntries(form));
+		if (!validationResult.success) {
+			// Loop through the errors array and create a custom errors array
+			const errors = validationResult.error.errors.map((error) => {
+				return {
+					field: error.path[0],
+					message: error.message
+				};
+			});
+
+			return fail(400, { error: true, errors });
+		}
+
+		const password = form.get('password');
+		const token = form.get('token');
+
+		const user = await User.findOne(
+			{ resetToken: token },
+		);
+
+		if (user.expiresAt < new Date()) {
+			// delete the token
+			user.resetToken = ""
+			await user.save();
+			return fail(400, {
+				error: true,
+				errors: [
+					{
+						field: 'token',
+						message: get(LL).LOGIN_ZOD_Token_Expired()
+					}
+				]
+			});
+		}
+
+		// reset password
+		await auth.updateKeyPassword('email', user.email, password);
+
+		// delete the token
+		user.resetToken = ""
+		await user.save();
 	}
 };
