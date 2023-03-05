@@ -6,6 +6,7 @@
 	import SignUp from './components/Signup.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import LocaleSwitcher from '$lib/LocaleSwitcher.svelte';
+	import { page } from '$app/stores';
 
 	export let data: PageData;
 
@@ -13,6 +14,11 @@
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
+
+	// show the reset password screen
+	if ($page.url.searchParams.get('token')) {
+		active = 0;
+	}
 </script>
 
 <div class="body" style="background:{background} ">
