@@ -20,7 +20,7 @@
 	async function process_data(dropDownData: Array<any>, lang: any) {
 		let temp = [];
 		for (let item of dropDownData) {
-			console.log(item);
+			//console.log(item);
 			temp.push({
 				item: (await display(item))[$language] || (await display(item))[PUBLIC_LANGUAGE],
 				_id: item._id

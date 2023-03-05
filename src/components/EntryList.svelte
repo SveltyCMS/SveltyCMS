@@ -229,27 +229,26 @@
 		event: 'click',
 		target: 'entityButton'
 	};
+
+	// show/hide Left Sidebar
+	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+	export let toggleLeftSideBar = true;
+	export let open = false;
+	export let switchSideBar = false;
+
+	export let onClickHambuger = (): void => {
+		open = open;
+		toggleLeftSideBar = !toggleLeftSideBar;
+	};
 </script>
 
 <Modal />
 <div class="relative -mt-[65px] md:mt-0">
 	<div class="mb-2 flex items-center gap-2">
-		<!-- hamburger -->
-		<div class="flex items-center">
-			<button
-				class="btn btn-sm -mr-2 sm:mr-0 md:hidden"
-				on:click={() => (toggleSideBar = !toggleSideBar)}
-			>
-				<span>
-					<svg viewBox="0 0 100 80" class="h-4 w-4 fill-token">
-						<rect width="100" height="20" />
-						<rect y="30" width="100" height="20" />
-						<rect y="60" width="100" height="20" />
-					</svg>
-				</span>
-			</button>
-		</div>
-
+		{#if !switchSideBar}
+			<!-- mobile and tablet hamburger -->
+			<AnimatedHamburger {open} {onClickHambuger} />
+		{/if}
 		<div class="flex flex-col">
 			{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 					{category}

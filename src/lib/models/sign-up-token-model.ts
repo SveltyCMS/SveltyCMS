@@ -10,10 +10,15 @@ const SignUpTokenSchema = new mongoose.Schema(
 		role: String,
 		resetRequestedAt: Date,
 		resetToken: String,
-		expiresAt: Date,
+		expiresAt: Date
 	},
 	{ _id: false }
 );
 
+if (mongoose.models && mongoose.models.sign_up_token) {
+	mongoose.deleteModel('sign_up_token');
+}
+
+// Use the 'sign_up_token' collection name
 export const SignUpToken =
-	mongoose.models.sign_up_token ?? mongoose.model('sign_up_token', SignUpTokenSchema);
+	mongoose.models.sign_up_token || mongoose.model('sign_up_token', SignUpTokenSchema);

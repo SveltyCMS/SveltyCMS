@@ -3,6 +3,7 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { get } from 'svelte/store';
 
+// Nodemailer
 import sendMail from '$lib/utils/send-email';
 import { randomBytes } from 'crypto';
 
@@ -31,7 +32,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const session = await locals.validate();
 	if (session) throw redirect(302, '/');
 	// check if firstUserExsits or not
-	// model should be checked here else it won't works econd time
+	// model should be checked here else it won't works second time
 	return { firstUserExists: await checkUserExistsInDb() };
 };
 
@@ -44,7 +45,7 @@ const zod_obj: {
 } = {
 	username: z
 		.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
-		.regex(/^[a-zA-z\s]*$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+		.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
 		.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
 		.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
 		.trim(),

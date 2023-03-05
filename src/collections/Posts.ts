@@ -16,7 +16,7 @@ const schema: Schema = {
 		widgets.Group({
 			db_fieldName: 'User',
 			display: async (data: any, field: any, entry: any) => {
-				console.log(entry);
+				//console.log(entry);
 				return format([
 					{
 						label: 'Name',

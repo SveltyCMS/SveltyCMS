@@ -26,7 +26,7 @@
 	let SwitchThemeSettings: PopupSettings = {
 		event: 'hover',
 		target: 'SwitchTheme',
-		placement: 'right'
+		placement: 'bottom'
 	};
 	let SignOutTooltip: PopupSettings = {
 		event: 'hover',
@@ -36,7 +36,7 @@
 	let SystemLanguageTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SystemLanguage',
-		placement: 'top'
+		placement: 'right'
 	};
 
 	// Lucia
@@ -51,7 +51,6 @@
 	import Icon from '@iconify/svelte';
 
 	// typesafe-i18n
-	import { locale } from '$i18n/i18n-svelte';
 	import LocaleSwitcher from '$src/lib/LocaleSwitcher.svelte';
 	import LL from '$i18n/i18n-svelte';
 
@@ -277,18 +276,6 @@
 			</div>
 
 			<!--SideBar Middle -->
-			<!-- Display Collections -->
-			<!-- <Collections
-					on:collection_click={handleCategoryClick}
-					data={categories}
-					{filterCollections}
-					{switchSideBar}
-					bind:fields
-					bind:collection
-					bind:category
-				/> -->
-
-			<!--SideBar Middle -->
 			<!-- Display Collections via skeleton-->
 			<CollectionsLatest
 				on:collection_click={handleCategoryClick}
@@ -343,7 +330,8 @@
 
 						<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 							<!-- System Language i18n Handeling -->
-							<!-- <LocaleSwitcher /> -->
+							<LocaleSwitcher />
+							<!-- TODO: POPUP is blocking selection -->
 							<!-- Popup Tooltip with the arrow element -->
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
 								{$LL.SBL_SystemLanguage()}

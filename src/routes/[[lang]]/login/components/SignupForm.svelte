@@ -2,19 +2,15 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
-	import axios from 'axios';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
-	import type { PageData } from '@lucia-auth/sveltekit/types';
-	import type { ActionData } from '../../$types';
 	import { goto } from '$app/navigation';
-	import { z } from 'zod';
 	import { get } from 'svelte/store';
+	import { z } from 'zod';
 
 	export let show = false;
 	let showPassword = false;
@@ -24,10 +20,8 @@
 	let email = '';
 	let password = '';
 	let confirmPassword = '';
-	let token = ''; // token need to be compared to admin provided token
-	let terms = '';
-
-	let isWiggling = false;
+	let token = ''; // token send by admin
+	let terms = ''; // terms and conditions
 
 	let errorStatus: Record<string, { status: boolean; msg: string }> = {
 		general: { status: false, msg: '' },
@@ -60,6 +54,7 @@
 				message: get(LL).LOGIN_ZOD_Confirm_password_regex()
 			}),
 		token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1)
+		// terms: z.boolean({ required_error: 'Confirm Terms' })
 	};
 
 	// remove token validation if user is not a first time user
@@ -114,6 +109,7 @@
 		}
 	};
 
+	let isWiggling = false;
 	const addWigglingToForm = () => {
 		isWiggling = true;
 		// to remove wiggling class

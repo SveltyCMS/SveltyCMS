@@ -56,7 +56,7 @@ export async function youtube(id: string) {
 		return new Date((day + hour + minute + second) * 1000).toISOString().substr(11, 8);
 	}
 
-	//console.log(convertDuration(time));
+	// console.log(convertDuration(time));
 
 	// console.log(dataDuration?.items[0]?.contentDetails);
 	// console.log(data?.items[0]?.contentDetails);

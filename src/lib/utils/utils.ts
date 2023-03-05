@@ -24,7 +24,7 @@ export function saveFiles(req: any) {
 	const files: any = {};
 	const schema = schemas.find((schema) => schema.name === req.params.endpoint);
 	const _files = req.files || [];
-	console.log(_files);
+	//console.log(_files);
 	for (const file of _files) {
 		const { buffer, fieldname, ...meta } = file;
 		files[fieldname as keyof typeof files] = meta;
@@ -41,7 +41,7 @@ export function saveFiles(req: any) {
 function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
 	for (const field of schema.fields) {
 		if (field.db_fieldName == fieldname) {
-			console.log(field);
+			//console.log(field);
 			found.val = true;
 
 			return field;
@@ -147,7 +147,6 @@ export const replaceLocaleInUrl = (url: URL, locale: string, full = false): stri
 	return newUrl.toString();
 };
 
-
 export const fileToDataUrl = (file: File) => {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -157,4 +156,4 @@ export const fileToDataUrl = (file: File) => {
 		reader.onerror = reject;
 		reader.readAsDataURL(file);
 	});
-}
+};

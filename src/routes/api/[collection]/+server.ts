@@ -37,7 +37,7 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 };
 
 export const POST: RequestHandler = async ({ params, request }) => {
-	console.log(params);
+	// console.log(params);
 	const collection = collections[params.collection];
 	const data = await request.formData();
 
@@ -61,8 +61,8 @@ export const DELETE: RequestHandler = async ({ params, request }) => {
 
 	let ids = data.get('ids') as string;
 	ids = JSON.parse(ids);
-	console.log(ids);
-	console.log(typeof ids);
+	//.log(ids);
+	// console.log(typeof ids);
 
 	return new Response(
 		JSON.stringify(

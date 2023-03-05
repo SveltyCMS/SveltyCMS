@@ -22,13 +22,12 @@
 
 	let email = '';
 
-	//TODO: Get Roles from allowed user
+	// TODO: Get allowed user Roles from .app.d.ts
 	let roles: Record<string, boolean> = {
 		Admin: false,
 		Editor: true,
 		User: false,
-		Guest: false,
-		other: false
+		Guest: false
 	};
 
 	let roleSelected = 'Editor';
@@ -47,13 +46,12 @@
 	}
 
 	// Token Valid Duration
+	let validSelected = '12 hrs';
 	let valids: Record<string, boolean> = {
 		'2 hrs': false,
 		'12 hrs': true,
 		'48 hrs': false
 	};
-
-	let validSelected = '12 hrs';
 
 	function filterValid(valid: string): void {
 		for (const v in valids) {
@@ -139,8 +137,6 @@
 		<div class="flex flex-col sm:flex-row gap-2">
 			<div class="sm:w-1/4">User Role:</div>
 			<div class="flex-auto">
-				<!-- TODO:  bind:value={formData.role}  -->
-
 				<div class="flex flex-wrap gap-2 space-x-2">
 					{#each Object.keys(roles) as r}
 						<span
@@ -189,8 +185,7 @@
 			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}
 				>{parent.buttonTextCancel}</button
 			>
-			<button type="submit" class="btn {parent.buttonPositive}">Send</button>
+			<button type="submit" class="btn !bg-primary-500 {parent.buttonPositive}">Send</button>
 		</footer>
 	</form>
-	<!-- prettier-ignore -->
 </div>

@@ -1,25 +1,30 @@
 <script lang="ts">
-	import type { Schema } from '$src/collections/types';
+	// Skeleton
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
-	import Icon from '@iconify/svelte';
-	import { shape_fields } from '$src/lib/utils/utils_svelte';
-	import showFieldsStore from '$src/lib/stores/fieldStore';
-	import { createEventDispatcher } from 'svelte';
+
 	storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 	const dispatch = createEventDispatcher();
 
 	let categoriesPopup: PopupSettings[] = [];
+
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
+	import type { Schema } from '$src/collections/types';
+
+	import { shape_fields } from '$src/lib/utils/utils_svelte';
+	import showFieldsStore from '$src/lib/stores/fieldStore';
+	import { createEventDispatcher } from 'svelte';
 
 	export let switchSideBar = false;
 	export let filterCollections: string;
 	export let collection: Schema;
 	export let category = '';
 	export let fields: Array<any>;
-
 	export let data: Array<any>;
 
 	$: filtered =
@@ -92,7 +97,7 @@
 		<!-- Collapsed/Mobile Collection Child -->
 		<div class="card shadow-xl overflow-hidden" data-popup={item.category}>
 			<ListBox padding="p-0" rounded="rounded-none">
-				{#each item.collections as _collection}
+				<!-- {#each item.collections as _collection}
 					<ListBoxItem
 						bind:group={item.category}
 						name={_collection.name}
@@ -103,6 +108,24 @@
 						<svelte:fragment slot="lead">
 							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
 						</svelte:fragment>
+					</ListBoxItem>
+				{/each} -->
+
+				{#each item.collections as _collection, collection_index}
+					<ListBoxItem
+						bind:group={item.category}
+						name={_collection.name}
+						value={_collection.name}
+						on:click={async () => {
+							$showFieldsStore.showField = true;
+							dispatch('collection_click', { category_index: index, collection_index });
+						}}
+						class="px-0 py-0 flex justify-center items-center flex-col hover:bg-[#65dfff] h-[50px] overflow-clip truncate text-clip text-[9px] switchSideBar-listbox"
+					>
+						<svelte:fragment slot="lead">
+							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
+						</svelte:fragment>
+						{_collection.name}
 					</ListBoxItem>
 				{/each}
 			</ListBox>

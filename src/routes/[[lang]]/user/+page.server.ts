@@ -24,7 +24,7 @@ export const actions: Actions = {
 		const role = form.get('role');
 		const expires_in = parseInt(form.get('expires_in') as string);
 
-		const epoch_expires_at = new Date().getTime() + expires_in
+		const epoch_expires_at = new Date().getTime() + expires_in;
 
 		if (!email || typeof email !== 'string' || !role) {
 			return fail(400, {
@@ -41,8 +41,8 @@ export const actions: Actions = {
 		if (tokenAlreadySentToUser) {
 			// send already present token and update expiresAt
 			try {
-				tokenAlreadySentToUser.expiresAt = epoch_expires_at
-				await tokenAlreadySentToUser.save()
+				tokenAlreadySentToUser.expiresAt = epoch_expires_at;
+				await tokenAlreadySentToUser.save();
 				await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken);
 			} catch (err) {
 				return fail(400, {
