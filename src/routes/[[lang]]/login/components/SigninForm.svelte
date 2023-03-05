@@ -137,7 +137,7 @@
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
-	{#if !forgot && resetPW == true}
+	{#if !forgot && !resetPW}
 		<div bind:this={form} class="mx-auto mt-[15%] mb-[5%] w-full p-4 lg:w-1/2">
 			<div class="mb-8 flex flex-row gap-2">
 				<CMSLogo className="w-14" fill="red" />
@@ -262,7 +262,7 @@
 				</div>
 			</form>
 		</div>
-	{:else if !resetPW && forgot == false}
+	{:else if resetPW && !forgot}
 		<!-- Reset Password -->
 		<form
 			class="form {isWiggling && 'wiggle'} mx-auto w-full p-4 lg:w-1/2"
@@ -449,7 +449,7 @@
 			use:enhance={(e) => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						//forgot = false; // reset forgotton variable
+						forgot = false; // reset forgotton variable
 						resetPW = true; // goto rest Password page
 						goto('/login');
 					}
