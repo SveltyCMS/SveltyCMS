@@ -3,9 +3,9 @@ lockfileVersion: 5.4
 specifiers:
   '@floating-ui/dom': ^1.2.3
   '@iconify/svelte': ^3.1.0
-  '@lucia-auth/adapter-mongoose': 0.5.1
-  '@lucia-auth/oauth': ^0.6.0
-  '@lucia-auth/sveltekit': ^0.6.6
+  '@lucia-auth/adapter-mongoose': 0.5.2
+  '@lucia-auth/oauth': ^0.6.1
+  '@lucia-auth/sveltekit': ^0.6.7
   '@mapbox/mapbox-gl-geocoder': ^5.0.1
   '@mapbox/mapbox-gl-language': ^1.0.1
   '@skeletonlabs/skeleton': 0.132.5
@@ -40,7 +40,7 @@ specifiers:
   jsonwebtoken: ^9.0.0
   lint-staged: ^13.1.2
   lodash: ^4.17.21
-  lucia-auth: ^0.7.2
+  lucia-auth: ^0.7.3
   mapbox-gl: ^2.13.0
   mongoose: 7.0.0
   nodemailer: 6.9.1
@@ -70,9 +70,9 @@ specifiers:
 dependencies:
   '@floating-ui/dom': 1.2.3
   '@iconify/svelte': 3.1.0_svelte@3.55.1
-  '@lucia-auth/adapter-mongoose': 0.5.1_lucia-auth@0.7.2
-  '@lucia-auth/oauth': 0.6.0_lucia-auth@0.7.2
-  '@lucia-auth/sveltekit': 0.6.6_4vkauzirtxa75q6w4i4e2tbeqe
+  '@lucia-auth/adapter-mongoose': 0.5.2_lucia-auth@0.7.3
+  '@lucia-auth/oauth': 0.6.1_lucia-auth@0.7.3
+  '@lucia-auth/sveltekit': 0.6.7_j2intzqzkier4ski6oeewvlz5i
   '@mapbox/mapbox-gl-geocoder': 5.0.1_mapbox-gl@2.13.0
   '@mapbox/mapbox-gl-language': 1.0.1_mapbox-gl@2.13.0
   '@tailwindcss/forms': 0.5.3_tailwindcss@3.2.7
@@ -91,7 +91,7 @@ dependencies:
   ioredis: 5.3.1
   jsonwebtoken: 9.0.0
   lodash: 4.17.21
-  lucia-auth: 0.7.2
+  lucia-auth: 0.7.3
   mapbox-gl: 2.13.0
   mongoose: 7.0.0
   nodemailer: 6.9.1
@@ -1432,34 +1432,34 @@ packages:
       yjs: 13.5.46
     dev: false
 
-  /@lucia-auth/adapter-mongoose/0.5.1_lucia-auth@0.7.2:
-    resolution: {integrity: sha512-DZfHfk8IRuWBnDdieBTYpE3wazoNdDzQNfGbHtw4ysL+7M7/sHalh+5GljZ5+Yc10HlaIKnPu3aIju9irxjYxw==}
+  /@lucia-auth/adapter-mongoose/0.5.2_lucia-auth@0.7.3:
+    resolution: {integrity: sha512-/brmtJLH1iAh9oW2ThuhaMuaSUyTri4ALCeccQe7pIJcWyJKk8MVnLK3EJm6GogzMBR1PKl3ivpw0Dg4govx5g==}
     peerDependencies:
       lucia-auth: 0.7.x
     dependencies:
-      lucia-auth: 0.7.2
+      lucia-auth: 0.7.3
       mongoose: 6.10.0
     transitivePeerDependencies:
       - aws-crt
       - supports-color
     dev: false
 
-  /@lucia-auth/oauth/0.6.0_lucia-auth@0.7.2:
-    resolution: {integrity: sha512-UiIgNs0zIEYNGRqr5nk1NJWEtRJQZnfHnaYVsMGwoi7OFp9bOxNVgLVEGCuM/thcw7KqvqDS4rlNAEZcTldwwg==}
+  /@lucia-auth/oauth/0.6.1_lucia-auth@0.7.3:
+    resolution: {integrity: sha512-Oo2uCYMilTSMIZzNuS+xzPzGxB5GX4aNDpgCiCRsAKJ8+r3txIo5IIwmz7FRQUYCAGrdDxU98ioVsIltIX2qjQ==}
     peerDependencies:
       lucia-auth: 0.5.x - 0.7.x
     dependencies:
-      lucia-auth: 0.7.2
+      lucia-auth: 0.7.3
     dev: false
 
-  /@lucia-auth/sveltekit/0.6.6_4vkauzirtxa75q6w4i4e2tbeqe:
-    resolution: {integrity: sha512-dd6l2fD3AzK0rGN8BVxlS2SgUcxF55bBuXH+lgnDbzHiOgfdIdYxktlceNknBfpVVCH5R6IwYd9t2yztdhtgJQ==}
+  /@lucia-auth/sveltekit/0.6.7_j2intzqzkier4ski6oeewvlz5i:
+    resolution: {integrity: sha512-phn9L8VeLY4NN2GVr1fHX/qaIbWGSP+Gs4nQk0MTNfX9klRAd2K43mACA7CuNMvwtB3GyQjKhDdz/fXYK915Zw==}
     peerDependencies:
       lucia-auth: 0.5.x - 0.7.x
       svelte: 3.x
     dependencies:
       '@noble/hashes': 1.2.0
-      lucia-auth: 0.7.2
+      lucia-auth: 0.7.3
       svelte: 3.55.1
     dev: false
 
@@ -4582,8 +4582,8 @@ packages:
     dev: false
     optional: true
 
-  /lucia-auth/0.7.2:
-    resolution: {integrity: sha512-QJW41BPHxbqGHHuMAPeIaWIOoac+1xA4y0JZm9qGO8J7/rbKCsWSbJ95692gCf85FF7qM2K+lhoVu+Zi2rbsEQ==}
+  /lucia-auth/0.7.3:
+    resolution: {integrity: sha512-mFvoOQB4o3nxZfRg7w0f71elz8RbPhJhqWVydD6+tkVxrDRusMf8HDsdgrOaodKRDwH6NcH+nHKa6cBoR1x1xw==}
     dependencies:
       '@noble/hashes': 1.2.0
       nanoid: 4.0.1

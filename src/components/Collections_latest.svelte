@@ -1,24 +1,26 @@
 <script lang="ts">
 	// Skeleton
+	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
 
 	storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
+
 	const dispatch = createEventDispatcher();
+	import { createEventDispatcher } from 'svelte';
 
 	let categoriesPopup: PopupSettings[] = [];
-
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
 	import type { Schema } from '$src/collections/types';
 
-	import { shape_fields } from '$src/lib/utils/utils_svelte';
+	// import { shape_fields } from '$src/lib/utils/utils_svelte';
 	import showFieldsStore from '$src/lib/stores/fieldStore';
-	import { createEventDispatcher } from 'svelte';
 
 	export let switchSideBar = false;
 	export let filterCollections: string;
@@ -27,6 +29,7 @@
 	export let fields: Array<any>;
 	export let data: Array<any>;
 
+	// search colletions filter
 	$: filtered =
 		data &&
 		data.map((category) => {
@@ -46,104 +49,89 @@
 		});
 </script>
 
-{#each filtered as item, index}
-	{#if switchSideBar}
-		<!-- Desktop Collection Parent -->
-		<button
-			class="btn variant-filled w-48  mb-1 justify-between"
-			use:popup={categoriesPopup[index]}
-		>
-			<span class="capitalize">
-				<Icon icon={item.icon} width="24" class="text-error-600" />
-			</span>
-			<span class="capitalize">{item.category}</span>
-			<span>
-				<Icon icon={'fa-caret-down'} class="opacity-50" />
-			</span>
-		</button>
+<Accordion>
+	{#each filtered as item, index}
+		{#if switchSideBar}
+			<!-- Desktop Collection Parent -->
+			<!-- TODO make first appear open , and on search display results
+			<AccordionItem open>-->
+			<AccordionItem>
+				<!-- Category Icon -->
+				<svelte:fragment slot="lead">
+					<Icon icon={item.icon} width="24" class="text-error-600" />
+				</svelte:fragment>
 
-		<!-- Desktop Collection Childern -->
-		<div class="card w-48 shadow-xl overflow-hidden " data-popup={item.category}>
-			<ListBox padding="px-4 py-1" rounded="rounded-none" class="divide-surface-400 divide-y-2">
-				{#each item.collections as _collection, collection_index}
-					<ListBoxItem
-						bind:group={item.category}
-						name={_collection.name}
-						value={_collection.name}
-						on:click={async () => {
-							$showFieldsStore.showField = true;
-							dispatch('collection_click', { category_index: index, collection_index });
-						}}
-						class="hover:!bg-error-200"
-					>
-						<svelte:fragment slot="lead">
-							<Icon icon={_collection.icon} width="24" class="text-error-600" />
-						</svelte:fragment>
-						{_collection.name}
-					</ListBoxItem>
-				{/each}
-			</ListBox>
-		</div>
-	{:else}
-		<!-- Collapsed/Mobile Collection Parent -->
-		<button class="btn variant-filled mb-2 justify-between p-2" use:popup={categoriesPopup[index]}>
-			<span class="capitalize">
-				<Icon icon={item.icon} width="24" class="text-error-600" />
-			</span>
-			<span>
-				<Icon icon={'fa-caret-down'} class="opacity-50" />
-			</span>
-		</button>
-		<!-- Collapsed/Mobile Collection Child -->
-		<div class="card shadow-xl overflow-hidden" data-popup={item.category}>
-			<ListBox padding="p-0" rounded="rounded-none">
-				<!-- {#each item.collections as _collection}
-					<ListBoxItem
-						bind:group={item.category}
-						name={_collection.name}
-						value={_collection.name}
-						class="px-0 py-0 flex justify-center items-center flex-col hover:bg-[#65dfff] h-[50px] overflow-clip truncate text-clip text-[9px] switchSideBar-listbox"
-					>
-						{_collection.name}
-						<svelte:fragment slot="lead">
-							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
-						</svelte:fragment>
-					</ListBoxItem>
-				{/each} -->
+				<!-- Category name -->
+				<svelte:fragment slot="summary">
+					<p class="uppercase">{item.category}</p>
+				</svelte:fragment>
 
-				{#each item.collections as _collection, collection_index}
-					<ListBoxItem
-						bind:group={item.category}
-						name={_collection.name}
-						value={_collection.name}
-						on:click={async () => {
-							$showFieldsStore.showField = true;
-							dispatch('collection_click', { category_index: index, collection_index });
-						}}
-						class="px-0 py-0 flex justify-center items-center flex-col hover:bg-[#65dfff] h-[50px] overflow-clip truncate text-clip text-[9px] switchSideBar-listbox"
-					>
-						<svelte:fragment slot="lead">
-							<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
-						</svelte:fragment>
-						{_collection.name}
-					</ListBoxItem>
-				{/each}
-			</ListBox>
-		</div>
-	{/if}
-{/each}
+				<!-- Desktop Collection Childern -->
+				<svelte:fragment slot="content">
+					<ListBox padding="m-0" rounded="rounded-none" class="divide-surface-400 divide-y">
+						{#each item.collections as _collection, collection_index}
+							<ListBoxItem
+								bind:group={item.category}
+								name={_collection.name}
+								value={_collection.name}
+								on:click={async () => {
+									$showFieldsStore.showField = true;
+									dispatch('collection_click', { category_index: index, collection_index });
+								}}
+								class="hover:!bg-surface-400"
+							>
+								<svelte:fragment slot="lead">
+									<Icon icon={_collection.icon} width="24" class="text-error-600" />
+								</svelte:fragment>
+								{_collection.name}
+							</ListBoxItem>
+						{/each}
+					</ListBox>
+				</svelte:fragment>
+			</AccordionItem>
+		{:else}
+			<!-- Mobile Collection Parent -->
+			<AccordionItem>
+				<!-- Category Icon -->
+				<svelte:fragment slot="lead">
+					<Icon icon={item.icon} width="24" class="text-error-600" />
+				</svelte:fragment>
+
+				<!-- Category name -->
+				<svelte:fragment slot="summary">
+					{#if switchSideBar}
+						<p class="capitalize">{item.category}</p>
+					{/if}
+				</svelte:fragment>
+
+				<!-- Mobile Collection Childern -->
+				<svelte:fragment slot="content">
+					<ListBox padding="p-0" rounded="rounded-none">
+						{#each item.collections as _collection, collection_index}
+							<ListBoxItem
+								bind:group={item.category}
+								name={_collection.name}
+								value={_collection.name}
+								on:click={async () => {
+									$showFieldsStore.showField = true;
+									dispatch('collection_click', { category_index: index, collection_index });
+								}}
+								class="m-0 p-0 flex justify-center items-center hover:!bg-surface-400"
+							>
+								<div class="overflow-clip truncate text-clip text-[9px]">{_collection.name}</div>
+								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
+							</ListBoxItem>
+						{/each}
+					</ListBox>
+				</svelte:fragment>
+			</AccordionItem>
+		{/if}
+	{/each}
+</Accordion>
 
 <style>
-	:global(.switchSideBar-listbox .listbox-label) {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		height: 50px;
-		overflow: clip;
-		padding: 5px;
-	}
-
-	:global(.switchSideBar-listbox .listbox-label-content) {
-		margin: 0 !important;
-	}
+	/* :global(.accordion-control) {
+		background-color: #fff;
+		color: black;
+	} */
 </style>
