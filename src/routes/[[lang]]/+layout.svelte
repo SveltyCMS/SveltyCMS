@@ -118,7 +118,7 @@
 	export let switchSideBar = false;
 
 	export let onClickHambuger = (): void => {
-		open = !open;
+		// open = !open;
 		toggleLeftSideBar = !toggleLeftSideBar;
 	};
 
@@ -201,13 +201,21 @@
 			id="sidebar-left"
 			class="bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
 			dark:to-surface-500 text-center px-1 h-full relative
-			{switchSideBar ? 'w-[225px]' : 'w-[80px]'}
+			{switchSideBar ? 'w-[225px]' : 'w-[85px]'}
 			{toggleLeftSideBar ? 'hidden' : 'block'}"
 		>
 			{#if !switchSideBar}
 				<!-- mobile and tablet hamburger -->
 				<AnimatedHamburger {open} {onClickHambuger} />
 			{/if}
+
+			<!-- Corporate Identity -->
+			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
+				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
+				{#if switchSideBar}
+					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
+				{/if}
+			</a>
 
 			<!-- sidebar collapse button -->
 			<button
@@ -230,14 +238,6 @@
 					/>
 				{/if}
 			</button>
-
-			<!-- Corporate Identity -->
-			<a href="/" class="1 pt-2 flex cursor-pointer items-center justify-start !no-underline ">
-				<SimpleCmsLogo fill="red" className="h-8 ml-[10px] pr-1" />
-				{#if switchSideBar}
-					<span class="pr-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
-				{/if}
-			</a>
 
 			<!-- Search Collections -->
 			<!-- TODO: perhaps overflow is better? -->

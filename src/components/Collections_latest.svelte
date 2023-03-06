@@ -49,13 +49,12 @@
 		});
 </script>
 
-<Accordion>
+<Accordion autocollapse>
 	{#each filtered as item, index}
 		{#if switchSideBar}
 			<!-- Desktop Collection Parent -->
-			<!-- TODO make first appear open , and on search display results
-			<AccordionItem open>-->
-			<AccordionItem>
+			<!-- TODO On search display results -->
+			<AccordionItem open={index === 0} padding="p-2" data-popup={item.category}>
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
 					<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -68,7 +67,7 @@
 
 				<!-- Desktop Collection Childern -->
 				<svelte:fragment slot="content">
-					<ListBox padding="m-0" rounded="rounded-none" class="divide-surface-400 divide-y">
+					<ListBox rounded="rounded-none" class="divide-surface-400 divide-y">
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
 								bind:group={item.category}
@@ -89,9 +88,14 @@
 					</ListBox>
 				</svelte:fragment>
 			</AccordionItem>
+			<div class="card variant-filled-secondary p-4" data-popup="examplePopup">
+				Some text goes here.
+				<!-- Append the arrow element -->
+				<div class="arrow variant-filled-secondary" />
+			</div>
 		{:else}
 			<!-- Mobile Collection Parent -->
-			<AccordionItem>
+			<AccordionItem open={index === 0} padding="px-0 py-2">
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
 					<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -99,14 +103,12 @@
 
 				<!-- Category name -->
 				<svelte:fragment slot="summary">
-					{#if switchSideBar}
-						<p class="capitalize">{item.category}</p>
-					{/if}
+					<p />
 				</svelte:fragment>
 
 				<!-- Mobile Collection Childern -->
 				<svelte:fragment slot="content">
-					<ListBox padding="p-0" rounded="rounded-none">
+					<ListBox padding="px-0" rounded="rounded-none" class="divide-y space-y-0 ">
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
 								bind:group={item.category}
@@ -116,7 +118,7 @@
 									$showFieldsStore.showField = true;
 									dispatch('collection_click', { category_index: index, collection_index });
 								}}
-								class="m-0 p-0 flex justify-center items-center hover:!bg-surface-400"
+								class="flex justify-center items-center hover:!bg-surface-400"
 							>
 								<div class="overflow-clip truncate text-clip text-[9px]">{_collection.name}</div>
 								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />

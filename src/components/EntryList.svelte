@@ -237,9 +237,11 @@
 	export let switchSideBar = false;
 
 	export let onClickHambuger = (): void => {
-		open = open;
+		// open = !open;
 		toggleLeftSideBar = !toggleLeftSideBar;
 	};
+
+	//tanstack Table
 </script>
 
 <Modal />
@@ -257,7 +259,7 @@
 				class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl "
 			>
 				{#if collection.icon}<span>
-						<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2" /></span
+						<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
 					>{/if}
 				{#if collection.name}
 					<div class="flex break-words leading-3 sm:mr-2 md:leading-none">
