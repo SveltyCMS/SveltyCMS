@@ -53,7 +53,8 @@
 	{#each filtered as item, index}
 		{#if switchSideBar}
 			<!-- Desktop Collection Parent -->
-			<!-- TODO On search display results -->
+			<!-- TODO On search display ALL results -->
+			<!-- TODO Fix onclick for first Open to Close as well -->
 			<AccordionItem open={index === 0} padding="p-2" data-popup={item.category}>
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">

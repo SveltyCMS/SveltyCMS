@@ -2,17 +2,38 @@
 	import axios from 'axios';
 	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import { entryData, language } from '$src/stores/store';
-
-	import { onMount } from 'svelte';
-	import DeleteIcon from './icons/DeleteIcon.svelte';
 	import { never } from '$src/lib/utils/utils_svelte';
+	import { flattenData } from '$src/lib/utils/utils';
+	import showFieldsStore from '$src/lib/stores/fieldStore';
+	import Form from './Form.svelte';
+	import DeleteIcon from './icons/DeleteIcon.svelte';
+	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+
+	//export let open = false; // animate hamburger
+	export let switchSideBar = false;
+	export let showFields = false;
+	export let collection: any = undefined;
+	export let deleteMode = false;
+	export let category = 'Some';
+	export let fields: any;
+
+	export let toggleLeftSideBar = true;
+	export let onClickHambuger = (): void => {
+		// open = !open;
+		toggleLeftSideBar = !toggleLeftSideBar;
+	};
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { Modal, modalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton';
 
 	// Popup Tooltips
 	let CreateSettings: PopupSettings = {
@@ -54,16 +75,6 @@
 		target: 'entryListlanguagePopup'
 	};
 
-	let pageItemsSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'click',
-		// Provide a matching 'data-popup' value.
-		target: 'pageItems'
-	};
-
-	import { Modal, modalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-
 	//TODO: Get Roles from allowed user
 	let tableColumns: Record<string, boolean> = {
 		ID: true,
@@ -72,15 +83,6 @@
 		Email: true,
 		other: false
 	};
-
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
-	export let showFields = false;
-	export let collection: any = undefined;
-	export let deleteMode = false;
-	export let category = 'Some';
-	export let fields: any;
 
 	// define default button
 	let entryButton = 'create';
@@ -200,11 +202,6 @@
 		alert('clone added soon');
 	}
 
-	export let toggleSideBar = false;
-	import { flattenData } from '$src/lib/utils/utils';
-	import showFieldsStore from '$src/lib/stores/fieldStore';
-	import Form from './Form.svelte';
-
 	// Is not really stored on page reload
 	function changeItemsPerPage(newValue: number) {
 		paging.entryLength = newValue;
@@ -230,26 +227,18 @@
 		target: 'entityButton'
 	};
 
-	// show/hide Left Sidebar
-	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
-	export let toggleLeftSideBar = true;
-	export let open = false;
-	export let switchSideBar = false;
-
-	export let onClickHambuger = (): void => {
-		// open = !open;
-		toggleLeftSideBar = !toggleLeftSideBar;
-	};
-
-	//tanstack Table
+	//tanstack Table here
 </script>
 
 <Modal />
+
 <div class="relative -mt-[65px] md:mt-0">
 	<div class="mb-2 flex items-center gap-2">
 		{#if !switchSideBar}
-			<!-- mobile and tablet hamburger -->
-			<AnimatedHamburger {open} {onClickHambuger} />
+			<!-- mobile and tablet hamburger 
+			
+		--><AnimatedHamburger {onClickHambuger} />
+			<!-- <AnimatedHamburger on:click={onClickHamburger} /> -->
 		{/if}
 		<div class="flex flex-col">
 			{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
