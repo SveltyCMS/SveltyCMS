@@ -4,7 +4,8 @@ const showFieldsStore = writable({
 	category_index: null,
 	collection_index: null,
 	showField: false,
-	showForm: false
+	showForm: false,
+	multibutton: false
 });
 
 export default showFieldsStore;

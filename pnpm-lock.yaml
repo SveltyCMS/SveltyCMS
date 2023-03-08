@@ -3,9 +3,9 @@ lockfileVersion: 5.4
 specifiers:
   '@floating-ui/dom': ^1.2.3
   '@iconify/svelte': ^3.1.0
-  '@lucia-auth/adapter-mongoose': 0.5.2
-  '@lucia-auth/oauth': ^0.6.1
-  '@lucia-auth/sveltekit': ^0.6.7
+  '@lucia-auth/adapter-mongoose': 0.5.3
+  '@lucia-auth/oauth': ^0.6.3
+  '@lucia-auth/sveltekit': ^0.6.9
   '@mapbox/mapbox-gl-geocoder': ^5.0.1
   '@mapbox/mapbox-gl-language': ^1.0.1
   '@skeletonlabs/skeleton': 0.132.5
@@ -22,8 +22,8 @@ specifiers:
   '@types/mapbox__mapbox-gl-geocoder': ^4.7.3
   '@types/nodemailer': 6.4.7
   '@types/sharp': ^0.31.1
-  '@typescript-eslint/eslint-plugin': 5.54.0
-  '@typescript-eslint/parser': 5.54.0
+  '@typescript-eslint/eslint-plugin': 5.54.1
+  '@typescript-eslint/parser': 5.54.1
   autoprefixer: 10.4.13
   await-to-js: ^3.0.0
   axios: ^1.3.4
@@ -31,7 +31,7 @@ specifiers:
   dayjs: ^1.11.7
   devalue: 4.3.0
   eslint: 8.35.0
-  eslint-config-prettier: 8.6.0
+  eslint-config-prettier: 8.7.0
   eslint-plugin-svelte3: 4.0.0
   flag-icons: ^6.6.6
   get-video-id: ^3.6.5
@@ -40,9 +40,9 @@ specifiers:
   jsonwebtoken: ^9.0.0
   lint-staged: ^13.1.2
   lodash: ^4.17.21
-  lucia-auth: ^0.7.3
+  lucia-auth: ^0.8.0
   mapbox-gl: ^2.13.0
-  mongoose: 7.0.0
+  mongoose: 7.0.1
   nodemailer: 6.9.1
   npm-run-all: 4.1.5
   openai: ^3.2.1
@@ -52,11 +52,11 @@ specifiers:
   prettier-plugin-svelte: 2.9.0
   sharp: ^0.31.3
   svelte: 3.55.1
-  svelte-check: 3.0.4
+  svelte-check: 3.1.0
   svelte-lexical: 0.2.0
   svelte-preprocess: 5.0.1
   svelte-tel-input: ^1.2.0
-  sveltekit-superforms: ^0.5.17
+  sveltekit-superforms: ^0.5.20
   tabulator-tables: ^5.4.4
   tailwindcss: 3.2.7
   tiktok-scraper: ^1.4.36
@@ -65,14 +65,14 @@ specifiers:
   typescript: ~4.9.5
   uuid: ^9.0.0
   vite: 4.1.4
-  zod: ^3.21.0
+  zod: ^3.21.4
 
 dependencies:
   '@floating-ui/dom': 1.2.3
   '@iconify/svelte': 3.1.0_svelte@3.55.1
-  '@lucia-auth/adapter-mongoose': 0.5.2_lucia-auth@0.7.3
-  '@lucia-auth/oauth': 0.6.1_lucia-auth@0.7.3
-  '@lucia-auth/sveltekit': 0.6.7_j2intzqzkier4ski6oeewvlz5i
+  '@lucia-auth/adapter-mongoose': 0.5.3_lucia-auth@0.8.0
+  '@lucia-auth/oauth': 0.6.3_lucia-auth@0.8.0
+  '@lucia-auth/sveltekit': 0.6.9_jbzxvsa4dqpgldlqvh4ov3dsay
   '@mapbox/mapbox-gl-geocoder': 5.0.1_mapbox-gl@2.13.0
   '@mapbox/mapbox-gl-language': 1.0.1_mapbox-gl@2.13.0
   '@tailwindcss/forms': 0.5.3_tailwindcss@3.2.7
@@ -91,9 +91,9 @@ dependencies:
   ioredis: 5.3.1
   jsonwebtoken: 9.0.0
   lodash: 4.17.21
-  lucia-auth: 0.7.3
+  lucia-auth: 0.8.0
   mapbox-gl: 2.13.0
-  mongoose: 7.0.0
+  mongoose: 7.0.1
   nodemailer: 6.9.1
   openai: 3.2.1
   svelte-lexical: 0.2.0
@@ -111,11 +111,11 @@ devDependencies:
   '@types/mapbox-gl': 2.7.10
   '@types/mapbox__mapbox-gl-geocoder': 4.7.3
   '@types/sharp': 0.31.1
-  '@typescript-eslint/eslint-plugin': 5.54.0_6mj2wypvdnknez7kws2nfdgupi
-  '@typescript-eslint/parser': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
+  '@typescript-eslint/eslint-plugin': 5.54.1_mlk7dnz565t663n4razh6a6v6i
+  '@typescript-eslint/parser': 5.54.1_ycpbpc6yetojsgtrx3mwntkhsu
   autoprefixer: 10.4.13_postcss@8.4.21
   eslint: 8.35.0
-  eslint-config-prettier: 8.6.0_eslint@8.35.0
+  eslint-config-prettier: 8.7.0_eslint@8.35.0
   eslint-plugin-svelte3: 4.0.0_n4ieifq2d7jq3sqoe474cgqlim
   husky: 8.0.3
   lint-staged: 13.1.2
@@ -126,15 +126,15 @@ devDependencies:
   prettier-plugin-svelte: 2.9.0_jrsxveqmsx2uadbqiuq74wlc4u
   sharp: 0.31.3
   svelte: 3.55.1
-  svelte-check: 3.0.4_gqx7lw3sljhsd4bstor5m2aa2u
+  svelte-check: 3.1.0_gqx7lw3sljhsd4bstor5m2aa2u
   svelte-preprocess: 5.0.1_b25a55hc532q56kmuqlrolam2i
-  sveltekit-superforms: 0.5.17_okbb5ngh5mru22ikvy7qq7guwe
+  sveltekit-superforms: 0.5.20_plqwprvqqbbmysahtgouqoofyi
   tailwindcss: 3.2.7_postcss@8.4.21
   tslib: 2.5.0
   typesafe-i18n: 5.24.2_typescript@4.9.5
   typescript: 4.9.5
   vite: 4.1.4
-  zod: 3.21.0
+  zod: 3.21.4
 
 packages:
 
@@ -1432,34 +1432,34 @@ packages:
       yjs: 13.5.46
     dev: false
 
-  /@lucia-auth/adapter-mongoose/0.5.2_lucia-auth@0.7.3:
-    resolution: {integrity: sha512-/brmtJLH1iAh9oW2ThuhaMuaSUyTri4ALCeccQe7pIJcWyJKk8MVnLK3EJm6GogzMBR1PKl3ivpw0Dg4govx5g==}
+  /@lucia-auth/adapter-mongoose/0.5.3_lucia-auth@0.8.0:
+    resolution: {integrity: sha512-WCM0OFsRK0yPhiryuQw5D7E7e279Vu5jYLXKv0yPWLkTHTKcjB8eTNGYxQ3/SVawiw8itpWQrIT9tzLGkO+HNQ==}
     peerDependencies:
-      lucia-auth: 0.7.x
+      lucia-auth: 0.7.x - 0.8.x
     dependencies:
-      lucia-auth: 0.7.3
+      lucia-auth: 0.8.0
       mongoose: 6.10.0
     transitivePeerDependencies:
       - aws-crt
       - supports-color
     dev: false
 
-  /@lucia-auth/oauth/0.6.1_lucia-auth@0.7.3:
-    resolution: {integrity: sha512-Oo2uCYMilTSMIZzNuS+xzPzGxB5GX4aNDpgCiCRsAKJ8+r3txIo5IIwmz7FRQUYCAGrdDxU98ioVsIltIX2qjQ==}
+  /@lucia-auth/oauth/0.6.3_lucia-auth@0.8.0:
+    resolution: {integrity: sha512-82oFx7jr6WVzbGkw5AbOfLtlIA1n2rluTbxttQT/Z1qcmPihyGO9OUeGpyQjkv1R5oedY72dydalvnGU2xh8yg==}
     peerDependencies:
-      lucia-auth: 0.5.x - 0.7.x
+      lucia-auth: 0.5.x - 0.8.x
     dependencies:
-      lucia-auth: 0.7.3
+      lucia-auth: 0.8.0
     dev: false
 
-  /@lucia-auth/sveltekit/0.6.7_j2intzqzkier4ski6oeewvlz5i:
-    resolution: {integrity: sha512-phn9L8VeLY4NN2GVr1fHX/qaIbWGSP+Gs4nQk0MTNfX9klRAd2K43mACA7CuNMvwtB3GyQjKhDdz/fXYK915Zw==}
+  /@lucia-auth/sveltekit/0.6.9_jbzxvsa4dqpgldlqvh4ov3dsay:
+    resolution: {integrity: sha512-gc0AS0anZI25tz+tKNLIcPccBU3UWwhGhpv8ITcx983Xx9A9ipg04IQDadmYZWrsU74KSfEb3nsCP59tJDLYDg==}
     peerDependencies:
-      lucia-auth: 0.5.x - 0.7.x
+      lucia-auth: 0.5.x - 0.8.x
       svelte: 3.x
     dependencies:
       '@noble/hashes': 1.2.0
-      lucia-auth: 0.7.3
+      lucia-auth: 0.8.0
       svelte: 3.55.1
     dev: false
 
@@ -1911,8 +1911,8 @@ packages:
       '@types/webidl-conversions': 7.0.0
     dev: false
 
-  /@typescript-eslint/eslint-plugin/5.54.0_6mj2wypvdnknez7kws2nfdgupi:
-    resolution: {integrity: sha512-+hSN9BdSr629RF02d7mMtXhAJvDTyCbprNYJKrXETlul/Aml6YZwd90XioVbjejQeHbb3R8Dg0CkRgoJDxo8aw==}
+  /@typescript-eslint/eslint-plugin/5.54.1_mlk7dnz565t663n4razh6a6v6i:
+    resolution: {integrity: sha512-a2RQAkosH3d3ZIV08s3DcL/mcGc2M/UC528VkPULFxR9VnVPT8pBu0IyBAJJmVsCmhVfwQX1v6q+QGnmSe1bew==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       '@typescript-eslint/parser': ^5.0.0
@@ -1922,10 +1922,10 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/parser': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
-      '@typescript-eslint/scope-manager': 5.54.0
-      '@typescript-eslint/type-utils': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
-      '@typescript-eslint/utils': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
+      '@typescript-eslint/parser': 5.54.1_ycpbpc6yetojsgtrx3mwntkhsu
+      '@typescript-eslint/scope-manager': 5.54.1
+      '@typescript-eslint/type-utils': 5.54.1_ycpbpc6yetojsgtrx3mwntkhsu
+      '@typescript-eslint/utils': 5.54.1_ycpbpc6yetojsgtrx3mwntkhsu
       debug: 4.3.4
       eslint: 8.35.0
       grapheme-splitter: 1.0.4
@@ -1939,8 +1939,8 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/parser/5.54.0_ycpbpc6yetojsgtrx3mwntkhsu:
-    resolution: {integrity: sha512-aAVL3Mu2qTi+h/r04WI/5PfNWvO6pdhpeMRWk9R7rEV4mwJNzoWf5CCU5vDKBsPIFQFjEq1xg7XBI2rjiMXQbQ==}
+  /@typescript-eslint/parser/5.54.1_ycpbpc6yetojsgtrx3mwntkhsu:
+    resolution: {integrity: sha512-8zaIXJp/nG9Ff9vQNh7TI+C3nA6q6iIsGJ4B4L6MhZ7mHnTMR4YP5vp2xydmFXIy8rpyIVbNAG44871LMt6ujg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || ^8.0.0
@@ -1949,9 +1949,9 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/scope-manager': 5.54.0
-      '@typescript-eslint/types': 5.54.0
-      '@typescript-eslint/typescript-estree': 5.54.0_typescript@4.9.5
+      '@typescript-eslint/scope-manager': 5.54.1
+      '@typescript-eslint/types': 5.54.1
+      '@typescript-eslint/typescript-estree': 5.54.1_typescript@4.9.5
       debug: 4.3.4
       eslint: 8.35.0
       typescript: 4.9.5
@@ -1959,16 +1959,16 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/scope-manager/5.54.0:
-    resolution: {integrity: sha512-VTPYNZ7vaWtYna9M4oD42zENOBrb+ZYyCNdFs949GcN8Miwn37b8b7eMj+EZaq7VK9fx0Jd+JhmkhjFhvnovhg==}
+  /@typescript-eslint/scope-manager/5.54.1:
+    resolution: {integrity: sha512-zWKuGliXxvuxyM71UA/EcPxaviw39dB2504LqAmFDjmkpO8qNLHcmzlh6pbHs1h/7YQ9bnsO8CCcYCSA8sykUg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
-      '@typescript-eslint/types': 5.54.0
-      '@typescript-eslint/visitor-keys': 5.54.0
+      '@typescript-eslint/types': 5.54.1
+      '@typescript-eslint/visitor-keys': 5.54.1
     dev: true
 
-  /@typescript-eslint/type-utils/5.54.0_ycpbpc6yetojsgtrx3mwntkhsu:
-    resolution: {integrity: sha512-WI+WMJ8+oS+LyflqsD4nlXMsVdzTMYTxl16myXPaCXnSgc7LWwMsjxQFZCK/rVmTZ3FN71Ct78ehO9bRC7erYQ==}
+  /@typescript-eslint/type-utils/5.54.1_ycpbpc6yetojsgtrx3mwntkhsu:
+    resolution: {integrity: sha512-WREHsTz0GqVYLIbzIZYbmUUr95DKEKIXZNH57W3s+4bVnuF1TKe2jH8ZNH8rO1CeMY3U4j4UQeqPNkHMiGem3g==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: '*'
@@ -1977,8 +1977,8 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/typescript-estree': 5.54.0_typescript@4.9.5
-      '@typescript-eslint/utils': 5.54.0_ycpbpc6yetojsgtrx3mwntkhsu
+      '@typescript-eslint/typescript-estree': 5.54.1_typescript@4.9.5
+      '@typescript-eslint/utils': 5.54.1_ycpbpc6yetojsgtrx3mwntkhsu
       debug: 4.3.4
       eslint: 8.35.0
       tsutils: 3.21.0_typescript@4.9.5
@@ -1987,13 +1987,13 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/types/5.54.0:
-    resolution: {integrity: sha512-nExy+fDCBEgqblasfeE3aQ3NuafBUxZxgxXcYfzYRZFHdVvk5q60KhCSkG0noHgHRo/xQ/BOzURLZAafFpTkmQ==}
+  /@typescript-eslint/types/5.54.1:
+    resolution: {integrity: sha512-G9+1vVazrfAfbtmCapJX8jRo2E4MDXxgm/IMOF4oGh3kq7XuK3JRkOg6y2Qu1VsTRmWETyTkWt1wxy7X7/yLkw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dev: true
 
-  /@typescript-eslint/typescript-estree/5.54.0_typescript@4.9.5:
-    resolution: {integrity: sha512-X2rJG97Wj/VRo5YxJ8Qx26Zqf0RRKsVHd4sav8NElhbZzhpBI8jU54i6hfo9eheumj4oO4dcRN1B/zIVEqR/MQ==}
+  /@typescript-eslint/typescript-estree/5.54.1_typescript@4.9.5:
+    resolution: {integrity: sha512-bjK5t+S6ffHnVwA0qRPTZrxKSaFYocwFIkZx5k7pvWfsB1I57pO/0M0Skatzzw1sCkjJ83AfGTL0oFIFiDX3bg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       typescript: '*'
@@ -2001,8 +2001,8 @@ packages:
       typescript:
         optional: true
     dependencies:
-      '@typescript-eslint/types': 5.54.0
-      '@typescript-eslint/visitor-keys': 5.54.0
+      '@typescript-eslint/types': 5.54.1
+      '@typescript-eslint/visitor-keys': 5.54.1
       debug: 4.3.4
       globby: 11.1.0
       is-glob: 4.0.3
@@ -2013,17 +2013,17 @@ packages:
       - supports-color
     dev: true
 
-  /@typescript-eslint/utils/5.54.0_ycpbpc6yetojsgtrx3mwntkhsu:
-    resolution: {integrity: sha512-cuwm8D/Z/7AuyAeJ+T0r4WZmlnlxQ8wt7C7fLpFlKMR+dY6QO79Cq1WpJhvZbMA4ZeZGHiRWnht7ZJ8qkdAunw==}
+  /@typescript-eslint/utils/5.54.1_ycpbpc6yetojsgtrx3mwntkhsu:
+    resolution: {integrity: sha512-IY5dyQM8XD1zfDe5X8jegX6r2EVU5o/WJnLu/znLPWCBF7KNGC+adacXnt5jEYS9JixDcoccI6CvE4RCjHMzCQ==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     peerDependencies:
       eslint: ^6.0.0 || ^7.0.0 || ^8.0.0
     dependencies:
       '@types/json-schema': 7.0.11
       '@types/semver': 7.3.13
-      '@typescript-eslint/scope-manager': 5.54.0
-      '@typescript-eslint/types': 5.54.0
-      '@typescript-eslint/typescript-estree': 5.54.0_typescript@4.9.5
+      '@typescript-eslint/scope-manager': 5.54.1
+      '@typescript-eslint/types': 5.54.1
+      '@typescript-eslint/typescript-estree': 5.54.1_typescript@4.9.5
       eslint: 8.35.0
       eslint-scope: 5.1.1
       eslint-utils: 3.0.0_eslint@8.35.0
@@ -2033,11 +2033,11 @@ packages:
       - typescript
     dev: true
 
-  /@typescript-eslint/visitor-keys/5.54.0:
-    resolution: {integrity: sha512-xu4wT7aRCakGINTLGeyGqDn+78BwFlggwBjnHa1ar/KaGagnmwLYmlrXIrgAaQ3AE1Vd6nLfKASm7LrFHNbKGA==}
+  /@typescript-eslint/visitor-keys/5.54.1:
+    resolution: {integrity: sha512-q8iSoHTgwCfgcRJ2l2x+xCbu8nBlRAlsQ33k24Adj8eoVBE0f8dUeI+bAa8F84Mv05UGbAx57g2zrRsYIooqQg==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dependencies:
-      '@typescript-eslint/types': 5.54.0
+      '@typescript-eslint/types': 5.54.1
       eslint-visitor-keys: 3.3.0
     dev: true
 
@@ -3176,8 +3176,8 @@ packages:
       source-map: 0.6.1
     dev: false
 
-  /eslint-config-prettier/8.6.0_eslint@8.35.0:
-    resolution: {integrity: sha512-bAF0eLpLVqP5oEVUFKpMA+NnRFICwn9X8B5jrR9FcqnYBuPbqWEjTEspPWMj5ye6czoSLDweCzSo3Ko7gGrZaA==}
+  /eslint-config-prettier/8.7.0_eslint@8.35.0:
+    resolution: {integrity: sha512-HHVXLSlVUhMSmyW4ZzEuvjpwqamgmlfkutD53cYXLikh4pt/modINRcCIApJ84czDxM4GZInwUrromsDdTImTA==}
     hasBin: true
     peerDependencies:
       eslint: '>=7.0.0'
@@ -4582,8 +4582,8 @@ packages:
     dev: false
     optional: true
 
-  /lucia-auth/0.7.3:
-    resolution: {integrity: sha512-mFvoOQB4o3nxZfRg7w0f71elz8RbPhJhqWVydD6+tkVxrDRusMf8HDsdgrOaodKRDwH6NcH+nHKa6cBoR1x1xw==}
+  /lucia-auth/0.8.0:
+    resolution: {integrity: sha512-YWjPntkyzGJzqNkI8EbTj3Dhs9IU1yHI7ET6K9CyCOCYAhZ6vfq0ujRPW8gVgBMqovEToO7TXM3I9p3ad1deow==}
     dependencies:
       '@noble/hashes': 1.2.0
       nanoid: 4.0.1
@@ -4858,8 +4858,8 @@ packages:
       - supports-color
     dev: false
 
-  /mongoose/7.0.0:
-    resolution: {integrity: sha512-U0YPURDld+k/nvvSG1mRClQSjZMRXwQKSU5yb9PslRnOmVz0UlBD7SjSnjUuGT0yk+7BH+kJNimsKqMxYAKkMA==}
+  /mongoose/7.0.1:
+    resolution: {integrity: sha512-fxm2bPRG457Hb8RLwN8cMCokK8HNem/7g+qp5SrHC7Pt4Z4jqn1+/3cuc8W7uqehKDWEtpirggI7uw08x2ZIjQ==}
     engines: {node: '>=14.0.0'}
     dependencies:
       bson: 5.0.1
@@ -6243,8 +6243,8 @@ packages:
     resolution: {integrity: sha512-ot0WnXS9fgdkgIcePe6RHNk1WA8+muPa6cSjeR3V8K27q9BB1rTE3R1p7Hv0z1ZyAc8s6Vvv8DIyWf681MAt0w==}
     engines: {node: '>= 0.4'}
 
-  /svelte-check/3.0.4_gqx7lw3sljhsd4bstor5m2aa2u:
-    resolution: {integrity: sha512-feIyBAA5cSIxq4vq6mwGvGQTHy/wBVQbs5b+/VvE21WN8X7nonAuSqwvZv0UDBowzRka3Rh4gmLPH8rPePz3/w==}
+  /svelte-check/3.1.0_gqx7lw3sljhsd4bstor5m2aa2u:
+    resolution: {integrity: sha512-aSdnsGtndfqtb0dmN5qm9Zjl7wGpqh3cWF35WVCcK96TmGn2NEar4M40QW6bvaPPu089mrkZdpeD3Yar2SERBg==}
     hasBin: true
     peerDependencies:
       svelte: ^3.55.0
@@ -6369,8 +6369,8 @@ packages:
     resolution: {integrity: sha512-S+87/P0Ve67HxKkEV23iCdAh/SX1xiSfjF1HOglno/YTbSTW7RniICMCofWGdJJbdjw3S+0PfFb1JtGfTXE0oQ==}
     engines: {node: '>= 8'}
 
-  /sveltekit-superforms/0.5.17_okbb5ngh5mru22ikvy7qq7guwe:
-    resolution: {integrity: sha512-7iz//Yrk9xm16uVdVRUqoey1lWIycfoM5hFkcTizwxY3hOpNH1uI0gemSWMiX5m4gMjEmNV9AdRtsWkkawjfTA==}
+  /sveltekit-superforms/0.5.20_plqwprvqqbbmysahtgouqoofyi:
+    resolution: {integrity: sha512-D3yjiS3woM0MmKy+Hn/8NyZVvDmmpRWVAvJCxagU+7D3zcFN2+kc2pD7oPupovO4PbSBC69RlL/ZqXTCyD8mhw==}
     peerDependencies:
       '@sveltejs/kit': 1.x
       svelte: 3.x
@@ -6378,7 +6378,7 @@ packages:
     dependencies:
       '@sveltejs/kit': 1.10.0_svelte@3.55.1+vite@4.1.4
       svelte: 3.55.1
-      zod: 3.21.0
+      zod: 3.21.4
     dev: true
 
   /symbol-tree/3.2.4:
@@ -7063,6 +7063,6 @@ packages:
       readable-stream: 3.6.0
     dev: false
 
-  /zod/3.21.0:
-    resolution: {integrity: sha512-UYdykTcVxB6lfdyLzAqLyyYAlOcpoluECvjsdoaqfQmz9p+3LRaIqYcNiL/J2kFYp66fBM8wwBvIGVEjq7KtZw==}
+  /zod/3.21.4:
+    resolution: {integrity: sha512-m46AKbrzKVzOzs/DZgVnG5H55N1sv1M8qZU3A8RIKbs3mrACDNeIOeilDymVb2HdmP8uwshOCF4uJ8uM9rCqJw==}
     dev: true

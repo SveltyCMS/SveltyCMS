@@ -10,7 +10,8 @@ const config = {
 	plugins: [sveltekit()],
 	define: {
 		__PACKAGE__: pkg
-	}
+	},
+	output: { preloadStrategy: 'preload-mjs' }
 };
 
 export default config;

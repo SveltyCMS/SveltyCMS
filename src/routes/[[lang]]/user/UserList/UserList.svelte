@@ -1,37 +1,13 @@
 <script lang="ts">
+	import { writable } from 'svelte/store';
+	import MultiButton from '$src/routes/[[lang]]/user/UserList/Multibutton.svelte';
+
 	//skelton
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from '../ModalEditForm.svelte';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	// Popup Tooltips
-	let EditSettings: PopupSettings = {
-		event: 'hover',
-		target: 'EditPopup',
-		placement: 'bottom'
-	};
-	let DeleteSettings: PopupSettings = {
-		event: 'hover',
-		target: 'DeletePopup',
-		placement: 'bottom'
-	};
-	let BlockSettings: PopupSettings = {
-		event: 'hover',
-		target: 'BlockPopup',
-		placement: 'bottom'
-	};
-	let UnblockSettings: PopupSettings = {
-		event: 'hover',
-		target: 'UnblockPopup',
-		placement: 'bottom'
-	};
-
-	let multiSelectSettings: PopupSettings = {
-		event: 'click', // Set the event as: click | hover | hover-click
-		target: 'multiSelect' // Provide a matching 'data-popup' value.
-	};
 
 	function modalUserForm(): void {
 		const modalComponent: ModalComponent = {
@@ -105,11 +81,6 @@
 	// State to keep track of the selected user
 	let selectedUser: any;
 
-	// define Multifuntion default button
-	let multiButton = 'edit';
-
-	import { writable } from 'svelte/store';
-
 	// tanStack Table
 
 	// TODO - -Preplace with Table Columns data
@@ -131,6 +102,7 @@
 		getSortedRowModel,
 		type TableOptions
 	} from '@tanstack/svelte-table';
+	import Multibutton from '$src/routes/[[lang]]/user/UserList/Multibutton.svelte';
 
 	// TODO: Grab real data
 	const defaultData: User[] = [
@@ -236,6 +208,7 @@
 	const table = createSvelteTable(options);
 </script>
 
+<Multibutton />
 <h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
 Cant get Vaild Invites from DB
 <!-- <table>
@@ -367,9 +340,10 @@ Cant get Vaild Invites from DB
 						</td>
 					{/each}
 
-					<td>
-						<button on:click={modalUserForm}>Edit</button>
-						<button on:click={modalConfirm} class="bg-error-500">Delete</button>
+					<td
+						><Multibutton />
+						<!-- <button on:click={modalUserForm}>Edit</button>
+						<button on:click={modalConfirm} class="bg-error-500">Delete</button> -->
 					</td>
 				</tr>
 			{/each}
@@ -413,127 +387,11 @@ Cant get Vaild Invites from DB
 				<td class="px-2">{user.email}</td>
 				<td class="px-2">Add Last Access</td>
 				<td class="px-2">Add First Access</td>
-				<td>
-					<button on:click={modalUserForm}>Edit</button>
-					<button on:click={modalConfirm} class="bg-error-500">Delete</button>
+				<td class="relative">
+					<!-- <button on:click={modalUserForm}>Edit</button>
+					<button on:click={modalConfirm} class="bg-error-500">Delete</button> -->
 				</td>
 			</tr>
 		{/each}
 	</tbody>
 </table>
-
-<!-- create/delete/block/unblock -->
-<div class="flex items-center justify-center">
-	<!-- the actual buttons -->
-	<div class="relative inline-flex shadow-md hover:shadow-lg focus:shadow-lg" role="group">
-		{#if multiButton == 'edit'}
-			<button
-				use:popup={EditSettings}
-				on:click={modalUserForm}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-tertiary-600 via-tertiary-500 to-tertiary-400 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-			>
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
-					Edit User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="material-symbols:edit" width="14" class="mr-1" />
-				<div class="hidden md:block">Edit</div>
-			</button>
-		{:else if multiButton == 'delete'}
-			<button
-				use:popup={DeleteSettings}
-				on:click={modalConfirm}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				><!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled-secondary p-4" data-popup="DeletePopup">
-					Delete User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="bi:trash3-fill" color="white" width="14" class="mr-1" />
-				<div class="hidden md:block">Delete</div>
-			</button>
-		{:else if multiButton == 'block'}
-			<button
-				use:popup={BlockSettings}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-			>
-				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled-secondary p-4" data-popup="BlockPopup">
-					Block User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="material-symbols:lock" color="white" width="14" class="mr-1" />
-				<div class="hidden md:block">Block</div>
-			</button>
-		{:else if multiButton == 'unblock'}
-			<button
-				use:popup={UnblockSettings}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-surface-700 via-surface-500 to-surface-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				><!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled-secondary p-4" data-popup="UnblockPopup">
-					Unblock User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-
-				<Icon icon="material-symbols:lock-open" color="white" width="14" class="mr-1" />
-				<div class="hidden md:block">Unblock</div>
-			</button>
-		{/if}
-
-		<!-- Dropdown selection -->
-		<button
-			use:popup={multiSelectSettings}
-			class="relabsolute  mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
-		>
-			<Icon icon="mdi:chevron-down" width="14" /></button
-		>
-
-		<nav
-			class="card list-nav mt-14 mr-1 w-42 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-			data-popup="multiSelect"
-		>
-			<ul>
-				{#if multiButton != 'edit'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
-						>
-							<span><Icon icon="material-symbols:edit" width="14" /></span>
-							<span class="font-bold">Edit</span>
-						</button>
-					</li>{/if}
-				{#if multiButton != 'delete'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-error-700 via-error-600 to-error-400 font-bold text-white"
-						>
-							<span><Icon icon="bi:trash3-fill" width="14" /></span>
-							<span class="font-bold">Delete</span>
-						</button>
-					</li>
-				{/if}
-				{#if multiButton != 'block'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white "
-						>
-							<span><Icon icon="material-symbols:lock" width="14" /></span>
-							<span class="font-bold">Block</span>
-						</button>
-					</li>
-				{/if}
-				{#if multiButton != 'unblock'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-surface-700 via-surface-500 to-surface-300 font-bold text-white "
-						>
-							<span><Icon icon="material-symbols:lock-open" width="14" /></span>
-							<span class="font-bold">Unblock</span>
-						</button>
-					</li>
-				{/if}
-			</ul>
-		</nav>
-	</div>
-</div>

@@ -38,7 +38,7 @@
 	let SwitchThemeSettings: PopupSettings = {
 		event: 'hover',
 		target: 'SwitchTheme',
-		placement: 'bottom'
+		placement: 'top'
 	};
 	let SignOutTooltip: PopupSettings = {
 		event: 'hover',
@@ -282,7 +282,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 			{#if switchSideBar}
 				<div
 					hidden={toggleLeftSideBar}
-					class="grid overflow-hidden grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
+					class="grid grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
 				>
 					<div class="md:row-span-2">
 						<!-- Avatar with user settings -->
@@ -300,7 +300,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					<button
 						use:popup={SwitchThemeSettings}
 						on:click={toggleTheme}
-						class="!overflow-x-auto btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+						class="!overflow-visible btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 					>
 						{#if $is_dark}
 							<Icon icon="bi:sun" width="16" />

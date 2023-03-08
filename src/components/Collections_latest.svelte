@@ -14,6 +14,7 @@
 	import { createEventDispatcher } from 'svelte';
 
 	let categoriesPopup: PopupSettings[] = [];
+
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
@@ -36,7 +37,7 @@
 			categoriesPopup.push({
 				event: 'click',
 				target: category.category,
-				placement: 'bottom',
+				placement: 'right',
 				closeQuery: '.listbox-item'
 			});
 			return {
@@ -55,7 +56,7 @@
 			<!-- Desktop Collection Parent -->
 			<!-- TODO On search display ALL results -->
 			<!-- TODO Fix onclick for first Open to Close as well -->
-			<AccordionItem open={index === 0} padding="p-2" data-popup={item.category}>
+			<AccordionItem open={index === 0} data-popup={item.category}>
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
 					<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -89,14 +90,14 @@
 					</ListBox>
 				</svelte:fragment>
 			</AccordionItem>
-			<div class="card variant-filled-secondary p-4" data-popup="examplePopup">
+			<div class="card variant-filled-secondary" data-popup={item.category}>
 				Some text goes here.
 				<!-- Append the arrow element -->
 				<div class="arrow variant-filled-secondary" />
 			</div>
 		{:else}
 			<!-- Mobile Collection Parent -->
-			<AccordionItem open={index === 0} padding="px-0 py-2">
+			<AccordionItem open={index === 0} padding="py-2 px-4">
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
 					<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -109,7 +110,7 @@
 
 				<!-- Mobile Collection Childern -->
 				<svelte:fragment slot="content">
-					<ListBox padding="px-0" rounded="rounded-none" class="divide-y space-y-0 ">
+					<ListBox rounded="rounded-none" class="divide-y space-y-0">
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
 								bind:group={item.category}
