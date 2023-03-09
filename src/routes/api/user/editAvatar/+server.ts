@@ -2,9 +2,9 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { json } from '@sveltejs/kit';
 import to from 'await-to-js';
-import { Buffer } from 'buffer';
 import { User } from '$lib/models/user-model';
 import sharp from 'sharp';
+import fs from 'fs';
 
 // Define a function to handle HTTP POST requests
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -44,8 +44,26 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
-	// Generate a data URL for the resized image
-	const resizedDataUrl = `data:${mimType};base64,${b64data.toString('base64')}`;
+	// base folder for saving user medias
+	let basePath = 'src/media'
+	let path = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.png`
+
+	try {
+		if (!fs.existsSync(basePath)) {
+			fs.mkdirSync(basePath);
+		}
+		let buff = Buffer.from(b64data, 'base64');
+		fs.writeFileSync(path, buff);
+	} catch (err) {
+		console.log(err)
+		return json(
+			{ message: 'Error uploading image to directory' },
+			{
+				status: 500
+			}
+		);
+	}
+
 
 	// Update the user's avatar field in the MongoDB database
 	await User.findOneAndUpdate(
@@ -53,13 +71,13 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			_id: user?.userId
 		},
 		{
-			avatar: resizedDataUrl
+			avatar: path
 		}
 	);
 
 	// Return a JSON response with a success message and the URL of the resized image
 	return json(
-		{ message: 'Uploaded avatar successfully', resizedDataUrl },
+		{ message: 'Uploaded avatar successfully', path },
 		{
 			status: 200
 		}

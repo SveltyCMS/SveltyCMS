@@ -20,7 +20,6 @@ export async function saveFormData(collection: Schema) {
 
 	for (const getData of get(getFieldsData)) {
 		const data = await getData();
-
 		for (const key in data) {
 			if (data[key] instanceof FileList) {
 				for (const _key in data[key]) {
@@ -67,7 +66,6 @@ export async function saveData(
 	doc_id?: string,
 	insert?: boolean
 ) {
-	// console.log(collection);
 
 	const oldData_id = doc_id || get(entryData)?._id;
 	//if formData object is empty then:

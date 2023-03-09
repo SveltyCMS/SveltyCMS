@@ -3,11 +3,12 @@
 	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import { entryData, language } from '$src/stores/store';
 	import { never } from '$src/lib/utils/utils_svelte';
-	import { flattenData } from '$src/lib/utils/utils';
+	import { find, flattenData } from '$src/lib/utils/utils';
 	import showFieldsStore from '$src/lib/stores/fieldStore';
 	import Form from './Form.svelte';
 	import DeleteIcon from './icons/DeleteIcon.svelte';
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+	import schemas from '$src/collections';
 
 	//export let open = false; // animate hamburger
 	export let switchSideBar = false;
@@ -28,6 +29,9 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import type { Schema } from '$src/collections/types';
+	import { onMount } from 'svelte';
+	import entryListTableStore from '$src/lib/stores/entryListTable';
 
 	// Popup Tooltips
 	let CreateSettings: PopupSettings = {
@@ -87,6 +91,12 @@
 	let tmp_entry: any;
 	let showsearch = false;
 
+	// const fetchAllCollectionData = async (collection: Schema) => {
+	// 	entryList = await find({}, collection);
+	// };
+
+	// fetchAllCollectionData(collection);
+
 	$: process_deleteAll(deleteAll);
 	$: deleteMode = Object.values(deleteMap).includes(true);
 	let refresh_deleteMap = (_: any) => {
@@ -94,19 +104,20 @@
 	};
 
 	$: refresh_deleteMap(collection);
-	export let refresh: (collection: any) => Promise<any>;
-	// onMount(() => {
-	// 	refresh = async (collection: any) => {
-	// 		entryList = [];
+	export let refresh = async (collection: any) => {
+		entryList = [];
 
-	// 		({ entryList, totalCount: paging.totalCount } = await axios
-	// 			.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
-	// 			.then((data) => data.data));
-	// 		totalPages = Math.ceil(paging.totalCount / paging.entryLength);
-	// 		deleteMap = {};
-	// 	};
-	// });
+		({ entryList, totalCount: paging.totalCount } = await axios
+			.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
+			.then((data) => data.data));
+		totalPages = Math.ceil(paging.totalCount / paging.entryLength);
+		deleteMap = {};
+	};
 	$: refresh && refresh(collection);
+
+	$: entryList = $entryListTableStore.entryList;
+	$: totalPages = $entryListTableStore.totalPages;
+	$: deleteMap = $entryListTableStore.deleteMap;
 
 	async function deleteEntry() {
 		const confirm: ModalSettings = {
@@ -136,7 +147,6 @@
 
 		deleteAll = false;
 	}
-
 	let filter: any = '';
 	let filtered_entryList = [...entryList];
 	$: {
@@ -355,6 +365,7 @@
 					<button
 						use:popup={CreateSettings}
 						on:click={() => {
+							('herer');
 							$showFieldsStore.showForm = true;
 						}}
 						class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
@@ -629,7 +640,7 @@
 						{#key $language}
 							{#each collection.fields as field}
 								{((tmp_entry = flattenData(entry, $language)), '')}
-								{#await field?.display?.(tmp_entry[field.db_fieldName], field, tmp_entry)}
+								{#await field?.display?.(tmp_entry[field?.db_fieldName], field, tmp_entry)}
 									<td class="">{$LL.ENTRYLIST_Loading()}</td>
 								{:then display}
 									{((entry.displays = {}), '')}

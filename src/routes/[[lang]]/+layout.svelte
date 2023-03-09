@@ -71,14 +71,34 @@
 
 	// ======================save data =======================
 	import axios from 'axios';
+	import entryListTableStore from '$src/lib/stores/entryListTable';
 
 	async function signOut() {
 		await invalidateAll();
 	}
+	let paging = { page: 1, entryLength: 10, totalCount: 0, lengthList: [10, 25, 50, 100, 500] };
+	let totalPages = 0;
+	let deleteMap: any = {};
+	let refresh = async (collection: any) => {
+		let entryList = [];
+
+		({ entryList, totalCount: paging.totalCount } = await axios
+			.get(`/api/${collection.name}?page=${paging.page}&length=${paging.entryLength}`)
+			.then((data) => data.data));
+		totalPages = Math.ceil(paging.totalCount / paging.entryLength);
+		deleteMap = {};
+
+		return { entryList, totalPages, deleteMap };
+	};
 
 	async function submit() {
 		await saveFormData(collection);
-		refresh(collection);
+		const { deleteMap, entryList, totalPages } = await refresh(collection);
+		entryListTableStore.set({
+			deleteMap,
+			entryList,
+			totalPages
+		});
 		//showFields = false;
 		$entryData = undefined;
 		const t: ToastSettings = {
@@ -130,13 +150,13 @@
 	let progress = 0;
 	let submitDisabled = false;
 
-	let avatarSrc = $user?.avatar;
+	$: avatarSrc = $user?.avatar;
 	let deleteMode: boolean;
 
 	let valid = false;
 	let collection = collections[0];
 	let fields: any;
-	let refresh: (collection: any) => Promise<any>;
+	// let refresh: (collection: any) => Promise<any>;
 	let category = categories[0].category;
 
 	const handleCategoryClick = (e: any) => {
@@ -315,7 +335,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 						<!-- System Language i18n Handeling -->
-						<LocaleSwitcher />
+						<!-- <LocaleSwitcher /> -->
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
@@ -328,7 +348,6 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						action="?/signOut"
 						method="post"
 						use:enhance={async (e) => {
-							console.log(e);
 							invalidateAll();
 						}}
 						class="-mt-2"
