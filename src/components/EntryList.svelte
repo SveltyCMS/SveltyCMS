@@ -17,12 +17,6 @@
 	export let category = 'Some';
 	export let fields: any;
 
-	export let toggleLeftSideBar = true;
-	export let onClickHambuger = (): void => {
-		// open = !open;
-		toggleLeftSideBar = !toggleLeftSideBar;
-	};
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
@@ -232,13 +226,10 @@
 
 <Modal />
 
-<div class="relative -mt-[65px] md:mt-0">
+<div class="relative md:mt-0">
 	<div class="mb-2 flex items-center gap-2">
 		{#if !switchSideBar}
-			<!-- mobile and tablet hamburger 
-			
-		--><AnimatedHamburger {onClickHambuger} />
-			<!-- <AnimatedHamburger on:click={onClickHamburger} /> -->
+			<AnimatedHamburger />
 		{/if}
 		<div class="flex flex-col">
 			{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">

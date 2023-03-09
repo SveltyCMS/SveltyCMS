@@ -32,7 +32,6 @@
 
 {#if $showFieldsStore.showField}
 	<EntryList
-		bind:toggleSideBar
 		bind:deleteMode
 		{fields}
 		{collection}

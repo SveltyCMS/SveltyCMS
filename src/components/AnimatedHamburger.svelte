@@ -1,14 +1,20 @@
 <script lang="ts">
-	export let open = false;
-	export let onClickHambuger = (): void => {
-		open = !open;
-	};
+	let open = false;
+
+	import { toggleLeftSidebar } from '$src/stores/store';
 
 	export let ariaLabel = 'toggle menu';
 	export let width: string | number = 45;
 </script>
 
-<button on:click={onClickHambuger} aria-expanded={open} aria-label={ariaLabel}>
+<button
+	on:click={() => {
+		toggleLeftSidebar.update((n) => !n);
+		open = !open;
+	}}
+	aria-expanded={open}
+	aria-label={ariaLabel}
+>
 	<svg class:open viewBox="0 0 100 100" fill="none" stroke="currentColor" stroke-width="5" {width}>
 		<path
 			class="top"

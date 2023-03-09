@@ -112,12 +112,12 @@
 	}
 	//shape_fields(collection.fields).then((data) => (fields = data));
 
-	export let toggleLeftSideBar = false;
-	//export let open = false;
-	export let onClickHambuger = (): void => {
-		// open = !open;
-		toggleLeftSideBar = !toggleLeftSideBar;
-	};
+	import { toggleLeftSidebar } from '$src/stores/store';
+
+	var leftSidebarOn: boolean;
+	toggleLeftSidebar.subscribe((n) => {
+		leftSidebarOn = n;
+	});
 
 	// show/hide Right Sidebar
 	let toggleRightSideBar = true;
@@ -150,7 +150,7 @@
 	slotSidebarLeft="!overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col items-center z-10 
 {switchSideBar ? 'w-[225px]' : 'w-[85px]'}
-{toggleLeftSideBar ? 'hidden' : 'block'}"
+{leftSidebarOn ? 'hidden' : 'block'}"
 	slotSidebarRight="bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative {toggleRightSideBar
 		? 'hidden'
 		: 'block'} "
@@ -168,8 +168,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<strong class="text-xl uppercase">{PUBLIC_SITENAME}</strong>
 			</svelte:fragment>
 
-			<button on:click={() => (toggleLeftSideBar = !toggleLeftSideBar)} class="btn btn-base"
-				>SD-Left</button
+			<button on:click={() => (leftSidebarOn = !leftSidebarOn)} class="btn btn-base">SD-Left</button
 			>
 
 			<button
@@ -193,7 +192,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 	<!-- Sidebar Left -->
 	<svelte:fragment slot="sidebarLeft">
 		{#if !switchSideBar}
-			<AnimatedHamburger {onClickHambuger} />
+			<AnimatedHamburger />
 		{/if}
 
 		<!-- Corporate Identity -->
@@ -281,7 +280,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 			{#if switchSideBar}
 				<div
-					hidden={toggleLeftSideBar}
+					hidden={leftSidebarOn}
 					class="grid grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
 				>
 					<div class="md:row-span-2">
