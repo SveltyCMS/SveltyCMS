@@ -37,7 +37,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 };
 
 export const POST: RequestHandler = async ({ params, request }) => {
-	// console.log(params);
 	const collection = collections[params.collection];
 	const data = await request.formData();
 
@@ -50,7 +49,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		}
 	}
 	if (!collection) return new Response('collection not found!!');
-	const files = saveFiles(data, params.collection);
+
+	const files = saveFiles(request, params.collection);
 
 	return new Response(JSON.stringify(await collection.insertMany({ ...body, ...files })));
 };

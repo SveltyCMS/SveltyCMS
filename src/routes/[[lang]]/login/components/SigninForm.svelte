@@ -121,6 +121,7 @@
 		const validationResult = signInSchema.safeParse({ obj_to_test: value });
 		if (!validationResult.success) {
 			addWigglingToForm();
+
 			validationResult.error.errors.forEach((error) => {
 				errorStatus[obj_to_test].status = true;
 				errorStatus[obj_to_test].msg = error.message;
@@ -167,6 +168,7 @@
 						}
 
 						if (result.type === 'failure') {
+							addWigglingToForm();
 							isWiggling = true;
 							result?.data?.errors &&
 								result?.data?.errors.forEach((error) => {
