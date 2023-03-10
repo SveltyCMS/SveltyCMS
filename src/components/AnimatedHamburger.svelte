@@ -1,7 +1,10 @@
 <script lang="ts">
-	let open = false;
-
 	import { toggleLeftSidebar } from '$src/stores/store';
+	let open: boolean;
+
+	toggleLeftSidebar.subscribe((n) => {
+		open = !n;
+	});
 
 	export let ariaLabel = 'toggle menu';
 	export let width: string | number = 45;
@@ -10,7 +13,6 @@
 <button
 	on:click={() => {
 		toggleLeftSidebar.update((n) => !n);
-		open = !open;
 	}}
 	aria-expanded={open}
 	aria-label={ariaLabel}

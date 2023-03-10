@@ -183,7 +183,7 @@
 
 <!-- App Shell -->
 <AppShell
-	slotSidebarLeft="!overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
+	slotSidebarLeft="w-auto !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col items-center z-10 
 {switchSideBar ? 'w-[225px]' : 'w-[85px]'}
 {leftSidebarOn ? 'hidden' : 'block'}"
