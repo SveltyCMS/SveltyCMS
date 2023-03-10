@@ -204,7 +204,8 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<strong class="text-xl uppercase">{PUBLIC_SITENAME}</strong>
 			</svelte:fragment>
 
-			<button on:click={() => (leftSidebarOn = !leftSidebarOn)} class="btn btn-base">SD-Left</button
+			<button on:click={() => toggleLeftSidebar.update((n) => !n)} class="btn btn-base"
+				>SD-Left</button
 			>
 
 			<button

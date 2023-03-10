@@ -2,7 +2,8 @@
 	"name": "SimpleCMS",
 	"version": "0.0.3",
 	"scripts": {
-		"dev": "LAUNCH_EDITOR='code' npm-run-all --parallel vite typesafe-i18n",
+		"dev": "npm-run-all --parallel vite typesafe-i18n",
+		"devv": "LAUNCH_EDITOR='code' npm-run-all --parallel vite typesafe-i18n",
 		"vite": "vite dev --open",
 		"build": "vite build",
 		"package": "svelte-kit package",

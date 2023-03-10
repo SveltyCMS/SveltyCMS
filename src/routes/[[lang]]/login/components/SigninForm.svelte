@@ -6,7 +6,7 @@
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import PUBLIC_SITENAME from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
 	// TODO: forgotton not working
@@ -15,6 +15,9 @@
 	import z from 'zod';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
+	import Loading from '$src/components/Loading.svelte';
+
+	let isLoading = false;
 
 	let isWiggling = false;
 
@@ -34,7 +37,7 @@
 			return;
 		}
 
-		loading = true;
+		isLoading = true;
 
 		try {
 			const { data } = await axios.post('/api/forgotPassword', { email });
@@ -55,7 +58,7 @@
 		} catch (error) {
 			// handle error
 		} finally {
-			loading = false;
+			isLoading = false;
 		}
 	};
 
@@ -162,6 +165,7 @@
 				method="post"
 				action="?/authUser"
 				use:enhance={(e) => {
+					isLoading = true;
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							goto('/');
@@ -176,99 +180,104 @@
 									errorStatus[error.field].msg = error.message;
 								});
 						}
+						isLoading = false;
 					};
 				}}
 			>
-				<!-- Email field -->
-				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
-					<input
-						bind:value={email}
-						on:keydown={() => (errorStatus.email.status = false)}
-						color={errorStatus.email.status ? 'red' : 'base'}
-						type="email"
-						name="email"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-						placeholder=" "
-						required
-						on:blur={() => zodValidate('email', email)}
-					/>
-					<label
-						for="email"
-						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
-					>
-					{#if errorStatus.email.status}
-						<div class="absolute top-11 left-0 text-xs text-error-500">
-							{errorStatus.email.msg}
-						</div>
-					{/if}
-				</div>
-
-				<!-- Password field -->
-				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-500" />
-					{#if showPassword}
+				{#if !isLoading}
+					<!-- Email field -->
+					<div class="group relative z-0 mb-6 w-full">
+						<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 						<input
-							bind:value={password}
-							on:keydown={() => (errorStatus.password.status = false)}
-							color={errorStatus.password.status ? 'red' : 'base'}
-							type="text"
-							name="password"
-							autocomplete="current-password"
-							id="password"
+							bind:value={email}
+							on:keydown={() => (errorStatus.email.status = false)}
+							color={errorStatus.email.status ? 'red' : 'base'}
+							type="email"
+							name="email"
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 							placeholder=" "
 							required
-							on:blur={() => zodValidate('password', password)}
+							on:blur={() => zodValidate('email', email)}
 						/>
-					{:else}
-						<input
-							bind:value={password}
-							on:keydown={() => (errorStatus.password.status = false)}
-							color={errorStatus.password.status ? 'red' : 'base'}
-							type="password"
-							name="password"
-							autocomplete="current-password"
-							id="password"
-							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-							placeholder=" "
-							required
-							on:blur={() => zodValidate('password', password)}
-						/>
-					{/if}
-					<label
-						for="password"
-						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
-					>
-
-					<!-- svelte-ignore a11y-click-events-have-key-events -->
-					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
-						{#if showPassword}
-							<Icon icon="bi:eye-fill" class="text-surface-500" width="24" />
-						{:else}
-							<Icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
+						<label
+							for="email"
+							class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+							>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
+						>
+						{#if errorStatus.email.status}
+							<div class="absolute top-11 left-0 text-xs text-error-500">
+								{errorStatus.email.msg}
+							</div>
 						{/if}
 					</div>
 
-					{#if errorStatus.password.status}
-						<div class="absolute top-11 left-0 text-xs text-error-500">
-							{errorStatus.password.msg}
-						</div>
-					{/if}
-				</div>
-				<div class="buttons">
-					<button class="btn btn-sm mt-4 rounded-lg border bg-surface-700 text-white "
-						>{$LL.LOGIN_SignIn()}</button
-					>
+					<!-- Password field -->
+					<div class="group relative z-0 mb-6 w-full">
+						<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+						{#if showPassword}
+							<input
+								bind:value={password}
+								on:keydown={() => (errorStatus.password.status = false)}
+								color={errorStatus.password.status ? 'red' : 'base'}
+								type="text"
+								name="password"
+								autocomplete="current-password"
+								id="password"
+								class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+								placeholder=" "
+								required
+								on:blur={() => zodValidate('password', password)}
+							/>
+						{:else}
+							<input
+								bind:value={password}
+								on:keydown={() => (errorStatus.password.status = false)}
+								color={errorStatus.password.status ? 'red' : 'base'}
+								type="password"
+								name="password"
+								autocomplete="current-password"
+								id="password"
+								class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+								placeholder=" "
+								required
+								on:blur={() => zodValidate('password', password)}
+							/>
+						{/if}
+						<label
+							for="password"
+							class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+							>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
+						>
 
-					<button
-						on:click={() => (forgot = true)}
-						class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700 "
-						>{$LL.LOGIN_ForgottenPassword()}</button
-					>
-				</div>
+						<!-- svelte-ignore a11y-click-events-have-key-events -->
+						<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+							{#if showPassword}
+								<Icon icon="bi:eye-fill" class="text-surface-500" width="24" />
+							{:else}
+								<Icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
+							{/if}
+						</div>
+
+						{#if errorStatus.password.status}
+							<div class="absolute top-11 left-0 text-xs text-error-500">
+								{errorStatus.password.msg}
+							</div>
+						{/if}
+					</div>
+					<div class="buttons">
+						<button class="btn btn-sm mt-4 rounded-lg border bg-surface-700 text-white "
+							>{$LL.LOGIN_SignIn()}</button
+						>
+
+						<button
+							on:click={() => (forgot = true)}
+							class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700 "
+							>{$LL.LOGIN_ForgottenPassword()}</button
+						>
+					</div>
+				{:else}
+					<Loading />
+				{/if}
 			</form>
 		</div>
 	{:else if resetPW && !forgot}
@@ -278,6 +287,7 @@
 			method="post"
 			action="?/resetPassword"
 			use:enhance={(e) => {
+				isLoading = true;
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						resetPW = false; // switch back to the signup page by changing the forgot variable
@@ -292,6 +302,7 @@
 								errorStatus[error.field].msg = error.message;
 							});
 					}
+					isLoading = false;
 				};
 			}}
 		>
@@ -305,144 +316,148 @@
 			</div>
 			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
-			<!-- Password field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
-				{#if showPassword}
-					<input
-						bind:value={password}
-						on:keydown={() => (errorStatus.password.status = false)}
-						color={errorStatus.password.status ? 'red' : 'base'}
-						type="text"
-						name="password"
-						autocomplete="current-password"
-						id="password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-						placeholder=" "
-					/>{:else}
-					<input
-						bind:value={password}
-						on:keydown={() => (errorStatus.password.status = false)}
-						color={errorStatus.password.status ? 'red' : 'base'}
-						type="password"
-						name="password"
-						autocomplete="current-password"
-						id="password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-						placeholder=" "
-					/>{/if}
-				<label
-					for="password"
-					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
-				>
-
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+			{#if !isLoading}
+				<!-- Password field -->
+				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 					{#if showPassword}
-						<Icon icon="bi:eye-fill" color="base" width="24" />
-					{:else}
-						<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+						<input
+							bind:value={password}
+							on:keydown={() => (errorStatus.password.status = false)}
+							color={errorStatus.password.status ? 'red' : 'base'}
+							type="text"
+							name="password"
+							autocomplete="current-password"
+							id="password"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							placeholder=" "
+						/>{:else}
+						<input
+							bind:value={password}
+							on:keydown={() => (errorStatus.password.status = false)}
+							color={errorStatus.password.status ? 'red' : 'base'}
+							type="password"
+							name="password"
+							autocomplete="current-password"
+							id="password"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							placeholder=" "
+						/>{/if}
+					<label
+						for="password"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
+					>
+
+					<!-- svelte-ignore a11y-click-events-have-key-events -->
+					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+						{#if showPassword}
+							<Icon icon="bi:eye-fill" color="base" width="24" />
+						{:else}
+							<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+						{/if}
+					</div>
+
+					{#if errorStatus.password.status}
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.password.msg}
+						</div>
 					{/if}
 				</div>
 
-				{#if errorStatus.password.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.password.msg}
-					</div>
-				{/if}
-			</div>
+				<!-- Password Confirm -->
+				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+					{#if showPassword}
+						<input
+							bind:value={confirmPassword}
+							on:keydown={() => (errorStatus.confirm_password.status = false)}
+							color={errorStatus.confirm_password.status ? 'red' : 'base'}
+							type="text"
+							name="confirm_password"
+							id="confirm_password"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							placeholder=" "
+						/><label
+							for="confirm_password"
+							class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+							>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+						>
+					{:else}
+						<input
+							bind:value={confirmPassword}
+							on:keydown={() => (errorStatus.confirm_password.status = false)}
+							color={errorStatus.confirm_password.status ? 'red' : 'base'}
+							type="password"
+							name="confirm_password"
+							id="confirm_password"
+							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+							placeholder=" "
+						/>
+						<label
+							for="confirm_password"
+							class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+							>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+						>{/if}
 
-			<!-- Password Confirm -->
-			<div class="group relative z-0 mb-6 w-full">
-				<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
-				{#if showPassword}
+					<!-- svelte-ignore a11y-click-events-have-key-events -->
+					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
+						{#if showPassword}
+							<Icon icon="bi:eye-fill" color="base" width="24" />
+						{:else}
+							<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+						{/if}
+					</div>
+
+					{#if errorStatus.confirm_password.status}
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.confirm_password.msg}
+						</div>
+					{/if}
+				</div>
+
+				<!-- Registration Token -->
+				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:key-chain" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 					<input
-						bind:value={confirmPassword}
-						on:keydown={() => (errorStatus.confirm_password.status = false)}
-						color={errorStatus.confirm_password.status ? 'red' : 'base'}
+						bind:value={token}
+						on:keydown={() => (errorStatus.token.status = false)}
+						color={errorStatus.token.status ? 'red' : 'base'}
 						type="text"
-						name="confirm_password"
-						id="confirm_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-						placeholder=" "
-					/><label
-						for="confirm_password"
-						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-					>
-				{:else}
-					<input
-						bind:value={confirmPassword}
-						on:keydown={() => (errorStatus.confirm_password.status = false)}
-						color={errorStatus.confirm_password.status ? 'red' : 'base'}
-						type="password"
-						name="confirm_password"
-						id="confirm_password"
+						name="token"
+						id="token"
 						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
 						placeholder=" "
 					/>
 					<label
-						for="confirm_password"
+						for="token"
 						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-					>{/if}
+						>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
+					>
 
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
-				<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
-					{#if showPassword}
-						<Icon icon="bi:eye-fill" color="base" width="24" />
-					{:else}
-						<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+					{#if errorStatus.token.status}
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.token.msg}
+						</div>
 					{/if}
 				</div>
 
-				{#if errorStatus.confirm_password.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.confirm_password.msg}
-					</div>
-				{/if}
-			</div>
-
-			<!-- Registration Token -->
-			<div class="group relative z-0 mb-6 w-full">
-				<Icon icon="mdi:key-chain" width="18" class="absolute top-3.5 left-0 text-gray-400" />
-				<input
-					bind:value={token}
-					on:keydown={() => (errorStatus.token.status = false)}
-					color={errorStatus.token.status ? 'red' : 'base'}
-					type="text"
-					name="token"
-					id="token"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-					placeholder=" "
-				/>
-				<label
-					for="token"
-					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
-				>
-
-				{#if errorStatus.token.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.token.msg}
-					</div>
-				{/if}
-			</div>
-
-			<div class="flex gap-4 items-center mt-4">
-				<button type="submit" class="btn btn-sm rounded-lg border bg-surface-600 text-white"
-					>{$LL.LOGIN_ResetPasswordSave()}</button
-				>
-				<button
-					on:click={() => {
-						resetPW = false;
-						forgot = false;
-					}}
-					class="btn btn-sm text-surface-600 "
-					><Icon icon="mdi:arrow-left-circle" width="36" /></button
-				>
-			</div>
+				<div class="flex gap-4 items-center mt-4">
+					<button type="submit" class="btn btn-sm rounded-lg border bg-surface-600 text-white"
+						>{$LL.LOGIN_ResetPasswordSave()}</button
+					>
+					<button
+						on:click={() => {
+							resetPW = false;
+							forgot = false;
+						}}
+						class="btn btn-sm text-surface-600 "
+						><Icon icon="mdi:arrow-left-circle" width="36" /></button
+					>
+				</div>
+			{:else}
+				<Loading />
+			{/if}
 		</form>
 	{:else}
 		<!-- Forgotton Password -->
@@ -451,6 +466,7 @@
 			method="post"
 			action="?/forgotPassword"
 			use:enhance={(e) => {
+				isLoading = true;
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						forgot = false; // reset forgotton variable
@@ -466,6 +482,7 @@
 								errorStatus[error.field].msg = error.message;
 							});
 					}
+					isLoading = false;
 				};
 			}}
 		>
@@ -479,46 +496,50 @@
 			</div>
 			<div class="-mt-2 mb-2 text-xs text-right text-error-500">{$LL.LOGIN_Required()}</div>
 
-			<!-- Email field -->
-			<div class="group relative z-0 mb-6 w-full">
-				<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+			{#if !isLoading}
+				<!-- Email field -->
+				<div class="group relative z-0 mb-6 w-full">
+					<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 
-				<input
-					bind:value={forgottonemail}
-					on:keydown={() => (errorStatus.forgottonemail.status = false)}
-					color={errorStatus.forgottonemail.status ? 'red' : 'base'}
-					type="email"
-					name="forgottonemail"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
-					placeholder=" "
-					required
-				/>
-				<label
-					for="forgottonemail"
-					class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
-				>
+					<input
+						bind:value={forgottonemail}
+						on:keydown={() => (errorStatus.forgottonemail.status = false)}
+						color={errorStatus.forgottonemail.status ? 'red' : 'base'}
+						type="email"
+						name="forgottonemail"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
+						placeholder=" "
+						required
+					/>
+					<label
+						for="forgottonemail"
+						class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
+					>
 
-				{#if errorStatus.forgottonemail.status}
-					<div class="absolute top-11 left-0 text-xs text-error-500">
-						{errorStatus.forgottonemail.msg}
-					</div>
-				{/if}
-			</div>
+					{#if errorStatus.forgottonemail.status}
+						<div class="absolute top-11 left-0 text-xs text-error-500">
+							{errorStatus.forgottonemail.msg}
+						</div>
+					{/if}
+				</div>
 
-			<div class="flex gap-4 items-center mt-4">
-				<button type="submit" class="btn btn-sm rounded-lg border bg-surface-600 text-white"
-					>{$LL.LOGIN_SendResetMail()}</button
-				>
-				<button
-					on:click={() => {
-						forgot = false;
-						resetPW = false;
-					}}
-					class="btn btn-sm text-surface-600 "
-					><Icon icon="mdi:arrow-left-circle" width="36" /></button
-				>
-			</div>
+				<div class="flex gap-4 items-center mt-4">
+					<button type="submit" class="btn btn-sm rounded-lg border bg-surface-600 text-white"
+						>{$LL.LOGIN_SendResetMail()}</button
+					>
+					<button
+						on:click={() => {
+							forgot = false;
+							resetPW = false;
+						}}
+						class="btn btn-sm text-surface-600 "
+						><Icon icon="mdi:arrow-left-circle" width="36" /></button
+					>
+				</div>
+			{:else}
+				<Loading />
+			{/if}
 		</form>
 	{/if}
 </div>

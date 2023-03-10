@@ -160,13 +160,8 @@
 		modalStore.trigger(d);
 	}
 
-	export let toggleLeftSideBar = true;
 	//export let open = false;
 	export let switchSideBar = false;
-
-	export let onClickHambuger = (): void => {
-		toggleLeftSideBar = !toggleLeftSideBar;
-	};
 
 	//TODO: Get Roles from allowed user
 	let roles: Record<string, boolean> = {
@@ -184,7 +179,7 @@
 <div class="flex mr-1 align-centre mb-2">
 	{#if !switchSideBar}
 		<!-- mobile and tablet hamburger -->
-		<AnimatedHamburger {onClickHambuger} />
+		<AnimatedHamburger />
 	{/if}
 	<!-- mobile hamburger -->
 	<h1 class="">{$LL.USER_Profile()}</h1>
