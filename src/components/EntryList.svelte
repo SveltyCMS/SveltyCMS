@@ -238,7 +238,7 @@
 
 {#if !$showFieldsStore.showForm}
 	<div class="relative md:mt-0">
-		<div class="mb-2 flex items-center gap-2">
+		<div class="mb-2 flex items-center gap-2 flex-wrap">
 			{#if !switchSideBar}
 				<AnimatedHamburger />
 			{/if}
@@ -565,7 +565,7 @@
 		</div>
 
 		<!-- TODO: Link to Colletion widgetValue -->
-		<div class="flex flex-wrap gap-2 space-x-2">
+		<div class="mb-2 flex flex-wrap gap-2 space-x-2">
 			{#each Object.keys(tableColumns) as r}
 				<span
 					class="chip {tableColumns[r] ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"

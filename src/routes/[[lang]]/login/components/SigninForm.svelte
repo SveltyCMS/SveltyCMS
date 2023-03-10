@@ -6,7 +6,7 @@
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
 
-	import PUBLIC_SITENAME from '$env/static/public';
+	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
 	// TODO: forgotton not working
