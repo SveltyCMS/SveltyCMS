@@ -340,8 +340,7 @@ Cant get Vaild Invites from DB
 						</td>
 					{/each}
 
-					<td
-						><Multibutton />
+					<td>
 						<!-- <button on:click={modalUserForm}>Edit</button>
 						<button on:click={modalConfirm} class="bg-error-500">Delete</button> -->
 					</td>

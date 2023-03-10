@@ -62,7 +62,7 @@
 					bind:group={listboxValue}
 					name="medium"
 					value="create"
-					active="variant-filled-primary"
+					active="!variant-filled-primary"
 					hover="hover:bg-gradient-to-br hover:from-primary-700 hover:via-primary-600 hover:to-primary-400"
 					><svelte:fragment slot="lead"
 						><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment

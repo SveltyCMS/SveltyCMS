@@ -418,7 +418,7 @@
 			value={progress}
 			stroke:2000
 			meter="stroke-primary-500"
-			class="mt-1 mr-6 w-24 text-2xl text-white">{progress}%</ProgressRadial
+			class="mt-1 mr-6 w-22 text-2xl text-white">{progress}%</ProgressRadial
 		>
 		<div class="mb-2">
 			<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
