@@ -10,7 +10,7 @@ export const GET: RequestHandler = async ({ params, url }) => {
 
 	return new Response(
 		JSON.stringify({
-			entryList: await collection.find().skip(skip).limit(length),
+			entryList: await collection.find().skip(skip).limit(length).sort({ updatedAt: 'desc' }),
 			totalCount: await collection.countDocuments()
 		})
 	);

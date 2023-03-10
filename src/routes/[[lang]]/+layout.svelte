@@ -99,7 +99,7 @@
 			entryList,
 			totalPages
 		});
-		//showFields = false;
+		$showFieldsStore.showForm = false;
 		$entryData = undefined;
 		const t: ToastSettings = {
 			message: $LL.SBL_Save_message(),
@@ -163,6 +163,22 @@
 		$showFieldsStore.collection_index = e.detail.collection_index;
 		$showFieldsStore.category_index = e.detail.category_index;
 	};
+
+	// mobile detection
+	import { browser } from '$app/environment';
+
+	let isMobile = false;
+
+	// bypass window is not defined error
+	if (browser) {
+		isMobile = window.matchMedia('only screen and (max-width: 480px)').matches;
+	}
+
+	$: if (isMobile) {
+		toggleTopSideBar = !$showFieldsStore.showForm;
+	} else {
+		toggleRightSideBar = !$showFieldsStore.showForm;
+	}
 </script>
 
 <!-- App Shell -->
@@ -433,7 +449,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 	<svelte:fragment slot="pageHeader">
 		<!-- Mobile Save -->
 
-		<button class="btn variant-filled-primary my-1 ">
+		<button class="btn variant-filled-primary my-1" on:click={submit}>
 			<span><Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" /></span>
 			Save</button
 		>
@@ -442,7 +458,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 		<!-- Mobile Close -->
 		<button
-			on:click={() => (toggleTopSideBar = !toggleTopSideBar)}
+			on:click={() => ((toggleTopSideBar = !toggleTopSideBar), ($showFieldsStore.showForm = false))}
 			class="btn absolute top-2 right-2">Close</button
 		>
 	</svelte:fragment>

@@ -32,6 +32,7 @@
 	export let fields: Array<any> = [];
 	export let collection: Schema | undefined = undefined;
 	export let showFields = true;
+	import showFieldsStore from '$src/lib/stores/fieldStore';
 
 	$: {
 		$getFieldsData = new Set();
@@ -87,7 +88,7 @@
 		<button
 			use:popup={CloseMenuSettings}
 			on:click={() => {
-				showFields = false;
+				$showFieldsStore.showForm = false;
 				$entryData = new Set();
 			}}
 			class="btn absolute right-0 hidden dark:text-white md:block"
