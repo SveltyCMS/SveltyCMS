@@ -21,6 +21,30 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
+	//TODO add 2nd check for filesize and type
+
+	// Check the file type
+	// const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+	// if (!allowedTypes.includes(file.type)) {
+	// 	return json(
+	// 		{ message: 'File type not supported' },
+	// 		{
+	// 			status: 400
+	// 		}
+	// 	);
+	// }
+
+	// Check the file size
+	// const allowedSize = 5 1024 1024; // 5 MB
+	// if (file.size > allowedSize) {
+	// return json(
+	// { message: 'File size exceeds the limit' },
+	// {
+	// status: 400
+	// }
+	// );
+	// }
+
 	// Validate user credentials and get user information from the session
 	const { user } = await locals.validateUser();
 
