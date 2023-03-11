@@ -34,7 +34,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	const buffer = Buffer.from(imageData, 'base64');
 
 	// Resize the image to 200x200 pixels using the sharp library
-	const [err, b64data] = await to(sharp(buffer).resize(200, 200).toBuffer());
+
+	const [err, b64data] = await to(sharp(buffer).resize(200, 200).toFormat('webp').toBuffer());
 	if (err) {
 		return json(
 			{ message: 'Could not resize image' },
@@ -45,8 +46,8 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// base folder for saving user medias
-	let basePath = 'src/media'
-	let path = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.png`
+	let basePath = 'src/media';
+	let path = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
 
 	try {
 		if (!fs.existsSync(basePath)) {
@@ -55,7 +56,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		let buff = Buffer.from(b64data, 'base64');
 		fs.writeFileSync(path, buff);
 	} catch (err) {
-		console.log(err)
+		console.log(err);
 		return json(
 			{ message: 'Error uploading image to directory' },
 			{
@@ -63,7 +64,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		);
 	}
-
 
 	// Update the user's avatar field in the MongoDB database
 	await User.findOneAndUpdate(
