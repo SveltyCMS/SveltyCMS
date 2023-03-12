@@ -51,14 +51,11 @@
 			return 'bg-surface-600 text-white dark:bg-white dark:text-surface-600';
 		}
 	};
-
-	//class="badge -my-1 -mx-1 mr-1 border bg-surface-600 text-white dark:bg-white dark:text-surface-600"
 </script>
 
 <!-- TODO: Reduce Pre/Sufix Margings -->
-<!-- TODO: Fix Badge text count colors" -->
 
-<div class="input-group  grid-cols-[auto_1fr_auto]">
+<div class="input-group grid-cols-[auto_1fr_auto]">
 	{#if field.prefix}
 		<div class="text-surface-600 dark:text-surface-200">{field.prefix}</div>
 	{/if}

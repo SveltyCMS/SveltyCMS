@@ -1,4 +1,7 @@
 <script lang="ts">
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	import Cropper from '$src/components/Cropper.svelte';
 	import { saveEditedImage } from '$src/stores/store';
 	import { saveData } from '$src/lib/utils/utils_svelte';
@@ -74,6 +77,23 @@
 			saveEditedImage.set(false);
 		});
 	}
+
+	// zod validation
+	// TODO check input value
+	import z from 'zod';
+	const zod_obj: Record<string, z.ZodString> = {
+		name: z
+			.string({ required_error: 'Name Required' })
+			.max(24, { message: 'max 24 Characteres' })
+			.trim()
+	};
+
+	let errorStatus: Record<string, { status: boolean; msg: string }> = {
+		general: { status: false, msg: '' },
+		name: { status: false, msg: '' }
+	};
+
+	const zodValidate = (obj_to_test: string, value: string) => {};
 </script>
 
 <input
@@ -93,7 +113,34 @@
 	bind:crop_top
 	bind:crop_bottom
 />
-<lable class="my-2" for="#input-text">Name</lable>
-<div class="w-full">
-	<input type="text" id="input-text" bind:value={name} />
+<!-- <lable class="my-2" for="#input-text">Name</lable>
+
+<input class="input" placeholder="Image Name" type="text" id="input-text" bind:value={name} /> -->
+
+<!-- Image Name-->
+<div class="group relative z-0 mb-6 w-full">
+	<Icon icon="bi:images" width="24" class="absolute top-3.5 left-0 text-primary-500" />
+
+	<!-- on:keydown={() => (errorStatus.name.status = false)}
+	color={errorStatus.name.status ? 'red' : 'base'}
+	on:blur={() => zodValidate('name', name)} -->
+	<input
+		bind:value={name}
+		type="text"
+		name="name"
+		class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-surface-500 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+		placeholder=" "
+	/>
+	<label
+		for="name"
+		class="absolute top-3 left-6 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+	>
+		Image Name<span class="ml-2 text-error-500">*</span>
+	</label>
+	<!-- 
+	{#if errorStatus.name.status}
+		<div class="absolute top-11 left-0 text-xs text-error-500">
+			{errorStatus.name.msg}
+		</div>
+	{/if} -->
 </div>
