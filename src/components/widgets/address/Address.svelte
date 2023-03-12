@@ -120,122 +120,123 @@
 	}
 </script>
 
-<address>
-	<!-- TODO: MAP geocoding 
+{#if PUBLIC_MAPBOX_API_TOKEN}
+	<address>
+		<!-- TODO: MAP geocoding 
 		allow user to switch maps-->
-	Mapbox needs more work
-	<div use:initMap class="max-h-[550px] w-full">
-		<div class=" mb-1 flex justify-between gap-2">
-			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
-			>
-			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><Icon
-					icon="bi:pin-map"
-					width="16"
-					class="mr-2 "
-				/>{$LL.WIDGET_Address_GetAddress()}</button
-			>
-		</div>
-	</div>
-
-	<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
-	<div class="flex justify-center gap-2 ">
-		<input
-			required
-			type="text"
-			id="latitude"
-			name="latitude"
-			autocomplete="latitude"
-			placeholder={$LL.WIDGET_Address_Latitude()}
-			class="input rounded-md"
-		/>
-
-		<input
-			required
-			type="text"
-			id="longitude"
-			name="longitude"
-			autocomplete="longitude"
-			placeholder={$LL.WIDGET_Address_Longitude()}
-			class="input rounded-md"
-		/>
-	</div>
-	<br />
-
-	<form>
-		<label for="name">{$LL.WIDGET_Address_Name()}</label>
-		<input
-			required
-			type="text"
-			id="name"
-			name="name"
-			autocomplete="name"
-			placeholder={$LL.WIDGET_Address_Name()}
-			class="input rounded-md"
-		/>
-
-		<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
-		<input
-			type="text"
-			id="street-address"
-			name="street-address"
-			autocomplete="street-address"
-			placeholder={$LL.WIDGET_Address_Street()}
-			required
-			enterkeyhint="next"
-			class="input rounded-md"
-		/>
-
-		<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
-		<input
-			required
-			type="text"
-			id="postal-code"
-			name="postal-code"
-			placeholder={$LL.WIDGET_Address_Zip()}
-			autocomplete="postal-code"
-			enterkeyhint="next"
-			class="input rounded-md"
-		/>
-
-		<label for="city">{$LL.WIDGET_Address_City()}</label>
-		<input
-			required
-			type="text"
-			id="city"
-			name="city"
-			placeholder={$LL.WIDGET_Address_City()}
-			autocomplete="city"
-			enterkeyhint="next"
-			class="input rounded-md"
-		/>
-
-		<!-- Country with search Combobox -->
-		<div>
-			<button class="btn variant-filled w-48 justify-between" use:popup={CountryCombobox}>
-				<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
-				<i class="fa-solid fa-caret-down opacity-50" />
-			</button>
-			<div class="card w-48 shadow-xl overflow-hidden" data-popup="CountryCombobox">
-				<ListBox rounded="rounded-none">
-					{#each filteredCountries as country}
-						<!-- add system-language -->
-						<ListBoxItem
-							class="flex gap-2"
-							name="medium"
-							value={country.en}
-							bind:group={listboxValue}
-						>
-							<span class="fi fi-{country.alpha2} mt-1" />
-							{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
-						</ListBoxItem>
-					{/each}
-				</ListBox>
+		Mapbox needs more work
+		<div use:initMap class="max-h-[550px] w-full">
+			<div class=" mb-1 flex justify-between gap-2">
+				<button class="variant-filled-primary btn btn-base rounded-md text-white"
+					><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
+				>
+				<button class="variant-filled-primary btn btn-base rounded-md text-white"
+					><Icon
+						icon="bi:pin-map"
+						width="16"
+						class="mr-2 "
+					/>{$LL.WIDGET_Address_GetAddress()}</button
+				>
 			</div>
 		</div>
 
-		<!-- <label class="relative mt-3">
+		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
+		<div class="flex justify-center gap-2 ">
+			<input
+				required
+				type="text"
+				id="latitude"
+				name="latitude"
+				autocomplete="latitude"
+				placeholder={$LL.WIDGET_Address_Latitude()}
+				class="input rounded-md"
+			/>
+
+			<input
+				required
+				type="text"
+				id="longitude"
+				name="longitude"
+				autocomplete="longitude"
+				placeholder={$LL.WIDGET_Address_Longitude()}
+				class="input rounded-md"
+			/>
+		</div>
+		<br />
+
+		<form>
+			<label for="name">{$LL.WIDGET_Address_Name()}</label>
+			<input
+				required
+				type="text"
+				id="name"
+				name="name"
+				autocomplete="name"
+				placeholder={$LL.WIDGET_Address_Name()}
+				class="input rounded-md"
+			/>
+
+			<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
+			<input
+				type="text"
+				id="street-address"
+				name="street-address"
+				autocomplete="street-address"
+				placeholder={$LL.WIDGET_Address_Street()}
+				required
+				enterkeyhint="next"
+				class="input rounded-md"
+			/>
+
+			<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
+			<input
+				required
+				type="text"
+				id="postal-code"
+				name="postal-code"
+				placeholder={$LL.WIDGET_Address_Zip()}
+				autocomplete="postal-code"
+				enterkeyhint="next"
+				class="input rounded-md"
+			/>
+
+			<label for="city">{$LL.WIDGET_Address_City()}</label>
+			<input
+				required
+				type="text"
+				id="city"
+				name="city"
+				placeholder={$LL.WIDGET_Address_City()}
+				autocomplete="city"
+				enterkeyhint="next"
+				class="input rounded-md"
+			/>
+
+			<!-- Country with search Combobox -->
+			<div>
+				<button class="btn variant-filled w-48 justify-between" use:popup={CountryCombobox}>
+					<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
+					<i class="fa-solid fa-caret-down opacity-50" />
+				</button>
+				<div class="card w-48 shadow-xl overflow-hidden" data-popup="CountryCombobox">
+					<ListBox rounded="rounded-none">
+						{#each filteredCountries as country}
+							<!-- add system-language -->
+							<ListBoxItem
+								class="flex gap-2"
+								name="medium"
+								value={country.en}
+								bind:group={listboxValue}
+							>
+								<span class="fi fi-{country.alpha2} mt-1" />
+								{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
+							</ListBoxItem>
+						{/each}
+					</ListBox>
+				</div>
+			</div>
+
+			<!-- <label class="relative mt-3">
 			<input
 				bind:value={selectedCountry}
 				on:keyup={searchCountry}
@@ -269,5 +270,6 @@
 				</ul>
 			</nav>
 		</label> -->
-	</form>
-</address>
+		</form>
+	</address>
+{/if}
