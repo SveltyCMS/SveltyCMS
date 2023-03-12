@@ -1,9 +1,4 @@
 <script lang="ts">
-	import showFieldsStore from '$src/lib/stores/fieldStore';
-
-	// define default button
-	let multiButton = 'edit';
-
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
@@ -39,30 +34,95 @@
 		target: 'multiSelect' // Provide a matching 'data-popup' value.
 	};
 
-	let listboxValue: string;
-	let exampleCombobox: PopupSettings = {
+	let listboxValue: string = 'create';
+	let Combobox: PopupSettings = {
 		event: 'click',
-		target: 'exampleCombobox',
+		target: 'Combobox',
 		placement: 'bottom',
 		closeQuery: '.listbox-item'
 		// state: (e: any) => console.log('tooltip', e)
 	};
+
+	import { Toast, toastStore } from '@skeletonlabs/skeleton';
+	import type { ToastSettings } from '@skeletonlabs/skeleton';
+
+	function toastDemo(): void {
+		const t: ToastSettings = {
+			message: listboxValue,
+			background: 'bg-error-400',
+			callback: (response) => console.log(response)
+		};
+		toastStore.trigger(t);
+	}
+
+	const getButtonAndIconValues = (listboxValue: string) => {
+		let buttonClass = '';
+		let iconValue = '';
+
+		switch (listboxValue) {
+			case 'create':
+				buttonClass = 'bg-gradient-to-br from-primary-700 via-primary-600 to-primary-400';
+				iconValue = 'material-symbols:edit';
+				break;
+			case 'delete':
+				buttonClass = 'bg-gradient-to-br from-error-700 via-error-500 to-error-300';
+				iconValue = 'bi:trash3-fill';
+				break;
+			case 'unblock':
+				buttonClass = 'bg-gradient-to-br from-yellow-600 via-yellow-500 to-yellow-400';
+				iconValue = 'material-symbols:lock-open';
+				break;
+			case 'block':
+				buttonClass = 'bg-gradient-to-br from-pink-700 via-pink-500 to-pink-400';
+				iconValue = 'material-symbols:lock';
+				break;
+			default:
+				buttonClass = 'variant-filled';
+				iconValue = 'material-symbols:edit';
+				break;
+		}
+
+		return {
+			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
+			iconValue
+		};
+	};
 </script>
 
-<!-- Combobox -->
-<div>
-	<button class="btn variant-ghost-surface w-48 justify-between" use:popup={exampleCombobox}>
-		<span class="capitalize">{listboxValue ?? 'create'}</span>
-		<Icon icon="mdi:chevron-down" width="20" />
+<!-- Multibuttongroup-->
+<div class="btn-group rounded-md">
+	<!-- Action button  -->
+
+	<button
+		type="button"
+		on:click={toastDemo}
+		class="{getButtonAndIconValues(listboxValue)
+			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
+	>
+		<Icon
+			icon={getButtonAndIconValues(listboxValue).iconValue}
+			width="20"
+			class="text-white mr-2"
+		/>
+		{listboxValue ?? 'create'}
 	</button>
-	<div class="card w-48 shadow-xl overflow-hiddens" data-popup="exampleCombobox">
+
+	<span class="border border-white" />
+
+	<!-- Dropdown button -->
+	<button class="bg-surface-500 rounded-r-sm" use:popup={Combobox}>
+		<Icon icon="mdi:chevron-down" width="20" class="text-white" />
+	</button>
+
+	<!-- Dropdown/Listbox -->
+	<div class="card w-48 shadow-xl overflow-hiddens" data-popup="Combobox">
 		<ListBox rounded="rounded-none" active="variant-filled-primary" hover="hover:bg-surface-300">
 			{#if listboxValue != 'create'}
 				<ListBoxItem
 					bind:group={listboxValue}
 					name="medium"
 					value="create"
-					active="!variant-filled-primary"
+					active="variant-filled-primary"
 					hover="hover:bg-gradient-to-br hover:from-primary-700 hover:via-primary-600 hover:to-primary-400"
 					><svelte:fragment slot="lead"
 						><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
@@ -90,7 +150,8 @@
 					bind:group={listboxValue}
 					name="medium"
 					value="unblock"
-					hover="hover:bg-gradient-to-br hover:from-tertiary-600 hover:via-tertiary-500 hover:to-tertiary-400"
+					active="bg-yellow-500"
+					hover="hover:bg-gradient-to-br hover:from-yellow-600 hover:via-yellow-500 hover:to-yellow-400"
 					><svelte:fragment slot="lead"
 						><Icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment
 					>
@@ -103,6 +164,7 @@
 					bind:group={listboxValue}
 					name="medium"
 					value="block"
+					active="bg-pink-700"
 					hover="hover:bg-gradient-to-br hover:from-pink-700 hover:via-pink-500 hover:to-pink-400"
 					><svelte:fragment slot="lead"
 						><Icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment
@@ -113,131 +175,3 @@
 		</ListBox>
 	</div>
 </div>
-
-<!-- create/delete/block/unblock
-<div class="flex items-center justify-center ">
-	
-	<div class="relative inline-flex shadow-md hover:shadow-lg focus:shadow-lg" role="group">
-		{#if multiButton == 'edit'}
-			<button
-				use:popup={EditSettings}
-				on:click={() => {
-					$showFieldsStore.multibutton = true;
-				}}
-				class="relative flex w-[60px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-tertiary-600 via-tertiary-500 to-tertiary-400 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-			>
-				
-				<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
-					Edit User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="material-symbols:edit" width="14" class="mr-1" />
-				<div class="hidden sm:block text-xs">Edit</div>
-			</button>
-		{:else if multiButton == 'delete'}
-			<button
-				use:popup={DeleteSettings}
-				on:click={() => {
-					$showFieldsStore.multibutton = true;
-				}}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				>
-				<div class="card variant-filled-secondary p-4" data-popup="DeletePopup">
-					Delete User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="bi:trash3-fill" color="white" width="14" />
-				<div class="hidden md:block">Delete</div>
-			</button>
-		{:else if multiButton == 'block'}
-			<button
-				use:popup={BlockSettings}
-				on:click={() => {
-					$showFieldsStore.multibutton = true;
-				}}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-			>
-				
-				<div class="card variant-filled-secondary p-4" data-popup="BlockPopup">
-					Block User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-				<Icon icon="material-symbols:lock" color="white" width="14" />
-				<div class="hidden md:block">Block</div>
-			</button>
-		{:else if multiButton == 'unblock'}
-			<button
-				use:popup={UnblockSettings}
-				on:click={() => {
-					$showFieldsStore.multibutton = true;
-				}}
-				class="relative flex w-[30px] items-center justify-center rounded-l border-r-2 border-white bg-gradient-to-br from-surface-700 via-surface-500 to-surface-300 px-2 py-2 font-bold text-white md:ml-auto md:w-[150px]"
-				>
-				<div class="card variant-filled-secondary p-4" data-popup="UnblockPopup">
-					Unblock User
-					<div class="arrow variant-filled-secondary" />
-				</div>
-
-				<Icon icon="material-symbols:lock-open" color="white" width="14" />
-				<div class="hidden md:block">Unblock</div>
-			</button>
-		{/if}
-
-		
-		<button
-			use:popup={{ menu: 'multiSelect', interactive: true }}
-			class="relabsolute  mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
-		>
-			<Icon icon="mdi:chevron-down" width="20" /></button
-		>
-
-		<nav
-			class="card list-nav mt-14 mr-1 w-42 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-			data-popup="multiSelect"
-		>
-			<ul>
-				{#if multiButton != 'edit'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
-						>
-							<span><Icon icon="material-symbols:edit" width="14" /></span>
-							<span class="font-bold">Edit</span>
-						</button>
-					</li>
-				{/if}
-				{#if multiButton != 'delete'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-error-700 via-error-600 to-error-400 font-bold text-white"
-						>
-							<span><Icon icon="bi:trash3-fill" width="14" /></span>
-							<span class="font-bold">Delete</span>
-						</button>
-					</li>
-				{/if}
-				{#if multiButton != 'block'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white "
-						>
-							<span><Icon icon="material-symbols:lock" width="14" /></span>
-							<span class="font-bold">Block</span>
-						</button>
-					</li>
-				{/if}
-				{#if multiButton != 'unblock'}
-					<li>
-						<button
-							class="btn btn-base w-full bg-gradient-to-br from-surface-700 via-surface-500 to-surface-300 font-bold text-white "
-						>
-							<span><Icon icon="material-symbols:lock-open" width="14" /></span>
-							<span class="font-bold">Unblock</span>
-						</button>
-					</li>
-				{/if}
-			</ul>
-		</nav>
-	</div>
-</div>
--->
