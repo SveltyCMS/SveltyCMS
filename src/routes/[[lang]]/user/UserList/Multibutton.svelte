@@ -5,11 +5,13 @@
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { modalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import ModalEditForm from '../ModalEditForm.svelte';
 
 	// Popup Combobox
-	let listboxValue: string = 'create';
+	let listboxValue: string = 'edit';
 	let Combobox: PopupSettings = {
 		event: 'click',
 		target: 'Combobox',
@@ -18,71 +20,7 @@
 		//state: (e: any) => console.log('tooltip', e)
 	};
 
-	import { Toast, toastStore } from '@skeletonlabs/skeleton';
-	import type { ToastSettings } from '@skeletonlabs/skeleton';
-
-	function toastDemo(): void {
-		const t: ToastSettings = {
-			message: listboxValue,
-			background: getButtonAndIconValues(listboxValue).buttonClass
-
-			//callback: (response) => console.log(response)
-		};
-		toastStore.trigger(t);
-	}
-
-	const getButtonAndIconValues = (listboxValue: string, action: string) => {
-		let buttonClass = '';
-		let iconValue = '';
-
-		switch (listboxValue) {
-			case 'create':
-				buttonClass = 'bg-gradient-to-br from-primary-700 via-primary-700 to-primary-300';
-				iconValue = 'material-symbols:edit';
-				break;
-			case 'delete':
-				buttonClass = 'bg-gradient-to-br from-error-700 via-error-500 to-error-300';
-				iconValue = 'bi:trash3-fill';
-				break;
-			case 'unblock':
-				buttonClass = 'bg-gradient-to-br from-yellow-700 via-yellow-500 to-yellow-200';
-				iconValue = 'material-symbols:lock-open';
-				break;
-			case 'block':
-				buttonClass = 'bg-gradient-to-br from-pink-700 via-pink-600 to-pink-300';
-				iconValue = 'material-symbols:lock';
-				break;
-			default:
-				buttonClass = 'variant-filled';
-				iconValue = 'material-symbols:edit';
-				break;
-		}
-
-		if (action === 'create') {
-			// edit user
-			modalUserForm();
-		} else if (action === 'delete') {
-			// delete user
-			modalConfirm();
-		} else if (action === 'unblock') {
-			// unblock user
-			modalConfirm();
-		} else if (action === 'block') {
-			// block user
-			modalConfirm();
-		}
-
-		return {
-			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
-			iconValue
-		};
-	};
-
-	//skelton
-	import { modalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalEditForm from '../ModalEditForm.svelte';
-
+	// modals
 	function modalUserForm(): void {
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
@@ -108,17 +46,100 @@
 		modalStore.trigger(d);
 	}
 
-	function modalConfirm(): void {
+	function modalConfirm(action: 'delete' | 'block' | 'unblock'): void {
+		let modalTitle: string;
+		let modalBody: string;
+		let modalButtonText: string;
+
+		switch (action) {
+			case 'delete':
+				modalTitle = 'Please Confirm User Deletion';
+				modalBody = 'Are you sure you wish to delete this user?';
+				modalButtonText = 'Delete User';
+				break;
+			case 'block':
+				modalTitle = 'Please Confirm User Block';
+				modalBody = 'Are you sure you wish to block this user?';
+				modalButtonText = 'Block User';
+				break;
+			case 'unblock':
+				modalTitle = 'Please Confirm User Unblock';
+				modalBody = 'Are you sure you wish to unblock this user?';
+				modalButtonText = 'Unblock User';
+				break;
+			default:
+				throw new Error(`Invalid action ${action}`);
+		}
+
 		const d: ModalSettings = {
 			type: 'confirm',
-			title: 'Please Confirm User Deletion',
-			body: 'Are you sure you wish to proceed?',
+
+			// Data
+			title: modalTitle,
+			body: modalBody,
+			buttonTextConfirm: modalButtonText,
+
+			//TODO : Add corresponding buttonPositive color
+			// modalClasses: '!bg-gradient-to-br from-error-700 via-error-500 to-error-300',
+
+			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: (r: boolean) => {
-				if (r) console.log('response:', r);
+				if (r) console.log(`User ${action} confirmed`);
 			}
 		};
+
 		modalStore.trigger(d);
 	}
+
+	const getButtonAndIconValues = (listboxValue: string, action: string) => {
+		let buttonClass = '';
+		let iconValue = '';
+
+		switch (listboxValue) {
+			case 'edit':
+				buttonClass = 'bg-gradient-to-br from-primary-700 via-primary-700 to-primary-300';
+				iconValue = 'material-symbols:edit';
+				break;
+			case 'delete':
+				buttonClass = 'bg-gradient-to-br from-error-700 via-error-500 to-error-300';
+				iconValue = 'bi:trash3-fill';
+				break;
+			case 'unblock':
+				buttonClass = 'bg-gradient-to-br from-yellow-700 via-yellow-500 to-yellow-200';
+				iconValue = 'material-symbols:lock-open';
+				break;
+			case 'block':
+				buttonClass = 'bg-gradient-to-br from-pink-700 via-pink-600 to-pink-300';
+				iconValue = 'material-symbols:lock';
+				break;
+			default:
+				buttonClass = 'variant-filled';
+				iconValue = 'material-symbols:edit';
+				break;
+		}
+
+		// edit user
+		if (action === 'edit') {
+			modalUserForm();
+		}
+		// delete user
+		else if (action === 'delete') {
+			modalConfirm('delete');
+		}
+		// unblock user
+		else if (action === 'unblock') {
+			modalConfirm('unblock');
+		}
+		// block user
+		else if (action === 'block') {
+			modalConfirm('block');
+		}
+
+		return {
+			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
+			iconValue
+		};
+	};
 </script>
 
 <!-- Multibuttongroup-->
@@ -156,17 +177,17 @@
 		hover="hover:bg-surface-300"
 		class="divide-y"
 	>
-		{#if listboxValue != 'create'}
+		{#if listboxValue != 'edit'}
 			<ListBoxItem
 				bind:group={listboxValue}
 				name="medium"
-				value="create"
+				value="edit"
 				active="variant-filled-primary"
 				hover="hover:bg-gradient-to-br hover:from-primary-700 hover:via-primary-600 hover:to-primary-300"
 				><svelte:fragment slot="lead"
 					><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
 				>
-				Create
+				Edit
 			</ListBoxItem>
 		{/if}
 
