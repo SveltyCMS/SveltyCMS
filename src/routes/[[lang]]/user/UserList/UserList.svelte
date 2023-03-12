@@ -1,50 +1,8 @@
 <script lang="ts">
 	import { writable } from 'svelte/store';
-	import MultiButton from '$src/routes/[[lang]]/user/UserList/Multibutton.svelte';
+	import Multibutton from '$src/routes/[[lang]]/user/UserList/Multibutton.svelte';
 
 	//skelton
-	import { Modal, modalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalEditForm from '../ModalEditForm.svelte';
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	function modalUserForm(): void {
-		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
-			ref: ModalEditForm,
-			// Add your props as key/value pairs
-			props: { background: 'bg-red-500' },
-			// Provide default slot content as a template literal
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			// NOTE: title, body, response, etc are supported!
-			title: 'Edit User Data',
-			body: 'Modify your data and then press Save.',
-			component: modalComponent,
-			// Pass abitrary data to the component
-			response: (r: any) => {
-				if (r) console.log('response:', r);
-			},
-
-			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditForm }
-		};
-		modalStore.trigger(d);
-	}
-
-	function modalConfirm(): void {
-		const d: ModalSettings = {
-			type: 'confirm',
-			title: 'Please Confirm User Deletion',
-			body: 'Are you sure you wish to proceed?',
-			response: (r: boolean) => {
-				if (r) console.log('response:', r);
-			}
-		};
-		modalStore.trigger(d);
-	}
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -102,7 +60,6 @@
 		getSortedRowModel,
 		type TableOptions
 	} from '@tanstack/svelte-table';
-	import Multibutton from '$src/routes/[[lang]]/user/UserList/Multibutton.svelte';
 
 	// TODO: Grab real data
 	const defaultData: User[] = [
@@ -208,7 +165,7 @@
 	const table = createSvelteTable(options);
 </script>
 
-<Multibutton />
+<!-- <Multibutton /> -->
 <h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
 Cant get Vaild Invites from DB
 <!-- <table>
@@ -341,6 +298,7 @@ Cant get Vaild Invites from DB
 					{/each}
 
 					<td>
+						<!-- <Multibutton  /> -->
 						<!-- <button on:click={modalUserForm}>Edit</button>
 						<button on:click={modalConfirm} class="bg-error-500">Delete</button> -->
 					</td>
@@ -386,9 +344,8 @@ Cant get Vaild Invites from DB
 				<td class="px-2">{user.email}</td>
 				<td class="px-2">Add Last Access</td>
 				<td class="px-2">Add First Access</td>
-				<td class="relative">
-					<!-- <button on:click={modalUserForm}>Edit</button>
-					<button on:click={modalConfirm} class="bg-error-500">Delete</button> -->
+				<td>
+					<Multibutton />
 				</td>
 			</tr>
 		{/each}

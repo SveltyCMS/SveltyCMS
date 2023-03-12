@@ -13,7 +13,7 @@
 	let selectedCountry = 'DE';
 
 	// You must use E164 number format. It's guarantee the parsing and storing consistency. The library will always update (via binding) to E164 format.
-	let value = '+442071838750';
+	let value = '';
 
 	// Optional - Extended information about the parsed phone number
 	let parsedTelInput: { nationalNumber: any } | null = null;

@@ -105,7 +105,7 @@
 
 				<!-- Category name -->
 				<svelte:fragment slot="summary">
-					<p />
+					<p class="uppercase hidden">{item.category}</p>
 				</svelte:fragment>
 
 				<!-- Mobile Collection Childern -->

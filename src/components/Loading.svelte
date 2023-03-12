@@ -2,7 +2,7 @@
 	import Logo from '../components/icons/SimpleCMS_Logo.svelte';
 </script>
 
-<div class="absolute m-auto left-0 right-0 flex  justify-center items-center">
+<div class="absolute inset-0 flex justify-center items-center">
 	<div
 		class="relative border-4 border-error-500 rounded-full border-x-transparent h-[160px] w-[160px] "
 		id="loader"
