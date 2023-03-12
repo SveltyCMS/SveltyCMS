@@ -28,6 +28,15 @@
 			fields = await shape_fields(collection.fields);
 		})();
 	}
+
+	// initial show first collection
+	onMount(async () => {
+		$showFieldsStore = {
+			category_index: 0,
+			collection_index: 0,
+			showField: true
+		};
+	});
 </script>
 
 {#if $showFieldsStore.showField}

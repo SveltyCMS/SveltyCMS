@@ -369,13 +369,6 @@ export const actions: Actions = {
 			token: `${forgotPasswordToken}`,
 			link: `${link}`
 		});
-		// `Hi there,<br>
-		// <br>We received a request to reset your password. Your password reset token is:<br>
-		// <br>${forgotPasswordToken}<br>
-		// <br>Please follow the link below to reset your password:<br>
-		// <br>${link}<br>
-		// <br>If you did not request this reset, please disregard this message.<br>
-		// <br>Best regards,<br>The Support Team`;
 
 		try {
 			await sendMail(email, 'Forgot password', forgotPasswordToken, html);

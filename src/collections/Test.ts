@@ -85,7 +85,8 @@ const schema: Schema = {
 			prefix: 'EURO',
 			suffix: 'cent',
 			count: 10,
-
+			minlength: 2,
+			maxlength: 15,
 			placeholder: 'Enter Number',
 			localization: true,
 			required: true
@@ -97,6 +98,7 @@ const schema: Schema = {
 			placeholder: 'Enter Email',
 			required: true
 		}),
+
 		// widgets.Number({
 		// 	db_fieldName: 'Number',
 		// 	icon: 'carbon:character-whole-number',
@@ -129,7 +131,7 @@ const schema: Schema = {
 
 		widgets.Date({ db_fieldName: 'Date' }),
 
-		// isse with dayjs
+		// isseu with dayjs is this is actually required
 		// widgets.DateRange({ title: 'DateRange' }),
 
 		widgets.Url({
@@ -156,6 +158,3 @@ const schema: Schema = {
 	]
 };
 export default schema;
-
-// widgets.DateRange({ db_fieldName: "DateRange Not working", required: true }),
-// widgets.Date({ db_fieldName: "DateNot working", required: true }),
