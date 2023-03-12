@@ -162,6 +162,9 @@
 	const handleCategoryClick = (e: any) => {
 		$showFieldsStore.collection_index = e.detail.collection_index;
 		$showFieldsStore.category_index = e.detail.category_index;
+
+		collection = collections[e.detail.collection_index];
+		category = categories[e.detail.category_index].category;
 	};
 
 	// mobile detection

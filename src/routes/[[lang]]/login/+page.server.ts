@@ -131,10 +131,11 @@ export const actions: Actions = {
 			});
 		}
 		try {
-			const key = await auth.validateKeyPassword('email', email, password);
+			const key = await auth.useKey('email', email, password);
 			const session = await auth.createSession(key.userId);
 			locals.setSession(session);
 		} catch (error) {
+			console.log(error)
 			if (
 				error instanceof LuciaError &&
 				(error.message === 'AUTH_INVALID_KEY_ID' || error.message === 'AUTH_INVALID_PASSWORD')
@@ -218,9 +219,9 @@ export const actions: Actions = {
 			const count = await User.count();
 			if (count === 0) {
 				const res = await auth.createUser({
-					key: {
+					primaryKey: {
 						providerId: 'email',
-						providerUserId: email.toLowerCase(),
+						providerUserId: email,
 						password
 					},
 					attributes: {
@@ -282,7 +283,7 @@ export const actions: Actions = {
 			}
 
 			const res = await auth.createUser({
-				key: {
+				primaryKey: {
 					providerId: 'email',
 					providerUserId: email.toLowerCase(),
 					password
@@ -305,6 +306,7 @@ export const actions: Actions = {
 			const session = await auth.createSession(res.userId);
 			locals.setSession(session);
 		} catch (error) {
+			console.log(error)
 			if (
 				((error as any)?.code === 'P2002' && (error as any)?.message?.includes('email')) ||
 				(error instanceof LuciaError && error.message === 'AUTH_DUPLICATE_KEY_ID')
