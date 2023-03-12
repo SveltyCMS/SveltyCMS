@@ -404,6 +404,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 	<!-- Sidebar Right -->
 	<svelte:fragment slot="sidebarRight">
 		<!-- Desktop Save -->
+		<!-- TODO: User skeleton button for animation -->
 		<div class="my-3 flex items-center justify-between">
 			<button
 				on:click={submit}

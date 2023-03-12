@@ -2,6 +2,16 @@
 	import { language } from '$src/stores/store';
 	import { PUBLIC_LANGUAGE } from '$env/static/public';
 
+	// get current page url
+	import { onMount } from 'svelte';
+
+	let hostUrl: any;
+
+	onMount(() => {
+		hostUrl = window.location.origin;
+	});
+
+	// skeleton
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -21,6 +31,8 @@
 	let titleCharacterWidth = 0;
 	let description = '';
 	let descriptionCharacterWidth = 0;
+
+	let SeoPreviewToggle = false;
 
 	function calculateCharacterWidth(character: string, fontSize: number, fontFamily: string) {
 		const span = document.createElement('span');
@@ -151,7 +163,7 @@
 		}
 
 		// Check if the title has a power word
-		// TODO: Translation
+		// TODO: Translation still required
 		const powerWords = [
 			'amazing',
 			'attractive',
@@ -242,7 +254,7 @@
 		}
 
 		// Define the list of CTA keywords
-		// TODO: Translation
+		// TODO: Translation still required
 		const ctaKeywords = [
 			'buy',
 			'click here',
@@ -263,7 +275,6 @@
 		];
 
 		// Check if the title has a CTA keyword
-
 		for (const keyword of ctaKeywords) {
 			if (title.toLowerCase().includes(keyword)) {
 				suggestions.push({
@@ -297,6 +308,7 @@
 </script>
 
 <div class="input-container rounded">
+	<!-- TODO: Enhance color change of numbers only -->
 	<!-- svelte-ignore a11y-label-has-associated-control -->
 	<label
 		class={title.length >= 50 && title.length <= 60
@@ -362,16 +374,57 @@
 		class="input rounded-md"
 	/>
 </div>
-
+<!-- CTR display -->
 <div
-	class="dark:boder-white mt-2 border-y border-surface-500 dark:border-white dark:bg-transparent"
+	class="relative dark:boder-white mt-2 border-t border-surface-500 dark:border-white dark:bg-transparent"
 >
-	<h2 class="mb-1 pt-2 text-center text-2xl text-black underline dark:text-white">
-		{$LL.WIDGET_Seo_Suggetion_SeoPreview()}
+	<h2 class="text-center mt-2">
+		<span class="bg-surface-500 dark:bg-white rounded text-2xl text-white dark:text-black p-1"
+			>{$LL.WIDGET_Seo_Suggetion_SeoPreview()}</span
+		>
 	</h2>
-	<p class="text-md px-4 !text-surface-500">https://.....</p>
-	<h3 class="px-4 font-semibold text-tertiary-700">{title}</h3>
-	<p class=" mb-2 px-4 pb-4 text-lg text-black">{description}</p>
+
+	<!-- Toggle Desktop/Mobile buttons -->
+	<div class="absolute top-1 left-0 flex justify-between gap-2">
+		<button
+			on:click={() => (SeoPreviewToggle = !SeoPreviewToggle)}
+			class="{SeoPreviewToggle
+				? 'hidden'
+				: 'block'} btn variant-filled-tertiary flex items-center justify-center"
+		>
+			<Icon icon="ion:desktop-outline" width="20" class="mr-1" />
+			Desktop
+		</button>
+
+		<button
+			on:click={() => (SeoPreviewToggle = !SeoPreviewToggle)}
+			class="{SeoPreviewToggle
+				? 'block'
+				: 'hidden'} btn variant-filled-tertiary flex items-center justify-center"
+		>
+			<Icon icon="bi:phone" width="20" class="mr-1" />
+			Mobile
+		</button>
+	</div>
+
+	{#if SeoPreviewToggle}
+		<!-- mobile preview -->
+		<!-- TODO: add mobile login display -->
+		<div class="card variant-glass-secondary h-28 mt-4 p-4 max-w-sm mx-auto">
+			<p class="!text-xs px-4 text-surface-400 flex items-center ">
+				<Icon icon="mdi:world" width="18" class="text-white mr-2" />{hostUrl}
+			</p>
+			<h3 class="px-4 !font-medium text-primary-500">{title}</h3>
+			<p class=" mb-2 px-4 pb-4 text-lg text-black dark:text-white">{description}</p>
+		</div>
+	{:else}
+		<!-- desktop preview-->
+		<div class="card variant-glass-secondary h-28 mt-4 p-4">
+			<p class="!text-xs px-4 text-surface-400">{hostUrl}</p>
+			<h3 class="px-4 !font-medium text-primary-500">{title}</h3>
+			<p class=" mb-2 px-4 pb-4 text-lg text-black dark:text-white">{description}</p>
+		</div>
+	{/if}
 </div>
 
 <!-- Mobile -->
@@ -380,8 +433,9 @@
 	<div class="flex">
 		<ProgressRadial
 			value={progress}
+			stroke={200}
 			meter="stroke-primary-500"
-			class="mt-1 mr-6 w-20 text-2xl text-white sm:w-28">{progress}%</ProgressRadial
+			class="mt-1 mr-6 w-20  text-white sm:w-28">{progress}%</ProgressRadial
 		>
 		<div class="flex flex-col justify-start">
 			<div class="gap sm:flex sm:gap-4">
@@ -404,7 +458,7 @@
 					<span class="flex-auto">80 - 100</span>
 				</div>
 			</div>
-			<p class="mt-1 hidden text-justify sm:block">
+			<p class="mt-1 hidden text-justify !text-sm sm:block">
 				{$LL.WIDGET_Seo_Suggetion_Text()}
 			</p>
 		</div>
@@ -416,9 +470,9 @@
 	<div class="mt-2 flex items-center justify-center dark:text-white ">
 		<ProgressRadial
 			value={progress}
-			stroke:2000
+			stroke={200}
 			meter="stroke-primary-500"
-			class="mt-1 mr-6 w-22 text-2xl text-white">{progress}%</ProgressRadial
+			class="mt-1 mr-6 w-20 text-2xl text-white">{progress}%</ProgressRadial
 		>
 		<div class="mb-2">
 			<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
@@ -449,8 +503,8 @@
 		</div>
 	</div>
 </div>
-
-<ul class="grid md:grid-cols-2">
+<hr class="mt-1" />
+<ul class="grid md:grid-cols-2 mt-1">
 	{#each suggestions as suggestion}
 		<li class="flex items-start p-1">
 			<div class="mr-4 flex-none">
@@ -462,7 +516,7 @@
 					<Icon icon="mdi:close-octagon" class="text-error-500" width="24" />
 				{/if}
 			</div>
-			<span class="flex-auto">{suggestion.text}</span>
+			<span class="flex-auto text-sm">{suggestion.text}</span>
 		</li>
 	{/each}
 </ul>

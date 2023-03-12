@@ -11,7 +11,7 @@ const categories = [
 	{
 		category: 'Collections',
 		icon: 'bi:collection',
-		collections: [Posts, Menu, Test]
+		collections: [Test, Posts, Menu]
 	},
 	{
 		category: 'Media',
