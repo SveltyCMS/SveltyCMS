@@ -14,7 +14,7 @@
 	let options = ['Mr.', 'Ms.', 'Mrs.', 'Dr.']; // replace data from collection
 </script>
 
-<label class="input-label">
+<label class="input-group">
 	<select bind:value name="selected" id="selected">
 		<!-- TODO: add placeholder -->
 		{#each options as value}<option {value}>{value}</option>{/each}

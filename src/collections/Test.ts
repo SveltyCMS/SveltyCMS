@@ -84,9 +84,8 @@ const schema: Schema = {
 			icon: 'carbon:character-whole-number',
 			prefix: 'EURO',
 			suffix: 'cent',
-			count: '10/10',
-			minlength: '2',
-			maxlength: '15',
+			count: 10,
+
 			placeholder: 'Enter Number',
 			localization: true,
 			required: true

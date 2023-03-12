@@ -291,7 +291,7 @@
 				return async ({ result }) => {
 					if (result.type === 'success') {
 						resetPW = false; // switch back to the signup page by changing the forgot variable
-						goto('/');
+						goto('/login');
 					}
 
 					if (result.type === 'failure') {

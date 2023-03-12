@@ -1,5 +1,51 @@
 <script lang="ts">
+	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
+
+	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	let popupCropSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'hover',
+		placement: 'right',
+		// Provide a matching 'data-popup' value.
+		target: 'cropPopup'
+	};
+
+	let popupSaveSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'hover',
+		placement: 'right',
+		// Provide a matching 'data-popup' value.
+		target: 'SavePopup'
+	};
+
+	let popupBlurSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'hover',
+		placement: 'right',
+		// Provide a matching 'data-popup' value.
+		target: 'blurPopup'
+	};
+
+	let popupFocalSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'hover',
+		placement: 'right',
+		// Provide a matching 'data-popup' value.
+		target: 'focalPopup'
+	};
+
+	let popupRotateSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'hover',
+		placement: 'bottom',
+		// Provide a matching 'data-popup' value.
+		target: 'rotatePopup'
+	};
+
+	// Defining props
 	export let image: any = '';
 	export let rotate: number | string = 0;
 	export let crop_left: object = { initialValue: 10, value: 10 };
@@ -8,11 +54,10 @@
 	export let crop_bottom: object = { initialValue: 10, value: 10 };
 	export let blurs: any = [];
 	export let center: any = { x: 200, y: 115 };
+
+	// Initializing variables
 	let currentIndex = 0;
-	let blurCoords: object = {
-		pageX: 0,
-		pageY: 0
-	};
+	let blurCoords: { pageX: number; pageY: number } = { pageX: 0, pageY: 0 };
 	export let SCALE = 1;
 	let TR_X = 0;
 	let TR_Y = 0;
@@ -32,15 +77,26 @@
 		CHANGE_BOTTOM = false;
 	let MOUSE_START_LEFT = 0,
 		MOUSE_START_TOP = 0;
+
+	// Computed properties
 	$: CONT_WIDTH = WHOLE_WIDTH ? WHOLE_WIDTH + 'px' : '400px';
 	$: CONT_HEIGHT = WHOLE_HEIGHT ? WHOLE_HEIGHT + 'px' : 'auto';
 	let cropping = false;
 	let checker;
 
+	// caching frequently accessed DOM elements
+	const imageHandler: any = document.getElementById('image_handler');
+
+	//Use the memo function from the svelte/store module to memoize the result of a functionimport { memo } from 'svelte/store';
+
+	// Function to handle touch/mouse start event
 	function handleMouseDown(e) {
 		e.preventDefault();
-		WHOLE_WIDTH = document.getElementById('image_handler').offsetWidth;
-		WHOLE_HEIGHT = document.getElementById('image_handler').offsetHeight;
+		// WHOLE_WIDTH = document.getElementById('image_handler').offsetWidth;
+		// WHOLE_HEIGHT = document.getElementById('image_handler').offsetHeight;
+		WHOLE_WIDTH = imageHandler.offsetWidth;
+		WHOLE_HEIGHT = imageHandler.offsetHeight;
+
 		const corner = e.target.closest('.corner');
 		const is_whole = e.target.closest('.inner');
 		if (corner) {
@@ -65,6 +121,8 @@
 			WHOLE_HEIGHT;
 		rotateDetails.tr_y = -(WHOLE_HEIGHT * Math.sin(rotate * (Math.PI / 180))) / rotateDetails.scale;
 	}
+
+	// Function to handle touch/mouse move event
 	function handleMouseMove(e) {
 		if (MOUSEDOWN_CORNER) {
 			if (CHANGE_LEFT) {
@@ -145,9 +203,7 @@
 
 	function openCrop() {
 		document.addEventListener('mousedown', handleMouseDown);
-
 		document.addEventListener('mousemove', handleMouseMove);
-
 		document.addEventListener('mouseup', handleMouseUp);
 
 		cropping = !cropping;
@@ -158,6 +214,7 @@
 			WHOLE_HEIGHT = 0;
 		}
 	}
+
 	function cropImage() {
 		let actual_width = WHOLE_WIDTH - crop_left.value - crop_right.value;
 		let actual_height = WHOLE_HEIGHT - crop_top.value - crop_bottom.value;
@@ -181,18 +238,21 @@
 			currentIndex = -1;
 		}
 	}
-	function mouseoutBlurHandler(e) {
-		e.target.removeEventListener('mousemove', moveBlurHandler);
-		e.target.removeEventListener('mouseup', handleBlurMouseDown);
-		e.target.removeEventListener('mousedown', mouseupBlurHandler);
-		currentIndex = -1;
-	}
+
+	// function mouseoutBlurHandler(e) {
+	// 	e.target.removeEventListener('mousemove', moveBlurHandler);
+	// 	e.target.removeEventListener('mouseup', handleBlurMouseDown);
+	// 	e.target.removeEventListener('mousedown', mouseupBlurHandler);
+	// 	currentIndex = -1;
+	// }
+
 	function moveBlurHandler(e) {
 		blurs[currentIndex].top.value =
 			blurs[currentIndex].top.initialValue + (e.pageY - blurCoords.pageY);
 		blurs[currentIndex].left.value =
 			blurs[currentIndex].left.initialValue + (e.pageX - blurCoords.pageX);
 	}
+
 	function handleBlurMouseDown(e) {
 		if (!e.target.getAttribute('data')) {
 			blurCoords.pageX = e.pageX;
@@ -226,7 +286,7 @@
 	function changeCenter(e) {
 		TR_X -= e.layerX - WHOLE_WIDTH / 2;
 		TR_Y -= e.layerY - WHOLE_HEIGHT / 2;
-		//console.log(TR_X, TR_Y);
+		console.log(TR_X, TR_Y);
 		e.target.removeEventListener('click', changeCenter);
 		e.target.classList.remove('cursor-crosshair');
 	}
@@ -386,19 +446,58 @@
 		</div>
 	{/if}
 	{#if !cropping}
-		<button on:click={openCrop} class="btn btn-primary text-white p-0.5">
-			<Icon icon="material-symbols:crop" width="24" />
+		<button on:click={openCrop} x class="btn btn-primary text-white p-0.5" title="size">
+			<Icon icon="material-symbols:crop" width="24" class="text-primary-500" />
 		</button>
+
+		<div class="card variant-filled-secondary p-4" data-popup="cropPopup">
+			Crop Image
+			<!-- Append the arrow element -->
+			<div class="arrow variant-filled-secondary" />
+		</div>
 	{:else}
-		<button on:click={cropImage} class="btn btn-primary text-white p-0.5">
-			<Icon icon="material-symbols:save" width="24" />
+		<button on:click={cropImage} class="btn btn-primary text-white p-0.5" title="save">
+			<Icon icon="material-symbols:save" width="24" class="text-primary-500" />
 		</button>
+		<div class="card variant-filled-secondary p-4" data-popup="savePopup">
+			Save Image
+			<!-- Append the arrow element -->
+			<div class="arrow variant-filled-secondary" />
+		</div>
 	{/if}
-	<button on:click={blurCrop} class="btn btn-primary text-white p-0.5"> Blur</button>
-	<button on:click={newCenter} class="btn btn-primary text-white p-0.5"> center</button>
-	<label for="small-range" class="block mb-2 text-sm font-medium text-gray-900 dark:text-white"
-		>Rotate</label
+
+	<button on:click={blurCrop} class="btn btn-primary text-white p-0.5" title="blur"
+		><Icon icon="ic:round-blur-circular" width="24" class="text-primary-500" /></button
 	>
+	<div class="card variant-filled-secondary p-4" data-popup="blurPopup">
+		Blur Image
+		<!-- Append the arrow element -->
+		<div class="arrow variant-filled-secondary" />
+	</div>
+
+	<button on:click={newCenter} class="btn btn-primary text-white p-0.5" title="center">
+		<Icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" /></button
+	>
+	<div class="card variant-filled-secondary p-4" data-popup="focalPopup">
+		Focal Point Image
+		<!-- Append the arrow element -->
+		<div class="arrow variant-filled-secondary" />
+	</div>
+	<label
+		for="small-range"
+		class="mb-4 text-sm font-medium text-gray-900 dark:text-white flex items-center justify-center w-full"
+		><Icon
+			icon="material-symbols:rotate-left-rounded"
+			width="24"
+			class="text-primary-500"
+		/>{rotate}°</label
+	>
+	<div class="card variant-filled-secondary p-4" data-popup="rotatePopup">
+		Rotate Image
+		<!-- Append the arrow element -->
+		<div class="arrow variant-filled-secondary" />
+	</div>
+
 	<input
 		id="small-range"
 		class="w-full h-1 mb-6 bg-gray-200 rounded-lg appearance-none cursor-pointer range-sm dark:bg-gray-700"

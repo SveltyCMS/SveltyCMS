@@ -7,9 +7,9 @@ export type Text_Field = {
 	label: string | undefined;
 	icon: string | undefined;
 	placeholder: string | undefined;
-	count: string | undefined;
-	minlength: string | undefined;
-	maxlength: string | undefined;
+	count: number | undefined;
+	minlength: number | undefined;
+	maxlength: number | undefined;
 	prefix: string | undefined;
 	suffix: string | undefined;
 	required: boolean | undefined;
@@ -24,9 +24,9 @@ export type Text_Params = {
 	label?: string;
 	icon?: string;
 	placeholder?: string;
-	count?: string;
-	minlength?: string;
-	maxlength?: string;
+	count?: number;
+	minlength?: number;
+	maxlength?: number;
 	prefix?: string;
 	suffix?: string;
 	required?: boolean;
