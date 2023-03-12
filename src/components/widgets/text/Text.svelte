@@ -79,37 +79,38 @@
 		{#if field.count || field.minlength || field.maxlength}
 			{#if field.suffix}
 				<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
-					<!-- suffix count only hide once reached -->
-					<!-- {#if field.count <= count}
-						{field.count}
-					{:else if field.count > count}{count}{/if} -->
-
-					<!-- suffix count+min -->
-					{#if field.count && !field.minlength}
-						{count}/
-					{:else if field.minlength}
-						{count}/
-					{/if}
-
-					<!-- suffix count+max -->
-					{#if field.count && !field.maxlength}
-						{field.count}
+					{#if field.count && field.minlength && field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.count && field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.count && field.minlength}
+						{count}/{field.minlength}
+					{:else if field.minlength && field.maxlength}
+						{count}/{field.maxlength} (min {field.minlength})
+					{:else if field.count}
+						{count}/{field.count}
 					{:else if field.maxlength}
-						{field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.minlength}
+						{count} (min {field.minlength})
 					{/if}
 				</span>
 			{:else}
 				<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
-					{#if field.count && !field.minlength}
-						{count}/
-					{:else if field.minlength}
-						{count}
-					{/if}
-
-					{#if field.count && !field.maxlength}
-						{field.count}
+					{#if field.count && field.minlength && field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.count && field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.count && field.minlength}
+						{count}/{field.minlength}
+					{:else if field.minlength && field.maxlength}
+						{count}/{field.maxlength} (min {field.minlength})
+					{:else if field.count}
+						{count}/{field.count}
 					{:else if field.maxlength}
-						{field.maxlength}
+						{count}/{field.maxlength}
+					{:else if field.minlength}
+						{count} (min {field.minlength})
 					{/if}
 				</span>
 			{/if}
