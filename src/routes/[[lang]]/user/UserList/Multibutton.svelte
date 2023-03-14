@@ -98,19 +98,19 @@
 
 		switch (listboxValue) {
 			case 'edit':
-				buttonClass = 'bg-gradient-to-br from-primary-700 via-primary-700 to-primary-300';
+				buttonClass = 'gradient-primary';
 				iconValue = 'material-symbols:edit';
 				break;
 			case 'delete':
-				buttonClass = 'bg-gradient-to-br from-error-700 via-error-500 to-error-300';
+				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
 			case 'unblock':
-				buttonClass = 'bg-gradient-to-br from-yellow-700 via-yellow-500 to-yellow-200';
+				buttonClass = 'gradient-yellow';
 				iconValue = 'material-symbols:lock-open';
 				break;
 			case 'block':
-				buttonClass = 'bg-gradient-to-br from-pink-700 via-pink-600 to-pink-300';
+				buttonClass = 'gradient-pink';
 				iconValue = 'material-symbols:lock';
 				break;
 			default:
@@ -184,7 +184,7 @@
 				name="medium"
 				value="edit"
 				active="variant-filled-primary"
-				hover="hover:bg-gradient-to-br hover:from-primary-700 hover:via-primary-600 hover:to-primary-300"
+				hover="gradient-primary-hover"
 				><svelte:fragment slot="lead"
 					><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
 				>
@@ -198,7 +198,7 @@
 				name="medium"
 				value="delete"
 				active="variant-filled-error"
-				hover="hover:bg-gradient-to-br hover:from-error-600 hover:via-error-500 hover:to-error-300"
+				hover="gradient-error-hover"
 				><svelte:fragment slot="lead"
 					><Icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
 				>
@@ -212,7 +212,7 @@
 				name="medium"
 				value="unblock"
 				active="bg-yellow-500"
-				hover="hover:bg-gradient-to-br hover:from-yellow-700 hover:via-yellow-500 hover:to-yellow-200"
+				hover="gradient-yellow-hover"
 				><svelte:fragment slot="lead"
 					><Icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment
 				>
@@ -226,7 +226,7 @@
 				name="medium"
 				value="block"
 				active="bg-pink-700"
-				hover="hover:bg-gradient-to-br hover:from-pink-700 hover:via-pink-600 hover:to-pink-300"
+				hover="gradient-pink-hover"
 				><svelte:fragment slot="lead"
 					><Icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment
 				>

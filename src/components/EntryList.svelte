@@ -9,6 +9,7 @@
 	import DeleteIcon from './icons/DeleteIcon.svelte';
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
 	import schemas from '$src/collections';
+	import EntrylistButton from './Entrylist_Button.svelte';
 
 	//export let open = false; // animate hamburger
 	export let switchSideBar = false;
@@ -241,17 +242,168 @@
 	};
 
 	//tanstack Table here
+	import { writable } from 'svelte/store';
+	import {
+		createSvelteTable,
+		flexRender,
+		getCoreRowModel,
+		getSortedRowModel,
+		getFilteredRowModel,
+		getFacetedRowModel,
+		getFacetedUniqueValues,
+		getFacetedMinMaxValues,
+		getPaginationRowModel
+	} from '@tanstack/svelte-table';
+
+	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/svelte-table';
+	import { rankItem } from '@tanstack/match-sorter-utils';
+
+	import FacetCheckboxes from '$src/components/tanstackTable/FacetCheckboxes.svelte';
+	import FacetMinMax from '$src/components/tanstackTable/FacetMinMax.svelte';
+
+	import moment from 'moment';
+
+	type Person = {
+		firstName: string;
+		lastName: string;
+		age: number;
+		visits: number;
+		status: string;
+		progress: number;
+	};
+
+	function getSortSymbol(isSorted: boolean | SortDirection) {
+		return isSorted ? (isSorted === 'asc' ? '🔼' : '🔽') : '';
+	}
+
+	const defaultData: Person[] = [
+		{
+			firstName: 'tanner',
+			lastName: 'linsley',
+			age: 24,
+			visits: 100,
+			status: 'In Relationship',
+			progress: 50
+		},
+		{
+			firstName: 'tandy',
+			lastName: 'miller',
+			age: 40,
+			visits: 40,
+			status: 'Single',
+			progress: 80
+		},
+		{
+			firstName: 'joe',
+			lastName: 'dirte',
+			age: 45,
+			visits: 20,
+			status: 'Complicated',
+			progress: 10
+		}
+	];
+
+	const columns: ColumnDef<Person>[] = [
+		{
+			header: 'Name',
+			footer: (props) => props.column.id,
+			columns: [
+				{
+					accessorKey: 'firstName',
+					cell: (info) => info.getValue(),
+					footer: (props) => props.column.id
+				},
+				{
+					accessorFn: (row) => row.lastName,
+					id: 'lastName',
+					cell: (info) => info.getValue(),
+					header: () => 'Last Name',
+					footer: (props) => props.column.id
+				}
+			]
+		},
+		{
+			header: 'Info',
+			footer: (props) => props.column.id,
+			columns: [
+				{
+					accessorKey: 'age',
+					header: () => 'Age',
+					footer: (props) => props.column.id
+				},
+				{
+					header: 'More Info',
+					columns: [
+						{
+							accessorKey: 'visits',
+							header: () => 'Visits',
+							footer: (props) => props.column.id
+						},
+						{
+							accessorKey: 'status',
+							header: 'Status',
+							footer: (props) => props.column.id
+						},
+						{
+							accessorKey: 'progress',
+							header: 'Profile Progress',
+							footer: (props) => props.column.id
+						}
+					]
+				}
+			]
+		}
+	];
+
+	let columnVisibility = {};
+
+	const setColumnVisibility = (updater) => {
+		if (updater instanceof Function) {
+			columnVisibility = updater(columnVisibility);
+		} else {
+			columnVisibility = updater;
+		}
+		options.update((old) => ({
+			...old,
+			state: {
+				...old.state,
+				columnVisibility
+			}
+		}));
+	};
+
+	const options = writable<TableOptions<Person>>({
+		data: defaultData,
+		columns,
+		state: {
+			columnVisibility
+		},
+		onColumnVisibilityChange: setColumnVisibility,
+		getCoreRowModel: getCoreRowModel(),
+		getSortedRowModel: getSortedRowModel(),
+		debugTable: true
+	});
+
+	const rerender = () => {
+		options.update((options) => ({
+			...options,
+			data: defaultData
+		}));
+	};
+	const table = createSvelteTable(options);
 </script>
 
 <Modal />
 
 {#if !$showFieldsStore.showForm}
 	<div class="relative md:mt-0">
-		<div class="mb-2 flex items-center gap-2 flex-wrap">
+		<div class="mb-2 flex items-center gap sm:gap-2 flex-wrap">
 			{#if !switchSideBar}
-				<AnimatedHamburger />
+				<AnimatedHamburger width="35" />
 			{/if}
-			<div class="flex flex-col">
+
+			<!-- Collection type with icon -->
+			<div class="flex flex-col max-w-[76px] sm:max-w-none">
 				{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 						{category}
 					</div>{/if}
@@ -270,7 +422,7 @@
 			</div>
 
 			<!-- Mobile Search box -->
-			<div class="mx-auto max-w-md md:hidden ">
+			<div class="mx-auto max-w-md md:hidden">
 				{#if !showsearch}
 					<button
 						on:click={() => (showsearch = !showsearch)}
@@ -290,6 +442,7 @@
 						<Icon icon="material-symbols:search-rounded" width="24" class="mx-2 mt-4" />
 						<input
 							on:keyup={(event) => {
+								// TODO: Fix keycode deprecated
 								if (event.keyCode === 13) {
 									// search();
 									showsearch = false;
@@ -336,7 +489,7 @@
 			</div>
 
 			<!-- language switcher for entryList -->
-			<span class="relative rounded-md shadow-xl">
+			<span class="relative rounded-md shadow-xl mr-1">
 				<button
 					use:popup={ContentLangSettings}
 					class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white "
@@ -363,7 +516,7 @@
 					</ul>
 				</nav>
 			</span>
-
+			<!-- <EntrylistButton /> -->
 			<!-- create/publish/unpublish/schedule/clone/delete -->
 			<div class="flex items-center justify-center">
 				<!-- the actual buttons -->
@@ -508,7 +661,7 @@
 										on:click={() => {
 											entryButton = 'publish';
 										}}
-										class="btn btn-base w-full bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-500 font-bold text-white"
+										class="btn btn-base w-full bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-400 font-bold text-white"
 									>
 										<span><Icon icon="bi:hand-thumbs-up-fill" width="20" /></span>
 										<span class="text-xl font-bold">{$LL.ENTRYLIST_Publish()}</span>
@@ -694,7 +847,7 @@
 
 			<div class="card w-30 shadow-xl py-2" data-popup="entryListPages">
 				<!-- Listbox -->
-				TODO Index not linked:
+				<!-- TODO: Index not linked: -->
 				<ListBox rounded="rounded-none">
 					{#each paging.lengthList as length, index}
 						<ListBoxItem bind:group={length} name="medium" value={length}>
@@ -707,33 +860,6 @@
 				<!-- Arrow -->
 				<div class="arrow bg-surface-100-800-token" />
 			</div>
-
-			<!-- <span class="relative rounded-md">
-				<button
-					use:menu={{ menu: 'pageItems' }}
-					class="btn flex items-center justify-center rounded-md border border-surface-600 px-2 uppercase"
-				>
-					{paging.entryLength}
-					<Icon icon="mdi:chevron-down" width="24" />
-				</button>
-				<nav
-					class="card list-nav w-[100px] cursor-pointer border bg-surface-600 p-2 text-center text-white shadow-xl dark:bg-surface-300 sm:absolute sm:top-0 sm:-left-6"
-					data-menu="pageItems"
-				>
-					<ul class="divide-y">
-						{#each paging.lengthList as length}
-							<li
-								class="-mx-2 transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700 dark:text-black hover:dark:text-white"
-								value={length}
-								on:click={() => changeItemsPerPage(length)}
-							>
-								{length}
-								{$LL.ENTRYLIST_EntriesItems()}
-							</li>
-						{/each}
-					</ul>
-				</nav>
-			</span> -->
 
 			<!-- Pagination -->
 			<div class="dark:text-white">

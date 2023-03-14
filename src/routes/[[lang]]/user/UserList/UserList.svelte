@@ -36,20 +36,7 @@
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	const user = getUser();
 
-	// Form Data
-	const formData = {
-		username: $user?.username,
-		email: $user?.email,
-		role: $user?.role,
-		// TODO get right values
-		firstAccess: $user?.username,
-		lastAccess: $user?.username
-	};
-
 	const listOfUsers = JSON.parse(list.user); // Retrieve User and parse them as JSON
-
-	// const listOftokens = JSON.parse(token.sign_up_token); // Retrieve the tokens and parse them as JSON
-	// console.log(sign_up_token);
 
 	// State to keep track of whether the modal is open or not
 	let showModal = false;
@@ -64,21 +51,9 @@
 
 	// search filter
 	// TODO: Search be selected column
-	// Add icon
-	let filterData = '';
-	function updateFilter(e: KeyboardEvent) {
-		filterData = (e.target as HTMLInputElement).value.toLowerCase();
-	}
-
-	// TODO - -Preplace with Table Columns data
-	// let tableColumns: Record<string, boolean> = {
-	// 	ID: true,
-	// 	Status: true,
-	// 	Label: true,
-	// 	Email: true
-	// };
-	// function filter(column: string): void {
-	// 	columns[column] = !columns[column];
+	// let filterData = '';
+	// function updateFilter(e: KeyboardEvent) {
+	// 	filterData = (e.target as HTMLInputElement).value.toLowerCase();
 	// }
 
 	import {
@@ -107,48 +82,17 @@
 		return isSorted ? (isSorted === 'asc' ? '🔼' : '🔽') : '';
 	}
 
-	// TODO: Grab real data
-	// let defaultData: User[] = [
-	// 	{
-	// 		firstName: 'Robert',
-	// 		lastName: 'linsley',
-	// 		visits: 100,
-	// 		status: 'In Relationship',
-	// 		progress: 50
-	// 	},
-	// 	{
-	// 		firstName: 'tandy',
-	// 		lastName: 'miller',
-	// 		visits: 40,
-	// 		status: 'Single',
-	// 		progress: 80
-	// 	},
-	// 	{
-	// 		firstName: 'joe',
-	// 		lastName: 'dirte',
-	// 		visits: 20,
-	// 		status: 'Complicated',
-	// 		progress: 10
-	// 	}
-	// ];
-
-	// Define row shape
-	// type User = {
-	// 	firstName: string;
-	// 	lastName: string;
-	// 	visits: number;
-	// 	status: string;
-	// 	progress: number;
-	// };
-
 	type User = {
+		avatar: string;
 		email: string;
 		role: string;
 		username: string;
 		lastAccessAt: string;
 		createdAt: string;
 	};
+
 	const defaultData = listOfUsers.map((user: User) => ({
+		avatar: user.avatar,
 		username: user.username,
 		email: user.email,
 		role: user.role,
@@ -172,38 +116,13 @@
 	};
 
 	// Display Columns
-	// const defaultColumns: ColumnDef<User>[] = [
-	// 	{
-	// 		accessorKey: 'firstName',
-	// 		cell: (info) => info.getValue(),
-	// 		footer: (info) => info.column.id
-	// 	},
-	// 	{
-	// 		accessorFn: (row) => row.lastName,
-	// 		id: 'lastName',
-	// 		cell: (info) => info.getValue(),
-	// 		header: () => 'Last Name',
-	// 		footer: (info) => info.column.id
-	// 	},
-
-	// 	{
-	// 		accessorKey: 'visits',
-	// 		header: () => 'Visits',
-	// 		footer: (info) => info.column.id
-	// 	},
-	// 	{
-	// 		accessorKey: 'status',
-	// 		header: 'Status',
-	// 		footer: (info) => info.column.id
-	// 	},
-	// 	{
-	// 		accessorKey: 'progress',
-	// 		header: 'Profile Progress',
-	// 		footer: (info) => info.column.id
-	// 	}
-	// ];
-
 	const defaultColumns: ColumnDef<User>[] = [
+		//  <Avatar src={user.avatar} width="w-10" />
+		{
+			accessorKey: 'avatar',
+			footer: (info) => info.column.id,
+			header: () => 'Avatar'
+		},
 		{
 			accessorKey: 'username',
 			footer: (info) => info.column.id,
@@ -231,6 +150,11 @@
 			header: () => 'Last Access',
 			footer: (info) => info.column.id
 		}
+		// {
+		// 	accessorKey: 'id',
+		// 	header: 'ID',
+		// 	size: 60
+		// }
 	];
 
 	let globalFilter = '';
@@ -283,9 +207,8 @@
 		state: {
 			globalFilter,
 			columnVisibility,
-
 			pagination: {
-				pageSize: 7,
+				pageSize: 10,
 				pageIndex: 0
 			}
 		},
@@ -306,6 +229,7 @@
 			};
 		});
 	}
+
 	function setCurrentPage(page: number) {
 		options.update((old: any) => {
 			return {
@@ -320,6 +244,7 @@
 			};
 		});
 	}
+
 	function setPageSize(e: Event) {
 		const target = e.target as HTMLInputElement;
 		options.update((old: any) => {
@@ -335,6 +260,7 @@
 			};
 		});
 	}
+
 	let timer: NodeJS.Timeout;
 	function handleSearch(e: Event) {
 		clearTimeout(timer);
@@ -376,12 +302,12 @@ Cant get Vaild Invites from DB
 	</tbody>
 </table> -->
 
-<!-- /////////////////////////////////////// -->
+<!-- ////////////////////////////////////////// -->
 <h4 class="mb-2">List of Users Tanstack:</h4>
 
 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2">
 	<div class="flex justify-between items-center gap-2 relative mx-auto">
-		<!-- Search celected column -->
+		<!-- Search selected column -->
 		<input
 			{...noTypeCheck(null)}
 			on:keyup={handleSearch}
@@ -405,12 +331,20 @@ Cant get Vaild Invites from DB
 			/>
 		</svg>
 
-		<button class="btn variant-ghost-secondary" on:click={() => (columnShow = !columnShow)}>
-			Columns<Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
+		<button class="btn variant-ghost" on:click={() => (columnShow = !columnShow)}>
+			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />Columns<Icon
+				icon="mdi:chevron-down"
+				width="20"
+				class="text-white ml-2"
+			/>
 		</button>
 
-		<button class="btn variant-ghost-secondary" on:click={triggerFacets}>
-			Filter/Facets<Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
+		<button class="btn variant-ghost" on:click={triggerFacets}>
+			<Icon icon="carbon:filter-edit" width="20" class="mr-1" />Filter/Facets<Icon
+				icon="mdi:chevron-down"
+				width="20"
+				class="text-white ml-2"
+			/>
 		</button>
 	</div>
 
@@ -422,15 +356,16 @@ Cant get Vaild Invites from DB
 	<div class="flex flex-col md:flex-row md:flex-wrap md:items-center md:justify-center">
 		<!-- toggle all -->
 		<div class="flex items-center mb-2 md:mb-0 md:mr-4">
-			<input
-				checked={$table.getIsAllColumnsVisible()}
-				on:change={(e) => {
-					console.info($table.getToggleAllColumnsVisibilityHandler()(e));
-				}}
-				type="checkbox"
-				class="ml-2"
-			/>{' '}
-			<span class="ml-1">Toggle All</span>
+			<label>
+				<input
+					checked={$table.getIsAllColumnsVisible()}
+					on:change={(e) => {
+						console.info($table.getToggleAllColumnsVisibilityHandler()(e));
+					}}
+					type="checkbox"
+				/>{' '}
+				Toggle All
+			</label>
 		</div>
 		<!-- Show/hide Columns via chips -->
 		<div class="flex flex-wrap items-center justify-center">
@@ -439,14 +374,33 @@ Cant get Vaild Invites from DB
 					class="chip {column.getIsVisible()
 						? 'variant-filled-secondary'
 						: 'variant-ghost-secondary'} mx-2 my-1"
+				>
+					<label>
+						<input
+							checked={column.getIsVisible()}
+							on:change={column.getToggleVisibilityHandler()}
+							type="checkbox"
+						/>{' '}
+						<span class="capitalize">{column.id}</span>
+					</label>
+				</div>
+			{/each}
+			<div class="text-error-500">please fix</div>
+			{#each $table.getAllLeafColumns() as column}
+				<span
+					class="chip {column.getIsVisible()
+						? 'variant-filled-secondary'
+						: 'variant-ghost-secondary'} mx-2 my-1"
 					on:click={() => {
-						column.getToggleVisibilityHandler();
+						{
+							column.getIsVisible(column.id);
+						}
 					}}
 					on:keypress
 				>
 					{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
 					<span class="capitalize">{column.id}</span>
-				</div>
+				</span>
 			{/each}
 		</div>
 	</div>
@@ -517,87 +471,98 @@ Cant get Vaild Invites from DB
 				</tr>
 			{/each}
 		</tbody>
-		<!-- <tfoot>
-			{#each $table.getFooterGroups() as footerGroup}
-				<tr>
-					{#each footerGroup.headers as header}
-						<th colSpan={header.colSpan}>
-							{#if !header.isPlaceholder}
-								<svelte:component
-									this={flexRender(header.column.columnDef.footer, header.getContext())}
-								/>
-							{/if}
-						</th>
-					{/each}
-				</tr>
-			{/each}
-		</tfoot> -->
 	</table>
 
 	<!-- paginagtion -->
 	<!-- TODO need more work use the css from entrylist -->
 
-	<div class="flex align-items-center">
-		<button
-			class="button is-white"
-			on:click={() => setCurrentPage(0)}
-			class:is-disabled={!$table.getCanPreviousPage()}
-			disabled={!$table.getCanPreviousPage()}
-		>
-			{'<<'}
-		</button>
-		<button
-			class="button is-white"
-			on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
-			class:is-disabled={!$table.getCanPreviousPage()}
-			disabled={!$table.getCanPreviousPage()}
-		>
-			{'<'}
-		</button>
-		<span> Page </span>
-		<input
-			type="number"
-			value={$table.getState().pagination.pageIndex + 1}
-			min={0}
-			max={$table.getPageCount() - 1}
-			on:change={handleCurrPageInput}
-			class="mx-1"
-		/>
-		<span>
-			{' '}of{' '}
-			{$table.getPageCount()}
-		</span>
-		<button
-			class="button is-white"
-			on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
-			class:is-disabled={!$table.getCanNextPage()}
-			disabled={!$table.getCanNextPage()}
-		>
-			{'>'}
-		</button>
-		<button
-			class="button is-white"
-			on:click={() => setCurrentPage($table.getPageCount() - 1)}
-			class:is-disabled={!$table.getCanNextPage()}
-			disabled={!$table.getCanNextPage()}
-		>
-			{'>>'}
-		</button>
+	<!-- Pagination -->
+	<div class="flex justify-around items-center my-3">
+		<!-- show & count rows -->
+		<div class="text-surface-400 text-sm">
+			Showing
+			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			to
+			<!-- TODO: Get actual page -->
+			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			of
+			<span class="text-white">{$table.getPrePaginationRowModel().rows.length}</span> Total
+			<!-- TODO: check if only 1 Row -->
+			{#if 1 === 1}
+				Row
+			{:else}
+				Rows{/if}
+		</div>
 
-		<span class="mx-2 has-text-weight-semibold">|</span>
-		<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select">
-			{#each [7, 10, 25, 50] as pageSize}
+		<!-- number of pages -->
+		<select
+			value={$table.getState().pagination.pageSize}
+			on:change={setPageSize}
+			class="max-w-[100px] select variant-ghost text-sm"
+		>
+			{#each [10, 25, 50, 100, 500] as pageSize}
 				<option value={pageSize}>
-					Show {pageSize}
+					{pageSize} Rows
 				</option>
 			{/each}
 		</select>
-		<span class="mx-2 has-text-weight-semibold">|</span>
-		<span>{$table.getPrePaginationRowModel().rows.length} total Rows</span>
+
+		<!-- next/previous pages -->
+		<div class="btn-group variant-ghost [&>*+*]:border-surface-500">
+			<button
+				class="w-5"
+				on:click={() => setCurrentPage(0)}
+				class:is-disabled={!$table.getCanPreviousPage()}
+				disabled={!$table.getCanPreviousPage()}
+			>
+				{'<<'}
+			</button>
+
+			<button
+				class="w-5"
+				on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
+				class:is-disabled={!$table.getCanPreviousPage()}
+				disabled={!$table.getCanPreviousPage()}
+			>
+				{'<'}
+			</button>
+			<div class="px-2 justify-center items-center text-sm">
+				<span> Page </span>
+
+				<input
+					type="number"
+					value={$table.getState().pagination.pageIndex + 1}
+					min={0}
+					max={$table.getPageCount() - 1}
+					on:change={handleCurrPageInput}
+					class="input w-16 !border-0 variant-ghost mt-[1px] rounded-none"
+				/>
+				<span>
+					{' '}of{' '}
+					{$table.getPageCount()}
+				</span>
+			</div>
+			<button
+				class="w-5"
+				on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
+				class:is-disabled={!$table.getCanNextPage()}
+				disabled={!$table.getCanNextPage()}
+			>
+				{'>'}
+			</button>
+			<button
+				class="w-5"
+				on:click={() => setCurrentPage($table.getPageCount() - 1)}
+				class:is-disabled={!$table.getCanNextPage()}
+				disabled={!$table.getCanNextPage()}
+			>
+				{'>>'}
+			</button>
+		</div>
 	</div>
 </div>
 
-<h4 class="mb-2">List of Users Skeleton:</h4>
+<h4 class="mb-2 mt-10">List of Users Skeleton:</h4>
 
 <table>
 	<thead class="bg-surface-600 rounded-t border-b-2">

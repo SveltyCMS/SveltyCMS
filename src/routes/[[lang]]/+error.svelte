@@ -19,7 +19,7 @@
 
 {#if $page}
 	<main
-		class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900"
+		class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900 text-white"
 	>
 		<div class="relative">
 			<div

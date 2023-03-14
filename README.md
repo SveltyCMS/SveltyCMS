@@ -1,12 +1,12 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo.svg">
-      <img width="350" alt="SimpleCMC logo" src="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo.svg">
+      <source media="(prefers-color-scheme: dark)" srcset="/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SvelteCMS/static/SimpleCMS.svg">
+      <img width="250" alt="SimpleCMC logo" src="/var/www/vhosts/asset-trade.de/svelte.asset-trade.de/SvelteCMS/static/SimpleCMS.svg">
     </picture>
  </p>
 
-<h3 align="center">A powerful Sveltekit CMS </h3>
-<p align="center">A flexible, Headless, easy to use CMS</p>
+<h3 align="center">SimpleCMS is powerful Headless CMS</h3>
+<p align="center">With Sveltekit its fast, flexible and an easy to use content mangement system</p>
 
 # :star2: SimpleCMS
 

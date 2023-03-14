@@ -46,6 +46,7 @@ specifiers:
   lodash: ^4.17.21
   lucia-auth: ^0.9.1
   mapbox-gl: ^2.13.0
+  moment: ^2.29.4
   mongoose: 7.0.1
   nodemailer: 6.9.1
   npm-run-all: 4.1.5
@@ -100,6 +101,7 @@ dependencies:
   lodash: 4.17.21
   lucia-auth: 0.9.1
   mapbox-gl: 2.13.0
+  moment: 2.29.4
   mongoose: 7.0.1
   nodemailer: 6.9.1
   openai: 3.2.1
@@ -5053,6 +5055,10 @@ packages:
     resolution: {integrity: sha512-vVqVZQyf3WLx2Shd0qJ9xuvqgAyKPLAiqITEtqW0oIUjzo3PePDd6fW9iFz30ef7Ysp/oiWqbhszeGWW2T6Gzw==}
     engines: {node: '>=10'}
     hasBin: true
+    dev: false
+
+  /moment/2.29.4:
+    resolution: {integrity: sha512-5LC9SOxjSc2HF6vO2CyuTDNivEdoz2IvyJJGj6X8DJ0eFyfszE0QiEd+iXmBvUP3WHxSjFH/vIsA0EN00cgr8w==}
     dev: false
 
   /mongodb-connection-string-url/2.6.0:

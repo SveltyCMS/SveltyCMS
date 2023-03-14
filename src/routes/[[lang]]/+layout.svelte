@@ -201,7 +201,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		: 'block'} "
 >
 	<!-- Header -->
-	<svelte:fragment slot="header">
+	<!-- <svelte:fragment slot="header">
 		<AppBar border="border-b">
 			<svelte:fragment slot="lead">
 				<strong class="text-xl uppercase">{PUBLIC_SITENAME}</strong>
@@ -227,7 +227,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				>
 			</svelte:fragment>
 		</AppBar>
-	</svelte:fragment>
+	</svelte:fragment> -->
 
 	<!-- Sidebar Left -->
 	<svelte:fragment slot="sidebarLeft">
@@ -389,12 +389,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				</div>
 
 				<!-- CMS Version -->
-				<div class="flex justify-center p-1 pb-2">
-					<!-- <a href="https://github.com/Celestialme/SimpleCMS" target="blank"> -->
+				<div class="flex justify-center p-1 pb-2 gap-2">
 					<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
-						<span class="badge variant-filled-primary rounded-xl text-black"
+						<span class="badge variant-filled-primary rounded-xl text-black "
 							>{$LL.SBL_Version()}: {pkg.version}</span
 						>
+					</a>
+					<a href="https://github.com/Rar9/SvelteCMS/discussions" target="blank">
+						<Icon icon="game-icons:gear-hammer" width="26" />
 					</a>
 				</div>
 			{/if}

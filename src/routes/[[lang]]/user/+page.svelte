@@ -190,16 +190,14 @@
 	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center ">
 		<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
-		<button
-			on:click={modalEditAvatar}
-			class="badge variant-filled-primary w-30 text-black absolute top-1"
+		<button on:click={modalEditAvatar} class="badge gradient-primary w-30 absolute top-1"
 			>{$LL.USER_Edit_Avatar()}</button
 		>
 
-		<div class="badge variant-filled-secondary mt-1 w-full max-w-xs">
+		<div class="badge gradient-secondary mt-1 w-full max-w-xs">
 			{$LL.USER_ID()}:<span class="ml-2">{id}</span>
 		</div>
-		<div class="badge variant-filled-tertiary w-full max-w-xs">
+		<div class="badge gradient-tertiary w-full max-w-xs">
 			{$LL.USER_Role()}:<span class="ml-2">{role}</span>
 		</div>
 	</div>
@@ -219,10 +217,10 @@
 			<input bind:value={password} name="password" type="password" readonly class="input" />
 		</label>
 		<div class="flex justify-between my-2">
-			<button class="btn btn-sm variant-filled-surface md:w-auto" on:click={modalUserForm}>
+			<button class="btn btn-sm gradient-secondary md:w-auto" on:click={modalUserForm}>
 				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 			</button>
-			<button on:click={modalConfirm} class="btn btn-sm variant-filled-error "
+			<button on:click={modalConfirm} class="btn btn-sm gradient-error"
 				><Icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />Delete User</button
 			>
 		</div>
@@ -235,12 +233,10 @@
 		<hr />
 		<h2 class="mb-2">Admin Area</h2>
 		<div class="flex justify-between my-2">
-			<button
-				class="btn variant-filled-secondary btn-sm"
-				on:click={() => (showUserList = !showUserList)}
+			<button class="btn gradient-secondary btn-sm" on:click={() => (showUserList = !showUserList)}
 				>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
 			>
-			<button on:click={modalTokenUser} class="btn btn-sm variant-filled-primary w-30"
+			<button on:click={modalTokenUser} class="btn btn-base gradient-primary w-30"
 				><Icon
 					icon="material-symbols:mail"
 					color="white"
