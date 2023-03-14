@@ -21,7 +21,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
-	//TODO add 2nd check for filesize and type
+	//TODO add sevee checks for filesize and type
 
 	// Check the file type
 	// const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -70,7 +70,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// base folder for saving user medias
-	let basePath = 'src/media';
+	let basePath = 'src/media/avatar';
 	let path = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
 
 	try {

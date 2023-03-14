@@ -102,11 +102,18 @@
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 	<form class="modal-form {cForm}">
 		<div class="grid grid-cols-1 grid-rows-{avatarSrc ? '1' : '2'} justify-center items-center">
-			<Avatar src={avatarSrc ?? '/Default_User.svg'} rounded-full class="w-32 mx-auto" />
+			<Avatar src={avatarSrc ?? '/Default_User.svg'} rounded-full class="mb-3 w-32 mx-auto" />
 
 			{#if !files}
-				<FileDropzone on:change={onChange} required name="Avatar Upload" accept="image/*" class="">
+				<FileDropzone
+					on:change={onChange}
+					required
+					name="Avatar Upload"
+					accept="image/*"
+					slotLead="flex flex-col justify-center items-center"
+				>
 					<svelte:fragment slot="lead">
+						<!-- icon -->
 						<svg xmlns="http://www.w3.org/2000/svg" width="3.5em" height="3.5em" viewBox="0 0 24 24"
 							><g fill="none" fill-rule="evenodd"
 								><path

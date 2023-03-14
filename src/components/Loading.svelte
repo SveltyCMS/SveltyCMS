@@ -30,16 +30,16 @@
 
 <style>
 	#loader {
-		animation: rotate 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate 4s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader2 {
-		animation: rotate2 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate2 4s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader3 {
-		animation: rotate 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate 4s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader4 {
-		animation: rotate2 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate2 4s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	@keyframes rotate {
 		0% {

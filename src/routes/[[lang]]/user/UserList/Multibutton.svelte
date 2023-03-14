@@ -12,10 +12,11 @@
 
 	// Popup Combobox
 	let listboxValue: string = 'edit';
+
 	let Combobox: PopupSettings = {
 		event: 'click',
 		target: 'Combobox',
-		placement: 'bottom',
+		placement: 'bottom-end',
 		closeQuery: '.listbox-item'
 		//state: (e: any) => console.log('tooltip', e)
 	};
