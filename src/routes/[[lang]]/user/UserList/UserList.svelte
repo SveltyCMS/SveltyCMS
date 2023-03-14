@@ -47,7 +47,6 @@
 	};
 
 	const listOfUsers = JSON.parse(list.user); // Retrieve User and parse them as JSON
-	// console.log(listOfUsers);
 
 	// const listOftokens = JSON.parse(token.sign_up_token); // Retrieve the tokens and parse them as JSON
 	// console.log(sign_up_token);
@@ -100,6 +99,8 @@
 	import FacetCheckboxes from '$src/components/tanstackTable/FacetCheckboxes.svelte';
 	import FacetMinMax from '$src/components/tanstackTable/FacetMinMax.svelte';
 
+	import moment from 'moment';
+
 	const numFormat = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
 	function getSortSymbol(isSorted: boolean | SortDirection) {
@@ -107,38 +108,53 @@
 	}
 
 	// TODO: Grab real data
-	const defaultData: User[] = [
-		{
-			firstName: 'Robert',
-			lastName: 'linsley',
-			visits: 100,
-			status: 'In Relationship',
-			progress: 50
-		},
-		{
-			firstName: 'tandy',
-			lastName: 'miller',
-			visits: 40,
-			status: 'Single',
-			progress: 80
-		},
-		{
-			firstName: 'joe',
-			lastName: 'dirte',
-			visits: 20,
-			status: 'Complicated',
-			progress: 10
-		}
-	];
+	// let defaultData: User[] = [
+	// 	{
+	// 		firstName: 'Robert',
+	// 		lastName: 'linsley',
+	// 		visits: 100,
+	// 		status: 'In Relationship',
+	// 		progress: 50
+	// 	},
+	// 	{
+	// 		firstName: 'tandy',
+	// 		lastName: 'miller',
+	// 		visits: 40,
+	// 		status: 'Single',
+	// 		progress: 80
+	// 	},
+	// 	{
+	// 		firstName: 'joe',
+	// 		lastName: 'dirte',
+	// 		visits: 20,
+	// 		status: 'Complicated',
+	// 		progress: 10
+	// 	}
+	// ];
 
 	// Define row shape
+	// type User = {
+	// 	firstName: string;
+	// 	lastName: string;
+	// 	visits: number;
+	// 	status: string;
+	// 	progress: number;
+	// };
+
 	type User = {
-		firstName: string;
-		lastName: string;
-		visits: number;
-		status: string;
-		progress: number;
+		email: string;
+		role: string;
+		username: string;
+		lastAccessAt: string;
+		createdAt: string;
 	};
+	const defaultData = listOfUsers.map((user: User) => ({
+		username: user.username,
+		email: user.email,
+		role: user.role,
+		lastAccessAt: user.lastAccessAt,
+		createdAt: user.createdAt
+	}));
 
 	const globalFilterFn: FilterFn<any> = (row, columnId, value, addMeta) => {
 		if (Array.isArray(value)) {
@@ -156,33 +172,63 @@
 	};
 
 	// Display Columns
+	// const defaultColumns: ColumnDef<User>[] = [
+	// 	{
+	// 		accessorKey: 'firstName',
+	// 		cell: (info) => info.getValue(),
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorFn: (row) => row.lastName,
+	// 		id: 'lastName',
+	// 		cell: (info) => info.getValue(),
+	// 		header: () => 'Last Name',
+	// 		footer: (info) => info.column.id
+	// 	},
+
+	// 	{
+	// 		accessorKey: 'visits',
+	// 		header: () => 'Visits',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'status',
+	// 		header: 'Status',
+	// 		footer: (info) => info.column.id
+	// 	},
+	// 	{
+	// 		accessorKey: 'progress',
+	// 		header: 'Profile Progress',
+	// 		footer: (info) => info.column.id
+	// 	}
+	// ];
+
 	const defaultColumns: ColumnDef<User>[] = [
 		{
-			accessorKey: 'firstName',
-			cell: (info) => info.getValue(),
+			accessorKey: 'username',
+			footer: (info) => info.column.id,
+			header: () => 'Username'
+		},
+		{
+			accessorKey: 'role',
+			header: () => 'Role',
 			footer: (info) => info.column.id
 		},
 		{
-			accessorFn: (row) => row.lastName,
-			id: 'lastName',
-			cell: (info) => info.getValue(),
-			header: () => 'Last Name',
-			footer: (info) => info.column.id
-		},
-
-		{
-			accessorKey: 'visits',
-			header: () => 'Visits',
+			accessorKey: 'email',
+			header: () => 'Email',
 			footer: (info) => info.column.id
 		},
 		{
-			accessorKey: 'status',
-			header: 'Status',
+			accessorFn: (cell) => moment(cell.createdAt).fromNow(),
+			accessorKey: 'createdAt',
+			header: () => 'Member For',
 			footer: (info) => info.column.id
 		},
 		{
-			accessorKey: 'progress',
-			header: 'Profile Progress',
+			accessorFn: (cell) => moment(cell.lastAccessAt).fromNow(),
+			accessorKey: 'lastAccessAt',
+			header: () => 'Last Access',
 			footer: (info) => info.column.id
 		}
 	];
@@ -247,6 +293,7 @@
 	});
 
 	const table = createSvelteTable(options);
+
 	function setGlobalFilter(filter: string) {
 		globalFilter = filter;
 		options.update((old) => {
