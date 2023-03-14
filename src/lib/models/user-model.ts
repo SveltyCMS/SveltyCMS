@@ -18,10 +18,11 @@ const UserSchema = new mongoose.Schema(
 		resetRequestedAt: String,
 		resetToken: String,
 		expiresAt: Date,
+		lastAccessAt: Date,
 	},
 
 	// Let Lucia handle the _id field
-	{ _id: false }
+	{ _id: false, timestamps: true }
 );
 
 let User: mongoose.Model<any> = null as any;

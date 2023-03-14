@@ -12,6 +12,7 @@ declare namespace Lucia {
 		avatar: string | undefined;
 		resetRequestedAt: Date | undefined;
 		resetToken: string | undefined;
+		lastAccessAt: string | undefined;
 	};
 }
 
@@ -27,9 +28,9 @@ declare namespace App {
 		LL: import('$i18n/i18n-types').TranslationFunctions;
 	}
 
-	interface Platform {}
+	interface Platform { }
 
-	interface Session {}
+	interface Session { }
 
-	interface Stuff {}
+	interface Stuff { }
 }

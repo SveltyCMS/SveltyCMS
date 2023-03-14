@@ -26,7 +26,8 @@ export const auth = lucia({
 			avatar: userData.avatar,
 
 			resetRequestedAt: userData.resetRequestedAt,
-			resetToken: userData.resetToken
+			resetToken: userData.resetToken,
+			lastActiveAt: userData.lastActiveAt
 		};
 	}
 });
