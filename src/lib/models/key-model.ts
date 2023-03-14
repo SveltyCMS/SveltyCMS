@@ -16,6 +16,10 @@ const KeySchema = new mongoose.Schema(
 		primary: {
 			type: Boolean,
 			required: true
+		},
+		expires: {
+			type: Number,
+			default: null
 		}
 	},
 	{ _id: false }
