@@ -488,7 +488,8 @@ Cant get Vaild Invites from DB
 	</table>
 
 	<!-- paginagtion -->
-	<!-- TODO need more work use the css fro entrylist -->
+	<!-- TODO need more work use the css from entrylist -->
+
 	<div class="flex align-items-center">
 		<button
 			class="button is-white"
@@ -535,6 +536,7 @@ Cant get Vaild Invites from DB
 		>
 			{'>>'}
 		</button>
+
 		<span class="mx-2 has-text-weight-semibold">|</span>
 		<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select">
 			{#each [7, 10, 25, 50] as pageSize}

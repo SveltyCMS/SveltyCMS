@@ -2,16 +2,19 @@
 /* eslint-disable */
 import type { BaseTranslation as BaseTranslationType, LocalizedString, RequiredParams } from 'typesafe-i18n'
 
-export type BaseTranslation = BaseTranslationType
+export type BaseTranslation = BaseTranslationType & DisallowNamespaces
 export type BaseLocale = 'en'
 
 export type Locales =
 	| 'de'
 	| 'en'
 
-export type Translation = RootTranslation
+export type Translation = RootTranslation & DisallowNamespaces
 
-export type Translations = RootTranslation
+export type Translations = RootTranslation &
+{
+	de: NamespaceDeTranslation
+}
 
 type RootTranslation = {
 	/**
@@ -358,13 +361,13 @@ type RootTranslation = {
 	 */
 	ENTRYLIST_of: string
 	/**
-	 * E​n​t​r​i​e​s
+	 * R​o​w​s
 	 */
-	ENTRYLIST_Entries: string
+	ENTRYLIST_Rows: string
 	/**
-	 * E​n​t​r​i​e​s
+	 * R​o​w​s
 	 */
-	ENTRYLIST_EntriesItems: string
+	ENTRYLIST_RowsItems: string
 	/**
 	 * P​r​e​v​i​o​u​s
 	 */
@@ -585,6 +588,591 @@ type RootTranslation = {
 	 * O​p​t​i​m​i​z​e​ ​t​i​t​l​e​ ​&​ ​d​e​s​c​r​i​p​t​i​o​n​ ​f​o​r​ ​G​o​o​g​l​e​ ​s​e​a​r​c​h​ ​r​e​s​u​l​t​s​,​ ​t​o​ ​i​m​p​r​o​v​e​ ​t​h​e​ ​v​i​s​u​a​l​ ​a​p​p​e​a​l​ ​t​o​ ​b​r​i​n​g​s​ ​m​o​r​e​ ​c​l​i​c​k​s​ ​t​o​ ​y​o​u​r​ ​w​e​b​s​i​t​e​.
 	 */
 	WIDGET_Seo_Suggetion_Text: string
+}
+
+export type NamespaceDeTranslation = {
+	/**
+	 * H​a​l​l​o​ ​{​n​a​m​e​}​!​ ​Ü​b​e​r​s​e​t​z​u​n​g​ ​g​e​h​t​!
+	 * @param {unknown} name
+	 */
+	HI: RequiredParams<'name'>
+	/**
+	 * S​u​c​h​e​n​ ​.​.​.
+	 */
+	SBL_Search: string
+	/**
+	 * A​d​m​i​n
+	 */
+	SBL_Admin: string
+	/**
+	 * A​d​m​i​n​ ​B​e​n​u​t​z​e​r
+	 */
+	SBL_Admin_User: string
+	/**
+	 * S​y​s​t​e​m​s​p​a​c​h​e
+	 */
+	SBL_SystemLanguage: string
+	/**
+	 * E​n​g​l​i​s​c​h
+	 */
+	SBL_English: string
+	/**
+	 * D​e​u​t​s​c​h
+	 */
+	SBL_German: string
+	/**
+	 * W​e​c​h​s​e​l​ ​z​u​m
+	 */
+	SBL_isDark: string
+	/**
+	 * H​e​l​l
+	 */
+	SBL_Light: string
+	/**
+	 * D​u​n​k​e​l
+	 */
+	SBL_Dark: string
+	/**
+	 * M​o​d​u​s
+	 */
+	SBL_Mode: string
+	/**
+	 * V​e​r​s​i​o​n
+	 */
+	SBL_Version: string
+	/**
+	 * V​e​r​.
+	 */
+	SBL_Ver: string
+	/**
+	 * S​p​e​i​c​h​e​r​n
+	 */
+	SBL_Save: string
+	/**
+	 * D​a​t​e​n​ ​e​r​f​o​l​g​r​e​i​c​h​ ​g​e​s​p​e​i​c​h​e​r​t
+	 */
+	SBL_Save_message: string
+	/**
+	 * A​b​m​e​l​d​e​n
+	 */
+	SBL_SignOut: string
+	/**
+	 * S​e​i​t​e​ ​n​i​c​h​t​ ​g​e​f​u​n​d​e​n
+	 */
+	ERROR_Pagenotfound: string
+	/**
+	 * E​s​ ​t​u​t​ ​u​n​s​ ​l​e​i​d​,​ ​e​t​w​a​s​ ​i​s​t​ ​s​c​h​i​e​f​ ​g​e​l​a​u​f​e​n​.
+	 */
+	ERROR_Wrong: string
+	/**
+	 * Z​u​r​ ​S​t​a​r​t​s​e​i​t​e
+	 */
+	ERROR_GoHome: string
+	/**
+	 * B​e​n​u​t​z​e​r​e​i​n​s​t​e​l​l​u​n​g​e​n
+	 */
+	USER_Setting: string
+	/**
+	 * B​e​n​u​t​z​e​r​-​I​D
+	 */
+	USER_ID: string
+	/**
+	 * B​e​n​u​t​z​e​r​n​a​m​e
+	 */
+	USER_Username: string
+	/**
+	 * V​o​r​n​a​m​e
+	 */
+	USER_FirstName: string
+	/**
+	 * N​a​c​h​n​a​m​e
+	 */
+	USER_LastName: string
+	/**
+	 * E​-​M​a​i​l
+	 */
+	USER_Email: string
+	/**
+	 * P​a​s​s​w​o​r​t
+	 */
+	USER_Password: string
+	/**
+	 * B​e​n​u​t​z​e​r​ ​b​e​a​r​b​e​i​t​e​n
+	 */
+	USER_Edit: string
+	/**
+	 * E​-​M​a​i​l​ ​b​e​r​e​i​t​s​ ​i​n​ ​G​e​b​r​a​u​c​h
+	 */
+	USER_Fail: string
+	/**
+	 * B​e​n​u​t​z​e​r​ ​l​ö​s​c​h​e​n
+	 */
+	USER_Delete: string
+	/**
+	 * B​e​n​u​t​z​e​r​p​r​o​f​i​l
+	 */
+	USER_Profile: string
+	/**
+	 * A​v​a​t​a​r​ ​b​e​a​r​b​e​i​t​e​n
+	 */
+	USER_Edit_Avatar: string
+	/**
+	 * R​o​l​l​e
+	 */
+	USER_Role: string
+	/**
+	 * E​m​a​i​l​ ​R​e​g​i​s​t​r​i​e​r​u​n​g​s​t​o​k​e​n
+	 */
+	USER_Generate: string
+	/**
+	 * B​e​n​u​t​z​e​r​l​i​s​t​e​ ​a​n​z​e​i​g​e​n
+	 */
+	USER_ListShow: string
+	/**
+	 * B​e​n​u​t​z​e​r​l​i​s​t​e​ ​s​c​h​l​i​e​ß​e​n
+	 */
+	USER_ListCollapse: string
+	/**
+	 * E​m​a​i​l​ ​B​e​n​u​t​z​e​r​r​e​g​i​s​t​r​i​e​r​u​n​g​s​t​o​k​e​n
+	 */
+	USER_EmailToken: string
+	/**
+	 * A​n​m​e​l​d​e​n
+	 */
+	LOGIN_SignIn: string
+	/**
+	 * R​e​g​i​s​t​r​i​e​r​e​n
+	 */
+	LOGIN_SignUp: string
+	/**
+	 * *​ ​E​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_Required: string
+	/**
+	 * B​e​n​u​t​z​e​r​n​a​m​e
+	 */
+	LOGIN_Username: string
+	/**
+	 * E​-​M​a​i​l​ ​A​d​r​e​s​s​e
+	 */
+	LOGIN_EmailAddress: string
+	/**
+	 * P​a​s​s​w​o​r​t
+	 */
+	LOGIN_Password: string
+	/**
+	 * A​n​m​e​l​d​u​n​g​s​ ​T​o​k​e​n
+	 */
+	LOGIN_Token: string
+	/**
+	 * P​a​s​s​w​o​r​t​ ​b​e​s​t​ä​t​i​g​e​n
+	 */
+	LOGIN_ConfirmPassword: string
+	/**
+	 * K​e​n​n​w​o​r​t​ ​v​e​r​g​e​s​s​e​n
+	 */
+	LOGIN_ForgottenPassword: string
+	/**
+	 * E​-​M​a​i​l​ ​P​a​s​s​w​o​r​t​ ​s​e​n​d​e​n
+	 */
+	LOGIN_SendResetMail: string
+	/**
+	 * P​a​s​s​w​o​r​t​ ​z​u​r​ü​c​k​s​e​t​z​e​n
+	 */
+	LOGIN_ResetPassword: string
+	/**
+	 * N​e​u​e​s​ ​P​a​s​s​w​o​r​d​ ​s​p​e​i​c​h​e​r​n
+	 */
+	LOGIN_ResetPasswordSave: string
+	/**
+	 * B​e​n​u​t​z​e​r​n​a​m​e​ ​i​s​t​ ​e​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_ZOD_Username_string: string
+	/**
+	 * D​e​r​ ​N​a​m​e​ ​d​a​r​f​ ​n​u​r​ ​B​u​c​h​s​t​a​b​e​n​,​ ​Z​i​f​f​e​r​n​ ​u​n​d​ ​@​$​!​%​*​#​ ​e​n​t​h​a​l​t​e​n
+	 */
+	LOGIN_ZOD_Username_regex: string
+	/**
+	 * N​a​m​e​ ​m​u​s​s​ ​a​u​s​ ​m​i​n​d​e​s​t​e​n​s​ ​2​ ​Z​e​i​c​h​e​n​ ​b​e​s​t​e​h​e​n
+	 */
+	LOGIN_ZOD_Username_min: string
+	/**
+	 * D​e​r​ ​N​a​m​e​ ​d​a​r​f​ ​n​u​r​ ​2​4​ ​Z​e​i​c​h​e​n​ ​l​a​n​g​ ​s​e​i​n
+	 */
+	LOGIN_ZOD_Username_max: string
+	/**
+	 * E​-​M​a​i​l​ ​i​s​t​ ​e​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_ZOD_Email_string: string
+	/**
+	 * E​-​M​a​i​l​ ​m​u​s​s​ ​e​i​n​e​ ​g​ü​l​t​i​g​e​ ​E​-​M​a​i​l​ ​s​e​i​n
+	 */
+	LOGIN_ZOD_Email_email: string
+	/**
+	 * P​a​s​s​w​o​r​t​ ​i​s​t​ ​e​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_ZOD_Password_string: string
+	/**
+	 * D​a​s​ ​P​a​s​s​w​o​r​t​ ​m​u​s​s​ ​m​i​n​d​e​s​t​e​n​s​ ​8​ ​Z​e​i​c​h​e​n​ ​l​a​n​g​ ​s​e​i​n​ ​u​n​d​ ​m​i​n​d​e​s​t​e​n​s​ ​e​i​n​e​n​ ​B​u​c​h​s​t​a​b​e​n​,​ ​e​i​n​e​ ​Z​a​h​l​ ​u​n​d​ ​e​i​n​ ​S​o​n​d​e​r​z​e​i​c​h​e​n​ ​e​n​t​h​a​l​t​e​n​.
+	 */
+	LOGIN_ZOD_Password_regex: string
+	/**
+	 * P​a​s​s​w​o​r​t​b​e​s​t​ä​t​i​g​u​n​g​ ​i​s​t​ ​e​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_ZOD_Confirm_password_string: string
+	/**
+	 * D​a​s​ ​P​a​s​s​w​o​r​t​ ​m​u​s​s​ ​a​u​s​ ​m​i​n​d​e​s​t​e​n​s​ ​8​ ​Z​e​i​c​h​e​n​ ​b​e​s​t​e​h​e​n​ ​u​n​d​ ​m​i​n​d​e​s​t​e​n​s​ ​e​i​n​e​n​ ​B​u​c​h​s​t​a​b​e​n​,​ ​e​i​n​e​ ​Z​a​h​l​ ​u​n​d​ ​e​i​n​ ​S​o​n​d​e​r​z​e​i​c​h​e​n​ ​e​n​t​h​a​l​t​e​n​.
+	 */
+	LOGIN_ZOD_Confirm_password_regex: string
+	/**
+	 * A​u​t​h​ ​T​o​k​e​n​ ​i​s​t​ ​e​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	LOGIN_ZOD_Token_string: string
+	/**
+	 * P​a​s​s​w​o​r​t​ ​u​n​d​ ​B​e​s​t​ä​t​i​g​u​n​g​ ​m​ü​s​s​e​n​ ​ü​b​e​r​e​i​n​s​t​i​m​m​e​n
+	 */
+	LOGIN_ZOD_Password_match: string
+	/**
+	 * U​n​b​e​k​a​n​n​t​e​r​ ​F​e​h​l​e​r​ ​a​u​f​g​e​t​r​e​t​e​n
+	 */
+	LOGIN_ZOD_General_Unkown: string
+	/**
+	 * U​n​g​ü​l​t​i​g​e​ ​E​i​n​g​a​b​e
+	 */
+	LOGIN_ZOD_General_Error: string
+	/**
+	 * E​-​M​a​i​l​ ​b​e​r​e​i​t​s​ ​i​n​ ​G​e​b​r​a​u​c​h
+	 */
+	LOGIN_ZOD_Email_Error_inUse: string
+	/**
+	 * F​e​h​l​e​r​ ​b​e​i​m​ ​S​e​n​d​e​n​ ​e​i​n​e​r​ ​E​-​M​a​i​l
+	 */
+	LOGIN_ZOD_Email_Error_send: string
+	/**
+	 * L​O​G​I​N​_​Z​O​D​_​S​i​g​n​u​p​_​u​n​k​o​w​n
+	 */
+	LOGIN_ZOD_Email_Error_Signup: string
+	/**
+	 * F​a​l​s​c​h​e​ ​E​-​M​a​i​l​ ​o​d​e​r​ ​f​a​l​s​c​h​e​s​ ​P​a​s​s​w​o​r​t
+	 */
+	LOGIN_ZOD_Email_Error_SignupKey: string
+	/**
+	 * T​o​k​e​n​ ​i​s​t​ ​f​a​l​s​c​h​!
+	 */
+	LOGIN_ZOD_Token_Error: string
+	/**
+	 * T​o​k​e​n​ ​i​s​t​ ​a​b​g​e​l​a​u​f​e​n​!
+	 */
+	LOGIN_ZOD_Token_Expired: string
+	/**
+	 * K​e​i​n​ ​K​o​n​t​o​ ​u​n​t​e​r​ ​d​i​e​s​e​r​ ​E​-​M​a​i​l​-​A​d​r​e​s​s​e
+	 */
+	LOGIN_ZOD_Forgotton_Error: string
+	/**
+	 * H​a​l​l​o​,​<​b​r​>​<​b​r​>​W​i​r​ ​h​a​b​e​n​ ​e​i​n​e​ ​A​n​f​r​a​g​e​ ​e​r​h​a​l​t​e​n​,​ ​I​h​r​ ​P​a​s​s​w​o​r​t​ ​z​u​r​ü​c​k​z​u​s​e​t​z​e​n​.​ ​I​h​r​ ​P​a​s​s​w​o​r​t​-​R​e​s​e​t​-​T​o​k​e​n​ ​l​a​u​t​e​t​:​<​b​r​>​<​b​r​>​{​t​o​k​e​n​}​<​b​r​>​<​b​r​>​B​i​t​t​e​ ​f​o​l​g​e​n​ ​S​i​e​ ​d​e​m​ ​u​n​t​e​n​s​t​e​h​e​n​d​e​n​ ​L​i​n​k​,​ ​u​m​ ​I​h​r​ ​P​a​s​s​w​o​r​t​ ​z​u​r​ü​c​k​z​u​s​e​t​z​e​n​:​<​b​r​>​{​l​i​n​k​}​<​b​r​>​<​b​r​>​F​a​l​l​s​ ​S​i​e​ ​d​i​e​s​e​ ​R​ü​c​k​s​e​t​z​u​n​g​ ​n​i​c​h​t​ ​a​n​g​e​f​o​r​d​e​r​t​ ​h​a​b​e​n​,​ ​i​g​n​o​r​i​e​r​e​n​ ​S​i​e​ ​b​i​t​t​e​ ​d​i​e​s​e​ ​N​a​c​h​r​i​c​h​t​.​<​b​r​>​<​b​r​>​M​i​t​ ​f​r​e​u​n​d​l​i​c​h​e​n​ ​G​r​ü​ß​e​n​,​<​b​r​>​I​h​r​ ​S​u​p​p​o​r​t​ ​T​e​a​m
+	 * @param {string} link
+	 * @param {string} token
+	 */
+	LOGIN_ZOD_Forgotton_email: RequiredParams<'link' | 'token'>
+	/**
+	 * E​r​s​t​e​l​l​e​n
+	 */
+	ENTRYLIST_Create: string
+	/**
+	 * P​u​b​l​i​z​i​e​r​e​n
+	 */
+	ENTRYLIST_Publish: string
+	/**
+	 * A​r​c​h​i​v​i​e​r​e​n
+	 */
+	ENTRYLIST_Unpublish: string
+	/**
+	 * P​l​a​n​e​n
+	 */
+	ENTRYLIST_Schedule: string
+	/**
+	 * K​o​p​i​e​r​e​n
+	 */
+	ENTRYLIST_Clone: string
+	/**
+	 * L​ö​s​c​h​e​n
+	 */
+	ENTRYLIST_Delete: string
+	/**
+	 * B​i​t​t​e​ ​b​e​s​t​ä​t​i​g​e​n​ ​S​i​e​ ​d​i​e​ ​L​ö​s​c​h​u​n​g
+	 */
+	ENTRYLIST_Delete_title: string
+	/**
+	 * S​i​n​d​ ​S​i​e​ ​s​i​c​h​e​r​,​ ​d​a​s​s​ ​S​i​e​ ​f​o​r​t​f​a​h​r​e​n​ ​m​ö​c​h​t​e​n​?
+	 */
+	ENTRYLIST_Delete_body: string
+	/**
+	 * A​b​b​r​e​c​h​e​n
+	 */
+	ENTRYLIST_Delete_cancel: string
+	/**
+	 * B​e​s​t​ä​t​i​g​e​n
+	 */
+	ENTRYLIST_Delete_confirm: string
+	/**
+	 * S​u​c​h​e​n
+	 */
+	ENTRYLIST_Search: string
+	/**
+	 * L​a​d​e​n​ ​.​.​.
+	 */
+	ENTRYLIST_Loading: string
+	/**
+	 * E​s​ ​w​e​r​d​e​n
+	 */
+	ENTRYLIST_Showing: string
+	/**
+	 * b​i​s
+	 */
+	ENTRYLIST_to: string
+	/**
+	 * v​o​n
+	 */
+	ENTRYLIST_of: string
+	/**
+	 * E​i​n​t​r​ä​g​e​n​ ​a​n​g​e​z​e​i​g​t
+	 */
+	ENTRYLIST_Entries: string
+	/**
+	 * E​i​n​t​r​ä​g​e
+	 */
+	ENTRYLIST_EntriesItems: string
+	/**
+	 * Z​u​r​ü​c​k
+	 */
+	ENTRYLIST_Previous: string
+	/**
+	 * W​e​i​t​e​r
+	 */
+	ENTRYLIST_Next: string
+	/**
+	 * E​r​s​t​e​l​l​e​n
+	 */
+	FORM_Create: string
+	/**
+	 * M​e​n​ü​ ​s​c​h​l​i​e​ß​e​n
+	 */
+	FORM_CloseMenu: string
+	/**
+	 * S​c​h​l​i​e​ß​e​n​ ​o​h​n​e​ ​S​p​e​i​c​h​e​r​n
+	 */
+	FORM_TT_Closes: string
+	/**
+	 * E​r​f​o​r​d​e​r​l​i​c​h
+	 */
+	FORM_Required: string
+	/**
+	 * S​a​m​m​l​u​n​g​e​n
+	 */
+	Collections: string
+	/**
+	 * M​e​d​i​e​n
+	 */
+	Media: string
+	/**
+	 * B​e​n​u​t​z​e​r
+	 */
+	COLLECTION_TEST_User: string
+	/**
+	 * P​r​ä​f​i​x
+	 */
+	COLLECTION_TEST_Prefix: string
+	/**
+	 * P​r​ä​f​i​x​ ​e​i​n​g​e​b​e​n
+	 */
+	COLLECTION_TEST_Prefix_placeholder: string
+	/**
+	 * V​o​r​n​a​m​e​n
+	 */
+	COLLECTION_TEST_First: string
+	/**
+	 * V​o​r​n​a​m​e​n​ ​e​i​n​g​e​b​e​n
+	 */
+	COLLECTION_TEST_First_placeholder: string
+	/**
+	 * M​i​t​t​e​l
+	 */
+	COLLECTION_TEST_Middle: string
+	/**
+	 * M​i​t​t​e​l​ ​(​S​c​h​r​e​i​b​g​e​s​c​h​ü​t​z​t​)
+	 */
+	COLLECTION_TEST_Middle_placeholder: string
+	/**
+	 * N​a​c​h​n​a​m​e
+	 */
+	COLLECTION_TEST_Last: string
+	/**
+	 * N​a​c​h​n​a​m​e​ ​e​i​n​g​e​b​e​n
+	 */
+	COLLECTION_TEST_Last_placeholder: string
+	/**
+	 * S​u​c​h​e​ ​i​n​ ​K​a​r​t​e​ ​.​.​.
+	 */
+	WIDGET_Address_SearchMap: string
+	/**
+	 * H​o​l​e​ ​v​o​n​ ​A​d​r​e​s​s​e
+	 */
+	WIDGET_Address_GetAddress: string
+	/**
+	 * A​d​r​e​s​s​e​ ​A​b​r​u​f​e​n
+	 */
+	WIDGET_Address_GetMap: string
+	/**
+	 * G​e​o​k​o​o​r​d​i​n​a​t​e​n
+	 */
+	WIDGET_Address_Geocoordinates: string
+	/**
+	 * B​r​e​i​t​e​n​g​r​a​d
+	 */
+	WIDGET_Address_Latitude: string
+	/**
+	 * L​ä​n​g​e​n​g​r​a​d
+	 */
+	WIDGET_Address_Longitude: string
+	/**
+	 * N​a​m​e
+	 */
+	WIDGET_Address_Name: string
+	/**
+	 * S​t​r​a​ß​e
+	 */
+	WIDGET_Address_Street: string
+	/**
+	 * P​o​s​t​l​e​i​t​z​a​h​l
+	 */
+	WIDGET_Address_Zip: string
+	/**
+	 * O​r​t
+	 */
+	WIDGET_Address_City: string
+	/**
+	 * L​a​n​d​ ​s​u​c​h​e​n​ ​.​.​.
+	 */
+	WIDGET_Address_SearchCountry: string
+	/**
+	 * V​o​r​h​a​n​d​e​n​e​ ​a​u​s​w​ä​h​l​e​n​.​.​.
+	 */
+	WIDGET_Relation_ChoseExisting: string
+	/**
+	 * B​e​a​r​b​e​i​t​e​n
+	 */
+	WIDGET_Relation_Edit: string
+	/**
+	 * N​e​u​ ​h​i​n​z​u​f​ü​g​e​n
+	 */
+	WIDGET_Relation_AddNew: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​h​a​t​ ​m​e​h​r​ ​a​l​s​ ​5​0​ ​Z​e​i​c​h​e​n​.​ ​P​e​r​f​e​k​t​!
+	 */
+	WIDGET_Seo_Suggetion_TitlePerfect: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​b​e​s​t​e​h​t​ ​a​u​s​ ​m​e​h​r​ ​a​l​s​ ​3​0​ ​Z​e​i​c​h​e​n​.​ ​V​e​r​s​u​c​h​e​n​ ​S​i​e​ ​5​0​+​.​ ​G​u​t​!
+	 */
+	WIDGET_Seo_Suggetion_TitleGood: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​i​s​t​ ​z​u​ ​k​u​r​z​.​ ​S​t​e​l​l​e​n​ ​S​i​e​ ​s​i​c​h​e​r​,​ ​d​a​s​s​ ​I​h​r​ ​T​i​t​e​l​ ​m​i​n​d​e​s​t​e​n​s​ ​5​0​ ​Z​e​i​c​h​e​n​ ​l​a​n​g​ ​i​s​t​.​ ​S​c​h​l​e​c​h​t​!
+	 */
+	WIDGET_Seo_Suggetion_TitleBad: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​h​a​t​ ​z​w​i​s​c​h​e​n​ ​1​2​0​ ​u​n​d​ ​1​6​5​ ​Z​e​i​c​h​e​n​.​ ​P​e​r​f​e​k​t​!
+	 */
+	WIDGET_Seo_Suggetion_DescriptionPerfect: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​b​e​s​t​e​h​t​ ​a​u​s​ ​m​e​h​r​ ​a​l​s​ ​9​0​ ​Z​e​i​c​h​e​n​.​ ​G​u​t​!
+	 */
+	WIDGET_Seo_Suggetion_DescriptionGood: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​h​a​t​ ​w​e​n​i​g​e​r​ ​a​l​s​ ​9​0​ ​Z​e​i​c​h​e​n​.​ ​S​c​h​l​e​c​h​t​!
+	 */
+	WIDGET_Seo_Suggetion_DescriptionBad: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​i​s​t​ ​z​w​i​s​c​h​e​n​ ​2​ ​u​n​d​ ​4​ ​S​ä​t​z​e​n​ ​l​a​n​g​.​ ​P​e​r​f​e​k​t​!
+	 */
+	WIDGET_Seo_Suggetion_SentencePerfect: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​i​s​t​ ​n​u​r​ ​1​ ​S​a​t​z​ ​l​a​n​g​.​ ​S​t​e​l​l​e​n​ ​S​i​e​ ​s​i​c​h​e​r​,​ ​d​a​s​s​ ​I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​2​ ​b​i​s​ ​4​ ​S​ä​t​z​e​ ​l​a​n​g​ ​i​s​t​.
+	 */
+	WIDGET_Seo_Suggetion_SentenceBad: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​v​e​r​w​e​n​d​e​t​ ​Z​a​h​l​e​n​.​ ​P​e​r​f​e​k​t​!
+	 */
+	WIDGET_Seo_Suggetion_NumberPerfect: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​v​e​r​w​e​n​d​e​t​ ​k​e​i​n​e​ ​Z​a​h​l​e​n​.​ ​D​i​e​ ​V​e​r​w​e​n​d​u​n​g​ ​v​o​n​ ​Z​a​h​l​e​n​ ​i​n​ ​I​h​r​e​m​ ​T​i​t​e​l​ ​k​a​n​n​ ​I​h​r​e​ ​C​T​R​ ​e​r​h​ö​h​e​n​.
+	 */
+	WIDGET_Seo_Suggetion_NumberBad: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​e​n​t​h​ä​l​t​ ​d​a​s​ ​P​o​w​e​r​ ​W​o​r​d​ ​W​o​r​t​ ​P​e​r​f​e​c​t​!
+	 */
+	WIDGET_Seo_Suggetion_PowerWordTitle: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​v​e​r​w​e​n​d​e​t​ ​d​a​s​ ​P​o​w​e​r​-​W​o​r​d​-​W​o​r​t​.​ ​P​e​r​f​e​k​t​!
+	 */
+	WIDGET_Seo_Suggetion_PowerWordDescription: string
+	/**
+	 * I​h​r​ ​T​i​t​e​l​ ​e​n​t​h​ä​l​t​ ​d​a​s​ ​C​T​A​-​S​c​h​l​ü​s​s​e​l​w​o​r​t​.​ ​G​u​t​!
+	 */
+	WIDGET_Seo_Suggetion_ctaKeywordsTitle: string
+	/**
+	 * I​h​r​e​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​e​n​t​h​ä​l​t​ ​d​a​s​ ​C​T​A​-​S​c​h​l​ü​s​s​e​l​w​o​r​t​.​ ​G​u​t​!
+	 */
+	WIDGET_Seo_Suggetion_ctaKeywordsDescription: string
+	/**
+	 * T​i​t​e​l​:
+	 */
+	WIDGET_Seo_Suggetion_Title: string
+	/**
+	 * Z​e​i​c​h​e​n​:
+	 */
+	WIDGET_Seo_Suggetion_Character: string
+	/**
+	 * -​ ​D​e​s​k​t​o​p​:
+	 */
+	WIDGET_Seo_Suggetion_WidthDesktop: string
+	/**
+	 * M​o​b​i​l​:​ 
+	 */
+	WIDGET_Seo_Suggetion_WidthMobile: string
+	/**
+	 * S​E​O​ ​T​i​t​e​l​:​ 
+	 */
+	WIDGET_Seo_Suggetion_SeoTitle: string
+	/**
+	 * B​e​s​c​h​r​e​i​b​u​n​g​:
+	 */
+	WIDGET_Seo_Suggetion_Description: string
+	/**
+	 * S​E​O​ ​B​e​s​c​h​r​e​i​b​u​n​g
+	 */
+	WIDGET_Seo_Suggetion_SeoDescription: string
+	/**
+	 * S​E​O​-​V​o​r​s​c​h​a​u
+	 */
+	WIDGET_Seo_Suggetion_SeoPreview: string
+	/**
+	 * S​E​O​ ​V​o​r​s​c​h​l​ä​g​e​:
+	 */
+	WIDGET_Seo_Suggetion_ListOfSuggestion: string
+	/**
+	 * T​i​t​e​l​ ​u​n​d​ ​B​e​s​c​h​r​e​i​b​u​n​g​ ​f​ü​r​ ​G​o​o​g​l​e​-​S​u​c​h​e​r​g​e​b​n​i​s​s​e​ ​o​p​t​i​m​i​e​r​e​n
+	 */
+	WIDGET_Seo_Suggetion_Text: string
+}
+
+export type Namespaces =
+	| 'de'
+
+type DisallowNamespaces = {
+	/**
+	 * reserved for 'de'-namespace\
+	 * you need to use the `./de/index.ts` file instead
+	 */
+	de?: "[typesafe-i18n] reserved for 'de'-namespace. You need to use the `./de/index.ts` file instead."
 }
 
 export type TranslationFunctions = {
@@ -929,13 +1517,13 @@ export type TranslationFunctions = {
 	 */
 	ENTRYLIST_of: () => LocalizedString
 	/**
-	 * Entries
+	 * Rows
 	 */
-	ENTRYLIST_Entries: () => LocalizedString
+	ENTRYLIST_Rows: () => LocalizedString
 	/**
-	 * Entries
+	 * Rows
 	 */
-	ENTRYLIST_EntriesItems: () => LocalizedString
+	ENTRYLIST_RowsItems: () => LocalizedString
 	/**
 	 * Previous
 	 */
@@ -1156,6 +1744,576 @@ export type TranslationFunctions = {
 	 * Optimize title & description for Google search results, to improve the visual appeal to brings more clicks to your website.
 	 */
 	WIDGET_Seo_Suggetion_Text: () => LocalizedString
+	de: {
+		/**
+		 * Hallo {name}! Übersetzung geht!
+		 */
+		HI: (arg: { name: unknown }) => LocalizedString
+		/**
+		 * Suchen ...
+		 */
+		SBL_Search: () => LocalizedString
+		/**
+		 * Admin
+		 */
+		SBL_Admin: () => LocalizedString
+		/**
+		 * Admin Benutzer
+		 */
+		SBL_Admin_User: () => LocalizedString
+		/**
+		 * Systemspache
+		 */
+		SBL_SystemLanguage: () => LocalizedString
+		/**
+		 * Englisch
+		 */
+		SBL_English: () => LocalizedString
+		/**
+		 * Deutsch
+		 */
+		SBL_German: () => LocalizedString
+		/**
+		 * Wechsel zum
+		 */
+		SBL_isDark: () => LocalizedString
+		/**
+		 * Hell
+		 */
+		SBL_Light: () => LocalizedString
+		/**
+		 * Dunkel
+		 */
+		SBL_Dark: () => LocalizedString
+		/**
+		 * Modus
+		 */
+		SBL_Mode: () => LocalizedString
+		/**
+		 * Version
+		 */
+		SBL_Version: () => LocalizedString
+		/**
+		 * Ver.
+		 */
+		SBL_Ver: () => LocalizedString
+		/**
+		 * Speichern
+		 */
+		SBL_Save: () => LocalizedString
+		/**
+		 * Daten erfolgreich gespeichert
+		 */
+		SBL_Save_message: () => LocalizedString
+		/**
+		 * Abmelden
+		 */
+		SBL_SignOut: () => LocalizedString
+		/**
+		 * Seite nicht gefunden
+		 */
+		ERROR_Pagenotfound: () => LocalizedString
+		/**
+		 * Es tut uns leid, etwas ist schief gelaufen.
+		 */
+		ERROR_Wrong: () => LocalizedString
+		/**
+		 * Zur Startseite
+		 */
+		ERROR_GoHome: () => LocalizedString
+		/**
+		 * Benutzereinstellungen
+		 */
+		USER_Setting: () => LocalizedString
+		/**
+		 * Benutzer-ID
+		 */
+		USER_ID: () => LocalizedString
+		/**
+		 * Benutzername
+		 */
+		USER_Username: () => LocalizedString
+		/**
+		 * Vorname
+		 */
+		USER_FirstName: () => LocalizedString
+		/**
+		 * Nachname
+		 */
+		USER_LastName: () => LocalizedString
+		/**
+		 * E-Mail
+		 */
+		USER_Email: () => LocalizedString
+		/**
+		 * Passwort
+		 */
+		USER_Password: () => LocalizedString
+		/**
+		 * Benutzer bearbeiten
+		 */
+		USER_Edit: () => LocalizedString
+		/**
+		 * E-Mail bereits in Gebrauch
+		 */
+		USER_Fail: () => LocalizedString
+		/**
+		 * Benutzer löschen
+		 */
+		USER_Delete: () => LocalizedString
+		/**
+		 * Benutzerprofil
+		 */
+		USER_Profile: () => LocalizedString
+		/**
+		 * Avatar bearbeiten
+		 */
+		USER_Edit_Avatar: () => LocalizedString
+		/**
+		 * Rolle
+		 */
+		USER_Role: () => LocalizedString
+		/**
+		 * Email Registrierungstoken
+		 */
+		USER_Generate: () => LocalizedString
+		/**
+		 * Benutzerliste anzeigen
+		 */
+		USER_ListShow: () => LocalizedString
+		/**
+		 * Benutzerliste schließen
+		 */
+		USER_ListCollapse: () => LocalizedString
+		/**
+		 * Email Benutzerregistrierungstoken
+		 */
+		USER_EmailToken: () => LocalizedString
+		/**
+		 * Anmelden
+		 */
+		LOGIN_SignIn: () => LocalizedString
+		/**
+		 * Registrieren
+		 */
+		LOGIN_SignUp: () => LocalizedString
+		/**
+		 * * Erforderlich
+		 */
+		LOGIN_Required: () => LocalizedString
+		/**
+		 * Benutzername
+		 */
+		LOGIN_Username: () => LocalizedString
+		/**
+		 * E-Mail Adresse
+		 */
+		LOGIN_EmailAddress: () => LocalizedString
+		/**
+		 * Passwort
+		 */
+		LOGIN_Password: () => LocalizedString
+		/**
+		 * Anmeldungs Token
+		 */
+		LOGIN_Token: () => LocalizedString
+		/**
+		 * Passwort bestätigen
+		 */
+		LOGIN_ConfirmPassword: () => LocalizedString
+		/**
+		 * Kennwort vergessen
+		 */
+		LOGIN_ForgottenPassword: () => LocalizedString
+		/**
+		 * E-Mail Passwort senden
+		 */
+		LOGIN_SendResetMail: () => LocalizedString
+		/**
+		 * Passwort zurücksetzen
+		 */
+		LOGIN_ResetPassword: () => LocalizedString
+		/**
+		 * Neues Password speichern
+		 */
+		LOGIN_ResetPasswordSave: () => LocalizedString
+		/**
+		 * Benutzername ist erforderlich
+		 */
+		LOGIN_ZOD_Username_string: () => LocalizedString
+		/**
+		 * Der Name darf nur Buchstaben, Ziffern und @$!%*# enthalten
+		 */
+		LOGIN_ZOD_Username_regex: () => LocalizedString
+		/**
+		 * Name muss aus mindestens 2 Zeichen bestehen
+		 */
+		LOGIN_ZOD_Username_min: () => LocalizedString
+		/**
+		 * Der Name darf nur 24 Zeichen lang sein
+		 */
+		LOGIN_ZOD_Username_max: () => LocalizedString
+		/**
+		 * E-Mail ist erforderlich
+		 */
+		LOGIN_ZOD_Email_string: () => LocalizedString
+		/**
+		 * E-Mail muss eine gültige E-Mail sein
+		 */
+		LOGIN_ZOD_Email_email: () => LocalizedString
+		/**
+		 * Passwort ist erforderlich
+		 */
+		LOGIN_ZOD_Password_string: () => LocalizedString
+		/**
+		 * Das Passwort muss mindestens 8 Zeichen lang sein und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.
+		 */
+		LOGIN_ZOD_Password_regex: () => LocalizedString
+		/**
+		 * Passwortbestätigung ist erforderlich
+		 */
+		LOGIN_ZOD_Confirm_password_string: () => LocalizedString
+		/**
+		 * Das Passwort muss aus mindestens 8 Zeichen bestehen und mindestens einen Buchstaben, eine Zahl und ein Sonderzeichen enthalten.
+		 */
+		LOGIN_ZOD_Confirm_password_regex: () => LocalizedString
+		/**
+		 * Auth Token ist erforderlich
+		 */
+		LOGIN_ZOD_Token_string: () => LocalizedString
+		/**
+		 * Passwort und Bestätigung müssen übereinstimmen
+		 */
+		LOGIN_ZOD_Password_match: () => LocalizedString
+		/**
+		 * Unbekannter Fehler aufgetreten
+		 */
+		LOGIN_ZOD_General_Unkown: () => LocalizedString
+		/**
+		 * Ungültige Eingabe
+		 */
+		LOGIN_ZOD_General_Error: () => LocalizedString
+		/**
+		 * E-Mail bereits in Gebrauch
+		 */
+		LOGIN_ZOD_Email_Error_inUse: () => LocalizedString
+		/**
+		 * Fehler beim Senden einer E-Mail
+		 */
+		LOGIN_ZOD_Email_Error_send: () => LocalizedString
+		/**
+		 * LOGIN_ZOD_Signup_unkown
+		 */
+		LOGIN_ZOD_Email_Error_Signup: () => LocalizedString
+		/**
+		 * Falsche E-Mail oder falsches Passwort
+		 */
+		LOGIN_ZOD_Email_Error_SignupKey: () => LocalizedString
+		/**
+		 * Token ist falsch!
+		 */
+		LOGIN_ZOD_Token_Error: () => LocalizedString
+		/**
+		 * Token ist abgelaufen!
+		 */
+		LOGIN_ZOD_Token_Expired: () => LocalizedString
+		/**
+		 * Kein Konto unter dieser E-Mail-Adresse
+		 */
+		LOGIN_ZOD_Forgotton_Error: () => LocalizedString
+		/**
+		 * Hallo,<br><br>Wir haben eine Anfrage erhalten, Ihr Passwort zurückzusetzen. Ihr Passwort-Reset-Token lautet:<br><br>{token}<br><br>Bitte folgen Sie dem untenstehenden Link, um Ihr Passwort zurückzusetzen:<br>{link}<br><br>Falls Sie diese Rücksetzung nicht angefordert haben, ignorieren Sie bitte diese Nachricht.<br><br>Mit freundlichen Grüßen,<br>Ihr Support Team
+		 */
+		LOGIN_ZOD_Forgotton_email: (arg: { link: string, token: string }) => LocalizedString
+		/**
+		 * Erstellen
+		 */
+		ENTRYLIST_Create: () => LocalizedString
+		/**
+		 * Publizieren
+		 */
+		ENTRYLIST_Publish: () => LocalizedString
+		/**
+		 * Archivieren
+		 */
+		ENTRYLIST_Unpublish: () => LocalizedString
+		/**
+		 * Planen
+		 */
+		ENTRYLIST_Schedule: () => LocalizedString
+		/**
+		 * Kopieren
+		 */
+		ENTRYLIST_Clone: () => LocalizedString
+		/**
+		 * Löschen
+		 */
+		ENTRYLIST_Delete: () => LocalizedString
+		/**
+		 * Bitte bestätigen Sie die Löschung
+		 */
+		ENTRYLIST_Delete_title: () => LocalizedString
+		/**
+		 * Sind Sie sicher, dass Sie fortfahren möchten?
+		 */
+		ENTRYLIST_Delete_body: () => LocalizedString
+		/**
+		 * Abbrechen
+		 */
+		ENTRYLIST_Delete_cancel: () => LocalizedString
+		/**
+		 * Bestätigen
+		 */
+		ENTRYLIST_Delete_confirm: () => LocalizedString
+		/**
+		 * Suchen
+		 */
+		ENTRYLIST_Search: () => LocalizedString
+		/**
+		 * Laden ...
+		 */
+		ENTRYLIST_Loading: () => LocalizedString
+		/**
+		 * Es werden
+		 */
+		ENTRYLIST_Showing: () => LocalizedString
+		/**
+		 * bis
+		 */
+		ENTRYLIST_to: () => LocalizedString
+		/**
+		 * von
+		 */
+		ENTRYLIST_of: () => LocalizedString
+		/**
+		 * Einträgen angezeigt
+		 */
+		ENTRYLIST_Entries: () => LocalizedString
+		/**
+		 * Einträge
+		 */
+		ENTRYLIST_EntriesItems: () => LocalizedString
+		/**
+		 * Zurück
+		 */
+		ENTRYLIST_Previous: () => LocalizedString
+		/**
+		 * Weiter
+		 */
+		ENTRYLIST_Next: () => LocalizedString
+		/**
+		 * Erstellen
+		 */
+		FORM_Create: () => LocalizedString
+		/**
+		 * Menü schließen
+		 */
+		FORM_CloseMenu: () => LocalizedString
+		/**
+		 * Schließen ohne Speichern
+		 */
+		FORM_TT_Closes: () => LocalizedString
+		/**
+		 * Erforderlich
+		 */
+		FORM_Required: () => LocalizedString
+		/**
+		 * Sammlungen
+		 */
+		Collections: () => LocalizedString
+		/**
+		 * Medien
+		 */
+		Media: () => LocalizedString
+		/**
+		 * Benutzer
+		 */
+		COLLECTION_TEST_User: () => LocalizedString
+		/**
+		 * Präfix
+		 */
+		COLLECTION_TEST_Prefix: () => LocalizedString
+		/**
+		 * Präfix eingeben
+		 */
+		COLLECTION_TEST_Prefix_placeholder: () => LocalizedString
+		/**
+		 * Vornamen
+		 */
+		COLLECTION_TEST_First: () => LocalizedString
+		/**
+		 * Vornamen eingeben
+		 */
+		COLLECTION_TEST_First_placeholder: () => LocalizedString
+		/**
+		 * Mittel
+		 */
+		COLLECTION_TEST_Middle: () => LocalizedString
+		/**
+		 * Mittel (Schreibgeschützt)
+		 */
+		COLLECTION_TEST_Middle_placeholder: () => LocalizedString
+		/**
+		 * Nachname
+		 */
+		COLLECTION_TEST_Last: () => LocalizedString
+		/**
+		 * Nachname eingeben
+		 */
+		COLLECTION_TEST_Last_placeholder: () => LocalizedString
+		/**
+		 * Suche in Karte ...
+		 */
+		WIDGET_Address_SearchMap: () => LocalizedString
+		/**
+		 * Hole von Adresse
+		 */
+		WIDGET_Address_GetAddress: () => LocalizedString
+		/**
+		 * Adresse Abrufen
+		 */
+		WIDGET_Address_GetMap: () => LocalizedString
+		/**
+		 * Geokoordinaten
+		 */
+		WIDGET_Address_Geocoordinates: () => LocalizedString
+		/**
+		 * Breitengrad
+		 */
+		WIDGET_Address_Latitude: () => LocalizedString
+		/**
+		 * Längengrad
+		 */
+		WIDGET_Address_Longitude: () => LocalizedString
+		/**
+		 * Name
+		 */
+		WIDGET_Address_Name: () => LocalizedString
+		/**
+		 * Straße
+		 */
+		WIDGET_Address_Street: () => LocalizedString
+		/**
+		 * Postleitzahl
+		 */
+		WIDGET_Address_Zip: () => LocalizedString
+		/**
+		 * Ort
+		 */
+		WIDGET_Address_City: () => LocalizedString
+		/**
+		 * Land suchen ...
+		 */
+		WIDGET_Address_SearchCountry: () => LocalizedString
+		/**
+		 * Vorhandene auswählen...
+		 */
+		WIDGET_Relation_ChoseExisting: () => LocalizedString
+		/**
+		 * Bearbeiten
+		 */
+		WIDGET_Relation_Edit: () => LocalizedString
+		/**
+		 * Neu hinzufügen
+		 */
+		WIDGET_Relation_AddNew: () => LocalizedString
+		/**
+		 * Ihr Titel hat mehr als 50 Zeichen. Perfekt!
+		 */
+		WIDGET_Seo_Suggetion_TitlePerfect: () => LocalizedString
+		/**
+		 * Ihr Titel besteht aus mehr als 30 Zeichen. Versuchen Sie 50+. Gut!
+		 */
+		WIDGET_Seo_Suggetion_TitleGood: () => LocalizedString
+		/**
+		 * Ihr Titel ist zu kurz. Stellen Sie sicher, dass Ihr Titel mindestens 50 Zeichen lang ist. Schlecht!
+		 */
+		WIDGET_Seo_Suggetion_TitleBad: () => LocalizedString
+		/**
+		 * Ihre Beschreibung hat zwischen 120 und 165 Zeichen. Perfekt!
+		 */
+		WIDGET_Seo_Suggetion_DescriptionPerfect: () => LocalizedString
+		/**
+		 * Ihre Beschreibung besteht aus mehr als 90 Zeichen. Gut!
+		 */
+		WIDGET_Seo_Suggetion_DescriptionGood: () => LocalizedString
+		/**
+		 * Ihre Beschreibung hat weniger als 90 Zeichen. Schlecht!
+		 */
+		WIDGET_Seo_Suggetion_DescriptionBad: () => LocalizedString
+		/**
+		 * Ihre Beschreibung ist zwischen 2 und 4 Sätzen lang. Perfekt!
+		 */
+		WIDGET_Seo_Suggetion_SentencePerfect: () => LocalizedString
+		/**
+		 * Ihre Beschreibung ist nur 1 Satz lang. Stellen Sie sicher, dass Ihre Beschreibung 2 bis 4 Sätze lang ist.
+		 */
+		WIDGET_Seo_Suggetion_SentenceBad: () => LocalizedString
+		/**
+		 * Ihr Titel verwendet Zahlen. Perfekt!
+		 */
+		WIDGET_Seo_Suggetion_NumberPerfect: () => LocalizedString
+		/**
+		 * Ihr Titel verwendet keine Zahlen. Die Verwendung von Zahlen in Ihrem Titel kann Ihre CTR erhöhen.
+		 */
+		WIDGET_Seo_Suggetion_NumberBad: () => LocalizedString
+		/**
+		 * Ihr Titel enthält das Power Word Wort Perfect!
+		 */
+		WIDGET_Seo_Suggetion_PowerWordTitle: () => LocalizedString
+		/**
+		 * Ihre Beschreibung verwendet das Power-Word-Wort. Perfekt!
+		 */
+		WIDGET_Seo_Suggetion_PowerWordDescription: () => LocalizedString
+		/**
+		 * Ihr Titel enthält das CTA-Schlüsselwort. Gut!
+		 */
+		WIDGET_Seo_Suggetion_ctaKeywordsTitle: () => LocalizedString
+		/**
+		 * Ihre Beschreibung enthält das CTA-Schlüsselwort. Gut!
+		 */
+		WIDGET_Seo_Suggetion_ctaKeywordsDescription: () => LocalizedString
+		/**
+		 * Titel:
+		 */
+		WIDGET_Seo_Suggetion_Title: () => LocalizedString
+		/**
+		 * Zeichen:
+		 */
+		WIDGET_Seo_Suggetion_Character: () => LocalizedString
+		/**
+		 * - Desktop:
+		 */
+		WIDGET_Seo_Suggetion_WidthDesktop: () => LocalizedString
+		/**
+		 * Mobil: 
+		 */
+		WIDGET_Seo_Suggetion_WidthMobile: () => LocalizedString
+		/**
+		 * SEO Titel: 
+		 */
+		WIDGET_Seo_Suggetion_SeoTitle: () => LocalizedString
+		/**
+		 * Beschreibung:
+		 */
+		WIDGET_Seo_Suggetion_Description: () => LocalizedString
+		/**
+		 * SEO Beschreibung
+		 */
+		WIDGET_Seo_Suggetion_SeoDescription: () => LocalizedString
+		/**
+		 * SEO-Vorschau
+		 */
+		WIDGET_Seo_Suggetion_SeoPreview: () => LocalizedString
+		/**
+		 * SEO Vorschläge:
+		 */
+		WIDGET_Seo_Suggetion_ListOfSuggestion: () => LocalizedString
+		/**
+		 * Titel und Beschreibung für Google-Suchergebnisse optimieren
+		 */
+		WIDGET_Seo_Suggetion_Text: () => LocalizedString
+	}
 }
 
 export type Formatters = {}

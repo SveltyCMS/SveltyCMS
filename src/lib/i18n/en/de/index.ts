@@ -1,4 +1,4 @@
-import type { Translation } from '../i18n-types';
+import type { Translation } from '../../i18n-types';
 
 const de: Translation = {
 	// Test
@@ -104,8 +104,8 @@ const de: Translation = {
 	ENTRYLIST_Showing: 'Es werden',
 	ENTRYLIST_to: 'bis',
 	ENTRYLIST_of: 'von',
-	ENTRYLIST_Rows: 'Einträgen angezeigt',
-	ENTRYLIST_RowsItems: 'Einträge',
+	ENTRYLIST_Entries: 'Einträgen angezeigt',
+	ENTRYLIST_EntriesItems: 'Einträge',
 	ENTRYLIST_Previous: 'Zurück',
 	ENTRYLIST_Next: 'Weiter',
 

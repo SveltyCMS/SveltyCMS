@@ -27,10 +27,9 @@
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { Modal, modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import type { Schema } from '$src/collections/types';
-	import { onMount } from 'svelte';
 	import entryListTableStore from '$src/lib/stores/entryListTable';
 
 	// Popup Tooltips
@@ -71,6 +70,16 @@
 		event: 'click',
 		// Provide a matching 'data-popup' value.
 		target: 'entryListlanguagePopup'
+	};
+
+	let ContentPages: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		// Provide a matching 'data-popup' value.
+		target: 'entryListPages',
+		placement: 'bottom',
+		// Close the popup when the item is clicked
+		closeQuery: '.listbox-item'
 	};
 
 	//TODO: Get Roles from allowed user
@@ -654,6 +663,119 @@
 					{/each}
 				</tbody>
 			</table>
+		</div>
+	</div>
+
+	<div class="flex items-center justify-between border-surface-200 p-2 ">
+		<div class="flex flex-1 items-center justify-between">
+			<!-- Pagecounter -->
+			<div class="hidden text-sm text-surface-700 dark:text-surface-400 sm:block">
+				{$LL.ENTRYLIST_Showing()}
+				<span class="font-semibold text-surface-900 dark:text-white"
+					>{(paging.page - 1) * paging.entryLength + 1}</span
+				>
+				{$LL.ENTRYLIST_to()}
+				<span class="font-semibold text-surface-900 dark:text-white"
+					>{paging.entryLength * paging.page > paging.totalCount
+						? paging.totalCount
+						: paging.entryLength * paging.page}</span
+				>
+				{$LL.ENTRYLIST_of()}
+				<span class="font-semibold text-surface-900 dark:text-white">{paging.totalCount} </span>
+				<!-- TODO Correct Translation for Pluralization -->
+				{$LL.ENTRYLIST_Rows()}
+			</div>
+
+			<!-- RowsPerPage -->
+			<button class="btn variant-ghost-secondary" use:popup={ContentPages}>
+				{paging.entryLength} Rows
+				<Icon icon="mdi:chevron-down" width="24" />
+			</button>
+
+			<div class="card w-30 shadow-xl py-2" data-popup="entryListPages">
+				<!-- Listbox -->
+				TODO Index not linked:
+				<ListBox rounded="rounded-none">
+					{#each paging.lengthList as length, index}
+						<ListBoxItem bind:group={length} name="medium" value={length}>
+							{length}
+							{$LL.ENTRYLIST_RowsItems()}
+						</ListBoxItem>
+					{/each}
+				</ListBox>
+
+				<!-- Arrow -->
+				<div class="arrow bg-surface-100-800-token" />
+			</div>
+
+			<!-- <span class="relative rounded-md">
+				<button
+					use:menu={{ menu: 'pageItems' }}
+					class="btn flex items-center justify-center rounded-md border border-surface-600 px-2 uppercase"
+				>
+					{paging.entryLength}
+					<Icon icon="mdi:chevron-down" width="24" />
+				</button>
+				<nav
+					class="card list-nav w-[100px] cursor-pointer border bg-surface-600 p-2 text-center text-white shadow-xl dark:bg-surface-300 sm:absolute sm:top-0 sm:-left-6"
+					data-menu="pageItems"
+				>
+					<ul class="divide-y">
+						{#each paging.lengthList as length}
+							<li
+								class="-mx-2 transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700 dark:text-black hover:dark:text-white"
+								value={length}
+								on:click={() => changeItemsPerPage(length)}
+							>
+								{length}
+								{$LL.ENTRYLIST_EntriesItems()}
+							</li>
+						{/each}
+					</ul>
+				</nav>
+			</span> -->
+
+			<!-- Pagination -->
+			<div class="dark:text-white">
+				<nav class="isolate inline-flex -space-x-px rounded-md shadow-sm" aria-label="Pagination">
+					<!-- Previous -->
+					<div
+						on:click={() => {
+							paging.page > 1 && (paging.page--, refresh(collection));
+						}}
+						class="relative inline-flex items-center rounded-l-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
+					>
+						<span class="sr-only">{$LL.ENTRYLIST_Previous()}</span>
+						<Icon icon="mdi:chevron-left" width="24" />
+					</div>
+
+					<!-- pages -->
+					{#each Array(totalPages) as _, i}
+						<div
+							on:click={() => {
+								paging.page = i + 1;
+								refresh(collection);
+							}}
+							class:active={paging.page == i + 1}
+							aria-current="page"
+							class="relative inline-flex items-center border border-surface-400 px-4 py-2 text-sm font-medium text-surface-400  hover:bg-surface-400 hover:text-white focus:z-20 active:text-black "
+						>
+							{i + 1}
+						</div>
+					{/each}
+
+					<!-- Next -->
+					<div
+						on:click={() => {
+							paging.page < totalPages && (paging.page++, refresh(collection));
+						}}
+						class="relative inline-flex items-center rounded-r-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
+					>
+						<span class="sr-only">{$LL.ENTRYLIST_Next()}</span>
+						<Icon icon="mdi:chevron-right" width="24" />
+					</div>
+				</nav>
+			</div>
 		</div>
 	</div>
 {/if}

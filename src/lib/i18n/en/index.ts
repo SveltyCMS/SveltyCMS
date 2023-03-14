@@ -104,8 +104,8 @@ const en: BaseTranslation = {
 	ENTRYLIST_Showing: 'Showing',
 	ENTRYLIST_to: 'to',
 	ENTRYLIST_of: 'of',
-	ENTRYLIST_Entries: 'Entries',
-	ENTRYLIST_EntriesItems: 'Entries',
+	ENTRYLIST_Rows: 'Rows',
+	ENTRYLIST_RowsItems: 'Rows',
 	ENTRYLIST_Previous: 'Previous',
 	ENTRYLIST_Next: 'Next',
 

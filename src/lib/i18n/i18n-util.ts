@@ -6,7 +6,7 @@ import type { LocaleDetector } from 'typesafe-i18n/detectors'
 import type { LocaleTranslationFunctions, TranslateByString } from 'typesafe-i18n'
 import { detectLocale as detectLocaleFn } from 'typesafe-i18n/detectors'
 import { initExtendDictionary } from 'typesafe-i18n/utils'
-import type { Formatters, Locales, Translations, TranslationFunctions } from './i18n-types'
+import type { Formatters, Locales, Namespaces, Translations, TranslationFunctions } from './i18n-types'
 
 export const baseLocale: Locales = 'en'
 
@@ -15,7 +15,13 @@ export const locales: Locales[] = [
 	'en'
 ]
 
+export const namespaces: Namespaces[] = [
+	'de'
+]
+
 export const isLocale = (locale: string): locale is Locales => locales.includes(locale as Locales)
+
+export const isNamespace = (namespace: string): namespace is Namespaces => namespaces.includes(namespace as Namespaces)
 
 export const loadedLocales: Record<Locales, Translations> = {} as Record<Locales, Translations>
 
