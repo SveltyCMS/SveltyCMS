@@ -135,6 +135,7 @@ export const actions: Actions = {
 		try {
 			const key = await auth.useKey('email', email, password);
 			const session = await auth.createSession(key.userId);
+			await auth.updateUserAttributes(key.userId, { lastAccessAt: `${new Date()}` })
 			locals.setSession(session);
 		} catch (error) {
 			if (
@@ -233,7 +234,8 @@ export const actions: Actions = {
 						email: email.toLowerCase(),
 						role: 'ADMIN',
 						resetRequestedAt: undefined,
-						resetToken: undefined
+						resetToken: undefined,
+						lastAccessAt: `${new Date()}`
 					}
 				});
 
@@ -297,7 +299,8 @@ export const actions: Actions = {
 					email: email.toLowerCase(),
 					role: token.role,
 					resetRequestedAt: undefined,
-					resetToken: token.resetToken
+					resetToken: token.resetToken,
+					lastAccessAt: `${new Date()}`
 				}
 			});
 
