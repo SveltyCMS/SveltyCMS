@@ -151,11 +151,11 @@ type RootTranslation = {
 	 */
 	USER_Generate: string
 	/**
-	 * S​h​o​w​ ​u​s​e​r​ ​l​i​s​t
+	 * S​h​o​w​ ​U​s​e​r​ ​L​i​s​t
 	 */
 	USER_ListShow: string
 	/**
-	 * C​o​l​l​a​p​s​e​ ​u​s​e​r​ ​l​i​s​t
+	 * C​o​l​l​a​p​s​e​ ​U​s​e​r​ ​L​i​s​t
 	 */
 	USER_ListCollapse: string
 	/**
@@ -1309,11 +1309,11 @@ export type TranslationFunctions = {
 	 */
 	USER_Generate: () => LocalizedString
 	/**
-	 * Show user list
+	 * Show User List
 	 */
 	USER_ListShow: () => LocalizedString
 	/**
-	 * Collapse user list
+	 * Collapse User List
 	 */
 	USER_ListCollapse: () => LocalizedString
 	/**

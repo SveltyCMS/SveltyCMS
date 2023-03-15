@@ -278,7 +278,7 @@
 </script>
 
 <h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
-Cant get Vaild Invites from DB
+Table List if Send out Vaild user Invites from DB
 <!-- <table>
 	<thead class="bg-surface-600 rounded-t border-b-2">
 		<tr class="divide-x-2">
@@ -332,24 +332,23 @@ Cant get Vaild Invites from DB
 		</svg>
 
 		<button class="btn variant-ghost" on:click={() => (columnShow = !columnShow)}>
-			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />Columns<Icon
-				icon="mdi:chevron-down"
-				width="20"
-				class="text-white ml-2"
-			/>
+			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" /><span
+				class="hidden sm:block">Columns</span
+			><Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
 		</button>
 
 		<button class="btn variant-ghost" on:click={triggerFacets}>
-			<Icon icon="carbon:filter-edit" width="20" class="mr-1" />Filter/Facets<Icon
-				icon="mdi:chevron-down"
-				width="20"
-				class="text-white ml-2"
-			/>
+			<Icon icon="carbon:filter-edit" width="20" class="mr-1" /><span class="hidden sm:block"
+				>Filter/Facets</span
+			><Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
 		</button>
 	</div>
 
 	<div class="md:items-end"><Multibutton /></div>
+	<!-- TODO: Multibutton breaks if used 2x times -->
+	<!-- <div class="hidden sm:block md:items-end"><Multibutton /></div> -->
 </div>
+<!-- <div class="sm:hidden flex justify-end mb-2"><Multibutton /></div> -->
 {#if columnShow}
 	<div class="md:mr-2 md:mb-0 mb-4 flex items-center justify-center md:justify-end" />
 
@@ -479,7 +478,7 @@ Cant get Vaild Invites from DB
 	<!-- Pagination -->
 	<div class="flex justify-around items-center my-3">
 		<!-- show & count rows -->
-		<div class="text-surface-400 text-sm">
+		<div class="hidden md:block text-surface-400 text-sm">
 			Showing
 			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
 			to
@@ -498,7 +497,7 @@ Cant get Vaild Invites from DB
 		<select
 			value={$table.getState().pagination.pageSize}
 			on:change={setPageSize}
-			class="max-w-[100px] select variant-ghost text-sm"
+			class="hidden sm:block max-w-[100px] select variant-ghost text-sm"
 		>
 			{#each [10, 25, 50, 100, 500] as pageSize}
 				<option value={pageSize}>
@@ -510,7 +509,7 @@ Cant get Vaild Invites from DB
 		<!-- next/previous pages -->
 		<div class="btn-group variant-ghost [&>*+*]:border-surface-500">
 			<button
-				class="w-5"
+				class="w-3"
 				on:click={() => setCurrentPage(0)}
 				class:is-disabled={!$table.getCanPreviousPage()}
 				disabled={!$table.getCanPreviousPage()}
@@ -519,7 +518,7 @@ Cant get Vaild Invites from DB
 			</button>
 
 			<button
-				class="w-5"
+				class="w-3"
 				on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
 				class:is-disabled={!$table.getCanPreviousPage()}
 				disabled={!$table.getCanPreviousPage()}
@@ -543,7 +542,7 @@ Cant get Vaild Invites from DB
 				</span>
 			</div>
 			<button
-				class="w-5"
+				class="w-3"
 				on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
 				class:is-disabled={!$table.getCanNextPage()}
 				disabled={!$table.getCanNextPage()}
@@ -551,13 +550,41 @@ Cant get Vaild Invites from DB
 				{'>'}
 			</button>
 			<button
-				class="w-5"
+				class="w-3"
 				on:click={() => setCurrentPage($table.getPageCount() - 1)}
 				class:is-disabled={!$table.getCanNextPage()}
 				disabled={!$table.getCanNextPage()}
 			>
 				{'>>'}
 			</button>
+		</div>
+	</div>
+	<div class="md:hidden flex flex-col justify-center items-center gap-2 ">
+		<!-- number of pages -->
+		<select
+			value={$table.getState().pagination.pageSize}
+			on:change={setPageSize}
+			class="sm:hidden max-w-[100px] select variant-ghost text-sm"
+		>
+			{#each [10, 25, 50, 100, 500] as pageSize}
+				<option value={pageSize}>
+					{pageSize} Rows
+				</option>
+			{/each}
+		</select>
+		<div class="text-surface-400 text-sm">
+			Showing
+			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			to
+			<!-- TODO: Get actual page -->
+			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			of
+			<span class="text-white">{$table.getPrePaginationRowModel().rows.length}</span> Total
+			<!-- TODO: check if only 1 Row -->
+			{#if 1 === 1}
+				Row
+			{:else}
+				Rows{/if}
 		</div>
 	</div>
 </div>

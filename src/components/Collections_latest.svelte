@@ -50,7 +50,12 @@
 		});
 </script>
 
-<Accordion autocollapse>
+<Accordion
+	autocollapse
+	spacing="space-y-4 w-full"
+	regionPanel="px-0"
+	regionControl="bg-surface-200 dark:bg-surface-500"
+>
 	{#each filtered as item, index}
 		{#if switchSideBar}
 			<!-- Desktop Collection Parent -->
@@ -79,7 +84,7 @@
 									$showFieldsStore.showField = true;
 									dispatch('collection_click', { category_index: index, collection_index });
 								}}
-								class="hover:!bg-surface-400"
+								class="hover:!bg-surface-400 w-full"
 							>
 								<svelte:fragment slot="lead">
 									<Icon icon={_collection.icon} width="24" class="text-error-600" />
@@ -105,7 +110,7 @@
 
 				<!-- Category name -->
 				<svelte:fragment slot="summary">
-					<p class="uppercase hidden">{item.category}</p>
+					<p class="uppercase hidden ">{item.category}</p>
 				</svelte:fragment>
 
 				<!-- Mobile Collection Childern -->
@@ -123,7 +128,7 @@
 								class="flex justify-center items-center hover:!bg-surface-400"
 							>
 								<div class="overflow-clip truncate text-clip text-[9px]">{_collection.name}</div>
-								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
+								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2 m-auto" />
 							</ListBoxItem>
 						{/each}
 					</ListBox>

@@ -43,8 +43,8 @@ const en: BaseTranslation = {
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
 	USER_Generate: 'Email User Registion token',
-	USER_ListShow: 'Show user list',
-	USER_ListCollapse: 'Collapse user list',
+	USER_ListShow: 'Show User List',
+	USER_ListCollapse: 'Collapse User List',
 	USER_EmailToken: 'Email User Registion token',
 
 	// Login
