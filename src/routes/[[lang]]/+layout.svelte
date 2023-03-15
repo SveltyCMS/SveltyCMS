@@ -355,7 +355,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 						<!-- System Language i18n Handeling -->
-						<!-- <LocaleSwitcher /> -->
+						<LocaleSwitcher />
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
