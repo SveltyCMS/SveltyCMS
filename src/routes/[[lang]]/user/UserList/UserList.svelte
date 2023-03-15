@@ -36,6 +36,15 @@
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	const user = getUser();
 
+	// Form Data
+	const formData = {
+		username: $user?.username,
+		email: $user?.email,
+		role: $user?.role,
+		// TODO get right values
+		firstAccess: $user?.username,
+		lastAccess: $user?.username
+	};
 	const listOfUsers = JSON.parse(list.user); // Retrieve User and parse them as JSON
 
 	// State to keep track of whether the modal is open or not
@@ -51,10 +60,10 @@
 
 	// search filter
 	// TODO: Search be selected column
-	// let filterData = '';
-	// function updateFilter(e: KeyboardEvent) {
-	// 	filterData = (e.target as HTMLInputElement).value.toLowerCase();
-	// }
+	let filterData = '';
+	function updateFilter(e: KeyboardEvent) {
+		filterData = (e.target as HTMLInputElement).value.toLowerCase();
+	}
 
 	import {
 		createSvelteTable,

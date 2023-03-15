@@ -1,7 +1,7 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo.png">
-      <img width="250" alt="SimpleCMC logo" src="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo.png">
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo_Round.png">
+      <img width="250" alt="SimpleCMC logo" src="https://github.com/Rar9/SvelteCMS/blob/main/static/SimpleCMS_Logo_Round.png">
     </picture>
  </p>
 

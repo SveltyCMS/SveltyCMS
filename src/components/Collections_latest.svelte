@@ -74,7 +74,11 @@
 
 				<!-- Desktop Collection Childern -->
 				<svelte:fragment slot="content">
-					<ListBox rounded="rounded-none" class="divide-surface-400 divide-y">
+					<ListBox
+						rounded="rounded-none"
+						spacing="space-y-0"
+						class="divide-surface-400 divide-y my-0 -mx-4"
+					>
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
 								bind:group={item.category}
@@ -96,13 +100,13 @@
 				</svelte:fragment>
 			</AccordionItem>
 			<div class="card variant-filled-secondary" data-popup={item.category}>
-				Some text goes here.
+				{item.category} Some text goes here.
 				<!-- Append the arrow element -->
 				<div class="arrow variant-filled-secondary" />
 			</div>
 		{:else}
 			<!-- Mobile Collection Parent -->
-			<AccordionItem open={index === 0} padding="py-2 px-4">
+			<AccordionItem open={index === 0} padding="py-2 px-2" data-popup={item.category}>
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
 					<Icon icon={item.icon} width="24" class="text-error-600" />
@@ -115,7 +119,12 @@
 
 				<!-- Mobile Collection Childern -->
 				<svelte:fragment slot="content">
-					<ListBox rounded="rounded-none" class="divide-y space-y-0">
+					<ListBox
+						rounded="rounded-none"
+						spacing="space-y-0"
+						padding="!py-1"
+						class="divide-surface-400 divide-y !-m-2"
+					>
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
 								bind:group={item.category}
@@ -134,6 +143,11 @@
 					</ListBox>
 				</svelte:fragment>
 			</AccordionItem>
+			<div class="card variant-filled-secondary" data-popup={item.category}>
+				{item.category} Some text goes here.
+				<!-- Append the arrow element -->
+				<div class="arrow variant-filled-secondary" />
+			</div>
 		{/if}
 	{/each}
 </Accordion>

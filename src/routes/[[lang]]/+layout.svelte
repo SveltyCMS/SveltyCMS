@@ -1,6 +1,5 @@
 <script lang="ts">
 	// Sveltekit
-	import { fly } from 'svelte/transition';
 	import { is_dark, entryData } from '$src/stores/store';
 	import { enhance } from '$app/forms';
 
@@ -10,23 +9,13 @@
 	import showFieldsStore from '$src/lib/stores/fieldStore';
 	import CollectionsLatest from '$src/components/Collections_latest.svelte';
 	import collections, { categories } from '$src/collections';
-	// import Collections from '$src/components/Collections.svelte';
-	// import EntryList from '$src/components/EntryList.svelte';
-	// import Form from '$src/components/Form.svelte';
+
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
 
 	export let switchSideBar = false;
 
 	// Skeleton
-	import {
-		AppBar,
-		AppShell,
-		Avatar,
-		Modal,
-		ProgressBar,
-		Toast,
-		toastStore
-	} from '@skeletonlabs/skeleton';
+	import { AppShell, Avatar, Modal, ProgressBar, Toast, toastStore } from '@skeletonlabs/skeleton';
 	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -151,9 +140,7 @@
 	let submitDisabled = false;
 
 	$: avatarSrc = $user?.avatar;
-	let deleteMode: boolean;
 
-	let valid = false;
 	let collection = collections[0];
 	let fields: any;
 	// let refresh: (collection: any) => Promise<any>;
@@ -283,7 +270,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						class="relative z-10 h-10 w-full cursor-pointer rounded-md border border-surface-700 bg-surface-300/50 pl-12 text-black shadow-xl outline-none focus:cursor-text dark:bg-surface-600/50 dark:text-white"
 					/>
 				{/if}
-
+				<!-- search icon -->
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
 					class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
@@ -312,30 +299,52 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 			bind:category
 		/>
 
-		<!-- Sidebar Left Footer -->
+		<!-- Sidebar Left Footer absolute inset-x-0  -->
 		<div
-			class="absolute inset-x-0 bottom-1 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
+			class="absolute inset-x-0 mt-1 bottom-2 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
 		>
 			<div class="border-t border-surface-400 mx-1 mb-2" />
-
-			{#if switchSideBar}
-				<div
-					hidden={leftSidebarOn}
-					class="grid grid-cols-2 md:grid-cols-3 grid-rows-2 md:gap-2 items-center"
-				>
+			<!-- mobile - 3rows 2col 
+				desktop - 3rows 3cols -->
+			<div
+				class="{switchSideBar
+					? 'grid-rows-3 grid-cols-3 '
+					: 'grid-rows-2 grid-cols-2 '} grid overflow-hidden gap-1 justify-center items-center"
+			>
+				<!-- Avatar with user settings -->
+				<div class="{switchSideBar ? 'order-1 row-span-2' : 'order-1 '} ">
 					<div class="md:row-span-2">
-						<!-- Avatar with user settings -->
 						<a href="/user" class="relative flex-col !no-underline ">
-							<Avatar src={avatarSrc ?? '/Default_User.svg'} class="mx-auto w-12" />
+							<Avatar
+								src={avatarSrc ?? '/Default_User.svg'}
+								class="mx-auto {switchSideBar ? 'w-[50px]' : 'w-[35px]'}"
+							/>
 							<div class="text-center text-[9px] text-black dark:text-white">
-								{#if $user?.username}
-									<div class="text-xs uppercase">{$user?.username}</div>
+								{#if switchSideBar}
+									{#if $user?.username}
+										<div class="text-xs uppercase">{$user?.username}</div>
+									{/if}
 								{/if}
 							</div>
 						</a>
 					</div>
+				</div>
 
-					<!-- light/dark mode switch -->
+				<!-- System Language i18n Handeling -->
+				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
+					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
+						<LocaleSwitcher />
+						<!-- TODO: POPUP is blocking selection -->
+						<!-- Popup Tooltip with the arrow element -->
+						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
+							{$LL.SBL_SystemLanguage()}
+							<div class="arrow variant-filled-secondary" />
+						</div>
+					</div>
+				</div>
+
+				<!-- light/dark mode switch -->
+				<div class="{switchSideBar ? 'order-2' : 'order-3'} ">
 					<button
 						use:popup={SwitchThemeSettings}
 						on:click={toggleTheme}
@@ -352,18 +361,10 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							<div class="arrow variant-filled-secondary" />
 						</div>
 					</button>
+				</div>
 
-					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
-						<!-- System Language i18n Handeling -->
-						<LocaleSwitcher />
-						<!-- TODO: POPUP is blocking selection -->
-						<!-- Popup Tooltip with the arrow element -->
-						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-							{$LL.SBL_SystemLanguage()}
-							<div class="arrow variant-filled-secondary" />
-						</div>
-					</div>
-					<!-- Lucia Sign Out -->
+				<!-- Lucia Sign Out -->
+				<div class="{switchSideBar ? 'order-4' : 'order-4 '} mt-2">
 					<form
 						action="?/signOut"
 						method="post"
@@ -388,18 +389,22 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					</form>
 				</div>
 
-				<!-- CMS Version -->
-				<div class="flex justify-center p-1 pb-2 gap-2">
-					<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
-						<span class="badge variant-filled-primary rounded-xl text-black "
-							>{$LL.SBL_Version()}: {pkg.version}</span
-						>
-					</a>
+				<!-- Github discussions -->
+				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 ml-3'} ">
 					<a href="https://github.com/Rar9/SvelteCMS/discussions" target="blank">
 						<Icon icon="game-icons:gear-hammer" width="26" />
 					</a>
 				</div>
-			{/if}
+
+				<!-- CMS Version -->
+				<div class="{switchSideBar ? 'order-6' : 'order-6 '} ">
+					<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
+						<span class="badge variant-filled-primary rounded-xl text-black "
+							>{#if switchSideBar}{$LL.SBL_Version()}: {/if}{pkg.version}</span
+						>
+					</a>
+				</div>
+			</div>
 		</div>
 	</svelte:fragment>
 
