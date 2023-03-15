@@ -12,6 +12,7 @@ const schema: Schema = {
 	icon: 'bi:menu-button-wide',
 	strict: false,
 	status: 'published',
+	id: 'menu',
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [

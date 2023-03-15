@@ -453,9 +453,9 @@ Table List if Send out Vaild user Invites from DB
 			{#each $table.getCoreRowModel().rows.slice(0, 20) as row}
 				<tr class="divide-x">
 					{#each row.getVisibleCells() as cell}
-						<td>
+						<!-- <td>
 							<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
-						</td>
+						</td> -->
 					{/each}
 				</tr>
 			{/each}

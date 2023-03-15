@@ -5,7 +5,7 @@ const schema: Schema = {
 	// collection Name and Icon
 	name: 'Image Editor',
 	icon: 'bi:images',
-
+	id: 'image_editor',
 	// collection fields from available widgets
 	fields: [
 		widgets.ImageEditorPage({

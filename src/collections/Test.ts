@@ -12,6 +12,7 @@ const schema: Schema = {
 	name: 'Test Widgets',
 	icon: 'bi:device-ssd-fill',
 	status: 'published',
+	id: 'test',
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [
