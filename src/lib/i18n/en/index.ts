@@ -28,6 +28,10 @@ const en: BaseTranslation = {
 	ERROR_Wrong: 'We are sorry, something went wrong.',
 	ERROR_GoHome: 'Go to Front Page',
 
+	//LOADING
+	LOADING_Wait: 'Please Wait',
+	LOADING_Loading: 'Loading...',
+
 	// USER
 	USER_Setting: 'User Settings',
 	USER_ID: 'User ID',
