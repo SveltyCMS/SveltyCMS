@@ -126,11 +126,13 @@
 
 	// Display Columns
 	const defaultColumns: ColumnDef<User>[] = [
-		//  <Avatar src={user.avatar} width="w-10" />
+		//  tode if no url found
 		{
 			accessorKey: 'avatar',
 			footer: (info) => info.column.id,
-			header: () => 'Avatar'
+			header: () => 'Avatar',
+			cell: (info) => flexRender(Avatar, { src: info.row.original.avatar, width: 'w-8' }),
+			size: 30
 		},
 		{
 			accessorKey: 'username',
@@ -378,32 +380,11 @@ Table List if Send out Vaild user Invites from DB
 		<!-- Show/hide Columns via chips -->
 		<div class="flex flex-wrap items-center justify-center">
 			{#each $table.getAllLeafColumns() as column}
-				<div
-					class="chip {column.getIsVisible()
-						? 'variant-filled-secondary'
-						: 'variant-ghost-secondary'} mx-2 my-1"
-				>
-					<label>
-						<input
-							checked={column.getIsVisible()}
-							on:change={column.getToggleVisibilityHandler()}
-							type="checkbox"
-						/>{' '}
-						<span class="capitalize">{column.id}</span>
-					</label>
-				</div>
-			{/each}
-			<div class="text-error-500">please fix</div>
-			{#each $table.getAllLeafColumns() as column}
 				<span
 					class="chip {column.getIsVisible()
 						? 'variant-filled-secondary'
 						: 'variant-ghost-secondary'} mx-2 my-1"
-					on:click={() => {
-						{
-							column.getIsVisible(column.id);
-						}
-					}}
+					on:click={column.getToggleVisibilityHandler()}
 					on:keypress
 				>
 					{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
@@ -597,36 +578,3 @@ Table List if Send out Vaild user Invites from DB
 		</div>
 	</div>
 </div>
-
-<h4 class="mb-2 mt-10">List of Users Skeleton:</h4>
-
-<table>
-	<thead class="bg-surface-600 rounded-t border-b-2">
-		<tr class="divide-x-2">
-			<th class="px-2">Avatar</th>
-			<th class="px-2">Username</th>
-			<th class="px-2">Role</th>
-			<th class="px-2">Email</th>
-			<th class="px-2">expiresAt</th>
-			<th class="px-2">resetRequestedAt</th>
-			<th class="px-2">resetToken</th>
-			<th class="px-2">Last Access</th>
-			<th class="px-2">First Access</th>
-		</tr>
-	</thead>
-	<tbody>
-		{#each listOfUsers as user}
-			<tr class="divide-x-2">
-				<td class="px-2"> <Avatar src={user.avatar} width="w-10" /></td>
-				<td class="px-2">{user.username}</td>
-				<td class="px-2">{user.role}</td>
-				<td class="px-2">{user.email}</td>
-				<td class="px-2">{user.expiresAt}</td>
-				<td class="px-2">{user.resetRequestedAt}</td>
-				<td class="px-2">{user.resetToken}</td>
-				<td class="px-2">Add Last Access</td>
-				<td class="px-2">Add First Access</td>
-			</tr>
-		{/each}
-	</tbody>
-</table>
