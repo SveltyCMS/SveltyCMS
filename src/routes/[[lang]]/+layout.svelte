@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Sveltekit
-	import { is_dark, entryData } from '$src/stores/store';
+	import { entryData } from '$src/stores/store';
 	import { enhance } from '$app/forms';
 
 	import { PUBLIC_SITENAME } from '$env/static/public';
@@ -15,6 +15,13 @@
 	export let switchSideBar = false;
 
 	// Skeleton
+	import {
+		modeCurrent,
+		setModeUserPrefers,
+		setModeCurrent,
+		setInitialClassState
+	} from '@skeletonlabs/skeleton';
+
 	import { AppShell, Avatar, Modal, ProgressBar, Toast, toastStore } from '@skeletonlabs/skeleton';
 	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
@@ -109,8 +116,9 @@
 	// darkmode
 	// TODO : USer Skeleton Dark mode with 3 states
 	const toggleTheme = () => {
-		$is_dark = window.document.documentElement.classList.toggle('dark');
-		localStorage.setItem('is_dark', $is_dark ? 'true' : 'false');
+		$modeCurrent = !$modeCurrent;
+		setModeUserPrefers($modeCurrent);
+		setModeCurrent($modeCurrent);
 	};
 
 	// search filter
@@ -162,6 +170,7 @@
 	// bypass window is not defined error
 	if (browser) {
 		isMobile = window.matchMedia('only screen and (max-width: 480px)').matches;
+		setInitialClassState();
 	}
 
 	$: if (isMobile) {
@@ -350,14 +359,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						on:click={toggleTheme}
 						class="!overflow-visible btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 					>
-						{#if $is_dark}
+						{#if $modeCurrent}
 							<Icon icon="bi:sun" width="16" />
 						{:else}
 							<Icon icon="bi:moon-fill" width="16" />
 						{/if}
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
-							{`Switch to ${$is_dark ? 'Light' : 'Dark'} Mode`}
+							{`Switch to ${$modeCurrent ? 'Light' : 'Dark'} Mode`}
 							<div class="arrow variant-filled-secondary" />
 						</div>
 					</button>
