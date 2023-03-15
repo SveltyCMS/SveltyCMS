@@ -28,6 +28,10 @@ const de: Translation = {
 	ERROR_Wrong: 'Es tut uns leid, etwas ist schief gelaufen.',
 	ERROR_GoHome: 'Zur Startseite',
 
+	//LOADING
+	LOADING_Wait: 'Bitte Warten',
+	LOADING_Loading: 'es lädt...',
+
 	// USER
 	USER_Setting: 'Benutzereinstellungen',
 	USER_ID: 'Benutzer-ID',

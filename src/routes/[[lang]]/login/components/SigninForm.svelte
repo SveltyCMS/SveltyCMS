@@ -37,7 +37,7 @@
 			return;
 		}
 
-		isLoading = true;
+		isLoading = true; // set isLoading to true when data is being fetched
 
 		try {
 			const { data } = await axios.post('/api/forgotPassword', { email });
@@ -58,7 +58,7 @@
 		} catch (error) {
 			// handle error
 		} finally {
-			isLoading = false;
+			isLoading = false; // set isLoading to false when data is fetched
 		}
 	};
 

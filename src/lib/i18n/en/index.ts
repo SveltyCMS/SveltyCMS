@@ -28,6 +28,10 @@ const en: BaseTranslation = {
 	ERROR_Wrong: 'We are sorry, something went wrong.',
 	ERROR_GoHome: 'Go to Front Page',
 
+	//LOADING
+	LOADING_Wait: 'Please Wait',
+	LOADING_Loading: 'Loading...',
+
 	// USER
 	USER_Setting: 'User Settings',
 	USER_ID: 'User ID',
@@ -43,8 +47,8 @@ const en: BaseTranslation = {
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
 	USER_Generate: 'Email User Registion token',
-	USER_ListShow: 'Show user list',
-	USER_ListCollapse: 'Collapse user list',
+	USER_ListShow: 'Show User List',
+	USER_ListCollapse: 'Collapse User List',
 	USER_EmailToken: 'Email User Registion token',
 
 	// Login

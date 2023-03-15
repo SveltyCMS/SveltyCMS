@@ -231,12 +231,16 @@
 {#if $user?.role === 'ADMIN'}
 	<div class="my-2 gap-2 border-t-2">
 		<hr />
-		<h2 class="mb-2">Admin Area</h2>
-		<div class="flex justify-between my-2">
-			<button class="btn gradient-secondary btn-sm" on:click={() => (showUserList = !showUserList)}
+		<h2 class="mb-2 text-center md:text-left">Admin Area:</h2>
+		<div class="flex justify-between gap-2 flex-col sm:flex-row my-2">
+			<button
+				class="btn gradient-secondary order-last sm:order-1"
+				on:click={() => (showUserList = !showUserList)}
 				>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
 			>
-			<button on:click={modalTokenUser} class="btn btn-base gradient-primary w-30"
+			<button
+				on:click={modalTokenUser}
+				class="order-2 sm:order-2 btn btn-base gradient-primary w-30"
 				><Icon
 					icon="material-symbols:mail"
 					color="white"

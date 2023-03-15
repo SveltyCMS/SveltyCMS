@@ -8,8 +8,12 @@
 	import Form from './Form.svelte';
 	import DeleteIcon from './icons/DeleteIcon.svelte';
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
-	import schemas from '$src/collections';
+
 	import EntrylistButton from './Entrylist_Button.svelte';
+	import Loading from '$src/components/Loading.svelte';
+
+	let isLoading = false;
+	let loadingTimer: any;
 
 	//export let open = false; // animate hamburger
 	export let switchSideBar = false;
@@ -109,6 +113,9 @@
 
 	$: refresh_deleteMap(collection);
 	export let refresh = async (collection: any) => {
+		clearTimeout(loadingTimer);
+		loadingTimer = setTimeout(() => (isLoading = true), 200); // set isLoading to true after 200ms
+
 		entryList = [];
 
 		({ entryList, totalCount: paging.totalCount } = await axios
@@ -122,6 +129,7 @@
 			totalPages,
 			deleteMap
 		};
+		isLoading = false; // set isLoading to false when data is fetched
 	};
 	$: refresh && refresh(collection);
 
@@ -130,6 +138,8 @@
 	$: deleteMap = $entryListTableStore.deleteMap;
 
 	async function deleteEntry() {
+		isLoading = true; // set isLoading to true when data is being fetched
+
 		const confirm: ModalSettings = {
 			type: 'confirm',
 			title: $LL.ENTRYLIST_Delete_title(),
@@ -155,6 +165,7 @@
 		};
 		modalStore.trigger(confirm);
 
+		isLoading = false; // set isLoading to false when data is deleted
 		deleteAll = false;
 	}
 	let filter: any = '';
@@ -396,6 +407,10 @@
 <Modal />
 
 {#if !$showFieldsStore.showForm}
+	<!-- {#if !isLoading}
+	{:else}
+		<Loading />
+	{/if} -->
 	<div class="relative md:mt-0">
 		<div class="mb-2 flex items-center gap sm:gap-2 flex-wrap">
 			{#if !switchSideBar}
@@ -533,7 +548,7 @@
 							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
 						>
 							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="CreatePopup">
+							<div class="card variant-filled-secondary p-4 z-90" data-popup="CreatePopup">
 								{$LL.ENTRYLIST_Create()}
 								{collection.name}
 								<div class="arrow variant-filled-secondary" />
