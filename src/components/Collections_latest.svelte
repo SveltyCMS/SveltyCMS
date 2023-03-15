@@ -45,12 +45,13 @@
 				icon: category.icon,
 				collections: category.collections.filter((collection: any) =>
 					collection.name.toLowerCase().includes(filterCollections)
-				)
+				),
+				collectionIds: category.collectionIds
 			};
 		});
 </script>
 
-<Accordion autocollapse>
+<Accordion autocollapse spacing="space-y-4 w-full" regionPanel="px-0">
 	{#each filtered as item, index}
 		{#if switchSideBar}
 			<!-- Desktop Collection Parent -->
@@ -72,14 +73,14 @@
 					<ListBox rounded="rounded-none" class="divide-surface-400 divide-y">
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
-								bind:group={item.category}
+								bind:group={item.collectionIds[0]}
 								name={_collection.name}
-								value={_collection.name}
+								value={_collection.id}
 								on:click={async () => {
 									$showFieldsStore.showField = true;
 									dispatch('collection_click', { category_index: index, collection_index });
 								}}
-								class="hover:!bg-surface-400"
+								class="hover:!bg-surface-400 w-full"
 							>
 								<svelte:fragment slot="lead">
 									<Icon icon={_collection.icon} width="24" class="text-error-600" />
@@ -113,9 +114,9 @@
 					<ListBox rounded="rounded-none" class="divide-y space-y-0">
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
-								bind:group={item.category}
+								bind:group={item.collectionIds[0]}
 								name={_collection.name}
-								value={_collection.name}
+								value={_collection.id}
 								on:click={async () => {
 									$showFieldsStore.showField = true;
 									dispatch('collection_click', { category_index: index, collection_index });
@@ -123,7 +124,7 @@
 								class="flex justify-center items-center hover:!bg-surface-400"
 							>
 								<div class="overflow-clip truncate text-clip text-[9px]">{_collection.name}</div>
-								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2" />
+								<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2 m-auto" />
 							</ListBoxItem>
 						{/each}
 					</ListBox>
