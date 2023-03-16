@@ -131,8 +131,7 @@
 			accessorKey: 'avatar',
 			footer: (info) => info.column.id,
 			header: () => 'Avatar',
-			cell: (info) => flexRender(Avatar, { src: info.row.original.avatar, width: 'w-8' }),
-			enableSorting: false
+			cell: (info) => flexRender(Avatar, { src: info.row.original.avatar, width: 'w-8' })
 		},
 		{
 			accessorKey: 'username',
@@ -319,33 +318,31 @@
 	let headerGroups = $table.getHeaderGroups();
 </script>
 
-<h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
-Table List if Send out Vaild user Invites from DB
-<!-- <table>
+<h4 class="mb-2 text-error-500 ">List of aktive Users Invites:</h4>
+
+<table>
 	<thead class="bg-surface-600 rounded-t border-b-2">
 		<tr class="divide-x-2">
-			<th class="px-2">Id</th>
 			<th class="px-2">Email</th>
+			<th class="px-2">role</th>
 			<th class="px-2">valid</th>
+			<th class="px-2">Action</th>
 		</tr>
 	</thead>
 	<tbody>
-		{#each listOftokens as token}
-			<tr class="divide-x-2">
-				<td class="px-2">{token.email}</td>
-				<td class="px-2">{token.role}</td>
-				<td class="px-2">{token.expiresAt}</td>
-				<td>
-					<button>Edit</button>
-					<button>Delete</button>
-				</td>
-			</tr>
-		{/each}
+		<tr class="divide-x-2">
+			<td class="px-2">email</td>
+			<td class="px-2">role</td>
+			<td class="px-2">expiers At</td>
+			<td>
+				<button class="btn btn-sm px-2">Delete</button>
+			</td>
+		</tr>
 	</tbody>
-</table> -->
-
+</table>
+<hr />
 <!-- ////////////////////////////////////////// -->
-<h4 class="mb-2">List of Users Tanstack:</h4>
+<h4 class="my-4">List of Users Tanstack:</h4>
 
 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2">
 	<div class="flex justify-between items-center gap-2 relative mx-auto">
@@ -395,12 +392,13 @@ Table List if Send out Vaild user Invites from DB
 		<!-- Export -->
 		<button class="btn variant-ghost" on:click={clickDownload}>
 			<Icon icon="dashicons:database-export" width="20" class="mr-1" />
-			<span class="hidden sm:block">Export</span><Icon
+			<span class="hidden sm:block">XML Export</span>
+			<!-- <Icon
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
-			/></button
-		>
+			/> -->
+		</button>
 	</div>
 
 	<div class="md:items-end"><Multibutton /></div>

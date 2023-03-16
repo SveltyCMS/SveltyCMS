@@ -99,7 +99,7 @@
 		switch (listboxValue) {
 			case 'edit':
 				buttonClass = 'gradient-primary';
-				iconValue = 'material-symbols:edit';
+				iconValue = 'bi:pencil-fill';
 				break;
 			case 'delete':
 				buttonClass = 'gradient-error';
@@ -189,7 +189,7 @@
 				active="variant-filled-primary"
 				hover="gradient-primary-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
+					><Icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Edit
 			</ListBoxItem>

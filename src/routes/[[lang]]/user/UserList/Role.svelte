@@ -1,10 +1,30 @@
 <script lang="ts">
 	export let value: string;
+
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	let classes = `${
-		value === 'Admin' ? 'gradient-tertiary text-white' : 'bg-amber-400 text-black'
-	} p-2 rounded`;
+		value === 'Admin'
+			? 'badge gradient-primary '
+			: value === 'Developer'
+			? 'badge gradient-secondary'
+			: value === 'Editor'
+			? 'badge gradient-tertiary'
+			: value === 'User'
+			? 'badge variant-filled-waring'
+			: 'text-white'
+	} rounded-full`;
 </script>
 
 <div class={classes}>
-	{value}
+	{#if value == 'Admin'}
+		<Icon icon="material-symbols:verified-outline" width="20" class="mr-2" /> {value}
+	{:else if value == 'Developer'}
+		<Icon icon="material-symbols:supervised-user-circle" width="20" class="mr-2" /> {value}
+	{:else if value == 'Editor'}
+		<Icon icon="mdi:user-edit" width="20" class="mr-2" /> {value}
+	{:else if value == 'User'}
+		<Icon icon="material-symbols:supervised-user-circle" width="20" class="mr-2" /> {value}
+	{/if}
 </div>

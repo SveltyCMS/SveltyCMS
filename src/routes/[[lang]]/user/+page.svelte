@@ -221,7 +221,7 @@
 			>{$LL.USER_Password()}:
 			<input bind:value={password} name="password" type="password" readonly class="input" />
 		</label>
-		<div class="flex justify-between my-2">
+		<div class="flex flex-col gap-2 justify-between my-2 sm:flex-row sm:gap-0 sm:justify-between">
 			<button class="btn btn-sm gradient-secondary md:w-auto text-white" on:click={modalUserForm}>
 				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 			</button>

@@ -34,7 +34,7 @@
 	let SwitchThemeSettings: PopupSettings = {
 		event: 'hover',
 		target: 'SwitchTheme',
-		placement: 'top'
+		placement: 'right'
 	};
 	let SignOutTooltip: PopupSettings = {
 		event: 'hover',
@@ -313,8 +313,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 			class="absolute inset-x-0 mt-1 bottom-2 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
 		>
 			<div class="border-t border-surface-400 mx-1 mb-2" />
-			<!-- mobile - 3rows 2col 
-				desktop - 3rows 3cols -->
+
 			<div
 				class="{switchSideBar
 					? 'grid-rows-3 grid-cols-3 '
@@ -357,7 +356,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					<button
 						use:popup={SwitchThemeSettings}
 						on:click={toggleTheme}
-						class="!overflow-visible btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
+						class="btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 					>
 						{#if !$modeCurrent}
 							<Icon icon="bi:sun" width="16" />
@@ -365,6 +364,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							<Icon icon="bi:moon-fill" width="16" />
 						{/if}
 						<!-- Popup Tooltip with the arrow element -->
+						<!-- TODO: tooltip overflow -->
 						<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
 							{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
 							<div class="arrow variant-filled-secondary" />
@@ -400,14 +400,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 				<!-- Github discussions -->
 				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 ml-3'} ">
-					<a href="https://github.com/Rar9/SvelteCMS/discussions" target="blank">
+					<a href="https://github.com/Rar9/SimpleCMS/discussions" target="blank">
 						<Icon icon="game-icons:gear-hammer" width="26" />
 					</a>
 				</div>
 
 				<!-- CMS Version -->
 				<div class="{switchSideBar ? 'order-6' : 'order-6 '} ">
-					<a href="https://github.com/Rar9/SvelteCMS/" target="blank">
+					<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 						<span class="badge variant-filled-primary rounded-xl text-black "
 							>{#if switchSideBar}{$LL.SBL_Version()}: {/if}{pkg.version}</span
 						>
