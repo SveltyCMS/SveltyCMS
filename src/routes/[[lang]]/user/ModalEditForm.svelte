@@ -271,7 +271,7 @@
 		</div>
 
 		<!-- admin area -->
-		{#if $user?.role === 'ADMIN'}
+		{#if $user?.role === 'Admin'}
 			<div class="flex flex-col sm:flex-row gap-2">
 				<div class="sm:w-1/4">Role:</div>
 				<div class="flex-auto">

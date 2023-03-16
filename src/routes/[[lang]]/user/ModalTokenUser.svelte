@@ -185,7 +185,7 @@
 			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}
 				>{parent.buttonTextCancel}</button
 			>
-			<button type="submit" class="btn !bg-primary-500 {parent.buttonPositive}">Send</button>
+			<button type="submit" class="btn {parent.buttonPositive}">Send</button>
 		</footer>
 	</form>
 </div>

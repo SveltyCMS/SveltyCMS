@@ -9,14 +9,15 @@
 	import { replaceLocaleInUrl } from '$src/lib/utils/utils';
 
 	import { popup } from '@skeletonlabs/skeleton';
-	
-let languageSettings: PopupSettings = {
-	// Set the event as: click | hover | hover-click
-	event: 'click',
-	// Provide a matching 'data-popup' value.
-	target: 'language-dropdown'
-};
-			
+
+	let languageSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		placement: 'top',
+		// Provide a matching 'data-popup' value.
+		target: 'language-dropdown'
+	};
+
 	import { fade } from 'svelte/transition';
 
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
@@ -58,25 +59,23 @@ let languageSettings: PopupSettings = {
 <svelte:window on:popstate={handlePopStateEvent} />
 
 <!-- TODO: make a reusable Language Switcher  -->
-<span class="relative inline-block text-left border-2 border-surface-600 rounded-full" in:fade>
-  
-	<button
-		class="btn btn-sm uppercase font-bold"
-		use:popup={languageSettings}
-		id="language-dropdown"
-		aria-haspopup="true"
-		aria-expanded="false"
-		>{$locale}
-	</button>
-	<nav class="text-white list-nav card shadow-xl uppercase" data-popup="language-dropdown">
-		<ul>
-			{#each locales.filter((l) => l !== $locale) as l}
-				<li>
-					<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
-						{l}
-					</a>
-				</li>
-			{/each}
-		</ul>
-	</nav>
-</span>
+
+<button
+	class="btn variant-ghost-secondary btn-sm uppercase font-bold"
+	use:popup={languageSettings}
+	id="language-dropdown"
+	aria-haspopup="true"
+	aria-expanded="false"
+	>{$locale}
+</button>
+<nav class="text-white list-nav card shadow-xl uppercase" data-popup="language-dropdown">
+	<ul>
+		{#each locales.filter((l) => l !== $locale) as l}
+			<li>
+				<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
+					{l}
+				</a>
+			</li>
+		{/each}
+	</ul>
+</nav>

@@ -5,7 +5,7 @@ declare namespace Lucia {
 
 	type UserAttributes = {
 		email: string;
-		role: 'ADMIN' | 'DEVELOPER' | 'EDITOR' | 'USER';
+		role: 'Admin' | 'Developer' | 'Editor' | 'User';
 		username: string | undefined;
 		firstname: string | undefined;
 		lastname: string | undefined;
@@ -28,9 +28,9 @@ declare namespace App {
 		LL: import('$i18n/i18n-types').TranslationFunctions;
 	}
 
-	interface Platform { }
+	interface Platform {}
 
-	interface Session { }
+	interface Session {}
 
-	interface Stuff { }
+	interface Stuff {}
 }

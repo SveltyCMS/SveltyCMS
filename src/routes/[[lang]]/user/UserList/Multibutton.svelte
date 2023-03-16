@@ -166,12 +166,15 @@
 	<span class="border border-white" />
 
 	<!-- Dropdown button -->
-	<button class="bg-surface-500 rounded-r-sm divide-x-2" use:popup={Combobox}>
+	<button class="bg-surface-500 hover:!bg-surface-800 rounded-r-sm divide-x-2" use:popup={Combobox}>
 		<Icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
-<div class="card w-48 shadow-xl overflow-hiddens rounded-sm" data-popup="Combobox">
+<div
+	class="card w-48 z-10 bg-surface-500 text-white  overflow-hiddens rounded-sm"
+	data-popup="Combobox"
+>
 	<ListBox
 		rounded="rounded-sm"
 		active="variant-filled-primary"

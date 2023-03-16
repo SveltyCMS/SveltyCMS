@@ -51,7 +51,12 @@
 		});
 </script>
 
-<Accordion autocollapse spacing="space-y-4 w-full" regionPanel="px-0">
+<Accordion
+	autocollapse
+	spacing="space-y-4 w-full"
+	regionPanel="px-0"
+	regionControl="bg-surface-200 dark:bg-surface-500"
+>
 	{#each filtered as item, index}
 		{#if switchSideBar}
 			<!-- Desktop Collection Parent -->
@@ -144,10 +149,3 @@
 		{/if}
 	{/each}
 </Accordion>
-
-<style>
-	/* :global(.accordion-control) {
-		background-color: #fff;
-		color: black;
-	} */
-</style>

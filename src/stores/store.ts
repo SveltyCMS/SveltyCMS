@@ -1,16 +1,5 @@
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 import { writable, type Writable } from 'svelte/store';
-import { browser } from '$app/environment';
-
-// // darkmode toggle
-// const initialValue = browser ? JSON.parse(localStorage.getItem('is_dark') || 'true') : false;
-// export const is_dark: Writable<boolean> = writable(modeCurrent);
-
-// OS Prefers Dark Scheme - TRUE: dark | FALSE: light
-//export const storePrefersDarkScheme = localStorageStore<boolean>('storePrefersDarkScheme', false);
-
-// User Selected Mode - TRUE: dark | FALSE: light | undefined: use system preference
-//export const storeLightSwitch = localStorageStore<boolean | undefined>('storeLightSwitch', undefined);
 
 // Store selection Collection
 export const entryData: any = writable(undefined);

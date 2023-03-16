@@ -644,8 +644,8 @@
 						</button>
 					{/if}
 
-					<!-- Dropdown selection 
-				use:popup={{ menu: 'entrySelect', interactive: true }}-->
+					<!-- Dropdown selection -->
+					<!-- use:popup={{ menu: 'entrySelect', interactive: true }}-->
 					<button
 						use:popup={entityButtonsPopup}
 						class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"

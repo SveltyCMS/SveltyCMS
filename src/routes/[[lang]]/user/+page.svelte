@@ -126,7 +126,11 @@
 			// Pass a reference to your custom component
 			ref: ModalTokenUser,
 			// Add your props as key/value pairs
-			props: { background: 'bg-error-500' },
+			// props: {
+			// 	background: 'bg-error-100-800-token',
+			// 	buttonTextConfirm: 'bg-error-500'
+			// },
+
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -136,6 +140,7 @@
 			title: 'Generate New User Registation token',
 			body: 'Add User Email and select User Role & Duration, then press Send.',
 			component: modalComponent,
+
 			// Pass abitrary data to the component
 			response: (r: any) => {
 				if (r) console.log('response:', r);
@@ -190,14 +195,14 @@
 	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center ">
 		<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
-		<button on:click={modalEditAvatar} class="badge gradient-primary w-30 absolute top-1"
+		<button on:click={modalEditAvatar} class="badge text-white gradient-primary w-30 absolute top-1"
 			>{$LL.USER_Edit_Avatar()}</button
 		>
 
-		<div class="badge gradient-secondary mt-1 w-full max-w-xs">
+		<div class="badge gradient-secondary mt-1 w-full max-w-xs text-white">
 			{$LL.USER_ID()}:<span class="ml-2">{id}</span>
 		</div>
-		<div class="badge gradient-tertiary w-full max-w-xs">
+		<div class="badge gradient-tertiary w-full max-w-xs text-white">
 			{$LL.USER_Role()}:<span class="ml-2">{role}</span>
 		</div>
 	</div>
@@ -217,10 +222,10 @@
 			<input bind:value={password} name="password" type="password" readonly class="input" />
 		</label>
 		<div class="flex justify-between my-2">
-			<button class="btn btn-sm gradient-secondary md:w-auto" on:click={modalUserForm}>
+			<button class="btn btn-sm gradient-secondary md:w-auto text-white" on:click={modalUserForm}>
 				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 			</button>
-			<button on:click={modalConfirm} class="btn btn-sm gradient-error"
+			<button on:click={modalConfirm} class="btn btn-sm gradient-error text-white"
 				><Icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />Delete User</button
 			>
 		</div>
@@ -228,19 +233,19 @@
 </div>
 
 <!-- admin area -->
-{#if $user?.role === 'ADMIN'}
+{#if $user?.role === 'Admin'}
 	<div class="my-2 gap-2 border-t-2">
 		<hr />
 		<h2 class="mb-2 text-center md:text-left">Admin Area:</h2>
 		<div class="flex justify-between gap-2 flex-col sm:flex-row my-2">
 			<button
-				class="btn gradient-secondary order-last sm:order-1"
+				class="btn gradient-secondary text-white order-last sm:order-1"
 				on:click={() => (showUserList = !showUserList)}
 				>{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}</button
 			>
 			<button
 				on:click={modalTokenUser}
-				class="order-2 sm:order-2 btn btn-base gradient-primary w-30"
+				class="order-2 text-white sm:order-2 btn btn-base gradient-primary w-30"
 				><Icon
 					icon="material-symbols:mail"
 					color="white"

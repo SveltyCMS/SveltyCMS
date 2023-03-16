@@ -6,6 +6,8 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import { Drawer, drawerStore } from '@skeletonlabs/skeleton';
 	import type { DrawerSettings } from '@skeletonlabs/skeleton';
+	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 
 	function triggerFacets(): void {
 		const drawerSettings: DrawerSettings = {
@@ -36,15 +38,6 @@
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	const user = getUser();
 
-	// Form Data
-	const formData = {
-		username: $user?.username,
-		email: $user?.email,
-		role: $user?.role,
-		// TODO get right values
-		firstAccess: $user?.username,
-		lastAccess: $user?.username
-	};
 	const listOfUsers = JSON.parse(list.user); // Retrieve User and parse them as JSON
 
 	// State to keep track of whether the modal is open or not
@@ -56,7 +49,9 @@
 	let columnShow = false;
 	let filterShow = false;
 
+	// #############################################
 	// tanStack Table
+	// #############################################
 
 	// search filter
 	// TODO: Search be selected column
@@ -82,6 +77,11 @@
 
 	import FacetCheckboxes from '$src/components/tanstackTable/FacetCheckboxes.svelte';
 	import FacetMinMax from '$src/components/tanstackTable/FacetMinMax.svelte';
+
+	import exportExcel from '$src/components/excelExport';
+	function clickDownload() {
+		exportExcel($table, 'user', true);
+	}
 
 	import moment from 'moment';
 
@@ -126,28 +126,33 @@
 
 	// Display Columns
 	const defaultColumns: ColumnDef<User>[] = [
-		//  tode if no url found
 		{
 			accessorKey: 'avatar',
 			footer: (info) => info.column.id,
 			header: () => 'Avatar',
 			cell: (info) => flexRender(Avatar, { src: info.row.original.avatar, width: 'w-8' }),
-			size: 30
+			enableSorting: false
 		},
 		{
 			accessorKey: 'username',
 			footer: (info) => info.column.id,
-			header: () => 'Username'
+			header: () => 'Username',
+			cell: (info) => info.getValue(),
+			filterFn: globalFilterFn
 		},
 		{
 			accessorKey: 'role',
 			header: () => 'Role',
-			footer: (info) => info.column.id
+			footer: (info) => info.column.id,
+			cell: (info) => info.getValue(),
+			filterFn: globalFilterFn
 		},
 		{
 			accessorKey: 'email',
 			header: () => 'Email',
-			footer: (info) => info.column.id
+			footer: (info) => info.column.id,
+			cell: (info) => info.getValue(),
+			filterFn: globalFilterFn
 		},
 		{
 			accessorFn: (cell) => moment(cell.createdAt).fromNow(),
@@ -164,15 +169,18 @@
 		// {
 		// 	accessorKey: 'id',
 		// 	header: 'ID',
-		// 	size: 60
+		// 	cell: (info) => (info.getValue() as number).toString()
 		// }
 	];
 
 	let globalFilter = '';
+	// let rowSelection = '';
+	// let onRowSelectionChange = '';
+	// let setRowSelection = '';
 	let columnVisibility = {};
 	let sorting = {};
 
-	const setColumnVisibility = (updater) => {
+	const setColumnVisibility = (updater: any) => {
 		if (updater instanceof Function) {
 			columnVisibility = updater(columnVisibility);
 		} else {
@@ -187,7 +195,11 @@
 		}));
 	};
 
-	const setSorting = (updater) => {
+	// const randomizeColumns = () => {
+	// 	table.setColumnOrder(faker.helpers.shuffle(table.getAllLeafColumns().map((d) => d.id)));
+	// };
+
+	const setSorting = (updater: any) => {
 		if (updater instanceof Function) {
 			sorting = updater(sorting);
 		} else {
@@ -210,20 +222,32 @@
 		getFilteredRowModel: getFilteredRowModel(),
 		onColumnVisibilityChange: setColumnVisibility,
 
+		// onColumnOrderChange: setColumnOrder,
+		// onRowSelectionChange: setRowSelection,
+
 		globalFilterFn: globalFilterFn,
 		getFacetedRowModel: getFacetedRowModel(),
 		getFacetedUniqueValues: getFacetedUniqueValues(),
 		getFacetedMinMaxValues: getFacetedMinMaxValues(),
 		getPaginationRowModel: getPaginationRowModel(),
+
 		state: {
 			globalFilter,
 			columnVisibility,
+			// rowSelection,
+			// columnOrder,
 			pagination: {
 				pageSize: 10,
 				pageIndex: 0
 			}
-		},
-		enableGlobalFilter: true
+		}
+		// enableGlobalFilter: true
+		// enableRowSelection: true //enable row selection for all rows
+		// enableRowSelection: row => row.original.age > 18, // or enable row selection conditionally per row
+
+		// debugTable: true,
+		// debugHeaders: true,
+		// debugColumns: true
 	});
 
 	const table = createSvelteTable(options);
@@ -240,7 +264,6 @@
 			};
 		});
 	}
-
 	function setCurrentPage(page: number) {
 		options.update((old: any) => {
 			return {
@@ -273,6 +296,7 @@
 	}
 
 	let timer: NodeJS.Timeout;
+
 	function handleSearch(e: Event) {
 		clearTimeout(timer);
 		timer = setTimeout(() => {
@@ -280,11 +304,14 @@
 			setGlobalFilter(target.value);
 		}, 300);
 	}
+
 	function handleCurrPageInput(e: Event) {
 		const target = e.target as HTMLInputElement;
 		setCurrentPage(parseInt(target.value) - 1);
 	}
+
 	const noTypeCheck = (x: any) => x;
+
 	let headerGroups = $table.getHeaderGroups();
 </script>
 
@@ -341,18 +368,35 @@ Table List if Send out Vaild user Invites from DB
 				d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
 			/>
 		</svg>
-
+		<!-- Column Order/ Sort-->
 		<button class="btn variant-ghost" on:click={() => (columnShow = !columnShow)}>
-			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" /><span
-				class="hidden sm:block">Columns</span
-			><Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
+			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />
+			<span class="hidden sm:block">Column</span><Icon
+				icon="mdi:chevron-down"
+				width="20"
+				class="text-white ml-2"
+			/>
 		</button>
 
+		<!-- Filter -->
 		<button class="btn variant-ghost" on:click={triggerFacets}>
-			<Icon icon="carbon:filter-edit" width="20" class="mr-1" /><span class="hidden sm:block"
-				>Filter/Facets</span
-			><Icon icon="mdi:chevron-down" width="20" class="text-white ml-2" />
+			<Icon icon="carbon:filter-edit" width="20" class="mr-1" />
+			<span class="hidden sm:block">Filter/Facet</span><Icon
+				icon="mdi:chevron-down"
+				width="20"
+				class="text-white ml-2"
+			/>
 		</button>
+
+		<!-- Export -->
+		<button class="btn variant-ghost" on:click={clickDownload}>
+			<Icon icon="dashicons:database-export" width="20" class="mr-1" />
+			<span class="hidden sm:block">Export</span><Icon
+				icon="mdi:chevron-down"
+				width="20"
+				class="text-white ml-2"
+			/></button
+		>
 	</div>
 
 	<div class="md:items-end"><Multibutton /></div>
@@ -397,28 +441,22 @@ Table List if Send out Vaild user Invites from DB
 
 <!-- Facets blocks -->
 <Drawer>
-	<p class="mb-3">Facets Filters</p>
-	<!-- TODO add right Facets -->
-	{#each headerGroups as headerGroup}
-		{#each headerGroup.headers as header}
-			{#if header.column.id === 'country'}
-				<details open>
-					<summary> <h3 class="has-text-weight-semibold is-inline-block">Countries</h3></summary>
-					<FacetCheckboxes table={$table} column={header.column} />
-				</details>
-			{:else if header.column.id === 'state'}
-				<details open>
-					<summary> <h3 class="has-text-weight-semibold is-inline-block">State</h3></summary>
-					<FacetCheckboxes table={$table} column={header.column} />
-				</details>
-			{:else if header.column.id === 'total'}
-				<details open>
-					<summary> <h3 class="has-text-weight-semibold is-inline-block">Total</h3></summary>
-					<FacetMinMax table={$table} column={header.column} />
-				</details>
-			{/if}
+	<h2 class="mb-3 text-center">Facets Filters</h2>
+	<Accordion>
+		{#each headerGroups as headerGroup}
+			{#each headerGroup.headers as header}
+				{#if header.column.id === 'role'}
+					<AccordionItem open>
+						<svelte:fragment slot="lead" />
+						<svelte:fragment slot="summary">Roles</svelte:fragment>
+						<svelte:fragment slot="content"
+							><FacetCheckboxes table={$table} column={header.column} /></svelte:fragment
+						>
+					</AccordionItem>
+				{/if}
+			{/each}
 		{/each}
-	{/each}
+	</Accordion>
 </Drawer>
 
 <!-- tanstack table -->
@@ -453,9 +491,9 @@ Table List if Send out Vaild user Invites from DB
 			{#each $table.getCoreRowModel().rows.slice(0, 20) as row}
 				<tr class="divide-x">
 					{#each row.getVisibleCells() as cell}
-						<!-- <td>
+						<td>
 							<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
-						</td> -->
+						</td>
 					{/each}
 				</tr>
 			{/each}
@@ -470,12 +508,19 @@ Table List if Send out Vaild user Invites from DB
 		<!-- show & count rows -->
 		<div class="hidden md:block text-surface-400 text-sm">
 			Showing
-			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getState().pagination.pageIndex + 1}</span
+			>
 			to
 			<!-- TODO: Get actual page -->
-			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getState().pagination.pageIndex + 1}</span
+			>
 			of
-			<span class="text-white">{$table.getPrePaginationRowModel().rows.length}</span> Total
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getPrePaginationRowModel().rows.length}</span
+			>
+			Total
 			<!-- TODO: check if only 1 Row -->
 			{#if 1 === 1}
 				Row
@@ -564,12 +609,19 @@ Table List if Send out Vaild user Invites from DB
 		</select>
 		<div class="text-surface-400 text-sm">
 			Showing
-			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getState().pagination.pageIndex + 1}</span
+			>
 			to
 			<!-- TODO: Get actual page -->
-			<span class="text-white">{$table.getState().pagination.pageIndex + 1}</span>
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getState().pagination.pageIndex + 1}</span
+			>
 			of
-			<span class="text-white">{$table.getPrePaginationRowModel().rows.length}</span> Total
+			<span class="text-surface-700 dark:text-white"
+				>{$table.getPrePaginationRowModel().rows.length}</span
+			>
+			Total
 			<!-- TODO: check if only 1 Row -->
 			{#if 1 === 1}
 				Row
