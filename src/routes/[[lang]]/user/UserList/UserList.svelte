@@ -84,6 +84,7 @@
 	}
 
 	import moment from 'moment';
+	import Role from './Role.svelte';
 
 	const numFormat = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
@@ -144,7 +145,10 @@
 			accessorKey: 'role',
 			header: () => 'Role',
 			footer: (info) => info.column.id,
-			cell: (info) => info.getValue(),
+			cell: (info) =>
+				flexRender(Role, {
+					value: info.getValue()
+				}),
 			filterFn: globalFilterFn
 		},
 		{

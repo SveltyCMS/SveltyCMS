@@ -7,7 +7,7 @@
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
 	import showFieldsStore from '$src/lib/stores/fieldStore';
-	import CollectionsLatest from '$src/components/Collections_latest.svelte';
+	import CollectionsLatest from '$src/components/CollectionsList.svelte';
 	import collections, { categories } from '$src/collections';
 
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
@@ -359,14 +359,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						on:click={toggleTheme}
 						class="!overflow-visible btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 					>
-						{#if $modeCurrent}
+						{#if !$modeCurrent}
 							<Icon icon="bi:sun" width="16" />
 						{:else}
 							<Icon icon="bi:moon-fill" width="16" />
 						{/if}
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
-							{`Switch to ${$modeCurrent ? 'Light' : 'Dark'} Mode`}
+							{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
 							<div class="arrow variant-filled-secondary" />
 						</div>
 					</button>
