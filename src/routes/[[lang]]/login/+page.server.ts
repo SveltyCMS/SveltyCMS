@@ -273,7 +273,8 @@ export const actions: Actions = {
 
 			if (token.expiresAt < new Date()) {
 				// delete the token
-				await token.delete();
+				await SignUpToken.deleteOne({ _id: token._id });
+
 				return fail(400, {
 					error: true,
 					errors: [
@@ -305,7 +306,7 @@ export const actions: Actions = {
 			});
 
 			// delete the token
-			await token.delete();
+			await SignUpToken.deleteOne({ _id: token._id });
 
 			const session = await auth.createSession(res.userId);
 			locals.setSession(session);
