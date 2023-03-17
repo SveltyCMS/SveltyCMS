@@ -1,4 +1,8 @@
 <script lang="ts">
+	// Skeleton
+	import { Toast, toastStore } from '@skeletonlabs/skeleton';
+	import type { ToastSettings } from '@skeletonlabs/skeleton';
+
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
@@ -147,6 +151,7 @@
 	}
 </script>
 
+<Toast />
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
 	{#if !forgot && !resetPW}
 		<div bind:this={form} class="mx-auto mt-[15%] mb-[5%] w-full p-4 lg:w-1/2">
@@ -169,6 +174,15 @@
 					return async ({ result }) => {
 						if (result.type === 'success') {
 							goto('/');
+							const t = {
+								message: $LL.LOGIN_SignInSuccess(),
+								// Optional: Presets for primary | secondary | tertiary | warning
+								//preset: 'success',
+								// Optional: The auto-hide settings
+								autohide: true,
+								timeout: 3000
+							};
+							toastStore.trigger(t);
 						}
 
 						if (result.type === 'failure') {

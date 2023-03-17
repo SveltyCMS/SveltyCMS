@@ -13,7 +13,7 @@
 		}
 	};
 
-	$: value = value.replace(/[^0-9]/g, '');
+	// $: value = value.replace(/[^0-9]/g, '');
 </script>
 
 <!-- TODO:Add Int.Number Formating(typesave-i18n?) -->

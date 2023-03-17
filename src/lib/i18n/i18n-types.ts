@@ -216,6 +216,10 @@ type RootTranslation = {
 	 */
 	LOGIN_ResetPasswordSave: string
 	/**
+	 * S​i​g​n​e​d​ ​I​n​ ​S​u​c​c​e​s​s​f​u​l​l​y
+	 */
+	LOGIN_SignInSuccess: string
+	/**
 	 * U​s​e​r​n​a​m​e​ ​i​s​ ​r​e​q​u​i​r​e​d
 	 */
 	LOGIN_ZOD_Username_string: string
@@ -796,6 +800,10 @@ export type TranslationFunctions = {
 	 * Save New Password
 	 */
 	LOGIN_ResetPasswordSave: () => LocalizedString
+	/**
+	 * Signed In Successfully
+	 */
+	LOGIN_SignInSuccess: () => LocalizedString
 	/**
 	 * Username is required
 	 */

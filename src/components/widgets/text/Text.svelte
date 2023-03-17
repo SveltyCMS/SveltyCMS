@@ -27,11 +27,13 @@
 		minlength: z.number().optional(),
 		maxlength: z.number().optional(),
 		placeholder: z.string().optional(),
-		localization: z.boolean(),
+		localization: z.boolean().optional(),
 		required: z.boolean(),
 		disabled: z.boolean().optional(),
 		readonly: z.boolean().optional()
 	});
+
+	console.log(Text_Field_Schema.parse(field));
 
 	// Reactive statement to update count
 	$: count = widgetValue[_language]?.length ?? 0;
