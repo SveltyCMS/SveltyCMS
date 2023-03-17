@@ -100,11 +100,11 @@ const schema: Schema = {
 			required: true
 		}),
 
-		// widgets.Number({
-		// 	db_fieldName: 'Number',
-		// 	icon: 'carbon:character-whole-number',
-		// 	required: true
-		// }),
+		widgets.Number({
+			db_fieldName: 'Number',
+			icon: 'carbon:character-whole-number',
+			required: true
+		}),
 
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
