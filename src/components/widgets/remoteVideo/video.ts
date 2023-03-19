@@ -13,6 +13,7 @@ export async function youtube(id: string) {
 		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${GOOGLE_API_KEY}`
 	);
 	const dataDuration = await responseDuration.json();
+	console.log(dataDuration);
 
 	//convert the ISO 8601 duration format to a readable time format
 	const time = dataDuration?.items[0]?.contentDetails?.duration;

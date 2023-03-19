@@ -182,11 +182,11 @@
 
 <!-- App Shell -->
 <AppShell
-	slotSidebarLeft="w-auto !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
+	slotSidebarLeft="!overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col items-center z-10 
 {switchSideBar ? 'w-[225px]' : 'w-[85px]'}
 {leftSidebarOn ? 'hidden' : 'block'}"
-	slotSidebarRight="bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative {toggleRightSideBar
+	slotSidebarRight="flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative {toggleRightSideBar
 		? 'hidden'
 		: 'block'} "
 	slotPageHeader="bg-white dark:bg-gradient-to-t border-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 pb-2 relative {toggleTopSideBar
@@ -310,7 +310,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 		<!-- Sidebar Left Footer absolute inset-x-0  -->
 		<div
-			class="absolute inset-x-0 mt-1 bottom-2 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
+			class="mt-auto mb-2 bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
 		>
 			<div class="border-t border-surface-400 mx-1 mb-2" />
 
@@ -341,7 +341,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- System Language i18n Handeling -->
 				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
 					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
-						<LocaleSwitcher />
+						<!--<LocaleSwitcher />-->
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
@@ -399,14 +399,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				</div>
 
 				<!-- Github discussions -->
-				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 ml-3'} ">
+				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 hidden'} ">
 					<a href="https://github.com/Rar9/SimpleCMS/discussions" target="blank">
 						<Icon icon="game-icons:gear-hammer" width="26" />
 					</a>
 				</div>
 
 				<!-- CMS Version -->
-				<div class="{switchSideBar ? 'order-6' : 'order-6 '} ">
+				<div class="{switchSideBar ? 'order-6' : 'order-6 col-span-2'} ">
 					<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 						<span class="badge variant-filled-primary rounded-xl text-black "
 							>{#if switchSideBar}{$LL.SBL_Version()}: {/if}{pkg.version}</span
@@ -456,11 +456,11 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 			</button>
 		</div>
 
-		<!-- Desktop Center Admin area -->
-		<div class="">Admin Center Area</div>
+		<!-- Middle Desktop Center Admin area -->
+		<div class="flex-1">Admin Center Area</div>
 
-		<!-- Form Info  -->
-		<div class="absolute inset-x-0 bottom-2">
+		<!-- Footer Form Info  -->
+		<div class="mt-auto mb-2 pb-2 bg-error-400 w-full">
 			<div class="border-t border-surface-400 mx-1 mb-2" />
 			Form Info
 		</div>
