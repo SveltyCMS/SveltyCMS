@@ -7,6 +7,10 @@ export type Number_Field = {
 	label: string;
 	icon: string | undefined;
 	placeholder: string | undefined;
+	min: number | undefined;
+	max: number | undefined;
+	step: number | undefined;
+	negative: boolean | undefined;
 	required: boolean | undefined;
 	display: Display;
 };
@@ -15,6 +19,10 @@ export type Number_Params = {
 	label?: string;
 	icon?: string;
 	placeholder?: string;
+	min?: number | undefined;
+	max?: number | undefined;
+	step?: number | undefined;
+	negative?: boolean | undefined;
 	required?: boolean;
 	display?: Display;
 };

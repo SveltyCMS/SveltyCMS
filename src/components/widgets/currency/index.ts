@@ -6,6 +6,11 @@ const widget = ({
 	db_fieldName,
 	icon,
 	placeholder,
+	prefix,
+	suffix,
+	min,
+	max,
+	negative,
 	required,
 	display
 }: Currency_Params) => {
@@ -16,6 +21,11 @@ const widget = ({
 		db_fieldName,
 		icon,
 		placeholder,
+		prefix,
+		suffix,
+		min,
+		max,
+		negative,
 		required,
 		display
 	} as Currency_Field;

@@ -18,9 +18,10 @@
 	// zod validation gete data from colections
 	import * as z from 'zod';
 
+	// check if Input & collection where defined right
 	const Text_Field_Schema = z.object({
 		db_fieldName: z.string(),
-		icon: z.string(),
+		icon: z.string().optional(),
 		prefix: z.string().optional(),
 		suffix: z.string().optional(),
 		count: z.number().optional(),
@@ -28,7 +29,7 @@
 		maxlength: z.number().optional(),
 		placeholder: z.string().optional(),
 		localization: z.boolean().optional(),
-		required: z.boolean(),
+		required: z.boolean().optional(),
 		disabled: z.boolean().optional(),
 		readonly: z.boolean().optional()
 	});
@@ -84,7 +85,7 @@
 		readonly={field.readonly}
 		minlength={field.minlength}
 		maxlength={field.maxlength}
-		class="w-full {field.suffix ? '' : 'col-span-2'}"
+		class="input w-full {field.suffix ? '' : 'col-span-2'}"
 	/>
 	{#if field.count || field.minlength || field.maxlength || field.suffix}
 		<div class="-mx-1 flex text-surface-600 dark:text-surface-200 sm:!pl-[1rem] !pl-0">

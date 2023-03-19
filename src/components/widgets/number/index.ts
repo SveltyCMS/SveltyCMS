@@ -6,12 +6,25 @@ const widget = ({
 	db_fieldName,
 	icon,
 	placeholder,
+	min,
+	max,
+	negative,
 	required,
 	display
 }: Number_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	const field = { schema: {}, db_fieldName, icon, placeholder, required, display } as Number_Field;
+	const field = {
+		schema: {},
+		db_fieldName,
+		icon,
+		placeholder,
+		min,
+		max,
+		negative,
+		required,
+		display
+	} as Number_Field;
 
 	field.schema[db_fieldName] = 'string';
 

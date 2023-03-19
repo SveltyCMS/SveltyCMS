@@ -103,14 +103,24 @@ const schema: Schema = {
 		widgets.Number({
 			db_fieldName: 'Number',
 			icon: 'carbon:character-whole-number',
+			min: -9,
+			max: 9999,
+			step: 1,
+			negative: true,
 			required: true
 		}),
 
-		// widgets.Currency({
-		// 	db_fieldName: 'Number',
-		// 	icon: 'carbon:character-whole-number',
-		// 	required: true
-		// }),
+		widgets.Currency({
+			db_fieldName: 'Currency',
+			icon: 'carbon:character-whole-number',
+			prefix: '€',
+			suffix: 'cent',
+			min: -9,
+			max: 9999,
+			step: 1,
+			negative: true,
+			required: true
+		}),
 
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
