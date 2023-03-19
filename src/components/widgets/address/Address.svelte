@@ -118,16 +118,38 @@
 			})
 		);
 	}
+
+	let latitude: number;
+	let longitude: number;
+	let name: string;
+	let street_address: string;
+	let zip: string;
+	let city: string;
+	let countryAlpha: string;
+
+	function saveAddress() {
+		widgetValue = JSON.stringify({
+			latitude,
+			longitude,
+			name,
+			street_address,
+			zip,
+			city,
+			country: countryAlpha
+		});
+	}
 </script>
 
 {#if PUBLIC_MAPBOX_API_TOKEN}
-	<address>
+	<address class="w-full">
 		<!-- TODO: MAP geocoding 
 		allow user to switch maps-->
 		Mapbox needs more work
 		<div use:initMap class="max-h-[550px] w-full">
 			<div class=" mb-1 flex justify-between gap-2">
-				<button class="variant-filled-primary btn btn-base rounded-md text-white"
+				<button
+					class="variant-filled-primary btn btn-base rounded-md text-white"
+					on:click={saveAddress}
 					><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
 				>
 				<button class="variant-filled-primary btn btn-base rounded-md text-white"
@@ -150,6 +172,7 @@
 				autocomplete="latitude"
 				placeholder={$LL.WIDGET_Address_Latitude()}
 				class="input rounded-md"
+				bind:value={latitude}
 			/>
 
 			<input
@@ -160,6 +183,7 @@
 				autocomplete="longitude"
 				placeholder={$LL.WIDGET_Address_Longitude()}
 				class="input rounded-md"
+				bind:value={longitude}
 			/>
 		</div>
 		<br />
@@ -174,6 +198,7 @@
 				autocomplete="name"
 				placeholder={$LL.WIDGET_Address_Name()}
 				class="input rounded-md"
+				bind:value={name}
 			/>
 
 			<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
@@ -186,6 +211,7 @@
 				required
 				enterkeyhint="next"
 				class="input rounded-md"
+				bind:value={street_address}
 			/>
 
 			<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
@@ -198,6 +224,7 @@
 				autocomplete="postal-code"
 				enterkeyhint="next"
 				class="input rounded-md"
+				bind:value={zip}
 			/>
 
 			<label for="city">{$LL.WIDGET_Address_City()}</label>
@@ -210,6 +237,7 @@
 				autocomplete="city"
 				enterkeyhint="next"
 				class="input rounded-md"
+				bind:value={city}
 			/>
 
 			<!-- Country with search Combobox -->
@@ -225,8 +253,11 @@
 							<ListBoxItem
 								class="flex gap-2"
 								name="medium"
-								value={country.en}
+								bind:value={country.en}
 								bind:group={listboxValue}
+								on:change={() => {
+									countryAlpha = country.alpha2;
+								}}
 							>
 								<span class="fi fi-{country.alpha2} mt-1" />
 								{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
