@@ -1,16 +1,17 @@
 // import { env } from '$env/dynamic/private';
-import { GOOGLE_API_KEY, TWITCH_TOKEN } from '$env/static/private';
+import { GOOGLE_API_TOKEN, TWITCH_TOKEN } from '$env/static/private';
 
 import cheerio from 'cheerio';
 
 export async function youtube(id: string) {
+	console.log(GOOGLE_API_TOKEN);
 	const response = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${GOOGLE_API_KEY}`
+		`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${GOOGLE_API_TOKEN}`
 	);
 	const data = await response.json();
 
 	const responseDuration = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${GOOGLE_API_KEY}`
+		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${GOOGLE_API_TOKEN}`
 	);
 	const dataDuration = await responseDuration.json();
 
@@ -163,5 +164,21 @@ export async function tiktok(url: string) {
 		videoTitle: videoTitle,
 		videoThumbnail: videoThumbnail,
 		videoUrl: url
+	};
+}
+
+export async function getTokensProvided() {
+	let tokensProvided = {
+		google: false,
+		twitch: false
+	};
+	if (GOOGLE_API_TOKEN) {
+		tokensProvided.google = true;
+	}
+	if (TWITCH_TOKEN) {
+		tokensProvided.twitch = true;
+	}
+	return {
+		tokensProvided
 	};
 }

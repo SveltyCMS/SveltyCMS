@@ -1,4 +1,19 @@
 <script lang="ts">
+	import type { Rich_Text } from './types';
+
+	import { language } from '$src/stores/store';
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
+
+	export let field: Rich_Text;
+	export let value: string = '';
+	export let widgetValue: any = {};
+
+	// Set default values
+	$: !value && (value = '');
+	$: widgetValue = value || {};
+
+	// Set language
+	$: _language = field.localization ? $language : PUBLIC_LANGUAGE;
 	//@ts-ignore
 	import { RichTextComposer, PlainTextPlugin } from 'svelte-lexical';
 	//@ts-ignore
@@ -9,7 +24,8 @@
 	onMount(() => {
 		const editor = composerComponent.getEditor();
 		editor.registerUpdateListener(({ editorState }) => {
-			console.log(JSON.stringify(editorState));
+			widgetValue = JSON.stringify(editorState);
+			console.log(widgetValue);
 		});
 	});
 </script>

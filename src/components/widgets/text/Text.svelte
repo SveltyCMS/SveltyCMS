@@ -53,17 +53,26 @@
 			return 'bg-surface-600 text-white dark:bg-white dark:text-surface-600';
 		}
 	};
-</script>
 
-<!-- TODO: Reduce Pre/Sufix Margings -->
+	let valid = true;
+
+	function checkRequired() {
+		if (field.required && widgetValue == '') {
+			valid = false;
+		} else {
+			valid = true;
+		}
+	}
+</script>
 
 <div class="input-group grid-cols-[auto_1fr_auto]">
 	{#if field.prefix}
-		<div class="text-surface-600 dark:text-surface-200">{field.prefix}</div>
+		<div class="text-surface-600 dark:text-surface-200 sm:!pr-[1rem] !pr-0">{field.prefix}</div>
 	{/if}
 
 	<input
 		bind:value={widgetValue[_language]}
+		on:input={checkRequired}
 		type="text"
 		name={field.db_fieldName}
 		id={field.db_fieldName}
@@ -75,51 +84,57 @@
 		readonly={field.readonly}
 		minlength={field.minlength}
 		maxlength={field.maxlength}
+		class="w-full {field.suffix ? '' : 'col-span-2'}"
 	/>
-	<div class="-mx-1 flex ">
-		<!-- badge with count -->
-		{#if field.count || field.minlength || field.maxlength}
-			{#if field.suffix}
-				<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
-					{#if field.count && field.minlength && field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.count && field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.count && field.minlength}
-						{count}/{field.minlength}
-					{:else if field.minlength && field.maxlength}
-						{count}/{field.maxlength} (min {field.minlength})
-					{:else if field.count}
-						{count}/{field.count}
-					{:else if field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.minlength}
-						{count} (min {field.minlength})
-					{/if}
-				</span>
-			{:else}
-				<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
-					{#if field.count && field.minlength && field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.count && field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.count && field.minlength}
-						{count}/{field.minlength}
-					{:else if field.minlength && field.maxlength}
-						{count}/{field.maxlength} (min {field.minlength})
-					{:else if field.count}
-						{count}/{field.count}
-					{:else if field.maxlength}
-						{count}/{field.maxlength}
-					{:else if field.minlength}
-						{count} (min {field.minlength})
-					{/if}
-				</span>
+	{#if field.count || field.minlength || field.maxlength || field.suffix}
+		<div class="-mx-1 flex text-surface-600 dark:text-surface-200 sm:!pl-[1rem] !pl-0">
+			<!-- badge with count -->
+			{#if field.count || field.minlength || field.maxlength}
+				{#if field.suffix}
+					<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
+						{#if field.count && field.minlength && field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.count && field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.count && field.minlength}
+							{count}/{field.minlength}
+						{:else if field.minlength && field.maxlength}
+							{count}/{field.maxlength} (min {field.minlength})
+						{:else if field.count}
+							{count}/{field.count}
+						{:else if field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.minlength}
+							{count} (min {field.minlength})
+						{/if}
+					</span>
+				{:else}
+					<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
+						{#if field.count && field.minlength && field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.count && field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.count && field.minlength}
+							{count}/{field.minlength}
+						{:else if field.minlength && field.maxlength}
+							{count}/{field.maxlength} (min {field.minlength})
+						{:else if field.count}
+							{count}/{field.count}
+						{:else if field.maxlength}
+							{count}/{field.maxlength}
+						{:else if field.minlength}
+							{count} (min {field.minlength})
+						{/if}
+					</span>
+				{/if}
 			{/if}
-		{/if}
-		<!-- suffix -->
-		{#if field.suffix}
-			<span class="-mr-1 text-surface-600 dark:text-surface-200">{field.suffix}</span>
-		{/if}
-	</div>
+			<!-- suffix -->
+			{#if field.suffix}
+				<span class="-mr-1 text-surface-600 dark:text-surface-200">{field.suffix}</span>
+			{/if}
+		</div>
+	{/if}
 </div>
+{#if !valid}
+	<p class="text-red-500">Field is required.</p>
+{/if}
