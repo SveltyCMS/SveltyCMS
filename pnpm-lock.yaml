@@ -3,9 +3,9 @@ lockfileVersion: 5.4
 specifiers:
   '@floating-ui/dom': ^1.2.4
   '@iconify/svelte': ^3.1.0
-  '@lucia-auth/adapter-mongoose': 0.6.0
-  '@lucia-auth/oauth': ^0.7.1
-  '@lucia-auth/sveltekit': ^0.6.10
+  '@lucia-auth/adapter-mongoose': 0.6.1
+  '@lucia-auth/oauth': ^0.7.2
+  '@lucia-auth/sveltekit': ^0.6.11
   '@mapbox/mapbox-gl-geocoder': ^5.0.1
   '@mapbox/mapbox-gl-language': ^1.0.1
   '@skeletonlabs/skeleton': 1.0.0
@@ -47,7 +47,7 @@ specifiers:
   jsonwebtoken: ^9.0.0
   lint-staged: ^13.2.0
   lodash: ^4.17.21
-  lucia-auth: ^0.9.1
+  lucia-auth: ^0.10.0
   mapbox-gl: ^2.13.0
   moment: ^2.29.4
   mongoose: 7.0.2
@@ -78,9 +78,9 @@ specifiers:
 dependencies:
   '@floating-ui/dom': 1.2.4
   '@iconify/svelte': 3.1.0_svelte@3.57.0
-  '@lucia-auth/adapter-mongoose': 0.6.0_lucia-auth@0.9.1
-  '@lucia-auth/oauth': 0.7.1_lucia-auth@0.9.1
-  '@lucia-auth/sveltekit': 0.6.10_ohuczstdicckmwrm4ts7akpcve
+  '@lucia-auth/adapter-mongoose': 0.6.1_lucia-auth@0.10.0
+  '@lucia-auth/oauth': 0.7.2_lucia-auth@0.10.0
+  '@lucia-auth/sveltekit': 0.6.11_tbkrms2nopji4bn5l27bh47ley
   '@mapbox/mapbox-gl-geocoder': 5.0.1_mapbox-gl@2.13.0
   '@mapbox/mapbox-gl-language': 1.0.1_mapbox-gl@2.13.0
   '@tailwindcss/forms': 0.5.3_tailwindcss@3.2.7
@@ -102,7 +102,7 @@ dependencies:
   ioredis: 5.3.1
   jsonwebtoken: 9.0.0
   lodash: 4.17.21
-  lucia-auth: 0.9.1
+  lucia-auth: 0.10.0
   mapbox-gl: 2.13.0
   moment: 2.29.4
   mongoose: 7.0.2
@@ -1588,34 +1588,34 @@ packages:
       yjs: 13.5.46
     dev: false
 
-  /@lucia-auth/adapter-mongoose/0.6.0_lucia-auth@0.9.1:
-    resolution: {integrity: sha512-YluHOVtmIB3hetrZ0iFKuTuP8fo/CfFSFXmkhm6aD2PV/aoH5X3JiCmf/v9Qw/KHOSa2zi7khVxQSs5OEwDeow==}
+  /@lucia-auth/adapter-mongoose/0.6.1_lucia-auth@0.10.0:
+    resolution: {integrity: sha512-mSs1JzfsPbO1KwA9eIeeGgtADANLnaFSSuik+ARM/kH68rSjrrxFw9XO2yBCym98W9KprIRwRz3bAzqsbN+aKA==}
     peerDependencies:
-      lucia-auth: 0.9.x
+      lucia-auth: 0.9.x - 0.10.x
     dependencies:
-      lucia-auth: 0.9.1
+      lucia-auth: 0.10.0
       mongoose: 6.10.0
     transitivePeerDependencies:
       - aws-crt
       - supports-color
     dev: false
 
-  /@lucia-auth/oauth/0.7.1_lucia-auth@0.9.1:
-    resolution: {integrity: sha512-1z+YMRx92kHxcYT1e5uGqiP+Z2BRw3iaZZO/07Da2tGitkPNhW1PbSmxl6l3ssIK/UaamqvOD4IU8emF0Ap1wg==}
+  /@lucia-auth/oauth/0.7.2_lucia-auth@0.10.0:
+    resolution: {integrity: sha512-j7UMFT6mrEepW0/eRrmHtIYUhym8TlB+j51aPTs0oJHIYfslbcvGAfHvQW+jdBWzPSk0nQxMeuw4GZlIzknmGg==}
     peerDependencies:
-      lucia-auth: 0.9.x
+      lucia-auth: 0.9.x - 0.10.x
     dependencies:
-      lucia-auth: 0.9.1
+      lucia-auth: 0.10.0
     dev: false
 
-  /@lucia-auth/sveltekit/0.6.10_ohuczstdicckmwrm4ts7akpcve:
-    resolution: {integrity: sha512-R2Zxx68zuvoqtSgAJUIPgAwGHjfXydbcyuGPUVDaoWY6W/k6cYiTzYPDh17rFGqGj4wdfODDxqOAkO6ndrC1uQ==}
+  /@lucia-auth/sveltekit/0.6.11_tbkrms2nopji4bn5l27bh47ley:
+    resolution: {integrity: sha512-VRYOVnxyL0Iemgp7PZZ/f9nbzS7+gEwl3k/5p03wOIFWdD2BY5CiBjVqMvHXLf6ZxqZzPzYebHCL6WSFvfdxmA==}
     peerDependencies:
-      lucia-auth: 0.5.x - 0.9.x
+      lucia-auth: 0.5.x - 0.10.x
       svelte: 3.x
     dependencies:
       '@noble/hashes': 1.2.0
-      lucia-auth: 0.9.1
+      lucia-auth: 0.10.0
       svelte: 3.57.0
     dev: false
 
@@ -1791,7 +1791,7 @@ packages:
     resolution: {integrity: sha512-AW8PKd6iX3vAZ0vA43nOUOnbq/X5ihgU+mSXXqunMkeQADGiqw/PY0JNeYtD5sr0PAy51YPgAPbDoeapv9r8WA==}
     dev: false
 
-  /@rollup/plugin-commonjs/24.0.1_rollup@3.15.0:
+  /@rollup/plugin-commonjs/24.0.1_rollup@3.19.1:
     resolution: {integrity: sha512-15LsiWRZk4eOGqvrJyu3z3DaBu5BhXIMeWnijSRvd8irrrg9SHpQ1pH+BUK4H6Z9wL9yOxZJMTLU+Au86XHxow==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -1800,16 +1800,16 @@ packages:
       rollup:
         optional: true
     dependencies:
-      '@rollup/pluginutils': 5.0.2_rollup@3.15.0
+      '@rollup/pluginutils': 5.0.2_rollup@3.19.1
       commondir: 1.0.1
       estree-walker: 2.0.2
       glob: 8.1.0
       is-reference: 1.2.1
       magic-string: 0.27.0
-      rollup: 3.15.0
+      rollup: 3.19.1
     dev: true
 
-  /@rollup/plugin-json/6.0.0_rollup@3.15.0:
+  /@rollup/plugin-json/6.0.0_rollup@3.19.1:
     resolution: {integrity: sha512-i/4C5Jrdr1XUarRhVu27EEwjt4GObltD7c+MkCIpO2QIbojw8MUs+CCTqOphQi3Qtg1FLmYt+l+6YeoIf51J7w==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -1818,11 +1818,11 @@ packages:
       rollup:
         optional: true
     dependencies:
-      '@rollup/pluginutils': 5.0.2_rollup@3.15.0
-      rollup: 3.15.0
+      '@rollup/pluginutils': 5.0.2_rollup@3.19.1
+      rollup: 3.19.1
     dev: true
 
-  /@rollup/plugin-node-resolve/15.0.1_rollup@3.15.0:
+  /@rollup/plugin-node-resolve/15.0.1_rollup@3.19.1:
     resolution: {integrity: sha512-ReY88T7JhJjeRVbfCyNj+NXAG3IIsVMsX9b5/9jC98dRP8/yxlZdz7mHZbHk5zHr24wZZICS5AcXsFZAXYUQEg==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -1831,16 +1831,16 @@ packages:
       rollup:
         optional: true
     dependencies:
-      '@rollup/pluginutils': 5.0.2_rollup@3.15.0
+      '@rollup/pluginutils': 5.0.2_rollup@3.19.1
       '@types/resolve': 1.20.2
       deepmerge: 4.3.0
       is-builtin-module: 3.2.1
       is-module: 1.0.0
       resolve: 1.22.1
-      rollup: 3.15.0
+      rollup: 3.19.1
     dev: true
 
-  /@rollup/pluginutils/5.0.2_rollup@3.15.0:
+  /@rollup/pluginutils/5.0.2_rollup@3.19.1:
     resolution: {integrity: sha512-pTd9rIsP92h+B6wWwFbW8RkZv4hiR/xKsqre4SIuAOaOEQRxi0lqLke9k2/7WegC85GgUs9pjmOjCUi3In4vwA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
@@ -1852,7 +1852,7 @@ packages:
       '@types/estree': 1.0.0
       estree-walker: 2.0.2
       picomatch: 2.3.1
-      rollup: 3.15.0
+      rollup: 3.19.1
     dev: true
 
   /@sindresorhus/is/4.6.0:
@@ -1871,11 +1871,11 @@ packages:
     peerDependencies:
       '@sveltejs/kit': ^1.0.0
     dependencies:
-      '@rollup/plugin-commonjs': 24.0.1_rollup@3.15.0
-      '@rollup/plugin-json': 6.0.0_rollup@3.15.0
-      '@rollup/plugin-node-resolve': 15.0.1_rollup@3.15.0
+      '@rollup/plugin-commonjs': 24.0.1_rollup@3.19.1
+      '@rollup/plugin-json': 6.0.0_rollup@3.19.1
+      '@rollup/plugin-node-resolve': 15.0.1_rollup@3.19.1
       '@sveltejs/kit': 1.12.0_svelte@3.57.0+vite@4.2.0
-      rollup: 3.15.0
+      rollup: 3.19.1
     dev: true
 
   /@sveltejs/kit/1.12.0_svelte@3.57.0+vite@4.2.0:
@@ -5027,8 +5027,8 @@ packages:
     dev: false
     optional: true
 
-  /lucia-auth/0.9.1:
-    resolution: {integrity: sha512-Mfg1fEcqrZtvLwqHLHgjMDcF58BOFrC0P40ggivURP7d11c10WXCaXYJhAsALWpE8hsSZgxzMIEcNbyVAMkYKQ==}
+  /lucia-auth/0.10.0:
+    resolution: {integrity: sha512-lH6vVbquC4rQovufb31SIuzBhqKoDjZFw+h7ce7TfoqOc6xKMNOG7HBepiWwCLoXjFemMTAq92vTeK5HFx9qDg==}
     dependencies:
       '@noble/hashes': 1.2.0
       nanoid: 4.0.1
@@ -6241,14 +6241,6 @@ packages:
     hasBin: true
     dependencies:
       glob: 7.2.3
-
-  /rollup/3.15.0:
-    resolution: {integrity: sha512-F9hrCAhnp5/zx/7HYmftvsNBkMfLfk/dXUh73hPSM2E3CRgap65orDNJbLetoiUFwSAk6iHPLvBrZ5iHYvzqsg==}
-    engines: {node: '>=14.18.0', npm: '>=8.0.0'}
-    hasBin: true
-    optionalDependencies:
-      fsevents: 2.3.2
-    dev: true
 
   /rollup/3.19.1:
     resolution: {integrity: sha512-lAbrdN7neYCg/8WaoWn/ckzCtz+jr70GFfYdlf50OF7387HTg+wiuiqJRFYawwSPpqfqDNYqK7smY/ks2iAudg==}
