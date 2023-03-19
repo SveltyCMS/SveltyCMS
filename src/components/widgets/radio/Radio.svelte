@@ -1,7 +1,6 @@
 <script lang="ts">
 	export let field: any = undefined;
 	export let value = '';
-
 	export let widgetValue;
 	$: widgetValue = value;
 </script>
@@ -15,6 +14,7 @@
 		id="flexRadioDefault2"
 		checked
 		color={field.color}
+		bind:group={value}
 	/>
 	<label class="form-check-label inline-block " for="flexRadioDefault2">
 		{field.db_fieldName}

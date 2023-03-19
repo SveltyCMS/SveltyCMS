@@ -9,6 +9,7 @@
 	// add format like  https://svelte-tel-input.vercel.app/
 
 	import TelInput, { normalizedCountries } from 'svelte-tel-input';
+
 	// Any Country Code Alpha-2 (ISO 3166)
 	let selectedCountry = 'DE';
 
@@ -18,8 +19,29 @@
 	// Optional - Extended information about the parsed phone number
 	let parsedTelInput: { nationalNumber: any } | null = null;
 
-	// Field validity
+	// import { z } from 'zod';
+
+	// const schema = z.object({
+	// 	phone: z.string().min(10, 'Phone number is too short')
+	// });
+
+	// const validate = (values) => {
+	// 	try {
+	// 		schema.parse(values);
+	// 		return true;
+	// 	} catch (error) {
+	// 		return false;
+	// 	}
+	// };
+
+	// In your component
+	// let phone = '';
 	let isValid = true;
+
+	// function handleInput(event) {
+	// 	phone = event.target.value;
+	// 	isValid = validate({ phone });
+	// }
 </script>
 
 <div class="input-group input-group-divider grid-cols-[auto_1fr_auto]">
@@ -41,18 +63,28 @@
 		{/each}
 	</select>
 
+	<!-- TODO: fix typescript -->
 	<TelInput
 		bind:valid={isValid}
 		bind:country={selectedCountry}
 		bind:value
 		bind:parsedTelInput
+		placeholder={field.placeholder}
 		class="basic-tel-input {!isValid && 'invalid'}"
 	/>
 </div>
 
 <!-- Just to show the nicely parsed phone number to you-->
+<!-- TODO: fix typescript -->
 {#if value && isValid && parsedTelInput?.nationalNumber}
 	<h3>
-		<span>Tel: <a href="tel:{value}">{selectedCountry} {parsedTelInput.nationalNumber}</a></span>
+		<span
+			>Tel: <a
+				href="tel:+{normalizedCountries.find((c) => c.iso2 === selectedCountry)
+					.dialCode}{parsedTelInput.nationalNumber}"
+				>+{normalizedCountries.find((c) => c.iso2 === selectedCountry).dialCode}
+				{parsedTelInput.nationalNumber}</a
+			></span
+		>
 	</h3>
 {/if}

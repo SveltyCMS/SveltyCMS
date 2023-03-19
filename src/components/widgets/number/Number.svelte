@@ -3,30 +3,42 @@
 	import { get } from 'svelte/store';
 	import * as z from 'zod';
 
-	const numberSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		placeholder: z.string().optional(),
-		min: z.number().gte(5, { message: 'Value too small' }).optional(),
-		max: z.number().lte(5, { message: 'Value too large' }).optional(),
-		step: z.number().multipleOf(5, { message: 'Step too large' }).optional(),
-		negative: z.boolean().optional(),
-		required: z.boolean().optional()
-	});
-
 	export let field: any = undefined;
 	export let value: string = '';
 
 	export let widgetValue: number | null = null;
 	$: widgetValue = value ? parseFloat(value.replace(/[^\d.-]/g, '')) : null;
 
+	const widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		icon: field.icon,
+		placeholder: field.placeholder,
+		min: field.min,
+		max: field.max,
+		step: field.step,
+		negative: field.negative,
+		required: field.required
+	};
+
+	const numberSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		placeholder: z.string().optional(),
+		min: z.number().gte(field.min, { message: 'Value too small' }).optional(),
+		max: z.number().lte(field.max, { message: 'Value too large' }).optional(),
+		step: z.number().multipleOf(field.step, { message: 'Step too large' }).optional(),
+		negative: z.boolean().optional(),
+		required: z.boolean().optional()
+	});
+
 	let validationError: string | null = null;
+
 	$: validationError = (() => {
 		try {
-			numberSchema.parse(widgetValue);
+			numberSchema.parse(widgetValueObject);
 			return null;
 		} catch (error) {
-			return error.message;
+			return (error as Error).message;
 		}
 	})();
 
@@ -57,7 +69,9 @@
 
 	// If the locale changes, update the value
 	locale.subscribe((n) => {
-		value = new Intl.NumberFormat(n).format(parseFloat(value.replace(/[^\d.-]/g, '')));
+		if (value != null) {
+			value = new Intl.NumberFormat(n).format(parseFloat(value.replace(/[^\d.-]/g, '')));
+		}
 	});
 </script>
 

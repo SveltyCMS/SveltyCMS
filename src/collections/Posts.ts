@@ -10,7 +10,7 @@ const schema: Schema = {
 	name: 'Posts',
 	icon: 'bi:card-text',
 	status: 'published',
-	id: 'posts',
+
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [

@@ -7,30 +7,62 @@
 
 	export let field: any = undefined;
 	export let value = '';
-	export let widgetValue;
+	export let widgetValue: any;
 	let errorMessage = '';
+	let urlIsReachable = false;
 
-	// TODO: Check url Only -facing CORS issue
+	// Zod vailidation
+	import z from 'zod';
 
-	function checkURL() {
-		let isValid = true;
-		let isReachable = true;
+	const urlSchema = z.string().refine((value) => isValidURL(value), {
+		message: 'Invalid url'
+	});
 
-		const regex =
-			/^(https?:\/\/)?(www\.)?[-a-zA-Z0-9@:%._\+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_\+.~#?&//=]*)$/;
-		if (!regex.test(value)) {
-			isValid = false;
-			isReachable = false;
+	function isValidURL(value: string) {
+		if (!value) {
+			return false;
 		}
-		if (!isValid) {
-			errorMessage = "Not a valid url input won't input won't save VALUE";
-		} else if (!isReachable) {
-			errorMessage = 'Url is not reachable, but Input will allow save VALUE';
-			widgetValue = 'URL is not reachable';
-		} else {
-			widgetValue = 'URL is reachable';
+		try {
+			if (!value.startsWith('http://') && !value.startsWith('https://')) {
+				value = 'https://' + value;
+			}
+			new URL(value);
+			return true;
+		} catch {
+			return false;
 		}
 	}
+
+	async function checkURL() {
+		const inputElement = document.querySelector('input');
+		if (!inputElement) return;
+
+		let url = inputElement.value;
+		if (!url.startsWith('http://') && !url.startsWith('https://')) {
+			url = 'https://' + url;
+		}
+
+		try {
+			urlSchema.parse(url);
+			errorMessage = '';
+
+			if (typeof window !== 'undefined') {
+				const response = await fetch(url);
+				if (response.ok) {
+					widgetValue = response.url;
+					urlIsReachable = true;
+				} else {
+					widgetValue = 'URL is not reachable';
+					urlIsReachable = false;
+				}
+			}
+		} catch (error) {
+			errorMessage = (error as Error).message;
+			urlIsReachable = false;
+		}
+	}
+	// console.log('urlSchema' + urlSchema.parse);
+	// console.log('isValidURL' + isValidURL);
 </script>
 
 <input
@@ -49,4 +81,8 @@
 	<p class="text-error-600">{errorMessage}</p>
 {/if}
 
-<span dangerouslySetInnerHTML={widgetValue} />
+{@html widgetValue}
+
+{#if urlIsReachable}
+	<span style="color:green;">✔️</span>
+{/if}

@@ -8,7 +8,7 @@ const schema: Schema = {
 	name: 'Image Array',
 	icon: 'bi:images',
 	status: 'published',
-	id: 'image_array',
+
 	// collection fields from available widgets
 	fields: [
 		widgets.ImageArray({

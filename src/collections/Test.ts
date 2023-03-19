@@ -12,7 +12,7 @@ const schema: Schema = {
 	name: 'Test Widgets',
 	icon: 'bi:device-ssd-fill',
 	status: 'published',
-	id: 'test',
+
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
 	fields: [
@@ -64,7 +64,7 @@ const schema: Schema = {
 					placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 					required: false,
 					readonly: true,
-					width: '33%'
+					width: '13%'
 				}),
 
 				widgets.Text({
@@ -73,7 +73,7 @@ const schema: Schema = {
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_Last_placeholder(),
 					required: true,
-					width: '33%',
+					width: '53%',
 					localization: true,
 					disabled: true
 				})
@@ -103,20 +103,22 @@ const schema: Schema = {
 		widgets.Number({
 			db_fieldName: 'Number',
 			icon: 'carbon:character-whole-number',
+			placeholder: 'Enter Number from -9 to 9999',
 			min: -9,
 			max: 9999,
 			step: 1,
 			negative: true,
-			required: true
+			required: false
 		}),
 
 		widgets.Currency({
 			db_fieldName: 'Currency',
 			icon: 'carbon:character-whole-number',
+			placeholder: 'Enter Currency from -0 to 99999.99',
 			prefix: '€',
 			suffix: 'cent',
-			min: -9,
-			max: 9999,
+			min: -0,
+			max: 99999.99,
 			step: 1,
 			negative: true,
 			required: true
@@ -125,11 +127,28 @@ const schema: Schema = {
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
 			icon: 'material-symbols:perm-phone-msg',
+			placeholder: 'Enter Phone +4921513250033',
 			required: true
 		}),
 
+		// TODO: show group in entry list table
 		widgets.Group({
 			db_fieldName: 'Test 2nd Group',
+			label: 'Rradio/Checkbox',
+			display: async (data: any, field: any, entry: any) => {
+				return format([
+					{
+						label: 'Radio',
+						text: entry.Radio,
+						newLine: true // not working
+					},
+					{
+						label: 'Checkbox',
+						labelColor: 'blue',
+						text: entry.Checkbox
+					}
+				]);
+			},
 			fields: [
 				widgets.Radio({ db_fieldName: 'Radio', color: 'red', required: true, width: '50%' }),
 
@@ -142,7 +161,7 @@ const schema: Schema = {
 			]
 		}),
 
-		// widgets.RichText({ db_fieldName: 'Description' }),
+		widgets.RichText({ db_fieldName: 'Description' }),
 
 		// widgets.Address({ db_fieldName: 'Address' }),
 
