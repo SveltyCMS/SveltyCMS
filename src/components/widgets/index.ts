@@ -11,6 +11,7 @@ import DateRange from './dateRange';
 import Email from './email';
 import Url from './url';
 import Checkbox from './checkbox';
+import Currency from './currency';
 import Radio from './radio';
 import Number from './number';
 import PhoneNumber from './phoneNumber';
@@ -23,6 +24,7 @@ import RemoteVideo from './remoteVideo';
 export type Widgets = {
 	Address: typeof Address;
 	Checkbox: typeof Checkbox;
+	Currency: typeof Currency;
 	Date: typeof Date;
 	DateRange: typeof DateRange;
 	Email: typeof Email;
@@ -59,6 +61,8 @@ const widgets: Widgets = {
 	//Code,
 	// Collapsible - used for admin layout, nest fields within a collapsible component
 	//Collapsible,
+	// Currency - define input with a currency string and suffix
+	Currency,
 	// Date - date / time field that saves a timestamp
 	Date,
 	// DateRange - date with start / Finish timestamps

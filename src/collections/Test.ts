@@ -106,6 +106,12 @@ const schema: Schema = {
 			required: true
 		}),
 
+		// widgets.Currency({
+		// 	db_fieldName: 'Number',
+		// 	icon: 'carbon:character-whole-number',
+		// 	required: true
+		// }),
+
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
 			icon: 'material-symbols:perm-phone-msg',
@@ -126,9 +132,9 @@ const schema: Schema = {
 			]
 		}),
 
-		widgets.RichText({ db_fieldName: 'Description' }),
+		// widgets.RichText({ db_fieldName: 'Description' }),
 
-		widgets.Address({ db_fieldName: 'Address' }),
+		// widgets.Address({ db_fieldName: 'Address' }),
 
 		widgets.Date({ db_fieldName: 'Date' }),
 

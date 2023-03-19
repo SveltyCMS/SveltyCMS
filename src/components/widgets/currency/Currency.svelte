@@ -6,7 +6,7 @@
 	export let value: string = '';
 
 	export let widgetValue;
-	$: widgetValue = value.replaceAll('.', '').replaceAll(',', '');
+	$: widgetValue = value;
 
 	// Check if user input is number
 	// TODO use alerts
