@@ -226,7 +226,12 @@
 				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 			</button>
 			<button on:click={modalConfirm} class="btn btn-sm gradient-error text-white"
-				><Icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />Delete User</button
+				><Icon
+					icon="bi:trash3-fill"
+					color="white"
+					width="18"
+					class="mr-1"
+				/>{$LL.USER_Delete()}</button
 			>
 		</div>
 	</form>

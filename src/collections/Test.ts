@@ -163,7 +163,7 @@ const schema: Schema = {
 
 		widgets.RichText({ db_fieldName: 'Description' }),
 
-		// widgets.Address({ db_fieldName: 'Address' }),
+		widgets.Address({ db_fieldName: 'Address' }),
 
 		widgets.Date({ db_fieldName: 'Date' }),
 

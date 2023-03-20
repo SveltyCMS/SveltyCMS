@@ -441,7 +441,7 @@
 				{#if !showsearch}
 					<button
 						on:click={() => (showsearch = !showsearch)}
-						class="btn-icon relative mt-1 bg-surface-600 "
+						class="btn-icon relative mt-1 bg-surface-600 text-white"
 					>
 						<Icon
 							icon="material-symbols:search-rounded"

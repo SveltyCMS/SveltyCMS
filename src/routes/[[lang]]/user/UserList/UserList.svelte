@@ -321,7 +321,7 @@
 <h4 class="mb-2 text-error-500 ">List of aktive Users Invites:</h4>
 
 <table>
-	<thead class="bg-surface-600 rounded-t border-b-2">
+	<thead class="bg-surface-600 rounded-t border-b-2 text-white">
 		<tr class="divide-x-2">
 			<th class="px-2">Email</th>
 			<th class="px-2">role</th>

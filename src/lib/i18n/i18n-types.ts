@@ -80,6 +80,18 @@ type RootTranslation = {
 	 */
 	SBL_SignOut: string
 	/**
+	 * C​o​n​t​e​n​t
+	 */
+	CollectionCategory_Content: string
+	/**
+	 * M​e​n​u
+	 */
+	CollectionCategory_Menu: string
+	/**
+	 * M​e​d​i​a
+	 */
+	CollectionCategory_Media: string
+	/**
 	 * P​a​g​e​ ​N​o​t​ ​F​o​u​n​d
 	 */
 	ERROR_Pagenotfound: string
@@ -664,6 +676,18 @@ export type TranslationFunctions = {
 	 * Sign Out
 	 */
 	SBL_SignOut: () => LocalizedString
+	/**
+	 * Content
+	 */
+	CollectionCategory_Content: () => LocalizedString
+	/**
+	 * Menu
+	 */
+	CollectionCategory_Menu: () => LocalizedString
+	/**
+	 * Media
+	 */
+	CollectionCategory_Media: () => LocalizedString
 	/**
 	 * Page Not Found
 	 */

@@ -7,15 +7,28 @@ import Menu from './Menu';
 import ImageArray from './ImageArray';
 import ImageEditor from './EditorImage';
 
+// typesafe-i18n
+import LL from '$i18n/i18n-svelte';
+import { get } from 'svelte/store';
+
 let categories = [
 	{
-		category: 'Collections',
+		//Content
+		category: get(LL).CollectionCategory_Content(),
 		icon: 'bi:collection',
 		collections: [Test, Posts, Menu],
 		collectionIds: []
 	},
 	{
-		category: 'Media',
+		//Content
+		category: get(LL).CollectionCategory_Menu(),
+		icon: 'bi:collection',
+		collections: [Menu],
+		collectionIds: []
+	},
+	{
+		//Media
+		category: get(LL).CollectionCategory_Media(),
 		icon: 'bi:images',
 		collections: [Images, Media, ImageArray, ImageEditor],
 		collectionIds: []

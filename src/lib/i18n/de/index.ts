@@ -21,6 +21,11 @@ const de: Translation = {
 	SBL_Save_message: 'Daten erfolgreich gespeichert',
 	SBL_SignOut: 'Abmelden',
 
+	// Collections
+	CollectionCategory_Content: 'Inhalte',
+	CollectionCategory_Menu: 'Menü',
+	CollectionCategory_Media: 'Medien',
+
 	// SideBar Right
 
 	// Error

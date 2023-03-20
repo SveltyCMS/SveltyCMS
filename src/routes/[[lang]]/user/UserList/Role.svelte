@@ -14,7 +14,7 @@
 			: value === 'User'
 			? 'badge variant-filled-waring'
 			: 'text-white'
-	} rounded-full`;
+	} rounded-full text-white`;
 </script>
 
 <div class={classes}>

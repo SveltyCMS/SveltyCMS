@@ -21,6 +21,11 @@ const en: BaseTranslation = {
 	SBL_Save_message: 'Data saved successfully',
 	SBL_SignOut: 'Sign Out',
 
+	// Collections
+	CollectionCategory_Content: 'Content',
+	CollectionCategory_Menu: 'Menu',
+	CollectionCategory_Media: 'Media',
+
 	// SideBar Right
 
 	// ERROR
