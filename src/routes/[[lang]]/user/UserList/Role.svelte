@@ -1,8 +1,13 @@
 <script lang="ts">
+	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
+
 	export let value: string;
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
+
+	// TODO| Add i18n PUBLIC_TRANSLATIONS
+	// Grab Users from one Location only
 
 	let classes = `${
 		value === 'Admin'

@@ -180,6 +180,54 @@ type RootTranslation = {
 	 */
 	USER_EmailToken: string
 	/**
+	 * A​d​m​i​n​ ​A​r​e​a​:
+	 */
+	USER_AdminArea: string
+	/**
+	 * L​i​s​t​ ​o​f​ ​U​s​e​r​:
+	 */
+	TANSTACK_UserList: string
+	/**
+	 * C​o​l​u​m​n​s
+	 */
+	TANSTACK_Column: string
+	/**
+	 * T​o​g​g​l​e​ ​A​l​l
+	 */
+	TANSTACK_Toggle: string
+	/**
+	 * F​a​c​e​t​s​ ​F​i​l​t​e​r​s
+	 */
+	TANSTACK_Filter: string
+	/**
+	 * X​M​L​ ​E​x​p​o​r​t
+	 */
+	TANSTACK_Export: string
+	/**
+	 * P​a​g​e
+	 */
+	TANSTACK_Page: string
+	/**
+	 * S​h​o​w​i​n​g​ ​P​a​g​e
+	 */
+	TANSTACK_Show: string
+	/**
+	 * o​f
+	 */
+	TANSTACK_of: string
+	/**
+	 * T​o​t​a​l
+	 */
+	TANSTACK_Total: string
+	/**
+	 * R​o​w
+	 */
+	TANSTACK_Row: string
+	/**
+	 * R​o​w​s
+	 */
+	TANSTACK_Rows: string
+	/**
 	 * S​i​g​n​ ​I​n
 	 */
 	LOGIN_SignIn: string
@@ -776,6 +824,54 @@ export type TranslationFunctions = {
 	 * Email User Registion token
 	 */
 	USER_EmailToken: () => LocalizedString
+	/**
+	 * Admin Area:
+	 */
+	USER_AdminArea: () => LocalizedString
+	/**
+	 * List of User:
+	 */
+	TANSTACK_UserList: () => LocalizedString
+	/**
+	 * Columns
+	 */
+	TANSTACK_Column: () => LocalizedString
+	/**
+	 * Toggle All
+	 */
+	TANSTACK_Toggle: () => LocalizedString
+	/**
+	 * Facets Filters
+	 */
+	TANSTACK_Filter: () => LocalizedString
+	/**
+	 * XML Export
+	 */
+	TANSTACK_Export: () => LocalizedString
+	/**
+	 * Page
+	 */
+	TANSTACK_Page: () => LocalizedString
+	/**
+	 * Showing Page
+	 */
+	TANSTACK_Show: () => LocalizedString
+	/**
+	 * of
+	 */
+	TANSTACK_of: () => LocalizedString
+	/**
+	 * Total
+	 */
+	TANSTACK_Total: () => LocalizedString
+	/**
+	 * Row
+	 */
+	TANSTACK_Row: () => LocalizedString
+	/**
+	 * Rows
+	 */
+	TANSTACK_Rows: () => LocalizedString
 	/**
 	 * Sign In
 	 */

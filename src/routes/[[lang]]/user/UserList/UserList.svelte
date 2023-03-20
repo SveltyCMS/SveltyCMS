@@ -85,6 +85,7 @@
 
 	import moment from 'moment';
 	import Role from './Role.svelte';
+	import { getRTLTextPluginStatus } from 'mapbox-gl';
 
 	const numFormat = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
 
@@ -342,7 +343,7 @@
 </table>
 <hr />
 <!-- ////////////////////////////////////////// -->
-<h4 class="my-4">List of Users Tanstack:</h4>
+<h4 class="my-4">{$LL.TANSTACK_UserList()}</h4>
 
 <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-2 gap-2">
 	<div class="flex justify-between items-center gap-2 relative mx-auto">
@@ -372,7 +373,7 @@
 		<!-- Column Order/ Sort-->
 		<button class="btn variant-ghost" on:click={() => (columnShow = !columnShow)}>
 			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />
-			<span class="hidden sm:block">Column</span><Icon
+			<span class="hidden sm:block">{$LL.TANSTACK_Column()}</span><Icon
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
@@ -382,7 +383,7 @@
 		<!-- Filter -->
 		<button class="btn variant-ghost" on:click={triggerFacets}>
 			<Icon icon="carbon:filter-edit" width="20" class="mr-1" />
-			<span class="hidden sm:block">Filter/Facet</span><Icon
+			<span class="hidden sm:block">{$LL.TANSTACK_Filter()}</span><Icon
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
@@ -392,7 +393,7 @@
 		<!-- Export -->
 		<button class="btn variant-ghost" on:click={clickDownload}>
 			<Icon icon="dashicons:database-export" width="20" class="mr-1" />
-			<span class="hidden sm:block">XML Export</span>
+			<span class="hidden sm:block">{$LL.TANSTACK_Export()}</span>
 			<!-- <Icon
 				icon="mdi:chevron-down"
 				width="20"
@@ -420,7 +421,7 @@
 					}}
 					type="checkbox"
 				/>{' '}
-				Toggle All
+				{$LL.TANSTACK_Toggle()}
 			</label>
 		</div>
 		<!-- Show/hide Columns via chips -->
@@ -509,25 +510,27 @@
 	<div class="flex justify-around items-center my-3">
 		<!-- show & count rows -->
 		<div class="hidden md:block text-surface-400 text-sm">
-			Showing
+			{$LL.TANSTACK_Show()}
 			<span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
 			>
-			to
-			<!-- TODO: Get actual page -->
+			{$LL.TANSTACK_of()}
+			<!-- TODO: Get actual pages -->
+			<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 			<span class="text-surface-700 dark:text-white"
-				>{$table.getState().pagination.pageIndex + 1}</span
+				>{Math.ceil(
+					$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
+				)}</span
 			>
-			of
-			<span class="text-surface-700 dark:text-white"
+			- (<span class="text-surface-700 dark:text-white"
 				>{$table.getPrePaginationRowModel().rows.length}</span
 			>
-			Total
-			<!-- TODO: check if only 1 Row -->
-			{#if 1 === 1}
-				Row
+			{$LL.TANSTACK_Total()}
+
+			{#if $table.getPrePaginationRowModel().rows.length === 1}
+				{$LL.TANSTACK_Row()})
 			{:else}
-				Rows{/if}
+				{$LL.TANSTACK_Rows()}){/if}
 		</div>
 
 		<!-- number of pages -->
@@ -563,7 +566,7 @@
 				{'<'}
 			</button>
 			<div class="px-2 justify-center items-center text-sm">
-				<span> Page </span>
+				<span> {$LL.TANSTACK_Page()} </span>
 
 				<input
 					type="number"
@@ -574,7 +577,7 @@
 					class="input w-16 !border-0 variant-ghost mt-[1px] rounded-none"
 				/>
 				<span>
-					{' '}of{' '}
+					{' '}{$LL.TANSTACK_of()}{' '}
 					{$table.getPageCount()}
 				</span>
 			</div>
@@ -605,30 +608,37 @@
 		>
 			{#each [10, 25, 50, 100, 500] as pageSize}
 				<option value={pageSize}>
-					{pageSize} Rows
+					{pageSize}
+					{$LL.TANSTACK_Rows()}
 				</option>
 			{/each}
 		</select>
+
+		<!-- Pagination -->
 		<div class="text-surface-400 text-sm">
-			Showing
+			{$LL.TANSTACK_Show()}
 			<span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
 			>
-			to
+			{$LL.TANSTACK_of()}
 			<!-- TODO: Get actual page -->
-			<span class="text-surface-700 dark:text-white"
+			<!-- <span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
-			>
-			of
+			> -->
 			<span class="text-surface-700 dark:text-white"
+				>{Math.ceil(
+					$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
+				)}</span
+			>
+			- (<span class="text-surface-700 dark:text-white"
 				>{$table.getPrePaginationRowModel().rows.length}</span
 			>
-			Total
-			<!-- TODO: check if only 1 Row -->
-			{#if 1 === 1}
-				Row
+			{$LL.TANSTACK_Total()}
+
+			{#if $table.getPrePaginationRowModel().rows.length === 1}
+				{$LL.TANSTACK_Row()})
 			{:else}
-				Rows{/if}
+				{$LL.TANSTACK_Rows()}){/if}
 		</div>
 	</div>
 </div>

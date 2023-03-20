@@ -55,6 +55,20 @@ const en: BaseTranslation = {
 	USER_ListShow: 'Show User List',
 	USER_ListCollapse: 'Collapse User List',
 	USER_EmailToken: 'Email User Registion token',
+	USER_AdminArea: 'Admin Area:',
+
+	// Tanstack
+	TANSTACK_UserList: 'List of User:',
+	TANSTACK_Column: 'Columns',
+	TANSTACK_Toggle: 'Toggle All',
+	TANSTACK_Filter: 'Facets Filters',
+	TANSTACK_Export: 'XML Export',
+	TANSTACK_Page: 'Page',
+	TANSTACK_Show: 'Showing Page',
+	TANSTACK_of: 'of',
+	TANSTACK_Total: 'Total',
+	TANSTACK_Row: 'Row',
+	TANSTACK_Rows: 'Rows',
 
 	// Login
 	LOGIN_SignIn: 'Sign In',

@@ -55,6 +55,20 @@ const de: Translation = {
 	USER_ListShow: 'Benutzerliste anzeigen',
 	USER_ListCollapse: 'Benutzerliste schließen',
 	USER_EmailToken: 'Email Benutzerregistrierungstoken',
+	USER_AdminArea: 'Admin Bereich:',
+
+	// Tanstack
+	TANSTACK_UserList: 'Liste der Benutzer:',
+	TANSTACK_Column: 'Spalten',
+	TANSTACK_Toggle: 'Alles umschalten',
+	TANSTACK_Filter: 'Facetten-Filter',
+	TANSTACK_Export: 'XML-Export',
+	TANSTACK_Page: 'Seite',
+	TANSTACK_Show: 'Seite anzeigen',
+	TANSTACK_of: 'von',
+	TANSTACK_Total: 'Gesamt',
+	TANSTACK_Row: 'Zeile',
+	TANSTACK_Rows: 'Zeilen',
 
 	// Login
 	LOGIN_SignIn: 'Anmelden',

@@ -241,7 +241,7 @@
 {#if $user?.role === 'Admin'}
 	<div class="my-2 gap-2 border-t-2">
 		<hr />
-		<h2 class="mb-2 text-center md:text-left">Admin Area:</h2>
+		<h2 class="mb-2 text-center md:text-left">{$LL.USER_AdminArea()}</h2>
 		<div class="flex justify-between gap-2 flex-col sm:flex-row my-2">
 			<button
 				class="btn gradient-secondary text-white order-last sm:order-1"
