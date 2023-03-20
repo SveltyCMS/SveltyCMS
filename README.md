@@ -5,8 +5,7 @@
     </picture>
  </p>
 
-<h3 align="center">SimpleCMS is powerful Headless CMS</h3>
-<p align="center"><strong>Its fast, flexible and an easy to use content mangement system</strong></p>
+<h1 align="center"><strong>SimpleCMS</strong></h1>
 
 <p align="center">
  <a href="https://svelte.dev/">
@@ -20,11 +19,10 @@
  </a> 
 </p>
 
-# :star2: SimpleCMS
-
-<h3 align="center">
-## it's a flexible Content Manage System to provide a headless backend
-</h3>
+<h2 align="center">
+A powerful Headless CMS with sveltekit power
+</h2>
+<h3 align="center"><strong>It's fast, flexible and an easy to use modern content mangement system to provide a headless backend </strong></h3>
 
 This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 
