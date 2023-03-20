@@ -1,16 +1,28 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png">
-      <img width="250" alt="SimpleCMC logo" src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png">
+      <img width="200" alt="SimpleCMC logo" src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png">
     </picture>
  </p>
 
-<h3 align="center">SimpleCMS is powerful Headless CMS</h3>
-<p align="center">With Sveltekit its fast, flexible and an easy to use content mangement system</p>
+<h1 align="center"><strong>SimpleCMS</strong></h1>
 
-# :star2: SimpleCMS
+<p align="center">
+ <a href="https://svelte.dev/">
+  <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Svelte Badge"/>
+ </a> 
+<a href="https://www.typescriptlang.org/">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;style=plastic" alt="TypeScript Badge"/>
+</a> 
+<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;style=plastic" alt="Mongodb Badge" /> </a><a href="https://tailwindcss.com/"> 
+   <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&style=plastic" alt="Tailwindcss Badge" /> 
+ </a> 
+</p>
 
-## is a flexible Content Manage System to provide a headless backend
+<h2 align="center">
+A powerful Headless CMS with sveltekit power
+</h2>
+<h3 align="center"><strong>It's fast, flexible and an easy to use modern content mangement system to provide a headless backend </strong></h3>
 
 This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 
