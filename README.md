@@ -8,8 +8,12 @@
 <h1 align="center"><strong>SimpleCMS</strong></h1>
 
 <p align="center">
- <a href="https://svelte.dev/">
-  <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Svelte Badge"/>
+<img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS?style=flat-square">
+</p>
+
+<p align="center">
+ <a href="https://kit.svelte.dev/">
+  <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Sveltekit Badge"/>
  </a> 
 <a href="https://www.typescriptlang.org/">
   <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;style=plastic" alt="TypeScript Badge"/>
