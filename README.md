@@ -8,24 +8,23 @@
 <h3 align="center">SimpleCMS is powerful Headless CMS</h3>
 <p align="center"><strong>Its fast, flexible and an easy to use content mangement system</strong></p>
 
-<p align="center">
-<a href="https://svelte.dev/"><img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Svelte Badge" /> </a> 
-<br/>
-<a href="https://www.typescriptlang.org/">
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;style=plastic" alt="TypeScript Badge" /> </a> 
-<br />
- 
-<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;style=plastic" alt="MongoDB Badge" /> </a><a href="https://tailwindcss.com/"> 
-   <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&style=plastic" alt="TailwindCSS Badge" /> 
+<p align="center">
+ <a href="https://svelte.dev/">
+  <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Svelte Badge"/>
  </a> 
-
+<a href="https://www.typescriptlang.org/">
+  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;style=plastic" alt="TypeScript Badge"/>
+</a> 
+<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;style=plastic" alt="Mongodb Badge" /> </a><a href="https://tailwindcss.com/"> 
+   <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&style=plastic" alt="Tailwindcss Badge" /> 
+ </a> 
 </p>
 
 # :star2: SimpleCMS
 
-<p align="center">
+<h3 align="center">
 ## it's a flexible Content Manage System to provide a headless backend
-</p>
+</h3>
 
 This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 
