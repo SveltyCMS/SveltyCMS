@@ -33,6 +33,7 @@
 	export let collection: Schema | undefined = undefined;
 	export let showFields = true;
 	import showFieldsStore from '$src/lib/stores/fieldStore';
+	import AnimatedHamburger from './AnimatedHamburger.svelte';
 
 	$: {
 		$getFieldsData = new Set();
@@ -46,7 +47,8 @@
 	class="fields text-dark overflow-y-auto rounded bg-white p-3 dark:bg-surface-800 dark:text-white"
 >
 	<div class="relative mb-5 flex justify-start overflow-visible font-bold ">
-		<div class="flex w-full flex-col">
+		<AnimatedHamburger />
+		<div class="flex w-full flex-col ml-2">
 			<div class="mb-2 text-sm capitalize text-surface-400 dark:text-surface-300">
 				{$LL.FORM_Create()}
 			</div>

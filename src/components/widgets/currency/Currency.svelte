@@ -36,6 +36,8 @@
 		required: z.boolean().optional()
 	});
 
+	console.log(field.step);
+
 	let validationError: string | null = null;
 
 	$: validationError = (() => {
@@ -53,6 +55,20 @@
 			e.preventDefault();
 			validationError = 'Invalid character';
 			return;
+		} else if (
+			parseFloat(value.toString().replace(/[^\d.-]/g, '')) &&
+			parseFloat(value.toString().replace(/[^\d.-]/g, '')) > field.max
+		) {
+			e.preventDefault();
+			validationError = 'Number too big';
+			return;
+		} else if (
+			parseFloat(value.toString().replace(/[^\d.-]/g, '')) &&
+			parseFloat(value.toString().replace(/[^\d.-]/g, '')) < field.min
+		) {
+			e.preventDefault();
+			validationError = 'Number too small';
+			return;
 		} else {
 			validationError = null;
 		}
@@ -60,14 +76,16 @@
 
 	// Reformat the number value without dots and commas so numberformat can format the number (else we get a NaN)
 	$: if (value) {
-		value = new Intl.NumberFormat(get(locale)).format(parseFloat(value.replace(/[^\d.-]/g, '')));
+		value = new Intl.NumberFormat(get(locale)).format(
+			parseFloat(value.toString().replace(/[^\d.-]/g, ''))
+		);
 	}
 
 	// Initial format
 	const format = (node: HTMLInputElement) => {
 		if (node && node.value != '') {
 			node.value = new Intl.NumberFormat(get(locale)).format(
-				parseFloat(node.value.replace(/[^\d.-]/g, ''))
+				parseFloat(node.value.toString().replace(/[^\d.-]/g, ''))
 			);
 		}
 	};
@@ -75,7 +93,7 @@
 	// If the locale changes, update the value
 	locale.subscribe((n) => {
 		if (value != null) {
-			value = new Intl.NumberFormat(n).format(parseFloat(value.replace(/[^\d.-]/g, '')));
+			value = new Intl.NumberFormat(n).format(parseFloat(value.toString().replace(/[^\d.-]/g, '')));
 		}
 	});
 </script>
@@ -96,8 +114,6 @@
 		on:keypress={onKeyPress}
 		use:format
 		type="text"
-		min={field.min}
-		max={field.max}
 		step={field.step}
 		required={field.required}
 		placeholder={field.placeholder && field.placeholder !== ''
@@ -108,7 +124,7 @@
 
 	<!-- suffix -->
 	{#if field.suffix}
-		<span class="text-surface-600 dark:text-surface-200">{field.suffix}</span>
+		<span class="text-surface-600 dark:text-surface-200 self-center pr-2">{field.suffix}</span>
 	{/if}
 </div>
 
