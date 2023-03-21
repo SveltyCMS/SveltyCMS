@@ -10,6 +10,7 @@ const widget = ({
 	suffix,
 	min,
 	max,
+	step,
 	negative,
 	required,
 	display
@@ -25,6 +26,7 @@ const widget = ({
 		suffix,
 		min,
 		max,
+		step,
 		negative,
 		required,
 		display

@@ -119,7 +119,7 @@ const schema: Schema = {
 			suffix: 'cent',
 			min: -0,
 			max: 99999.99,
-			step: 1,
+			step: 2,
 			negative: true,
 			required: true
 		}),
@@ -161,7 +161,7 @@ const schema: Schema = {
 			]
 		}),
 
-		widgets.RichText({ db_fieldName: 'Description' }),
+		// widgets.RichText({ db_fieldName: 'Description' }),
 
 		widgets.Address({ db_fieldName: 'Address' }),
 
