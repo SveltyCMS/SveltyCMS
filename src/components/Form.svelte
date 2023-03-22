@@ -59,7 +59,8 @@
 			</div>
 		</div>
 
-		<span class="absolute right-14">
+		<!-- language & close button  -->
+		<div class="flex justify-end items-center md:items-stretch gap-2">
 			<button
 				use:popup={ContentLangSettings}
 				class="btn btn-sm variant-filled-surface flex items-center justify-center rounded-lg uppercase text-white"
@@ -86,24 +87,27 @@
 					{/each}
 				</ul>
 			</nav>
-		</span>
-		<button
-			use:popup={CloseMenuSettings}
-			on:click={() => {
-				$showFieldsStore.showForm = false;
-				$entryData = new Set();
-			}}
-			class="btn absolute right-0 hidden dark:text-white md:block"
-		>
-			<!-- Popup Tooltip with the arrow element -->
-			<div class="card variant-filled-secondary p-4" data-popup="CloseMenuPopup">
-				{$LL.FORM_CloseMenu()}
-				<div class="arrow variant-filled-secondary" />
-			</div>
+			<!-- close button -->
+			<button
+				use:popup={CloseMenuSettings}
+				on:click={() => {
+					$showFieldsStore.showForm = false;
+					$entryData = new Set();
+				}}
+				class="btn btn-sm hidden md:block text-white"
+			>
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled-secondary p-3" data-popup="CloseMenuPopup">
+					{$LL.FORM_CloseMenu()}
+					<div class="arrow variant-filled-secondary" />
+				</div>
 
-			<span class="sr-only">{$LL.FORM_CloseMenu()}</span>
-			<Icon icon="material-symbols:close" width="26" />
-		</button>
+				<span class="sr-only">{$LL.FORM_CloseMenu()}</span><Icon
+					icon="material-symbols:close"
+					width="24"
+				/>
+			</button>
+		</div>
 	</div>
 
 	{#if fields.some((field) => field.field.required)}

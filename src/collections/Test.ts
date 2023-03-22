@@ -103,9 +103,9 @@ const schema: Schema = {
 		widgets.Number({
 			db_fieldName: 'Number',
 			icon: 'carbon:character-whole-number',
-			placeholder: 'Enter Number from -9 to 9999',
+			placeholder: 'Enter Number from -9 to 99999',
 			min: -9,
-			max: 9999,
+			max: 999999,
 			step: 1,
 			negative: true,
 			required: false
@@ -114,12 +114,12 @@ const schema: Schema = {
 		widgets.Currency({
 			db_fieldName: 'Currency',
 			icon: 'carbon:character-whole-number',
-			placeholder: 'Enter Currency from -0 to 99999.99',
+			placeholder: 'Enter Currency from -99999.99 to 99999.99',
 			prefix: '€',
 			suffix: 'cent',
-			min: -0,
+			min: -99999.99,
 			max: 99999.99,
-			step: 2,
+			step: 0.001,
 			negative: true,
 			required: true
 		}),

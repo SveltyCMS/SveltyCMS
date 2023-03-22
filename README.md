@@ -8,19 +8,28 @@
 <h1 align="center"><strong>SimpleCMS</strong></h1>
 
 <p align="center">
-<img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS?style=flat-square">
+  <img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS">
+
+  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS" >
+
 </p>
 
 <p align="center">
- <a href="https://kit.svelte.dev/">
-  <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;style=plastic" alt="Sveltekit Badge"/>
- </a> 
-<a href="https://www.typescriptlang.org/">
-  <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;style=plastic" alt="TypeScript Badge"/>
-</a> 
-<a href="https://www.mongodb.com/"><img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;style=plastic" alt="Mongodb Badge" /> </a><a href="https://tailwindcss.com/"> 
-   <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&style=plastic" alt="Tailwindcss Badge" /> 
- </a> 
+  <a href="https://kit.svelte.dev/">
+    <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;" alt="Sveltekit Badge"/>
+  </a>
+
+  <a href="https://www.typescriptlang.org/">
+    <img src="https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&amp;logoColor=fff&amp;" alt="TypeScript Badge"/>
+  </a>
+
+  <a href="https://www.mongodb.com/">
+    <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;" alt="Mongodb Badge" />
+  </a>
+
+  <a href="https://tailwindcss.com/"> 
+    <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&" alt="Tailwindcss Badge" /> 
+  </a> 
 </p>
 
 <h2 align="center">

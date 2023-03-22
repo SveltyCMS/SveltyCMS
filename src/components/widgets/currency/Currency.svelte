@@ -1,14 +1,15 @@
 <script lang="ts">
 	import { locale } from '$i18n/i18n-svelte';
-	import Error from '$src/routes/+error.svelte';
 	import { get } from 'svelte/store';
 	import * as z from 'zod';
 
 	export let field: any = undefined;
 	export let value: string = '';
 
-	export let widgetValue: number | null = null;
-	$: widgetValue = value ? parseFloat(value.replace(/[^\d.-]/g, '')) : null;
+	export let widgetValue;
+	$: widgetValue = value;
+
+	let formattedValue = '';
 
 	const widgetValueObject = {
 		db_fieldName: field.db_fieldName,
@@ -36,8 +37,6 @@
 		required: z.boolean().optional()
 	});
 
-	console.log(field.step);
-
 	let validationError: string | null = null;
 
 	$: validationError = (() => {
@@ -49,53 +48,20 @@
 		}
 	})();
 
-	// Check if user input is number
-	const onKeyPress = (e: KeyboardEvent) => {
-		if (!isFinite(parseInt(e.key))) {
-			e.preventDefault();
-			validationError = 'Invalid character';
-			return;
-		} else if (
-			parseFloat(value.toString().replace(/[^\d.-]/g, '')) &&
-			parseFloat(value.toString().replace(/[^\d.-]/g, '')) > field.max
-		) {
-			e.preventDefault();
-			validationError = 'Number too big';
-			return;
-		} else if (
-			parseFloat(value.toString().replace(/[^\d.-]/g, '')) &&
-			parseFloat(value.toString().replace(/[^\d.-]/g, '')) < field.min
-		) {
-			e.preventDefault();
-			validationError = 'Number too small';
-			return;
-		} else {
-			validationError = null;
-		}
-	};
+	// create a reactive statement that updates the formatted value whenever the value changes
+	$: {
+		// round the value to 2 decimal places
+		const roundedValue = Math.round(value * 100) / 100;
 
-	// Reformat the number value without dots and commas so numberformat can format the number (else we get a NaN)
-	$: if (value) {
-		value = new Intl.NumberFormat(get(locale)).format(
-			parseFloat(value.toString().replace(/[^\d.-]/g, ''))
-		);
+		formattedValue = new Intl.NumberFormat(get(locale), {
+			style: 'currency',
+			currencyDisplay: 'symbol',
+			currency: 'EUR'
+		}).format(roundedValue);
 	}
 
-	// Initial format
-	const format = (node: HTMLInputElement) => {
-		if (node && node.value != '') {
-			node.value = new Intl.NumberFormat(get(locale)).format(
-				parseFloat(node.value.toString().replace(/[^\d.-]/g, ''))
-			);
-		}
-	};
-
-	// If the locale changes, update the value
-	locale.subscribe((n) => {
-		if (value != null) {
-			value = new Intl.NumberFormat(n).format(parseFloat(value.toString().replace(/[^\d.-]/g, '')));
-		}
-	});
+	// create a zod schema for validation
+	const schema = z.number().min(field.min).max(field.max);
 </script>
 
 <div class="input-group grid-cols-[auto_1fr_auto]">
@@ -104,16 +70,9 @@
 		<div class="text-surface-600 dark:text-surface-200 sm:!pr-[1rem] !pr-0">{field.prefix}</div>
 	{/if}
 
-	<!-- TODO: 
-	user type="number"
-	add negative={field.negative} 
-	fix null value
--->
 	<input
 		bind:value
-		on:keypress={onKeyPress}
-		use:format
-		type="text"
+		type="number"
 		step={field.step}
 		required={field.required}
 		placeholder={field.placeholder && field.placeholder !== ''
@@ -128,7 +87,19 @@
 	{/if}
 </div>
 
+<!-- display formatted value -->
+<p class="text-center">
+	Formated <span class="uppercase">{get(locale)}</span> Value :
+	<span class="text-primary-600 ">{formattedValue}</span>
+</p>
+
 <!-- error messages -->
-{#if validationError !== null}
+
+<!-- {#if validationError !== null}
 	<p class="text-red-500">{validationError}</p>
-{/if}
+{/if} -->
+<style>
+	.invalid {
+		color: red;
+	}
+</style>

@@ -1,6 +1,6 @@
 <script lang="ts">
 	export let field: any = undefined;
-	export let values = '';
+	export let value: string = '';
 
 	export let widgetValue;
 	$: widgetValue = value;
@@ -12,9 +12,6 @@
 
 	// Any Country Code Alpha-2 (ISO 3166)
 	let selectedCountry = 'DE';
-
-	// You must use E164 number format. It's guarantee the parsing and storing consistency. The library will always update (via binding) to E164 format.
-	let value = '';
 
 	// Optional - Extended information about the parsed phone number
 	let parsedTelInput: { nationalNumber: any } | null = null;
@@ -77,14 +74,14 @@
 <!-- Just to show the nicely parsed phone number to you-->
 <!-- TODO: fix typescript -->
 {#if value && isValid && parsedTelInput?.nationalNumber}
-	<h3>
+	<p class="text-center">
 		<span
-			>Tel: <a
+			>Saved as E164: <a
 				href="tel:+{normalizedCountries.find((c) => c.iso2 === selectedCountry)
 					.dialCode}{parsedTelInput.nationalNumber}"
 				>+{normalizedCountries.find((c) => c.iso2 === selectedCountry).dialCode}
 				{parsedTelInput.nationalNumber}</a
 			></span
 		>
-	</h3>
+	</p>
 {/if}
