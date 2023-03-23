@@ -13,7 +13,35 @@
 
 	// Use the language variable to determine the desired date format
 	//$: format = date.formats[language];
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		icon: field.icon,
+		required: field.required
+	};
+
+	const dateSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		required: z.boolean().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			dateSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 <!-- TODO: Enhance Date entry -->
 <input type="date" bind:value class="input rounded-md" />
+{#if validationError !== null}
+	<p class="text-red-500">{validationError}</p>
+{/if}

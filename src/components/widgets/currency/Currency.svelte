@@ -95,9 +95,10 @@
 
 <!-- error messages -->
 
-<!-- {#if validationError !== null}
+{#if validationError !== null}
 	<p class="text-red-500">{validationError}</p>
-{/if} -->
+{/if}
+
 <style>
 	.invalid {
 		color: red;

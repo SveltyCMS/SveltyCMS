@@ -9,7 +9,7 @@ export type SelectList_Field = {
 	placeholder: string | undefined;
 	required: boolean | undefined;
 	localization: boolean | undefined;
-	options: boolean | undefined;
+	options: array | undefined;
 	width: string;
 	display: Display;
 };
@@ -21,7 +21,7 @@ export type SelectList_Params = {
 	placeholder?: string;
 	required?: boolean;
 	localization?: boolean;
-	options?: string;
+	options?: array;
 	width?: string;
 	display?: Display;
 };

@@ -44,8 +44,8 @@ const schema: Schema = {
 					// label: '{$LL.COLLECTION_TEST_Prefix()}',
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_Prefix_placeholder(),
-					width: '100%'
-					// options : ('Mr.', 'Ms.', 'Mrs.', 'Dr.');
+					width: '100%',
+					options: ['Mr.', 'Ms.', 'Mrs.', 'Dr.']
 				}),
 
 				widgets.Text({
