@@ -4,6 +4,35 @@
 
 	export let widgetValue;
 	$: widgetValue = value;
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		icon: field.icon,
+		color: field.color,
+		width: field.width,
+		required: field.required
+	};
+
+	const checkboxSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		width: z.string().optional(),
+		required: z.boolean().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			checkboxSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 <div class="mb-4 flex items-center">
@@ -20,4 +49,7 @@
 		class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
 		>{field.db_fieldName}</label
 	>
+	{#if validationError !== null}
+		<p class="text-red-500">{validationError}</p>
+	{/if}
 </div>

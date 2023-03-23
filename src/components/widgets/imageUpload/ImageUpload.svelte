@@ -31,6 +31,29 @@
 				});
 		}
 	}
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		path: field.path
+	};
+
+	const imageUploadSchema = z.object({
+		db_fieldName: z.string(),
+		path: z.string().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			imageUploadSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 <input
@@ -45,6 +68,9 @@
 
 {#if widgetValue}
 	<img src={URL.createObjectURL(widgetValue[0])} alt="" />
+{/if}
+{#if validationError !== null}
+	<p class="text-red-500">{validationError}</p>
 {/if}
 
 <style>

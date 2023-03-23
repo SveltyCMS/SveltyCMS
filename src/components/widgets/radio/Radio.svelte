@@ -3,6 +3,35 @@
 	export let value = '';
 	export let widgetValue;
 	$: widgetValue = value;
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		icon: field.icon,
+		color: field.color,
+		width: field.width,
+		required: field.required
+	};
+
+	const radioSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		width: z.string().optional(),
+		required: z.boolean().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			radioSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 <div class="form-check">
@@ -20,3 +49,6 @@
 		{field.db_fieldName}
 	</label>
 </div>
+{#if validationError !== null}
+	<p class="text-red-500">{validationError}</p>
+{/if}

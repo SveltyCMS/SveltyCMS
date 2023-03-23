@@ -28,6 +28,33 @@
 	};
 
 	shape_fields(field.fields).then((data) => (fields = data));
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		imageUploadTitle: field.imageUploadTitle,
+		icon: field.icon,
+		fields: field.fields
+	};
+
+	const imageArraySchema = z.object({
+		db_fieldName: z.string(),
+		imageUploadTitle: z.string().optional(),
+		icon: z.string().optional(),
+		fields: z.array(z.any())
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			imageArraySchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 {#if files.length > 0}
@@ -55,6 +82,9 @@
 	/>
 
 	<FileDropzone bind:files />
+{/if}
+{#if validationError !== null}
+	<p class="text-red-500">{validationError}</p>
 {/if}
 
 <style>

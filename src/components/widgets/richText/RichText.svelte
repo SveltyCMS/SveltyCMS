@@ -28,6 +28,31 @@
 			console.log(widgetValue);
 		});
 	});
+
+	import * as z from 'zod';
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		label: field.label,
+		localization: field.localization
+	};
+
+	const richTextSchema = z.object({
+		db_fieldName: z.string(),
+		label: z.string().optional(),
+		localization: z.boolean().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			richTextSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 <!-- TODO: save Data to Mongodb -->

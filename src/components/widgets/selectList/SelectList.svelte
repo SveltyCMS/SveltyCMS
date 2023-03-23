@@ -8,10 +8,10 @@
 	export let widgetValue;
 	$: widgetValue = value;
 
-	let selected = 'Mr.'; // define as Placeholder
+	let selected = field.options[0]; // define as Placeholder
 
 	// TODO Translate Array and put into collection
-	let options = ['Mr.', 'Ms.', 'Mrs.', 'Dr.']; // replace data from collection
+	let options = field.options; // replace data from collection
 </script>
 
 <label class="input-group">

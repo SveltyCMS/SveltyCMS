@@ -2,6 +2,8 @@
 	import { PUBLIC_LANGUAGE, PUBLIC_MAPBOX_API_TOKEN } from '$env/static/public';
 	import mapboxgl from 'mapbox-gl';
 
+	import * as z from 'zod';
+
 	// https://docs.mapbox.com/help/glossary/access-token/
 	mapboxgl.accessToken = PUBLIC_MAPBOX_API_TOKEN;
 
@@ -138,6 +140,29 @@
 			country: countryAlpha
 		});
 	}
+
+	var widgetValueObject = {
+		db_fieldName: field.db_fieldName,
+		icon: field.icon,
+		required: field.required
+	};
+
+	const addressSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		required: z.boolean().optional()
+	});
+
+	let validationError: string | null = null;
+
+	$: validationError = (() => {
+		try {
+			addressSchema.parse(widgetValueObject);
+			return null;
+		} catch (error) {
+			return (error as Error).message;
+		}
+	})();
 </script>
 
 {#if PUBLIC_MAPBOX_API_TOKEN}
@@ -303,4 +328,7 @@
 		</label> -->
 		</form>
 	</address>
+	{#if validationError !== null}
+		<p class="text-red-500">{validationError}</p>
+	{/if}
 {/if}
