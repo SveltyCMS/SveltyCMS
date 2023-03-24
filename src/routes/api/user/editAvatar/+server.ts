@@ -5,6 +5,7 @@ import to from 'await-to-js';
 import { User } from '$lib/models/user-model';
 import sharp from 'sharp';
 import fs from 'fs';
+import path from 'path';
 
 // Define a function to handle HTTP POST requests
 export const POST: RequestHandler = async ({ request, locals }) => {
@@ -21,30 +22,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		);
 	}
 
-	//TODO add sevee checks for filesize and type
-
-	// Check the file type
-	// const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-	// if (!allowedTypes.includes(file.type)) {
-	// 	return json(
-	// 		{ message: 'File type not supported' },
-	// 		{
-	// 			status: 400
-	// 		}
-	// 	);
-	// }
-
-	// Check the file size
-	// const allowedSize = 5 1024 1024; // 5 MB
-	// if (file.size > allowedSize) {
-	// return json(
-	// { message: 'File size exceeds the limit' },
-	// {
-	// status: 400
-	// }
-	// );
-	// }
-
 	// Validate user credentials and get user information from the session
 	const { user } = await locals.validateUser();
 
@@ -57,8 +34,29 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Convert the base64-encoded image data to a buffer
 	const buffer = Buffer.from(imageData, 'base64');
 
-	// Resize the image to 200x200 pixels using the sharp library
+	// Check the file type
+	const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+	if (!allowedTypes.includes(mimType)) {
+		return json(
+			{ message: 'File type not supported' },
+			{
+				status: 400
+			}
+		);
+	}
 
+	// Check the file size
+	const allowedSize = 5 * 1024 * 1024; // 5 MB
+	if (buffer.length > allowedSize) {
+		return json(
+			{ message: 'File size exceeds the limit' },
+			{
+				status: 400
+			}
+		);
+	}
+
+	// Resize the image to 200x200 pixels using the sharp library
 	const [err, b64data] = await to(sharp(buffer).resize(200, 200).toFormat('webp').toBuffer());
 	if (err) {
 		return json(
@@ -70,40 +68,106 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// base folder for saving user medias
-	let basePath = 'src/media/avatar';
-	let path = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
+	const basePath = 'src/media/avatar';
 
-	try {
-		if (!fs.existsSync(basePath)) {
-			fs.mkdirSync(basePath);
-		}
-		let buff = Buffer.from(b64data, 'base64');
-		fs.writeFileSync(path, buff);
-	} catch (err) {
-		console.log(err);
+	if (!user || !user.userId) {
 		return json(
-			{ message: 'Error uploading image to directory' },
+			{ message: 'User not found' },
 			{
-				status: 500
+				status: 404
 			}
 		);
 	}
+	const newPath = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
 
-	// Update the user's avatar field in the MongoDB database
-	await User.findOneAndUpdate(
-		{
-			_id: user?.userId
-		},
-		{
-			avatar: path
-		}
-	);
+	// Get the current avatar path from the user object
+	const currentAvatar = user.avatar;
 
-	// Return a JSON response with a success message and the URL of the resized image
-	return json(
-		{ message: 'Uploaded avatar successfully', path },
-		{
-			status: 200
+	// Construct the trash folder path
+	const trashPath = 'trash/media/avatar';
+
+	// Check if the trash folder exists and create it if it doesn't
+	if (!fs.existsSync(trashPath)) {
+		fs.mkdirSync(trashPath, { recursive: true });
+	}
+
+	// Move the old avatar to the trash folder if it exists
+	if (currentAvatar) {
+		fs.promises
+			.rename(currentAvatar, `${trashPath}/${path.basename(currentAvatar)}`)
+			.then(async () => {
+				try {
+					if (!fs.existsSync(basePath)) {
+						fs.mkdirSync(basePath);
+					}
+					fs.writeFileSync(newPath, b64data);
+				} catch (err) {
+					console.log(err);
+					return json(
+						{ message: 'Error uploading image to directory' },
+						{
+							status: 500
+						}
+					);
+				}
+				// Update the user's avatar field in the MongoDB database
+				await User.findOneAndUpdate(
+					{
+						_id: user?.userId
+					},
+					{
+						avatar: newPath
+					}
+				);
+
+				return json(
+					{ message: 'Uploaded avatar successfully', newPath },
+					{
+						status: 200
+					}
+				);
+			})
+			.catch((err) => {
+				console.log(err);
+				return json(
+					{ message: 'Error moving old avatar to trash' },
+					{
+						status: 500
+					}
+				);
+			});
+	} else {
+		try {
+			if (!fs.existsSync(basePath)) {
+				fs.mkdirSync(basePath);
+			}
+			fs.writeFileSync(newPath, b64data);
+		} catch (err) {
+			console.log(err);
+			return json(
+				{ message: 'Error uploading image to directory' },
+				{
+					status: 500
+				}
+			);
 		}
-	);
+
+		// Update the user's avatar field in the MongoDB database
+		await User.findOneAndUpdate(
+			{
+				_id: user?.userId
+			},
+			{
+				avatar: newPath
+			}
+		);
+
+		// Return a JSON response with a success message and the URL of the resized image
+		return json(
+			{ message: 'Uploaded avatar successfully', newPath },
+			{
+				status: 200
+			}
+		);
+	}
 };

@@ -211,15 +211,15 @@
 	<form>
 		<label
 			>{$LL.USER_Username()}:
-			<input bind:value={username} name="username" type="text" readonly class="input" />
+			<input bind:value={username} name="username" type="text" disabled class="input" />
 		</label>
 		<label
 			>{$LL.USER_Email()}:
-			<input bind:value={email} name="email" type="email" readonly class="input" />
+			<input bind:value={email} name="email" type="email" disabled class="input" />
 		</label>
 		<label
 			>{$LL.USER_Password()}:
-			<input bind:value={password} name="password" type="password" readonly class="input" />
+			<input bind:value={password} name="password" type="password" disabled class="input" />
 		</label>
 		<div class="flex flex-col gap-2 justify-between my-2 sm:flex-row sm:gap-0 sm:justify-between">
 			<button class="btn btn-sm gradient-secondary md:w-auto text-white" on:click={modalUserForm}>

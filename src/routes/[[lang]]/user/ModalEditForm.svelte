@@ -197,7 +197,7 @@
 			<label
 				for="password"
 				class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>{$LL.LOGIN_Password()}<span class="ml-2 text-error-500">*</span></label
+				>{$LL.USER_NewPassword()}<span class="ml-2 text-error-500">*</span></label
 			>
 
 			<!-- svelte-ignore a11y-click-events-have-key-events -->

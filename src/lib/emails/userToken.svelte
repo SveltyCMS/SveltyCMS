@@ -2,10 +2,6 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
-	// Lucia
-	import { getUser } from '@lucia-auth/sveltekit/client';
-	const user = getUser();
-
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
@@ -59,19 +55,21 @@
 </script>
 
 <Html lang="en">
-	<Head />
-	<Preview preview="Welcome to {PUBLIC_SITENAME}" />
+	<Head>
+		<title>User Registration token to access {PUBLIC_SITENAME}</title>
+		<meta name="description" content="User Registration token to access {PUBLIC_SITENAME}" />
+	</Head>
+	<Preview preview="User Registration token to access {PUBLIC_SITENAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<SimpleCmsLogo fill="red" className="h-8" />
-			<Text style={paragraph}>{$user?.username}, welcome to {PUBLIC_SITENAME}</Text>
-			<Text style={paragraph}>A Sveltekit powered flexible Headless CMS</Text>
+			<Text style={paragraph}
+				>You have recieved an access Token valid for XX to create a new user for {PUBLIC_SITENAME}</Text
+			>
+			<Text style={paragraph}>Please press the button to setup your user</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href="https://github.com/Rar9/SimpleCMS/">
-					View on GitHub
-				</Button>
+				<Button pX={12} pY={12} style={button} href={tokenLink}>Create User</Button>
 			</Section>
-			<Text style={paragraph}>Happy coding!</Text>
 			<Hr style={hr} />
 			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
 		</Container>

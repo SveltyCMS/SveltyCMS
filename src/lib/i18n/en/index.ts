@@ -45,6 +45,7 @@ const en: BaseTranslation = {
 	USER_LastName: 'Last Name',
 	USER_Email: 'Email',
 	USER_Password: 'Password',
+	USER_NewPassword: 'New Password:',
 	USER_Edit: 'Edit User Settings',
 	USER_Fail: 'Email already in use',
 	USER_Delete: 'Delete User',
@@ -149,6 +150,7 @@ const en: BaseTranslation = {
 
 	COLLECTION_TEST_User: 'User',
 	COLLECTION_TEST_Prefix: 'Prefix',
+	COLLECTION_TEST_Prefix_data: ['Mr.', 'Ms.', 'Mrs.', 'Dr.'],
 	COLLECTION_TEST_Prefix_placeholder: 'Enter Prefix',
 	COLLECTION_TEST_First: 'First',
 	COLLECTION_TEST_First_placeholder: 'Enter First Name',

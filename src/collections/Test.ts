@@ -41,16 +41,19 @@ const schema: Schema = {
 			fields: [
 				widgets.SelectList({
 					db_fieldName: 'Prefix',
-					// label: '{$LL.COLLECTION_TEST_Prefix()}',
+					label: get(LL).COLLECTION_TEST_Prefix(),
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_Prefix_placeholder(),
 					width: '100%',
+
+					//options: get(LL).COLLECTION_TEST_Prefix_data()
 					options: ['Mr.', 'Ms.', 'Mrs.', 'Dr.']
+					// options: ['Herr.', 'Frau.', 'Fraulein', 'Dr.']
 				}),
 
 				widgets.Text({
 					db_fieldName: 'First',
-					// label: '{$LL.COLLECTION_TEST_First()}',
+					label: get(LL).COLLECTION_TEST_First(),
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_First_placeholder(),
 					required: true,
@@ -59,7 +62,7 @@ const schema: Schema = {
 
 				widgets.Text({
 					db_fieldName: 'Middle',
-					// label: '{$LL.COLLECTION_TEST_Middle()}',
+					label: get(LL).COLLECTION_TEST_Middle(),
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 					required: false,
@@ -69,7 +72,7 @@ const schema: Schema = {
 
 				widgets.Text({
 					db_fieldName: 'Last',
-					// label: '{$LL.COLLECTION_TEST_Last()}',
+					label: get(LL).COLLECTION_TEST_Last(),
 					icon: 'ri:t-box-line',
 					placeholder: get(LL).COLLECTION_TEST_Last_placeholder(),
 					required: true,
@@ -82,6 +85,7 @@ const schema: Schema = {
 
 		widgets.Text({
 			db_fieldName: 'Full Text option',
+			label: 'Text options',
 			icon: 'carbon:character-whole-number',
 			prefix: 'EURO',
 			suffix: 'cent',
@@ -161,7 +165,7 @@ const schema: Schema = {
 			]
 		}),
 
-		// widgets.RichText({ db_fieldName: 'Description' }),
+		widgets.RichText({ db_fieldName: 'Description' }),
 
 		widgets.Address({ db_fieldName: 'Address' }),
 

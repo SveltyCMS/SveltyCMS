@@ -19,20 +19,23 @@
 	onMount(async () => {
 		$getFieldsData.add(getData);
 	});
-	// $: console.log(fieldsValue.width);
+	//$: console.log('icon', getData.icon);
 </script>
 
 {#each fields as field, index}
-	<!-- width does not seam to apply -->
 	<div
 		bind:this={inputFields[index]}
 		class="section relative my-2  {!field.field.width ? 'w-full' : 'max-md:!w-full'}"
 		style={field.field.width && `width:${field.field.width.replace('%', '') * 1 - 1}%`}
 	>
+		<!-- db_fieldName or label  -->
 		<div class="relative flex">
 			<p class="font-semibold">
-				{field.field.db_fieldName}
-
+				{#if field.field.label}
+					{field.field.label}
+				{:else}
+					{field.field.db_fieldName}
+				{/if}
 				{#if field.field.required}
 					<span class="ml-1 pb-3 text-error-500">*</span>
 				{/if}

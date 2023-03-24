@@ -45,6 +45,7 @@ const de: Translation = {
 	USER_LastName: 'Nachname',
 	USER_Email: 'E-Mail',
 	USER_Password: 'Passwort',
+	USER_NewPassword: 'Neues Password:',
 	USER_Edit: 'Benutzer bearbeiten',
 	USER_Fail: 'E-Mail bereits in Gebrauch',
 	USER_Delete: 'Benutzer löschen',
@@ -148,6 +149,7 @@ const de: Translation = {
 
 	COLLECTION_TEST_User: 'Benutzer',
 	COLLECTION_TEST_Prefix: 'Präfix',
+	COLLECTION_TEST_Prefix_data: ['Herr.', 'Frau.', 'Fraulein', 'Dr.'],
 	COLLECTION_TEST_Prefix_placeholder: 'Präfix eingeben',
 	COLLECTION_TEST_First: 'Vornamen',
 	COLLECTION_TEST_First_placeholder: 'Vornamen eingeben',

@@ -19,18 +19,19 @@ let categories = [
 		collections: [Test, Posts],
 		collectionIds: []
 	},
-	{
-		//Content
-		category: get(LL).CollectionCategory_Menu(),
-		icon: 'bi:collection',
-		collections: [Menu],
-		collectionIds: []
-	},
+
 	{
 		//Media
 		category: get(LL).CollectionCategory_Media(),
 		icon: 'bi:images',
 		collections: [Images, Media, ImageArray, ImageEditor],
+		collectionIds: []
+	},
+	{
+		//Menu & /Taxonomy
+		category: get(LL).CollectionCategory_Menu(),
+		icon: 'bi:collection',
+		collections: [Menu],
 		collectionIds: []
 	}
 ];

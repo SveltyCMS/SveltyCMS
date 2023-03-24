@@ -10,5 +10,7 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /tmp
 /src/media
+trash/
 
 package-lock.json
+

@@ -2,6 +2,10 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
+	// Lucia
+	import { getUser } from '@lucia-auth/sveltekit/client';
+	const user = getUser();
+
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
@@ -55,21 +59,22 @@
 </script>
 
 <Html lang="en">
-	<Head />
+	<Head>
+		<title>Welcome to {PUBLIC_SITENAME}</title>
+		<meta name="description" content="Welcome to {PUBLIC_SITENAME}" />
+	</Head>
 	<Preview preview="Welcome to {PUBLIC_SITENAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<SimpleCmsLogo fill="red" className="h-8" />
-			<Text style={paragraph}
-				>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text
-			>
-			<Text style={paragraph}>Please press the button to reset your password</Text>
+			<Text style={paragraph}>{$user?.username}, welcome to {PUBLIC_SITENAME}</Text>
+			<Text style={paragraph}>A Sveltekit powered flexible Headless CMS</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href="https://github.com/Rar9/SimpleCMS/">
-					Change your password
+				<Button pX={12} pY={12} style={button} href="https://localhost:5173/SimpleCMS/">
+					Go to {PUBLIC_SITENAME}
 				</Button>
 			</Section>
-			<Text style={paragraph}>Happy coding!</Text>
+			<Text style={paragraph}>We're excited to have you on board!</Text>
 			<Hr style={hr} />
 			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
 		</Container>

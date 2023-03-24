@@ -140,6 +140,10 @@ type RootTranslation = {
 	 */
 	USER_Password: string
 	/**
+	 * N​e​w​ ​P​a​s​s​w​o​r​d​:
+	 */
+	USER_NewPassword: string
+	/**
 	 * E​d​i​t​ ​U​s​e​r​ ​S​e​t​t​i​n​g​s
 	 */
 	USER_Edit: string
@@ -477,6 +481,24 @@ type RootTranslation = {
 	 * P​r​e​f​i​x
 	 */
 	COLLECTION_TEST_Prefix: string
+	COLLECTION_TEST_Prefix_data: {
+		/**
+		 * M​r​.
+		 */
+		'0': string
+		/**
+		 * M​s​.
+		 */
+		'1': string
+		/**
+		 * M​r​s​.
+		 */
+		'2': string
+		/**
+		 * D​r​.
+		 */
+		'3': string
+	}
 	/**
 	 * E​n​t​e​r​ ​P​r​e​f​i​x
 	 */
@@ -784,6 +806,10 @@ export type TranslationFunctions = {
 	 * Password
 	 */
 	USER_Password: () => LocalizedString
+	/**
+	 * New Password:
+	 */
+	USER_NewPassword: () => LocalizedString
 	/**
 	 * Edit User Settings
 	 */
@@ -1120,6 +1146,24 @@ export type TranslationFunctions = {
 	 * Prefix
 	 */
 	COLLECTION_TEST_Prefix: () => LocalizedString
+	COLLECTION_TEST_Prefix_data: {
+		/**
+		 * Mr.
+		 */
+		'0': () => LocalizedString
+		/**
+		 * Ms.
+		 */
+		'1': () => LocalizedString
+		/**
+		 * Mrs.
+		 */
+		'2': () => LocalizedString
+		/**
+		 * Dr.
+		 */
+		'3': () => LocalizedString
+	}
 	/**
 	 * Enter Prefix
 	 */
