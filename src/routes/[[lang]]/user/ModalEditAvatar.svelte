@@ -16,18 +16,20 @@
 
 	import { Avatar } from '@skeletonlabs/skeleton';
 
-	import _ from 'lodash';
+	import { last } from 'lodash';
 
 	let avatarSrc = $user?.avatar;
 
 	function onChange(e: Event) {
-		files = (e.target as HTMLInputElement).files;
+		files = (e.target as HTMLInputElement).files!;
 
-		const lastFile = _.last(files);
+		const lastFile = last(files);
 		const fileReader = new FileReader();
 
 		fileReader.onload = (e) => {
-			avatarSrc = e.target.result as string;
+			if (e.target instanceof FileReader) {
+				avatarSrc = e.target.result as string;
+			}
 		};
 
 		fileReader.readAsDataURL(lastFile as Blob);
@@ -71,14 +73,14 @@
 		// Check if files were selected
 		if (!files) return;
 
-		const file = _.last(files);
+		const file = last(files);
 
 		try {
 			avatarSchema.parse({
 				file
 			});
 		} catch (error) {
-			console.error(error.message);
+			console.error((error as Error).message);
 			return;
 		}
 

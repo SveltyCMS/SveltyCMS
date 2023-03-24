@@ -84,16 +84,14 @@
 	let cropping = false;
 	let checker;
 
-	// caching frequently accessed DOM elements
-	const imageHandler: any = document.getElementById('image_handler');
-
 	//Use the memo function from the svelte/store module to memoize the result of a functionimport { memo } from 'svelte/store';
 
 	// Function to handle touch/mouse start event
 	function handleMouseDown(e) {
 		e.preventDefault();
-		// WHOLE_WIDTH = document.getElementById('image_handler').offsetWidth;
-		// WHOLE_HEIGHT = document.getElementById('image_handler').offsetHeight;
+		// caching frequently accessed DOM elements
+		const imageHandler: any = document.getElementById('image_handler');
+
 		WHOLE_WIDTH = imageHandler.offsetWidth;
 		WHOLE_HEIGHT = imageHandler.offsetHeight;
 
@@ -396,7 +394,8 @@
 				{#if cropping}
 					<div
 						class="crop_window_handler"
-						style="left:{crop_left.value}px;
+						style="
+						 left:{crop_left.value}px;
 						 right: {crop_right.value}px;
 						 top: {crop_top.value}px;
 						 bottom:{crop_bottom.value}px"
