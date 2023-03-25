@@ -1,29 +1,31 @@
-import Text from './text';
-import RichText from './richText';
-import Relation from './relation';
-import MegaMenu from './megaMenu';
-import ImageArray from './imageArray';
-import ImageEditorPage from './imageEditorPage';
-import ImageEditor from './imageEditor';
-import ImageUpload from './imageUpload';
+import Address from './address';
+import Checkbox from './checkbox';
+import Condition from './condition';
+import Currency from './currency';
 import Date from './date';
 import DateRange from './dateRange';
 import Email from './email';
-import Url from './url';
-import Checkbox from './checkbox';
-import Currency from './currency';
-import Radio from './radio';
+import Group from './group';
+import ImageArray from './imageArray';
+import ImageEditor from './imageEditor';
+import ImageEditorPage from './imageEditorPage';
+import ImageUpload from './imageUpload';
+import MegaMenu from './megaMenu';
 import Number from './number';
 import PhoneNumber from './phoneNumber';
-import Group from './group';
-import SelectList from './selectList';
-import Address from './address';
-import Seo from './seo';
+import Radio from './radio';
+import Relation from './relation';
 import RemoteVideo from './remoteVideo';
+import RichText from './richText';
+import Seo from './seo';
+import SelectList from './selectList';
+import Text from './text';
+import Url from './url';
 
 export type Widgets = {
 	Address: typeof Address;
 	Checkbox: typeof Checkbox;
+	Condition: typeof Condition;
 	Currency: typeof Currency;
 	Date: typeof Date;
 	DateRange: typeof DateRange;
@@ -57,6 +59,8 @@ const widgets: Widgets = {
 	//Blocks,
 	// Checkbox - boolean true / false checkbox
 	Checkbox,
+	// Add a conditional field to hidde show fields
+	Condition,
 	// Code - code editor that saves a string to the database
 	//Code,
 	// Collapsible - used for admin layout, nest fields within a collapsible component

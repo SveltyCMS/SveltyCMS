@@ -36,9 +36,6 @@
 			// update url to reflect locale changes
 			history.pushState({ locale: newLocale }, '', replaceLocaleInUrl($page.url, newLocale));
 		}
-
-		// run the `load` function again
-		invalidateAll();
 	};
 
 	// update locale when navigating via browser back/forward buttons

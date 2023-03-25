@@ -104,6 +104,10 @@ const schema: Schema = {
 			required: true
 		}),
 
+		// widgets.Condition({
+		// 	db_fieldName: 'Condition'
+		// }),
+
 		widgets.Number({
 			db_fieldName: 'Number',
 			icon: 'carbon:character-whole-number',
