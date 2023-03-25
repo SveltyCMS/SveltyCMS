@@ -158,6 +158,9 @@ const de: Translation = {
 	COLLECTION_TEST_Last: 'Nachname',
 	COLLECTION_TEST_Last_placeholder: 'Nachname eingeben',
 
+	COLLECTION_TEST_Full_Text_Option: 'Volltextoption',
+	COLLECTION_TEST_Full_Text_Option_Placeholder: 'Volltext eingeben',
+
 	// Widgets
 	WIDGET_Address_SearchMap: 'Suche in Karte ...',
 	WIDGET_Address_GetAddress: 'Hole von Adresse',

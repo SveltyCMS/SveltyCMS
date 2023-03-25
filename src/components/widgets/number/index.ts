@@ -4,6 +4,7 @@ import type { Number_Field, Number_Params } from './types';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	placeholder,
 	min,
@@ -17,6 +18,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		placeholder,
 		min,

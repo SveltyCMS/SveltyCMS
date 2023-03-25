@@ -3,6 +3,7 @@ import type { Checkbox_Field, Checkbox_Params } from './types';
 const widget = ({
 	// accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	color,
 	required,
@@ -14,6 +15,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		color,
 		required,

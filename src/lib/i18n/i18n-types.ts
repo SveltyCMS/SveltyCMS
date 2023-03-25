@@ -528,6 +528,14 @@ type RootTranslation = {
 	 */
 	COLLECTION_TEST_Last_placeholder: string
 	/**
+	 * F​u​l​l​ ​T​e​x​t​ ​O​p​t​i​o​n
+	 */
+	COLLECTION_TEST_Full_Text_Option: string
+	/**
+	 * E​n​t​e​r​ ​f​u​l​l​ ​t​e​x​t
+	 */
+	COLLECTION_TEST_Full_Text_Option_Placeholder: string
+	/**
 	 * S​e​a​r​c​h​ ​i​n​ ​M​a​p​ ​.​.​.
 	 */
 	WIDGET_Address_SearchMap: string
@@ -1192,6 +1200,14 @@ export type TranslationFunctions = {
 	 * Enter Last Name
 	 */
 	COLLECTION_TEST_Last_placeholder: () => LocalizedString
+	/**
+	 * Full Text Option
+	 */
+	COLLECTION_TEST_Full_Text_Option: () => LocalizedString
+	/**
+	 * Enter full text
+	 */
+	COLLECTION_TEST_Full_Text_Option_Placeholder: () => LocalizedString
 	/**
 	 * Search in Map ...
 	 */

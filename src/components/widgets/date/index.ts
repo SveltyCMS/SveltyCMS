@@ -5,13 +5,14 @@ import type { Date_Field, Date_Params } from './types';
 const widget = ({
 	// Defines type of collections
 	db_fieldName,
+	label,
 	icon,
 	required,
 	display
 }: Date_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	const field = { schema: {}, db_fieldName, icon, required, display } as Date_Field;
+	const field = { schema: {}, db_fieldName, label, icon, required, display } as Date_Field;
 	field.schema[db_fieldName] = 'string';
 
 	field.widget = async () => {

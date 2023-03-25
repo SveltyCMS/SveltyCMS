@@ -5,6 +5,7 @@ import type { ImageArray_Field, ImageArray_Params } from './types';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	imageUploadTitle,
 	icon,
 	fields,
@@ -21,6 +22,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		imageUploadTitle,
 		icon,
 		upload: true,

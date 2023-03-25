@@ -159,6 +159,9 @@ const en: BaseTranslation = {
 	COLLECTION_TEST_Last: 'Last',
 	COLLECTION_TEST_Last_placeholder: 'Enter Last Name',
 
+	COLLECTION_TEST_Full_Text_Option: 'Full Text Option',
+	COLLECTION_TEST_Full_Text_Option_Placeholder: 'Enter full text',
+
 	// Widgets
 	WIDGET_Address_SearchMap: 'Search in Map ...',
 	WIDGET_Address_GetAddress: 'Get from Address',

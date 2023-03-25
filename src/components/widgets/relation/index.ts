@@ -6,6 +6,7 @@ import type { Relation_Params, Relation_Field } from './types';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	required,
 	relation,
@@ -26,6 +27,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		strict: false,
 		required,

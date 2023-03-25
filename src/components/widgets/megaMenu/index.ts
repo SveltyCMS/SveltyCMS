@@ -3,6 +3,7 @@ import type { MegaMenu_Field, MegaMenu_Params } from './types';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	menu,
 	required,
 	localization,
@@ -18,6 +19,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		menu,
 		strict: false,
 		required,
