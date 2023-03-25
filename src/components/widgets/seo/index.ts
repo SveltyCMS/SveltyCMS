@@ -3,6 +3,7 @@ import type { Seo_Field, Seo_Params } from './types';
 const widget = ({
 	// accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	required,
 	localization,
@@ -15,6 +16,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		required,
 		localization,

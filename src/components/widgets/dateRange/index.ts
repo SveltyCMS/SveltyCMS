@@ -4,6 +4,7 @@ import type { DateRange_Field, DateRange_Params } from './type';
 const widget = ({
 	// Defines type of collections
 	db_fieldName,
+	label,
 	icon,
 	format,
 	required,
@@ -11,7 +12,15 @@ const widget = ({
 }: DateRange_Params) => {
 	if (!display) display = (data: any, field: any, entry: any) => data;
 
-	const field = { schema: {}, db_fieldName, icon, format, required, display } as DateRange_Field;
+	const field = {
+		schema: {},
+		db_fieldName,
+		label,
+		icon,
+		format,
+		required,
+		display
+	} as DateRange_Field;
 
 	field.schema[db_fieldName] = 'string';
 

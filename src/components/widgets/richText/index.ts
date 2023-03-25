@@ -2,11 +2,13 @@ import type { Display } from '../types';
 
 const widget = ({
 	db_fieldName,
+	label,
 	required,
 	localization,
 	display
 }: {
 	db_fieldName: string;
+	label?: string;
 	required?: boolean;
 	localization?: boolean;
 	display?: Display;
@@ -15,6 +17,7 @@ const widget = ({
 	const field: any = {
 		schema: {},
 		db_fieldName,
+		label,
 		required,
 		localization,
 		display

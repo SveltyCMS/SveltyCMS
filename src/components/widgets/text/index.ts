@@ -2,6 +2,7 @@ import type { Text_Field, Text_Params } from './types';
 const widget = ({
 	// accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	placeholder,
 	count,
@@ -22,6 +23,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		placeholder,
 		count,

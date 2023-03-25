@@ -47,7 +47,7 @@
 	<label
 		for="default-checkbox"
 		class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
-		>{field.db_fieldName}</label
+		>{field.label ? field.label : field.db_fieldName}</label
 	>
 	{#if validationError !== null}
 		<p class="text-red-500">{validationError}</p>

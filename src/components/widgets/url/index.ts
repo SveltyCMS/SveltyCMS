@@ -4,6 +4,7 @@ import type { Url_Params, Url_Field } from './types';
 export default ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	placeholder,
 	required,
@@ -15,6 +16,7 @@ export default ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		placeholder,
 		required,

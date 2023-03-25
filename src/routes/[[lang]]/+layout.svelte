@@ -184,7 +184,7 @@
 <AppShell
 	slotSidebarLeft="!overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col items-center z-10 
-{switchSideBar ? 'w-[225px]' : 'w-[85px]'}
+{switchSideBar ? 'w-[225px]' : 'w-fit'}
 {leftSidebarOn ? 'hidden' : 'block'}"
 	slotSidebarRight="flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-full relative {toggleRightSideBar
 		? 'hidden'
@@ -365,11 +365,11 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						{/if}
 						<!-- Popup Tooltip with the arrow element -->
 						<!-- TODO: tooltip overflow -->
-						<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
-							{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
-							<div class="arrow variant-filled-secondary" />
-						</div>
 					</button>
+					<div class="card variant-filled-secondary p-4" data-popup="SwitchTheme">
+						{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
+						<div class="arrow variant-filled-secondary" />
+					</div>
 				</div>
 
 				<!-- Lucia Sign Out -->

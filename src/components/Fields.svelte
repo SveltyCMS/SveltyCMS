@@ -20,6 +20,13 @@
 		$getFieldsData.add(getData);
 	});
 	//$: console.log('icon', getData.icon);
+
+	// typesafe-i18n
+	import LL from '$i18n/i18n-svelte';
+
+	LL.subscribe((n) => {
+		fields = fields;
+	});
 </script>
 
 {#each fields as field, index}

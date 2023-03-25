@@ -85,14 +85,14 @@ const schema: Schema = {
 
 		widgets.Text({
 			db_fieldName: 'Full Text option',
-			label: 'Text options',
+			label: get(LL).COLLECTION_TEST_Full_Text_Option(),
 			icon: 'carbon:character-whole-number',
 			prefix: 'EURO',
 			suffix: 'cent',
 			count: 10,
 			minlength: 2,
 			maxlength: 15,
-			placeholder: 'Enter Number',
+			placeholder: get(LL).COLLECTION_TEST_Full_Text_Option_Placeholder(),
 			localization: true,
 			required: true
 		}),
@@ -110,6 +110,7 @@ const schema: Schema = {
 
 		widgets.Number({
 			db_fieldName: 'Number',
+			label: 'Number label',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Number from -9 to 99999',
 			min: -9,
@@ -121,6 +122,7 @@ const schema: Schema = {
 
 		widgets.Currency({
 			db_fieldName: 'Currency',
+			label: 'Enter a currency',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Currency from -99999.99 to 99999.99',
 			prefix: '€',
@@ -134,6 +136,7 @@ const schema: Schema = {
 
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
+			label: 'Enter a phone number',
 			icon: 'material-symbols:perm-phone-msg',
 			placeholder: 'Enter Phone +4921513250033',
 			required: true
@@ -158,10 +161,17 @@ const schema: Schema = {
 				]);
 			},
 			fields: [
-				widgets.Radio({ db_fieldName: 'Radio', color: 'red', required: true, width: '50%' }),
+				widgets.Radio({
+					db_fieldName: 'Radio',
+					label: 'Label for radio button',
+					color: 'red',
+					required: true,
+					width: '50%'
+				}),
 
 				widgets.Checkbox({
 					db_fieldName: 'Checkbox',
+					label: 'Label for checkbox',
 					color: 'green',
 					width: '50%',
 					required: true
@@ -169,17 +179,18 @@ const schema: Schema = {
 			]
 		}),
 
-		widgets.RichText({ db_fieldName: 'Description' }),
+		widgets.RichText({ db_fieldName: 'Description', label: 'Desc label' }),
 
-		widgets.Address({ db_fieldName: 'Address' }),
+		widgets.Address({ db_fieldName: 'Address', label: 'Address label working' }),
 
-		widgets.Date({ db_fieldName: 'Date' }),
+		widgets.Date({ db_fieldName: 'Date', label: 'Date label' }),
 
 		// isseu with dayjs is this is actually required
 		// widgets.DateRange({ title: 'DateRange' }),
 
 		widgets.Url({
 			db_fieldName: 'Url',
+			label: 'Url label',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Website',
 			required: true,
@@ -188,6 +199,7 @@ const schema: Schema = {
 
 		widgets.RemoteVideo({
 			db_fieldName: 'remoteVideo',
+			label: 'Remote Video Label',
 			icon: 'bi:youtube',
 			placeholder: 'Enter Video URL',
 			required: true
@@ -195,6 +207,7 @@ const schema: Schema = {
 
 		widgets.Seo({
 			db_fieldName: 'Basic Seo',
+			label: 'Seo label',
 			icon: 'icon-park-outline:seo',
 			localization: true,
 			required: true

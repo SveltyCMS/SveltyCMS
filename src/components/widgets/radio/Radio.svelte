@@ -46,7 +46,7 @@
 		bind:group={value}
 	/>
 	<label class="form-check-label inline-block " for="flexRadioDefault2">
-		{field.db_fieldName}
+		{field.label ? field.label : field.db_fieldName}
 	</label>
 </div>
 {#if validationError !== null}

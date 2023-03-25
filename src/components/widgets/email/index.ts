@@ -4,6 +4,7 @@ import type { Email_Field, Email_Params } from './type';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	placeholder,
 	required,
@@ -15,6 +16,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		placeholder,
 		required,

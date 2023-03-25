@@ -4,6 +4,7 @@ import type { Currency_Field, Currency_Params } from './types';
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	label,
 	icon,
 	placeholder,
 	prefix,
@@ -20,6 +21,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		label,
 		icon,
 		placeholder,
 		prefix,
