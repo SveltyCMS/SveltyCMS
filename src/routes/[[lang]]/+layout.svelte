@@ -50,7 +50,7 @@
 	// Lucia
 	import { page } from '$app/stores';
 	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-	import { invalidateAll } from '$app/navigation';
+	import { goto, invalidateAll } from '$app/navigation';
 
 	handleSession(page);
 	const user = getUser();
@@ -168,7 +168,7 @@
 	let isMobile = false;
 
 	// bypass window is not defined error
-	if (browser) {
+	$: if (browser) {
 		isMobile = window.matchMedia('only screen and (max-width: 480px)').matches;
 		setInitialClassState();
 	}
@@ -264,7 +264,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		<!-- Search Collections -->
 		<!-- TODO: perhaps overflow is better? -->
 		<div class="mx-auto my-2 max-w-full">
-			<div class="relative mx-auto ">
+			<div class="relative mx-auto">
 				{#if !switchSideBar}
 					<input
 						on:keyup={updateFilter}
@@ -322,7 +322,10 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- Avatar with user settings -->
 				<div class="{switchSideBar ? 'order-1 row-span-2' : 'order-1 '} ">
 					<div class="md:row-span-2">
-						<a href="/user" class="relative flex-col !no-underline ">
+						<div
+							on:click={() => !$page.url.href.includes('user') && goto('/user')}
+							class="relative flex-col !no-underline cursor-pointer"
+						>
 							<Avatar
 								src={avatarSrc ?? '/Default_User.svg'}
 								class="mx-auto {switchSideBar ? 'w-[50px]' : 'w-[35px]'}"
@@ -334,14 +337,14 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 									{/if}
 								{/if}
 							</div>
-						</a>
+						</div>
 					</div>
 				</div>
 
 				<!-- System Language i18n Handeling -->
 				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
 					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
-						<LocaleSwitcher />
+						<LocaleSwitcher user={$user?.userId} />
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">

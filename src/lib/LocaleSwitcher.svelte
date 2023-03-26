@@ -7,22 +7,17 @@
 	import { locales } from '$i18n/i18n-util';
 	import { loadLocaleAsync } from '$i18n/i18n-util.async';
 	import { replaceLocaleInUrl } from '$src/lib/utils/utils';
+	import { ListBox, ListBoxItem, SlideToggle, type PopupSettings } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
+	export let user: any = '';
+	// import { popup } from '@skeletonlabs/skeleton';
 
-	import { popup } from '@skeletonlabs/skeleton';
-
-	let languageSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'click',
-		placement: 'top',
-		// Provide a matching 'data-popup' value.
-		target: 'language-dropdown'
-	};
-
-	import { fade } from 'svelte/transition';
+	$: LanguageLabel = $locale;
+	let lang: any;
 
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
 		if (!newLocale || $locale === newLocale) return;
-
+		// console.log('new locale', newLocale);
 		// load new dictionary from server
 		await loadLocaleAsync(newLocale);
 
@@ -34,21 +29,37 @@
 
 		if (updateHistoryState) {
 			// update url to reflect locale changes
-			history.pushState({ locale: newLocale }, '', replaceLocaleInUrl($page.url, newLocale));
+			history.pushState({ locale: newLocale }, '', replaceLocaleInUrl($page.url, newLocale, user));
 		}
+
+		// run the `load` function again
+		//invalidateAll();
 	};
 
 	// update locale when navigating via browser back/forward buttons
 	const handlePopStateEvent = async ({ state }: PopStateEvent) => switchLocale(state.locale, false);
 
+	onMount(() => {
+		console.log('user', user);
+
+		if (
+			locales.includes($page.url.pathname.split('/')[1] as Locales) &&
+			user.length > 0 &&
+			user !== ''
+		) {
+			LanguageLabel = $page.url.pathname.split('/')[1] as Locales;
+		}
+	});
 	// update locale when page store changes
 	$: if (browser) {
-		const lang = $page.params.lang as Locales;
+		lang = LanguageLabel;
+
 		switchLocale(lang, false);
+
 		history.replaceState(
 			{ ...history.state, locale: lang },
 			'',
-			replaceLocaleInUrl($page.url, lang)
+			replaceLocaleInUrl($page.url, lang, user)
 		);
 	}
 </script>
@@ -57,7 +68,17 @@
 
 <!-- TODO: make a reusable Language Switcher  -->
 
-<button
+<select
+	class="block w-full px-4 py-2 text-lg font-bold uppercase text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
+	bind:value={LanguageLabel}
+>
+	{#each locales as loc}
+		<option class="font-bold text-lg" value={loc}>
+			{loc}
+		</option>
+	{/each}
+</select>
+<!-- <button
 	class="btn variant-ghost-secondary btn-sm uppercase font-bold"
 	use:popup={languageSettings}
 	id="language-dropdown"
@@ -75,4 +96,4 @@
 			</li>
 		{/each}
 	</ul>
-</nav>
+</nav> -->

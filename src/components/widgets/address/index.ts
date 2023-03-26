@@ -13,7 +13,15 @@ const widget = ({
 
 	const field = { schema: {}, db_fieldName, label, icon, required, display } as Address_Field;
 
-	field.schema[db_fieldName] = 'string';
+	field.schema[db_fieldName] = {
+		latitude: Number,
+		longitude: Number,
+		name: String,
+		street: String,
+		zip: String,
+		city: String,
+		countryAlpha: String
+	};
 
 	field.widget = async () => {
 		// @ts-ignore

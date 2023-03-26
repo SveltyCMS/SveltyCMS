@@ -402,6 +402,8 @@
 		}));
 	};
 	const table = createSvelteTable(options);
+
+	import { toggleLeftSidebar } from '$src/stores/store';
 </script>
 
 <Modal />
@@ -413,12 +415,13 @@
 	{/if} -->
 	<div class="relative md:mt-0">
 		<div class="mb-2 flex items-center gap sm:gap-2 flex-wrap">
-			{#if !switchSideBar}
+			{#if !switchSideBar && $toggleLeftSidebar}
 				<AnimatedHamburger width="35" />
 			{/if}
 
 			<!-- Collection type with icon -->
-			<div class="flex flex-col max-w-[76px] sm:max-w-none">
+
+			<div class="flex flex-col max-w-[76px] sm:max-w-none {!$toggleLeftSidebar ? 'ml-2' : ''}">
 				{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 						{category}
 					</div>{/if}

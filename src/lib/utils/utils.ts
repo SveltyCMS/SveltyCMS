@@ -2,8 +2,11 @@ import axios from 'axios';
 import fs from 'fs';
 import schemas from '$src/collections';
 import type { Schema } from '$src/collections/types';
+import { locales } from '$i18n/i18n-util';
+import { locale } from '$i18n/i18n-svelte';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
+import type { Locales } from '$i18n/i18n-types';
 
 export const DB = {};
 
@@ -65,7 +68,7 @@ export function parse(obj: any) {
 			} else {
 				obj[key] = JSON.parse(obj[key]);
 			}
-		} catch (e) { }
+		} catch (e) {}
 
 		if (typeof obj[key] != 'string') {
 			parse(obj[key]);
@@ -106,9 +109,11 @@ export function format(
 	let html = '';
 	for (const item of value) {
 		const htmlTag = item.newLine ? 'p' : 'span';
-		html += ` <${htmlTag} style=color:${item.textColor
-			} class=dark:text-white text-black> <span class=dark:text-white text-black style=color:${item.labelColor
-			}> ${item.label ? item.label + ':' : ''} </span> ${item.text}</${htmlTag}>`;
+		html += ` <${htmlTag} style=color:${
+			item.textColor
+		} class=dark:text-white text-black> <span class=dark:text-white text-black style=color:${
+			item.labelColor
+		}> ${item.label ? item.label + ':' : ''} </span> ${item.text}</${htmlTag}>`;
 	}
 	return html;
 }
@@ -133,15 +138,47 @@ export function flattenData(data: any, language: string) {
 //
 // Otherwise (default) the URL relative to the base is returned.
 // e.g. https://mywebsite.com/en/blog/article-1 => /de/blog/article-1
-export const replaceLocaleInUrl = (url: URL, locale: string, full = false): string => {
+export const replaceLocaleInUrl = (
+	url: URL,
+	locale: string,
+	user: string = '',
+	full = false
+): string => {
 	const [, , ...rest] = url.pathname.split('/');
-	const new_pathname = `/${[locale, ...rest].join('/')}`;
+	let haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
+
+	if (url.pathname.includes(locale) && locale !== 'en') {
+		return url.pathname;
+	}
+
+	if (
+		locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
+		user.length === 0 &&
+		user === ''
+	) {
+		console.log('url', url?.pathname?.split(`/`)[2], url);
+		return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
+	}
+
+	let tempPath;
+	let tempLocale = locale === 'en' ? '/' : `${locale}/`;
+
+	if (haveLocale) {
+		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';
+	} else {
+		tempPath = url?.pathname?.split('/')[1];
+	}
+
+	const new_pathname = `${tempLocale}`;
+	// console.log('url', tempLocale, locale, url, new_pathname, haveLocale);
 	//const new_pathname = /${locale === 'en' ? '' : locale}${rest.length ? /${rest.join('/')}` : ''}`;
 	if (!full) {
-		return `${new_pathname}${url.search}`;
+		return `${new_pathname}${tempPath}${url.search}`;
 	}
+
 	const newUrl = new URL(url.toString());
-	newUrl.pathname = new_pathname;
+	newUrl.pathname = `${new_pathname}`;
+
 	return newUrl.toString();
 };
 

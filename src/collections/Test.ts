@@ -122,6 +122,7 @@ const schema: Schema = {
 
 		widgets.Currency({
 			db_fieldName: 'Currency',
+			currencyCode: 'EUR',
 			label: 'Enter a currency',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Currency from -99999.99 to 99999.99',

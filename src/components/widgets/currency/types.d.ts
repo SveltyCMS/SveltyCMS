@@ -4,6 +4,7 @@ export type Currency_Field = {
 	widget: () => {};
 	schema: { [Key: string]: any };
 	db_fieldName: string;
+	currencyCode: string;
 	label: string;
 	icon: string | undefined;
 	placeholder: string | undefined;
@@ -18,6 +19,7 @@ export type Currency_Field = {
 };
 export type Currency_Params = {
 	db_fieldName: string;
+	currencyCode: string;
 	label?: string;
 	icon?: string;
 	placeholder?: string;

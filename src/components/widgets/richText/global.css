@@ -33,6 +33,15 @@
 .dark .editor-shell .editor-container {
 	background: rgb(31 41 55 / var(--tw-bg-opacity));
 }
+.dark .editor-shell > * {
+	color: #ffffff;
+}
+.dark .editor-shell .PlaygroundEditorTheme__h1 {
+	color: #ffffff;
+}
+.dark .editor-shell .PlaygroundEditorTheme__h2 {
+	color: #ffffff;
+}
 
 .editor-shell .editor-container.tree-view {
 	border-radius: 0;

@@ -1,9 +1,12 @@
+import { Schema } from 'mongoose';
+import { number } from 'zod';
 import type { Display } from '../types';
 import type { Currency_Field, Currency_Params } from './types';
 
 const widget = ({
 	// Accept parameters from collection
 	db_fieldName,
+	currencyCode,
 	label,
 	icon,
 	placeholder,
@@ -21,6 +24,7 @@ const widget = ({
 	const field = {
 		schema: {},
 		db_fieldName,
+		currencyCode,
 		label,
 		icon,
 		placeholder,
@@ -34,7 +38,10 @@ const widget = ({
 		display
 	} as Currency_Field;
 
-	field.schema[db_fieldName] = 'string';
+	field.schema[db_fieldName] = {
+		value: Number,
+		currencyCode: String
+	};
 
 	field.widget = async () => {
 		// @ts-ignore

@@ -4,7 +4,7 @@ import type { PageServerLoad } from './$types';
 import { get } from 'svelte/store';
 
 // Nodemailer
-import sendMail from '$lib/utils/send-email';
+import sendMail from '../../emails/welcome/+page.server';
 import { randomBytes } from 'crypto';
 
 // lucia

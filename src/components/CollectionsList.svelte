@@ -2,12 +2,32 @@
 	// Skeleton
 	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { afterNavigate, goto } from '$app/navigation';
+	import { page } from '$app/stores';
 
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	import { computePosition, autoUpdate, flip, shift, offset, arrow } from '@floating-ui/dom';
+	let goToTab = false;
+	let tempData = {
+		index: 0,
+		collection_index: 0
+	};
 
+	afterNavigate(() => {
+		if (goToTab && tempData.index !== 0) {
+			dispatch('collection_click', {
+				category_index: tempData.index,
+				collection_index: tempData.collection_index
+			});
+			goToTab = false;
+			tempData = {
+				index: 0,
+				collection_index: 0
+			};
+		}
+	});
 	storePopup.set({ computePosition, autoUpdate, flip, shift, offset, arrow });
 
 	const dispatch = createEventDispatcher();
@@ -87,6 +107,14 @@
 								value={_collection.id}
 								on:click={async () => {
 									$showFieldsStore.showField = true;
+									if ($page.url.pathname.includes('user')) {
+										goto('/');
+										goToTab = true;
+										tempData = {
+											index: index,
+											collection_index: collection_index
+										};
+									}
 									dispatch('collection_click', { category_index: index, collection_index });
 								}}
 								class="hover:!bg-surface-400 w-full"
@@ -111,7 +139,7 @@
 
 					<!-- Category name -->
 					<svelte:fragment slot="summary">
-						<p class="uppercase hidden ">{item.category}</p>
+						<p class="uppercase hidden">{item.category}</p>
 					</svelte:fragment>
 
 					<!-- Mobile Collection Childern -->
@@ -129,6 +157,14 @@
 									value={_collection.id}
 									on:click={async () => {
 										$showFieldsStore.showField = true;
+										if ($page.url.pathname.includes('user')) {
+											goto('/');
+											goToTab = true;
+											tempData = {
+												index: index,
+												collection_index: collection_index
+											};
+										}
 										dispatch('collection_click', { category_index: index, collection_index });
 									}}
 									class="flex justify-center items-center hover:!bg-surface-400"
