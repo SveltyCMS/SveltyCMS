@@ -7,7 +7,11 @@
 	export let value: string = '';
 
 	export let widgetValue;
-	$: widgetValue = value;
+
+	$: widgetValue = {
+		value: value.value,
+		currency: field.currencyCode
+	};
 
 	let formattedValue = '';
 
@@ -51,7 +55,7 @@
 	// create a reactive statement that updates the formatted value whenever the value changes
 	$: {
 		// round the value to 2 decimal places
-		const roundedValue = Math.round(value * 100) / 100;
+		const roundedValue = Math.round(value.value * 100) / 100;
 
 		formattedValue = new Intl.NumberFormat(get(locale), {
 			style: 'currency',
@@ -71,7 +75,7 @@
 	{/if}
 
 	<input
-		bind:value
+		bind:value={value.value}
 		type="number"
 		step={field.step}
 		required={field.required}

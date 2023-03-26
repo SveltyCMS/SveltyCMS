@@ -30,10 +30,18 @@
 	import Icon from '@iconify/svelte';
 
 	export let field: any = undefined;
-	export let value = '';
+	export let value: any = {};
 
 	export let widgetValue;
-	$: widgetValue = value;
+	$: widgetValue = {
+		latitude: value.latitude,
+		longitude: value.longitude,
+		name: value.name,
+		street: value.street,
+		zip: value.zip,
+		city: value.city,
+		country: value.country
+	};
 
 	// https://stefangabos.github.io/world_countries/
 	import countries from './countries.json';
@@ -63,7 +71,9 @@
 	// import { mapboxgl, key } from './mapboxgl.js';
 
 	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+	import 'mapbox-gl/dist/mapbox-gl.css';
 
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 	const language = new MapboxLanguage();
@@ -73,19 +83,23 @@
 		mapboxgl: mapboxgl
 	});
 
-	setContext(key, {
-		getMap: () => map
+	geocoder.on('result', () => {
+		console.log('aa');
 	});
+
+	// setContext(key, {
+	// 	getMap: () => map
+	// });
 
 	let map: any;
 
 	function initMap(container: any) {
 		map = new mapboxgl.Map({
-			container: container, // container ID
+			container: 'map', // container ID
 			// Choose from Mapbox's core styles, or make your own style with Mapbox Studio
 			style: 'mapbox://styles/mapbox/streets-v12', // style URL
 			center: [6.6054765, 51.3395072], // starting position [lng, lat]  - TODO  Change to environment variable
-			zoom: 10 // starting zoom
+			zoom: 10 // starting zoom,
 		});
 
 		// Add the search control to the map.
@@ -104,7 +118,18 @@
 		map.on('load', () => {
 			// Create a default Marker and add it to the map.
 			//TODO: Mark postion is wrong & Change to environment variable
-			var marker = new mapboxgl.Marker().setLngLat([6.6054765, 51.3395072]).addTo(map);
+			map.resize();
+		});
+
+		const marker = new mapboxgl.Marker({
+			draggable: true
+		})
+			.setLngLat([6.6054765, 51.3395072])
+			.addTo(map);
+		marker.on('dragend', function (e) {
+			var lngLat = e.target.getLngLat();
+			value.latitude = lngLat['lat'];
+			value.longitude = lngLat['lng'];
 		});
 
 		// Add geolocate control to the map.
@@ -119,26 +144,6 @@
 				showUserHeading: true
 			})
 		);
-	}
-
-	let latitude: number;
-	let longitude: number;
-	let name: string;
-	let street_address: string;
-	let zip: string;
-	let city: string;
-	let countryAlpha: string;
-
-	function saveAddress() {
-		widgetValue = JSON.stringify({
-			latitude,
-			longitude,
-			name,
-			street_address,
-			zip,
-			city,
-			country: countryAlpha
-		});
 	}
 
 	var widgetValueObject = {
@@ -170,22 +175,12 @@
 		<!-- TODO: MAP geocoding 
 		allow user to switch maps-->
 		Mapbox needs more work
-		<div use:initMap class="max-h-[550px] w-full">
-			<div class=" mb-1 flex justify-between gap-2">
-				<button
-					class="variant-filled-primary btn btn-base rounded-md text-white"
-					on:click={saveAddress}
-					><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
-				>
-				<button class="variant-filled-primary btn btn-base rounded-md text-white"
-					><Icon
-						icon="bi:pin-map"
-						width="16"
-						class="mr-2 "
-					/>{$LL.WIDGET_Address_GetAddress()}</button
-				>
-			</div>
+		<div class=" mb-1 flex justify-between gap-2">
+			<button class="variant-filled-primary btn btn-base rounded-md text-white"
+				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
+			>
 		</div>
+		<div use:initMap class="h-[360px] sm:h-[550px] w-full" id="map" />
 
 		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
 		<div class="flex justify-center gap-2 ">
@@ -197,7 +192,7 @@
 				autocomplete="latitude"
 				placeholder={$LL.WIDGET_Address_Latitude()}
 				class="input rounded-md"
-				bind:value={latitude}
+				bind:value={value.latitude}
 			/>
 
 			<input
@@ -208,7 +203,7 @@
 				autocomplete="longitude"
 				placeholder={$LL.WIDGET_Address_Longitude()}
 				class="input rounded-md"
-				bind:value={longitude}
+				bind:value={value.longitude}
 			/>
 		</div>
 		<br />
@@ -223,7 +218,7 @@
 				autocomplete="name"
 				placeholder={$LL.WIDGET_Address_Name()}
 				class="input rounded-md"
-				bind:value={name}
+				bind:value={value.name}
 			/>
 
 			<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
@@ -236,7 +231,7 @@
 				required
 				enterkeyhint="next"
 				class="input rounded-md"
-				bind:value={street_address}
+				bind:value={value.street}
 			/>
 
 			<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
@@ -249,7 +244,7 @@
 				autocomplete="postal-code"
 				enterkeyhint="next"
 				class="input rounded-md"
-				bind:value={zip}
+				bind:value={value.zip}
 			/>
 
 			<label for="city">{$LL.WIDGET_Address_City()}</label>
@@ -262,7 +257,7 @@
 				autocomplete="city"
 				enterkeyhint="next"
 				class="input rounded-md"
-				bind:value={city}
+				bind:value={value.city}
 			/>
 
 			<!-- Country with search Combobox -->
@@ -281,7 +276,7 @@
 								bind:value={country.en}
 								bind:group={listboxValue}
 								on:change={() => {
-									countryAlpha = country.alpha2;
+									value.country = country.alpha2;
 								}}
 							>
 								<span class="fi fi-{country.alpha2} mt-1" />

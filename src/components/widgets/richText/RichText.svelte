@@ -24,8 +24,7 @@
 	onMount(() => {
 		const editor = composerComponent.getEditor();
 		editor.registerUpdateListener(({ editorState }) => {
-			widgetValue = JSON.stringify(editorState);
-			console.log(widgetValue);
+			widgetValue = editorState;
 		});
 	});
 

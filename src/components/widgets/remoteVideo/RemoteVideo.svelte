@@ -5,6 +5,10 @@
 	export let widgetValue;
 	$: widgetValue = value;
 
+	$: if (value) {
+		console.log(value);
+	}
+
 	export let myData: any = null;
 
 	$: myData;
