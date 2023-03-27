@@ -23,6 +23,15 @@
 	let token = ''; // token send by admin
 	let terms = ''; // terms and conditions
 
+	// Remove leading and trailing spaces
+	$: {
+		username = username.trim();
+		email = email.trim();
+		password = password.trim();
+		confirmPassword = confirmPassword.trim();
+		token = token.trim();
+	}
+
 	let errorStatus: Record<string, { status: boolean; msg: string }> = {
 		general: { status: false, msg: '' },
 		username: { status: false, msg: '' },
@@ -120,7 +129,7 @@
 </script>
 
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
-	<div class="mx-auto mt-[15%] mb-[5%] w-full  p-4 lg:w-1/2">
+	<div class="mx-auto mt-[15%] mb-[5%] w-full p-4 lg:w-1/2">
 		<div class="mb-8 flex flex-row gap-2">
 			<CMSLogo className="w-14" fill="red" />
 

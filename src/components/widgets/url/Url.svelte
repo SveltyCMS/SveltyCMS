@@ -1,17 +1,10 @@
 <script lang="ts">
-	// typesafe-i18n
-	import LL from '$i18n/i18n-svelte';
-
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	export let field: any = undefined;
 	export let value = '';
 	export let widgetValue: any;
 	let errorMessage = '';
 	let urlIsReachable = false;
 
-	// Zod vailidation
 	import z from 'zod';
 
 	const urlSchema = z.string().refine((value) => isValidURL(value), {
@@ -19,6 +12,7 @@
 	});
 
 	function isValidURL(value: string) {
+		console.log('isValidURL called with value:', value);
 		if (!value) {
 			return false;
 		}
@@ -27,42 +21,55 @@
 				value = 'https://' + value;
 			}
 			new URL(value);
+			console.log('isValidURL returning true');
 			return true;
 		} catch {
+			console.log('isValidURL returning false');
 			return false;
 		}
 	}
 
 	async function checkURL() {
-		const inputElement = document.querySelector('input');
+		const inputElement = document.querySelector('#website') as HTMLInputElement;
 		if (!inputElement) return;
 
 		let url = inputElement.value;
+		if (!url) {
+			errorMessage = '';
+			widgetValue = '';
+			urlIsReachable = false;
+			return;
+		}
+
 		if (!url.startsWith('http://') && !url.startsWith('https://')) {
 			url = 'https://' + url;
 		}
 
-		try {
-			urlSchema.parse(url);
-			errorMessage = '';
+		if (isValidURL(url)) {
+			try {
+				urlSchema.parse(url);
+				errorMessage = '';
 
-			if (typeof window !== 'undefined') {
-				const response = await fetch(url);
-				if (response.ok) {
-					widgetValue = response.url;
-					urlIsReachable = true;
-				} else {
-					widgetValue = 'URL is not reachable';
-					urlIsReachable = false;
+				if (typeof window !== 'undefined') {
+					const proxyUrl = 'https://api.allorigins.win/raw?url=';
+					const response = await fetch(proxyUrl + encodeURIComponent(url));
+					if (response.ok) {
+						widgetValue = response.url;
+						urlIsReachable = true;
+					} else {
+						widgetValue = 'URL is not reachable';
+						urlIsReachable = false;
+					}
 				}
+			} catch (error) {
+				errorMessage = (error as Error).message;
+				urlIsReachable = false;
 			}
-		} catch (error) {
-			errorMessage = (error as Error).message;
+		} else {
+			errorMessage = 'Invalid URL';
 			urlIsReachable = false;
 		}
 	}
-	// console.log('urlSchema' + urlSchema.parse);
-	// console.log('isValidURL' + isValidURL);
 </script>
 
 <input
@@ -73,7 +80,6 @@
 		: field.db_fieldName}
 	type="url"
 	id="website"
-	autocomplete="off"
 	class="input w-full rounded-md"
 />
 
@@ -84,5 +90,5 @@
 {@html widgetValue}
 
 {#if urlIsReachable}
-	<span style="color:green;">✔️</span>
+	<span class="text-green-500">✔️</span>
 {/if}

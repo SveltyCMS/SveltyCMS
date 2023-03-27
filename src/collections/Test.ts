@@ -104,10 +104,6 @@ const schema: Schema = {
 			required: true
 		}),
 
-		// widgets.Condition({
-		// 	db_fieldName: 'Condition'
-		// }),
-
 		widgets.Number({
 			db_fieldName: 'Number',
 			label: 'Number label',
@@ -120,20 +116,20 @@ const schema: Schema = {
 			required: false
 		}),
 
-		widgets.Currency({
-			db_fieldName: 'Currency',
-			currencyCode: 'EUR',
-			label: 'Enter a currency',
-			icon: 'carbon:character-whole-number',
-			placeholder: 'Enter Currency from -99999.99 to 99999.99',
-			prefix: '€',
-			suffix: 'cent',
-			min: -99999.99,
-			max: 99999.99,
-			step: 0.001,
-			negative: true,
-			required: true
-		}),
+		// widgets.Currency({
+		// 	db_fieldName: 'Currency',
+		// 	currencyCode: 'EUR',
+		// 	label: 'Enter a currency',
+		// 	icon: 'carbon:character-whole-number',
+		// 	placeholder: 'Enter Currency from -99999.99 to 99999.99',
+		// 	prefix: '€',
+		// 	suffix: 'cent',
+		// 	min: -99999.99,
+		// 	max: 99999.99,
+		// 	step: 0.001,
+		// 	negative: true,
+		// 	required: true
+		// }),
 
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
@@ -146,7 +142,9 @@ const schema: Schema = {
 		// TODO: show group in entry list table
 		widgets.Group({
 			db_fieldName: 'Test 2nd Group',
-			label: 'Rradio/Checkbox',
+			label: 'Radio/Checkbox',
+			condition: true,
+
 			display: async (data: any, field: any, entry: any) => {
 				return format([
 					{
@@ -182,7 +180,7 @@ const schema: Schema = {
 
 		widgets.RichText({ db_fieldName: 'Description', label: 'Desc label' }),
 
-		widgets.Address({ db_fieldName: 'Address', label: 'Address label working' }),
+		//widgets.Address({ db_fieldName: 'Address', label: 'Address label working' }),
 
 		widgets.Date({ db_fieldName: 'Date', label: 'Date label' }),
 

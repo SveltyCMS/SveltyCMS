@@ -35,7 +35,7 @@
 	})();
 </script>
 
-<div class="flex flex-wrap  justify-between">
+<div class="flex flex-wrap justify-between">
 	<Fields {collection} {fields} bind:fieldsValue={_fieldsValue} {value} />
 </div>
 {#if validationError !== null}

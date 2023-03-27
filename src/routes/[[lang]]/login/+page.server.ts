@@ -17,7 +17,9 @@ import { SignUpToken } from '$lib/models/sign-up-token-model';
 import LL from '$i18n/i18n-svelte';
 
 import z from 'zod';
-import { HOST } from '$env/static/private';
+
+import { dev } from '$app/environment';
+import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
 const checkUserExistsInDb = async () => {
 	try {
@@ -367,7 +369,9 @@ export const actions: Actions = {
 		const epoch_expires_at = new Date().getTime() + 2 * 60 * 60 * 1000;
 
 		// take site host from .env and generate a password-reset link
-		const link = `${HOST}/login?token=${encodeURIComponent(forgotPasswordToken)}`;
+		const link = `${dev ? HOST_DEV : HOST_PROD}/login?token=${encodeURIComponent(
+			forgotPasswordToken
+		)}`;
 
 		const html = get(LL).LOGIN_ZOD_Forgotton_email({
 			token: `${forgotPasswordToken}`,

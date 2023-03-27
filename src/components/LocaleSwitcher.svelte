@@ -1,23 +1,34 @@
 <script lang="ts">
 	import { browser } from '$app/environment';
-	import { invalidateAll } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { setLocale, locale } from '$i18n/i18n-svelte';
 	import type { Locales } from '$i18n/i18n-types';
 	import { locales } from '$i18n/i18n-util';
 	import { loadLocaleAsync } from '$i18n/i18n-util.async';
 	import { replaceLocaleInUrl } from '$src/lib/utils/utils';
-	import { ListBox, ListBoxItem, SlideToggle, type PopupSettings } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
 	export let user: any = '';
-	// import { popup } from '@skeletonlabs/skeleton';
+
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	import { fade } from 'svelte/transition';
+
+	let languageSettings: PopupSettings = {
+		// Set the event as: click | hover | hover-click
+		event: 'click',
+		placement: 'top',
+		// Provide a matching 'data-popup' value.
+		target: 'language-dropdown'
+	};
 
 	$: LanguageLabel = $locale;
 	let lang: any;
 
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
 		if (!newLocale || $locale === newLocale) return;
-		// console.log('new locale', newLocale);
+
 		// load new dictionary from server
 		await loadLocaleAsync(newLocale);
 
@@ -31,9 +42,6 @@
 			// update url to reflect locale changes
 			history.pushState({ locale: newLocale }, '', replaceLocaleInUrl($page.url, newLocale, user));
 		}
-
-		// run the `load` function again
-		//invalidateAll();
 	};
 
 	// update locale when navigating via browser back/forward buttons
@@ -66,34 +74,29 @@
 
 <svelte:window on:popstate={handlePopStateEvent} />
 
-<!-- TODO: make a reusable Language Switcher  -->
-
-<select
-	class="block w-full px-4 py-2 text-lg font-bold uppercase text-gray-900 border border-gray-300 rounded-lg bg-gray-50 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500"
-	bind:value={LanguageLabel}
->
-	{#each locales as loc}
-		<option class="font-bold text-lg" value={loc}>
-			{loc}
-		</option>
-	{/each}
-</select>
-<!-- <button
-	class="btn variant-ghost-secondary btn-sm uppercase font-bold"
+<button
+	class="btn btn-sm rounded-full variant-ghost-secondary justify-between uppercase"
 	use:popup={languageSettings}
-	id="language-dropdown"
-	aria-haspopup="true"
-	aria-expanded="false"
-	>{$locale}
+>
+	{LanguageLabel}
 </button>
-<nav class="text-white list-nav card shadow-xl uppercase" data-popup="language-dropdown">
-	<ul>
-		{#each locales.filter((l) => l !== $locale) as l}
-			<li>
-				<a class:active={l === $locale} href={`${replaceLocaleInUrl($page.url, l)}`}>
-					{l}
-				</a>
-			</li>
+
+<div class="uppercase variant-filled-secondary" data-popup="language-dropdown">
+	<!-- Listbox -->
+	<ListBox rounded="rounded-none">
+		{#each locales as loc}
+			{#if loc !== LanguageLabel}
+				<ListBoxItem
+					bind:group={LanguageLabel}
+					on:click={() => (LanguageLabel = loc)}
+					name={loc}
+					value={loc}
+				>
+					{loc}
+				</ListBoxItem>
+			{/if}
 		{/each}
-	</ul>
-</nav> -->
+	</ListBox>
+	<!-- Arrow -->
+	<div class="arrow variant-filled-secondary" />
+</div>

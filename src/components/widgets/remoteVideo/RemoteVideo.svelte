@@ -63,17 +63,17 @@
 
 {#if myData?.videoUrl}
 	<div class="rounded border">
-		<div class="mb-1  text-lg font-bold">
+		<div class="mb-1 text-lg font-bold">
 			Title: <span class="text-tertiary-500">{myData?.videoTitle}</span>
 		</div>
-		<div class="mb-1  text-lg font-bold">
+		<div class="mb-1 text-lg font-bold">
 			User: <span class="text-tertiary-500">{myData?.user_name}</span>
 		</div>
-		<div class="mb-1  text-lg font-bold">
+		<div class="mb-1 text-lg font-bold">
 			Dimention: <span class="text-tertiary-500">{myData?.height} x {myData?.width} </span>(height x
 			width)
 		</div>
-		<div class="mb-1  text-lg font-bold">
+		<div class="mb-1 text-lg font-bold">
 			Duration: <span class="text-tertiary-500">{myData?.duration}</span> min
 		</div>
 		<div class="mb-1 inline-block text-lg font-bold">Video Link:</div>

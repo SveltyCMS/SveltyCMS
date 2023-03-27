@@ -45,7 +45,7 @@
 		color={field.color}
 		bind:group={value}
 	/>
-	<label class="form-check-label inline-block " for="flexRadioDefault2">
+	<label class="form-check-label inline-block" for="flexRadioDefault2">
 		{field.label ? field.label : field.db_fieldName}
 	</label>
 </div>

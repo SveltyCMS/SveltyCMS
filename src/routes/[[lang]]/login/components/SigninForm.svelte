@@ -1,7 +1,6 @@
 <script lang="ts">
 	// Skeleton
 	import { Toast, toastStore } from '@skeletonlabs/skeleton';
-	import type { ToastSettings } from '@skeletonlabs/skeleton';
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -22,7 +21,6 @@
 	import Loading from '$src/components/Loading.svelte';
 
 	let isLoading = false;
-
 	let isWiggling = false;
 
 	// zod validation Forgotton Password
@@ -49,13 +47,6 @@
 			if (data.type === 'success') {
 				// show success message
 				const emailSubject = 'Password Forgotten Request';
-				// const emailMessage = `Hi there,<br>
-				// <br>We received a request to reset your password. Your password reset token is:<br>
-				// <br>${data.token}<br>
-				// <br>Please follow the link below to reset your password:<br>
-				// <br>${resetUrl}<br>
-				// <br>If you did not request this reset, please disregard this message.<br>
-				// <br>Best regards,<br>The Support Team`;
 			} else {
 				// show error message
 			}
@@ -74,6 +65,19 @@
 
 	export let email = '';
 	export let password = '';
+
+	// Remove leading and trailing spaces
+	$: {
+		email = email.trim();
+		password = password.trim();
+	}
+
+	// const lowercaseEmail = {
+	// 	get: () => email,
+	// 	set: (val) => {
+	// 		email = val.trim().toLowerCase();
+	// 	}
+	// };
 
 	let forgottonemail = '';
 	let confirmPassword = '';
@@ -111,6 +115,7 @@
 
 		oldErrorStatus = errorStatus;
 	};
+
 	const zod_obj: Record<string, z.ZodString> = {
 		email: z
 			.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
@@ -152,6 +157,7 @@
 </script>
 
 <Toast />
+
 <div class:hide={!show} class="w-full opacity-100 duration-[2000ms]">
 	{#if !forgot && !resetPW}
 		<div bind:this={form} class="mx-auto mt-[15%] mb-[5%] w-full p-4 lg:w-1/2">
@@ -194,6 +200,7 @@
 									errorStatus[error.field].msg = error.message;
 								});
 						}
+
 						isLoading = false;
 					};
 				}}
@@ -279,13 +286,13 @@
 						{/if}
 					</div>
 					<div class="buttons">
-						<button class="btn btn-sm mt-4 rounded-lg border bg-surface-700 text-white "
+						<button class="btn btn-sm mt-4 rounded-lg border bg-surface-700 text-white"
 							>{$LL.LOGIN_SignIn()}</button
 						>
 
 						<button
 							on:click={() => (forgot = true)}
-							class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700 "
+							class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700"
 							>{$LL.LOGIN_ForgottenPassword()}</button
 						>
 					</div>
@@ -465,7 +472,7 @@
 							resetPW = false;
 							forgot = false;
 						}}
-						class="btn btn-sm text-surface-600 "
+						class="btn btn-sm text-surface-600"
 						><Icon icon="mdi:arrow-left-circle" width="36" /></button
 					>
 				</div>
@@ -547,7 +554,7 @@
 							forgot = false;
 							resetPW = false;
 						}}
-						class="btn btn-sm text-surface-600 "
+						class="btn btn-sm text-surface-600"
 						><Icon icon="mdi:arrow-left-circle" width="36" /></button
 					>
 				</div>

@@ -59,7 +59,7 @@
 	import Icon from '@iconify/svelte';
 
 	// typesafe-i18n
-	import LocaleSwitcher from '$src/lib/LocaleSwitcher.svelte';
+	import LocaleSwitcher from '$src/components/LocaleSwitcher.svelte';
 	import LL from '$i18n/i18n-svelte';
 
 	// @ts-expect-error reading from vite.config.jss
@@ -282,7 +282,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- search icon -->
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
+					class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -324,6 +324,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					<div class="md:row-span-2">
 						<div
 							on:click={() => !$page.url.href.includes('user') && goto('/user')}
+							on:keypress={() => !$page.url.href.includes('user') && goto('/user')}
 							class="relative flex-col !no-underline cursor-pointer"
 						>
 							<Avatar
@@ -343,7 +344,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 				<!-- System Language i18n Handeling -->
 				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
-					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
+					<div use:popup={SystemLanguageTooltip} class="md:row-span-2 ">
 						<LocaleSwitcher user={$user?.userId} />
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
@@ -411,7 +412,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- CMS Version -->
 				<div class="{switchSideBar ? 'order-6' : 'order-6 col-span-2'} ">
 					<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
-						<span class="badge variant-filled-primary rounded-xl text-black "
+						<span class="badge variant-filled-primary rounded-xl text-black"
 							>{#if switchSideBar}{$LL.SBL_Version()}: {/if}{pkg.version}</span
 						>
 					</a>
@@ -444,7 +445,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							class="absolute bottom-0 left-0 mt-4 h-2 w-full rounded bg-tertiary-500"
 							style="width: {progress}%"
 						/>
-						<div class="absolute top-0 left-0 flex h-full w-full items-center justify-center ">
+						<div class="absolute top-0 left-0 flex h-full w-full items-center justify-center">
 							<div class="p-[1.7px] rounded-full variant-filled-surface text-[9px]">
 								{progress}%
 							</div>

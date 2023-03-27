@@ -26,6 +26,7 @@
 
 	// show/hide Left Sidebar
 	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+	import { toggleLeftSidebar } from '$src/stores/store';
 
 	import UserList from './UserList/UserList.svelte';
 
@@ -182,17 +183,16 @@
 </script>
 
 <div class="flex mr-1 align-centre mb-2">
-	{#if !switchSideBar}
-		<!-- mobile and tablet hamburger -->
+	{#if !switchSideBar && $toggleLeftSidebar}
 		<AnimatedHamburger />
 	{/if}
-	<!-- mobile hamburger -->
-	<h1 class="">{$LL.USER_Profile()}</h1>
+
+	<h1 class={!$toggleLeftSidebar ? 'ml-2' : ''}>{$LL.USER_Profile()}</h1>
 </div>
 
 <div class="grid overflow-hidden grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1 gap-1">
 	<!-- Avatar with user info -->
-	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center ">
+	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center">
 		<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
 		<button on:click={modalEditAvatar} class="badge text-white gradient-primary w-30 absolute top-1"

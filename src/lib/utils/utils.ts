@@ -7,6 +7,7 @@ import { locale } from '$i18n/i18n-svelte';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 import type { Locales } from '$i18n/i18n-types';
+import { systemLanguage } from '$src/stores/store';
 
 export const DB = {};
 
@@ -146,8 +147,13 @@ export const replaceLocaleInUrl = (
 ): string => {
 	const [, , ...rest] = url.pathname.split('/');
 	let haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
+	let systemValue;
 
-	if (url.pathname.includes(locale) && locale !== 'en') {
+	systemLanguage.subscribe((value) => {
+		systemValue = value;
+	});
+
+	if (url.pathname.includes(locale) && locale !== systemValue) {
 		return url.pathname;
 	}
 
@@ -161,7 +167,7 @@ export const replaceLocaleInUrl = (
 	}
 
 	let tempPath;
-	let tempLocale = locale === 'en' ? '/' : `${locale}/`;
+	let tempLocale = locale === systemValue ? '/' : `${locale}/`;
 
 	if (haveLocale) {
 		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';

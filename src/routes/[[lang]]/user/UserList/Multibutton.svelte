@@ -153,7 +153,7 @@
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
 		class="{getButtonAndIconValues(listboxValue)
-			.buttonClass} hover:bg-primary-400 uppercase font-semibold "
+			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
 	>
 		<Icon
 			icon={getButtonAndIconValues(listboxValue).iconValue}
@@ -172,7 +172,7 @@
 </div>
 <!-- Dropdown/Listbox -->
 <div
-	class="card w-48 z-10 bg-surface-500 text-white  overflow-hiddens rounded-sm"
+	class="card w-48 z-10 bg-surface-500 text-white overflow-hiddens rounded-sm"
 	data-popup="Combobox"
 >
 	<ListBox

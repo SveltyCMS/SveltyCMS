@@ -319,7 +319,7 @@
 	let headerGroups = $table.getHeaderGroups();
 </script>
 
-<h4 class="mb-2 text-error-500 ">List of aktive Users Invites:</h4>
+<h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
 
 <table>
 	<thead class="bg-surface-600 rounded-t border-b-2 text-white">
@@ -358,7 +358,7 @@
 		<!-- Search icon -->
 		<svg
 			xmlns="http://www.w3.org/2000/svg"
-			class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
+			class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white"
 			fill="none"
 			viewBox="0 0 24 24"
 			stroke="currentColor"
@@ -464,7 +464,7 @@
 
 <!-- tanstack table -->
 <div class="table-container">
-	<table class="table table-hover ">
+	<table class="table table-hover">
 		<thead>
 			{#each $table.getHeaderGroups() as headerGroup}
 				<tr class="divide-x">
@@ -599,7 +599,7 @@
 			</button>
 		</div>
 	</div>
-	<div class="md:hidden flex flex-col justify-center items-center gap-2 ">
+	<div class="md:hidden flex flex-col justify-center items-center gap-2">
 		<!-- number of pages -->
 		<select
 			value={$table.getState().pagination.pageSize}

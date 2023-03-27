@@ -92,7 +92,7 @@
 			<!-- badge with count -->
 			{#if field.count || field.minlength || field.maxlength}
 				{#if field.suffix}
-					<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
+					<span class="badge -my-1 -mx-1 mr-1 {getBadgeClass(count)}">
 						{#if field.count && field.minlength && field.maxlength}
 							{count}/{field.maxlength}
 						{:else if field.count && field.maxlength}
@@ -110,7 +110,7 @@
 						{/if}
 					</span>
 				{:else}
-					<span class="badge -my-1 -mx-1 mr-1  {getBadgeClass(count)}">
+					<span class="badge -my-1 -mx-1 mr-1 {getBadgeClass(count)}">
 						{#if field.count && field.minlength && field.maxlength}
 							{count}/{field.maxlength}
 						{:else if field.count && field.maxlength}

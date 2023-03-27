@@ -2,6 +2,15 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
+	import { dev } from '$app/environment';
+	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+
+	// if (dev) {
+	//     export let tokenLink = { HOST_DEV };
+	// else
+	// 	export let tokenLink = { HOST_PROD };
+	// }
+
 	// Lucia
 	import { getUser } from '@lucia-auth/sveltekit/client';
 	const user = getUser();
@@ -70,7 +79,7 @@
 			<Text style={paragraph}>{$user?.username}, welcome to {PUBLIC_SITENAME}</Text>
 			<Text style={paragraph}>A Sveltekit powered flexible Headless CMS</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href="https://localhost:5173/SimpleCMS/">
+				<Button pX={12} pY={12} style={button} href={HOST_DEV}>
 					Go to {PUBLIC_SITENAME}
 				</Button>
 			</Section>

@@ -219,7 +219,7 @@
 						class="absolute bottom-0 left-0 mt-4 h-2 w-full rounded bg-tertiary-500"
 						style="width: {progress}%"
 					/>
-					<div class="absolute top-0 left-0 flex h-full w-full items-center justify-center ">
+					<div class="absolute top-0 left-0 flex h-full w-full items-center justify-center">
 						<div class="p-[1.7px] rounded-full variant-filled-surface text-[9px]">
 							{progress}%
 						</div>

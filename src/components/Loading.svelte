@@ -6,23 +6,23 @@
 
 <div class="absolute inset-0 flex justify-center items-center shadow-2xl">
 	<div
-		class="relative border-4 border-error-500 rounded-full border-x-transparent h-[160px] w-[160px] "
+		class="relative border-4 border-error-500 rounded-full border-x-transparent h-[160px] w-[160px]"
 		id="loader"
 	/>
 	<div
-		class="absolute border-4 border-tertiary-400 rounded-full border-x-transparent h-[170px] w-[170px] "
+		class="absolute border-4 border-tertiary-400 rounded-full border-x-transparent h-[170px] w-[170px]"
 		id="loader2"
 	/>
 	<div
-		class="absolute border-4 border-success-400 rounded-full border-x-transparent h-[180px] w-[180px] "
+		class="absolute border-4 border-success-400 rounded-full border-x-transparent h-[180px] w-[180px]"
 		id="loader3"
 	/>
 	<div
-		class="absolute border-4 border-surface-400 rounded-full border-x-transparent h-[190px] w-[190px] "
+		class="absolute border-4 border-surface-400 rounded-full border-x-transparent h-[190px] w-[190px]"
 		id="loader4"
 	/>
 	<div
-		class="dark:text-white text-black bg-transparent p-6 rounded-full absolute  flex flex-col justify-center items-center uppercase"
+		class="dark:text-white text-black bg-transparent p-6 rounded-full absolute flex flex-col justify-center items-center uppercase"
 	>
 		<div>{$LL.LOADING_Wait()}</div>
 		<div><Logo className="w-10 p-1" fill="red" /></div>

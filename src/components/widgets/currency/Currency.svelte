@@ -4,8 +4,7 @@
 	import * as z from 'zod';
 
 	export let field: any = undefined;
-	export let value: string = '';
-
+	export let value: { value: number | null } = { value: field.value ?? null };
 	export let widgetValue;
 
 	$: widgetValue = {
@@ -54,14 +53,14 @@
 
 	// create a reactive statement that updates the formatted value whenever the value changes
 	$: {
-		// round the value to 2 decimal places
-		const roundedValue = Math.round(value.value * 100) / 100;
-
-		formattedValue = new Intl.NumberFormat(get(locale), {
-			style: 'currency',
-			currencyDisplay: 'symbol',
-			currency: 'EUR'
-		}).format(roundedValue);
+		if (value != null && value.value != null) {
+			const roundedValue = Math.round(value.value * 100) / 100;
+			formattedValue = new Intl.NumberFormat(get(locale), {
+				style: 'currency',
+				currencyDisplay: 'symbol',
+				currency: 'EUR'
+			}).format(roundedValue);
+		}
 	}
 
 	// create a zod schema for validation
@@ -94,7 +93,7 @@
 <!-- display formatted value -->
 <p class="text-center">
 	Formated <span class="uppercase">{get(locale)}</span> Value :
-	<span class="text-primary-600 ">{formattedValue}</span>
+	<span class="text-primary-600">{formattedValue}</span>
 </p>
 
 <!-- error messages -->

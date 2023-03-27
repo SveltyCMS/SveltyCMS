@@ -172,9 +172,6 @@
 
 {#if PUBLIC_MAPBOX_API_TOKEN}
 	<address class="w-full">
-		<!-- TODO: MAP geocoding 
-		allow user to switch maps-->
-		Mapbox needs more work
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"
 				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
@@ -183,7 +180,7 @@
 		<div use:initMap class="h-[360px] sm:h-[550px] w-full" id="map" />
 
 		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
-		<div class="flex justify-center gap-2 ">
+		<div class="flex justify-center gap-2">
 			<input
 				required
 				type="text"

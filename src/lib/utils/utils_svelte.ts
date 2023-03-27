@@ -66,7 +66,6 @@ export async function saveData(
 	doc_id?: string,
 	insert?: boolean
 ) {
-
 	const oldData_id = doc_id || get(entryData)?._id;
 	//if formData object is empty then:
 	formData.append('status', collection.status);

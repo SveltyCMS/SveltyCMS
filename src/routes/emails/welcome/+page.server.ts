@@ -1,5 +1,4 @@
 import nodemailer from 'nodemailer';
-
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 import { render } from 'svelte-email';
 import WelcomeUser from '$lib/emails/welcomeUser.svelte';
@@ -20,7 +19,7 @@ async function sendMail(email: string, subject: string, message: string, html?: 
 		// @ts-ignore
 
 		host: SMTP_HOST,
-		port: 465,
+		port: SMTP_PORT,
 		secure: true,
 		// port: SMTP_PORT,
 		// secure: false, // true for 465, false for other ports

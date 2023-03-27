@@ -425,12 +425,12 @@
 					<div style="position: absolute;" />
 				{/if}
 				<div
-					class="image_container relative "
+					class="image_container relative"
 					id="imagePart"
 					style="width: {CONT_WIDTH}; height: {CONT_HEIGHT};"
 				>
 					<div
-						class="image_container relative "
+						class="image_container relative"
 						style="width: {CONT_WIDTH}; height: {CONT_HEIGHT}; transform-origin:  50% 50%; transform: rotate({rotate}deg) scale({rotateDetails.scale})"
 					>
 						<img

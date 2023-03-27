@@ -1,7 +1,6 @@
 <script>
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
-	import { HOST } from '$env/static/private';
 
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
@@ -10,7 +9,17 @@
 	export let role = 'admin';
 	export let token = 'token';
 	export let expires_in = '2hrs';
-	export let tokenLink = { HOST };
+
+	import { dev } from '$app/environment';
+	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+
+	export let tokenLink = { HOST_DEV };
+
+	// if (dev) {
+	//     export let tokenLink = { HOST_DEV };
+	// else
+	// 	export let tokenLink = { HOST_PROD };
+	// }
 
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';

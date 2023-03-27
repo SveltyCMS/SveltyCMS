@@ -1,6 +1,5 @@
 import Address from './address';
 import Checkbox from './checkbox';
-import Condition from './condition';
 import Currency from './currency';
 import Date from './date';
 import DateRange from './dateRange';
@@ -25,7 +24,6 @@ import Url from './url';
 export type Widgets = {
 	Address: typeof Address;
 	Checkbox: typeof Checkbox;
-	Condition: typeof Condition;
 	Currency: typeof Currency;
 	Date: typeof Date;
 	DateRange: typeof DateRange;
@@ -59,8 +57,6 @@ const widgets: Widgets = {
 	//Blocks,
 	// Checkbox - boolean true / false checkbox
 	Checkbox,
-	// Add a conditional field to hidde show fields
-	Condition,
 	// Code - code editor that saves a string to the database
 	//Code,
 	// Collapsible - used for admin layout, nest fields within a collapsible component
@@ -73,7 +69,7 @@ const widgets: Widgets = {
 	DateRange,
 	// Email - validates the entry is a properly formatted email
 	Email,
-	// Group - nest fields within an object
+	// Group - nest fields within an object with condition & tabs
 	Group,
 	// ImageUpload - allows image upload with editor
 	ImageUpload,

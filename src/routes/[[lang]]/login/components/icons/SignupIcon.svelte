@@ -9,7 +9,7 @@
 {#if !(!show || forgot)}
 	<div
 		class:hide={!show || forgot}
-		class="dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer flex  items-center justify-center flex-col"
+		class="dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer flex items-center justify-center flex-col"
 	>
 		<div class=" relative w-max rounded-full border-4 border-white p-3">
 			<svg

@@ -73,9 +73,7 @@
 </script>
 
 {#if !expanded}
-	<div
-		class="flex items-center justify-center gap-1 rounded-lg bg-surface-200  dark:bg-surface-500"
-	>
+	<div class="flex items-center justify-center gap-1 rounded-lg bg-surface-200 dark:bg-surface-500">
 		<p
 			on:click={async () => {
 				!dropDownData.length && (dropDownData = await find({}, field.relation));

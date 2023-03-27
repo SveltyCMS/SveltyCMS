@@ -13,7 +13,7 @@ import { get } from 'svelte/store';
 
 let categories = [
 	{
-		//Content
+		// Content
 		category: get(LL).CollectionCategory_Content(),
 		icon: 'bi:collection',
 		collections: [Test, Posts],
@@ -21,16 +21,16 @@ let categories = [
 	},
 
 	{
-		//Media
+		// Media
 		category: get(LL).CollectionCategory_Media(),
 		icon: 'bi:images',
-		collections: [Images, Media, ImageArray, ImageEditor],
+		collections: [Media, Images, ImageArray, ImageEditor],
 		collectionIds: []
 	},
 	{
-		//Menu & /Taxonomy
+		// Menu &  Taxonomy
 		category: get(LL).CollectionCategory_Menu(),
-		icon: 'bi:collection',
+		icon: 'bi:menu-button-wide',
 		collections: [Menu],
 		collectionIds: []
 	}

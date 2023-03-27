@@ -5,7 +5,8 @@
 	import Signin from './components/Signin.svelte';
 	import SignUp from './components/Signup.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
-	import LocaleSwitcher from '$lib/LocaleSwitcher.svelte';
+	import LocaleSwitcher from '$src/components/LocaleSwitcher.svelte';
+
 	import { page } from '$app/stores';
 
 	export let data: PageData;
@@ -91,7 +92,7 @@
 				</svg>
 
 				<div
-					class="absolute top-[77px] left-1/2 -translate-x-1/2 -translate-y-1/2 transform  flex flex-col items-center justify-center text-center"
+					class="absolute top-[77px] left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex flex-col items-center justify-center text-center"
 				>
 					<Logo fill="black" className="w-8 h-8" />
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
@@ -103,7 +104,10 @@
 		<div
 			class="absolute bottom-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
 		>
-			<div class="text-surface-600 bg-white rounded-full p-1"><LocaleSwitcher /></div>
+			<div class="text-surface-600 rounded-full p-1">
+				DE
+				<!-- <LocaleSwitcher /> -->
+			</div>
 		</div>
 	{/if}
 </div>

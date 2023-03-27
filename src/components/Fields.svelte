@@ -32,7 +32,7 @@
 {#each fields as field, index}
 	<div
 		bind:this={inputFields[index]}
-		class="section relative my-2  {!field.field.width ? 'w-full' : 'max-md:!w-full'}"
+		class="section relative my-2 {!field.field.width ? 'w-full' : 'max-md:!w-full'}"
 		style={field.field.width && `width:${field.field.width.replace('%', '') * 1 - 1}%`}
 	>
 		<!-- db_fieldName or label  -->

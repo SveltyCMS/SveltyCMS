@@ -411,7 +411,7 @@
 		<!-- mobile preview -->
 		<!-- TODO: add mobile login display -->
 		<div class="card variant-glass-secondary h-28 mt-4 p-4 max-w-sm mx-auto">
-			<p class="!text-xs px-4 text-surface-400 flex items-center ">
+			<p class="!text-xs px-4 text-surface-400 flex items-center">
 				<Icon icon="mdi:world" width="18" class="text-white mr-2" />{hostUrl}
 			</p>
 			<h3 class="px-4 !font-medium text-primary-500">{title}</h3>
@@ -429,7 +429,7 @@
 
 <!-- Mobile -->
 <div class="md:hidden">
-	<h3 class="mb-2 text-center ">{$LL.WIDGET_Seo_Suggetion_ListOfSuggestion()}</h3>
+	<h3 class="mb-2 text-center">{$LL.WIDGET_Seo_Suggetion_ListOfSuggestion()}</h3>
 	<div class="flex">
 		<ProgressRadial
 			value={progress}
@@ -439,7 +439,7 @@
 		>
 		<div class="flex flex-col justify-start">
 			<div class="gap sm:flex sm:gap-4">
-				<div class="flex justify-center gap-2 ">
+				<div class="flex justify-center gap-2">
 					<Icon icon="mdi:close-octagon" class="text-error-500" width="24" />
 					<span class="flex-auto">0 - 49</span>
 				</div>
@@ -447,7 +447,7 @@
 					<span><Icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" /></span>
 					<span class="flex-auto">50 - 79</span>
 				</div>
-				<div class="flex justify-center gap-2 ">
+				<div class="flex justify-center gap-2">
 					<span
 						><Icon
 							icon="material-symbols:check-circle-outline"
@@ -467,7 +467,7 @@
 
 <!-- desktop -->
 <div class="hidden md:block">
-	<div class="mt-2 flex items-center justify-center dark:text-white ">
+	<div class="mt-2 flex items-center justify-center dark:text-white">
 		<ProgressRadial
 			value={progress}
 			stroke={200}

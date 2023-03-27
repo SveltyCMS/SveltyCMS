@@ -420,13 +420,12 @@
 			{/if}
 
 			<!-- Collection type with icon -->
-
 			<div class="flex flex-col max-w-[76px] sm:max-w-none {!$toggleLeftSidebar ? 'ml-2' : ''}">
 				{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 						{category}
 					</div>{/if}
 				<div
-					class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl "
+					class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl"
 				>
 					{#if collection.icon}<span>
 							<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
@@ -487,12 +486,12 @@
 				<input
 					on:keyup={search}
 					placeholder="{$LL.ENTRYLIST_Search()} {collection.name} ..."
-					class="relative z-10 mt-1 h-10 !w-10 cursor-pointer !rounded-full border border-surface-500 bg-surface-200/50 pl-12 text-black shadow-xl outline-none focus:!w-full focus:cursor-text focus:rounded-md dark:bg-surface-500/50 dark:text-white md:mt-0 md:h-12 md:!w-full "
+					class="relative z-10 mt-1 h-10 !w-10 cursor-pointer !rounded-full border border-surface-500 bg-surface-200/50 pl-12 text-black shadow-xl outline-none focus:!w-full focus:cursor-text focus:rounded-md dark:bg-surface-500/50 dark:text-white md:mt-0 md:h-12 md:!w-full"
 				/>
 				<!-- searchIcon -->
 				<svg
 					xmlns="http://www.w3.org/2000/svg"
-					class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white "
+					class="absolute inset-y-0 my-auto h-8 w-12 border-transparent stroke-black px-3.5 dark:stroke-white"
 					fill="none"
 					viewBox="0 0 24 24"
 					stroke="currentColor"
@@ -510,7 +509,7 @@
 			<span class="relative rounded-md shadow-xl mr-1">
 				<button
 					use:popup={ContentLangSettings}
-					class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white "
+					class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white"
 				>
 					<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
 					<span class="hidden sm:block">{$language}</span>
@@ -692,7 +691,7 @@
 										on:click={() => {
 											entryButton = 'unpublish';
 										}}
-										class="btn btn-base w-full bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 font-bold text-white "
+										class="btn btn-base w-full bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 font-bold text-white"
 									>
 										<span><Icon icon="bi:pause-circle" width="20" /></span>
 										<span class="text-xl font-bold">{$LL.ENTRYLIST_Unpublish()}</span>
@@ -705,7 +704,7 @@
 										on:click={() => {
 											entryButton = 'schedule';
 										}}
-										class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white "
+										class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white"
 									>
 										<span><Icon icon="bi:clock" width="20" /></span>
 										<span class="text-xl font-bold">{$LL.ENTRYLIST_Schedule()}</span>
@@ -718,7 +717,7 @@
 										on:click={() => {
 											entryButton = 'clone';
 										}}
-										class="btn btn-base w-full bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 font-bold text-white "
+										class="btn btn-base w-full bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 font-bold text-white"
 									>
 										<span><Icon icon="bi:clipboard-data-fill" width="20" /></span>
 										<span class="text-xl font-bold">{$LL.ENTRYLIST_Clone()}</span>
@@ -761,12 +760,10 @@
 		</div>
 		<!-- Show Collection Table -->
 		<!-- TODO: Add Sort/Filter -->
-		<div class="table-container max-h-[80vh] overflow-auto bg-white shadow-xl dark:bg-surface-800 ">
-			<table class="fixed_header table-hover inline-block ">
-				<thead class="sticky top-0 ">
-					<tr
-						class="border-b-2 border-black bg-surface-600 dark:border-white dark:bg-surface-500  "
-					>
+		<div class="table-container max-h-[80vh] overflow-auto bg-white shadow-xl dark:bg-surface-800">
+			<table class="fixed_header table-hover inline-block">
+				<thead class="sticky top-0">
+					<tr class="border-b-2 border-black bg-surface-600 dark:border-white dark:bg-surface-500">
 						<th><DeleteIcon bind:checked={deleteAll} /></th>
 
 						<th class={never('text-white ')}>#</th>
@@ -793,7 +790,7 @@
 											>
 										{:else}
 											<button>
-												<div class="flex-col ">
+												<div class="flex-col">
 													<Icon icon="bi:caret-up-fill" color="black" width="14" class="" />
 													<Icon icon="bi:caret-down-fill" color="base" width="14" class="-mt-1" />
 												</div></button
@@ -837,7 +834,7 @@
 		</div>
 	</div>
 
-	<div class="flex items-center justify-between border-surface-200 p-2 ">
+	<div class="flex items-center justify-between border-surface-200 p-2">
 		<div class="flex flex-1 items-center justify-between">
 			<!-- Pagecounter -->
 			<div class="hidden text-sm text-surface-700 dark:text-surface-400 sm:block">
@@ -902,7 +899,7 @@
 							}}
 							class:active={paging.page == i + 1}
 							aria-current="page"
-							class="relative inline-flex items-center border border-surface-400 px-4 py-2 text-sm font-medium text-surface-400  hover:bg-surface-400 hover:text-white focus:z-20 active:text-black "
+							class="relative inline-flex items-center border border-surface-400 px-4 py-2 text-sm font-medium text-surface-400 hover:bg-surface-400 hover:text-white focus:z-20 active:text-black"
 						>
 							{i + 1}
 						</div>

@@ -34,6 +34,7 @@
 	export let showFields = true;
 	import showFieldsStore from '$src/lib/stores/fieldStore';
 	import AnimatedHamburger from './AnimatedHamburger.svelte';
+	import { toggleLeftSidebar } from '$src/stores/store';
 
 	$: {
 		$getFieldsData = new Set();
@@ -41,14 +42,12 @@
 	}
 
 	let open = false;
-
-	import { toggleLeftSidebar } from '$src/stores/store';
 </script>
 
 <div
 	class="fields text-dark overflow-y-auto rounded bg-white p-3 dark:bg-surface-800 dark:text-white"
 >
-	<div class="relative mb-5 flex justify-start overflow-visible font-bold ">
+	<div class="relative mb-5 flex justify-start overflow-visible font-bold">
 		{#if $toggleLeftSidebar}
 			<AnimatedHamburger />
 		{/if}
@@ -57,7 +56,7 @@
 				{$LL.FORM_Create()}
 			</div>
 			<div
-				class="-mt-2 flex items-center justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl "
+				class="-mt-2 flex items-center justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl"
 			>
 				<span> <Icon icon={collection?.icon} width="24" class="mr-2" /></span>{collection?.name}
 			</div>
