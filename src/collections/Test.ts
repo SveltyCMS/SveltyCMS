@@ -9,7 +9,7 @@ import LL from '$i18n/i18n-svelte';
 const schema: Schema = {
 	// Collection Name & Icon (optional) shown on Sidebar
 	// See for possible Icons https://icon-sets.iconify.design/
-	name: 'Test Widgets',
+	name: 'TestWidgets',
 	icon: 'bi:device-ssd-fill',
 	status: 'published',
 
@@ -178,9 +178,9 @@ const schema: Schema = {
 			]
 		}),
 
-		widgets.RichText({ db_fieldName: 'Description', label: 'Desc label' }),
+		//widgets.RichText({ db_fieldName: 'Description', label: 'Desc label' }),
 
-		//widgets.Address({ db_fieldName: 'Address', label: 'Address label working' }),
+		widgets.Address({ db_fieldName: 'Address', label: 'Address label working' }),
 
 		widgets.Date({ db_fieldName: 'Date', label: 'Date label' }),
 

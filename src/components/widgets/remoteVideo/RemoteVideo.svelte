@@ -65,23 +65,21 @@
 />
 
 {#if myData?.videoUrl}
-	<div class="rounded overflow-hidden mt-2 shadow-lg md:flex md:flex-row">
+	<div class="rounded overflow-hidden shadow-lg md:flex md:flex-row">
 		<div class="px-6 py-4 md:w-1/2">
 			<div class="font-bold text-xl mb-2 text-primary-500">{myData?.videoTitle}</div>
 			<table class="text-base">
 				<tr>
 					<td class="pr-4">User:</td>
-					<td class="text-tertiary-500 font-semibold">{myData?.user_name}</td>
+					<td class="text-tertiary-500">{myData?.user_name}</td>
 				</tr>
 				<tr>
 					<td class="pr-4">Dimension:</td>
-					<td class="text-tertiary-500 font-semibold"
-						>{myData?.height} x {myData?.width} (height x width)</td
-					>
+					<td class="text-tertiary-500">{myData?.height}px x {myData?.width}px (height x width)</td>
 				</tr>
 				<tr>
 					<td class="pr-4">Duration:</td>
-					<td class="text-tertiary-500 font-semibold">{myData?.duration} min</td>
+					<td class="text-tertiary-500">{myData?.duration} min</td>
 				</tr>
 			</table>
 			<a
@@ -94,11 +92,13 @@
 				<span>Watch Video</span>
 			</a>
 		</div>
-		<img
-			class="mt-1 w-full md:w-1/2 md:h-auto"
-			data-sveltekit-preload-data="hover"
-			src={myData?.videoThumbnail}
-			alt={myData?.videoTitle}
-		/>
+		<a href={myData?.videoUrl} target="_blank" rel="noreferrer">
+			<img
+				class="mt-1 w-full md:w-1/2 md:h-auto"
+				data-sveltekit-preload-data="hover"
+				src={myData?.videoThumbnail}
+				alt={myData?.videoTitle}
+			/>
+		</a>
 	</div>
 {/if}

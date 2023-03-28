@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PUBLIC_LANGUAGE, PUBLIC_MAPBOX_API_TOKEN } from '$env/static/public';
+	import { PUBLIC_MAPBOX_API_TOKEN } from '$env/static/public';
 	import mapboxgl from 'mapbox-gl';
 
 	import * as z from 'zod';
@@ -24,15 +24,37 @@
 		closeQuery: '.listbox-item'
 		// state: (e: any) => console.log('tooltip', e)
 	};
+
 	let listboxValue: string = 'Germany';
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
 	export let field: any = undefined;
-	export let value: any = {};
+	export let value = {
+		latitude: null,
+		longitude: null,
+		name: '',
+		street: '',
+		zip: '',
+		city: '',
+		country: ''
+	};
+
+	$: if (!value) {
+		value = {
+			latitude: null,
+			longitude: null,
+			name: '',
+			street: '',
+			zip: '',
+			city: '',
+			country: ''
+		};
+	}
 
 	export let widgetValue;
+
 	$: widgetValue = {
 		latitude: value.latitude,
 		longitude: value.longitude,
@@ -86,10 +108,6 @@
 	geocoder.on('result', () => {
 		console.log('aa');
 	});
-
-	// setContext(key, {
-	// 	getMap: () => map
-	// });
 
 	let map: any;
 
@@ -177,7 +195,7 @@
 				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
 			>
 		</div>
-		<div use:initMap class="h-[360px] sm:h-[550px] w-full" id="map" />
+		<div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" />
 
 		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
 		<div class="flex justify-center gap-2">

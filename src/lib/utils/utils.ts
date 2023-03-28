@@ -3,7 +3,6 @@ import fs from 'fs';
 import schemas from '$src/collections';
 import type { Schema } from '$src/collections/types';
 import { locales } from '$i18n/i18n-util';
-import { locale } from '$i18n/i18n-svelte';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 import type { Locales } from '$i18n/i18n-types';
@@ -22,9 +21,8 @@ export const fieldsToSchema = (fields: Array<any>) => {
 	return schema;
 };
 
-// takes in a "req" object and processes any files associated with the request,
-// it saves them to a specified file path using the "fs" library.
-export function saveFiles(req: any, collection_name) {
+// Saves files from a request object to the file system
+export function saveFiles(req: any, collection_name: string) {
 	const files: any = {};
 	const schema = schemas.find((schema) => schema.name === collection_name);
 	const _files = req.files || [];
@@ -188,13 +186,14 @@ export const replaceLocaleInUrl = (
 	return newUrl.toString();
 };
 
+// Converts a File object to a data URL
 export const fileToDataUrl = (file: File) => {
 	return new Promise((resolve, reject) => {
-		const reader = new FileReader();
+		const reader = new FileReader(); // Create a new FileReader object
 		reader.onload = (event) => {
-			resolve((event.target as any).result);
+			resolve((event.target as any).result); // Resolve the promise with the data URL
 		};
-		reader.onerror = reject;
-		reader.readAsDataURL(file);
+		reader.onerror = reject; // Reject the promise in case of an error
+		reader.readAsDataURL(file); // Start reading the file as a data URL
 	});
 };
