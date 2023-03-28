@@ -12,6 +12,7 @@
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { goto } from '$app/navigation';
 
 	let languageSettings: PopupSettings = {
 		// Set the event as: click | hover | hover-click
@@ -46,8 +47,6 @@
 	const handlePopStateEvent = async ({ state }: PopStateEvent) => switchLocale(state.locale, false);
 
 	onMount(() => {
-		console.log('user', user);
-
 		if (
 			locales.includes($page.url.pathname.split('/')[1] as Locales) &&
 			user.length > 0 &&
@@ -61,12 +60,14 @@
 		lang = LanguageLabel;
 
 		switchLocale(lang, false);
-
-		history.replaceState(
-			{ ...history.state, locale: lang },
-			'',
-			replaceLocaleInUrl($page.url, lang, user)
-		);
+		console.log('in localswi', history.state, replaceLocaleInUrl($page.url, lang, user));
+		goto(`${$page.url.origin}${replaceLocaleInUrl($page.url, lang, user)}`);
+		// history.replaceState(
+		// 	// { ...history.state, locale: lang },
+		// 	history.state,
+		// 	'',
+		// 	replaceLocaleInUrl($page.url, lang, user)
+		// );
 	}
 </script>
 
@@ -99,5 +100,5 @@
 	</ListBox>
 	<!-- Arrow -->
 	<!-- TODO: hover needs to be fixed -->
-	<div class="arrow variant-filled-surface  hover:variant-filled-tertiary" />
+	<div class="arrow variant-filled-surface hover:variant-filled-tertiary" />
 </div>

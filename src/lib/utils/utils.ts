@@ -146,6 +146,7 @@ export const replaceLocaleInUrl = (
 	full = false
 ): string => {
 	const [, , ...rest] = url.pathname.split('/');
+	console.log('utils', url);
 	let haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
 	let systemValue;
 
@@ -157,17 +158,17 @@ export const replaceLocaleInUrl = (
 		return url.pathname;
 	}
 
-	if (
-		locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
-		user.length === 0 &&
-		user === ''
-	) {
-		console.log('url', url?.pathname?.split(`/`)[2], url);
-		return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
-	}
+	// if (
+	// 	locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
+	// 	user.length === 0 &&
+	// 	user === ''
+	// ) {
+	// 	console.log('utils 2', url);
+	// 	return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
+	// }
 
 	let tempPath;
-	let tempLocale = locale === systemValue ? '/' : `${locale}/`;
+	let tempLocale = locale === systemValue ? '/' : `/${locale}/`;
 
 	if (haveLocale) {
 		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';
@@ -175,13 +176,15 @@ export const replaceLocaleInUrl = (
 		tempPath = url?.pathname?.split('/')[1];
 	}
 
-	const new_pathname = `${tempLocale}`;
+	const new_pathname = `${tempLocale.toString()}`;
+	// console.log('here', new_pathname, tempPath, url);
 	// console.log('url', tempLocale, locale, url, new_pathname, haveLocale);
 	//const new_pathname = /${locale === 'en' ? '' : locale}${rest.length ? /${rest.join('/')}` : ''}`;
+	// console.log('here', new_pathname, tempPath, url);
+
 	if (!full) {
 		return `${new_pathname}${tempPath}${url.search}`;
 	}
-
 	const newUrl = new URL(url.toString());
 	newUrl.pathname = `${new_pathname}`;
 

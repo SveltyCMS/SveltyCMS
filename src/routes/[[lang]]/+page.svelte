@@ -28,7 +28,7 @@
 			fields = await shape_fields(collection.fields);
 		})();
 	}
-
+	
 	// initial show first collection
 	onMount(async () => {
 		$showFieldsStore = {

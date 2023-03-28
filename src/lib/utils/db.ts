@@ -11,23 +11,24 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 	mongoose.set('strictQuery', false);
 
 	// use for mongodb Atalas
-	// mongoose.connect(`mongodb+srv://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}/${env.DB_NAME}?retryWrites=true&w=majority`);
-
+	mongoose.connect(
+		`mongodb+srv://maheechy96:${DB_PASSWORD}@cluster0.wsmtqzv.mongodb.net/?retryWrites=true&w=majority`
+	);
 	// use for mongodb
-	mongoose
-		.connect(DB_HOST, {
-			authSource: 'admin',
-			user: DB_USER,
-			pass: DB_PASSWORD,
-			dbName: DB_NAME
-		})
-		.then((res) => {
-			// console.log('Connected to DB');
-			// console.log({ dbRes: res });
-		})
-		.catch((err) => {
-			console.log({ dbErr: err });
-		});
+	// mongoose
+	// 	.connect(DB_HOST, {
+	// 		authSource: 'admin',
+	// 		user: DB_USER,
+	// 		pass: DB_PASSWORD,
+	// 		dbName: DB_NAME
+	// 	})
+	// 	.then((res) => {
+	// 		// console.log('Connected to DB');
+	// 		// console.log({ dbRes: res });
+	// 	})
+	// 	.catch((err) => {
+	// 		console.log({ dbErr: err });
+	// 	});
 
 	return await resolve(event);
 };

@@ -30,7 +30,8 @@ const checkUserExistsInDb = async () => {
 	}
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
+
 	const session = await locals.validate();
 	if (session) throw redirect(302, '/');
 	// check if firstUserExsits or not

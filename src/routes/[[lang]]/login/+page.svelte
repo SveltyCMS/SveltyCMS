@@ -1,13 +1,12 @@
 <script lang="ts">
 	import type { ActionData, PageData } from './$types';
 	import Logo from './components/icons/Logo.svelte';
+	import { page } from '$app/stores';
 
 	import Signin from './components/Signin.svelte';
 	import SignUp from './components/Signup.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import LocaleSwitcher from '$src/components/LocaleSwitcher.svelte';
-
-	import { page } from '$app/stores';
 
 	export let data: PageData;
 
