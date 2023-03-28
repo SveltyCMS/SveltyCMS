@@ -1,4 +1,7 @@
 <script lang="ts">
+	// Icons from https://icon-sets.iconify.design/
+	import Icon from '@iconify/svelte';
+
 	export let field: any = undefined;
 	export let value = '';
 
@@ -62,27 +65,40 @@
 />
 
 {#if myData?.videoUrl}
-	<div class="rounded border">
-		<div class="mb-1 text-lg font-bold">
-			Title: <span class="text-tertiary-500">{myData?.videoTitle}</span>
+	<div class="rounded overflow-hidden mt-2 shadow-lg md:flex md:flex-row">
+		<div class="px-6 py-4 md:w-1/2">
+			<div class="font-bold text-xl mb-2 text-primary-500">{myData?.videoTitle}</div>
+			<table class="text-base">
+				<tr>
+					<td class="pr-4">User:</td>
+					<td class="text-tertiary-500 font-semibold">{myData?.user_name}</td>
+				</tr>
+				<tr>
+					<td class="pr-4">Dimension:</td>
+					<td class="text-tertiary-500 font-semibold"
+						>{myData?.height} x {myData?.width} (height x width)</td
+					>
+				</tr>
+				<tr>
+					<td class="pr-4">Duration:</td>
+					<td class="text-tertiary-500 font-semibold">{myData?.duration} min</td>
+				</tr>
+			</table>
+			<a
+				href={myData?.videoUrl}
+				target="_blank"
+				rel="noreferrer"
+				class="btn btn-sm mt-4 variant-filled-tertiary"
+			>
+				<span><Icon icon="material-symbols:play-circle-outline" width="18" /></span>
+				<span>Watch Video</span>
+			</a>
 		</div>
-		<div class="mb-1 text-lg font-bold">
-			User: <span class="text-tertiary-500">{myData?.user_name}</span>
-		</div>
-		<div class="mb-1 text-lg font-bold">
-			Dimention: <span class="text-tertiary-500">{myData?.height} x {myData?.width} </span>(height x
-			width)
-		</div>
-		<div class="mb-1 text-lg font-bold">
-			Duration: <span class="text-tertiary-500">{myData?.duration}</span> min
-		</div>
-		<div class="mb-1 inline-block text-lg font-bold">Video Link:</div>
-		<a
-			target="_blank"
-			href={myData?.videoUrl}
-			rel="noreferrer"
-			class="text-lg text-tertiary-500 !no-underline">{myData?.videoUrl}</a
-		>
-		<img width="600" height="400" src={myData?.videoThumbnail} alt={myData?.videoTitle} />
+		<img
+			class="mt-1 w-full md:w-1/2 md:h-auto"
+			data-sveltekit-preload-data="hover"
+			src={myData?.videoThumbnail}
+			alt={myData?.videoTitle}
+		/>
 	</div>
 {/if}

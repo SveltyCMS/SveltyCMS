@@ -64,7 +64,7 @@ specifiers:
   svelte-lexical: 0.2.0
   svelte-preprocess: 5.0.3
   svelte-tel-input: ^1.3.2
-  sveltekit-superforms: ^0.6.4
+  sveltekit-superforms: ^0.6.5
   tabulator-tables: ^5.4.4
   tailwindcss: 3.2.7
   tiktok-scraper: ^1.4.36
@@ -144,7 +144,7 @@ devDependencies:
   svelte: 3.57.0
   svelte-check: 3.1.4_luph556zpodi3vqhnlezpo6clm
   svelte-preprocess: 5.0.3_3vd5pb6cumhbpapnfpyf6khw7q
-  sveltekit-superforms: 0.6.4_37gw5tcuf4z4odi5bs6bajnwda
+  sveltekit-superforms: 0.6.5_37gw5tcuf4z4odi5bs6bajnwda
   tailwindcss: 3.2.7_postcss@8.4.21
   tslib: 2.5.0
   typesafe-i18n: 5.24.3_typescript@5.0.2
@@ -6973,8 +6973,8 @@ packages:
     resolution: {integrity: sha512-WMXEvF+RtAaclw0t3bPDTUe19pplMlfyKDsixbHQYgCWi9+O9VN0kXU1OppzrB9gPAvz4NALuoca2LfW2bOjTQ==}
     engines: {node: '>= 8'}
 
-  /sveltekit-superforms/0.6.4_37gw5tcuf4z4odi5bs6bajnwda:
-    resolution: {integrity: sha512-nvjNAXZt1/MWaMYlzoNTF+gETPKoG+nTO9DOiWtTclOAqW2dR9wGGpvXl/BGDMYS2kymCVVg4D3kKqE+skBrHA==}
+  /sveltekit-superforms/0.6.5_37gw5tcuf4z4odi5bs6bajnwda:
+    resolution: {integrity: sha512-PYu80Q0J3foyGgqxJA4rqQT6EW5KU6aGER/th5jRa3RnLSBws3bVEUa96mz674mnU+hX4QV2ZeqAzufds8Jrxw==}
     peerDependencies:
       '@sveltejs/kit': 1.x
       svelte: 3.x
