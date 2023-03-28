@@ -13,12 +13,10 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
-	import { fade } from 'svelte/transition';
-
 	let languageSettings: PopupSettings = {
 		// Set the event as: click | hover | hover-click
 		event: 'click',
-		placement: 'top',
+		placement: 'bottom',
 		// Provide a matching 'data-popup' value.
 		target: 'language-dropdown'
 	};
@@ -75,14 +73,16 @@
 <svelte:window on:popstate={handlePopStateEvent} />
 
 <button
-	class="btn btn-sm rounded-full variant-ghost-secondary justify-between uppercase"
+	class="btn btn-sm rounded-full border border-white variant-filled-surface justify-between uppercase"
 	use:popup={languageSettings}
 >
 	{LanguageLabel}
 </button>
 
-<div class="uppercase variant-filled-secondary" data-popup="language-dropdown">
-	<!-- Listbox -->
+<div
+	class="uppercase variant-filled-surface border border-white hover:variant-filled-tertiary"
+	data-popup="language-dropdown"
+>
 	<ListBox rounded="rounded-none">
 		{#each locales as loc}
 			{#if loc !== LanguageLabel}
@@ -98,5 +98,6 @@
 		{/each}
 	</ListBox>
 	<!-- Arrow -->
-	<div class="arrow variant-filled-secondary" />
+	<!-- TODO: hover needs to be fixed -->
+	<div class="arrow variant-filled-surface  hover:variant-filled-tertiary" />
 </div>

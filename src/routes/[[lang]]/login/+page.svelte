@@ -105,8 +105,8 @@
 			class="absolute bottom-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 transform flex items-center justify-center"
 		>
 			<div class="text-surface-600 rounded-full p-1">
-				DE
-				<!-- <LocaleSwitcher /> -->
+				<!-- DE -->
+				<LocaleSwitcher />
 			</div>
 		</div>
 	{/if}

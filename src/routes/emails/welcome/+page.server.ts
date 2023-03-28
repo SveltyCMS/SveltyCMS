@@ -13,7 +13,7 @@ import WelcomeUser from '$lib/emails/welcomeUser.svelte';
  * Suggest: Move secure to true (probably will need in future)
  */
 
-async function sendMail(email: string, subject: string, message: string, html?: string) {
+function sendMail(email: string, subject: string, message: string, html?: string) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
@@ -28,17 +28,11 @@ async function sendMail(email: string, subject: string, message: string, html?: 
 			pass: SMTP_PASSWORD // generated ethereal password
 		}
 	});
-	// const emailOptions = {
-	// 	from: SMTP_EMAIL,
-	// 	to: email, // list of receivers
-	// 	subject: subject, // Subject line
-	// 	text: message, // plain text body
-	// 	html: 'html' // optionally include an HTML message
-	// };
+
 	const emailHtml = render({
 		template: WelcomeUser,
 		props: {
-			name: 'Svelte'
+			username: 'Svelte'
 		}
 	});
 
@@ -61,4 +55,4 @@ async function sendMail(email: string, subject: string, message: string, html?: 
 	return info;
 }
 
-export default sendMail;
+export { sendMail };

@@ -28,7 +28,7 @@
 	};
 
 	const btnContainer = {
-		textAlign: 'center' as const
+		textAlign: 'center'
 	};
 
 	const button = {
@@ -38,7 +38,7 @@
 		color: '#fff',
 		fontSize: '16px',
 		textDecoration: 'none',
-		textAlign: 'center' as const,
+		textAlign: 'center',
 		display: 'block'
 	};
 
