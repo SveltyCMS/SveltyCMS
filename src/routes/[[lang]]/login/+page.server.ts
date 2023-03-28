@@ -4,7 +4,7 @@ import type { PageServerLoad } from './$types';
 import { get } from 'svelte/store';
 
 // Nodemailer
-import sendMail from '../../emails/welcome/+page.server';
+import { sendMail } from '../../emails/welcome/+server';
 import { randomBytes } from 'crypto';
 
 // lucia
@@ -31,7 +31,6 @@ const checkUserExistsInDb = async () => {
 };
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-
 	const session = await locals.validate();
 	if (session) throw redirect(302, '/');
 	// check if firstUserExsits or not
