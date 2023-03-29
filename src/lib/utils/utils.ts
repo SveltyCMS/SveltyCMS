@@ -3,6 +3,7 @@ import fs from 'fs';
 import schemas from '$src/collections';
 import type { Schema } from '$src/collections/types';
 import { locales } from '$i18n/i18n-util';
+import { locale } from '$i18n/i18n-svelte';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 import type { Locales } from '$i18n/i18n-types';
@@ -21,8 +22,9 @@ export const fieldsToSchema = (fields: Array<any>) => {
 	return schema;
 };
 
-// Saves files from a request object to the file system
-export function saveFiles(req: any, collection_name: string) {
+// takes in a "req" object and processes any files associated with the request,
+// it saves them to a specified file path using the "fs" library.
+export function saveFiles(req: any, collection_name) {
 	const files: any = {};
 	const schema = schemas.find((schema) => schema.name === collection_name);
 	const _files = req.files || [];
@@ -144,6 +146,7 @@ export const replaceLocaleInUrl = (
 	full = false
 ): string => {
 	const [, , ...rest] = url.pathname.split('/');
+	console.log('utils', url);
 	let haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
 	let systemValue;
 
@@ -155,45 +158,46 @@ export const replaceLocaleInUrl = (
 		return url.pathname;
 	}
 
-	if (
-		locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
-		user.length === 0 &&
-		user === ''
-	) {
-		console.log('url', url?.pathname?.split(`/`)[2], url);
-		return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
-	}
+	// if (
+	// 	locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
+	// 	user.length === 0 &&
+	// 	user === ''
+	// ) {
+	// 	console.log('utils 2', url);
+	// 	return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
+	// }
 
 	let tempPath;
-	const tempLocale = locale === systemValue ? '/' : `${locale}/`;
+	let tempLocale = locale === systemValue ? '/' : `/${locale}/`;
 
-	if (haveLocale && locale !== systemValue) {
+	if (haveLocale) {
 		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';
 	} else {
 		tempPath = url?.pathname?.split('/')[1];
 	}
 
-	const new_pathname = `${tempLocale}`;
+	const new_pathname = `${tempLocale.toString()}`;
+	// console.log('here', new_pathname, tempPath, url);
 	// console.log('url', tempLocale, locale, url, new_pathname, haveLocale);
 	//const new_pathname = /${locale === 'en' ? '' : locale}${rest.length ? /${rest.join('/')}` : ''}`;
+	// console.log('here', new_pathname, tempPath, url);
+
 	if (!full) {
 		return `${new_pathname}${tempPath}${url.search}`;
 	}
-
 	const newUrl = new URL(url.toString());
 	newUrl.pathname = `${new_pathname}`;
 
 	return newUrl.toString();
 };
 
-// Converts a File object to a data URL
 export const fileToDataUrl = (file: File) => {
 	return new Promise((resolve, reject) => {
-		const reader = new FileReader(); // Create a new FileReader object
+		const reader = new FileReader();
 		reader.onload = (event) => {
-			resolve((event.target as any).result); // Resolve the promise with the data URL
+			resolve((event.target as any).result);
 		};
-		reader.onerror = reject; // Reject the promise in case of an error
-		reader.readAsDataURL(file); // Start reading the file as a data URL
+		reader.onerror = reject;
+		reader.readAsDataURL(file);
 	});
 };
