@@ -60,7 +60,7 @@
 	$: if (browser) {
 		lang = LanguageLabel;
 		switchLocale(lang, false);
-		console.log('in localswi', history.state, replaceLocaleInUrl($page.url, lang, user));
+		//console.log('in localswi', history.state, replaceLocaleInUrl($page.url, lang, user));
 		goto(`${$page.url.origin}${replaceLocaleInUrl($page.url, lang, user)}`);
 		// history.replaceState(
 		// 	// { ...history.state, locale: lang },

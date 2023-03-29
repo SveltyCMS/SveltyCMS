@@ -3,7 +3,6 @@ import fs from 'fs';
 import schemas from '$src/collections';
 import type { Schema } from '$src/collections/types';
 import { locales } from '$i18n/i18n-util';
-import { locale } from '$i18n/i18n-svelte';
 
 import { PUBLIC_LANGUAGE } from '$env/static/public';
 import type { Locales } from '$i18n/i18n-types';
@@ -133,12 +132,6 @@ export function flattenData(data: any, language: string) {
 }
 
 // Replaces the locale slug in a URL.
-//
-// If the `full` argument is set to `true`, the full URL is returned as a string.
-// e.g. https://mywebsite.com/en/blog/article-1 => https://mywebsite.com/de/blog/article-1
-//
-// Otherwise (default) the URL relative to the base is returned.
-// e.g. https://mywebsite.com/en/blog/article-1 => /de/blog/article-1
 export const replaceLocaleInUrl = (
 	url: URL,
 	locale: string,
@@ -146,8 +139,8 @@ export const replaceLocaleInUrl = (
 	full = false
 ): string => {
 	const [, , ...rest] = url.pathname.split('/');
-	console.log('utils', url);
-	let haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
+	//console.log('utils', url);
+	const haveLocale = locales.includes(url?.pathname?.split('/')[1] as Locales);
 	let systemValue;
 
 	systemLanguage.subscribe((value) => {
@@ -158,29 +151,16 @@ export const replaceLocaleInUrl = (
 		return url.pathname;
 	}
 
-	// if (
-	// 	locales.includes(url?.pathname?.split(`/`)[1] as Locales) &&
-	// 	user.length === 0 &&
-	// 	user === ''
-	// ) {
-	// 	console.log('utils 2', url);
-	// 	return `${url.origin}/${url?.pathname?.split(`/`)[2]}`;
-	// }
-
 	let tempPath;
-	let tempLocale = locale === systemValue ? '/' : `/${locale}/`;
+	const tempLocale = locale === systemValue ? '/' : `/${locale}/`;
 
 	if (haveLocale) {
-		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';
+		tempPath = url.pathname.split('/').slice(2).join('/');
 	} else {
-		tempPath = url?.pathname?.split('/')[1];
+		tempPath = url.pathname.split('/').slice(1).join('/');
 	}
 
 	const new_pathname = `${tempLocale.toString()}`;
-	// console.log('here', new_pathname, tempPath, url);
-	// console.log('url', tempLocale, locale, url, new_pathname, haveLocale);
-	//const new_pathname = /${locale === 'en' ? '' : locale}${rest.length ? /${rest.join('/')}` : ''}`;
-	// console.log('here', new_pathname, tempPath, url);
 
 	if (!full) {
 		return `${new_pathname}${tempPath}${url.search}`;
@@ -191,13 +171,16 @@ export const replaceLocaleInUrl = (
 	return newUrl.toString();
 };
 
+// This function converts a file object to a data URL string that can be used to display or upload the contents of the file.
 export const fileToDataUrl = (file: File) => {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
 		reader.onload = (event) => {
+			// Resolve the promise with the base64-encoded contents of the file.
 			resolve((event.target as any).result);
 		};
 		reader.onerror = reject;
+		// Read the contents of the file as a data URL string.
 		reader.readAsDataURL(file);
 	});
 };
