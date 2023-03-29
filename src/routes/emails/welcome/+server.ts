@@ -1,7 +1,5 @@
 import nodemailer from 'nodemailer';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
-import { render } from 'svelte-email';
-import WelcomeUser from '$lib/emails/welcomeUser.svelte';
 
 /** Send email
  * @param {string} email - user email address
@@ -13,7 +11,8 @@ import WelcomeUser from '$lib/emails/welcomeUser.svelte';
  * Suggest: Move secure to true (probably will need in future)
  */
 
-function sendMail(email: string, subject: string, message: string, html?: string) {
+async function sendMail(email: string, subject: string, message: string, html?: string) {
+	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
@@ -29,28 +28,21 @@ function sendMail(email: string, subject: string, message: string, html?: string
 		}
 	});
 
-	const emailHtml = render({
-		template: WelcomeUser,
-		props: {
-			username: 'Svelte'
-		}
-	});
-
 	const options = {
 		from: SMTP_EMAIL,
 		to: email,
 		subject: subject,
-		html: emailHtml
+		html: '<h2>Generate Token</h2>'
 	};
 
-	const info = transporter.sendMail(options, (error, info) => {
+	const info = await transporter.sendMail(options, (error, info) => {
 		if (error) {
-			return console.log(error);
+			return console.log(' sending mail', error);
 		}
 		console.log('Message sent: %s', info.messageId);
 		console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
 	});
-
+	console.log('Message sent: %s', info, email, subject);
 	//const info = await transporter.sendMail(emailOptions);
 	return info;
 }

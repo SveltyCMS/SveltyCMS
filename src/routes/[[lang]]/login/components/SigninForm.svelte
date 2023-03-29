@@ -212,7 +212,7 @@
 						<input
 							bind:value={email}
 							on:keydown={() => (errorStatus.email.status = false)}
-							color={errorStatus.email.status ? 'red' : 'base'}
+							color={errorStatus?.email?.status ? 'red' : 'base'}
 							type="email"
 							name="email"
 							class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent py-2.5 px-6 text-sm !text-surface-900 focus:border-surface-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-surface-500"
@@ -225,9 +225,9 @@
 							class="absolute top-3 left-5 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 							>{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span></label
 						>
-						{#if errorStatus.email.status}
+						{#if errorStatus?.email?.status}
 							<div class="absolute top-11 left-0 text-xs text-error-500">
-								{errorStatus.email.msg}
+								{errorStatus?.email?.msg}
 							</div>
 						{/if}
 					</div>
@@ -239,7 +239,7 @@
 							<input
 								bind:value={password}
 								on:keydown={() => (errorStatus.password.status = false)}
-								color={errorStatus.password.status ? 'red' : 'base'}
+								color={errorStatus?.password?.status ? 'red' : 'base'}
 								type="text"
 								name="password"
 								autocomplete="current-password"
@@ -253,7 +253,7 @@
 							<input
 								bind:value={password}
 								on:keydown={() => (errorStatus.password.status = false)}
-								color={errorStatus.password.status ? 'red' : 'base'}
+								color={errorStatus?.password?.status ? 'red' : 'base'}
 								type="password"
 								name="password"
 								autocomplete="current-password"
@@ -279,9 +279,9 @@
 							{/if}
 						</div>
 
-						{#if errorStatus.password.status}
+						{#if errorStatus?.password?.status}
 							<div class="absolute top-11 left-0 text-xs text-error-500">
-								{errorStatus.password.msg}
+								{errorStatus?.password?.msg}
 							</div>
 						{/if}
 					</div>
@@ -345,7 +345,7 @@
 						<input
 							bind:value={password}
 							on:keydown={() => (errorStatus.password.status = false)}
-							color={errorStatus.password.status ? 'red' : 'base'}
+							color={errorStatus?.password?.status ? 'red' : 'base'}
 							type="text"
 							name="password"
 							autocomplete="current-password"
@@ -356,7 +356,7 @@
 						<input
 							bind:value={password}
 							on:keydown={() => (errorStatus.password.status = false)}
-							color={errorStatus.password.status ? 'red' : 'base'}
+							color={errorStatus?.password?.status ? 'red' : 'base'}
 							type="password"
 							name="password"
 							autocomplete="current-password"
@@ -379,9 +379,9 @@
 						{/if}
 					</div>
 
-					{#if errorStatus.password.status}
+					{#if errorStatus?.password?.status}
 						<div class="absolute top-11 left-0 text-xs text-error-500">
-							{errorStatus.password.msg}
+							{errorStatus?.password?.msg}
 						</div>
 					{/if}
 				</div>
@@ -393,7 +393,7 @@
 						<input
 							bind:value={confirmPassword}
 							on:keydown={() => (errorStatus.confirm_password.status = false)}
-							color={errorStatus.confirm_password.status ? 'red' : 'base'}
+							color={errorStatus?.confirm_password?.status ? 'red' : 'base'}
 							type="text"
 							name="confirm_password"
 							id="confirm_password"
@@ -408,7 +408,7 @@
 						<input
 							bind:value={confirmPassword}
 							on:keydown={() => (errorStatus.confirm_password.status = false)}
-							color={errorStatus.confirm_password.status ? 'red' : 'base'}
+							color={errorStatus?.confirm_password?.status ? 'red' : 'base'}
 							type="password"
 							name="confirm_password"
 							id="confirm_password"
@@ -430,9 +430,9 @@
 						{/if}
 					</div>
 
-					{#if errorStatus.confirm_password.status}
+					{#if errorStatus?.confirm_password?.status}
 						<div class="absolute top-11 left-0 text-xs text-error-500">
-							{errorStatus.confirm_password.msg}
+							{errorStatus?.confirm_password?.msg}
 						</div>
 					{/if}
 				</div>
@@ -443,7 +443,7 @@
 					<input
 						bind:value={token}
 						on:keydown={() => (errorStatus.token.status = false)}
-						color={errorStatus.token.status ? 'red' : 'base'}
+						color={errorStatus?.token?.status ? 'red' : 'base'}
 						type="text"
 						name="token"
 						id="token"
@@ -456,9 +456,9 @@
 						>{$LL.LOGIN_Token()}<span class="ml-2 text-error-500">*</span></label
 					>
 
-					{#if errorStatus.token.status}
+					{#if errorStatus?.token?.status}
 						<div class="absolute top-11 left-0 text-xs text-error-500">
-							{errorStatus.token.msg}
+							{errorStatus?.token?.msg}
 						</div>
 					{/if}
 				</div>

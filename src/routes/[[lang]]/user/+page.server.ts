@@ -3,7 +3,7 @@ import { User } from '$lib/models/user-model';
 import { fail, redirect, type Actions, json } from '@sveltejs/kit';
 import { randomBytes } from 'crypto';
 import type { PageServerLoad } from './$types';
-import sendMail from '$src/lib/utils/send-email';
+import { sendMail } from '$src/routes/emails/welcome/+server';
 import mongoose from 'mongoose';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -45,6 +45,7 @@ export const actions: Actions = {
 				await tokenAlreadySentToUser.save();
 				await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken);
 			} catch (err) {
+				console.log('err', err);
 				return fail(400, {
 					error: true,
 					errors: [

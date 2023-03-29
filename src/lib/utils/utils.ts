@@ -165,9 +165,9 @@ export const replaceLocaleInUrl = (
 	}
 
 	let tempPath;
-	let tempLocale = locale === systemValue ? '/' : `${locale}/`;
+	const tempLocale = locale === systemValue ? '/' : `${locale}/`;
 
-	if (haveLocale) {
+	if (haveLocale && locale !== systemValue) {
 		tempPath = url?.pathname?.split(locale)[1] !== undefined ? url?.pathname?.split(locale)[1] : '';
 	} else {
 		tempPath = url?.pathname?.split('/')[1];
