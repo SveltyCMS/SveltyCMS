@@ -25,4 +25,4 @@ export async function defineConfig(env) {
       writeResources: (args) =>
         plugin.writeResources({ ...args, ...env }),
     }
-  }
+}
