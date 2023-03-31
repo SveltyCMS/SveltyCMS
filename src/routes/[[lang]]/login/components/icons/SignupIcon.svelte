@@ -25,7 +25,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-white">{$LL.LOGIN_SignUp()}</p>
+		<p class="text-center font-semibold uppercase text-white break-keep">{$LL.LOGIN_SignUp()}</p>
 	</div>
 {/if}
 

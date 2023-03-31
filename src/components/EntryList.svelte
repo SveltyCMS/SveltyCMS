@@ -404,42 +404,43 @@
 	const table = createSvelteTable(options);
 
 	import { toggleLeftSidebar } from '$src/stores/store';
+
+	let showSearch = false;
 </script>
 
 <Modal />
 
 {#if !$showFieldsStore.showForm}
-	<!-- {#if !isLoading}
-	{:else}
-		<Loading />
-	{/if} -->
-	<div class="relative md:mt-0">
-		<div class="mb-2 flex items-center gap sm:gap-2 flex-wrap">
-			{#if !switchSideBar && $toggleLeftSidebar}
-				<AnimatedHamburger width="35" />
-			{/if}
-
-			<!-- Collection type with icon -->
-			<div class="flex flex-col max-w-[76px] sm:max-w-none {!$toggleLeftSidebar ? 'ml-2' : ''}">
-				{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
-						{category}
-					</div>{/if}
-				<div
-					class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl"
-				>
-					{#if collection.icon}<span>
-							<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
-						>{/if}
-					{#if collection.name}
-						<div class="flex break-words leading-3 sm:mr-2 md:leading-none">
-							{collection.name}
-						</div>
-					{/if}
+	<header class="sticky top-0 flex flex-col items-center py-2">
+		<div class="w-full flex justify-between items-center">
+			<div class="flex items-center">
+				{#if !switchSideBar && $toggleLeftSidebar}
+					<AnimatedHamburger width="40" />
+				{/if}
+				<!-- Collection type with icon -->
+				<div class="flex flex-col mr-1 {!$toggleLeftSidebar ? 'ml-2' : ''}">
+					{#if category}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
+							{category}
+						</div>{/if}
+					<div
+						class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white sm:text-xl md:text-2xl"
+					>
+						{#if collection.icon}<span>
+								<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
+							>{/if}
+						{#if collection.name}
+							<div
+								class="flex break-all leading-3 xs:mt-1 md:mt-0 sm:mr-2 md:leading-none whitespace-normal"
+							>
+								{collection.name}
+							</div>
+						{/if}
+					</div>
 				</div>
 			</div>
 
-			<!-- Mobile Search box -->
-			<div class="mx-auto max-w-md md:hidden">
+			<!-- center search -->
+			<div class="hidden sm:block md:hidden">
 				{#if !showsearch}
 					<button
 						on:click={() => (showsearch = !showsearch)}
@@ -451,38 +452,10 @@
 							class="absolute text-center "
 						/></button
 					>{/if}
-
-				{#if showsearch}
-					<div
-						class="input-group input-group-divider absolute top-0 left-0 z-30 h-14 grid-cols-[auto_1fr_auto] rounded-none border-b-2 !border-b-white"
-					>
-						<Icon icon="material-symbols:search-rounded" width="24" class="mx-2 mt-4" />
-						<input
-							on:keyup={(event) => {
-								// TODO: Fix keycode deprecated
-								if (event.keyCode === 13) {
-									// search();
-									showsearch = false;
-								}
-							}}
-							on:blur={() => (showsearch = false)}
-							type="search"
-							placeholder="{$LL.ENTRYLIST_Search()} {collection.name} ..."
-						/>
-
-						<button
-							on:click={() => {
-								// search();
-								showsearch = false;
-							}}
-							class="btn variant-filled-primary h-full rounded-l-none rounded-b-none">Search</button
-						>
-					</div>
-				{/if}
 			</div>
 
 			<!-- Desktop Search -->
-			<div class="relative mx-auto hidden w-max md:block">
+			<div class="relative mx-auto hidden w-max md:block ">
 				<input
 					on:keyup={search}
 					placeholder="{$LL.ENTRYLIST_Search()} {collection.name} ..."
@@ -505,244 +478,289 @@
 				</svg>
 			</div>
 
-			<!-- language switcher for entryList -->
-			<span class="relative rounded-md shadow-xl mr-1">
+			<!-- mobile right buttons -->
+			<div class="flex items-center gap-1 sm:gap-2">
+				<!-- mobile search button -->
 				<button
-					use:popup={ContentLangSettings}
-					class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white"
+					on:click={() => (showsearch = !showsearch)}
+					class="sm:hidden btn-icon relative mt-1 bg-surface-600 text-white"
 				>
-					<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
-					<span class="hidden sm:block">{$language}</span>
-					<Icon icon="mdi:chevron-down" width="24" />
+					<Icon icon="material-symbols:search-rounded" width="24" class="absolute text-center " />
 				</button>
-				<nav
-					class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
-					data-popup="entryListlanguagePopup"
-				>
-					<ul class="divide-y">
-						{#each Object.keys(JSON.parse(PUBLIC_TRANSLATIONS)).filter((data) => $language != data) as _language}
-							<li
-								on:click={() => {
-									$language = _language;
-									// open = false;
-								}}
-							>
-								{_language.toUpperCase()}
-							</li>
-						{/each}
-					</ul>
-				</nav>
-			</span>
-			<!-- <EntrylistButton /> -->
-			<!-- create/publish/unpublish/schedule/clone/delete -->
-			<div class="flex items-center justify-center">
-				<!-- the actual buttons -->
-				<div
-					class="inline-flex rounded-l-full rounded-r shadow-md hover:shadow-lg focus:shadow-lg"
-					role="group"
-				>
-					{#if entryButton == 'create' && !deleteMode}
-						<button
-							use:popup={CreateSettings}
-							on:click={() => {
-								$showFieldsStore.showForm = true;
-							}}
-							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
-						>
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4 z-90" data-popup="CreatePopup">
-								{$LL.ENTRYLIST_Create()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
 
-							<Icon icon="ic:round-plus" color="black" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Create()}</div>
-						</button>
-					{:else if entryButton == 'publish'}
-						<button
-							use:popup={PublishSettings}
-							class="flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-500 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
-							on:click={() => {
-								publishEntry();
-							}}
-						>
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="PublishPopup">
-								{$LL.ENTRYLIST_Publish()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-
-							<Icon icon="bi:hand-thumbs-up-fill" color="white" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Publish()}</div>
-						</button>
-					{:else if entryButton == 'unpublish'}
-						<button
-							use:popup={UnpublishSettings}
-							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
-							on:click={() => {
-								unpublishEntry();
-							}}
-						>
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="UnpublishPopup">
-								{$LL.ENTRYLIST_Unpublish()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-							<Icon icon="bi:pause-circle" color="white" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Unpublish()}</div>
-						</button>
-					{:else if entryButton == 'schedule'}
-						<button
-							use:popup={ScheduleSettings}
-							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
-							on:click={() => {
-								scheduleEntry();
-							}}
-						>
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
-								{$LL.ENTRYLIST_Schedule()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-							<Icon icon="bi:clock" color="white" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Schedule()}</div>
-						</button>
-					{:else if entryButton == 'clone'}
-						<button
-							use:popup={CloneSettings}
-							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
-							on:click={() => {
-								cloneEntry();
-							}}
-							><!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
-								{$LL.ENTRYLIST_Clone()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-
-							<Icon icon="bi:clipboard-data-fill" color="white" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Clone()}</div>
-						</button>
-					{:else if entryButton == 'delete' || deleteMode}
-						<button
-							use:popup={DeleteSettings}
-							class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
-							on:click={() => {
-								deleteEntry();
-							}}
-							><!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
-								{$LL.ENTRYLIST_Delete()}
-								{collection.name}
-								<div class="arrow variant-filled-secondary" />
-							</div>
-							<Icon icon="bi:trash3-fill" color="white" width="22" class="mr-1" />
-							<div class="hidden md:block">{$LL.ENTRYLIST_Delete()}</div>
-						</button>
-					{/if}
-
-					<!-- Dropdown selection -->
-					<!-- use:popup={{ menu: 'entrySelect', interactive: true }}-->
+				<!-- language switcher for entryList -->
+				<span class="relative rounded-md shadow-xl mr- ">
 					<button
-						use:popup={entityButtonsPopup}
-						class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
+						use:popup={ContentLangSettings}
+						class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white"
 					>
-						<Icon icon="mdi:chevron-down" width="24" /></button
-					>
-
+						<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
+						<span class="hidden sm:block">{$language}</span>
+						<Icon icon="mdi:chevron-down" width="24" />
+					</button>
 					<nav
-						class="card list-nav mt-1 mr-1 z-10 w-52 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-300"
-						data-popup="entityButton"
+						class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
+						data-popup="entryListlanguagePopup"
 					>
-						<ul>
-							{#if entryButton != 'create'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'create';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
-									>
-										<span><Icon icon="ic:round-plus" width="22" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Create()}</span>
-									</button>
-								</li>{/if}
-							{#if entryButton != 'publish'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'publish';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-400 font-bold text-white"
-									>
-										<span><Icon icon="bi:hand-thumbs-up-fill" width="20" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Publish()}</span>
-									</button>
+						<ul class="divide-y">
+							{#each Object.keys(JSON.parse(PUBLIC_TRANSLATIONS)).filter((data) => $language != data) as _language}
+								<li
+									on:click={() => {
+										$language = _language;
+										// open = false;
+									}}
+								>
+									{_language.toUpperCase()}
 								</li>
-							{/if}
-							{#if entryButton != 'unpublish'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'unpublish';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 font-bold text-white"
-									>
-										<span><Icon icon="bi:pause-circle" width="20" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Unpublish()}</span>
-									</button>
-								</li>
-							{/if}
-							{#if entryButton != 'schedule'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'schedule';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white"
-									>
-										<span><Icon icon="bi:clock" width="20" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Schedule()}</span>
-									</button>
-								</li>
-							{/if}
-							{#if entryButton != 'clone'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'clone';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 font-bold text-white"
-									>
-										<span><Icon icon="bi:clipboard-data-fill" width="20" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Clone()}</span>
-									</button>
-								</li>
-							{/if}
-							{#if entryButton != 'delete'}
-								<li>
-									<button
-										on:click={() => {
-											entryButton = 'delete';
-										}}
-										class="btn btn-base w-full bg-gradient-to-br from-error-600 via-error-500 to-error-300 text-white"
-									>
-										<span><Icon icon="bi:trash3-fill" width="20" /></span>
-										<span class="text-xl font-bold">{$LL.ENTRYLIST_Delete()}</span>
-									</button>
-								</li>
-							{/if}
+							{/each}
 						</ul>
 					</nav>
+				</span>
+
+				<!-- <EntrylistButton /> -->
+				<!-- create/publish/unpublish/schedule/clone/delete -->
+				<div class="flex items-center justify-center">
+					<!-- the actual buttons -->
+					<div
+						class="inline-flex rounded-l-full rounded-r shadow-md hover:shadow-lg focus:shadow-lg"
+						role="group"
+					>
+						{#if entryButton == 'create' && !deleteMode}
+							<button
+								use:popup={CreateSettings}
+								on:click={() => {
+									$showFieldsStore.showForm = true;
+								}}
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 px-2 py-2 text-xl font-bold text-black md:ml-auto md:w-[150px]"
+							>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4 z-90" data-popup="CreatePopup">
+									{$LL.ENTRYLIST_Create()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+
+								<Icon icon="ic:round-plus" color="black" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Create()}</div>
+							</button>
+						{:else if entryButton == 'publish'}
+							<button
+								use:popup={PublishSettings}
+								class="flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-500 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								on:click={() => {
+									publishEntry();
+								}}
+							>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="PublishPopup">
+									{$LL.ENTRYLIST_Publish()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+
+								<Icon icon="bi:hand-thumbs-up-fill" color="white" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Publish()}</div>
+							</button>
+						{:else if entryButton == 'unpublish'}
+							<button
+								use:popup={UnpublishSettings}
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								on:click={() => {
+									unpublishEntry();
+								}}
+							>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="UnpublishPopup">
+									{$LL.ENTRYLIST_Unpublish()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+								<Icon icon="bi:pause-circle" color="white" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Unpublish()}</div>
+							</button>
+						{:else if entryButton == 'schedule'}
+							<button
+								use:popup={ScheduleSettings}
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								on:click={() => {
+									scheduleEntry();
+								}}
+							>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+									{$LL.ENTRYLIST_Schedule()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+								<Icon icon="bi:clock" color="white" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Schedule()}</div>
+							</button>
+						{:else if entryButton == 'clone'}
+							<button
+								use:popup={CloneSettings}
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								on:click={() => {
+									cloneEntry();
+								}}
+								><!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+									{$LL.ENTRYLIST_Clone()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+
+								<Icon icon="bi:clipboard-data-fill" color="white" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Clone()}</div>
+							</button>
+						{:else if entryButton == 'delete' || deleteMode}
+							<button
+								use:popup={DeleteSettings}
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white bg-gradient-to-br from-error-600 via-error-500 to-error-300 px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								on:click={() => {
+									deleteEntry();
+								}}
+								><!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary p-4" data-popup="SchedulePopup">
+									{$LL.ENTRYLIST_Delete()}
+									{collection.name}
+									<div class="arrow variant-filled-secondary" />
+								</div>
+								<Icon icon="bi:trash3-fill" color="white" width="22" class="mr-1" />
+								<div class="hidden md:block">{$LL.ENTRYLIST_Delete()}</div>
+							</button>
+						{/if}
+
+						<!-- Dropdown selection -->
+						<button
+							use:popup={entityButtonsPopup}
+							class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
+						>
+							<Icon icon="mdi:chevron-down" width="24" /></button
+						>
+
+						<nav
+							class="card list-nav mt-1 mr-1 z-10 w-52 bg-surface-600 p-2 shadow-xl dark:border-none dark:bg-surface-400"
+							data-popup="entityButton"
+						>
+							<ul>
+								{#if entryButton != 'create'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'create';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-primary-600 via-primary-500 to-primary-400 font-bold text-white"
+										>
+											<span><Icon icon="ic:round-plus" width="22" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Create()}</span>
+										</button>
+									</li>{/if}
+								{#if entryButton != 'publish'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'publish';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-tertiary-700 via-tertiary-600 to-tertiary-400 font-bold text-white"
+										>
+											<span><Icon icon="bi:hand-thumbs-up-fill" width="20" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Publish()}</span>
+										</button>
+									</li>
+								{/if}
+								{#if entryButton != 'unpublish'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'unpublish';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-warning-600 via-warning-500 to-warning-300 font-bold text-white"
+										>
+											<span><Icon icon="bi:pause-circle" width="20" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Unpublish()}</span>
+										</button>
+									</li>
+								{/if}
+								{#if entryButton != 'schedule'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'schedule';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-pink-700 via-pink-500 to-pink-300 font-bold text-white"
+										>
+											<span><Icon icon="bi:clock" width="20" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Schedule()}</span>
+										</button>
+									</li>
+								{/if}
+								{#if entryButton != 'clone'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'clone';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-surface-500 via-surface-400 to-surface-300 font-bold text-white"
+										>
+											<span><Icon icon="bi:clipboard-data-fill" width="20" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Clone()}</span>
+										</button>
+									</li>
+								{/if}
+								{#if entryButton != 'delete'}
+									<li>
+										<button
+											on:click={() => {
+												entryButton = 'delete';
+											}}
+											class="btn btn-base w-full bg-gradient-to-br from-error-600 via-error-500 to-error-300 text-white"
+										>
+											<span><Icon icon="bi:trash3-fill" width="20" /></span>
+											<span class="text-xl font-bold">{$LL.ENTRYLIST_Delete()}</span>
+										</button>
+									</li>
+								{/if}
+							</ul>
+						</nav>
+					</div>
 				</div>
 			</div>
 		</div>
 
+		<!-- mobile search block expanded -->
+		{#if showsearch}
+			<div
+				class="btn-group gradient-secondary w-full justify-between items-center mt-2 rounded-none border-b-2 !border-b-white"
+			>
+				<Icon icon="material-symbols:search-rounded" width="24" class="mx-2 " />
+				<input
+					on:keyup={(event) => {
+						// TODO: Fix keycode deprecated
+						if (event.keyCode === 13) {
+							// search();
+							showsearch = false;
+						}
+					}}
+					on:blur={() => (showsearch = false)}
+					type="search"
+					placeholder="{$LL.ENTRYLIST_Search()} {collection.name} ..."
+					class="w-full bg-transparent"
+				/>
+
+				<button
+					on:click={() => {
+						// search();
+						showsearch = false;
+					}}
+					class="btn gradient-primary rounded-none">Search</button
+				>
+			</div>
+		{/if}
+	</header>
+	<!-- ----------------------------------------------------------------- -->
+	<!-- TODO: optimzse loading so form fields are not loaded on entrylist -->
+	<!-- ----------------------------------------------------------------- -->
+	<div class="relative md:mt-0">
 		<!-- TODO: Link to Colletion widgetValue -->
 		<div class="mb-2 flex flex-wrap gap-2 space-x-2">
 			{#each Object.keys(tableColumns) as r}

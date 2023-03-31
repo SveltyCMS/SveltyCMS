@@ -60,14 +60,7 @@
 	$: if (browser) {
 		lang = LanguageLabel;
 		switchLocale(lang, false);
-		//console.log('in localswi', history.state, replaceLocaleInUrl($page.url, lang, user));
 		goto(`${$page.url.origin}${replaceLocaleInUrl($page.url, lang, user)}`);
-		// history.replaceState(
-		// 	// { ...history.state, locale: lang },
-		// 	history.state,
-		// 	'',
-		// 	replaceLocaleInUrl($page.url, lang, user)
-		// );
 	}
 </script>
 
@@ -80,8 +73,8 @@
 	{LanguageLabel}
 </button>
 
-<div class="uppercase variant-filled-surface" data-popup="language-dropdown">
-	<ListBox rounded="rounded-none" class="divide-y">
+<div class="uppercase variant-filled-surface rounded-sm" data-popup="language-dropdown">
+	<ListBox rounded="rounded-sm" class="divide-y border">
 		{#each locales as loc}
 			{#if loc !== LanguageLabel}
 				<ListBoxItem
@@ -97,6 +90,6 @@
 		{/each}
 	</ListBox>
 	<!-- Arrow -->
-	<!-- TODO: hover needs to be fixed -->
-	<div class="arrow variant-filled-surface hover:variant-filled-tertiary" />
+	<!-- TODO: hover needs to be fixed
+	<div class="arrow variant-filled-surface hover:variant-filled-tertiary" /> -->
 </div>

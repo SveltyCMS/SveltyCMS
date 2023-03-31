@@ -22,7 +22,7 @@
 	}
 </script>
 
-<div class="body" style="background:{background} ">
+<div class="body" style="background:{background}">
 	<Signin {active} on:click={() => (active = 0)} on:pointerenter={() => (background = 'white')} />
 	<SignUp
 		{active}

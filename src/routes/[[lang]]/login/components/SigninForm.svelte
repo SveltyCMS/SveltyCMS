@@ -292,7 +292,7 @@
 
 						<button
 							on:click={() => (forgot = true)}
-							class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-700"
+							class="btn btn-sm mt-4 ml-4 rounded-lg border border-surface-700 text-surface-500"
 							>{$LL.LOGIN_ForgottenPassword()}</button
 						>
 					</div>
