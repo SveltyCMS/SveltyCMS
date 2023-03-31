@@ -1,13 +1,11 @@
-// filename: inlang.config.js
-
 export async function defineConfig(env) {
 	// importing the json plugin
 	const plugin = await env.$import(
-		"https://cdn.jsdelivr.net/gh/samuelstroschein/inlang-plugin-json@1/dist/index.js",
-	)
+        "https://cdn.jsdelivr.net/gh/ivanhofer/inlang-plugin-typesafe-i18n/dist/index.js",
+        )
 
 	const pluginConfig = {
-		pathPattern: ".src/lib/18n/{language}.json",
+		pathPattern: "./{language}.json",
 	}
 
 	return {
