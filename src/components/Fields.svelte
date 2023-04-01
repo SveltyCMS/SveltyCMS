@@ -36,6 +36,7 @@
 		style={field.field.width && `width:${field.field.width.replace('%', '') * 1 - 1}%`}
 	>
 		<!-- db_fieldName or label  -->
+		<!-- TODO: Get translted Name -->
 		<div class="relative flex">
 			<p class="font-semibold">
 				{#if field.field.label}

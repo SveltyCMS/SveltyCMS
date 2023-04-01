@@ -16,6 +16,8 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	import { Autocomplete } from '@skeletonlabs/skeleton';
+	import type { AutocompleteOption } from '@skeletonlabs/skeleton';
 
 	let CountryCombobox: PopupSettings = {
 		event: 'click',
@@ -277,11 +279,11 @@
 
 			<!-- Country with search Combobox -->
 			<div>
-				<button class="btn variant-filled w-48 justify-between" use:popup={CountryCombobox}>
+				<button class="input  mt-2 w-full btn  justify-between" use:popup={CountryCombobox}>
 					<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
 					<i class="fa-solid fa-caret-down opacity-50" />
 				</button>
-				<div class="card w-48 shadow-xl overflow-hidden" data-popup="CountryCombobox">
+				<div class="card  shadow-xl overflow-hidden" data-popup="CountryCombobox">
 					<ListBox rounded="rounded-none">
 						{#each filteredCountries as country}
 							<!-- add system-language -->
@@ -301,41 +303,6 @@
 					</ListBox>
 				</div>
 			</div>
-
-			<!-- <label class="relative mt-3">
-			<input
-				bind:value={selectedCountry}
-				on:keyup={searchCountry}
-				use:popup={countrySettings}
-				id="country"
-				placeholder={$LL.WIDGET_Address_SearchCountry()}
-				class="btn btn-base relative w-full rounded-md bg-surface-300 pl-10 text-left text-white dark:bg-surface-600 "
-			/>
-
-			<Icon
-				icon="ic:baseline-search"
-				height="24"
-				class="absolute top-3 left-2 text-slate-500 dark:text-surface-400"
-			/>
-			<nav
-				class="card list-nav absolute top-0 left-0 max-h-40 overflow-auto p-4 shadow-xl"
-				data-popup="country"
-			>
-				<ul class=" divide-y divide-surface-500">
-					
-					{#each filteredCountries as country}
-						<li
-							class="flex gap-2"
-							value={country.en}
-							on:click={() => (selectedCountry = country.en)}
-						>
-							<span class="fi fi-{country.alpha2} mt-1" />
-							{country.en} - <span class="mt-1 uppercase">{country.alpha2}</span>
-						</li>
-					{/each}
-				</ul>
-			</nav>
-		</label> -->
 		</form>
 	</address>
 	{#if validationError !== null}

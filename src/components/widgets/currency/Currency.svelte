@@ -3,13 +3,18 @@
 	import { get } from 'svelte/store';
 	import * as z from 'zod';
 
-	export let field: any = undefined;
-	export let value: { value: number | null } = { value: field.value ?? null };
+	export let field: any = { value: null };
+	export let value: { value: number | null } = { value: (field && field.value) ?? null };
+
+	if (!value) {
+		value = { value: null };
+	}
+
 	export let widgetValue;
 
 	$: widgetValue = {
 		value: value.value,
-		currency: field.currencyCode
+		currency: field.currencyCode ?? 'EUR'
 	};
 
 	let formattedValue = '';
@@ -24,7 +29,15 @@
 		max: field.max,
 		step: field.step,
 		negative: field.negative,
-		required: field.required
+		required: field.required,
+		value:
+			value && value.value != null
+				? new Intl.NumberFormat(get(locale), {
+						style: 'currency',
+						currencyDisplay: 'symbol',
+						currency: 'EUR'
+				  }).format(value.value)
+				: null
 	};
 
 	const numberSchema = z.object({
@@ -37,7 +50,9 @@
 		max: z.number().lte(field.max, { message: 'Value too large' }).optional(),
 		step: z.number().multipleOf(field.step, { message: 'Step too large' }).optional(),
 		negative: z.boolean().optional(),
-		required: z.boolean().optional()
+		required: z.boolean().optional(),
+		value: z.number().nullable(),
+		currency: z.string().optional()
 	});
 
 	let validationError: string | null = null;
@@ -58,7 +73,7 @@
 			formattedValue = new Intl.NumberFormat(get(locale), {
 				style: 'currency',
 				currencyDisplay: 'symbol',
-				currency: 'EUR'
+				currency: field.currencyCode ?? 'EUR'
 			}).format(roundedValue);
 		}
 	}
@@ -97,13 +112,6 @@
 </p>
 
 <!-- error messages -->
-
 {#if validationError !== null}
 	<p class="text-red-500">{validationError}</p>
 {/if}
-
-<style>
-	.invalid {
-		color: red;
-	}
-</style>

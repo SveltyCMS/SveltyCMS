@@ -54,7 +54,7 @@
 	};
 
 	// Reformat the number value without dots and commas so numberformat can format the number (else we get a NaN)
-	$: if (value) {
+	$: if (value != null && value !== '') {
 		value = new Intl.NumberFormat(get(locale)).format(parseFloat(value.replace(/[^\d.-]/g, '')));
 	}
 

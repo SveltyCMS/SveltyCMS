@@ -9,10 +9,10 @@
 	import { modalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 
-	// Popup Combobox
+	// popupCombobox
 	let listboxValue: string = 'create';
 
-	let Combobox: PopupSettings = {
+	let popupCombobox: PopupSettings = {
 		event: 'click',
 		target: 'Combobox',
 		placement: 'bottom-end',
@@ -113,11 +113,10 @@
 				iconValue = 'bi:trash3-fill';
 				break;
 			default:
-				buttonClass = 'variant-filled';
-				iconValue = 'material-symbols:edit';
+				buttonClass = '';
+				iconValue = '';
 				break;
 		}
-
 		// create
 		if (action === 'create') {
 			modalConfirm('create');
@@ -153,17 +152,16 @@
 <!-- Multibuttongroup-->
 <div class="btn-group rounded-l-full !rounded-r-md relative text-white w-28">
 	<!-- Action button  -->
-
 	<button
 		type="button"
 		on:click={() => {
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
-		class="{getButtonAndIconValues(listboxValue)
+		class="{getButtonAndIconValues(listboxValue, listboxValue)
 			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
 	>
 		<Icon
-			icon={getButtonAndIconValues(listboxValue).iconValue}
+			icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue}
 			width="20"
 			class="text-white sm:mr-2"
 		/>
@@ -173,12 +171,16 @@
 	<span class="border border-white" />
 
 	<!-- Dropdown button -->
-	<button class="bg-surface-500 !rounded-r-md divide-x-2" use:popup={Combobox}>
+	<button
+		class="bg-surface-500 !rounded-r-md divide-x-2"
+		use:popup={popupCombobox}
+		style="position: relative;"
+	>
 		<Icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
-<div class="card w-48 shadow-xl overflow-hiddens rounded-sm" data-popup="Combobox">
+<div class="card w-48 shadow-xl overflow-hiddens rounded-sm" data-popup="popupCombobox">
 	<ListBox
 		rounded="rounded-sm"
 		active="variant-filled-primary"
