@@ -1,16 +1,11 @@
 import type { Translation } from '../i18n-types';
 
 const de: Translation = {
-	// Test
-	HI: 'Hallo {name}! Übersetzung geht!',
-
 	// SideBar left
 	SBL_Search: 'Suchen ...',
 	SBL_Admin: 'Admin',
 	SBL_Admin_User: 'Admin Benutzer',
 	SBL_SystemLanguage: 'Systemspache',
-	SBL_English: 'Englisch',
-	SBL_German: 'Deutsch',
 	SBL_isDark: 'Wechsel zum',
 	SBL_Light: 'Hell',
 	SBL_Dark: 'Dunkel',

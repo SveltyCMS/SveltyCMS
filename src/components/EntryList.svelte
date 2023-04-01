@@ -411,7 +411,7 @@
 <Modal />
 
 {#if !$showFieldsStore.showForm}
-	<header class="sticky top-0 flex flex-col items-center py-2">
+	<header class="sticky top-0 flex flex-col items-center xs:py-1">
 		<div class="w-full flex justify-between items-center">
 			<div class="flex items-center">
 				{#if !switchSideBar && $toggleLeftSidebar}
@@ -423,7 +423,7 @@
 							{category}
 						</div>{/if}
 					<div
-						class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white sm:text-xl md:text-2xl"
+						class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white lg:text-xl md:text-2xl"
 					>
 						{#if collection.icon}<span>
 								<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
@@ -455,7 +455,7 @@
 			</div>
 
 			<!-- Desktop Search -->
-			<div class="relative mx-auto hidden w-max md:block ">
+			<div class="relative mx-auto hidden w-max md:block">
 				<input
 					on:keyup={search}
 					placeholder="{$LL.ENTRYLIST_Search()} {collection.name} ..."
@@ -489,7 +489,7 @@
 				</button>
 
 				<!-- language switcher for entryList -->
-				<span class="relative rounded-md shadow-xl mr- ">
+				<span class="relative rounded-md shadow-xl mr-">
 					<button
 						use:popup={ContentLangSettings}
 						class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white"

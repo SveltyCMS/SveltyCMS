@@ -227,7 +227,6 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		{#if !switchSideBar}
 			<AnimatedHamburger />
 		{/if}
-
 		<!-- Corporate Identity -->
 		<a href="/" class="pt-2 flex !no-underline">
 			<SimpleCmsLogo fill="red" className="h-8" />
@@ -259,7 +258,6 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		</button>
 
 		<!-- Search Collections -->
-		<!-- TODO: perhaps overflow is better? -->
 		<div class="mx-auto my-2 max-w-full">
 			<div class="relative mx-auto">
 				{#if !switchSideBar}
@@ -295,15 +293,17 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		</div>
 
 		<!--SideBar Middle -->
-		<CollectionsLatest
-			on:collection_click={handleCategoryClick}
-			{switchSideBar}
-			data={categories}
-			{filterCollections}
-			bind:fields
-			bind:collection
-			bind:category
-		/>
+		<div class="flex-1 overflow-y-auto">
+			<CollectionsLatest
+				on:collection_click={handleCategoryClick}
+				{switchSideBar}
+				data={categories}
+				{filterCollections}
+				bind:fields
+				bind:collection
+				bind:category
+			/>
+		</div>
 
 		<!-- Sidebar Left Footer absolute inset-x-0  -->
 		<div
@@ -341,7 +341,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 				<!-- System Language i18n Handeling -->
 				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
-					<div use:popup={SystemLanguageTooltip} class="md:row-span-2 ">
+					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
 						<LocaleSwitcher user={$user?.userId} />
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->

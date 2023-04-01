@@ -6,7 +6,7 @@ export type Group_Field = {
 	db_fieldName: string;
 	label: string | undefined;
 	fields: any[];
-	condition: boolean; | undefined;
+	condition: boolean | undefined;
 	required: boolean | undefined;
 	display: Display;
 };

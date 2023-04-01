@@ -1,6 +1,6 @@
 import type { BaseTranslation } from '../i18n-types';
 
-const en: BaseTranslation = {
+const fr: Translation = {
 	// SideBar left
 	SBL_Search: 'Search ...',
 	SBL_Admin: 'Admin',
@@ -206,4 +206,4 @@ const en: BaseTranslation = {
 		'Optimize title & description for Google search results, to improve the visual appeal to brings more clicks to your website.'
 };
 
-export default en;
+export default fr;

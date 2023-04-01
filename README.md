@@ -77,9 +77,10 @@ pnpm run dev
 
 If you require a different look, use the skeleton theme generator to modify the `theme.postcss`
 
-## :earth_africa: Extend System Language
+## :earth_africa: Extend i18n with inlang System Localization infrastructure
 
 To add more language just create a new language folder under `src/lib/i18n`. Best to copy de folder with the index.ts file and translate the available content to your needs.
+System Trasnlations are available at https://inlang.com/editor/github.com/Rar9/SimpleCMS
 
 ## :clipboard: Easily create Data Collections
 

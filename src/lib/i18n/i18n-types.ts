@@ -9,17 +9,13 @@ export type Locales =
 	| 'de'
 	| 'en'
 	| 'es'
+	| 'fr'
 
 export type Translation = RootTranslation
 
 export type Translations = RootTranslation
 
 type RootTranslation = {
-	/**
-	 * H​i​ ​{​n​a​m​e​}​!​ ​T​r​a​n​s​l​a​t​i​o​n​ ​i​t​ ​w​o​r​k​s​!
-	 * @param {string} name
-	 */
-	HI: RequiredParams<'name'>
 	/**
 	 * S​e​a​r​c​h​ ​.​.​.
 	 */
@@ -36,14 +32,6 @@ type RootTranslation = {
 	 * S​y​s​t​e​m​ ​L​a​n​g​u​a​g​e
 	 */
 	SBL_SystemLanguage: string
-	/**
-	 * E​n​g​l​i​s​h
-	 */
-	SBL_English: string
-	/**
-	 * G​e​r​m​a​n
-	 */
-	SBL_German: string
 	/**
 	 * S​w​i​t​c​h​ ​t​o
 	 */
@@ -692,10 +680,6 @@ type RootTranslation = {
 
 export type TranslationFunctions = {
 	/**
-	 * Hi {name}! Translation it works!
-	 */
-	HI: (arg: { name: string }) => LocalizedString
-	/**
 	 * Search ...
 	 */
 	SBL_Search: () => LocalizedString
@@ -711,14 +695,6 @@ export type TranslationFunctions = {
 	 * System Language
 	 */
 	SBL_SystemLanguage: () => LocalizedString
-	/**
-	 * English
-	 */
-	SBL_English: () => LocalizedString
-	/**
-	 * German
-	 */
-	SBL_German: () => LocalizedString
 	/**
 	 * Switch to
 	 */
