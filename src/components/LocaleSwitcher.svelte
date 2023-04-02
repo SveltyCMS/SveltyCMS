@@ -15,6 +15,9 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
+	import { Autocomplete } from '@skeletonlabs/skeleton';
+	import type { AutocompleteOption } from '@skeletonlabs/skeleton';
+
 	let languageSettings: PopupSettings = {
 		// Set the event as: click | hover | hover-click
 		event: 'click',
@@ -24,7 +27,35 @@
 	};
 
 	$: LanguageLabel = $locale;
+
 	let lang: any;
+
+	// Local
+	let inputPopupDemo: string = '';
+	let popupSettings: PopupSettings = {
+		event: 'focus',
+		target: 'popupAutocomplete',
+		placement: 'bottom'
+	};
+	let inputDemo = '';
+	const flavorOptions: AutocompleteOption[] = [
+		{ label: 'Vanilla', value: 'vanilla', keywords: 'plain, basic', meta: { healthy: false } },
+		{ label: 'Chocolate', value: 'chocolate', keywords: 'dark, white', meta: { healthy: false } },
+		{ label: 'Strawberry', value: 'strawberry', keywords: 'fruit', meta: { healthy: true } },
+		{
+			label: 'Neapolitan',
+			value: 'neapolitan',
+			keywords: 'mix, strawberry, chocolate, vanilla',
+			meta: { healthy: false }
+		},
+		{ label: 'Pineapple', value: 'pineapple', keywords: 'fruit', meta: { healthy: true } },
+		{ label: 'Peach', value: 'peach', keywords: 'fruit', meta: { healthy: true } }
+	];
+
+	function onDemoSelection(event: any): void {
+		console.log(event.detail);
+		inputDemo = event.detail.label;
+	}
 
 	const switchLocale = async (newLocale: Locales, updateHistoryState = true) => {
 		if (!newLocale || $locale === newLocale) return;
@@ -67,16 +98,16 @@
 <svelte:window on:popstate={handlePopStateEvent} />
 
 <button
-	class="btn btn-sm rounded-full border border-white variant-filled-surface justify-between uppercase"
+	class="btn btn-sm rounded-full variant-filled-surface justify-between uppercase"
 	use:popup={languageSettings}
 >
 	{LanguageLabel}
 </button>
 
 <div class="uppercase variant-filled-surface rounded-sm" data-popup="language-dropdown">
-	<ListBox rounded="rounded-sm" class="divide-y border">
+	<ListBox rounded="rounded-none" spacing="space-y-0" class="divide-y">
 		{#each locales as loc}
-			{#if loc !== LanguageLabel}
+			{#if locales.length <= 4}
 				<ListBoxItem
 					bind:group={LanguageLabel}
 					on:click={() => (LanguageLabel = loc)}
@@ -86,10 +117,20 @@
 				>
 					{loc}
 				</ListBoxItem>
+			{:else if locales.length > 4}
+				<!-- TODO: add autocomplete -->
+				<ListBoxItem
+					bind:group={LanguageLabel}
+					on:click={() => (LanguageLabel = loc)}
+					name={loc}
+					value={loc}
+					class="hover:!variant-filled-primary"
+				>
+					{loc}
+				</ListBoxItem>
 			{/if}
 		{/each}
 	</ListBox>
 	<!-- Arrow -->
-	<!-- TODO: hover needs to be fixed
-	<div class="arrow variant-filled-surface hover:variant-filled-tertiary" /> -->
+	<div class="arrow variant-filled-surface" />
 </div>

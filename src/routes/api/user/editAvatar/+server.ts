@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	// Validate user credentials and get user information from the session
-	const { user } = await locals.validateUser();
+	const { user } = await locals.auth.validate();
 
 	// Extract the base64-encoded image data from the "dataurl" field
 	const dataUrl = formData.get('dataurl') as string;

@@ -1,28 +1,29 @@
 // lucia
 import { auth } from '$lib/server/lucia';
-import { dbConnect } from '$lib/utils/db';
-import { handleHooks } from '@lucia-auth/sveltekit';
+
+// sveltekit
 import { sequence } from '@sveltejs/kit/hooks';
+import { systemLanguage } from './stores/store';
+import { dbConnect } from '$lib/utils/db';
 
 // typesave-i18n
-import type { Locales } from '$i18n/i18n-types';
 import { detectLocale, i18n, isLocale } from '$i18n/i18n-util';
 import { loadAllLocales } from '$i18n/i18n-util.sync';
 import type { Handle, RequestEvent } from '@sveltejs/kit';
 import { initAcceptLanguageHeaderDetector } from 'typesafe-i18n/detectors';
-import { systemLanguage } from './stores/store';
 
 loadAllLocales();
 const L = i18n();
 
-export const handle: Handle = sequence(dbConnect, handleHooks(auth), async ({ event, resolve }) => {
+export const handle: Handle = sequence(dbConnect, async ({ event, resolve }) => {
 	// read language slug
 	const [, lang] = event.url.pathname.split('/');
+
 	// redirect to base locale if no locale slug was found
 	if (!lang) {
 		const locale = getPreferredLocale(event);
 
-		event.locals.locale = locale;
+		event.locals.auth = auth.handleRequest(event);
 
 		if (locale == 'en') {
 			return resolve(event);
@@ -35,15 +36,16 @@ export const handle: Handle = sequence(dbConnect, handleHooks(auth), async ({ ev
 	}
 
 	// if slug is not a locale, use base locale (e.g. api endpoints)
-	// const locale = isLocale(lang) ? lang : getPreferredLocale(event);
+	//const locale = isLocale(lang) ? (lang as Locales) : getPreferredLocale(event)
 	const locale = getPreferredLocale(event);
-	systemLanguage.set(getPreferredLocale(event));
-
 	const LL = L[locale];
+	systemLanguage.set(getPreferredLocale(event));
 
 	// bind locale and translation functions to current request
 	event.locals.locale = locale;
 	event.locals.LL = LL;
+
+	//console.info(LL.log({ fileName: 'hooks.server.ts' }))
 
 	// replace html lang attribute with correct language
 	return resolve(event, { transformPageChunk: ({ html }) => html.replace('%lang%', locale) });

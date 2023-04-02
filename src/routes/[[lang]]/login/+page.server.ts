@@ -31,8 +31,8 @@ const checkUserExistsInDb = async () => {
 };
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const session = await locals.validate();
-	if (session) throw redirect(302, '/');
+	const session = await locals.auth.validate(); // authRequest.validate()
+	if (session) throw redirect(302, '/login');
 	// check if firstUserExsits or not
 	// model should be checked here else it won't works second time
 	return { firstUserExists: await checkUserExistsInDb() };
@@ -72,7 +72,8 @@ const zod_obj: {
 const signInSchema = z.object({
 	email: z
 		.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
-		.email({ message: get(LL).LOGIN_ZOD_Email_email() }),
+		.email({ message: get(LL).LOGIN_ZOD_Email_email() })
+		.transform((value) => value.toLowerCase()),
 	password: z
 		.string({ required_error: get(LL).LOGIN_ZOD_Password_string() })
 		.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
@@ -120,6 +121,7 @@ export const actions: Actions = {
 			return fail(400, { error: true, errors });
 		}
 
+		//const email = form.get('email').toLowerCase();
 		const email = form.get('email');
 		const password = form.get('password');
 
@@ -138,7 +140,7 @@ export const actions: Actions = {
 			const key = await auth.useKey('email', email, password);
 			const session = await auth.createSession(key.userId);
 			await auth.updateUserAttributes(key.userId, { lastAccessAt: `${new Date()}` });
-			locals.setSession(session);
+			locals.auth.setSession(session);
 		} catch (error) {
 			if (
 				error instanceof LuciaError &&
@@ -242,7 +244,7 @@ export const actions: Actions = {
 				});
 
 				const session = await auth.createSession(res.userId);
-				locals.setSession(session);
+				locals.auth.setSession(session);
 
 				return;
 			}
@@ -311,7 +313,7 @@ export const actions: Actions = {
 			await SignUpToken.deleteOne({ _id: token._id });
 
 			const session = await auth.createSession(res.userId);
-			locals.setSession(session);
+			locals.auth.setSession(session);
 		} catch (error) {
 			console.log(error);
 			if (
@@ -418,6 +420,11 @@ export const actions: Actions = {
 		}
 
 		const password = form.get('password');
+		if (password === null) {
+			// Handle the error here
+			console.log('Password is null');
+			return;
+		}
 		const token = form.get('token');
 
 		const user = await User.findOne({ resetToken: token });
@@ -438,7 +445,9 @@ export const actions: Actions = {
 		}
 
 		// reset password
-		await auth.updateKeyPassword('email', user.email, password);
+		if (typeof password === 'string') {
+			await auth.updateKeyPassword('email', user.email, password);
+		}
 
 		// delete the token
 		user.resetToken = '';

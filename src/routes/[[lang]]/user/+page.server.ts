@@ -7,8 +7,8 @@ import sendMail from '$src/lib/utils/send-email';
 import mongoose from 'mongoose';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	const session = await locals.validate();
-	if (!session) throw redirect(302, '/');
+	const session = await locals.auth.validate(); // authRequest.validate()
+	if (!session) throw redirect(302, '/login');
 
 	const user = await User.find();
 	return {

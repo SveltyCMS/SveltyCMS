@@ -124,7 +124,7 @@ const de: Translation = {
 	ENTRYLIST_Showing: 'Es werden',
 	ENTRYLIST_to: 'bis',
 	ENTRYLIST_of: 'von',
-	ENTRYLIST_Rows: 'Einträgen angezeigt',
+	ENTRYLIST_Rows: 'Einträge',
 	ENTRYLIST_RowsItems: 'Einträge',
 	ENTRYLIST_Previous: 'Zurück',
 	ENTRYLIST_Next: 'Weiter',

@@ -46,11 +46,12 @@
 
 	// Lucia
 	import { page } from '$app/stores';
-	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
 	import { goto, invalidateAll } from '$app/navigation';
+	import { auth } from '$lib/server/lucia';
+	const user = auth.getUser();
 
-	handleSession(page);
-	const user = getUser();
+	// import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
+	// handleSession(page);
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
