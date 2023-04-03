@@ -340,8 +340,8 @@ export const actions: Actions = {
 		}
 	},
 
-	forgotPassword: async ({ request }) => {
-		const form = await request.formData();
+	forgotPassword: async (event) => {
+		const form = await event.request.formData();
 		const email = (form.get('forgottonemail') as string)?.toLowerCase();
 
 		if (!email || typeof email !== 'string') {
@@ -379,7 +379,27 @@ export const actions: Actions = {
 		});
 
 		try {
-			await sendMail(email, 'Forgot password', forgotPasswordToken, html);
+			// await sendMail(email, 'Forgot password', forgotPasswordToken, html);
+			await event.fetch('/api/sendMail', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: email,
+					subject: 'Forgot password',
+					message: 'Forgot password',
+					templateName: 'ForgotPassword',
+					props: {
+						name: 'Svelte',
+						username: 'svelteuser',
+						email: 'svelte@example.com',
+						token: forgotPasswordToken,
+						role: 'admin',
+						resetLink: link
+					}
+				})
+			});
 			await User.findOneAndUpdate(
 				{ email: email },
 				{
