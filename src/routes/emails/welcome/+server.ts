@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
+import WelcomeUser from '$src/lib/emails/welcomeUser.svelte';
 
 /** Send email
  * @param {string} email - user email address

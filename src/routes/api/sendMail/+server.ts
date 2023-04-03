@@ -1,6 +1,7 @@
 import { render } from 'svelte-email';
 import Hello from '$lib/emails/Hello.svelte';
 import Welcome from '$lib/emails/welcomeUser.svelte';
+import ForgotPassword from '$lib/emails/forgottenPassword.svelte';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 import type { RequestHandler } from './$types';
 
@@ -16,7 +17,8 @@ interface EmailProps {
 
 const templates: Record<string, ComponentType> = {
 	Hello,
-	Welcome
+	Welcome,
+	ForgotPassword
 };
 
 export const POST = (async ({ request }) => {
