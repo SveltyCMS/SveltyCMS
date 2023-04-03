@@ -121,8 +121,7 @@ export const actions: Actions = {
 			return fail(400, { error: true, errors });
 		}
 
-		//const email = form.get('email').toLowerCase();
-		const email = form.get('email');
+		const email = (form.get('email') as string)?.toLowerCase();
 		const password = form.get('password');
 
 		if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
@@ -198,7 +197,7 @@ export const actions: Actions = {
 			return fail(400, { error: true, errors });
 		}
 		const username = form.get('username');
-		const email = form.get('email');
+		const email = (form.get('email') as string)?.toLowerCase();
 		const password = form.get('password');
 		const signUpToken = form.get('token');
 
@@ -342,9 +341,9 @@ export const actions: Actions = {
 		}
 	},
 
-	forgotPassword: async ({ request }) => {
-		const form = await request.formData();
-		const email = form.get('forgottonemail');
+	forgotPassword: async (event) => {
+		const form = await event.request.formData();
+		const email = (form.get('forgottonemail') as string)?.toLowerCase();
 
 		if (!email || typeof email !== 'string') {
 			return fail(400, {
@@ -381,7 +380,27 @@ export const actions: Actions = {
 		});
 
 		try {
-			await sendMail(email, 'Forgot password', forgotPasswordToken, html);
+			// await sendMail(email, 'Forgot password', forgotPasswordToken, html);
+			await event.fetch('/api/sendMail', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: email,
+					subject: 'Forgot password',
+					message: 'Forgot password',
+					templateName: 'ForgotPassword',
+					props: {
+						name: 'Svelte',
+						username: 'svelteuser',
+						email: 'svelte@example.com',
+						token: forgotPasswordToken,
+						role: 'admin',
+						resetLink: link
+					}
+				})
+			});
 			await User.findOneAndUpdate(
 				{ email: email },
 				{

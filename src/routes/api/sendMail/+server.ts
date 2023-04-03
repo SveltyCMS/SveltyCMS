@@ -1,9 +1,12 @@
 import { render } from 'svelte-email';
 import Hello from '$lib/emails/Hello.svelte';
 import Welcome from '$lib/emails/welcomeUser.svelte';
+import ForgotPassword from '$lib/emails/forgottenPassword.svelte';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
+import type { RequestHandler } from './$types';
 
 import nodemailer from 'nodemailer';
+import type { ComponentType } from 'svelte';
 
 interface EmailProps {
 	name?: string;
@@ -12,18 +15,29 @@ interface EmailProps {
 	// ... any other props used by both templates
 }
 
-const templates = {
+const templates: Record<string, ComponentType> = {
 	Hello,
-	Welcome
+	Welcome,
+	ForgotPassword
 };
 
-export async function sendMail(
+export const POST = (async ({ request }) => {
+	const { email, subject, message, templateName, props } = await request.json();
+	const x = await sendMail(email, subject, message, templateName, props);
+
+	console.log(x);
+
+	return { hello: 'world' };
+}) satisfies RequestHandler;
+
+async function sendMail(
 	email: string,
 	subject: string,
 	message: string,
 	templateName: keyof typeof templates,
 	props: EmailProps
 ) {
+	console.log(email, subject, message);
 	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -44,13 +58,15 @@ export async function sendMail(
 		props
 	});
 
-	await transporter.sendMail({
-		from: SMTP_EMAIL,
-		to: email,
-		subject,
-		text: message,
-		html: emailHtml
-	});
+	await transporter
+		.sendMail({
+			from: SMTP_EMAIL,
+			to: email,
+			subject,
+			text: message,
+			html: emailHtml
+		})
+		.catch((err) => console.log(err));
 
 	return {
 		status: 200,

@@ -43,8 +43,7 @@ module.exports = {
 		// Keep any existing plugins present and append the following:
 		...require('@skeletonlabs/skeleton/tailwind/skeleton.cjs')(),
 		require('@tailwindcss/forms'),
-		require('@tailwindcss/typography'),
-		require('@tailwindcss/line-clamp')
+		require('@tailwindcss/typography')
 	],
 	darkMode: 'class'
 };

@@ -1,10 +1,18 @@
-<script>
+<script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
 
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
+	interface EmailProps {
+		username?: string;
+		resetLink: string;
+		token: string;
+	}
+	export let username: EmailProps['username'];
+	export let resetLink: EmailProps['resetLink'];
+	export let token: EmailProps['token'];
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
