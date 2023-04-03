@@ -1,14 +1,26 @@
 <script>
 	import { PUBLIC_SITENAME } from '$env/static/public';
-	import SimpleCmsLogo from '$src/components/icons/SimpleCMS_Logo.svelte';
+	import { dev } from '$app/environment';
+	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+
+	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
-	export let email = 'test@test.de';
-	export let role = 'admin';
-	export let token = 'token';
-	export let expires_in = '2hrs';
+	interface EmailProps {
+		username?: string;
+		email?: string;
+		sitename?: string;
+		role?: string;
+		token?: string;
+		expires_in?: string;
+	}
+	export let email: EmailProps['email'];
+	export let sitename: EmailProps['sitename'];
+	export let role: EmailProps['role'];
+	export let token: EmailProps['token'];
+	export let expires_in: EmailProps['token'];
 
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
@@ -33,19 +45,11 @@
 		padding: '20px 0 48px'
 	};
 
-	const logo = {
-		margin: '0 auto'
-	};
-
 	const paragraph = {
 		fontFamily,
 		fontSize: '16px',
 		lineHeight: '26px'
 	};
-
-	// const btnContainer = {
-	// 	textAlign: 'center' as const
-	// };
 
 	const button = {
 		fontFamily,
@@ -54,7 +58,7 @@
 		color: '#fff',
 		fontSize: '16px',
 		textDecoration: 'none',
-		// textAlign: 'center' as const,
+		textAlign: 'center',
 		display: 'block'
 	};
 
@@ -78,7 +82,12 @@
 	<Preview preview="User Registration token for {PUBLIC_SITENAME}" />
 	<Section style={main}>
 		<Container style={container}>
-			<SimpleCmsLogo fill="red" className="h-8" />
+			<Img
+				src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png"
+				alt="{PUBLIC_SITENAME} logo"
+				width="200"
+				height="50"
+			/>
 			<Text style={paragraph}
 				>You have recieved an Access Token to create a new user for {PUBLIC_SITENAME}</Text
 			>

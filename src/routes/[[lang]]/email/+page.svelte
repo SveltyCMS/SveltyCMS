@@ -26,7 +26,7 @@
 			},
 			body: JSON.stringify({
 				email: 'info@asset-trade.de',
-				subject: 'Email Subject welcom',
+				subject: 'Email Subject welcome',
 				message: 'Email message',
 				templateName: 'Welcome',
 				props: {
@@ -41,8 +41,6 @@
 	}
 </script>
 
-<button class="btn variant-filled-secondary" on:click={handleHelloClick}> Send Hello Email </button>
+<button class="btn variant-filled-secondary" on:click={handleHelloClick}>Send Hello Email</button>
 
-<button class="btn variant-filled-primary" on:click={handleWelcomeClick}>
-	Send Welcome Email
-</button>
+<button class="btn variant-filled-primary" on:click={handleWelcomeClick}>Send Welcome Email</button>

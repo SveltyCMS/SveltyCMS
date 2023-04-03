@@ -10,12 +10,8 @@
 
 	interface EmailProps {
 		username?: string;
-		resetLink: string;
-		token: string;
 	}
 	export let username: EmailProps['username'];
-	export let resetLink: EmailProps['resetLink'];
-	export let token: EmailProps['token'];
 
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
@@ -68,10 +64,10 @@
 
 <Html lang="en">
 	<Head>
-		<title>Reset your password for {PUBLIC_SITENAME}</title>
-		<meta name="description" content="Reset your password for {PUBLIC_SITENAME}" />
+		<title>Your password for {PUBLIC_SITENAME} was changed</title>
+		<meta name="description" content="Your password for {PUBLIC_SITENAME} was changed" />
 	</Head>
-	<Preview preview="Reset your password for {PUBLIC_SITENAME}" />
+	<Preview preview="Your password for {PUBLIC_SITENAME} was changed" />
 	<Section style={main}>
 		<Container style={container}>
 			<Img
@@ -82,15 +78,9 @@
 			/>
 			<Text style={paragraph}>Hello {username},</Text>
 			<Text style={paragraph}
-				>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text
+				>You have successfully changed your Password for {PUBLIC_SITENAME}</Text
 			>
-			<Text style={paragraph}>Please press the button to reset your password</Text>
-			<Text style={paragraph}>If you did not request this reset, please ignore this email.</Text>
-
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>Reset Password</Button>
-			</Section>
-
+			<Text style={paragraph}>If you did not request this change, please contact us.</Text>
 			<Hr style={hr} />
 			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
 		</Container>
