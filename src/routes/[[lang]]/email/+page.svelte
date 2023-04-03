@@ -6,8 +6,8 @@
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				email: 'recipient@example.com',
-				subject: 'Email Subject',
+				email: 'info@asset-trade.de',
+				subject: 'Email Subject svelte-email',
 				message: 'Email message',
 				templateName: 'Hello',
 				props: {
@@ -25,8 +25,8 @@
 				'Content-Type': 'application/json'
 			},
 			body: JSON.stringify({
-				email: 'recipient@example.com',
-				subject: 'Email Subject',
+				email: 'info@asset-trade.de',
+				subject: 'Email Subject welcom',
 				message: 'Email message',
 				templateName: 'Welcome',
 				props: {

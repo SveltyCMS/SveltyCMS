@@ -120,7 +120,7 @@ export const actions: Actions = {
 			return fail(400, { error: true, errors });
 		}
 
-		const email = form.get('email');
+		const email = (form.get('email') as string)?.toLowerCase();
 		const password = form.get('password');
 
 		if (!email || !password || typeof email !== 'string' || typeof password !== 'string') {
@@ -196,7 +196,7 @@ export const actions: Actions = {
 			return fail(400, { error: true, errors });
 		}
 		const username = form.get('username');
-		const email = form.get('email');
+		const email = (form.get('email') as string)?.toLowerCase();
 		const password = form.get('password');
 		const signUpToken = form.get('token');
 
@@ -342,7 +342,7 @@ export const actions: Actions = {
 
 	forgotPassword: async ({ request }) => {
 		const form = await request.formData();
-		const email = form.get('forgottonemail');
+		const email = (form.get('forgottonemail') as string)?.toLowerCase();
 
 		if (!email || typeof email !== 'string') {
 			return fail(400, {
