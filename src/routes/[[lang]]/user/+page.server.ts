@@ -82,8 +82,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 // ```;
 
 export const actions: Actions = {
-	generateToken: async ({ request, locals }) => {
-		const form = await request.formData();
+	generateToken: async (event) => {
+		const form = await event.request.formData();
 
 		const email = form.get('newUserEmail').toLowerCase();
 		const role = form.get('role');
@@ -110,7 +110,28 @@ export const actions: Actions = {
 				tokenAlreadySentToUser.expiresAt = epoch_expires_at; // Update the expiresAt field of the existing token
 				tokenAlreadySentToUser.role = role; // Update the role field of the existing token
 				await tokenAlreadySentToUser.save(); // Save the changes to the database
-				//await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken); // Send the same token again
+
+				//Send New user registration mail
+				await event.fetch('/api/sendMail', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						email: email,
+						subject: 'New user registration',
+						message: 'New user registration',
+						templateName: 'UserToken',
+						props: {
+							//username: username,
+							email: email,
+							token: tokenAlreadySentToUser.resetToken
+							// role: role,
+							// resetLink: link,
+							//expires_at: epoch_expires_at
+						}
+					})
+				});
 			} catch (err) {
 				console.log('err', err);
 				return fail(400, {
@@ -162,8 +183,28 @@ export const actions: Actions = {
 			});
 		}
 
+		//Send New user registration mail
 		try {
-			//await sendMail(email, 'New user registration', registrationToken);
+			await event.fetch('/api/sendMail', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: email,
+					subject: 'New user registration',
+					message: 'New user registration',
+					templateName: 'UserToken',
+					props: {
+						//username: username,
+						email: email,
+						token: registrationToken
+						// role: role,
+						// resetLink: link,
+						//expires_at: epoch_expires_at
+					}
+				})
+			});
 		} catch (err) {
 			return fail(400, {
 				error: true,

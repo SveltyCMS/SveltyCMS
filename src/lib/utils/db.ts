@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DB_HOST, DB_NAME, DB_PASSWORD, DB_USER } from '$env/static/private';
+import { DB_HOST_MONGO, DB_HOST_ATLAS, DB_NAME, DB_PASSWORD, DB_USER } from '$env/static/private';
 import type { Handle } from '@sveltejs/kit';
 import schemas from '$src/collections';
 import { fieldsToSchema } from '$src/lib/utils/utils';
@@ -10,24 +10,23 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 	// Turn off strict mode for query filters. Default in Mongodb 7
 	mongoose.set('strictQuery', false);
 
-	// use for mongodb Atalas
-	// mongoose.connect(`mongodb+srv://${env.DB_USER}:${env.DB_PASSWORD}@${env.DB_HOST}/${env.DB_NAME}?retryWrites=true&w=majority`);
-
-	// use for mongodb
-	mongoose
-		.connect(DB_HOST, {
+	if (DB_HOST_MONGO) {
+		// use for local mongodb
+		mongoose.connect(DB_HOST_MONGO, {
 			authSource: 'admin',
 			user: DB_USER,
 			pass: DB_PASSWORD,
 			dbName: DB_NAME
-		})
-		.then((res) => {
-			// console.log('Connected to DB');
-			// console.log({ dbRes: res });
-		})
-		.catch((err) => {
-			console.log({ dbErr: err });
 		});
+	} else if (DB_HOST_ATLAS) {
+		// use for mongodb Atlas
+		mongoose.connect(
+			`mongodb+srv://${DB_USER}:${DB_PASSWORD}@${DB_HOST_ATLAS}/${DB_NAME}?retryWrites=true&w=majority`
+		);
+	} else {
+		// handle case where neither DB_HOST_MONGO nor DB_HOST_ATLAS are defined
+		console.error('Error: Neither DB_HOST_MONGO nor DB_HOST_ATLAS are defined');
+	}
 
 	return await resolve(event);
 };

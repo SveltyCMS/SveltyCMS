@@ -165,8 +165,8 @@ export const actions: Actions = {
 		}
 	},
 
-	createUser: async ({ request, locals }) => {
-		const form = await request.formData();
+	createUser: async ({ event, locals }) => {
+		const form = await event.request.formData();
 		// remove token validation if user is not a first time user
 		if (!(await checkUserExistsInDb())) {
 			delete zod_obj.token;
@@ -242,7 +242,7 @@ export const actions: Actions = {
 				});
 
 				const session = await auth.createSession(res.userId);
-				locals.setSession(session);
+				event.locals.setSession(session);
 
 				return;
 			}
@@ -311,7 +311,27 @@ export const actions: Actions = {
 			await SignUpToken.deleteOne({ _id: token._id });
 
 			const session = await auth.createSession(res.userId);
-			locals.setSession(session);
+			await event.fetch('/api/sendMail', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: email,
+					subject: 'New user registration',
+					message: 'New user registration',
+					templateName: 'Welcome',
+					props: {
+						username: username,
+						email: email
+						//token: registrationToken
+						// role: role,
+						// resetLink: link,
+						//expires_at: epoch_expires_at
+					}
+				})
+			});
+			event.locals.setSession(session);
 		} catch (error) {
 			console.log(error);
 			if (
@@ -421,8 +441,8 @@ export const actions: Actions = {
 		}
 	},
 
-	resetPassword: async ({ request }) => {
-		const form = await request.formData();
+	resetPassword: async (event) => {
+		const form = await event.request.formData();
 		const validationResult = resetPasswordSchema.safeParse(Object.fromEntries(form));
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
@@ -458,6 +478,26 @@ export const actions: Actions = {
 
 		// reset password
 		await auth.updateKeyPassword('email', user.email, password);
+		await event.fetch('/api/sendMail', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				email: user.email,
+				subject: 'Password Changed',
+				message: 'Password Changed',
+				templateName: 'UpdatedPassword',
+				props: {
+					username: user.username,
+					email: user.email
+					//token: registrationToken
+					// role: role,
+					// resetLink: link,
+					//expires_at: epoch_expires_at
+				}
+			})
+		});
 
 		// delete the token
 		user.resetToken = '';
