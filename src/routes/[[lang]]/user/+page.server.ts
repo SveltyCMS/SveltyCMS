@@ -3,7 +3,7 @@ import { User } from '$lib/models/user-model';
 import { fail, redirect, type Actions, json } from '@sveltejs/kit';
 import { randomBytes } from 'crypto';
 import type { PageServerLoad } from './$types';
-import sendMail from '$src/lib/utils/send-email';
+//import sendMail from '$src/lib/utils/send-email';
 import mongoose from 'mongoose';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -110,7 +110,7 @@ export const actions: Actions = {
 				tokenAlreadySentToUser.expiresAt = epoch_expires_at; // Update the expiresAt field of the existing token
 				tokenAlreadySentToUser.role = role; // Update the role field of the existing token
 				await tokenAlreadySentToUser.save(); // Save the changes to the database
-				await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken); // Send the same token again
+				//await sendMail(email, 'New user registration', tokenAlreadySentToUser.resetToken); // Send the same token again
 			} catch (err) {
 				console.log('err', err);
 				return fail(400, {
@@ -163,7 +163,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			await sendMail(email, 'New user registration', registrationToken);
+			//await sendMail(email, 'New user registration', registrationToken);
 		} catch (err) {
 			return fail(400, {
 				error: true,

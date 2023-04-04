@@ -503,9 +503,6 @@
 		</tbody>
 	</table>
 
-	<!-- paginagtion -->
-	<!-- TODO need more work use the css from entrylist -->
-
 	<!-- Pagination -->
 	<div class="flex justify-around items-center my-3">
 		<!-- show & count rows -->
