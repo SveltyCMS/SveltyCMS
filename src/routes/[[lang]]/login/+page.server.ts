@@ -3,8 +3,6 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { get } from 'svelte/store';
 
-// Nodemailer
-import { sendMail } from '../../emails/welcome/+server';
 import { randomBytes } from 'crypto';
 
 // lucia
@@ -184,6 +182,7 @@ export const actions: Actions = {
 			}
 		});
 		const validationResult = signupSchema.safeParse(Object.fromEntries(form));
+
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
 			const errors = validationResult.error.errors.map((error) => {
@@ -220,6 +219,7 @@ export const actions: Actions = {
 		}
 
 		try {
+			// setup Admin user as first user
 			const count = await User.count();
 			if (count === 0) {
 				const res = await auth.createUser({
@@ -379,7 +379,6 @@ export const actions: Actions = {
 		});
 
 		try {
-			// await sendMail(email, 'Forgot password', forgotPasswordToken, html);
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
 				headers: {
@@ -387,16 +386,16 @@ export const actions: Actions = {
 				},
 				body: JSON.stringify({
 					email: email,
-					subject: 'Forgot password',
-					message: 'Forgot password',
+					subject: 'Forgot password needs translation',
+					message: 'Forgot password needs translation',
 					templateName: 'ForgotPassword',
 					props: {
-						name: 'Svelte',
-						username: 'svelteuser',
-						email: 'svelte@example.com',
+						//username: username,
+						email: email,
 						token: forgotPasswordToken,
-						role: 'admin',
-						resetLink: link
+						// role: role,
+						resetLink: link,
+						expires_at: epoch_expires_at
 					}
 				})
 			});
