@@ -3,10 +3,6 @@ import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { get } from 'svelte/store';
 
-// Nodemailer
-//import { sendMail } from '../../emails/welcome/+server';
-//import sendMail from '$src/routes/api/sendMail/+server';
-
 import { randomBytes } from 'crypto';
 
 // lucia
@@ -394,10 +390,10 @@ export const actions: Actions = {
 					message: 'Forgot password needs translation',
 					templateName: 'ForgotPassword',
 					props: {
-						username: username,
+						//username: username,
 						email: email,
 						token: forgotPasswordToken,
-						role: role,
+						// role: role,
 						resetLink: link,
 						expires_at: epoch_expires_at
 					}

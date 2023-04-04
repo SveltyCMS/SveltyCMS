@@ -3,7 +3,7 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
+	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
 	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
@@ -23,7 +23,7 @@
 	<Section>
 		<Container>
 			<Img
-				src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png"
+				src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
 				alt="{PUBLIC_SITENAME} logo"
 				width="200"
 				height="50"
@@ -31,7 +31,7 @@
 			<Text>Dear ${username}, welcome to {PUBLIC_SITENAME}</Text>
 			<Text>A Sveltekit powered flexible Headless CMS</Text>
 			<Section>
-				<Button pX={12} pY={12} href={HOST_DEV}>
+				<Button pX={12} pY={12} href={hostLink}>
 					Go to {PUBLIC_SITENAME}
 				</Button>
 			</Section>

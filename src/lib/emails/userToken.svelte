@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
@@ -6,7 +6,18 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
+	import {
+		Button,
+		Column,
+		Container,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Preview,
+		Section,
+		Text
+	} from 'svelte-email';
 
 	interface EmailProps {
 		username?: string;
@@ -14,24 +25,14 @@
 		sitename?: string;
 		role?: string;
 		token?: string;
-		expires_in?: string;
+		expires_at?: string;
 	}
 	export let email: EmailProps['email'];
 	export let sitename: EmailProps['sitename'];
 	export let role: EmailProps['role'];
 	export let token: EmailProps['token'];
-	export let expires_in: EmailProps['token'];
-
-	import { dev } from '$app/environment';
-	import { HOST_DEV, HOST_PROD } from '$env/static/private';
-
-	export let tokenLink = { HOST_DEV };
-
-	// if (dev) {
-	//     export let tokenLink = { HOST_DEV };
-	// else
-	// 	export let tokenLink = { HOST_PROD };
-	// }
+	export let expires_at: EmailProps['token'];
+	let readable_expires_at = new Date(expires_at).toLocaleString();
 
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
@@ -51,9 +52,17 @@
 		lineHeight: '26px'
 	};
 
+	const paragraphbold = {
+		fontFamily,
+		fontSize: '16px',
+		lineHeight: '26px',
+		textAlign: 'center',
+		fontWeight: '600'
+	};
+
 	const button = {
 		fontFamily,
-		backgroundColor: '#5F51E8',
+		backgroundColor: '#8ddd15',
 		borderRadius: '3px',
 		color: '#fff',
 		fontSize: '16px',
@@ -64,13 +73,29 @@
 
 	const hr = {
 		borderColor: '#cccccc',
-		margin: '20px 0'
+		margin: '15px 0'
 	};
 
 	const footer = {
 		fontFamily,
 		color: '#8898aa',
-		fontSize: '12px'
+		fontSize: '12px',
+		textAlign: 'center'
+	};
+
+	const styleToString = (style: Record<string, string | number | null>) => {
+		return Object.keys(style).reduce(
+			(acc, key) =>
+				acc +
+				key
+					.split(/(?=[A-Z])/)
+					.join('-')
+					.toLowerCase() +
+				':' +
+				style[key] +
+				';',
+			''
+		);
 	};
 </script>
 
@@ -88,13 +113,23 @@
 				width="200"
 				height="50"
 			/>
+
 			<Text style={paragraph}
 				>You have recieved an Access Token to create a new user for {PUBLIC_SITENAME}</Text
 			>
-			<Text style={paragraph}>Email: {email}</Text>
-			<Text style={paragraph}>Access Token: {token}</Text>
-			<Text style={paragraph}>Role: {role}</Text>
-			<Text style={paragraph}>valid for: {expires_in}</Text>
+			<Column>
+				<Text style={paragraph}
+					>Email: <span style={styleToString(paragraphbold)}>{email}</span></Text
+				>
+				<Text style={paragraph}
+					>Access Token: <span style={styleToString(paragraphbold)}>{token}</span></Text
+				>
+				<Text style={paragraph}>Role: <span style={styleToString(paragraphbold)}>{role}</span></Text
+				>
+				<Text style={paragraph}
+					>Valid for: <span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text
+				>
+			</Column>
 
 			<Text style={paragraph}>Please press the button to setup your user with this email</Text>
 			<Section>

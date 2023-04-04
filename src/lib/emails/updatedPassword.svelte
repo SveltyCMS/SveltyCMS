@@ -71,7 +71,7 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Img
-				src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png"
+				src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
 				alt="{PUBLIC_SITENAME} logo"
 				width="200"
 				height="50"
