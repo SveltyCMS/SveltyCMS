@@ -51,7 +51,7 @@ Data is provided via yoga graphql, to build extremely fast frontends
 
 ## :rocket: Setup
 
-Clone the repository
+### Clone the repository
 
 ```bash
 git clone https://github.com/Rar9/SimpleCMS.git
@@ -63,22 +63,22 @@ git clone https://github.com/Rar9/SimpleCMS.git
 pnpm i
 ```
 
-### Environment File
+### Setup Environment File
 
 rename the `.env.example` to `.env`.
 
-Extend Languages if other are required
-Enter the access data to connect to your mongodb or mongo atlas
-Setup your Email SMTP & HOST
-Add your Api Tokes for the individual Widget you use
+- Extend Languages if other are required
+- Enter the access data to connect to your mongodb or mongo atlas
+- Setup your Email SMTP & HOST
+- Add your API Tokes for the individual Widget you need to use
 
-## :running: Run the application
+### Run the application
 
 ```bash
 pnpm dev
 ```
 
-### :lock: Authentication & Security
+## :lock: Authentication & Security
 
 Simple and clean Authentication using [Lucai Auth](https://lucia-auth.com/)
 We want to keep your data Private and Secure.
@@ -119,6 +119,6 @@ Sponsors are always welcome to contribute to get a custom CMS experience.
 
 to all our contributors without this would never have been possible
 
-## :star: Give us a star
+# :star: Give us a star
 
-if you like what we're doing, give a star and share our SimpleCMS project with others
+if you like what we're doing, give us a star and share our SimpleCMS project with others

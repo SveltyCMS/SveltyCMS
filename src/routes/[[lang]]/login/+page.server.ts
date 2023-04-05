@@ -165,7 +165,7 @@ export const actions: Actions = {
 		}
 	},
 
-	createUser: async ({ event, locals }) => {
+	createUser: async (event) => {
 		const form = await event.request.formData();
 		// remove token validation if user is not a first time user
 		if (!(await checkUserExistsInDb())) {

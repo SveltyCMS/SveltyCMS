@@ -1,5 +1,12 @@
 import mongoose from 'mongoose';
-import { DB_HOST_MONGO, DB_HOST_ATLAS, DB_NAME, DB_PASSWORD, DB_USER } from '$env/static/private';
+import {
+	DB_TYPE,
+	DB_HOST_MONGO,
+	DB_HOST_ATLAS,
+	DB_NAME,
+	DB_PASSWORD,
+	DB_USER
+} from '$env/static/private';
 import type { Handle } from '@sveltejs/kit';
 import schemas from '$src/collections';
 import { fieldsToSchema } from '$src/lib/utils/utils';
@@ -10,7 +17,7 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 	// Turn off strict mode for query filters. Default in Mongodb 7
 	mongoose.set('strictQuery', false);
 
-	if (DB_HOST_MONGO) {
+	if (DB_TYPE === 'mongodb') {
 		// use for local mongodb
 		mongoose.connect(DB_HOST_MONGO, {
 			authSource: 'admin',
@@ -18,14 +25,13 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 			pass: DB_PASSWORD,
 			dbName: DB_NAME
 		});
-	} else if (DB_HOST_ATLAS) {
+	} else if (DB_TYPE === 'atlas') {
 		// use for mongodb Atlas
 		mongoose.connect(
 			`mongodb+srv://${DB_USER}:${DB_PASSWORD}@${DB_HOST_ATLAS}/${DB_NAME}?retryWrites=true&w=majority`
 		);
 	} else {
-		// handle case where neither DB_HOST_MONGO nor DB_HOST_ATLAS are defined
-		console.error('Error: Neither DB_HOST_MONGO nor DB_HOST_ATLAS are defined');
+		console.error('Error: database type not defined');
 	}
 
 	return await resolve(event);

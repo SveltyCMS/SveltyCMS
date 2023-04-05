@@ -1,6 +1,17 @@
 <script lang="ts">
-	import { createEventDispatcher, onMount } from 'svelte';
+	// typesafe-i18n
+	import LL from '$i18n/i18n-svelte';
+
+	// show/hide Left Sidebar
+	import AnimatedHamburger from '$src/components/AnimatedHamburger.svelte';
+
+	import { toggleLeftSidebar } from '$src/stores/store';
+	export let switchSideBar = false;
+
+	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
+
+	import { createEventDispatcher, onMount } from 'svelte';
 	import z from 'zod';
 	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
 	import { get } from 'svelte/store';
@@ -127,7 +138,13 @@
 	});
 </script>
 
-<h2 class="">Smart Form</h2>
+<div class="flex mr-1 align-centre mb-2">
+	{#if !switchSideBar && $toggleLeftSidebar}
+		<AnimatedHamburger />
+	{/if}
+
+	<h1 class={!$toggleLeftSidebar ? 'ml-2' : ''}>Smart Form</h1>
+</div>
 <div class="text-center text-xs text-error-500">* Required</div>
 <form on:submit={handleSubmit}>
 	<label>

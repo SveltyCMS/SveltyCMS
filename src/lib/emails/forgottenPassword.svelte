@@ -6,18 +6,7 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import {
-		Button,
-		Container,
-		Head,
-		Hr,
-		Html,
-		Img,
-		Preview,
-		Column,
-		Section,
-		Text
-	} from 'svelte-email';
+	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
 	interface EmailProps {
 		email?: string;

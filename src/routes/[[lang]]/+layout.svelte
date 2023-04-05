@@ -22,7 +22,15 @@
 		setInitialClassState
 	} from '@skeletonlabs/skeleton';
 
-	import { AppShell, Avatar, Modal, ProgressBar, Toast, toastStore } from '@skeletonlabs/skeleton';
+	import {
+		AppShell,
+		AppBar,
+		Avatar,
+		Modal,
+		ProgressBar,
+		Toast,
+		toastStore
+	} from '@skeletonlabs/skeleton';
 	import type { ToastSettings } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -418,7 +426,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						<span
 							class="{switchSideBar
 								? 'py-1'
-								: 'py-0'} badge variant-filled-primary  rounded-xl text-black"
+								: 'py-0'} badge variant-filled-primary rounded-xl text-black"
 							>{#if switchSideBar}{$LL.SBL_Version()}: {/if}{pkg.version}</span
 						>
 					</a>

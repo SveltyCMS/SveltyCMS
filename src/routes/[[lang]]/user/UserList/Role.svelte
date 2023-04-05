@@ -13,11 +13,11 @@
 		value === 'Admin'
 			? 'badge gradient-primary '
 			: value === 'Developer'
-			? 'badge gradient-secondary'
+			? 'badge gradient-pink'
 			: value === 'Editor'
 			? 'badge gradient-tertiary'
 			: value === 'User'
-			? 'badge variant-filled-waring'
+			? 'badge gradient-secondary'
 			: 'text-white'
 	} rounded-full text-white`;
 </script>

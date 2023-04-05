@@ -16,71 +16,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	};
 };
 
-// ```
-// export const actions: Actions = {
-// 	generateToken: async ({ request, locals }) => {
-// 		const form = await request.formData();
-
-// 		const email = form.get('newUserEmail').toLowerCase();
-// 		const role = form.get('role');
-// 		const expires_in = parseInt(form.get('expires_in') as string);
-
-// 		const epoch_expires_at = new Date().getTime() + expires_in;
-
-// 		if (!email || typeof email !== 'string' || !role) {
-// 			return fail(400, {
-// 				error: true,
-// 				errors: [
-// 					{
-// 						field: 'email',
-// 						message: 'Invalid input'
-// 					}
-// 				]
-// 			});
-// 		}
-
-//         // Find any existing sign-up tokens for the user
-//         const existingToken = await SignUpToken.findOne({ email, role });
-
-//         // If an existing token is found, update its values
-//         if (existingToken) {
-//             existingToken.resetRequestedAt = new Date();
-//             existingToken.resetToken = randomBytes(16).toString('base64');
-//             existingToken.expiresAt = epoch_expires_at;
-//             await existingToken.save();
-//         } else {
-//             // If no existing token is found, create a new one
-//             const signUpToken = new SignUpToken({
-//                 email,
-//                 role,
-//                 resetRequestedAt: new Date(),
-//                 resetToken: randomBytes(16).toString('base64'),
-//                 expiresAt: epoch_expires_at
-//             });
-//             await signUpToken.save();
-//         }
-
-//         // Send the email with the reset token
-//         try {
-//             await sendMail(email, 'New user registration', existingToken ? existingToken.resetToken : signUpToken.resetToken);
-//         } catch (err) {
-//             console.log('err', err);
-//             return fail(400, {
-//                 error: true,
-//                 errors: [
-//                     {
-//                         field: 'email',
-//                         message: 'Error sending mail'
-//                     }
-//                 ]
-//             });
-//         }
-
-//         return json({ success: true });
-//     }
-// };
-// ```;
-
 export const actions: Actions = {
 	generateToken: async (event) => {
 		const form = await event.request.formData();
@@ -198,10 +133,10 @@ export const actions: Actions = {
 					props: {
 						//username: username,
 						email: email,
-						token: registrationToken
-						// role: role,
+						token: registrationToken,
+						role: role,
 						// resetLink: link,
-						//expires_at: epoch_expires_at
+						expires_at: epoch_expires_at
 					}
 				})
 			});
@@ -218,3 +153,68 @@ export const actions: Actions = {
 		}
 	}
 };
+
+// ```
+// export const actions: Actions = {
+// 	generateToken: async ({ request, locals }) => {
+// 		const form = await request.formData();
+
+// 		const email = form.get('newUserEmail').toLowerCase();
+// 		const role = form.get('role');
+// 		const expires_in = parseInt(form.get('expires_in') as string);
+
+// 		const epoch_expires_at = new Date().getTime() + expires_in;
+
+// 		if (!email || typeof email !== 'string' || !role) {
+// 			return fail(400, {
+// 				error: true,
+// 				errors: [
+// 					{
+// 						field: 'email',
+// 						message: 'Invalid input'
+// 					}
+// 				]
+// 			});
+// 		}
+
+//         // Find any existing sign-up tokens for the user
+//         const existingToken = await SignUpToken.findOne({ email, role });
+
+//         // If an existing token is found, update its values
+//         if (existingToken) {
+//             existingToken.resetRequestedAt = new Date();
+//             existingToken.resetToken = randomBytes(16).toString('base64');
+//             existingToken.expiresAt = epoch_expires_at;
+//             await existingToken.save();
+//         } else {
+//             // If no existing token is found, create a new one
+//             const signUpToken = new SignUpToken({
+//                 email,
+//                 role,
+//                 resetRequestedAt: new Date(),
+//                 resetToken: randomBytes(16).toString('base64'),
+//                 expiresAt: epoch_expires_at
+//             });
+//             await signUpToken.save();
+//         }
+
+//         // Send the email with the reset token
+//         try {
+//             await sendMail(email, 'New user registration', existingToken ? existingToken.resetToken : signUpToken.resetToken);
+//         } catch (err) {
+//             console.log('err', err);
+//             return fail(400, {
+//                 error: true,
+//                 errors: [
+//                     {
+//                         field: 'email',
+//                         message: 'Error sending mail'
+//                     }
+//                 ]
+//             });
+//         }
+
+//         return json({ success: true });
+//     }
+// };
+// ```;

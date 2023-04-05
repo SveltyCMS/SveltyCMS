@@ -279,11 +279,11 @@
 
 			<!-- Country with search Combobox -->
 			<div>
-				<button class="input  mt-2 w-full btn  justify-between" use:popup={CountryCombobox}>
+				<button class="input mt-2 w-full btn justify-between" use:popup={CountryCombobox}>
 					<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
 					<i class="fa-solid fa-caret-down opacity-50" />
 				</button>
-				<div class="card  shadow-xl overflow-hidden" data-popup="CountryCombobox">
+				<div class="card shadow-xl overflow-hidden" data-popup="CountryCombobox">
 					<ListBox rounded="rounded-none">
 						{#each filteredCountries as country}
 							<!-- add system-language -->

@@ -8,7 +8,10 @@ import fs from 'fs';
 import path from 'path';
 
 // Define a function to handle HTTP POST requests
-export const POST: RequestHandler = async ({ request, locals }) => {
+export const POST: RequestHandler<Partial<Record<string, string>>, string | null> = async ({
+	request,
+	locals
+}) => {
 	// Extract form data from the request body
 	const formData = await request.formData();
 
@@ -34,31 +37,33 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// Convert the base64-encoded image data to a buffer
 	const buffer = Buffer.from(imageData, 'base64');
 
-	// Check the file type
-	const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
-	if (!allowedTypes.includes(mimType)) {
-		return json(
-			{ message: 'File type not supported' },
-			{
-				status: 400
-			}
-		);
-	}
+	// // Check the file type
+	// const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+	// if (!allowedTypes.includes(mimType)) {
+	// 	return json(
+	// 		{ message: 'File type not supported' },
+	// 		{
+	// 			status: 400
+	// 		}
+	// 	);
+	// }
 
-	// Check the file size
-	const allowedSize = 5 * 1024 * 1024; // 5 MB
-	if (buffer.length > allowedSize) {
-		return json(
-			{ message: 'File size exceeds the limit' },
-			{
-				status: 400
-			}
-		);
-	}
+	// // Check the file size
+	// const allowedSize = 5 * 1024 * 1024; // 5 MB
+	// if (buffer.length > allowedSize) {
+	// 	return json(
+	// 		{ message: 'File size exceeds the limit' },
+	// 		{
+	// 			status: 400
+	// 		}
+	// 	);
+	// }
 
 	// Resize the image to 200x200 pixels using the sharp library
-	const [err, b64data] = await to(sharp(buffer).resize(200, 200).toFormat('webp').toBuffer());
-	if (err) {
+	let b64data: string | Buffer | NodeJS.ArrayBufferView;
+	try {
+		b64data = await sharp(buffer).resize(200, 200).toFormat('webp').toBuffer();
+	} catch (err) {
 		return json(
 			{ message: 'Could not resize image' },
 			{
@@ -70,6 +75,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	// base folder for saving user medias
 	const basePath = 'src/media/avatar';
 
+	// Check if the media folder exists and create it if it doesn't
+	if (!fs.existsSync(basePath)) {
+		fs.mkdirSync(basePath, { recursive: true });
+	}
+
 	if (!user || !user.userId) {
 		return json(
 			{ message: 'User not found' },
@@ -78,10 +88,16 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		);
 	}
+
 	const newPath = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
 
 	// Get the current avatar path from the user object
 	const currentAvatar = user.avatar;
+
+	// Check if the media folder exists and create it if it doesn't
+	if (!fs.existsSync(basePath)) {
+		fs.mkdirSync(basePath, { recursive: true });
+	}
 
 	// Construct the trash folder path
 	const trashPath = 'trash/media/avatar';
@@ -93,6 +109,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 	// Move the old avatar to the trash folder if it exists
 	if (currentAvatar) {
+		// Check if the trash folder exists and create it if it doesn't
+		if (!fs.existsSync(trashPath)) {
+			fs.mkdirSync(trashPath, { recursive: true });
+		}
+
 		fs.promises
 			.rename(currentAvatar, `${trashPath}/${path.basename(currentAvatar)}`)
 			.then(async () => {
@@ -162,7 +183,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		);
 
-		// Return a JSON response with a success message and the URL of the resized image
 		return json(
 			{ message: 'Uploaded avatar successfully', newPath },
 			{
@@ -170,4 +190,6 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 			}
 		);
 	}
+	// Add your logic to handle the POST request here
+	return json({ message: 'POST request received' });
 };

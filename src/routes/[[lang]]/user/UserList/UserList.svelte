@@ -182,7 +182,7 @@
 	// let onRowSelectionChange = '';
 	// let setRowSelection = '';
 	let columnVisibility = {};
-	let sorting = {};
+	let sorting: any = [];
 
 	const setColumnVisibility = (updater: any) => {
 		if (updater instanceof Function) {
@@ -199,11 +199,7 @@
 		}));
 	};
 
-	// const randomizeColumns = () => {
-	// 	table.setColumnOrder(faker.helpers.shuffle(table.getAllLeafColumns().map((d) => d.id)));
-	// };
-
-	const setSorting = (updater: any) => {
+	const setSorting = (updater: (arg0: any) => any) => {
 		if (updater instanceof Function) {
 			sorting = updater(sorting);
 		} else {
@@ -221,6 +217,10 @@
 	const options = writable<TableOptions<User>>({
 		data: defaultData,
 		columns: defaultColumns,
+		state: {
+			sorting
+		},
+		onSortingChange: setSorting,
 		getCoreRowModel: getCoreRowModel(),
 		getSortedRowModel: getSortedRowModel(),
 		getFilteredRowModel: getFilteredRowModel(),
@@ -249,10 +249,25 @@
 		// enableRowSelection: true //enable row selection for all rows
 		// enableRowSelection: row => row.original.age > 18, // or enable row selection conditionally per row
 
-		// debugTable: true,
+		// debugTable: true
 		// debugHeaders: true,
 		// debugColumns: true
 	});
+
+	const refreshData = () => {
+		console.info('refresh');
+		options.update((prev) => ({
+			...prev,
+			data: defaultData
+		}));
+	};
+
+	const rerender = () => {
+		options.update((options) => ({
+			...options,
+			data: defaultData
+		}));
+	};
 
 	const table = createSvelteTable(options);
 
@@ -469,21 +484,21 @@
 			{#each $table.getHeaderGroups() as headerGroup}
 				<tr class="divide-x">
 					{#each headerGroup.headers as header}
-						<th colSpan={header.colSpan}>
+						<th colSpan={header.colSpan} class="text-center">
 							{#if !header.isPlaceholder}
-								<button
-									class="button is-white"
-									class:is-disabled={!header.column.getCanSort()}
-									disabled={!header.column.getCanSort()}
+								<div
+									class:cursor-pointer={header.column.getCanSort()}
+									class:select-none={header.column.getCanSort()}
 									on:click={header.column.getToggleSortingHandler()}
 								>
 									<svelte:component
 										this={flexRender(header.column.columnDef.header, header.getContext())}
 									/>
-									<span class="pl-1">
-										{getSortSymbol(header.column.getIsSorted())}
-									</span>
-								</button>
+									{{
+										asc: ' 🔼',
+										desc: ' 🔽'
+									}[header.column.getIsSorted().toString()] ?? ''}
+								</div>
 							{/if}
 						</th>
 					{/each}

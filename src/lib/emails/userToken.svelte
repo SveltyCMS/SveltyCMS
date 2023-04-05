@@ -6,18 +6,7 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import {
-		Button,
-		Column,
-		Container,
-		Head,
-		Hr,
-		Html,
-		Img,
-		Preview,
-		Section,
-		Text
-	} from 'svelte-email';
+	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
 
 	interface EmailProps {
 		username?: string;
@@ -56,15 +45,24 @@
 		fontFamily,
 		fontSize: '16px',
 		lineHeight: '26px',
-		textAlign: 'center',
 		fontWeight: '600'
+	};
+
+	const review = {
+		padding: '18px',
+		backgroundColor: '#f2f3f3',
+		borderRadius: '6px'
+	};
+
+	const btnContainer = {
+		textAlign: 'center'
 	};
 
 	const button = {
 		fontFamily,
 		backgroundColor: '#8ddd15',
 		borderRadius: '3px',
-		color: '#fff',
+		color: '#000000',
 		fontSize: '16px',
 		textDecoration: 'none',
 		textAlign: 'center',
@@ -107,17 +105,19 @@
 	<Preview preview="User Registration token for {PUBLIC_SITENAME}" />
 	<Section style={main}>
 		<Container style={container}>
-			<Img
-				src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png"
-				alt="{PUBLIC_SITENAME} logo"
-				width="200"
-				height="50"
-			/>
+			<Section style={btnContainer}>
+				<Img
+					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+					alt="{PUBLIC_SITENAME} logo"
+					width="150"
+					height="auto"
+				/>
+			</Section>
 
 			<Text style={paragraph}
 				>You have recieved an Access Token to create a new user for {PUBLIC_SITENAME}</Text
 			>
-			<Column>
+			<Section style={review}>
 				<Text style={paragraph}
 					>Email: <span style={styleToString(paragraphbold)}>{email}</span></Text
 				>
@@ -129,10 +129,10 @@
 				<Text style={paragraph}
 					>Valid for: <span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text
 				>
-			</Column>
+			</Section>
 
 			<Text style={paragraph}>Please press the button to setup your user with this email</Text>
-			<Section>
+			<Section style={btnContainer}>
 				<Button pX={12} pY={12} style={button} href={tokenLink}>Create User</Button>
 			</Section>
 			<Hr style={hr} />
