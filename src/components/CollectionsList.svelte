@@ -98,7 +98,7 @@
 					<ListBox
 						rounded="rounded-none"
 						spacing="space-y-0"
-						class="divide-surface-400 divide-y my-0 -mx-4"
+						class="divide-surface-300 divide-y my-0 -mx-4"
 					>
 						{#each item.collections as _collection, collection_index}
 							<ListBoxItem
@@ -117,7 +117,7 @@
 									}
 									dispatch('collection_click', { category_index: index, collection_index });
 								}}
-								class="hover:!bg-surface-400 w-full"
+								class="bg-surface-500 hover:!bg-surface-400 dark:hover:!bg-surface-300 w-full"
 							>
 								<svelte:fragment slot="lead">
 									<Icon icon={_collection.icon} width="24" class="text-error-600" />
@@ -148,7 +148,7 @@
 							rounded="rounded-none"
 							spacing="space-y-0"
 							padding="!py-1"
-							class="divide-surface-400 divide-y !-m-2"
+							class="divide-surface-300 divide-y !-m-2"
 						>
 							{#each item.collections as _collection, collection_index}
 								<ListBoxItem
@@ -167,9 +167,9 @@
 										}
 										dispatch('collection_click', { category_index: index, collection_index });
 									}}
-									class="flex justify-center items-center hover:!bg-surface-400"
+									class="flex justify-center items-center bg-surface-500 hover:!bg-surface-400 dark:hover:!bg-surface-300"
 								>
-									<div class="overflow-clip truncate text-clip text-[9px]">{_collection.name}</div>
+									<div class="overflow-clip truncate text-clip text-[10px]">{_collection.name}</div>
 									<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2 m-auto" />
 								</ListBoxItem>
 							{/each}

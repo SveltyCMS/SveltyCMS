@@ -570,7 +570,7 @@
 						{:else if entryButton == 'unpublish'}
 							<button
 								use:popup={UnpublishSettings}
-								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white gradient-yellow  px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
+								class="relative flex w-[60px] items-center justify-center rounded-l-full border-r-2 border-white gradient-yellow px-2 py-2 text-xl font-bold text-white md:ml-auto md:w-[150px]"
 								on:click={() => {
 									unpublishEntry();
 								}}

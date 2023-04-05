@@ -84,8 +84,20 @@
 			return;
 		}
 
-		// Pass the form data to the parent component and close the modal
-		if ($modalStore[0].response) $modalStore[0].response({ dataURL: avatarSrc });
+		// Upload the image to the server
+		const formData = new FormData();
+		if (file) {
+			formData.append('avatar', file);
+		}
+		const response = await fetch('/upload-avatar', {
+			method: 'POST',
+			body: formData
+		});
+
+		// Pass the response to the parent component and close the modal
+		if ($modalStore[0].response) {
+			$modalStore[0].response({ dataURL: avatarSrc, response });
+		}
 		modalStore.close();
 	}
 

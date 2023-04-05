@@ -10,6 +10,7 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
-		"target": "ES2022" // which level of JS support to target
+		"target": "ES2022", // which level of JS support to target
+		"types": ["@sveltejs/kit"]
 	}
 }

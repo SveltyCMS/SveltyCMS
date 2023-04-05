@@ -67,17 +67,15 @@ export async function saveData(
 	insert?: boolean
 ) {
 	const oldData_id = doc_id || get(entryData)?._id;
-	//if formData object is empty then:
+	// if formData object is empty then:
 	formData.append('status', collection.status);
 	if (!formData.entries().next().value) {
 		return { data: 404 };
 	} else if (oldData_id && !insert) {
 		formData.append('_id', oldData_id);
 
-		// return await axios.patch(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
 		return await axios.patch(`/api/${collection.name}`, formData, config);
 	} else {
-		// return await axios.post(`${env.HOST}:${env.PORT}/api/${collection.name}`, formData, config);
 		return await axios.post(`/api/${collection.name}`, formData, config);
 	}
 }
