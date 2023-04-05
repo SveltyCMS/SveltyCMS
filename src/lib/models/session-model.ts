@@ -21,4 +21,4 @@ const SessionSchema = new mongoose.Schema(
 	},
 	{ _id: false }
 );
-export const Session = mongoose.models.session ?? mongoose.model('session', SessionSchema);
+export const Session = mongoose.models.auth_session ?? mongoose.model('auth_session', SessionSchema);

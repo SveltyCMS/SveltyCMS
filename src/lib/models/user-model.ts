@@ -24,12 +24,12 @@ const UserSchema = new mongoose.Schema(
 let User: mongoose.Model<any> = null as any;
 
 // Delete the existing user model if it exists
-if (mongoose.models && mongoose.models.user) {
-	mongoose.deleteModel('user');
+if (mongoose.models && mongoose.models.auth_user) {
+	mongoose.deleteModel('auth_user');
 }
 
 // Create and export the User model using the 'user' collection name
-User = mongoose.model('user', UserSchema);
+User = mongoose.model('auth_user', UserSchema);
 
 // Check if the first user exists in the database
 let firstUserExists = false;

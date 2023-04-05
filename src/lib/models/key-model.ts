@@ -25,4 +25,4 @@ const KeySchema = new mongoose.Schema(
 	{ _id: false }
 );
 
-export const Key = mongoose.models.key ?? mongoose.model('key', KeySchema);
+export const Key = mongoose.models.auth_key ?? mongoose.model('auth_key', KeySchema);
