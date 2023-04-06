@@ -50,12 +50,14 @@
 
 		(column as unknown as FiltersColumn<any>).setFilterValue(Array.from(checkedCols));
 	}
+	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
+	let valueSingle: string = 'books';
 </script>
 
 <div>
 	{#each facetVals.top5 as top5}
 		<div>
-			<label class="checkbox">
+			<label class="checkbox inline-flex">
 				<input type="checkbox" on:change={handleCheck} name={top5.name} />
 				{top5.name} ({top5.value})
 			</label>
@@ -68,7 +70,7 @@
 				<div>
 					{#each facetVals.next20 as next20}
 						<div>
-							<label class="checkbox">
+							<label class="checkbox inline-flex">
 								<input type="checkbox" on:change={handleCheck} name={next20.name} />
 								{next20.name} ({next20.value})
 							</label>

@@ -163,67 +163,7 @@
 		}
 
 		// Check if the title has a power word
-		// TODO: Translation still required
-		const powerWords = [
-			'amazing',
-			'attractive',
-			'become',
-			'best',
-			'boost',
-			'breaking',
-			'breaking news',
-			'cheap',
-			'discover',
-			'direct',
-			'easy',
-			'exclusive',
-			'fresh',
-			'full',
-			'free',
-			'free trial',
-			'gain',
-			'get',
-			'grow',
-			'hurry',
-			'happiness',
-			'health',
-			'hot',
-			'improve',
-			'improvement',
-			'innovative',
-			'instant',
-			'join',
-			'latest',
-			'limited',
-			'limited time',
-			'love',
-			'new',
-			'newsworthy',
-			'powerful',
-			'popular',
-			'proven',
-			'quality',
-			'quick',
-			'revolutionary',
-			'save',
-			'sale',
-			'safety',
-			'sign up',
-			'special',
-			'special offer',
-			'solutions',
-			'success',
-			'support',
-			'today',
-			'trending',
-			'trust',
-			'urgent',
-			'viral',
-			'when',
-			'winner',
-			'worldwide',
-			'wealth'
-		];
+		const powerWords = Object.values($LL.WIDGET_SEO_PowerWords).map((fn) => fn().toString());
 
 		for (const word of powerWords) {
 			if (title.toLowerCase().includes(word)) {
@@ -254,25 +194,7 @@
 		}
 
 		// Define the list of CTA keywords
-		// TODO: Translation still required
-		const ctaKeywords = [
-			'buy',
-			'click here',
-			'download now',
-			'learn more',
-			'sign up',
-			'buy now',
-			'shop now',
-			'order now',
-			'get started',
-			'start your free trial',
-			'request a quote',
-			'join now',
-			'find a location',
-			'get your quote',
-			'get your free guide',
-			'see our plans'
-		];
+		const ctaKeywords = Object.values($LL.WIDGET_SEO_ctaKeywords).map((fn) => fn().toString());
 
 		// Check if the title has a CTA keyword
 		for (const keyword of ctaKeywords) {

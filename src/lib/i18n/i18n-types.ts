@@ -281,11 +281,11 @@ type RootTranslation = {
 	 */
 	LOGIN_ZOD_Username_regex: string
 	/**
-	 * N​a​m​e​ ​m​u​s​t​ ​b​e​ ​a​t​ ​l​e​a​s​t​ ​2​ ​c​h​a​r​a​c​t​e​s
+	 * N​a​m​e​ ​m​u​s​t​ ​b​e​ ​a​t​ ​l​e​a​s​t​ ​2​ ​c​h​a​r​a​c​t​e​r​s
 	 */
 	LOGIN_ZOD_Username_min: string
 	/**
-	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​b​e​ ​2​4​ ​c​h​a​r​a​c​t​e​s
+	 * N​a​m​e​ ​c​a​n​ ​o​n​l​y​ ​b​e​ ​2​4​ ​c​h​a​r​a​c​t​e​r​s
 	 */
 	LOGIN_ZOD_Username_max: string
 	/**
@@ -676,6 +676,322 @@ type RootTranslation = {
 	 * O​p​t​i​m​i​z​e​ ​t​i​t​l​e​ ​&​ ​d​e​s​c​r​i​p​t​i​o​n​ ​f​o​r​ ​G​o​o​g​l​e​ ​s​e​a​r​c​h​ ​r​e​s​u​l​t​s​,​ ​t​o​ ​i​m​p​r​o​v​e​ ​t​h​e​ ​v​i​s​u​a​l​ ​a​p​p​e​a​l​ ​t​o​ ​b​r​i​n​g​s​ ​m​o​r​e​ ​c​l​i​c​k​s​ ​t​o​ ​y​o​u​r​ ​w​e​b​s​i​t​e​.
 	 */
 	WIDGET_Seo_Suggetion_Text: string
+	WIDGET_SEO_PowerWords: {
+		/**
+		 * a​m​a​z​i​n​g
+		 */
+		'0': string
+		/**
+		 * a​t​t​r​a​c​t​i​v​e
+		 */
+		'1': string
+		/**
+		 * b​e​c​o​m​e
+		 */
+		'2': string
+		/**
+		 * b​e​s​t
+		 */
+		'3': string
+		/**
+		 * b​o​o​s​t
+		 */
+		'4': string
+		/**
+		 * b​r​e​a​k​i​n​g
+		 */
+		'5': string
+		/**
+		 * b​r​e​a​k​i​n​g​ ​n​e​w​s
+		 */
+		'6': string
+		/**
+		 * c​h​e​a​p
+		 */
+		'7': string
+		/**
+		 * d​i​s​c​o​v​e​r
+		 */
+		'8': string
+		/**
+		 * d​i​r​e​c​t
+		 */
+		'9': string
+		/**
+		 * e​a​s​y
+		 */
+		'10': string
+		/**
+		 * e​x​c​l​u​s​i​v​e
+		 */
+		'11': string
+		/**
+		 * f​r​e​s​h
+		 */
+		'12': string
+		/**
+		 * f​u​l​l
+		 */
+		'13': string
+		/**
+		 * f​r​e​e
+		 */
+		'14': string
+		/**
+		 * f​r​e​e​ ​t​r​i​a​l
+		 */
+		'15': string
+		/**
+		 * g​a​i​n
+		 */
+		'16': string
+		/**
+		 * g​e​t
+		 */
+		'17': string
+		/**
+		 * g​r​o​w
+		 */
+		'18': string
+		/**
+		 * h​u​r​r​y
+		 */
+		'19': string
+		/**
+		 * h​a​p​p​i​n​e​s​s
+		 */
+		'20': string
+		/**
+		 * h​e​a​l​t​h
+		 */
+		'21': string
+		/**
+		 * h​o​t
+		 */
+		'22': string
+		/**
+		 * i​m​p​r​o​v​e
+		 */
+		'23': string
+		/**
+		 * i​m​p​r​o​v​e​m​e​n​t
+		 */
+		'24': string
+		/**
+		 * i​n​n​o​v​a​t​i​v​e
+		 */
+		'25': string
+		/**
+		 * i​n​s​t​a​n​t
+		 */
+		'26': string
+		/**
+		 * j​o​i​n
+		 */
+		'27': string
+		/**
+		 * l​a​t​e​s​t
+		 */
+		'28': string
+		/**
+		 * l​i​m​i​t​e​d
+		 */
+		'29': string
+		/**
+		 * l​i​m​i​t​e​d​ ​t​i​m​e
+		 */
+		'30': string
+		/**
+		 * l​o​v​e
+		 */
+		'31': string
+		/**
+		 * n​e​w
+		 */
+		'32': string
+		/**
+		 * n​e​w​s​w​o​r​t​h​y
+		 */
+		'33': string
+		/**
+		 * p​o​w​e​r​f​u​l
+		 */
+		'34': string
+		/**
+		 * p​o​p​u​l​a​r
+		 */
+		'35': string
+		/**
+		 * p​r​o​v​e​n
+		 */
+		'36': string
+		/**
+		 * q​u​a​l​i​t​y
+		 */
+		'37': string
+		/**
+		 * q​u​i​c​k
+		 */
+		'38': string
+		/**
+		 * r​e​v​o​l​u​t​i​o​n​a​r​y
+		 */
+		'39': string
+		/**
+		 * s​a​v​e
+		 */
+		'40': string
+		/**
+		 * s​a​l​e
+		 */
+		'41': string
+		/**
+		 * s​a​f​e​t​y
+		 */
+		'42': string
+		/**
+		 * s​i​g​n​ ​u​p
+		 */
+		'43': string
+		/**
+		 * s​p​e​c​i​a​l
+		 */
+		'44': string
+		/**
+		 * s​p​e​c​i​a​l​ ​o​f​f​e​r
+		 */
+		'45': string
+		/**
+		 * s​o​l​u​t​i​o​n​s
+		 */
+		'46': string
+		/**
+		 * s​u​c​c​e​s​s
+		 */
+		'47': string
+		/**
+		 * s​u​p​p​o​r​t
+		 */
+		'48': string
+		/**
+		 * t​o​d​a​y
+		 */
+		'49': string
+		/**
+		 * t​r​e​n​d​i​n​g
+		 */
+		'50': string
+		/**
+		 * t​r​u​s​t
+		 */
+		'51': string
+		/**
+		 * u​r​g​e​n​t
+		 */
+		'52': string
+		/**
+		 * v​i​r​a​l
+		 */
+		'53': string
+		/**
+		 * w​h​e​n
+		 */
+		'54': string
+		/**
+		 * w​i​n​n​e​r
+		 */
+		'55': string
+		/**
+		 * w​o​r​l​d​w​i​d​e
+		 */
+		'56': string
+		/**
+		 * w​e​a​l​t​h
+		 */
+		'57': string
+	}
+	WIDGET_SEO_ctaKeywords: {
+		/**
+		 * A​c​t
+		 */
+		'0': string
+		/**
+		 * B​u​y
+		 */
+		'1': string
+		/**
+		 * C​a​l​l
+		 */
+		'2': string
+		/**
+		 * C​l​i​c​k
+		 */
+		'3': string
+		/**
+		 * C​o​n​t​a​c​t
+		 */
+		'4': string
+		/**
+		 * D​i​s​c​o​v​e​r
+		 */
+		'5': string
+		/**
+		 * D​o​w​n​l​o​a​d
+		 */
+		'6': string
+		/**
+		 * F​i​n​d
+		 */
+		'7': string
+		/**
+		 * G​e​t
+		 */
+		'8': string
+		/**
+		 * J​o​i​n
+		 */
+		'9': string
+		/**
+		 * L​e​a​r​n
+		 */
+		'10': string
+		/**
+		 * O​r​d​e​r
+		 */
+		'11': string
+		/**
+		 * R​e​g​i​s​t​e​r
+		 */
+		'12': string
+		/**
+		 * R​e​q​u​e​s​t
+		 */
+		'13': string
+		/**
+		 * S​e​e
+		 */
+		'14': string
+		/**
+		 * S​e​l​l
+		 */
+		'15': string
+		/**
+		 * S​i​g​n​-​u​p
+		 */
+		'16': string
+		/**
+		 * S​u​b​s​c​r​i​b​e
+		 */
+		'17': string
+		/**
+		 * T​r​y
+		 */
+		'18': string
+		/**
+		 * V​i​e​w
+		 */
+		'19': string
+	}
 }
 
 export type TranslationFunctions = {
@@ -944,11 +1260,11 @@ export type TranslationFunctions = {
 	 */
 	LOGIN_ZOD_Username_regex: () => LocalizedString
 	/**
-	 * Name must be at least 2 charactes
+	 * Name must be at least 2 characters
 	 */
 	LOGIN_ZOD_Username_min: () => LocalizedString
 	/**
-	 * Name can only be 24 charactes
+	 * Name can only be 24 characters
 	 */
 	LOGIN_ZOD_Username_max: () => LocalizedString
 	/**
@@ -1337,6 +1653,322 @@ export type TranslationFunctions = {
 	 * Optimize title & description for Google search results, to improve the visual appeal to brings more clicks to your website.
 	 */
 	WIDGET_Seo_Suggetion_Text: () => LocalizedString
+	WIDGET_SEO_PowerWords: {
+		/**
+		 * amazing
+		 */
+		'0': () => LocalizedString
+		/**
+		 * attractive
+		 */
+		'1': () => LocalizedString
+		/**
+		 * become
+		 */
+		'2': () => LocalizedString
+		/**
+		 * best
+		 */
+		'3': () => LocalizedString
+		/**
+		 * boost
+		 */
+		'4': () => LocalizedString
+		/**
+		 * breaking
+		 */
+		'5': () => LocalizedString
+		/**
+		 * breaking news
+		 */
+		'6': () => LocalizedString
+		/**
+		 * cheap
+		 */
+		'7': () => LocalizedString
+		/**
+		 * discover
+		 */
+		'8': () => LocalizedString
+		/**
+		 * direct
+		 */
+		'9': () => LocalizedString
+		/**
+		 * easy
+		 */
+		'10': () => LocalizedString
+		/**
+		 * exclusive
+		 */
+		'11': () => LocalizedString
+		/**
+		 * fresh
+		 */
+		'12': () => LocalizedString
+		/**
+		 * full
+		 */
+		'13': () => LocalizedString
+		/**
+		 * free
+		 */
+		'14': () => LocalizedString
+		/**
+		 * free trial
+		 */
+		'15': () => LocalizedString
+		/**
+		 * gain
+		 */
+		'16': () => LocalizedString
+		/**
+		 * get
+		 */
+		'17': () => LocalizedString
+		/**
+		 * grow
+		 */
+		'18': () => LocalizedString
+		/**
+		 * hurry
+		 */
+		'19': () => LocalizedString
+		/**
+		 * happiness
+		 */
+		'20': () => LocalizedString
+		/**
+		 * health
+		 */
+		'21': () => LocalizedString
+		/**
+		 * hot
+		 */
+		'22': () => LocalizedString
+		/**
+		 * improve
+		 */
+		'23': () => LocalizedString
+		/**
+		 * improvement
+		 */
+		'24': () => LocalizedString
+		/**
+		 * innovative
+		 */
+		'25': () => LocalizedString
+		/**
+		 * instant
+		 */
+		'26': () => LocalizedString
+		/**
+		 * join
+		 */
+		'27': () => LocalizedString
+		/**
+		 * latest
+		 */
+		'28': () => LocalizedString
+		/**
+		 * limited
+		 */
+		'29': () => LocalizedString
+		/**
+		 * limited time
+		 */
+		'30': () => LocalizedString
+		/**
+		 * love
+		 */
+		'31': () => LocalizedString
+		/**
+		 * new
+		 */
+		'32': () => LocalizedString
+		/**
+		 * newsworthy
+		 */
+		'33': () => LocalizedString
+		/**
+		 * powerful
+		 */
+		'34': () => LocalizedString
+		/**
+		 * popular
+		 */
+		'35': () => LocalizedString
+		/**
+		 * proven
+		 */
+		'36': () => LocalizedString
+		/**
+		 * quality
+		 */
+		'37': () => LocalizedString
+		/**
+		 * quick
+		 */
+		'38': () => LocalizedString
+		/**
+		 * revolutionary
+		 */
+		'39': () => LocalizedString
+		/**
+		 * save
+		 */
+		'40': () => LocalizedString
+		/**
+		 * sale
+		 */
+		'41': () => LocalizedString
+		/**
+		 * safety
+		 */
+		'42': () => LocalizedString
+		/**
+		 * sign up
+		 */
+		'43': () => LocalizedString
+		/**
+		 * special
+		 */
+		'44': () => LocalizedString
+		/**
+		 * special offer
+		 */
+		'45': () => LocalizedString
+		/**
+		 * solutions
+		 */
+		'46': () => LocalizedString
+		/**
+		 * success
+		 */
+		'47': () => LocalizedString
+		/**
+		 * support
+		 */
+		'48': () => LocalizedString
+		/**
+		 * today
+		 */
+		'49': () => LocalizedString
+		/**
+		 * trending
+		 */
+		'50': () => LocalizedString
+		/**
+		 * trust
+		 */
+		'51': () => LocalizedString
+		/**
+		 * urgent
+		 */
+		'52': () => LocalizedString
+		/**
+		 * viral
+		 */
+		'53': () => LocalizedString
+		/**
+		 * when
+		 */
+		'54': () => LocalizedString
+		/**
+		 * winner
+		 */
+		'55': () => LocalizedString
+		/**
+		 * worldwide
+		 */
+		'56': () => LocalizedString
+		/**
+		 * wealth
+		 */
+		'57': () => LocalizedString
+	}
+	WIDGET_SEO_ctaKeywords: {
+		/**
+		 * Act
+		 */
+		'0': () => LocalizedString
+		/**
+		 * Buy
+		 */
+		'1': () => LocalizedString
+		/**
+		 * Call
+		 */
+		'2': () => LocalizedString
+		/**
+		 * Click
+		 */
+		'3': () => LocalizedString
+		/**
+		 * Contact
+		 */
+		'4': () => LocalizedString
+		/**
+		 * Discover
+		 */
+		'5': () => LocalizedString
+		/**
+		 * Download
+		 */
+		'6': () => LocalizedString
+		/**
+		 * Find
+		 */
+		'7': () => LocalizedString
+		/**
+		 * Get
+		 */
+		'8': () => LocalizedString
+		/**
+		 * Join
+		 */
+		'9': () => LocalizedString
+		/**
+		 * Learn
+		 */
+		'10': () => LocalizedString
+		/**
+		 * Order
+		 */
+		'11': () => LocalizedString
+		/**
+		 * Register
+		 */
+		'12': () => LocalizedString
+		/**
+		 * Request
+		 */
+		'13': () => LocalizedString
+		/**
+		 * See
+		 */
+		'14': () => LocalizedString
+		/**
+		 * Sell
+		 */
+		'15': () => LocalizedString
+		/**
+		 * Sign-up
+		 */
+		'16': () => LocalizedString
+		/**
+		 * Subscribe
+		 */
+		'17': () => LocalizedString
+		/**
+		 * Try
+		 */
+		'18': () => LocalizedString
+		/**
+		 * View
+		 */
+		'19': () => LocalizedString
+	}
 }
 
 export type Formatters = {}

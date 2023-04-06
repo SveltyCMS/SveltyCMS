@@ -23,7 +23,7 @@
 	let composerComponent: RichTextComposer;
 	onMount(() => {
 		const editor = composerComponent.getEditor();
-		editor.registerUpdateListener(({ editorState }) => {
+		editor.registerUpdateListener(({ editorState }: { editorState: any }) => {
 			widgetValue = editorState;
 		});
 	});

@@ -85,13 +85,6 @@
 
 	import moment from 'moment';
 	import Role from './Role.svelte';
-	import { getRTLTextPluginStatus } from 'mapbox-gl';
-
-	const numFormat = new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' });
-
-	function getSortSymbol(isSorted: boolean | SortDirection) {
-		return isSorted ? (isSorted === 'asc' ? '🔼' : '🔽') : '';
-	}
 
 	type User = {
 		avatar: string;
@@ -130,14 +123,18 @@
 	const defaultColumns: ColumnDef<User>[] = [
 		{
 			accessorKey: 'avatar',
-			footer: (info) => info.column.id,
 			header: () => 'Avatar',
-			cell: (info) => flexRender(Avatar, { src: info.row.original.avatar, width: 'w-8' })
+			footer: (info) => info.column.id,
+			cell: (info) =>
+				flexRender(Avatar, {
+					src: info.row.original.avatar,
+					width: 'w-8'
+				})
 		},
 		{
 			accessorKey: 'username',
-			footer: (info) => info.column.id,
 			header: () => 'Username',
+			footer: (info) => info.column.id,
 			cell: (info) => info.getValue(),
 			filterFn: globalFilterFn
 		},
@@ -159,16 +156,18 @@
 			filterFn: globalFilterFn
 		},
 		{
-			accessorFn: (cell) => moment(cell.createdAt).fromNow(),
 			accessorKey: 'createdAt',
 			header: () => 'Member For',
-			footer: (info) => info.column.id
+			footer: (info) => info.column.id,
+			accessorFn: (cell) => moment(cell.createdAt).fromNow(),
+			filterFn: globalFilterFn
 		},
 		{
-			accessorFn: (cell) => moment(cell.lastAccessAt).fromNow(),
 			accessorKey: 'lastAccessAt',
 			header: () => 'Last Access',
-			footer: (info) => info.column.id
+			footer: (info) => info.column.id,
+			accessorFn: (cell) => moment(cell.lastAccessAt).fromNow(),
+			filterFn: globalFilterFn
 		}
 		// {
 		// 	accessorKey: 'id',
@@ -230,6 +229,7 @@
 		// onRowSelectionChange: setRowSelection,
 
 		globalFilterFn: globalFilterFn,
+		onSortingChange: setSorting,
 		getFacetedRowModel: getFacetedRowModel(),
 		getFacetedUniqueValues: getFacetedUniqueValues(),
 		getFacetedMinMaxValues: getFacetedMinMaxValues(),
@@ -255,7 +255,7 @@
 	});
 
 	const refreshData = () => {
-		console.info('refresh');
+		//console.info('refresh');
 		options.update((prev) => ({
 			...prev,
 			data: defaultData
@@ -416,12 +416,11 @@
 			/> -->
 		</button>
 	</div>
-
-	<div class="md:items-end"><Multibutton /></div>
 	<!-- TODO: Multibutton breaks if used 2x times -->
-	<!-- <div class="hidden sm:block md:items-end"><Multibutton /></div> -->
+	<div class="md:items-end">
+		<Multibutton />
+	</div>
 </div>
-<!-- <div class="sm:hidden flex justify-end mb-2"><Multibutton /></div> -->
 {#if columnShow}
 	<div class="md:mr-2 md:mb-0 mb-4 flex items-center justify-center md:justify-end" />
 
