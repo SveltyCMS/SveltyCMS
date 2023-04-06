@@ -55,13 +55,10 @@ export const luciaVerifyAndReturnUser = async (
 	// This code returns a valid and verified user that can be set in the event.locals.user
 
 	try {
-		const lucia = await auth.handleRequest(event);
+		const lucia = auth.handleRequest(event);
 		const auth_object = await lucia.validate();
 		if (!auth_object) return null;
-		const { user, session} = await auth.validateSessionUser(auth_object.sessionId);
-		if(session.fresh){
-			await lucia.setSession(session);
-		}
+		const { user } = await auth.validateSessionUser(auth_object.sessionId);
 		return user;
 	} catch (e) {
 		return null;

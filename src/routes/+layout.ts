@@ -4,7 +4,9 @@ import { loadLocaleAsync } from '$lib/i18n/i18n-util.async';
 import type { LayoutLoad } from './$types';
 
 export const load = (async (event) => {
-	// Detect the locale
+	if(!event.data?.locale) return event.data;
+	
+	// Detect it
 	const locale = detectLocale(() => [event.data?.locale]);
 	// Load it
 	await loadLocaleAsync(locale);
