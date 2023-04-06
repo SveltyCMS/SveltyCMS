@@ -17,11 +17,11 @@
 
 	// Form Data
 	const formData = {
-		username: $user?.username,
-		email: $user?.email,
+		username: user?.username,
+		email: user?.email,
 		password: '',
 		confirmPassword: '',
-		role: $user?.role
+		role: user?.role
 	};
 
 	let showPassword = false;
@@ -270,7 +270,7 @@
 		</div>
 
 		<!-- admin area -->
-		{#if $user?.role === 'Admin'}
+		{#if user?.role === 'Admin'}
 			<div class="flex flex-col sm:flex-row gap-2">
 				<div class="sm:w-1/4">Role:</div>
 				<div class="flex-auto">

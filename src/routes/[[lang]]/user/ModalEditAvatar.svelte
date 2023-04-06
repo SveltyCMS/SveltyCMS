@@ -17,7 +17,7 @@
 
 	import { last } from 'lodash';
 
-	let avatarSrc = $user?.avatar;
+	let avatarSrc = user?.avatar;
 
 	function onChange(e: Event) {
 		files = (e.target as HTMLInputElement).files!;
