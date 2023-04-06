@@ -38,6 +38,7 @@ export const handle: Handle = sequence(
     if (!lang) {
       const locale = getPreferredLocale(event);
       if (locale == "en") {
+				event.locals.locale = locale;
         return resolve(event);
       } else {
         return new Response(null, {
@@ -56,8 +57,6 @@ export const handle: Handle = sequence(
     // bind locale and translation functions to current request
     event.locals.locale = locale;
     event.locals.LL = LL;
-
-    //console.info(LL.log({ fileName: 'hooks.server.ts' }))
 
     // replace html lang attribute with correct language
     return resolve(event, {

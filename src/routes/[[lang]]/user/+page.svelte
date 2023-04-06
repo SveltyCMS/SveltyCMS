@@ -32,7 +32,7 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
-	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
+	// import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
