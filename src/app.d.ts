@@ -11,7 +11,7 @@ declare namespace Lucia {
 		avatar: string | undefined;
 		resetRequestedAt: Date | undefined;
 		resetToken: string | undefined;
-		lastAccessAt: string | undefined;
+		lastActiveAt: string | undefined;
 	};
 }
 
@@ -20,7 +20,7 @@ declare namespace Lucia {
 declare namespace App {
 	interface Locals {
 		// lucia
-		auth: import('lucia-auth').AuthRequest;
+		user: Lucia.UserAttributes | null;
 
 		// i18n
 		locale: import('$i18n/i18n-types').Locales;

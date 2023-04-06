@@ -13,14 +13,11 @@ const KeySchema = new mongoose.Schema(
 
 		// Not strictly required by Lucia, but we'll be using it
 		hashed_password: String,
-		primary: {
+		primary_key: {
 			type: Boolean,
 			required: true
 		},
-		expires: {
-			type: Number,
-			default: null
-		}
+		expires: Number
 	},
 	{ _id: false }
 );

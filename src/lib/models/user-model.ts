@@ -16,7 +16,7 @@ const UserSchema = new mongoose.Schema(
 		resetRequestedAt: String, // The date and time when a password reset was requested
 		resetToken: String, // The password reset token value
 		expiresAt: Date, // The date and time when the password reset token expires
-		lastAccessAt: Date // The date and time when the user last accessed the application
+		lastActiveAt: Date // The date and time when the user last accessed the application
 	},
 	{ _id: false, timestamps: true } // Do not automatically generate the _id field and enable timestamps
 );

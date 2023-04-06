@@ -7,7 +7,7 @@ import { randomBytes } from 'crypto';
 
 // lucia
 import { LuciaError } from 'lucia-auth';
-import { auth } from '$lib/server/lucia';
+import { auth, luciaVerifyAndReturnUser, luciaSetCookie } from '$lib/server/lucia';
 import { User } from '$lib/models/user-model';
 import { SignUpToken } from '$lib/models/sign-up-token-model';
 
@@ -28,9 +28,10 @@ const checkUserExistsInDb = async () => {
 	}
 };
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const session = await locals.auth.validate(); // authRequest.validate()
-	if (session) throw redirect(302, '/login');
+export const load: PageServerLoad = async (event) => {
+	const user = await luciaVerifyAndReturnUser(event);
+	if (user) throw redirect(302, '/login');
+	event.locals.user = user;
 	// check if firstUserExsits or not
 	// model should be checked here else it won't works second time
 	return { firstUserExists: await checkUserExistsInDb() };
@@ -105,8 +106,8 @@ const resetPasswordSchema = z
 	});
 
 export const actions: Actions = {
-	authUser: async ({ request, locals }) => {
-		const form = await request.formData();
+	authUser: async (event) => {
+		const form = await event.request.formData();
 		const validationResult = signInSchema.safeParse(Object.fromEntries(form));
 		if (!validationResult.success) {
 			// Loop through the errors array and create a custom errors array
@@ -136,8 +137,8 @@ export const actions: Actions = {
 		try {
 			const key = await auth.useKey('email', email, password);
 			const session = await auth.createSession(key.userId);
-			await auth.updateUserAttributes(key.userId, { lastAccessAt: `${new Date()}` });
-			locals.auth.setSession(session);
+			await luciaSetCookie(event, session)
+			await auth.updateUserAttributes(key.userId, { lastActiveAt: `${new Date()}` });
 		} catch (error) {
 			if (
 				error instanceof LuciaError &&
@@ -238,13 +239,12 @@ export const actions: Actions = {
 						role: 'Admin',
 						resetRequestedAt: undefined,
 						resetToken: undefined,
-						lastAccessAt: `${new Date()}`
+						lastActiveAt: `${new Date()}`
 					}
 				});
 
 				const session = await auth.createSession(res.userId);
-				event.locals.setSession(session);
-
+				await luciaSetCookie(event, session)
 				return;
 			}
 
@@ -304,7 +304,7 @@ export const actions: Actions = {
 					role: token.role,
 					resetRequestedAt: undefined,
 					resetToken: token.resetToken,
-					lastAccessAt: `${new Date()}`
+					lastActiveAt: `${new Date()}`
 				}
 			});
 
@@ -312,6 +312,7 @@ export const actions: Actions = {
 			await SignUpToken.deleteOne({ _id: token._id });
 
 			const session = await auth.createSession(res.userId);
+			await luciaSetCookie(event, session)
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
 				headers: {
@@ -332,7 +333,7 @@ export const actions: Actions = {
 					}
 				})
 			});
-			event.locals.setSession(session);
+			
 		} catch (error) {
 			console.log(error);
 			if (

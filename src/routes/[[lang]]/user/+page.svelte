@@ -8,16 +8,15 @@
 
 	export let data: PageData;
 
-	handleSession(page);
-	const user = getUser();
+	const user = data.user;
 
-	let avatarSrc = $user?.avatar;
+	let avatarSrc = user?.avatar;
 	let showUserList = true;
 
-	let id = $user?.userId;
-	let username = $user?.username;
-	let role = $user?.role;
-	let email = $user?.email;
+	let id = user?.userId;
+	let username = user?.username;
+	let role = user?.role;
+	let email = user?.email;
 	// TODO  Get hashed password
 	let password = 'hash-password';
 
@@ -238,7 +237,7 @@
 </div>
 
 <!-- admin area -->
-{#if $user?.role === 'Admin'}
+{#if user?.role === 'Admin'}
 	<div class="my-2 gap-2 border-t-2">
 		<hr />
 		<h2 class="mb-2 text-center md:text-left">{$LL.USER_AdminArea()}</h2>

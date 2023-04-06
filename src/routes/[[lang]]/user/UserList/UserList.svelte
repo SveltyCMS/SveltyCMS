@@ -98,7 +98,7 @@
 		email: string;
 		role: string;
 		username: string;
-		lastAccessAt: string;
+		lastActiveAt: string;
 		createdAt: string;
 	};
 
@@ -107,7 +107,7 @@
 		username: user.username,
 		email: user.email,
 		role: user.role,
-		lastAccessAt: user.lastAccessAt,
+		lastActiveAt: user.lastActiveAt,
 		createdAt: user.createdAt
 	}));
 
@@ -165,8 +165,8 @@
 			footer: (info) => info.column.id
 		},
 		{
-			accessorFn: (cell) => moment(cell.lastAccessAt).fromNow(),
-			accessorKey: 'lastAccessAt',
+			accessorFn: (cell) => moment(cell.lastActiveAt).fromNow(),
+			accessorKey: 'lastActiveAt',
 			header: () => 'Last Access',
 			footer: (info) => info.column.id
 		}

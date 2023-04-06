@@ -1,5 +1,5 @@
 // lucia
-import { auth } from '$lib/server/lucia';
+import { luciaVerifyAndReturnUser } from '$lib/server/lucia';
 
 // sveltekit
 import { sequence } from '@sveltejs/kit/hooks';
@@ -16,14 +16,16 @@ loadAllLocales();
 const L = i18n();
 
 export const handle: Handle = sequence(dbConnect, async ({ event, resolve }) => {
+console.log('auth', event.cookies.getAll());
+	event.locals.user = await luciaVerifyAndReturnUser(event);
+	
+
 	// read language slug
 	const [, lang] = event.url.pathname.split('/');
 
 	// redirect to base locale if no locale slug was found
 	if (!lang) {
 		const locale = getPreferredLocale(event);
-
-		event.locals.auth = auth.handleRequest(event);
 
 		if (locale == 'en') {
 			return resolve(event);
