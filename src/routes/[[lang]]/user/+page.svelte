@@ -32,8 +32,6 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
-	// import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
@@ -48,7 +46,7 @@
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
 			// Add your props as key/value pairs
-			props: { background: 'bg-surface-100-800-token' },
+			props: { background: 'bg-surface-100-800-token', parent: data },
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -80,6 +78,7 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
+			props: { parent: data},
 			// Add your props as key/value pairs
 			// props: { background: 'bg-pink-500' },
 			// Provide default slot content as a template literal
@@ -260,7 +259,7 @@
 		</div>
 
 		{#if showUserList}
-			<UserList list={data} />
+			<UserList parent={data} />
 		{/if}
 	</div>
 {/if}

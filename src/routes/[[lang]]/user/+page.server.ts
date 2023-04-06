@@ -11,7 +11,9 @@ export const load: PageServerLoad = async (event) => {
 	const user = await luciaVerifyAndReturnUser(event);
 	if (!user) throw redirect(302, '/login');
 	event.locals.user = user;
+	const users = await User.find();
 	return {
+		users: JSON.stringify(users),
 		user: event.locals.user
 	};
 };

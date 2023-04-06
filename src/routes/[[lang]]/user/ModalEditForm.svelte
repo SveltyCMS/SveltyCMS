@@ -13,8 +13,7 @@
 	import LL from '$i18n/i18n-svelte';
 
 	// Lucia
-	import { getUser } from '@lucia-auth/sveltekit/client';
-	const user = getUser();
+	const user = parent.user;
 
 	// Form Data
 	const formData = {
