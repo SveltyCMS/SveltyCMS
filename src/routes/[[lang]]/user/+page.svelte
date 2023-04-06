@@ -10,7 +10,7 @@
 
 	handleSession(page);
 	const user = getUser();
-
+	//todo change avatar src to "assets/media/avatar
 	let avatarSrc = $user?.avatar;
 	let showUserList = true;
 
@@ -110,6 +110,7 @@
 							await invalidateAll();
 							const resizedDataUrl = res.data.path;
 							avatarSrc = resizedDataUrl;
+							//todo change avatar src to "assets/media/avatar
 						}
 					} catch (err) {
 						console.log(err);

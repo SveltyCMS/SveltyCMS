@@ -9,8 +9,8 @@ node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 /tmp
-/src/media
 trash/
+assets/
 
 package-lock.json
 
