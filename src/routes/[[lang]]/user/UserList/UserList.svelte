@@ -32,13 +32,11 @@
 	import LL from '$i18n/i18n-svelte';
 	import type { PageData } from '../$types';
 
-	export let list: PageData;
+	export let parent: PageData;
 
-	// Lucia
-	import { getUser } from '@lucia-auth/sveltekit/client';
-	const user = getUser();
+	const user = parent.user
 
-	const listOfUsers = JSON.parse(list.user); // Retrieve User and parse them as JSON
+	const listOfUsers = JSON.parse(parent.users); // Retrieve User and parse them as JSON
 
 	// State to keep track of whether the modal is open or not
 	let showModal = false;

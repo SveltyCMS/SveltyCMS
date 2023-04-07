@@ -1,13 +1,10 @@
 <script lang="ts">
 	import collections, { categories } from '$src/collections';
 	import EntryList from '$src/components/EntryList.svelte';
-	import Form from '$src/components/Form.svelte';
-	import widgets from '$src/components/widgets';
 	import showFieldsStore from '$src/lib/stores/fieldStore';
 	import { shape_fields } from '$src/lib/utils/utils_svelte';
 	import { onMount } from 'svelte';
 
-	let toggleSideBar = true;
 	let deleteMode: boolean;
 
 	let collection = collections[0];
@@ -32,9 +29,11 @@
 	// initial show first collection
 	onMount(async () => {
 		$showFieldsStore = {
-			category_index: 0,
-			collection_index: 0,
-			showField: true
+			category_index: null,
+			collection_index: null,
+			showField: true,
+			showForm: false,
+			multibutton: false
 		};
 	});
 </script>

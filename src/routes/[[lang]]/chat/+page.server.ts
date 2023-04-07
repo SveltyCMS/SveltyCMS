@@ -1,22 +1,23 @@
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { type Actions, fail } from '@sveltejs/kit';
-import { auth } from '$lib/server/lucia';
+import { auth, luciaVerifyAndReturnUser } from '$lib/server/lucia';
 
 // If the validate method returns a falsy value,
 // the hook throws a redirect to the /login page, indicating that the user is not authenticated.
-export const load: PageServerLoad = async ({ locals }) => {
-	const session = await locals.validate();
-	if (!session) throw redirect(302, '/login');
+export const load: PageServerLoad = async (event) => {
+	const user = await luciaVerifyAndReturnUser(event);
+	if (!user) throw redirect(302, '/login');
+	event.locals.user = user
 	return {};
 };
 
 // SignOut action logs out the user by invalidating the session and removing the session cookie.
 export const actions: Actions = {
-	signOut: async ({ locals }) => {
-		const session = await locals.validate();
-		if (!session) return fail(401);
-		await auth.invalidateSession(session.sessionId); // invalidate session
-		locals.setSession(null); // remove cookie
+	signOut: async (event) => {
+		const user = await luciaVerifyAndReturnUser(event);
+		if (!user) return fail(401);
+		await auth.invalidateAllUserSessions(user.userId); // invalidate session
+		event.locals.user = null; // remove cookie
 	}
 };

@@ -9,8 +9,16 @@
 	import showFieldsStore from '$src/lib/stores/fieldStore';
 	import CollectionsLatest from '$src/components/CollectionsList.svelte';
 	import collections, { categories } from '$src/collections';
+	import { browser } from '$app/environment';
+  import type { LayoutData } from './$types';
+  import type { User } from 'lucia-auth';
+  import { onMount } from 'svelte';
 
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
+	import { page } from '$app/stores';
+	import { goto, invalidateAll } from '$app/navigation';
+
+	export let data: LayoutData;
 
 	export let switchSideBar = false;
 
@@ -53,12 +61,8 @@
 	};
 
 	// Lucia
-	import { page } from '$app/stores';
-	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-	import { goto, invalidateAll } from '$app/navigation';
-
-	handleSession(page);
-	const user = getUser();
+	
+	$: user = data.user;
 
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
@@ -151,7 +155,7 @@
 	let progress = 0;
 	let submitDisabled = false;
 
-	$: avatarSrc = $user?.avatar;
+	$: avatarSrc = user?.avatar;
 
 	let collection = collections[0];
 	let fields: any;
@@ -167,8 +171,6 @@
 	};
 
 	// mobile detection
-	import { browser } from '$app/environment';
-
 	let isMobile = false;
 
 	// bypass window is not defined error
@@ -344,8 +346,8 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							/>
 							<div class="text-center text-[9px] text-black dark:text-white">
 								{#if switchSideBar}
-									{#if $user?.username}
-										<div class="text-xs uppercase">{$user?.username}</div>
+									{#if user?.username}
+										<div class="text-xs uppercase">{user?.username}</div>
 									{/if}
 								{/if}
 							</div>
@@ -356,7 +358,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- System Language i18n Handeling -->
 				<div class="{switchSideBar ? 'order-3 row-span-2' : 'order-2'} ">
 					<div use:popup={SystemLanguageTooltip} class="md:row-span-2">
-						<LocaleSwitcher user={$user?.userId} />
+						<LocaleSwitcher user={user?.userId} />
 						<!-- TODO: POPUP is blocking selection -->
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">

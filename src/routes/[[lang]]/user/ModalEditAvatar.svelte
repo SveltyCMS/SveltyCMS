@@ -7,8 +7,7 @@
 	import { modalStore } from '@skeletonlabs/skeleton';
 
 	// Lucia
-	import { getUser } from '@lucia-auth/sveltekit/client';
-	const user = getUser();
+	const user = parent.user
 
 	// skeleton
 	import { FileDropzone } from '@skeletonlabs/skeleton';
@@ -18,7 +17,7 @@
 
 	import { last } from 'lodash';
 
-	let avatarSrc = $user?.avatar;
+	let avatarSrc = user?.avatar;
 
 	function onChange(e: Event) {
 		files = (e.target as HTMLInputElement).files!;

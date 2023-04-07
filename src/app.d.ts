@@ -1,7 +1,6 @@
 /// <reference types="lucia-auth" />
-
 declare namespace Lucia {
-	type Auth = import('$lib/server/lucia.js').Auth;
+	type Auth = import('$lib/server/lucia').Auth;
 
 	type UserAttributes = {
 		email: string;
@@ -12,7 +11,7 @@ declare namespace Lucia {
 		avatar: string | undefined;
 		resetRequestedAt: Date | undefined;
 		resetToken: string | undefined;
-		lastAccessAt: string | undefined;
+		lastActiveAt: string | undefined;
 	};
 }
 
@@ -20,10 +19,10 @@ declare namespace Lucia {
 // See https://kit.svelte.dev/docs/types#the-app-namespace
 declare namespace App {
 	interface Locals {
-		validate: import('@lucia-auth/sveltekit').Validate;
-		validateUser: import('@lucia-auth/sveltekit').ValidateUser;
-		setSession: import('@lucia-auth/sveltekit').SetSession;
+		// lucia
+		user: Lucia.UserAttributes | null;
 
+		// i18n
 		locale: import('$i18n/i18n-types').Locales;
 		LL: import('$i18n/i18n-types').TranslationFunctions;
 	}

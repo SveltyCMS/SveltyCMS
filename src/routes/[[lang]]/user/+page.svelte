@@ -8,16 +8,15 @@
 
 	export let data: PageData;
 
-	handleSession(page);
-	const user = getUser();
+	const user = data.user;
 
-	let avatarSrc = $user?.avatar;
+	let avatarSrc = user?.avatar;
 	let showUserList = true;
 
-	let id = $user?.userId;
-	let username = $user?.username;
-	let role = $user?.role;
-	let email = $user?.email;
+	let id = user?.userId;
+	let username = user?.username;
+	let role = user?.role;
+	let email = user?.email;
 	// TODO  Get hashed password
 	let password = 'hash-password';
 
@@ -33,8 +32,6 @@
 	// Icons from https://icon-sets.iconify.design/
 	import Icon from '@iconify/svelte';
 
-	import { getUser, handleSession } from '@lucia-auth/sveltekit/client';
-
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
@@ -49,7 +46,7 @@
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
 			// Add your props as key/value pairs
-			props: { background: 'bg-surface-100-800-token' },
+			props: { background: 'bg-surface-100-800-token', parent: data },
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -81,6 +78,7 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
+			props: { parent: data},
 			// Add your props as key/value pairs
 			// props: { background: 'bg-pink-500' },
 			// Provide default slot content as a template literal
@@ -238,7 +236,7 @@
 </div>
 
 <!-- admin area -->
-{#if $user?.role === 'Admin'}
+{#if user?.role === 'Admin'}
 	<div class="my-2 gap-2 border-t-2">
 		<hr />
 		<h2 class="mb-2 text-center md:text-left">{$LL.USER_AdminArea()}</h2>
@@ -261,7 +259,7 @@
 		</div>
 
 		{#if showUserList}
-			<UserList list={data} />
+			<UserList parent={data} />
 		{/if}
 	</div>
 {/if}

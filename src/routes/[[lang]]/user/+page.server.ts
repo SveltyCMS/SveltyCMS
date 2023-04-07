@@ -5,14 +5,16 @@ import { randomBytes } from 'crypto';
 import type { PageServerLoad } from './$types';
 //import sendMail from '$src/lib/utils/send-email';
 import mongoose from 'mongoose';
+import { luciaVerifyAndReturnUser } from '$src/lib/server/lucia';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	const session = await locals.validate();
-	if (!session) throw redirect(302, '/');
-
-	const user = await User.find();
+export const load: PageServerLoad = async (event) => {
+	const user = await luciaVerifyAndReturnUser(event);
+	if (!user) throw redirect(302, '/login');
+	event.locals.user = user;
+	const users = await User.find();
 	return {
-		user: JSON.stringify(user)
+		users: JSON.stringify(users),
+		user: event.locals.user
 	};
 };
 
@@ -20,7 +22,7 @@ export const actions: Actions = {
 	generateToken: async (event) => {
 		const form = await event.request.formData();
 
-		const email = form.get('newUserEmail').toLowerCase();
+		const email = form.get('newUserEmail')?.toLowerCase();
 		const role = form.get('role');
 		const expires_in = parseInt(form.get('expires_in') as string);
 

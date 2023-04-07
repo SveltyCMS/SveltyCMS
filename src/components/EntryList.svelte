@@ -891,7 +891,8 @@
 
 			<!-- RowsPerPage -->
 			<button class="btn variant-ghost-secondary" use:popup={ContentPages}>
-				{paging.entryLength} Rows
+				{paging.entryLength}
+				{$LL.ENTRYLIST_Rows()}
 				<Icon icon="mdi:chevron-down" width="24" />
 			</button>
 

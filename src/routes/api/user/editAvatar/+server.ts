@@ -24,8 +24,9 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 		);
 	}
 
+
 	// Validate user credentials and get user information from the session
-	const { user } = await locals.validateUser();
+	const user = locals.user;
 
 	// Extract the base64-encoded image data from the "dataurl" field
 	const dataUrl = formData.get('dataurl') as string;

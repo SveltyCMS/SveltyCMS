@@ -8,14 +8,11 @@ dependencies:
     specifier: ^3.1.0
     version: 3.1.0(svelte@3.58.0)
   '@lucia-auth/adapter-mongoose':
-    specifier: 0.6.1
-    version: 0.6.1(lucia-auth@0.10.0)
+    specifier: ^0.7.0
+    version: 0.7.0(lucia-auth@0.11.0)
   '@lucia-auth/oauth':
-    specifier: ^0.7.3
-    version: 0.7.3(lucia-auth@0.10.0)
-  '@lucia-auth/sveltekit':
-    specifier: ^0.6.11
-    version: 0.6.11(lucia-auth@0.10.0)(svelte@3.58.0)
+    specifier: ^0.8.0
+    version: 0.8.0(lucia-auth@0.11.0)
   '@mapbox/mapbox-gl-geocoder':
     specifier: ^5.0.1
     version: 5.0.1(mapbox-gl@2.13.0)
@@ -77,8 +74,8 @@ dependencies:
     specifier: ^4.17.21
     version: 4.17.21
   lucia-auth:
-    specifier: ^0.10.0
-    version: 0.10.0
+    specifier: ^0.11.0
+    version: 0.11.0
   mapbox-gl:
     specifier: ^2.13.0
     version: 2.13.0
@@ -119,7 +116,7 @@ devDependencies:
     version: 1.1.0
   '@sveltejs/adapter-node':
     specifier: latest
-    version: 1.2.3(@sveltejs/kit@1.15.1)
+    version: 1.0.0(@sveltejs/kit@1.15.1)
   '@sveltejs/kit':
     specifier: 1.15.1
     version: 1.15.1(svelte@3.58.0)(vite@4.2.1)
@@ -1663,35 +1660,24 @@ packages:
       yjs: 13.5.46
     dev: false
 
-  /@lucia-auth/adapter-mongoose@0.6.1(lucia-auth@0.10.0):
-    resolution: {integrity: sha512-mSs1JzfsPbO1KwA9eIeeGgtADANLnaFSSuik+ARM/kH68rSjrrxFw9XO2yBCym98W9KprIRwRz3bAzqsbN+aKA==}
+  /@lucia-auth/adapter-mongoose@0.7.0(lucia-auth@0.11.0):
+    resolution: {integrity: sha512-/ZPKld0ydFTJXIbRIITCPn1AdoL9hqgl8xASWRwTLQ87ysPuoR/xCF1vi+SJ/Tohtucmm5g284rLAgCBRDj6zw==}
     peerDependencies:
-      lucia-auth: 0.9.x - 0.10.x
+      lucia-auth: 0.11.x
     dependencies:
-      lucia-auth: 0.10.0
+      lucia-auth: 0.11.0
       mongoose: 6.10.4
     transitivePeerDependencies:
       - aws-crt
       - supports-color
     dev: false
 
-  /@lucia-auth/oauth@0.7.3(lucia-auth@0.10.0):
-    resolution: {integrity: sha512-rs4r/4/2SSZuQx3934McEcFF55DYLcje0Atq1+SmSXmhgP+U9WIUgXx8lXsHJ23MBtlJhf0WMJ/JAlnvzPuoKA==}
+  /@lucia-auth/oauth@0.8.0(lucia-auth@0.11.0):
+    resolution: {integrity: sha512-/VtIxhQZAPPVDJOBHBJZMgrP7QL91OLBCvwzOcOFF/yzUMLi9Mph5iaKlpLA2oB5A0QG/Temr09kOBm7+NuhCQ==}
     peerDependencies:
-      lucia-auth: 0.9.x - 0.10.x
+      lucia-auth: 0.9.x - 0.11.x
     dependencies:
-      lucia-auth: 0.10.0
-    dev: false
-
-  /@lucia-auth/sveltekit@0.6.11(lucia-auth@0.10.0)(svelte@3.58.0):
-    resolution: {integrity: sha512-VRYOVnxyL0Iemgp7PZZ/f9nbzS7+gEwl3k/5p03wOIFWdD2BY5CiBjVqMvHXLf6ZxqZzPzYebHCL6WSFvfdxmA==}
-    peerDependencies:
-      lucia-auth: 0.5.x - 0.10.x
-      svelte: 3.x
-    dependencies:
-      '@noble/hashes': 1.3.0
-      lucia-auth: 0.10.0
-      svelte: 3.58.0
+      lucia-auth: 0.11.0
     dev: false
 
   /@mapbox/fusspot@0.4.0:
@@ -1866,8 +1852,8 @@ packages:
     resolution: {integrity: sha512-AW8PKd6iX3vAZ0vA43nOUOnbq/X5ihgU+mSXXqunMkeQADGiqw/PY0JNeYtD5sr0PAy51YPgAPbDoeapv9r8WA==}
     dev: false
 
-  /@rollup/plugin-commonjs@24.0.1(rollup@3.20.2):
-    resolution: {integrity: sha512-15LsiWRZk4eOGqvrJyu3z3DaBu5BhXIMeWnijSRvd8irrrg9SHpQ1pH+BUK4H6Z9wL9yOxZJMTLU+Au86XHxow==}
+  /@rollup/plugin-commonjs@23.0.7(rollup@3.20.2):
+    resolution: {integrity: sha512-hsSD5Qzyuat/swzrExGG5l7EuIlPhwTsT7KwKbSCQzIcJWjRxiimi/0tyMYY2bByitNb3i1p+6JWEDGa0NvT0Q==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^2.68.0||^3.0.0
@@ -1884,8 +1870,8 @@ packages:
       rollup: 3.20.2
     dev: true
 
-  /@rollup/plugin-json@6.0.0(rollup@3.20.2):
-    resolution: {integrity: sha512-i/4C5Jrdr1XUarRhVu27EEwjt4GObltD7c+MkCIpO2QIbojw8MUs+CCTqOphQi3Qtg1FLmYt+l+6YeoIf51J7w==}
+  /@rollup/plugin-json@5.0.2(rollup@3.20.2):
+    resolution: {integrity: sha512-D1CoOT2wPvadWLhVcmpkDnesTzjhNIQRWLsc3fA49IFOP2Y84cFOOJ+nKGYedvXHKUsPeq07HR4hXpBBr+CHlA==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^1.20.0||^2.0.0||^3.0.0
@@ -1948,13 +1934,13 @@ packages:
       svelte: 3.58.0
     dev: true
 
-  /@sveltejs/adapter-node@1.2.3(@sveltejs/kit@1.15.1):
-    resolution: {integrity: sha512-Fv6NyVpVWYA63KRaV6dDjcU8ytcWFiUr0siJOoHl+oWy5WHNEuRiJOUdiZzYbZo8MmvFaCoxHkTgPrVQhpqaRA==}
+  /@sveltejs/adapter-node@1.0.0(@sveltejs/kit@1.15.1):
+    resolution: {integrity: sha512-Q8an8CXEt5XlFbyT1NBM4xELNZD8xPVZfKCcgorCfPkeBP5ftDgPaK12JIokXA5koYJ54AJcNY4ams9TZ7yGxA==}
     peerDependencies:
       '@sveltejs/kit': ^1.0.0
     dependencies:
-      '@rollup/plugin-commonjs': 24.0.1(rollup@3.20.2)
-      '@rollup/plugin-json': 6.0.0(rollup@3.20.2)
+      '@rollup/plugin-commonjs': 23.0.7(rollup@3.20.2)
+      '@rollup/plugin-json': 5.0.2(rollup@3.20.2)
       '@rollup/plugin-node-resolve': 15.0.1(rollup@3.20.2)
       '@sveltejs/kit': 1.15.1(svelte@3.58.0)(vite@4.2.1)
       rollup: 3.20.2
@@ -5151,8 +5137,8 @@ packages:
     dev: false
     optional: true
 
-  /lucia-auth@0.10.0:
-    resolution: {integrity: sha512-lH6vVbquC4rQovufb31SIuzBhqKoDjZFw+h7ce7TfoqOc6xKMNOG7HBepiWwCLoXjFemMTAq92vTeK5HFx9qDg==}
+  /lucia-auth@0.11.0:
+    resolution: {integrity: sha512-dAQlRV7yeHQH0BMSJdET5f3TVoh7fPF+SWc+34b6606+iqe06RqLpxdoJgG35affadK5wF2wgHyje3VoV1lHBw==}
     dependencies:
       '@noble/hashes': 1.3.0
       nanoid: 4.0.2
