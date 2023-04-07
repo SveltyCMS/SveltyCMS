@@ -24,13 +24,14 @@
 	let view = 'grid';
 	let size: 'small' | 'medium' | 'large' = 'small';
 	$: {
-		//TODO : removing console.log  will break refresh
 		console.log('size changed:', size);
 		// update the table when the size variable changes
 		refreshData();
 	}
 
 	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
+	import { flip } from 'svelte/animate';
 
 	let images: any = [];
 
@@ -41,12 +42,12 @@
 
 	// tanstack table
 
-	import { writable } from 'svelte/store';
 	import {
 		createSvelteTable,
 		flexRender,
 		getCoreRowModel,
-		getSortedRowModel
+		getSortedRowModel,
+		getPaginationRowModel
 	} from '@tanstack/svelte-table';
 
 	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/svelte-table';
@@ -101,7 +102,39 @@
 		}
 	];
 
+	let columnOrder: never[] = [];
+	let columnVisibility = {};
 	let sorting: any = [];
+
+	const setColumnOrder = (updater: any) => {
+		if (updater instanceof Function) {
+			columnOrder = updater(columnOrder);
+		} else {
+			columnOrder = updater;
+		}
+		options.update((old) => ({
+			...old,
+			state: {
+				...old.state,
+				columnOrder
+			}
+		}));
+	};
+
+	const setColumnVisibility = (updater: any) => {
+		if (updater instanceof Function) {
+			columnVisibility = updater(columnVisibility);
+		} else {
+			columnVisibility = updater;
+		}
+		options.update((old) => ({
+			...old,
+			state: {
+				...old.state,
+				columnVisibility
+			}
+		}));
+	};
 
 	const setSorting = (updater: (arg0: any) => any) => {
 		if (updater instanceof Function) {
@@ -122,11 +155,14 @@
 		data: defaultData,
 		columns: defaultColumns,
 		state: {
+			columnOrder,
 			sorting
 		},
+		onColumnOrderChange: setColumnOrder,
 		onSortingChange: setSorting,
 		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel()
+		getSortedRowModel: getSortedRowModel(),
+		onColumnVisibilityChange: setColumnVisibility
 	});
 
 	const refreshData = () => {
@@ -145,6 +181,24 @@
 	};
 
 	const table = createSvelteTable(options);
+
+	//svelte-dnd-action
+	import { dndzone } from 'svelte-dnd-action';
+	export let containerWidth = '200vw';
+	export let itemWidth = '5em';
+	let items = [
+		{ id: 1, name: 'item1' },
+		{ id: 2, name: 'item2' },
+		{ id: 3, name: 'item3' },
+		{ id: 4, name: 'item4' }
+	];
+	const flipDurationMs = 300;
+	function handleDndConsider(e) {
+		items = e.detail.items;
+	}
+	function handleDndFinalize(e) {
+		items = e.detail.items;
+	}
 </script>
 
 <div class="flex mr-1 align-centre mb-2">
@@ -280,11 +334,70 @@
 	</div>
 {:else}
 	<div class="p-2">
-		<div class="justify-center flex gap-3 mb-4">
+		<!-- refresh -->
+		<div class="flex justify-center items-center gap-3 mb-4">
 			<div>{$table.getRowModel().rows.length} Rows</div>
 			<button on:click={() => rerender()}>Force Rerender</button>
 			<button on:click={() => refreshData()}>Refresh Data</button>
 		</div>
+
+		<div class="flex flex-col justify-center items-center">
+			<div>Drag & Drop columns & Click to hide</div>
+
+			<section
+				class="text-center bg-error-500"
+				style="width:{containerWidth}"
+				use:dndzone={{ items, flipDurationMs }}
+				on:consider={handleDndConsider}
+				on:finalize={handleDndFinalize}
+			>
+				{#each $table.getAllLeafColumns() as column (column.id)}
+					<span
+						class="chip {column.getIsVisible()
+							? 'variant-filled-secondary'
+							: 'variant-ghost-secondary'} mx-2 my-1"
+						on:click={column.getToggleVisibilityHandler()}
+						on:keypress
+					>
+						{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
+						<span class="capitalize">{column.id}</span>
+					</span>
+				{/each}
+			</section>
+		</div>
+
+		<div class="flex flex-col md:flex-row md:flex-wrap md:items-center md:justify-center">
+			<!-- toggle all -->
+			<div class="flex items-center mb-2 md:mb-0 md:mr-4">
+				<label>
+					<input
+						checked={$table.getIsAllColumnsVisible()}
+						on:change={(e) => {
+							console.info($table.getToggleAllColumnsVisibilityHandler()(e));
+						}}
+						type="checkbox"
+					/>{' '}
+					{$LL.TANSTACK_Toggle()}
+				</label>
+
+				<!-- Show/hide Columns via chips -->
+				<div class="flex flex-wrap items-center justify-center">
+					{#each $table.getAllLeafColumns() as column}
+						<span
+							class="chip {column.getIsVisible()
+								? 'variant-filled-secondary'
+								: 'variant-ghost-secondary'} mx-2 my-1"
+							on:click={column.getToggleVisibilityHandler()}
+							on:keypress
+						>
+							{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
+							<span class="capitalize">{column.id}</span>
+						</span>
+					{/each}
+				</div>
+			</div>
+		</div>
+
 		<div class="table-container">
 			<table class="table table-hover">
 				<thead class="bg-surface-500">

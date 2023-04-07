@@ -31,7 +31,7 @@
 	let lang: any;
 
 	// Local
-	let inputPopupDemo: string = '';
+	let inputPopupDemo = '';
 	let popupSettings: PopupSettings = {
 		event: 'focus',
 		target: 'popupAutocomplete',
@@ -93,6 +93,17 @@
 		switchLocale(lang, false);
 		goto(`${$page.url.origin}${replaceLocaleInUrl($page.url, lang, user)}`);
 	}
+
+	// language search
+	let searchQuery = '';
+	let filteredLocales = locales;
+
+	const handleInput = (event: { target: { value: string } }) => {
+		searchQuery = event.target.value;
+		filteredLocales = locales.filter((loc) =>
+			loc.toLowerCase().includes(searchQuery.toLowerCase())
+		);
+	};
 </script>
 
 <svelte:window on:popstate={handlePopStateEvent} />
@@ -105,7 +116,11 @@
 </button>
 
 <div class="uppercase variant-filled-surface rounded-sm" data-popup="language-dropdown">
-	<ListBox rounded="rounded-none" spacing="space-y-0" class="divide-y">
+	{#if locales.length > 3}
+		<input type="text" placeholder="Search..." on:input={handleInput} class="text-black" />
+	{/if}
+
+	{#if locales.length <= 3}
 		{#each locales as loc}
 			{#if locales.length <= 4}
 				<ListBoxItem
@@ -130,7 +145,21 @@
 				</ListBoxItem>
 			{/if}
 		{/each}
-	</ListBox>
+	{:else}
+		{#each filteredLocales as loc}
+			{#if loc !== LanguageLabel}
+				<ListBoxItem
+					bind:group={LanguageLabel}
+					on:click={() => (LanguageLabel = loc)}
+					name={loc}
+					value={loc}
+					class="hover:!variant-filled-tertiary"
+				>
+					{loc}
+				</ListBoxItem>
+			{/if}
+		{/each}
+	{/if}
 	<!-- Arrow -->
 	<div class="arrow variant-filled-surface" />
 </div>
