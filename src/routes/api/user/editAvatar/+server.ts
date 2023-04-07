@@ -24,7 +24,6 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 		);
 	}
 
-
 	// Validate user credentials and get user information from the session
 	const user = locals.user;
 
@@ -73,7 +72,7 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 	}
 
 	// base folder for saving user medias
-	const basePath = 'src/media/avatar';
+	const basePath = 'media/avatar';
 
 	// Check if the media folder exists and create it if it doesn't
 	if (!fs.existsSync(basePath)) {

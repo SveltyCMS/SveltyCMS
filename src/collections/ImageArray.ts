@@ -7,7 +7,8 @@ const schema: Schema = {
 	// collection Name and Icon
 	name: 'Image Array',
 	icon: 'bi:images',
-	status: 'published',
+	status: 'unpublished',
+	slug: 'imagesarray',
 
 	// collection fields from available widgets
 	fields: [

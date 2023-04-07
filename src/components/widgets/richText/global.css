@@ -10,7 +10,7 @@
 @import 'https://fonts.googleapis.com/css?family=Reenie+Beanie';
 
 .editor-shell {
-	margin: 20px auto;
+	margin: 0 auto 10px;
 	border-radius: 2px;
 	color: #000;
 	position: relative;

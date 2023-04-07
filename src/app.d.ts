@@ -2,9 +2,12 @@
 declare namespace Lucia {
 	type Auth = import('$lib/server/lucia').Auth;
 
+	const roles = process.env.PUBLIC_USER_ROLES.split(',');
+
 	type UserAttributes = {
+		userId: any;
 		email: string;
-		role: 'Admin' | 'Developer' | 'Editor' | 'User';
+		role: (typeof roles)[number];
 		username: string | undefined;
 		firstname: string | undefined;
 		lastname: string | undefined;

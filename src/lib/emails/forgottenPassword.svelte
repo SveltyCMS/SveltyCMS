@@ -6,7 +6,18 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
+	import {
+		Button,
+		Container,
+		Column,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Preview,
+		Section,
+		Text
+	} from 'svelte-email';
 
 	interface EmailProps {
 		email?: string;
@@ -17,8 +28,12 @@
 	export let email: EmailProps['email'];
 	export let resetLink: EmailProps['resetLink'];
 	export let token: EmailProps['token'];
-	export let expires_at: EmailProps['expires_at'];
-	let readable_expires_at = new Date(expires_at).toLocaleString();
+	export let expires_at: EmailProps['token'];
+	let currentTime = new Date();
+	let expirationTime = expires_at ? new Date(expires_at) : new Date();
+	let timeDiff = expirationTime.getTime() - currentTime.getTime();
+	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+	let readable_expires_at = `${hoursDiff} hours`;
 
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
@@ -116,14 +131,18 @@
 				>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text
 			>
 			<Section style={review}>
-				<Text style={paragraph}
-					>Your reset Token: <span style={styleToString(paragraphbold)}>{token}</span></Text
-				>
-				<Text style={paragraph}
-					>Is valid for: <span style={styleToString(paragraphbold)}>{readable_expires_at}</span
-					></Text
-				>
+				<Column>
+					<Text style={paragraph}>Your reset Token:</Text>
+					<Text style={paragraph}>Is valid for:</Text>
+				</Column>
+				<Column>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
+					<Text style={paragraph}
+						><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text
+					>
+				</Column>
 			</Section>
+
 			<Text style={paragraph}>If you did not request this reset, please ignore this email.</Text>
 			<Text style={paragraph}>Please press the button to reset your password</Text>
 

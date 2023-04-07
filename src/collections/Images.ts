@@ -8,7 +8,8 @@ const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Images',
 	icon: 'bi:card-image',
-	status: 'published',
+	status: 'unpublished',
+	slug: 'images',
 
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options

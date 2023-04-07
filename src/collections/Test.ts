@@ -11,7 +11,8 @@ const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'TestWidgets',
 	icon: 'bi:device-ssd-fill',
-	status: 'published',
+	status: 'unpublished',
+	slug: 'test',
 
 	// Defined Fields that are used in Collection
 	// Inspect Widget fields for possible options
@@ -19,6 +20,7 @@ const schema: Schema = {
 		widgets.Group({
 			db_fieldName: 'User',
 			label: get(LL).COLLECTION_TEST_User(),
+			condition: true,
 			display: async (data: any, field: any, entry: any) => {
 				return format([
 					{

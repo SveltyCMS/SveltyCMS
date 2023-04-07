@@ -2,8 +2,8 @@ lockfileVersion: '6.0'
 
 dependencies:
   '@floating-ui/dom':
-    specifier: ^1.2.5
-    version: 1.2.5
+    specifier: ^1.2.6
+    version: 1.2.6
   '@iconify/svelte':
     specifier: ^3.1.0
     version: 3.1.0(svelte@3.58.0)
@@ -11,8 +11,8 @@ dependencies:
     specifier: ^0.7.0
     version: 0.7.0(lucia-auth@0.11.0)
   '@lucia-auth/oauth':
-    specifier: ^0.8.0
-    version: 0.8.0(lucia-auth@0.11.0)
+    specifier: ^0.8.1
+    version: 0.8.1(lucia-auth@0.11.0)
   '@mapbox/mapbox-gl-geocoder':
     specifier: ^5.0.1
     version: 5.0.1(mapbox-gl@2.13.0)
@@ -31,6 +31,9 @@ dependencies:
   '@tanstack/match-sorter-utils':
     specifier: ^8.8.4
     version: 8.8.4
+  '@tanstack/svelte-query':
+    specifier: ^4.27.0
+    version: 4.27.0(svelte@3.58.0)
   '@tanstack/svelte-table':
     specifier: ^8.8.5
     version: 8.8.5(svelte@3.58.0)
@@ -116,10 +119,10 @@ devDependencies:
     version: 1.1.0
   '@sveltejs/adapter-node':
     specifier: latest
-    version: 1.0.0(@sveltejs/kit@1.15.1)
+    version: 1.2.3(@sveltejs/kit@1.15.2)
   '@sveltejs/kit':
-    specifier: 1.15.1
-    version: 1.15.1(svelte@3.58.0)(vite@4.2.1)
+    specifier: 1.15.2
+    version: 1.15.2(svelte@3.58.0)(vite@4.2.1)
   '@types/cookie':
     specifier: 0.5.1
     version: 0.5.1
@@ -202,8 +205,8 @@ devDependencies:
     specifier: 5.0.3
     version: 5.0.3(postcss-load-config@4.0.1)(postcss@8.4.21)(svelte@3.58.0)(typescript@5.0.3)
   sveltekit-superforms:
-    specifier: ^0.6.9
-    version: 0.6.9(@sveltejs/kit@1.15.1)(svelte@3.58.0)(zod@3.21.4)
+    specifier: ^0.6.10
+    version: 0.6.10(@sveltejs/kit@1.15.2)(svelte@3.58.0)(zod@3.21.4)
   tailwindcss:
     specifier: 3.3.1
     version: 3.3.1(postcss@8.4.21)
@@ -1339,14 +1342,14 @@ packages:
       lodash.uniq: 4.5.0
     dev: true
 
-  /@floating-ui/core@1.2.5:
-    resolution: {integrity: sha512-qrcbyfnRVziRlB6IYwjCopYhO7Vud750JlJyuljruIXcPxr22y8zdckcJGsuOdnQ639uVD1tTXddrcH3t3QYIQ==}
+  /@floating-ui/core@1.2.6:
+    resolution: {integrity: sha512-EvYTiXet5XqweYGClEmpu3BoxmsQ4hkj3QaYA6qEnigCWffTP3vNRwBReTdrwDwo7OoJ3wM8Uoe9Uk4n+d4hfg==}
     dev: false
 
-  /@floating-ui/dom@1.2.5:
-    resolution: {integrity: sha512-+sAUfpQ3Frz+VCbPCqj+cZzvEESy3fjSeT/pDWkYCWOBXYNNKZfuVsHuv8/JO2zze8+Eb/Q7a6hZVgzS81fLbQ==}
+  /@floating-ui/dom@1.2.6:
+    resolution: {integrity: sha512-02vxFDuvuVPs22iJICacezYJyf7zwwOCWkPNkWNBr1U0Qt1cKFYzWvxts0AmqcOQGwt/3KJWcWIgtbUU38keyw==}
     dependencies:
-      '@floating-ui/core': 1.2.5
+      '@floating-ui/core': 1.2.6
     dev: false
 
   /@graphql-tools/executor@0.0.15(graphql@16.6.0):
@@ -1672,8 +1675,8 @@ packages:
       - supports-color
     dev: false
 
-  /@lucia-auth/oauth@0.8.0(lucia-auth@0.11.0):
-    resolution: {integrity: sha512-/VtIxhQZAPPVDJOBHBJZMgrP7QL91OLBCvwzOcOFF/yzUMLi9Mph5iaKlpLA2oB5A0QG/Temr09kOBm7+NuhCQ==}
+  /@lucia-auth/oauth@0.8.1(lucia-auth@0.11.0):
+    resolution: {integrity: sha512-UqcJpDEUs9c4SR3QQfIG746ROSAFZslPhJed0RYAnfsSvKyHJyZgzt6sSdBqQq33Uw4Ge2AtdhwRl5qJem/3PA==}
     peerDependencies:
       lucia-auth: 0.9.x - 0.11.x
     dependencies:
@@ -1852,8 +1855,8 @@ packages:
     resolution: {integrity: sha512-AW8PKd6iX3vAZ0vA43nOUOnbq/X5ihgU+mSXXqunMkeQADGiqw/PY0JNeYtD5sr0PAy51YPgAPbDoeapv9r8WA==}
     dev: false
 
-  /@rollup/plugin-commonjs@23.0.7(rollup@3.20.2):
-    resolution: {integrity: sha512-hsSD5Qzyuat/swzrExGG5l7EuIlPhwTsT7KwKbSCQzIcJWjRxiimi/0tyMYY2bByitNb3i1p+6JWEDGa0NvT0Q==}
+  /@rollup/plugin-commonjs@24.0.1(rollup@3.20.2):
+    resolution: {integrity: sha512-15LsiWRZk4eOGqvrJyu3z3DaBu5BhXIMeWnijSRvd8irrrg9SHpQ1pH+BUK4H6Z9wL9yOxZJMTLU+Au86XHxow==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^2.68.0||^3.0.0
@@ -1870,8 +1873,8 @@ packages:
       rollup: 3.20.2
     dev: true
 
-  /@rollup/plugin-json@5.0.2(rollup@3.20.2):
-    resolution: {integrity: sha512-D1CoOT2wPvadWLhVcmpkDnesTzjhNIQRWLsc3fA49IFOP2Y84cFOOJ+nKGYedvXHKUsPeq07HR4hXpBBr+CHlA==}
+  /@rollup/plugin-json@6.0.0(rollup@3.20.2):
+    resolution: {integrity: sha512-i/4C5Jrdr1XUarRhVu27EEwjt4GObltD7c+MkCIpO2QIbojw8MUs+CCTqOphQi3Qtg1FLmYt+l+6YeoIf51J7w==}
     engines: {node: '>=14.0.0'}
     peerDependencies:
       rollup: ^1.20.0||^2.0.0||^3.0.0
@@ -1934,20 +1937,20 @@ packages:
       svelte: 3.58.0
     dev: true
 
-  /@sveltejs/adapter-node@1.0.0(@sveltejs/kit@1.15.1):
-    resolution: {integrity: sha512-Q8an8CXEt5XlFbyT1NBM4xELNZD8xPVZfKCcgorCfPkeBP5ftDgPaK12JIokXA5koYJ54AJcNY4ams9TZ7yGxA==}
+  /@sveltejs/adapter-node@1.2.3(@sveltejs/kit@1.15.2):
+    resolution: {integrity: sha512-Fv6NyVpVWYA63KRaV6dDjcU8ytcWFiUr0siJOoHl+oWy5WHNEuRiJOUdiZzYbZo8MmvFaCoxHkTgPrVQhpqaRA==}
     peerDependencies:
       '@sveltejs/kit': ^1.0.0
     dependencies:
-      '@rollup/plugin-commonjs': 23.0.7(rollup@3.20.2)
-      '@rollup/plugin-json': 5.0.2(rollup@3.20.2)
+      '@rollup/plugin-commonjs': 24.0.1(rollup@3.20.2)
+      '@rollup/plugin-json': 6.0.0(rollup@3.20.2)
       '@rollup/plugin-node-resolve': 15.0.1(rollup@3.20.2)
-      '@sveltejs/kit': 1.15.1(svelte@3.58.0)(vite@4.2.1)
+      '@sveltejs/kit': 1.15.2(svelte@3.58.0)(vite@4.2.1)
       rollup: 3.20.2
     dev: true
 
-  /@sveltejs/kit@1.15.1(svelte@3.58.0)(vite@4.2.1):
-    resolution: {integrity: sha512-Wexy3N+COoClTuRawVJRbLoH5HFxNrXG3uoHt/Yd5IGx8WAcJM9Nj/CcBLw/tjCR9uDDYMnx27HxuPy3YIYQUA==}
+  /@sveltejs/kit@1.15.2(svelte@3.58.0)(vite@4.2.1):
+    resolution: {integrity: sha512-rLNxZrjbrlPf8AWW8GAU4L/Vvu17e9v8EYl7pUip7x72lTft7RcxeP3z7tsrHpMSBBxC9o4XdKzFvz1vMZyXZw==}
     engines: {node: ^16.14 || >=18}
     hasBin: true
     requiresBuild: true
@@ -2034,6 +2037,19 @@ packages:
     engines: {node: '>=12'}
     dependencies:
       remove-accents: 0.4.2
+    dev: false
+
+  /@tanstack/query-core@4.27.0:
+    resolution: {integrity: sha512-sm+QncWaPmM73IPwFlmWSKPqjdTXZeFf/7aEmWh00z7yl2FjqophPt0dE1EHW9P1giMC5rMviv7OUbSDmWzXXA==}
+    dev: false
+
+  /@tanstack/svelte-query@4.27.0(svelte@3.58.0):
+    resolution: {integrity: sha512-FmrviPCoWbgBOLgG4uOG4EHi80DDzvD4XK+0nQBTLb4c2cKyN7c98MLgG58yHbdFEPQyhhcJlqagXP18vWWS9w==}
+    peerDependencies:
+      svelte: ^3.54.0
+    dependencies:
+      '@tanstack/query-core': 4.27.0
+      svelte: 3.58.0
     dev: false
 
   /@tanstack/svelte-table@8.8.5(svelte@3.58.0):
@@ -7027,14 +7043,14 @@ packages:
     resolution: {integrity: sha512-brIBNNB76mXFmU/Kerm4wFnkskBbluBDCjx/8TcpYRb298Yh2dztS2kQ6bhtjMcvUhd5ynClfwpz5h2gnzdQ1A==}
     engines: {node: '>= 8'}
 
-  /sveltekit-superforms@0.6.9(@sveltejs/kit@1.15.1)(svelte@3.58.0)(zod@3.21.4):
-    resolution: {integrity: sha512-UyTFKAVeooqkjumg1F3XNF16z7QEKhDxXsIT3T48Z1cN3UDiTcUEWNougTZ+yxejI0GCq2ddSLLSxWjnq+NGBw==}
+  /sveltekit-superforms@0.6.10(@sveltejs/kit@1.15.2)(svelte@3.58.0)(zod@3.21.4):
+    resolution: {integrity: sha512-7GqHlEsJPXeA2fuzy8delT1GKhNEiF3zhRKhURGJ26cdBFB+vDG5aWA7lKDS7pVQ0InpeNasmmVlvdxRsEb3LQ==}
     peerDependencies:
       '@sveltejs/kit': 1.x
       svelte: 3.x
       zod: 3.x
     dependencies:
-      '@sveltejs/kit': 1.15.1(svelte@3.58.0)(vite@4.2.1)
+      '@sveltejs/kit': 1.15.2(svelte@3.58.0)(vite@4.2.1)
       svelte: 3.58.0
       zod: 3.21.4
     dev: true

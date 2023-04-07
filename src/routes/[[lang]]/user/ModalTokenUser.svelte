@@ -3,6 +3,8 @@
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
+	import { PUBLIC_USER_ROLES } from '$env/static/public';
+
 	// Skelton & Stores
 	import { modalStore } from '@skeletonlabs/skeleton';
 
@@ -22,13 +24,10 @@
 
 	let email = '';
 
-	// TODO: Get allowed user Roles from .app.d.ts
-	let roles: Record<string, boolean> = {
-		Admin: false,
-		Editor: true,
-		User: false,
-		Guest: false
-	};
+	// Get allowed user Roles from environment variable
+	const rolesArray = PUBLIC_USER_ROLES.split(',');
+	const roles = Object.fromEntries(rolesArray.map((role) => [role, false]));
+	roles['Editor'] = true;
 
 	let roleSelected = 'Editor';
 	let errorStatus = {

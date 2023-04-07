@@ -7,6 +7,7 @@ const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	name: 'Media',
 	icon: 'bi:menu-button-wide',
+	slug: 'media',
 
 	status: 'published',
 	// Defined Fields that are used in Collection

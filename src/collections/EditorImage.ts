@@ -5,6 +5,8 @@ const schema: Schema = {
 	// collection Name and Icon
 	name: 'Image Editor',
 	icon: 'bi:images',
+	slug: 'editor',
+	status: 'published',
 
 	// collection fields from available widgets
 	fields: [

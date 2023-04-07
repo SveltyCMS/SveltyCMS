@@ -6,7 +6,18 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
+	import {
+		Button,
+		Container,
+		Column,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Preview,
+		Section,
+		Text
+	} from 'svelte-email';
 
 	interface EmailProps {
 		username?: string;
@@ -21,7 +32,11 @@
 	export let role: EmailProps['role'];
 	export let token: EmailProps['token'];
 	export let expires_at: EmailProps['token'];
-	let readable_expires_at = new Date(expires_at).toLocaleString();
+	let currentTime = new Date();
+	let expirationTime = expires_at ? new Date(expires_at) : new Date();
+	let timeDiff = expirationTime.getTime() - currentTime.getTime();
+	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+	let readable_expires_at = `${hoursDiff} hours`;
 
 	const fontFamily =
 		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
@@ -118,17 +133,20 @@
 				>You have recieved an Access Token to create a new user for {PUBLIC_SITENAME}</Text
 			>
 			<Section style={review}>
-				<Text style={paragraph}
-					>Email: <span style={styleToString(paragraphbold)}>{email}</span></Text
-				>
-				<Text style={paragraph}
-					>Access Token: <span style={styleToString(paragraphbold)}>{token}</span></Text
-				>
-				<Text style={paragraph}>Role: <span style={styleToString(paragraphbold)}>{role}</span></Text
-				>
-				<Text style={paragraph}
-					>Valid for: <span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text
-				>
+				<Column>
+					<Text style={paragraph}>Email:</Text>
+					<Text style={paragraph}>Access Token:</Text>
+					<Text style={paragraph}>Role:</Text>
+					<Text style={paragraph}>Valid for:</Text>
+				</Column>
+				<Column>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{role}</span></Text>
+					<Text style={paragraph}
+						><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text
+					>
+				</Column>
 			</Section>
 
 			<Text style={paragraph}>Please press the button to setup your user with this email</Text>

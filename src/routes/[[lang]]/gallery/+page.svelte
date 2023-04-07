@@ -33,12 +33,12 @@
 	import { writable } from 'svelte/store';
 	import { flip } from 'svelte/animate';
 
-	let images: any = [];
+	//let images: any = [];
 
-	onMount(async () => {
-		const res = await fetch('/gallery.json');
-		images = await res.json();
-	});
+	// onMount(async () => {
+	// 	const res = await fetch('/gallery.json');
+	// 	images = await res.json();
+	// });
 
 	// tanstack table
 
@@ -184,21 +184,49 @@
 
 	//svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
-	export let containerWidth = '200vw';
-	export let itemWidth = '5em';
-	let items = [
-		{ id: 1, name: 'item1' },
-		{ id: 2, name: 'item2' },
-		{ id: 3, name: 'item3' },
-		{ id: 4, name: 'item4' }
-	];
 	const flipDurationMs = 300;
-	function handleDndConsider(e) {
+
+	// Update items array to be an array of column objects
+	let items = $table.getAllLeafColumns().map((column, index) => ({
+		id: column.id,
+		name: column.id,
+		isVisible: column.getIsVisible() // Set initial visibility state based on column visibility
+	}));
+
+	function handleDndConsider(e: {
+		detail: { items: { id: string; name: string; isVisible: boolean }[] };
+	}) {
 		items = e.detail.items;
 	}
-	function handleDndFinalize(e) {
+
+	function handleDndFinalize(e: {
+		detail: { items: { id: string; name: string; isVisible: boolean }[] };
+	}) {
 		items = e.detail.items;
+
+		// Update column visibility based on new order
+		const newVisibility = {};
+		items.forEach((item) => {
+			newVisibility[item.id] = item.isVisible;
+		});
+		$table.setColumnVisibility(newVisibility);
 	}
+
+	// Add toggle visibility function to each column object
+	items = items.map((item) => {
+		return {
+			...item,
+			getToggleVisibilityHandler() {
+				return () => {
+					const newVisibility = { ...$table.getColumnVisibility() };
+					newVisibility[item.id] = !newVisibility[item.id];
+					$table.setColumnVisibility(newVisibility);
+				};
+			}
+		};
+	});
+
+	console.log(items);
 </script>
 
 <div class="flex mr-1 align-centre mb-2">
@@ -341,31 +369,42 @@
 			<button on:click={() => refreshData()}>Refresh Data</button>
 		</div>
 
-		<div class="flex flex-col justify-center items-center">
-			<div>Drag & Drop columns & Click to hide</div>
-
+		<!-- chip column order -->
+		<div class="flex flex-col text-center justify-center bg-surface-700 rounded-md">
+			<div class="font-semibold">Drag & Drop columns & Click to hide</div>
+			<!-- toggle all -->
+			<!-- TODO place into section row will kill dnd action-->
+			<label class="mr-3">
+				<input
+					checked={$table.getIsAllColumnsVisible()}
+					on:change={(e) => {
+						console.info($table.getToggleAllColumnsVisibilityHandler()(e));
+					}}
+					type="checkbox"
+				/>{' '}
+				{$LL.TANSTACK_Toggle()}
+			</label>
 			<section
-				class="text-center bg-error-500"
-				style="width:{containerWidth}"
+				class="bg-surface-700 flex justify-center rounded-md p-2"
 				use:dndzone={{ items, flipDurationMs }}
 				on:consider={handleDndConsider}
 				on:finalize={handleDndFinalize}
 			>
-				{#each $table.getAllLeafColumns() as column (column.id)}
-					<span
-						class="chip {column.getIsVisible()
+				{#each items as item (item.id)}
+					<div
+						class="chip {$table.getIsAllColumnsVisible()
 							? 'variant-filled-secondary'
-							: 'variant-ghost-secondary'} mx-2 my-1"
-						on:click={column.getToggleVisibilityHandler()}
-						on:keypress
+							: 'variant-ghost-secondary'} flex justify-center items-center mr-2 w-100"
+						animate:flip={{ duration: flipDurationMs }}
 					>
-						{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
-						<span class="capitalize">{column.id}</span>
-					</span>
+						{#if $table.getIsAllColumnsVisible()}
+							<span><Icon icon="fa:check" /></span>
+						{/if}
+						<span class="capitalize ml-2">{item.name}</span>
+					</div>
 				{/each}
 			</section>
 		</div>
-
 		<div class="flex flex-col md:flex-row md:flex-wrap md:items-center md:justify-center">
 			<!-- toggle all -->
 			<div class="flex items-center mb-2 md:mb-0 md:mr-4">
