@@ -144,7 +144,7 @@
 			use:enhance={(e) => {
 				return async ({ result }) => {
 					if (result.type === 'success') {
-						goto('/');
+						await goto('/');
 					}
 
 					if (result.type === 'failure') {
