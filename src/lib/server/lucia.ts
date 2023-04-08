@@ -15,7 +15,7 @@ import "$lib/models/user-model";
 import "$lib/models/session-model";
 import "$lib/models/key-model";
 import "$lib/models/sign-up-token-model";
-import type { RequestEvent } from "@sveltejs/kit";
+import { fail, redirect, type RequestEvent } from "@sveltejs/kit";
 
 export const auth = lucia({
 	adapter: adapter(mongoose),
@@ -69,4 +69,16 @@ export const luciaVerifyAndReturnUser = async (
 export const luciaSetCookie =  async (event: RequestEvent<Partial<Record<string, string>>, string | null>, session: Session) => {
 	const lucia = auth.handleRequest(event);
 	lucia.setSession(session);
+}
+
+
+export const luciaRemoveCookieAndSignOut = async (event: RequestEvent<Partial<Record<string, string>>, string | null>) => {
+
+		const lucia = auth.handleRequest(event);
+		const auth_object = await lucia.validate();
+		if (!auth_object) return fail(500, { error: "No auth object" });
+		await auth.invalidateSession(auth_object.sessionId); // invalidate session
+		event.locals.user = null // remove cookie
+		throw redirect(302, '/login');
+	
 }
