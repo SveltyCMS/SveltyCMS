@@ -1,7 +1,4 @@
 <script lang="ts">
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -155,7 +152,7 @@
 		class="{getButtonAndIconValues(listboxValue)
 			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
 	>
-		<Icon
+		<iconify-icon
 			icon={getButtonAndIconValues(listboxValue).iconValue}
 			width="20"
 			class="text-white mr-2"
@@ -167,7 +164,7 @@
 
 	<!-- Dropdown button -->
 	<button class="bg-surface-500 hover:!bg-surface-800 rounded-r-sm divide-x-2" use:popup={Combobox}>
-		<Icon icon="mdi:chevron-down" width="20" class="text-white" />
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
@@ -189,7 +186,7 @@
 				active="variant-filled-primary"
 				hover="gradient-primary-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Edit
 			</ListBoxItem>
@@ -203,7 +200,7 @@
 				active="variant-filled-error"
 				hover="gradient-error-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Delete
 			</ListBoxItem>
@@ -217,7 +214,11 @@
 				active="bg-yellow-500"
 				hover="gradient-yellow-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon
+						icon="material-symbols:lock-open"
+						width="20"
+						class="mr-1"
+					/></svelte:fragment
 				>
 				Unblock
 			</ListBoxItem>
@@ -231,7 +232,7 @@
 				active="bg-pink-700"
 				hover="gradient-pink-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment
 				>
 				Block
 			</ListBoxItem>

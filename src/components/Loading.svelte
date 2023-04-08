@@ -1,5 +1,6 @@
 <script lang="ts">
 	import Logo from '../components/icons/SimpleCMS_Logo.svelte';
+
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 </script>

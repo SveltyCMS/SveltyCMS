@@ -1,7 +1,4 @@
 <script lang="ts">
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	export let field: any = undefined;
 	export let value = '';
 
@@ -88,7 +85,7 @@
 				rel="noreferrer"
 				class="btn btn-sm mt-4 variant-filled-tertiary"
 			>
-				<span><Icon icon="material-symbols:play-circle-outline" width="18" /></span>
+				<span><iconify-icon icon="material-symbols:play-circle-outline" width="18" /></span>
 				<span>Watch Video</span>
 			</a>
 		</div>

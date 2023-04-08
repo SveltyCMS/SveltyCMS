@@ -19,7 +19,7 @@ interface EmailProps {
 	email?: string;
 	role?: string;
 	token?: string;
-	expires_at: string;
+	expires_at?: string;
 	expires_in?: string;
 	// ... any other props used by both templates
 }
@@ -45,7 +45,7 @@ async function sendMail(
 	templateName: keyof typeof templates,
 	props: EmailProps
 ) {
-	console.log(email, subject, message);
+	// console.log(email, subject, message);
 	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -66,15 +66,15 @@ async function sendMail(
 		props
 	});
 
-	await transporter
-		.sendMail({
-			from: SMTP_EMAIL,
-			to: email,
-			subject,
-			text: message,
-			html: emailHtml
-		})
-		.catch((err) => console.log(err));
+	const options = {
+		from: SMTP_EMAIL,
+		to: email,
+		subject,
+		text: message,
+		html: emailHtml
+	};
+
+	await transporter.sendMail(options).catch((err) => console.log(err));
 
 	return {
 		status: 200,

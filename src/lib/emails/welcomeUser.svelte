@@ -33,7 +33,20 @@
 
 	const container = {
 		margin: '0 auto',
-		padding: '20px 0 48px'
+		padding: '16px 0 48px',
+		width: '480px'
+	};
+
+	const label = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '25%' // Update width to 35%
+	};
+
+	const variable = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '75%' // Update width to 65%
 	};
 
 	const paragraph = {
@@ -50,9 +63,8 @@
 	};
 
 	const review = {
-		padding: '18px',
-		backgroundColor: '#f2f3f3',
-		borderRadius: '6px'
+		padding: '6px',
+		backgroundColor: '#f2f3f3'
 	};
 
 	const btnContainer = {

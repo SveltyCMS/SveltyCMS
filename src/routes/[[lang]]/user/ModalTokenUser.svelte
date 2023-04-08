@@ -8,9 +8,6 @@
 	// Skelton & Stores
 	import { modalStore } from '@skeletonlabs/skeleton';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
@@ -110,7 +107,7 @@
 	>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+			<iconify-icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-400" />
 			<input
 				bind:value={email}
 				on:keydown={() => (errorStatus.email.status = false)}
@@ -146,7 +143,7 @@
 							}}
 							on:keypress
 						>
-							{#if roles[r]}<span><Icon icon="fa:check" /></span>{/if}
+							{#if roles[r]}<span><iconify-icon icon="fa:check" /></span>{/if}
 							<span class="capitalize">{r}</span>
 						</span>
 					{/each}
@@ -167,7 +164,7 @@
 							}}
 							on:keypress
 						>
-							{#if valids[v]}<span><Icon icon="fa:check" /></span>{/if}
+							{#if valids[v]}<span><iconify-icon icon="fa:check" /></span>{/if}
 							<span class="capitalize">{v}</span>
 						</span>
 					{/each}

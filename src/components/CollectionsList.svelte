@@ -33,9 +33,6 @@
 	const dispatch = createEventDispatcher();
 	import { createEventDispatcher } from 'svelte';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	import type { Schema } from '$src/collections/types';
 
 	// import { shape_fields } from '$src/lib/utils/utils_svelte';
@@ -85,7 +82,7 @@
 			<AccordionItem open={index === 0}>
 				<!-- Category Icon -->
 				<svelte:fragment slot="lead">
-					<Icon icon={item.icon} width="24" class="text-error-600" />
+					<iconify-icon icon={item.icon} width="24" class="text-error-600" />
 				</svelte:fragment>
 
 				<!-- Category name -->
@@ -120,7 +117,7 @@
 								class="bg-surface-500 hover:!bg-surface-400 dark:hover:!bg-surface-300 w-full"
 							>
 								<svelte:fragment slot="lead">
-									<Icon icon={_collection.icon} width="24" class="text-error-600" />
+									<iconify-icon icon={_collection.icon} width="24" class="text-error-600" />
 								</svelte:fragment>
 								{_collection.name}
 							</ListBoxItem>
@@ -134,7 +131,7 @@
 				<AccordionItem open={index === 0} padding="py-2 px-2">
 					<!-- Category Icon -->
 					<svelte:fragment slot="lead">
-						<Icon icon={item.icon} width="24" class="text-error-600" />
+						<iconify-icon icon={item.icon} width="24" class="text-error-600" />
 					</svelte:fragment>
 
 					<!-- Category name -->
@@ -170,7 +167,11 @@
 									class="flex justify-center items-center bg-surface-500 hover:!bg-surface-400 dark:hover:!bg-surface-300"
 								>
 									<div class="overflow-clip truncate text-clip text-[10px]">{_collection.name}</div>
-									<Icon icon={_collection.icon} width="24" class="text-error-600 mb-2 m-auto" />
+									<iconify-icon
+										icon={_collection.icon}
+										width="24"
+										class="text-error-600 mb-2 m-auto"
+									/>
 								</ListBoxItem>
 							{/each}
 						</ListBox>

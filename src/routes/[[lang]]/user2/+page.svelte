@@ -8,9 +8,6 @@
 	import { toggleLeftSidebar } from '$src/stores/store';
 	export let switchSideBar = false;
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	import { createEventDispatcher, onMount } from 'svelte';
 	import z from 'zod';
 	import { updateUser2Errors, user2Errors } from '$src/stores/user2Form';
@@ -227,7 +224,7 @@
 				<div
 					class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xl uppercase"
 				>
-					<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+					<iconify-icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
 					Save
 				</div>
 
@@ -244,7 +241,7 @@
 				</div>
 			{:else}
 				<div class="flex items-center justify-center text-xl uppercase">
-					<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+					<iconify-icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
 					Save
 				</div>
 			{/if}

@@ -1,7 +1,5 @@
 <script lang="ts">
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
+	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
@@ -446,7 +444,7 @@
 	{/if}
 	{#if !cropping}
 		<button on:click={openCrop} x class="btn btn-primary text-white p-0.5" title="size">
-			<Icon icon="material-symbols:crop" width="24" class="text-primary-500" />
+			<iconify-icon icon="material-symbols:crop" width="24" class="text-primary-500" />
 		</button>
 
 		<div class="card variant-filled-secondary p-4" data-popup="cropPopup">
@@ -456,7 +454,7 @@
 		</div>
 	{:else}
 		<button on:click={cropImage} class="btn btn-primary text-white p-0.5" title="save">
-			<Icon icon="material-symbols:save" width="24" class="text-primary-500" />
+			<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
 		</button>
 		<div class="card variant-filled-secondary p-4" data-popup="savePopup">
 			Save Image
@@ -466,7 +464,7 @@
 	{/if}
 
 	<button on:click={blurCrop} class="btn btn-primary text-white p-0.5" title="blur"
-		><Icon icon="ic:round-blur-circular" width="24" class="text-primary-500" /></button
+		><iconify-icon icon="ic:round-blur-circular" width="24" class="text-primary-500" /></button
 	>
 	<div class="card variant-filled-secondary p-4" data-popup="blurPopup">
 		Blur Image
@@ -475,7 +473,11 @@
 	</div>
 
 	<button on:click={newCenter} class="btn btn-primary text-white p-0.5" title="center">
-		<Icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" /></button
+		<iconify-icon
+			icon="material-symbols:center-focus-strong"
+			width="24"
+			class="text-primary-500"
+		/></button
 	>
 	<div class="card variant-filled-secondary p-4" data-popup="focalPopup">
 		Focal Point Image
@@ -485,7 +487,7 @@
 	<label
 		for="small-range"
 		class="mb-4 text-sm font-medium text-gray-900 dark:text-white flex items-center justify-center w-full"
-		><Icon
+		><iconify-icon
 			icon="material-symbols:rotate-left-rounded"
 			width="24"
 			class="text-primary-500"

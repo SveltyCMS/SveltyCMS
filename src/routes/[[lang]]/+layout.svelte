@@ -12,7 +12,6 @@
 	import { browser } from '$app/environment';
 	import type { LayoutData } from './$types';
 	import type { User } from 'lucia-auth';
-	import { onMount } from 'svelte';
 
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
 	import { page } from '$app/stores';
@@ -63,9 +62,6 @@
 	// Lucia
 	$: user = data.user;
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// typesafe-i18n
 	import LocaleSwitcher from '$src/components/LocaleSwitcher.svelte';
 	import LL from '$i18n/i18n-svelte';
@@ -111,6 +107,9 @@
 			//preset: 'success',
 			// Optional: The auto-hide settings
 			autohide: true,
+			// Provide any utility or variant background style:
+			background: 'variant-filled-primary',
+
 			timeout: 3000
 		};
 		toastStore.trigger(t);
@@ -186,7 +185,7 @@
 
 	import { fly } from 'svelte/transition';
 
-	export let transitiondata;
+	//export let transitiondata;
 </script>
 
 <!-- App Shell -->
@@ -250,19 +249,19 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 
 		<!-- sidebar collapse button -->
 		<button
-			class="absolute top-2 -right-3 rounded-full border-2 border-surface-300"
+			class="absolute top-2 flex justify-center items-center -right-3 !rounded-full border-2 border-surface-300"
 			on:click={() => (switchSideBar = !switchSideBar)}
 		>
 			{#if !switchSideBar}
 				<!-- Icon Collpased -->
-				<Icon
+				<iconify-icon
 					icon="bi:arrow-left-circle-fill"
 					width="30"
 					class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
 				/>
 			{:else}
 				<!-- Icon expanded -->
-				<Icon
+				<iconify-icon
 					icon="bi:arrow-left-circle-fill"
 					width="30"
 					class="rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
@@ -379,9 +378,9 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 						class="btn btn-sm relative p-2 text-sm text-surface-500 hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
 					>
 						{#if !$modeCurrent}
-							<Icon icon="bi:sun" width="16" />
+							<iconify-icon icon="bi:sun" width="16" />
 						{:else}
-							<Icon icon="bi:moon-fill" width="16" />
+							<iconify-icon icon="bi:moon-fill" width="16" />
 						{/if}
 						<!-- Popup Tooltip with the arrow element -->
 						<!-- TODO: tooltip overflow -->
@@ -408,7 +407,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							type="submit"
 							value="Sign out"
 							class="btn btn-sm md:text-xs uppercase hover:bg-surface-100 focus:outline-none dark:text-white dark:hover:bg-surface-700 dark:focus:ring-surface-700"
-							><Icon icon="uil:signout" width="24" /></button
+							><iconify-icon icon="uil:signout" width="24" /></button
 						>
 						<!-- Popup Tooltip with the arrow element -->
 						<div class="card variant-filled-secondary p-4" data-popup="SignOut">
@@ -421,7 +420,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 				<!-- Github discussions -->
 				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 hidden'} ">
 					<a href="https://github.com/Rar9/SimpleCMS/discussions" target="blank">
-						<Icon icon="game-icons:gear-hammer" width="26" />
+						<iconify-icon icon="game-icons:gear-hammer" width="26" />
 					</a>
 				</div>
 
@@ -455,7 +454,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					<div
 						class="absolute top-1/3 left-1/2 transform -translate-x-1/2 -translate-y-1/2 flex items-center justify-center text-xl uppercase"
 					>
-						<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+						<iconify-icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
 						Save
 					</div>
 
@@ -472,7 +471,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					</div>
 				{:else}
 					<div class="flex items-center justify-center text-xl uppercase">
-						<Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
+						<iconify-icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" />
 						Save
 					</div>
 				{/if}
@@ -494,7 +493,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 		<!-- Mobile Save -->
 
 		<button class="btn variant-filled-primary my-1" on:click={submit}>
-			<span><Icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" /></span>
+			<span><iconify-icon icon="ph:floppy-disk-back" color="dark" width="30" class="mr-1" /></span>
 			Save</button
 		>
 

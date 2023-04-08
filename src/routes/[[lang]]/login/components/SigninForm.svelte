@@ -2,9 +2,6 @@
 	// Skeleton
 	import { Toast, toastStore } from '@skeletonlabs/skeleton';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import { enhance } from '$app/forms';
@@ -12,7 +9,6 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
-	// TODO: forgotton not working
 	import axios from 'axios';
 	import { goto } from '$app/navigation';
 	import z from 'zod';
@@ -208,7 +204,11 @@
 				{#if !isLoading}
 					<!-- Email field -->
 					<div class="group relative z-0 mb-6 w-full">
-						<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+						<iconify-icon
+							icon="mdi:email"
+							width="18"
+							class="absolute top-3.5 left-0 text-gray-500"
+						/>
 						<input
 							bind:value={email}
 							on:keydown={() => (errorStatus.email.status = false)}
@@ -234,7 +234,11 @@
 
 					<!-- Password field -->
 					<div class="group relative z-0 mb-6 w-full">
-						<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+						<iconify-icon
+							icon="mdi:password"
+							width="18"
+							class="absolute top-3.5 left-0 text-gray-500"
+						/>
 						{#if showPassword}
 							<input
 								bind:value={password}
@@ -273,9 +277,9 @@
 						<!-- svelte-ignore a11y-click-events-have-key-events -->
 						<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 							{#if showPassword}
-								<Icon icon="bi:eye-fill" class="text-surface-500" width="24" />
+								<iconify-icon icon="bi:eye-fill" class="text-surface-500" width="24" />
 							{:else}
-								<Icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
+								<iconify-icon icon="bi:eye-slash-fill" class="text-gray-500" width="24" />
 							{/if}
 						</div>
 
@@ -340,7 +344,11 @@
 			{#if !isLoading}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+					<iconify-icon
+						icon="mdi:password"
+						width="18"
+						class="absolute top-3.5 left-0 text-gray-400"
+					/>
 					{#if showPassword}
 						<input
 							bind:value={password}
@@ -373,9 +381,9 @@
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<Icon icon="bi:eye-fill" color="base" width="24" />
+							<iconify-icon icon="bi:eye-fill" color="base" width="24" />
 						{:else}
-							<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
 						{/if}
 					</div>
 
@@ -388,7 +396,11 @@
 
 				<!-- Password Confirm -->
 				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:password" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+					<iconify-icon
+						icon="mdi:password"
+						width="18"
+						class="absolute top-3.5 left-0 text-gray-400"
+					/>
 					{#if showPassword}
 						<input
 							bind:value={confirmPassword}
@@ -424,9 +436,9 @@
 					<!-- svelte-ignore a11y-click-events-have-key-events -->
 					<div class="absolute top-2 right-2" on:click={() => (showPassword = !showPassword)}>
 						{#if showPassword}
-							<Icon icon="bi:eye-fill" color="base" width="24" />
+							<iconify-icon icon="bi:eye-fill" color="base" width="24" />
 						{:else}
-							<Icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+							<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
 						{/if}
 					</div>
 
@@ -439,7 +451,11 @@
 
 				<!-- Registration Token -->
 				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:key-chain" width="18" class="absolute top-3.5 left-0 text-gray-400" />
+					<iconify-icon
+						icon="mdi:key-chain"
+						width="18"
+						class="absolute top-3.5 left-0 text-gray-400"
+					/>
 					<input
 						bind:value={token}
 						on:keydown={() => (errorStatus.token.status = false)}
@@ -473,7 +489,7 @@
 							forgot = false;
 						}}
 						class="btn btn-sm text-surface-600"
-						><Icon icon="mdi:arrow-left-circle" width="36" /></button
+						><iconify-icon icon="mdi:arrow-left-circle" width="36" /></button
 					>
 				</div>
 			{:else}
@@ -520,7 +536,7 @@
 			{#if !isLoading}
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
-					<Icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
+					<iconify-icon icon="mdi:email" width="18" class="absolute top-3.5 left-0 text-gray-500" />
 
 					<input
 						bind:value={forgottonemail}
@@ -555,7 +571,7 @@
 							resetPW = false;
 						}}
 						class="btn btn-sm text-surface-600"
-						><Icon icon="mdi:arrow-left-circle" width="36" /></button
+						><iconify-icon icon="mdi:arrow-left-circle" width="36" /></button
 					>
 				</div>
 			{:else}

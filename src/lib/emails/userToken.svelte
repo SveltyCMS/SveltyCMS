@@ -48,8 +48,20 @@
 
 	const container = {
 		margin: '0 auto',
-		padding: '20px 0 48px',
-		width: '660px'
+		padding: '16px 0 48px',
+		width: '480px'
+	};
+
+	const label = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '25%' // Update width to 35%
+	};
+
+	const variable = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '75%' // Update width to 65%
 	};
 
 	const paragraph = {
@@ -66,9 +78,8 @@
 	};
 
 	const review = {
-		padding: '18px',
-		backgroundColor: '#f2f3f3',
-		borderRadius: '6px'
+		padding: '6px',
+		backgroundColor: '#f2f3f3'
 	};
 
 	const btnContainer = {
@@ -137,13 +148,13 @@
 				>You have recieved an Access Token to create a new user for {PUBLIC_SITENAME}</Text
 			>
 			<Section style={review}>
-				<Column>
+				<Column style={label}>
 					<Text style={paragraph}>Email:</Text>
 					<Text style={paragraph}>Access Token:</Text>
 					<Text style={paragraph}>Assigned Role:</Text>
 					<Text style={paragraph}>Valid only for:</Text>
 				</Column>
-				<Column>
+				<Column style={variable}>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{role}</span></Text>

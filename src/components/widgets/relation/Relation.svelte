@@ -25,9 +25,6 @@
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	export let field: any;
 	export let value: any;
 	export let widgetValue: string | null; // is relative data id
@@ -91,7 +88,7 @@
 				selected = null;
 				display = null;
 			}}
-			class="btn"><Icon icon="bi:pencil-fill" width="22" /></button
+			class="btn"><iconify-icon icon="bi:pencil-fill" width="22" /></button
 		>
 		<!-- Popup Tooltip with the arrow element -->
 		<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
@@ -107,7 +104,7 @@
 				selected = null;
 			}}
 			class="btn mr-1"
-			><Icon icon="ic:baseline-plus" width="22" />
+			><iconify-icon icon="ic:baseline-plus" width="22" />
 			<!-- Popup Tooltip with the arrow element -->
 			<div class="card variant-filled-secondary p-4" data-popup="AddNewPopup">
 				{$LL.WIDGET_Relation_AddNew()}

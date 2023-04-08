@@ -8,10 +8,7 @@
 	import { toggleLeftSidebar } from '$src/stores/store';
 	export let switchSideBar = false;
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
-	//skelton
+	//skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 
 	// import { load } from './generate-thumbnails';
@@ -275,7 +272,7 @@
 					}
 				}}
 			>
-				<Icon
+				<iconify-icon
 					icon="material-symbols:grid-view-rounded"
 					height="40"
 					style={`color: ${view === 'grid' ? 'white' : 'grey'}`}
@@ -292,7 +289,7 @@
 					}
 				}}
 			>
-				<Icon
+				<iconify-icon
 					icon="material-symbols:list-alt-outline"
 					height="40"
 					style={`color: ${view === 'table' ? 'white' : 'grey'}`}
@@ -315,7 +312,7 @@
 					}
 				}}
 			>
-				<Icon
+				<iconify-icon
 					icon="material-symbols:background-grid-small-sharp"
 					height="40"
 					style={`color: ${size === 'small' ? 'white' : 'grey'}`}
@@ -332,7 +329,7 @@
 					}
 				}}
 			>
-				<Icon
+				<iconify-icon
 					icon="material-symbols:grid-on-sharp"
 					height="40"
 					style={`color: ${size === 'medium' ? 'white' : 'grey'}`}
@@ -349,7 +346,7 @@
 					}
 				}}
 			>
-				<Icon
+				<iconify-icon
 					icon="material-symbols:grid-view"
 					height="40"
 					style={`color: ${size === 'large' ? 'white' : 'grey'}`}
@@ -421,7 +418,7 @@
 						animate:flip={{ duration: flipDurationMs }}
 					>
 						{#if $table.getIsAllColumnsVisible()}
-							<span><Icon icon="fa:check" /></span>
+							<span><iconify-icon icon="fa:check" /></span>
 						{/if}
 						<span class="capitalize ml-2">{item.name}</span>
 					</div>
@@ -452,7 +449,7 @@
 							on:click={column.getToggleVisibilityHandler()}
 							on:keypress
 						>
-							{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
+							{#if column.getIsVisible()}<span><iconify-icon icon="fa:check" /></span>{/if}
 							<span class="capitalize">{column.id}</span>
 						</span>
 					{/each}

@@ -1,7 +1,4 @@
 <script lang="ts">
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	import Cropper from '$src/components/Cropper.svelte';
 	import { saveEditedImage } from '$src/stores/store';
 	import { saveData } from '$src/lib/utils/utils_svelte';
@@ -119,7 +116,7 @@
 
 <!-- Image Name-->
 <div class="group relative z-0 mb-6 w-full">
-	<Icon icon="bi:images" width="24" class="absolute top-3.5 left-0 text-primary-500" />
+	<iconify-icon icon="bi:images" width="24" class="absolute top-3.5 left-0 text-primary-500" />
 
 	<!-- on:keydown={() => (errorStatus.name.status = false)}
 	color={errorStatus.name.status ? 'red' : 'base'}

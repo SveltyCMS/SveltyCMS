@@ -3,8 +3,6 @@
 	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
 	import type { Schema } from '$src/collections/types';
 	import { onMount } from 'svelte';
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
 
 	export let root = true; // if field is not nested. eg. not part of menu's fields
 	export let fields: Array<any> = [];
@@ -19,7 +17,6 @@
 	onMount(async () => {
 		$getFieldsData.add(getData);
 	});
-	//$: console.log('icon', getData.icon);
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -36,7 +33,7 @@
 		style={field.field.width && `width:${field.field.width.replace('%', '') * 1 - 1}%`}
 	>
 		<!-- db_fieldName or label  -->
-		<!-- TODO: Get translted Name -->
+		<!-- TODO: Get translated Name -->
 		<div class="relative flex">
 			<p class="font-semibold">
 				{#if field.field.label}
@@ -52,14 +49,14 @@
 			<div class="absolute right-0 flex gap-4">
 				{#if field.field.localization}
 					<div class="flex items-center gap-1 px-2">
-						<Icon icon="bi:translate" color="dark" width="18" class="text-sm" />
+						<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
 						<div class="text-xs font-normal text-error-500">
 							{JSON.parse(PUBLIC_TRANSLATIONS)[$language]}
 						</div>
 					</div>
 				{/if}
 				{#if field.field.icon}
-					<Icon icon={field.field.icon} color="dark" width="22" class="w-10" />
+					<iconify-icon icon={field.field.icon} color="dark" width="22" class="w-10" />
 				{:else}
 					<div class="w-[40px]" />
 				{/if}

@@ -26,9 +26,6 @@
 		target: 'ContentLang'
 	};
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	export let fields: Array<any> = [];
 	export let collection: Schema | undefined = undefined;
 	export let showFields = true;
@@ -58,7 +55,9 @@
 			<div
 				class="-mt-2 flex items-center justify-start text-sm font-bold uppercase dark:text-white md:text-xl xl:text-2xl"
 			>
-				<span> <Icon icon={collection?.icon} width="24" class="mr-2" /></span>{collection?.name}
+				<span>
+					<iconify-icon icon={collection?.icon} width="24" class="mr-2" /></span
+				>{collection?.name}
 			</div>
 		</div>
 
@@ -68,9 +67,9 @@
 				use:popup={ContentLangSettings}
 				class="btn btn-sm variant-filled-surface flex items-center justify-center rounded-lg uppercase text-white"
 			>
-				<Icon icon="bi:translate" color="dark" width="22" class="mr-1 md:mr-1" />
+				<iconify-icon icon="bi:translate" color="dark" width="22" class="mr-1 md:mr-1" />
 				{$language}
-				<Icon icon="mdi:chevron-down" width="24" />
+				<iconify-icon icon="mdi:chevron-down" width="24" />
 			</button>
 			<nav
 				class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
@@ -105,7 +104,7 @@
 					<div class="arrow variant-filled-secondary" />
 				</div>
 
-				<span class="sr-only">{$LL.FORM_CloseMenu()}</span><Icon
+				<span class="sr-only">{$LL.FORM_CloseMenu()}</span><iconify-icon
 					icon="material-symbols:close"
 					width="24"
 				/>

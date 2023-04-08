@@ -45,8 +45,20 @@
 
 	const container = {
 		margin: '0 auto',
-		padding: '20px 0 48px',
-		width: '660px'
+		padding: '16px 0 48px',
+		width: '480px'
+	};
+
+	const label = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '25%' // Update width to 35%
+	};
+
+	const variable = {
+		display: 'inline-block',
+		verticalAlign: 'top',
+		width: '75%' // Update width to 65%
 	};
 
 	const paragraph = {
@@ -63,9 +75,8 @@
 	};
 
 	const review = {
-		padding: '18px',
-		backgroundColor: '#f2f3f3',
-		borderRadius: '6px'
+		padding: '6px',
+		backgroundColor: '#f2f3f3'
 	};
 
 	const btnContainer = {
@@ -126,6 +137,7 @@
 						alt="{PUBLIC_SITENAME} logo"
 						width="150"
 						height="auto"
+						style={{ display: 'block', margin: '0 auto' }}
 					/>
 				</Link>
 			</Section>
@@ -135,11 +147,11 @@
 				>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text
 			>
 			<Section style={review}>
-				<Column>
+				<Column style={label}>
 					<Text style={paragraph}>Your reset Token:</Text>
 					<Text style={paragraph}>Is valid only for:</Text>
 				</Column>
-				<Column>
+				<Column style={variable}>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 					<Text style={paragraph}
 						><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text

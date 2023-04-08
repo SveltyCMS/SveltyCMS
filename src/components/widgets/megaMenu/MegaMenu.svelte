@@ -4,7 +4,7 @@
 	import { entryData, MenuCurrentChild } from '$src/stores/store';
 
 	import ListNode from './ListNode.svelte';
-	import Icon from '@iconify/svelte';
+
 	export let field: any;
 	export let value: any = {};
 	export let root = true;
@@ -62,7 +62,7 @@
 						}}
 						class="variant-filled-primary btn btn-sm ml-auto rounded text-xl text-black"
 					>
-						<Icon icon="ic:baseline-plus" width="22" />
+						<iconify-icon icon="ic:baseline-plus" width="22" />
 					</button>
 				</div>
 			</li>
@@ -90,7 +90,7 @@
 			}}
 			class="btn btn-sm absolute top-0 right-0 z-10 mb-2 dark:text-white"
 		>
-			<Icon icon="material-symbols:close" width="26" />
+			<iconify-icon icon="material-symbols:close" width="26" />
 		</button>
 		<Fields
 			bind:fieldsValue

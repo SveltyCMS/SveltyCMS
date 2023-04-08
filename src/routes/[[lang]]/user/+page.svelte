@@ -29,9 +29,6 @@
 
 	import UserList from './UserList/UserList.svelte';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalEditAvatar from './ModalEditAvatar.svelte';
@@ -78,7 +75,7 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
-			props: { parent: data},
+			props: { parent: data },
 			// Add your props as key/value pairs
 			// props: { background: 'bg-pink-500' },
 			// Provide default slot content as a template literal
@@ -221,10 +218,15 @@
 		</label>
 		<div class="flex flex-col gap-2 justify-between my-2 sm:flex-row sm:gap-0 sm:justify-between">
 			<button class="btn btn-sm gradient-secondary md:w-auto text-white" on:click={modalUserForm}>
-				<Icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
+				<iconify-icon
+					icon="bi:pencil-fill"
+					color="white"
+					width="18"
+					class="mr-1"
+				/>{$LL.USER_Edit()}:
 			</button>
 			<button on:click={modalConfirm} class="btn btn-sm gradient-error text-white"
-				><Icon
+				><iconify-icon
 					icon="bi:trash3-fill"
 					color="white"
 					width="18"
@@ -249,7 +251,7 @@
 			<button
 				on:click={modalTokenUser}
 				class="order-2 text-white sm:order-2 btn btn-base gradient-primary w-30"
-				><Icon
+				><iconify-icon
 					icon="material-symbols:mail"
 					color="white"
 					width="18"

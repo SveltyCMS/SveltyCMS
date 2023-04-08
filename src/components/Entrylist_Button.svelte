@@ -1,7 +1,4 @@
 <script lang="ts">
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -160,7 +157,7 @@
 		class="{getButtonAndIconValues(listboxValue, listboxValue)
 			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
 	>
-		<Icon
+		<iconify-icon
 			icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue}
 			width="20"
 			class="text-white sm:mr-2"
@@ -176,7 +173,7 @@
 		use:popup={popupCombobox}
 		style="position: relative;"
 	>
-		<Icon icon="mdi:chevron-down" width="20" class="text-white" />
+		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
@@ -195,7 +192,7 @@
 				active="variant-filled-primary"
 				hover="hover:bg-gradient-to-br hover:from-primary-700 hover:via-primary-600 hover:to-primary-300"
 				><svelte:fragment slot="lead"
-					><Icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
 				>
 				Create
 			</ListBoxItem>
@@ -209,7 +206,7 @@
 				active="bg-yellow-500"
 				hover="gradient-tertiary-hover"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:hand-thumbs-up-fill" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Publish
 			</ListBoxItem>
@@ -223,7 +220,7 @@
 				active="bg-yellow-500"
 				hover="hover:bg-gradient-to-br hover:from-yellow-700 hover:via-yellow-500 hover:to-yellow-200"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:pause-circle" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:pause-circle" width="20" class="mr-1" /></svelte:fragment
 				>
 				Unpublish
 			</ListBoxItem>
@@ -237,7 +234,7 @@
 				active="bg-pink-700"
 				hover="hover:bg-gradient-to-br hover:from-pink-700 hover:via-pink-600 hover:to-pink-300"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:clock" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:clock" width="20" class="mr-1" /></svelte:fragment
 				>
 				Schedule
 			</ListBoxItem>
@@ -251,7 +248,7 @@
 				active="variant-filled-error"
 				hover="hover:bg-gradient-to-br hover:from-error-600 hover:via-error-500 hover:to-error-300"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:clipboard-data-fill" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:clipboard-data-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Clone
 			</ListBoxItem>
@@ -265,7 +262,7 @@
 				active="variant-filled-error"
 				hover="hover:bg-gradient-to-br hover:from-error-600 hover:via-error-500 hover:to-error-300"
 				><svelte:fragment slot="lead"
-					><Icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
+					><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
 				>
 				Delete
 			</ListBoxItem>

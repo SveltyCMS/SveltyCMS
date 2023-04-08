@@ -29,9 +29,6 @@
 
 	let listboxValue: string = 'Germany';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	export let field: any = undefined;
 	export let value = {
 		latitude: null,
@@ -194,7 +191,11 @@
 	<address class="w-full">
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><Icon icon="bi:map" width="16" class="mr-2 " />{$LL.WIDGET_Address_GetAddress()}</button
+				><iconify-icon
+					icon="bi:map"
+					width="16"
+					class="mr-2"
+				/>{$LL.WIDGET_Address_GetAddress()}</button
 			>
 		</div>
 		<div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" />

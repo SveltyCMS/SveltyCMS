@@ -84,12 +84,12 @@
 	{LanguageLabel}
 </button>
 
-<div class="uppercase variant-filled-surface rounded-sm" data-popup="language-dropdown">
-	{#if locales.length > 3}
+<div class="uppercase variant-filled-surface rounded-sm divide-y-2" data-popup="language-dropdown">
+	{#if locales.length > 4}
 		<input type="text" placeholder="Search..." on:input={handleInput} class="text-black" />
 	{/if}
 
-	{#if locales.length <= 3}
+	{#if locales.length <= 4}
 		{#each locales as loc}
 			{#if loc !== LanguageLabel}
 				<ListBoxItem
@@ -97,7 +97,7 @@
 					on:click={() => (LanguageLabel = loc)}
 					name={loc}
 					value={loc}
-					class="hover:!variant-filled-tertiary"
+					class="hover:!variant-filled-tertiary "
 				>
 					{loc}
 				</ListBoxItem>

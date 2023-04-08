@@ -26,9 +26,6 @@
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -426,7 +423,11 @@
 						class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white lg:text-xl md:text-2xl"
 					>
 						{#if collection.icon}<span>
-								<Icon icon={collection.icon} width="24" class="mr-1 sm:mr-2 text-error-500" /></span
+								<iconify-icon
+									icon={collection.icon}
+									width="24"
+									class="mr-1 sm:mr-2 text-error-500"
+								/></span
 							>{/if}
 						{#if collection.name}
 							<div
@@ -446,10 +447,10 @@
 						on:click={() => (showsearch = !showsearch)}
 						class="btn-icon relative mt-1 bg-surface-600 text-white"
 					>
-						<Icon
+						<iconify-icon
 							icon="material-symbols:search-rounded"
 							width="24"
-							class="absolute text-center "
+							class="absolute text-center"
 						/></button
 					>{/if}
 			</div>
@@ -485,7 +486,11 @@
 					on:click={() => (showsearch = !showsearch)}
 					class="sm:hidden btn-icon relative mt-1 bg-surface-600 text-white"
 				>
-					<Icon icon="material-symbols:search-rounded" width="24" class="absolute text-center " />
+					<iconify-icon
+						icon="material-symbols:search-rounded"
+						width="24"
+						class="absolute text-center"
+					/>
 				</button>
 
 				<!-- language switcher for entryList -->
@@ -494,9 +499,9 @@
 						use:popup={ContentLangSettings}
 						class="btn flex items-center justify-center rounded-md border-surface-400 bg-surface-600 px-2 pt-2 pr-0 uppercase text-white"
 					>
-						<Icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
+						<iconify-icon icon="bi:translate" color="dark" width="22" class="-mr-2 md:mr-1" />
 						<span class="hidden sm:block">{$language}</span>
-						<Icon icon="mdi:chevron-down" width="24" />
+						<iconify-icon icon="mdi:chevron-down" width="24" />
 					</button>
 					<nav
 						class="card list-nav w-[95px] border bg-surface-600 p-2 text-center text-white shadow-xl transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-600 dark:bg-surface-400 dark:text-black"
@@ -543,7 +548,7 @@
 									<div class="arrow variant-filled-secondary" />
 								</div>
 
-								<Icon icon="ic:round-plus" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="ic:round-plus" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Create()}</div>
 							</button>
 						{:else if entryButton == 'publish'}
@@ -564,7 +569,7 @@
 									<div class="arrow variant-filled-secondary" />
 								</div>
 
-								<Icon icon="bi:hand-thumbs-up-fill" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="bi:hand-thumbs-up-fill" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Publish()}</div>
 							</button>
 						{:else if entryButton == 'unpublish'}
@@ -584,7 +589,7 @@
 									{collection.name}
 									<div class="arrow variant-filled-secondary" />
 								</div>
-								<Icon icon="bi:pause-circle" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="bi:pause-circle" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Unpublish()}</div>
 							</button>
 						{:else if entryButton == 'schedule'}
@@ -604,7 +609,7 @@
 									{collection.name}
 									<div class="arrow variant-filled-secondary" />
 								</div>
-								<Icon icon="bi:clock" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="bi:clock" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Schedule()}</div>
 							</button>
 						{:else if entryButton == 'clone'}
@@ -624,7 +629,7 @@
 									<div class="arrow variant-filled-secondary" />
 								</div>
 
-								<Icon icon="bi:clipboard-data-fill" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="bi:clipboard-data-fill" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Clone()}</div>
 							</button>
 						{:else if entryButton == 'delete' || deleteMode}
@@ -643,7 +648,7 @@
 									{collection.name}
 									<div class="arrow variant-filled-secondary" />
 								</div>
-								<Icon icon="bi:trash3-fill" color="white" width="22" class="mr-1" />
+								<iconify-icon icon="bi:trash3-fill" color="white" width="22" class="mr-1" />
 								<div class="hidden md:block">{$LL.ENTRYLIST_Delete()}</div>
 							</button>
 						{/if}
@@ -653,7 +658,7 @@
 							use:popup={entityButtonsPopup}
 							class="relative mr-1 inline-block rounded-l-none rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-tight text-white transition duration-150 ease-in-out hover:bg-surface-700 focus:bg-surface-700 focus:outline-none focus:ring-0 active:bg-surface-700"
 						>
-							<Icon icon="mdi:chevron-down" width="24" /></button
+							<iconify-icon icon="mdi:chevron-down" width="24" /></button
 						>
 
 						<nav
@@ -669,7 +674,7 @@
 											}}
 											class="btn btn-base w-full gradient-primary font-bold text-white"
 										>
-											<span><Icon icon="ic:round-plus" width="22" /></span>
+											<span><iconify-icon icon="ic:round-plus" width="22" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Create()}</span>
 										</button>
 									</li>{/if}
@@ -681,7 +686,7 @@
 											}}
 											class="btn btn-base w-full gradient-tertiary font-bold text-white"
 										>
-											<span><Icon icon="bi:hand-thumbs-up-fill" width="20" /></span>
+											<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Publish()}</span>
 										</button>
 									</li>
@@ -694,7 +699,7 @@
 											}}
 											class="btn btn-base w-full gradient-yellow font-bold text-white"
 										>
-											<span><Icon icon="bi:pause-circle" width="20" /></span>
+											<span><iconify-icon icon="bi:pause-circle" width="20" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Unpublish()}</span>
 										</button>
 									</li>
@@ -707,7 +712,7 @@
 											}}
 											class="btn btn-base w-full gradient-pink font-bold text-white"
 										>
-											<span><Icon icon="bi:clock" width="20" /></span>
+											<span><iconify-icon icon="bi:clock" width="20" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Schedule()}</span>
 										</button>
 									</li>
@@ -720,7 +725,7 @@
 											}}
 											class="btn btn-base w-full gradient-secondary font-bold text-white"
 										>
-											<span><Icon icon="bi:clipboard-data-fill" width="20" /></span>
+											<span><iconify-icon icon="bi:clipboard-data-fill" width="20" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Clone()}</span>
 										</button>
 									</li>
@@ -733,7 +738,7 @@
 											}}
 											class="btn btn-base w-full gradient-error text-white"
 										>
-											<span><Icon icon="bi:trash3-fill" width="20" /></span>
+											<span><iconify-icon icon="bi:trash3-fill" width="20" /></span>
 											<span class="text-xl font-bold">{$LL.ENTRYLIST_Delete()}</span>
 										</button>
 									</li>
@@ -750,7 +755,7 @@
 			<div
 				class="btn-group gradient-secondary w-full justify-between items-center mt-2 rounded-none border-b-2 !border-b-white"
 			>
-				<Icon icon="material-symbols:search-rounded" width="24" class="mx-2 " />
+				<iconify-icon icon="material-symbols:search-rounded" width="24" class="mx-2" />
 				<input
 					on:keyup={(event) => {
 						// TODO: Fix keycode deprecated
@@ -789,7 +794,7 @@
 					}}
 					on:keypress
 				>
-					{#if tableColumns[r]}<span><Icon icon="fa:check" /></span>{/if}
+					{#if tableColumns[r]}<span><iconify-icon icon="fa:check" /></span>{/if}
 					<span class="capitalize">{r}</span>
 				</span>
 			{/each}
@@ -819,15 +824,25 @@
 										{#if !order}
 											<button>
 												<div class="flex-col">
-													<Icon icon="bi:caret-up-fill" color="base" width="14" class="" />
-													<Icon icon="bi:caret-down-fill" color="black" width="14" class="-mt-1" />
+													<iconify-icon icon="bi:caret-up-fill" color="base" width="14" class="" />
+													<iconify-icon
+														icon="bi:caret-down-fill"
+														color="black"
+														width="14"
+														class="-mt-1"
+													/>
 												</div></button
 											>
 										{:else}
 											<button>
 												<div class="flex-col">
-													<Icon icon="bi:caret-up-fill" color="black" width="14" class="" />
-													<Icon icon="bi:caret-down-fill" color="base" width="14" class="-mt-1" />
+													<iconify-icon icon="bi:caret-up-fill" color="black" width="14" class="" />
+													<iconify-icon
+														icon="bi:caret-down-fill"
+														color="base"
+														width="14"
+														class="-mt-1"
+													/>
 												</div></button
 											>
 										{/if}
@@ -893,7 +908,7 @@
 			<button class="btn variant-ghost-secondary" use:popup={ContentPages}>
 				{paging.entryLength}
 				{$LL.ENTRYLIST_Rows()}
-				<Icon icon="mdi:chevron-down" width="24" />
+				<iconify-icon icon="mdi:chevron-down" width="24" />
 			</button>
 
 			<div class="card w-30 shadow-xl py-2" data-popup="entryListPages">
@@ -923,7 +938,7 @@
 						class="relative inline-flex items-center rounded-l-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
 					>
 						<span class="sr-only">{$LL.ENTRYLIST_Previous()}</span>
-						<Icon icon="mdi:chevron-left" width="24" />
+						<iconify-icon icon="mdi:chevron-left" width="24" />
 					</div>
 
 					<!-- pages -->
@@ -949,7 +964,7 @@
 						class="relative inline-flex items-center rounded-r-md border border-surface-400 px-2 py-2 text-sm font-medium text-surface-400 hover:bg-surface-50 focus:z-20"
 					>
 						<span class="sr-only">{$LL.ENTRYLIST_Next()}</span>
-						<Icon icon="mdi:chevron-right" width="24" />
+						<iconify-icon icon="mdi:chevron-right" width="24" />
 					</div>
 				</nav>
 			</div>

@@ -14,9 +14,6 @@
 	// skeleton
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 
@@ -314,7 +311,7 @@
 				? 'hidden'
 				: 'block'} btn variant-filled-tertiary flex items-center justify-center"
 		>
-			<Icon icon="ion:desktop-outline" width="20" class="mr-1" />
+			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1" />
 			Desktop
 		</button>
 
@@ -324,7 +321,7 @@
 				? 'block'
 				: 'hidden'} btn variant-filled-tertiary flex items-center justify-center"
 		>
-			<Icon icon="bi:phone" width="20" class="mr-1" />
+			<iconify-icon icon="bi:phone" width="20" class="mr-1" />
 			Mobile
 		</button>
 	</div>
@@ -334,7 +331,7 @@
 		<!-- TODO: add mobile login display -->
 		<div class="card variant-glass-secondary h-28 mt-4 p-4 max-w-sm mx-auto">
 			<p class="!text-xs px-4 text-surface-400 flex items-center">
-				<Icon icon="mdi:world" width="18" class="text-white mr-2" />{hostUrl}
+				<iconify-icon icon="mdi:world" width="18" class="text-white mr-2" />{hostUrl}
 			</p>
 			<h3 class="px-4 !font-medium text-primary-500">{title}</h3>
 			<p class=" mb-2 px-4 pb-4 text-lg text-black dark:text-white">{description}</p>
@@ -362,16 +359,22 @@
 		<div class="flex flex-col justify-start">
 			<div class="gap sm:flex sm:gap-4">
 				<div class="flex justify-center gap-2">
-					<Icon icon="mdi:close-octagon" class="text-error-500" width="24" />
+					<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
 					<span class="flex-auto">0 - 49</span>
 				</div>
 				<div class="flex justify-center gap-2">
-					<span><Icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" /></span>
+					<span
+						><iconify-icon
+							icon="bi:hand-thumbs-up-fill"
+							width="24"
+							class="text-tertiary-500"
+						/></span
+					>
 					<span class="flex-auto">50 - 79</span>
 				</div>
 				<div class="flex justify-center gap-2">
 					<span
-						><Icon
+						><iconify-icon
 							icon="material-symbols:check-circle-outline"
 							class="text-success-500"
 							width="24"
@@ -401,16 +404,22 @@
 				<h3 class="">{$LL.WIDGET_Seo_Suggetion_ListOfSuggestion()}</h3>
 
 				<div class="flex items-center gap-2">
-					<Icon icon="mdi:close-octagon" class="text-error-500" width="24" />
+					<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
 					<span class="flex-auto">0 - 49</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<span><Icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" /></span>
+					<span
+						><iconify-icon
+							icon="bi:hand-thumbs-up-fill"
+							width="24"
+							class="text-tertiary-500"
+						/></span
+					>
 					<span class="flex-auto">50 - 79</span>
 				</div>
 				<div class="flex items-center gap-2">
 					<span
-						><Icon
+						><iconify-icon
 							icon="material-symbols:check-circle-outline"
 							class="text-success-500"
 							width="24"
@@ -431,11 +440,15 @@
 		<li class="flex items-start p-1">
 			<div class="mr-4 flex-none">
 				{#if suggestion.impact === 3}
-					<Icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24" />
+					<iconify-icon
+						icon="material-symbols:check-circle-outline"
+						class="text-success-500"
+						width="24"
+					/>
 				{:else if suggestion.impact === 2}
-					<Icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" />
+					<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" />
 				{:else}
-					<Icon icon="mdi:close-octagon" class="text-error-500" width="24" />
+					<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
 				{/if}
 			</div>
 			<span class="flex-auto text-sm">{suggestion.text}</span>

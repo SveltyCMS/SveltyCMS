@@ -25,16 +25,13 @@
 		drawerStore.open(drawerSettings);
 	}
 
-	// Icons from https://icon-sets.iconify.design/
-	import Icon from '@iconify/svelte';
-
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
 	import type { PageData } from '../$types';
 
 	export let parent: PageData;
 
-	const user = parent.user
+	const user = parent.user;
 
 	const listOfUsers = JSON.parse(parent.users); // Retrieve User and parse them as JSON
 
@@ -385,8 +382,8 @@
 		</svg>
 		<!-- Column Order/ Sort-->
 		<button class="btn variant-ghost" on:click={() => (columnShow = !columnShow)}>
-			<Icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />
-			<span class="hidden sm:block">{$LL.TANSTACK_Column()}</span><Icon
+			<iconify-icon icon="fluent:column-triple-edit-24-regular" width="20" class="mr-1" />
+			<span class="hidden sm:block">{$LL.TANSTACK_Column()}</span><iconify-icon
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
@@ -395,8 +392,8 @@
 
 		<!-- Filter -->
 		<button class="btn variant-ghost" on:click={triggerFacets}>
-			<Icon icon="carbon:filter-edit" width="20" class="mr-1" />
-			<span class="hidden sm:block">{$LL.TANSTACK_Filter()}</span><Icon
+			<iconify-icon icon="carbon:filter-edit" width="20" class="mr-1" />
+			<span class="hidden sm:block">{$LL.TANSTACK_Filter()}</span><iconify-icon
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
@@ -405,9 +402,9 @@
 
 		<!-- Export -->
 		<button class="btn variant-ghost" on:click={clickDownload}>
-			<Icon icon="dashicons:database-export" width="20" class="mr-1" />
+			<iconify-icon icon="dashicons:database-export" width="20" class="mr-1" />
 			<span class="hidden sm:block">{$LL.TANSTACK_Export()}</span>
-			<!-- <Icon
+			<!-- <iconify-icon 
 				icon="mdi:chevron-down"
 				width="20"
 				class="text-white ml-2"
@@ -446,7 +443,7 @@
 					on:click={column.getToggleVisibilityHandler()}
 					on:keypress
 				>
-					{#if column.getIsVisible()}<span><Icon icon="fa:check" /></span>{/if}
+					{#if column.getIsVisible()}<span><iconify-icon icon="fa:check" /></span>{/if}
 					<span class="capitalize">{column.id}</span>
 				</span>
 			{/each}
