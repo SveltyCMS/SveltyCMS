@@ -10,7 +10,7 @@
 	import LL from '$i18n/i18n-svelte';
 
 	// Lucia
-	const user = parent.user;
+	const user = $page.data.user;
 
 	// Form Data
 	const formData = {
@@ -25,6 +25,7 @@
 
 	// zod
 	import z from 'zod';
+  import { page } from '$app/stores';
 	// const UserSchema = z
 	// 	.object({
 	// 		username: z

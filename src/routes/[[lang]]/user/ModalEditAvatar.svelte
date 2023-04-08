@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { page } from '$app/stores';
+
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
@@ -7,7 +9,7 @@
 	import { modalStore } from '@skeletonlabs/skeleton';
 
 	// Lucia
-	const user = parent.user
+	const user = $page.data.user
 
 	// skeleton
 	import { FileDropzone } from '@skeletonlabs/skeleton';

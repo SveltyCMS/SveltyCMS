@@ -8,7 +8,7 @@
 
 	export let data: PageData;
 
-	const user = data.user;
+	const user = $page.data.user;
 
 	let avatarSrc = user?.avatar;
 	let showUserList = true;
@@ -43,7 +43,7 @@
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
 			// Add your props as key/value pairs
-			props: { background: 'bg-surface-100-800-token', parent: data },
+			props: { background: 'bg-surface-100-800-token'},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -75,7 +75,7 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
-			props: { parent: data },
+			props: {},
 			// Add your props as key/value pairs
 			// props: { background: 'bg-pink-500' },
 			// Provide default slot content as a template literal
@@ -261,7 +261,7 @@
 		</div>
 
 		{#if showUserList}
-			<UserList parent={data} />
+			<UserList />
 		{/if}
 	</div>
 {/if}

@@ -29,11 +29,10 @@
 	import LL from '$i18n/i18n-svelte';
 	import type { PageData } from '../$types';
 
-	export let parent: PageData;
 
-	const user = parent.user;
+	const user = $page.data.user;
 
-	const listOfUsers = JSON.parse(parent.users); // Retrieve User and parse them as JSON
+	const listOfUsers = JSON.parse($page.data.users); // Retrieve User and parse them as JSON
 
 	// State to keep track of whether the modal is open or not
 	let showModal = false;
@@ -80,6 +79,7 @@
 
 	import moment from 'moment';
 	import Role from './Role.svelte';
+  import { page } from '$app/stores';
 
 	type User = {
 		avatar: string;
