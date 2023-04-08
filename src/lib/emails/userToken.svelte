@@ -14,6 +14,7 @@
 		Hr,
 		Html,
 		Img,
+		Link,
 		Preview,
 		Section,
 		Text
@@ -47,7 +48,8 @@
 
 	const container = {
 		margin: '0 auto',
-		padding: '20px 0 48px'
+		padding: '20px 0 48px',
+		width: '660px'
 	};
 
 	const paragraph = {
@@ -121,12 +123,14 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
-				<Img
-					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-					alt="{PUBLIC_SITENAME} logo"
-					width="150"
-					height="auto"
-				/>
+				<Link href={tokenLink}>
+					<Img
+						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						alt="{PUBLIC_SITENAME} logo"
+						width="150"
+						height="auto"
+					/>
+				</Link>
 			</Section>
 
 			<Text style={paragraph}
@@ -136,8 +140,8 @@
 				<Column>
 					<Text style={paragraph}>Email:</Text>
 					<Text style={paragraph}>Access Token:</Text>
-					<Text style={paragraph}>Role:</Text>
-					<Text style={paragraph}>Valid for:</Text>
+					<Text style={paragraph}>Assigned Role:</Text>
+					<Text style={paragraph}>Valid only for:</Text>
 				</Column>
 				<Column>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>

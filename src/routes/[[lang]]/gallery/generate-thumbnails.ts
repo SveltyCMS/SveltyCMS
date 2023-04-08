@@ -11,7 +11,7 @@ export function load({ fetch }) {
 		const __filename = fileURLToPath(import.meta.url);
 		const __dirname = path.dirname(__filename);
 
-		const mediaDir = path.join(__dirname, 'src', 'media');
+		const mediaDir = path.join(__dirname, 'media');
 		const cacheDir = path.join(mediaDir, 'cache');
 
 		let thumbnails;

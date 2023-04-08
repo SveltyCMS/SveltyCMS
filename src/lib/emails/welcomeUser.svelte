@@ -6,7 +6,18 @@
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
+	import {
+		Button,
+		Container,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from 'svelte-email';
 
 	interface EmailProps {
 		username?: string;
@@ -96,16 +107,27 @@
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
-				<Img
-					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-					alt="{PUBLIC_SITENAME} logo"
-					width="150"
-					height="auto"
-				/>
+				<Link href={hostLink}>
+					<Img
+						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						alt="{PUBLIC_SITENAME} logo"
+						width="150"
+						height="auto"
+					/>
+				</Link>
 			</Section>
-			<Text>Dear {username}, welcome to {PUBLIC_SITENAME}</Text>
-			<Text>A Sveltekit powered flexible Headless CMS</Text>
-			<Text>We're excited to have you on board!</Text>
+			<Text>Dear {username},</Text>
+			<Text>Welcome to {PUBLIC_SITENAME} - a Sveltekit powered flexible Headless CMS.</Text>
+			<Text
+				>SimpleCMS is a fast and flexible headless CMS that allows you to easily manage your
+				content. With Sveltekit powering our platform, you can expect a seamless and efficient
+				experience.</Text
+			>
+			<Text
+				>If you have any questions or need help getting started, please visit our Q&A on Github
+				Discussions <Link href="https://github.com/Rar9/SimpleCMS/discussions">Svelte</Link>.</Text
+			>
+			<Text>Thank you for choosing SimpleCMS. We're excited to have you on board!</Text>
 			<Section style={btnContainer}>
 				<Button pX={12} pY={12} style={button} href={hostLink}>Go to</Button>
 			</Section>

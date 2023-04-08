@@ -10,9 +10,9 @@
 	import CollectionsLatest from '$src/components/CollectionsList.svelte';
 	import collections, { categories } from '$src/collections';
 	import { browser } from '$app/environment';
-  import type { LayoutData } from './$types';
-  import type { User } from 'lucia-auth';
-  import { onMount } from 'svelte';
+	import type { LayoutData } from './$types';
+	import type { User } from 'lucia-auth';
+	import { onMount } from 'svelte';
 
 	import { saveFormData } from '$src/lib/utils/utils_svelte';
 	import { page } from '$app/stores';
@@ -61,7 +61,6 @@
 	};
 
 	// Lucia
-	
 	$: user = data.user;
 
 	// Icons from https://icon-sets.iconify.design/
@@ -184,6 +183,10 @@
 	} else {
 		toggleRightSideBar = !$showFieldsStore.showForm;
 	}
+
+	import { fly } from 'svelte/transition';
+
+	export let transitiondata;
 </script>
 
 <!-- App Shell -->
@@ -508,7 +511,11 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 	<Modal />
 	<Toast />
 	<div class="m-2">
-		<slot />
+		{#key $page.url}
+			<div in:fly={{ x: -200, duration: 300, delay: 300 }} out:fly={{ x: 200, duration: 300 }}>
+				<slot />
+			</div>
+		{/key}
 	</div>
 
 	<!-- Page Footer -->

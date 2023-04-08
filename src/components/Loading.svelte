@@ -6,19 +6,19 @@
 
 <div class="absolute inset-0 flex justify-center items-center shadow-2xl">
 	<div
-		class="relative border-4 border-error-500 rounded-full border-x-transparent h-[160px] w-[160px]"
+		class="relative border-[7px] border-error-500 rounded-full border-x-transparent h-[150px] w-[150px]"
 		id="loader"
 	/>
 	<div
-		class="absolute border-4 border-tertiary-400 rounded-full border-x-transparent h-[170px] w-[170px]"
+		class="absolute border-[6px] border-success-400 rounded-full border-x-transparent h-[170px] w-[170px]"
 		id="loader2"
 	/>
 	<div
-		class="absolute border-4 border-success-400 rounded-full border-x-transparent h-[180px] w-[180px]"
+		class="absolute border-[5px] border-tertiary-400 rounded-full border-x-transparent h-[190px] w-[190px]"
 		id="loader3"
 	/>
 	<div
-		class="absolute border-4 border-surface-400 rounded-full border-x-transparent h-[190px] w-[190px]"
+		class="absolute border-[4px] border-surface-400 rounded-full border-x-transparent h-[210px] w-[210px]"
 		id="loader4"
 	/>
 	<div
@@ -32,16 +32,16 @@
 
 <style>
 	#loader {
-		animation: rotate 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader2 {
 		animation: rotate2 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader3 {
-		animation: rotate 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	#loader4 {
-		animation: rotate2 2s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
+		animation: rotate2 3s cubic-bezier(0.26, 1.36, 0.74, -0.29) infinite;
 	}
 	@keyframes rotate {
 		0% {

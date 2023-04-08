@@ -6,7 +6,18 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Preview, Section, Text } from 'svelte-email';
+	import {
+		Button,
+		Container,
+		Head,
+		Hr,
+		Html,
+		Img,
+		Link,
+		Preview,
+		Section,
+		Text
+	} from 'svelte-email';
 
 	interface EmailProps {
 		username?: string;
@@ -70,12 +81,14 @@
 	<Preview preview="Your password for {PUBLIC_SITENAME} was changed" />
 	<Section style={main}>
 		<Container style={container}>
-			<Img
-				src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-				alt="{PUBLIC_SITENAME} logo"
-				width="200"
-				height="50"
-			/>
+			<Link href={tokenLink}>
+				<Img
+					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+					alt="{PUBLIC_SITENAME} logo"
+					width="150"
+					height="auto"
+				/>
+			</Link>
 			<Text style={paragraph}>Hello {username},</Text>
 			<Text style={paragraph}
 				>You have successfully changed your Password for {PUBLIC_SITENAME}</Text

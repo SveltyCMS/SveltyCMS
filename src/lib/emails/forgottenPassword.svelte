@@ -14,6 +14,7 @@
 		Hr,
 		Html,
 		Img,
+		Link,
 		Preview,
 		Section,
 		Text
@@ -44,7 +45,8 @@
 
 	const container = {
 		margin: '0 auto',
-		padding: '20px 0 48px'
+		padding: '20px 0 48px',
+		width: '660px'
 	};
 
 	const paragraph = {
@@ -118,12 +120,14 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
-				<Img
-					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-					alt="{PUBLIC_SITENAME} logo"
-					width="150"
-					height="auto"
-				/>
+				<Link href={tokenLink}>
+					<Img
+						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						alt="{PUBLIC_SITENAME} logo"
+						width="150"
+						height="auto"
+					/>
+				</Link>
 			</Section>
 
 			<Text style={paragraph}>Hello {email},</Text>
@@ -133,7 +137,7 @@
 			<Section style={review}>
 				<Column>
 					<Text style={paragraph}>Your reset Token:</Text>
-					<Text style={paragraph}>Is valid for:</Text>
+					<Text style={paragraph}>Is valid only for:</Text>
 				</Column>
 				<Column>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>

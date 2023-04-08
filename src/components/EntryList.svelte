@@ -368,7 +368,7 @@
 
 	let columnVisibility = {};
 
-	const setColumnVisibility = (updater) => {
+	const setColumnVisibility = (updater: {}) => {
 		if (updater instanceof Function) {
 			columnVisibility = updater(columnVisibility);
 		} else {

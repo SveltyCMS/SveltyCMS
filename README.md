@@ -91,7 +91,7 @@ If you require a different look, use the [skeleton theme generator](https://www.
 
 We use [Typesafe-i18n ](https://github.com/ivanhofer/typesafe-i18n) and [inlang](https://inlang.com/) for System Translations.
 
-Current System Translations are available at: [inLang](https://inlang.com/editor/github.com/Rar9/SimpleCMS)
+Current System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SimpleCMS)
 
 If a language has not yet been defined, reach out to us, so that you can help to extend the System Localization.
 

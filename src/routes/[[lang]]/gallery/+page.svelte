@@ -23,9 +23,9 @@
 
 	let view = 'grid';
 	let size: 'small' | 'medium' | 'large' = 'small';
-	$: {
-		console.log('size changed:', size);
-		// update the table when the size variable changes
+
+	// Refesh tanstack
+	$: if (size) {
 		refreshData();
 	}
 
@@ -180,7 +180,7 @@
 		}));
 	};
 
-	const table = createSvelteTable(options);
+	var table = createSvelteTable(options);
 
 	//svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
@@ -204,29 +204,52 @@
 	}) {
 		items = e.detail.items;
 
-		// Update column visibility based on new order
-		const newVisibility = {};
+		// Update column Order based on new order
+		const newOrder = {};
 		items.forEach((item) => {
-			newVisibility[item.id] = item.isVisible;
+			newOrder[item.id] = item.isVisible;
 		});
-		$table.setColumnVisibility(newVisibility);
+
+		// const randomizeColumns = () => {
+		// 	$table.setColumnOrder((_updater) => $table.getAllLeafColumns().map((d) => d.id));
+		// };
+
+		items = items.map((item) => {
+			return {
+				...item,
+				getToggleVisibilityHandler() {
+					return () => {
+						const newOrder = { ...$table.setColumnOrder() };
+						newOrder[item.id] = !newOrder[item.id];
+						$table.setColumnOrder(newOrder);
+					};
+				}
+			};
+		});
+		$table.setColumnOrder(newOrder);
+
+		console.log('table', $table.setColumnOrder);
+		console.log('columnOrder2', columnOrder);
+		columnOrder = newOrder;
+		rerender();
+		table = createSvelteTable(options);
 	}
 
-	// Add toggle visibility function to each column object
+	// Add toggle Order function to each column object
 	items = items.map((item) => {
 		return {
 			...item,
 			getToggleVisibilityHandler() {
 				return () => {
-					const newVisibility = { ...$table.getColumnVisibility() };
-					newVisibility[item.id] = !newVisibility[item.id];
-					$table.setColumnVisibility(newVisibility);
+					const newOrder = { ...$table.setColumnOrder() };
+					newOrder[item.id] = !newOrder[item.id];
+					$table.setColumnVisibility(newOrder);
 				};
 			}
 		};
 	});
-
-	console.log(items);
+	console.log('columnOrder', columnOrder);
+	console.log('items', items);
 </script>
 
 <div class="flex mr-1 align-centre mb-2">
