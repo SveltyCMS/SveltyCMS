@@ -245,6 +245,29 @@ export const actions: Actions = {
 
 				const session = await auth.createSession(res.userId);
 				await luciaSetCookie(event, session)
+
+				// send welcome email
+				await event.fetch('/api/sendMail', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({
+						email: email,
+						subject: 'New user registration',
+						message: 'New user registration',
+						templateName: 'Welcome',
+						props: {
+							username: username,
+							email: email
+							//token: registrationToken
+							// role: role,
+							// resetLink: link,
+							//expires_at: epoch_expires_at
+						}
+					})
+				});
+
 				return;
 			}
 

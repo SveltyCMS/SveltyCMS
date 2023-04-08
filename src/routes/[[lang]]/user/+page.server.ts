@@ -5,7 +5,7 @@ import { randomBytes } from 'crypto';
 import type { PageServerLoad } from './$types';
 //import sendMail from '$src/lib/utils/send-email';
 import mongoose from 'mongoose';
-import { luciaVerifyAndReturnUser } from '$src/lib/server/lucia';
+import { luciaRemoveCookieAndSignOut, luciaVerifyAndReturnUser } from '$src/lib/server/lucia';
 
 export const load: PageServerLoad = async (event) => {
 	const user = await luciaVerifyAndReturnUser(event);
@@ -153,6 +153,9 @@ export const actions: Actions = {
 				]
 			});
 		}
+	},
+	signOut: async (event) => {
+		await luciaRemoveCookieAndSignOut(event);
 	}
 };
 
