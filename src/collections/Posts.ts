@@ -27,14 +27,14 @@ const schema: Schema = {
 			localization: true
 		}),
 
-		widgets.RichText({
-			db_fieldName: 'Description',
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter Description',
-			label: 'Body',
-			required: true,
-			localization: true
-		}),
+		// widgets.RichText({
+		// 	db_fieldName: 'Description',
+		// 	icon: 'ri:t-box-line',
+		// 	placeholder: 'Enter Description',
+		// 	label: 'Body',
+		// 	required: true,
+		// 	localization: true
+		// }),
 
 		widgets.Seo({
 			db_fieldName: 'Basic Seo',

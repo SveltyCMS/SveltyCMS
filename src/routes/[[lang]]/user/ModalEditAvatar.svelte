@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { page } from '$app/stores';
+	import { page } from '$app/stores';
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -9,7 +9,7 @@
 	import { modalStore } from '@skeletonlabs/skeleton';
 
 	// Lucia
-	const user = $page.data.user
+	const user = $page.data.user;
 
 	// skeleton
 	import { FileDropzone } from '@skeletonlabs/skeleton';
@@ -17,7 +17,7 @@
 
 	import { Avatar } from '@skeletonlabs/skeleton';
 
-	import { last } from 'lodash';
+	import { last, startsWith } from 'lodash';
 
 	let avatarSrc = user?.avatar;
 
@@ -117,7 +117,15 @@
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 	<form class="modal-form {cForm}">
 		<div class="grid grid-cols-1 grid-rows-{avatarSrc ? '1' : '2'} justify-center items-center">
-			<Avatar src={avatarSrc ?? '/Default_User.svg'} rounded-full class="mb-3 w-32 mx-auto" />
+			<Avatar
+				src={avatarSrc
+					? avatarSrc.startsWith('data')
+						? avatarSrc
+						: '/api/' + avatarSrc
+					: '/Default_User.svg'}
+				rounded-full
+				class="mb-3 w-32 mx-auto"
+			/>
 
 			{#if !files}
 				<FileDropzone

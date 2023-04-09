@@ -29,7 +29,6 @@
 	import LL from '$i18n/i18n-svelte';
 	import type { PageData } from '../$types';
 
-
 	const user = $page.data.user;
 
 	const listOfUsers = JSON.parse($page.data.users); // Retrieve User and parse them as JSON
@@ -79,7 +78,7 @@
 
 	import moment from 'moment';
 	import Role from './Role.svelte';
-  import { page } from '$app/stores';
+	import { page } from '$app/stores';
 
 	type User = {
 		avatar: string;
@@ -91,7 +90,7 @@
 	};
 
 	const defaultData = listOfUsers.map((user: User) => ({
-		avatar: user.avatar,
+		avatar: '/api/' + user.avatar,
 		username: user.username,
 		email: user.email,
 		role: user.role,

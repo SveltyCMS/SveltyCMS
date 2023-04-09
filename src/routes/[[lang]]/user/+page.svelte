@@ -43,7 +43,7 @@
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
 			// Add your props as key/value pairs
-			props: { background: 'bg-surface-100-800-token'},
+			props: { background: 'bg-surface-100-800-token' },
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -188,7 +188,12 @@
 <div class="grid overflow-hidden grid-cols-1 grid-rows-2 md:grid-cols-2 md:grid-rows-1 gap-1">
 	<!-- Avatar with user info -->
 	<div class="mt-1 flex flex-col gap-2 mx-2 relative items-center justify-center">
-		<Avatar src={avatarSrc ?? '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
+		<Avatar
+			src={avatarSrc ? '/api/' + avatarSrc : '/Default_User.svg'}
+			initials="AV"
+			rounded-none
+			class="w-32"
+		/>
 
 		<button on:click={modalEditAvatar} class="badge text-white gradient-primary w-30 absolute top-1"
 			>{$LL.USER_Edit_Avatar()}</button

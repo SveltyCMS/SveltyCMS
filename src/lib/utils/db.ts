@@ -27,9 +27,12 @@ export const dbConnect: Handle = async ({ resolve, event }) => {
 		});
 	} else if (DB_TYPE === 'atlas') {
 		// use for mongodb Atlas
-		mongoose.connect(
-			`mongodb+srv://${DB_USER}:${DB_PASSWORD}@${DB_HOST_ATLAS}/${DB_NAME}?retryWrites=true&w=majority`
-		);
+		mongoose.connect(DB_HOST_ATLAS, {
+			authSource: 'admin',
+			user: DB_USER,
+			pass: DB_PASSWORD,
+			dbName: DB_NAME
+		});
 	} else {
 		console.error('Error: database type not defined');
 	}
