@@ -29,8 +29,8 @@ dependencies:
     specifier: ^8.8.4
     version: 8.8.4
   '@tanstack/svelte-query':
-    specifier: ^4.27.0
-    version: 4.27.0(svelte@3.58.0)
+    specifier: ^4.29.1
+    version: 4.29.1(svelte@3.58.0)
   '@tanstack/svelte-table':
     specifier: ^8.8.5
     version: 8.8.5(svelte@3.58.0)
@@ -111,6 +111,9 @@ dependencies:
     version: 9.0.0
 
 devDependencies:
+  '@semantic-release/exec':
+    specifier: ^6.0.3
+    version: 6.0.3(semantic-release@21.0.1)
   '@semantic-release/git':
     specifier: ^10.0.1
     version: 10.0.1(semantic-release@21.0.1)
@@ -2087,6 +2090,23 @@ packages:
     engines: {node: '>=14.17'}
     dev: true
 
+  /@semantic-release/exec@6.0.3(semantic-release@21.0.1):
+    resolution: {integrity: sha512-bxAq8vLOw76aV89vxxICecEa8jfaWwYITw6X74zzlO0mc/Bgieqx9kBRz9z96pHectiTAtsCwsQcUyLYWnp3VQ==}
+    engines: {node: '>=14.17'}
+    peerDependencies:
+      semantic-release: '>=18.0.0'
+    dependencies:
+      '@semantic-release/error': 3.0.0
+      aggregate-error: 3.1.0
+      debug: 4.3.4
+      execa: 5.1.1
+      lodash: 4.17.21
+      parse-json: 5.2.0
+      semantic-release: 21.0.1
+    transitivePeerDependencies:
+      - supports-color
+    dev: true
+
   /@semantic-release/git@10.0.1(semantic-release@21.0.1):
     resolution: {integrity: sha512-eWrx5KguUcU2wUPaO6sfvZI0wPafUKAMNC18aXY4EnNcrZL86dEmpNVnC9uMpGZkmZJ9EfCVJBQx4pV4EMGT1w==}
     engines: {node: '>=14.17'}
@@ -2290,16 +2310,16 @@ packages:
       remove-accents: 0.4.2
     dev: false
 
-  /@tanstack/query-core@4.27.0:
-    resolution: {integrity: sha512-sm+QncWaPmM73IPwFlmWSKPqjdTXZeFf/7aEmWh00z7yl2FjqophPt0dE1EHW9P1giMC5rMviv7OUbSDmWzXXA==}
+  /@tanstack/query-core@4.29.1:
+    resolution: {integrity: sha512-vkPewLEG8ua0efo3SsVT0BcBtkq5RZX8oPhDAyKL+k/rdOYSQTEocfGEXSaBwIwsXeOGBUpfKqI+UmHvNqdWXg==}
     dev: false
 
-  /@tanstack/svelte-query@4.27.0(svelte@3.58.0):
-    resolution: {integrity: sha512-FmrviPCoWbgBOLgG4uOG4EHi80DDzvD4XK+0nQBTLb4c2cKyN7c98MLgG58yHbdFEPQyhhcJlqagXP18vWWS9w==}
+  /@tanstack/svelte-query@4.29.1(svelte@3.58.0):
+    resolution: {integrity: sha512-V+Ueq8fWHx6W9kBlVfrdFJbSUodJknOdgGKV90lNYM1WFeoOzqihXDOgeJHUaT+JKs96sRBQJAVN7NIbBR0iMw==}
     peerDependencies:
       svelte: ^3.54.0
     dependencies:
-      '@tanstack/query-core': 4.27.0
+      '@tanstack/query-core': 4.29.1
       svelte: 3.58.0
     dev: false
 

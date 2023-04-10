@@ -24,14 +24,6 @@ body:
       label: Reproduction
       description: Please provide a link to a repo or better a stackblitz/replit that can reproduce the problem you ran into. This will speed up the fixing.
       placeholder: Reproduction
-    validations:
-      required: true
-  - type: textarea
-    id: logs
-    attributes:
-      label: Logs
-      description: 'Please include browser console and server logs around the time this bug occurred. Optional if provided reproduction. Please try not to insert an image but copy paste the log text.'
-      render: shell
   - type: checkboxes
     id: searched
     attributes:

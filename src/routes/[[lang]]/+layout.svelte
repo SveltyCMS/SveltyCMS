@@ -343,7 +343,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 							class="relative flex-col !no-underline cursor-pointer"
 						>
 							<Avatar
-								src={avatarSrc ? '/api/' + avatarSrc : '/Default_User.svg'}
+								src={avatarSrc ? '/api/media/' + avatarSrc : '/Default_User.svg'}
 								class="mx-auto {switchSideBar ? 'w-[50px]' : 'w-[35px]'}"
 							/>
 							<div class="text-center text-[9px] text-black dark:text-white">
