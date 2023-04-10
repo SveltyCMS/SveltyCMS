@@ -136,8 +136,7 @@
 				experience.</Text
 			>
 			<Text
-				>If you have any questions or need help getting started, please visit our Q&A on Github
-				Discussions <Link href="https://github.com/Rar9/SimpleCMS/discussions">Svelte</Link>.</Text
+				>If you have any questions or need help getting started, please visit our Q&A on Github <Link href="https://github.com/Rar9/SimpleCMS/discussions">SimpleCMS Discussion</Link>.</Text
 			>
 			<Text>Thank you for choosing SimpleCMS. We're excited to have you on board!</Text>
 			<Section style={btnContainer}>
