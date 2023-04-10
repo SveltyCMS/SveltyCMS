@@ -1,5 +1,6 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+	darkMode: 'class',
 	content: [
 		'./src/**/*.{html,js,svelte,ts}',
 		require('path').join(require.resolve('@skeletonlabs/skeleton'), '../**/*.{html,js,svelte,ts}')
@@ -41,9 +42,8 @@ module.exports = {
 	},
 	plugins: [
 		// Keep any existing plugins present and append the following:
-		...require('@skeletonlabs/skeleton/tailwind/skeleton.cjs')(),
 		require('@tailwindcss/forms'),
-		require('@tailwindcss/typography')
-	],
-	darkMode: 'class'
+		require('@tailwindcss/typography'),
+		...require('@skeletonlabs/skeleton/tailwind/skeleton.cjs')()
+	]
 };

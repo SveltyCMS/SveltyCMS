@@ -109,11 +109,30 @@ Build and send emails using [Svelte Email](https://svelte-email.vercel.app/) and
 
 Reach out to us if you're struggling with something - [GitHub Discussions](https://github.com/Rar9/SvelteCMS/discussions)
 
-## :heart: Contributing & Sponsoring
+## :rocket: Semantic Versioning
 
-Please read our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+We use [semantic versioning](https://semver.org/) to manage our releases. This means that our version numbers follow a specific format: `MAJOR.MINOR.PATCH`.
 
-Sponsors are always welcome to contribute to get a custom CMS experience.
+- `MAJOR` version changes when we make incompatible API changes,
+- `MINOR` version changes when we add functionality in a backwards-compatible manner, and
+- `PATCH` version changes when we make backwards-compatible bug fixes.
+
+When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
+
+Please also read our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+
+Thank you for helping us maintain a consistent and predictable release process! :heart:
+
+## :moneybag: Sponsoring
+
+If you find our project useful and would like to support its development, you can become a sponsor! Your sponsorship will help us cover the costs of maintaining the project and allow us to dedicate more time to its development.
+
+There are several ways you can sponsor us:
+
+- [Become a GitHub sponsor](https://github.com/sponsors/Rar9)
+- [Donate via PayPal](https://www.paypal.com/donate/?hosted_button_id=5VA28AG6MW2H2)
+
+Thank you for your support!
 
 ## :clap: Thanks
 
