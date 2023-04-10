@@ -4,20 +4,20 @@ import mongoose from 'mongoose';
 const KeySchema = new mongoose.Schema(
 	{
 		_id: {
-			type: String
+			type: String // key id in the form of: ${providerId}:${providerUserId}
 		},
 		user_id: {
 			type: String,
-			required: true
+			required: true // reference to user(id)
 		},
 
 		// Not strictly required by Lucia, but we'll be using it
-		hashed_password: String,
+		hashed_password: String, // hashed password of the key
 		primary_key: {
 			type: Boolean,
-			required: true
+			required: true // true for primary keys
 		},
-		expires: Number
+		expires: Number // expiration for key if defined (number)
 	},
 	{ _id: false }
 );

@@ -23,7 +23,7 @@ export const fieldsToSchema = (fields: Array<any>) => {
 
 // takes in a "req" object and processes any files associated with the request,
 // it saves them to a specified file path using the "fs" library.
-export function saveFiles(req: any, collection_name) {
+export function saveFiles(req: any, collection_name: string) {
 	const files: any = {};
 	const schema = schemas.find((schema) => schema.name === collection_name);
 	const _files = req.files || [];

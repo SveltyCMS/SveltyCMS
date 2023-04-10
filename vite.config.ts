@@ -8,6 +8,9 @@ const pkg = JSON.parse(json);
 /** @type {import('vite').UserConfig} */
 const config = {
 	plugins: [sveltekit()],
+	test: {
+		include: ['src/**/*.{test,spec}.{js,ts}']
+	},
 	define: {
 		__PACKAGE__: pkg
 	},
