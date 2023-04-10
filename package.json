@@ -63,7 +63,7 @@
 		"vite": "4.2.1",
 		"zod": "^3.21.4"
 	},
-	"type": "commonjs",
+	"type": "module",
 	"dependencies": {
 		"@floating-ui/dom": "^1.2.6",
 		"@lucia-auth/adapter-mongoose": "^1.0.0",
