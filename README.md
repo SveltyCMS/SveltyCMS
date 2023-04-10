@@ -43,7 +43,7 @@ New Collections can easily be implemented, due to full typescript support with a
 
 All fields offer full translations, and customisation as well as access restiction handeled by Lucia auth.
 
-The System langauge uses typesave-i18n for :gb: English and :de: German out of the box, and can easily be extended to suport further languages.
+The System langauge uses typesave-i18n with inlang for providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to suport further languages.
 
 We used tailwindcss and a skeleton UI tookit, so the CMS can be quickly optimised.
 
