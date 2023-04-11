@@ -1,4 +1,7 @@
 <script lang="ts">
+	// typesafe-i18n
+	import LL from '$i18n/i18n-svelte';
+
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -27,34 +30,34 @@
 
 		switch (action) {
 			case 'create':
-				modalTitle = 'Please Confirm Content Create';
-				modalBody = 'Are you sure you wish to Create this content?';
-				modalButtonText = 'Create';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Create();
+				modalBody = $LL.ENTRYLIST_Modal_body_Create();
+				modalButtonText = $LL.ENTRYLIST_Create();
 				break;
 			case 'publish':
-				modalTitle = 'Please Confirm Content Publish';
-				modalBody = 'Are you sure you wish to Publish this content?';
-				modalButtonText = 'Publish';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Publish();
+				modalBody = $LL.ENTRYLIST_Modal_body_Publish();
+				modalButtonText = $LL.ENTRYLIST_Publish();
 				break;
 			case 'unpublish':
-				modalTitle = 'Please Confirm Content Unpublish';
-				modalBody = 'Are you sure you wish to Unpublish this content?';
-				modalButtonText = 'Unpublish';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Unpublish();
+				modalBody = $LL.ENTRYLIST_Modal_body_Unpublish();
+				modalButtonText = $LL.ENTRYLIST_Unpublish();
 				break;
 			case 'schedule':
-				modalTitle = 'Please Confirm Content Schedule';
-				modalBody = 'Are you sure you wish to Schedule this content?';
-				modalButtonText = 'Schedule';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Schedule();
+				modalBody = $LL.ENTRYLIST_Modal_body_Schedule();
+				modalButtonText = $LL.ENTRYLIST_Schedule();
 				break;
 			case 'clone':
-				modalTitle = 'Please Confirm Content Clone';
-				modalBody = 'Are you sure you wish to delete this user?';
-				modalButtonText = 'Clone';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Clone();
+				modalBody = $LL.ENTRYLIST_Modal_body_Clone();
+				modalButtonText = $LL.ENTRYLIST_Clone();
 				break;
 			case 'delete':
-				modalTitle = 'Please Confirm Content Deletion';
-				modalBody = 'Are you sure you wish to delete this user?';
-				modalButtonText = 'Delete';
+				modalTitle = $LL.ENTRYLIST_Modal_title_Delete();
+				modalBody = $LL.ENTRYLIST_Modal_body_Delete();
+				modalButtonText = $LL.ENTRYLIST_Delete();
 				break;
 			default:
 				throw new Error(`Invalid action ${action}`);
@@ -66,6 +69,7 @@
 			// Data
 			title: modalTitle,
 			body: modalBody,
+			buttonTextCancel: $LL.ENTRYLIST_Modal_Cancel(),
 			buttonTextConfirm: modalButtonText,
 
 			//TODO : Add corresponding buttonPositive color
@@ -81,65 +85,50 @@
 	}
 
 	const getButtonAndIconValues = (listboxValue: string, action: string) => {
+		let actionname = '';
 		let buttonClass = '';
 		let iconValue = '';
 
 		switch (listboxValue) {
 			case 'create':
+				actionname = $LL.ENTRYLIST_Create();
 				buttonClass = 'gradient-primary';
 				iconValue = 'ic:round-plus';
 				break;
 			case 'publish':
+				actionname = $LL.ENTRYLIST_Publish();
 				buttonClass = 'gradient-tertiary';
 				iconValue = 'bi:hand-thumbs-up-fill';
 				break;
 			case 'unpublish':
+				actionname = $LL.ENTRYLIST_Unpublish();
 				buttonClass = 'gradient-yellow';
 				iconValue = 'bi:pause-circle';
 				break;
 			case 'schedule':
+				actionname = $LL.ENTRYLIST_Schedule();
 				buttonClass = 'gradient-pink';
 				iconValue = 'bi:clock';
 				break;
 			case 'clone':
+				actionname = $LL.ENTRYLIST_Clone();
 				buttonClass = 'gradient-secondary';
 				iconValue = 'bi:clipboard-data-fill';
 				break;
 			case 'delete':
+				actionname = $LL.ENTRYLIST_Delete();
 				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
 			default:
+				actionname = '';
 				buttonClass = '';
 				iconValue = '';
 				break;
 		}
-		// create
-		if (action === 'create') {
-			modalConfirm('create');
-		}
-		// publish
-		else if (action === 'publish') {
-			modalConfirm('publish');
-		}
-		// unpublish
-		else if (action === 'unpublish') {
-			modalConfirm('unpublish');
-		}
-		// schedule
-		else if (action === 'schedule') {
-			modalConfirm('schedule');
-		}
-		// clone
-		else if (action === 'clone') {
-			modalConfirm('clone');
-		}
-		// delete user
-		else if (action === 'delete') {
-			modalConfirm('delete');
-		}
 
 		return {
+			actionname,
 			buttonClass: `btn ${buttonClass} rounded-none w-48 justify-between`,
 			iconValue
 		};
@@ -147,22 +136,36 @@
 </script>
 
 <!-- Multibuttongroup-->
-<div class="btn-group rounded-l-full !rounded-r-md relative text-white w-28">
+<div class="btn-group rounded-l-full !rounded-r-md relative text-white w-28 md:w-56">
 	<!-- Action button  -->
 	<button
 		type="button"
 		on:click={() => {
-			getButtonAndIconValues(listboxValue, listboxValue);
+			if (listboxValue === 'create') {
+				modalConfirm('create');
+			} else if (listboxValue === 'publish') {
+				modalConfirm('publish');
+			} else if (listboxValue === 'unpublish') {
+				modalConfirm('unpublish');
+			} else if (listboxValue === 'schedule') {
+				modalConfirm('schedule');
+			} else if (listboxValue === 'clone') {
+				modalConfirm('clone');
+			} else if (listboxValue === 'delete') {
+				modalConfirm('delete');
+			}
 		}}
 		class="{getButtonAndIconValues(listboxValue, listboxValue)
-			.buttonClass} hover:bg-primary-400 uppercase font-semibold"
+			.buttonClass} hover:bg-primary-400 uppercase font-bold"
 	>
 		<iconify-icon
 			icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue}
 			width="20"
 			class="text-white sm:mr-2"
 		/>
-		<div class="hidden sm:block">{listboxValue ?? 'create'}</div>
+		<div class="hidden sm:block">
+			{getButtonAndIconValues(listboxValue, listboxValue).actionname}
+		</div>
 	</button>
 
 	<span class="border border-white" />
@@ -177,7 +180,7 @@
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
-<div class="card w-48 shadow-xl overflow-hiddens rounded-sm" data-popup="popupCombobox">
+<div class="card w-48 shadow-xl overflow-hiddens rounded-sm z-20" data-popup="Combobox">
 	<ListBox
 		rounded="rounded-sm"
 		active="variant-filled-primary"
@@ -194,7 +197,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="material-symbols:edit" width="20" class="mr-1" /></svelte:fragment
 				>
-				Create
+				{$LL.ENTRYLIST_Create()}
 			</ListBoxItem>
 		{/if}
 
@@ -208,7 +211,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mr-1" /></svelte:fragment
 				>
-				Publish
+				{$LL.ENTRYLIST_Publish()}
 			</ListBoxItem>
 		{/if}
 
@@ -222,7 +225,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="bi:pause-circle" width="20" class="mr-1" /></svelte:fragment
 				>
-				Unpublish
+				{$LL.ENTRYLIST_Unpublish()}
 			</ListBoxItem>
 		{/if}
 
@@ -236,7 +239,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="bi:clock" width="20" class="mr-1" /></svelte:fragment
 				>
-				Schedule
+				{$LL.ENTRYLIST_Schedule()}
 			</ListBoxItem>
 		{/if}
 
@@ -250,7 +253,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="bi:clipboard-data-fill" width="20" class="mr-1" /></svelte:fragment
 				>
-				Clone
+				{$LL.ENTRYLIST_Clone()}
 			</ListBoxItem>
 		{/if}
 
@@ -264,7 +267,7 @@
 				><svelte:fragment slot="lead"
 					><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
 				>
-				Delete
+				{$LL.ENTRYLIST_Delete()}
 			</ListBoxItem>
 		{/if}
 	</ListBox>

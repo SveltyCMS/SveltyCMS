@@ -521,7 +521,7 @@
 						</ul>
 					</nav>
 				</span>
-
+				<!-- TODO: Replace the buttons with  EntrylistButton -->
 				<!-- <EntrylistButton /> -->
 				<!-- create/publish/unpublish/schedule/clone/delete -->
 				<div class="flex items-center justify-center">

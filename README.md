@@ -80,8 +80,13 @@ pnpm dev
 
 ## :lock: Authentication & Security
 
-Simple and clean Authentication using [Lucai Auth](https://lucia-auth.com/)
 We want to keep your data Private and Secure.
+
+[Lucai Auth](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
+
+You can sign by email, github oauth and also enable 2FA for an extra layer of protection.
+
+Field-based content access enables the allocation of varying levels of access to users according to their roles and permissions. This way, you can control who can view, edit, or delete your data.
 
 ## :art: Easy Theme Adaptions to your needs
 
@@ -97,9 +102,8 @@ If a language has not yet been defined, reach out to us, so that you can help to
 
 ## :clipboard: Easily create Data Collections
 
-Greate Experience to designing user-friendly and intuitive interfaces for managing content.
+Great Experience to designing user-friendly and intuitive interfaces for managing content.
 Full Typescript support to display all available widgets, options to create fully custom data structures.
-High security from granular individual widget access to role-based collection access control
 
 ## :incoming_envelope: Flexible Email Templating System
 

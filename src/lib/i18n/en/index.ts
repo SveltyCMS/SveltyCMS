@@ -128,6 +128,19 @@ const en: BaseTranslation = {
 	ENTRYLIST_RowsItems: 'Rows',
 	ENTRYLIST_Previous: 'Previous',
 	ENTRYLIST_Next: 'Next',
+	ENTRYLIST_Modal_title_Create: 'Please Confirm Content Creation',
+	ENTRYLIST_Modal_body_Create: 'Are you sure you wish to Create this content?',
+	ENTRYLIST_Modal_title_Publish: 'Please Confirm Content Publication',
+	ENTRYLIST_Modal_body_Publish: 'Are you sure you wish to Publish this content?',
+	ENTRYLIST_Modal_title_Unpublish: 'Please Confirm Content Unpublish',
+	ENTRYLIST_Modal_body_Unpublish: 'Are you sure you wish to Unpublish this content?',
+	ENTRYLIST_Modal_title_Schedule: 'Please Confirm Content Schedule',
+	ENTRYLIST_Modal_body_Schedule: 'Are you sure you wish to Schedule this content?',
+	ENTRYLIST_Modal_title_Clone: 'Please Confirm Content Clone',
+	ENTRYLIST_Modal_body_Clone: 'Are you sure you wish to Clone this content?',
+	ENTRYLIST_Modal_title_Delete: 'Please Confirm Content Delete',
+	ENTRYLIST_Modal_body_Delete: 'Are you sure you wish to Delete this content?',
+	ENTRYLIST_Modal_Cancel: 'Cancel',
 
 	// Fields
 

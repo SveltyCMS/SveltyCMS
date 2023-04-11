@@ -128,6 +128,20 @@ const es: Translation = {
 	ENTRYLIST_RowsItems: 'Artículos',
 	ENTRYLIST_Previous: 'Anterior',
 	ENTRYLIST_Next: 'Siguiente',
+	ENTRYLIST_Modal_title_Create: 'Por favor, confirme la creación del contenido',
+	ENTRYLIST_Modal_body_Create: '¿Está seguro de que desea Crear este contenido?',
+	ENTRYLIST_Modal_title_Publish: 'Por favor, confirme la publicación del contenido',
+	ENTRYLIST_Modal_body_Publish: '¿Estás seguro de que deseas Publicar este contenido?',
+	ENTRYLIST_Modal_title_Unpublish:
+		'Por favor, confirme la anulación de la publicación del contenido',
+	ENTRYLIST_Modal_body_Unpublish: '¿Estás seguro de que deseas Despublicar este contenido?',
+	ENTRYLIST_Modal_title_Schedule: 'Por favor, confirme el horario del contenido',
+	ENTRYLIST_Modal_body_Schedule: '¿Está seguro de que desea Programar este contenido?',
+	ENTRYLIST_Modal_title_Clone: 'Por favor, confirme la clonación del contenido',
+	ENTRYLIST_Modal_body_Clone: '¿Estás seguro de que deseas Clonar este contenido?',
+	ENTRYLIST_Modal_title_Delete: 'Por favor, confirme la eliminación del contenido',
+	ENTRYLIST_Modal_body_Delete: '¿Estás seguro de que deseas Eliminar este contenido?',
+	ENTRYLIST_Modal_Cancel: 'Cancelar',
 
 	// Fields
 

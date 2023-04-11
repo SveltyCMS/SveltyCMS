@@ -439,6 +439,58 @@ type RootTranslation = {
 	 */
 	ENTRYLIST_Next: string
 	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​C​r​e​a​t​i​o​n
+	 */
+	ENTRYLIST_Modal_title_Create: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​C​r​e​a​t​e​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Create: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​P​u​b​l​i​c​a​t​i​o​n
+	 */
+	ENTRYLIST_Modal_title_Publish: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​P​u​b​l​i​s​h​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Publish: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​U​n​p​u​b​l​i​s​h
+	 */
+	ENTRYLIST_Modal_title_Unpublish: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​U​n​p​u​b​l​i​s​h​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Unpublish: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​S​c​h​e​d​u​l​e
+	 */
+	ENTRYLIST_Modal_title_Schedule: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​S​c​h​e​d​u​l​e​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Schedule: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​C​l​o​n​e
+	 */
+	ENTRYLIST_Modal_title_Clone: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​C​l​o​n​e​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Clone: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​C​o​n​t​e​n​t​ ​D​e​l​e​t​e
+	 */
+	ENTRYLIST_Modal_title_Delete: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​D​e​l​e​t​e​ ​t​h​i​s​ ​c​o​n​t​e​n​t​?
+	 */
+	ENTRYLIST_Modal_body_Delete: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	ENTRYLIST_Modal_Cancel: string
+	/**
 	 * C​r​e​a​t​e
 	 */
 	FORM_Create: string
@@ -1415,6 +1467,58 @@ export type TranslationFunctions = {
 	 * Next
 	 */
 	ENTRYLIST_Next: () => LocalizedString
+	/**
+	 * Please Confirm Content Creation
+	 */
+	ENTRYLIST_Modal_title_Create: () => LocalizedString
+	/**
+	 * Are you sure you wish to Create this content?
+	 */
+	ENTRYLIST_Modal_body_Create: () => LocalizedString
+	/**
+	 * Please Confirm Content Publication
+	 */
+	ENTRYLIST_Modal_title_Publish: () => LocalizedString
+	/**
+	 * Are you sure you wish to Publish this content?
+	 */
+	ENTRYLIST_Modal_body_Publish: () => LocalizedString
+	/**
+	 * Please Confirm Content Unpublish
+	 */
+	ENTRYLIST_Modal_title_Unpublish: () => LocalizedString
+	/**
+	 * Are you sure you wish to Unpublish this content?
+	 */
+	ENTRYLIST_Modal_body_Unpublish: () => LocalizedString
+	/**
+	 * Please Confirm Content Schedule
+	 */
+	ENTRYLIST_Modal_title_Schedule: () => LocalizedString
+	/**
+	 * Are you sure you wish to Schedule this content?
+	 */
+	ENTRYLIST_Modal_body_Schedule: () => LocalizedString
+	/**
+	 * Please Confirm Content Clone
+	 */
+	ENTRYLIST_Modal_title_Clone: () => LocalizedString
+	/**
+	 * Are you sure you wish to Clone this content?
+	 */
+	ENTRYLIST_Modal_body_Clone: () => LocalizedString
+	/**
+	 * Please Confirm Content Delete
+	 */
+	ENTRYLIST_Modal_title_Delete: () => LocalizedString
+	/**
+	 * Are you sure you wish to Delete this content?
+	 */
+	ENTRYLIST_Modal_body_Delete: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	ENTRYLIST_Modal_Cancel: () => LocalizedString
 	/**
 	 * Create
 	 */
