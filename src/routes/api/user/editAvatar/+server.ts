@@ -88,7 +88,7 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 		);
 	}
 
-	const newPath = `${basePath}/${user?.userId}_${new Date().getTime()}_avatar.webp`;
+	const newPath = `${basePath}/${user?._id}_${new Date().getTime()}_avatar.webp`;
 
 	// Get the current avatar path from the user object
 	const currentAvatar = user.avatar;
@@ -133,7 +133,7 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 				// Update the user's avatar field in the MongoDB database
 				await User.findOneAndUpdate(
 					{
-						_id: user?.userId
+						_id: user?._id
 					},
 					{
 						avatar: newPath
@@ -175,7 +175,7 @@ export const POST: RequestHandler<Partial<Record<string, string>>, string | null
 		// Update the user's avatar field in the MongoDB database
 		await User.findOneAndUpdate(
 			{
-				_id: user?.userId
+				_id: user?._id
 			},
 			{
 				avatar: newPath
