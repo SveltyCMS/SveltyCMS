@@ -13,7 +13,7 @@
 	let avatarSrc = user?.avatar;
 	let showUserList = true;
 
-	let id = user?.userId;
+	let id = user?._id;
 	let username = user?.username;
 	let role = user?.role;
 	let email = user?.email;

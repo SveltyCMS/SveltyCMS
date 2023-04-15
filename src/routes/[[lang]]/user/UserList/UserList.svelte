@@ -9,6 +9,10 @@
 	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
 
+
+	import {SignUpToken} from '$lib/models/sign-up-token-model';
+
+
 	function triggerFacets(): void {
 		const drawerSettings: DrawerSettings = {
 			id: 'facets',
@@ -30,7 +34,6 @@
 	import type { PageData } from '../$types';
 
 	const user = $page.data.user;
-
 	const listOfUsers = JSON.parse($page.data.users); // Retrieve User and parse them as JSON
 
 	// State to keep track of whether the modal is open or not
@@ -326,6 +329,16 @@
 	const noTypeCheck = (x: any) => x;
 
 	let headerGroups = $table.getHeaderGroups();
+
+
+
+// tokens
+
+const deleteTokenById = async (id: string) => {
+	await SignUpToken.find({_id: id});
+	$page.data.tokens = JSON.parse(JSON.stringify(await SignUpToken.find()))
+}
+
 </script>
 
 <h4 class="mb-2 text-error-500">List of aktive Users Invites:</h4>
@@ -340,14 +353,16 @@
 		</tr>
 	</thead>
 	<tbody>
+	{#each $page.data.tokens as token}
 		<tr class="divide-x-2">
-			<td class="px-2">email</td>
-			<td class="px-2">role</td>
-			<td class="px-2">expiers At</td>
+			<td class="px-2">{token.email}</td>
+			<td class="px-2">{token.role}</td>
+			<td class="px-2">{moment(token.expiresAt).fromNow()}</td>
 			<td>
-				<button class="btn btn-sm px-2">Delete</button>
+				<button class="btn btn-sm px-2" on:click={() => deleteTokenById(token._id)}>Delete</button>
 			</td>
 		</tr>
+	{/each}
 	</tbody>
 </table>
 <hr />

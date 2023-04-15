@@ -23,4 +23,4 @@ if (mongoose.models && mongoose.models.sign_up_token) {
 
 // Create and export the SignUpToken model using the 'sign_up_token' collection name
 export const SignUpToken =
-	mongoose.models.sign_up_token || mongoose.model('sign_up_token', SignUpTokenSchema);
+	mongoose.models?.sign_up_token || mongoose.model('sign_up_token', SignUpTokenSchema);
