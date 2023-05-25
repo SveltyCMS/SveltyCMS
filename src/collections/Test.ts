@@ -118,20 +118,20 @@ const schema: Schema = {
 			required: false
 		}),
 
-		// widgets.Currency({
-		// 	db_fieldName: 'Currency',
-		// 	currencyCode: 'EUR',
-		// 	label: 'Enter a currency',
-		// 	icon: 'carbon:character-whole-number',
-		// 	placeholder: 'Enter Currency from -99999.99 to 99999.99',
-		// 	prefix: '€',
-		// 	suffix: 'cent',
-		// 	min: -99999.99,
-		// 	max: 99999.99,
-		// 	step: 0.001,
-		// 	negative: true,
-		// 	required: true
-		// }),
+		widgets.Currency({
+			db_fieldName: 'Currency',
+			currencyCode: 'EUR',
+			label: 'Enter a currency',
+			icon: 'carbon:character-whole-number',
+			placeholder: 'Enter Currency from -99999.99 to 99999.99',
+			prefix: '€',
+			suffix: 'cent',
+			min: -99999.99,
+			max: 99999.99,
+			step: 0.001,
+			negative: true,
+			required: true
+		}),
 
 		widgets.PhoneNumber({
 			db_fieldName: 'Phone Number',
@@ -198,13 +198,13 @@ const schema: Schema = {
 			localization: true
 		}),
 
-		widgets.RemoteVideo({
-			db_fieldName: 'remoteVideo',
-			label: 'Remote Video Label',
-			icon: 'bi:youtube',
-			placeholder: 'Enter Video URL',
-			required: true
-		}),
+		// widgets.RemoteVideo({
+		// 	db_fieldName: 'remoteVideo',
+		// 	label: 'Remote Video Label',
+		// 	icon: 'bi:youtube',
+		// 	placeholder: 'Enter Video URL',
+		// 	required: true
+		// }),
 
 		widgets.Seo({
 			db_fieldName: 'Basic Seo',

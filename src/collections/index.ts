@@ -16,7 +16,7 @@ let categories = [
 		// Content
 		category: get(LL).CollectionCategory_Content(),
 		icon: 'bi:collection',
-		collections: [Test, Posts],
+		collections: [Posts, Test],
 		collectionIds: []
 	},
 

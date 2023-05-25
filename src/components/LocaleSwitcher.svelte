@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { PUBLIC_LANGUAGE } from '$env/static/public';
+
 	import { browser } from '$app/environment';
 	import { page } from '$app/stores';
 	import { setLocale, locale } from '$i18n/i18n-svelte';
@@ -73,9 +75,33 @@
 			loc.toLowerCase().includes(searchQuery.toLowerCase())
 		);
 	};
+
+	let isLoginPage = false;
+	$: {
+		const pathParts = $page.url.pathname.split('/');
+		const lang = pathParts[1];
+		const pageName = lang === PUBLIC_LANGUAGE ? pathParts[1] : pathParts[2];
+		isLoginPage = pageName === 'login';
+	}
 </script>
 
 <svelte:window on:popstate={handlePopStateEvent} />
+
+<!-- {#if isLoginPage}
+	<button
+		class="btn btn-sm rounded-full border border-white variant-filled-surface justify-between uppercase"
+		use:popup={languageSettings}
+	>
+		{LanguageLabel}
+	</button>
+{:else}
+	<button
+		class="btn btn-sm rounded-full variant-filled-ghost justify-between uppercase"
+		use:popup={languageSettings}
+	>
+		{LanguageLabel}
+	</button>
+{/if} -->
 
 <button
 	class="btn btn-sm rounded-full border border-white variant-filled-surface justify-between uppercase"
@@ -84,41 +110,49 @@
 	{LanguageLabel}
 </button>
 
-<div class="uppercase variant-filled-surface rounded-sm divide-y-2" data-popup="language-dropdown">
-	{#if locales.length > 4}
-		<input type="text" placeholder="Search..." on:input={handleInput} class="text-black" />
-	{/if}
+<div class="uppercase variant-filled-surface rounded-sm" data-popup="language-dropdown">
+	<ListBox class=" divide-y-2">
+		{#if locales.length > 3}
+			<input
+				type="text"
+				placeholder="Search..."
+				on:input={handleInput}
+				class="text-black rounded-sm w-24 text-center"
+			/>
+		{/if}
 
-	{#if locales.length <= 4}
-		{#each locales as loc}
-			{#if loc !== LanguageLabel}
-				<ListBoxItem
-					bind:group={LanguageLabel}
-					on:click={() => (LanguageLabel = loc)}
-					name={loc}
-					value={loc}
-					class="hover:!variant-filled-tertiary "
-				>
-					{loc}
-				</ListBoxItem>
-			{/if}
-		{/each}
-	{:else}
-		{#each filteredLocales as loc}
-			{#if loc !== LanguageLabel}
-				<ListBoxItem
-					bind:group={LanguageLabel}
-					on:click={() => (LanguageLabel = loc)}
-					name={loc}
-					value={loc}
-					class="hover:!variant-filled-tertiary"
-				>
-					{loc}
-				</ListBoxItem>
-			{/if}
-		{/each}
-	{/if}
-	<!-- Arrow -->
-	<!-- TODO: hover needs to be fixed
+		{#if locales.length <= 3}
+			{#each locales as loc}
+				{#if loc !== LanguageLabel}
+					<ListBoxItem
+						bind:group={LanguageLabel}
+						on:click={() => (LanguageLabel = loc)}
+						name={loc}
+						value={loc}
+						class="hover:!variant-filled-tertiary text-center rounded-sm p-2"
+					>
+						{loc}
+					</ListBoxItem>
+				{/if}
+			{/each}
+		{:else}
+			<!-- autocomplete dropdown -->
+			{#each filteredLocales as loc}
+				{#if loc !== LanguageLabel}
+					<ListBoxItem
+						bind:group={LanguageLabel}
+						on:click={() => (LanguageLabel = loc)}
+						name={loc}
+						value={loc}
+						class="hover:!variant-filled-tertiary text-center"
+					>
+						{loc}
+					</ListBoxItem>
+				{/if}
+			{/each}
+		{/if}
+		<!-- Arrow -->
+		<!-- TODO: hover needs to be fixed
 	<div class="arrow variant-filled-surface hover:variant-filled-tertiary" /> -->
+	</ListBox>
 </div>

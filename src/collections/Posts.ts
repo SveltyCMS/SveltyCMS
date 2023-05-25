@@ -19,13 +19,13 @@ const schema: Schema = {
 	// Inspect Widget fields for possible options
 
 	fields: [
-		widgets.Text({
-			db_fieldName: 'Title',
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter Title',
-			required: true,
-			localization: true
-		}),
+		// widgets.Text({
+		// 	db_fieldName: 'Title',
+		// 	icon: 'ri:t-box-line',
+		// 	placeholder: 'Enter Title',
+		// 	required: true,
+		// 	localization: true
+		// }),
 
 		// widgets.RichText({
 		// 	db_fieldName: 'Description',
@@ -36,13 +36,17 @@ const schema: Schema = {
 		// 	localization: true
 		// }),
 
-		widgets.Seo({
-			db_fieldName: 'Basic Seo',
-			label: 'Seo label',
-			icon: 'icon-park-outline:seo',
-			localization: true,
-			required: true
+		widgets.Address({
+			db_fieldName: 'Address'
 		})
+
+		// widgets.Seo({
+		// 	db_fieldName: 'Basic Seo',
+		// 	label: 'Seo label',
+		// 	icon: 'icon-park-outline:seo',
+		// 	localization: true,
+		// 	required: true
+		// })
 	]
 };
 export default schema;

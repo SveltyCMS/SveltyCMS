@@ -19,6 +19,37 @@
 	import { Autocomplete } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption } from '@skeletonlabs/skeleton';
 
+	let inputPopupDemo = '';
+	let maxVisibleOptions = 8;
+	let popupSettings: PopupSettings = {
+		event: 'focus-click',
+		target: 'popupAutocomplete',
+		placement: 'bottom'
+	};
+
+	interface CountryOption extends AutocompleteOption {
+		alpha2?: string;
+	}
+	let countryOptions: CountryOption[] = countries.map((country) => ({
+		label: country.en,
+		value: country.id,
+		...country
+	}));
+
+	function renderCountryOption(option: CountryOption) {
+		return `
+        <div class="flex items-center z-10 bg-error-500">
+            <span class="fi fi-${option.alpha2} mr-2" />
+            <span>${option.label}</span>
+        </div>
+    `;
+	}
+
+	function onPopupDemoSelect(event: any): void {
+		console.log('Selected option value:', event.detail.value);
+		inputPopupDemo = event.detail.label;
+	}
+
 	let CountryCombobox: PopupSettings = {
 		event: 'click',
 		target: 'CountryCombobox',
@@ -28,6 +59,27 @@
 	};
 
 	let listboxValue: string = 'Germany';
+
+	// https://stefangabos.github.io/world_countries/
+	import countries from './countries.json';
+	import '/node_modules/flag-icons/css/flag-icons.min.css';
+
+	let selectedCountry = '';
+
+	// Initialize a filtered array of countries that will be displayed in the dropdown menu
+	let filteredCountries = countries;
+
+	function searchCountry(event: any) {
+		// Get the search query from the input field
+		let query = event.target.value.toLowerCase();
+
+		// Filter the countries array based on the search query
+		filteredCountries = countries.filter((country) =>
+			Object.values(country).some(
+				(value) => typeof value === 'string' && value.toLowerCase().includes(query)
+			)
+		);
+	}
 
 	export let field: any = undefined;
 	export let value = {
@@ -64,33 +116,8 @@
 		country: value.country
 	};
 
-	// https://stefangabos.github.io/world_countries/
-	import countries from './countries.json';
-	import '/node_modules/flag-icons/css/flag-icons.min.css';
-
-	//import Svelecte from '@src/svelecte';
-
-	let selectedCountry = '';
-
-	// Initialize a filtered array of countries that will be displayed in the dropdown menu
-	let filteredCountries = countries;
-
-	function searchCountry(event: any) {
-		// Get the search query from the input field
-		let query = event.target.value;
-
-		// Filter the countries array based on the search query
-		filteredCountries = countries.filter((country) =>
-			country.en.toLowerCase().includes(query.toLowerCase())
-		);
-	}
-
 	// Mapbox
 	// TODO hide improve Mapbox add Geolocation
-
-	import { setContext } from 'svelte';
-	// import { mapboxgl, key } from './mapboxgl.js';
-
 	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
 
 	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
@@ -198,7 +225,7 @@
 				/>{$LL.WIDGET_Address_GetAddress()}</button
 			>
 		</div>
-		<div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" />
+		<!-- <div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" /> -->
 
 		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
 		<div class="flex justify-center gap-2">
@@ -279,15 +306,18 @@
 			/>
 
 			<!-- Country with search Combobox -->
+
 			<div>
 				<button class="input mt-2 w-full btn justify-between" use:popup={CountryCombobox}>
 					<span class="capitalize">{listboxValue ?? 'Combobox'}</span>
 					<i class="fa-solid fa-caret-down opacity-50" />
 				</button>
 				<div class="card shadow-xl overflow-hidden" data-popup="CountryCombobox">
+					<Autocomplete on:keyup={searchCountry}>
+						<input type="text" placeholder="Search countries..." />
+					</Autocomplete>
 					<ListBox rounded="rounded-none">
 						{#each filteredCountries as country}
-							<!-- add system-language -->
 							<ListBoxItem
 								class="flex gap-2"
 								name="medium"
@@ -310,3 +340,20 @@
 		<p class="text-red-500">{validationError}</p>
 	{/if}
 {/if}
+<label for="city">Country Autocomplete</label>
+<input
+	class="input autocomplete"
+	type="search"
+	name="autocomplete-search"
+	bind:value={inputPopupDemo}
+	placeholder="Search..."
+	use:popup={popupSettings}
+/>
+<div data-popup="popupAutocomplete">
+	<Autocomplete
+		bind:input={inputPopupDemo}
+		options={countryOptions}
+		on:selection={onPopupDemoSelect}
+		class="bg-surface-900 z-10 justify-start w-full"
+	/>
+</div>

@@ -5,45 +5,26 @@
 	export let widgetValue;
 	$: widgetValue = value;
 
-	// https://github.com/gyurielf/svelte-tel-input
-	// add format like  https://svelte-tel-input.vercel.app/
-
-	import TelInput, { normalizedCountries } from 'svelte-tel-input';
+	import { TelInput, normalizedCountries } from 'svelte-tel-input';
+	import type { NormalizedTelNumber, CountryCode, E164Number } from 'svelte-tel-input/types';
 
 	// Any Country Code Alpha-2 (ISO 3166)
-	let selectedCountry = 'DE';
+	let country: CountryCode | null = 'HU';
+	let selectedCountry = null;
 
-	// Optional - Extended information about the parsed phone number
-	let parsedTelInput: { nationalNumber: any } | null = null;
+	// You must use E164 number format. It's guarantee the parsing and storing consistency.
+	//let value: E164Number | null = '+36301234567';
 
-	// import { z } from 'zod';
+    // Validity
+    let valid = true;
 
-	// const schema = z.object({
-	// 	phone: z.string().min(10, 'Phone number is too short')
-	// });
-
-	// const validate = (values) => {
-	// 	try {
-	// 		schema.parse(values);
-	// 		return true;
-	// 	} catch (error) {
-	// 		return false;
-	// 	}
-	// };
-
-	// In your component
-	// let phone = '';
-	let isValid = true;
-
-	// function handleInput(event) {
-	// 	phone = event.target.value;
-	// 	isValid = validate({ phone });
-	// }
+	// Optional - Extended details about the parsed phone number
+	let parsedTelInput: NormalizedTelNumber | null = null;
 </script>
 
-<div class="input-group input-group-divider grid-cols-[auto_1fr_auto]">
+<div class="wrapper">
 	<select
-		class="country-select {!isValid && 'invalid'} "
+		class="country-select {!valid && 'invalid'}"
 		aria-label="Default select example"
 		name="Country"
 		bind:value={selectedCountry}
@@ -59,29 +40,29 @@
 			</option>
 		{/each}
 	</select>
-
-	<!-- TODO: fix typescript -->
-	<TelInput
-		bind:valid={isValid}
-		bind:country={selectedCountry}
-		bind:value
-		bind:parsedTelInput
-		placeholder={field.placeholder}
-		class="basic-tel-input {!isValid && 'invalid'}"
-	/>
+    <TelInput bind:country bind:value bind:valid bind:parsedTelInput class="basic-tel-input {!isValid && 'invalid'}" />
 </div>
 
-<!-- Just to show the nicely parsed phone number to you-->
-<!-- TODO: fix typescript -->
-{#if value && isValid && parsedTelInput?.nationalNumber}
-	<p class="text-center">
-		<span
-			>Saved as E164: <a
-				href="tel:+{normalizedCountries.find((c) => c.iso2 === selectedCountry)
-					.dialCode}{parsedTelInput.nationalNumber}"
-				>+{normalizedCountries.find((c) => c.iso2 === selectedCountry).dialCode}
-				{parsedTelInput.nationalNumber}</a
-			></span
-		>
-	</p>
-{/if}
+<style>
+  .wrapper :global(.basic-tel-input) {
+      height: 32px;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-radius: 6px;
+      border: 1px solid;
+      outline: none;
+  }
+
+  .wrapper :global(.country-select) {
+      height: 36px;
+      padding-left: 12px;
+      padding-right: 12px;
+      border-radius: 6px;
+      border: 1px solid;
+      outline: none;
+  }
+
+  .wrapper :global(.invalid) {
+    border-color: red;
+  }
+</style>

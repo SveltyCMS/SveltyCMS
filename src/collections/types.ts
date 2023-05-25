@@ -1,4 +1,5 @@
 export interface Schema {
+	id(id: any): unknown;
 	name: string;
 	icon?: string;
 	slug?: string;

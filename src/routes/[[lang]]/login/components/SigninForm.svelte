@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Skeleton
 	import { Toast, toastStore } from '@skeletonlabs/skeleton';
+	import type { ToastSettings } from '@skeletonlabs/skeleton';
 
 	// typesafe-i18n
 	import LL from '$i18n/i18n-svelte';
@@ -180,9 +181,13 @@
 								message: $LL.LOGIN_SignInSuccess(),
 								// Optional: Presets for primary | secondary | tertiary | warning
 								//preset: 'success',
+
+								// Provide any utility or variant background style:
+								background: 'variant-filled-primary',
+
 								// Optional: The auto-hide settings
 								autohide: true,
-								timeout: 3000
+								timeout: 2500
 							};
 							toastStore.trigger(t);
 						}

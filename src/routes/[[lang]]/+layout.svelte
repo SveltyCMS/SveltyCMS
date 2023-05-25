@@ -200,7 +200,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 	slotPageHeader="bg-white dark:bg-gradient-to-t border-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 pb-2 relative {toggleTopSideBar
 		? 'hidden'
 		: 'block'} "
-	slotPageFooter="bg-white dark:bg-gradient-to-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 relative h-40 border-t relative {toggleFooter
+	slotPageFooter="bg-white dark:bg-gradient-to-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-800 text-center px-1 h-40 border-t relative {toggleFooter
 		? 'hidden'
 		: 'block'} "
 >
