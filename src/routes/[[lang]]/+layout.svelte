@@ -417,15 +417,22 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 					</form>
 				</div>
 
+				<!-- Collection Builder -->
+				<div class="{switchSideBar ? 'order-5' : 'order-5 hidden'} ">
+					<a href="/builder">
+						<iconify-icon icon="ic:baseline-build" width="26" />
+					</a>
+				</div>
+
 				<!-- Github discussions -->
-				<div class="{switchSideBar ? 'order-5 ml-7' : 'order-5 hidden'} ">
+				<div class="{switchSideBar ? 'order-7' : 'order-7 hidden'} ">
 					<a href="https://github.com/Rar9/SimpleCMS/discussions" target="blank">
-						<iconify-icon icon="game-icons:gear-hammer" width="26" />
+						<iconify-icon icon="grommet-icons:github" width="26" />
 					</a>
 				</div>
 
 				<!-- CMS Version -->
-				<div class={switchSideBar ? 'order-6' : 'order-6 col-span-2'}>
+				<div class={switchSideBar ? 'order-6' : 'order-6  col-span-2'}>
 					<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 						<span
 							class="{switchSideBar
