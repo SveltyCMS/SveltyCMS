@@ -1,15 +1,22 @@
 <script lang="ts">
-	import { date } from 'typesafe-i18n/formatters';
-	import { language } from '$src/stores/store';
+	import type { FieldType } from '.';
+	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let field: any = undefined;
-	export let value = '';
+	export let field: FieldType;
 
-	export let widgetValue;
-	$: widgetValue = value;
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
+
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+
+	export const WidgetData = async () => _data;
 
 	// TODO: Allow User/System to define Date formate
-	let format = 'ddd, MMMM D, YYYY';
+	let format = 'ddd, D MMMM YYYY HH:mm';
 
 	// Use the language variable to determine the desired date format
 	//$: format = date.formats[language];
@@ -41,7 +48,7 @@
 </script>
 
 <!-- TODO: Enhance Date entry -->
-<input type="date" bind:value class="input rounded-md" />
+<input type="date" bind:value={_data[_language]} class="input rounded-md" />
 {#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
+	<p class="text-error-500">{validationError}</p>
 {/if}

@@ -1,25 +1,61 @@
-// Date Widget
-import type { Display } from '../types';
-import type { Date_Field, Date_Params } from './types';
+import Date from './Date.svelte';
+
+import { type Params, GuiSchema } from './types';
+import { defaultContentLanguage } from '@src/stores/store';
+
+// typesafe-i18n
+import { get } from 'svelte/store';
+import LL from '@src/i18n/i18n-svelte.js';
 
 const widget = ({
-	// Defines type of collections
-	db_fieldName,
 	label,
+	db_fieldName,
+	display,
+	translated = false, // default no translation
 	icon,
-	required,
-	display
-}: Date_Params) => {
-	if (!display) display = (data: any, field: any, entry: any) => data;
+	// extras
+	required
+}: Params) => {
+	if (!display) {
+		display = async ({
+			data,
+			collection,
+			field,
+			entry,
+			contentLanguage
+		}: {
+			data: any;
+			collection: any;
+			field: any;
+			entry: any;
+			contentLanguage: string;
+		}) => {
+			// console.log(data);
+			data = data ? data : {}; // data can only be undefined if entry exists in db but this field was not set.
+			return translated
+				? data[contentLanguage] || get(LL).ENTRYLIST_Untranslated()
+				: data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
+		};
+		display.default = true;
+	}
 
-	const field = { schema: {}, db_fieldName, label, icon, required, display } as Date_Field;
-	field.schema[db_fieldName] = 'string';
+	const widget: { type: any; key: 'Date' } = { type: Date, key: 'Date' };
 
-	field.widget = async () => {
-		// @ts-ignore
-		return (await import('./Date.svelte')).default;
+	const field = {
+		display,
+		schema: { [db_fieldName || label]: { String: String } },
+		label,
+		db_fieldName,
+		translated,
+		icon,
+		// extras
+		required
 	};
-	return field;
+
+	return { ...field, widget };
 };
 
+widget.GuiSchema = GuiSchema;
+
+export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

@@ -1,65 +1,54 @@
 <script lang="ts">
-	export let field: any = undefined;
-	export let value = '';
+	import type { FieldType } from '.';
+	import { defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let widgetValue;
-	$: widgetValue = value;
+	export let field: FieldType;
 
-	let isEmailValid = true;
-	let emailRegex =
-		/^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-	function validateEmail(e) {
-		if (!emailRegex.test(e.target.value)) {
-			isEmailValid = false;
-		} else {
-			isEmailValid = true;
-		}
-	}
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
+	//console.log('value: ', value);
+
+	let _data = $mode == 'create' ? {} : value;
+	let _language = defaultContentLanguage;
+
+	export const WidgetData = async () => _data;
 
 	import * as z from 'zod';
 
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		placeholder: field.placeholder,
-		localization: field.localization,
-		required: field.required
-	};
+	const emailSchema = z
+		.string()
+		.email()
+		.refine((value) => value.includes('@'), {
+			message: 'Please enter a valid email address'
+		});
 
-	const emailSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		placeholder: z.string().optional(),
-		localization: z.boolean().optional(),
-		required: z.boolean().optional()
-	});
+	let errorMessage = '';
 
-	let validationError: string | null = null;
-
-	$: validationError = (() => {
+	function validateEmail() {
 		try {
-			emailSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
+			emailSchema.parse(_data[_language]);
+			errorMessage = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				errorMessage = error.errors[0].message;
+			}
 		}
-	})();
+	}
 </script>
 
 <input
-	bind:value
 	type="email"
-	id="email"
-	placeholder={field.placeholder && field.placeholder !== ''
-		? field.placeholder
-		: field.db_fieldName}
-	class="input"
+	bind:value={_data[_language]}
 	on:input={validateEmail}
+	name={field?.db_fieldName}
+	id={field?.db_fieldName}
+	placeholder={field?.placeholder && field?.placeholder !== ''
+		? field?.placeholder
+		: field?.db_fieldName}
+	class="input"
 />
-
-{#if !isEmailValid}
-	<p class="text-red-500">Please enter a valid email address.</p>
-{/if}
-{#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
+{#if errorMessage}
+	<p class="text-center text-sm text-error-500">{errorMessage}</p>
 {/if}

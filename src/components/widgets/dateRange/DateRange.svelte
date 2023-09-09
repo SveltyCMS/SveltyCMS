@@ -1,36 +1,37 @@
 <script lang="ts">
-	export let field: any = undefined;
-	export let value = '';
+	import type { FieldType } from '.';
+	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let widgetValue: any;
-	$: widgetValue = value;
+	export let field: FieldType;
 
-	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
-	import dayjs from 'dayjs';
-	// import 'dayjs/locale/fr';
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
 
-	// if (dayjs.isDayjsLocale(PUBLIC_TRANSLATIONS)) {
-	// 	dayjs.locale(PUBLIC_TRANSLATIONS);
-	// } else {
-	// 	console.log('Invalid locale');
-	// }
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
 
-	const today: Date = new Date();
-	const tomorrow: Date = dayjs().add(1, 'day').toDate();
+	export const WidgetData = async () => _data;
+
+	// TODO: Allow User/System to define Date formate
+	let format = 'ddd, MMMM D, YYYY';
+
+	// Use the language variable to determine the desired date format
+	//$: format = date.formats[language];
 
 	import * as z from 'zod';
 
 	var widgetValueObject = {
 		db_fieldName: field.db_fieldName,
 		icon: field.icon,
-		format: field.format,
 		required: field.required
 	};
 
-	const dateRangeSchema = z.object({
+	const dateSchema = z.object({
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
-		format: z.string().optional(),
 		required: z.boolean().optional()
 	});
 
@@ -38,7 +39,7 @@
 
 	$: validationError = (() => {
 		try {
-			dateRangeSchema.parse(widgetValueObject);
+			dateSchema.parse(widgetValueObject);
 			return null;
 		} catch (error) {
 			return (error as Error).message;
@@ -46,12 +47,13 @@
 	})();
 </script>
 
-<input
-	type="date"
-	bind:value={widgetValue}
-	min={today.toISOString().substring(0, 10)}
-	max={tomorrow.toISOString().substring(0, 10)}
-/>
+<!-- TODO: Enhance Date entry -->
+<label for="start-date">Start Date:</label>
+<input id="start-date" type="date" bind:value={_data[_language]} class="input rounded-md" />
+
+<label for="end-date">End Date:</label>
+<input id="end-date" type="date" bind:endDateValue class="input rounded-md" />
+
 {#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
+	<p class="text-error-500">{validationError}</p>
 {/if}

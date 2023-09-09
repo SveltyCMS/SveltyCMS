@@ -1,15 +1,14 @@
 /**
- * Copyright (c) Syed Umar Anis
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
  *
  * This source code is licensed under the MIT license found in the
  * LICENSE file in the root directory of this source tree.
  *
  */
 
-//import type { EditorThemeClasses } from 'svelte-lexical';
+//import type { EditorThemeClasses } from 'lexical';
 
 import './PlaygroundEditorTheme.css';
-// TODO: Trim the code below to remove irrelevant styles
 
 const theme = {
 	blockCursor: 'PlaygroundEditorTheme__blockCursor',
@@ -61,6 +60,8 @@ const theme = {
 		h6: 'PlaygroundEditorTheme__h6'
 	},
 	image: 'editor-image',
+	indent: 'PlaygroundEditorTheme__indent',
+	inlineImage: 'inline-editor-image',
 	link: 'PlaygroundEditorTheme__link',
 	list: {
 		listitem: 'PlaygroundEditorTheme__listItem',
@@ -98,6 +99,7 @@ const theme = {
 	tableCellSortedIndicator: 'PlaygroundEditorTheme__tableCellSortedIndicator',
 	tableResizeRuler: 'PlaygroundEditorTheme__tableCellResizeRuler',
 	tableSelected: 'PlaygroundEditorTheme__tableSelected',
+	tableSelection: 'PlaygroundEditorTheme__tableSelection',
 	text: {
 		bold: 'PlaygroundEditorTheme__textBold',
 		code: 'PlaygroundEditorTheme__textCode',

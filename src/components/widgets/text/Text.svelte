@@ -1,64 +1,42 @@
 <script lang="ts">
-	import type { Text_Field } from './types';
+	import type { FieldType } from '.';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	import { language } from '$src/stores/store';
-	import { PUBLIC_LANGUAGE } from '$env/static/public';
+	export let field: FieldType;
 
-	export let field: Text_Field;
-	export let value: string = '';
-	export let widgetValue: any = {};
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
+	// console.log('entryData', $entryData);
+	// console.log('value', value);
 
-	// Set default values
-	$: !value && (value = '');
-	$: widgetValue = value || {};
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
 
-	// Set language
-	$: _language = field.localization ? $language : PUBLIC_LANGUAGE;
-
-	// zod validation gete data from colections
-	import * as z from 'zod';
-
-	// check if Input & collection where defined right
-	const Text_Field_Schema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		prefix: z.string().optional(),
-		suffix: z.string().optional(),
-		count: z.number().optional(),
-		minlength: z.number().optional(),
-		maxlength: z.number().optional(),
-		placeholder: z.string().optional(),
-		localization: z.boolean().optional(),
-		required: z.boolean().optional(),
-		disabled: z.boolean().optional(),
-		readonly: z.boolean().optional()
-	});
-
-	console.log(Text_Field_Schema.parse(field));
+	export const WidgetData = async () => _data;
 
 	// Reactive statement to update count
-	$: count = widgetValue[_language]?.length ?? 0;
-
+	$: count = _data[_language]?.length ?? 0;
 	const getBadgeClass = (length: number) => {
-		if (field.minlength && length < field.minlength) {
-			return 'bg-red-600 text-white';
-		} else if (field.maxlength && length > field.maxlength) {
-			return 'bg-red-600 text-white';
-		} else if (field.count && length === field.count) {
-			return 'bg-green-600 text-white';
-		} else if (field.count && length > field.count) {
-			return 'bg-orange-600 text-white';
-		} else if (field.minlength) {
-			return 'border bg-surface-600 text-white';
+		if (field?.minlength && length < field?.minlength) {
+			return 'bg-red-600';
+		} else if (field?.maxlength && length > field?.maxlength) {
+			return 'bg-red-600';
+		} else if (field?.count && length === field?.count) {
+			return 'bg-green-600';
+		} else if (field?.count && length > field?.count) {
+			return 'bg-orange-600';
+		} else if (field?.minlength) {
+			return '!variant-filled-surface';
 		} else {
-			return 'bg-surface-600 text-white dark:bg-white dark:text-surface-600';
+			return '!variant-ghost-surface';
 		}
 	};
 
 	let valid = true;
-
 	function checkRequired() {
-		if (field.required && widgetValue == '') {
+		if (field?.required && _data == '') {
 			valid = false;
 		} else {
 			valid = true;
@@ -66,76 +44,73 @@
 	}
 </script>
 
-<div class="input-group grid-cols-[auto_1fr_auto]">
-	{#if field.prefix}
-		<div class="text-surface-600 dark:text-surface-200 sm:!pr-[1rem] !pr-0">{field.prefix}</div>
+<div class="btn-group variant-filled-surface flex w-full rounded">
+	{#if field?.prefix}
+		<button class=" !px-2">{field?.prefix}</button>
 	{/if}
 
 	<input
-		bind:value={widgetValue[_language]}
-		on:input={checkRequired}
 		type="text"
-		name={field.db_fieldName}
-		id={field.db_fieldName}
-		placeholder={field.placeholder && field.placeholder !== ''
-			? field.placeholder
-			: field.db_fieldName}
-		required={field.required}
-		disabled={field.disabled}
-		readonly={field.readonly}
-		minlength={field.minlength}
-		maxlength={field.maxlength}
-		class="input w-full {field.suffix ? '' : 'col-span-2'}"
+		bind:value={_data[_language]}
+		on:input={checkRequired}
+		name={field?.db_fieldName}
+		id={field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== ''
+			? field?.placeholder
+			: field?.db_fieldName}
+		required={field?.required}
+		disabled={field?.disabled}
+		readonly={field?.readonly}
+		minlength={field?.minlength}
+		maxlength={field?.maxlength}
+		class="input flex-1 rounded-none"
 	/>
-	{#if field.count || field.minlength || field.maxlength || field.suffix}
-		<div class="-mx-1 flex text-surface-600 dark:text-surface-200 sm:!pl-[1rem] !pl-0">
-			<!-- badge with count -->
-			{#if field.count || field.minlength || field.maxlength}
-				{#if field.suffix}
-					<span class="badge -my-1 -mx-1 mr-1 {getBadgeClass(count)}">
-						{#if field.count && field.minlength && field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.count && field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.count && field.minlength}
-							{count}/{field.minlength}
-						{:else if field.minlength && field.maxlength}
-							{count}/{field.maxlength} (min {field.minlength})
-						{:else if field.count}
-							{count}/{field.count}
-						{:else if field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.minlength}
-							{count} (min {field.minlength})
-						{/if}
-					</span>
-				{:else}
-					<span class="badge -my-1 -mx-1 mr-1 {getBadgeClass(count)}">
-						{#if field.count && field.minlength && field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.count && field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.count && field.minlength}
-							{count}/{field.minlength}
-						{:else if field.minlength && field.maxlength}
-							{count}/{field.maxlength} (min {field.minlength})
-						{:else if field.count}
-							{count}/{field.count}
-						{:else if field.maxlength}
-							{count}/{field.maxlength}
-						{:else if field.minlength}
-							{count} (min {field.minlength})
-						{/if}
-					</span>
-				{/if}
+
+	<!-- suffix -->
+	{#if field?.suffix}
+		<button class="!px-1">
+			{#if field?.count || field?.minlength || field?.maxlength}
+				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
+					{#if field?.count && field?.minlength && field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.count && field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.count && field?.minlength}
+						{count} => {field?.minlength}
+					{:else if field?.minlength && field?.maxlength}
+						{count} => {field?.minlength}/{field?.maxlength}
+					{:else if field?.count}
+						{count}/{field?.count}
+					{:else if field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.minlength}
+						min {field?.minlength}
+					{/if}
+				</span>
 			{/if}
-			<!-- suffix -->
-			{#if field.suffix}
-				<span class="-mr-1 text-surface-600 dark:text-surface-200">{field.suffix}</span>
+			{field?.suffix}
+		</button>
+	{:else if field?.count || field?.minlength || field?.maxlength}
+		<span class="badge rounded-none {getBadgeClass(count)}">
+			{#if field?.count && field?.minlength && field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.count && field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.count && field?.minlength}
+				{count} => {field?.minlength}
+			{:else if field?.minlength && field?.maxlength}
+				{count} => {field?.minlength}/{field?.maxlength}
+			{:else if field?.count}
+				{count}/{field?.count}
+			{:else if field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.minlength}
+				min {field?.minlength}
 			{/if}
-		</div>
+		</span>
 	{/if}
 </div>
+
 {#if !valid}
-	<p class="text-red-500">Field is required.</p>
+	<p class="text-error-500">Field is required.</p>
 {/if}

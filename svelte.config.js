@@ -1,34 +1,45 @@
-import adapter from '@sveltejs/adapter-node';
+import adapter from '@sveltejs/adapter-node'; // To generate a standalone Node server
 import { vitePreprocess } from '@sveltejs/kit/vite';
 
 /** @type {import('@sveltejs/kit').Config} */
 const config = {
-	// Consult https://github.com/sveltejs/svelte-preprocess
+	// Consult https://kit.svelte.dev/docs/integrations#preprocessors
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
 	kit: {
-		adapter: adapter(),
-
-		alias: {
-			$i18n: 'src/lib/i18n',
-			$src: 'src/'
+		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
+		adapter: adapter({
+			out: 'build', // default: true | The directory to build the server to
+			precompress: true, // default: false | Enables precompressing using gzip &  brotli for assets & prerendered pages
+			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
+			polyfill: false // default: true | should be disabled when using Node 18.11 or greatere
+		}),
+		csrf: {
+			checkOrigin: false // default: true | Protection against cross-site request forgery (CSRF) attacks.
+		},
+		files: {
+			// ... other file options
+			routes: 'src/routes' // Make sure routes are in a folder named 'routes'
 		}
 	},
-	// remove inspector for production
+
+	// plugin options
 	vitePlugin: {
-		experimental: {
-			inspector: {
-				// change shortcut
-				toggleKeyCombo: 'meta-shift',
-				// hold and release key to toggle inspector mode
-				holdMode: true,
-				// show or hide the inspector option
-				showToggleButton: 'always',
-				// inspector position
-				toggleButtonPos: 'bottom-right'
-			}
-		}
+		// remove inspector for production
+		inspector: {
+			// change shortcut
+			toggleKeyCombo: 'meta-shift',
+			// hold and release key to toggle inspector mode
+			holdMode: true,
+			// show or hide the inspector option
+			showToggleButton: 'always',
+			// inspector position
+			toggleButtonPos: 'bottom-right'
+		},
+		exclude: [],
+		// experimental options
+		experimental: {}
 	}
 };
 

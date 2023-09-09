@@ -1,130 +1,120 @@
 <script lang="ts">
-	import Fields from '$src/components/Fields.svelte';
-	import { findById, find } from '$src/lib/utils/utils';
-	import { shape_fields, saveSimpleData } from '$src/lib/utils/utils_svelte';
-	import { getFieldsData, language } from '$src/stores/store';
+	import type { FieldType } from '.';
+	import { entryData, mode } from '@src/stores/store';
+	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
+	import DropDown from './DropDown.svelte';
+	import Fields from '@src/components/Fields.svelte';
+	import { contentLanguage, collection } from '@src/stores/store';
 
-	import DropDown from '$src/components/DropDown.svelte';
+	export let field: FieldType;
+	let fieldName = getFieldName(field);
+	export const value = $entryData[fieldName];
+	export let expanded = false;
 
-	// Skeleton
-	import { popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	// Popup Tooltips
-	let EditSettings: PopupSettings = {
-		event: 'hover',
-		target: 'EditPopup',
-		placement: 'bottom'
-	};
-	let AddNewSettings: PopupSettings = {
-		event: 'hover',
-		target: 'AddNewPopup',
-		placement: 'bottom'
-	};
-
-	// typesafe-i18n
-	import LL from '$i18n/i18n-svelte';
-
-	export let field: any;
-	export let value: any;
-	export let widgetValue: string | null; // is relative data id
-	$: widgetValue = typeof value == 'string' ? value : widgetValue; // widgetvalue is id, type is String, we need to update it later when value is changed.
-	export let root = true;
-
-	let expanded = false;
-	let inputFields: HTMLDivElement[] = [];
-	let fieldsValue = {};
+	let dropDownData: any;
+	let selected: { display: any; _id: any } | undefined = undefined;
+	let fieldsData = {};
 	let showDropDown = false;
-	let selectedField: any;
-	let selected: any;
-	let fields: any;
-	$: selected
-		? ((selectedField = selected.item), (widgetValue = selected._id))
-		: (selectedField = null);
-	let dropDownData: any = [];
-	let display: any;
+	let entryMode: 'create' | 'edit' | 'choose' = 'choose';
+	let relation_entry: { _id: any };
 
-	let getData = async () => {
-		let obj: any = {};
-		if (!selected) {
-			let relationField = fieldsValue;
-			widgetValue =
-				(await saveSimpleData(field.relation, relationField, widgetValue as string, !widgetValue))
-					.data[0]?._id || widgetValue;
+	export const WidgetData = async () => {
+		let relation_id = '';
+		if (!field) return;
+		if (entryMode == 'create') {
+			relation_id = (
+				await saveFormData({ data: fieldsData, _collection: field.relation, _mode: 'create' })
+			)[0]?._id;
+			//console.log(relation_id);
+		} else if (entryMode == 'choose') {
+			relation_id = selected?._id;
+		} else if (entryMode == 'edit') {
+			relation_id = (
+				await saveFormData({
+					data: fieldsData,
+					_collection: field.relation,
+					_mode: 'edit',
+					id: relation_entry._id
+				})
+			)[0]?._id;
+		}
+		return relation_id;
+	};
+
+	async function openDropDown() {
+		if (!field) return;
+		dropDownData = await find({}, field.relation);
+		showDropDown = true;
+		entryMode = 'choose';
+	}
+
+	let display = '';
+
+	$: (async (_) => {
+		let data;
+		if ($mode == 'edit' && field) {
+			if (entryMode == 'edit' || entryMode == 'create') {
+				data = await extractData(fieldsData);
+			} else if (entryMode == 'choose') {
+				data = await findById($entryData[getFieldName(field)], field.relation);
+			}
+			!relation_entry && (relation_entry = data);
 		} else {
-			widgetValue = selected._id;
+			data = await extractData(fieldsData);
 		}
-		obj[field.db_fieldName] = widgetValue;
-	};
-	let _ = async (_language: string) => {
-		if (value && typeof value == 'string') {
-			value = await findById(value, field.relation);
-		}
-		//if we dont have display from entrylist already, generate new one
-		display = (await field.rawDisplay(value))[_language];
-	};
-	$: _($language);
-
-	if (root) $getFieldsData.add(getData); // extra push needed because getData gets pushed to executed functions when fields are expanded so choosing wont work without.
-	shape_fields(field.relation.fields).then((data) => (fields = data));
+		display = await field?.display({
+			data,
+			field,
+			collection: $collection,
+			entry: $entryData,
+			contentLanguage: $contentLanguage
+		});
+	})(expanded);
 </script>
 
-{#if !expanded}
-	<div class="flex items-center justify-center gap-1 rounded-lg bg-surface-200 dark:bg-surface-500">
-		<p
-			on:click={async () => {
-				!dropDownData.length && (dropDownData = await find({}, field.relation));
-				showDropDown = !showDropDown;
-			}}
-			class="w-full cursor-pointer text-center text-black"
+{#if !expanded && !showDropDown}
+	<div class="flex">
+		<button type="button" on:keydown on:click={openDropDown}
+			>{selected?.display || display || 'select new'}</button
 		>
-			{selectedField || display || $LL.WIDGET_Relation_ChoseExisting()}
-		</p>
-		<button
-			use:popup={EditSettings}
-			on:click={() => {
-				value = null;
-				widgetValue = null;
-				selected = null;
-				display = null;
-			}}
-			class="btn"><iconify-icon icon="bi:pencil-fill" width="22" /></button
-		>
-		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled-secondary p-4" data-popup="EditPopup">
-			{$LL.WIDGET_Relation_Edit()}
-			{collection.name}
-			<div class="arrow variant-filled-secondary" />
-		</div>
 
 		<button
-			use:popup={AddNewSettings}
+			type="button"
 			on:click={() => {
 				expanded = !expanded;
-				selected = null;
+				entryMode = 'edit';
+				fieldsData = {};
+				selected = undefined;
 			}}
-			class="btn mr-1"
-			><iconify-icon icon="ic:baseline-plus" width="22" />
-			<!-- Popup Tooltip with the arrow element -->
-			<div class="card variant-filled-secondary p-4" data-popup="AddNewPopup">
-				{$LL.WIDGET_Relation_AddNew()}
-				{collection.name}
-				<div class="arrow variant-filled-secondary" />
-			</div>
+			class="variant-ghost-surface btn-icon"
+		>
+			<iconify-icon icon="bi:pencil-fill" width="24" />
+		</button>
+
+		<button
+			type="button"
+			on:click={() => {
+				expanded = !expanded;
+				entryMode = 'create';
+				fieldsData = {};
+				selected = undefined;
+			}}
+			class="variant-ghost-surface btn-icon"
+		>
+			<iconify-icon icon="ic:baseline-plus" width="24" />
 		</button>
 	</div>
-
-	<DropDown bind:showDropDown {dropDownData} bind:selected display={field.rawDisplay} />
+{:else if !expanded && showDropDown}
+	<DropDown {dropDownData} {field} bind:selected bind:showDropDown />
 {:else}
-	<div class="relative my-4 rounded-lg border-2 border-[#8cccff] p-[20px]">
-		<button
-			on:click={() => {
-				expanded = !expanded;
-				selected = null;
-			}}
-			class="btn absolute top-0 right-0 z-10">X</button
-		>
+	<Fields
+		fields={field?.relation.fields}
+		root={false}
+		bind:fieldsData
+		customData={relation_entry}
+	/>
 
-		<Fields {getData} bind:inputFields bind:fieldsValue value={selected || value} {fields} />
-	</div>
+	<button type="button" on:click={() => (expanded = false)} class="variant-filled-primary btn">
+		<iconify-icon icon="material-symbols:save" width="24" />Save
+	</button>
 {/if}

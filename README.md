@@ -6,7 +6,7 @@
  </p>
 
 <h1 align="center"><strong>SimpleCMS</strong></h1>
-<p align="center"><strong>(Still in Development - Support always Appriciated!!)</strong></>
+<p align="center"><strong>(Still in Development - Support always Appreciated!!)</strong></>
 
 <p align="center">
   <img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS">
@@ -35,19 +35,19 @@
 
 <h2 align="center">A powerful Headless CMS with sveltekit power</h2>
 
-<h3 align="center"><strong>It's fast, flexible and an easy to use modern content mangement system to provide a headless backend </strong></h3>
+<h3 align="center"><strong>It's fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
 
 This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 
 New Collections can easily be implemented, due to full typescript support with already many support available widgets.
 
-All fields offer full translations, and customisation as well as access restiction handeled by Lucia auth.
+All fields offer full translations, and customization as well as access restriction handled by Lucia auth.
 
-The System langauge uses typesave-i18n with inlang for providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to suport further languages.
+The System language uses typesave-i18n with inlang for providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to support further languages.
 
-We used tailwindcss and a skeleton UI tookit, so the CMS can be quickly optimised.
+We used tailwindcss and a skeleton UI toolkit, so the CMS can be quickly optimized.
 
-Data is provided via yoga graphql, to build extremely fast frontends
+Data is provided via yoga graphql, to build extremely fast frontend
 
 ## :rocket: Setup
 
@@ -82,7 +82,7 @@ pnpm dev
 
 We want to keep your data Private and Secure.
 
-[Lucai Auth](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
+[Lucia Auth](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
 You can sign by email, github oauth and also enable 2FA for an extra layer of protection.
 
@@ -92,7 +92,7 @@ Field-based content access enables the allocation of varying levels of access to
 
 If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `theme.postcss` to your needs
 
-## :earth_africa: Greate System Localization infrastructure
+## :earth_africa: Great System Localization infrastructure
 
 We use [Typesafe-i18n ](https://github.com/ivanhofer/typesafe-i18n) and [inlang](https://inlang.com/) for System Translations.
 

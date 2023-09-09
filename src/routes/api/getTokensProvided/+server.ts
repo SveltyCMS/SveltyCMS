@@ -6,11 +6,14 @@ import {
 } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
-	var tokensProvided = {
+	// Initialize tokensProvided object
+	const tokensProvided = {
 		google: false,
 		twitch: false,
 		tiktok: false
 	};
+
+	// Check if API keys/tokens are provided and update tokensProvided object accordingly
 	if (SECRET_GOOGLE_API_KEY) {
 		tokensProvided.google = true;
 	}
@@ -21,5 +24,6 @@ export const GET: RequestHandler = async () => {
 		tokensProvided.tiktok = true;
 	}
 
+	// Return tokensProvided object as JSON response
 	return json({});
 };

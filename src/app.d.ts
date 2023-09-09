@@ -1,42 +1,43 @@
-/// <reference types="lucia-auth" />
-declare namespace Lucia {
-    type Auth = import('$lib/server/lucia').Auth;
+// See https://kit.svelte.dev/docs/types#app
+// for information about these interfaces
+// and what to do when importing types
+declare global {
+	/// <reference types="lucia" />
+	declare namespace Lucia {
+		type Auth = import('@src/routes/api/db.ts').Auth;
+		type DatabaseUserAttributes = {};
+		type DatabaseSessionAttributes = {};
+	}
 
-    const roles = process.env.PUBLIC_USER_ROLES.split(',');
+	/// <reference path="./types/**/*.d.ts" />
+	declare type Item = import('svelte-dnd-action').Item;
+	declare type DndEvent<ItemType = Item> = import('svelte-dnd-action').DndEvent<ItemType>;
+	declare namespace svelteHTML {
+		interface HTMLAttributes<T> {
+			'on:consider'?: (
+				event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }
+			) => void;
+			'on:finalize'?: (
+				event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }
+			) => void;
+		}
+	}
 
-    type UserAttributes = {
-        _id: any;
-        userId: any;
-        email: string;
-        role: (typeof roles)[number];
-        username: string | undefined;
-        firstname: string | undefined;
-        lastname: string | undefined;
-        avatar: string | undefined;
-        resetRequestedAt: Date | undefined;
-        resetToken: string | undefined;
-        lastActiveAt: string | undefined;
-    };
+	namespace App {
+		// interface Error {}
+		// interface Locals {}
+		// interface PageData {}
+		// interface Platform {}
+	}
+
+	type DISPLAY = (({
+		data: any,
+		collection: any,
+		field: any,
+		entry: any,
+		contentLanguage: string
+	}) => Promise<any>) & { default?: boolean };
 }
 
-/// <reference types="@sveltejs/kit" />
-// See https://kit.svelte.dev/docs/types#the-app-namespace
-declare namespace App {
-    interface Locals {
-        // lucia
-        user: Lucia.UserAttributes | null;
-
-        // i18n
-        locale: import('$i18n/i18n-types').Locales;
-        LL: import('$i18n/i18n-types').TranslationFunctions;
-    }
-
-    interface Platform {
-    }
-
-    interface Session {
-    }
-
-    interface Stuff {
-    }
-}
+// THIS IS IMPORTANT!!!
+export {};

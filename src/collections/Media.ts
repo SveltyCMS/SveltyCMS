@@ -1,18 +1,24 @@
 import widgets from '../components/widgets';
-import { PUBLIC_LANGUAGE } from '$env/static/public';
+import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
-	// Collection Name & Icon (optional) shown on Sidebar
-	// See for possible Icons https://icon-sets.iconify.design/
-	name: 'Media',
-	icon: 'bi:menu-button-wide',
-	slug: 'media',
+	// Collection Name comming from filename
 
-	status: 'published',
+	// Optional & Icon , status, slug
+	// See for possible Icons https://icon-sets.iconify.design/
+	icon: 'bi:images',
+
+	// Collection Permissions by user Roles
+
 	// Defined Fields that are used in Collection
-	// Inspect Widget fields for possible options
-	fields: [widgets.ImageUpload({ db_fieldName: 'Upload Image', path: 'media/images' })]
+	// Widget fields can be inspected for individual options
+	fields: [
+		widgets.ImageUpload({
+			label: 'image',
+			path: 'global'
+		})
+	]
 };
 
 export default schema;

@@ -1,26 +1,25 @@
-import type { Schema } from '../../../collections/types';
-import type { Display } from '../types';
+import type { Schema } from '@src/collections/types';
 
-export type Relation_Params = {
-	// Defines type of collections
-	db_fieldName: string;
-	label?: string;
-	icon?: string;
-	required?: boolean;
+import GuiField from './GuiField.svelte';
+
+export type Params = {
+	label: string;
+	display?: DISPLAY;
+	db_fieldName?: string;
+	// Widget Specific parameters
+	widget?: any;
+	schema?: any;
 	relation: Schema;
-
-	display?: Display;
 };
 
-export type Relation_Field = {
-	widget: () => {};
-	schema: { [Key: string]: any };
-	db_fieldName: string;
-	label?: string;
-	icon: string | undefined;
-	strict: boolean;
-	required: boolean | undefined;
-	relation: Schema;
-	display: Display;
-	rawDisplay: Display;
+export const GuiSchema = {
+	label: { widget: FloatingInput, required: true },
+	display: { widget: FloatingInput, required: true },
+	db_fieldName: { widget: FloatingInput, required: true },
+	// Widget Specific parameters
+	relation: {
+		widget: GuiField,
+		required: true,
+		imports: ['import {relation} from "./{relation}"']
+	}
 };

@@ -1,26 +1,42 @@
 <script lang="ts">
-	export let field: any = undefined;
-	export let value = '';
+	import type { FieldType } from '.';
 
-	export let widgetValue;
-	$: widgetValue = value;
+	import { defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	$: if (value) {
-		console.log(value);
-	}
+	export let field: FieldType;
+
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
+
+	let _data = $mode == 'create' ? {} : value;
+	let _language = defaultContentLanguage;
+	let valid = true;
+	export const WidgetData = async () => _data;
 
 	export let myData: any = null;
-
 	$: myData;
+
 	const handleSubmit = async (event: Event) => {
-		const formData = new FormData();
-		formData.append('url', value);
-		const response = fetch('/api/video', {
-			method: 'POST',
-			body: formData
-		});
-		const data = await (await response).json();
-		myData = data;
+		console.log('handleSubmit called');
+
+		try {
+			const formData = new FormData();
+			formData.append('url', encodeURIComponent(value.trim())); // Encode and trim the URL
+			const response = await fetch('/api/video', {
+				method: 'POST',
+				body: formData
+			});
+			console.log('API Response:', response);
+
+			const data = await response.json();
+			console.log('API Data:', data);
+
+			myData = data;
+		} catch (error) {
+			console.error('Error:', error);
+		}
 	};
 
 	import * as z from 'zod';
@@ -52,19 +68,26 @@
 </script>
 
 <input
-	required
-	placeholder="Paste a Video URL here"
-	type="text"
-	name="url"
+	type="url"
 	bind:value
 	on:blur={handleSubmit}
-	class="input w-full rounded-md"
+	name={field?.db_fieldName}
+	id={field?.db_fieldName}
+	placeholder={field?.placeholder && field?.placeholder !== ''
+		? field?.placeholder
+		: field?.db_fieldName}
+	required={field?.required}
+	class="input flex-1 rounded-none"
 />
 
+{#if !valid}
+	<p class="text-error-500">Field is required.</p>
+{/if}
+
 {#if myData?.videoUrl}
-	<div class="rounded overflow-hidden shadow-lg md:flex md:flex-row">
+	<div class="overflow-hidden rounded shadow-lg md:flex md:flex-row">
 		<div class="px-6 py-4 md:w-1/2">
-			<div class="font-bold text-xl mb-2 text-primary-500">{myData?.videoTitle}</div>
+			<div class="mb-2 text-xl font-bold text-primary-500">{myData?.videoTitle}</div>
 			<table class="text-base">
 				<tr>
 					<td class="pr-4">User:</td>
@@ -83,7 +106,7 @@
 				href={myData?.videoUrl}
 				target="_blank"
 				rel="noreferrer"
-				class="btn btn-sm mt-4 variant-filled-tertiary"
+				class="variant-filled-tertiary btn btn-sm mt-4"
 			>
 				<span><iconify-icon icon="material-symbols:play-circle-outline" width="18" /></span>
 				<span>Watch Video</span>
@@ -91,7 +114,7 @@
 		</div>
 		<a href={myData?.videoUrl} target="_blank" rel="noreferrer">
 			<img
-				class="mt-1 w-full md:w-1/2 md:h-auto"
+				class="mt-1 w-full md:h-auto md:w-1/2"
 				data-sveltekit-preload-data="hover"
 				src={myData?.videoThumbnail}
 				alt={myData?.videoTitle}

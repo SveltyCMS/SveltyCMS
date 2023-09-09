@@ -1,83 +1,136 @@
 <script lang="ts">
 	import axios from 'axios';
+	import type { FieldType } from './';
+	import { entryData, mode, loadingProgress } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
+	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
+	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 
-	import { FileDropzone } from '@skeletonlabs/skeleton';
+	let _data: FileList;
+	let updated = false;
 
-	export let field = { db_fieldName: '', path: '' };
-	//value is File when used inside imageArray, is dbObject when shown from entrylist.
-	export let value: any = {};
-	export let widgetValue: FileList;
+	export let field: FieldType;
+	console.log('field', field);
+	export const WidgetData = async () => (updated ? _data : null);
+	console.log('WidgetData', WidgetData);
+	export let file: File | undefined = undefined; // pass file directly from imageArray
+	console.log('file', file);
 
-	$: console.log(widgetValue);
+	let fieldName = getFieldName(field);
+	let optimizedFileName: string | undefined = undefined;
+	let optimizedFileSize: number | undefined = undefined;
+	let optimizedMimeType: string | undefined = undefined;
+	let hashValue: string | undefined; // Explicitly define the type
 
-	function setFile(node: HTMLInputElement) {
-		node.onchange = (e) => (widgetValue = (e.target as HTMLInputElement).files as FileList);
-		if (!value) return;
+	async function setFile(event: Event) {
+		const node = event.target as HTMLInputElement;
 
-		if (value.type) {
-			let fileList = new DataTransfer();
-			fileList.items.add(value);
-			widgetValue = node.files = fileList.files;
-		} else {
-			axios
-				.get(`${field.path}/${value.originalname}`, { responseType: 'blob' })
-				.then(({ data }) => {
-					let fileList = new DataTransfer();
-					let file = new File([data], value.originalname, {
-						type: value.mimetype
-					});
-					fileList.items.add(file);
-					widgetValue = node.files = fileList.files;
+		// Reset loading progress
+		loadingProgress.set(0);
+
+		if (node.files?.length === 0) {
+			//console.log('setFile:', 'No files selected');
+			return;
+		}
+
+		// Handle file selection
+		const handleFileSelection = async (files: FileList) => {
+			console.log('handleFileSelection:', 'Function called');
+
+			updated = true;
+			_data = files;
+
+			// All files processed, set loading progress to 100%
+			loadingProgress.set(100);
+		};
+
+		// Check if the input has files selected
+		if (node.files) {
+			handleFileSelection(node.files);
+		} else if (file instanceof File) {
+			const fileList = new DataTransfer();
+			fileList.items.add(file);
+			handleFileSelection(fileList.files);
+
+			//TODO: Image Preview not working for edit anymore
+		} else if ($mode === 'edit') {
+			console.log('mode edit:', $mode);
+			console.log('entryData:', $entryData[fieldName]);
+			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
+				const fileList = new DataTransfer();
+				console.log('fileList:', fileList);
+				// Return Thumbnail Image
+				const file = new File([data], $entryData[fieldName].thumbnail.name, {
+					type: $entryData[fieldName].mimetype
 				});
+				fileList.items.add(file);
+				handleFileSelection(fileList.files);
+			});
 		}
+
+		// All files processed, set loading progress to 100%
+		loadingProgress.set(100);
 	}
-
-	import * as z from 'zod';
-
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		path: field.path
-	};
-
-	const imageUploadSchema = z.object({
-		db_fieldName: z.string(),
-		path: z.string().optional()
-	});
-
-	let validationError: string | null = null;
-
-	$: validationError = (() => {
-		try {
-			imageUploadSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
-		}
-	})();
 </script>
 
-<input
-	use:setFile
-	hidden={!!widgetValue}
-	name={field.db_fieldName}
-	class="w-full cursor-pointer rounded-lg border border-surface-300 bg-surface-50 text-sm text-surface-900 focus:outline-none dark:border-surface-600 dark:bg-surface-700 dark:text-surface-400 dark:placeholder-surface-400"
-	type="file"
-/>
-<!-- TODO: Add DropZone for better User experiance-->
-<FileDropzone />
+<FileDropzone name={fieldName} accept="image/*,image/webp,image/avif,image/svg+xml" on:change={setFile} slotMeta="opacity-100">
+	<svelte:fragment slot="lead"
+		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />{/if}</svelte:fragment
+	>
+	<svelte:fragment slot="message">
+		{#if !_data}<span class="font-bold text-primary-500">Upload a file</span> or drag & drop
+		{:else}<span class="font-bold text-primary-500">Replace {_data[0].name}</span> or drag & drop
+		{/if}
+	</svelte:fragment>
+	<svelte:fragment slot="meta">
+		{#if !_data}<p class="mt-1 text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>{/if}
+		<!-- Image preview and file info-->
+		{#if _data}
+			<div class="flex flex-col items-center !opacity-100 md:flex-row">
+				<div class="flex justify-center md:mr-4">
+					<img src={URL.createObjectURL(_data[0])} alt="" class="mt-4 h-60 rounded-md border" />
+				</div>
+				<div class="mt-2 text-center md:text-left">
+					<p class="text-lg font-semibold text-primary-500">Uploaded File:</p>
+					<p>Uploaded File: <span class="text-primary-500">{_data[0].name}</span></p>
+					<p>
+						File size: <span class="text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+					</p>
+					<p>MIME type: <span class="text-primary-500">{_data[0].type}</span></p>
 
-{#if widgetValue}
-	<img src={URL.createObjectURL(widgetValue[0])} alt="" />
-{/if}
-{#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
-{/if}
+					<br />
 
-<style>
-	img {
-		max-width: 600px;
-		max-height: 200px;
-		margin: auto;
-		margin-top: 10px;
-	}
-</style>
+					<!-- Display loading progress -->
+					{#if $loadingProgress != 100}
+						<ProgressBar label="Image Optimization" value={$loadingProgress} max={100} meter="bg-surface-900-50-token" />
+
+						<!-- Display optimized image information -->
+						<p class="text-lg font-semibold text-primary-500">
+							Optimized as <span class="uppercase">{PUBLIC_MEDIA_OUTPUT_FORMAT}: </span>
+						</p>
+						<!-- Display optimized status once the WebP/AVIF file is generated -->
+						<p>Uploaded File: <span class="text-primary-500">{optimizedFileName}</span></p>
+						<p>
+							File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+						</p>
+
+						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
+						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
+					{:else if optimizedFileName}
+						<!-- display optimized on mode edit -->
+
+						<!-- Display optimized status once the WebP/AVIF file is generated -->
+						<p>File Name: <span class="text-primary-500">{optimizedFileName}</span></p>
+						<p>
+							File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+						</p>
+
+						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
+						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
+					{/if}
+				</div>
+			</div>
+		{/if}
+	</svelte:fragment>
+</FileDropzone>
+<!-- {#if _data}data {_data[0].name}{/if} -->

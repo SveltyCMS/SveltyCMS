@@ -1,53 +1,78 @@
-import { Schema } from 'mongoose';
-import { number } from 'zod';
-import type { Display } from '../types';
-import type { Currency_Field, Currency_Params } from './types';
+import Currency from './Currency.svelte';
+
+import { type Params, GuiSchema } from './types';
+import { defaultContentLanguage } from '@src/stores/store';
+
+// typesafe-i18n
+import { get } from 'svelte/store';
+import LL from '@src/i18n/i18n-svelte.js';
 
 const widget = ({
-	// Accept parameters from collection
-	db_fieldName,
-	currencyCode,
 	label,
+	db_fieldName,
+	display,
 	icon,
+	// extras
+	currencyCode,
 	placeholder,
-	prefix,
-	suffix,
-	min,
-	max,
+	count,
+	minlength,
+	maxlength,
 	step,
 	negative,
+	prefix,
+	suffix,
+	readonly,
 	required,
-	display
-}: Currency_Params) => {
-	if (!display) display = (data: any, field: any, entry: any) => data;
+	width
+}: Params) => {
+	if (!display) {
+		display = async ({
+			data,
+			collection,
+			field,
+			entry,
+			contentLanguage
+		}: {
+			data: any;
+			collection: any;
+			field: any;
+			entry: any;
+			contentLanguage: string;
+		}) => {
+			data = data ? data : {}; // data can only be undefined if entry exists in db but this field was not set.
+			return data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
+		};
+		display.default = true;
+	}
+
+	const widget: { type: any; key: 'Currency' } = { type: Currency, key: 'Currency' };
 
 	const field = {
-		schema: {},
-		db_fieldName,
-		currencyCode,
+		display,
+		schema: { [db_fieldName || label]: { String: String } },
 		label,
+		db_fieldName,
 		icon,
+		// extras
+		currencyCode,
 		placeholder,
-		prefix,
-		suffix,
-		min,
-		max,
+		count,
+		minlength,
+		maxlength,
 		step,
 		negative,
+		prefix,
+		suffix,
+		readonly,
 		required,
-		display
-	} as Currency_Field;
-
-	field.schema[db_fieldName] = {
-		value: Number,
-		currencyCode: String
+		width
 	};
 
-	field.widget = async () => {
-		// @ts-ignore
-		return (await import('./Currency.svelte')).default;
-	};
-	return field;
+	return { ...field, widget };
 };
 
+widget.GuiSchema = GuiSchema;
+
+export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

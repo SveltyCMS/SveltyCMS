@@ -1,104 +1,110 @@
 <script lang="ts">
-	import Fields from '$src/components/Fields.svelte';
-	import { shape_fields } from '$src/lib/utils/utils_svelte';
-	import { entryData, MenuCurrentChild } from '$src/stores/store';
+	import Fields from '@src/components/Fields.svelte';
+	import { currentChild, type FieldType } from '.';
+	import { extractData, getFieldName } from '@src/utils/utils';
+
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
 
 	import ListNode from './ListNode.svelte';
+	import { entryData, mode } from '@src/stores/store';
 
-	export let field: any;
-	export let value: any = {};
-	export let root = true;
-	let fieldsValue = {};
+	export let field: FieldType;
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName];
+	export const WidgetData = async () => _data;
 
-	let editing = false;
-	let menu = field.menu;
-	let showLevelContent = false;
+	let showFields = false;
 	let depth = 0;
-	let inputFields: Array<HTMLDivElement> = [];
-	MenuCurrentChild.subscribe((_) => {
-		value = value; // refresh tree when editing/deleting
-	});
+	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
+	//console.log('MegMenu Data', _data);
 
-	let fields: any;
-	$: shape_fields(menu[depth].fields).then((data) => (fields = data));
+	let fieldsData = {};
+	let saveMode = $mode;
 
-	let getData = async () => {
-		if (!showLevelContent && !editing) {
-			return;
-		}
-		let data: any = fieldsValue;
-
-		let formData: any = {};
-		if (depth == 0 && !editing) {
-			//creating parent
-			data.children = [];
-			data = JSON.stringify(data);
-			formData[field.db_fieldName] = data;
-		} else {
-			!Array.isArray($MenuCurrentChild.children) && ($MenuCurrentChild.children = []);
-			if (editing) {
-				//editing child
-				for (let key in data) {
-					$MenuCurrentChild[key] = data[key];
-				}
-			} else {
-				data = JSON.stringify(data); //adding children to child
-				$MenuCurrentChild.children.push(data);
+	async function saveLayer() {
+		if (!_data) {
+			_data = { ...(await extractData(fieldsData)), children: [] };
+		} else if ($mode == 'edit') {
+			let _data = await extractData(fieldsData);
+			for (let key in _data) {
+				$currentChild[key] = _data[key];
 			}
-			formData[field.db_fieldName] = JSON.stringify(value);
+		} else if ($mode == 'create' && $currentChild.children) {
+			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
 		}
-		if (root) return formData;
-	};
+		_data = _data;
+		//console.log('MegMenu Data', _data);
+		showFields = false;
+		mode.set(saveMode);
+		depth = 0;
+	}
+
+	async function deleteLayer() {
+		// if (!_data) {
+		// 	_data = { ...(await extractData(fieldsData)), children: [] };
+		// } else if ($mode == 'edit') {
+		// 	$currentChild = { ..._data, ...(await extractData(fieldsData)) };
+		// 	//console.log($currentChild);
+		// } else if ($mode == 'create' && $currentChild.children) {
+		// 	$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
+		// }
+		// _data = _data;
+		// //console.log('MegMenu Data', _data);
+		// showFields = false;
+		// mode.set(saveMode);
+		// depth = 0;
+	}
 </script>
 
-<div hidden={showLevelContent}>
-	<ul class="menu rounded-md bg-white text-black">
-		{#if !value}
-			<li>
-				<div>
-					<button
-						on:click={() => {
-							(depth = 0), (showLevelContent = !showLevelContent);
-						}}
-						class="variant-filled-primary btn btn-sm ml-auto rounded text-xl text-black"
-					>
-						<iconify-icon icon="ic:baseline-plus" width="22" />
-					</button>
-				</div>
-			</li>
-		{:else}
-			<ListNode
-				children={value.children}
-				self={value}
-				bind:editing
-				bind:showLevelContent
-				bind:depth
-			/>
-		{/if}
-	</ul>
-</div>
-{#if showLevelContent}
-	<div
-		class="relative my-4 rounded-lg border-2 border-[#8cccff] p-[20px]"
-		hidden={!showLevelContent}
-	>
-		<button
-			on:click={() => {
-				showLevelContent = !showLevelContent;
-				editing = false;
-				fieldsValue = {};
-			}}
-			class="btn btn-sm absolute top-0 right-0 z-10 mb-2 dark:text-white"
-		>
-			<iconify-icon icon="material-symbols:close" width="26" />
-		</button>
+{#if !_data}
+	<p class="font-bold text-center">
+		{$LL.WIDGET_MegaMenu_title()}
+	</p>
+{/if}
+
+<!-- TODO this should only show on child edit -->
+<!-- {#if _data || showFields}
+	<p class="font-bold text-center">Enter Categories</p>
+	{/if} -->
+
+{#if !_data || showFields}
+	<!-- TODO: fix save on enter  on:keydown={saveLayer} -->
+	{#key depth}
+		{(fieldsData = {}) && ''}
 		<Fields
-			bind:fieldsValue
-			bind:inputFields
+			fields={field.menu[depth].fields}
 			root={false}
-			value={editing ? $MenuCurrentChild : null}
-			{fields}
-			{getData}
+			bind:fieldsData
+			customData={$currentChild}
 		/>
+	{/key}
+
+	<div class="flex items-center justify-between">
+		<!-- Next Button -->
+		<button
+			type="button"
+			on:click={saveLayer}
+			class="btn variant-filled-primary dark:text-white mb-4"
+		>
+			<iconify-icon icon="carbon:next-filled" width="24" class="dark:text-white mr-1" />
+			{$LL.WIDGET_MegaMenu_Next()}
+		</button>
+
+		{#if _data}
+			<!-- remove/delete Button -->
+			<button
+				type="button"
+				on:click={deleteLayer}
+				class="btn variant-filled-error dark:text-white mb-4"
+			>
+				<iconify-icon icon="mdi:trash-can-outline" width="24" class="dark:text-white mr-1" />
+				Remove
+			</button>
+		{/if}
 	</div>
+{/if}
+
+{#if _data && depth == 0}
+	<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
 {/if}

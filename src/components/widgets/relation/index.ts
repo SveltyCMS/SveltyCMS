@@ -1,48 +1,43 @@
-import { PUBLIC_LANGUAGE } from '$env/static/public';
-import { findById, flattenData } from '$src/lib/utils/utils';
+import Relation from './Relation.svelte';
+import { findById } from '@src/utils/utils';
 
-import type { Display } from '../types';
-import type { Relation_Params, Relation_Field } from './types';
-const widget = ({
-	// Accept parameters from collection
-	db_fieldName,
-	label,
-	icon,
-	required,
-	relation,
-	display
-}: Relation_Params) => {
-	let _display: Display | undefined;
-	if (!display) display = async (data: any, field: any, entry: any) => data; //default
-	else
-		_display = async (data: any, field: any, entry: any) => {
-			const { language } = await import('$src/stores/store');
-			const { get } = await import('svelte/store');
-			let _data = await findById(data, relation);
-			_data = flattenData(_data, get(language));
-			return await (display as Display)(_data, field, entry);
+import type { Params } from './types';
+
+const widget = ({ label, db_fieldName, display, relation }: Params) => {
+	if (!display) {
+		display = async ({
+			data,
+			collection,
+			field,
+			entry,
+			contentLanguage
+		}: {
+			data: any;
+			collection: any;
+			field: any;
+			entry: any;
+			contentLanguage: string;
+		}) => {
+			if (typeof data == 'string') {
+				data = await findById(data, relation);
+			}
+			return data?.text[contentLanguage];
 		};
-	if (!_display) _display = display;
+		display.default = true;
+	}
+
+	const widget: { type: any; key: 'Relation' } = { type: Relation, key: 'Relation' };
 
 	const field = {
-		schema: {},
-		db_fieldName,
+		display,
+		schema: { [db_fieldName || label]: String },
 		label,
-		icon,
-		strict: false,
-		required,
-		relation,
-		display: _display,
-		rawDisplay: display
-	} as Relation_Field;
-
-	field.schema[db_fieldName] = 'string';
-
-	field.widget = async () => {
-		// @ts-ignore
-		return (await import('./Relation.svelte')).default;
+		db_fieldName,
+		relation
 	};
-	return field;
+
+	return { ...field, widget };
 };
 
+export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

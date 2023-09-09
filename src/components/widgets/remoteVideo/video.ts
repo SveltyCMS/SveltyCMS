@@ -57,7 +57,7 @@ export async function youtube(id: string): Promise<YoutubeData> {
 		const dayTime = duration.split('T');
 		const dayDuration = dayTime[0].replace('P', '');
 		let dayList = dayDuration.split('D');
-		let day;
+		let day: number;
 		if (dayList.length === 2) {
 			day = parseInt(dayList[0], 10) * 60 * 60 * 24;
 			dayList = dayList[1];
@@ -66,7 +66,7 @@ export async function youtube(id: string): Promise<YoutubeData> {
 			dayList = dayList[0];
 		}
 		let hourList = dayTime[1].split('H');
-		let hour;
+		let hour: number;
 		if (hourList.length === 2) {
 			hour = parseInt(hourList[0], 10) * 60 * 60;
 			hourList = hourList[1];
@@ -75,7 +75,7 @@ export async function youtube(id: string): Promise<YoutubeData> {
 			hourList = hourList[0];
 		}
 		let minuteList = hourList.split('M');
-		let minute;
+		let minute: number;
 		if (minuteList.length === 2) {
 			minute = parseInt(minuteList[0], 10) * 60;
 			minuteList = minuteList[1];
@@ -84,7 +84,7 @@ export async function youtube(id: string): Promise<YoutubeData> {
 			minuteList = minuteList[0];
 		}
 		const secondList = minuteList.split('S');
-		let second;
+		let second: number;
 		if (secondList.length === 2) {
 			second = parseInt(secondList[0], 10);
 		} else {
@@ -177,11 +177,15 @@ export async function tiktok(url: string) {
 			videoUrl: ''
 		};
 	}
-	const $ = cheerio.load(data);
 
-	const videoTitle = $('title').text();
+	const parser = new DOMParser();
+	const doc = parser.parseFromString(data, 'text/html');
 
-	const videoThumbnail = $('.tiktok-j6dmhd-ImgPoster')?.attr('src');
+	const titleElement = doc.querySelector('title');
+	const videoTitle = titleElement ? titleElement.textContent : '';
+
+	const thumbnailElement = doc.querySelector('.tiktok-j6dmhd-ImgPoster');
+	const videoThumbnail = thumbnailElement ? thumbnailElement.getAttribute('src') : '';
 
 	return {
 		videoTitle: videoTitle,
@@ -191,11 +195,11 @@ export async function tiktok(url: string) {
 }
 
 export async function getTokensProvided() {
-	let tokensProvided = {
+	const tokensProvided = {
 		google: false,
 		twitch: false
 	};
-	if (SECRET_GOOGLE_API_TOKEN) {
+	if (SECRET_GOOGLE_API_KEY) {
 		tokensProvided.google = true;
 	}
 	if (SECRET_TWITCH_TOKEN) {

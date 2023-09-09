@@ -1,29 +1,30 @@
+# This workflow uses semantic-release to automatically publish new versions of your package to GitHub and npm based on commit messages
 name: Semantic Release
 
 on:
   push:
     branches:
-      - main
+      - main # Trigger the workflow only on the main branch
 
 jobs:
   release:
     permissions:
-      contents: write
-      issues: write
-      pull-requests: write
+      contents: write # Allow writing to the repository contents
+      issues: write # Allow creating and updating issues
+      pull-requests: write # Allow creating and updating pull requests
 
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v3 # Use the checkout action to clone the repository
 
-      - name: Setup code 
-        uses: actions/setup-node@v3
+      - name: Setup code
+        uses: actions/setup-node@v3 # Use the setup-node action to install Node.js
 
       - name: Install dependencies
-        run: npm i
+        run: npm i # Install the package dependencies
 
-      - run: npx semantic-release
+      - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
+          # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well

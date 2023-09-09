@@ -1,99 +1,138 @@
 <script lang="ts">
-	import { locale } from '$i18n/i18n-svelte';
-	import { get } from 'svelte/store';
-	import * as z from 'zod';
+	import type { FieldType } from '.';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
+	//console.log('contentLanguage', $contentLanguage);
+	export let field: FieldType;
 
-	export let field: any = undefined;
-	export let value: string = '';
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
 
-	export let widgetValue: number | null = null;
-	$: widgetValue = value ? parseFloat(value.replace(/[^\d.-]/g, '')) : null;
+	let _data = $mode == 'create' ? {} : value;
+	let _language = defaultContentLanguage;
+	let valid = true;
 
-	const widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		placeholder: field.placeholder,
-		min: field.min,
-		max: field.max,
-		step: field.step,
-		negative: field.negative,
-		required: field.required
-	};
+	let numberInput: HTMLInputElement;
+	let language = $contentLanguage;
 
-	const numberSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		placeholder: z.string().optional(),
-		min: z.number().gte(field.min, { message: 'Value too small' }).optional(),
-		max: z.number().lte(field.max, { message: 'Value too large' }).optional(),
-		step: z.number().multipleOf(field.step, { message: 'Step too large' }).optional(),
-		negative: z.boolean().optional(),
-		required: z.boolean().optional()
-	});
+	export const WidgetData = async () => _data;
 
-	let validationError: string | null = null;
-
-	$: validationError = (() => {
-		try {
-			numberSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
+	function handleInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const value = target.value;
+		const decimalSeparator = getDecimalSeparator(language);
+		if (value[value.length - 1] !== decimalSeparator) {
+			const number = parseFloat(
+				value
+					.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '')
+					.replace(decimalSeparator, '.')
+			);
+			if (!isNaN(number)) {
+				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
+					number
+				);
+			} else {
+				target.value = value;
+			}
 		}
-	})();
-
-	// Check if user input is number
-	const onKeyPress = (e: KeyboardEvent) => {
-		if (!isFinite(parseInt(e.key))) {
-			e.preventDefault();
-			validationError = 'Invalid character';
-			return;
-		} else {
-			validationError = null;
-		}
-	};
-
-	// Reformat the number value without dots and commas so numberformat can format the number (else we get a NaN)
-	$: if (value != null && value !== '') {
-		value = new Intl.NumberFormat(get(locale)).format(parseFloat(value.replace(/[^\d.-]/g, '')));
 	}
 
-	// Initial format
-	const format = (node: HTMLInputElement) => {
-		if (node && node.value != '') {
-			node.value = new Intl.NumberFormat(get(locale)).format(
-				parseFloat(node.value.replace(/[^\d.-]/g, ''))
+	function getDecimalSeparator(language: string) {
+		const numberWithDecimalSeparator = new Intl.NumberFormat(language).format(1.1);
+		return numberWithDecimalSeparator.substring(1, 2);
+	}
+
+	$: if (numberInput) {
+		const value = numberInput.value;
+		const decimalSeparator = getDecimalSeparator(language);
+		const number = parseFloat(
+			value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.')
+		);
+		if (!isNaN(number)) {
+			numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
+				number
 			);
+		} else {
+			numberInput.value = value;
+		}
+	}
+
+	// Reactive statement to update count
+	$: count = _data[_language]?.length ?? 0;
+	const getBadgeClass = (length: number) => {
+		if (field?.minlength && length < field?.minlength) {
+			return 'bg-red-600';
+		} else if (field?.maxlength && length > field?.maxlength) {
+			return 'bg-red-600';
+			// } else if (field?.count && length === field?.count) {
+			// 	return 'bg-green-600';
+			// } else if (field?.count && length > field?.count) {
+			// 	return 'bg-orange-600';
+		} else if (field?.minlength) {
+			return '!variant-filled-surface';
+		} else {
+			return '!variant-ghost-surface';
 		}
 	};
-
-	// If the locale changes, update the value
-	locale.subscribe((n) => {
-		if (value != null) {
-			value = new Intl.NumberFormat(n).format(parseFloat(value.replace(/[^\d.-]/g, '')));
-		}
-	});
 </script>
 
-<!-- TODO: 
-	user type="number"
-	add negative={field.negative} 
-	fix null value
--->
-<input
-	bind:value
-	on:keypress={onKeyPress}
-	use:format
-	type="text"
-	min={field.min}
-	max={field.max}
-	step={field.step}
-	required={field.required}
-	placeholder={field.placeholder && field.placeholder !== ''
-		? field.placeholder
-		: field.db_fieldName}
-	class="input w-full rounded-md"
-/>
-{#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
+<div class="btn-group variant-filled-surface flex w-full rounded">
+	{#if field?.prefix}
+		<button class=" !px-2">{field?.prefix}</button>
+	{/if}
+
+	<input
+		type="text"
+		bind:value={_data[_language]}
+		bind:this={numberInput}
+		on:input|preventDefault={handleInput}
+		name={field?.db_fieldName}
+		id={field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== ''
+			? field?.placeholder
+			: field?.db_fieldName}
+		required={field?.required}
+		readonly={field?.readonly}
+		minlength={field?.minlength}
+		maxlength={field?.maxlength}
+		step={field?.step}
+		class="input flex-1 rounded-none"
+	/>
+
+	<!-- suffix -->
+	{#if field?.suffix}
+		<button class="!px-1">
+			{#if field?.minlength || field?.maxlength}
+				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
+					{#if field?.minlength && field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.minlength && field?.maxlength}
+						{count} => {field?.minlength}/{field?.maxlength}
+					{:else if field?.minlength}
+						min {field?.minlength}
+					{/if}
+				</span>
+			{/if}
+			{field?.suffix}
+		</button>
+	{:else if field?.minlength || field?.maxlength}
+		<span class="badge rounded-none {getBadgeClass(count)}">
+			{#if field?.minlength && field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.minlength && field?.maxlength}
+				{count} => {field?.minlength}/{field?.maxlength}
+			{:else if field?.minlength}
+				min {field?.minlength}
+			{/if}
+		</span>
+	{/if}
+</div>
+
+{#if !valid}
+	<p class="text-error-500">Field is required.</p>
 {/if}

@@ -1,52 +1,51 @@
-import { format } from '$src/lib/utils/utils';
-import { get } from 'svelte/store';
-
-import widgets from '../components/widgets';
+import widgets from '@src/components/widgets';
+import { roles } from './types';
 import type { Schema } from './types';
 
-// typesafe-i18n
-import LL from '$i18n/i18n-svelte';
-
 const schema: Schema = {
-	// Collection Name & Icon (optional) shown on Sidebar
+	// Collection Name comming from filename
+
+	// Optional & Icon , status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
-	name: 'Posts',
 	icon: 'bi:card-text',
 	status: 'published',
-	slug: ' posts',
+	slug: 'posts',
+
+	// Collection Permissions by user Roles
 
 	// Defined Fields that are used in Collection
-	// Inspect Widget fields for possible options
-
+	// Widget fields can be inspected for individual options
 	fields: [
-		// widgets.Text({
-		// 	db_fieldName: 'Title',
-		// 	icon: 'ri:t-box-line',
-		// 	placeholder: 'Enter Title',
-		// 	required: true,
-		// 	localization: true
-		// }),
+		widgets.Email({
+			label: 'email',
+			icon: 'material-symbols:mail'
+			// display: async (data, field, entry, contentLanguage) => {
+			// 	return data[contentLanguage];
+			// },
+		}),
 
-		// widgets.RichText({
-		// 	db_fieldName: 'Description',
-		// 	icon: 'ri:t-box-line',
-		// 	placeholder: 'Enter Description',
-		// 	label: 'Body',
-		// 	required: true,
-		// 	localization: true
-		// }),
+		widgets.Text({
+			label: 'test',
+			db_fieldName: 'dbtest',
+			translated: true,
+			required: true,
+			icon: 'ri:t-box-line',
+			placeholder: 'Enter Test Placeholder'
+		}),
 
-		widgets.Address({
-			db_fieldName: 'Address'
+		widgets.ImageUpload({
+			label: 'image',
+			required: true,
+			icon: 'material-symbols:image-outline',
+			path: 'images' //This save to image folder, and is not globally available
+		}),
+
+		widgets.FileUpload({
+			label: 'File',
+			required: true,
+			icon: 'mdi:file-document-outline',
+			path: 'files' //This save to image folder, and is not globally available
 		})
-
-		// widgets.Seo({
-		// 	db_fieldName: 'Basic Seo',
-		// 	label: 'Seo label',
-		// 	icon: 'icon-park-outline:seo',
-		// 	localization: true,
-		// 	required: true
-		// })
 	]
 };
 export default schema;

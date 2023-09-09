@@ -1,19 +1,21 @@
 <script lang="ts">
 	import type { Rich_Text } from './types';
+	import type { FieldType } from '.';
 
-	import { language } from '$src/stores/store';
-	import { PUBLIC_LANGUAGE } from '$env/static/public';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let field: Rich_Text;
-	export let value: string = '';
-	export let widgetValue: any = {};
+	export let field: FieldType;
 
-	// Set default values
-	$: !value && (value = '');
-	$: widgetValue = value || {};
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
 
-	// Set language
-	$: _language = field.localization ? $language : PUBLIC_LANGUAGE;
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+	let valid = true;
+	export const WidgetData = async () => _data;
+
 	//@ts-ignore
 	import { RichTextComposer, PlainTextPlugin } from 'svelte-lexical';
 	//@ts-ignore
@@ -21,10 +23,11 @@
 	import './global.css';
 	import { onMount } from 'svelte';
 	let composerComponent: RichTextComposer;
+
 	onMount(() => {
 		const editor = composerComponent.getEditor();
 		editor.registerUpdateListener(({ editorState }: { editorState: any }) => {
-			widgetValue = editorState;
+			value = editorState;
 		});
 	});
 
@@ -32,14 +35,14 @@
 
 	var widgetValueObject = {
 		db_fieldName: field.db_fieldName,
-		label: field.label,
-		localization: field.localization
+		label: field.label
+		// translated: field.translated
 	};
 
 	const richTextSchema = z.object({
 		db_fieldName: z.string(),
 		label: z.string().optional(),
-		localization: z.boolean().optional()
+		translated: z.boolean().optional()
 	});
 
 	let validationError: string | null = null;

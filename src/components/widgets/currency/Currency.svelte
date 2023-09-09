@@ -1,117 +1,139 @@
 <script lang="ts">
-	import { locale } from '$i18n/i18n-svelte';
-	import { get } from 'svelte/store';
-	import * as z from 'zod';
+	import type { FieldType } from '.';
+	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let field: any = { value: null };
-	export let value: { value: number | null } = { value: (field && field.value) ?? null };
+	export let field: FieldType;
 
-	if (!value) {
-		value = { value: null };
-	}
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
 
-	export let widgetValue;
+	let _data = $mode == 'create' ? {} : value;
+	let _language = defaultContentLanguage;
+	let valid = true;
 
-	$: widgetValue = {
-		value: value.value,
-		currency: field.currencyCode ?? 'EUR'
-	};
+	let numberInput: HTMLInputElement;
+	let language = $contentLanguage;
 
-	let formattedValue = '';
+	export const WidgetData = async () => _data;
 
-	const widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		placeholder: field.placeholder,
-		prefix: field.prefix,
-		suffix: field.suffix,
-		min: field.min,
-		max: field.max,
-		step: field.step,
-		negative: field.negative,
-		required: field.required,
-		value:
-			value && value.value != null
-				? new Intl.NumberFormat(get(locale), {
-						style: 'currency',
-						currencyDisplay: 'symbol',
-						currency: 'EUR'
-				  }).format(value.value)
-				: null
-	};
-
-	const numberSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		placeholder: z.string().optional(),
-		prefix: z.string().optional(),
-		suffix: z.string().optional(),
-		min: z.number().gte(field.min, { message: 'Value too small' }).optional(),
-		max: z.number().lte(field.max, { message: 'Value too large' }).optional(),
-		step: z.number().multipleOf(field.step, { message: 'Step too large' }).optional(),
-		negative: z.boolean().optional(),
-		required: z.boolean().optional(),
-		value: z.number().nullable(),
-		currency: z.string().optional()
-	});
-
-	let validationError: string | null = null;
-
-	$: validationError = (() => {
-		try {
-			numberSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
-		}
-	})();
-
-	// create a reactive statement that updates the formatted value whenever the value changes
-	$: {
-		if (value != null && value.value != null) {
-			const roundedValue = Math.round(value.value * 100) / 100;
-			formattedValue = new Intl.NumberFormat(get(locale), {
-				style: 'currency',
-				currencyDisplay: 'symbol',
-				currency: field.currencyCode ?? 'EUR'
-			}).format(roundedValue);
+	function handleInput(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const value = target.value;
+		const decimalSeparator = getDecimalSeparator(language);
+		if (value[value.length - 1] !== decimalSeparator) {
+			const number = parseFloat(
+				value
+					.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '')
+					.replace(decimalSeparator, '.')
+			);
+			if (!isNaN(number)) {
+				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
+					number
+				);
+			} else {
+				target.value = value;
+			}
 		}
 	}
 
-	// create a zod schema for validation
-	const schema = z.number().min(field.min).max(field.max);
+	function getDecimalSeparator(language: string) {
+		const numberWithDecimalSeparator = new Intl.NumberFormat(language).format(1.1);
+		return numberWithDecimalSeparator.substring(1, 2);
+	}
+
+	$: if (numberInput) {
+		const value = numberInput.value;
+		const decimalSeparator = getDecimalSeparator(language);
+		const number = parseFloat(
+			value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.')
+		);
+		if (!isNaN(number)) {
+			numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
+				number
+			);
+		} else {
+			numberInput.value = value;
+		}
+	}
+
+	// Reactive statement to update count
+	$: count = _data[_language]?.length ?? 0;
+	const getBadgeClass = (length: number) => {
+		if (field?.minlength && length < field?.minlength) {
+			return 'bg-red-600';
+		} else if (field?.maxlength && length > field?.maxlength) {
+			return 'bg-red-600';
+			// } else if (field?.count && length === field?.count) {
+			// 	return 'bg-green-600';
+			// } else if (field?.count && length > field?.count) {
+			// 	return 'bg-orange-600';
+		} else if (field?.minlength) {
+			return '!variant-filled-surface';
+		} else {
+			return '!variant-ghost-surface';
+		}
+	};
 </script>
 
-<div class="input-group grid-cols-[auto_1fr_auto]">
-	<!-- prefix -->
-	{#if field.prefix}
-		<div class="text-surface-600 dark:text-surface-200 sm:!pr-[1rem] !pr-0">{field.prefix}</div>
+<div class="btn-group variant-filled-surface flex w-full rounded">
+	{#if field?.prefix}
+		<button class=" !px-2">{field?.prefix}</button>
 	{/if}
 
 	<input
-		bind:value={value.value}
-		type="number"
-		step={field.step}
-		required={field.required}
-		placeholder={field.placeholder && field.placeholder !== ''
-			? field.placeholder
-			: field.db_fieldName}
-		class="input w-full {field.suffix ? '' : 'col-span-2'}"
+		type="text"
+		bind:value={_data[_language]}
+		bind:this={numberInput}
+		on:input|preventDefault={handleInput}
+		name={field?.db_fieldName}
+		id={field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== ''
+			? field?.placeholder
+			: field?.db_fieldName}
+		required={field?.required}
+		readonly={field?.readonly}
+		minlength={field?.minlength}
+		maxlength={field?.maxlength}
+		step={field?.step}
+		class="input flex-1 rounded-none"
 	/>
 
 	<!-- suffix -->
-	{#if field.suffix}
-		<span class="text-surface-600 dark:text-surface-200 self-center pr-2">{field.suffix}</span>
+	{#if field?.suffix}
+		<button class="!px-1">
+			{#if field?.minlength || field?.maxlength}
+				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
+					{#if field?.minlength && field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.maxlength}
+						{count}/{field?.maxlength}
+					{:else if field?.minlength && field?.maxlength}
+						{count} => {field?.minlength}/{field?.maxlength}
+					{:else if field?.minlength}
+						min {field?.minlength}
+					{/if}
+				</span>
+			{/if}
+			{field?.suffix}
+		</button>
+	{:else if field?.minlength || field?.maxlength}
+		<span class="badge rounded-none {getBadgeClass(count)}">
+			{#if field?.minlength && field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.maxlength}
+				{count}/{field?.maxlength}
+			{:else if field?.minlength && field?.maxlength}
+				{count} => {field?.minlength}/{field?.maxlength}
+			{:else if field?.minlength}
+				min {field?.minlength}
+			{/if}
+		</span>
 	{/if}
 </div>
 
-<!-- display formatted value -->
-<p class="text-center">
-	Formated <span class="uppercase">{get(locale)}</span> Value :
-	<span class="text-primary-600">{formattedValue}</span>
-</p>
-
-<!-- error messages -->
-{#if validationError !== null}
-	<p class="text-red-500">{validationError}</p>
+{#if !valid}
+	<p class="text-error-500">Field is required.</p>
 {/if}

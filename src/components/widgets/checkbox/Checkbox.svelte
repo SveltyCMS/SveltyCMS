@@ -1,9 +1,19 @@
 <script lang="ts">
-	export let field: any = undefined;
-	export let value = '';
+	import type { FieldType } from '.';
+	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
+	import { mode, entryData } from '@src/stores/store';
+	import { getFieldName } from '@src/utils/utils';
 
-	export let widgetValue;
-	$: widgetValue = value;
+	export let field: FieldType;
+
+	let fieldName = getFieldName(field);
+	export let value = $entryData[fieldName] || {};
+	//console.log('value: ', value);
+
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+
+	export const WidgetData = async () => _data;
 
 	import * as z from 'zod';
 
@@ -40,7 +50,7 @@
 		id="default-checkbox"
 		type="checkbox"
 		color={field.color}
-		bind:value
+		bind:value={_data[_language]}
 		class="h-4 w-4 rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
 		bind:checked={value}
 	/>
@@ -50,6 +60,6 @@
 		>{field.label ? field.label : field.db_fieldName}</label
 	>
 	{#if validationError !== null}
-		<p class="text-red-500">{validationError}</p>
+		<p class="text-error-500">{validationError}</p>
 	{/if}
 </div>

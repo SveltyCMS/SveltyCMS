@@ -1,32 +1,58 @@
-import type { Display } from '../types';
-import type { RemoteVideo_Params, RemoteVideo_Field } from './types';
+import RemoteVideo from './RemoteVideo.svelte';
 
-export default ({
-	// Accept parameters from collection
-	db_fieldName,
+import { type Params, GuiSchema } from './types';
+import { defaultContentLanguage } from '@src/stores/store';
+
+// typesafe-i18n
+import { get } from 'svelte/store';
+import LL from '@src/i18n/i18n-svelte.js';
+
+const widget = ({
 	label,
+	db_fieldName,
+	display,
 	icon,
+	// extras
 	placeholder,
-	required,
-	display
-}: RemoteVideo_Params) => {
-	if (!display) display = (data: any, field: any, entry: any) => data;
+	required
+}: Params) => {
+	if (!display) {
+		display = async ({
+			data,
+			collection,
+			field,
+			entry,
+			contentLanguage
+		}: {
+			data: any;
+			collection: any;
+			field: any;
+			entry: any;
+			contentLanguage: string;
+		}) => {
+			data = data ? data : {}; // data can only be undefined if entry exists in db but this field was not set.
+			return data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
+		};
+		display.default = true;
+	}
+
+	const widget: { type: any; key: 'RemoteVideo' } = { type: RemoteVideo, key: 'RemoteVideo' };
 
 	const field = {
-		schema: {},
-		db_fieldName,
+		display,
+		schema: { [db_fieldName || label]: { String: String } },
 		label,
+		db_fieldName,
 		icon,
+		// extras
 		placeholder,
-		required,
-		display
-	} as RemoteVideo_Field;
-
-	field.schema[db_fieldName] = 'string';
-
-	field.widget = async () => {
-		// @ts-ignore
-		return (await import('./RemoteVideo.svelte')).default;
+		required
 	};
-	return field;
+
+	return { ...field, widget };
 };
+
+widget.GuiSchema = GuiSchema;
+
+export interface FieldType extends ReturnType<typeof widget> {}
+export default widget;

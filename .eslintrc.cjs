@@ -1,35 +1,38 @@
 module.exports = {
 	root: true,
-	extends: ['eslint:recommended', 'plugin:@typescript-eslint/recommended', 'prettier'],
-	plugins: ['svelte3', '@typescript-eslint'],
-	ignorePatterns: ['*.cjs'],
-	overrides: [
-		{
-			files: ['*.svelte'],
-			processor: 'svelte3/svelte3'
-		},
-		{
-			extends: ['plugin:@typescript-eslint/recommended-requiring-type-checking'],
-			files: ['**/*.{ts,tsx}'],
-			parserOptions: {
-				project: './tsconfig.json'
-			}
-		}
+	extends: [
+		'eslint:recommended',
+		'plugin:@typescript-eslint/recommended',
+		'plugin:svelte/recommended',
+		'prettier'
 	],
-	settings: {
-		'svelte3/typescript': () => require('typescript')
-	},
 	parser: '@typescript-eslint/parser',
+	plugins: ['@typescript-eslint', 'prettier'],
+	ignorePatterns: ['*.cjs'],
 	parserOptions: {
 		sourceType: 'module',
-		ecmaVersion: 2020
+		ecmaVersion: 2021,
+		extraFileExtensions: ['.svelte']
 	},
 	env: {
 		browser: true,
-		es2022: true,
+		es2017: true,
 		node: true
 	},
+	globals: {
+		NodeJS: true,
+		svelte: true
+	},
 	rules: {
-		'@typescript-eslint/no-unused-vars': 'off'
-	}
+		'@typescript-eslint/no-explicit-any': 'off'
+	},
+	overrides: [
+		{
+			files: ['*.svelte'],
+			parser: 'svelte-eslint-parser',
+			parserOptions: {
+				parser: '@typescript-eslint/parser'
+			}
+		}
+	]
 };

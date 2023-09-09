@@ -1,79 +1,72 @@
 <script lang="ts">
-	import { entryData, getFieldsData, language } from '$src/stores/store';
-	import { PUBLIC_TRANSLATIONS } from '$env/static/public';
-	import type { Schema } from '$src/collections/types';
-	import { onMount } from 'svelte';
+	import { collectionValue, contentLanguage, collection } from '@src/stores/store';
 
-	export let root = true; // if field is not nested. eg. not part of menu's fields
-	export let fields: Array<any> = [];
-	export let value: any = undefined;
-	export let collection: Schema | undefined = undefined;
-	export let inputFields: Array<HTMLDivElement> = [];
-	export let fieldsValue: any = {};
-	export let getData = async () => {
-		return fieldsValue;
-	};
+	import { asAny, getFieldName } from '@src/utils/utils';
 
-	onMount(async () => {
-		$getFieldsData.add(getData);
-	});
+	export let fields: typeof $collection.fields | undefined = undefined;
 
-	// typesafe-i18n
-	import LL from '$i18n/i18n-svelte';
+	export let root = true; // if Fields is not part of any widget.
+	export let fieldsData = {};
+	export let customData = {};
 
-	LL.subscribe((n) => {
-		fields = fields;
-	});
+	$: if (root) $collectionValue = fieldsData;
 </script>
 
-{#each fields as field, index}
-	<div
-		bind:this={inputFields[index]}
-		class="section relative my-2 {!field.field.width ? 'w-full' : 'max-md:!w-full'}"
-		style={field.field.width && `width:${field.field.width.replace('%', '') * 1 - 1}%`}
-	>
-		<!-- db_fieldName or label  -->
-		<!-- TODO: Get translated Name -->
-		<div class="relative flex">
-			<p class="font-semibold">
-				{#if field.field.label}
-					{field.field.label}
-				{:else}
-					{field.field.db_fieldName}
-				{/if}
-				{#if field.field.required}
-					<span class="ml-1 pb-3 text-error-500">*</span>
-				{/if}
-			</p>
+<div class="py-1 text-center text-xs text-error-500">* Required</div>
+<div class="m-2">
+	{#each fields || $collection.fields as field, index}
+		<!-- widget width -->
+		<!-- <div
+	bind:this={inputFields[index]}
+	class="section relative my-2 {!field.width ? 'w-full' : 'max-md:!w-full'}"
+	style={field.width && `width:${field.width.replace('%', '') * 1 - 1}%`}
+> -->
+		{#if field.widget}
+			{#key $collection}
+				<div>
+					<!-- Widget label -->
+					<div class=" mb-0.5 flex items-center justify-between">
+						<!-- db_fieldName or label  -->
+						<!-- TODO: Get translated Name -->
+						<p class="font-semibold capitalize">
+							{#if field.label}
+								{field.label}
+							{:else}
+								{field.db_fieldName}
+							{/if}
+							{#if field.required}
+								<span class="ml-1 pb-3 text-error-500">*</span>
+							{/if}
+						</p>
 
-			<div class="absolute right-0 flex gap-4">
-				{#if field.field.localization}
-					<div class="flex items-center gap-1 px-2">
-						<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
-						<div class="text-xs font-normal text-error-500">
-							{JSON.parse(PUBLIC_TRANSLATIONS)[$language]}
+						<div class="flex gap-2">
+							<!-- Widget translated  -->
+							{#if field.translated}
+								<div class="flex items-center gap-1 px-2">
+									<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
+									<div class="text-xs font-normal text-error-500">
+										{$contentLanguage.toUpperCase()}
+									</div>
+								</div>
+							{/if}
+
+							<!-- Widget icon -->
+							{#if field.icon}
+								<iconify-icon icon={field.icon} color="dark" width="22" class="" />
+							{/if}
 						</div>
 					</div>
-				{/if}
-				{#if field.field.icon}
-					<iconify-icon icon={field.field.icon} color="dark" width="22" class="w-10" />
-				{:else}
-					<div class="w-[40px]" />
-				{/if}
-			</div>
-		</div>
-		<!-- display all widget fields -->
-		{#if field.widget}
-			<svelte:component
-				this={field.widget}
-				{collection}
-				bind:widgetValue={fieldsValue[field.field.db_fieldName]}
-				{root}
-				value={value
-					? value?.[field.field.db_fieldName]
-					: $entryData?.[field.field.db_fieldName] || null}
-				field={field.field}
-			/>
+
+					<!-- Widget Input -->
+					<svelte:component
+						this={asAny(field.widget.type)}
+						field={asAny(field)}
+						bind:WidgetData={fieldsData[getFieldName(field)]}
+						value={customData[getFieldName(field)]}
+						{...$$props}
+					/>
+				</div>
+			{/key}
 		{/if}
-	</div>
-{/each}
+	{/each}
+</div>

@@ -1,53 +1,123 @@
-import { PUBLIC_LANGUAGE } from '$env/static/public';
-import widgets from '../components/widgets';
-
-import Posts from './Posts';
-
+import widgets from '@src/components/widgets';
+import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
-	// Collection Name & Icon (optional) shown on Sidebar
+	// Collection Name comming from filename
+
+	// Optional & Icon , status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
-	name: 'Menu',
 	icon: 'bi:menu-button-wide',
 	strict: false,
 	status: 'published',
 	slug: 'menu',
 
+	/**
+	 * Specifies access rights for user roles.
+	 * `read` and `write` properties define read/write access for each role.
+	 */
+	permissions: {
+		[roles.admin]: {
+			read: true,
+			write: true
+		}
+		// other roles...
+	},
+
 	// Defined Fields that are used in Collection
-	// Inspect Widget fields for possible options
+	// Widget fields can be inspected for individual options
+
+	// Important All MENU Labels need to be called 'Header' for Menu associate children
 	fields: [
 		widgets.MegaMenu({
-			db_fieldName: 'Menus',
+			label: 'Menu',
 			menu: [
 				{
-					fields: [widgets.Text({ db_fieldName: 'Name', icon: 'ri:t-box-line' })]
-				},
-				{
 					fields: [
-						widgets.Text({ db_fieldName: 'Name', icon: 'ri:t-box-line' }),
-						widgets.Relation({
-							db_fieldName: 'bla_name',
-							icon: 'ri:t-box-line',
-							relation: Posts,
-							display: (data: any, field: any, entry: any) => {
-								return data.name[PUBLIC_LANGUAGE];
-							}
+						widgets.Text({
+							label: 'Header',
+							placeholder: 'Enter Menu Name',
+							required: true,
+							translated: true
 						})
 					]
 				},
 				{
 					fields: [
-						widgets.Text({ db_fieldName: 'Name', icon: 'ri:t-box-line' }),
-						widgets.Text({ db_fieldName: 'Img', icon: 'bi:card-image' }),
-						widgets.Text({ db_fieldName: 'Address' })
+						widgets.Text({
+							label: 'Header',
+							placeholder: 'Enter Category Level 1 Name',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Description',
+							placeholder: 'Enter Description Level 1',
+							required: true,
+							translated: true
+						}),
+						widgets.ImageUpload({
+							label: 'image',
+							required: true,
+							icon: 'material-symbols:image-outline',
+							path: 'global'
+						}),
+						widgets.Text({
+							label: 'Title',
+							placeholder: 'Image Title',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Alt Text',
+							placeholder: 'Image Alt Text',
+							required: true,
+							translated: true
+						}),
+
+						widgets.Seo({
+							label: 'Seo',
+							translated: true
+						})
 					]
 				},
 				{
 					fields: [
-						widgets.Text({ db_fieldName: 'Name', icon: 'ri:t-box-line' }),
-						widgets.Text({ db_fieldName: 'Img', icon: 'bi:card-image' }),
-						widgets.Text({ db_fieldName: 'Address' })
+						widgets.Text({
+							label: 'Header',
+							placeholder: 'Enter Category Level 2 Name',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Description',
+							placeholder: 'Enter Description Level 2',
+							required: true,
+							translated: true
+						}),
+
+						widgets.ImageUpload({
+							label: 'Image',
+							path: 'global'
+						}),
+
+						widgets.Text({
+							label: 'Title',
+							placeholder: 'Image Title',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Alt Text',
+							placeholder: 'Image Alt Text',
+							required: true,
+							translated: true
+						}),
+
+						widgets.Seo({
+							label: 'Seo',
+							translated: true
+						})
 					]
 				}
 			]
