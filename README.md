@@ -53,11 +53,15 @@ Data is provided via yoga graphql, to build extremely fast frontend
 
 ### Clone the repository
 
+To clone this repository you need to be able to use [Git](https://git-scm.com/downloads).
+
 ```bash
 git clone https://github.com/Rar9/SimpleCMS.git
 ```
 
 ### Install all dependencies
+
+Your need [Node.js](https://nodejs.org/en) to get started. We support 18 newer versions.
 
 ```bash
 pnpm i
@@ -67,12 +71,14 @@ pnpm i
 
 rename the `.env.example` to `.env`.
 
-- Extend Languages if other are required
-- Enter the access data to connect to your mongodb or mongo atlas
+- Enter fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
+- Extend database Languages if other are required
 - Setup your Email SMTP & HOST
 - Add your API Tokes for the individual Widget you need to use
 
-### Run the application
+### Start the application
+
+See `package.json` for more information like build.
 
 ```bash
 pnpm dev

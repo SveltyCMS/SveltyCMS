@@ -103,8 +103,7 @@ const en: BaseTranslation = {
 	LOGIN_ZOD_Email_string: 'Email is required',
 	LOGIN_ZOD_Email_email: 'Email must be a valid email',
 	LOGIN_ZOD_Password_string: 'Password is required',
-	LOGIN_ZOD_Password_regex:
-		'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
+	LOGIN_ZOD_Password_regex: 'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
 	LOGIN_ZOD_Confirm_password_string: 'Confirm Password is required',
 	LOGIN_ZOD_Confirm_password_regex:
 		'Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character.',
@@ -161,6 +160,20 @@ const en: BaseTranslation = {
 
 	// Alert
 
+	// Email
+	EMAIL_Welcome_Title: 'Welcome to {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Meta: 'Welcome to {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Preview: 'Welcome to {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Username: 'Dear {username},',
+	EMAIL_Welcome_Sitename: 'Welcome to {PUBLIC_SITENAME} - a Sveltekit powered flexible Headless CMS.',
+	EMAIL_Welcome_SimpleCMS:
+		'SimpleCMS is a fast and flexible headless CMS that allows you to easily manage your content. With Sveltekit powering our platform, you can expect a seamless and efficient experience.',
+	EMAIL_Welcome_Discussion1: 'If you have any questions or need help getting started, please visit our Q&A on Github',
+	EMAIL_Welcome_Discussion2: 'SimpleCMS Discussion.',
+	EMAIL_Welcome_Thanks: "Thank you for choosing SimpleCMS. We're excited to have you on board!",
+	EMAIL_Welcome_Button: 'Go to {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Footer: 'Your {PUBLIC_SITENAME} Team',
+
 	// Collections
 	COLLECTION_TEST_User: 'User',
 	COLLECTION_TEST_Prefix: 'Prefix',
@@ -198,20 +211,15 @@ const en: BaseTranslation = {
 
 	WIDGET_Seo_Suggestion_TitlePerfect: 'Your title is more than 50 characters. Perfect!',
 	WIDGET_Seo_Suggestion_TitleGood: 'Your title is more than 30 characters. Try 50+. Good!',
-	WIDGET_Seo_Suggestion_TitleBad:
-		'Your title is too short. Make sure your title is at least 50 characters. Bad!',
-	WIDGET_Seo_Suggestion_DescriptionPerfect:
-		'Your description is between 120 and 165 characters. Perfect!',
+	WIDGET_Seo_Suggestion_TitleBad: 'Your title is too short. Make sure your title is at least 50 characters. Bad!',
+	WIDGET_Seo_Suggestion_DescriptionPerfect: 'Your description is between 120 and 165 characters. Perfect!',
 	WIDGET_Seo_Suggestion_DescriptionGood: 'Your description is more than 90 characters. Good!',
 	WIDGET_Seo_Suggestion_DescriptionBad: 'Your description is less than 90 characters. Bad!',
 	WIDGET_Seo_Suggestion_SentencePerfect: 'Your description is 2 to 4 sentences long. Perfect!',
-	WIDGET_Seo_Suggestion_SentenceGood:
-		'Your description is 2 to 4 sentences long but not all sentences are between 10 and 30 characters. Good!',
-	WIDGET_Seo_Suggestion_SentenceBad:
-		'Your description is only 1 sentence long. Make sure your description is 2 to 4 sentences long.',
+	WIDGET_Seo_Suggestion_SentenceGood: 'Your description is 2 to 4 sentences long but not all sentences are between 10 and 30 characters. Good!',
+	WIDGET_Seo_Suggestion_SentenceBad: 'Your description is only 1 sentence long. Make sure your description is 2 to 4 sentences long.',
 	WIDGET_Seo_Suggestion_NumberPerfect: 'Your title uses numbers. Perfect!',
-	WIDGET_Seo_Suggestion_NumberBad:
-		'Your title does not use numbers. The use of numbers in your title can increase your CTR.',
+	WIDGET_Seo_Suggestion_NumberBad: 'Your title does not use numbers. The use of numbers in your title can increase your CTR.',
 	WIDGET_Seo_Suggestion_PowerWordTitle: `Your title has the Power Word. Perfect!`,
 	WIDGET_Seo_Suggestion_PowerWordTitleBad: `Your title does not have a Power Word. Bad!`,
 	WIDGET_Seo_Suggestion_PowerWordDescription: `Your description uses the Power Word. Perfect!`,

@@ -543,6 +543,57 @@ type RootTranslation = {
 	 */
 	FORM_Required: string
 	/**
+	 * W​e​l​c​o​m​e​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Title: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * W​e​l​c​o​m​e​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Meta: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * W​e​l​c​o​m​e​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Preview: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * D​e​a​r​ ​{​u​s​e​r​n​a​m​e​}​,
+	 * @param {unknown} username
+	 */
+	EMAIL_Welcome_Username: RequiredParams<'username'>
+	/**
+	 * W​e​l​c​o​m​e​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​-​ ​a​ ​S​v​e​l​t​e​k​i​t​ ​p​o​w​e​r​e​d​ ​f​l​e​x​i​b​l​e​ ​H​e​a​d​l​e​s​s​ ​C​M​S​.
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Sitename: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * S​i​m​p​l​e​C​M​S​ ​i​s​ ​a​ ​f​a​s​t​ ​a​n​d​ ​f​l​e​x​i​b​l​e​ ​h​e​a​d​l​e​s​s​ ​C​M​S​ ​t​h​a​t​ ​a​l​l​o​w​s​ ​y​o​u​ ​t​o​ ​e​a​s​i​l​y​ ​m​a​n​a​g​e​ ​y​o​u​r​ ​c​o​n​t​e​n​t​.​ ​W​i​t​h​ ​S​v​e​l​t​e​k​i​t​ ​p​o​w​e​r​i​n​g​ ​o​u​r​ ​p​l​a​t​f​o​r​m​,​ ​y​o​u​ ​c​a​n​ ​e​x​p​e​c​t​ ​a​ ​s​e​a​m​l​e​s​s​ ​a​n​d​ ​e​f​f​i​c​i​e​n​t​ ​e​x​p​e​r​i​e​n​c​e​.
+	 */
+	EMAIL_Welcome_SimpleCMS: string
+	/**
+	 * I​f​ ​y​o​u​ ​h​a​v​e​ ​a​n​y​ ​q​u​e​s​t​i​o​n​s​ ​o​r​ ​n​e​e​d​ ​h​e​l​p​ ​g​e​t​t​i​n​g​ ​s​t​a​r​t​e​d​,​ ​p​l​e​a​s​e​ ​v​i​s​i​t​ ​o​u​r​ ​Q​&​A​ ​o​n​ ​G​i​t​h​u​b
+	 */
+	EMAIL_Welcome_Discussion1: string
+	/**
+	 * S​i​m​p​l​e​C​M​S​ ​D​i​s​c​u​s​s​i​o​n​.
+	 */
+	EMAIL_Welcome_Discussion2: string
+	/**
+	 * T​h​a​n​k​ ​y​o​u​ ​f​o​r​ ​c​h​o​o​s​i​n​g​ ​S​i​m​p​l​e​C​M​S​.​ ​W​e​'​r​e​ ​e​x​c​i​t​e​d​ ​t​o​ ​h​a​v​e​ ​y​o​u​ ​o​n​ ​b​o​a​r​d​!
+	 */
+	EMAIL_Welcome_Thanks: string
+	/**
+	 * G​o​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Button: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​T​e​a​m
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Welcome_Footer: RequiredParams<'PUBLIC_SITENAME'>
+	/**
 	 * U​s​e​r
 	 */
 	COLLECTION_TEST_User: string
@@ -1627,6 +1678,50 @@ export type TranslationFunctions = {
 	 * Required
 	 */
 	FORM_Required: () => LocalizedString
+	/**
+	 * Welcome to {PUBLIC_SITENAME}
+	 */
+	EMAIL_Welcome_Title: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Welcome to {PUBLIC_SITENAME}
+	 */
+	EMAIL_Welcome_Meta: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Welcome to {PUBLIC_SITENAME}
+	 */
+	EMAIL_Welcome_Preview: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Dear {username},
+	 */
+	EMAIL_Welcome_Username: (arg: { username: unknown }) => LocalizedString
+	/**
+	 * Welcome to {PUBLIC_SITENAME} - a Sveltekit powered flexible Headless CMS.
+	 */
+	EMAIL_Welcome_Sitename: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * SimpleCMS is a fast and flexible headless CMS that allows you to easily manage your content. With Sveltekit powering our platform, you can expect a seamless and efficient experience.
+	 */
+	EMAIL_Welcome_SimpleCMS: () => LocalizedString
+	/**
+	 * If you have any questions or need help getting started, please visit our Q&A on Github
+	 */
+	EMAIL_Welcome_Discussion1: () => LocalizedString
+	/**
+	 * SimpleCMS Discussion.
+	 */
+	EMAIL_Welcome_Discussion2: () => LocalizedString
+	/**
+	 * Thank you for choosing SimpleCMS. We're excited to have you on board!
+	 */
+	EMAIL_Welcome_Thanks: () => LocalizedString
+	/**
+	 * Go to {PUBLIC_SITENAME}
+	 */
+	EMAIL_Welcome_Button: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Your {PUBLIC_SITENAME} Team
+	 */
+	EMAIL_Welcome_Footer: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
 	/**
 	 * User
 	 */

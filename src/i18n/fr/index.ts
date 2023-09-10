@@ -90,8 +90,7 @@ const fr: Translation = {
 	LOGIN_Token: "Jeton d'inscription",
 	LOGIN_ConfirmPassword: 'Confirmer le mot de passe',
 	LOGIN_ForgottenPassword: 'Mot de passe oublié',
-	LOGIN_ForgottenPassword_text:
-		'Ne vous inquiétez pas. Nous vous aiderons à récupérer votre mot de passe.',
+	LOGIN_ForgottenPassword_text: 'Ne vous inquiétez pas. Nous vous aiderons à récupérer votre mot de passe.',
 	LOGIN_SendResetMail: 'Envoyer un e-mail de réinitialisation du mot de passe',
 	LOGIN_ResetPassword: 'Réinitialiser le mot de passe',
 	LOGIN_ResetPasswordSave: 'Enregistrer le nouveau mot de passe',
@@ -110,8 +109,7 @@ const fr: Translation = {
 	LOGIN_ZOD_Confirm_password_regex:
 		'Le mot de passe doit comporter au moins 8 caractères et contenir au moins une lettre, un chiffre et un caractère spécial.',
 	LOGIN_ZOD_Token_string: "Un jeton d'authentification est requis",
-	LOGIN_ZOD_Password_match:
-		'Le mot de passe et la confirmation du mot de passe doivent correspondre',
+	LOGIN_ZOD_Password_match: 'Le mot de passe et la confirmation du mot de passe doivent correspondre',
 
 	LOGIN_ZOD_General_Unknown: "Une erreur inconnue s'est produite",
 	LOGIN_ZOD_General_Error: 'Entrée invalide',
@@ -163,6 +161,20 @@ const fr: Translation = {
 
 	// Alert
 
+	// Email
+	EMAIL_Welcome_Title: 'Bienvenue à {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Meta: 'Bienvenue à {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Preview: 'Bienvenue à {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Username: 'Cher {username},',
+	EMAIL_Welcome_Sitename: 'Bienvenue à {PUBLIC_SITENAME} - aun CMS Headless flexible propulsé par Sveltekit.',
+	EMAIL_Welcome_SimpleCMS:
+		'SimpleCMS est un headless CMS rapide et flexible qui vous permet de gérer facilement votre contenu. Avec Sveltekit qui alimente notre plateforme, vous pouvez vous attendre à une expérience transparente et efficace.',
+	EMAIL_Welcome_Discussion1: "Si vous avez des questions ou si vous avez besoin d'aide pour démarrer, veuillez consulter notre Q&A sur Github",
+	EMAIL_Welcome_Discussion2: 'Discussion sur SimpleCMS.',
+	EMAIL_Welcome_Thanks: "Merci d'avoir choisi SimpleCMS. Nous sommes ravis de vous compter parmi nous !",
+	EMAIL_Welcome_Button: 'Aller sur {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Footer: 'Votre équipe {PUBLIC_SITENAME} Team',
+
 	// Collections
 	COLLECTION_TEST_User: 'User',
 	COLLECTION_TEST_Prefix: 'Prefix',
@@ -179,8 +191,7 @@ const fr: Translation = {
 	COLLECTION_TEST_Full_Text_Option_Placeholder: 'Enter full text',
 
 	// Widgets
-	WIDGET_MegaMenu_title:
-		"Veuillez saisir un nom pour votre menu avant d'ajouter des catégories de menu.",
+	WIDGET_MegaMenu_title: "Veuillez saisir un nom pour votre menu avant d'ajouter des catégories de menu.",
 	WIDGET_MegaMenu_Next: 'Suivant',
 
 	WIDGET_Address_SearchMap: 'Search in Map ...',
@@ -201,21 +212,17 @@ const fr: Translation = {
 
 	WIDGET_Seo_Suggestion_TitlePerfect: 'Your title is more than 50 characters. Perfect!',
 	WIDGET_Seo_Suggestion_TitleGood: 'Your title is more than 30 characters. Try 50+. Good!',
-	WIDGET_Seo_Suggestion_TitleBad:
-		'Your title is too short. Make sure your title is at least 50 characters. Bad!',
-	WIDGET_Seo_Suggestion_DescriptionPerfect:
-		'Your description is between 120 and 165 characters. Perfect!',
+	WIDGET_Seo_Suggestion_TitleBad: 'Your title is too short. Make sure your title is at least 50 characters. Bad!',
+	WIDGET_Seo_Suggestion_DescriptionPerfect: 'Your description is between 120 and 165 characters. Perfect!',
 	WIDGET_Seo_Suggestion_DescriptionGood: 'Your description is more than 90 characters. Good!',
 	WIDGET_Seo_Suggestion_DescriptionBad: 'Your description is less than 90 characters. Bad!',
 	WIDGET_Seo_Suggestion_SentencePerfect: 'Your description is 2 to 4 sentences long. Perfect!',
 	WIDGET_Seo_Suggestion_SentenceGood:
 		"Votre description comporte 2 à 4 phrases mais toutes les phrases ne sont pas comprises entre 10 et 30 caractères. C'est bien",
-	WIDGET_Seo_Suggestion_SentenceBad:
-		'Your descripton is only 1 sentence long. Make sure your description is 2 to 4 sentences long.',
+	WIDGET_Seo_Suggestion_SentenceBad: 'Your descripton is only 1 sentence long. Make sure your description is 2 to 4 sentences long.',
 
 	WIDGET_Seo_Suggestion_NumberPerfect: 'Your title uses numbers. Perfect!',
-	WIDGET_Seo_Suggestion_NumberBad:
-		'Your title does not use numbers. The use of numbers in your title can increase your CTR.',
+	WIDGET_Seo_Suggestion_NumberBad: 'Your title does not use numbers. The use of numbers in your title can increase your CTR.',
 	WIDGET_Seo_Suggestion_PowerWordTitle: `Votre titre contient le mot-clé. Parfait!`,
 	WIDGET_Seo_Suggestion_PowerWordTitleBad: `Votre titre ne contient pas de mot-clé. Mauvais!`,
 	WIDGET_Seo_Suggestion_PowerWordDescription: `Votre description utilise le mot-clé. Parfait!`,

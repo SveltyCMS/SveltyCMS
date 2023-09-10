@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import { superValidate, message } from 'sveltekit-superforms/server';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@src/utils/formSchemas';
 import { auth } from '@src/routes/api/db';
-import { Token, passwordToken } from '@lucia-auth/tokens';
+import { passwordToken } from '@lucia-auth/tokens';
 import type { User } from '@src/collections/Auth';
 
 // load and validate login and sign up forms

@@ -103,11 +103,9 @@ const es: Translation = {
 	LOGIN_ZOD_Email_string: 'El correo electrónico es obligatorio',
 	LOGIN_ZOD_Email_email: 'El correo electrónico debe ser un correo electrónico válido',
 	LOGIN_ZOD_Password_string: 'Se requiere contraseña',
-	LOGIN_ZOD_Password_regex:
-		'La contraseña debe tener al menos 8 caracteres y contener al menos una letra, un número y un carácter especial',
+	LOGIN_ZOD_Password_regex: 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra, un número y un carácter especial',
 	LOGIN_ZOD_Confirm_password_string: 'Se requiere confirmación de contraseña',
-	LOGIN_ZOD_Confirm_password_regex:
-		'La contraseña debe tener al menos 8 caracteres y contener al menos una letra, un número y un carácter especial',
+	LOGIN_ZOD_Confirm_password_regex: 'La contraseña debe tener al menos 8 caracteres y contener al menos una letra, un número y un carácter especial',
 	LOGIN_ZOD_Token_string: 'Se requiere Auth Token',
 	LOGIN_ZOD_Password_match: 'La contraseña y la confirmación deben coincidir',
 
@@ -141,8 +139,7 @@ const es: Translation = {
 	ENTRYLIST_Modal_body_Create: '¿Está seguro de que desea Crear este contenido?',
 	ENTRYLIST_Modal_title_Publish: 'Por favor, confirme la publicación del contenido',
 	ENTRYLIST_Modal_body_Publish: '¿Estás seguro de que deseas Publicar este contenido?',
-	ENTRYLIST_Modal_title_Unpublish:
-		'Por favor, confirme la anulación de la publicación del contenido',
+	ENTRYLIST_Modal_title_Unpublish: 'Por favor, confirme la anulación de la publicación del contenido',
 	ENTRYLIST_Modal_body_Unpublish: '¿Estás seguro de que deseas Despublicar este contenido?',
 	ENTRYLIST_Modal_title_Schedule: 'Por favor, confirme el horario del contenido',
 	ENTRYLIST_Modal_body_Schedule: '¿Está seguro de que desea Programar este contenido?',
@@ -159,7 +156,22 @@ const es: Translation = {
 	FORM_CloseMenu: 'Cerrar menú',
 	FORM_TT_Closes: 'Cerrar sin guardar',
 	FORM_Required: 'Erforderlich',
+
 	// Alert
+
+	// EMAIL
+	EMAIL_Welcome_Title: 'Bienvenido a {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Meta: 'Bienvenido a {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Preview: 'Bienvenido a {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Username: 'Estimado {username},',
+	EMAIL_Welcome_Siteame: 'Bienvenido a {PUBLIC_SITENAME} - un CMS Headless flexible impulsado por Sveltekit',
+	EMAIL_Welcome_SimpleCMS:
+		'SimpleCMS es un CMS rápido y flexible que le permite gestionar fácilmente su contenido. Con Sveltekit potenciando nuestra plataforma, puedes esperar una experiencia fluida y eficiente',
+	EMAIL_Welcome_Discussion1: 'Si tiene alguna pregunta o necesita ayuda para empezar, por favor visite nuestro Q&A en Github',
+	EMAIL_Welcome_Discussion2: 'Discusión sobre SimpleCMS',
+	EMAIL_Welcome_Thanks: 'Gracias por elegir SimpleCMS. Estamos encantados de tenerte a bordo!',
+	EMAIL_Welcome_Button: 'Ir a {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Footer: 'Tu {PUBLIC_SITENAME} Equipo',
 
 	// Collections
 	COLLECTION_TEST_User: 'Usuario',
@@ -197,33 +209,25 @@ const es: Translation = {
 	WIDGET_Relation_AddNew: 'Añadir nueva',
 
 	WIDGET_Seo_Suggestion_TitlePerfect: 'Tu título tiene más de 50 caracteres. ¡Perfecto!',
-	WIDGET_Seo_Suggestion_TitleGood:
-		'Tu título tiene más de 30 caracteres. Prueba con más de 50. ¡Bien!',
-	WIDGET_Seo_Suggestion_TitleBad:
-		'Tu título es demasiado corto. Asegúrate de que tu título tiene al menos 50 caracteres. ¡Malo!',
-	WIDGET_Seo_Suggestion_DescriptionPerfect:
-		'Tu descripción tiene entre 120 y 165 caracteres. ¡Perfecto!',
+	WIDGET_Seo_Suggestion_TitleGood: 'Tu título tiene más de 30 caracteres. Prueba con más de 50. ¡Bien!',
+	WIDGET_Seo_Suggestion_TitleBad: 'Tu título es demasiado corto. Asegúrate de que tu título tiene al menos 50 caracteres. ¡Malo!',
+	WIDGET_Seo_Suggestion_DescriptionPerfect: 'Tu descripción tiene entre 120 y 165 caracteres. ¡Perfecto!',
 	WIDGET_Seo_Suggestion_DescriptionGood: 'Tu descripción tiene más de 90 caracteres. ¡Bien!',
 	WIDGET_Seo_Suggestion_DescriptionBad: 'Tu descripción tiene menos de 90 caracteres. ¡Malo!',
 	WIDGET_Seo_Suggestion_SentencePerfect: 'Tu descripción tiene entre 2 y 4 frases. ¡Perfecto!',
-	WIDGET_Seo_Suggestion_SentenceGood:
-		'Tu descripción tiene entre 2 y 4 frases, pero no todas las frases tienen entre 10 y 30 caracteres. Bien!',
-	WIDGET_Seo_Suggestion_SentenceBad:
-		'Tu descripción sólo tiene 1 frase. Asegúrate de que tu descripción tenga entre 2 y 4 frases.',
+	WIDGET_Seo_Suggestion_SentenceGood: 'Tu descripción tiene entre 2 y 4 frases, pero no todas las frases tienen entre 10 y 30 caracteres. Bien!',
+	WIDGET_Seo_Suggestion_SentenceBad: 'Tu descripción sólo tiene 1 frase. Asegúrate de que tu descripción tenga entre 2 y 4 frases.',
 
 	WIDGET_Seo_Suggestion_NumberPerfect: 'Tu título utiliza números. ¡Perfecto!',
-	WIDGET_Seo_Suggestion_NumberBad:
-		'Tu título no usa números. Usar números en tu título puede aumentar tu CTR.',
+	WIDGET_Seo_Suggestion_NumberBad: 'Tu título no usa números. Usar números en tu título puede aumentar tu CTR.',
 	WIDGET_Seo_Suggestion_PowerWordTitle: 'Tu título tiene la palabra clave. ¡Perfecto!',
 	WIDGET_Seo_Suggestion_PowerWordTitleBad: 'Tu título no tiene la palabra clave. Malo!',
 	WIDGET_Seo_Suggestion_PowerWordDescription: 'Tu descripción utiliza la palabra clave. ¡Perfecto!',
 	WIDGET_Seo_Suggestion_PowerWordDescriptionBad: 'Tu descripción no utiliza una Power Word. Bad',
 	WIDGET_Seo_Suggestion_ctaKeywordsTitle: 'Tu título tiene la palabra clave CTA. Perfecto',
 	WIDGET_Seo_Suggestion_ctaKeywordsTitleBad: 'Tu título no tiene la palabra clave CTA. Malo!',
-	WIDGET_Seo_Suggestion_ctaKeywordsDescription:
-		'Tu descripción utiliza la palabra clave CTA. Perfecto!',
-	WIDGET_Seo_Suggestion_ctaKeywordsDescriptionBad:
-		'Tu descripción no utiliza la palabra clave CTA. ¡Malo!',
+	WIDGET_Seo_Suggestion_ctaKeywordsDescription: 'Tu descripción utiliza la palabra clave CTA. Perfecto!',
+	WIDGET_Seo_Suggestion_ctaKeywordsDescriptionBad: 'Tu descripción no utiliza la palabra clave CTA. ¡Malo!',
 	WIDGET_Seo_Suggestion_Title: 'Título:',
 	WIDGET_Seo_Suggestion_Character: 'Carácter:',
 	WIDGET_Seo_Suggestion_WidthDesktop: '- Escritorio:',
@@ -233,8 +237,7 @@ const es: Translation = {
 	WIDGET_Seo_Suggestion_SeoDescription: 'Descripción SEO',
 	WIDGET_Seo_Suggestion_SeoPreview: 'Vista previa SEO',
 	WIDGET_Seo_Suggestion_ListOfSuggestion: 'Sugerencias SEO:',
-	WIDGET_Seo_Suggestion_Text:
-		'Optimizar el título y la descripción para los resultados de búsqueda de Google',
+	WIDGET_Seo_Suggestion_Text: 'Optimizar el título y la descripción para los resultados de búsqueda de Google',
 
 	WIDGET_SEO_PowerWords: [
 		'Ahorro de tiempo',

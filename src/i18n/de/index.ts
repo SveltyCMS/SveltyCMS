@@ -65,8 +65,7 @@ const de: Translation = {
 	USER_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
 	USER_Avatar_Unsupported: 'Unterstützte Formate: jpeg, jpg, png, webp, avif, svg, gif',
 	USER_Confirm_Title: 'Bitte bestätigen Sie die Löschung des Benutzers:',
-	USER_Confirm_Body:
-		'Dies kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?',
+	USER_Confirm_Body: 'Dies kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?',
 	USER_Confirm_Delete: 'Benutzer löschen',
 
 	// Tanstack
@@ -91,8 +90,7 @@ const de: Translation = {
 	LOGIN_Token: 'Anmeldungs Token',
 	LOGIN_ConfirmPassword: 'Passwort bestätigen',
 	LOGIN_ForgottenPassword: 'Kennwort vergessen',
-	LOGIN_ForgottenPassword_text:
-		'Machen Sie sich keine Sorgen. Wir helfen Ihnen, Ihr Passwort wiederzufinden.',
+	LOGIN_ForgottenPassword_text: 'Machen Sie sich keine Sorgen. Wir helfen Ihnen, Ihr Passwort wiederzufinden.',
 	LOGIN_SendResetMail: 'E-Mail Passwort senden',
 	LOGIN_ResetPassword: 'Passwort zurücksetzen',
 	LOGIN_ResetPasswordSave: 'Neues Password speichern',
@@ -143,10 +141,8 @@ const de: Translation = {
 	ENTRYLIST_Modal_body_Create: 'Sind Sie sicher, dass Sie diesen Inhalt erstellen möchten?',
 	ENTRYLIST_Modal_title_Publish: 'Bitte bestätigen Sie die Veröffentlichung des Inhalts',
 	ENTRYLIST_Modal_body_Publish: 'Sind Sie sicher, dass Sie diesen Inhalt veröffentlichen möchten?',
-	ENTRYLIST_Modal_title_Unpublish:
-		'Bitte bestätigen Sie, dass der Inhalt nicht veröffentlicht werden soll',
-	ENTRYLIST_Modal_body_Unpublish:
-		'Sind Sie sicher, dass Sie diesen Inhalt nicht veröffentlichen möchten?',
+	ENTRYLIST_Modal_title_Unpublish: 'Bitte bestätigen Sie, dass der Inhalt nicht veröffentlicht werden soll',
+	ENTRYLIST_Modal_body_Unpublish: 'Sind Sie sicher, dass Sie diesen Inhalt nicht veröffentlichen möchten?',
 	ENTRYLIST_Modal_title_Schedule: 'Bitte bestätigen Sie den Zeitplan für den Inhalt',
 	ENTRYLIST_Modal_body_Schedule: 'Sind Sie sicher, dass Sie diesen Inhalt einplanen möchten?',
 	ENTRYLIST_Modal_title_Clone: 'Bitte bestätigen Sie das Klonen von Inhalten',
@@ -163,6 +159,20 @@ const de: Translation = {
 	FORM_TT_Closes: 'Schließen ohne Speichern',
 	FORM_Required: 'Erforderlich',
 	// Alert
+
+	// E-Mail
+	EMAIL_Welcome_Title: 'Willkommen bei {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Meta: 'Herzlich willkommen bei {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Preview: 'Willkommen bei {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Username: 'Lieber {username},',
+	EMAIL_Willkommen_Seitenname: 'Willkommen bei {PUBLIC_SITENAME} - einem flexiblen Headless CMS mit Sveltekit.',
+	EMAIL_Willkommen_SimpleCMS:
+		'SimpleCMS ist ein schnelles und flexibles Headless CMS, mit dem Sie Ihre Inhalte einfach verwalten können. Mit Sveltekit, das unsere Plattform betreibt, können Sie eine nahtlose und effiziente Erfahrung erwarten.',
+	EMAIL_Welcome_Discussion1: 'Wenn Sie Fragen haben oder Hilfe bei den ersten Schritten benötigen, besuchen Sie bitte unsere Q&A auf Github',
+	EMAIL_Welcome_Discussion2: 'SimpleCMS Diskussion.',
+	EMAIL_Welcome_Thanks: 'Vielen Dank, dass Sie sich für SimpleCMS entschieden haben. Wir freuen uns, Sie an Bord zu haben!',
+	EMAIL_Welcome_Button: 'Gehe zu {PUBLIC_SITENAME}',
+	EMAIL_Welcome_Footer: 'Ihr {PUBLIC_SITENAME} Team',
 
 	// Collections
 	COLLECTION_TEST_User: 'Benutzer',
@@ -200,24 +210,17 @@ const de: Translation = {
 	WIDGET_Relation_AddNew: 'Neu hinzufügen',
 
 	WIDGET_Seo_Suggestion_TitlePerfect: 'Ihr Titel hat mehr als 50 Zeichen. Perfekt!',
-	WIDGET_Seo_Suggestion_TitleGood:
-		'Ihr Titel besteht aus mehr als 30 Zeichen. Versuchen Sie 50+. Gut!',
-	WIDGET_Seo_Suggestion_TitleBad:
-		'Ihr Titel ist zu kurz. Stellen Sie sicher, dass Ihr Titel mindestens 50 Zeichen lang ist. Schlecht!',
-	WIDGET_Seo_Suggestion_DescriptionPerfect:
-		'Ihre Beschreibung hat zwischen 120 und 165 Zeichen. Perfekt!',
+	WIDGET_Seo_Suggestion_TitleGood: 'Ihr Titel besteht aus mehr als 30 Zeichen. Versuchen Sie 50+. Gut!',
+	WIDGET_Seo_Suggestion_TitleBad: 'Ihr Titel ist zu kurz. Stellen Sie sicher, dass Ihr Titel mindestens 50 Zeichen lang ist. Schlecht!',
+	WIDGET_Seo_Suggestion_DescriptionPerfect: 'Ihre Beschreibung hat zwischen 120 und 165 Zeichen. Perfekt!',
 	WIDGET_Seo_Suggestion_DescriptionGood: 'Ihre Beschreibung besteht aus mehr als 90 Zeichen. Gut!',
 	WIDGET_Seo_Suggestion_DescriptionBad: 'Ihre Beschreibung hat weniger als 90 Zeichen. Schlecht!',
-	WIDGET_Seo_Suggestion_SentencePerfect:
-		'Ihre Beschreibung ist zwischen 2 und 4 Sätzen lang. Perfekt!',
-	WIDGET_Seo_Suggestion_SentenceGood:
-		'Ihre Beschreibung ist 2 bis 4 Sätze lang, aber nicht alle Sätze sind zwischen 10 und 30 Zeichen lang. Gut!',
-	WIDGET_Seo_Suggestion_SentenceBad:
-		'Ihre Beschreibung ist nur 1 Satz lang. Stellen Sie sicher, dass Ihre Beschreibung 2 bis 4 Sätze lang ist.',
+	WIDGET_Seo_Suggestion_SentencePerfect: 'Ihre Beschreibung ist zwischen 2 und 4 Sätzen lang. Perfekt!',
+	WIDGET_Seo_Suggestion_SentenceGood: 'Ihre Beschreibung ist 2 bis 4 Sätze lang, aber nicht alle Sätze sind zwischen 10 und 30 Zeichen lang. Gut!',
+	WIDGET_Seo_Suggestion_SentenceBad: 'Ihre Beschreibung ist nur 1 Satz lang. Stellen Sie sicher, dass Ihre Beschreibung 2 bis 4 Sätze lang ist.',
 
 	WIDGET_Seo_Suggestion_NumberPerfect: 'Ihr Titel verwendet Zahlen. Perfekt!',
-	WIDGET_Seo_Suggestion_NumberBad:
-		'Ihr Titel verwendet keine Zahlen. Die Verwendung von Zahlen in Ihrem Titel kann Ihre CTR erhöhen.',
+	WIDGET_Seo_Suggestion_NumberBad: 'Ihr Titel verwendet keine Zahlen. Die Verwendung von Zahlen in Ihrem Titel kann Ihre CTR erhöhen.',
 	WIDGET_Seo_Suggestion_PowerWordTitle: `Ihr Titel enthält das Power Word. Perfekt!`,
 	WIDGET_Seo_Suggestion_PowerWordTitleBad: `Ihr Titel enthält kein Power Word. Schlecht!`,
 	WIDGET_Seo_Suggestion_PowerWordDescription: `Ihre Beschreibung verwendet das Power Word. Perfekt!`,
