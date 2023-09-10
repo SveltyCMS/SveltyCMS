@@ -594,6 +594,139 @@ type RootTranslation = {
 	 */
 	EMAIL_Welcome_Footer: RequiredParams<'PUBLIC_SITENAME'>
 	/**
+	 * R​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Forgotten_Title: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * R​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Forgotten_Meta: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * R​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Forgotten_Preview: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * H​e​l​l​o​ ​{​e​m​a​i​l​}
+	 * @param {unknown} email
+	 */
+	EMAIL_Forgotten_Hello: RequiredParams<'email'>
+	/**
+	 * Y​o​u​ ​h​a​v​e​ ​r​e​q​u​e​s​t​e​d​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​P​a​s​s​w​o​r​d​ ​t​o​ ​g​e​t​ ​a​c​c​e​s​s​ ​t​o​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Forgotten_Request: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​r​ ​r​e​s​e​t​ ​T​o​k​e​n​:
+	 */
+	EMAIL_Forgotten_Token: string
+	/**
+	 * I​s​ ​v​a​l​i​d​ ​o​n​l​y​ ​f​o​r​:
+	 */
+	EMAIL_Forgotten_Valid: string
+	/**
+	 * I​f​ ​y​o​u​ ​d​i​d​ ​n​o​t​ ​r​e​q​u​e​s​t​ ​t​h​i​s​ ​r​e​s​e​t​,​ ​p​l​e​a​s​e​ ​i​g​n​o​r​e​ ​t​h​i​s​ ​e​m​a​i​l​.
+	 */
+	EMAIL_Forgotten_Ignore: string
+	/**
+	 * P​l​e​a​s​e​ ​p​r​e​s​s​ ​t​h​e​ ​b​u​t​t​o​n​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d
+	 */
+	EMAIL_Forgotten_Press: string
+	/**
+	 * R​e​s​e​t​ ​P​a​s​s​w​o​r​d
+	 */
+	EMAIL_Forgotten_Button: string
+	/**
+	 * Y​o​u​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​T​e​a​m
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_Forgotten_Team: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​w​a​s​ ​c​h​a​n​g​e​d
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UpdatePW_Title: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​w​a​s​ ​c​h​a​n​g​e​d
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UpdatePW_Meta: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​w​a​s​ ​c​h​a​n​g​e​d
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UpdatePW_Preview: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * H​e​l​l​o​ ​{​u​s​e​r​n​a​m​e​}​,
+	 * @param {unknown} username
+	 */
+	EMAIL_UpdatePW_Hello: RequiredParams<'username'>
+	/**
+	 * Y​o​u​ ​h​a​v​e​ ​s​u​c​c​e​s​s​f​u​l​l​y​ ​c​h​a​n​g​e​d​ ​y​o​u​r​ ​P​a​s​s​w​o​r​d​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UpdatePW_Success: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * I​f​ ​y​o​u​ ​d​i​d​ ​n​o​t​ ​r​e​q​u​e​s​t​ ​t​h​i​s​ ​c​h​a​n​g​e​,​ ​p​l​e​a​s​e​ ​c​o​n​t​a​c​t​ ​y​o​u​r​ ​S​i​t​e​ ​a​d​m​i​n​.
+	 */
+	EMAIL_UpdatePW_Contact: string
+	/**
+	 * Y​o​u​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​T​e​a​m
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UpdatePW_Team: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​t​o​k​e​n​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UserToken_Title: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​t​o​k​e​n​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UserToken_Meta: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​t​o​k​e​n​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UserToken_Preview: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * Y​o​u​ ​h​a​v​e​ ​r​e​c​e​i​v​e​d​ ​a​n​ ​A​c​c​e​s​s​ ​T​o​k​e​n​ ​t​o​ ​c​r​e​a​t​e​ ​a​ ​n​e​w​ ​u​s​e​r​ ​f​o​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UserToken_Access: RequiredParams<'PUBLIC_SITENAME'>
+	/**
+	 * E​m​a​i​l​:
+	 */
+	EMAIL_UserToken_Email: string
+	/**
+	 * A​c​c​e​s​s​ ​T​o​k​e​n​:
+	 */
+	EMAIL_UserToken_Token: string
+	/**
+	 * A​s​s​i​g​n​e​d​ ​R​o​l​e​:
+	 */
+	EMAIL_UserToken_Role: string
+	/**
+	 * V​a​l​i​d​ ​o​n​l​y​ ​f​o​r​:
+	 */
+	EMAIL_UserToken_Valid: string
+	/**
+	 * P​l​e​a​s​e​ ​p​r​e​s​s​ ​t​h​e​ ​b​u​t​t​o​n​ ​t​o​ ​s​e​t​u​p​ ​y​o​u​r​ ​u​s​e​r​ ​w​i​t​h​ ​t​h​i​s​ ​e​m​a​i​l
+	 */
+	EMAIL_UserToken_Press: string
+	/**
+	 * C​r​e​a​t​e​ ​U​s​e​r
+	 */
+	EMAIL_UserToken_Button: string
+	/**
+	 * Y​o​u​r​ ​{​P​U​B​L​I​C​_​S​I​T​E​N​A​M​E​}​ ​T​e​a​m
+	 * @param {unknown} PUBLIC_SITENAME
+	 */
+	EMAIL_UserToken_Team: RequiredParams<'PUBLIC_SITENAME'>
+	/**
 	 * U​s​e​r
 	 */
 	COLLECTION_TEST_User: string
@@ -1722,6 +1855,122 @@ export type TranslationFunctions = {
 	 * Your {PUBLIC_SITENAME} Team
 	 */
 	EMAIL_Welcome_Footer: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Reset your password for {PUBLIC_SITENAME}
+	 */
+	EMAIL_Forgotten_Title: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Reset your password for {PUBLIC_SITENAME}
+	 */
+	EMAIL_Forgotten_Meta: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Reset your password for {PUBLIC_SITENAME}
+	 */
+	EMAIL_Forgotten_Preview: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Hello {email}
+	 */
+	EMAIL_Forgotten_Hello: (arg: { email: unknown }) => LocalizedString
+	/**
+	 * You have requested to reset your Password to get access to {PUBLIC_SITENAME}
+	 */
+	EMAIL_Forgotten_Request: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Your reset Token:
+	 */
+	EMAIL_Forgotten_Token: () => LocalizedString
+	/**
+	 * Is valid only for:
+	 */
+	EMAIL_Forgotten_Valid: () => LocalizedString
+	/**
+	 * If you did not request this reset, please ignore this email.
+	 */
+	EMAIL_Forgotten_Ignore: () => LocalizedString
+	/**
+	 * Please press the button to reset your password
+	 */
+	EMAIL_Forgotten_Press: () => LocalizedString
+	/**
+	 * Reset Password
+	 */
+	EMAIL_Forgotten_Button: () => LocalizedString
+	/**
+	 * Your {PUBLIC_SITENAME} Team
+	 */
+	EMAIL_Forgotten_Team: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Your password for {PUBLIC_SITENAME} was changed
+	 */
+	EMAIL_UpdatePW_Title: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Your password for {PUBLIC_SITENAME} was changed
+	 */
+	EMAIL_UpdatePW_Meta: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Your password for {PUBLIC_SITENAME} was changed
+	 */
+	EMAIL_UpdatePW_Preview: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Hello {username},
+	 */
+	EMAIL_UpdatePW_Hello: (arg: { username: unknown }) => LocalizedString
+	/**
+	 * You have successfully changed your Password for {PUBLIC_SITENAME}
+	 */
+	EMAIL_UpdatePW_Success: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * If you did not request this change, please contact your Site admin.
+	 */
+	EMAIL_UpdatePW_Contact: () => LocalizedString
+	/**
+	 * Your {PUBLIC_SITENAME} Team
+	 */
+	EMAIL_UpdatePW_Team: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * User Registration token for {PUBLIC_SITENAME}
+	 */
+	EMAIL_UserToken_Title: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * User Registration token for {PUBLIC_SITENAME}
+	 */
+	EMAIL_UserToken_Meta: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * User Registration token for {PUBLIC_SITENAME}
+	 */
+	EMAIL_UserToken_Preview: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * You have received an Access Token to create a new user for {PUBLIC_SITENAME}
+	 */
+	EMAIL_UserToken_Access: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
+	/**
+	 * Email:
+	 */
+	EMAIL_UserToken_Email: () => LocalizedString
+	/**
+	 * Access Token:
+	 */
+	EMAIL_UserToken_Token: () => LocalizedString
+	/**
+	 * Assigned Role:
+	 */
+	EMAIL_UserToken_Role: () => LocalizedString
+	/**
+	 * Valid only for:
+	 */
+	EMAIL_UserToken_Valid: () => LocalizedString
+	/**
+	 * Please press the button to setup your user with this email
+	 */
+	EMAIL_UserToken_Press: () => LocalizedString
+	/**
+	 * Create User
+	 */
+	EMAIL_UserToken_Button: () => LocalizedString
+	/**
+	 * Your {PUBLIC_SITENAME} Team
+	 */
+	EMAIL_UserToken_Team: (arg: { PUBLIC_SITENAME: unknown }) => LocalizedString
 	/**
 	 * User
 	 */

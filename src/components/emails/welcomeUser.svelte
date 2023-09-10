@@ -10,7 +10,7 @@
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
 	// typesafe-i18n
-	//import LL from '@src/i18n/i18n-svelte';
+	import LL from '@src/i18n/i18n-svelte';
 
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 
@@ -104,13 +104,13 @@
 
 <Html lang="en">
 	<Head>
-		<!-- <title>{$LL.EMAIL_Welcome_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
-		<meta name="description" content={$LL.EMAIL_Welcome_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} /> -->
-		<title>Welcome to {PUBLIC_SITENAME}</title>
-		<meta name="description" content="Welcome to {PUBLIC_SITENAME}" />
+		<title>{$LL.EMAIL_Welcome_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
+		<meta name="description" content={$LL.EMAIL_Welcome_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+		<!-- <title>Welcome to {PUBLIC_SITENAME}</title>
+		<meta name="description" content="Welcome to {PUBLIC_SITENAME}" /> -->
 	</Head>
-	<Preview preview="Welcome to {PUBLIC_SITENAME}" />
-	<!-- <Preview preview={$LL.EMAIL_Welcome_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} /> -->
+	<!-- <Preview preview="Welcome to {PUBLIC_SITENAME}" /> -->
+	<Preview preview={$LL.EMAIL_Welcome_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
@@ -123,16 +123,16 @@
 					/>
 				</Link>
 			</Section>
-			<!-- <Text>{$LL.EMAIL_Welcome_Username({ username: { username } })}</Text>
+			<Text>{$LL.EMAIL_Welcome_Username({ username: { username } })}</Text>
 			<Text>{$LL.EMAIL_Welcome_Sitename({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
 			<Text>{$LL.EMAIL_Welcome_SimpleCMS()}</Text>
 			<Text>
 				{$LL.EMAIL_Welcome_Discussion1()}
 				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{$LL.EMAIL_Welcome_Discussion2()}</Link>
 			</Text>
-			<Text>{$LL.EMAIL_Welcome_Thanks()}</Text> -->
+			<Text>{$LL.EMAIL_Welcome_Thanks()}</Text>
 
-			<Text>Dear {username},</Text>
+			<!-- <Text>Dear {username},</Text>
 			<Text>Welcome to {PUBLIC_SITENAME} - a Sveltekit powered flexible Headless CMS.</Text>
 			<Text>
 				SimpleCMS is a fast and flexible headless CMS that allows you to easily manage your content. With Sveltekit powering our platform, you can
@@ -142,14 +142,14 @@
 				If you have any questions or need help getting started, please visit our Q&A on Github
 				<Link href="https://github.com/Rar9/SimpleCMS/discussions">SimpleCMS Discussion.</Link>
 			</Text>
-			<Text>Thank you for choosing SimpleCMS. We're excited to have you on board!</Text>
+			<Text>Thank you for choosing SimpleCMS. We're excited to have you on board!</Text> -->
 			<Section style={btnContainer}>
-				<!-- <Button pX={12} pY={12} style={button} href={hostLink}>{$LL.EMAIL_Welcome_Button({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Button> -->
-				<Button pX={12} pY={12} style={button} href={hostLink}>Go to {PUBLIC_SITENAME}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>{$LL.EMAIL_Welcome_Button({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Button>
+				<!-- <Button pX={12} pY={12} style={button} href={hostLink}>Go to {PUBLIC_SITENAME}</Button> -->
 			</Section>
 			<Hr style={hr} />
-			<!-- <Text style={footer}>{$LL.EMAIL_Welcome_Footer({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text> -->
-			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
+			<Text style={footer}>{$LL.EMAIL_Welcome_Footer({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<!-- <Text style={footer}>Your {PUBLIC_SITENAME} Team</Text> -->
 		</Container>
 	</Section>
 </Html>

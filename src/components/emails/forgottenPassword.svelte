@@ -6,6 +6,9 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 	console.log('tokenLink', tokenLink);
 
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
@@ -115,10 +118,10 @@
 
 <Html lang="en">
 	<Head>
-		<title>Reset your password for {PUBLIC_SITENAME}</title>
-		<meta name="description" content="Reset your password for {PUBLIC_SITENAME}" />
+		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
+		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
 	</Head>
-	<Preview preview="Reset your password for {PUBLIC_SITENAME}" />
+	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -132,8 +135,48 @@
 					/>
 				</Link>
 			</Section>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email: { email } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Section style={review}>
+				<Column style={label}>
+					<Text style={paragraph}>{$LL.EMAIL_Forgotten_Token()}</Text>
+					<Text style={paragraph}>{$LL.EMAIL_Forgotten_Valid()}</Text>
+				</Column>
+				<Column style={variable}>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
+				</Column>
+			</Section>
 
-			<Text style={paragraph}>Hello {email},</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Ignore()}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Press()}</Text>
+
+			<Section style={btnContainer}>
+				<Button pX={12} pY={12} style={button} href={resetLink}>{$LL.EMAIL_Forgotten_Button()}</Button>
+			</Section>
+			<Hr style={hr} />
+			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+
+			<!-- <Head>				
+				 <title>Reset your password for {PUBLIC_SITENAME}</title>
+				<meta name="description" content="Reset your password for {PUBLIC_SITENAME}" /> 
+			</Head>
+
+			 <Preview preview="Reset your password for {PUBLIC_SITENAME}" />
+			 <Section style={main}>
+		<Container style={container}>
+			<Section style={btnContainer}>
+				<Link href={tokenLink}>
+					<Img
+						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						alt="{PUBLIC_SITENAME} logo"
+						width="150"
+						height="auto"
+						style={{ display: 'block', margin: '0 auto' }}
+					/>
+				</Link>
+			</Section>
+			 <Text style={paragraph}>Hello {email},</Text> 
 			<Text style={paragraph}>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text>
 			<Section style={review}>
 				<Column style={label}>
@@ -154,7 +197,7 @@
 			</Section>
 
 			<Hr style={hr} />
-			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
+			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text> -->
 		</Container>
 	</Section>
 </Html>

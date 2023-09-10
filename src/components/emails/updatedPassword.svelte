@@ -7,25 +7,16 @@
 
 	const username: User = $page.data.user.username;
 
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import {
-		Button,
-		Container,
-		Head,
-		Hr,
-		Html,
-		Img,
-		Link,
-		Preview,
-		Section,
-		Text
-	} from 'svelte-email';
+	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
-	const fontFamily =
-		'-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
+	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
 	const main = {
 		backgroundColor: '#ffffff'
@@ -75,6 +66,29 @@
 
 <Html lang="en">
 	<Head>
+		<title>{$LL.EMAIL_UpdatePW_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
+		<meta name="description" content={$LL.EMAIL_UpdatePW_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	</Head>
+	<Preview preview={$LL.EMAIL_UpdatePW_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	<Section style={main}>
+		<Container style={container}>
+			<Link href={tokenLink}>
+				<Img
+					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+					alt="{PUBLIC_SITENAME} logo"
+					width="150"
+					height="auto"
+				/>
+			</Link>
+			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Hello({ username: { username } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Success({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Contact()}</Text>
+			<Hr style={hr} />
+			<Text style={footer}>{$LL.EMAIL_UpdatePW_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+		</Container>
+	</Section>
+
+	<!-- <Head>
 		<title>Your password for {PUBLIC_SITENAME} was changed</title>
 		<meta name="description" content="Your password for {PUBLIC_SITENAME} was changed" />
 	</Head>
@@ -90,12 +104,10 @@
 				/>
 			</Link>
 			<Text style={paragraph}>Hello {username},</Text>
-			<Text style={paragraph}
-				>You have successfully changed your Password for {PUBLIC_SITENAME}</Text
-			>
+			<Text style={paragraph}>You have successfully changed your Password for {PUBLIC_SITENAME}</Text>
 			<Text style={paragraph}>If you did not request this change, please contact us.</Text>
 			<Hr style={hr} />
 			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
 		</Container>
-	</Section>
+	</Section> -->
 </Html>
