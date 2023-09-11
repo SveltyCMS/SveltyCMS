@@ -97,7 +97,7 @@ export const actions: Actions = {
 			console.log('Email is invalid and not found in DB');
 			resp = { status: false, message: 'Invalid Email' };
 		}
-
+		
 		if (resp.status) {
 			console.log('resp.status is true');
 
@@ -126,7 +126,7 @@ export const actions: Actions = {
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
 		} else {
 			console.log('resp.status is false');
-			return { form: pwforgottenForm, message: resp.message || 'Unknown error' };
+			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error'};
 		}
 	},
 
@@ -322,11 +322,12 @@ async function resetPWCheck(password: string, token: string, cookies: Cookies) {
 	try {
 		// Obtain the key using auth.getKey based on your authentication system
 		const key = await auth.getKey('resetToken', token).catch(() => null);
+		console.log(key);
 		if (!key) {
 			console.log('Invalid token: Key not found.');
 			return { status: false, message: 'invalid token' };
 		}
-
+		
 		// Validate the token
 		console.log('Validating token...');
 		await tokenHandler.validate(token, key.userId);

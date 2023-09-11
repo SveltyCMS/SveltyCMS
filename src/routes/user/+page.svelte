@@ -16,14 +16,14 @@
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
-	import ModalEditAvatar from './ModalEditAvatar.svelte';
-	import ModalEditForm from './ModalEditForm.svelte';
+	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
+	import ModalEditForm from './components/ModalEditForm.svelte';
 
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import AdminArea from './AdminArea.svelte';
+	import AdminArea from './components/AdminArea.svelte';
 	import { avatarSrc } from '@src/stores/store';
 	import { roles } from '@src/collections/types';
 
@@ -48,6 +48,7 @@
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
+
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
@@ -125,19 +126,10 @@
 	<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 		<!-- Avatar with user info -->
 		<div class="relative flex flex-col items-center justify-center gap-1">
-			<Avatar
-				src={$avatarSrc ? $avatarSrc : '/Default_User.svg'}
-				initials="AV"
-				rounded-none
-				class="w-32"
-			/>
+			<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
 			<!-- edit button -->
-			<button
-				on:click={modalEditAvatar}
-				class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4"
-				>{$LL.USER_Edit_Avatar()}</button
-			>
+			<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{$LL.USER_Edit_Avatar()}</button>
 			<!--User ID -->
 			<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 				{$LL.USER_ID()}:<span class="ml-2">{id}</span>
@@ -162,26 +154,14 @@
 				>{$LL.USER_Password()}:
 				<input bind:value={password} name="password" type="password" disabled class="input" />
 			</label>
-			<div
-				class="mt-2 flex flex-col flex-wrap justify-between gap-2 sm:flex-row sm:justify-between sm:gap-1"
-			>
+			<div class="mt-2 flex flex-col flex-wrap justify-between gap-2 sm:flex-row sm:justify-between sm:gap-1">
 				<!-- Edit Modal Button -->
 				<button class="gradient-secondary btn text-white md:w-auto" on:click={modalUserForm}>
-					<iconify-icon
-						icon="bi:pencil-fill"
-						color="white"
-						width="18"
-						class="mr-1"
-					/>{$LL.USER_Edit()}:
+					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 				</button>
 				<!-- Delete Modal Button -->
 				<button on:click={modalConfirm} class="gradient-error btn text-white"
-					><iconify-icon
-						icon="bi:trash3-fill"
-						color="white"
-						width="18"
-						class="mr-1"
-					/>{$LL.USER_Delete()}</button
+					><iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />{$LL.USER_Delete()}</button
 				>
 			</div>
 		</form>
