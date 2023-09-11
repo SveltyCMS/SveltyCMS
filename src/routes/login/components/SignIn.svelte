@@ -25,7 +25,6 @@
 	export const show = false;
 	export let PWforgot: boolean = false;
 	export let PWreset: boolean = false;
-
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		validators: loginFormSchema,
@@ -128,22 +127,29 @@
 			}
 
 			if (result.type === 'success') {
-				console.log('onResult success'); // log success message
+				if (result.data !== undefined && result.data.status === false) {
+					PWreset = false;
+					formElement.classList.add('wiggle');
+					setTimeout(() => formElement.classList.remove('wiggle'), 300);
+					return;
+				} else {
+					console.log('onResult success'); // log success message
 
-				// update variables to display reset form page
-				PWreset = true;
+					// update variables to display reset form page
+					PWreset = true;
 
-				// Trigger the toast
-				const t = {
-					message: 'Password reset token was send by Email',
-					// Provide any utility or variant background style:
-					background: 'variant-filled-primary',
-					timeout: 2000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
-				return;
+					// Trigger the toast
+					const t = {
+						message: 'Password reset token was send by Email',
+						// Provide any utility or variant background style:
+						background: 'variant-filled-primary',
+						timeout: 2000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+					return;
+				}
 			}
 
 			console.log('onResult cancel'); // log cancel message
@@ -333,7 +339,6 @@
 		<!-- Forgotten Password -->
 		{#if PWforgot && !PWreset}
 			<!-- <SuperDebug data={$forgotForm} /> -->
-
 			<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<div class="mb-2 text-center text-sm text-black">
 					<p class="mb-2 text-xs text-tertiary-500">{$LL.LOGIN_ForgottenPassword_text()}</p>

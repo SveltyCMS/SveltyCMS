@@ -138,6 +138,7 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
+		console.log("changePassword");
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
 		const session = event.cookies.get(SESSION_COOKIE_NAME) as string;

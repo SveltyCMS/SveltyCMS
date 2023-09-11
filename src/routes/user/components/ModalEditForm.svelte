@@ -16,6 +16,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { changePasswordSchema } from '@src/utils/formSchemas';
 
 	// Lucia
 	const user = $page.data.user;
@@ -40,14 +41,22 @@
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
+		console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
-		modalStore.close();
+
+		if (formData.password !== null && formData.password === formData.confirmPassword) {
+			modalStore.close();
+		} else {
+			console.log('error');
+		}
 	}
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+
+	let formElement: HTMLFormElement;
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -61,14 +70,10 @@
 	</article>
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
-	<form class="modal-form {cForm}">
+	<form class="modal-form {cForm}" bind:this={formElement} id="change_user_form">
 		<!-- Username field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon
-				icon="mdi:user-circle"
-				width="18"
-				class="absolute left-0 top-3.5 text-gray-400"
-			/>
+			<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
 			<input
 				bind:value={formData.username}
 				on:keydown={() => (errorStatus.username.status = false)}
@@ -78,6 +83,7 @@
 				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 				placeholder=" "
 				required
+				disabled
 			/>
 			<label
 				for="username"
@@ -86,7 +92,7 @@
 				{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
 			</label>
 
-			{#if errorStatus.username.status}
+			{#if !errorStatus.username.status}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
 					{errorStatus.username.msg}
 				</div>
@@ -107,6 +113,7 @@
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
 					required
+					disabled
 				/>
 				<label
 					for="email"
@@ -132,7 +139,6 @@
 					name="email "
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
-					disabled
 				/>
 				<label
 					for="email"
@@ -261,9 +267,7 @@
 					<div class="flex flex-wrap gap-2 space-x-2">
 						{#each Object.values(roles) as r}
 							<span
-								class="chip {roleSelected === r
-									? 'variant-filled-tertiary'
-									: 'variant-ghost-secondary'}"
+								class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
 									// filterRole(r);
 									roleSelected = r;
