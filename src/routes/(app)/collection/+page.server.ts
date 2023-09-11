@@ -1,5 +1,5 @@
 import { redirect } from '@sveltejs/kit';
-import { auth } from '../api/db';
+import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
 import { SESSION_COOKIE_NAME } from 'lucia-auth';
 

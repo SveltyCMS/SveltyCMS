@@ -1,5 +1,5 @@
 import { error, redirect } from '@sveltejs/kit';
-import { auth } from '../api/db';
+import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
 import { SESSION_COOKIE_NAME } from 'lucia-auth';
 
@@ -28,7 +28,7 @@ export async function load({ cookies, route, params }) {
 	}
 
 	if (user.status == 200) {
-		if (route.id != '/[language]/[collection]') {
+		if (route.id != '/(app)/[language]/[collection]') {
 			// else if language and collection both set in url
 
 			// filters collection based on reading permissions and redirects to first left one

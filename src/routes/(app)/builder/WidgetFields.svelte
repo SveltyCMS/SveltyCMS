@@ -36,9 +36,7 @@
 			<InputSwitch bind:value={currentField[property]} widget={value.widget} key={property} />
 		{/each}
 		<!-- close Button -->
-		<button class="variant-filled-tertiary btn float-right" on:click={() => (currentField = null)}
-			>Close</button
-		>
+		<button class="variant-filled-tertiary btn float-right" on:click={() => (currentField = null)}>Close</button>
 	</div>
 {/if}
 
@@ -50,32 +48,5 @@
 
 		border-radius: 12px;
 		min-width: 300px;
-	}
-	p.field {
-		text-align: center;
-		color: black;
-		padding: 10px;
-		background-color: #3df8ff;
-		margin-bottom: 4px;
-		font-size: 20px;
-		border-radius: 10px;
-		cursor: pointer;
-	}
-	p.field:hover {
-		background-color: #4fdc4f;
-	}
-	.properties {
-		position: fixed;
-		flex-direction: column;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		top: 0;
-		left: 0;
-		width: 100vw;
-		height: 100vh;
-		background-color: #242728;
-		overflow: auto;
-		z-index: 111;
 	}
 </style>

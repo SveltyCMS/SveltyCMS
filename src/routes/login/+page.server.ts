@@ -19,7 +19,7 @@ export const load: PageServerLoad = async (event) => {
 	const loginForm = await superValidate(event, loginFormSchema);
 	//console.log('loginForm', loginForm); // log loginForm data
 	const forgotForm = await superValidate(event, forgotFormSchema);
-	console.log('forgotForm', forgotForm); // log forgotForm data
+	//console.log('forgotForm', forgotForm); // log forgotForm data
 	const resetForm = await superValidate(event, resetFormSchema);
 	//console.log('resetForm', resetForm); // log resetForm data
 
@@ -73,16 +73,16 @@ export const actions: Actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, forgotFormSchema);
-		console.log('pwforgottenForm', pwforgottenForm);
+		//console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate with Lucia
 		let resp: { status: boolean; message?: string } = { status: false };
-		console.log('forgotPW Validate', resp);
+		//console.log('forgotPW Validate', resp);
 
 		const email = pwforgottenForm.data.email.toLocaleLowerCase();
-		console.log('forgotPW email', email);
+		//console.log('forgotPW email', email);
 		const checkMail = await forgotPWCheck(email);
-		console.log('forgotPW checkMail', checkMail);
+		//console.log('forgotPW checkMail', checkMail);
 
 		if (email && checkMail.success) {
 			// Email format is valid and email exists in DB
@@ -97,7 +97,7 @@ export const actions: Actions = {
 			console.log('Email is invalid and not found in DB');
 			resp = { status: false, message: 'Invalid Email' };
 		}
-		
+
 		if (resp.status) {
 			console.log('resp.status is true');
 
@@ -126,7 +126,7 @@ export const actions: Actions = {
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
 		} else {
 			console.log('resp.status is false');
-			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error'};
+			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
 		}
 	},
 
@@ -327,7 +327,7 @@ async function resetPWCheck(password: string, token: string, cookies: Cookies) {
 			console.log('Invalid token: Key not found.');
 			return { status: false, message: 'invalid token' };
 		}
-		
+
 		// Validate the token
 		console.log('Validating token...');
 		await tokenHandler.validate(token, key.userId);

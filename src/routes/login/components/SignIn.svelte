@@ -2,7 +2,7 @@
 	import type { PageData, SubmitFunction } from '../$types';
 
 	import { superForm } from 'sveltekit-superforms/client';
-	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@src/utils/formSchemas';
 
@@ -93,19 +93,19 @@
 			// Submit email as lowercase only
 			$forgotForm.email = $forgotForm.email.toLowerCase();
 
-			console.log('onSubmit:', forgotForm);
+			//console.log('onSubmit:', forgotForm);
 
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
 		},
 
 		onResult: ({ result, cancel }) => {
-			console.log('onResult:', result); // log the result object
-			console.log('onResult Type:', result.type); // log the error messages type
+			//console.log('onResult:', result); // log the result object
+			//console.log('onResult Type:', result.type); // log the error messages type
 
 			// handle forgot form result
 			if (result.type === 'error') {
-				console.log('onResult error:', allErrors); // log the error messages
+				//console.log('onResult error:', allErrors); // log the error messages
 
 				// Transform the array of error messages into a single string
 				let errorMessages = '';
@@ -133,7 +133,7 @@
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
 				} else {
-					console.log('onResult success'); // log success message
+					//console.log('onResult success'); // log success message
 
 					// update variables to display reset form page
 					PWreset = true;
@@ -152,7 +152,7 @@
 				}
 			}
 
-			console.log('onResult cancel'); // log cancel message
+			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element
@@ -183,14 +183,14 @@
 		onSubmit: ({ cancel }) => {
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
-			console.log('onResult error:', forgotAllErrors); // log the error messages
+			//console.log('onResult error:', forgotAllErrors); // log the error messages
 		},
 
 		onResult: ({ result, cancel }) => {
-			console.log('onResult:', result); // log the result object
+			//console.log('onResult:', result); // log the result object
 
 			if (result.type === 'error') {
-				console.log('onResult error:', allErrors); // log the error messages
+				//console.log('onResult error:', allErrors); // log the error messages
 
 				// Extract and format error messages
 				let errorMessages = '';
@@ -207,7 +207,7 @@
 				};
 				toastStore.trigger(t);
 			} else if (result.type === 'success') {
-				console.log('onResult success'); // log success message
+				//console.log('onResult success'); // log success message
 
 				// update variables to display reset form
 				PWreset = true;
@@ -223,7 +223,7 @@
 				};
 				toastStore.trigger(t);
 			} else if (result.type === 'redirect') {
-				console.log('onResult redirect'); // log redirect message
+				//console.log('onResult redirect'); // log redirect message
 
 				// update variables to display reset form
 				PWreset = true;
@@ -241,7 +241,7 @@
 				toastStore.trigger(t);
 			}
 
-			console.log('onResult cancel'); // log cancel message
+			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element (only if result type is not "success" or "redirect")
@@ -394,7 +394,7 @@
 
 		<!-- Reset Password -->
 		{#if PWforgot && PWreset}
-			<SuperDebug data={$resetForm} />
+			<!-- <SuperDebug data={$resetForm} /> -->
 			<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<!-- Password field -->
 				<FloatingInput

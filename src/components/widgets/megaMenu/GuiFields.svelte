@@ -1,5 +1,5 @@
 <script lang="ts">
-	import WidgetBuilder from '@src/routes/builder/WidgetBuilder.svelte';
+	import WidgetBuilder from '@src/routes/(app)/builder/WidgetBuilder.svelte';
 
 	export let value: Array<{ fields: Array<any> }> = [];
 	//console.log(value);
@@ -7,9 +7,7 @@
 
 <div class="container border p-2">
 	<p>Menu Fields</p>
-	<button on:click={() => (value = [...value, { fields: [] }])} class="variant-filled-primary btn"
-		>Add Level</button
-	>
+	<button on:click={() => (value = [...value, { fields: [] }])} class="variant-filled-primary btn">Add Level</button>
 	{#each value as level, index}
 		<div class="level">
 			<p>level {index + 1}</p>

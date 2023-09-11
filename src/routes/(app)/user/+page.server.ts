@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 //lucia
-import { auth } from '../api/db';
+import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
 import { passwordToken } from '@lucia-auth/tokens';
 import { SESSION_COOKIE_NAME } from 'lucia-auth';
@@ -138,7 +138,7 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
-		console.log("changePassword");
+		console.log('changePassword');
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
 		const session = event.cookies.get(SESSION_COOKIE_NAME) as string;
@@ -150,11 +150,8 @@ export const actions: Actions = {
 		}
 
 		// Get the user's key.
-		const key = (await auth.getAllUserKeys(user.user.id)).find(
-			(key) => key.passwordDefined == true
-		);
-		if (!key)
-			return { form: changePasswordForm, message: 'User does not exist or session expired' };
+		const key = (await auth.getAllUserKeys(user.user.id)).find((key) => key.passwordDefined == true);
+		if (!key) return { form: changePasswordForm, message: 'User does not exist or session expired' };
 
 		// Update the user's key password.
 		await auth.updateKeyPassword('email', key.providerUserId, password);

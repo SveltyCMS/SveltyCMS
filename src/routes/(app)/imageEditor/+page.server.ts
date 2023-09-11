@@ -2,7 +2,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 import { validate } from '@src/utils/utils';
-import { auth } from '../api/db';
+import { auth } from '../../api/db';
 import { SESSION_COOKIE_NAME } from 'lucia-auth';
 import { redirect } from '@sveltejs/kit';
 
@@ -13,7 +13,7 @@ import { redirect } from '@sveltejs/kit';
 // 		path: string;
 // 	}> {
 // 		const filePath = path.join(PUBLIC_MEDIA_FOLDER, imageName);
-	
+
 // 		try {
 // 			const fileStats = await fs.stat(filePath);
 // 			if (fileStats.isFile()) {
@@ -44,7 +44,6 @@ export async function load(event: any) {
 
 	try {
 		// const imageData = await loadImageData(imageName);
-
 		// return {
 		// 	props: {
 		// 		imageData

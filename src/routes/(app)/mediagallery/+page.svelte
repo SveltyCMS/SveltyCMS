@@ -299,6 +299,12 @@
 	<!-- Render the error message if it exists -->
 	{#if errorMessage}
 		<p class="h2 text-center text-error-500">{errorMessage}</p>
+	{:else if data.props.data.length === 0}
+		<!-- Display a message when no media data is available -->
+		<div class="text-center">
+			<iconify-icon icon="bi:exclamation-circle-fill" height="64" class="mb-2 text-primary-500" />
+			<p class="text-lg text-primary-500">No media files available.</p>
+		</div>
 	{:else}
 		<!-- Grid display -->
 		{#if view === 'grid'}

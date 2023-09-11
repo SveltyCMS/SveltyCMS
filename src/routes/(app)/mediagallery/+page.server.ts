@@ -1,8 +1,9 @@
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
-import fs from 'fs/promises';
+import fs from 'fs';
+import fsPromises from 'fs/promises';
 import path from 'path';
 import { redirect } from '@sveltejs/kit';
-import { auth } from '../api/db';
+import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
 import { SESSION_COOKIE_NAME } from 'lucia-auth';
 import { roles } from '@src/collections/types';
@@ -29,10 +30,34 @@ export async function load(event: any) {
 	}
 
 	const mediaDir = path.resolve(PUBLIC_MEDIA_FOLDER);
+	//Create the media folder if it doesn't exist
+	if (!fs.existsSync(mediaDir)) {
+		fs.mkdirSync(mediaDir);
+		console.log(`Created media folder at ${mediaDir}`);
+	}
+
 	const files = await getFilesRecursively(mediaDir);
+
+	//Handle the case where the folder is empty
+	if (files.length === 0) {
+		return {
+			props: {
+				data: []
+			}
+		};
+	}
 
 	const imageExtensions = ['.jpeg', '.jpg', '.png', '.webp', '.avif', '.tiff', '.svg'];
 	const uniqueImageFiles = Array.from(new Set(files.filter((file) => imageExtensions.includes(path.extname(file).toLowerCase()))));
+
+	// If there are no image files, return an empty array
+	if (uniqueImageFiles.length === 0) {
+		return {
+			props: {
+				data: []
+			}
+		};
+	}
 
 	const thumbnailImages = new Map(); // Store thumbnails by hash
 
@@ -86,7 +111,7 @@ export async function load(event: any) {
 				// You could use a PDF library to generate a thumbnail for PDF files
 				thumbnail = 'vscode-icons:file-type-pdf2';
 			} else if (fileExt === '.svg') {
-				const svgContent = await fs.readFile(filePath, 'utf-8');
+				const svgContent = await fsPromises.readFile(filePath, 'utf-8');
 				thumbnail = svgContent;
 			}
 
@@ -119,7 +144,7 @@ export async function load(event: any) {
 
 async function getFilesRecursively(dir: string): Promise<string[]> {
 	let files: string[] = [];
-	const dirents = await fs.readdir(dir, { withFileTypes: true });
+	const dirents = await fsPromises.readdir(dir, { withFileTypes: true });
 	for (const dirent of dirents) {
 		const res = path.resolve(dir, dirent.name);
 		if (dirent.isDirectory()) {
@@ -132,7 +157,7 @@ async function getFilesRecursively(dir: string): Promise<string[]> {
 }
 
 async function getFileSize(filePath: string): Promise<number> {
-	const fileStats = await fs.stat(filePath);
+	const fileStats = await fsPromises.stat(filePath);
 	return fileStats.size;
 }
 
