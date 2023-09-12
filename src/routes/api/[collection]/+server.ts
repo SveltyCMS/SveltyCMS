@@ -132,7 +132,7 @@ export const DELETE: RequestHandler = async ({ params, request }) => {
 
 	// Retrieve value of ids key from data object and parse it as JSON
 	let ids = data.get('ids') as string;
-	console.log(ids);
+	//console.log(ids);
 	try {
 		ids = JSON.parse(ids);
 	} catch (e) {

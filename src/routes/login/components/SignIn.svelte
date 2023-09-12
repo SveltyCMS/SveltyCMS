@@ -21,6 +21,9 @@
 
 	let showPassword = false;
 
+	export let registration_token = '';
+	export let hide_email = '';
+
 	export let active: undefined | 0 | 1 = undefined;
 	export const show = false;
 	export let PWforgot: boolean = false;
@@ -41,7 +44,7 @@
 			// Submit email as lowercase only
 			$form.email = $form.email.toLowerCase();
 
-			//console.log('onSubmit:', form);
+			////console.log('onSubmit:', form);
 
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
@@ -93,19 +96,23 @@
 			// Submit email as lowercase only
 			$forgotForm.email = $forgotForm.email.toLowerCase();
 
-			console.log('onSubmit:', forgotForm);
+			//console.log('onSubmit:', forgotForm);
 
 			// handle login form submission
-			if ($allErrors.length > 0) cancel();
+			if ($allErrors.length > 0) {
+				cancel();
+				formElement.classList.add('wiggle');
+				setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			}
 		},
 
 		onResult: ({ result, cancel }) => {
-			console.log('onResult:', result); // log the result object
-			console.log('onResult Type:', result.type); // log the error messages type
+			//console.log('onResult:', result); // log the result object
+			//console.log('onResult Type:', result.type); // log the error messages type
 
 			// handle forgot form result
 			if (result.type === 'error') {
-				console.log('onResult error:', allErrors); // log the error messages
+				//console.log('onResult error:', allErrors); // log the error messages
 
 				// Transform the array of error messages into a single string
 				let errorMessages = '';
@@ -133,10 +140,17 @@
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
 				} else {
-					console.log('onResult success'); // log success message
+					//console.log('onResult success'); // log success message
 
 					// update variables to display reset form page
 					PWreset = true;
+
+					//registration_token
+					if (result.data !== undefined) {
+						registration_token = result.data.token;
+						hide_email = result.data.email;
+						//console.log(hide_email);
+					}
 
 					// Trigger the toast
 					const t = {
@@ -152,7 +166,7 @@
 				}
 			}
 
-			console.log('onResult cancel'); // log cancel message
+			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element
@@ -183,14 +197,14 @@
 		onSubmit: ({ cancel }) => {
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
-			console.log('onResult error:', forgotAllErrors); // log the error messages
+			//console.log('onResult error:', forgotAllErrors); // log the error messages
 		},
 
 		onResult: ({ result, cancel }) => {
-			console.log('onResult:', result); // log the result object
+			//console.log('onResult:', result); // log the result object
 
 			if (result.type === 'error') {
-				console.log('onResult error:', allErrors); // log the error messages
+				//console.log('onResult error:', allErrors); // log the error messages
 
 				// Extract and format error messages
 				let errorMessages = '';
@@ -207,7 +221,7 @@
 				};
 				toastStore.trigger(t);
 			} else if (result.type === 'success') {
-				console.log('onResult success'); // log success message
+				//console.log('onResult success'); // log success message
 
 				// update variables to display reset form
 				PWreset = true;
@@ -222,8 +236,9 @@
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
+				return;
 			} else if (result.type === 'redirect') {
-				console.log('onResult redirect'); // log redirect message
+				//console.log('onResult redirect'); // log redirect message
 
 				// update variables to display reset form
 				PWreset = true;
@@ -234,14 +249,17 @@
 					message: 'Password reset token was sent by Email',
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 3000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
+
 				toastStore.trigger(t);
+				window.location.reload();
+				return;
 			}
 
-			console.log('onResult cancel'); // log cancel message
+			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element (only if result type is not "success" or "redirect")
@@ -394,7 +412,7 @@
 
 		<!-- Reset Password -->
 		{#if PWforgot && PWreset}
-			<SuperDebug data={$resetForm} />
+			<!-- <SuperDebug data={$resetForm} /> -->
 			<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<!-- Password field -->
 				<FloatingInput
@@ -433,6 +451,7 @@
 				<!-- Registration Token -->
 				<FloatingInput
 					type="password"
+					name="token"
 					bind:value={$resetForm.token}
 					bind:showPassword
 					label={$LL.LOGIN_Token()}
@@ -452,7 +471,7 @@
 						{$resetAllErrors}
 					</span>
 				{/if}
-
+				<input type="email" name="email" bind:value={hide_email} hidden />
 				<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 					{$LL.LOGIN_ResetPasswordSave()}
 					<!-- Loading indicators -->

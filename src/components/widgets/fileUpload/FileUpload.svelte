@@ -28,7 +28,7 @@
 		loadingProgress.set(0);
 
 		if (!node.files || node.files.length === 0) {
-			//console.log('setFile:', 'No files selected');
+			////console.log('setFile:', 'No files selected');
 			return;
 		}
 
@@ -46,11 +46,11 @@
 		}
 
 		// Display the selected thumbnail
-		//console.log('Thumbnail:', thumbnail);
+		////console.log('Thumbnail:', thumbnail);
 
 		// Handle file selection
 		const handleFileSelection = async (files: FileList) => {
-			//console.log('handleFileSelection:', 'Function called');
+			////console.log('handleFileSelection:', 'Function called');
 
 			updated = true;
 			_data = files;

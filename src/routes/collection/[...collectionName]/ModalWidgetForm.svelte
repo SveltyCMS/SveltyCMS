@@ -33,7 +33,7 @@
 	// ------------widget builder ---------------
 	// create an array to store the input values for each widget
 	let inputPopupWidget = [''];
-	//console.log(inputPopupWidget);
+	////console.log(inputPopupWidget);
 
 	let popupSettings: PopupSettings = {
 		event: 'focus-click',
@@ -81,11 +81,7 @@
 					placeholder="Select Widget..."
 				/>
 				<div data-popup="popupAutocomplete" class="w-full bg-surface-500 text-white">
-					<Autocomplete
-						bind:input={inputPopupWidget}
-						options={widgetOptions}
-						on:selection={onPopupWidgetSelect}
-					/>
+					<Autocomplete bind:input={inputPopupWidget} options={widgetOptions} on:selection={onPopupWidgetSelect} />
 				</div>
 
 				{#if selectedWidget}
@@ -121,13 +117,7 @@
 										bind:value={selectedWidgetoptions[option]}
 									/>
 								{:else if option === 'required' || option === 'readonly' || option === 'disabled' || option === 'localization'}
-									<input
-										type="checkbox"
-										name={option}
-										id={option}
-										class="variant-filled-surface"
-										bind:value={selectedWidgetoptions[option]}
-									/>
+									<input type="checkbox" name={option} id={option} class="variant-filled-surface" bind:value={selectedWidgetoptions[option]} />
 								{:else}
 									<input
 										type="text"

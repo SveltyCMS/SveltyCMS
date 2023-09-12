@@ -8,7 +8,7 @@
 
 	let fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
-	//console.log('value: ', value);
+	////console.log('value: ', value);
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
@@ -54,9 +54,7 @@
 		class="h-4 w-4 rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
 		bind:checked={value}
 	/>
-	<label
-		for="default-checkbox"
-		class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
+	<label for="default-checkbox" class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
 		>{field.label ? field.label : field.db_fieldName}</label
 	>
 	{#if validationError !== null}

@@ -36,7 +36,7 @@
 							items: []
 						}
 					];
-					console.log('response:', r);
+					//console.log('response:', r);
 				}
 			}
 		};
@@ -69,7 +69,7 @@
 			// 				items: []
 			// 			}
 			// 		];
-			// 		console.log('response:', r);
+			// 		//console.log('response:', r);
 			// 	}
 			// }
 		};
@@ -103,13 +103,13 @@
 	// Update the Assigned collection(s) where the item was dropped
 	function handleBoardUpdated(newColumnsData: any) {
 		availableCollection = newColumnsData;
-		console.log('handleBoardUpdated:', availableCollection);
+		//console.log('handleBoardUpdated:', availableCollection);
 	}
 
 	// Update the Unassigned collection where the item was dropped
 	function handleUnassignedUpdated(newItems: any) {
 		UnassignedCollections = newItems;
-		console.log('handleUnassignedUpdated:', UnassignedCollections);
+		//console.log('handleUnassignedUpdated:', UnassignedCollections);
 	}
 
 	//Saving changes to the config.ts
@@ -127,7 +127,7 @@
 
 			// Check if the update was successful
 			if (response.ok) {
-				console.log('Config file updated successfully');
+				//console.log('Config file updated successfully');
 			} else {
 				console.error('Error updating config file');
 			}
@@ -140,11 +140,7 @@
 <div class="mb-2 flex items-center justify-between">
 	<PageTitle name="Menu Builder" icon="" />
 
-	<button
-		type="button"
-		on:click={handleSaveClick}
-		class="variant-filled-primary btn gap-2 !text-white"
-	>
+	<button type="button" on:click={handleSaveClick} class="variant-filled-primary btn gap-2 !text-white">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 		Save
 	</button>
@@ -152,18 +148,10 @@
 
 <!-- add an input field and a button here -->
 <div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
-	<button
-		on:click={modalAddCategory}
-		type="button"
-		class="variant-filled-tertiary btn-sm rounded-md">Add Category</button
-	>
+	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">Add Category</button>
 	<!-- add new Collection-->
 	<!-- TODO: only show  when Category exists -->
-	<button
-		on:click={modalAddCollection}
-		type="button"
-		class="variant-filled-success btn-sm rounded-md">Add Collection</button
-	>
+	<button on:click={modalAddCollection} type="button" class="variant-filled-success btn-sm rounded-md">Add Collection</button>
 </div>
 {#if !availableCollection}
 	<p class="my-2 text-center">Create a first collection to get started</p>

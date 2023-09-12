@@ -31,7 +31,7 @@ const widget = ({
 			entry: any;
 			contentLanguage: string;
 		}) => {
-			// console.log(data);
+			// //console.log(data);
 			data = data ? data : {}; // data can only be undefined if entry exists in db but this field was not set.
 			return translated
 				? data[contentLanguage] || get(LL).ENTRYLIST_Untranslated()

@@ -4,7 +4,7 @@
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
-	console.log('tokenLink', tokenLink);
+	//console.log('tokenLink', tokenLink);
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
@@ -23,7 +23,7 @@
 	export let token: EmailProps['token'];
 	export let expires_at: EmailProps['token'];
 
-	console.log('EmailProps Token: ', token);
+	//console.log('EmailProps Token: ', token);
 
 	let currentTime = new Date();
 	let expirationTime = expires_at ? new Date(expires_at) : new Date();

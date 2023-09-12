@@ -24,9 +24,7 @@
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: (firstUserExists
-			? signUpFormSchema
-			: signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
+		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -42,8 +40,8 @@
 		},
 
 		onResult: ({ result, cancel }) => {
-			//console.log('onResult', result);
-			//console.log('Error', $errors)
+			////console.log('onResult', result);
+			////console.log('Error', $errors)
 
 			if (result.type == 'redirect') return;
 			cancel();
@@ -99,14 +97,7 @@
 		<div class="-mt-2 text-right text-xs text-error-500">{$LL.LOGIN_Required()}</div>
 
 		<!--<SuperDebug data={$form} />-->
-		<form
-			method="post"
-			action="?/signUp"
-			use:enhance
-			bind:this={formElement}
-			class="items flex flex-col gap-3"
-			class:hide={active != 1}
-		>
+		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 			<!-- Username field -->
 			<FloatingInput
 				name="username"
@@ -174,9 +165,7 @@
 				showPasswordBackgroundColor="dark"
 				inputClass="text-white"
 			/>
-			{#if $errors.confirm_password}<span class="text-xs text-error-500"
-					>{$errors.confirm_password}</span
-				>{/if}
+			{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
 
 			{#if $form.token != null}
 				<!-- Registration Token -->

@@ -107,8 +107,8 @@ export async function load(event: any) {
 
 	const filteredMediaData = mediaData.filter(Boolean);
 
-	// console.log('filteredMediaData:', filteredMediaData);
-	// console.log('officeDocumentData:', officeDocumentData);
+	// //console.log('filteredMediaData:', filteredMediaData);
+	// //console.log('officeDocumentData:', officeDocumentData);
 
 	return {
 		props: {

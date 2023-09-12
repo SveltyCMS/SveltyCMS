@@ -13,12 +13,12 @@ export async function load({ cookies }) {
 	// Validate the user's session
 	const user = await validate(auth, session);
 
-	//console.log('collections', collections);
+	////console.log('collections', collections);
 	// filters collection  based on reading permissions and redirects to first left one
 	const _filtered = (await getCollections()).filter(
 		(c) => c?.permissions?.[user.user.role]?.read != false
 	);
-	//console.log('_filtered', _filtered);
+	////console.log('_filtered', _filtered);
 
 	// Redirect to the first collection in the collections array
 	throw redirect(302, `/${PUBLIC_SYSTEM_LANGUAGE}/${_filtered[0].name}`);

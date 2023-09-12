@@ -14,7 +14,7 @@ export async function load({ cookies, route, params }) {
 	const user = await validate(auth, session);
 	const collection = collections.find((c) => c.name == params.collection);
 
-	//console.log(get(collections));
+	////console.log(get(collections));
 
 	if (user.user.authMethod == 'token') {
 		throw redirect(302, `/user`);

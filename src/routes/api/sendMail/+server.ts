@@ -32,7 +32,6 @@ const templates: Record<string, ComponentType> = {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	console;.log(request);
 	const { email, subject, message, templateName, props } = await request.json();
 	await sendMail(email, subject, message, templateName, props);
 
@@ -46,7 +45,7 @@ async function sendMail(
 	templateName: keyof typeof templates,
 	props: EmailProps
 ) {
-	// console.log(email, subject, message);
+	// //console.log(email, subject, message);
 	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment

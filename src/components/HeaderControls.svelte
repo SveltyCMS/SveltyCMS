@@ -7,15 +7,7 @@
 
 	let user: User = $page.data.user;
 
-	import {
-		collectionValue,
-		deleteEntry,
-		mode,
-		screenWidth,
-		toggleLeftSidebar,
-		handleSidebarToggle,
-		contentLanguage
-	} from '@src/stores/store';
+	import { collectionValue, deleteEntry, mode, screenWidth, toggleLeftSidebar, handleSidebarToggle, contentLanguage } from '@src/stores/store';
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
@@ -26,7 +18,7 @@
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
 		contentLanguage.set(selectedLanguage);
-		// console.log('selectedLanguage', selectedLanguage);
+		// //console.log('selectedLanguage', selectedLanguage);
 	}
 
 	// function to Save Data
@@ -56,11 +48,7 @@
 	<div class="flex items-center justify-start">
 		<!-- hamburger -->
 		{#if $toggleLeftSidebar === 'closed'}
-			<button
-				type="button"
-				on:click={() => toggleLeftSidebar.click()}
-				class="variant-ghost-surface btn-icon"
-			>
+			<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
 			</button>
 		{/if}
@@ -97,12 +85,7 @@
 				</button>
 
 				<!-- DropDown to show more Buttons -->
-				<button
-					type="button"
-					on:keydown
-					on:click={() => (showMore = !showMore)}
-					class="variant-ghost-surface btn-icon"
-				>
+				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 

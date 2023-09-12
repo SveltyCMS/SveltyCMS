@@ -186,7 +186,7 @@
 	// Subscribe to changes in the collection store and do redirects
 	let initial = true;
 	collection.subscribe((_) => {
-		console.log(!$collection, !$page.params.language);
+		//console.log(!$collection, !$page.params.language);
 		if (!$collection) return;
 
 		// Reset the value of the collectionValue store

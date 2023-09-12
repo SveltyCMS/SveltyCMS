@@ -72,7 +72,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 		if (data[key] instanceof FileList) {
 			for (const _key in data[key]) {
 				// for multiple files
-				//console.log(data[key]);
+				////console.log(data[key]);
 				formData.append(key, data[key][_key]);
 			}
 		} else if (typeof data[key] === 'object') {
@@ -222,7 +222,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 // finds field title that matches the fieldname and returns that field
 function _findFieldByTitle(schema: any, fieldname: string): any {
 	for (const field of schema.fields) {
-		//console.log('field is ', field.db_fieldName, field.label);
+		////console.log('field is ', field.db_fieldName, field.label);
 		if (field.db_fieldName == fieldname || field.label == fieldname) {
 			return field;
 		} else if (field.fields && field.fields.length > 0) {
@@ -296,7 +296,7 @@ export async function saveFormData({
 	_mode?: 'edit' | 'create';
 	id?: string;
 }) {
-	console.log('saveFormData was called');
+	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);

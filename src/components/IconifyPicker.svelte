@@ -30,11 +30,7 @@
 			// Use search API query with prefix and limit parameters
 			// Use prefix=ic to filter by Google Material icon set
 			// Use start variable to specify the start index of the result
-			const response = await fetch(
-				`https://api.iconify.design/search?query=${encodeURIComponent(
-					searchQuery
-				)}&prefix=ic&limit=50&start=${start}`
-			);
+			const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=ic&limit=50&start=${start}`);
 			const data = await response.json();
 			if (data && data.icons) {
 				total = data.total; // update total variable
@@ -58,7 +54,7 @@
 
 	// reactive statement to update selected icon name on click
 	$: if (iconselected) {
-		//console.log(`Selected icon: ${iconselected}`);
+		////console.log(`Selected icon: ${iconselected}`);
 	}
 
 	// Declare a variable for the start index and initialize it to 0
@@ -66,33 +62,27 @@
 
 	// Reactive statement to fetch icons whenever the start index changes
 	$: if (start >= 0) {
-		//console.log(`start: ${start}`);
+		////console.log(`start: ${start}`);
 		searchIcons(searchQuery);
 	}
 
 	// Function to go to the next page of results by increasing the start index by 50
 	function nextPage() {
 		start += 50;
-		//console.log('startnextPage:', start);
+		////console.log('startnextPage:', start);
 		searchIcons(searchQuery);
 	}
 	// Function to go to the previous page of results by decreasing the start index by 50
 	function prevPage() {
 		start -= 50;
-		//console.log('startprevPage:', start);
+		////console.log('startprevPage:', start);
 		searchIcons(searchQuery);
 	}
 </script>
 
 <!-- iconify icon -->
 <div class="mb-4 flex items-center gap-4">
-	<label for="icon" class="relative">
-		Icon: <iconify-icon
-			icon="material-symbols:info"
-			width="18"
-			class="absolute -top-3 right-1"
-		/></label
-	>
+	<label for="icon" class="relative"> Icon: <iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-1" /></label>
 	<input
 		type="text"
 		id="icon"
@@ -140,19 +130,9 @@
 		<!-- TODO Button Click will close popup -->
 		<div class="mt-6 flex justify-between">
 			<!-- Disable the previous button if the start index is zero -->
-			<button
-				disabled={start === 0}
-				on:keydown
-				on:click={prevPage}
-				class="variant-filled-primary btn btn-sm">Previous</button
-			>
+			<button disabled={start === 0} on:keydown on:click={prevPage} class="variant-filled-primary btn btn-sm">Previous</button>
 			<!-- Disable the next button if there are less than 50 icons in the current page -->
-			<button
-				disabled={icons.length < 50}
-				on:keydown
-				on:click={nextPage}
-				class="variant-filled-primary btn btn-sm">Next</button
-			>
+			<button disabled={icons.length < 50} on:keydown on:click={nextPage} class="variant-filled-primary btn btn-sm">Next</button>
 		</div>
 	</div>
 	<div class="bg-surface-100-800-token arrow" />

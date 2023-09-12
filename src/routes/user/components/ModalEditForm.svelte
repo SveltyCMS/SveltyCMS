@@ -41,13 +41,13 @@
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
-		console.log('modal submitted.');
+		//console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
 		if (formData.password !== null && formData.password === formData.confirmPassword) {
 			modalStore.close();
 		} else {
-			console.log('error');
+			//console.log('error');
 		}
 	}
 

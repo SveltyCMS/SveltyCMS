@@ -8,6 +8,7 @@ export const POST: RequestHandler = async ({ request }) => {
     const newPassword = data.password;
     const user = await auth.getUser(userID);
     const key = await auth.getKey('email', user.email).catch(() => null);
+    //console.log(key);
 
     // if (key)
     //     auth.updateKeyPassword('email', key.providerUserId, newPassword);

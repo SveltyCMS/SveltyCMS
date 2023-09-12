@@ -12,23 +12,14 @@
 	let expanded = false;
 </script>
 
-<button
-	on:click={() => (expanded = !expanded)}
-	class="relative flex items-center justify-center gap-2"
-	style="margin-left:{20 * level}px"
->
+<button on:click={() => (expanded = !expanded)} class="relative flex items-center justify-center gap-2" style="margin-left:{20 * level}px">
 	{#if self.children?.length > 0}
-		<iconify-icon
-			icon="mdi:chevron-down"
-			width="30"
-			class:expanded
-			class=" btn-icon btn-icon-sm bg-red-500"
-		/>
+		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-red-500" />
 	{/if}
 
 	{self?.Header[$contentLanguage]}
 
-	<!-- {console.log(level, maxDepth)} -->
+	<!-- {//console.log(level, maxDepth)} -->
 	{#if level < maxDepth - 1}
 		<!-- add  Button children -->
 		<button
@@ -50,7 +41,7 @@
 			$mode = 'edit';
 			depth = level;
 			showFields = true;
-			//console.log(self);
+			////console.log(self);
 		}}
 		class="variant-filled-surface btn-icon {level == 0 ? 'ml-auto' : ''}"
 		><iconify-icon icon="mdi:pen" width="28" class="" />
@@ -87,7 +78,7 @@
 				$currentChild = self;
 				$mode = 'edit';
 				depth = level;
-				//console.log(self);
+				////console.log(self);
 				showFields = true;
 			}}
 			class="input p-2"
@@ -102,7 +93,7 @@
 				$currentChild = self;
 				$mode = 'edit';
 				depth = level;
-				//console.log(self);
+				////console.log(self);
 				showFields = true;
 			}}
 			class="btn-icon variant-soft-tertiary{level == 0 ? 'ml-auto' : ''}"

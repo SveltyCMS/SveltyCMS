@@ -11,13 +11,13 @@ function getYouTubeVideoId(url: string) {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-	console.log('POST function called');
+	//console.log('POST function called');
 
 	try {
 		const data = await request.formData();
 		const res = Object.fromEntries(data);
 		const url = res.url.toString();
-		console.log('URL:', url);
+		//console.log('URL:', url);
 
 		// Use a lookup object to map the URL to the corresponding function
 		const videoServices = {
@@ -46,7 +46,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				videoData = await videoServices[hostname](url);
 			}
 			return json(videoData);
-			console.log('json:', json);
+			//console.log('json:', json);
 		} else {
 			return json({
 				videoTitle: 'Invalid URL',

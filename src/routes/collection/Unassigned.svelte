@@ -12,7 +12,7 @@
 	}
 
 	function handleDndFinalizeCards(e) {
-		//console.log('Unassigned items:', e.detail.items); // <-- add this line
+		////console.log('Unassigned items:', e.detail.items); // <-- add this line
 		onDrop(e.detail.items);
 	}
 
@@ -42,8 +42,7 @@
 					{item.name}</span
 				>
 
-				<button class="text-black" on:click={() => handleCollectionClick(item.name)}
-					><iconify-icon icon="mdi:pen" width="18" class="pr-0.5" /></button
+				<button class="text-black" on:click={() => handleCollectionClick(item.name)}><iconify-icon icon="mdi:pen" width="18" class="pr-0.5" /></button
 				>
 			</div>
 		{/each}

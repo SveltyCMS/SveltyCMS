@@ -118,7 +118,7 @@ export const toggleLeftSidebar = fsm(getDefaultState(), {
 	},
 	full: {
 		click: () => {
-			//console.log('fsm-full-click');
+			////console.log('fsm-full-click');
 			if (get(screenWidth) === 'mobile' || get(screenWidth) === 'tablet') {
 				return 'collapsed';
 			} else {
@@ -126,7 +126,7 @@ export const toggleLeftSidebar = fsm(getDefaultState(), {
 			}
 		},
 		clickSwitchSideBar: () => {
-			//console.log('fsm-full-clickSwitchSideBar');
+			////console.log('fsm-full-clickSwitchSideBar');
 			if (get(screenWidth) === 'mobile') {
 				return 'closed';
 			} else {
@@ -203,7 +203,7 @@ export const handleSidebarToggle = () => {
 
 // TODO: Add Screen/Browser resize without breaking load
 // screenWidth.subscribe(($screenWidth) => {
-// 	console.log('screenWidth changed:', $screenWidth);
+// 	//console.log('screenWidth changed:', $screenWidth);
 // 	if ($screenWidth === 'mobile') {
 // 		toggleLeftSidebar.click('closed');
 // 	} else if ($screenWidth === 'tablet') {

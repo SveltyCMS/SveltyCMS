@@ -109,7 +109,7 @@
 			body: $LL.USER_Confirm_Body(),
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: (r: boolean) => {
-				if (r) console.log('response:', r);
+				if (r) //console.log('response:', r);
 			},
 			// Optionally override the button text
 			buttonTextCancel: $LL.USER_Cancel(),

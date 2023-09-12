@@ -13,7 +13,7 @@
 
 	//Get message from +page.server.ts
 	export let errorMessage = '';
-	//console.log('error', errorMessage);
+	////console.log('error', errorMessage);
 
 	//skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -86,7 +86,7 @@
 		};
 	} = { props: { data: [] } };
 
-	//console.log('Data received in component:', data);
+	////console.log('Data received in component:', data);
 
 	//TODO: fix tanstack office icons display
 

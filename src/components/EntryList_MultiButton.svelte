@@ -3,13 +3,7 @@
 	import LL from '@src/i18n/i18n-svelte';
 
 	import { createEventDispatcher } from 'svelte';
-	import {
-		mode,
-		handleSidebarToggle,
-		storeListboxValue,
-		toggleLeftSidebar,
-		screenWidth
-	} from '@src/stores/store';
+	import { mode, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
 	import { get } from 'svelte/store';
 
 	const dispatch = createEventDispatcher();
@@ -18,27 +12,26 @@
 	let { actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue);
 
 	function handleButtonClick() {
-    mode.set($storeListboxValue);
-    dispatch($storeListboxValue);
-    dropdownOpen = false;
-    if (get(screenWidth) === 'mobile') {
-        toggleLeftSidebar.clickBack();
-    }
+		mode.set($storeListboxValue);
+		dispatch($storeListboxValue);
+		dropdownOpen = false;
+		if (get(screenWidth) === 'mobile') {
+			toggleLeftSidebar.clickBack();
+		}
 
-    
-    // Automatically switch the correct sidebar
-    handleSidebarToggle();
-}
+		// Automatically switch the correct sidebar
+		handleSidebarToggle();
+	}
 
 	function handleOptionClick(value) {
 		storeListboxValue.set(value);
-		//console.log('storeListboxValue:', $storeListboxValue);
+		////console.log('storeListboxValue:', $storeListboxValue);
 
 		({ actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue));
 		dropdownOpen = false;
 	}
 
-	function getButtonAndIconValues(storeListboxValue:string) {
+	function getButtonAndIconValues(storeListboxValue: string) {
 		let actionname = '';
 		let buttonClass = '';
 		let iconValue = '';
@@ -81,7 +74,7 @@
 				break;
 		}
 
-		//console.log('storeListboxValue:', storeListboxValue);
+		////console.log('storeListboxValue:', storeListboxValue);
 
 		return {
 			actionname,
@@ -92,7 +85,7 @@
 
 	// a reactive statement that runs whenever mode.set is updated
 
-$: {
+	$: {
 		({ actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue));
 	}
 </script>
@@ -123,9 +116,7 @@ $: {
 	</button>
 
 	{#if dropdownOpen}
-		<ul
-			class="absolute right-2 top-14 z-10 mt-1 divide-y rounded border bg-surface-700 text-white ring-1 ring-black ring-opacity-5"
-		>
+		<ul class="absolute right-2 top-14 z-10 mt-1 divide-y rounded border bg-surface-700 text-white ring-1 ring-black ring-opacity-5">
 			{#if $storeListboxValue !== 'create'}
 				<li>
 					<!-- TODO: FIX Sidebar & RightSidebar Toggle -->
@@ -158,7 +149,7 @@ $: {
 					</button>
 				</li>
 			{/if}
-			
+
 			{#if $storeListboxValue !== 'unpublish'}
 				<li>
 					<button

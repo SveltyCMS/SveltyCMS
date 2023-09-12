@@ -3,7 +3,7 @@
 	import { contentLanguage } from '@src/stores/store';
 	import { translationStatusOpen } from '@src/stores/store';
 
-	//console.log('contentLanguage', contentLanguage);
+	////console.log('contentLanguage', contentLanguage);
 
 	// Manually parse the object from JSON string
 	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));

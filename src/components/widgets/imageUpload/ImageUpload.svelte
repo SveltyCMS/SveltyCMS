@@ -10,11 +10,11 @@
 	let updated = false;
 
 	export let field: FieldType;
-	console.log('field', field);
+	//console.log('field', field);
 	export const WidgetData = async () => (updated ? _data : null);
-	console.log('WidgetData', WidgetData);
+	//console.log('WidgetData', WidgetData);
 	export let file: File | undefined = undefined; // pass file directly from imageArray
-	console.log('file', file);
+	//console.log('file', file);
 
 	let fieldName = getFieldName(field);
 	let optimizedFileName: string | undefined = undefined;
@@ -29,13 +29,13 @@
 		loadingProgress.set(0);
 
 		if (node.files?.length === 0) {
-			//console.log('setFile:', 'No files selected');
+			////console.log('setFile:', 'No files selected');
 			return;
 		}
 
 		// Handle file selection
 		const handleFileSelection = async (files: FileList) => {
-			console.log('handleFileSelection:', 'Function called');
+			//console.log('handleFileSelection:', 'Function called');
 
 			updated = true;
 			_data = files;
@@ -54,11 +54,11 @@
 
 			//TODO: Image Preview not working for edit anymore
 		} else if ($mode === 'edit') {
-			console.log('mode edit:', $mode);
-			console.log('entryData:', $entryData[fieldName]);
+			//console.log('mode edit:', $mode);
+			//console.log('entryData:', $entryData[fieldName]);
 			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
 				const fileList = new DataTransfer();
-				console.log('fileList:', fileList);
+				//console.log('fileList:', fileList);
 				// Return Thumbnail Image
 				const file = new File([data], $entryData[fieldName].thumbnail.name, {
 					type: $entryData[fieldName].mimetype
