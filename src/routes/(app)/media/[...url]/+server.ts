@@ -4,6 +4,8 @@ import mime from 'mime-types';
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 import zlib from 'zlib';
 
+// TODO: add smarter Cache like lru-cache - A cache object that deletes the least-recently-used items.
+
 const cache = new Map<string, Buffer>();
 
 export const GET: RequestHandler = async ({ params }) => {

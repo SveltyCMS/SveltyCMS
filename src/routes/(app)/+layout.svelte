@@ -115,7 +115,6 @@
 
 	// Lucia
 	const user = $page.data.user;
-
 	avatarSrc.set(user?.avatar);
 
 	//signOut
