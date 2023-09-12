@@ -36,7 +36,8 @@ export const resetFormSchema = z
 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
 				message: get(LL).LOGIN_ZOD_Confirm_password_regex()
 			}),
-		token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1)
+		token: z.string(),
+		email: z.string()
 	})
 	.refine(
 		(data: SignInResetFormData) => data.password === data.confirm_password,

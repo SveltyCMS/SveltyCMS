@@ -21,6 +21,9 @@
 
 	let showPassword = false;
 
+	export let registration_token = '';
+	export let hide_email = '';
+
 	export let active: undefined | 0 | 1 = undefined;
 	export const show = false;
 	export let PWforgot: boolean = false;
@@ -96,7 +99,11 @@
 			//console.log('onSubmit:', forgotForm);
 
 			// handle login form submission
-			if ($allErrors.length > 0) cancel();
+			if ($allErrors.length > 0) {
+				cancel();
+				formElement.classList.add('wiggle');
+				setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			}
 		},
 
 		onResult: ({ result, cancel }) => {
@@ -137,6 +144,13 @@
 
 					// update variables to display reset form page
 					PWreset = true;
+
+					//registration_token
+					if (result.data !== undefined) {
+						registration_token = result.data.token;
+						hide_email = result.data.email;
+						//console.log(hide_email);
+					}
 
 					// Trigger the toast
 					const t = {
@@ -234,11 +248,13 @@
 					message: 'Password reset token was sent by Email',
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 3000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
+				window.location.reload();
+				return;
 			}
 
 			//console.log('onResult cancel'); // log cancel message
@@ -406,6 +422,7 @@
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
+					required
 				/>
 				{#if $resetErrors.password}
 					<span class="invalid text-xs text-error-500">
@@ -423,6 +440,7 @@
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
+					required
 				/>
 				{#if $resetErrors.confirm_password}
 					<span class="invalid text-xs text-error-500">
@@ -433,12 +451,14 @@
 				<!-- Registration Token -->
 				<FloatingInput
 					type="password"
+					name="token"
 					bind:value={$resetForm.token}
 					bind:showPassword
 					label={$LL.LOGIN_Token()}
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
+					required
 				/>
 
 				{#if $resetErrors.token}
@@ -452,7 +472,7 @@
 						{$resetAllErrors}
 					</span>
 				{/if}
-
+				<input type="email" name="email" bind:value={hide_email} hidden />
 				<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 					{$LL.LOGIN_ResetPasswordSave()}
 					<!-- Loading indicators -->

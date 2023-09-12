@@ -73,6 +73,7 @@ export const actions: Actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, forgotFormSchema);
+		console.log(pwforgottenForm);
 		//console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate with Lucia
@@ -124,6 +125,7 @@ export const actions: Actions = {
 			});
 			// Return message if form is submitted successfully
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
+			return { form: pwforgottenForm, token:token, email:email };
 		} else {
 			console.log('resp.status is false');
 			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
@@ -139,7 +141,10 @@ export const actions: Actions = {
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
 
-		const resp = await resetPWCheck(password, token, event.cookies);
+		const email = pwresetForm.data.email;
+		//console.log(token);
+		const resp = await resetPWCheck(password, token, email, event.cookies);
+		console.log("response: " + resp.status);
 
 		if (resp) {
 			// Return message if form is submitted successfully
@@ -315,13 +320,13 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	}
 }
 
-async function resetPWCheck(password: string, token: string, cookies: Cookies) {
+async function resetPWCheck(password: string, token: string, email: string, cookies: Cookies,) {
 	console.log('Starting password reset process...');
 
 	const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 	try {
 		// Obtain the key using auth.getKey based on your authentication system
-		const key = await auth.getKey('resetToken', token).catch(() => null);
+		const key = await auth.getKey('email', email).catch(() => null);
 		console.log(key);
 		if (!key) {
 			console.log('Invalid token: Key not found.');
@@ -330,29 +335,36 @@ async function resetPWCheck(password: string, token: string, cookies: Cookies) {
 
 		// Validate the token
 		console.log('Validating token...');
-		await tokenHandler.validate(token, key.userId);
-
-		// Update the password
-		const updateResult = await updatePassword(key.userId, password);
-
-		if (updateResult.status) {
-			// Create a new session and set the session cookie
-			console.log('Creating session and setting session cookie...');
-			const session = await auth.createSession(key.userId);
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-
-			// Update user's authentication method
-			console.log('Updating user attributes...');
-			const authMethod = 'token';
-			await auth.updateUserAttributes(key.userId, { authMethod });
-
-			console.log('Password reset successful.');
+		const validate = await tokenHandler.validate(token, key.userId);
+		
+		if (validate) {
+			auth.updateKeyPassword('email', key.providerUserId, password);
 			return { status: true };
 		} else {
-			console.error(updateResult.message);
 			return { status: false, message: 'An error occurred during password update' };
 		}
+		
+		// Update the password
+		// const updateResult = await updatePassword(key.userId, password);
+
+		// if (updateResult.status) {
+		// 	// Create a new session and set the session cookie
+		// 	console.log('Creating session and setting session cookie...');
+		// 	const session = await auth.createSession(key.userId);
+		// 	const sessionCookie = auth.createSessionCookie(session);
+		// 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
+		// 	// Update user's authentication method
+		// 	console.log('Updating user attributes...');
+		// 	const authMethod = 'token';
+		// 	await auth.updateUserAttributes(key.userId, { authMethod });
+
+		// 	console.log('Password reset successful.');
+		// 	return { status: true };
+		// } else {
+		// 	console.error(updateResult.message);
+		// 	return { status: false, message: 'An error occurred during password update' };
+		// }
 	} catch (e) {
 		console.error('Password reset failed:', e);
 		return { status: false, message: 'invalid token' };
