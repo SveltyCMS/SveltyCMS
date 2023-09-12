@@ -34,6 +34,9 @@ systemLanguage.subscribe((val) => {
 	setLocale(val as Locales);
 });
 
+// Git Version check
+export const pkgBgColor = writable('variant-filled-primary');
+
 // loading indicator
 export const loadingProgress = writable(0);
 
@@ -42,9 +45,7 @@ export const translationStatusOpen = writable(false);
 
 // collective data of collection
 export const collectionValue: any = writable({});
-export const mode: Writable<
-	'view' | 'edit' | 'create' | 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone'
-> = writable('view');
+export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone'> = writable('view');
 export const entryData: Writable<any> = writable({});
 
 //TODO: check deleteEntry function and ad modal to confirm deletion

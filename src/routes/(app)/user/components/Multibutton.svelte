@@ -152,91 +152,46 @@
 		on:click={() => {
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
-		class="{getButtonAndIconValues(listboxValue)
-			.buttonClass} hover:bg-primary-400 font-semibold uppercase"
+		class="{getButtonAndIconValues(listboxValue).buttonClass} font-semibold uppercase hover:bg-primary-400"
 	>
-		<iconify-icon
-			icon={getButtonAndIconValues(listboxValue).iconValue}
-			width="20"
-			class="mr-2 text-white"
-		/>
+		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}
 	</button>
 
 	<span class="border border-white" />
 
 	<!-- Dropdown button -->
-	<button class="bg-surface-500 hover:!bg-surface-800 divide-x-2 rounded-r-sm" use:popup={Combobox}>
+	<button class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800" use:popup={Combobox}>
 		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
 	</button>
 </div>
 <!-- Dropdown/Listbox -->
-<div
-	class="card bg-surface-500 overflow-hiddens z-10 w-48 rounded-sm text-white"
-	data-popup="Combobox"
->
-	<ListBox
-		rounded="rounded-sm"
-		active="variant-filled-primary"
-		hover="hover:bg-surface-300"
-		class="divide-y"
-	>
+<div class="overflow-hiddens card z-10 w-48 rounded-sm bg-surface-500 text-white" data-popup="Combobox">
+	<ListBox rounded="rounded-sm" active="variant-filled-primary" hover="hover:bg-surface-300" class="divide-y">
 		{#if listboxValue != 'edit'}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
-				value="edit"
-				active="variant-filled-primary"
-				hover="gradient-primary-hover"
-				><svelte:fragment slot="lead"
-					><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment
-				>
+			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
+				><svelte:fragment slot="lead"><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment>
 				Edit
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'delete'}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
-				value="delete"
-				active="variant-filled-error"
-				hover="gradient-error-hover"
-				><svelte:fragment slot="lead"
-					><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment
-				>
+			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
+				><svelte:fragment slot="lead"><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment>
 				Delete
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'unblock'}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
-				value="unblock"
-				active="bg-yellow-500"
-				hover="gradient-yellow-hover"
-				><svelte:fragment slot="lead"
-					><iconify-icon
-						icon="material-symbols:lock-open"
-						width="20"
-						class="mr-1"
-					/></svelte:fragment
-				>
+			<ListBoxItem bind:group={listboxValue} name="medium" value="unblock" active="bg-yellow-500" hover="gradient-yellow-hover"
+				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment>
 				Unblock
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'block'}
-			<ListBoxItem
-				bind:group={listboxValue}
-				name="medium"
-				value="block"
-				active="bg-pink-700"
-				hover="gradient-pink-hover"
-				><svelte:fragment slot="lead"
-					><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment
-				>
+			<ListBoxItem bind:group={listboxValue} name="medium" value="block" active="bg-pink-700" hover="gradient-pink-hover"
+				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment>
 				Block
 			</ListBoxItem>
 		{/if}

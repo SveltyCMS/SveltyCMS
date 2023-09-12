@@ -112,6 +112,8 @@
 				if (r) console.log('response:', r);
 			},
 			// Optionally override the button text
+			// TODO: fix light background and change Deletebutton to red
+			//backdropClasses: 'bg-white',
 			buttonTextCancel: $LL.USER_Cancel(),
 			buttonTextConfirm: $LL.USER_Confirm_Delete()
 		};

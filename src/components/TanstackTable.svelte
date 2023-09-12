@@ -16,12 +16,7 @@
 		getFilteredRowModel,
 		getPaginationRowModel // TODO: Update to better getPaginationRowModel
 	} from '@tanstack/svelte-table';
-	import type {
-		ColumnDef,
-		TableOptions,
-		SortDirection,
-		FilterFn
-	} from '@tanstack/table-core/src/types';
+	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/table-core/src/types';
 
 	export const data: any[] = [];
 	export let items: any[];
@@ -212,15 +207,11 @@
 	const flipDurationMs = 100;
 
 	// TODO: Don't update table on drag and drop, only on release for performance
-	function handleDndConsider(e: {
-		detail: { items: { id: string; name: string; isVisible: boolean }[] };
-	}) {
+	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
 		items = e.detail.items;
 	}
 
-	function handleDndFinalize(e: {
-		detail: { items: { id: string; name: string; isVisible: boolean }[] };
-	}) {
+	function handleDndFinalize(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
 		items = e.detail.items;
 
 		// Update column Order based on new order
@@ -308,9 +299,7 @@
 {:else}
 	<!-- TanstackHeader -->
 	{#if columnShow}
-		<div
-			class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700"
-		>
+		<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 			<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
 
 			<!-- toggle all -->
@@ -374,15 +363,9 @@
 
 	<!-- Tanstack Table -->
 	<div class="table-container">
-		<table
-			class="table table-hover {density === 'compact'
-				? 'table-compact'
-				: density === 'normal'
-				? ''
-				: 'table-comfortable'}"
-		>
+		<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 			<!-- Tanstack Header -->
-			<thead class="text-primary-500">
+			<thead class="text-black dark:text-primary-500">
 				{#each $table.getHeaderGroups() as headerGroup}
 					<tr class="divide-x border">
 						<th class="w-8 border">
@@ -397,9 +380,7 @@
 										on:keydown
 										on:click={header.column.getToggleSortingHandler()}
 									>
-										<svelte:component
-											this={flexRender(header.column.columnDef.header, header.getContext())}
-										/>
+										<svelte:component this={flexRender(header.column.columnDef.header, header.getContext())} />
 										{#if header.column.getIsSorted() === 'asc'}
 											<iconify-icon icon="material-symbols:arrow-upward-rounded" width="16" />
 										{:else if header.column.getIsSorted() === 'desc'}
@@ -461,9 +442,7 @@
 						</td>
 						{#each row.getVisibleCells() as cell}
 							<td class="break-all border">
-								<svelte:component
-									this={flexRender(cell.column.columnDef.cell, cell.getContext())}
-								/>
+								<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
 							</td>
 						{/each}
 					</tr>
@@ -499,13 +478,9 @@
 				<!-- TODO: Get actual pages -->
 				<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 				<span class="text-black dark:text-white"
-					>{Math.ceil(
-						$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
-					)}</span
+					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 				>
-				- (<span class="text-black dark:text-white">
-					{$table.getPrePaginationRowModel().rows.length}</span
-				>
+				- (<span class="text-black dark:text-white"> {$table.getPrePaginationRowModel().rows.length}</span>
 				{$LL.TANSTACK_Total()}
 
 				{#if $table.getPrePaginationRowModel().rows.length === 1}
@@ -608,11 +583,7 @@
 		<div class="mb-2 flex flex-col items-center justify-center gap-2 md:hidden">
 			{#if $table.getPrePaginationRowModel().rows.length > 10}
 				<!-- number of pages -->
-				<select
-					value={$table.getState().pagination.pageSize}
-					on:change={setPageSize}
-					class="select max-w-[100px] text-sm sm:hidden"
-				>
+				<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select max-w-[100px] text-sm sm:hidden">
 					{#each availablePageSizes as pageSize}
 						<option value={pageSize}>
 							{pageSize}
@@ -631,13 +602,9 @@
 				>{$table.getState().pagination.pageIndex + 1}</span
 			> -->
 				<span class="text-black dark:text-white"
-					>{Math.ceil(
-						$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
-					)}</span
+					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 				>
-				- (<span class="text-black dark:text-white"
-					>{$table.getPrePaginationRowModel().rows.length}</span
-				>
+				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
 				{$LL.TANSTACK_Total()}
 
 				{#if $table.getPrePaginationRowModel().rows.length === 1}

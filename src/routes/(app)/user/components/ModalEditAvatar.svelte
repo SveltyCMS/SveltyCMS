@@ -40,15 +40,7 @@
 
 	// Zod validation
 	import z from 'zod';
-	const imageTypes = [
-		'image/jpeg',
-		'image/jpg',
-		'image/png',
-		'image/webp',
-		'image/avif',
-		'image/svg+xml',
-		'image/gif'
-	];
+	const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 
 	const avatarSchema = z.object({
 		file: z
@@ -135,7 +127,7 @@
 		}
 	}
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
@@ -153,11 +145,7 @@
 	<form class="modal-form {cForm}">
 		<div class="grid grid-cols-1 grid-rows-{$avatarSrc ? '1' : '2'} items-center justify-center">
 			<!-- Avatar Thumbnail -->
-			<Avatar
-				src={_avatarSrc ? _avatarSrc : $avatarSrc ? $avatarSrc : '/Default_User.svg'}
-				rounded-full
-				class="mx-auto mb-3 w-32"
-			/>
+			<Avatar src={_avatarSrc ? _avatarSrc : $avatarSrc ? $avatarSrc : '/Default_User.svg'} rounded-full class="mx-auto mb-3 w-32" />
 
 			<!-- FileDropzone Area-->
 			<FileDropzone

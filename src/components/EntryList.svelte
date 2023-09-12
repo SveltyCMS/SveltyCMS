@@ -44,12 +44,7 @@
 		getSortedRowModel,
 		getPaginationRowModel
 	} from '@tanstack/svelte-table';
-	import type {
-		ColumnDef,
-		TableOptions,
-		SortDirection,
-		FilterFn
-	} from '@tanstack/table-core/src/types';
+	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/table-core/src/types';
 
 	import FloatingInput from './system/inputs/floatingInput.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
@@ -77,9 +72,7 @@
 		if ($collection.name == '') return;
 
 		data = undefined;
-		data = (await axios
-			.get(`/api/${$collection.name}?page=${1}&length=${50}`)
-			.then((data) => data.data)) as { entryList: [any]; totalCount: number };
+		data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as { entryList: [any]; totalCount: number };
 
 		//console.log('data', data);
 
@@ -120,11 +113,9 @@
 
 		// READ CONFIG FROM LOCAL STORAGE AND APPLY THE VISIBILITY
 		if (localStorage.getItem(`TanstackConfiguration-${$collection.name}`)) {
-			JSON.parse(localStorage.getItem(`TanstackConfiguration-${$collection.name}`)).forEach(
-				(item: any) => {
-					getColumnByName(item.accessorKey)?.toggleVisibility(item.visible);
-				}
-			);
+			JSON.parse(localStorage.getItem(`TanstackConfiguration-${$collection.name}`)).forEach((item: any) => {
+				getColumnByName(item.accessorKey)?.toggleVisibility(item.visible);
+			});
 		}
 	};
 
@@ -134,9 +125,7 @@
 		if (searchValue) {
 			filteredData = tableData.filter((row) => {
 				// Check if any of the values in this row match the search value
-				return Object.values(row).some((value) =>
-					(value as string).toString().toLowerCase().includes(searchValue.toLowerCase())
-				);
+				return Object.values(row).some((value) => (value as string).toString().toLowerCase().includes(searchValue.toLowerCase()));
 			});
 		} else {
 			filteredData = tableData;
@@ -297,15 +286,11 @@
 
 	//console.log('EntryList item', items);
 
-	function handleDndConsider(e: {
-		detail: { items: { id: string; name: string; isVisible: boolean }[] };
-	}) {
+	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
 		items = e.detail.items;
 	}
 
-	function handleDndFinalize(e: {
-		detail: { items: { id: string; name: string; isVisible: boolean }[] };
-	}) {
+	function handleDndFinalize(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
 		items = e.detail.items;
 
 		// Update column Order based on new order
@@ -402,25 +387,13 @@
 		<!-- Collection type with icon -->
 		<!-- TODO: Translate Collection Name -->
 		<div class="mr-1 flex flex-col {!$toggleLeftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
-			{#if $categories.length}<div
-					class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300"
-				>
+			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 					{$categories[0].name}
 				</div>{/if}
-			<div
-				class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl"
-			>
-				{#if $collection.icon}<span>
-						<iconify-icon
-							icon={$collection.icon}
-							width="24"
-							class="mr-1 text-error-500 sm:mr-2"
-						/></span
-					>{/if}
+			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+				{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
 				{#if $collection.name}
-					<div
-						class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1"
-					>
+					<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 						{$collection.name}
 					</div>
 				{/if}
@@ -428,12 +401,7 @@
 		</div>
 	</div>
 
-	<button
-		type="button"
-		on:keydown
-		on:click={() => (searchShow = !searchShow)}
-		class="variant-ghost-surface btn-icon sm:hidden"
-	>
+	<button type="button" on:keydown on:click={() => (searchShow = !searchShow)} class="variant-ghost-surface btn-icon sm:hidden">
 		<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 	</button>
 
@@ -448,20 +416,14 @@
 
 <!-- Row 2 for Mobile  / Center on desktop -->
 <!-- TODO:add  expand transition -->
-<div
-	class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow
-		? 'hidden'
-		: 'block'} sm:hidden"
->
+<div class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow ? 'hidden' : 'block'} sm:hidden">
 	<TanstackFilter bind:searchValue bind:filterShow bind:columnShow bind:density />
 	<TranslationStatus />
 </div>
 
 {#if columnShow}
 	<!-- chip column order -->
-	<div
-		class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700"
-	>
+	<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 		<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
 		<!-- toggle all -->
 		<div class="flex w-full items-center justify-center">
@@ -526,17 +488,11 @@
 
 <!-- Tanstack Table -->
 <div class="table-container">
-	<table
-		class="table table-hover {density === 'compact'
-			? 'table-compact'
-			: density === 'normal'
-			? ''
-			: 'table-comfortable'}"
-	>
+	<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 		<!-- Tanstack Header -->
-		<thead class="text-primary-500">
+		<thead class="text-dark dark:text-primary-500">
 			{#each $table.getHeaderGroups() as headerGroup}
-				<tr class="divide-x divide-surface-400 border-b">
+				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 					<th class="!w-6">
 						<TanstackIcons bind:checked={tickAll} />
 					</th>
@@ -550,9 +506,7 @@
 									on:keydown
 									on:click={header.column.getToggleSortingHandler()}
 								>
-									<svelte:component
-										this={flexRender(header.column.columnDef.header, header.getContext())}
-									/>
+									<svelte:component this={flexRender(header.column.columnDef.header, header.getContext())} />
 									{#if header.column.getIsSorted() === 'asc'}
 										<iconify-icon icon="material-symbols:arrow-upward-rounded" width="16" />
 									{:else if header.column.getIsSorted() === 'desc'}
@@ -630,13 +584,9 @@
 			<!-- TODO: Get actual pages -->
 			<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 			<span class="text-black dark:text-white"
-				>{Math.ceil(
-					$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
-				)}</span
+				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
-			- (<span class="text-black dark:text-white"
-				>{$table.getPrePaginationRowModel().rows.length}</span
-			>
+			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
 			{$LL.TANSTACK_Total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
@@ -663,9 +613,7 @@
 		{/if}
 
 		<!-- next/previous pages -->
-		<div
-			class="variant-ghost btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500"
-		>
+		<div class="variant-ghost btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500">
 			<button
 				type="button"
 				class="w-6"
@@ -738,11 +686,7 @@
 	<div class="flex flex-col items-center justify-center gap-2 md:hidden">
 		{#if $table.getPrePaginationRowModel().rows.length > 10}
 			<!-- number of pages -->
-			<select
-				value={$table.getState().pagination.pageSize}
-				on:change={setPageSize}
-				class="select max-w-[100px] text-sm sm:hidden"
-			>
+			<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select max-w-[100px] text-sm sm:hidden">
 				{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
 					<option value={pageSize}>
 						{pageSize}
@@ -761,13 +705,9 @@
 				>{$table.getState().pagination.pageIndex + 1}</span
 			> -->
 			<span class="text-black dark:text-white"
-				>{Math.ceil(
-					$table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize
-				)}</span
+				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
-			- (<span class="text-black dark:text-white"
-				>{$table.getPrePaginationRowModel().rows.length}</span
-			>
+			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
 			{$LL.TANSTACK_Total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}

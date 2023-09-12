@@ -21,7 +21,9 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		storeListboxValue
+		storeListboxValue,
+		systemLanguage,
+		pkgBgColor
 	} from '@src/stores/store';
 
 	import { getCollections } from '@src/collections';
@@ -69,7 +71,6 @@
 	import LL from '@src/i18n/i18n-svelte';
 	import { locales } from '@src/i18n/i18n-util';
 	import type { Locales } from '@src/i18n/i18n-types';
-	import { systemLanguage } from '@src/stores/store';
 	import { setLocale } from '@src/i18n/i18n-svelte';
 
 	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
@@ -82,6 +83,28 @@
 
 	// @ts-expect-error reading from vite.config.jss
 	const pkg = __VERSION__;
+	let githubVersion = '';
+
+	// Fetch the latest release from GitHub
+	axios
+		.get('https://api.github.com/repos/Rar9/SimpleCMS/releases/latest')
+		.then((response) => {
+			githubVersion = response.data.tag_name.slice(1); // Remove the 'v' from the version tag
+
+			const [localMajor, localMinor] = pkg.split('.').map(Number);
+			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
+
+			if (githubMinor > localMinor) {
+				$pkgBgColor = 'variant-filled-warning';
+			} else if (githubMajor !== localMajor) {
+				$pkgBgColor = 'variant-filled-error';
+			}
+
+			console.log(`Local version: ${pkg}`);
+			console.log(`GitHub version: ${githubVersion}`);
+			console.log(`pkgBgColor: ${$pkgBgColor}`);
+		})
+		.catch((error) => console.error('Error:', error));
 
 	// dark mode
 	const toggleTheme = () => {
@@ -480,7 +503,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<!-- CMS Version -->
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
-								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} variant-filled-primary badge rounded-xl text-black hover:text-white"
+								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
 									>{#if $toggleLeftSidebar === 'full'}{$LL.SBL_Version()}{/if}{pkg}</span
 								>
 							</a>

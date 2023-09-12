@@ -122,8 +122,7 @@
 			header: 'Expires In',
 			accessorKey: 'lastAccess',
 			id: 'lastAccess',
-			accessorFn: (cell: any) =>
-				cell.lastAccess ? moment(cell.lastAccess.active_expires).fromNow() : 'N/A'
+			accessorFn: (cell: any) => (cell.lastAccess ? moment(cell.lastAccess.active_expires).fromNow() : 'N/A')
 		},
 		{
 			header: 'Member For',
@@ -171,10 +170,7 @@
 		{#if tableDataUserToken}
 			<!-- Show User Token -->
 
-			<button
-				on:click={toggleUserToken}
-				class="gradient-tertiary btn w-full text-white sm:max-w-xs"
-			>
+			<button on:click={toggleUserToken} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
 				{showUsertoken ? 'Hide User Token' : 'Show User Token'}
 			</button>
@@ -192,22 +188,11 @@
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
 			<h2 class="font-bold text-primary-500">{$LL.USER_ListUser()}</h2>
 			<div class="hidden sm:flex">
-				<TanstackFilter
-					bind:globalSearchValue
-					bind:searchShow
-					bind:filterShow
-					bind:columnShow
-					bind:density
-				/>
+				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
 
 			<div class="flex items-center justify-between gap-2">
-				<button
-					type="button"
-					on:keydown
-					on:click={() => (showMoreUserList = !showMoreUserList)}
-					class="variant-ghost-surface btn-icon sm:hidden"
-				>
+				<button type="button" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)} class="variant-ghost-surface btn-icon sm:hidden">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
@@ -216,13 +201,7 @@
 
 			{#if showMoreUserList}
 				<div class="sm:hidden">
-					<TanstackFilter
-						bind:globalSearchValue
-						bind:searchShow
-						bind:filterShow
-						bind:columnShow
-						bind:density
-					/>
+					<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 				</div>
 			{/if}
 		</div>
@@ -244,24 +223,13 @@
 	{#if showUsertoken}
 		<!-- User Token invites -->
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-primary-500">{$LL.USER_ListToken()}</h2>
+			<h2 class="font-bold text-black dark:text-primary-500">{$LL.USER_ListToken()}</h2>
 			<div class="hidden sm:flex">
-				<TanstackFilter
-					bind:globalSearchValue
-					bind:searchShow
-					bind:filterShow
-					bind:columnShow
-					bind:density
-				/>
+				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
 
 			<div class="flex items-center justify-between gap-2">
-				<button
-					type="button"
-					on:keydown
-					on:click={() => (showMoreUserToken = !showMoreUserToken)}
-					class="variant-ghost-surface btn-icon sm:hidden"
-				>
+				<button type="button" on:keydown on:click={() => (showMoreUserToken = !showMoreUserToken)} class="variant-ghost-surface btn-icon sm:hidden">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
@@ -270,13 +238,7 @@
 
 			{#if showMoreUserToken}
 				<div class="sm:hidden">
-					<TanstackFilter
-						bind:globalSearchValue
-						bind:searchShow
-						bind:filterShow
-						bind:columnShow
-						bind:density
-					/>
+					<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 				</div>
 			{/if}
 		</div>

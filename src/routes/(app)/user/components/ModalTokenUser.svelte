@@ -22,7 +22,7 @@
 	import LL from '@src/i18n/i18n-svelte';
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
@@ -81,13 +81,7 @@
 	<form class="modal-form {cForm}" method="post" action="?/addUser" use:enhance>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput
-				label={$LL.LOGIN_EmailAddress()}
-				icon="mdi:email"
-				type="email"
-				bind:value={$form.email}
-				required
-			/>
+			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" type="email" bind:value={$form.email} required />
 
 			{#if $errors.email}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -103,9 +97,7 @@
 				<div class="flex flex-wrap gap-2 space-x-2">
 					{#each Object.values(roles) as r}
 						<span
-							class="chip {roleSelected === r
-								? 'variant-filled-tertiary'
-								: 'variant-ghost-secondary'}"
+							class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 							on:click={() => {
 								// filterRole(r);
 								roleSelected = r;
@@ -131,9 +123,7 @@
 				<div class="flex flex-wrap gap-2 space-x-2">
 					{#each validityOptions as option}
 						<span
-							class="chip {expiresIn === option.value
-								? 'variant-filled-tertiary'
-								: 'variant-ghost-secondary'}"
+							class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 							on:click={() => {
 								expiresIn = option.value;
 								expirationTime = option.seconds;
@@ -156,9 +146,7 @@
 		</div>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}
-				>{parent.buttonTextCancel}</button
-			>
+			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
 			<button type="submit" class="btn {parent.buttonPositive}">Send</button>
 		</footer>
 	</form>

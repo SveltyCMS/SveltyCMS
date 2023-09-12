@@ -52,14 +52,9 @@
 		// Reduce $categories array to create new array of filtered categories
 		filteredCategories = ($categories as Category[]).reduce((acc: Category[], category) => {
 			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection) =>
-				collection.name.toLowerCase().includes(search.toLowerCase())
-			);
+			const filteredCollections = category.collections.filter((collection) => collection.name.toLowerCase().includes(search.toLowerCase()));
 			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
-			if (
-				filteredCollections.length > 0 ||
-				(search === '' && category.name.toLowerCase().includes(search.toLowerCase()))
-			) {
+			if (filteredCollections.length > 0 || (search === '' && category.name.toLowerCase().includes(search.toLowerCase()))) {
 				// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
 				acc.push({
 					...category,
@@ -106,22 +101,13 @@
 			<AccordionItem
 				bind:open={category.open}
 				regionPanel={`divide-y divide-black my-0 ${
-					category.collections.length > 5
-						? $toggleLeftSidebar === 'full'
-							? 'max-h-72'
-							: 'max-h-[256px]'
-						: ''
+					category.collections.length > 5 ? ($toggleLeftSidebar === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
 				} overflow-y-auto`}
 				class="divide-y rounded-md bg-surface-100 dark:bg-surface-300"
 			>
 				<svelte:fragment slot="lead">
 					<!-- TODO: Tooltip not fully working -->
-					<iconify-icon
-						icon={category.icon}
-						width="24"
-						class="text-error-500"
-						use:popup={popupCollections}
-					/>
+					<iconify-icon icon={category.icon} width="24" class="text-error-500" use:popup={popupCollections} />
 				</svelte:fragment>
 
 				<svelte:fragment slot="summary"
@@ -195,7 +181,7 @@
 		<!-- switchSideBar collapsed -->
 		<a
 			href="/mediagallery"
-			class="variant-filled-surface btn mt-2 flex flex-col items-center py-1 pl-2"
+			class="btn mt-2 flex flex-col items-center bg-surface-600 py-1 pl-2 text-white"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
 					toggleLeftSidebar.clickBack();

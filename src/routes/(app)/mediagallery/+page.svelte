@@ -329,7 +329,7 @@
 							</a>
 						</section>
 						<footer
-							class={`card-footer mt-1 flex w-full items-center justify-center break-all rounded-sm bg-surface-600 p-0 text-center text-xs text-white`}
+							class={`card-footer mt-1 flex w-full items-center justify-center break-all rounded-sm bg-white p-0 text-center text-xs dark:bg-surface-600 dark:text-white`}
 							style={`max-width: ${gridSize === 'small' ? '6rem' : gridSize === 'medium' ? '12rem' : '24rem'}`}
 						>
 							<div class="flex-col">
