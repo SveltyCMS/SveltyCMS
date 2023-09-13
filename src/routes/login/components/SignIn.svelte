@@ -161,7 +161,7 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
-					window.location.reload();
+					// window.location.reload();
 					return;
 				}
 			}

@@ -3,10 +3,10 @@ import { render } from 'svelte-email';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 
 // Templates used by svelte email
-import UserToken from '@src/components/emails/userToken.svelte';
-import Welcome from '@src/components/emails/welcomeUser.svelte';
-import ForgotPassword from '@src/components/emails/forgottenPassword.svelte';
-import UpdatedPassword from '@src/components/emails/updatedPassword.svelte';
+import userToken from '@src/components/emails/userToken.svelte';
+import welcomeUser from '@src/components/emails/welcomeUser.svelte';
+import forgottenPassword from '@src/components/emails/forgottenPassword.svelte';
+import updatedPassword from '@src/components/emails/updatedPassword.svelte';
 
 import nodemailer from 'nodemailer';
 
@@ -25,10 +25,10 @@ interface EmailProps {
 }
 
 const templates: Record<string, ComponentType> = {
-	Welcome,
-	UserToken,
-	ForgotPassword,
-	UpdatedPassword
+	welcomeUser,
+	userToken,
+	forgottenPassword,
+	updatedPassword
 };
 
 export const POST: RequestHandler = async ({ request }) => {
