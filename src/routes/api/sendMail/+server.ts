@@ -5,7 +5,7 @@ import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/pri
 // Templates used by svelte email
 import UserToken from '@src/components/emails/userToken.svelte';
 import Welcome from '@src/components/emails/welcomeUser.svelte';
-import ForgotPassword from '@src/components/emails/forgottenPassword.svelte';
+import forgottenPassword from '@src/components/emails/forgottenPassword.svelte';
 import UpdatedPassword from '@src/components/emails/updatedPassword.svelte';
 
 import nodemailer from 'nodemailer';
@@ -24,10 +24,11 @@ interface EmailProps {
 	// ... any other props used by both templates
 }
 
+
 const templates: Record<string, ComponentType> = {
 	Welcome,
 	UserToken,
-	ForgotPassword,
+	forgottenPassword,
 	UpdatedPassword
 };
 
