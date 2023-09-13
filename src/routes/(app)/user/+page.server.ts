@@ -47,7 +47,7 @@ export const actions: Actions = {
 	addUser: async (event) => {
 		// Validate addUserForm data
 		const addUserForm = await superValidate(event, addUserTokenSchema);
-		console.log(addUserForm);
+		// console.log(addUserForm);
 
 		const email = addUserForm.data.email;
 		const role = addUserForm.data.role;
@@ -111,7 +111,7 @@ export const actions: Actions = {
 		const token = (await tokenHandler.issue(user.id)).toString();
 
 		// Send the token to the user via email.
-		console.log('addUser', token);
+		// console.log('addUser', token);
 
 		// send welcome email
 		//TODO: port to utils not to expose ... remove fetch from backend
@@ -138,7 +138,8 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
-		console.log('changePassword');
+		// console.log('changePassword');
+
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
 		const session = event.cookies.get(SESSION_COOKIE_NAME) as string;

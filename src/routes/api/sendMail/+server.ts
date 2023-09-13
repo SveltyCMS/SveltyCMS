@@ -32,7 +32,7 @@ const templates: Record<string, ComponentType> = {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	console.log(request);
+	// console.log(request);
 	const { email, subject, message, templateName, props } = await request.json();
 	await sendMail(email, subject, message, templateName, props);
 

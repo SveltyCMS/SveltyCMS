@@ -35,7 +35,7 @@
 				fields.push(field);
 				fields = fields;
 				addField = false;
-				console.log(fields);
+				// console.log(fields);
 			}}>Finish Widget</button
 		>
 	</div>

@@ -103,13 +103,13 @@
 	// Update the Assigned collection(s) where the item was dropped
 	function handleBoardUpdated(newColumnsData: any) {
 		availableCollection = newColumnsData;
-		console.log('handleBoardUpdated:', availableCollection);
+		// console.log('handleBoardUpdated:', availableCollection);
 	}
 
 	// Update the Unassigned collection where the item was dropped
 	function handleUnassignedUpdated(newItems: any) {
 		UnassignedCollections = newItems;
-		console.log('handleUnassignedUpdated:', UnassignedCollections);
+		// console.log('handleUnassignedUpdated:', UnassignedCollections);
 	}
 
 	//Saving changes to the config.ts

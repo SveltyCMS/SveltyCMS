@@ -102,7 +102,7 @@ function goThrough(object: any, imports: Set<string> = new Set()) {
 							return undefined;
 						}
 						if (typeof value == 'string') {
-							console.log(value);
+							// console.log(value);
 							return value.replace(/\s*🗑️\s*/g, '🗑️').trim();
 						}
 						return value;

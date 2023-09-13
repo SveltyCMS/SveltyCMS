@@ -100,9 +100,9 @@
 				$pkgBgColor = 'variant-filled-error';
 			}
 
-			console.log(`Local version: ${pkg}`);
-			console.log(`GitHub version: ${githubVersion}`);
-			console.log(`pkgBgColor: ${$pkgBgColor}`);
+			// console.log(`Local version: ${pkg}`);
+			// console.log(`GitHub version: ${githubVersion}`);
+			// console.log(`pkgBgColor: ${$pkgBgColor}`);
 		})
 		.catch((error) => console.error('Error:', error));
 
@@ -208,7 +208,7 @@
 	// Subscribe to changes in the collection store and do redirects
 	let initial = true;
 	collection.subscribe((_) => {
-		console.log(!$collection, !$page.params.language);
+		// console.log(!$collection, !$page.params.language);
 		if (!$collection) return;
 
 		// Reset the value of the collectionValue store

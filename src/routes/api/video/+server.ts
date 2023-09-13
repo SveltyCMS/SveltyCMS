@@ -3,8 +3,7 @@ import { tiktok, twitch, vimeo, youtube } from '@src/components/widgets/remoteVi
 
 // Extracts the video ID from a YouTube URL
 function getYouTubeVideoId(url: string) {
-	const regExp =
-		/^(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/|watch\?.+&v=)([^#&?]+).*$/;
+	const regExp = /^(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/|watch\?.+&v=)([^#&?]+).*$/;
 	const match = url.match(regExp);
 
 	return match ? match[1] : null;
@@ -17,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const data = await request.formData();
 		const res = Object.fromEntries(data);
 		const url = res.url.toString();
-		console.log('URL:', url);
+		// console.log('URL:', url);
 
 		// Use a lookup object to map the URL to the corresponding function
 		const videoServices = {
@@ -46,7 +45,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				videoData = await videoServices[hostname](url);
 			}
 			return json(videoData);
-			console.log('json:', json);
+			// console.log('json:', json);
 		} else {
 			return json({
 				videoTitle: 'Invalid URL',

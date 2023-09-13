@@ -112,11 +112,14 @@
 		}
 		return true;
 	}
+
 	$: {
-		rotateDetails.scale =
-			(WHOLE_HEIGHT * Math.abs(Math.sin((90 - +rotate) * (Math.PI / 180))) + WHOLE_WIDTH * Math.abs(Math.cos((90 - +rotate) * (Math.PI / 180)))) /
-			WHOLE_HEIGHT;
-		rotateDetails.tr_y = -(WHOLE_HEIGHT * Math.sin(+rotate * (Math.PI / 180))) / rotateDetails.scale;
+		if (rotateDetails) {
+			rotateDetails.scale =
+				(WHOLE_HEIGHT * Math.abs(Math.sin((90 - +rotate) * (Math.PI / 180))) + WHOLE_WIDTH * Math.abs(Math.cos((90 - +rotate) * (Math.PI / 180)))) /
+				WHOLE_HEIGHT;
+			rotateDetails.tr_y = -(WHOLE_HEIGHT * Math.sin(+rotate * (Math.PI / 180))) / rotateDetails.scale;
+		}
 	}
 
 	// Function to handle touch/mouse move event
@@ -403,7 +406,7 @@
 				<div class="image_container relative" id="imagePart" style="width: {CONT_WIDTH}; height: {CONT_HEIGHT};">
 					<div
 						class="image_container relative"
-						style="width: {CONT_WIDTH}; height: {CONT_HEIGHT}; transform-origin:  50% 50%; transform: rotate({rotate}deg) scale({rotateDetails.scale})"
+						style="width: {CONT_WIDTH}; height: {CONT_HEIGHT}; transform-origin:  50% 50%; transform: rotate({rotate}deg) scale({rotateDetails?.scale})"
 					>
 						<img class="main_image" src={URL.createObjectURL(image)} alt="" style="transform: translate( {TR_X}px, {TR_Y}px ) scale({SCALE})" />
 					</div>
