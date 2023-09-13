@@ -1,6 +1,6 @@
 {
   "name": "simplecms",
-  "version": "0.0.2",
+  "version": "2.5.0",
   "scripts": {
     "dev": "npm-run-all --parallel vite",
     "devv": "LAUNCH_EDITOR='code' npm-run-all --parallel vite typesafe-i18n",
@@ -65,6 +65,7 @@
     "graphql": "16.8.0",
     "graphql-yoga": "4.0.4",
     "iconify-icon": "^1.0.8",
+    "lucia": "^2.5.0",
     "lucia-auth": "^1.8.0",
     "mime-types": "^2.1.35",
     "moment": "^2.29.4",
