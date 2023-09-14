@@ -19,7 +19,7 @@ interface EmailProps {
 	email?: string;
 	role?: string;
 	token?: string;
-	expires_at?: string;
+
 	expires_in?: string;
 	// ... any other props used by both templates
 }
@@ -61,19 +61,20 @@ async function sendMail(email: string, subject: string, message: string, templat
 		template: templates[templateName],
 		props
 	});
+	console.log(emailHtml);
 
-	const options = {
-		from: SMTP_EMAIL,
-		to: email,
-		subject,
-		text: message,
-		html: emailHtml
-	};
+	// const options = {
+	// 	from: SMTP_EMAIL,
+	// 	to: email,
+	// 	subject,
+	// 	text: message,
+	// 	html: emailHtml
+	// };
 
-	await transporter.sendMail(options).catch((err) => console.log(err));
+	// await transporter.sendMail(options).catch((err) => console.log(err));
 
-	return {
-		status: 200,
-		body: { success: true }
-	};
+	// return {
+	// 	status: 200,
+	// 	body: { success: true }
+	// };
 }

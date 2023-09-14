@@ -29,6 +29,19 @@
 	export let PWforgot: boolean = false;
 	export let PWreset: boolean = false;
 	export let FormSchemaLogin: PageData['loginForm'];
+
+	let current_url = window.location.href;
+
+	if (current_url.search('token') > -1) {
+		PWforgot = true;
+		PWreset = true;
+		let start = current_url.indexOf('=') + 1;
+		let end = current_url.indexOf('email');
+		registration_token = current_url.slice(start, end);
+
+		hide_email = current_url.slice(end + 6, current_url.length);
+	}
+
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		validators: loginFormSchema,
 		// Clear form on success.
@@ -135,16 +148,11 @@
 
 			if (result.type === 'success') {
 				if (result.data !== undefined && result.data.status === false) {
-					PWreset = false;
 					formElement.classList.add('wiggle');
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
 				} else {
 					//console.log('onResult success'); // log success message
-
-					// update variables to display reset form page
-					PWreset = true;
-
 					//registration_token
 					if (result.data !== undefined) {
 						registration_token = result.data.token;
@@ -202,7 +210,8 @@
 
 		onResult: ({ result, cancel }) => {
 			//console.log('onResult:', result); // log the result object
-
+			PWreset = false;
+			PWforgot = false;
 			if (result.type === 'error') {
 				//console.log('onResult error:', allErrors); // log the error messages
 
@@ -224,7 +233,6 @@
 				//console.log('onResult success'); // log success message
 
 				// update variables to display reset form
-				PWreset = true;
 
 				// Trigger the toast
 				const t = {
@@ -240,7 +248,6 @@
 				//console.log('onResult redirect'); // log redirect message
 
 				// update variables to display reset form
-				PWreset = true;
 
 				// Trigger the toast
 				// TODO: Toast in conflict with wiggle
@@ -253,7 +260,6 @@
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
-				window.location.reload();
 				return;
 			}
 
@@ -452,7 +458,7 @@
 				<FloatingInput
 					type="password"
 					name="token"
-					bind:value={$resetForm.token}
+					bind:value={registration_token}
 					bind:showPassword
 					label={$LL.LOGIN_Token()}
 					icon="mdi:lock"

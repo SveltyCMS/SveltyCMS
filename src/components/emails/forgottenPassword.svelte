@@ -19,17 +19,21 @@
 		expires_at: string;
 	}
 	export let email: EmailProps['email'];
-	export let resetLink: EmailProps['resetLink'];
+	// export let resetLink: EmailProps['resetLink'];
 	export let token: EmailProps['token'];
-	export let expires_at: EmailProps['token'];
+	// export let expires_at: EmailProps['token'];
+
+	export let resetLink = tokenLink + '/login?token=' + token + 'email=' + email;
+	export let readable_expires_at = '12';
 
 	console.log('EmailProps Token: ', token);
+	console.log('resetLink', resetLink);
 
 	let currentTime = new Date();
-	let expirationTime = expires_at ? new Date(expires_at) : new Date();
-	let timeDiff = expirationTime.getTime() - currentTime.getTime();
-	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
-	let readable_expires_at = `${hoursDiff} hours`;
+	// let expirationTime = expires_at ? new Date(expires_at) : new Date();
+	// let timeDiff = expirationTime.getTime() - currentTime.getTime();
+	// let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
+	// let readable_expires_at = `${hoursDiff} hours`;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -99,7 +103,7 @@
 		fontSize: '12px',
 		textAlign: 'center'
 	};
-
+	const PWreset = true;
 	const styleToString = (style: Record<string, string | number | null>) => {
 		return Object.keys(style).reduce(
 			(acc, key) =>
@@ -118,10 +122,10 @@
 
 <Html lang="en">
 	<Head>
-		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
-		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -135,8 +139,8 @@
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email: { email } })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{$LL.EMAIL_Forgotten_Token()}</Text>
@@ -155,7 +159,7 @@
 				<Button pX={12} pY={12} style={button} href={resetLink}>{$LL.EMAIL_Forgotten_Button()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME })}</Text>
 
 			<!-- <Head>				
 				 <title>Reset your password for {PUBLIC_SITENAME}</title>
