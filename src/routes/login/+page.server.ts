@@ -149,7 +149,7 @@ export const actions: Actions = {
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
-			return redirect(303, '/login');
+			throw redirect(303, '/login');
 		} else {
 			return { form: pwresetForm };
 		}
