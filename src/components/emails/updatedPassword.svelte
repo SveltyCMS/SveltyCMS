@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
-	import { contentLanguage } from '@src/stores/store';
+	import { systemLanguage } from '@src/stores/store';
 
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
@@ -65,7 +65,7 @@
 	};
 </script>
 
-<Html lang="%lang%">
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>{$LL.EMAIL_UpdatePW_Title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={$LL.EMAIL_UpdatePW_Meta({ PUBLIC_SITENAME })} />

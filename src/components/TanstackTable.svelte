@@ -436,7 +436,9 @@
 						<td class="border">
 							<TanstackIcons
 								bind:checked={$selectedMap[row.id]}
-								on:click={() => selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }))}
+								on:click={() => {
+									selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
+								}}
 								class="ml-1"
 							/>
 						</td>

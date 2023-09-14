@@ -50,7 +50,7 @@ export const actions: Actions = {
 		// console.log(addUserForm);
 
 		const email = addUserForm.data.email;
-		const role = addUserForm.data.role;
+		//const role = addUserForm.data.role;
 		const expiresIn = addUserForm.data.expiresIn;
 
 		// Check if the email address is already registered.
@@ -70,7 +70,7 @@ export const actions: Actions = {
 				},
 				attributes: {
 					username: null,
-					role
+					role: null
 				}
 			})
 			.catch(() => null);
@@ -127,7 +127,8 @@ export const actions: Actions = {
 				templateName: 'ForgotPassword',
 				props: {
 					email: email,
-					token: token
+					token: token,
+					expiresIn: expiresIn
 				}
 			})
 		});

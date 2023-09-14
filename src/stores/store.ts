@@ -57,6 +57,9 @@ export const saveEditedImage: Writable<boolean> = writable(false);
 // Store ListboxValue
 export const storeListboxValue: Writable<string> = writable('create');
 
+// Create a writable store to hold the selected row data
+export const selectedRows = writable([]);
+
 // Update screenWidth whenever the window is resized
 export const screenWidth = writable(getScreenWidthName());
 

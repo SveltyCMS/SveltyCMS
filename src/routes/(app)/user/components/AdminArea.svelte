@@ -156,6 +156,14 @@
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
 		}
 	];
+
+	// Define a reactive variable to hold the current action
+	let currentAction = null;
+
+	// Define the function to handle the CRUD action
+	function handleCRUDAction(action) {
+		currentAction = action;
+	}
 </script>
 
 <div class="border-td mt-2 flex flex-col border-t-2">
@@ -196,7 +204,7 @@
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
-				<Multibutton />
+				<Multibutton on:crudAction={handleCRUDAction} />
 			</div>
 
 			{#if showMoreUserList}
@@ -234,6 +242,7 @@
 				</button>
 
 				<Multibutton />
+				<!-- <Multibutton on:crudAction={handleCRUDAction} /> -->
 			</div>
 
 			{#if showMoreUserToken}
@@ -253,6 +262,7 @@
 				bind:filterShow
 				bind:columnShow
 				bind:density
+				on:rowSelect={handleCRUDAction}
 			/>
 		{/if}
 	{/if}

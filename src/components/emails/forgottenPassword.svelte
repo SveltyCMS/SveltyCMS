@@ -2,13 +2,14 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
-	import { contentLanguage } from '@src/stores/store';
 
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 	console.log('tokenLink', tokenLink);
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { systemLanguage } from '@src/stores/store';
+	console.log('systemLanguage$', $systemLanguage);
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -17,30 +18,50 @@
 		email?: string;
 		resetLink: string;
 		token: string;
-		expires_in: string;
-		expires_at: string;
+		expiresIn: string;
 	}
 	export let email: EmailProps['email'];
 
 	//TODO: send rest to domain?Token
-	export let resetLink: EmailProps['resetLink'];
 	export let token: EmailProps['token'];
-	export let expires_at: EmailProps['token'];
-	export let expires_in: EmailProps['token'];
+	export let resetLink: EmailProps['resetLink'];
+	export let expiresIn: EmailProps['expiresIn'];
 
 	console.log('EmailProps Token: ', token);
-	console.log('resetLink', resetLink);
+	console.log('EmailProps resetLink', resetLink);
+	console.log('EmailProps expiresIn', expiresIn);
 
-	//TODO: Get token expire time
+	//Readable ExpireIn time sec to year
 	let currentTime = new Date();
-	let expirationTime = expires_at ? new Date(expires_at) : new Date();
-	let timeDiff = expirationTime.getTime() - currentTime.getTime();
-	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
-	let readable_expires_at = `${hoursDiff} hours`;
+	let expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
+	let expirationTime = expiresInNumber ? new Date(currentTime.getTime() + expiresInNumber * 1000) : new Date(); // Convert expiresIn to milliseconds
 
-	console.log('expires_at', expires_at);
-	console.log('expires_in', expires_in);
-	console.log('readable_expires_at', readable_expires_at);
+	let timeDiff = expirationTime.getTime() - currentTime.getTime();
+	let secondsDiff = Math.floor(timeDiff / 1000);
+	let minutesDiff = Math.floor(secondsDiff / 60);
+	let hoursDiff = Math.floor(minutesDiff / 60);
+	let daysDiff = Math.floor(hoursDiff / 24);
+	let weeksDiff = Math.floor(daysDiff / 7);
+	let monthsDiff = Math.floor(weeksDiff / 4); // Assuming a month is 4 weeks
+	let yearsDiff = Math.floor(monthsDiff / 12); // Assuming a year is 12 months
+
+	let remainingSeconds = secondsDiff % 60;
+	let remainingMinutes = minutesDiff % 60;
+	let remainingHours = hoursDiff % 24;
+	let remainingDays = daysDiff % 7;
+	let remainingWeeks = weeksDiff % 4; // Assuming a month is 4 weeks
+
+	let yearsText = yearsDiff > 0 ? `${yearsDiff} year${yearsDiff > 1 ? 's' : ''}` : '';
+	let monthsText = monthsDiff > 0 ? `${monthsDiff} month${monthsDiff > 1 ? 's' : ''}` : '';
+	let weeksText = remainingWeeks > 0 ? `${remainingWeeks} week${remainingWeeks > 1 ? 's' : ''}` : '';
+	let daysText = remainingDays > 0 ? `${remainingDays} day${remainingDays > 1 ? 's' : ''}` : '';
+	let hoursText = remainingHours > 0 ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}` : '';
+	let minutesText = remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}` : '';
+	let secondsText = remainingSeconds > 0 ? `${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''}` : '';
+
+	let readable_expiresIn = `${yearsText} ${monthsText} ${weeksText} ${daysText} ${hoursText} ${minutesText} ${secondsText}`.trim();
+
+	console.log('readable_expires_at', readable_expiresIn);
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -134,7 +155,7 @@
 	};
 </script>
 
-<Html lang="%lang%">
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME })} />
@@ -160,7 +181,7 @@
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 				<br />
 				<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Valid()}</Text>
-				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
+				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expiresIn}</span></Text>
 			</Section>
 
 			<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Ignore()}</Text>

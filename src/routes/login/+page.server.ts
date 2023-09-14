@@ -103,8 +103,9 @@ export const actions: Actions = {
 
 			// Get the token from the checkMail result
 			const token = checkMail.token;
-			//const expiresIn = checkMail.expiresIn;
+			const expiresIn = checkMail.expiresIn;
 			// console.log('forgotPW token', token);
+			// console.log('forgotPW expiresIn', expiresIn);
 
 			// send welcome email
 			await event.fetch('/api/sendMail', {
@@ -119,7 +120,8 @@ export const actions: Actions = {
 					templateName: 'forgottenPassword',
 					props: {
 						email: email,
-						token: token
+						token: token,
+						expiresIn: expiresIn
 					}
 				})
 			});
@@ -284,13 +286,16 @@ interface ForgotPWCheckResult {
 	success?: boolean;
 	message: string;
 	token?: string;
+	expiresIn?: number;
 }
 
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
+		//const expiresIn = 5; // expiration in 5 seconds
+		const expiresIn = 2 * 60 * 60; // expiration in 2 hours
 		const tokenHandler = passwordToken(auth as any, 'register', {
-			expiresIn: 60 * 60, // expiration in 1 hour,
-			length: 64, // default 43
+			expiresIn: expiresIn,
+			length: 50, // hardcoded value
 			generate: (length) => {
 				// implement custom token generation algorithm
 				const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
@@ -306,25 +311,20 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		});
 
 		const key = await auth.getKey('email', email).catch(() => null);
-		// console.log('forgotPWCheck-key', key);
 
 		// The email address does not exist
 		if (!key) return { success: false, message: 'User does not exist' };
 
-		// TODO:Send email with reset password link
 		const token = (await tokenHandler.issue(key.userId)).toString();
-		// console.log('forgotPWCheck Token', token); // send token to user via email
 
-		return { success: true, message: 'Password reset token sent by Email', token: token };
+		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
 		console.error(error);
 		return { success: false, message: 'An error occurred' };
 	}
 }
 
-async function resetPWCheck(password: string, token: string, email: string, cookies: Cookies) {
-	// console.log('Starting password reset process...');
-
+async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 	try {
 		// Obtain the key using auth.getKey based on your authentication system
@@ -340,33 +340,20 @@ async function resetPWCheck(password: string, token: string, email: string, cook
 		const validate = await tokenHandler.validate(token, key.userId);
 
 		if (validate) {
+			// Check token expiration
+			const currentTime = Date.now();
+			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
+
+			if (currentTime >= tokenExpiryTime) {
+				return { status: false, message: 'Token has expired' };
+			}
+
+			// Token is valid and not expired, proceed with password update
 			auth.updateKeyPassword('email', key.providerUserId, password);
 			return { status: true };
 		} else {
 			return { status: false, message: 'An error occurred during password update' };
 		}
-
-		// Update the password
-		// const updateResult = await updatePassword(key.userId, password);
-
-		// if (updateResult.status) {
-		// 	// Create a new session and set the session cookie
-		// 	console.log('Creating session and setting session cookie...');
-		// 	const session = await auth.createSession(key.userId);
-		// 	const sessionCookie = auth.createSessionCookie(session);
-		// 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-
-		// 	// Update user's authentication method
-		// 	console.log('Updating user attributes...');
-		// 	const authMethod = 'token';
-		// 	await auth.updateUserAttributes(key.userId, { authMethod });
-
-		// 	console.log('Password reset successful.');
-		// 	return { status: true };
-		// } else {
-		// 	console.error(updateResult.message);
-		// 	return { status: false, message: 'An error occurred during password update' };
-		// }
 	} catch (e) {
 		console.error('Password reset failed:', e);
 		return { status: false, message: 'invalid token' };
@@ -388,6 +375,28 @@ async function updatePassword(userId: string, newPassword: string) {
 		return { status: false, message: 'An error occurred while updating the password' };
 	}
 }
+
+// Update the password
+// const updateResult = await updatePassword(key.userId, password);
+
+// if (updateResult.status) {
+// 	// Create a new session and set the session cookie
+// 	console.log('Creating session and setting session cookie...');
+// 	const session = await auth.createSession(key.userId);
+// 	const sessionCookie = auth.createSessionCookie(session);
+// 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
+// 	// Update user's authentication method
+// 	console.log('Updating user attributes...');
+// 	const authMethod = 'token';
+// 	await auth.updateUserAttributes(key.userId, { authMethod });
+
+// 	console.log('Password reset successful.');
+// 	return { status: true };
+// } else {
+// 	console.error(updateResult.message);
+// 	return { status: false, message: 'An error occurred during password update' };
+// }
 
 // Function create a new FIRST USER account as ADMIN and creating a session.
 async function signUp(username: string, email: string, password: string, cookies: Cookies, event) {

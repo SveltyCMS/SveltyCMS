@@ -12,6 +12,7 @@ import nodemailer from 'nodemailer';
 
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
+import { systemLanguage } from '@src/stores/store';
 
 interface EmailProps {
 	sitename?: string;
@@ -20,6 +21,7 @@ interface EmailProps {
 	role?: string;
 	token?: string;
 	expires_in?: string;
+	systemLanguage?: string;
 	// ... any other props used by both templates
 }
 
@@ -68,7 +70,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 		html: emailHtml
 	};
 
-	console.log(emailHtml);
+	//console.log(emailHtml);
 
 	await transporter.sendMail(options).catch((err) => console.log(err));
 

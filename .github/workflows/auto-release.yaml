@@ -1,6 +1,7 @@
 # This workflow uses semantic-release to automatically publish new versions of your package to GitHub and npm based on commit messages
 name: Semantic Release
 
+# Triggers the workflow when a push happens
 on:
   push:
     branches:
@@ -14,6 +15,7 @@ jobs:
       pull-requests: write # Allow creating and updating pull requests
 
     runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3 # Use the checkout action to clone the repository

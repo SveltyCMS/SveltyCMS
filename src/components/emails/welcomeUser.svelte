@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
-	import { contentLanguage } from '@src/stores/store';
 
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
@@ -12,6 +11,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { systemLanguage } from '@src/stores/store';
 
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 
@@ -103,7 +103,7 @@
 	};
 </script>
 
-<Html lang="%lang%">
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>{$LL.EMAIL_Welcome_Title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={$LL.EMAIL_Welcome_Meta({ PUBLIC_SITENAME })} />
