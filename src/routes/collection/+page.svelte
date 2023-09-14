@@ -9,7 +9,6 @@
 	import ModalAddCategory from './ModalAddCategory.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { generateUniqueId } from '@src/utils/utils';
-	import { updateConfigFile } from '../api/collections/updateConfig';
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
@@ -140,11 +139,7 @@
 <div class="mb-2 flex items-center justify-between">
 	<PageTitle name="Menu Builder" icon="" />
 
-	<button
-		type="button"
-		on:click={handleSaveClick}
-		class="variant-filled-primary btn gap-2 !text-white"
-	>
+	<button type="button" on:click={handleSaveClick} class="variant-filled-primary btn gap-2 !text-white">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 		Save
 	</button>
@@ -152,18 +147,10 @@
 
 <!-- add an input field and a button here -->
 <div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
-	<button
-		on:click={modalAddCategory}
-		type="button"
-		class="variant-filled-tertiary btn-sm rounded-md">Add Category</button
-	>
+	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">Add Category</button>
 	<!-- add new Collection-->
 	<!-- TODO: only show  when Category exists -->
-	<button
-		on:click={modalAddCollection}
-		type="button"
-		class="variant-filled-success btn-sm rounded-md">Add Collection</button
-	>
+	<button on:click={modalAddCollection} type="button" class="variant-filled-success btn-sm rounded-md">Add Collection</button>
 </div>
 {#if !availableCollection}
 	<p class="my-2 text-center">Create a first collection to get started</p>

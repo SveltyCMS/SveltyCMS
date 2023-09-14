@@ -4,7 +4,7 @@ import mongoose from 'mongoose';
 import { auth } from '../api/db';
 import { validate } from '@src/utils/utils';
 import { passwordToken } from '@lucia-auth/tokens';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
 import { superValidate, message } from 'sveltekit-superforms/server';
@@ -18,7 +18,7 @@ export async function load(event) {
 	const tokens = await getTokens();
 
 	// Get session data from cookies
-	const session = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session.
 	const user = await validate(auth, session);
@@ -63,7 +63,7 @@ export const actions: Actions = {
 		// Create new user with provided email and role
 		const user = await auth
 			.createUser({
-				primaryKey: {
+				key: {
 					providerId: 'email',
 					providerUserId: email,
 					password: null
@@ -140,7 +140,7 @@ export const actions: Actions = {
 		// Validate the form data.
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
-		const session = event.cookies.get(SESSION_COOKIE_NAME) as string;
+		const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 		const user = await validate(auth, session);
 
 		// The user's session is invalid.

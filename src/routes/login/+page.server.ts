@@ -6,7 +6,7 @@ import mongoose from 'mongoose';
 import { superValidate, message } from 'sveltekit-superforms/server';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@src/utils/formSchemas';
 import { auth } from '@src/routes/api/db';
-import { passwordToken } from '@lucia-auth/tokens';
+// import { passwordToken } from '@lucia-auth/tokens';
 import type { User } from '@src/collections/Auth';
 
 // load and validate login and sign up forms
@@ -218,7 +218,8 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			// If isToken is false, sign in using email and password
 			const key = await auth.useKey('email', email, password).catch(() => null);
 			if (!key || !key.passwordDefined) return { status: false, message: 'Invalid Credentials' };
-			const session = await auth.createSession(key.userId);
+			const userId = key.userId;
+			const session = await auth.createSession({userId, attributes: {}});
 			const sessionCookie = auth.createSessionCookie(session);
 			//console.log('signIn sessionCookie', sessionCookie);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -231,10 +232,11 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			const token = password;
 			const key = await auth.getKey('email', email).catch(() => null);
 			if (!key) return { status: false, message: 'User does not exist' };
-			const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
+			// const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 
-			await tokenHandler.validate(token, key.userId);
-			const session = await auth.createSession(key.userId);
+			// await tokenHandler.validate(token, key.userId);
+			const userId = key.userId;
+			const session = await auth.createSession({userId, attributes: {}});
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			const authMethod = 'token';
@@ -250,7 +252,7 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	const user: User = await auth
 		.createUser({
-			primaryKey: {
+			key: {
 				providerId: 'email',
 				providerUserId: email,
 				password: password
@@ -258,13 +260,21 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			attributes: {
 				email,
 				username,
-				role: 'admin'
-			}
+				role: 'admin',
+			},
+			
+		}).then((user) => {
+			console.log('user', user);
+			return user;
 		})
-		.catch((e) => null);
+		.catch((e) => {
+			console.log(e);
+			return null;
+		});
 	console.log(user);
 	if (!user) return { status: false, message: 'user does not exist' };
-	const session = await auth.createSession(user.id);
+	const userId = user.id;
+	const session = await auth.createSession({userId, attributes: {}});
 	const sessionCookie = auth.createSessionCookie(session);
 	// Set the credentials cookie
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -381,7 +391,7 @@ async function signUp(username: string, email: string, password: string, cookies
 
 	const user = await auth
 		.createUser({
-			primaryKey: {
+			key: {
 				providerId: 'email',
 				providerUserId: email,
 				password: password
