@@ -91,9 +91,11 @@ const de: Translation = {
 	LOGIN_ConfirmPassword: 'Passwort bestätigen',
 	LOGIN_ForgottenPassword: 'Kennwort vergessen',
 	LOGIN_ForgottenPassword_text: 'Machen Sie sich keine Sorgen. Wir helfen Ihnen, Ihr Passwort wiederzufinden.',
+	LOGIN_ForgottenPassword_Toast: 'Passwort zurücksetzen Token wurde auch per E-Mail gesendet',
 	LOGIN_SendResetMail: 'E-Mail Passwort senden',
 	LOGIN_ResetPassword: 'Passwort zurücksetzen',
 	LOGIN_ResetPasswordSave: 'Neues Password speichern',
+	LOGIN_ResetPassword_Toast: 'Passwort zurücksetzen Token wurde auch per E-Mail gesendet',
 	LOGIN_SignInSuccess: 'Erfolgreich Angemeldet',
 
 	LOGIN_ZOD_Username_string: 'Benutzername ist erforderlich',
@@ -182,7 +184,7 @@ const de: Translation = {
 	EMAIL_Forgotten_Token: 'Ihr Zurücksetzungs-Token:',
 	EMAIL_Forgotten_Valid: 'Ist nur gültig für:',
 	EMAIL_Forgotten_Ignore: 'Wenn Sie diese Rücksetzung nicht angefordert haben, ignorieren Sie bitte diese E-Mail.',
-	EMAIL_Forgotten_Press: 'Bitte drücken Sie die Taste, um Ihr Kennwort zurückzusetzen',
+	EMAIL_Forgotten_Press: 'Bitte drücken Sie die Taste, um Ihr Passwort zurückzusetzen, falls Sie dies noch nicht getan haben.',
 	EMAIL_Forgotten_Button: 'Passwort zurücksetzen',
 	EMAIL_Forgotten_Team: 'Ihr {PUBLIC_SITENAME} Team',
 

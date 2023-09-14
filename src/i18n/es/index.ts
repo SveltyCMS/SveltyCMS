@@ -91,9 +91,11 @@ const es: Translation = {
 	LOGIN_ConfirmPassword: 'Confirmar contraseña',
 	LOGIN_ForgottenPassword: 'Contraseña olvidada',
 	LOGIN_ForgottenPassword_text: 'No te preocupes. Le ayudaremos a recuperar su contraseña.',
+	LOGIN_ForgottenPassword_Toast: 'El token de restablecimiento de contraseña también fue enviado por Email',
 	LOGIN_SendResetMail: 'Enviar contraseña por correo electrónico',
 	LOGIN_ResetPassword: 'Restablecer contraseña',
 	LOGIN_ResetPasswordSave: 'Guardar nueva contraseña',
+	LOGIN_ResetPassword_Toast: 'El token de restablecimiento de contraseña también fue enviado por Email',
 	LOGIN_SignInSuccess: 'Iniciar sesión con éxito',
 
 	LOGIN_ZOD_Username_string: 'El nombre de usuario es obligatorio',
@@ -181,7 +183,7 @@ const es: Translation = {
 	EMAIL_Forgotten_Token: 'Su código de restablecimiento:',
 	EMAIL_Forgotten_Valid: 'Sólo es válido para:',
 	EMAIL_Forgotten_Ignore: 'Si no has solicitado este restablecimiento, ignora este mensaje',
-	EMAIL_Forgotten_Press: 'Por favor, pulsa el botón para restablecer tu contraseña',
+	EMAIL_Forgotten_Press: 'Por favor, pulse el botón para restablecer su contraseña si aún no lo ha hecho',
 	EMAIL_Forgotten_Button: 'Restablecer contraseña',
 	EMAIL_Forgotten_Team: 'Tu {PUBLIC_SITENAME} Equipo',
 

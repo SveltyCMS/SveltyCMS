@@ -103,6 +103,7 @@ export const actions: Actions = {
 
 			// Get the token from the checkMail result
 			const token = checkMail.token;
+			//const expiresIn = checkMail.expiresIn;
 			// console.log('forgotPW token', token);
 
 			// send welcome email
@@ -148,7 +149,7 @@ export const actions: Actions = {
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
-			throw redirect(303, '/');
+			throw redirect(303, '/login');
 		} else {
 			return { form: pwresetForm };
 		}

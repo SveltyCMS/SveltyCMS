@@ -17,6 +17,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { redirect } from '@sveltejs/kit';
 
 	let showPassword = false;
 
@@ -27,6 +28,20 @@
 	export const show = false;
 	export let PWforgot: boolean = false;
 	export let PWreset: boolean = false;
+
+	// redirect from email to restore password page
+	let current_url = window.location.href;
+
+	if (current_url.search('token') > -1) {
+		PWforgot = true;
+		PWreset = true;
+		let start = current_url.indexOf('=') + 1;
+		let end = current_url.indexOf('email');
+		registration_token = current_url.slice(start, end);
+
+		hide_email = current_url.slice(end + 6, current_url.length);
+	}
+
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		validators: loginFormSchema,
@@ -46,7 +61,11 @@
 			//console.log('onSubmit:', form);
 
 			// handle login form submission
-			if ($allErrors.length > 0) cancel();
+			if ($allErrors.length > 0) {
+				cancel();
+				formElement.classList.add('wiggle');
+				setTimeout(() => formElement.classList.remove('wiggle'), 300);
+			}
 		},
 
 		onResult: ({ result, cancel }) => {
@@ -147,13 +166,14 @@
 					//registration_token
 					if (result.data !== undefined) {
 						registration_token = result.data.token;
+						//registration_expiresIn = result.data.expires_in;
 						hide_email = result.data.email;
 						//console.log(hide_email);
 					}
 
-					// Trigger the toast
+					// Trigger the Forgotton toast
 					const t = {
-						message: 'Password reset token was send by Email',
+						message: $LL.LOGIN_ForgottenPassword_Toast(),
 						// Provide any utility or variant background style:
 						background: 'variant-filled-primary',
 						timeout: 3000,
@@ -161,7 +181,6 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
-					// window.location.reload();
 					return;
 				}
 			}
@@ -203,6 +222,10 @@
 		onResult: ({ result, cancel }) => {
 			//console.log('onResult:', result); // log the result object
 
+			// update variables to display login page
+			PWreset = false;
+			PWforgot = false;
+
 			if (result.type === 'error') {
 				//console.log('onResult error:', allErrors); // log the error messages
 
@@ -224,11 +247,11 @@
 				//console.log('onResult success'); // log success message
 
 				// update variables to display reset form
-				PWreset = true;
+				// PWreset = true;
 
-				// Trigger the toast
+				// Trigger the Reset toast
 				const t = {
-					message: 'Password reset token was sent by Email',
+					message: $LL.LOGIN_ResetPassword_Toast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 2000,
@@ -240,19 +263,20 @@
 				//console.log('onResult redirect'); // log redirect message
 
 				// update variables to display reset form
-				PWreset = true;
+				// PWreset = true;
 
 				// Trigger the toast
 				// TODO: Toast in conflict with wiggle
 				const t = {
-					message: 'Password reset token was sent by Email',
+					message: $LL.LOGIN_ResetPassword_Toast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 3000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
+				return;
 			}
 
 			//console.log('onResult cancel'); // log cancel message
@@ -450,7 +474,7 @@
 				<FloatingInput
 					type="password"
 					name="token"
-					bind:value={$resetForm.token}
+					bind:value={registration_token}
 					bind:showPassword
 					label={$LL.LOGIN_Token()}
 					icon="mdi:lock"

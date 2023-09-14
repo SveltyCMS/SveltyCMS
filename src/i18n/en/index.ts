@@ -91,9 +91,11 @@ const en: BaseTranslation = {
 	LOGIN_ConfirmPassword: 'Confirm Password',
 	LOGIN_ForgottenPassword: 'Forgotten Password',
 	LOGIN_ForgottenPassword_text: 'Do not worry. We will help you Recover your Password.',
+	LOGIN_ForgottenPassword_Toast: 'Password reset token was also send by Email',
 	LOGIN_SendResetMail: 'Send Password Reset Email',
 	LOGIN_ResetPassword: 'Reset Password',
 	LOGIN_ResetPasswordSave: 'Save New Password',
+	LOGIN_ResetPassword_Toast: 'Password reset token was also send by Email',
 	LOGIN_SignInSuccess: 'Signed In Successfully',
 
 	LOGIN_ZOD_Username_string: 'Username is required',
@@ -182,7 +184,7 @@ const en: BaseTranslation = {
 	EMAIL_Forgotten_Token: 'Your reset Token:',
 	EMAIL_Forgotten_Valid: 'Is valid only for:',
 	EMAIL_Forgotten_Ignore: 'If you did not request this reset, please ignore this email.',
-	EMAIL_Forgotten_Press: 'Please press the button to reset your password',
+	EMAIL_Forgotten_Press: 'Please press the button to reset your password if you have not done this yet.',
 	EMAIL_Forgotten_Button: 'Reset Password',
 	EMAIL_Forgotten_Team: 'Your {PUBLIC_SITENAME} Team',
 

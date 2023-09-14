@@ -24,8 +24,8 @@ dependencies:
     specifier: ^1.0.2
     version: 1.0.2(lucia-auth@1.8.0)
   '@tanstack/svelte-table':
-    specifier: ^8.9.8
-    version: 8.9.8(svelte@4.2.0)
+    specifier: ^8.9.9
+    version: 8.9.9(svelte@4.2.0)
   axios:
     specifier: ^1.5.0
     version: 1.5.0
@@ -1460,18 +1460,18 @@ packages:
       tailwindcss: 3.3.3
     dev: true
 
-  /@tanstack/svelte-table@8.9.8(svelte@4.2.0):
-    resolution: {integrity: sha512-7Hn8kjNKW637omT5BQ1FpWMDApJpuzp2ju99VYOFlJQTnf5n9OziCidXqoUiUAMvdSZBfU9zw8qUlq7iKt5ySQ==}
+  /@tanstack/svelte-table@8.9.9(svelte@4.2.0):
+    resolution: {integrity: sha512-j5NmmKuuTizC4iZUGNQdeEeOsoT8MTxs/knOqzhmJdmI9DrP4rXtTrSxwj8GHE4iVDxFqVPhLunDYIskj//S1Q==}
     engines: {node: '>=12'}
     peerDependencies:
       svelte: ^4.0.0 || ^3.49.0
     dependencies:
-      '@tanstack/table-core': 8.9.8
+      '@tanstack/table-core': 8.9.9
       svelte: 4.2.0
     dev: false
 
-  /@tanstack/table-core@8.9.8:
-    resolution: {integrity: sha512-f2Y/BcJy3IBkdDxWEk6WX6zJSmCDBI5iS0icr5DyeSbWsbnfaBtOIaeBjfnTEedt9Kk3xPmfciA6uSNOQ1BEXA==}
+  /@tanstack/table-core@8.9.9:
+    resolution: {integrity: sha512-cv9J3qmIn5t9dljp19S3GDsqMyAVV5+XsvK2tbOezUV3WZW4xQzkpS20uMihHMlD8uup1v0i/OePGadz2TC2Eg==}
     engines: {node: '>=12'}
     dev: false
 
@@ -2062,8 +2062,8 @@ packages:
       update-browserslist-db: 1.0.11(browserslist@4.21.10)
     dev: true
 
-  /bson@5.4.0:
-    resolution: {integrity: sha512-WRZ5SQI5GfUuKnPTNmAYPiKIof3ORXAF4IRU5UcgmivNIon01rWQlw5RUH954dpu8yGL8T59YShVddIPaU/gFA==}
+  /bson@5.5.0:
+    resolution: {integrity: sha512-B+QB4YmDx9RStKv8LLSl/aVIEV3nYJc3cJNNTK2Cd1TL+7P+cNpw9mAPeCgc5K+j01Dv6sxUzcITXDx7ZU3F0w==}
     engines: {node: '>=14.20.1'}
     dev: false
 
@@ -2361,8 +2361,8 @@ packages:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
     dev: true
 
-  /cosmiconfig@8.3.5(typescript@5.2.2):
-    resolution: {integrity: sha512-A5Xry3xfS96wy2qbiLkQLAg4JUrR2wvfybxj6yqLmrUfMAvhS3MZxIP2oQn0grgYIvJqzpeTEWu4vK0t+12NNw==}
+  /cosmiconfig@8.3.6(typescript@5.2.2):
+    resolution: {integrity: sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==}
     engines: {node: '>=14'}
     peerDependencies:
       typescript: '>=4.9.5'
@@ -2522,8 +2522,8 @@ packages:
     dev: false
     optional: true
 
-  /define-data-property@1.0.1:
-    resolution: {integrity: sha512-22M+6zEspQHx10bfFQl2ET39IvfuQ7+rZIH7+ard8fCC4hPmkOSy+8JhKxBRLaWUziJ0O63NTYT97LR8zUfPTw==}
+  /define-data-property@1.1.0:
+    resolution: {integrity: sha512-UzGwzcjyv3OtAvolTj1GoyNYzfFR+iqbGjcnBEENZVCpM4/Ng1yhGNvS3lR/xDS74Tb2wGG9WzNSNIOS9UVb2g==}
     engines: {node: '>= 0.4'}
     dependencies:
       get-intrinsic: 1.2.1
@@ -2540,7 +2540,7 @@ packages:
     resolution: {integrity: sha512-8QmQKqEASLd5nx0U1B1okLElbUuuttJ/AnYmRXbbbGDWh6uS208EjD4Xqq/I9wK7u0v6O08XhTWnt5XtEbR6Dg==}
     engines: {node: '>= 0.4'}
     dependencies:
-      define-data-property: 1.0.1
+      define-data-property: 1.1.0
       has-property-descriptors: 1.0.0
       object-keys: 1.1.1
     dev: true
@@ -3625,8 +3625,8 @@ packages:
       lru-cache: 6.0.0
     dev: true
 
-  /hosted-git-info@7.0.0:
-    resolution: {integrity: sha512-ICclEpTLhHj+zCuSb2/usoNXSVkxUSIopre+b1w8NDY9Dntp9LO4vLdHYI336TH8sAqwrRgnSfdkBG2/YpisHA==}
+  /hosted-git-info@7.0.1:
+    resolution: {integrity: sha512-+K84LB1DYwMHoHSgaOY/Jfhw3ucPmSET5v98Ke/HdNSw4a0UktWzyW1mjhjpuxxTqOOsfWT/7iVshHmVZ4IpOA==}
     engines: {node: ^16.14.0 || >=18.0.0}
     dependencies:
       lru-cache: 10.0.1
@@ -4643,7 +4643,7 @@ packages:
       snappy:
         optional: true
     dependencies:
-      bson: 5.4.0
+      bson: 5.5.0
       mongodb-connection-string-url: 2.6.0
       socks: 2.7.1
     optionalDependencies:
@@ -4654,7 +4654,7 @@ packages:
     resolution: {integrity: sha512-gJCkUtW3KgAu7Uf8HTVv+S3wf9+xldR5LFYM6mABJJQHQB0aWUGyC3bWsl2X/6dVHZSoQq3wh5UV7rWC4FrewA==}
     engines: {node: '>=14.20.1'}
     dependencies:
-      bson: 5.4.0
+      bson: 5.5.0
       kareem: 2.5.1
       mongodb: 5.8.1
       mpath: 0.9.0
@@ -4809,7 +4809,7 @@ packages:
     resolution: {integrity: sha512-UL7ELRVxYBHBgYEtZCXjxuD5vPxnmvMGq0jp/dGPKKrN7tfsBh2IY7TlJ15WWwdjRWD3RJbnsygUurTK3xkPkg==}
     engines: {node: ^16.14.0 || >=18.0.0}
     dependencies:
-      hosted-git-info: 7.0.0
+      hosted-git-info: 7.0.1
       is-core-module: 2.13.0
       semver: 7.5.4
       validate-npm-package-license: 3.0.4
@@ -5694,7 +5694,7 @@ packages:
     dependencies:
       call-bind: 1.0.2
       define-properties: 1.2.1
-      set-function-name: 2.0.0
+      set-function-name: 2.0.1
     dev: true
 
   /registry-auth-token@5.0.2:
@@ -5835,7 +5835,7 @@ packages:
       '@semantic-release/npm': 10.0.5(semantic-release@21.1.1)
       '@semantic-release/release-notes-generator': 11.0.7(semantic-release@21.1.1)
       aggregate-error: 4.0.1
-      cosmiconfig: 8.3.5(typescript@5.2.2)
+      cosmiconfig: 8.3.6(typescript@5.2.2)
       debug: 4.3.4
       env-ci: 9.1.1
       execa: 8.0.1
@@ -5844,7 +5844,7 @@ packages:
       get-stream: 6.0.1
       git-log-parser: 1.2.0
       hook-std: 3.0.0
-      hosted-git-info: 7.0.0
+      hosted-git-info: 7.0.1
       lodash-es: 4.17.21
       marked: 5.1.2
       marked-terminal: 5.2.0(marked@5.1.2)
@@ -5923,11 +5923,12 @@ packages:
     resolution: {integrity: sha512-RVnVQxTXuerk653XfuliOxBP81Sf0+qfQE73LIYKcyMYHG94AuH0kgrQpRDuTZnSmjpysHmzxJXKNfa6PjFhyQ==}
     dev: true
 
-  /set-function-name@2.0.0:
-    resolution: {integrity: sha512-WmS8UHojv5s1eSoRSmzO5zzgDq8PE1/X/ij0k+9fMYmINCc6+j+SF3Om8YyucKn2yjnK4ItNZOoQycNnHsZJTw==}
+  /set-function-name@2.0.1:
+    resolution: {integrity: sha512-tMNCiqYVkXIZgc2Hnoy2IvC/f8ezc5koaRFkCjrpWzGpCd3qbZXPzVy9MAZzK1ch/X0jvSkojys3oqJN0qCmdA==}
     engines: {node: '>= 0.4'}
     dependencies:
-      define-data-property: 1.0.1
+      define-data-property: 1.1.0
+      functions-have-names: 1.2.3
       has-property-descriptors: 1.0.0
     dev: true
 

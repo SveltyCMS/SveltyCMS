@@ -19,7 +19,6 @@ interface EmailProps {
 	email?: string;
 	role?: string;
 	token?: string;
-	expires_at?: string;
 	expires_in?: string;
 	// ... any other props used by both templates
 }
@@ -68,6 +67,8 @@ async function sendMail(email: string, subject: string, message: string, templat
 		text: message,
 		html: emailHtml
 	};
+
+	console.log(emailHtml);
 
 	await transporter.sendMail(options).catch((err) => console.log(err));
 

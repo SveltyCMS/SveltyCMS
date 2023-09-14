@@ -1,6 +1,6 @@
 <script lang="ts">
 	export let data: PageData;
-	import type { PageData } from './$types';
+	import type { PageData } from '../$types';
 	import '@src/stores/store';
 
 	//superforms
@@ -78,10 +78,10 @@
 
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
-	<form class="modal-form {cForm}" method="post" action="?/addUser" use:enhance>
+	<form class="modal-form {cForm}" method="post" action="/addUser" use:enhance>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" type="email" bind:value={$form.email} required />
+			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" bind:value={$form.email} required />
 
 			{#if $errors.email}
 				<div class="absolute left-0 top-11 text-xs text-error-500">

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import Multibutton from './Multibutton.svelte';
-	import type { PageData } from './$types';
+	import type { PageData } from '../$types';
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';

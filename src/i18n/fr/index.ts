@@ -91,9 +91,11 @@ const fr: Translation = {
 	LOGIN_ConfirmPassword: 'Confirmer le mot de passe',
 	LOGIN_ForgottenPassword: 'Mot de passe oublié',
 	LOGIN_ForgottenPassword_text: 'Ne vous inquiétez pas. Nous vous aiderons à récupérer votre mot de passe.',
+	LOGIN_ForgottenPassword_Toast: 'Le jeton de réinitialisation du mot de passe a également été envoyé par e-mail',
 	LOGIN_SendResetMail: 'Envoyer un e-mail de réinitialisation du mot de passe',
 	LOGIN_ResetPassword: 'Réinitialiser le mot de passe',
 	LOGIN_ResetPasswordSave: 'Enregistrer le nouveau mot de passe',
+	LOGIN_ResetPassword_Toast: 'Le jeton de réinitialisation du mot de passe a également été envoyé par e-mail',
 	LOGIN_SignInSuccess: 'Connecté avec succès',
 
 	LOGIN_ZOD_Username_string: "Le nom d'utilisateur est requis",
@@ -183,7 +185,7 @@ const fr: Translation = {
 	EMAIL_Forgotten_Token: 'Votre Token de réinitialisation:',
 	EMAIL_Forgotten_Valid: "N'est valable que pour:",
 	EMAIL_Forgotten_Ignore: "Si vous n'avez pas demandé cette réinitialisation, veuillez ignorer cet e-mail",
-	EMAIL_Forgotten_Press: 'Veuillez appuyer sur le bouton pour réinitialiser votre mot de passe',
+	EMAIL_Forgotten_Press: "Veuillez appuyer sur le bouton pour réinitialiser votre mot de passe si vous ne l'avez pas encore fait",
 	EMAIL_Forgotten_Button: 'Réinitialiser le mot de passe',
 	EMAIL_Forgotten_Team: 'Votre équipe {PUBLIC_SITENAME} Team',
 

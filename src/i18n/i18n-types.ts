@@ -317,6 +317,10 @@ type RootTranslation = {
 	 */
 	LOGIN_ForgottenPassword_text: string
 	/**
+	 * P​a​s​s​w​o​r​d​ ​r​e​s​e​t​ ​t​o​k​e​n​ ​w​a​s​ ​a​l​s​o​ ​s​e​n​d​ ​b​y​ ​E​m​a​i​l
+	 */
+	LOGIN_ForgottenPassword_Toast: string
+	/**
 	 * S​e​n​d​ ​P​a​s​s​w​o​r​d​ ​R​e​s​e​t​ ​E​m​a​i​l
 	 */
 	LOGIN_SendResetMail: string
@@ -328,6 +332,10 @@ type RootTranslation = {
 	 * S​a​v​e​ ​N​e​w​ ​P​a​s​s​w​o​r​d
 	 */
 	LOGIN_ResetPasswordSave: string
+	/**
+	 * P​a​s​s​w​o​r​d​ ​r​e​s​e​t​ ​t​o​k​e​n​ ​w​a​s​ ​a​l​s​o​ ​s​e​n​d​ ​b​y​ ​E​m​a​i​l
+	 */
+	LOGIN_ResetPassword_Toast: string
 	/**
 	 * S​i​g​n​e​d​ ​I​n​ ​S​u​c​c​e​s​s​f​u​l​l​y
 	 */
@@ -631,7 +639,7 @@ type RootTranslation = {
 	 */
 	EMAIL_Forgotten_Ignore: string
 	/**
-	 * P​l​e​a​s​e​ ​p​r​e​s​s​ ​t​h​e​ ​b​u​t​t​o​n​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d
+	 * P​l​e​a​s​e​ ​p​r​e​s​s​ ​t​h​e​ ​b​u​t​t​o​n​ ​t​o​ ​r​e​s​e​t​ ​y​o​u​r​ ​p​a​s​s​w​o​r​d​ ​i​f​ ​y​o​u​ ​h​a​v​e​ ​n​o​t​ ​d​o​n​e​ ​t​h​i​s​ ​y​e​t​.
 	 */
 	EMAIL_Forgotten_Press: string
 	/**
@@ -1588,6 +1596,10 @@ export type TranslationFunctions = {
 	 */
 	LOGIN_ForgottenPassword_text: () => LocalizedString
 	/**
+	 * Password reset token was also send by Email
+	 */
+	LOGIN_ForgottenPassword_Toast: () => LocalizedString
+	/**
 	 * Send Password Reset Email
 	 */
 	LOGIN_SendResetMail: () => LocalizedString
@@ -1599,6 +1611,10 @@ export type TranslationFunctions = {
 	 * Save New Password
 	 */
 	LOGIN_ResetPasswordSave: () => LocalizedString
+	/**
+	 * Password reset token was also send by Email
+	 */
+	LOGIN_ResetPassword_Toast: () => LocalizedString
 	/**
 	 * Signed In Successfully
 	 */
@@ -1888,7 +1904,7 @@ export type TranslationFunctions = {
 	 */
 	EMAIL_Forgotten_Ignore: () => LocalizedString
 	/**
-	 * Please press the button to reset your password
+	 * Please press the button to reset your password if you have not done this yet.
 	 */
 	EMAIL_Forgotten_Press: () => LocalizedString
 	/**

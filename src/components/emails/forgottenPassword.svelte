@@ -2,6 +2,7 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+	import { contentLanguage } from '@src/stores/store';
 
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 	console.log('tokenLink', tokenLink);
@@ -16,20 +17,30 @@
 		email?: string;
 		resetLink: string;
 		token: string;
+		expires_in: string;
 		expires_at: string;
 	}
 	export let email: EmailProps['email'];
+
+	//TODO: send rest to domain?Token
 	export let resetLink: EmailProps['resetLink'];
 	export let token: EmailProps['token'];
 	export let expires_at: EmailProps['token'];
+	export let expires_in: EmailProps['token'];
 
 	console.log('EmailProps Token: ', token);
+	console.log('resetLink', resetLink);
 
+	//TODO: Get token expire time
 	let currentTime = new Date();
 	let expirationTime = expires_at ? new Date(expires_at) : new Date();
 	let timeDiff = expirationTime.getTime() - currentTime.getTime();
 	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
 	let readable_expires_at = `${hoursDiff} hours`;
+
+	console.log('expires_at', expires_at);
+	console.log('expires_in', expires_in);
+	console.log('readable_expires_at', readable_expires_at);
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -59,6 +70,13 @@
 		fontFamily,
 		fontSize: '16px',
 		lineHeight: '26px'
+	};
+
+	const paragraph_center = {
+		fontFamily,
+		fontSize: '16px',
+		lineHeight: '26px',
+		textAlign: 'center'
 	};
 
 	const paragraphbold = {
@@ -116,12 +134,12 @@
 	};
 </script>
 
-<Html lang="en">
+<Html lang="%lang%">
 	<Head>
-		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
-		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -135,69 +153,24 @@
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email: { email } })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
-				<Column style={label}>
-					<Text style={paragraph}>{$LL.EMAIL_Forgotten_Token()}</Text>
-					<Text style={paragraph}>{$LL.EMAIL_Forgotten_Valid()}</Text>
-				</Column>
-				<Column style={variable}>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
-				</Column>
+				<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Token()}</Text>
+				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
+				<br />
+				<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Valid()}</Text>
+				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
 			</Section>
 
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Ignore()}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Press()}</Text>
+			<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Ignore()}</Text>
+			<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Press()}</Text>
 
 			<Section style={btnContainer}>
 				<Button pX={12} pY={12} style={button} href={resetLink}>{$LL.EMAIL_Forgotten_Button()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
-
-			<!-- <Head>				
-				 <title>Reset your password for {PUBLIC_SITENAME}</title>
-				<meta name="description" content="Reset your password for {PUBLIC_SITENAME}" /> 
-			</Head>
-
-			 <Preview preview="Reset your password for {PUBLIC_SITENAME}" />
-			 <Section style={main}>
-		<Container style={container}>
-			<Section style={btnContainer}>
-				<Link href={tokenLink}>
-					<Img
-						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-						alt="{PUBLIC_SITENAME} logo"
-						width="150"
-						height="auto"
-						style={{ display: 'block', margin: '0 auto' }}
-					/>
-				</Link>
-			</Section>
-			 <Text style={paragraph}>Hello {email},</Text> 
-			<Text style={paragraph}>You have requested to reset your Password to get access to {PUBLIC_SITENAME}</Text>
-			<Section style={review}>
-				<Column style={label}>
-					<Text style={paragraph}>Your reset Token:</Text>
-					<Text style={paragraph}>Is valid only for:</Text>
-				</Column>
-				<Column style={variable}>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
-				</Column>
-			</Section>
-
-			<Text style={paragraph}>If you did not request this reset, please ignore this email.</Text>
-			<Text style={paragraph}>Please press the button to reset your password</Text>
-
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>Reset Password</Button>
-			</Section>
-
-			<Hr style={hr} />
-			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text> -->
+			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

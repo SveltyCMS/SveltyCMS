@@ -2,6 +2,7 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+	import { contentLanguage } from '@src/stores/store';
 
 	// import { page } from '$app/stores';
 	// import type { User } from '@src/collections/Auth';
@@ -121,12 +122,12 @@
 	};
 </script>
 
-<Html lang="en">
+<Html lang="%lang%">
 	<Head>
-		<title>{$LL.EMAIL_UserToken_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
-		<meta name="description" content={$LL.EMAIL_UserToken_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+		<title>{$LL.EMAIL_UserToken_Title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={$LL.EMAIL_UserToken_Meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_UserToken_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	<Preview preview={$LL.EMAIL_UserToken_Preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -140,7 +141,7 @@
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>{$LL.EMAIL_UserToken_Access({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_UserToken_Access({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{$LL.EMAIL_UserToken_Email()}</Text>
@@ -161,50 +162,7 @@
 				<Button pX={12} pY={12} style={button} href={tokenLink}>{$LL.EMAIL_UserToken_Button()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_UserToken_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={footer}>{$LL.EMAIL_UserToken_Team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
-
-	<!-- <Head>
-		<title>User Registration token for {PUBLIC_SITENAME}</title>
-		<meta name="description" content="User Registration token for {PUBLIC_SITENAME}" />
-	</Head>
-	<Preview preview="User Registration token for {PUBLIC_SITENAME}" />
-	<Section style={main}>
-		<Container style={container}>
-			<Section style={btnContainer}>
-				<Link href={tokenLink}>
-					<Img
-						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-						alt="{PUBLIC_SITENAME} logo"
-						width="150"
-						height="auto"
-					/>
-				</Link>
-			</Section>
-
-			<Text style={paragraph}>You have received an Access Token to create a new user for {PUBLIC_SITENAME}</Text>
-			<Section style={review}>
-				<Column style={label}>
-					<Text style={paragraph}>Email:</Text>
-					<Text style={paragraph}>Access Token:</Text>
-					<Text style={paragraph}>Assigned Role:</Text>
-					<Text style={paragraph}>Valid only for:</Text>
-				</Column>
-				<Column style={variable}>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{role}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
-				</Column>
-			</Section>
-
-			<Text style={paragraph}>Please press the button to setup your user with this email</Text>
-			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={tokenLink}>Create User</Button>
-			</Section>
-			<Hr style={hr} />
-			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
-		</Container>
-	</Section> -->
 </Html>

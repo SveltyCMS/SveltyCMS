@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
+	import { contentLanguage } from '@src/stores/store';
 
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
@@ -64,12 +65,12 @@
 	};
 </script>
 
-<Html lang="en">
+<Html lang="%lang%">
 	<Head>
-		<title>{$LL.EMAIL_UpdatePW_Title({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</title>
-		<meta name="description" content={$LL.EMAIL_UpdatePW_Meta({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+		<title>{$LL.EMAIL_UpdatePW_Title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={$LL.EMAIL_UpdatePW_Meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_UpdatePW_Preview({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })} />
+	<Preview preview={$LL.EMAIL_UpdatePW_Preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
@@ -80,34 +81,11 @@
 					height="auto"
 				/>
 			</Link>
-			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Hello({ username: { username } })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Success({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Hello({ username })}</Text>
+			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Success({ PUBLIC_SITENAME })}</Text>
 			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_UpdatePW_Team({ PUBLIC_SITENAME: { PUBLIC_SITENAME } })}</Text>
+			<Text style={footer}>{$LL.EMAIL_UpdatePW_Team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
-
-	<!-- <Head>
-		<title>Your password for {PUBLIC_SITENAME} was changed</title>
-		<meta name="description" content="Your password for {PUBLIC_SITENAME} was changed" />
-	</Head>
-	<Preview preview="Your password for {PUBLIC_SITENAME} was changed" />
-	<Section style={main}>
-		<Container style={container}>
-			<Link href={tokenLink}>
-				<Img
-					src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
-					alt="{PUBLIC_SITENAME} logo"
-					width="150"
-					height="auto"
-				/>
-			</Link>
-			<Text style={paragraph}>Hello {username},</Text>
-			<Text style={paragraph}>You have successfully changed your Password for {PUBLIC_SITENAME}</Text>
-			<Text style={paragraph}>If you did not request this change, please contact us.</Text>
-			<Hr style={hr} />
-			<Text style={footer}>Your {PUBLIC_SITENAME} Team</Text>
-		</Container>
-	</Section> -->
 </Html>
