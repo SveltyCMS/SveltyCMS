@@ -75,18 +75,6 @@
 		width: '480px'
 	};
 
-	const label = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '25%' // Update width to 35%
-	};
-
-	const variable = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '75%' // Update width to 65%
-	};
-
 	const paragraph = {
 		fontFamily,
 		fontSize: '16px',

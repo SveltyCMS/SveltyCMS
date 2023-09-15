@@ -20,46 +20,6 @@
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
-	const main = {
-		backgroundColor: '#ffffff'
-	};
-
-	const container = {
-		margin: '0 auto',
-		padding: '16px 0 48px',
-		width: '480px'
-	};
-
-	const label = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '25%' // Update width to 35%
-	};
-
-	const variable = {
-		display: 'inline-block',
-		verticalAlign: 'top',
-		width: '75%' // Update width to 65%
-	};
-
-	const paragraph = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px'
-	};
-
-	const paragraphbold = {
-		fontFamily,
-		fontSize: '16px',
-		lineHeight: '26px',
-		fontWeight: '600'
-	};
-
-	const review = {
-		padding: '6px',
-		backgroundColor: '#f2f3f3'
-	};
-
 	const btnContainer = {
 		textAlign: 'center'
 	};
