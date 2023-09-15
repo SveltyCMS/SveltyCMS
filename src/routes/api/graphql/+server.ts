@@ -1,7 +1,7 @@
 import { redirect } from '@sveltejs/kit';
 import { auth } from '../db';
 import { validate } from '@src/utils/utils';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //import rateLimit from 'express-rate-limit';
 //import depthLimit from 'graphql-depth-limit';
@@ -15,7 +15,7 @@ import { resolvers } from '@src/routes/api/graphql/resolver';
 //TODO: still accessible ... not working
 async function authenticate(req, res, next) {
 	// Secure this page with session cookie
-	const session = req.cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = req.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	// Validate the user's session
 	const user = await validate(auth, session);
 	// If validation fails, redirect the user to the login page

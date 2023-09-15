@@ -81,7 +81,7 @@
 	<form class="modal-form {cForm}" method="post" action="/addUser" use:enhance>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" bind:value={$form.email} required />
+			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" type="email" bind:value={$form.email} required />
 
 			{#if $errors.email}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
