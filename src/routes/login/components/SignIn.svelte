@@ -353,6 +353,7 @@
 				{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
 
 				<div class="mt-4 flex items-center justify-between">
+					<div>
 					<button type="submit" class="variant-filled-surface btn">
 						{$LL.LOGIN_SignIn()}
 						<!-- Loading indicators -->
@@ -360,6 +361,14 @@
 							<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
 						{/if}
 					</button>
+					
+					<form method="post" action="?/OAuth" class="flex w-full">
+						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
+							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+							<p>Sign In with Google</p>
+							<!-- <p>{$LL.LOGIN_SignUp_Oauth2()}</p>-->
+						</button>
+					</form></div>
 
 					<button
 						type="button"
@@ -370,6 +379,7 @@
 						}}
 						>{$LL.LOGIN_ForgottenPassword()}
 					</button>
+
 				</div>
 			</form>
 		{/if}
