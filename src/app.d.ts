@@ -7,7 +7,7 @@ declare global {
 		type Auth = import('@src/routes/api/db.ts').Auth; // no change
 		type DatabaseUserAttributes = {
 			// username: string;
-		}; 
+		};
 		type DatabaseSessionAttributes = {}; // new
 	}
 

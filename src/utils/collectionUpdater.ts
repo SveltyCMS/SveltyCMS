@@ -7,17 +7,13 @@ let saveFiles: Array<string> = [];
 // This function updates the imports in the index file of the collections directory
 export async function updateImports() {
 	// Read the files in the collections directory and filter out specific files
-	files = fs
-		.readdirSync('./src/collections')
-		.filter((x) => !['index.ts', 'types.ts', 'Auth.ts'].includes(x));
+	files = fs.readdirSync('./src/collections').filter((x) => !['index.ts', 'types.ts', 'Auth.ts'].includes(x));
 
 	// Read the contents of the index file
 	let indexFile = fs.readFileSync('./src/collections/index.ts', 'utf-8');
 
 	// Remove existing import statements and allCollections declaration from the index file
-	indexFile = indexFile
-		.replace(/import \w+ from ["']\.\/.*;\s?/g, '')
-		.replace(/const allCollections\s?=\s?.*/g, '');
+	indexFile = indexFile.replace(/import \w+ from ["']\.\/.*;\s?/g, '').replace(/const allCollections\s?=\s?.*/g, '');
 
 	// Initialize variables to store import statements and allCollections declaration
 	let imports = '';
@@ -34,10 +30,7 @@ export async function updateImports() {
 
 	// Check if the files have changed and update the index file if necessary
 	if (!compare(files, saveFiles)) {
-		fs.writeFileSync(
-			'./src/collections/index.ts',
-			imports + '\n' + allCollections + '\n' + indexFile
-		);
+		fs.writeFileSync('./src/collections/index.ts', imports + '\n' + allCollections + '\n' + indexFile);
 		saveFiles = files;
 		exec('npx prettier  ./src/collections --write');
 	}

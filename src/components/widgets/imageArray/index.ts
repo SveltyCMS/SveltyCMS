@@ -18,9 +18,7 @@ const widget = ({
 
 	if (!display) {
 		display = async ({ data, collection, field, entry, contentLanguage }) =>
-			`<img class='max-w-[200px] inline-block' src="/${uploader.path}/${
-				entry[getFieldName(uploader)].name
-			}" />`;
+			`<img class='max-w-[200px] inline-block' src="/${uploader.path}/${entry[getFieldName(uploader)].name}" />`;
 		display.default = true;
 	}
 

@@ -44,12 +44,9 @@ export async function load(event) {
 
 // This action adds a new user to the system.
 export const actions: Actions = {
-
 	addUser: async (event) => {
-		console.log("test");
 		// Validate addUserForm data
 		const addUserForm = await superValidate(event, addUserTokenSchema);
-		console.log(addUserForm);
 
 		const email = addUserForm.data.email;
 		const role = addUserForm.data.role;
@@ -58,52 +55,42 @@ export const actions: Actions = {
 		// Check if the email address is already registered.
 		const key = await auth.getKey('email', email).catch(() => null);
 		if (key) {
-			// The email address is already registered.
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
-		console.log("key",  key );
+
 		// Create new user with provided email and role
-		const user = await auth
-			.createUser({
-				key: {
-					providerId: 'email',
-					providerUserId: email,
-					password: null
-				},
-				attributes: {
-					email: email,
-					username: null,
-					role: role,
-					// expiresIn: expiresIn
-				}
-			})
-			.catch(() => null);
+		const user = await auth.createUser({
+			key: {
+				providerId: 'email',
+				providerUserId: email,
+				password: null
+			},
+			attributes: {
+				email: email,
+				username: null,
+				role: role
+			}
+		});
 
 		if (!user) {
-			// An unknown error occurred.
 			return { form: addUserForm, message: 'unknown error' };
 		}
 
+		// Create a new session for the user
+		const session = await auth.createSession({
+			userId: user.userId,
+			attributes: {
+				created_at: new Date(),
+				idle_expires: 2000
+			} // expects `Lucia.DatabaseSessionAttributes`
+		});
 
-		//TODO: Define expiresIn for Send out Token Sessions
-		try {
-			const session = await auth.createSession({
-				userId: user.userId,
-				attributes: {
-					created_at: new Date(),
-					idle_expires: 2000,
-				} // expects `Lucia.DatabaseSessionAttributes`
-			});
-		} catch (e) {
-			if (e instanceof LuciaError && e.message === `AUTH_INVALID_USER_ID`) {
-				// invalid user id
-			}
-			// provided session attributes violates database rules (e.g. unique constraint)
-			// or unexpected database errors
+		if (!session) {
+			return { form: addUserForm, message: 'Failed to create session' };
 		}
 
 		// Calculate expiration time in seconds based on expiresIn value
-		let expirationTime: number;
+		let expirationTime;
 
 		switch (expiresIn) {
 			case '2 hrs':
@@ -134,9 +121,6 @@ export const actions: Actions = {
 
 		// Send the token to the user via email.
 		console.log('addUser', token);
-
-		// send welcome email
-		//TODO: port to utils not to expose ... remove fetch from backend
 		await event.fetch('/api/sendMail', {
 			method: 'POST',
 			headers: {
@@ -194,14 +178,14 @@ async function getAllUsers() {
 	const AUTH_KEY = mongoose.models['auth_key'];
 	const AUTH_SESSION = mongoose.models['auth_session'];
 	const AUTH_User = mongoose.models['auth_user'];
-	const keys = await AUTH_KEY.find({ });
+	const keys = await AUTH_KEY.find({});
 	const users = [] as any;
 
-	console.log(AUTH_KEY,  AUTH_SESSION , keys, users);
+	console.log(AUTH_KEY, AUTH_SESSION, keys, users);
 	for (const key of keys) {
 		const user = await auth.getUser(key['user_id']);
-		user.email = (await  AUTH_User.findOne({ _id:key['user_id']})).email
-				let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
+		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
+		let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
 			active_expires: -1
 		});
 		if (lastAccess) {
@@ -210,6 +194,7 @@ async function getAllUsers() {
 			delete lastAccess.user_id; // remove the user_id property
 			delete lastAccess.__v; // remove the __v property
 		}
+
 		user.lastAccess = lastAccess;
 		user.activeSessions = await AUTH_SESSION.countDocuments({
 			user_id: key['user_id'],
@@ -226,7 +211,8 @@ async function getAllUsers() {
 // Get all send Email Registration Tokens
 async function getTokens() {
 	const AUTH_KEY = mongoose.models['auth_key'];
-	const tokens = await AUTH_KEY.find({ primary_key: false });
+	// const tokens = await AUTH_KEY.find({ primary_key: false });
+	const tokens = await AUTH_KEY.find();
 	const userToken = [] as any;
 	for (const token of tokens) {
 		const user = await auth.getUser(token['user_id']);

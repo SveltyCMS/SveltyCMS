@@ -4,23 +4,6 @@ import type { PageServerLoad } from './$types';
 import mongoose from 'mongoose';
 import type { User } from 'lucia-auth';
 
-// const generatePassword = () => {
-// 	const length = 16;
-// 	const charset = 'abcdefghijklmnopqrstuvwxyz';
-// 	const charset2 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-// 	const charset3 = '0123456789';
-// 	const charset4 = '@$!%*#?&';
-
-// 	let retVal = '';
-// 	while (retVal.length < length) {
-// 		retVal += charset.charAt(Math.floor(Math.random() * charset.length));
-// 		retVal += charset2.charAt(Math.floor(Math.random() * charset2.length));
-// 		retVal += charset3.charAt(Math.floor(Math.random() * charset3.length));
-// 		retVal += charset4.charAt(Math.floor(Math.random() * charset4.length));
-// 	}
-// 	return retVal;
-// };
-
 export const load: PageServerLoad = async ({ url, cookies }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
@@ -40,7 +23,7 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		// console.log(OAuth);
 		const { getExistingUser, googleUser, createUser, providerId, providerUserId } = OAuth;
 
-		const getUser = async () : Promise<[User, boolean]> => {
+		const getUser = async (): Promise<[User, boolean]> => {
 			const existingUser = await getExistingUser();
 
 			if (existingUser) return [existingUser, false];
@@ -84,4 +67,3 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 	}
 	throw redirect(303, '/');
 };
-// So do you want me to commit the code and finish the order, if there are any problems tell me to fix them for you.

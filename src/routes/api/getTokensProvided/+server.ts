@@ -1,9 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import {
-	SECRET_GOOGLE_API_KEY,
-	SECRET_TWITCH_TOKEN,
-	SECRET_TIKTOK_TOKEN
-} from '$env/static/private';
+import { SECRET_GOOGLE_API_KEY, SECRET_TWITCH_TOKEN, SECRET_TIKTOK_TOKEN } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
 	// Initialize tokensProvided object

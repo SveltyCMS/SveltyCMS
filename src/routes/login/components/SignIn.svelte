@@ -2,7 +2,7 @@
 	import type { PageData } from '../$types';
 
 	import { superForm } from 'sveltekit-superforms/client';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@src/utils/formSchemas';
 
@@ -451,7 +451,7 @@
 
 		<!-- Reset Password -->
 		{#if PWforgot && PWreset}
-			<!-- <SuperDebug data={$resetForm} /> -->
+			 <SuperDebug data={$resetForm} /> 
 			<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<!-- Password field -->
 

@@ -16,9 +16,7 @@ export async function compile({
 	// Import the TypeScript compiler module
 	const ts = (await import('typescript')).default;
 	// Get the list of TypeScript files from the collections folder, excluding Auth.ts and index.ts
-	const files = fs
-		.readdirSync(collectionsFolderTS)
-		.filter((file) => !['Auth.ts', 'index.ts'].includes(file));
+	const files = fs.readdirSync(collectionsFolderTS).filter((file) => !['Auth.ts', 'index.ts'].includes(file));
 
 	// Loop through each file
 	for (const file of files) {

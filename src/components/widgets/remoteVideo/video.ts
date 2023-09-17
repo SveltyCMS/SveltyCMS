@@ -1,8 +1,4 @@
-import {
-	SECRET_GOOGLE_API_KEY,
-	SECRET_TWITCH_TOKEN,
-	SECRET_TIKTOK_TOKEN
-} from '$env/static/private';
+import { SECRET_GOOGLE_API_KEY, SECRET_TWITCH_TOKEN, SECRET_TIKTOK_TOKEN } from '$env/static/private';
 
 const cache = new Map();
 
@@ -22,14 +18,10 @@ export async function youtube(id: string): Promise<YoutubeData> {
 		return cache.get(id)!;
 	}
 
-	const response = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${SECRET_GOOGLE_API_KEY}`
-	);
+	const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${SECRET_GOOGLE_API_KEY}`);
 	const data = await response.json();
 
-	const responseDuration = await fetch(
-		`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${SECRET_GOOGLE_API_KEY}`
-	);
+	const responseDuration = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${SECRET_GOOGLE_API_KEY}`);
 	const dataDuration = await responseDuration.json();
 
 	if (!(data?.items.length || dataDuration?.items.length > 0)) {

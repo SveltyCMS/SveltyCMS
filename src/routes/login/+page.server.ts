@@ -145,8 +145,11 @@ export const actions: Actions = {
 		const token = pwresetForm.data.token;
 		const email = pwresetForm.data.email;
 
+		// Define expiresIn
+		const expiresIn = 2 * 60 * 60; // expiration in 2 hours
+
 		//console.log(token);
-		const resp = await resetPWCheck(password, token, email, event.cookies);
+		const resp = await resetPWCheck(password, token, email, expiresIn);
 		console.log('response: ' + resp.status);
 
 		if (resp) {
@@ -186,7 +189,6 @@ export const actions: Actions = {
 			resp = await FirstUsersignUp(username, email, password, event.cookies);
 		} else if (key && key.passwordDefined == false) {
 			// unfinished account exists
-			// TODO: Fix for my logic
 			resp = await finishRegistration(username, email, password, token, event.cookies, event);
 			// console.log('resp', resp);
 		} else if (!key && !isFirst) {
@@ -205,8 +207,8 @@ export const actions: Actions = {
 				},
 				body: JSON.stringify({
 					email: email,
-					subject: 'New Admin registration',
-					message: 'New Admin registration',
+					subject: 'New {username} registration',
+					message: 'New {username} registration',
 					templateName: 'welcomeUser',
 					lang: lang,
 					props: {
@@ -225,7 +227,7 @@ export const actions: Actions = {
 	},
 
 	OAuth: async ({ cookies }) => {
-		console.log('enter OAuth');
+		//console.log('enter OAuth');
 
 		// const signUpOAuthForm = await superValidate(event, signUpOAuthFormSchema);
 		// const username = signUpOAuthForm.data.username;
@@ -233,7 +235,7 @@ export const actions: Actions = {
 		const [url, state] = await googleAuth.getAuthorizationUrl();
 
 		cookies.set('google_oauth_state', state, {
-			path: '/',
+			path: '/', // redirect
 			httpOnly: true, // only readable in the server
 			maxAge: 60 * 60 // a reasonable expiration date
 		});
@@ -301,7 +303,10 @@ async function FirstUsersignUp(username: string, email: string, password: string
 				role: 'admin'
 			}
 		})
-		.catch((e) => null);
+		.catch((e) => {
+			console.error(e);
+			return null;
+		});
 
 	if (!user) return { status: false, message: 'user does not exist' };
 	const session = await auth.createSession({
@@ -377,13 +382,13 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 
 		if (validate) {
 			// Check token expiration
-			// const currentTime = Date.now();
-			// const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
-			// console.log(currentTime, tokenExpiryTime);
+			const currentTime = Date.now();
+			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
+			console.log(currentTime, tokenExpiryTime);
 
-			// if (currentTime >= tokenExpiryTime) {
-			// 	return { status: false, message: 'To    ken has expired' };
-			// }
+			if (currentTime >= tokenExpiryTime) {
+				return { status: false, message: 'Token has expired' };
+			}
 
 			// Token is valid and not expired, proceed with password update
 			auth.updateKeyPassword('email', key.providerUserId, password);
@@ -439,40 +444,40 @@ async function updatePassword(userId: string, newPassword: string) {
 // }
 
 // Function create a new FIRST USER account as ADMIN and creating a session.
-async function signUp(username: string, email: string, password: string, cookies: Cookies, event) {
-	// Convert email to lowercase
-	email = email.toLowerCase();
+// async function signUp(username: string, email: string, password: string, cookies: Cookies, event) {
+// 	// Convert email to lowercase
+// 	email = email.toLowerCase();
 
-	const user = await auth
-		.createUser({
-			key: {
-				providerId: 'email',
-				providerUserId: email,
-				password: password
-			},
-			attributes: {
-				username: username,
-				role: 'admin' // First User
-			}
-		})
-		.catch((e) => {
-			console.log(e);
-			return null;
-		});
+// 	const user = await auth
+// 		.createUser({
+// 			key: {
+// 				providerId: 'email',
+// 				providerUserId: email,
+// 				password: password
+// 			},
+// 			attributes: {
+// 				username: username,
+// 				role: 'admin' // First User
+// 			}
+// 		})
+// 		.catch((e) => {
+// 			console.log(e);
+// 			return null;
+// 		});
 
-	if (!user) return { status: false, message: 'User does not exist' };
+// 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const session = await auth.createSession({
-		userId: user.id,
-		attributes: {}
-	});
+// 	const session = await auth.createSession({
+// 		userId: user.id,
+// 		attributes: {}
+// 	});
 
-	// Set the credentials cookie
-	cookies.set('credentials', JSON.stringify({ username: user.username, session: session.sessionId }), {
-		path: '/'
-	});
-	return { status: true };
-}
+// 	// Set the credentials cookie
+// 	cookies.set('credentials', JSON.stringify({ username: user.username, session: session.sessionId }), {
+// 		path: '/'
+// 	});
+// 	return { status: true };
+// }
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies, event: any) {

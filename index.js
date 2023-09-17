@@ -1,3 +1,3 @@
-var { startServer } = require('svelte/server');
+import { startServer } from 'svelte/server';
 
 startServer();

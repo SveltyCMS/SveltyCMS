@@ -122,6 +122,7 @@ const auth = lucia({
 	// sessionExpiresIn // no change
 });
 
+// Google OAuth2
 const googleAuth = google(auth, {
 	clientId: SECRET_GOOGLE_CLIENT_ID,
 	clientSecret: SECRET_GOOGLE_CLIENT_SECERT,

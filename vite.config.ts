@@ -22,10 +22,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);
 
-const collectionsFolderJS =
-	'/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/collections/';
-const collectionsFolderTS =
-	'/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/src/collections/';
+const collectionsFolderJS = '/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/collections/';
+const collectionsFolderTS = '/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/src/collections/';
 
 compile({ collectionsFolderJS, collectionsFolderTS });
 

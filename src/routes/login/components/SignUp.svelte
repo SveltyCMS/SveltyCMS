@@ -25,9 +25,23 @@
 	let response: any;
 	let firstUserExists = FormSchemaSignUp.data.token != null;
 
+	$: {
+  if ($form.password !== $form.confirm_password) {
+    console.log('Passwords do not match');
+    // Trigger validation here
+  } else {
+    console.log('Passwords match');
+    // Trigger validation here
+  }
+}
+
+
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
+		//validators: (firstUserExists ? signUpFormSchema.omit({ token: true }) : signUpFormSchema) as typeof signUpFormSchema,
+
+	validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
+
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -39,11 +53,13 @@
 
 		onSubmit: ({ cancel }) => {
 			// handle login form submission
+			console.log('Submitting form with data:', $form);
+			console.log('Form errors:', $allErrors);
 			if ($allErrors.length > 0) cancel();
 		},
 
 		onResult: ({ result, cancel }) => {
-			//console.log('onResult', result);
+			console.log('Form result:', result);
 			//console.log('Error', $errors)
 
 			if (result.type == 'redirect') return;
@@ -58,6 +74,9 @@
 			}
 		}
 	});
+
+	$: console.log('Form data:', $form);
+	$: console.log('Form errors:', $errors);
 
 	let formElement: HTMLFormElement;
 

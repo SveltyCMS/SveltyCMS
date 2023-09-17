@@ -48,7 +48,7 @@ const widget = ({
 		display.default = true;
 	}
 
-	const widget: { type: any; key: 'Text' } = { type: Text, key: 'Text' } as const; 
+	const widget: { type: any; key: 'Text' } = { type: Text, key: 'Text' } as const;
 
 	const field = {
 		display,
