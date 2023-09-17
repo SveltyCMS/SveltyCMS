@@ -13,6 +13,7 @@ export async function load({ cookies }) {
 
 	// Validate the user's session
 	const user = await validate(auth, session);
+	console.log('user', user);
 
 	//console.log('collections', collections);
 	// filters collection  based on reading permissions and redirects to first left one

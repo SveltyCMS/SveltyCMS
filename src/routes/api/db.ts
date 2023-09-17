@@ -6,12 +6,23 @@ import type { Unsubscriber } from 'svelte/store';
 // Lucia v2
 import { lucia } from 'lucia';
 import { mongoose } from '@lucia-auth/adapter-mongoose';
+
 import { session, key, UserSchema } from '@src/collections/Auth';
 import { sveltekit } from 'lucia/middleware';
-
+import { google } from '@lucia-auth/oauth/providers';
 // mongoose
 import mongodb from 'mongoose';
-import { DB_HOST, DB_NAME, DB_USER, DB_PASSWORD } from '$env/static/private';
+import {
+	DB_HOST,
+	DB_NAME,
+	DB_USER,
+	DB_PASSWORD,
+	SECRET_GOOGLE_CLIENT_ID,
+	SECRET_GOOGLE_CLIENT_SECERT,
+	HOST_PROD,
+	HOST_DEV,
+	SECRET_GOOGLE_OAUTH_REDIRECT_URI
+} from '$env/static/private';
 // import { Session } from 'inspector';
 
 // Turn off strict mode for query filters. Default in Mongodb 7
@@ -69,6 +80,9 @@ export async function getCollectionModels() {
 	});
 }
 
+// to remove a model from mongoose:
+// delete mongodb.models['auth_key'];
+
 // Set up authentication collections if they don't already exist
 !mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
 !mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
@@ -76,7 +90,11 @@ export async function getCollectionModels() {
 
 // Set up authentication using Lucia and export auth object
 const auth = lucia({
-	adapter: mongoose(UserSchema, session, key),
+	adapter: mongoose({
+		User: mongodb.models['auth_user'],
+		Key: mongodb.models['auth_key'],
+		Session: mongodb.models['auth_session']
+	}),
 
 	//for production & cloned dev environment
 	env: dev ? 'DEV' : 'PROD',
@@ -104,6 +122,14 @@ const auth = lucia({
 	// sessionExpiresIn // no change
 });
 
+const googleAuth = google(auth, {
+	clientId: SECRET_GOOGLE_CLIENT_ID,
+	clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
+	redirectUri: `${dev ? HOST_DEV : HOST_PROD}${SECRET_GOOGLE_OAUTH_REDIRECT_URI}`,
+	scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
+	accessType: dev ? 'offline' : 'online'
+});
+
 // Export collections and auth objects
 export type Auth = typeof auth;
-export { collectionsModels, auth };
+export { collectionsModels, auth, googleAuth };

@@ -10,11 +10,7 @@ import { contentLanguage, entryData, mode, collections, collection } from '@src/
 import type { Auth } from 'lucia-auth';
 import type { User } from '@src/collections/Auth';
 
-import {
-	PUBLIC_MEDIA_FOLDER,
-	PUBLIC_IMAGE_SIZES,
-	PUBLIC_MEDIA_OUTPUT_FORMAT
-} from '$env/static/public';
+import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 import { browser } from '$app/environment';
 import crypto from 'crypto';
 
@@ -135,8 +131,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 			const url = `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
 
 			const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
-			const mimeType =
-				outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
+			const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
 
 			files[fieldname as keyof typeof files] = {
 				original: {
@@ -152,9 +147,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				Object.keys(SIZES).map(async (size) => {
 					if (size == 'original') return;
 					const fullName =
-						outputFormat === 'original'
-							? `${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`
-							: `${hash}-${sanitizedFileName}.${outputFormat}`;
+						outputFormat === 'original' ? `${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}` : `${hash}-${sanitizedFileName}.${outputFormat}`;
 					const arrayBuffer = await blob.arrayBuffer();
 
 					const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
@@ -166,10 +159,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 						})
 						.toBuffer();
 
-					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`,
-						thumbnailBuffer
-					);
+					fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
 					const url = `/media/${path}/${collectionName}/${size}/${fullName}`;
 					files[fieldname as keyof typeof files][size] = {
 						name: fullName,
@@ -198,9 +188,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				const arrayBuffer = await blob.arrayBuffer();
 				optimizedOriginalBuffer = Buffer.from(arrayBuffer);
 				fs.writeFileSync(
-					`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${
-						blob.type.split('/')[1]
-					}`,
+					`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`,
 					optimizedOriginalBuffer
 				);
 			}
@@ -285,17 +273,7 @@ export function getFieldName(field: any) {
 }
 
 //Save Collections data to database
-export async function saveFormData({
-	data,
-	_collection,
-	_mode,
-	id
-}: {
-	data: any;
-	_collection?: Schema;
-	_mode?: 'edit' | 'create';
-	id?: string;
-}) {
+export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
 	console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
@@ -310,9 +288,7 @@ export async function saveFormData({
 			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);
 		case 'edit':
 			formData.append('_id', id || $entryData._id);
-			return await axios
-				.patch(`/api/${$collection.name}`, formData, config)
-				.then((res) => res.data);
+			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
 	}
 }
 
@@ -377,8 +353,12 @@ export async function validate(auth: Auth, sessionID: string | null) {
 	if (!sessionID) {
 		return { user: {} as User, status: 404 };
 	}
-	const resp = await auth.validateSessionUser(sessionID).catch(() => null);
+
+	// const resp = await auth.validateSessionUser(sessionID).catch(() => null);
+	const resp = await auth.validateSession(sessionID).catch(() => null);
+
 	if (!resp) return { user: {} as User, status: 404 };
+
 	return { user: resp.user as User, status: 200 };
 }
 
@@ -424,12 +404,8 @@ export async function getDates(collectionName: string) {
 			hour12: false
 		};
 		const locale = get(contentLanguage);
-		const createdDate = result.createdAt
-			? new Date(result.createdAt).toLocaleString(locale, options)
-			: '-';
-		const updatedDate = result.updatedAt
-			? new Date(result.updatedAt).toLocaleString(locale, options)
-			: '-';
+		const createdDate = result.createdAt ? new Date(result.createdAt).toLocaleString(locale, options) : '-';
+		const updatedDate = result.updatedAt ? new Date(result.updatedAt).toLocaleString(locale, options) : '-';
 
 		// Return the result
 		return {
