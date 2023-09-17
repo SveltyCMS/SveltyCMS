@@ -4,15 +4,16 @@ import { redirect } from '@sveltejs/kit';
 
 //lucia
 import { validate } from '@src/utils/utils';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { auth } from './api/db';
 
 export async function load({ cookies }) {
 	// Get the session cookie
-	const session = cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session
 	const user = await validate(auth, session);
+	console.log('user', user);
 
 	//console.log('collections', collections);
 	// filters collection  based on reading permissions and redirects to first left one

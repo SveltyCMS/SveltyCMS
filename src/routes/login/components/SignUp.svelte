@@ -7,16 +7,19 @@
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 	let tabIndex = 1;
 
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
+
+	let activeOauth = false;
+
 	import CMSLogo from './icons/Logo.svelte';
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { systemLanguage } from '@src/stores/store';
 
 	import { signUpFormSchema } from '@src/utils/formSchemas';
 
 	export let active: undefined | 0 | 1 = undefined;
-
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
 	let response: any;
@@ -24,9 +27,7 @@
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: (firstUserExists
-			? signUpFormSchema
-			: signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
+		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
@@ -99,14 +100,7 @@
 		<div class="-mt-2 text-right text-xs text-error-500">{$LL.LOGIN_Required()}</div>
 
 		<!--<SuperDebug data={$form} />-->
-		<form
-			method="post"
-			action="?/signUp"
-			use:enhance
-			bind:this={formElement}
-			class="items flex flex-col gap-3"
-			class:hide={active != 1}
-		>
+		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 			<!-- Username field -->
 			<FloatingInput
 				name="username"
@@ -123,60 +117,60 @@
 			/>
 			{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-			<!-- Email field -->
-			<FloatingInput
-				name="email"
-				type="email"
-				tabindex={tabIndex++}
-				required
-				bind:value={$form.email}
-				label={$LL.LOGIN_EmailAddress()}
-				{...$constraints.email}
-				icon="mdi:email"
-				iconColor="white"
-				textColor="white"
-				inputClass="text-white"
-			/>
-			{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+			{#if PUBLIC_USE_GOOGLE_OAUTH}
+				<!-- Email field -->
+				<FloatingInput
+					name="email"
+					type="email"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.email}
+					label={$LL.LOGIN_EmailAddress()}
+					{...$constraints.email}
+					icon="mdi:email"
+					iconColor="white"
+					textColor="white"
+					inputClass="text-white"
+				/>
+				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
-			<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
-			<!-- Password field -->
-			<FloatingInput
-				name="password"
-				type="password"
-				tabindex={tabIndex++}
-				required
-				bind:value={$form.password}
-				bind:showPassword
-				label={$LL.LOGIN_Password()}
-				{...$constraints.password}
-				icon="mdi:password"
-				iconColor="white"
-				textColor="white"
-				showPasswordBackgroundColor="dark"
-				inputClass="text-white"
-			/>
-			{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
+				<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
+				<!-- Password field -->
+				<FloatingInput
+					name="password"
+					type="password"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.password}
+					bind:showPassword
+					label={$LL.LOGIN_Password()}
+					{...$constraints.password}
+					icon="mdi:password"
+					iconColor="white"
+					textColor="white"
+					showPasswordBackgroundColor="dark"
+					inputClass="text-white"
+				/>
+				{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
 
-			<!-- Password Confirm -->
-			<FloatingInput
-				name="confirm_password"
-				type="password"
-				tabindex={tabIndex++}
-				required
-				bind:value={$form.confirm_password}
-				bind:showPassword
-				label={$LL.LOGIN_ConfirmPassword()}
-				{...$constraints.confirm_password}
-				icon="mdi:password"
-				iconColor="white"
-				textColor="white"
-				showPasswordBackgroundColor="dark"
-				inputClass="text-white"
-			/>
-			{#if $errors.confirm_password}<span class="text-xs text-error-500"
-					>{$errors.confirm_password}</span
-				>{/if}
+				<!-- Password Confirm -->
+				<FloatingInput
+					name="confirm_password"
+					type="password"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.confirm_password}
+					bind:showPassword
+					label={$LL.LOGIN_ConfirmPassword()}
+					{...$constraints.confirm_password}
+					icon="mdi:password"
+					iconColor="white"
+					textColor="white"
+					showPasswordBackgroundColor="dark"
+					inputClass="text-white"
+				/>
+				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
+			{/if}
 
 			{#if $form.token != null}
 				<!-- Registration Token -->
@@ -198,22 +192,42 @@
 			{/if}
 
 			{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
+			<input type="hidden" name="lang" value={$systemLanguage} />
 
-			<button type="submit" class="variant-filled btn mt-4 uppercase"
-				>{$LL.LOGIN_SignUp()}
-				<!-- Loading indicators -->
-				{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-			</button>
+			{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
+				<!-- email signin only -->
+				<button type="submit" class="variant-filled btn mt-4 uppercase"
+					>{$LL.LOGIN_SignUp()}
+					<!-- Loading indicators -->
+					{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+				</button>
+
+				<!-- email + oauth signin  -->
+			{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
+				<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-red-500">
+					<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
+						<span class="text-black">{$LL.LOGIN_SignUp()} </span>
+						<!-- Loading indicators -->
+						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+					</button>
+					<form method="post" action="?/OAuth" class="w-fit">
+						<button type="submit" class="uppercase">
+							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
+							OAuth
+						</button>
+					</form>
+				</div>
+			{:else}
+				<!-- TODO: not really used -->
+				<form method="post" action="?/OAuth" class="flex w-full">
+					<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
+						<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+						<p>Sign Up with Google</p>
+						<!-- <p>{$LL.LOGIN_SignUp_Oauth2()}</p>-->
+					</button>
+				</form>
+			{/if}
 		</form>
-
-		<!-- TODO: Fix transition to signIn -->
-		<!-- <p class="text-center text-sm text-surface-300">
-			Already have an account?
-			
-			<button type="button" on:click={() => (active = 0)} class="btn text-tertiary-500">
-				{$LL.LOGIN_SignIn()}
-			</button>
-		</p> -->
 	</div>
 
 	<SignupIcon show={active == 0 || active == undefined} />

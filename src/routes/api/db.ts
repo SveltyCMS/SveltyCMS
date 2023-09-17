@@ -3,36 +3,44 @@ import { fieldsToSchema } from '@src/utils/utils';
 import { dev } from '$app/environment';
 import type { Unsubscriber } from 'svelte/store';
 
-// Lucia
-import lucia from 'lucia-auth';
-import adapter from '@lucia-auth/adapter-mongoose';
-import { session, key, UserSchema } from '@src/collections/Auth';
-import { sveltekit } from 'lucia-auth/middleware';
+// Lucia v2
+import { lucia } from 'lucia';
+import { mongoose } from '@lucia-auth/adapter-mongoose';
 
+import { session, key, UserSchema } from '@src/collections/Auth';
+import { sveltekit } from 'lucia/middleware';
+import { google } from '@lucia-auth/oauth/providers';
 // mongoose
-import mongoose from 'mongoose';
-import { DB_HOST, DB_NAME, DB_USER, DB_PASSWORD } from '$env/static/private';
+import mongodb from 'mongoose';
+import {
+	DB_HOST,
+	DB_NAME,
+	DB_USER,
+	DB_PASSWORD,
+	SECRET_GOOGLE_CLIENT_ID,
+	SECRET_GOOGLE_CLIENT_SECERT,
+	HOST_PROD,
+	HOST_DEV,
+	SECRET_GOOGLE_OAUTH_REDIRECT_URI
+} from '$env/static/private';
+// import { Session } from 'inspector';
 
 // Turn off strict mode for query filters. Default in Mongodb 7
-mongoose.set('strictQuery', false);
+mongodb.set('strictQuery', false);
 
 // Connect to MongoDB database using imported environment variables
-mongoose
+mongodb
 	.connect(DB_HOST, {
 		authSource: 'admin',
 		user: DB_USER,
 		pass: DB_PASSWORD,
 		dbName: DB_NAME
 	})
-	.then(() =>
-		console.log(
-			'---------------------Connection to database is successful! -----------------------'
-		)
-	)
+	.then(() => console.log('---------------------Connection to database is successful! -----------------------'))
 	.catch((error) => console.error('Error connecting to database:', error));
 
 // Initialize collections object
-const collectionsModels: { [Key: string]: mongoose.Model<any> } = {};
+const collectionsModels: { [Key: string]: mongodb.Model<any> } = {};
 
 let unsubscribe: Unsubscriber | undefined;
 
@@ -47,7 +55,7 @@ export async function getCollectionModels() {
 				// Iterate over each collection
 				for (const collection of collections) {
 					// Create a new mongoose schema using the collection's fields and timestamps
-					const schema_object = new mongoose.Schema(
+					const schema_object = new mongodb.Schema(
 						{ ...fieldsToSchema(collection.fields), createdAt: Number, updatedAt: Number },
 						{
 							typeKey: '$type',
@@ -58,9 +66,9 @@ export async function getCollectionModels() {
 
 					// Add the mongoose model for the collection to the collectionsModels object
 					if (!collection.name) return;
-					collectionsModels[collection.name] = mongoose.models[collection.name]
-						? mongoose.model(collection.name)
-						: mongoose.model(collection.name, schema_object);
+					collectionsModels[collection.name] = mongodb.models[collection.name]
+						? mongodb.model(collection.name)
+						: mongodb.model(collection.name, schema_object);
 				}
 
 				// Unsubscribe from the collections store and resolve the Promise with the collectionsModels object
@@ -72,33 +80,56 @@ export async function getCollectionModels() {
 	});
 }
 
+// to remove a model from mongoose:
+// delete mongodb.models['auth_key'];
+
 // Set up authentication collections if they don't already exist
-!mongoose.models['auth_session'] &&
-	mongoose.model('auth_session', new mongoose.Schema({ ...session }, { _id: false }));
-!mongoose.models['auth_key'] &&
-	mongoose.model('auth_key', new mongoose.Schema({ ...key }, { _id: false }));
-!mongoose.models['auth_user'] &&
-	mongoose.model(
-		'auth_user',
-		new mongoose.Schema({ ...UserSchema }, { _id: false, timestamps: true })
-	);
+!mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
+!mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
+!mongodb.models['auth_user'] && mongodb.model('auth_user', new mongodb.Schema({ ...UserSchema }, { _id: false, timestamps: true }));
 
 // Set up authentication using Lucia and export auth object
 const auth = lucia({
-	adapter: adapter(mongoose),
+	adapter: mongoose({
+		User: mongodb.models['auth_user'],
+		Key: mongodb.models['auth_key'],
+		Session: mongodb.models['auth_session']
+	}),
 
 	//for production & cloned dev environment
 	env: dev ? 'DEV' : 'PROD',
+	middleware: sveltekit(),
 
-	autoDatabaseCleanup: true,
-
-	transformDatabaseUser: (userData) => {
+	getUserAttributes: (userData) => {
 		return {
+			// `userId` included by default!!
 			...userData
 		};
-	},
-	middleware: sveltekit()
+	}
+
+	// csrfProtection: {
+	// 	allowedSubdomains: ["foo"] // allow https://foo.example.com
+	// }
+	// passwordHash
+
+	// sessionCookie: {
+	// 	name: "user_session", // session cookie name
+	// 	attributes: {
+	// 		// moved previous `sessionCookie` value here
+	// 		sameSite: "strict"
+	// 	}
+	// },
+	// sessionExpiresIn // no change
+});
+
+const googleAuth = google(auth, {
+	clientId: SECRET_GOOGLE_CLIENT_ID,
+	clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
+	redirectUri: `${dev ? HOST_DEV : HOST_PROD}${SECRET_GOOGLE_OAUTH_REDIRECT_URI}`,
+	scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
+	accessType: dev ? 'offline' : 'online'
 });
 
 // Export collections and auth objects
-export { collectionsModels, auth };
+export type Auth = typeof auth;
+export { collectionsModels, auth, googleAuth };

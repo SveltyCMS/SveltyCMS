@@ -4,9 +4,11 @@
 declare global {
 	/// <reference types="lucia" />
 	declare namespace Lucia {
-		type Auth = import('@src/routes/api/db.ts').Auth;
-		type DatabaseUserAttributes = {};
-		type DatabaseSessionAttributes = {};
+		type Auth = import('@src/routes/api/db.ts').Auth; // no change
+		type DatabaseUserAttributes = {
+			// username: string;
+		}; 
+		type DatabaseSessionAttributes = {}; // new
 	}
 
 	/// <reference path="./types/**/*.d.ts" />
@@ -14,12 +16,8 @@ declare global {
 	declare type DndEvent<ItemType = Item> = import('svelte-dnd-action').DndEvent<ItemType>;
 	declare namespace svelteHTML {
 		interface HTMLAttributes<T> {
-			'on:consider'?: (
-				event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }
-			) => void;
-			'on:finalize'?: (
-				event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }
-			) => void;
+			'on:consider'?: (event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }) => void;
+			'on:finalize'?: (event: CustomEvent<DndEvent<ItemType>> & { target: EventTarget & T }) => void;
 		}
 	}
 
@@ -30,13 +28,7 @@ declare global {
 		// interface Platform {}
 	}
 
-	type DISPLAY = (({
-		data: any,
-		collection: any,
-		field: any,
-		entry: any,
-		contentLanguage: string
-	}) => Promise<any>) & { default?: boolean };
+	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
 }
 
 // THIS IS IMPORTANT!!!

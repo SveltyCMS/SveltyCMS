@@ -1,7 +1,7 @@
 import { redirect, type Actions } from '@sveltejs/kit';
 import { auth, getCollectionModels } from '../../api/db';
 import { validate } from '@src/utils/utils';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import widgets from '@src/components/widgets';
 import fs from 'fs';
 import prettier from 'prettier';
@@ -15,7 +15,7 @@ type fields = ReturnType<Widget[keyof Widget]>;
 // Define load function as async function that takes an event parameter
 export async function load(event) {
 	// Get session cookie value as string
-	const session = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	// Validate user using auth and session value
 	const user = await validate(auth, session);
 	// If user status is 200, return user object

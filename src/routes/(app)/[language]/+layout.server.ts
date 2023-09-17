@@ -1,7 +1,7 @@
 import { error, redirect } from '@sveltejs/kit';
 import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 import { getCollections } from '@src/collections';
 
@@ -10,7 +10,7 @@ import { locales } from '@src/i18n/i18n-util';
 
 export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
-	const session = cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	const user = await validate(auth, session);
 	const collection = collections.find((c) => c.name == params.collection);
 

@@ -3,7 +3,7 @@ import path from 'path';
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 import { validate } from '@src/utils/utils';
 import { auth } from '../../api/db';
-import { SESSION_COOKIE_NAME } from 'lucia-auth';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { redirect } from '@sveltejs/kit';
 
 // Define the function to load image data
@@ -30,7 +30,7 @@ import { redirect } from '@sveltejs/kit';
 
 export async function load(event: any) {
 	// Secure this page with session cookie
-	const session = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	// Validate the user's session
 	const user = await validate(auth, session);
 	// If validation fails, redirect the user to the login page

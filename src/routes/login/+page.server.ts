@@ -4,10 +4,9 @@ import type { PageServerLoad } from './$types';
 import mongoose from 'mongoose';
 
 import { superValidate, message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@src/utils/formSchemas';
-import { auth } from '@src/routes/api/db';
-import { passwordToken } from '@lucia-auth/tokens';
-import type { User } from '@src/collections/Auth';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@src/utils/formSchemas';
+import { auth, googleAuth } from '@src/routes/api/db';
+import { passwordToken } from '@src/utils/passwordToken';
 
 // load and validate login and sign up forms
 export const load: PageServerLoad = async (event) => {
@@ -136,6 +135,8 @@ export const actions: Actions = {
 
 	// Function for handling the RESET
 	resetPW: async (event) => {
+		console.log('resetPW');
+
 		const pwresetForm = await superValidate(event, resetFormSchema);
 		//console.log('pwresetForm', pwresetForm);
 
@@ -167,6 +168,10 @@ export const actions: Actions = {
 		const email = signUpForm.data.email.toLocaleLowerCase();
 		const password = signUpForm.data.password;
 		const token = signUpForm.data.token;
+		const lang = signUpForm.data.lang;
+		// get lang from localStorage
+		// console.log('lang:', lang);
+		// return { form: signUpForm, message: 'Unknown error' };
 
 		const key = await auth.getKey('email', email).catch(() => null);
 		// console.log('signUp key', key);
@@ -188,6 +193,8 @@ export const actions: Actions = {
 			resp = { status: false, message: 'This user was not defined by admin' };
 		}
 
+		// log
+
 		if (resp.status) {
 			// send welcome email
 			//TODO: port to utils not to expose ... remove fetch from backend
@@ -200,7 +207,8 @@ export const actions: Actions = {
 					email: email,
 					subject: 'New Admin registration',
 					message: 'New Admin registration',
-					templateName: 'Welcome',
+					templateName: 'welcomeUser',
+					lang: lang,
 					props: {
 						username: username,
 						email: email
@@ -214,6 +222,23 @@ export const actions: Actions = {
 		} else {
 			return { form: signUpForm, message: resp.message || 'Unknown error' };
 		}
+	},
+
+	OAuth: async ({ cookies }) => {
+		console.log('enter OAuth');
+
+		// const signUpOAuthForm = await superValidate(event, signUpOAuthFormSchema);
+		// const username = signUpOAuthForm.data.username;
+		// const token = signUpOAuthForm.data.token;
+		const [url, state] = await googleAuth.getAuthorizationUrl();
+
+		cookies.set('google_oauth_state', state, {
+			path: '/',
+			httpOnly: true, // only readable in the server
+			maxAge: 60 * 60 // a reasonable expiration date
+		});
+
+		throw redirect(302, url);
 	}
 };
 
@@ -225,13 +250,18 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			// If isToken is false, sign in using email and password
 			const key = await auth.useKey('email', email, password).catch(() => null);
 			if (!key || !key.passwordDefined) return { status: false, message: 'Invalid Credentials' };
-			const session = await auth.createSession(key.userId);
+			const session = await auth.createSession({
+				userId: key.userId,
+				attributes: {}
+			});
 			const sessionCookie = auth.createSessionCookie(session);
-			//console.log('signIn sessionCookie', sessionCookie);
+			// console.log('signIn sessionCookie', sessionCookie);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 			const authMethod = 'password';
 			await auth.updateUserAttributes(key.userId, { authMethod });
+			// console.log('signIn ', sessionCookie);
+
 			return { status: true };
 		} else {
 			// If isToken is true, sign in using token
@@ -241,7 +271,10 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 
 			await tokenHandler.validate(token, key.userId);
-			const session = await auth.createSession(key.userId);
+			const session = await auth.createSession({
+				userId: key.userId,
+				attributes: {}
+			});
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			const authMethod = 'token';
@@ -255,9 +288,9 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 }
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	const user: User = await auth
+	const user = await auth
 		.createUser({
-			primaryKey: {
+			key: {
 				providerId: 'email',
 				providerUserId: email,
 				password: password
@@ -270,10 +303,11 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		})
 		.catch((e) => null);
 
-	// console.log(user);
-
 	if (!user) return { status: false, message: 'user does not exist' };
-	const session = await auth.createSession(user.id);
+	const session = await auth.createSession({
+		userId: user.id,
+		attributes: {}
+	});
 	const sessionCookie = auth.createSessionCookie(session);
 	// Set the credentials cookie
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -316,6 +350,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!key) return { success: false, message: 'User does not exist' };
 
 		const token = (await tokenHandler.issue(key.userId)).toString();
+		console.log('token', token);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -338,15 +373,17 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		// Validate the token
 		//console.log('Validating token...');
 		const validate = await tokenHandler.validate(token, key.userId);
+		console.log('validate: ', validate);
 
 		if (validate) {
 			// Check token expiration
-			const currentTime = Date.now();
-			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
+			// const currentTime = Date.now();
+			// const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
+			// console.log(currentTime, tokenExpiryTime);
 
-			if (currentTime >= tokenExpiryTime) {
-				return { status: false, message: 'Token has expired' };
-			}
+			// if (currentTime >= tokenExpiryTime) {
+			// 	return { status: false, message: 'To    ken has expired' };
+			// }
 
 			// Token is valid and not expired, proceed with password update
 			auth.updateKeyPassword('email', key.providerUserId, password);
@@ -382,7 +419,10 @@ async function updatePassword(userId: string, newPassword: string) {
 // if (updateResult.status) {
 // 	// Create a new session and set the session cookie
 // 	console.log('Creating session and setting session cookie...');
-// 	const session = await auth.createSession(key.userId);
+// 	const session = await auth.createSession({
+//     userId: key.userId,
+//     attributes: {}
+// });
 // 	const sessionCookie = auth.createSessionCookie(session);
 // 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
@@ -405,7 +445,7 @@ async function signUp(username: string, email: string, password: string, cookies
 
 	const user = await auth
 		.createUser({
-			primaryKey: {
+			key: {
 				providerId: 'email',
 				providerUserId: email,
 				password: password
@@ -422,7 +462,10 @@ async function signUp(username: string, email: string, password: string, cookies
 
 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const session = await auth.createSession(user.userId);
+	const session = await auth.createSession({
+		userId: user.id,
+		attributes: {}
+	});
 
 	// Set the credentials cookie
 	cookies.set('credentials', JSON.stringify({ username: user.username, session: session.sessionId }), {
@@ -444,7 +487,10 @@ async function finishRegistration(username: string, email: string, password: str
 		await auth.updateUserAttributes(key.userId, { email, username, authMethod });
 		await auth.updateKeyPassword('email', email, password);
 
-		const session = await auth.createSession(key.userId);
+		const session = await auth.createSession({
+			userId: key.userId,
+			attributes: {}
+		});
 		const sessionCookie = auth.createSessionCookie(session);
 
 		// Set the credentials cookie

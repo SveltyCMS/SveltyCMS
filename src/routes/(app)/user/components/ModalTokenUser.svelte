@@ -5,7 +5,11 @@
 
 	//superforms
 	import { superForm } from 'sveltekit-superforms/client';
+	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+
 	import { addUserTokenSchema } from '@src/utils/formSchemas';
+	//export { addUserTokenSchema } from '
+	export let addUserForm: PageData['addUserForm'];
 
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 	import { roles } from '@src/collections/types';
@@ -27,18 +31,22 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	let response: any;
-	//console.log(data);
-	const { form, constraints, allErrors, errors, enhance } = superForm(data, {
-		// const { form, constraints, allErrors, errors, enhance } = superForm(data.addUserForm, {
+
+	const { form, constraints, allErrors, errors, enhance } = superForm(addUserForm, {
+
 		id: 'addUser',
 		validators: addUserTokenSchema,
 		defaultValidator: 'clear',
 		applyAction: true,
 		taintedMessage: '',
 		dataType: 'json',
-
+	
 		onSubmit: ({ cancel }) => {
+			console.log ("test")
+			console.log ($allErrors.length)
 			if ($allErrors.length > 0) cancel();
+			
+			
 		},
 		onResult: ({ result, cancel }) => {
 			cancel();
@@ -47,8 +55,10 @@
 			}
 		}
 	});
+	
 
-	$form.role = 'User';
+
+
 
 	// define default role
 	let roleSelected = Object.values(roles)[1];
@@ -64,6 +74,10 @@
 		{ label: '2 days', value: '2 days', seconds: 2 * 24 * 60 * 60 },
 		{ label: '1 week', value: '1 week', seconds: 7 * 24 * 60 * 60 }
 	];
+
+	$: $form.role = roleSelected;
+	$: $form.expiresIn = expiresIn;
+	
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -75,13 +89,13 @@
 	<article class="text-center text-sm">
 		{$modalStore[0]?.body ?? '(body missing)'}
 	</article>
-
+	<SuperDebug data={$form} />
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
-	<form class="modal-form {cForm}" method="post" action="/addUser" use:enhance>
+	<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
 		<!-- Email field -->
 		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" bind:value={$form.email} required />
+			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" type="email" bind:value={$form.email} required />
 
 			{#if $errors.email}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -121,6 +135,7 @@
 			<div class="sm:w-1/4">Token validity:</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap gap-2 space-x-2">
+					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
 					{#each validityOptions as option}
 						<span
 							class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"

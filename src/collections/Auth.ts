@@ -62,12 +62,17 @@ export const key = {
 		type: String,
 		required: true // reference to user(id)
 	},
+	providerId: {
+		type: String,
+		required: false,
+		default: null // the provider id (e.g. google)
+	},
 	// Not strictly required by Lucia, but we'll be using it
 	hashed_password: String,
-	primary_key: {
-		type: Boolean,
-		required: true // true for primary keys
-	},
+	// primary_key: {
+	// 	type: Boolean,
+	// 	required: true // true for primary keys
+	// },
 	expires: {
 		type: Number, // expiration for key if defined (number)
 		default: null

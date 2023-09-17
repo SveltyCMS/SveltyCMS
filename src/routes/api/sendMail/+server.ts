@@ -34,13 +34,13 @@ const templates: Record<string, ComponentType> = {
 
 export const POST: RequestHandler = async ({ request }) => {
 	// console.log(request);
-	const { email, subject, message, templateName, props } = await request.json();
-	await sendMail(email, subject, message, templateName, props);
+	const { email, subject, message, templateName, lang, props } = await request.json();
+	await sendMail(email, subject, message, templateName, props, lang);
 
 	return new Response(null, { status: 200 });
 };
 
-async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps) {
+async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang = 'en') {
 	// console.log(email, subject, message);
 	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
@@ -49,6 +49,8 @@ async function sendMail(email: string, subject: string, message: string, templat
 		host: SMTP_HOST,
 		port: SMTP_PORT,
 		secure: true,
+		// service: 'gmail',
+
 		// port: SMTP_PORT,
 		// secure: false, // true for 465, false for other ports
 		auth: {
@@ -59,7 +61,10 @@ async function sendMail(email: string, subject: string, message: string, templat
 
 	const emailHtml = render({
 		template: templates[templateName],
-		props
+		props: {
+			...props,
+			systemLanguage: lang
+		}
 	});
 
 	const options = {
