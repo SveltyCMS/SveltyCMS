@@ -66,9 +66,21 @@ export const signUpFormSchema = z
 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
 				message: get(LL).LOGIN_ZOD_Confirm_password_regex()
 			}),
-		token: z.string().min(16)
+		token: z.string().min(16),
+		lang: z.string()
 	})
 	.refine((data: SignUpFormData) => data.password === data.confirm_password, get(LL).LOGIN_ZOD_Password_match());
+
+export const signUpOAuthFormSchema = z.object({
+	username: z
+		.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
+		.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+		.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
+		.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
+		.trim(),
+	token: z.string().min(16),
+	lang: z.string()
+});
 
 // Validate New User Token ------------------------------------
 export const addUserTokenSchema = z.object({

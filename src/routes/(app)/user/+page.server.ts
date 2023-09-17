@@ -3,15 +3,13 @@ import mongoose from 'mongoose';
 //lucia
 import { auth } from '../../api/db';
 import { validate } from '@src/utils/utils';
-// import { passwordToken } from '@lucia-auth/tokens';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { generateRandomString } from 'lucia/utils';
-const alphabet = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
 //superforms
 import { superValidate, message } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
 import { error, fail, redirect, type Actions } from '@sveltejs/kit';
+import { passwordToken } from '@src/utils/passwordToken';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -66,7 +64,7 @@ export const actions: Actions = {
 		const user = await auth
 
 			.createUser({
-				primaryKey: {
+				key: {
 					providerId: 'email',
 					providerUserId: email,
 					password: null
