@@ -8,6 +8,8 @@
 	let tabIndex = 1;
 
 	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
+	let activeOauth = false;
+
 	import CMSLogo from './icons/Logo.svelte';
 
 	// typesafe-i18n
@@ -17,9 +19,6 @@
 	import { signUpFormSchema } from '@src/utils/formSchemas';
 
 	export let active: undefined | 0 | 1 = undefined;
-	let Oauth = PUBLIC_USE_GOOGLE_OAUTH == 'true';
-	// console.log('Oauth', Oauth);
-
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
 	let response: any;
@@ -117,7 +116,7 @@
 			/>
 			{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-			{#if Oauth === false}
+			{#if PUBLIC_USE_GOOGLE_OAUTH}
 				<!-- Email field -->
 				<FloatingInput
 					name="email"
@@ -171,6 +170,7 @@
 				/>
 				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
 			{/if}
+
 			{#if $form.token != null}
 				<!-- Registration Token -->
 				<FloatingInput
@@ -193,7 +193,15 @@
 			{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
 			<input type="hidden" name="lang" value={$systemLanguage} />
 
-			{#if Oauth === false}
+			{#if PUBLIC_USE_GOOGLE_OAUTH}
+				<button type="submit" class="variant-filled btn mt-4 uppercase"
+					>{$LL.LOGIN_SignUp()}
+					<!-- Loading indicators -->
+					{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+				</button>
+
+
+			{:else if !PUBLIC_USE_GOOGLE_OAUTH && !activeOauth}
 				<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-red-500">
 					<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
 						<span class="text-black">{$LL.LOGIN_SignUp()} </span>

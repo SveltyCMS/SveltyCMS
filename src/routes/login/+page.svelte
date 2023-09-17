@@ -8,25 +8,24 @@
 	export let data: PageData;
 	//console.log('PageData', data);
 
-	// Make sure 'Locales' is correctly imported and defined.
 	import { locales } from '@src/i18n/i18n-util';
-	import { setLocale } from '@src/i18n/i18n-svelte';
-	import { systemLanguage } from '@src/stores/store';
 	import type { Locales } from '@src/i18n/i18n-types';
+	//console.log('locales', locales);
+	import { systemLanguage } from '@src/stores/store';
+	//console.log('systemLanguage', $systemLanguage);
 
-	// Change 'Locales' to string if that's the correct type.
-	let selectedLocale = (localStorage.getItem('selectedLanguage') || systemLanguage.subscribe((value) => value)) as Locales;
+	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
 	setLocale(selectedLocale);
+	//console.log('selectedLocale', selectedLocale);
+
+	import { setLocale } from '@src/i18n/i18n-svelte';
+	//console.log('setLocale', setLocale);
 
 	function handleLocaleChange(e) {
-		const selectedLocale = e.target.value;
+		selectedLocale = e.target.value;
 		setLocale(selectedLocale);
-
-		// Update the systemLanguage store to the selectedLocale
-		systemLanguage.set(selectedLocale);
-
 		localStorage.setItem('selectedLanguage', selectedLocale);
-		console.log('selectedLocaleUpdated', selectedLocale);
+		//console.log('selectedLocaleUpdated', selectedLocale);
 	}
 
 	let isFocused = false;
@@ -53,12 +52,23 @@
 		on:pointerenter={() => (background = '#242728')}
 	/>
 
-	<SignUp {active} FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
+	<SignUp
+		{active}
+		FormSchemaSignUp={data.signUpForm}
+		on:click={() => (active = 1)}
+		on:pointerenter={() => (background = 'white')}
+	/>
 	{#if active == undefined}
 		<!-- CSS Logo -->
-		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+		<div
+			class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
+		>
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
-				<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+				<svg
+					width="160"
+					height="160"
+					class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform"
+				>
 					<circle
 						cx="80"
 						cy="80"
@@ -82,7 +92,11 @@
 					/>
 				</svg>
 
-				<svg width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
+				<svg
+					width="170"
+					height="170"
+					class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform"
+				>
 					<circle
 						cx="85"
 						cy="85"
@@ -105,7 +119,9 @@
 					/>
 				</svg>
 
-				<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+				<div
+					class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center"
+				>
 					<Logo fill="black" className="w-8 h-8" />
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
 					<div class="-mt-[1px] text-[11px] font-bold text-black">with Sveltekit Power</div>
@@ -126,7 +142,9 @@
 					on:focus={handleFocus}
 					on:blur={handleBlur}
 					placeholder={selectedLocale}
-					class="{isFocused ? 'w-40' : 'w-20'} input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
+					class="{isFocused
+						? 'w-40'
+						: 'w-20'} input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
 				/>
 
 				<datalist id="locales" class="w-full divide-y divide-white uppercase">
@@ -142,8 +160,9 @@
 					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
 				>
 					{#each locales as locale}
-						<option value={locale} selected={locale === systemLanguage}>{locale.toUpperCase()} </option>
-					{/each}
+						<option value={locale} selected={locale === $systemLanguage}
+							>{locale.toUpperCase()}
+						</option>{/each}
 				</select>
 			{/if}
 		</div>

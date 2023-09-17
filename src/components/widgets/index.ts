@@ -18,7 +18,7 @@ import PhoneNumber from './phoneNumber';
 import Radio from './radio';
 import Relation from './relation';
 import RemoteVideo from './remoteVideo';
-import RichText from './richText';
+// import RichText from './richText';
 // import SelectList from './selectList';
 import Seo from './seo';
 import Text from './text';
@@ -64,7 +64,7 @@ const widgets = {
 	// RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
 	RemoteVideo,
 	// Rich Text - fully extensible Lexical Rich Text editor
-	RichText,
+	// RichText,
 	// SelectList - dropdown / pick list style value selector
 	// SelectList,
 	// Seo - Basic Seo Title /Description with preview
