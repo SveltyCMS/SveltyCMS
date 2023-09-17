@@ -193,18 +193,17 @@
 
 			{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
 			<input type="hidden" name="lang" value={$systemLanguage} />
-			{PUBLIC_USE_GOOGLE_OAUTH}
-		
-			{#if PUBLIC_USE_GOOGLE_OAUTH === "false"}
-			<!-- email signin only -->
+
+			{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
+				<!-- email signin only -->
 				<button type="submit" class="variant-filled btn mt-4 uppercase"
 					>{$LL.LOGIN_SignUp()}
 					<!-- Loading indicators -->
 					{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 				</button>
 
-	<!-- email + oauth signin  -->
-			{:else if PUBLIC_USE_GOOGLE_OAUTH === "true" && !activeOauth}
+				<!-- email + oauth signin  -->
+			{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
 				<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-red-500">
 					<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
 						<span class="text-black">{$LL.LOGIN_SignUp()} </span>
@@ -219,7 +218,7 @@
 					</form>
 				</div>
 			{:else}
-			<!-- TODO: not really used -->
+				<!-- TODO: not really used -->
 				<form method="post" action="?/OAuth" class="flex w-full">
 					<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
 						<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />

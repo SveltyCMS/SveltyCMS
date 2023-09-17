@@ -8,7 +8,7 @@
 
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 
 	// skeleton
@@ -352,35 +352,44 @@
 				/>
 				{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
 
-				<div class="mt-4 flex items-center justify-between">
-					<div>
-					<button type="submit" class="variant-filled-surface btn">
-						{$LL.LOGIN_SignIn()}
-						<!-- Loading indicators -->
-						{#if $delayed}
-							<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
-						{/if}
-					</button>
-					
-					<form method="post" action="?/OAuth" class="flex w-full">
-						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
-							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-							<p>Sign In with Google</p>
-							<!-- <p>{$LL.LOGIN_SignUp_Oauth2()}</p>-->
+				<div class="mt-4 flex flex-col sm:flex-row items-center sm:justify-between gap-2">
+					<!-- Row 1 -->
+					<div class="flex justify-between gap-2 w-full sm:w-auto">
+						<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
+							{$LL.LOGIN_SignIn()}
+							<!-- Loading indicators -->
+							{#if $delayed}
+								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+							{/if}
 						</button>
-					</form></div>
-
-					<button
-						type="button"
-						class="variant-ringed-surface btn text-black"
-						on:click={() => {
-							PWforgot = true;
-							PWreset = false;
-						}}
-						>{$LL.LOGIN_ForgottenPassword()}
-					</button>
-
+						
+						{#if PUBLIC_USE_GOOGLE_OAUTH =="true"}
+						<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
+							<button type="submit" class="btn variant-filled-surface w-full sm:w-auto">
+								
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+								<p>OAuth</p>
+							</button>
+						</form>
+						{/if}
+					</div>
+				
+					<!-- Row 2 -->
+					<div class="flex justify-between w-full sm:w-auto mt-4 sm:mt-0">
+						<button
+							type="button"
+							class="variant-ringed-surface btn text-black w-full sm:w-auto"
+							on:click={() => {
+								PWforgot = true;
+								PWreset = false;
+							}}
+							>{$LL.LOGIN_ForgottenPassword()}
+						</button>
+					</div>
 				</div>
+				
+				
+				
 			</form>
 		{/if}
 
