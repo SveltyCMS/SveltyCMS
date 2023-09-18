@@ -77,13 +77,13 @@ export const signUpFormSchema = z
 	});
 
 export const signUpOAuthFormSchema = z.object({
-	username: z
-		.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
-		.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
-		.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
-		.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
-		.trim(),
-	token: z.string().min(16),
+	// username: z
+	// 	.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
+	// 	.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
+	// 	.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
+	// 	.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
+	// 	.trim(),
+	// token: z.string().min(16),
 	lang: z.string()
 });
 

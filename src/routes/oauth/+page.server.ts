@@ -4,10 +4,11 @@ import type { PageServerLoad } from './$types';
 import mongoose from 'mongoose';
 import type { User } from 'lucia-auth';
 
-export const load: PageServerLoad = async ({ url, cookies }) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');
-	const stateCookie = cookies.get('google_oauth_state');
+	const { stateCookie, lang } = JSON.parse(cookies.get('google_oauth_state') ?? '{}');
+	console.log(stateCookie, lang);
 
 	const result = {
 		errors: [],
@@ -48,6 +49,27 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		};
 
 		const [user, needSignIn] = await getUser();
+		if (needSignIn) {
+			// const lang = 'en';
+			// send email
+			await fetch('/api/sendMail', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					email: googleUser.email,
+					subject: 'New {username} registration',
+					message: 'New {username} registration',
+					templateName: 'welcomeUser',
+					lang: lang,
+					props: {
+						username: googleUser.name,
+						email: googleUser.email
+					}
+				})
+			});
+		}
 		// console.log('user', user, needSignIn);
 
 		if (!user) throw new Error('User not found.');
