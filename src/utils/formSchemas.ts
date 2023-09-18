@@ -11,7 +11,8 @@ export const loginFormSchema = z.object({
 
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
-	email: z.string({ required_error: get(LL).LOGIN_ZOD_Email_string() }).email({ message: get(LL).LOGIN_ZOD_Email_email() })
+	email: z.string({ required_error: get(LL).LOGIN_ZOD_Email_string() }).email({ message: get(LL).LOGIN_ZOD_Email_email() }),
+	lang: z.string(), // used for svelte-email
 });
 
 // SignIn Reset Password ------------------------------------
@@ -19,6 +20,7 @@ interface SignInResetFormData {
 	password: string;
 	confirm_password: string;
 	token: string;
+	lang: string;
 }
 export const resetFormSchema = z
 	.object({
@@ -34,6 +36,7 @@ export const resetFormSchema = z
 			}),
 		//token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1),
 		token: z.string(),
+		lang: z.string(), // used for svelte-email
 		email: z.string()
 	})
 	.refine((data: SignInResetFormData) => data.password === data.confirm_password, get(LL).LOGIN_ZOD_Password_match());

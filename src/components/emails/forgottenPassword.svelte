@@ -4,12 +4,15 @@
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
-	//console.log('tokenLink', tokenLink);
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
-	import { systemLanguage } from '@src/stores/store';
-	//console.log('systemLanguage$', $systemLanguage);
+	import { setLocale, locale } from '@src/i18n/i18n-svelte';
+
+	export let systemLanguage: string = '';
+	setLocale(systemLanguage as any);
+
+	//console.log('systemLanguage', systemLanguage);
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -145,7 +148,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={systemLanguage}>
 	<Head>
 		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME })} />

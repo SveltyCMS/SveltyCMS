@@ -77,7 +77,7 @@ export const actions: Actions = {
 		// Validate with Lucia
 		let resp: { status: boolean; message?: string } = { status: false };
 		//console.log('forgotPW Validate', resp);
-
+		const lang = pwforgottenForm.data.lang;
 		const email = pwforgottenForm.data.email.toLocaleLowerCase();
 		//console.log('forgotPW email', email);
 		const checkMail = await forgotPWCheck(email);
@@ -103,6 +103,7 @@ export const actions: Actions = {
 			// Get the token from the checkMail result
 			const token = checkMail.token;
 			const expiresIn = checkMail.expiresIn;
+
 			// console.log('forgotPW token', token);
 			// console.log('forgotPW expiresIn', expiresIn);
 
@@ -120,7 +121,8 @@ export const actions: Actions = {
 					props: {
 						email: email,
 						token: token,
-						expiresIn: expiresIn
+						expiresIn: expiresIn,
+						lang: lang
 					}
 				})
 			});
@@ -144,6 +146,7 @@ export const actions: Actions = {
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
 		const email = pwresetForm.data.email;
+		const lang = pwresetForm.data.lang;
 
 		// Define expiresIn
 		const expiresIn = 2 * 60 * 60; // expiration in 2 hours

@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { PageData, SubmitFunction } from '../$types';
 	import { superForm } from 'sveltekit-superforms/client';
-	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
@@ -118,7 +118,7 @@
 
 		<div class="-mt-2 text-right text-xs text-error-500">{$LL.LOGIN_Required()}</div>
 
-		<!--<SuperDebug data={$form} />-->
+	<!-- <SuperDebug data={$form} /> -->
 		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 			<!-- Username field -->
 			<FloatingInput

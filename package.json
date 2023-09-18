@@ -59,7 +59,7 @@
 		"@graphql-yoga/render-graphiql": "4.0.4",
 		"@lucia-auth/adapter-mongoose": "^3.0.0",
 		"@lucia-auth/oauth": "^3.2.0",
-		"@tanstack/svelte-table": "^8.9.9",
+		"@tanstack/svelte-table": "^8.10.0",
 		"axios": "^1.5.0",
 		"buffer": "^6.0.3",
 		"graphql": "16.8.0",

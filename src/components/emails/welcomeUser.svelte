@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+
+	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
 	import { setLocale, locale } from '@src/i18n/i18n-svelte';
-	// import { page } from '$app/stores';
-	// import type { User } from '@src/collections/Auth';
-	// TODO: Not working
-	// const username: User = $page.data.user.username;
+
 	export let username: string = '';
 	export let systemLanguage: string = '';
-	export let hostLink = dev ? HOST_DEV : HOST_PROD;
-
 	setLocale(systemLanguage as any);
 
+	export let hostLink = dev ? HOST_DEV : HOST_PROD;
+
 	// svelte-email
+	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

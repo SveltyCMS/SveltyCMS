@@ -2,7 +2,7 @@
 	import type { PageData } from '../$types';
 
 	import { superForm } from 'sveltekit-superforms/client';
-	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@src/utils/formSchemas';
 
@@ -17,6 +17,8 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { systemLanguage } from '@src/stores/store';
+
 	import { redirect } from '@sveltejs/kit';
 
 	let showPassword = false;
@@ -289,6 +291,16 @@
 	});
 
 	let formElement: HTMLFormElement;
+
+	// reactive statement when systemLanguage changes
+	$: $forgotForm = { ...$forgotForm, lang: $systemLanguage };
+
+	$: $resetForm = {
+		...$resetForm,
+		lang: $systemLanguage,
+		email: hide_email,
+		token: registration_token
+	};
 </script>
 
 <Toast />
@@ -352,9 +364,9 @@
 				/>
 				{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
 
-				<div class="mt-4 flex flex-col sm:flex-row items-center sm:justify-between gap-2">
+				<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 					<!-- Row 1 -->
-					<div class="flex justify-between gap-2 w-full sm:w-auto">
+					<div class="flex w-full justify-between gap-2 sm:w-auto">
 						<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
 							{$LL.LOGIN_SignIn()}
 							<!-- Loading indicators -->
@@ -362,23 +374,22 @@
 								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
 							{/if}
 						</button>
-						
-						{#if PUBLIC_USE_GOOGLE_OAUTH =="true"}
-						<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
-							<button type="submit" class="btn variant-filled-surface w-full sm:w-auto">
-								
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-								<p>OAuth</p>
-							</button>
-						</form>
+
+						{#if PUBLIC_USE_GOOGLE_OAUTH == 'true'}
+							<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
+								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
+									<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+									<p>OAuth</p>
+								</button>
+							</form>
 						{/if}
 					</div>
-				
+
 					<!-- Row 2 -->
-					<div class="flex justify-between w-full sm:w-auto mt-4 sm:mt-0">
+					<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
 						<button
 							type="button"
-							class="variant-ringed-surface btn text-black w-full sm:w-auto"
+							class="variant-ringed-surface btn w-full text-black sm:w-auto"
 							on:click={() => {
 								PWforgot = true;
 								PWreset = false;
@@ -387,9 +398,6 @@
 						</button>
 					</div>
 				</div>
-				
-				
-				
 			</form>
 		{/if}
 
@@ -423,6 +431,8 @@
 					</span>
 				{/if}
 
+				<input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden />
+
 				<div class="mt-4 flex items-center justify-between">
 					<button type="submit" class="variant-filled-surface btn">
 						{$LL.LOGIN_SendResetMail()}
@@ -451,7 +461,7 @@
 
 		<!-- Reset Password -->
 		{#if PWforgot && PWreset}
-			 <SuperDebug data={$resetForm} /> 
+			<!-- <SuperDebug data={$resetForm} /> -->
 			<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<!-- Password field -->
 
@@ -494,7 +504,7 @@
 				<FloatingInput
 					type="password"
 					name="token"
-					bind:value={registration_token}
+					bind:value={$resetForm.token}
 					bind:showPassword
 					label={$LL.LOGIN_Token()}
 					icon="mdi:lock"
@@ -515,7 +525,8 @@
 					</span>
 				{/if}
 
-				<input type="email" name="email" bind:value={hide_email} hidden />
+				<input type="email" name="email" bind:value={$resetForm.email} hidden />
+				<input type="hidden" name="lang" bind:value={$resetForm.lang} hidden />
 
 				<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 					{$LL.LOGIN_ResetPasswordSave()}

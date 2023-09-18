@@ -1,4 +1,10 @@
 {
+	"editor.defaultFormatter": "esbenp.prettier-vscode",
+	"editor.formatOnSave": true,
+	"eslint.rules.customizations": [{ "rule": "*", "severity": "warn" }],
+	"explorer.compactFolders": false,
+	"workbench.tree.indent": 12,
+	"workbench.tree.renderIndentGuides": "always",
 	"workbench.colorCustomizations": {
 		"activityBar.activeBackground": "#2f7c47",
 		"activityBar.background": "#2f7c47",
