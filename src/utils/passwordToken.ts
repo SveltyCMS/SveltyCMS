@@ -1,6 +1,6 @@
 import type { Auth } from 'lucia';
-import { generateRandomString } from 'lucia/utils';
-
+import bcrypt from 'bcrypt';
+// crypto.
 export class Token {
 	value;
 	toString = () => this.value;
@@ -16,24 +16,16 @@ export class Token {
 		this.key = key;
 	}
 }
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export const passwordToken = (auth: Auth, name, options) => {
-	const defaultGenerateRandomPassword = (length) => {
-		return generateRandomString(length, '0123456789');
-	};
 	return {
-		issue: async (_userId) => {
-			const generate = options.generate ?? defaultGenerateRandomPassword;
-			const token = generate(options.length ?? 8);
+		issue: async (userId) => {
+			const token = await bcrypt.hashSync(userId, 10);
 			return token;
 		},
 		validate: async (token, userId) => {
-			const providerUserId = [userId, token].join('.');
 			try {
-				const key = await auth.useKey(name, providerUserId, null);
-				// if (key.type !== 'single_use') throw new LuciaTokenError('INVALID_TOKEN');
-				if (key.type !== 'single_use') throw new Error('INVALID_TOKEN');
-				// return new Token(token, key);
-				return true;
+				return bcrypt.compareSync(userId, token);
 			} catch (e) {
 				const error: any = e;
 				if (error.message === 'AUTH_INVALID_KEY_ID') throw new Error('INVALID_TOKEN');

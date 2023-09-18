@@ -229,15 +229,17 @@ export const actions: Actions = {
 		}
 	},
 
-	OAuth: async ({ cookies }) => {
+	OAuth: async (event) => {
 		//console.log('enter OAuth');
 
-		// const signUpOAuthForm = await superValidate(event, signUpOAuthFormSchema);
+		const signUpOAuthForm = await superValidate(event, signUpOAuthFormSchema);
 		// const username = signUpOAuthForm.data.username;
 		// const token = signUpOAuthForm.data.token;
+		const lang = signUpOAuthForm.data.lang;
 		const [url, state] = await googleAuth.getAuthorizationUrl();
+		// url.searchParams.set('lang', );
 
-		cookies.set('google_oauth_state', state, {
+		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state, lang }), {
 			path: '/', // redirect
 			httpOnly: true, // only readable in the server
 			maxAge: 60 * 60 // a reasonable expiration date

@@ -26,21 +26,20 @@
 	let firstUserExists = FormSchemaSignUp.data.token != null;
 
 	$: {
-  if ($form.password !== $form.confirm_password) {
-    console.log('Passwords do not match');
-    // Trigger validation here
-  } else {
-    console.log('Passwords match');
-    // Trigger validation here
-  }
-}
-
+		if ($form.password !== $form.confirm_password) {
+			console.log('Passwords do not match');
+			// Trigger validation here
+		} else {
+			console.log('Passwords match');
+			// Trigger validation here
+		}
+	}
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
 		//validators: (firstUserExists ? signUpFormSchema.omit({ token: true }) : signUpFormSchema) as typeof signUpFormSchema,
 
-	validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
+		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
 
 		// Clear form on success.
 		resetForm: true,
@@ -118,7 +117,7 @@
 
 		<div class="-mt-2 text-right text-xs text-error-500">{$LL.LOGIN_Required()}</div>
 
-	<!-- <SuperDebug data={$form} /> -->
+		<!-- <SuperDebug data={$form} /> -->
 		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 			<!-- Username field -->
 			<FloatingInput
@@ -230,9 +229,10 @@
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 					<form method="post" action="?/OAuth" class="w-fit">
+						<input type="hidden" name="lang" value={$systemLanguage} />
 						<button type="submit" class="uppercase">
 							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
-							OAuth
+							<span>OAuth</span>
 						</button>
 					</form>
 				</div>
