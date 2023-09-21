@@ -63,7 +63,7 @@
 		"axios": "^1.5.0",
 		"bcrypt": "^5.1.1",
 		"buffer": "^6.0.3",
-		"graphql": "16.8.0",
+		"graphql": "16.8.1",
 		"graphql-yoga": "4.0.4",
 		"iconify-icon": "^1.0.8",
 		"lucia": "latest",
