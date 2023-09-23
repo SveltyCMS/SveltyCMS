@@ -22,6 +22,12 @@ export const UserSchema = {
 	lastActiveAt: Date // The date and time when the user last accessed the application
 };
 
+export const TokenSchema = {
+	token: String,
+	userID: String,
+	expiresIn: Number
+};
+
 type Modify<T, R> = Omit<T, keyof R> & R;
 const mongooseUserSchema = new Schema(UserSchema);
 
@@ -90,6 +96,7 @@ export const SignUpTokenSchema = {
 	resetRequestedAt: Date, // The date and time when the sign-up token was requested
 	resetToken: String, // The sign-up token value
 	expiresAt: Date // The date and time when the sign-up token expires
-
 	// { _id: false }, // Do not automatically generate the _id field
 };
+
+
