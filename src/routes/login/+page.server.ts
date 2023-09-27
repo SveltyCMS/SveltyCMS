@@ -8,6 +8,9 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 import { auth, googleAuth } from '@src/routes/api/db';
 import { passwordToken } from '@src/utils/passwordToken';
 
+// import type { User } from '@src/collections/Auth';
+// import { consumeToken, createToken } from '@src/utils/tokens';
+
 // load and validate login and sign up forms
 export const load: PageServerLoad = async (event) => {
 	await event.parent();
