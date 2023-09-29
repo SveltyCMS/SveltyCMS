@@ -50,7 +50,7 @@ jobs:
 
         run: bunx playwright test
 
-      - uses: actions/upload-artifact@v3s
+      - uses: actions/upload-artifact@v3
         if: always()
         with:
           name: playwright-report
