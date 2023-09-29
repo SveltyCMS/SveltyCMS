@@ -12,7 +12,7 @@ export const loginFormSchema = z.object({
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: get(LL).LOGIN_ZOD_Email_string() }).email({ message: get(LL).LOGIN_ZOD_Email_email() }),
-	lang: z.string(), // used for svelte-email
+	lang: z.string() // used for svelte-email
 });
 
 // SignIn Reset Password ------------------------------------

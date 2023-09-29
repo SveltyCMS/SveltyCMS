@@ -3,12 +3,12 @@ import crypto from 'crypto';
 
 // Token class definition
 export class Token {
-	value:any;
+	value: any;
 	toString = () => this.value;
-	expiresAt:any;
-	expired:any ;
-	userId:any;
-	key:any;
+	expiresAt: any;
+	expired: any;
+	userId: any;
+	key: any;
 	constructor(value, key) {
 		this.value = value;
 		this.expiresAt = key.expiresAt;

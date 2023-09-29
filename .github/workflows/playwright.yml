@@ -1,0 +1,32 @@
+name: Playwright Tests with bun
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: oven-sh/setup-bun@v1
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Install Playwright Browsers
+        run: bunx playwright install --with-deps
+
+      - name: Run Playwright tests
+        # env:
+        #   PUBLIC_SITENAME: ${{PUBLIC_SITENAME}}
+
+        run: bunx playwright test
+
+      - uses: actions/upload-artifact@v3s
+        if: always()
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 30

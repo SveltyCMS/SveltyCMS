@@ -1,17 +1,32 @@
 .DS_Store
-node_modules
+
+# sveltekit
 /build
 /.svelte-kit
 /package
-.env
-.env.*
-env.ts
-!.env.example
+package-lock.json
+node_modules
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
-package-lock.json
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# simpleCMS
 /tmp
 trash/
 mediaFiles/
 collections/
 
+# debug
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# build
+/test-results/
+/playwright-report/
+/playwright/.cache/

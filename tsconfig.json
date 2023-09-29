@@ -13,6 +13,7 @@
 		"strict": true,
 		"target": "ES2020", // which level of JS support to target
 		"types": ["@sveltejs/kit"],
+		//"types": ["bun-types"],
 		"noImplicitAny": false,
 		"baseUrl": ".",
 		"outDir": "../build",
