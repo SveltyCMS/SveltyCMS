@@ -17,10 +17,8 @@ import {
 	DB_NAME,
 	DB_USER,
 	DB_PASSWORD,
-	
 	HOST_PROD,
 	HOST_DEV,
-
 	SECRET_GOOGLE_CLIENT_ID,
 	SECRET_GOOGLE_CLIENT_SECERT,
 	SECRET_GOOGLE_OAUTH_REDIRECT_URI
@@ -90,7 +88,6 @@ export async function getCollectionModels() {
 !mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
 !mongodb.models['auth_user'] && mongodb.model('auth_user', new mongodb.Schema({ ...UserSchema }, { _id: false, timestamps: true }));
 // !mongoose.models['auth_tokens'] && mongoose.model('auth_tokens', new mongoose.Schema({ ...TokenSchema }, { _id: false, timestamps: true }));
-
 
 // Set up authentication using Lucia and export auth object
 const auth = lucia({
