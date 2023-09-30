@@ -7,7 +7,7 @@ import type { Unsubscriber } from 'svelte/store';
 import { lucia } from 'lucia';
 import { mongoose } from '@lucia-auth/adapter-mongoose';
 
-import { session, key, UserSchema } from '@src/collections/Auth';
+import { session, key, UserSchema, TokenSchema } from '@src/collections/Auth';
 import { sveltekit } from 'lucia/middleware';
 import { google } from '@lucia-auth/oauth/providers';
 // mongoose
@@ -80,14 +80,11 @@ export async function getCollectionModels() {
 	});
 }
 
-// to remove a model from mongoose:
-// delete mongodb.models['auth_key'];
-
 // Set up authentication collections if they don't already exist
 !mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
 !mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
 !mongodb.models['auth_user'] && mongodb.model('auth_user', new mongodb.Schema({ ...UserSchema }, { _id: false, timestamps: true }));
-// !mongoose.models['auth_tokens'] && mongoose.model('auth_tokens', new mongoose.Schema({ ...TokenSchema }, { _id: false, timestamps: true }));
+!mongodb.models['auth_tokens'] && mongodb.model('auth_tokens', new mongodb.Schema({ ...TokenSchema }, { _id: false, timestamps: true }));
 
 // Set up authentication using Lucia and export auth object
 const auth = lucia({
@@ -111,15 +108,7 @@ const auth = lucia({
 	// csrfProtection: {
 	// 	allowedSubdomains: ["foo"] // allow https://foo.example.com
 	// }
-	// passwordHash
 
-	// sessionCookie: {
-	// 	name: "user_session", // session cookie name
-	// 	attributes: {
-	// 		// moved previous `sessionCookie` value here
-	// 		sameSite: "strict"
-	// 	}
-	// },
 	// sessionExpiresIn // no change
 });
 

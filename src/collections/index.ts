@@ -23,7 +23,7 @@ export const updateCollections = async (recompile: boolean = false) => {
 		// If not running in development or building mode
 		if (!dev && !building) {
 			// Define config file name
-			const config = 'config.js' + rnd;
+			const config = 'config.js?' + rnd;
 			const { createCategories } = browser
 				? await import(/* @vite-ignore */ '/api/importCollection/' + config)
 				: await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + config);

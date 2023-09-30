@@ -19,10 +19,10 @@ dependencies:
     version: 4.0.5(graphql-yoga@4.0.5)
   '@lucia-auth/adapter-mongoose':
     specifier: ^3.0.0
-    version: 3.0.0(lucia@2.7.0)(mongoose@7.5.3)
+    version: 3.0.0(lucia@2.7.1)(mongoose@7.5.3)
   '@lucia-auth/oauth':
     specifier: ^3.3.0
-    version: 3.3.0(lucia@2.7.0)
+    version: 3.3.0(lucia@2.7.1)
   '@tanstack/svelte-table':
     specifier: ^8.10.3
     version: 8.10.3(svelte@4.2.1)
@@ -42,8 +42,8 @@ dependencies:
     specifier: ^1.0.8
     version: 1.0.8
   lucia:
-    specifier: ^2.7.0
-    version: 2.7.0
+    specifier: ^2.7.1
+    version: 2.7.1
   lucia-auth:
     specifier: ^1.8.0
     version: 1.8.0
@@ -110,8 +110,8 @@ devDependencies:
     specifier: ^2.1.2
     version: 2.1.2
   '@types/node':
-    specifier: ^20.7.1
-    version: 20.7.1
+    specifier: ^20.8.0
+    version: 20.8.0
   '@types/nodemailer':
     specifier: ^6.4.11
     version: 6.4.11
@@ -167,8 +167,8 @@ devDependencies:
     specifier: ^0.9.30
     version: 0.9.30(svelte@4.2.1)
   sveltekit-superforms:
-    specifier: ^1.7.3
-    version: 1.7.3(@sveltejs/kit@1.25.1)(svelte@4.2.1)(zod@3.22.2)
+    specifier: ^1.7.4
+    version: 1.7.4(@sveltejs/kit@1.25.1)(svelte@4.2.1)(zod@3.22.2)
   tailwindcss:
     specifier: ^3.3.3
     version: 3.3.3
@@ -180,9 +180,9 @@ devDependencies:
     version: 5.2.2
   vite:
     specifier: ^4.4.9
-    version: 4.4.9(@types/node@20.7.1)
+    version: 4.4.9(@types/node@20.8.0)
   vite-plugin-tailwind-purgecss:
-    specifier: 0.1.3
+    specifier: ^0.1.3
     version: 0.1.3(vite@4.4.9)
   zod:
     specifier: ^3.22.2
@@ -948,22 +948,22 @@ packages:
       yjs: 13.6.2
     dev: false
 
-  /@lucia-auth/adapter-mongoose@3.0.0(lucia@2.7.0)(mongoose@7.5.3):
+  /@lucia-auth/adapter-mongoose@3.0.0(lucia@2.7.1)(mongoose@7.5.3):
     resolution: {integrity: sha512-QMuP8PKXk4PNBlVoXZgHkUXqQ7Wy353zt2K0obLy3JuG5iPvSxyQXu71Ib2S73E0Rpu2LA9CVcLbuQvdVT5wOQ==}
     peerDependencies:
       lucia: ^2.0.0
       mongoose: 6.x - 7.x
     dependencies:
-      lucia: 2.7.0
+      lucia: 2.7.1
       mongoose: 7.5.3
     dev: false
 
-  /@lucia-auth/oauth@3.3.0(lucia@2.7.0):
+  /@lucia-auth/oauth@3.3.0(lucia@2.7.1):
     resolution: {integrity: sha512-vb9BBcZXOeeijGndnvq/AoJJZU6MAKG7UCqV1n9tQ81edSPaWZWsxSDrDjmNFrY0tSyATZMWo/LXbzt/WQdKdA==}
     peerDependencies:
       lucia: ^2.0.0
     dependencies:
-      lucia: 2.7.0
+      lucia: 2.7.1
     dev: false
 
   /@mongodb-js/saslprep@1.1.0:
@@ -1418,7 +1418,7 @@ packages:
       svelte: 4.2.1
       tiny-glob: 0.2.9
       undici: 5.25.2
-      vite: 4.4.9(@types/node@20.7.1)
+      vite: 4.4.9(@types/node@20.8.0)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1434,7 +1434,7 @@ packages:
       '@sveltejs/vite-plugin-svelte': 2.4.6(svelte@4.2.1)(vite@4.4.9)
       debug: 4.3.4
       svelte: 4.2.1
-      vite: 4.4.9(@types/node@20.7.1)
+      vite: 4.4.9(@types/node@20.8.0)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1453,7 +1453,7 @@ packages:
       magic-string: 0.30.4
       svelte: 4.2.1
       svelte-hmr: 0.15.3(svelte@4.2.1)
-      vite: 4.4.9(@types/node@20.7.1)
+      vite: 4.4.9(@types/node@20.8.0)
       vitefu: 0.2.4(vite@4.4.9)
     transitivePeerDependencies:
       - supports-color
@@ -1510,13 +1510,13 @@ packages:
     resolution: {integrity: sha512-q9QGHMGCiBJCHEvd4ZLdasdqXv570agPsUW0CeIm/B8DzhxsYMerD0l3IlI+EQ1A2RWHY2mmM9x1YIuuWxisCg==}
     dev: true
 
-  /@types/node@20.7.1:
-    resolution: {integrity: sha512-LT+OIXpp2kj4E2S/p91BMe+VgGX2+lfO+XTpfXhh+bCk2LkQtHZSub8ewFBMGP5ClysPjTDFa4sMI8Q3n4T0wg==}
+  /@types/node@20.8.0:
+    resolution: {integrity: sha512-LzcWltT83s1bthcvjBmiBvGJiiUe84NWRHkw+ZV6Fr41z2FbIzvc815dk2nQ3RAKMuN2fkenM/z3Xv2QzEpYxQ==}
 
   /@types/nodemailer@6.4.11:
     resolution: {integrity: sha512-Ld2c0frwpGT4VseuoeboCXQ7UJIkK3X7Lx/4YsZEiUHtHsthWAOCYtf6PAiLhMtfwV0cWJRabLBS3+LD8x6Nrw==}
     dependencies:
-      '@types/node': 20.7.1
+      '@types/node': 20.8.0
     dev: true
 
   /@types/normalize-package-data@2.4.2:
@@ -1542,7 +1542,7 @@ packages:
   /@types/whatwg-url@8.2.2:
     resolution: {integrity: sha512-FtQu10RWgn3D9U4aazdwIE2yzphmTJREDqNdODHrbrZmmMqI0vMheC/6NE/J1Yveaj8H+ela+YwWTjq5PGmuhA==}
     dependencies:
-      '@types/node': 20.7.1
+      '@types/node': 20.8.0
       '@types/webidl-conversions': 7.0.1
     dev: false
 
@@ -4379,8 +4379,8 @@ packages:
     resolution: {integrity: sha512-zI8gT2AOpxTPIxYzToEdgoht+GOflrduZiHPsOEmg4/2pThOyCW3o3lXh+Uwh20tJ9QoXwQe9/Omn6PlUG6efw==}
     dev: false
 
-  /lucia@2.7.0:
-    resolution: {integrity: sha512-VwWyG3U3mKUXx7qa5SXAQctBukkLpIW5L/vEVqP2R3mDBQTZIBIAZP/neZl5U6mot7Y9bRQ/2pVKO8djEH1O8A==}
+  /lucia@2.7.1:
+    resolution: {integrity: sha512-EHDTajS1YWA7Q37jd29Far1l4nfZgsWLp4hDQeaQhVpJd2WKQqA3626kJYmOj1CTweVMkE54xFi5JIph+agZkQ==}
     dev: false
 
   /magic-string@0.27.0:
@@ -6346,8 +6346,8 @@ packages:
       magic-string: 0.30.4
       periscopic: 3.1.0
 
-  /sveltekit-superforms@1.7.3(@sveltejs/kit@1.25.1)(svelte@4.2.1)(zod@3.22.2):
-    resolution: {integrity: sha512-Wl7Sz3aO9qGZrMXNucRjrMdQGjZWqGbnSoAfPa2eWZe9oBo3cCcLm7PkeDOJHpO5RoCLiO78OYKO7smUQtjnMg==}
+  /sveltekit-superforms@1.7.4(@sveltejs/kit@1.25.1)(svelte@4.2.1)(zod@3.22.2):
+    resolution: {integrity: sha512-ens+UpBVUo5BnmTsL+4PJ4SsYmabqv8VQ1w2Z6UQvkI0f8NSXQjdpVNpztBDR4RDTdO6ZSm1rF5wODyRpEOBOA==}
     peerDependencies:
       '@sveltejs/kit': 1.x
       svelte: 3.x || 4.x
@@ -6728,10 +6728,10 @@ packages:
     dependencies:
       estree-walker: 3.0.3
       purgecss: 6.0.0-alpha.0
-      vite: 4.4.9(@types/node@20.7.1)
+      vite: 4.4.9(@types/node@20.8.0)
     dev: true
 
-  /vite@4.4.9(@types/node@20.7.1):
+  /vite@4.4.9(@types/node@20.8.0):
     resolution: {integrity: sha512-2mbUn2LlUmNASWwSCNSJ/EG2HuSRTnVNaydp6vMCm5VIqJsjMfbIWtbH2kDuwUVW5mMUKKZvGPX/rqeqVvv1XA==}
     engines: {node: ^14.18.0 || >=16.0.0}
     hasBin: true
@@ -6759,7 +6759,7 @@ packages:
       terser:
         optional: true
     dependencies:
-      '@types/node': 20.7.1
+      '@types/node': 20.8.0
       esbuild: 0.18.20
       postcss: 8.4.31
       rollup: 3.29.4
@@ -6775,7 +6775,7 @@ packages:
       vite:
         optional: true
     dependencies:
-      vite: 4.4.9(@types/node@20.7.1)
+      vite: 4.4.9(@types/node@20.8.0)
     dev: true
 
   /web-streams-polyfill@3.2.1:
