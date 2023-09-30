@@ -13,6 +13,8 @@
 
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS" >
 
+  ![E2E](https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yaml/badge.svg)
+
 </p>
 
 <p align="center">
