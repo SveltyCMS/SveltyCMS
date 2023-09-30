@@ -21,7 +21,7 @@
 	</a>
 
 	<!-- Graphql Api -->
-	<a href="/api/graphql" class="variant-outline-secondary btn gap-2 py-6">
+	<a href="/api/graphql" rel="external" class="variant-outline-secondary btn gap-2 py-6">
 		<iconify-icon icon="teenyicons:graphql-solid" width="24" class="text-tertiary-600" />
 		<p class="uppercase">Graphql api</p>
 	</a>

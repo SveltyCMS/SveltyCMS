@@ -44,7 +44,7 @@
 	</button>
 	<iconify-icon icon="mdi:drag" width="18" class="absolute right-1 top-2" />
 	<div
-		class="-mr-2 h-[calc(100%-2.5em)] overflow-y-scroll"
+		class="-mr-2 h-[calc(100%-2.5em)] overflow-y-scroll min-h-[1em]"
 		use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
 		on:consider={handleDndConsiderCards}
 		on:finalize={handleDndFinalizeCards}
