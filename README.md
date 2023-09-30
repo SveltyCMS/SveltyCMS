@@ -10,13 +10,9 @@
 
 <p align="center">
   <img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS">
-
-  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS" >
-
-  ![E2E](https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yaml/badge.svg)
-
+  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS">
 </p>
-
+  
 <p align="center">
   <a href="https://kit.svelte.dev/">
     <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;" alt="Sveltekit Badge"/>
@@ -33,6 +29,12 @@
   <a href="https://tailwindcss.com/"> 
     <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&" alt="Tailwindcss Badge" /> 
   </a> 
+</p>
+
+<p align="center">
+  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/Rar9/SimpleCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
+  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yml/badge.svg"></a>
+  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
 <h2 align="center">A powerful Headless CMS with sveltekit power</h2>
