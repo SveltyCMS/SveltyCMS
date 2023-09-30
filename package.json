@@ -11,7 +11,7 @@
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",
 		"check:watch": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json --watch",
 		"test": "vitest",
-		"test:e2e": "playwright test",
+		"test:e2e": "pnpm dev & pnpx wait-on http://localhost:5173 && playwright test",
 		"lint": "prettier --check . && eslint .",
 		"format": "prettier  --write ."
 	},
