@@ -43,7 +43,8 @@ export type User = Modify<
 // Sessions are how you validate and keep track of users
 export const session = {
 	_id: {
-		type: String // session id
+		type: String, // session id
+		required: true
 	},
 	user_id: {
 		type: String,
@@ -62,12 +63,15 @@ export const session = {
 // The key table stores the user’s keys.
 export const key = {
 	_id: {
-		type: String // key id in the form of: ${providerId}:${providerUserId}
+		type: String, // key id in the form of: ${providerId}:${providerUserId}
+		required: true
 	},
+	
 	user_id: {
 		type: String,
 		required: true // reference to user(id)
 	},
+
 	providerId: {
 		type: String,
 		required: false,
@@ -75,10 +79,7 @@ export const key = {
 	},
 	// Not strictly required by Lucia, but we'll be using it
 	hashed_password: String,
-	// primary_key: {
-	// 	type: Boolean,
-	// 	required: true // true for primary keys
-	// },
+	
 	expires: {
 		type: Number, // expiration for key if defined (number)
 		default: null
