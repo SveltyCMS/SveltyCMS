@@ -2,6 +2,8 @@
 	import { categories, collection, unAssigned } from '@src/stores/store';
 	import Unassigned from '../config/Unassigned.svelte';
 	import Board from './Board.svelte';
+	import { goto } from '$app/navigation';
+
 
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -9,7 +11,6 @@
 	import ModalAddCategory from './ModalAddCategory.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { generateUniqueId } from '@src/utils/utils';
-	import { updateConfigFile } from '../../api/collections/updateConfig';
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
@@ -43,38 +44,10 @@
 		modalStore.trigger(d);
 	}
 
-	// Modal Trigger - New Collection
-	//TODO: still needs work
-	function modalAddCollection(): void {
-		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
-			ref: ModalAddCategory,
-
-			// Provide default slot content as a template literal
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			title: 'Add New Collection',
-			body: 'Enter Unique Name and an Icon for your new Collection',
-			component: modalComponent
-			// response: (r: any) => {
-			// 	if (r) {
-			// 		columnsData = [
-			// 			...columnsData,
-			// 			{
-			// 				id: r.newCategoryName.toLowerCase().replace(/\s/g, '-'),
-			// 				name: r.newCategoryName,
-			// 				icon: r.newCategoryIcon,
-			// 				items: []
-			// 			}
-			// 		];
-			// 		console.log('response:', r);
-			// 	}
-			// }
-		};
-		modalStore.trigger(d);
-	}
+	function handleAddCollectionClick() {
+    // Navigate to the route where you handle creating new collections
+    goto('/collection/new');
+}
 
 	// Define the structure of an unassigned collection
 	let UnassignedCollections = $unAssigned.map((collection) => ({
@@ -115,13 +88,14 @@
 	//Saving changes to the config.ts
 	async function handleSaveClick() {
 		try {
+			console.log('availableCollection:', availableCollection);
+
 			// Make a POST request to the /api/updateConfig endpoint with the new data
 			const response = await fetch('/api/updateConfig', {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
 				},
-
 				body: JSON.stringify(availableCollection)
 			});
 
@@ -130,6 +104,8 @@
 				console.log('Config file updated successfully');
 			} else {
 				console.error('Error updating config file');
+				const errorDetails = await response.text();
+				console.error('Server response:', errorDetails);
 			}
 		} catch (error) {
 			console.error('Error updating config file:', error);
@@ -151,7 +127,7 @@
 	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">Add Category</button>
 	<!-- add new Collection-->
 	<!-- TODO: only show  when Category exists -->
-	<button on:click={modalAddCollection} type="button" class="variant-filled-success btn-sm rounded-md">Add Collection</button>
+	<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">Add Collection</button>
 </div>
 {#if !availableCollection}
 	<p class="my-2 text-center">Create a first collection to get started</p>

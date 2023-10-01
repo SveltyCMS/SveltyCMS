@@ -25,15 +25,14 @@ export default defineConfig({
 	use: {
 		/* Base URL to use in actions like `await page.goto('/')`. */
 		baseURL: 'http://localhost:5173',
-		
+
 		launchOptions: {
-			slowMo: parseInt(process.env.SLOW_MO || '0'),
+			slowMo: parseInt(process.env.SLOW_MO || '0')
 		},
 
 		/* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
 		trace: 'on-first-retry',
-		video: 'retain-on-failure',
-		
+		video: 'retain-on-failure'
 	},
 
 	/* Configure projects for major browsers */

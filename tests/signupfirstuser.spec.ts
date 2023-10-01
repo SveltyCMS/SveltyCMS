@@ -54,11 +54,8 @@ test('Loads', async ({ page }) => {
 // 	await page.click('button[type="submit"]');
 
 // 	// Expect the user to be redirected to the dashboard or a success message
-// 	// add your expectations here based on your application's behaviour after successful signup 
+// 	// add your expectations here based on your application's behaviour after successful signup
 // 	// e.g., you might expect a certain URL or certain text to appear:
 // 	await page.waitForNavigation();
 // 	await expect(page).toHaveURL('http://localhost:5173/dashboard');
 // });
-
-
-

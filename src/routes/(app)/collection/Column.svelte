@@ -2,12 +2,34 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 
-	import { createEventDispatcher } from 'svelte';
 	import { goto } from '$app/navigation';
-	const dispatch = createEventDispatcher();
 
-	function handleColumnNameClick() {
-		dispatch('columnnameclick', { name, icon });
+	//skeleton
+	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
+	import ModalAddCategory from './ModalAddCategory.svelte';
+
+	function editCategory(category: any): void {
+		const modalComponent: ModalComponent = {
+			ref: ModalAddCategory,
+			props: {
+				existingCategory: category // Pass the entire category object
+			}
+		};
+
+		const d: ModalSettings = {
+			type: 'component',
+			title: 'Edit Category',
+			body: 'Modify your category',
+			component: modalComponent,
+			response: (updatedCategory) => {
+				// Handle the response here
+				category.name = updatedCategory.newCategoryName;
+				category.icon = updatedCategory.newCategoryIcon;
+			}
+		};
+
+		modalStore.trigger(d);
 	}
 
 	const flipDurationMs = 200;
@@ -34,17 +56,18 @@
 
 <div class="relative h-full w-full overflow-hidden">
 	<!-- Column Categories -->
-	<button
-		on:click={handleColumnNameClick}
-		aria-label="Edit column name and icon"
-		class="flex h-10 items-center font-bold"
-	>
+	<div class="flex h-10 items-center font-bold">
 		<iconify-icon {icon} width="18" />
 		<span class="ml-2 dark:text-primary-500">{name}</span>
-	</button>
-	<iconify-icon icon="mdi:drag" width="18" class="absolute right-1 top-2" />
+	</div>
+	<div class="absolute right-1 top-2 flex gap-3">
+		<button class="text-black" on:click={() => editCategory({ name, icon })} aria-label="Edit Category">
+			<iconify-icon icon="mdi:pen" width="18" class="text-surface-300" />
+		</button>
+		<iconify-icon icon="mdi:drag" width="18" class="" />
+	</div>
 	<div
-		class="-mr-2 h-[calc(100%-2.5em)] overflow-y-scroll min-h-[1em]"
+		class="-mr-2 h-[calc(100%-2.5em)] min-h-[1em] overflow-y-scroll"
 		use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
 		on:consider={handleDndConsiderCards}
 		on:finalize={handleDndFinalizeCards}
@@ -62,9 +85,9 @@
 					{item.name}</span
 				>
 
-				<button class="text-black" on:click={() => handleCollectionClick(item.name)}
-					><iconify-icon icon="mdi:pen" width="18" class="pr-0.5" /></button
-				>
+				<button class="text-black" on:click={() => handleCollectionClick(item.name)}>
+					<iconify-icon icon="mdi:pen" width="18" class="pr-0.5" />
+				</button>
 			</div>
 		{/each}
 	</div>
