@@ -80,9 +80,6 @@ export async function getCollectionModels() {
 	});
 }
 
-// to remove a model from mongoose:
-// delete mongodb.models['auth_key'];
-
 // Set up authentication collections if they don't already exist
 
 !mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
@@ -112,15 +109,7 @@ const auth = lucia({
 	// csrfProtection: {
 	// 	allowedSubdomains: ["foo"] // allow https://foo.example.com
 	// }
-	// passwordHash
 
-	// sessionCookie: {
-	// 	name: "user_session", // session cookie name
-	// 	attributes: {
-	// 		// moved previous `sessionCookie` value here
-	// 		sameSite: "strict"
-	// 	}
-	// },
 	// sessionExpiresIn // no change
 });
 

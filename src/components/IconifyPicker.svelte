@@ -53,7 +53,9 @@
 	// function to select an icon
 	function selectIcon(icon: string) {
 		iconselected = icon; // update selected icon name
-		// TODO : close the skeleton popup when the icon was selects
+
+		// TODO: fix close on select
+		//popupStore.close(); // close the popup
 	}
 
 	// reactive statement to update selected icon name on click
@@ -92,6 +94,7 @@
 			width="18"
 			class="absolute -top-3 right-1"
 		/></label
+	
 	>
 	<input
 		type="text"
@@ -104,7 +107,7 @@
 	<!-- Display selected icon -->
 	{#if iconselected}
 		<div class="hidden items-center justify-center gap-2 sm:flex">
-			<!-- todo: display icon.name -->
+			<!--TODO: display icon.name -->
 			<iconify-icon icon={iconselected} width="30" class="text-primary-500" />
 			<p>Name: <span class=" text-primary-500">{iconselected}</span></p>
 		</div>
