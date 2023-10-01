@@ -27,6 +27,14 @@ declare global {
 		// interface PageData {}
 		// interface Platform {}
 	}
+	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
+
+	type Result = {
+		errors: string[];
+		success: boolean;
+		message: string;
+		data: any;
+	};
 
 	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
 }

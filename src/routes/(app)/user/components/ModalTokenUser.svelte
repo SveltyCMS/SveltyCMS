@@ -33,20 +33,17 @@
 	let response: any;
 
 	const { form, constraints, allErrors, errors, enhance } = superForm(addUserForm, {
-
 		id: 'addUser',
 		validators: addUserTokenSchema,
 		defaultValidator: 'clear',
 		applyAction: true,
 		taintedMessage: '',
 		dataType: 'json',
-	
+
 		onSubmit: ({ cancel }) => {
-			console.log ("test")
-			console.log ($allErrors.length)
+			console.log('test');
+			console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
-			
-			
 		},
 		onResult: ({ result, cancel }) => {
 			cancel();
@@ -55,10 +52,6 @@
 			}
 		}
 	});
-	
-
-
-
 
 	// define default role
 	let roleSelected = Object.values(roles)[1];
@@ -77,7 +70,6 @@
 
 	$: $form.role = roleSelected;
 	$: $form.expiresIn = expiresIn;
-	
 </script>
 
 <!-- @component This example creates a simple form modal. -->

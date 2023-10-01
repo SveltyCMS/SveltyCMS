@@ -6,10 +6,11 @@ import { validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
-import { superValidate, message } from 'sveltekit-superforms/server';
+import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
-import { error, fail, redirect, type Actions } from '@sveltejs/kit';
-import { passwordToken } from '@src/utils/passwordToken';
+import { redirect, type Actions } from '@sveltejs/kit';
+import { createToken } from '@src/utils/tokens';
+// import { passwordToken } from '@src/utils/passwordToken';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -22,24 +23,26 @@ export async function load(event) {
 
 	// Validate the user's session.
 	const user = await validate(auth, session);
+	// If the user is not logged in, redirect them to the login page.
+	if (user.status != 200) throw redirect(302, `/login`);
+
+	const AUTH_KEY = mongoose.models['auth_key'];
+	// find user using id
+	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
+	user.user.authMethod = userKey['_id'].split(':')[0];
 
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, addUserTokenSchema);
 	const changePasswordForm = await superValidate(event, changePasswordSchema);
 
 	// If user is authenticated, return the data for the page.
-	if (user.status == 200) {
-		return {
-			allUsers,
-			tokens,
-			user: user.user,
-			addUserForm,
-			changePasswordForm
-		};
-	} else {
-		// If the user is not logged in, redirect them to the login page.
-		throw redirect(302, `/login`);
-	}
+	return {
+		allUsers,
+		tokens,
+		user: user.user,
+		addUserForm,
+		changePasswordForm
+	};
 }
 
 // This action adds a new user to the system.
@@ -68,7 +71,8 @@ export const actions: Actions = {
 			attributes: {
 				email: email,
 				username: null,
-				role: role
+				role: role,
+				blocked: false
 			}
 		});
 
@@ -111,13 +115,14 @@ export const actions: Actions = {
 		}
 
 		// Issue a token for the new user.
-		const tokenHandler = passwordToken(auth as any, 'register', {
-			expiresIn: expirationTime,
-			length: 43 // default
-		});
+		// const tokenHandler = passwordToken(auth as any, 'register', {
+		// 	expiresIn: expirationTime,
+		// 	length: 43 // default
+		// });
 
 		// Issue password token for new user
-		const token = (await tokenHandler.issue(user.id)).toString();
+		const token = await createToken(user.id, 'register', expirationTime * 1000);
+		console.log(token);
 
 		// Send the token to the user via email.
 		console.log('addUser', token);
@@ -145,7 +150,7 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
-		// console.log('changePassword');
+		console.log('changePassword');
 
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
@@ -181,7 +186,6 @@ async function getAllUsers() {
 	const keys = await AUTH_KEY.find({});
 	const users = [] as any;
 
-	console.log(AUTH_KEY, AUTH_SESSION, keys, users);
 	for (const key of keys) {
 		const user = await auth.getUser(key['user_id']);
 		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
@@ -200,6 +204,7 @@ async function getAllUsers() {
 			user_id: key['user_id'],
 			active_expires: { $gt: Date.now() }
 		});
+
 		delete user.authMethod; // remove the authMethod property
 		users.push(user);
 	}

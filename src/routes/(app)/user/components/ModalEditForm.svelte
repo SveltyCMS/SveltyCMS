@@ -16,18 +16,23 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
-	import { changePasswordSchema } from '@src/utils/formSchemas';
 
 	// Lucia
 	const user = $page.data.user;
+	export let isGivenData: boolean = false; // to check if data is given or not
+	export let username: string | null = null;
+	export let email: string | null = null;
+	export let role: string | null = null;
+	export let userId: string | null = null;
 
 	// Form Data
 	const formData = {
-		username: user?.username,
-		email: user?.email,
+		userId: isGivenData ? userId : user?.userId,
+		username: isGivenData ? username : user?.username,
+		email: isGivenData ? email : user?.email,
 		password: '',
 		confirmPassword: '',
-		role: user?.role
+		role: isGivenData ? role : user?.role
 	};
 
 	let showPassword = false;
@@ -44,7 +49,7 @@
 		// console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
-		if (formData.password !== null && formData.password === formData.confirmPassword) {
+		if ((isGivenData && userId != user?.userId) || (formData.password !== null && formData.password === formData.confirmPassword)) {
 			modalStore.close();
 		} else {
 			console.log('error');
@@ -100,7 +105,7 @@
 		</div>
 
 		<!-- admin area -->
-		{#if user?.role == roles.admin}
+		{#if isGivenData ? role : user?.role == roles.admin}
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -153,112 +158,113 @@
 				{/if}
 			</div>
 		{/if}
-
-		<!-- Password field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-			{#if showPassword}
-				<input
-					bind:value={formData.password}
-					on:keydown={() => (errorStatus.password.status = false)}
-					color={errorStatus.password.status ? 'red' : 'base'}
-					type="text"
-					name="password"
-					autocomplete="current-password"
-					id="password"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
-					required
-				/>{:else}
-				<input
-					bind:value={formData.password}
-					on:keydown={() => (errorStatus.password.status = false)}
-					color={errorStatus.password.status ? 'red' : 'base'}
-					type="password"
-					name="password"
-					autocomplete="current-password"
-					id="password"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
-					required
-				/>{/if}
-			<label
-				for="password"
-				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>{$LL.USER_NewPassword()}<span class="ml-2 text-error-500">*</span></label
-			>
-
-			<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
+		{#if (user?.userId == userId || !isGivenData) && user?.authMethod == 'email'}
+			<!-- Password field -->
+			<div class="group relative z-0 mb-6 w-full">
+				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
 				{#if showPassword}
-					<iconify-icon icon="bi:eye-fill" color="base" width="24" />
-				{:else}
-					<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
-				{/if}
-			</button>
-
-			{#if errorStatus.password.status}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{errorStatus.password.msg}
-				</div>
-			{/if}
-		</div>
-
-		<!-- Password Confirm -->
-		<div class="group relative z-0 mb-6 w-full">
-			<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-
-			{#if showPassword}
-				<input
-					bind:value={formData.confirmPassword}
-					on:keydown={() => (errorStatus.confirm.status = false)}
-					color={errorStatus.confirm.status ? 'red' : 'base'}
-					type="text"
-					name="confirm_password"
-					id="confirm_password"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
-					required
-				/><label
-					for="confirm_password"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-				>
-			{:else}
-				<input
-					bind:value={formData.confirmPassword}
-					on:keydown={() => (errorStatus.confirm.status = false)}
-					color={errorStatus.confirm.status ? 'red' : 'base'}
-					type="password"
-					name="confirm_password"
-					id="confirm_password"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
-					required
-				/>
+					<input
+						bind:value={formData.password}
+						on:keydown={() => (errorStatus.password.status = false)}
+						color={errorStatus.password.status ? 'red' : 'base'}
+						type="text"
+						name="password"
+						autocomplete="current-password"
+						id="password"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						placeholder=" "
+						required
+					/>{:else}
+					<input
+						bind:value={formData.password}
+						on:keydown={() => (errorStatus.password.status = false)}
+						color={errorStatus.password.status ? 'red' : 'base'}
+						type="password"
+						name="password"
+						autocomplete="current-password"
+						id="password"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						placeholder=" "
+						required
+					/>{/if}
 				<label
-					for="confirm_password"
+					for="password"
 					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-				>{/if}
+					>{$LL.USER_NewPassword()}<span class="ml-2 text-error-500">*</span></label
+				>
 
-			<!-- svelte-ignore a11y-click-events-have-key-events -->
-			<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
-				{#if showPassword}
-					<iconify-icon icon="bi:eye-fill" color="base" width="24" />
-				{:else}
-					<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+				<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
+					{#if showPassword}
+						<iconify-icon icon="bi:eye-fill" color="base" width="24" />
+					{:else}
+						<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+					{/if}
+				</button>
+
+				{#if errorStatus.password.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{errorStatus.password.msg}
+					</div>
 				{/if}
-			</button>
+			</div>
 
-			{#if errorStatus.confirm.status}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{errorStatus.confirm.msg}
-				</div>
-			{/if}
-		</div>
+			<!-- Password Confirm -->
+			<div class="group relative z-0 mb-6 w-full">
+				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
+
+				{#if showPassword}
+					<input
+						bind:value={formData.confirmPassword}
+						on:keydown={() => (errorStatus.confirm.status = false)}
+						color={errorStatus.confirm.status ? 'red' : 'base'}
+						type="text"
+						name="confirm_password"
+						id="confirm_password"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						placeholder=" "
+						required
+					/><label
+						for="confirm_password"
+						class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+					>
+				{:else}
+					<input
+						bind:value={formData.confirmPassword}
+						on:keydown={() => (errorStatus.confirm.status = false)}
+						color={errorStatus.confirm.status ? 'red' : 'base'}
+						type="password"
+						name="confirm_password"
+						id="confirm_password"
+						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
+						placeholder=" "
+						required
+					/>
+					<label
+						for="confirm_password"
+						class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
+						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
+					>{/if}
+
+				<!-- svelte-ignore a11y-click-events-have-key-events -->
+				<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
+					{#if showPassword}
+						<iconify-icon icon="bi:eye-fill" color="base" width="24" />
+					{:else}
+						<iconify-icon icon="bi:eye-slash-fill" class="text-surface-500" width="24" />
+					{/if}
+				</button>
+
+				{#if errorStatus.confirm.status}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{errorStatus.confirm.msg}
+					</div>
+				{/if}
+			</div>
+		{/if}
 
 		<!-- admin area -->
-		{#if user?.role == roles.admin}
+		{#if isGivenData ? role : user?.role == roles.admin}
 			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="sm:w-1/4">Role:</div>
 				<div class="flex-auto">
@@ -267,16 +273,16 @@
 					<div class="flex flex-wrap gap-2 space-x-2">
 						{#each Object.values(roles) as r}
 							<span
-								class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
 									// filterRole(r);
-									roleSelected = r;
+									formData.role = r;
 								}}
 								on:keypress
 								role="button"
 								tabindex="0"
 							>
-								{#if roleSelected === r}<span><iconify-icon icon="fa:check" /></span>{/if}
+								{#if formData.role === r}<span><iconify-icon icon="fa:check" /></span>{/if}
 								<span class="capitalize">{r}</span>
 							</span>
 						{/each}

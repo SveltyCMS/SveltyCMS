@@ -9,9 +9,11 @@
 
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	// Popup Combobox
 	let listboxValue: string = 'edit';
+	export let selectedRows;
 
 	let Combobox: PopupSettings = {
 		event: 'click',
@@ -23,11 +25,20 @@
 
 	// modals
 	function modalUserForm(): void {
+		if (selectedRows.length === 0) return console.log('No user selected');
+		console.log(selectedRows[0].data);
+
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
 			// Add your props as key/value pairs
-			props: { background: 'bg-red-500' },
+			props: {
+				isGivenData: true,
+				username: selectedRows[0].data.username,
+				email: selectedRows[0].data.email,
+				role: selectedRows[0].data.role,
+				userId: selectedRows[0].data.userId
+			},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -38,8 +49,18 @@
 			body: 'Modify your data and then press Save.',
 			component: modalComponent,
 			// Pass abitrary data to the component
-			response: (r: any) => {
-				if (r) console.log('response:', r);
+			response: async (r: any) => {
+				if (r) {
+					const res = await fetch('/api/user/editUser', {
+						method: 'POST',
+						headers: { 'Content-Type': 'application/json' },
+						body: JSON.stringify({ ...r })
+					});
+
+					if (res.status === 200) {
+						await invalidateAll();
+					}
+				}
 			},
 
 			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditForm }
@@ -84,8 +105,18 @@
 			// modalClasses: '!bg-gradient-to-br from-error-700 via-error-500 to-error-300',
 
 			// TRUE if confirm pressed, FALSE if cancel pressed
-			response: (r: boolean) => {
-				if (r) console.log(`User ${action} confirmed`);
+			response: async (r: boolean) => {
+				if (!r) return;
+				const endpoint = action === 'delete' ? 'deleteUsers' : action === 'block' ? 'blockUsers' : 'unblockUsers';
+				const res = await fetch(`/api/user/${endpoint}`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(selectedRows.map((row) => row.data))
+				});
+
+				if (res.status === 200) {
+					await invalidateAll();
+				}
 			}
 		};
 

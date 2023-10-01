@@ -73,7 +73,7 @@
 
 	let tableData = [];
 	let tableDataUserToken = [];
-
+	export let selectedRows: any[] = [];
 	//Load Table data
 	onMount(async () => {
 		// Load All available Users
@@ -203,8 +203,8 @@
 				<button type="button" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)} class="variant-ghost-surface btn-icon sm:hidden">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
-
-				<Multibutton on:crudAction={handleCRUDAction} />
+				<!-- {JSON.stringify(selectedRows)} -->
+				<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
 			</div>
 
 			{#if showMoreUserList}
@@ -213,13 +213,13 @@
 				</div>
 			{/if}
 		</div>
-
 		{#if tableData.length > 0}
 			<TanstackTable
 				data={tableData}
 				{items}
 				{tableData}
 				dataSourceName="AdminArea"
+				bind:selectedRows
 				bind:globalSearchValue
 				bind:filterShow
 				bind:columnShow
@@ -241,7 +241,7 @@
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
-				<Multibutton />
+				<Multibutton {selectedRows} />
 				<!-- <Multibutton on:crudAction={handleCRUDAction} /> -->
 			</div>
 
@@ -258,6 +258,7 @@
 				items={itemsUserToken}
 				tableData={tableDataUserToken}
 				dataSourceName="AdminArea"
+				bind:selectedRows
 				bind:globalSearchValue
 				bind:filterShow
 				bind:columnShow

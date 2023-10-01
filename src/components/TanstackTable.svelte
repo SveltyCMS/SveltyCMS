@@ -188,6 +188,17 @@
 	//tick logic
 	let SelectAll = false;
 	let selectedMap = writable({});
+	export let selectedRows: any[] = [];
+
+	selectedMap.subscribe((map) => {
+		selectedRows = Object.keys(map)
+			.filter((key) => map[key])
+			.map((key, index) => ({
+				index,
+				key,
+				data: tableData.find((_, i) => i == parseInt(key))
+			}));
+	});
 
 	// TODO:debug why the first 2 row don't get selected?
 	function updateSelectedMap(selectAll: boolean) {
