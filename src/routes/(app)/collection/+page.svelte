@@ -4,7 +4,6 @@
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
 
-
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -45,9 +44,9 @@
 	}
 
 	function handleAddCollectionClick() {
-    // Navigate to the route where you handle creating new collections
-    goto('/collection/new');
-}
+		// Navigate to the route where you handle creating new collections
+		goto('/collection/new');
+	}
 
 	// Define the structure of an unassigned collection
 	let UnassignedCollections = $unAssigned.map((collection) => ({

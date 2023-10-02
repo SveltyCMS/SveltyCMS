@@ -91,6 +91,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
 	// Retrieve the form data from the request object
 	const data = await request.formData();
+
 	// Create an empty object named body
 	const body = {};
 	// Iterate over the keys of the form data
@@ -103,6 +104,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			body[key] = data.get(key) as string;
 		}
 	}
+
+	console.log('body', body);
 
 	try {
 		// Call saveImages function with arguments data and params.collection and assign its return value to a variable named files

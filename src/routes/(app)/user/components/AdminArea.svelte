@@ -70,6 +70,7 @@
 	// AdminUser Data
 	import { onMount } from 'svelte';
 	import Role from './Role.svelte';
+	import MultibuttonToken from './MultibuttonToken.svelte';
 
 	let tableData = [];
 	let tableDataUserToken = [];
@@ -104,6 +105,12 @@
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
+		},
+		{
+			header: 'Blocked',
+			accessorKey: 'blocked',
+			id: 'blocked',
+			cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
 		},
 		{ header: 'Email', accessorKey: 'email', id: 'email' },
 		{
@@ -241,7 +248,7 @@
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
-				<Multibutton {selectedRows} />
+				<MultibuttonToken {selectedRows} />
 				<!-- <Multibutton on:crudAction={handleCRUDAction} /> -->
 			</div>
 

@@ -108,6 +108,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 		}
 	}
 
+	if (_files.length === 0) return null;
 	// Check if directories exist and create them if necessary
 	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
 	if (!fs.existsSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}`)) {
