@@ -1,8 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { roles } from '@src/collections/types';
-	// define default role
-	let roleSelected = Object.values(roles)[0];
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -266,11 +264,9 @@
 		<!-- admin area -->
 		{#if isGivenData ? role : user?.role == roles.admin}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="sm:w-1/4">Role:</div>
+				<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserEdit_Role()}</div>
 				<div class="flex-auto">
-					<!-- TODO:  bind:value={formData.role}  -->
-
-					<div class="flex flex-wrap gap-2 space-x-2">
+					<div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
 						{#each Object.values(roles) as r}
 							<span
 								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
@@ -292,8 +288,15 @@
 		{/if}
 	</form>
 	<!-- prettier-ignore -->
-	<footer class="modal-footer {parent.regionFooter}">
-        <button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
+	<footer class="modal-footer {parent.regionFooter} justify-between">
+
+		<button type="button" on:click={deleteUser} class="variant-filled-error btn">
+			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
+		</button>
+
+		<div class="flex justify-between gap-2">
+        <button class="btn variant-outline-secondary" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
         <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Save</button>
+	</div>
     </footer>
 </div>

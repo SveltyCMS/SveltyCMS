@@ -16,6 +16,8 @@ const de: Translation = {
 	SBL_Save: 'Speichern',
 	SBL_Save_message: 'Daten erfolgreich gespeichert',
 	SBL_SignOut: 'Abmelden',
+	SBL_Konfiguration: 'Systemkonfiguration',
+	SBL_GithubDiskussion: 'Github Diskussion',
 
 	// Collections
 	CollectionCategory_Collection: 'Kollektion',
@@ -47,7 +49,7 @@ const de: Translation = {
 	USER_Delete: 'Löschen',
 	USER_Cancel: 'Abbrechen',
 	USER_Save: 'Speichern',
-	USER_Profile: 'Benutzerprofil',
+	USER_PageTitle: 'Benutzerprofil',
 	USER_Edit_Avatar: 'Avatar bearbeiten',
 	USER_Role: 'Rolle',
 	USER_Generate: 'Email Registrierungstoken',
@@ -57,16 +59,21 @@ const de: Translation = {
 	USER_ListToken: 'Token-Liste:',
 	USER_ListUser: 'Benutzerliste:',
 	USER_AdminArea: 'Admin Bereich:',
-	USER_Edit_Title: 'Benutzerdaten bearbeiten:',
-	USER_Edit_Body: 'Ändern Sie Ihre Daten und drücken Sie dann auf Speichern.',
-	USER_Avatar_Title: 'Bearbeiten Sie Ihren Avatar:',
-	USER_Avatar_Body: 'Laden Sie ein neues Avatarbild hoch und drücken Sie dann auf Speichern.',
-	USER_FileSize: 'Die Dateigröße muss weniger als 5 MB betragen',
-	USER_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
-	USER_Avatar_Unsupported: 'Unterstützte Formate: jpeg, jpg, png, webp, avif, svg, gif',
-	USER_Confirm_Title: 'Bitte bestätigen Sie die Löschung des Benutzers:',
-	USER_Confirm_Body: 'Dies kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?',
-	USER_Confirm_Delete: 'Benutzer löschen',
+
+	// Media Gallery
+	MEDIAGALLERY_Pagetitle: 'Mediengalerie',
+	MEDIAGALLERY_Display: 'Anzeige',
+	MEDIAGALLERY_Grid: 'Raster',
+	MEDIAGALLERY_Tabelle: 'Tabelle',
+	MEDIAGALLERY_Größe: 'Größe',
+	MEDIAGALLERY_Small: 'Klein',
+	MEDIAGALLERY_Medium: 'Mittel',
+	MEDIAGALLERY_Large: 'Groß',
+
+	// System Configuration
+	SYSTEMCONFIG_Pagetitle: 'Systemkonfiguration',
+	SYSTEMCONFIG_Body: 'Wählen Sie Ihre Konfiguration',
+	SYSTEMCONFIG_SystemBuilder: 'System Builder',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste der Benutzer:',
@@ -79,8 +86,41 @@ const de: Translation = {
 	TANSTACK_Total: 'Gesamt',
 	TANSTACK_Row: 'Zeile',
 	TANSTACK_Rows: 'Zeilen',
+	TANSTACK_Yes: 'Ja',
+	TANSTACK_No: 'Nein',
 
-	//Modals Category
+	//Modal User Token
+	MODAL_UserToken_Title: 'Generiere ein Benutzer-Registrierungs-Token',
+	MODAL_UserToken_Body: 'Trage die E-Mai, Rolle & die Gültigkeit ein & drücke auf Senden.',
+	MODAL_UserToken_Role: 'Benutzerrolle:',
+	MODAL_UserToken_Validity: 'Token Gültigkeit:',
+	MODAL_UserToken_Cancel: 'Abbrechen',
+	MODAL_BenutzerToken_Senden: 'Senden',
+
+	//Modal User Avatar
+	MODAL_UserAvatar_Title: 'Bearbeiten Sie Ihren Avatar:',
+	MODAL_UserAvatar_Body: 'Avatarbild hochladen und Speichern drücken.',
+	MODAL_UserAvatar_FileSize: 'Die Dateigröße muss weniger als 5 MB betragen',
+	MODAL_UserAvatar_Unsupported: 'Unterstützte Formate: jpeg, jpg, png, webp, avif, svg, gif',
+	MODAL_UserAvatar_FilesAllowed:  'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
+	MODAL_UserAvatar_Delete: 'Löschen',
+	MODAL_UserAvatar_Cancel: 'Abbrechen',
+	MODAL_UserAvatar_Save: 'Speichern',
+
+	//Modal User Edit
+	MODAL_UserEdit_Title: 'Benutzerdaten bearbeiten:',
+	MODAL_UserEdit_Body: 'Ändern Sie Ihre Daten und Speichern drücken.',
+	MODAL_UserEdit_Role: 'Benutzer Role:',
+	MODAL_UserEdit_Cancel: 'Abbrechen',
+	MODAL_UserEdit_Save: 'Speichern',
+
+	//Modal User Delete
+	MODAL_UserConfirm_Title: 'Bitte bestätigen Sie die Löschung des Benutzers:',
+	MODAL_UserConfirm_Body: 'Dies kann nicht rückgängig gemacht werden. Sind Sie sicher, dass Sie fortfahren möchten?',
+	MODAL_UserConfirm_Cancel: 'Abbrechen',
+	MODAL_UserConfirm_Delete: 'Benutzer löschen',
+
+	//Modal Category
 	MODAL_Category_Title: 'Kategorie bearbeiten',
 	MODAL_Category_Body: 'Ändern Sie Ihre Kategorie',
 	MODAL_Category_Name: 'Kategoriename:',

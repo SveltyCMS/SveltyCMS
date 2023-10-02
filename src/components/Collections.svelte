@@ -69,7 +69,8 @@
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->
-<div class="mt-2">
+<!-- TODO: optimize scrollbar for smaller screen height -->
+<div class="mt-2 overflow-y-auto">
 	<!-- Search -->
 	{#if $toggleLeftSidebar === 'collapsed'}
 		<!-- show the search icon button -->
@@ -98,6 +99,8 @@
 	<Accordion regionControl="bg-surface-500 uppercase text-white hover:!bg-surface-400">
 		<!-- Collection Parents -->
 		{#each filteredCategories as category}
+
+		<!-- TODO: Only keep one accordion open -->
 			<AccordionItem
 				bind:open={category.open}
 				regionPanel={`divide-y divide-black my-0 ${

@@ -10,7 +10,6 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
 import { createToken } from '@src/utils/tokens';
-// import { passwordToken } from '@src/utils/passwordToken';
 
 // Load function to check if user is authenticated
 export async function load(event) {

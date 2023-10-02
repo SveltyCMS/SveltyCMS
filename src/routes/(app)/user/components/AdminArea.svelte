@@ -27,8 +27,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: 'Generate a New User Registration Token',
-			body: 'Add Users Email and select a Role & Validity, then press Send.',
+			title: $LL.MODAL_UserToken_Title(),
+			body: $LL.MODAL_UserToken_Body(),
 			component: modalComponent,
 
 			// Pass arbitrary data to the component
@@ -70,6 +70,7 @@
 	// AdminUser Data
 	import { onMount } from 'svelte';
 	import Role from './Role.svelte';
+	import Boolean from './Boolean.svelte';
 	import MultibuttonToken from './MultibuttonToken.svelte';
 
 	let tableData = [];
@@ -88,6 +89,13 @@
 	// Display User Columns
 	let items = [
 		{
+			header: 'Blocked',
+			accessorKey: 'blocked',
+			id: 'blocked',
+			// cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
+			cell: (info: any) => flexRender(Boolean, { value: info.getValue() })
+		},
+		{
 			header: 'Avatar',
 			accessorKey: 'avatar',
 			id: 'avatar',
@@ -105,12 +113,6 @@
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
-		},
-		{
-			header: 'Blocked',
-			accessorKey: 'blocked',
-			id: 'blocked',
-			cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
 		},
 		{ header: 'Email', accessorKey: 'email', id: 'email' },
 		{
@@ -175,7 +177,7 @@
 
 <div class="border-td mt-2 flex flex-col border-t-2">
 	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">{$LL.USER_AdminArea()}</p>
-	<div class=" flex flex-col flex-wrap items-center justify-between gap-2 sm:flex-row">
+	<div class=" flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<!-- Email Token -->
 		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />

@@ -16,6 +16,8 @@ const es: Translation = {
 	SBL_Save: 'Guardar',
 	SBL_Save_message: 'Datos guardados con éxito',
 	SBL_SignOut: 'Cerrar sesión',
+	SBL_Configuration: 'Configuración del sistema',
+	SBL_GithubDiscussion: 'Discusión Github',
 
 	// Collections
 	CollectionCategory_Collection: 'Recopilación',
@@ -47,7 +49,7 @@ const es: Translation = {
 	USER_Delete: 'Eliminar',
 	USER_Cancel: 'Cancelar',
 	USER_Save: 'Guardar',
-	USER_Profile: 'Perfil de usuario',
+	USER_PageTitle: 'Perfil de usuario',
 	USER_Edit_Avatar: 'Editar Avatar',
 	USER_Role: 'Rol',
 	USER_Generate: 'Email token de registro',
@@ -57,16 +59,21 @@ const es: Translation = {
 	USER_ListToken: 'Lista de tokens:',
 	USER_ListUser: 'Lista de usuarios:',
 	USER_AdminArea: 'Área de administración:',
-	USER_Edit_Title: 'Editar datos de usuario:',
-	USER_Edit_Body: 'Modifica tus datos y luego pulsa Guardar',
-	USER_Avatar_Title: 'Edita tu Avatar:',
-	USER_Avatar_Body: 'Sube una nueva imagen de avatar y presiona Guardar',
-	USER_FileSize: 'El tamaño del archivo debe ser inferior a 5MB',
-	USER_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF permitidos',
-	USER_Avatar_Unsupported: 'Formatos soportados: jpeg, jpg, png, webp, avi , svg, gif',
-	USER_Confirm_Title: 'Por favor, confirme la eliminación del usuario:',
-	USER_Confirm_Body: 'Esto no se puede deshacer. ¿Está seguro de que desea continuar?',
-	USER_Confirm_Delete: 'Eliminar usuario',
+
+	// Media Gallery
+	MEDIAGALLERY_Pagetitle: 'Galería multimedia',
+	MEDIAGALLERY_Display: 'Pantalla',
+	MEDIAGALLERY_Grid: 'Cuadrícula',
+	MEDIAGALLERY_Table: 'Tabla',
+	MEDIAGALLERY_Size: 'Tamaño',
+	MEDIAGALLERY_Small: 'Pequeño',
+	MEDIAGALLERY_Medium: 'Mediana',
+	MEDIAGALLERY_Large: 'Grande',
+
+	// System Configuration
+	SYSTEMCONFIG_Pagetitle: 'Configuración del Sistema',
+	SYSTEMCONFIG_Body: 'Seleccione su Configuración',
+	SYSTEMCONFIG_SystemBuilder: 'Constructor del Sistema',
 
 	// Tanstack
 	TANSTACK_UserList: 'Lista de usuarios:',
@@ -79,8 +86,41 @@ const es: Translation = {
 	TANSTACK_Total: 'Total',
 	TANSTACK_Row: 'Fila',
 	TANSTACK_Rows: 'filas',
+	TANSTACK_Yes: 'Sí',
+	TANSTACK_No: 'No',
 
-	//Modals Category
+	//Modal User Token
+	MODAL_UserToken_Title: 'Generar un nuevo token de registro de usuario',
+	MODAL_UserToken_Body: 'Proporcione el Rol de Email y Validez del Usuario, luego presione Enviar',
+	MODAL_UserToken_Role: 'Rol de Usuario:',
+	MODAL_UserToken_Validity: 'Validez del token:',
+	MODAL_UserToken_Cancel: 'Cancelar',
+	MODAL_UserToken_Send: 'Enviar',
+
+	//Modal User Avatar
+	MODAL_UserAvatar_Title: 'Edita tu Avatar:',
+	MODAL_UserAvatar_Body: 'Sube una nueva imagen de avatar y presiona Guardar',
+	MODAL_UserAvatar_FileSize: 'El tamaño del archivo debe ser inferior a 5MB',
+	MODAL_UserAvatar_Unsupported: 'Formatos soportados: jpeg, jpg, png, webp, avi , svg, gif',
+	MODAL_UserAvatar_FilesAllowed:'PNG, JPEG, GIF, SVG, WEBP, AVIF permitidos',
+	MODAL_UserAvatar_Delete: 'Borrar',
+	MODAL_UserAvatar_Cancel: 'Cancelar',
+	MODAL_UserAvatar_Save: 'Guardar',
+
+	//Modal User Edit
+	MODAL_UserEdit_Title: 'Editar datos de usuario:',
+	MODAL_UserEdit_Body: 'Modifica tus datos y luego pulsa Guardar',
+	MODAL_UserEdit_Role: 'Rol de usuario:',
+	MODAL_UserEdit_Cancel: 'Cancelar',
+	MODAL_UserEdit_Save: 'Guardar',
+
+	//Modal User Delete
+	MODAL_UserConfirm_Title: 'Por favor, confirme la eliminación del usuario:',
+	MODAL_UserConfirm_Body: 'Esto no se puede deshacer. ¿Está seguro de que desea continuar?',
+	MODAL_UserConfirm_Cancel: 'Cancelar',
+	MODAL_UserConfirm_Delete: 'Eliminar usuario',
+
+	//Modal Category
 	MODAL_Category_Title: 'Modifica tu categoría',
 	MODAL_Category_Body: 'Modifica tu categoría',
 	MODAL_Category_Name: 'Nombre de categoría:',
@@ -137,8 +177,7 @@ const es: Translation = {
 	LOGIN_ZOD_Token_Error: 'Token incorrecto!',
 	LOGIN_ZOD_Token_Expired: 'Token expirado!',
 	LOGIN_ZOD_Forgotten_Error: 'No hay cuenta en esta dirección de correo electrónico',
-	LOGIN_ZOD_Forgotten_email:
-		'Hola,<br><br>Hemos recibido una solicitud para restablecer su contraseña. El token de restablecimiento de contraseña es:<br><br>{token:string}<br><br>Por favor, sigue el siguiente enlace para restablecer tu contraseña:<br>{link:string}<br><br>Si no has solicitado este restablecimiento, por favor, ignora este mensaje.<br><br>Atentamente,<br>Su equipo de soporte',
+	LOGIN_ZOD_Forgotten_email: 'Hola,<br><br>Hemos recibido una solicitud para restablecer su contraseña. El token de restablecimiento de contraseña es:<br><br>{token:string}<br><br>Por favor, sigue el siguiente enlace para restablecer tu contraseña:<br>{link:string}<br><br>Si no has solicitado este restablecimiento, por favor, ignora este mensaje.<br><br>Atentamente,<br>Su equipo de soporte',
 
 	// Entry List
 	ENTRYLIST_Untranslated: 'Sin datos',

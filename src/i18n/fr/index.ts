@@ -16,6 +16,8 @@ const fr: Translation = {
 	SBL_Save: 'Enregistrer',
 	SBL_Save_message: 'Données enregistrées avec succès',
 	SBL_SignOut: 'Déconnexion',
+	SBL_Configuration : "System Configuration",
+	SBL_GithubDiscussion : "Github Discussion",
 
 	// Collections
 	CollectionCategory_Collection: 'Collection',
@@ -47,7 +49,7 @@ const fr: Translation = {
 	USER_Delete: 'Supprimer',
 	USER_Cancel: 'Annuler',
 	USER_Save: 'Enregistrer',
-	USER_Profile: 'Profil utilisateur',
+	USER_PageTitle: 'Profil utilisateur',
 	USER_Edit_Avatar: "Modifier l'avatar",
 	USER_Role: 'Rôle',
 	USER_Generate: "Générer un jeton d'inscription utilisateur par email",
@@ -57,16 +59,21 @@ const fr: Translation = {
 	USER_ListToken: 'Liste de jetons :',
 	USER_ListUser: 'Liste des utilisateurs:',
 	USER_AdminArea: 'Zone Admin:',
-	USER_Edit_Title: "Modifier les données de l'utilisateur:",
-	USER_Edit_Body: 'Modifiez vos données et appuyez sur Enregistrer',
-	USER_Avatar_Title: 'Modifiez votre avatar :',
-	USER_Avatar_Body: "Téléchargez une nouvelle image d'avatar et appuyez sur Enregistrer",
-	USER_FileSize: 'La taille du fichier doit être inférieure à 5MB',
-	USER_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF autorisés',
-	USER_Avatar_Unsupported: 'Formats pris en charge : jpeg, jpg, png, webp, avi , svg, gif',
-	USER_Confirm_Title: "Veuillez confirmer la suppression de l'utilisateur :",
-	USER_Confirm_Body: 'Ceci ne peut pas être annulé. Êtes-vous sûr de vouloir continuer ?',
-	USER_Confirm_Delete: "Supprimer l'utilisateur",
+
+	// Media Gallery
+	MEDIAGALLERY_Pagetitle : "Galerie des médias",
+	MEDIAGALLERY_Display : 'Affichage',
+	MEDIAGALLERY_Grid : "Grille",
+	MEDIAGALLERY_Table : "Table",
+	MEDIAGALLERY_Size : "Taille",
+	MEDIAGALLERY_Small : "Petit",
+	MEDIAGALLERY_Medium : "Moyen",
+	MEDIAGALLERY_Large : "Grand",
+
+	// System Configuration
+	SYSTEMCONFIG_Pagetitle : "Configuration du système",
+	SYSTEMCONFIG_Body : 'Sélectionnez votre configuration',
+	SYSTEMCONFIG_SystemBuilder : 'Constructeur de système',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste des utilisateurs:',
@@ -79,8 +86,41 @@ const fr: Translation = {
 	TANSTACK_Total: 'Total',
 	TANSTACK_Row: 'Ligne',
 	TANSTACK_Rows: 'Lignes',
+	TANSTACK_Yes : "Oui",
+	TANSTACK_No : "Non",
 
-	//Modals Category
+	//Modal User Token
+	MODAL_UserToken_Title : "Générer un nouveau jeton d'enregistrement d'utilisateur",
+	MODAL_UserToken_Body : "Fournir le rôle et la validité de l'email de l'utilisateur, puis appuyer sur Envoyer",
+	MODAL_UserToken_Role : "Rôle de l'utilisateur:",
+	MODAL_UserToken_Validity : 'Validité du jeton:',
+	MODAL_UserToken_Cancel : 'Annuler',
+	MODAL_UserToken_Send : 'Send',
+
+	//Modal User Avatar
+	MODAL_UserAvatar_Title: 'Modifiez votre avatar :',
+	MODAL_UserAvatar_Body: "Téléchargez une nouvelle image d'avatar et appuyez sur Enregistrer",
+	MODAL_UserAvatar_FileSize: 'La taille du fichier doit être inférieure à 5MB',
+	MODAL_UserAvatar_Unsupported: 'Formats pris en charge : jpeg, jpg, png, webp, avi , svg, gif',
+	MODAL_UserAvatar_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF autorisés',
+	MODAL_UserAvatar_Delete: 'Supprimer',
+	MODAL_UserAvatar_Cancel: 'Annuler',
+	MODAL_UserAvatar_Save: 'Save',
+
+	//Modal User Edit
+	MODAL_UserEdit_Title: "Modifier les données de l'utilisateur:",
+	MODAL_UserEdit_Body: 'Modifiez vos données et appuyez sur Enregistrer',
+	MODAL_UserEdit_Role : "Rôle d'utilisateur:",
+	MODAL_UserEdit_Cancel: 'Annuler',
+	MODAL_UserEdit_Save: 'Save',
+
+	//Modal User Delete
+	MODAL_UserConfirm_Title: "Veuillez confirmer la suppression de l'utilisateur :",
+	MODAL_UserConfirm_Body: 'Ceci ne peut pas être annulé. Êtes-vous sûr de vouloir continuer ?',
+	MODAL_UserConfirm_Cancel: 'Annuler',
+	MODAL_UserConfirm_Delete: "Supprimer l'utilisateur",
+
+	//Modal Category
 	MODAL_Category_Title : 'Modifier la catégorie',
 	MODAL_Category_Body : "Modifiez votre catégorie",
 	MODAL_Category_Name: 'Nom de la catégorie:',

@@ -51,14 +51,14 @@
 					if (val.size > 5242880) {
 						ctx.addIssue({
 							code: z.ZodIssueCode.custom,
-							message: $LL.USER_FileSize()
+							message: $LL.MODAL_UserAvatar_FileSize()
 						});
 					}
 
 					if (!imageTypes.includes(val.type)) {
 						ctx.addIssue({
 							code: z.ZodIssueCode.custom,
-							message: $LL.USER_Avatar_Unsupported()
+							message: $LL.MODAL_UserAvatar_Unsupported()
 						});
 					}
 				}
@@ -168,28 +168,28 @@
 						></svg
 					>
 				</svelte:fragment>
-				<svelte:fragment slot="meta">{$LL.USER_FilesAllowed()}</svelte:fragment>
+				<svelte:fragment slot="meta">{$LL.MODAL_UserAvatar_FilesAllowed()}</svelte:fragment>
 			</FileDropzone>
 		</div>
 		{#if !files}
-			<small class="block text-center opacity-75">{$LL.USER_FileSize()}</small>
+			<small class="block text-center opacity-75">{$LL.MODAL_UserAvatar_FileSize()}</small>
 		{/if}
 	</form>
 
 	<footer class="modal-footer {parent.regionFooter} justify-between">
 		{#if $avatarSrc !== '/Default_User.svg'}
 			<button type="button" on:click={deleteAvatar} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" />{$LL.USER_Delete()}
+				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
 			</button>
 		{:else}
 			<div></div>
 			<!-- Empty div when using the default avatar -->
 		{/if}
-		<div class="flex justify-between">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>
-				{$LL.USER_Cancel()}
+		<div class="flex justify-between gap-2">
+			<button class="btn variant-outline-secondary" on:click={parent.onClose}>
+				{$LL.MODAL_UserAvatar_Cancel()}
 			</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.USER_Save()}</button>
+			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_UserAvatar_Save()}</button>
 		</div>
 	</footer>
 </div>

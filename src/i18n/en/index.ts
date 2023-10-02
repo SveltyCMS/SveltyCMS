@@ -16,6 +16,8 @@ const en: BaseTranslation = {
 	SBL_Save: 'Save',
 	SBL_Save_message: 'Data saved successfully',
 	SBL_SignOut: 'Sign Out',
+	SBL_Configuration: 'System Configuration',
+	SBL_GithubDiscussion: 'Github Discussion',
 
 	// Collections
 	CollectionCategory_Collection: 'Collection',
@@ -47,7 +49,7 @@ const en: BaseTranslation = {
 	USER_Delete: 'Delete',
 	USER_Cancel: 'Cancel',
 	USER_Save: 'Save',
-	USER_Profile: 'User Profile',
+	USER_PageTitle: 'User Profile',
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
 	USER_Generate: 'Email User Registration token',
@@ -57,16 +59,21 @@ const en: BaseTranslation = {
 	USER_ListToken: 'Token List:',
 	USER_ListUser: 'User List:',
 	USER_AdminArea: 'Admin Area:',
-	USER_Edit_Title: 'Edit User Data:',
-	USER_Edit_Body: 'Modify your data and then press Save.',
-	USER_Avatar_Title: 'Edit your Avatar:',
-	USER_Avatar_Body: 'Upload new Avatar Image und then press Save.',
-	USER_FileSize: 'File size must be less than 5MB',
-	USER_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF allowed.',
-	USER_Avatar_Unsupported: 'Supported formats: jpeg, jpg, png, webp, avif, svg, gif',
-	USER_Confirm_Title: 'Please Confirm User Deletion:',
-	USER_Confirm_Body: 'This cannot be undone. Are you sure you wish to proceed?',
-	USER_Confirm_Delete: 'Delete User',
+
+	// Media Gallery
+	MEDIAGALLERY_Pagetitle: 'Media Gallery',
+	MEDIAGALLERY_Display: 'Display',
+	MEDIAGALLERY_Grid: 'Grid',
+	MEDIAGALLERY_Table: 'Table',
+	MEDIAGALLERY_Size: 'Size',
+	MEDIAGALLERY_Small: 'Small',
+	MEDIAGALLERY_Medium: 'Medium',
+	MEDIAGALLERY_Large: 'Large',
+
+	// System Configuration
+	SYSTEMCONFIG_Pagetitle: 'System Configuration',
+	SYSTEMCONFIG_Body: 'Select your Configuration',
+	SYSTEMCONFIG_SystemBuilder: 'System Builder',
 
 	// Tanstack
 	TANSTACK_UserList: 'List of User:',
@@ -79,7 +86,39 @@ const en: BaseTranslation = {
 	TANSTACK_Total: 'Total',
 	TANSTACK_Row: 'Row',
 	TANSTACK_Rows: 'Rows',
+	TANSTACK_Yes: 'Yes',
+	TANSTACK_No: 'No',
 
+	//Modal User Token
+	MODAL_UserToken_Title: 'Generate a New User Registration Token',
+	MODAL_UserToken_Body: 'Provide Users Email Role & Validity, then press Send.',
+	MODAL_UserToken_Role: 'User Role:',
+	MODAL_UserToken_Validity: 'Token validity:',
+	MODAL_UserToken_Cancel: 'Cancel',
+	MODAL_UserToken_Send: 'Send',
+
+	//Modal User Avatar
+	MODAL_UserAvatar_Title: 'Edit your Avatar:',
+	MODAL_UserAvatar_Body: 'Upload new Avatar Image und then press Save.',
+	MODAL_UserAvatar_FileSize: 'File size must be less than 5MB',
+	MODAL_UserAvatar_Unsupported: 'Supported formats: jpeg, jpg, png, webp, avif, svg, gif',
+	MODAL_UserAvatar_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF allowed.',
+	MODAL_UserAvatar_Delete: 'Delete',
+	MODAL_UserAvatar_Cancel: 'Cancel',
+	MODAL_UserAvatar_Save: 'Save',
+
+	//Modal User Edit
+	MODAL_UserEdit_Title: 'Edit User Data:',
+	MODAL_UserEdit_Body: 'Modify your data and then press Save.',
+	MODAL_UserEdit_Role: 'User Role:',
+	MODAL_UserEdit_Cancel: 'Cancel',
+	MODAL_UserEdit_Save: 'Save',
+
+	//Modal User Delete
+	MODAL_UserConfirm_Title: 'Please Confirm User Deletion:',
+	MODAL_UserConfirm_Body: 'This cannot be undone. Are you sure you wish to proceed?',
+	MODAL_UserConfirm_Cancel: 'Cancel',
+	MODAL_UserConfirm_Delete: 'Delete User',
 
 	//Modal Category
 	MODAL_Category_Title: 'Edit Category',

@@ -5,7 +5,7 @@
 
 	//superforms
 	import { superForm } from 'sveltekit-superforms/client';
-	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { addUserTokenSchema } from '@src/utils/formSchemas';
 	//export { addUserTokenSchema } from '
@@ -81,7 +81,7 @@
 	<article class="text-center text-sm">
 		{$modalStore[0]?.body ?? '(body missing)'}
 	</article>
-	<SuperDebug data={$form} />
+	<!-- <SuperDebug data={$form} /> -->
 	<!-- Enable for debugging: -->
 	<!-- <pre>{JSON.stringify(formData, null, 2)}</pre> -->
 	<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
@@ -97,64 +97,69 @@
 		</div>
 
 		<!-- User Role  -->
-		<div class="flex flex-col gap-2 sm:flex-row">
-			<div class="sm:w-1/4">User Role:</div>
-			<div class="flex-auto">
-				<div class="flex flex-wrap gap-2 space-x-2">
-					{#each Object.values(roles) as r}
-						<span
-							class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-							on:click={() => {
-								// filterRole(r);
-								roleSelected = r;
-							}}
-							on:keypress
-							role="button"
-							tabindex="0"
-						>
-							{#if roleSelected === r}
-								<span><iconify-icon icon="fa:check" /></span>
-							{/if}
-							<span class="capitalize">{r}</span>
-						</span>
-					{/each}
-				</div>
-			</div>
-		</div>
+<div class="flex flex-col gap-2 sm:flex-row ">
+	<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserToken_Role()}</div>
+	<div class="flex-auto">
+	  <div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
+		{#each Object.values(roles) as r}
+		  <span
+			class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+			on:click={() => {
+			  // filterRole(r);
+			  roleSelected = r;
+			}}
+			on:keypress
+			role="button"
+			tabindex="0"
+		  >
+			{#if roleSelected === r}
+			  <span><iconify-icon icon="fa:check" /></span>
+			{/if}
+			<span class="capitalize">{r}</span>
+		  </span>
+		{/each}
+	  </div>
+	</div>
+  </div>
+  
 
-		<!-- Token validity  -->
-		<div class="flex flex-col gap-2 pb-6 sm:flex-row">
-			<div class="sm:w-1/4">Token validity:</div>
-			<div class="flex-auto">
-				<div class="flex flex-wrap gap-2 space-x-2">
-					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
-					{#each validityOptions as option}
-						<span
-							class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-							on:click={() => {
-								expiresIn = option.value;
-								expirationTime = option.seconds;
-							}}
-							on:keypress
-							role="button"
-							tabindex="0"
-						>
-							{#if expiresIn === option.value}<span><iconify-icon icon="fa:check" /></span>{/if}
-							<span class="capitalize">{option.label}</span>
-						</span>
-					{/each}
-				</div>
-				{#if $errors.expiresIn}
-					<div class="mt-1 text-xs text-error-500">
-						{$errors.expiresIn}
-					</div>
-				{/if}
-			</div>
+<!-- Token validity  -->
+<div class="flex flex-col gap-2 pb-6 sm:flex-row ">
+	<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserToken_Validity()}</div>
+	<div class="flex-auto">
+	  <div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
+		<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
+		{#each validityOptions as option}
+		  <span
+			class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+			on:click={() => {
+			  expiresIn = option.value;
+			  expirationTime = option.seconds;
+			}}
+			on:keypress
+			role="button"
+			tabindex="0"
+		  >
+			{#if expiresIn === option.value}
+			  <span><iconify-icon icon="fa:check" /></span>
+			{/if}
+			<span class="capitalize">{option.label}</span>
+		  </span>
+		{/each}
+	  </div>
+	  {#if $errors.expiresIn}
+		<div class="mt-1 text-xs text-error-500">
+		  {$errors.expiresIn}
 		</div>
+	  {/if}
+	</div>
+  </div>
+  
+  
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">Send</button>
+			<button class="btn variant-outline-secondary" on:click={parent.onClose}>{$LL.MODAL_UserToken_Cancel()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}">{$LL.MODAL_UserToken_Send()}</button>
 		</footer>
 	</form>
 </div>

@@ -9,7 +9,7 @@
 
 	let classes = `${
 		value === roles.admin
-			? 'badge gradient-primary '
+			? 'badge gradient-primary'
 			: value === roles.developer
 			? 'badge gradient-pink'
 			: value === roles.editor

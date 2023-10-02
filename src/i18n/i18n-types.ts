@@ -73,6 +73,14 @@ type RootTranslation = {
 	 */
 	SBL_SignOut: string
 	/**
+	 * S​y​s​t​e​m​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
+	 */
+	SBL_Configuration: string
+	/**
+	 * G​i​t​h​u​b​ ​D​i​s​c​u​s​s​i​o​n
+	 */
+	SBL_GithubDiscussion: string
+	/**
 	 * C​o​l​l​e​c​t​i​o​n
 	 */
 	CollectionCategory_Collection: string
@@ -159,7 +167,7 @@ type RootTranslation = {
 	/**
 	 * U​s​e​r​ ​P​r​o​f​i​l​e
 	 */
-	USER_Profile: string
+	USER_PageTitle: string
 	/**
 	 * E​d​i​t​ ​A​v​a​t​a​r
 	 */
@@ -197,45 +205,49 @@ type RootTranslation = {
 	 */
 	USER_AdminArea: string
 	/**
-	 * E​d​i​t​ ​U​s​e​r​ ​D​a​t​a​:
+	 * M​e​d​i​a​ ​G​a​l​l​e​r​y
 	 */
-	USER_Edit_Title: string
+	MEDIAGALLERY_Pagetitle: string
 	/**
-	 * M​o​d​i​f​y​ ​y​o​u​r​ ​d​a​t​a​ ​a​n​d​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​a​v​e​.
+	 * D​i​s​p​l​a​y
 	 */
-	USER_Edit_Body: string
+	MEDIAGALLERY_Display: string
 	/**
-	 * E​d​i​t​ ​y​o​u​r​ ​A​v​a​t​a​r​:
+	 * G​r​i​d
 	 */
-	USER_Avatar_Title: string
+	MEDIAGALLERY_Grid: string
 	/**
-	 * U​p​l​o​a​d​ ​n​e​w​ ​A​v​a​t​a​r​ ​I​m​a​g​e​ ​u​n​d​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​a​v​e​.
+	 * T​a​b​l​e
 	 */
-	USER_Avatar_Body: string
+	MEDIAGALLERY_Table: string
 	/**
-	 * F​i​l​e​ ​s​i​z​e​ ​m​u​s​t​ ​b​e​ ​l​e​s​s​ ​t​h​a​n​ ​5​M​B
+	 * S​i​z​e
 	 */
-	USER_FileSize: string
+	MEDIAGALLERY_Size: string
 	/**
-	 * P​N​G​,​ ​J​P​E​G​,​ ​G​I​F​,​ ​S​V​G​,​ ​W​E​B​P​,​ ​A​V​I​F​ ​a​l​l​o​w​e​d​.
+	 * S​m​a​l​l
 	 */
-	USER_FilesAllowed: string
+	MEDIAGALLERY_Small: string
 	/**
-	 * S​u​p​p​o​r​t​e​d​ ​f​o​r​m​a​t​s​:​ ​j​p​e​g​,​ ​j​p​g​,​ ​p​n​g​,​ ​w​e​b​p​,​ ​a​v​i​f​,​ ​s​v​g​,​ ​g​i​f
+	 * M​e​d​i​u​m
 	 */
-	USER_Avatar_Unsupported: string
+	MEDIAGALLERY_Medium: string
 	/**
-	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​U​s​e​r​ ​D​e​l​e​t​i​o​n​:
+	 * L​a​r​g​e
 	 */
-	USER_Confirm_Title: string
+	MEDIAGALLERY_Large: string
 	/**
-	 * T​h​i​s​ ​c​a​n​n​o​t​ ​b​e​ ​u​n​d​o​n​e​.​ ​A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​p​r​o​c​e​e​d​?
+	 * S​y​s​t​e​m​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	USER_Confirm_Body: string
+	SYSTEMCONFIG_Pagetitle: string
 	/**
-	 * D​e​l​e​t​e​ ​U​s​e​r
+	 * S​e​l​e​c​t​ ​y​o​u​r​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	USER_Confirm_Delete: string
+	SYSTEMCONFIG_Body: string
+	/**
+	 * S​y​s​t​e​m​ ​B​u​i​l​d​e​r
+	 */
+	SYSTEMCONFIG_SystemBuilder: string
 	/**
 	 * L​i​s​t​ ​o​f​ ​U​s​e​r​:
 	 */
@@ -276,6 +288,106 @@ type RootTranslation = {
 	 * R​o​w​s
 	 */
 	TANSTACK_Rows: string
+	/**
+	 * Y​e​s
+	 */
+	TANSTACK_Yes: string
+	/**
+	 * N​o
+	 */
+	TANSTACK_No: string
+	/**
+	 * G​e​n​e​r​a​t​e​ ​a​ ​N​e​w​ ​U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​T​o​k​e​n
+	 */
+	MODAL_UserToken_Title: string
+	/**
+	 * P​r​o​v​i​d​e​ ​U​s​e​r​s​ ​E​m​a​i​l​ ​R​o​l​e​ ​&​ ​V​a​l​i​d​i​t​y​,​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​e​n​d​.
+	 */
+	MODAL_UserToken_Body: string
+	/**
+	 * U​s​e​r​ ​R​o​l​e​:
+	 */
+	MODAL_UserToken_Role: string
+	/**
+	 * T​o​k​e​n​ ​v​a​l​i​d​i​t​y​:
+	 */
+	MODAL_UserToken_Validity: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserToken_Cancel: string
+	/**
+	 * S​e​n​d
+	 */
+	MODAL_UserToken_Send: string
+	/**
+	 * E​d​i​t​ ​y​o​u​r​ ​A​v​a​t​a​r​:
+	 */
+	MODAL_UserAvatar_Title: string
+	/**
+	 * U​p​l​o​a​d​ ​n​e​w​ ​A​v​a​t​a​r​ ​I​m​a​g​e​ ​u​n​d​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​a​v​e​.
+	 */
+	MODAL_UserAvatar_Body: string
+	/**
+	 * F​i​l​e​ ​s​i​z​e​ ​m​u​s​t​ ​b​e​ ​l​e​s​s​ ​t​h​a​n​ ​5​M​B
+	 */
+	MODAL_UserAvatar_FileSize: string
+	/**
+	 * S​u​p​p​o​r​t​e​d​ ​f​o​r​m​a​t​s​:​ ​j​p​e​g​,​ ​j​p​g​,​ ​p​n​g​,​ ​w​e​b​p​,​ ​a​v​i​f​,​ ​s​v​g​,​ ​g​i​f
+	 */
+	MODAL_UserAvatar_Unsupported: string
+	/**
+	 * P​N​G​,​ ​J​P​E​G​,​ ​G​I​F​,​ ​S​V​G​,​ ​W​E​B​P​,​ ​A​V​I​F​ ​a​l​l​o​w​e​d​.
+	 */
+	MODAL_UserAvatar_FilesAllowed: string
+	/**
+	 * D​e​l​e​t​e
+	 */
+	MODAL_UserAvatar_Delete: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserAvatar_Cancel: string
+	/**
+	 * S​a​v​e
+	 */
+	MODAL_UserAvatar_Save: string
+	/**
+	 * E​d​i​t​ ​U​s​e​r​ ​D​a​t​a​:
+	 */
+	MODAL_UserEdit_Title: string
+	/**
+	 * M​o​d​i​f​y​ ​y​o​u​r​ ​d​a​t​a​ ​a​n​d​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​a​v​e​.
+	 */
+	MODAL_UserEdit_Body: string
+	/**
+	 * U​s​e​r​ ​R​o​l​e​:
+	 */
+	MODAL_UserEdit_Role: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserEdit_Cancel: string
+	/**
+	 * S​a​v​e
+	 */
+	MODAL_UserEdit_Save: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​U​s​e​r​ ​D​e​l​e​t​i​o​n​:
+	 */
+	MODAL_UserConfirm_Title: string
+	/**
+	 * T​h​i​s​ ​c​a​n​n​o​t​ ​b​e​ ​u​n​d​o​n​e​.​ ​A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​p​r​o​c​e​e​d​?
+	 */
+	MODAL_UserConfirm_Body: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserConfirm_Cancel: string
+	/**
+	 * D​e​l​e​t​e​ ​U​s​e​r
+	 */
+	MODAL_UserConfirm_Delete: string
 	/**
 	 * E​d​i​t​ ​C​a​t​e​g​o​r​y
 	 */
@@ -1404,6 +1516,14 @@ export type TranslationFunctions = {
 	 */
 	SBL_SignOut: () => LocalizedString
 	/**
+	 * System Configuration
+	 */
+	SBL_Configuration: () => LocalizedString
+	/**
+	 * Github Discussion
+	 */
+	SBL_GithubDiscussion: () => LocalizedString
+	/**
 	 * Collection
 	 */
 	CollectionCategory_Collection: () => LocalizedString
@@ -1490,7 +1610,7 @@ export type TranslationFunctions = {
 	/**
 	 * User Profile
 	 */
-	USER_Profile: () => LocalizedString
+	USER_PageTitle: () => LocalizedString
 	/**
 	 * Edit Avatar
 	 */
@@ -1528,45 +1648,49 @@ export type TranslationFunctions = {
 	 */
 	USER_AdminArea: () => LocalizedString
 	/**
-	 * Edit User Data:
+	 * Media Gallery
 	 */
-	USER_Edit_Title: () => LocalizedString
+	MEDIAGALLERY_Pagetitle: () => LocalizedString
 	/**
-	 * Modify your data and then press Save.
+	 * Display
 	 */
-	USER_Edit_Body: () => LocalizedString
+	MEDIAGALLERY_Display: () => LocalizedString
 	/**
-	 * Edit your Avatar:
+	 * Grid
 	 */
-	USER_Avatar_Title: () => LocalizedString
+	MEDIAGALLERY_Grid: () => LocalizedString
 	/**
-	 * Upload new Avatar Image und then press Save.
+	 * Table
 	 */
-	USER_Avatar_Body: () => LocalizedString
+	MEDIAGALLERY_Table: () => LocalizedString
 	/**
-	 * File size must be less than 5MB
+	 * Size
 	 */
-	USER_FileSize: () => LocalizedString
+	MEDIAGALLERY_Size: () => LocalizedString
 	/**
-	 * PNG, JPEG, GIF, SVG, WEBP, AVIF allowed.
+	 * Small
 	 */
-	USER_FilesAllowed: () => LocalizedString
+	MEDIAGALLERY_Small: () => LocalizedString
 	/**
-	 * Supported formats: jpeg, jpg, png, webp, avif, svg, gif
+	 * Medium
 	 */
-	USER_Avatar_Unsupported: () => LocalizedString
+	MEDIAGALLERY_Medium: () => LocalizedString
 	/**
-	 * Please Confirm User Deletion:
+	 * Large
 	 */
-	USER_Confirm_Title: () => LocalizedString
+	MEDIAGALLERY_Large: () => LocalizedString
 	/**
-	 * This cannot be undone. Are you sure you wish to proceed?
+	 * System Configuration
 	 */
-	USER_Confirm_Body: () => LocalizedString
+	SYSTEMCONFIG_Pagetitle: () => LocalizedString
 	/**
-	 * Delete User
+	 * Select your Configuration
 	 */
-	USER_Confirm_Delete: () => LocalizedString
+	SYSTEMCONFIG_Body: () => LocalizedString
+	/**
+	 * System Builder
+	 */
+	SYSTEMCONFIG_SystemBuilder: () => LocalizedString
 	/**
 	 * List of User:
 	 */
@@ -1607,6 +1731,106 @@ export type TranslationFunctions = {
 	 * Rows
 	 */
 	TANSTACK_Rows: () => LocalizedString
+	/**
+	 * Yes
+	 */
+	TANSTACK_Yes: () => LocalizedString
+	/**
+	 * No
+	 */
+	TANSTACK_No: () => LocalizedString
+	/**
+	 * Generate a New User Registration Token
+	 */
+	MODAL_UserToken_Title: () => LocalizedString
+	/**
+	 * Provide Users Email Role & Validity, then press Send.
+	 */
+	MODAL_UserToken_Body: () => LocalizedString
+	/**
+	 * User Role:
+	 */
+	MODAL_UserToken_Role: () => LocalizedString
+	/**
+	 * Token validity:
+	 */
+	MODAL_UserToken_Validity: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserToken_Cancel: () => LocalizedString
+	/**
+	 * Send
+	 */
+	MODAL_UserToken_Send: () => LocalizedString
+	/**
+	 * Edit your Avatar:
+	 */
+	MODAL_UserAvatar_Title: () => LocalizedString
+	/**
+	 * Upload new Avatar Image und then press Save.
+	 */
+	MODAL_UserAvatar_Body: () => LocalizedString
+	/**
+	 * File size must be less than 5MB
+	 */
+	MODAL_UserAvatar_FileSize: () => LocalizedString
+	/**
+	 * Supported formats: jpeg, jpg, png, webp, avif, svg, gif
+	 */
+	MODAL_UserAvatar_Unsupported: () => LocalizedString
+	/**
+	 * PNG, JPEG, GIF, SVG, WEBP, AVIF allowed.
+	 */
+	MODAL_UserAvatar_FilesAllowed: () => LocalizedString
+	/**
+	 * Delete
+	 */
+	MODAL_UserAvatar_Delete: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserAvatar_Cancel: () => LocalizedString
+	/**
+	 * Save
+	 */
+	MODAL_UserAvatar_Save: () => LocalizedString
+	/**
+	 * Edit User Data:
+	 */
+	MODAL_UserEdit_Title: () => LocalizedString
+	/**
+	 * Modify your data and then press Save.
+	 */
+	MODAL_UserEdit_Body: () => LocalizedString
+	/**
+	 * User Role:
+	 */
+	MODAL_UserEdit_Role: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserEdit_Cancel: () => LocalizedString
+	/**
+	 * Save
+	 */
+	MODAL_UserEdit_Save: () => LocalizedString
+	/**
+	 * Please Confirm User Deletion:
+	 */
+	MODAL_UserConfirm_Title: () => LocalizedString
+	/**
+	 * This cannot be undone. Are you sure you wish to proceed?
+	 */
+	MODAL_UserConfirm_Body: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserConfirm_Cancel: () => LocalizedString
+	/**
+	 * Delete User
+	 */
+	MODAL_UserConfirm_Delete: () => LocalizedString
 	/**
 	 * Edit Category
 	 */

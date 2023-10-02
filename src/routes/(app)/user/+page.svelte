@@ -50,8 +50,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: $LL.USER_Edit_Title(),
-			body: $LL.USER_Edit_Body(),
+			title: $LL.MODAL_UserEdit_Title(),
+			body: $LL.MODAL_UserEdit_Body(),
 			component: modalComponent,
 			// Pass arbitrary data to the component
 			response: async (r: any) => {
@@ -86,8 +86,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: $LL.USER_Avatar_Title(),
-			body: $LL.USER_Avatar_Body(),
+			title: $LL.MODAL_UserAvatar_Title(),
+			body: $LL.MODAL_UserAvatar_Body(),
 			component: modalComponent,
 			// Pass arbitrary data to the component
 			response: (r: { dataURL: string }) => {
@@ -103,8 +103,8 @@
 	function modalConfirm(): void {
 		const d: ModalSettings = {
 			type: 'confirm',
-			title: $LL.USER_Confirm_Title(),
-			body: $LL.USER_Confirm_Body(),
+			title: $LL.MODAL_UserConfirm_Title(),
+			body: $LL.MODAL_UserConfirm_Body(),
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
@@ -121,8 +121,8 @@
 			// Optionally override the button text
 			// TODO: fix light background and change Deletebutton to red
 			//backdropClasses: 'bg-white',
-			buttonTextCancel: $LL.USER_Cancel(),
-			buttonTextConfirm: $LL.USER_Confirm_Delete()
+			buttonTextCancel: $LL.MODAL_UserConfirm_Cancel(),
+			buttonTextConfirm: $LL.MODAL_UserConfirm_Delete()
 		};
 		modalStore.trigger(d);
 	}
@@ -130,7 +130,7 @@
 
 <div class="flex flex-col gap-1">
 	<!-- TODO: fix TypeScript, as Icon is already optional? -->
-	<PageTitle name="User Profile" icon="" />
+	<PageTitle name={$LL.USER_PageTitle()} icon="" />
 
 	<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 		<!-- Avatar with user info -->
@@ -169,9 +169,10 @@
 					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 				</button>
 				<!-- Delete Modal Button -->
-				<button on:click={modalConfirm} class="gradient-error btn text-white"
-					><iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />{$LL.USER_Delete()}</button
-				>
+				<button on:click={modalConfirm} class="gradient-error btn text-white">
+					<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
+					{$LL.USER_Delete()}
+				</button>
 			</div>
 		</form>
 	</div>
