@@ -9,6 +9,9 @@
 	const modalStore = getModalStore();
 	import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	// Form Data
 	let formData = {
 		newCategoryName: existingCategory.name,
@@ -23,7 +26,7 @@
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold';
+	const cHeader = 'text-center text-primary-500 text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	// TODO: add check to delete 
@@ -42,16 +45,16 @@
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
 		<header class={cHeader}>{$modalStore[0].title ?? '(title missing)'}</header>
-		<article>{$modalStore[0].body ?? '(body missing)'}</article>
+		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 		<form class="modal-form {cForm}">
 			<label class="label">
-				<span>Category Name</span>
+				<span>{$LL.MODAL_Category_Name()}</span>
 				<input
 					class="input"
 					type="text"
 					bind:value={formData.newCategoryName}
-					placeholder="Enter Category name..."
+					placeholder={$LL.MODAL_Category_Placeholder()}
 				/>
 			</label>
 
@@ -60,15 +63,16 @@
 		
 		<footer class="modal-footer flex {existingCategory.name && existingCategory.icon ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			{#if existingCategory.name && existingCategory.icon} <!-- Check if existing category is being edited -->
-				<button type="button" on:click={deleteCategory} class="variant-filled-error btn">
-					<iconify-icon icon="icomoon-free:bin" width="24" />Delete
-				</button>
+			  <button type="button" on:click={deleteCategory} class="variant-filled-error btn">
+				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="md:inline hidden">{$LL.MODAL_Category_Delete()}</span>
+			  </button>
 			{/if}
 			<div class="flex gap-2"> <!-- Removed ml-auto -->
-				<button class="btn variant-outline-secondary" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Submit Form</button>
+			  <button class="btn variant-outline-secondary" on:click={parent.onClose}>{$LL.MODAL_Category_Cancel()}</button>
+			  <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_Category_Save()}</button>
 			</div>
-		</footer>
+		  </footer>
+		  
 		
 		
 	</div>

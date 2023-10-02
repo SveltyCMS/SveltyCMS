@@ -277,6 +277,58 @@ type RootTranslation = {
 	 */
 	TANSTACK_Rows: string
 	/**
+	 * E​d​i​t​ ​C​a​t​e​g​o​r​y
+	 */
+	MODAL_Category_Title: string
+	/**
+	 * M​o​d​i​f​y​ ​y​o​u​r​ ​c​a​t​e​g​o​r​y
+	 */
+	MODAL_Category_Body: string
+	/**
+	 * C​a​t​e​g​o​r​y​ ​N​a​m​e​:
+	 */
+	MODAL_Category_Name: string
+	/**
+	 * E​n​t​e​r​ ​C​a​t​e​g​o​r​y​ ​n​a​m​e​.​.​.
+	 */
+	MODAL_Category_Placeholder: string
+	/**
+	 * D​e​l​e​t​e
+	 */
+	MODAL_Category_Delete: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_Category_Cancel: string
+	/**
+	 * S​a​v​e
+	 */
+	MODAL_Category_Save: string
+	/**
+	 * I​c​o​n​:
+	 */
+	MODAL_IconPicker_Label: string
+	/**
+	 * N​a​m​e​:
+	 */
+	MODAL_IconPicker_Name: string
+	/**
+	 * S​e​a​r​c​h​ ​f​o​r​ ​a​n​ ​i​c​o​n​.​.​.
+	 */
+	MODAL_IconPicker_Placeholder: string
+	/**
+	 * S​e​l​e​c​t​ ​f​r​o​m​ ​G​o​o​g​l​e​ ​M​a​t​e​r​i​a​l​ ​I​c​o​n​s
+	 */
+	MODAL_IconPicker_Select: string
+	/**
+	 * P​r​e​v​i​o​u​s
+	 */
+	MODAL_IconPicker_Previous: string
+	/**
+	 * N​e​x​t
+	 */
+	MODAL_IconPicker_Next: string
+	/**
 	 * S​i​g​n​ ​I​n
 	 */
 	LOGIN_SignIn: string
@@ -1555,6 +1607,58 @@ export type TranslationFunctions = {
 	 * Rows
 	 */
 	TANSTACK_Rows: () => LocalizedString
+	/**
+	 * Edit Category
+	 */
+	MODAL_Category_Title: () => LocalizedString
+	/**
+	 * Modify your category
+	 */
+	MODAL_Category_Body: () => LocalizedString
+	/**
+	 * Category Name:
+	 */
+	MODAL_Category_Name: () => LocalizedString
+	/**
+	 * Enter Category name...
+	 */
+	MODAL_Category_Placeholder: () => LocalizedString
+	/**
+	 * Delete
+	 */
+	MODAL_Category_Delete: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_Category_Cancel: () => LocalizedString
+	/**
+	 * Save
+	 */
+	MODAL_Category_Save: () => LocalizedString
+	/**
+	 * Icon:
+	 */
+	MODAL_IconPicker_Label: () => LocalizedString
+	/**
+	 * Name:
+	 */
+	MODAL_IconPicker_Name: () => LocalizedString
+	/**
+	 * Search for an icon...
+	 */
+	MODAL_IconPicker_Placeholder: () => LocalizedString
+	/**
+	 * Select from Google Material Icons
+	 */
+	MODAL_IconPicker_Select: () => LocalizedString
+	/**
+	 * Previous
+	 */
+	MODAL_IconPicker_Previous: () => LocalizedString
+	/**
+	 * Next
+	 */
+	MODAL_IconPicker_Next: () => LocalizedString
 	/**
 	 * Sign In
 	 */

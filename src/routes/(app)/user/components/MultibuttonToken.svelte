@@ -213,18 +213,6 @@
 			</ListBoxItem>
 		{/if}
 
-		<!-- {#if listboxValue != 'unblock'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="unblock" active="bg-yellow-500" hover="gradient-yellow-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment>
-				Unblock
-			</ListBoxItem>
-		{/if}
 
-		{#if listboxValue != 'block'}
-			<ListBoxItem bind:group={listboxValue} name="medium" value="block" active="bg-pink-700" hover="gradient-pink-hover"
-				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment>
-				Block
-			</ListBoxItem>
-		{/if} -->
 	</ListBox>
 </div>

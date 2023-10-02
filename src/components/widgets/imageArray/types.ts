@@ -31,3 +31,11 @@ export const GuiSchema = {
 	imageUploadTitle: { widget: Input, required: false },
 	required: { widget: Toggles, required: false }
 };
+
+export const GraphqlSchema = ({ label }) => {
+	return /* GraphQL */ `
+		type ${label.replace(/ /g, '_')} {
+			en: String
+		}
+	`;
+};

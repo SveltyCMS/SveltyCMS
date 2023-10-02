@@ -10,7 +10,7 @@ import widgets from '@src/components/widgets';
 let typeDefs = /* GraphQL */ ``;
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
-console.log('New line -----------------------');
+
 for (const collection of collections) {
 	let collectionSchema = `
 	type ${collection.name} {
@@ -25,7 +25,7 @@ for (const collection of collections) {
 		strict: Boolean
 		status: String
 	`;
-	console.log('collection.name: ', collection.name);
+	// console.log('collection.name: ', collection.name);
 	for (const field of collection.fields) {
 		const label = field.label;
 		const schema = widgets[field.widget.key].GraphqlSchema?.({ label });
@@ -39,8 +39,6 @@ for (const collection of collections) {
 			collectionSchema += `${field?.db_fieldName?.replace(/ /g, '_') || label.replace(/ /g, '_')}: ${field.widget.key}\n`;
 		}
 	}
-	console.log('-----------------------');
-
 	collectionSchemas.push(collectionSchema + '}\n');
 }
 typeDefs += collectionSchemas.join('\n');
@@ -72,7 +70,7 @@ for (const collection of collections) {
 	resolvers.Query[collection.name] = () => data;
 }
 
-console.log('resolvers.Query:', resolvers.Query);
+// console.log('resolvers.Query:', resolvers.Query);
 
 const yogaApp = createYoga<RequestEvent>({
 	// Import schema and resolvers

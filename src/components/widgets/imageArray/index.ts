@@ -1,6 +1,6 @@
 // ImageArray - allows multiple image upload with editor
 import ImageArray from './ImageArray.svelte';
-import type { Params } from './types';
+import { GraphqlSchema, type Params } from './types';
 import { GuiSchema } from './guiSchema';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { getFieldName } from '@src/utils/utils.js';
@@ -25,7 +25,7 @@ const widget = ({
 	const widget: { type: any; key: 'ImageArray' } = { type: ImageArray, key: 'ImageArray' };
 
 	const field = {
-		schema: { [db_fieldName || label]: { String: String } },
+		schema: { [db_fieldName || label]: { type: { en: String } } },
 		db_fieldName,
 		label,
 		icon,
@@ -39,6 +39,8 @@ const widget = ({
 };
 
 widget.GuiSchema = GuiSchema;
+widget.GraphqlSchema = GraphqlSchema;
+
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

@@ -20,3 +20,12 @@ export const GuiSchema = {
 	// Widget Specific parameters
 	menu: { widget: GuiFields, required: true }
 };
+
+
+export const GraphqlSchema = ({ label }) => {
+	return /* GraphQL */ `
+		type ${label.replace(/ /g, '_')} {
+			en: String
+		}
+	`;
+};

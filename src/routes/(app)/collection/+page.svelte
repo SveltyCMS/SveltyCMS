@@ -7,7 +7,7 @@
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import ModalAddCategory from './ModalAddCategory.svelte';
+	import ModalCategory from './ModalCategory.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { generateUniqueId } from '@src/utils/utils';
 
@@ -15,7 +15,7 @@
 	function modalAddCategory(): void {
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
-			ref: ModalAddCategory,
+			ref: ModalCategory,
 
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'

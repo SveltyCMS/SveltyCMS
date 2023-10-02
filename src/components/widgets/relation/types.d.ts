@@ -23,3 +23,11 @@ export const GuiSchema = {
 		imports: ['import {relation} from "./{relation}"']
 	}
 };
+
+export const GraphqlSchema = ({ label }) => {
+	return /* GraphQL */ `
+		type ${label.replace(/ /g, '_')} {
+			en: String
+		}
+	`;
+};

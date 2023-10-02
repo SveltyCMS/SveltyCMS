@@ -32,7 +32,7 @@
 	>
 		{#each items as item (item.id)}
 			<div
-				class="mx-2 my-1 flex h-10 w-3/12 items-center justify-between rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
+				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
 				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5" />

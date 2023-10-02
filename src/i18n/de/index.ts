@@ -80,6 +80,23 @@ const de: Translation = {
 	TANSTACK_Row: 'Zeile',
 	TANSTACK_Rows: 'Zeilen',
 
+	//Modals Category
+	MODAL_Category_Title: 'Kategorie bearbeiten',
+	MODAL_Category_Body: 'Ändern Sie Ihre Kategorie',
+	MODAL_Category_Name: 'Kategoriename:',
+	MODAL_Category_Placeholder: 'Kategoriename eingeben...',
+	MODAL_Category_Delete: 'Löschen',
+	MODAL_Category_Cancel: 'Abbrechen',
+	MODAL_Category_Save: 'Speichern',
+
+	//Modal Iconpicker
+	MODAL_IconPicker_Label: 'Icon:',
+	MODAL_IconPicker_Name: 'Name:',
+	MODAL_IconPicker_Placeholder: 'Suche nach einem Icon...',
+	MODAL_IconPicker_Select: 'Aus Google Material Icons auswählen',
+	MODAL_IconPicker_Previous: 'Vorherige',
+	MODAL_IconPicker_Next: 'Nächster',
+
 	// Login
 	LOGIN_SignIn: 'Anmelden',
 	LOGIN_SignUp: 'Registrieren',

@@ -21,12 +21,6 @@ export const POST: RequestHandler = async ({ request }) => {
 		const newData = {
 			...category,
 			collections: category.items.map((item: any) => {
-				// const newItem = {
-				// 	...item,
-				// 	collections: item.name
-				// };
-				// delete newItem.icon;
-				// delete newItem.name;
 				return `|||collections.${item.name}|||`;
 			})
 		};
@@ -36,12 +30,9 @@ export const POST: RequestHandler = async ({ request }) => {
 	});
 
 	// Define the new content of the config.ts file
-	let newConfigFileContent = `
-        // Configure how Collections are sorted & displayed in Categories section
-        export function createCategories(collections: any) {
-            return ${JSON.stringify(data, null, 2)};
-        }
-    `;
+	let newConfigFileContent = `// Configure how Collections are sorted & displayed in Categories section
+    export function createCategories(collections: any) {return ${JSON.stringify(data, null, 2)};}
+	`;
 
 	newConfigFileContent = newConfigFileContent.replace(/"\|\|\|/g, '').replace(/\|\|\|"/g, '');
 
@@ -50,17 +41,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		await fs.writeFile(configFilePath, newConfigFileContent);
 
 		// Return a success response
-		// return {
-		// 	status: 200,
-		// 	body: 'Config file updated successfully by API'
-		// };
 		return new Response('Config file updated successfully by API', { status: 200 });
 	} catch (error: any) {
 		console.error(error);
-		// {
-		// 	status: 500,
-		// 	body: `Error updating config file: ${error.message}`
-		// };
+
 		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
 	}
 };

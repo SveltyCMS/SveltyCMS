@@ -80,6 +80,23 @@ const fr: Translation = {
 	TANSTACK_Row: 'Ligne',
 	TANSTACK_Rows: 'Lignes',
 
+	//Modals Category
+	MODAL_Category_Title : 'Modifier la catégorie',
+	MODAL_Category_Body : "Modifiez votre catégorie",
+	MODAL_Category_Name: 'Nom de la catégorie:',
+	MODAL_Category_Placeholder: 'Nom de la catégorie...',
+	MODAL_Category_Delete: 'Supprimer',
+	MODAL_Category_Cancel: 'Annuler',
+	MODAL_Category_Save: 'Save',
+
+	//Modal Iconpicker
+	MODAL_IconPicker_Label : 'Icon:',
+	MODAL_IconPicker_Name : 'Nom:',
+	MODAL_IconPicker_Placeholder : 'Rechercher une icône...',
+	MODAL_IconPicker_Select : 'Select from Google Material Icons',
+	MODAL_IconPicker_Previous : 'Précédent',
+	MODAL_IconPicker_Next : 'Next',
+
 	// Login
 	LOGIN_SignIn: 'Se connecter',
 	LOGIN_SignUp: "S'inscrire",

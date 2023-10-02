@@ -1,6 +1,6 @@
 import Checkbox from './Checkbox.svelte';
 
-import { type Params, GuiSchema } from './types';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
 // typesafe-i18n
@@ -46,7 +46,7 @@ const widget = ({
 
 	const field = {
 		display,
-		schema: { [db_fieldName || label]: { String: String } },
+		schema: { [db_fieldName || label]: { type: { en: String } } },
 		label,
 		db_fieldName,
 		translated,
@@ -61,6 +61,7 @@ const widget = ({
 };
 
 widget.GuiSchema = GuiSchema;
+widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

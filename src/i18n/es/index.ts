@@ -80,6 +80,23 @@ const es: Translation = {
 	TANSTACK_Row: 'Fila',
 	TANSTACK_Rows: 'filas',
 
+	//Modals Category
+	MODAL_Category_Title: 'Modifica tu categoría',
+	MODAL_Category_Body: 'Modifica tu categoría',
+	MODAL_Category_Name: 'Nombre de categoría:',
+	MODAL_Category_Placeholder: 'Nombre de la categoría...',
+	MODAL_Category_Delete: 'Borrar',
+	MODAL_Category_Cancel: 'Cancelar',
+	MODAL_Category_Save: 'Guardar',
+
+	//Modal Iconpicker
+	MODAL_IconPicker_Label: 'Icono:',
+	MODAL_IconPicker_Name: 'Nombre:',
+	MODAL_IconPicker_Placeholder: 'Buscar un icono...',
+	MODAL_IconPicker_Select: 'Seleccionar de Google Material Icons',
+	MODAL_IconPicker_Previous: 'Anterior',
+	MODAL_IconPicker_Next: 'Siguiente',
+
 	// Login
 	LOGIN_SignIn: 'Iniciar sesión',
 	LOGIN_SignUp: 'Registrarse',
