@@ -20,8 +20,7 @@ import {
 	HOST_PROD,
 	HOST_DEV,
 	SECRET_GOOGLE_CLIENT_ID,
-	SECRET_GOOGLE_CLIENT_SECERT,
-	SECRET_GOOGLE_OAUTH_REDIRECT_URI
+	SECRET_GOOGLE_CLIENT_SECERT
 } from '$env/static/private';
 // import { Session } from 'inspector';
 
@@ -81,6 +80,7 @@ export async function getCollectionModels() {
 }
 
 // Set up authentication collections if they don't already exist
+
 !mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
 !mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
 !mongodb.models['auth_user'] && mongodb.model('auth_user', new mongodb.Schema({ ...UserSchema }, { _id: false, timestamps: true }));
@@ -116,7 +116,7 @@ const auth = lucia({
 const googleAuth = google(auth, {
 	clientId: SECRET_GOOGLE_CLIENT_ID,
 	clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
-	redirectUri: `${dev ? HOST_DEV : HOST_PROD}${SECRET_GOOGLE_OAUTH_REDIRECT_URI}`,
+	redirectUri: `${dev ? HOST_DEV : HOST_PROD}/oauth`,
 	scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
 	accessType: dev ? 'offline' : 'online'
 });

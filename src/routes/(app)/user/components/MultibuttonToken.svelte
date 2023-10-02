@@ -61,7 +61,9 @@
 						await invalidateAll();
 					}
 				}
-			}
+			},
+
+			meta: { foo: 'bar', fizz: 'buzz', fn: ModalEditForm }
 		};
 		modalStore.trigger(d);
 	}
@@ -211,7 +213,7 @@
 			</ListBoxItem>
 		{/if}
 
-		{#if listboxValue != 'unblock'}
+		<!-- {#if listboxValue != 'unblock'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="unblock" active="bg-yellow-500" hover="gradient-yellow-hover"
 				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock-open" width="20" class="mr-1" /></svelte:fragment>
 				Unblock
@@ -223,6 +225,6 @@
 				><svelte:fragment slot="lead"><iconify-icon icon="material-symbols:lock" width="20" class="mr-1" /></svelte:fragment>
 				Block
 			</ListBoxItem>
-		{/if}
+		{/if} -->
 	</ListBox>
 </div>

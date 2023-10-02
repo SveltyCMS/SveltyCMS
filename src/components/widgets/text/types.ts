@@ -45,3 +45,11 @@ export const GuiSchema = {
 	disabled: { widget: Toggles, required: false },
 	width: { widget: String, required: false }
 };
+
+export const GraphqlSchema = ({ label }) => {
+	return /* GraphQL */ `
+		type ${label.replace(/ /g, '_')} {
+			en: String
+		}
+	`;
+};

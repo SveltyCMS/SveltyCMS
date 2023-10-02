@@ -13,6 +13,7 @@ export const UserSchema = {
 	email: String, // The email address of the user
 	role: String, // The role of the user
 	username: String, // The username of the user
+	blocked: Boolean, // if the user is blocked
 	firstname: String, // The first name of the user
 	lastname: String, // The last name of the user
 	avatar: String, // The avatar url to media api
@@ -25,7 +26,8 @@ export const UserSchema = {
 export const TokenSchema = {
 	token: String,
 	userID: String,
-	expiresIn: Number
+	expiresIn: Number,
+	type: String // to know what the token is for
 };
 
 type Modify<T, R> = Omit<T, keyof R> & R;
@@ -99,5 +101,3 @@ export const SignUpTokenSchema = {
 	expiresAt: Date // The date and time when the sign-up token expires
 	// { _id: false }, // Do not automatically generate the _id field
 };
-
-

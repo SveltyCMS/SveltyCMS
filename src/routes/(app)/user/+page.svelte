@@ -43,8 +43,6 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
-			// Add your props as key/value pairs
-			props: { background: 'bg-surface-100-800-token' },
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -108,8 +106,17 @@
 			title: $LL.USER_Confirm_Title(),
 			body: $LL.USER_Confirm_Body(),
 			// TRUE if confirm pressed, FALSE if cancel pressed
-			response: (r: boolean) => {
-				if (r) console.log('response:', r);
+			response: async (r: boolean) => {
+				if (!r) return;
+				const res = await fetch(`/api/user/deleteUsers`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify([user])
+				});
+
+				if (res.status === 200) {
+					await invalidateAll();
+				}
 			},
 			// Optionally override the button text
 			// TODO: fix light background and change Deletebutton to red

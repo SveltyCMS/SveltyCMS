@@ -6,10 +6,7 @@ import mongoose from 'mongoose';
 import { superValidate, message } from 'sveltekit-superforms/server';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@src/utils/formSchemas';
 import { auth, googleAuth } from '@src/routes/api/db';
-import { passwordToken } from '@src/utils/passwordToken';
-
-// import type { User } from '@src/collections/Auth';
-// import { consumeToken, createToken } from '@src/utils/tokens';
+import { consumeToken, createToken } from '@src/utils/tokens';
 
 // load and validate login and sign up forms
 export const load: PageServerLoad = async (event) => {
@@ -156,7 +153,7 @@ export const actions: Actions = {
 
 		//console.log(token);
 		const resp = await resetPWCheck(password, token, email, expiresIn);
-		console.log('response: ' + resp.status);
+		console.log('response: ', resp.status, resp.message);
 
 		if (resp) {
 			// Return message if form is submitted successfully
@@ -260,22 +257,24 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			// If isToken is false, sign in using email and password
 			const key = await auth.useKey('email', email, password).catch(() => null);
 			if (!key || !key.passwordDefined) return { status: false, message: 'Invalid Credentials' };
+			const user = await auth.getUser(key.userId);
+			if (!user) return { status: false, message: 'User does not exist' };
+			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
+
 			const session = await auth.createSession({
 				userId: key.userId,
 				attributes: {}
 			});
 			const sessionCookie = auth.createSessionCookie(session);
-			// console.log('signIn sessionCookie', sessionCookie);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
 			const authMethod = 'password';
 			await auth.updateUserAttributes(key.userId, { authMethod });
-			// console.log('signIn ', sessionCookie);
 
 			return { status: true };
 		} else {
 			// If isToken is true, sign in using token
-			const token = password;
+			/*const token = password;
 			const key = await auth.getKey('email', email).catch(() => null);
 			if (!key) return { status: false, message: 'User does not exist' };
 			const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
@@ -289,7 +288,7 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			const authMethod = 'token';
 			await auth.updateUserAttributes(key.userId, { authMethod });
-			return { status: true };
+			return { status: true };*/
 		}
 	} catch (e) {
 		console.error(e);
@@ -308,7 +307,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			attributes: {
 				email,
 				username,
-				role: 'admin'
+				role: 'admin',
+				blocked: false
 			}
 		})
 		.catch((e) => {
@@ -339,31 +339,13 @@ interface ForgotPWCheckResult {
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
 		//const expiresIn = 5; // expiration in 5 seconds
-		const expiresIn = 2 * 60 * 60; // expiration in 2 hours
-		const tokenHandler = passwordToken(auth as any, 'register', {
-			expiresIn: expiresIn,
-			length: 50, // hardcoded value
-			generate: (length) => {
-				// implement custom token generation algorithm
-				const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-				let result = ''; // set password to empty string
-				if (length === undefined) {
-					length = 43; // set a default value for length if it is undefined
-				}
-				for (let i = 0; i < length; i++) {
-					result += characters.charAt(Math.floor(Math.random() * characters.length));
-				}
-				return result;
-			}
-		});
+		const expiresIn = 2 * 60 * 60 * 1000; // expiration in 2 hours
 
 		const key = await auth.getKey('email', email).catch(() => null);
 
 		// The email address does not exist
 		if (!key) return { success: false, message: 'User does not exist' };
-
-		const token = (await tokenHandler.issue(key.userId)).toString();
-		console.log('token', token);
+		const token = await createToken(key.userId, 'resetPassword', expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -373,33 +355,29 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 }
 
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
-	const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 	try {
 		// Obtain the key using auth.getKey based on your authentication system
 		const key = await auth.getKey('email', email).catch(() => null);
-		// console.log(key);
 		if (!key) {
-			// console.log('Invalid token: Key not found.');
 			return { status: false, message: 'invalid token' };
 		}
 
 		// Validate the token
-		//console.log('Validating token...');
-		const validate = await tokenHandler.validate(token, key.userId);
-		console.log('validate: ', validate);
 
-		if (validate) {
+		const validate = await consumeToken(token, key.userId, 'resetPassword');
+
+		if (validate.status) {
 			// Check token expiration
 			const currentTime = Date.now();
 			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
-			console.log(currentTime, tokenExpiryTime);
 
 			if (currentTime >= tokenExpiryTime) {
 				return { status: false, message: 'Token has expired' };
 			}
 
 			// Token is valid and not expired, proceed with password update
-			auth.updateKeyPassword('email', key.providerUserId, password);
+			auth.invalidateAllUserSessions(key.userId);
+			auth.updateKeyPassword('email', email, password);
 			return { status: true };
 		} else {
 			return { status: false, message: 'An error occurred during password update' };
@@ -490,13 +468,16 @@ async function updatePassword(userId: string, newPassword: string) {
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies, event: any) {
 	// SignUp Token
+
 	const key = await auth.getKey('email', email).catch(() => null);
 	if (!key) return { status: false, message: 'User does not exist' };
-	const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
 
 	try {
 		const authMethod = 'password';
-		await tokenHandler.validate(token, key.userId);
+		const validate = await consumeToken(token, key.userId, 'register');
+
+		if (!validate.status) return { status: false, message: 'Invalid token' };
+
 		await auth.updateUserAttributes(key.userId, { email, username, authMethod });
 		await auth.updateKeyPassword('email', email, password);
 
