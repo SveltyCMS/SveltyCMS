@@ -6,13 +6,13 @@ export const POST: RequestHandler = async ({ request }) => {
 	/*
         data: [
             {
-                token: 'lpjXnwbnj8m8Y6BS1FPKTaBmqcVFWmOe',
-                userID: '1000hlslfbgzlby',
-                expiresIn: 1696933131867,
-                createdAt: '2023-10-03T10:18:51.868Z',
-                updatedAt: '2023-10-03T10:18:51.868Z',
-                email: 'mhmd-alaa@hotmail.com',
-                role: 'editor'
+                token: '',
+                userID: '',
+                expiresIn: ,
+                createdAt: '',
+                updatedAt: '',
+                email: '',
+                role: ''
             }
         ]
     */

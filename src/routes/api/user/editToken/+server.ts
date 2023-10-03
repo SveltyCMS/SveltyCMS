@@ -14,10 +14,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	console.log(data);
 	/*
     {
-        userId: 'nghu6tloxwd0pm6',
-        email: 'mhmd-alaa@hotmail.com',
-        token: 'QD2mfxrno22lnmw8m0FM7jSCMMitZgy9',
-        role: 'developer'
+        userId: '',
+        email: '',
+        token: '',
+        role: ''
     }
     */
 	auth.updateUserAttributes(data.userId, {
