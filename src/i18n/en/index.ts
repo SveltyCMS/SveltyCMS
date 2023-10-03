@@ -97,6 +97,19 @@ const en: BaseTranslation = {
 	MODAL_UserToken_Cancel: 'Cancel',
 	MODAL_UserToken_Send: 'Send',
 
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Title: "Edit Token Data",
+	MODAL_MultiButtonToken_Body: "Modify this token data and then press Save.",
+	MODAL_MultiButtonToken_DeleteTitle: 'Please Confirm User Deletion',
+	MODAL_MultiButtonToken_DeleteBody: 'Are you sure you wish to delete this user?',
+	MODAL_MultiButtonToken_DeleteButtonText: 'Delete User',
+	MODAL_MultiButtonToken_BlockTitle: 'Please Confirm User Block',
+	MODAL_MultiButtonToken_BlockBody: 'Are you sure you wish to block this user?',
+	MODAL_MultiButtonToken_BlockButtonText: 'Block User',
+	MODAL_MultiButtonToken_UnBlockTitle: 'Please Confirm User Unblock',
+	MODAL_MultiButtonToken_UnBlockBody: 'Are you sure you wish to unblock this user?',
+	MODAL_MultiButtonToken_UnBlockButtonText: 'Unblock User',
+
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Edit your Avatar:',
 	MODAL_UserAvatar_Body: 'Upload new Avatar Image und then press Save.',

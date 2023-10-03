@@ -97,6 +97,19 @@ const fr: Translation = {
 	MODAL_UserToken_Cancel: 'Annuler',
 	MODAL_UserToken_Send: 'Send',
 
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Title : "Modifier les données du jeton",
+	MODAL_MultiButtonToken_Body : "Modifiez les données de ce jeton et appuyez sur Enregistrer",
+	MODAL_MultiButtonToken_DeleteTitle : "Veuillez confirmer la suppression de l'utilisateur",
+	MODAL_MultiButtonToken_DeleteBody : "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+	MODAL_MultiButtonToken_DeleteButtonText : "Supprimer l'utilisateur",
+	MODAL_MultiButtonToken_BlockTitle : "Veuillez confirmer le blocage de l'utilisateur",
+	MODAL_MultiButtonToken_BlockBody : "Êtes-vous sûr de vouloir bloquer cet utilisateur ?",
+	MODAL_MultiButtonToken_BlockButtonText : "Bloquer l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockTitle : "Veuillez confirmer le déblocage de l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockBody : "Êtes-vous sûr de vouloir débloquer cet utilisateur ?",
+	MODAL_MultiButtonToken_UnBlockButtonText : "Débloquer l'utilisateur",
+
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Modifiez votre avatar :',
 	MODAL_UserAvatar_Body: "Téléchargez une nouvelle image d'avatar et appuyez sur Enregistrer",

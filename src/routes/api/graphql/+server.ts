@@ -12,7 +12,6 @@ const types = new Set();
 
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
-
 for (const collection of collections) {
 	let collectionSchema = `
 	type ${collection.name} {

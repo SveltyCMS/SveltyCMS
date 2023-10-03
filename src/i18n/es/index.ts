@@ -97,6 +97,19 @@ const es: Translation = {
 	MODAL_UserToken_Cancel: 'Cancelar',
 	MODAL_UserToken_Send: 'Enviar',
 
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Title: "Editar datos del token",
+	MODAL_MultiButtonToken_Body: "Modifique los datos de este token y pulse Guardar",
+	MODAL_MultiButtonToken_DeleteTitle: "Por favor, confirme la eliminación del usuario",
+	MODAL_MultiButtonToken_DeleteBody: '¿Está seguro de que desea eliminar este usuario?',
+	MODAL_MultiButtonToken_DeleteButtonText: 'Borrar Usuario',
+	MODAL_MultiButtonToken_BlockTitle: 'Por favor, confirme el bloqueo del usuario',
+	MODAL_MultiButtonToken_BlockBody: '¿Seguro que desea bloquear a este usuario?',
+	MODAL_MultiButtonToken_BlockButtonText: 'Bloquear usuario',
+	MODAL_MultiButtonToken_UnBlockTitle: 'Por favor, confirma el desbloqueo del usuario',
+	MODAL_MultiButtonToken_UnBlockBody: '¿Seguro que desea desbloquear a este usuario?',
+	MODAL_MultiButtonToken_UnBlockButtonText: 'Desbloquear usuario',
+
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Edita tu Avatar:',
 	MODAL_UserAvatar_Body: 'Sube una nueva imagen de avatar y presiona Guardar',

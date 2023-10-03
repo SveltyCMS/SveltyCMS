@@ -91,11 +91,24 @@ const de: Translation = {
 
 	//Modal User Token
 	MODAL_UserToken_Title: 'Generiere ein Benutzer-Registrierungs-Token',
-	MODAL_UserToken_Body: 'Trage die E-Mai, Rolle & die Gültigkeit ein & drücke auf Senden.',
+	MODAL_UserToken_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',
 	MODAL_UserToken_Role: 'Benutzerrolle:',
 	MODAL_UserToken_Validity: 'Token Gültigkeit:',
 	MODAL_UserToken_Cancel: 'Abbrechen',
 	MODAL_BenutzerToken_Senden: 'Senden',
+
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Titel: "Token-Daten bearbeiten",
+	MODAL_MultiButtonToken_Body: "Ändern Sie diese Token-Daten und drücken Sie dann auf Speichern",
+	MODAL_MultiButtonToken_DeleteTitle: "Bitte bestätigen Sie die Löschung des Benutzers",
+	MODAL_MultiButtonToken_DeleteBody: 'Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?',
+	MODAL_MultiButtonToken_DeleteButtonText: 'Benutzer löschen',
+	MODAL_MultiButtonToken_BlockTitle: 'Bitte bestätigen Sie die Benutzersperre',
+	MODAL_MultiButtonToken_BlockBody: 'Sind Sie sicher, dass Sie diesen Benutzer sperren möchten?',
+	MODAL_MultiButtonToken_BlockButtonText: 'Benutzer sperren',
+	MODAL_MultiButtonToken_UnBlockTitle: 'Bitte bestätigen Sie die Entsperrung des Benutzers',
+	MODAL_MultiButtonToken_UnBlockBody: 'Sind Sie sicher, dass Sie diesen Benutzer entsperren möchten?',
+	MODAL_MultiButtonToken_UnBlockButtonText: 'Benutzer entsperren',
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Bearbeiten Sie Ihren Avatar:',

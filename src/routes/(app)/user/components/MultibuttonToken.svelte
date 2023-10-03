@@ -1,4 +1,7 @@
 <script lang="ts">
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -10,6 +13,7 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import ModalEditToken from './ModalEditToken.svelte';
 
 	// Popup Combobox
 	let listboxValue: string = 'edit';
@@ -30,14 +34,13 @@
 
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
-			ref: ModalEditForm,
+			ref: ModalEditToken,
 			// Add your props as key/value pairs
 			props: {
-				isGivenData: true,
-				username: selectedRows[0].data.username,
+				token: selectedRows[0].data.token,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				userId: selectedRows[0].data.userId
+				userId: selectedRows[0].data.userID
 			},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
@@ -45,13 +48,13 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: 'Edit User Data',
-			body: 'Modify your data and then press Save.',
+			title: $LL.MODAL_MultiButtonToken_Title(),
+			body: $LL.MODAL_MultiButtonToken_Body(),
 			component: modalComponent,
 			// Pass abitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('/api/user/editUser', {
+					const res = await fetch('/api/user/editToken', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ ...r })
@@ -75,23 +78,25 @@
 
 		switch (action) {
 			case 'delete':
-				modalTitle = 'Please Confirm User Deletion';
-				modalBody = 'Are you sure you wish to delete this user?';
-				modalButtonText = 'Delete User';
+				modalTitle = $LL.MODAL_MultiButtonToken_DeleteTitle();
+				modalBody = $LL.MODAL_MultiButtonToken_DeleteBody();
+				modalButtonText = $LL.MODAL_MultiButtonToken_DeleteButtonText();
 				break;
 			case 'block':
-				modalTitle = 'Please Confirm User Block';
-				modalBody = 'Are you sure you wish to block this user?';
-				modalButtonText = 'Block User';
+				modalTitle =  $LL.MODAL_MultiButtonToken_BlockTitle();
+				modalBody = $LL.MODAL_MultiButtonToken_BlockBody();
+				modalButtonText = $LL.MODAL_MultiButtonToken_BlockButtonText();
 				break;
 			case 'unblock':
-				modalTitle = 'Please Confirm User Unblock';
-				modalBody = 'Are you sure you wish to unblock this user?';
-				modalButtonText = 'Unblock User';
+			modalTitle =  $LL.MODAL_MultiButtonToken_UnBlockTitle();
+				modalBody = $LL.MODAL_MultiButtonToken_UnBlockBody();
+				modalButtonText = $LL.MODAL_MultiButtonToken_UnBlockButtonText();
 				break;
 			default:
 				throw new Error(`Invalid action ${action}`);
 		}
+
+		//console.log('entered');
 
 		const d: ModalSettings = {
 			type: 'confirm',
@@ -107,7 +112,7 @@
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
-				const endpoint = action === 'delete' ? 'deleteUsers' : action === 'block' ? 'blockUsers' : 'unblockUsers';
+				const endpoint = action === 'delete' ? 'deleteTokens' : '';
 				const res = await fetch(`/api/user/${endpoint}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -116,6 +121,7 @@
 
 				if (res.status === 200) {
 					await invalidateAll();
+					// close
 				}
 			}
 		};
@@ -212,7 +218,5 @@
 				Delete
 			</ListBoxItem>
 		{/if}
-
-
 	</ListBox>
 </div>

@@ -48,7 +48,7 @@ export const GuiSchema = {
 
 export const GraphqlSchema = ({ label }) => {
 	return /* GraphQL */ `
-		type ${label.replace(/ /g, '_')} {
+		type ${label} {
 			en: String
 		}
 	`;
