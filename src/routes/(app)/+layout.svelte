@@ -455,8 +455,9 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								on:click={signOut}
 								type="submit"
 								value="Sign out"
-								class="btn-icon hover:bg-surface-500 hover:text-white"><iconify-icon icon="uil:signout" width="26" /></button
-							>
+								class="btn-icon hover:bg-surface-500 hover:text-white">
+								<iconify-icon icon="uil:signout" width="26" />
+							</button>
 
 							<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
 								{$LL.SBL_SignOut()}
@@ -479,7 +480,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								</a>
 
 								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-									System Configuration
+									{$LL.SBL_Configuration()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -492,7 +493,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									<iconify-icon icon="grommet-icons:github" width="30" />
 
 									<div class="card variant-filled-secondary p-4" data-popup="Github">
-										Github Discussion
+										{$LL.SBL_GithubDiscussion()}
 										<div class="variant-filled-secondary arrow" />
 									</div>
 								</button>

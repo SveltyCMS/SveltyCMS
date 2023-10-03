@@ -3,6 +3,9 @@
 	import TanstackTable from '@src/components/TanstackTable.svelte';
 	import { formatSize } from '@src/utils/utils';
 
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	// TanstackFilter
 	import TanstackFilter from '@src/components/TanstackFilter.svelte';
 	let globalSearchValue = '';
@@ -145,7 +148,7 @@
 </script>
 
 <div class="flex flex-col gap-1">
-	<PageTitle name="Media Gallery" icon="bi:images" iconColor="text-primary-500" />
+	<PageTitle name={$LL.MEDIAGALLERY_Pagetitle()} icon="bi:images" iconColor="text-primary-500" />
 
 	<div class="flex items-center justify-between">
 		<!-- Search -->
@@ -175,7 +178,7 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">Display</p>
+								<p class="text-center text-xs">{$LL.MEDIAGALLERY_Display()}</p>
 								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: white`} />
 								<p class="text-xs">Table</p>
 							</button>
@@ -194,14 +197,14 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">Display</p>
+								<p class="text-center text-xs">{$LL.MEDIAGALLERY_Display()}</p>
 								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: white`} />
 
 								<!-- TODO: Center mobile labels -->
 								{#if view === 'table'}
-									<p class="text-center text-xs">Grid</p>
+									<p class="text-center text-xs">{$LL.MEDIAGALLERY_Grid()}</p>
 								{:else}
-									<p class="text-center text-xs">Table</p>
+									<p class="text-center text-xs">{$LL.MEDIAGALLERY_Table()}</p>
 								{/if}
 							</button>
 						{/if}
@@ -210,22 +213,22 @@
 
 				<!-- switch between small, medium, and large images -->
 				<div class="flex flex-col items-center">
-					<p class="text-xs">Size</p>
+					<p class="text-xs">{$LL.MEDIAGALLERY_Size()}</p>
 					<div class="flex divide-x divide-surface-500">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color: white`} />
-								<p class="text-xs">Small</p>
+								<p class="text-xs">{$LL.MEDIAGALLERY_Small()}</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: white`} />
-								<p class="text-xs">Medium</p>
+								<p class="text-xs">{$LL.MEDIAGALLERY_Medium()}</p>
 							</button>
 						{:else}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: white`} />
-								<p class="text-xs">Large</p>
+								<p class="text-xs">{$LL.MEDIAGALLERY_Large()}</p>
 							</button>
 						{/if}
 					</div>

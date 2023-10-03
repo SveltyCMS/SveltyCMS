@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-
 	import { goto } from '$app/navigation';
+
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte'
 
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import ModalAddCategory from './ModalAddCategory.svelte';
+	import ModalAddCategory from './ModalCategory.svelte';
 
 	function editCategory(category: any): void {
 		const modalComponent: ModalComponent = {
@@ -19,8 +21,8 @@
 
 		const d: ModalSettings = {
 			type: 'component',
-			title: 'Edit Category',
-			body: 'Modify your category',
+			title: $LL.MODAL_Category_Title(),
+			body: $LL.MODAL_Category_Body(),
 			component: modalComponent,
 			response: (updatedCategory) => {
 				// Handle the response here

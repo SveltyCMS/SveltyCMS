@@ -190,13 +190,16 @@
 	let selectedMap = writable({});
 	export let selectedRows: any[] = [];
 
+	// Subscribe to changes in the selectedMap
 	selectedMap.subscribe((map) => {
-		selectedRows = Object.keys(map)
-			.filter((key) => map[key])
+		// Create a new array of selected rows
+		selectedRows = Object.keys(map) // Get all keys from the map
+			.filter((key) => map[key]) // Filter out keys where the value is falsey
 			.map((key, index) => ({
-				index,
-				key,
-				data: tableData.find((_, i) => i == parseInt(key))
+				// Map each key to a new object
+				index, // Keep the original index
+				key, // Keep the original key
+				data: tableData.find((_, i) => i == parseInt(key)) // Find the corresponding data from tableData
 			}));
 	});
 

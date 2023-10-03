@@ -1,6 +1,6 @@
 import ImageUpload from './ImageUpload.svelte';
 
-import { type Params, GuiSchema } from './types';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
 // import { Avatar } from '@skeletonlabs/skeleton';
@@ -30,7 +30,13 @@ const widget = ({
 		db_fieldName,
 		display,
 		schema: {
-			[db_fieldName || label]: { size: Number, name: String, type: String, lastModified: Number }
+			[db_fieldName || label]: {
+				size: Number,
+				name: String,
+				type: String,
+				lastModified: Number,
+			  },
+			  type: { en: String },
 		},
 
 		// Widget Specific parameters
@@ -43,6 +49,7 @@ const widget = ({
 };
 
 widget.GuiSchema = GuiSchema;
+widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

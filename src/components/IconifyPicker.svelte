@@ -11,6 +11,9 @@
 		closeQuery: '' // prevent any element inside the popup from closing it
 	};
 
+	// typesafe-i18n
+	import LL from '@src/i18n/i18n-svelte';
+
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 
@@ -87,21 +90,18 @@
 </script>
 
 <!-- iconify icon -->
-<div class="mb-4 flex items-center gap-4">
+<div class="mb-4 flex-col items-center gap-4">
 	<label for="icon" class="relative">
-		Icon: <iconify-icon
-			icon="material-symbols:info"
-			width="18"
-			class="absolute -top-3 right-1"
-		/></label
+		{$LL.MODAL_IconPicker_Label()}
+		</label
 	
 	>
 	<input
 		type="text"
 		id="icon"
 		bind:value={searchQuery}
-		placeholder="Search for an icon..."
-		class="variant-filled-surface {iconselected ? 'sm:w-1/2' : 'w-full'}"
+		placeholder={$LL.MODAL_IconPicker_Placeholder()}
+		class="input "
 		use:popup={popupIcon}
 	/>
 	<!-- Display selected icon -->
@@ -109,7 +109,7 @@
 		<div class="hidden items-center justify-center gap-2 sm:flex">
 			<!--TODO: display icon.name -->
 			<iconify-icon icon={iconselected} width="30" class="text-primary-500" />
-			<p>Name: <span class=" text-primary-500">{iconselected}</span></p>
+			<p>{$LL.MODAL_IconPicker_Name()} <span class=" text-primary-500">{iconselected}</span></p>
 		</div>
 	{/if}
 </div>
@@ -118,15 +118,15 @@
 	<div class="-mt-3 mb-1 flex items-center justify-center gap-2 sm:hidden">
 		<!-- todo: display icon.name -->
 		<iconify-icon icon={iconselected} width="30" class="text-primary-500" />
-		<p>Name: <span class=" text-primary-500">{iconselected}</span></p>
+		<p>{$LL.MODAL_IconPicker_Name()} <span class=" text-primary-500">{iconselected}</span></p>
 	</div>
 {/if}
 
 <!-- icon popup -->
-<div class="card z-10 w-96 p-4 shadow-xl" data-popup="popupIcon">
+<div class="card z-10 p-4 shadow-xl" data-popup="popupIcon">
 	<div>
 		<div class=" mb-2 border-b text-center">
-			<p class="text-primary-500">Select from Google Material Icons</p>
+			<p class="text-primary-500">{$LL.MODAL_IconPicker_Select()}</p>
 
 			<iconify-icon {icon} width="30" class="" />
 		</div>
@@ -147,14 +147,14 @@
 				disabled={start === 0}
 				on:keydown
 				on:click={prevPage}
-				class="variant-filled-primary btn btn-sm">Previous</button
+				class="variant-filled-primary btn btn-sm">{$LL.MODAL_IconPicker_Previous()}</button
 			>
 			<!-- Disable the next button if there are less than 50 icons in the current page -->
 			<button
 				disabled={icons.length < 50}
 				on:keydown
 				on:click={nextPage}
-				class="variant-filled-primary btn btn-sm">Next</button
+				class="variant-filled-primary btn btn-sm">{$LL.MODAL_IconPicker_Next()}</button
 			>
 		</div>
 	</div>

@@ -15,7 +15,7 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.ImageUpload({
-			label: 'image',
+			label: 'Image',
 			path: 'global'
 		})
 	]

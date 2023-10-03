@@ -25,7 +25,7 @@ for (const collection of collections) {
 		strict: Boolean
 		status: String
 	`;
-	console.log('collection.name: ', collection.name);
+	// console.log('collection.name: ', collection.name);
 	for (const field of collection.fields) {
 		const label = field.label;
 		const schema = widgets[field.widget.key].GraphqlSchema?.({ label });
@@ -72,7 +72,7 @@ for (const collection of collections) {
 	resolvers.Query[collection.name] = () => data;
 }
 
-console.log('resolvers.Query:', resolvers.Query);
+// console.log('resolvers.Query:', resolvers.Query);
 
 const yogaApp = createYoga<RequestEvent>({
 	// Import schema and resolvers

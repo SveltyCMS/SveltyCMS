@@ -49,3 +49,12 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 	currencyCode: { widget: Input, required: false }
 };
+
+
+export const GraphqlSchema = ({ label }) => {
+	return /* GraphQL */ `
+		type ${label.replace(/ /g, '_')} {
+			en: String
+		}
+	`;
+};

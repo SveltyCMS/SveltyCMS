@@ -7,6 +7,7 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
 import { superValidate } from 'sveltekit-superforms/server';
+import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
 import { createToken } from '@src/utils/tokens';
@@ -30,12 +31,26 @@ export async function load(event) {
 	// find user using id
 	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
 	user.user.authMethod = userKey['_id'].split(':')[0];
+	// If the user is not logged in, redirect them to the login page.
+	if (user.status != 200) throw redirect(302, `/login`);
+
+	const AUTH_KEY = mongoose.models['auth_key'];
+	// find user using id
+	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
+	user.user.authMethod = userKey['_id'].split(':')[0];
 
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, addUserTokenSchema);
 	const changePasswordForm = await superValidate(event, changePasswordSchema);
 
 	// If user is authenticated, return the data for the page.
+	return {
+		allUsers,
+		tokens,
+		user: user.user,
+		addUserForm,
+		changePasswordForm
+	};
 	return {
 		allUsers,
 		tokens,
@@ -71,6 +86,8 @@ export const actions: Actions = {
 			attributes: {
 				email: email,
 				username: null,
+				role: role,
+				blocked: false
 				role: role,
 				blocked: false
 			}
@@ -119,8 +136,14 @@ export const actions: Actions = {
 		// 	expiresIn: expirationTime,
 		// 	length: 43 // default
 		// });
+		// const tokenHandler = passwordToken(auth as any, 'register', {
+		// 	expiresIn: expirationTime,
+		// 	length: 43 // default
+		// });
 
 		// Issue password token for new user
+		const token = await createToken(user.id, 'register', expirationTime * 1000);
+		console.log(token);
 		const token = await createToken(user.id, 'register', expirationTime * 1000);
 		console.log(token);
 
@@ -150,6 +173,7 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
+		console.log('changePassword');
 		console.log('changePassword');
 
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
@@ -204,6 +228,7 @@ async function getAllUsers() {
 			user_id: key['user_id'],
 			active_expires: { $gt: Date.now() }
 		});
+
 
 		delete user.authMethod; // remove the authMethod property
 		users.push(user);
