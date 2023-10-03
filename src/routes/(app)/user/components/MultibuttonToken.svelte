@@ -10,6 +10,7 @@
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
 	import { invalidateAll } from '$app/navigation';
+	import ModalEditToken from './ModalEditToken.svelte';
 
 	// Popup Combobox
 	let listboxValue: string = 'edit';
@@ -30,14 +31,13 @@
 
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
-			ref: ModalEditForm,
+			ref: ModalEditToken,
 			// Add your props as key/value pairs
 			props: {
-				isGivenData: true,
-				username: selectedRows[0].data.username,
+				token: selectedRows[0].data.token,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				userId: selectedRows[0].data.userId
+				userId: selectedRows[0].data.userID
 			},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
@@ -45,13 +45,13 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: 'Edit User Data',
-			body: 'Modify your data and then press Save.',
+			title: 'Edit Token Data',
+			body: 'Modify this toke data and then press Save.',
 			component: modalComponent,
 			// Pass abitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('/api/user/editUser', {
+					const res = await fetch('/api/user/editToken', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ ...r })
@@ -93,6 +93,8 @@
 				throw new Error(`Invalid action ${action}`);
 		}
 
+		console.log('entered');
+
 		const d: ModalSettings = {
 			type: 'confirm',
 
@@ -107,7 +109,7 @@
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
-				const endpoint = action === 'delete' ? 'deleteUsers' : action === 'block' ? 'blockUsers' : 'unblockUsers';
+				const endpoint = action === 'delete' ? 'deleteTokens' : '';
 				const res = await fetch(`/api/user/${endpoint}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
@@ -116,6 +118,7 @@
 
 				if (res.status === 200) {
 					await invalidateAll();
+					// close
 				}
 			}
 		};
@@ -212,7 +215,5 @@
 				Delete
 			</ListBoxItem>
 		{/if}
-
-
 	</ListBox>
 </div>

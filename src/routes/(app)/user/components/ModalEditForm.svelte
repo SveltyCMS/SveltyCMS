@@ -14,6 +14,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	// Lucia
 	const user = $page.data.user;
@@ -60,6 +61,18 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	let formElement: HTMLFormElement;
+
+	const deleteUser = async () => {
+		const res = await fetch('/api/user/deleteUsers', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify([{ userId: userId, role: role }])
+		});
+
+		if (res.status === 200) {
+			await invalidateAll();
+		}
+	};
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -262,11 +275,11 @@
 		{/if}
 
 		<!-- admin area -->
-		{#if isGivenData ? role : user?.role == roles.admin}
+		{#if user?.role == roles.admin}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserEdit_Role()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserEdit_Role()}</div>
 				<div class="flex-auto">
-					<div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
+					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}
 							<span
 								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
@@ -295,7 +308,7 @@
 		</button>
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
+        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{parent.buttonTextCancel}</button>
         <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Save</button>
 	</div>
     </footer>

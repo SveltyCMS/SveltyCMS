@@ -36,6 +36,8 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	newConfigFileContent = newConfigFileContent.replace(/"\|\|\|/g, '').replace(/\|\|\|"/g, '');
 
+	newConfigFileContent = newConfigFileContent.replace(/"\|\|\|/g, '').replace(/\|\|\|"/g, '');
+
 	try {
 		// Write the new content to the config.ts file asynchronously
 		await fs.writeFile(configFilePath, newConfigFileContent);
