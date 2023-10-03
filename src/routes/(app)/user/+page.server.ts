@@ -7,7 +7,6 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
 import { superValidate } from 'sveltekit-superforms/server';
-import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
 import { createToken } from '@src/utils/tokens';
@@ -34,9 +33,6 @@ export async function load(event) {
 	// If the user is not logged in, redirect them to the login page.
 	if (user.status != 200) throw redirect(302, `/login`);
 
-	const AUTH_KEY = mongoose.models['auth_key'];
-	// find user using id
-	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
 	user.user.authMethod = userKey['_id'].split(':')[0];
 
 	// Superforms Validate addUserForm / change Password
@@ -44,13 +40,6 @@ export async function load(event) {
 	const changePasswordForm = await superValidate(event, changePasswordSchema);
 
 	// If user is authenticated, return the data for the page.
-	return {
-		allUsers,
-		tokens,
-		user: user.user,
-		addUserForm,
-		changePasswordForm
-	};
 	return {
 		allUsers,
 		tokens,
@@ -86,8 +75,6 @@ export const actions: Actions = {
 			attributes: {
 				email: email,
 				username: null,
-				role: role,
-				blocked: false
 				role: role,
 				blocked: false
 			}
@@ -142,8 +129,6 @@ export const actions: Actions = {
 		// });
 
 		// Issue password token for new user
-		const token = await createToken(user.id, 'register', expirationTime * 1000);
-		console.log(token);
 		const token = await createToken(user.id, 'register', expirationTime * 1000);
 		console.log(token);
 
@@ -212,6 +197,8 @@ async function getAllUsers() {
 
 	for (const key of keys) {
 		const user = await auth.getUser(key['user_id']);
+		if (user && (user as any).username == null) continue;
+
 		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
 		let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
 			active_expires: -1
@@ -229,7 +216,6 @@ async function getAllUsers() {
 			active_expires: { $gt: Date.now() }
 		});
 
-
 		delete user.authMethod; // remove the authMethod property
 		users.push(user);
 	}
@@ -240,14 +226,22 @@ async function getAllUsers() {
 
 // Get all send Email Registration Tokens
 async function getTokens() {
-	const AUTH_KEY = mongoose.models['auth_key'];
+	const AUTH_User = mongoose.models['auth_user'];
+	const AUTH_KEY = mongoose.models['auth_tokens'];
 	// const tokens = await AUTH_KEY.find({ primary_key: false });
-	const tokens = await AUTH_KEY.find();
+	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const userToken = [] as any;
 	for (const token of tokens) {
-		const user = await auth.getUser(token['user_id']);
-		user.email = token._id.split(':')[1];
-		userToken.push(user);
+		const tokenOBJ = token.toObject();
+		delete tokenOBJ._id; // remove the _id property
+		delete tokenOBJ.__v; // remove the __v property
+		delete tokenOBJ.type; // remove the type property
+		const user = await AUTH_User.findOne({ _id: token['userID'] });
+		tokenOBJ.email = user?.email;
+		tokenOBJ.role = user?.role;
+		userToken.push(tokenOBJ);
 	}
+	// console.log(userToken);
+
 	return userToken;
 }

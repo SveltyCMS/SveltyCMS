@@ -3,6 +3,19 @@ import type { RequestHandler } from './$types';
 import { auth } from '../../db';
 
 export const POST: RequestHandler = async ({ request }) => {
+	/*
+        data: [
+            {
+                token: 'lpjXnwbnj8m8Y6BS1FPKTaBmqcVFWmOe',
+                userID: '1000hlslfbgzlby',
+                expiresIn: 1696933131867,
+                createdAt: '2023-10-03T10:18:51.868Z',
+                updatedAt: '2023-10-03T10:18:51.868Z',
+                email: 'mhmd-alaa@hotmail.com',
+                role: 'editor'
+            }
+        ]
+    */
 	const data = await request.json();
 
 	// admins count
@@ -19,9 +32,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		adminLength -= user.role == 'admin' ? 1 : 0;
 
 		// delete user
-		await auth.deleteUser(user.id);
+		await auth.deleteUser(user.userID);
 		// delete tokens
-		await AUTH_TOKENS.deleteMany({ userID: user.id });
+		await AUTH_TOKENS.deleteMany({ userID: user.userID });
 	});
 
 	if (flag) return new Response(JSON.stringify({ success: false, message: 'Cannot delete all admins' }), { status: 400 });

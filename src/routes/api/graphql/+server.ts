@@ -27,16 +27,15 @@ for (const collection of collections) {
 	`;
 	// console.log('collection.name: ', collection.name);
 	for (const field of collection.fields) {
-		const label = field.label;
+		// const label = field.label;
+		const label = field?.db_fieldName?.replace(/ /g, '_') || field.label.replace(/ /g, '_');
 		const schema = widgets[field.widget.key].GraphqlSchema?.({ label });
 
 		if (schema) {
 			if (!typeDefs.includes(schema)) {
-				console.log(schema);
-
 				typeDefs += schema;
 			}
-			collectionSchema += `${field?.db_fieldName?.replace(/ /g, '_') || label.replace(/ /g, '_')}: ${field.widget.key}\n`;
+			collectionSchema += `${label}: ${field.widget.key}\n`;
 		}
 	}
 	console.log('-----------------------');

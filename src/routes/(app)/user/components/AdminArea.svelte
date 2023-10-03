@@ -114,12 +114,7 @@
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
-		{
-			header: 'Blocked',
-			accessorKey: 'blocked',
-			id: 'blocked',
-			cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
-		},
+
 		{ header: 'Email', accessorKey: 'email', id: 'email' },
 		{
 			header: 'Last Access',
@@ -149,9 +144,9 @@
 
 	// Display Active User Registration Tokens
 	let itemsUserToken = [
-		{ header: 'ID', accessorKey: 'id', id: 'id' },
-		{ header: 'Username', accessorKey: 'username', id: 'username' },
-		{ header: 'Token', accessorKey: 'email', id: 'email' },
+		{ header: 'User ID', accessorKey: 'userID', id: 'id' },
+		{ header: 'Email', accessorKey: 'email', id: 'email' },
+		{ header: 'Token', accessorKey: 'token', id: 'token' },
 		{
 			header: 'Role',
 			accessorKey: 'role',
