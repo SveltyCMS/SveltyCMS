@@ -31,7 +31,6 @@ export const GuiSchema = {
 	required: { widget: Toggles, required: false }
 };
 
-
 export const GraphqlSchema = ({ label }) => {
 	return /* GraphQL */ `
 		type ${label.replace(/ /g, '_')} {

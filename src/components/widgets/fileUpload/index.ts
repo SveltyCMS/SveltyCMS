@@ -28,7 +28,7 @@ const widget = ({
 		display,
 		schema: {
 			[db_fieldName || label]: { size: Number, name: String, type: String, lastModified: Number },
-  type: { en: String },
+			type: { en: String }
 		},
 
 		// Widget Specific parameters

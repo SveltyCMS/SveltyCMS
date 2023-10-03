@@ -102,7 +102,7 @@ const de: Translation = {
 	MODAL_UserAvatar_Body: 'Avatarbild hochladen und Speichern drücken.',
 	MODAL_UserAvatar_FileSize: 'Die Dateigröße muss weniger als 5 MB betragen',
 	MODAL_UserAvatar_Unsupported: 'Unterstützte Formate: jpeg, jpg, png, webp, avif, svg, gif',
-	MODAL_UserAvatar_FilesAllowed:  'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
+	MODAL_UserAvatar_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
 	MODAL_UserAvatar_Delete: 'Löschen',
 	MODAL_UserAvatar_Cancel: 'Abbrechen',
 	MODAL_UserAvatar_Save: 'Speichern',

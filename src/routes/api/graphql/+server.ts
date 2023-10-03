@@ -8,6 +8,8 @@ import { getCollections } from '@src/collections';
 import widgets from '@src/components/widgets';
 
 let typeDefs = /* GraphQL */ ``;
+const types = new Set();
+
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
 
@@ -27,27 +29,29 @@ for (const collection of collections) {
 	`;
 	// console.log('collection.name: ', collection.name);
 	for (const field of collection.fields) {
-		const label = field.label;
-		const schema = widgets[field.widget.key].GraphqlSchema?.({ label });
+		// const label = field.label;
+		const label = field?.db_fieldName?.replace(/ /g, '_') || field.label.replace(/ /g, '_');
+		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, collection });
 
 		if (schema) {
-			if (!typeDefs.includes(schema)) {
-				console.log(schema);
-
-				typeDefs += schema;
+			const _types = schema.split(/(?=type.*?{)/);
+			for (const type of _types) {
+				types.add(type);
 			}
-			collectionSchema += `${field?.db_fieldName?.replace(/ /g, '_') || label.replace(/ /g, '_')}: ${field.widget.key}\n`;
+
+			collectionSchema += `${label}: ${field.widget.key}\n`;
 		}
 	}
 	collectionSchemas.push(collectionSchema + '}\n');
 }
+
+typeDefs += Array.from(types).join('\n');
 typeDefs += collectionSchemas.join('\n');
 typeDefs += `
 type Query {
 	${collections.map((collection: any) => `${collection.name}: [${collection.name}]`).join('\n')}
 }
 `;
-// console.log(typeDefs);
 
 // Initialize an empty resolvers object
 const resolvers = {

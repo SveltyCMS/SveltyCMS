@@ -16,8 +16,8 @@ const fr: Translation = {
 	SBL_Save: 'Enregistrer',
 	SBL_Save_message: 'Données enregistrées avec succès',
 	SBL_SignOut: 'Déconnexion',
-	SBL_Configuration : "System Configuration",
-	SBL_GithubDiscussion : "Github Discussion",
+	SBL_Configuration: 'System Configuration',
+	SBL_GithubDiscussion: 'Github Discussion',
 
 	// Collections
 	CollectionCategory_Collection: 'Collection',
@@ -61,19 +61,19 @@ const fr: Translation = {
 	USER_AdminArea: 'Zone Admin:',
 
 	// Media Gallery
-	MEDIAGALLERY_Pagetitle : "Galerie des médias",
-	MEDIAGALLERY_Display : 'Affichage',
-	MEDIAGALLERY_Grid : "Grille",
-	MEDIAGALLERY_Table : "Table",
-	MEDIAGALLERY_Size : "Taille",
-	MEDIAGALLERY_Small : "Petit",
-	MEDIAGALLERY_Medium : "Moyen",
-	MEDIAGALLERY_Large : "Grand",
+	MEDIAGALLERY_Pagetitle: 'Galerie des médias',
+	MEDIAGALLERY_Display: 'Affichage',
+	MEDIAGALLERY_Grid: 'Grille',
+	MEDIAGALLERY_Table: 'Table',
+	MEDIAGALLERY_Size: 'Taille',
+	MEDIAGALLERY_Small: 'Petit',
+	MEDIAGALLERY_Medium: 'Moyen',
+	MEDIAGALLERY_Large: 'Grand',
 
 	// System Configuration
-	SYSTEMCONFIG_Pagetitle : "Configuration du système",
-	SYSTEMCONFIG_Body : 'Sélectionnez votre configuration',
-	SYSTEMCONFIG_SystemBuilder : 'Constructeur de système',
+	SYSTEMCONFIG_Pagetitle: 'Configuration du système',
+	SYSTEMCONFIG_Body: 'Sélectionnez votre configuration',
+	SYSTEMCONFIG_SystemBuilder: 'Constructeur de système',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste des utilisateurs:',
@@ -86,16 +86,16 @@ const fr: Translation = {
 	TANSTACK_Total: 'Total',
 	TANSTACK_Row: 'Ligne',
 	TANSTACK_Rows: 'Lignes',
-	TANSTACK_Yes : "Oui",
-	TANSTACK_No : "Non",
+	TANSTACK_Yes: 'Oui',
+	TANSTACK_No: 'Non',
 
 	//Modal User Token
-	MODAL_UserToken_Title : "Générer un nouveau jeton d'enregistrement d'utilisateur",
-	MODAL_UserToken_Body : "Fournir le rôle et la validité de l'email de l'utilisateur, puis appuyer sur Envoyer",
-	MODAL_UserToken_Role : "Rôle de l'utilisateur:",
-	MODAL_UserToken_Validity : 'Validité du jeton:',
-	MODAL_UserToken_Cancel : 'Annuler',
-	MODAL_UserToken_Send : 'Send',
+	MODAL_UserToken_Title: "Générer un nouveau jeton d'enregistrement d'utilisateur",
+	MODAL_UserToken_Body: "Fournir le rôle et la validité de l'email de l'utilisateur, puis appuyer sur Envoyer",
+	MODAL_UserToken_Role: "Rôle de l'utilisateur:",
+	MODAL_UserToken_Validity: 'Validité du jeton:',
+	MODAL_UserToken_Cancel: 'Annuler',
+	MODAL_UserToken_Send: 'Send',
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Modifiez votre avatar :',
@@ -110,7 +110,7 @@ const fr: Translation = {
 	//Modal User Edit
 	MODAL_UserEdit_Title: "Modifier les données de l'utilisateur:",
 	MODAL_UserEdit_Body: 'Modifiez vos données et appuyez sur Enregistrer',
-	MODAL_UserEdit_Role : "Rôle d'utilisateur:",
+	MODAL_UserEdit_Role: "Rôle d'utilisateur:",
 	MODAL_UserEdit_Cancel: 'Annuler',
 	MODAL_UserEdit_Save: 'Save',
 
@@ -121,8 +121,8 @@ const fr: Translation = {
 	MODAL_UserConfirm_Delete: "Supprimer l'utilisateur",
 
 	//Modal Category
-	MODAL_Category_Title : 'Modifier la catégorie',
-	MODAL_Category_Body : "Modifiez votre catégorie",
+	MODAL_Category_Title: 'Modifier la catégorie',
+	MODAL_Category_Body: 'Modifiez votre catégorie',
 	MODAL_Category_Name: 'Nom de la catégorie:',
 	MODAL_Category_Placeholder: 'Nom de la catégorie...',
 	MODAL_Category_Delete: 'Supprimer',
@@ -130,12 +130,12 @@ const fr: Translation = {
 	MODAL_Category_Save: 'Save',
 
 	//Modal Iconpicker
-	MODAL_IconPicker_Label : 'Icon:',
-	MODAL_IconPicker_Name : 'Nom:',
-	MODAL_IconPicker_Placeholder : 'Rechercher une icône...',
-	MODAL_IconPicker_Select : 'Select from Google Material Icons',
-	MODAL_IconPicker_Previous : 'Précédent',
-	MODAL_IconPicker_Next : 'Next',
+	MODAL_IconPicker_Label: 'Icon:',
+	MODAL_IconPicker_Name: 'Nom:',
+	MODAL_IconPicker_Placeholder: 'Rechercher une icône...',
+	MODAL_IconPicker_Select: 'Select from Google Material Icons',
+	MODAL_IconPicker_Previous: 'Précédent',
+	MODAL_IconPicker_Next: 'Next',
 
 	// Login
 	LOGIN_SignIn: 'Se connecter',

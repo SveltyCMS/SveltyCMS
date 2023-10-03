@@ -137,8 +137,6 @@ const en: BaseTranslation = {
 	MODAL_IconPicker_Previous: 'Previous',
 	MODAL_IconPicker_Next: 'Next',
 
-
-
 	// Login
 	LOGIN_SignIn: 'Sign In',
 	LOGIN_SignUp: 'Sign Up',

@@ -44,19 +44,19 @@ const widget = ({
 
 	const widget: { type: any; key: 'MegaMenu' } = { type: MegaMenu, key: 'MegaMenu' };
 
-	const field = { 
-		display, 
+	const field = {
+		display,
 		schema: { [db_fieldName || label]: { type: { en: String } } },
-		label, 
-		db_fieldName, 
-		menu 
+		label,
+		db_fieldName,
+		menu
 	};
 
 	return { ...field, widget };
 };
 
 widget.GuiSchema = GuiSchema;
-// widget.GraphqlSchema = GraphqlSchema;
+widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

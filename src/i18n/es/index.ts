@@ -102,7 +102,7 @@ const es: Translation = {
 	MODAL_UserAvatar_Body: 'Sube una nueva imagen de avatar y presiona Guardar',
 	MODAL_UserAvatar_FileSize: 'El tamaño del archivo debe ser inferior a 5MB',
 	MODAL_UserAvatar_Unsupported: 'Formatos soportados: jpeg, jpg, png, webp, avi , svg, gif',
-	MODAL_UserAvatar_FilesAllowed:'PNG, JPEG, GIF, SVG, WEBP, AVIF permitidos',
+	MODAL_UserAvatar_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF permitidos',
 	MODAL_UserAvatar_Delete: 'Borrar',
 	MODAL_UserAvatar_Cancel: 'Cancelar',
 	MODAL_UserAvatar_Save: 'Guardar',
@@ -177,7 +177,8 @@ const es: Translation = {
 	LOGIN_ZOD_Token_Error: 'Token incorrecto!',
 	LOGIN_ZOD_Token_Expired: 'Token expirado!',
 	LOGIN_ZOD_Forgotten_Error: 'No hay cuenta en esta dirección de correo electrónico',
-	LOGIN_ZOD_Forgotten_email: 'Hola,<br><br>Hemos recibido una solicitud para restablecer su contraseña. El token de restablecimiento de contraseña es:<br><br>{token:string}<br><br>Por favor, sigue el siguiente enlace para restablecer tu contraseña:<br>{link:string}<br><br>Si no has solicitado este restablecimiento, por favor, ignora este mensaje.<br><br>Atentamente,<br>Su equipo de soporte',
+	LOGIN_ZOD_Forgotten_email:
+		'Hola,<br><br>Hemos recibido una solicitud para restablecer su contraseña. El token de restablecimiento de contraseña es:<br><br>{token:string}<br><br>Por favor, sigue el siguiente enlace para restablecer tu contraseña:<br>{link:string}<br><br>Si no has solicitado este restablecimiento, por favor, ignora este mensaje.<br><br>Atentamente,<br>Su equipo de soporte',
 
 	// Entry List
 	ENTRYLIST_Untranslated: 'Sin datos',

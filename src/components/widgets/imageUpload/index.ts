@@ -1,10 +1,6 @@
 import ImageUpload from './ImageUpload.svelte';
 
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { defaultContentLanguage } from '@src/stores/store';
-
-// import { Avatar } from '@skeletonlabs/skeleton';
-// Avatar <Avatar src="${data?.thumbnail.url} " width="w-32" rounded="rounded"/>
 
 const widget = ({
 	// Accept parameters from collection
@@ -34,9 +30,9 @@ const widget = ({
 				size: Number,
 				name: String,
 				type: String,
-				lastModified: Number,
-			  },
-			  type: { en: String },
+				lastModified: Number
+			},
+			type: { en: String }
 		},
 
 		// Widget Specific parameters
