@@ -58,7 +58,22 @@ const de: Translation = {
 	USER_EmailToken: 'Email Benutzerregistrierungstoken',
 	USER_ListToken: 'Token-Liste:',
 	USER_ListUser: 'Benutzerliste:',
-	USER_AdminArea: 'Admin Bereich:',
+	
+	//User AdminArea
+	USER_AdminArea_title: 'Adminbereich:',
+	USER_AdminArea_Blocked: 'Gesperrt',
+	USER_AdminArea_Avatar: 'Avatar',
+	USER_AdminArea_Username: 'Benutzername',
+	USER_AdminArea_Access: 'Letzter Zugriff',
+	USER_AdminArea_Sessions: 'Aktive Sitzungen',
+	USER_AdminArea_ExpiresIn: 'Läuft ab in',
+	USER_AdminArea_MemberFor: 'Mitglied für',
+	USER_AdminArea_UserID: 'Benutzer-ID',
+	USER_AdminArea_Email: 'E-Mail',
+	USER_AdminArea_Token: 'Token',
+	USER_AdminArea_Role: 'Rolle:',
+	USER_AdminArea_CreatedAt: 'Erstellt am' ,
+	USER_AdminArea_UpdatedAt: 'Aktualisiert am' ,
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Mediengalerie',
@@ -96,6 +111,12 @@ const de: Translation = {
 	MODAL_UserToken_Validity: 'Token Gültigkeit:',
 	MODAL_UserToken_Cancel: 'Abbrechen',
 	MODAL_BenutzerToken_Senden: 'Senden',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title: 'Geben Sie den Benutzer-Token ein, um sich anzumelden:',
+	MODAL_UserOAuth_Placeholder: 'Geben Sie Ihr empfangenes Token ein',
+	MODAL_UserOAuth_Cancel: 'Abbrechen',
+	MODAL_UserOAuth_Submit: 'Mit Google anmelden',
 
 	//Modal MultiButtonToken
 	MODAL_MultiButtonToken_Titel: "Token-Daten bearbeiten",

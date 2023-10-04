@@ -203,7 +203,59 @@ type RootTranslation = {
 	/**
 	 * A​d​m​i​n​ ​A​r​e​a​:
 	 */
-	USER_AdminArea: string
+	USER_AdminArea_title: string
+	/**
+	 * B​l​o​c​k​e​d
+	 */
+	USER_AdminArea_Blocked: string
+	/**
+	 * A​v​a​t​a​r
+	 */
+	USER_AdminArea_Avatar: string
+	/**
+	 * U​s​e​r​n​a​m​e
+	 */
+	USER_AdminArea_Username: string
+	/**
+	 * L​a​s​t​ ​A​c​c​e​s​s
+	 */
+	USER_AdminArea_Access: string
+	/**
+	 * A​c​t​i​v​e​ ​S​e​s​s​i​o​n​s
+	 */
+	USER_AdminArea_Sessions: string
+	/**
+	 * E​x​p​i​r​e​s​ ​I​n
+	 */
+	USER_AdminArea_ExpiresIn: string
+	/**
+	 * M​e​m​b​e​r​ ​F​o​r
+	 */
+	USER_AdminArea_MemberFor: string
+	/**
+	 * U​s​e​r​ ​I​D
+	 */
+	USER_AdminArea_UserID: string
+	/**
+	 * E​m​a​i​l
+	 */
+	USER_AdminArea_Email: string
+	/**
+	 * T​o​k​e​n
+	 */
+	USER_AdminArea_Token: string
+	/**
+	 * R​o​l​e​:
+	 */
+	USER_AdminArea_Role: string
+	/**
+	 * C​r​e​a​t​e​d​ ​A​t
+	 */
+	USER_AdminArea_CreatedAt: string
+	/**
+	 * U​p​d​a​t​e​d​ ​A​t
+	 */
+	USER_AdminArea_UpdatedAt: string
 	/**
 	 * M​e​d​i​a​ ​G​a​l​l​e​r​y
 	 */
@@ -320,6 +372,22 @@ type RootTranslation = {
 	 * S​e​n​d
 	 */
 	MODAL_UserToken_Send: string
+	/**
+	 * E​n​t​e​r​ ​U​s​e​r​ ​T​o​k​e​n​ ​t​o​ ​S​i​g​n​U​p​:
+	 */
+	MODAL_UserOAuth_Title: string
+	/**
+	 * E​n​t​e​r​ ​y​o​u​r​ ​R​e​c​e​i​v​e​d​ ​T​o​k​e​n
+	 */
+	MODAL_UserOAuth_Placeholder: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserOAuth_Cancel: string
+	/**
+	 * S​i​g​n​ ​U​p​ ​w​i​t​h​ ​G​o​o​g​l​e
+	 */
+	MODAL_UserOAuth_Submit: string
 	/**
 	 * E​d​i​t​ ​T​o​k​e​n​ ​D​a​t​a
 	 */
@@ -1690,7 +1758,59 @@ export type TranslationFunctions = {
 	/**
 	 * Admin Area:
 	 */
-	USER_AdminArea: () => LocalizedString
+	USER_AdminArea_title: () => LocalizedString
+	/**
+	 * Blocked
+	 */
+	USER_AdminArea_Blocked: () => LocalizedString
+	/**
+	 * Avatar
+	 */
+	USER_AdminArea_Avatar: () => LocalizedString
+	/**
+	 * Username
+	 */
+	USER_AdminArea_Username: () => LocalizedString
+	/**
+	 * Last Access
+	 */
+	USER_AdminArea_Access: () => LocalizedString
+	/**
+	 * Active Sessions
+	 */
+	USER_AdminArea_Sessions: () => LocalizedString
+	/**
+	 * Expires In
+	 */
+	USER_AdminArea_ExpiresIn: () => LocalizedString
+	/**
+	 * Member For
+	 */
+	USER_AdminArea_MemberFor: () => LocalizedString
+	/**
+	 * User ID
+	 */
+	USER_AdminArea_UserID: () => LocalizedString
+	/**
+	 * Email
+	 */
+	USER_AdminArea_Email: () => LocalizedString
+	/**
+	 * Token
+	 */
+	USER_AdminArea_Token: () => LocalizedString
+	/**
+	 * Role:
+	 */
+	USER_AdminArea_Role: () => LocalizedString
+	/**
+	 * Created At
+	 */
+	USER_AdminArea_CreatedAt: () => LocalizedString
+	/**
+	 * Updated At
+	 */
+	USER_AdminArea_UpdatedAt: () => LocalizedString
 	/**
 	 * Media Gallery
 	 */
@@ -1807,6 +1927,22 @@ export type TranslationFunctions = {
 	 * Send
 	 */
 	MODAL_UserToken_Send: () => LocalizedString
+	/**
+	 * Enter User Token to SignUp:
+	 */
+	MODAL_UserOAuth_Title: () => LocalizedString
+	/**
+	 * Enter your Received Token
+	 */
+	MODAL_UserOAuth_Placeholder: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserOAuth_Cancel: () => LocalizedString
+	/**
+	 * Sign Up with Google
+	 */
+	MODAL_UserOAuth_Submit: () => LocalizedString
 	/**
 	 * Edit Token Data
 	 */

@@ -4,6 +4,9 @@
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
 
+		// typesafe-i18n
+		import LL from '@src/i18n/i18n-svelte'
+
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();

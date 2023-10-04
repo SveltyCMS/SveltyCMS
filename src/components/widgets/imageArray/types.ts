@@ -1,20 +1,26 @@
-import ImageUpload from '@src/components/widgets/imageUpload';
-type Widgets = [ReturnType<typeof ImageUpload>, ...any];
-
 import Input from '@src/components/system/inputs/Input2.svelte';
 import Toggles from '@src/components/system/inputs/Toggles.svelte';
+
+import type ImageUpload from '@src/components/widgets/imageUpload';
+import type DefaultWidgets from '@src/components/widgets';
+import { getFieldName } from '@src/utils/utils';
+import widgets from '@src/components/widgets';
+
+type ommited = Omit<typeof DefaultWidgets, 'ImageUpload'>;
+type Widgets = ReturnType<ommited[keyof ommited]>;
+type Widgets2 = [ReturnType<typeof ImageUpload>, ...Widgets[]];
+
 
 export type Params = {
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	schema?: any;
 	icon?: string;
 
 	// Widget Specific parameters
 	imageUploadTitle: string;
-	fields: Widgets;
+	fields: Widgets2;
 	required?: boolean;
 };
 
@@ -23,7 +29,6 @@ export const GuiSchema = {
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
-	// schema?: any;
 	// translated: { widget: Toggles, required: false },
 	icon: { widget: Input, required: false },
 
@@ -32,10 +37,12 @@ export const GuiSchema = {
 	required: { widget: Toggles, required: false }
 };
 
-export const GraphqlSchema = ({ label }) => {
+export const GraphqlSchema = ({ field, label, collection }) => {
+	let fieldTypes = '';
+	for (const _field of field.fields) {
+		fieldTypes += widgets[_field.widget.key].GraphqlSchema({ label: getFieldName(_field), collection }) + '\n';
+	}
 	return /* GraphQL */ `
-		type ${label.replace(/ /g, '_')} {
-			en: String
-		}
+		${fieldTypes}
 	`;
 };

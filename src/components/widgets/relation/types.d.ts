@@ -8,7 +8,6 @@ export type Params = {
 	db_fieldName?: string;
 	// Widget Specific parameters
 	widget?: any;
-	schema?: any;
 	relation: Schema;
 };
 

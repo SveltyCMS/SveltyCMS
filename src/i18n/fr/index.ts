@@ -58,7 +58,22 @@ const fr: Translation = {
 	USER_EmailToken: "Envoyer un jeton d'inscription utilisateur par email",
 	USER_ListToken: 'Liste de jetons :',
 	USER_ListUser: 'Liste des utilisateurs:',
-	USER_AdminArea: 'Zone Admin:',
+
+	//User AdminArea
+	USER_AdminArea_title : "Zone d'administration :",
+	USER_AdminArea_Blocked : 'Bloqué',
+	USER_AdminArea_Avatar : "Avatar",
+	USER_AdminArea_Username : "Nom d'utilisateur",
+	USER_AdminArea_Access : 'Dernier accès',
+	USER_AdminArea_Sessions : 'Sessions actives',
+	USER_AdminArea_ExpiresIn : " Expiration en ", 
+	USER_AdminArea_MemberFor : "Membre pour",
+	USER_AdminArea_UserID : "ID utilisateur",
+	USER_AdminArea_Email : 'Email',
+	USER_AdminArea_Token : "Jeton",
+	USER_AdminArea_Role : " Rôle",
+	USER_AdminArea_CreatedAt : 'Créé à' ,
+	USER_AdminArea_UpdatedAt : 'Mis à jour le' ,
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Galerie des médias',
@@ -96,6 +111,12 @@ const fr: Translation = {
 	MODAL_UserToken_Validity: 'Validité du jeton:',
 	MODAL_UserToken_Cancel: 'Annuler',
 	MODAL_UserToken_Send: 'Send',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title : "Entrez le jeton d'utilisateur pour vous inscrire :",
+	MODAL_UserOAuth_Placeholder : "Entrez le jeton que vous avez reçu", 
+	MODAL_UserOAuth_Cancel : 'Annuler',
+	MODAL_UserOAuth_Submit : "Inscription à Google",
 
 	//Modal MultiButtonToken
 	MODAL_MultiButtonToken_Title : "Modifier les données du jeton",

@@ -89,14 +89,14 @@
 	// Display User Columns
 	let items = [
 		{
-			header: 'Blocked',
+			header:  $LL.USER_AdminArea_Blocked(),
 			accessorKey: 'blocked',
 			id: 'blocked',
 			// cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
 			cell: (info: any) => flexRender(Boolean, { value: info.getValue() })
 		},
 		{
-			header: 'Avatar',
+			header:  $LL.USER_AdminArea_Avatar(),
 			accessorKey: 'avatar',
 			id: 'avatar',
 			//TODO: update Avatar size if density changes as table does not refresh)
@@ -107,35 +107,35 @@
 				})
 		},
 		{ header: 'ID', accessorKey: 'id', id: 'id' },
-		{ header: 'Username', accessorKey: 'username', id: 'username' },
+		{ header:  $LL.USER_AdminArea_Username(), accessorKey: 'username', id: 'username' },
 		{
-			header: 'Role',
+			header:  $LL.USER_AdminArea_Role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
 
-		{ header: 'Email', accessorKey: 'email', id: 'email' },
+		{ header:  $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
 		{
-			header: 'Last Access',
+			header:  $LL.USER_AdminArea_Access(),
 			accessorKey: 'updatedAt',
 			id: 'updatedAt',
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
 		},
 
 		{
-			header: 'Active Sessions',
+			header:  $LL.USER_AdminArea_Sessions(),
 			accessorKey: 'activeSessions',
 			id: 'activeSessions'
 		},
 		{
-			header: 'Expires In',
+			header:  $LL.USER_AdminArea_ExpiresIn(),
 			accessorKey: 'lastAccess',
 			id: 'lastAccess',
 			accessorFn: (cell: any) => (cell.lastAccess ? moment(cell.lastAccess.active_expires).fromNow() : 'N/A')
 		},
 		{
-			header: 'Member For',
+			header:  $LL.USER_AdminArea_MemberFor(),
 			accessorKey: 'createdAt',
 			id: 'createdAt',
 			accessorFn: (cell: any) => moment(cell.createdAt).fromNow()
@@ -144,23 +144,23 @@
 
 	// Display Active User Registration Tokens
 	let itemsUserToken = [
-		{ header: 'User ID', accessorKey: 'userID', id: 'id' },
-		{ header: 'Email', accessorKey: 'email', id: 'email' },
-		{ header: 'Token', accessorKey: 'token', id: 'token' },
+		{ header:  $LL.USER_AdminArea_UserID(), accessorKey: 'userID', id: 'id' },
+		{ header:  $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
+		{ header: $LL.USER_AdminArea_Token(), accessorKey: 'token', id: 'token' },
 		{
-			header: 'Role',
+			header:  $LL.USER_AdminArea_Role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
 		{
-			header: 'Created At',
+			header: $LL.USER_AdminArea_CreatedAt(),
 			accessorKey: 'createdAt',
 			id: 'createdAt',
 			accessorFn: (cell: any) => moment(cell.createdAt).fromNow()
 		},
 		{
-			header: 'Updated At',
+			header: $LL.USER_AdminArea_UpdatedAt(),
 			accessorKey: 'updatedAt',
 			id: 'updatedAt',
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
@@ -177,7 +177,7 @@
 </script>
 
 <div class="border-td mt-2 flex flex-col border-t-2">
-	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">{$LL.USER_AdminArea()}</p>
+	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">{$LL.USER_AdminArea_title()}</p>
 	<div class=" flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<!-- Email Token -->
 		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">

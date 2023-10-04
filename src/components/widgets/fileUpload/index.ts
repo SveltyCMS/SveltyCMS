@@ -26,11 +26,6 @@ const widget = ({
 		label,
 		db_fieldName,
 		display,
-		schema: {
-			[db_fieldName || label]: { size: Number, name: String, type: String, lastModified: Number },
-			type: { en: String }
-		},
-
 		// Widget Specific parameters
 		icon,
 		required,

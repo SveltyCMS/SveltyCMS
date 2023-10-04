@@ -105,6 +105,7 @@
 			type: 'confirm',
 			title: $LL.MODAL_UserConfirm_Title(),
 			body: $LL.MODAL_UserConfirm_Body(),
+			buttonTextSubmit: ('bg-error-500'),
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;

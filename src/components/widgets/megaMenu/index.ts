@@ -16,7 +16,7 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	translated = false,
+	// translated = false,
 	menu
 }: Params) => {
 	if (!display) {
@@ -46,7 +46,6 @@ const widget = ({
 
 	const field = {
 		display,
-		schema: { [db_fieldName || label]: { type: { en: String } } },
 		label,
 		db_fieldName,
 		menu

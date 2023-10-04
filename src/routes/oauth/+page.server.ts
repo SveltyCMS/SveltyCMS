@@ -6,6 +6,7 @@ import type { User } from 'lucia-auth';
 import { consumeToken } from '@src/utils/tokens';
 
 let OAuth: any = null;
+
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
 	const state = url.searchParams.get('state');

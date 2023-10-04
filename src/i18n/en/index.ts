@@ -58,7 +58,22 @@ const en: BaseTranslation = {
 	USER_EmailToken: 'Email User Registration token',
 	USER_ListToken: 'Token List:',
 	USER_ListUser: 'User List:',
-	USER_AdminArea: 'Admin Area:',
+
+	//User AdminArea
+	USER_AdminArea_title: 'Admin Area:',
+	USER_AdminArea_Blocked: 'Blocked',
+	USER_AdminArea_Avatar: 'Avatar',
+	USER_AdminArea_Username: 'Username',
+	USER_AdminArea_Access: 'Last Access',
+	USER_AdminArea_Sessions: 'Active Sessions',
+	USER_AdminArea_ExpiresIn: 'Expires In',
+	USER_AdminArea_MemberFor: 'Member For',
+	USER_AdminArea_UserID: 'User ID',
+	USER_AdminArea_Email: 'Email',
+	USER_AdminArea_Token: 'Token',
+	USER_AdminArea_Role: 'Role:',
+	USER_AdminArea_CreatedAt: 'Created At' ,
+	USER_AdminArea_UpdatedAt: 'Updated At' ,
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Media Gallery',
@@ -96,6 +111,12 @@ const en: BaseTranslation = {
 	MODAL_UserToken_Validity: 'Token validity:',
 	MODAL_UserToken_Cancel: 'Cancel',
 	MODAL_UserToken_Send: 'Send',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title: 'Enter User Token to SignUp:',
+	MODAL_UserOAuth_Placeholder: 'Enter your Received Token',
+	MODAL_UserOAuth_Cancel: 'Cancel',
+	MODAL_UserOAuth_Submit: 'Sign Up with Google',
 
 	//Modal MultiButtonToken
 	MODAL_MultiButtonToken_Title: "Edit Token Data",

@@ -10,11 +10,11 @@
 	let updated = false;
 
 	export let field: FieldType;
-	console.log('field', field);
+	//console.log('field', field);
 	export const WidgetData = async () => (updated ? _data : null);
-	console.log('WidgetData', WidgetData);
+	//console.log('WidgetData', WidgetData);
 	export let file: File | undefined = undefined; // pass file directly from imageArray
-	console.log('file', file);
+	//console.log('file', file);
 
 	let fieldName = getFieldName(field);
 	let optimizedFileName: string | undefined = undefined;
