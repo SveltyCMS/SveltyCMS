@@ -13,6 +13,8 @@ const types = new Set();
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
 
+console.log("collections", collections);
+
 for (const collection of collections) {
 	let collectionSchema = `
 	type ${collection.name} {
@@ -37,9 +39,8 @@ for (const collection of collections) {
 			for (const type of _types) {
 				types.add(type);
 			}
-			if (!getFieldName(field) && (field as any).fields.length > 0) {
-				// for helper widgets which extract its fields and does not exist in db itself like imagearray
-				const _fields: Array<any> = (field as any).fields;
+			if (!getFieldName(field) && field.fields && Array.isArray(field.fields) && field.fields.length > 0) {
+				const _fields: Array<any> = field.fields;
 				for (const _field of _fields) {
 					collectionSchema += `${getFieldName(_field)}: ${collection.name}_${getFieldName(_field)}\n`;
 				}

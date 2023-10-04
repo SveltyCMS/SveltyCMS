@@ -42,6 +42,7 @@ const schema: Schema = {
 						})
 					]
 				},
+				//level 1
 				{
 					fields: [
 						widgets.Text({
@@ -74,13 +75,52 @@ const schema: Schema = {
 							required: true,
 							translated: true
 						}),
-
 						widgets.Seo({
 							label: 'Seo',
 							translated: true
 						})
 					]
 				},
+				//level 2
+				{
+					fields: [
+						widgets.Text({
+							label: 'Header',
+							placeholder: 'Enter Category Level 1 Name',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Description',
+							placeholder: 'Enter Description Level 1',
+							required: true,
+							translated: true
+						}),
+						widgets.ImageUpload({
+							label: 'image',
+							required: true,
+							icon: 'material-symbols:image-outline',
+							path: 'global'
+						}),
+						widgets.Text({
+							label: 'Title',
+							placeholder: 'Image Title',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Alt Text',
+							placeholder: 'Image Alt Text',
+							required: true,
+							translated: true
+						}),
+						widgets.Seo({
+							label: 'Seo',
+							translated: true
+						})
+					]
+				},
+				//level 3
 				{
 					fields: [
 						widgets.Text({
@@ -113,7 +153,6 @@ const schema: Schema = {
 							required: true,
 							translated: true
 						}),
-
 						widgets.Seo({
 							label: 'Seo',
 							translated: true

@@ -16,9 +16,7 @@
 
 	let showFields = false;
 	let depth = 0;
-	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
-	//console.log('MegMenu Data', _data);
-
+	let _data: { [key: string]: any; children: any[] } | null = $mode == 'create' ? null : value;
 	let fieldsData = {};
 	let saveMode = $mode;
 
@@ -34,77 +32,64 @@
 			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
 		}
 		_data = _data;
-		//console.log('MegMenu Data', _data);
 		showFields = false;
 		mode.set(saveMode);
 		depth = 0;
 	}
 
 	async function deleteLayer() {
-		// if (!_data) {
-		// 	_data = { ...(await extractData(fieldsData)), children: [] };
-		// } else if ($mode == 'edit') {
-		// 	$currentChild = { ..._data, ...(await extractData(fieldsData)) };
-		// 	//console.log($currentChild);
-		// } else if ($mode == 'create' && $currentChild.children) {
-		// 	$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
-		// }
-		// _data = _data;
-		// //console.log('MegMenu Data', _data);
-		// showFields = false;
-		// mode.set(saveMode);
-		// depth = 0;
+		console.log('$mode:', $mode);
+		console.log('_data:', _data);
+
+
+		if ($mode == 'edit') {
+			if (_data !== null) {
+				let index = _data.children.indexOf($currentChild);
+				console.log('index:', index);
+
+				if (index !== -1) {
+					_data.children.splice(index, 1);
+				}
+			}
+		}
+		_data = null;
+		showFields = false;
+		mode.set(saveMode);
+		depth = 0;
 	}
 </script>
 
 {#if !_data}
-	<p class="font-bold text-center">
+	<p class="text-center font-bold text-tertiary-500">
 		{$LL.WIDGET_MegaMenu_title()}
 	</p>
 {/if}
-
-<!-- TODO this should only show on child edit -->
-<!-- {#if _data || showFields}
-	<p class="font-bold text-center">Enter Categories</p>
-	{/if} -->
 
 {#if !_data || showFields}
 	<!-- TODO: fix save on enter  on:keydown={saveLayer} -->
 	{#key depth}
 		{(fieldsData = {}) && ''}
-		<Fields
-			fields={field.menu[depth].fields}
-			root={false}
-			bind:fieldsData
-			customData={$currentChild}
-		/>
+		<Fields fields={field.menu[depth].fields} root={false} bind:fieldsData customData={$currentChild} />
 	{/key}
 
 	<div class="flex items-center justify-between">
 		<!-- Next Button -->
-		<button
-			type="button"
-			on:click={saveLayer}
-			class="btn variant-filled-primary dark:text-white mb-4"
-		>
-			<iconify-icon icon="carbon:next-filled" width="24" class="dark:text-white mr-1" />
+		<button type="button" on:click={saveLayer} class="variant-filled-primary btn mb-4 dark:text-white">
+			<iconify-icon icon="carbon:next-filled" width="24" class="mr-1 dark:text-white" />
 			{$LL.WIDGET_MegaMenu_Next()}
 		</button>
 
 		{#if _data}
 			<!-- remove/delete Button -->
-			<button
-				type="button"
-				on:click={deleteLayer}
-				class="btn variant-filled-error dark:text-white mb-4"
-			>
-				<iconify-icon icon="mdi:trash-can-outline" width="24" class="dark:text-white mr-1" />
+			<button type="button" on:click={deleteLayer} class="variant-filled-error btn mb-4 dark:text-white">
+				<iconify-icon icon="mdi:trash-can-outline" width="24" class="mr-1 dark:text-white" />
 				Remove
 			</button>
 		{/if}
 	</div>
 {/if}
 
+<!-- Show children -->
 {#if _data && depth == 0}
-	<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+<ListNode isFirstHeader={true} self={_data} parent={null} bind:depth bind:showFields maxDepth={field.menu.length} />
 {/if}

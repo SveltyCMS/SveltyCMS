@@ -73,9 +73,9 @@
 </script>
 
 {#if !expanded && !showDropDown}
-	<div class="flex">
-		<button type="button" on:keydown on:click={openDropDown}
-			>{selected?.display || display || 'select new'}</button
+	<div class="flex mt-2 gap-2">
+		<button class="variant-outline-primary rounded px-2" type="button" on:keydown on:click={openDropDown}
+			>{selected?.display || display || 'Select New Relation'}</button
 		>
 
 		<button
@@ -86,7 +86,7 @@
 				fieldsData = {};
 				selected = undefined;
 			}}
-			class="variant-ghost-surface btn-icon"
+			class="variant-ghost-primary btn-icon"
 		>
 			<iconify-icon icon="bi:pencil-fill" width="24" />
 		</button>
@@ -99,7 +99,7 @@
 				fieldsData = {};
 				selected = undefined;
 			}}
-			class="variant-ghost-surface btn-icon"
+			class="variant-ghost-primary btn-icon"
 		>
 			<iconify-icon icon="ic:baseline-plus" width="24" />
 		</button>
