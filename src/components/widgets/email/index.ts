@@ -12,8 +12,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	// extras
 	icon,
+	translated = false,
+
+	// extras
 	placeholder,
 	required
 }: Params) => {
@@ -39,11 +41,14 @@ const widget = ({
 	const widget: { type: any; key: 'Email' } = { type: Email, key: 'Email' };
 
 	const field = {
-		display,
+		// standard
 		label,
 		db_fieldName,
-		// extras
+		display,
 		icon,
+		translated,
+		
+		// extras
 		placeholder,
 		required
 	};

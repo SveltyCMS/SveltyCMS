@@ -8,11 +8,13 @@ import { get } from 'svelte/store';
 import LL from '@src/i18n/i18n-svelte.js';
 
 const widget = ({
+	// Accept parameters from collection
 	label,
 	db_fieldName,
 	display,
-	translated = false, // default no translation
 	icon,
+	translated = false,
+
 	// extras
 	color,
 	required,
@@ -45,11 +47,13 @@ const widget = ({
 	const widget: { type: any; key: 'Radio' } = { type: Radio, key: 'Radio' };
 
 	const field = {
-		display,
+		// standard
 		label,
 		db_fieldName,
-		translated,
+		display,
 		icon,
+		translated,
+		
 		// extra
 		color,
 		required,

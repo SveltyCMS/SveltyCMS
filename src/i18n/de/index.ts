@@ -24,6 +24,14 @@ const de: Translation = {
 	CollectionCategory_Menu: 'Menü',
 	CollectionCategory_Media: 'Medien',
 
+	// System Builder
+	BUILDER_PageTitle: 'Systemkonfiguration',
+	BUILDER_First: 'Erstellen Sie eine erste Kollektion, um loszulegen',
+	BUILDER_Save: 'Speichern',
+	BUILDER_AddCategory: 'Kategorie hinzufügen',
+	BUILDER_AddCollection: 'Kollektion hinzufügen',
+	BUILDER_Unassigned: 'Nicht zugewiesen',
+
 	// SideBar Right
 
 	// Error
@@ -85,10 +93,10 @@ const de: Translation = {
 	MEDIAGALLERY_Medium: 'Mittel',
 	MEDIAGALLERY_Large: 'Groß',
 
-	// System Configuration
-	SYSTEMCONFIG_Pagetitle: 'Systemkonfiguration',
-	SYSTEMCONFIG_Body: 'Wählen Sie Ihre Konfiguration',
-	SYSTEMCONFIG_SystemBuilder: 'System Builder',
+	// Config
+	CONFIG_Pagetitle: 'Systemkonfiguration',
+	CONFIG_Body: 'Wählen Sie Ihre Konfiguration',
+	CONFIG_SystemBuilder: 'System Builder',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste der Benutzer:',
@@ -103,6 +111,8 @@ const de: Translation = {
 	TANSTACK_Rows: 'Zeilen',
 	TANSTACK_Yes: 'Ja',
 	TANSTACK_No: 'Nein',
+
+	
 
 	//Modal User Token
 	MODAL_UserToken_Title: 'Generiere ein Benutzer-Registrierungs-Token',
@@ -162,6 +172,14 @@ const de: Translation = {
 	MODAL_Category_Delete: 'Löschen',
 	MODAL_Category_Cancel: 'Abbrechen',
 	MODAL_Category_Save: 'Speichern',
+	
+	//Modal Add Category
+	MODAL_AddCetegory_Title: 'Generiere ein Benutzer-Registrierungs-Token',
+	MODAL_AddCetegory_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',
+	MODAL_AddCetegory_Role: 'Benutzerrolle:',
+	MODAL_AddCetegory_Validity: 'Token Gültigkeit:',
+	MODAL_AddCetegory_Cancel: 'Abbrechen',
+	MODAL_AddCetegory_Senden: 'Senden',
 
 	//Modal Iconpicker
 	MODAL_IconPicker_Label: 'Icon:',

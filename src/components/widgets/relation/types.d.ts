@@ -3,11 +3,15 @@ import type { Schema } from '@src/collections/types';
 import GuiField from './GuiField.svelte';
 
 export type Params = {
+	// default required parameters
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
-	// Widget Specific parameters
 	widget?: any;
+	translated?: boolean;
+	icon?: string;
+
+	// Widget Specific parameters
 	relation: Schema;
 };
 

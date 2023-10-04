@@ -3,7 +3,15 @@ import { findById } from '@src/utils/utils';
 
 import type { Params } from './types';
 
-const widget = ({ label, db_fieldName, display, relation }: Params) => {
+const widget = ({
+	// Accept parameters from collection
+	label,
+	db_fieldName,
+	display,
+	icon,
+	translated = false,
+	relation
+}: Params) => {
 	if (!display) {
 		display = async ({
 			data,
@@ -29,9 +37,14 @@ const widget = ({ label, db_fieldName, display, relation }: Params) => {
 	const widget: { type: any; key: 'Relation' } = { type: Relation, key: 'Relation' };
 
 	const field = {
-		display,
+		// standard
 		label,
 		db_fieldName,
+		display,
+		icon,
+		translated,
+
+		// extras
 		relation
 	};
 

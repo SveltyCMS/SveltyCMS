@@ -16,7 +16,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	// translated = false,
+	icon,
+	translated = false,
+
+	// extras
 	menu
 }: Params) => {
 	if (!display) {
@@ -45,9 +48,14 @@ const widget = ({
 	const widget: { type: any; key: 'MegaMenu' } = { type: MegaMenu, key: 'MegaMenu' };
 
 	const field = {
-		display,
+		// standard
 		label,
 		db_fieldName,
+		display,
+		icon,
+		translated,
+		
+		// extras
 		menu
 	};
 

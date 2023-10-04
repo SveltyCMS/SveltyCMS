@@ -93,6 +93,30 @@ type RootTranslation = {
 	 */
 	CollectionCategory_Media: string
 	/**
+	 * S​y​s​t​e​m​ ​B​u​i​l​d​e​r
+	 */
+	BUILDER_PageTitle: string
+	/**
+	 * C​r​e​a​t​e​ ​a​ ​f​i​r​s​t​ ​c​o​l​l​e​c​t​i​o​n​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d
+	 */
+	BUILDER_First: string
+	/**
+	 * S​a​v​e
+	 */
+	BUILDER_Save: string
+	/**
+	 * A​d​d​ ​C​a​t​e​g​o​r​y
+	 */
+	BUILDER_AddCategory: string
+	/**
+	 * A​d​d​ ​C​o​l​l​e​c​t​i​o​n
+	 */
+	BUILDER_AddCollection: string
+	/**
+	 * U​n​a​s​s​i​g​n​e​d
+	 */
+	BUILDER_Unassigned: string
+	/**
 	 * P​a​g​e​ ​N​o​t​ ​F​o​u​n​d
 	 */
 	ERROR_Pagenotfound: string
@@ -291,15 +315,15 @@ type RootTranslation = {
 	/**
 	 * S​y​s​t​e​m​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	SYSTEMCONFIG_Pagetitle: string
+	CONFIG_Pagetitle: string
 	/**
 	 * S​e​l​e​c​t​ ​y​o​u​r​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	SYSTEMCONFIG_Body: string
+	CONFIG_Body: string
 	/**
 	 * S​y​s​t​e​m​ ​B​u​i​l​d​e​r
 	 */
-	SYSTEMCONFIG_SystemBuilder: string
+	CONFIG_SystemBuilder: string
 	/**
 	 * L​i​s​t​ ​o​f​ ​U​s​e​r​:
 	 */
@@ -1648,6 +1672,30 @@ export type TranslationFunctions = {
 	 */
 	CollectionCategory_Media: () => LocalizedString
 	/**
+	 * System Builder
+	 */
+	BUILDER_PageTitle: () => LocalizedString
+	/**
+	 * Create a first collection to get started
+	 */
+	BUILDER_First: () => LocalizedString
+	/**
+	 * Save
+	 */
+	BUILDER_Save: () => LocalizedString
+	/**
+	 * Add Category
+	 */
+	BUILDER_AddCategory: () => LocalizedString
+	/**
+	 * Add Collection
+	 */
+	BUILDER_AddCollection: () => LocalizedString
+	/**
+	 * Unassigned
+	 */
+	BUILDER_Unassigned: () => LocalizedString
+	/**
 	 * Page Not Found
 	 */
 	ERROR_Pagenotfound: () => LocalizedString
@@ -1846,15 +1894,15 @@ export type TranslationFunctions = {
 	/**
 	 * System Configuration
 	 */
-	SYSTEMCONFIG_Pagetitle: () => LocalizedString
+	CONFIG_Pagetitle: () => LocalizedString
 	/**
 	 * Select your Configuration
 	 */
-	SYSTEMCONFIG_Body: () => LocalizedString
+	CONFIG_Body: () => LocalizedString
 	/**
 	 * System Builder
 	 */
-	SYSTEMCONFIG_SystemBuilder: () => LocalizedString
+	CONFIG_SystemBuilder: () => LocalizedString
 	/**
 	 * List of User:
 	 */

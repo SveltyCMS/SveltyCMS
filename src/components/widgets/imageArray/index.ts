@@ -7,12 +7,16 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 const widget = ({
 	// Accept parameters from collection
-	db_fieldName,
-	icon,
-	fields,
-	required,
 	label,
-	display
+	db_fieldName,
+	display,
+	icon,
+	translated = false,
+
+	// extras
+	required,
+	upload,
+	fields,
 }: Params) => {
 	const uploader = fields[0] as ImageUpload_Params;
 
@@ -26,13 +30,17 @@ const widget = ({
 	const widget: { type: any; key: 'ImageArray' } = { type: ImageArray, key: 'ImageArray' };
 
 	const field = {
-		db_fieldName,
+		// standard
 		label,
+		db_fieldName,
+		display,
 		icon,
-		upload: true,
-		fields,
+		translated,
+
+		// extras
 		required,
-		display
+		upload: true,
+		fields,		
 	};
 
 	return { ...field, widget };

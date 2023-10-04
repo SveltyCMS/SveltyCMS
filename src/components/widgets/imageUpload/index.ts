@@ -7,8 +7,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	// extras
 	icon,
+	translated = false,
+
+	// extras
 	required,
 	path = 'unique'
 }: Params) => {
@@ -22,11 +24,14 @@ const widget = ({
 	const widget: { type: any; key: 'ImageUpload' } = { type: ImageUpload, key: 'ImageUpload' };
 
 	const field = {
+		// standard
 		label,
 		db_fieldName,
 		display,
-		// Widget Specific parameters
 		icon,
+		translated,
+		
+		// extras
 		required,
 		path
 	};

@@ -10,6 +10,8 @@ export type Params = {
 	db_fieldName?: string;
 	widget?: any;
 	translated?: boolean;
+	icon?: string;
+	
 	// Widget Specific parameters
 	menu: any[];
 };

@@ -8,11 +8,13 @@ import { get } from 'svelte/store';
 import LL from '@src/i18n/i18n-svelte.js';
 
 const widget = ({
+	// Accept parameters from collection
 	label,
 	db_fieldName,
 	display,
 	translated = false, // default no translation
 	icon,
+
 	// extras
 	placeholder,
 	count,
@@ -51,11 +53,13 @@ const widget = ({
 	const widget: { type: any; key: 'Text' } = { type: Text, key: 'Text' } as const;
 
 	const field = {
-		display,
+		//Standard
 		label,
 		db_fieldName,
-		translated,
+		display,
 		icon,
+		translated,
+		
 		// extras
 		placeholder,
 		count,

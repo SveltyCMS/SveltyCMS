@@ -23,7 +23,15 @@ const fr: Translation = {
 	CollectionCategory_Collection: 'Collection',
 	CollectionCategory_Menu: 'Menu',
 	CollectionCategory_Media: 'Média',
-
+	
+	// System Builder
+	BUILDER_PageTitle : 'Constructeur de système',
+	BUILDER_First : 'Créer une première collection pour commencer',
+	BUILDER_Save : 'Save',
+	BUILDER_AddCategory : 'Ajouter une catégorie',
+	BUILDER_AddCollection : 'Ajouter une collection',
+	BUILDER_Unassigned : 'Non attribué',
+	
 	// SideBar Right
 
 	// ERROR
@@ -85,10 +93,10 @@ const fr: Translation = {
 	MEDIAGALLERY_Medium: 'Moyen',
 	MEDIAGALLERY_Large: 'Grand',
 
-	// System Configuration
-	SYSTEMCONFIG_Pagetitle: 'Configuration du système',
-	SYSTEMCONFIG_Body: 'Sélectionnez votre configuration',
-	SYSTEMCONFIG_SystemBuilder: 'Constructeur de système',
+	// Config
+	CONFIG_Pagetitle: 'Configuration du système',
+	CONFIG_Body: 'Sélectionnez votre configuration',
+	CONFIG_SystemBuilder: 'Constructeur de système',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste des utilisateurs:',

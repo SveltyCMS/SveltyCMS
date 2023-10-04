@@ -8,10 +8,13 @@ import { get } from 'svelte/store';
 import LL from '@src/i18n/i18n-svelte.js';
 
 const widget = ({
+	// Accept parameters from collection
 	label,
 	db_fieldName,
 	display,
 	icon,
+	translated = false,
+
 	// extras
 	placeholder,
 	required
@@ -39,10 +42,13 @@ const widget = ({
 	const widget: { type: any; key: 'RemoteVideo' } = { type: RemoteVideo, key: 'RemoteVideo' };
 
 	const field = {
-		display,
+		// standard
 		label,
 		db_fieldName,
+		display,
 		icon,
+		translated,
+		
 		// extras
 		placeholder,
 		required

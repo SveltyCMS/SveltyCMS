@@ -12,9 +12,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	translated = false,
-	// extras
+	translated = false, // default no translation
 	icon,
+
+	// extras
 	color,
 	width,
 	required
@@ -48,9 +49,10 @@ const widget = ({
 		display,
 		label,
 		db_fieldName,
-		translated,
-		// extras
 		icon,
+		translated,
+
+		// extras
 		color,
 		width,
 		required
