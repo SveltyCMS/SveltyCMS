@@ -13,7 +13,7 @@ const types = new Set();
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
 
-console.log("collections", collections);
+console.log('collections', collections);
 
 for (const collection of collections) {
 	let collectionSchema = `
@@ -31,7 +31,6 @@ for (const collection of collections) {
 	`;
 	// console.log('collection.name: ', collection.name);
 	for (const field of collection.fields) {
-
 		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field), collection });
 
 		if (schema) {
@@ -60,10 +59,10 @@ type Query {
 }
 `;
 
-	// Initialize an empty resolvers object
-	const resolvers = {
-		Query: {}
-	};
+// Initialize an empty resolvers object
+const resolvers = {
+	Query: {}
+};
 
 // Loop over each collection
 for (const collection of collections) {
@@ -72,26 +71,16 @@ for (const collection of collections) {
 }
 
 // console.log('resolvers.Query:', resolvers.Query);
+const yogaApp = createYoga<RequestEvent>({
+	// Import schema and resolvers
+	schema: createSchema({
+		typeDefs,
+		resolvers
+	}),
+	// Define the GraphQL endpoint
+	graphqlEndpoint: '/api/graphql',
+	// Use SvelteKit's Response object
+	fetchAPI: globalThis
+});
 
-	const yogaApp = createYoga<RequestEvent>({
-		// Import schema and resolvers
-		schema: createSchema({
-			typeDefs,
-			resolvers
-		}),
-		// Define the GraphQL endpoint
-		graphqlEndpoint: '/api/graphql',
-		// Use SvelteKit's Response object
-		fetchAPI: globalThis
-	});
-	return yogaApp(request);
-};
-
-export const GET = async ({ request }) => {
-	return yogaQL(request);
-};
-export const POST = async ({ request }) => {
-	return yogaQL(request);
-};
-
-// export { yogaApp as GET, yogaApp as POST };
+export { yogaApp as GET, yogaApp as POST };

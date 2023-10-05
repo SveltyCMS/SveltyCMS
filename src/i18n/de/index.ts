@@ -66,7 +66,7 @@ const de: Translation = {
 	USER_EmailToken: 'Email Benutzerregistrierungstoken',
 	USER_ListToken: 'Token-Liste:',
 	USER_ListUser: 'Benutzerliste:',
-	
+
 	//User AdminArea
 	USER_AdminArea_title: 'Adminbereich:',
 	USER_AdminArea_Blocked: 'Gesperrt',
@@ -80,8 +80,8 @@ const de: Translation = {
 	USER_AdminArea_Email: 'E-Mail',
 	USER_AdminArea_Token: 'Token',
 	USER_AdminArea_Role: 'Rolle:',
-	USER_AdminArea_CreatedAt: 'Erstellt am' ,
-	USER_AdminArea_UpdatedAt: 'Aktualisiert am' ,
+	USER_AdminArea_CreatedAt: 'Erstellt am',
+	USER_AdminArea_UpdatedAt: 'Aktualisiert am',
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Mediengalerie',
@@ -112,8 +112,6 @@ const de: Translation = {
 	TANSTACK_Yes: 'Ja',
 	TANSTACK_No: 'Nein',
 
-	
-
 	//Modal User Token
 	MODAL_UserToken_Title: 'Generiere ein Benutzer-Registrierungs-Token',
 	MODAL_UserToken_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',
@@ -129,9 +127,9 @@ const de: Translation = {
 	MODAL_UserOAuth_Submit: 'Mit Google anmelden',
 
 	//Modal MultiButtonToken
-	MODAL_MultiButtonToken_Titel: "Token-Daten bearbeiten",
-	MODAL_MultiButtonToken_Body: "Ändern Sie diese Token-Daten und drücken Sie dann auf Speichern",
-	MODAL_MultiButtonToken_DeleteTitle: "Bitte bestätigen Sie die Löschung des Benutzers",
+	MODAL_MultiButtonToken_Titel: 'Token-Daten bearbeiten',
+	MODAL_MultiButtonToken_Body: 'Ändern Sie diese Token-Daten und drücken Sie dann auf Speichern',
+	MODAL_MultiButtonToken_DeleteTitle: 'Bitte bestätigen Sie die Löschung des Benutzers',
 	MODAL_MultiButtonToken_DeleteBody: 'Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?',
 	MODAL_MultiButtonToken_DeleteButtonText: 'Benutzer löschen',
 	MODAL_MultiButtonToken_BlockTitle: 'Bitte bestätigen Sie die Benutzersperre',
@@ -172,7 +170,7 @@ const de: Translation = {
 	MODAL_Category_Delete: 'Löschen',
 	MODAL_Category_Cancel: 'Abbrechen',
 	MODAL_Category_Save: 'Speichern',
-	
+
 	//Modal Add Category
 	MODAL_AddCetegory_Title: 'Generiere ein Benutzer-Registrierungs-Token',
 	MODAL_AddCetegory_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',

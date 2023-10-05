@@ -233,6 +233,7 @@
 		if (blurs[currentIndex]) {
 			e.target.removeEventListener('mousemove', moveBlurHandler);
 			e.target.removeEventListener('mouseup', handleBlurMouseDown);
+			e.target.removeEventListener('mousedown', mouseupBlurHandler);
 			blurs[currentIndex].top.initialValue = blurs[currentIndex].top.value;
 			blurs[currentIndex].left.initialValue = blurs[currentIndex].left.value;
 			currentIndex = -1;
@@ -483,7 +484,8 @@
 		inset: 0;
 	}
 	#image_handler .image_container {
-		width: 400px;
+		width: 90vh;
+		height: auto;
 	}
 	.image_container img {
 		transition-duration: 0.3s;

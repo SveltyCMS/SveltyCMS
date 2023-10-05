@@ -10,7 +10,6 @@ type ommited = Omit<typeof DefaultWidgets, 'ImageUpload'>;
 type Widgets = ReturnType<ommited[keyof ommited]>;
 type Widgets2 = [ReturnType<typeof ImageUpload>, ...Widgets[]];
 
-
 export type Params = {
 	// default required parameters
 	label: string;

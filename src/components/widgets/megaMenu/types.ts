@@ -11,7 +11,7 @@ export type Params = {
 	widget?: any;
 	translated?: boolean;
 	icon?: string;
-	
+
 	// Widget Specific parameters
 	menu: any[]; // Make sure this is always an array of arrays
 };
@@ -34,7 +34,7 @@ export const GraphqlSchema = ({ field, label, collection }) => {
 	if (Array.isArray(menu)) {
 		for (const level of menu) {
 			const children: Array<any> = [];
-			
+
 			// Check if level is iterable
 			if (Array.isArray(level)) {
 				for (const _field of level) {
@@ -44,7 +44,7 @@ export const GraphqlSchema = ({ field, label, collection }) => {
 					}
 				}
 			}
-			
+
 			if (levelCount > 0) {
 				if (menu.length - levelCount > 1) {
 					children.push(`children:[${collection.name}_${getFieldName(field)}_Level${levelCount + 1}] `);

@@ -23,15 +23,15 @@ const fr: Translation = {
 	CollectionCategory_Collection: 'Collection',
 	CollectionCategory_Menu: 'Menu',
 	CollectionCategory_Media: 'Média',
-	
+
 	// System Builder
-	BUILDER_PageTitle : 'Constructeur de système',
-	BUILDER_First : 'Créer une première collection pour commencer',
-	BUILDER_Save : 'Save',
-	BUILDER_AddCategory : 'Ajouter une catégorie',
-	BUILDER_AddCollection : 'Ajouter une collection',
-	BUILDER_Unassigned : 'Non attribué',
-	
+	BUILDER_PageTitle: 'Constructeur de système',
+	BUILDER_First: 'Créer une première collection pour commencer',
+	BUILDER_Save: 'Save',
+	BUILDER_AddCategory: 'Ajouter une catégorie',
+	BUILDER_AddCollection: 'Ajouter une collection',
+	BUILDER_Unassigned: 'Non attribué',
+
 	// SideBar Right
 
 	// ERROR
@@ -68,20 +68,20 @@ const fr: Translation = {
 	USER_ListUser: 'Liste des utilisateurs:',
 
 	//User AdminArea
-	USER_AdminArea_title : "Zone d'administration :",
-	USER_AdminArea_Blocked : 'Bloqué',
-	USER_AdminArea_Avatar : "Avatar",
-	USER_AdminArea_Username : "Nom d'utilisateur",
-	USER_AdminArea_Access : 'Dernier accès',
-	USER_AdminArea_Sessions : 'Sessions actives',
-	USER_AdminArea_ExpiresIn : " Expiration en ", 
-	USER_AdminArea_MemberFor : "Membre pour",
-	USER_AdminArea_UserID : "ID utilisateur",
-	USER_AdminArea_Email : 'Email',
-	USER_AdminArea_Token : "Jeton",
-	USER_AdminArea_Role : " Rôle",
-	USER_AdminArea_CreatedAt : 'Créé à' ,
-	USER_AdminArea_UpdatedAt : 'Mis à jour le' ,
+	USER_AdminArea_title: "Zone d'administration :",
+	USER_AdminArea_Blocked: 'Bloqué',
+	USER_AdminArea_Avatar: 'Avatar',
+	USER_AdminArea_Username: "Nom d'utilisateur",
+	USER_AdminArea_Access: 'Dernier accès',
+	USER_AdminArea_Sessions: 'Sessions actives',
+	USER_AdminArea_ExpiresIn: ' Expiration en ',
+	USER_AdminArea_MemberFor: 'Membre pour',
+	USER_AdminArea_UserID: 'ID utilisateur',
+	USER_AdminArea_Email: 'Email',
+	USER_AdminArea_Token: 'Jeton',
+	USER_AdminArea_Role: ' Rôle',
+	USER_AdminArea_CreatedAt: 'Créé à',
+	USER_AdminArea_UpdatedAt: 'Mis à jour le',
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Galerie des médias',
@@ -121,23 +121,23 @@ const fr: Translation = {
 	MODAL_UserToken_Send: 'Send',
 
 	//Modal User OAuth
-	MODAL_UserOAuth_Title : "Entrez le jeton d'utilisateur pour vous inscrire :",
-	MODAL_UserOAuth_Placeholder : "Entrez le jeton que vous avez reçu", 
-	MODAL_UserOAuth_Cancel : 'Annuler',
-	MODAL_UserOAuth_Submit : "Inscription à Google",
+	MODAL_UserOAuth_Title: "Entrez le jeton d'utilisateur pour vous inscrire :",
+	MODAL_UserOAuth_Placeholder: 'Entrez le jeton que vous avez reçu',
+	MODAL_UserOAuth_Cancel: 'Annuler',
+	MODAL_UserOAuth_Submit: 'Inscription à Google',
 
 	//Modal MultiButtonToken
-	MODAL_MultiButtonToken_Title : "Modifier les données du jeton",
-	MODAL_MultiButtonToken_Body : "Modifiez les données de ce jeton et appuyez sur Enregistrer",
-	MODAL_MultiButtonToken_DeleteTitle : "Veuillez confirmer la suppression de l'utilisateur",
-	MODAL_MultiButtonToken_DeleteBody : "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
-	MODAL_MultiButtonToken_DeleteButtonText : "Supprimer l'utilisateur",
-	MODAL_MultiButtonToken_BlockTitle : "Veuillez confirmer le blocage de l'utilisateur",
-	MODAL_MultiButtonToken_BlockBody : "Êtes-vous sûr de vouloir bloquer cet utilisateur ?",
-	MODAL_MultiButtonToken_BlockButtonText : "Bloquer l'utilisateur",
-	MODAL_MultiButtonToken_UnBlockTitle : "Veuillez confirmer le déblocage de l'utilisateur",
-	MODAL_MultiButtonToken_UnBlockBody : "Êtes-vous sûr de vouloir débloquer cet utilisateur ?",
-	MODAL_MultiButtonToken_UnBlockButtonText : "Débloquer l'utilisateur",
+	MODAL_MultiButtonToken_Title: 'Modifier les données du jeton',
+	MODAL_MultiButtonToken_Body: 'Modifiez les données de ce jeton et appuyez sur Enregistrer',
+	MODAL_MultiButtonToken_DeleteTitle: "Veuillez confirmer la suppression de l'utilisateur",
+	MODAL_MultiButtonToken_DeleteBody: 'Êtes-vous sûr de vouloir supprimer cet utilisateur ?',
+	MODAL_MultiButtonToken_DeleteButtonText: "Supprimer l'utilisateur",
+	MODAL_MultiButtonToken_BlockTitle: "Veuillez confirmer le blocage de l'utilisateur",
+	MODAL_MultiButtonToken_BlockBody: 'Êtes-vous sûr de vouloir bloquer cet utilisateur ?',
+	MODAL_MultiButtonToken_BlockButtonText: "Bloquer l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockTitle: "Veuillez confirmer le déblocage de l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockBody: 'Êtes-vous sûr de vouloir débloquer cet utilisateur ?',
+	MODAL_MultiButtonToken_UnBlockButtonText: "Débloquer l'utilisateur",
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Modifiez votre avatar :',
