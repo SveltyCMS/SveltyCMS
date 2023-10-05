@@ -3,19 +3,6 @@ import type { RequestHandler } from './$types';
 import { auth } from '../../db';
 
 export const POST: RequestHandler = async ({ request }) => {
-	/*
-        data: [
-            {
-                token: '',
-                userID: '',
-                expiresIn: ,
-                createdAt: '',
-                updatedAt: '',
-                email: '',
-                role: ''
-            }
-        ]
-    */
 	const data = await request.json();
 
 	// admins count
@@ -25,6 +12,8 @@ export const POST: RequestHandler = async ({ request }) => {
 	let flag = false;
 
 	data.forEach(async (user: any) => {
+		console.log('user:', user);
+
 		if (user.role == 'admin' && adminLength == 1) {
 			flag = true;
 			return;

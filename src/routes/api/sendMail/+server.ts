@@ -46,10 +46,10 @@ async function sendMail(email: string, subject: string, message: string, templat
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
-		host: SMTP_HOST,
-		port: SMTP_PORT,
-		secure: true,
-		// service: 'gmail',
+		// host: SMTP_HOST,
+		// port: SMTP_PORT,
+		// secure: true,
+		service: 'gmail',
 
 		// port: SMTP_PORT,
 		// secure: false, // true for 465, false for other ports

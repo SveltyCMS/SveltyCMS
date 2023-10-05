@@ -54,7 +54,7 @@
 		on:pointerenter={() => (background = '#242728')}
 	/>
 
-	<SignUp {active} FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
+	<SignUp bind:active FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
 	{#if active == undefined}
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">

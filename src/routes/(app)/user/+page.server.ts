@@ -25,6 +25,7 @@ export async function load(event) {
 	const user = await validate(auth, session);
 	// If the user is not logged in, redirect them to the login page.
 	if (user.status != 200) throw redirect(302, `/login`);
+	const isFirstUser = allUsers[0].id == user.user.id;
 
 	const AUTH_KEY = mongoose.models['auth_key'];
 	// find user using id
@@ -45,7 +46,8 @@ export async function load(event) {
 		tokens,
 		user: user.user,
 		addUserForm,
-		changePasswordForm
+		changePasswordForm,
+		isFirstUser
 	};
 }
 
@@ -61,6 +63,7 @@ export const actions: Actions = {
 
 		// Check if the email address is already registered.
 		const key = await auth.getKey('email', email).catch(() => null);
+
 		if (key) {
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
@@ -133,7 +136,6 @@ export const actions: Actions = {
 		console.log(token);
 
 		// Send the token to the user via email.
-		console.log('addUser', token);
 		await event.fetch('/api/sendMail', {
 			method: 'POST',
 			headers: {
@@ -147,7 +149,8 @@ export const actions: Actions = {
 				props: {
 					email: email,
 					token: token,
-					expiresIn: expiresIn
+					role: role,
+					expiresIn: expirationTime
 				}
 			})
 		});

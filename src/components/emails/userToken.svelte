@@ -12,8 +12,6 @@
 	import LL from '@src/i18n/i18n-svelte';
 	import { systemLanguage } from '@src/stores/store';
 
-	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
-
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
@@ -23,17 +21,19 @@
 		// sitename?: string;
 		role?: string;
 		token?: string;
-		expires_at?: string;
+		expiresIn?: string;
 	}
 	export let email: EmailProps['email'];
 	// export let sitename: EmailProps['sitename'];
 	export let role: EmailProps['role'];
 	export let token: EmailProps['token'];
-	export let expires_at: EmailProps['token'];
+	export let expiresIn: EmailProps['expiresIn'];
+	export let tokenLink = `${dev ? HOST_DEV : HOST_PROD}/login?regToken=${token}`;
+	console.log(email, role, token, expiresIn, tokenLink);
 
 	let currentTime = new Date();
-	let expirationTime = expires_at ? new Date(expires_at) : new Date();
-	let timeDiff = expirationTime.getTime() - currentTime.getTime();
+	let expirationTime = expiresIn ? new Date(expiresIn) : new Date();
+	let timeDiff = currentTime.getTime() - expirationTime.getTime();
 	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
 	let readable_expires_at = `${hoursDiff} hours`;
 

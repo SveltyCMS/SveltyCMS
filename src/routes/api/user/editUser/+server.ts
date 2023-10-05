@@ -8,12 +8,18 @@ import { validate } from '@src/utils/utils';
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	const data = await request.json();
 	const userID = data.id || data.userId;
+	let username = data.username;
 	const email = data.email;
 	const password = data.password;
 	const confirmPassword = data.confirmPassword;
 	const role = data.role;
 
 	if (password !== confirmPassword) return new Response(JSON.stringify('passwords do not match'), { status: 400 });
+	if (!username) return new Response(JSON.stringify('username is required'), { status: 400 });
+
+	if (username.length < 2) return new Response(JSON.stringify('username must be at least 2 characters'), { status: 400 });
+	if (username.length > 24) return new Response(JSON.stringify('username must be at most 24 characters'), { status: 400 });
+	username = username.trim();
 
 	const user = await auth.getUser(userID);
 	const key = await auth.getKey('email', email).catch(() => null);
@@ -39,6 +45,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		await auth.invalidateAllUserSessions(userID);
 		await auth.updateUserAttributes(userID, { role });
 	}
+
+	await auth.updateUserAttributes(userID, { username });
 
 	if (currentUser.status !== 200) return new Response(JSON.stringify('User does not exist or session expired'), { status: 400 });
 	if (currentUser.user.id == userID) {
