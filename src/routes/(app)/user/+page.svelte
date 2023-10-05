@@ -13,6 +13,7 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	const user = $page.data.user;
+	const { isFirstUser } = $page.data;
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -105,7 +106,7 @@
 			type: 'confirm',
 			title: $LL.MODAL_UserConfirm_Title(),
 			body: $LL.MODAL_UserConfirm_Body(),
-			buttonTextSubmit: ('bg-error-500'),
+
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
@@ -170,7 +171,8 @@
 					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 				</button>
 				<!-- Delete Modal Button -->
-				<button on:click={modalConfirm} class="gradient-error btn text-white">
+
+				<button on:click={modalConfirm} class="gradient-error btn text-white" disabled={isFirstUser}>
 					<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
 					{$LL.USER_Delete()}
 				</button>

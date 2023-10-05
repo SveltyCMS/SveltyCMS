@@ -18,6 +18,7 @@
 
 	// Lucia
 	const user = $page.data.user;
+	const { isFirstUser } = $page.data;
 	export let isGivenData: boolean = false; // to check if data is given or not
 	export let username: string | null = null;
 	export let email: string | null = null;
@@ -99,7 +100,7 @@
 				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 				placeholder=" "
 				required
-				disabled
+				disabled={isGivenData && userId != user?.userId}
 			/>
 			<label
 				for="username"
@@ -303,7 +304,7 @@
 	<!-- prettier-ignore -->
 	<footer class="modal-footer {parent.regionFooter} justify-between">
 
-		<button type="button" on:click={deleteUser} class="variant-filled-error btn">
+		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.userId == userId)}>
 			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
 		</button>
 

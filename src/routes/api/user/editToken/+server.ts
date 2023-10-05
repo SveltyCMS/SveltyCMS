@@ -12,14 +12,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	if (adminLength == 1 && data.role != 'admin' && (user as any).role == 'admin')
 		return new Response(JSON.stringify('Cannot delete all admins'), { status: 400 });
 	console.log(data);
-	/*
-    {
-        userId: '',
-        email: '',
-        token: '',
-        role: ''
-    }
-    */
+
 	auth.updateUserAttributes(data.userId, {
 		role: data.role
 	});

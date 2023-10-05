@@ -10,6 +10,7 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
 import { createToken } from '@src/utils/tokens';
+// import { passwordToken } from '@src/utils/passwordToken';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -24,10 +25,15 @@ export async function load(event) {
 	const user = await validate(auth, session);
 	// If the user is not logged in, redirect them to the login page.
 	if (user.status != 200) throw redirect(302, `/login`);
+	const isFirstUser = allUsers[0].id == user.user.id;
 
 	const AUTH_KEY = mongoose.models['auth_key'];
 	// find user using id
 	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
+	user.user.authMethod = userKey['_id'].split(':')[0];
+	// If the user is not logged in, redirect them to the login page.
+	if (user.status != 200) throw redirect(302, `/login`);
+
 	user.user.authMethod = userKey['_id'].split(':')[0];
 	// If the user is not logged in, redirect them to the login page.
 	if (user.status != 200) throw redirect(302, `/login`);
@@ -44,7 +50,8 @@ export async function load(event) {
 		tokens,
 		user: user.user,
 		addUserForm,
-		changePasswordForm
+		changePasswordForm,
+		isFirstUser
 	};
 }
 
@@ -60,6 +67,7 @@ export const actions: Actions = {
 
 		// Check if the email address is already registered.
 		const key = await auth.getKey('email', email).catch(() => null);
+
 		if (key) {
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
@@ -122,7 +130,6 @@ export const actions: Actions = {
 		console.log(token);
 
 		// Send the token to the user via email.
-		console.log('addUser', token);
 		await event.fetch('/api/sendMail', {
 			method: 'POST',
 			headers: {
@@ -136,7 +143,8 @@ export const actions: Actions = {
 				props: {
 					email: email,
 					token: token,
-					expiresIn: expiresIn
+					role: role,
+					expiresIn: expirationTime
 				}
 			})
 		});
@@ -187,6 +195,8 @@ async function getAllUsers() {
 		const user = await auth.getUser(key['user_id']);
 		if (user && (user as any).username == null) continue;
 
+		if (user && (user as any).username == null) continue;
+
 		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
 		let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
 			active_expires: -1
@@ -216,7 +226,10 @@ async function getAllUsers() {
 async function getTokens() {
 	const AUTH_User = mongoose.models['auth_user'];
 	const AUTH_KEY = mongoose.models['auth_tokens'];
+	const AUTH_User = mongoose.models['auth_user'];
+	const AUTH_KEY = mongoose.models['auth_tokens'];
 	// const tokens = await AUTH_KEY.find({ primary_key: false });
+	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const userToken = [] as any;
 	for (const token of tokens) {
@@ -228,7 +241,17 @@ async function getTokens() {
 		tokenOBJ.email = user?.email;
 		tokenOBJ.role = user?.role;
 		userToken.push(tokenOBJ);
+		const tokenOBJ = token.toObject();
+		delete tokenOBJ._id; // remove the _id property
+		delete tokenOBJ.__v; // remove the __v property
+		delete tokenOBJ.type; // remove the type property
+		const user = await AUTH_User.findOne({ _id: token['userID'] });
+		tokenOBJ.email = user?.email;
+		tokenOBJ.role = user?.role;
+		userToken.push(tokenOBJ);
 	}
+	// console.log(userToken);
+
 	// console.log(userToken);
 
 	return userToken;

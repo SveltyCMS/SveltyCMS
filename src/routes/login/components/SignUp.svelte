@@ -77,6 +77,15 @@
 	$: console.log('Form data:', $form);
 	$: console.log('Form errors:', $errors);
 
+	let params = new URL(window.location.href).searchParams;
+
+	if (params.has('regToken')) {
+		active = 1;
+		firstUserExists = false;
+		// update token value
+		$form.token = params.get('regToken')!;
+	}
+
 	let formElement: HTMLFormElement;
 
 	// TODO: Replace Role with the one assigned by token

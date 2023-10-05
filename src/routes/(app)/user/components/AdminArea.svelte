@@ -89,14 +89,14 @@
 	// Display User Columns
 	let items = [
 		{
-			header:  $LL.USER_AdminArea_Blocked(),
+			header: $LL.USER_AdminArea_Blocked(),
 			accessorKey: 'blocked',
 			id: 'blocked',
 			// cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
 			cell: (info: any) => flexRender(Boolean, { value: info.getValue() })
 		},
 		{
-			header:  $LL.USER_AdminArea_Avatar(),
+			header: $LL.USER_AdminArea_Avatar(),
 			accessorKey: 'avatar',
 			id: 'avatar',
 			//TODO: update Avatar size if density changes as table does not refresh)
@@ -107,35 +107,35 @@
 				})
 		},
 		{ header: 'ID', accessorKey: 'id', id: 'id' },
-		{ header:  $LL.USER_AdminArea_Username(), accessorKey: 'username', id: 'username' },
+		{ header: $LL.USER_AdminArea_Username(), accessorKey: 'username', id: 'username' },
 		{
-			header:  $LL.USER_AdminArea_Role(),
+			header: $LL.USER_AdminArea_Role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
 
-		{ header:  $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
+		{ header: $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
 		{
-			header:  $LL.USER_AdminArea_Access(),
+			header: $LL.USER_AdminArea_Access(),
 			accessorKey: 'updatedAt',
 			id: 'updatedAt',
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
 		},
 
 		{
-			header:  $LL.USER_AdminArea_Sessions(),
+			header: $LL.USER_AdminArea_Sessions(),
 			accessorKey: 'activeSessions',
 			id: 'activeSessions'
 		},
 		{
-			header:  $LL.USER_AdminArea_ExpiresIn(),
+			header: $LL.USER_AdminArea_ExpiresIn(),
 			accessorKey: 'lastAccess',
 			id: 'lastAccess',
 			accessorFn: (cell: any) => (cell.lastAccess ? moment(cell.lastAccess.active_expires).fromNow() : 'N/A')
 		},
 		{
-			header:  $LL.USER_AdminArea_MemberFor(),
+			header: $LL.USER_AdminArea_MemberFor(),
 			accessorKey: 'createdAt',
 			id: 'createdAt',
 			accessorFn: (cell: any) => moment(cell.createdAt).fromNow()
@@ -144,11 +144,11 @@
 
 	// Display Active User Registration Tokens
 	let itemsUserToken = [
-		{ header:  $LL.USER_AdminArea_UserID(), accessorKey: 'userID', id: 'id' },
-		{ header:  $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
+		{ header: $LL.USER_AdminArea_UserID(), accessorKey: 'userID', id: 'id' },
+		{ header: $LL.USER_AdminArea_Email(), accessorKey: 'email', id: 'email' },
 		{ header: $LL.USER_AdminArea_Token(), accessorKey: 'token', id: 'token' },
 		{
-			header:  $LL.USER_AdminArea_Role(),
+			header: $LL.USER_AdminArea_Role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
