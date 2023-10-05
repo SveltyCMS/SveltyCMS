@@ -17,10 +17,11 @@ const schema: Schema = {
 		widgets.ImageArray({
 			label: 'Images Array',
 			imageUploadTitle: 'image',
+			
 			fields: [
 				widgets.ImageUpload({
 					label: 'image',
-					path: 'global'
+					path: 'images'
 				}),
 				widgets.Text({
 					label: 'Image Title',

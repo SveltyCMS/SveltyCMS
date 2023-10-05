@@ -137,7 +137,6 @@
 
 	//skeleton
 	import { initializeStores, AppShell, Avatar, Modal, getModalStore, popup, Toast, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
-
 	initializeStores();
 
 	import { modeCurrent } from '@skeletonlabs/skeleton';

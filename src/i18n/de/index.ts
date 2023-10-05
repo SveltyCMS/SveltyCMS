@@ -24,6 +24,14 @@ const de: Translation = {
 	CollectionCategory_Menu: 'Menü',
 	CollectionCategory_Media: 'Medien',
 
+	// System Builder
+	BUILDER_PageTitle: 'Systemkonfiguration',
+	BUILDER_First: 'Erstellen Sie eine erste Kollektion, um loszulegen',
+	BUILDER_Save: 'Speichern',
+	BUILDER_AddCategory: 'Kategorie hinzufügen',
+	BUILDER_AddCollection: 'Kollektion hinzufügen',
+	BUILDER_Unassigned: 'Nicht zugewiesen',
+
 	// SideBar Right
 
 	// Error
@@ -58,7 +66,22 @@ const de: Translation = {
 	USER_EmailToken: 'Email Benutzerregistrierungstoken',
 	USER_ListToken: 'Token-Liste:',
 	USER_ListUser: 'Benutzerliste:',
-	USER_AdminArea: 'Admin Bereich:',
+	
+	//User AdminArea
+	USER_AdminArea_title: 'Adminbereich:',
+	USER_AdminArea_Blocked: 'Gesperrt',
+	USER_AdminArea_Avatar: 'Avatar',
+	USER_AdminArea_Username: 'Benutzername',
+	USER_AdminArea_Access: 'Letzter Zugriff',
+	USER_AdminArea_Sessions: 'Aktive Sitzungen',
+	USER_AdminArea_ExpiresIn: 'Läuft ab in',
+	USER_AdminArea_MemberFor: 'Mitglied für',
+	USER_AdminArea_UserID: 'Benutzer-ID',
+	USER_AdminArea_Email: 'E-Mail',
+	USER_AdminArea_Token: 'Token',
+	USER_AdminArea_Role: 'Rolle:',
+	USER_AdminArea_CreatedAt: 'Erstellt am' ,
+	USER_AdminArea_UpdatedAt: 'Aktualisiert am' ,
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Mediengalerie',
@@ -70,10 +93,10 @@ const de: Translation = {
 	MEDIAGALLERY_Medium: 'Mittel',
 	MEDIAGALLERY_Large: 'Groß',
 
-	// System Configuration
-	SYSTEMCONFIG_Pagetitle: 'Systemkonfiguration',
-	SYSTEMCONFIG_Body: 'Wählen Sie Ihre Konfiguration',
-	SYSTEMCONFIG_SystemBuilder: 'System Builder',
+	// Config
+	CONFIG_Pagetitle: 'Systemkonfiguration',
+	CONFIG_Body: 'Wählen Sie Ihre Konfiguration',
+	CONFIG_SystemBuilder: 'System Builder',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste der Benutzer:',
@@ -89,20 +112,41 @@ const de: Translation = {
 	TANSTACK_Yes: 'Ja',
 	TANSTACK_No: 'Nein',
 
+	
+
 	//Modal User Token
 	MODAL_UserToken_Title: 'Generiere ein Benutzer-Registrierungs-Token',
-	MODAL_UserToken_Body: 'Trage die E-Mai, Rolle & die Gültigkeit ein & drücke auf Senden.',
+	MODAL_UserToken_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',
 	MODAL_UserToken_Role: 'Benutzerrolle:',
 	MODAL_UserToken_Validity: 'Token Gültigkeit:',
 	MODAL_UserToken_Cancel: 'Abbrechen',
 	MODAL_BenutzerToken_Senden: 'Senden',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title: 'Geben Sie den Benutzer-Token ein, um sich anzumelden:',
+	MODAL_UserOAuth_Placeholder: 'Geben Sie Ihr empfangenes Token ein',
+	MODAL_UserOAuth_Cancel: 'Abbrechen',
+	MODAL_UserOAuth_Submit: 'Mit Google anmelden',
+
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Titel: "Token-Daten bearbeiten",
+	MODAL_MultiButtonToken_Body: "Ändern Sie diese Token-Daten und drücken Sie dann auf Speichern",
+	MODAL_MultiButtonToken_DeleteTitle: "Bitte bestätigen Sie die Löschung des Benutzers",
+	MODAL_MultiButtonToken_DeleteBody: 'Sind Sie sicher, dass Sie diesen Benutzer löschen möchten?',
+	MODAL_MultiButtonToken_DeleteButtonText: 'Benutzer löschen',
+	MODAL_MultiButtonToken_BlockTitle: 'Bitte bestätigen Sie die Benutzersperre',
+	MODAL_MultiButtonToken_BlockBody: 'Sind Sie sicher, dass Sie diesen Benutzer sperren möchten?',
+	MODAL_MultiButtonToken_BlockButtonText: 'Benutzer sperren',
+	MODAL_MultiButtonToken_UnBlockTitle: 'Bitte bestätigen Sie die Entsperrung des Benutzers',
+	MODAL_MultiButtonToken_UnBlockBody: 'Sind Sie sicher, dass Sie diesen Benutzer entsperren möchten?',
+	MODAL_MultiButtonToken_UnBlockButtonText: 'Benutzer entsperren',
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Bearbeiten Sie Ihren Avatar:',
 	MODAL_UserAvatar_Body: 'Avatarbild hochladen und Speichern drücken.',
 	MODAL_UserAvatar_FileSize: 'Die Dateigröße muss weniger als 5 MB betragen',
 	MODAL_UserAvatar_Unsupported: 'Unterstützte Formate: jpeg, jpg, png, webp, avif, svg, gif',
-	MODAL_UserAvatar_FilesAllowed:  'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
+	MODAL_UserAvatar_FilesAllowed: 'PNG, JPEG, GIF, SVG, WEBP, AVIF erlaubt',
 	MODAL_UserAvatar_Delete: 'Löschen',
 	MODAL_UserAvatar_Cancel: 'Abbrechen',
 	MODAL_UserAvatar_Save: 'Speichern',
@@ -128,6 +172,14 @@ const de: Translation = {
 	MODAL_Category_Delete: 'Löschen',
 	MODAL_Category_Cancel: 'Abbrechen',
 	MODAL_Category_Save: 'Speichern',
+	
+	//Modal Add Category
+	MODAL_AddCetegory_Title: 'Generiere ein Benutzer-Registrierungs-Token',
+	MODAL_AddCetegory_Body: 'Trage die E-Mail, Rolle & die Gültigkeit ein & drücke auf Senden.',
+	MODAL_AddCetegory_Role: 'Benutzerrolle:',
+	MODAL_AddCetegory_Validity: 'Token Gültigkeit:',
+	MODAL_AddCetegory_Cancel: 'Abbrechen',
+	MODAL_AddCetegory_Senden: 'Senden',
 
 	//Modal Iconpicker
 	MODAL_IconPicker_Label: 'Icon:',

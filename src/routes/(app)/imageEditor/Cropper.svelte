@@ -1,6 +1,6 @@
 <script lang="ts">
 	//skeleton
-	import { popup } from '@skeletonlabs/skeleton';
+	import { RangeSlider, popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	const popupCropSettings: PopupSettings = {
@@ -339,14 +339,14 @@
 	}
 </script>
 
-<div class="container text-black">
+<div class="container border-2 text-black">
 	{#if image}
-		<div style="padding: 120px 50px; display: flex; gap: 20px;">
+	<div style="padding: 16px 50px; display: flex; gap: 20px;"> 
 			<div style="position: relative;" id="image_handler">
 				{#each blurs as item, index}
 					<div>
 						<button
-							class="blur_handler activeBlur absolute z-10 backdrop-blur"
+							class="-bg-white absolute z-10 h-2 w-2 rounded border border-white backdrop-blur"
 							style={`width: ${blurs[index].width.value}px; height: ${blurs[index].height.value}px; top: ${blurs[index].top.value}px; left: ${blurs[index].left.value}px;`}
 							bind:this={blurButton}
 							on:click={handleBlurClick}
@@ -378,10 +378,10 @@
 						 bottom:{crop_bottom.value}px"
 					>
 						<div class="shadow_handler">
-							<div class="s_1 shadow" />
-							<div class="s_2 shadow" />
-							<div class="s_3 shadow" />
-							<div class="s_4 shadow" />
+							<div class="left-full" />
+							<div class="right-0 top-full" />
+							<div class="bottom-0 right-full" />
+							<div class="bottom-0" />
 						</div>
 						<div class="lines_handler">
 							<div class="l_1 line" />
@@ -464,15 +464,12 @@
 		<div class="variant-filled-secondary arrow" />
 	</div>
 
-	<input
-		id="small-range"
-		class="range-sm mb-6 h-1 w-full cursor-pointer appearance-none rounded-lg bg-gray-200 dark:bg-gray-700"
-		type="range"
-		name="rotate"
-		min="0"
-		max="360"
-		bind:value={rotate}
-	/>
+	<RangeSlider name="range-slider" class="m-2" bind:value={rotate} max={360} step={1} ticked>
+		<div class="flex items-center justify-between">
+			<div class="font-bold text-primary-500">Rotate</div>
+			<div class="text-xs text-primary-500">{rotate} / 360</div>
+		</div>
+	</RangeSlider>
 </div>
 
 <style>
@@ -506,20 +503,7 @@
 		height: 1000px;
 		z-index: 0;
 	}
-	.crop_window_handler .shadow.s_1 {
-		left: 100%;
-	}
-	.crop_window_handler .shadow.s_2 {
-		top: 100%;
-		right: 0;
-	}
-	.crop_window_handler .shadow.s_3 {
-		right: 100%;
-		bottom: 0;
-	}
-	.crop_window_handler .shadow.s_4 {
-		bottom: 100%;
-	}
+
 	.crop_window_handler .line {
 		position: absolute;
 		background: rgba(255, 255, 255, 0.6);
@@ -583,9 +567,7 @@
 		height: 100%;
 		position: relative;
 	}
-	.activeBlur {
-		border: 1px solid white;
-	}
+
 	.blur_handler .blur_corner {
 		position: absolute;
 		width: 10px;

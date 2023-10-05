@@ -1,18 +1,16 @@
 import ImageUpload from './ImageUpload.svelte';
 
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { defaultContentLanguage } from '@src/stores/store';
-
-// import { Avatar } from '@skeletonlabs/skeleton';
-// Avatar <Avatar src="${data?.thumbnail.url} " width="w-32" rounded="rounded"/>
 
 const widget = ({
 	// Accept parameters from collection
 	label,
 	db_fieldName,
 	display,
-	// extras
 	icon,
+	translated = false,
+
+	// extras
 	required,
 	path = 'unique'
 }: Params) => {
@@ -26,21 +24,14 @@ const widget = ({
 	const widget: { type: any; key: 'ImageUpload' } = { type: ImageUpload, key: 'ImageUpload' };
 
 	const field = {
+		// standard
 		label,
 		db_fieldName,
 		display,
-		schema: {
-			[db_fieldName || label]: {
-				size: Number,
-				name: String,
-				type: String,
-				lastModified: Number,
-			  },
-			  type: { en: String },
-		},
-
-		// Widget Specific parameters
 		icon,
+		translated,
+		
+		// extras
 		required,
 		path
 	};

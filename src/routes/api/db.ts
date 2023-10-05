@@ -55,7 +55,7 @@ export async function getCollectionModels() {
 				for (const collection of collections) {
 					// Create a new mongoose schema using the collection's fields and timestamps
 					const schema_object = new mongodb.Schema(
-						{ ...fieldsToSchema(collection.fields), createdAt: Number, updatedAt: Number },
+						{ createdAt: Number, updatedAt: Number },
 						{
 							typeKey: '$type',
 							strict: false,
@@ -80,7 +80,6 @@ export async function getCollectionModels() {
 }
 
 // Set up authentication collections if they don't already exist
-
 !mongodb.models['auth_session'] && mongodb.model('auth_session', new mongodb.Schema({ ...session }, { _id: false }));
 !mongodb.models['auth_key'] && mongodb.model('auth_key', new mongodb.Schema({ ...key }, { _id: false }));
 !mongodb.models['auth_user'] && mongodb.model('auth_user', new mongodb.Schema({ ...UserSchema }, { _id: false, timestamps: true }));

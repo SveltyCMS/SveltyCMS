@@ -35,6 +35,10 @@ export async function load(event) {
 	if (user.status != 200) throw redirect(302, `/login`);
 
 	user.user.authMethod = userKey['_id'].split(':')[0];
+	// If the user is not logged in, redirect them to the login page.
+	if (user.status != 200) throw redirect(302, `/login`);
+
+	user.user.authMethod = userKey['_id'].split(':')[0];
 
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, addUserTokenSchema);
@@ -121,16 +125,6 @@ export const actions: Actions = {
 				return { form: addUserForm, message: 'Invalid value for token validity' };
 		}
 
-		// Issue a token for the new user.
-		// const tokenHandler = passwordToken(auth as any, 'register', {
-		// 	expiresIn: expirationTime,
-		// 	length: 43 // default
-		// });
-		// const tokenHandler = passwordToken(auth as any, 'register', {
-		// 	expiresIn: expirationTime,
-		// 	length: 43 // default
-		// });
-
 		// Issue password token for new user
 		const token = await createToken(user.id, 'register', expirationTime * 1000);
 		console.log(token);
@@ -161,8 +155,7 @@ export const actions: Actions = {
 	// This action changes the password for the current user.
 	changePassword: async (event) => {
 		// Validate the form data.
-		console.log('changePassword');
-		console.log('changePassword');
+		//console.log('changePassword');
 
 		const changePasswordForm = await superValidate(event, changePasswordSchema);
 		const password = changePasswordForm.data.password;
@@ -202,6 +195,8 @@ async function getAllUsers() {
 		const user = await auth.getUser(key['user_id']);
 		if (user && (user as any).username == null) continue;
 
+		if (user && (user as any).username == null) continue;
+
 		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
 		let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
 			active_expires: -1
@@ -231,7 +226,10 @@ async function getAllUsers() {
 async function getTokens() {
 	const AUTH_User = mongoose.models['auth_user'];
 	const AUTH_KEY = mongoose.models['auth_tokens'];
+	const AUTH_User = mongoose.models['auth_user'];
+	const AUTH_KEY = mongoose.models['auth_tokens'];
 	// const tokens = await AUTH_KEY.find({ primary_key: false });
+	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const userToken = [] as any;
 	for (const token of tokens) {
@@ -243,7 +241,17 @@ async function getTokens() {
 		tokenOBJ.email = user?.email;
 		tokenOBJ.role = user?.role;
 		userToken.push(tokenOBJ);
+		const tokenOBJ = token.toObject();
+		delete tokenOBJ._id; // remove the _id property
+		delete tokenOBJ.__v; // remove the __v property
+		delete tokenOBJ.type; // remove the type property
+		const user = await AUTH_User.findOne({ _id: token['userID'] });
+		tokenOBJ.email = user?.email;
+		tokenOBJ.role = user?.role;
+		userToken.push(tokenOBJ);
 	}
+	// console.log(userToken);
+
 	// console.log(userToken);
 
 	return userToken;

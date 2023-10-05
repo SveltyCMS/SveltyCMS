@@ -6,13 +6,17 @@ import mongoose from 'mongoose';
 
 import { getCollections } from '@src/collections';
 import widgets from '@src/components/widgets';
+import { getFieldName } from '@src/utils/utils';
 
-const yogaQL = (request) => {
-	let typeDefs = /* GraphQL */ ``;
-	const collectionSchemas: string[] = [];
-	const collections = await getCollections();
-	for (const collection of collections) {
-		let collectionSchema = `
+let typeDefs = /* GraphQL */ ``;
+const types = new Set();
+const collectionSchemas: string[] = [];
+const collections = await getCollections();
+
+console.log("collections", collections);
+
+for (const collection of collections) {
+	let collectionSchema = `
 	type ${collection.name} {
 		_id: String
 		createdAt: Float
@@ -25,49 +29,49 @@ const yogaQL = (request) => {
 		strict: Boolean
 		status: String
 	`;
-		for (const field of collection.fields) {
-			// const label = field.label;
-			const label = field?.db_fieldName?.replace(/ /g, '_') || field.label.replace(/ /g, '_');
-			const schema = widgets[field.widget.key].GraphqlSchema?.({ label });
+	// console.log('collection.name: ', collection.name);
+	for (const field of collection.fields) {
 
-			if (schema) {
-				if (!typeDefs.includes(schema)) {
-					// typeDefs += schema;
+		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field), collection });
+
+		if (schema) {
+			const _types = schema.split(/(?=type.*?{)/);
+			for (const type of _types) {
+				types.add(type);
+			}
+			if (!getFieldName(field) && field.fields && Array.isArray(field.fields) && field.fields.length > 0) {
+				const _fields: Array<any> = field.fields;
+				for (const _field of _fields) {
+					collectionSchema += `${getFieldName(_field)}: ${collection.name}_${getFieldName(_field)}\n`;
 				}
-				// collectionSchema += `${label}: ${field.widget.key}\n`;
+			} else {
+				collectionSchema += `${getFieldName(field)}: ${collection.name}_${getFieldName(field)}\n`;
 			}
 		}
-
-		collectionSchemas.push(collectionSchema + '}\n');
 	}
-	typeDefs += collectionSchemas.join('\n');
-	typeDefs += `
+	collectionSchemas.push(collectionSchema + '}\n');
+}
+
+typeDefs += Array.from(types).join('\n');
+typeDefs += collectionSchemas.join('\n');
+typeDefs += `
 type Query {
-	${collections.map((collection: any) => `${collection.name}: [${collection.name}]`).join('\n')}
+	${collections.map((collection) => `${collection.name}: [${collection.name}]`).join('\n')}
 }
 `;
-	// console.log(typeDefs);
 
 	// Initialize an empty resolvers object
 	const resolvers = {
 		Query: {}
 	};
 
-	// Loop over each collection
-	for (const collection of collections) {
-		// Add a resolver function for this collection
-		const model = mongoose.models[collection.name];
-		let data: any | null = null;
-		// If the model exists, find all documents
-		if (model) {
-			data = await model.find({});
-		} else {
-			throw new Error(`No model found for collection ${collection.name}`);
-		}
-		data = data.map((doc: any) => doc.toObject());
+// Loop over each collection
+for (const collection of collections) {
+	// Add a resolver function for collections
+	resolvers.Query[collection.name as string] = async () => await mongoose.models[collection.name as string].find({}).lean();
+}
 
-		resolvers.Query[collection.name] = () => data;
-	}
+// console.log('resolvers.Query:', resolvers.Query);
 
 	const yogaApp = createYoga<RequestEvent>({
 		// Import schema and resolvers

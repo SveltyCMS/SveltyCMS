@@ -24,6 +24,14 @@ const en: BaseTranslation = {
 	CollectionCategory_Menu: 'Menu',
 	CollectionCategory_Media: 'Media',
 
+	// System Builder
+	BUILDER_PageTitle: 'System Builder',
+	BUILDER_First: 'Create a first collection to get started',
+	BUILDER_Save: 'Save',
+	BUILDER_AddCategory: 'Add Category',
+	BUILDER_AddCollection: 'Add Collection',
+	BUILDER_Unassigned: 'Unassigned',
+
 	// SideBar Right
 
 	// ERROR
@@ -58,7 +66,22 @@ const en: BaseTranslation = {
 	USER_EmailToken: 'Email User Registration token',
 	USER_ListToken: 'Token List:',
 	USER_ListUser: 'User List:',
-	USER_AdminArea: 'Admin Area:',
+
+	//User AdminArea
+	USER_AdminArea_title: 'Admin Area:',
+	USER_AdminArea_Blocked: 'Blocked',
+	USER_AdminArea_Avatar: 'Avatar',
+	USER_AdminArea_Username: 'Username',
+	USER_AdminArea_Access: 'Last Access',
+	USER_AdminArea_Sessions: 'Active Sessions',
+	USER_AdminArea_ExpiresIn: 'Expires In',
+	USER_AdminArea_MemberFor: 'Member For',
+	USER_AdminArea_UserID: 'User ID',
+	USER_AdminArea_Email: 'Email',
+	USER_AdminArea_Token: 'Token',
+	USER_AdminArea_Role: 'Role:',
+	USER_AdminArea_CreatedAt: 'Created At' ,
+	USER_AdminArea_UpdatedAt: 'Updated At' ,
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Media Gallery',
@@ -70,10 +93,10 @@ const en: BaseTranslation = {
 	MEDIAGALLERY_Medium: 'Medium',
 	MEDIAGALLERY_Large: 'Large',
 
-	// System Configuration
-	SYSTEMCONFIG_Pagetitle: 'System Configuration',
-	SYSTEMCONFIG_Body: 'Select your Configuration',
-	SYSTEMCONFIG_SystemBuilder: 'System Builder',
+	// Config
+	CONFIG_Pagetitle: 'System Configuration',
+	CONFIG_Body: 'Select your Configuration',
+	CONFIG_SystemBuilder: 'System Builder',
 
 	// Tanstack
 	TANSTACK_UserList: 'List of User:',
@@ -96,6 +119,25 @@ const en: BaseTranslation = {
 	MODAL_UserToken_Validity: 'Token validity:',
 	MODAL_UserToken_Cancel: 'Cancel',
 	MODAL_UserToken_Send: 'Send',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title: 'Enter User Token to SignUp:',
+	MODAL_UserOAuth_Placeholder: 'Enter your Received Token',
+	MODAL_UserOAuth_Cancel: 'Cancel',
+	MODAL_UserOAuth_Submit: 'Sign Up with Google',
+
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Title: "Edit Token Data",
+	MODAL_MultiButtonToken_Body: "Modify this token data and then press Save.",
+	MODAL_MultiButtonToken_DeleteTitle: 'Please Confirm User Deletion',
+	MODAL_MultiButtonToken_DeleteBody: 'Are you sure you wish to delete this user?',
+	MODAL_MultiButtonToken_DeleteButtonText: 'Delete User',
+	MODAL_MultiButtonToken_BlockTitle: 'Please Confirm User Block',
+	MODAL_MultiButtonToken_BlockBody: 'Are you sure you wish to block this user?',
+	MODAL_MultiButtonToken_BlockButtonText: 'Block User',
+	MODAL_MultiButtonToken_UnBlockTitle: 'Please Confirm User Unblock',
+	MODAL_MultiButtonToken_UnBlockBody: 'Are you sure you wish to unblock this user?',
+	MODAL_MultiButtonToken_UnBlockButtonText: 'Unblock User',
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Edit your Avatar:',
@@ -136,8 +178,6 @@ const en: BaseTranslation = {
 	MODAL_IconPicker_Select: 'Select from Google Material Icons',
 	MODAL_IconPicker_Previous: 'Previous',
 	MODAL_IconPicker_Next: 'Next',
-
-
 
 	// Login
 	LOGIN_SignIn: 'Sign In',

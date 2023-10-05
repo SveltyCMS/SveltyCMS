@@ -12,9 +12,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
-	translated = false,
-	// extras
+	translated = false, // default no translation
 	icon,
+
+	// extras
 	color,
 	width,
 	required
@@ -46,12 +47,12 @@ const widget = ({
 
 	const field = {
 		display,
-		schema: { [db_fieldName || label]: { type: { en: String } } },
 		label,
 		db_fieldName,
-		translated,
-		// extras
 		icon,
+		translated,
+
+		// extras
 		color,
 		width,
 		required

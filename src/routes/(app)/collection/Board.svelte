@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { createEventDispatcher } from 'svelte';
+
 	import Column from './Column.svelte';
 	const flipDurationMs = 300;
 
@@ -22,11 +22,6 @@
 		onFinalUpdate([...columns]);
 	}
 
-	// const dispatch = createEventDispatcher();
-
-	// function handleColumnNameClick(column) {
-	// 	dispatch('columnnameclick', column);
-	// }
 </script>
 
 <section

@@ -7,7 +7,6 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	schema?: any;
 	translated?: boolean;
 	icon?: string;
 
@@ -21,7 +20,6 @@ export const GuiSchema = {
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
-	// schema?: any;
 	translated: { widget: Toggles, required: false },
 	icon: { widget: Input, required: false },
 

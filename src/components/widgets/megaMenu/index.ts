@@ -16,7 +16,10 @@ const widget = ({
 	label,
 	db_fieldName,
 	display,
+	icon,
 	translated = false,
+
+	// extras
 	menu
 }: Params) => {
 	if (!display) {
@@ -44,19 +47,23 @@ const widget = ({
 
 	const widget: { type: any; key: 'MegaMenu' } = { type: MegaMenu, key: 'MegaMenu' };
 
-	const field = { 
-		display, 
-		schema: { [db_fieldName || label]: { type: { en: String } } },
-		label, 
-		db_fieldName, 
-		menu 
+	const field = {
+		// standard
+		label,
+		db_fieldName,
+		display,
+		icon,
+		translated,
+		
+		// extras
+		menu
 	};
 
 	return { ...field, widget };
 };
 
 widget.GuiSchema = GuiSchema;
-// widget.GraphqlSchema = GraphqlSchema;
+widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

@@ -6,15 +6,15 @@
 </script>
 
 <div class="mb-2 flex items-center">
-	<PageTitle name={$LL.SYSTEMCONFIG_Pagetitle()} icon="" />
+	<PageTitle name={$LL.CONFIG_Pagetitle()} icon="" />
 </div>
 
-<h2 class="ml-2 mt-8 text-center text-primary-500">{$LL.SYSTEMCONFIG_Body()}</h2>
+<h2 class="ml-2 mt-8 text-center text-primary-500">{$LL.CONFIG_Body()}</h2>
 <div class="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
 	<!-- Collection -->
 	<a href="/collection" class="variant-outline-secondary btn gap-2 py-6">
 		<iconify-icon icon="mingcute:menu-fill" width="24" class="text-tertiary-600" />
-		<p class="uppercase">{$LL.SYSTEMCONFIG_SystemBuilder()}</p>
+		<p class="uppercase">{$LL.CONFIG_SystemBuilder()}</p>
 	</a>
 
 	<!-- builder to be replaced -->

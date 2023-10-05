@@ -16,14 +16,22 @@ const fr: Translation = {
 	SBL_Save: 'Enregistrer',
 	SBL_Save_message: 'Données enregistrées avec succès',
 	SBL_SignOut: 'Déconnexion',
-	SBL_Configuration : "System Configuration",
-	SBL_GithubDiscussion : "Github Discussion",
+	SBL_Configuration: 'System Configuration',
+	SBL_GithubDiscussion: 'Github Discussion',
 
 	// Collections
 	CollectionCategory_Collection: 'Collection',
 	CollectionCategory_Menu: 'Menu',
 	CollectionCategory_Media: 'Média',
-
+	
+	// System Builder
+	BUILDER_PageTitle : 'Constructeur de système',
+	BUILDER_First : 'Créer une première collection pour commencer',
+	BUILDER_Save : 'Save',
+	BUILDER_AddCategory : 'Ajouter une catégorie',
+	BUILDER_AddCollection : 'Ajouter une collection',
+	BUILDER_Unassigned : 'Non attribué',
+	
 	// SideBar Right
 
 	// ERROR
@@ -58,22 +66,37 @@ const fr: Translation = {
 	USER_EmailToken: "Envoyer un jeton d'inscription utilisateur par email",
 	USER_ListToken: 'Liste de jetons :',
 	USER_ListUser: 'Liste des utilisateurs:',
-	USER_AdminArea: 'Zone Admin:',
+
+	//User AdminArea
+	USER_AdminArea_title : "Zone d'administration :",
+	USER_AdminArea_Blocked : 'Bloqué',
+	USER_AdminArea_Avatar : "Avatar",
+	USER_AdminArea_Username : "Nom d'utilisateur",
+	USER_AdminArea_Access : 'Dernier accès',
+	USER_AdminArea_Sessions : 'Sessions actives',
+	USER_AdminArea_ExpiresIn : " Expiration en ", 
+	USER_AdminArea_MemberFor : "Membre pour",
+	USER_AdminArea_UserID : "ID utilisateur",
+	USER_AdminArea_Email : 'Email',
+	USER_AdminArea_Token : "Jeton",
+	USER_AdminArea_Role : " Rôle",
+	USER_AdminArea_CreatedAt : 'Créé à' ,
+	USER_AdminArea_UpdatedAt : 'Mis à jour le' ,
 
 	// Media Gallery
-	MEDIAGALLERY_Pagetitle : "Galerie des médias",
-	MEDIAGALLERY_Display : 'Affichage',
-	MEDIAGALLERY_Grid : "Grille",
-	MEDIAGALLERY_Table : "Table",
-	MEDIAGALLERY_Size : "Taille",
-	MEDIAGALLERY_Small : "Petit",
-	MEDIAGALLERY_Medium : "Moyen",
-	MEDIAGALLERY_Large : "Grand",
+	MEDIAGALLERY_Pagetitle: 'Galerie des médias',
+	MEDIAGALLERY_Display: 'Affichage',
+	MEDIAGALLERY_Grid: 'Grille',
+	MEDIAGALLERY_Table: 'Table',
+	MEDIAGALLERY_Size: 'Taille',
+	MEDIAGALLERY_Small: 'Petit',
+	MEDIAGALLERY_Medium: 'Moyen',
+	MEDIAGALLERY_Large: 'Grand',
 
-	// System Configuration
-	SYSTEMCONFIG_Pagetitle : "Configuration du système",
-	SYSTEMCONFIG_Body : 'Sélectionnez votre configuration',
-	SYSTEMCONFIG_SystemBuilder : 'Constructeur de système',
+	// Config
+	CONFIG_Pagetitle: 'Configuration du système',
+	CONFIG_Body: 'Sélectionnez votre configuration',
+	CONFIG_SystemBuilder: 'Constructeur de système',
 
 	// Tanstack
 	TANSTACK_UserList: 'Liste des utilisateurs:',
@@ -86,16 +109,35 @@ const fr: Translation = {
 	TANSTACK_Total: 'Total',
 	TANSTACK_Row: 'Ligne',
 	TANSTACK_Rows: 'Lignes',
-	TANSTACK_Yes : "Oui",
-	TANSTACK_No : "Non",
+	TANSTACK_Yes: 'Oui',
+	TANSTACK_No: 'Non',
 
 	//Modal User Token
-	MODAL_UserToken_Title : "Générer un nouveau jeton d'enregistrement d'utilisateur",
-	MODAL_UserToken_Body : "Fournir le rôle et la validité de l'email de l'utilisateur, puis appuyer sur Envoyer",
-	MODAL_UserToken_Role : "Rôle de l'utilisateur:",
-	MODAL_UserToken_Validity : 'Validité du jeton:',
-	MODAL_UserToken_Cancel : 'Annuler',
-	MODAL_UserToken_Send : 'Send',
+	MODAL_UserToken_Title: "Générer un nouveau jeton d'enregistrement d'utilisateur",
+	MODAL_UserToken_Body: "Fournir le rôle et la validité de l'email de l'utilisateur, puis appuyer sur Envoyer",
+	MODAL_UserToken_Role: "Rôle de l'utilisateur:",
+	MODAL_UserToken_Validity: 'Validité du jeton:',
+	MODAL_UserToken_Cancel: 'Annuler',
+	MODAL_UserToken_Send: 'Send',
+
+	//Modal User OAuth
+	MODAL_UserOAuth_Title : "Entrez le jeton d'utilisateur pour vous inscrire :",
+	MODAL_UserOAuth_Placeholder : "Entrez le jeton que vous avez reçu", 
+	MODAL_UserOAuth_Cancel : 'Annuler',
+	MODAL_UserOAuth_Submit : "Inscription à Google",
+
+	//Modal MultiButtonToken
+	MODAL_MultiButtonToken_Title : "Modifier les données du jeton",
+	MODAL_MultiButtonToken_Body : "Modifiez les données de ce jeton et appuyez sur Enregistrer",
+	MODAL_MultiButtonToken_DeleteTitle : "Veuillez confirmer la suppression de l'utilisateur",
+	MODAL_MultiButtonToken_DeleteBody : "Êtes-vous sûr de vouloir supprimer cet utilisateur ?",
+	MODAL_MultiButtonToken_DeleteButtonText : "Supprimer l'utilisateur",
+	MODAL_MultiButtonToken_BlockTitle : "Veuillez confirmer le blocage de l'utilisateur",
+	MODAL_MultiButtonToken_BlockBody : "Êtes-vous sûr de vouloir bloquer cet utilisateur ?",
+	MODAL_MultiButtonToken_BlockButtonText : "Bloquer l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockTitle : "Veuillez confirmer le déblocage de l'utilisateur",
+	MODAL_MultiButtonToken_UnBlockBody : "Êtes-vous sûr de vouloir débloquer cet utilisateur ?",
+	MODAL_MultiButtonToken_UnBlockButtonText : "Débloquer l'utilisateur",
 
 	//Modal User Avatar
 	MODAL_UserAvatar_Title: 'Modifiez votre avatar :',
@@ -110,7 +152,7 @@ const fr: Translation = {
 	//Modal User Edit
 	MODAL_UserEdit_Title: "Modifier les données de l'utilisateur:",
 	MODAL_UserEdit_Body: 'Modifiez vos données et appuyez sur Enregistrer',
-	MODAL_UserEdit_Role : "Rôle d'utilisateur:",
+	MODAL_UserEdit_Role: "Rôle d'utilisateur:",
 	MODAL_UserEdit_Cancel: 'Annuler',
 	MODAL_UserEdit_Save: 'Save',
 
@@ -121,8 +163,8 @@ const fr: Translation = {
 	MODAL_UserConfirm_Delete: "Supprimer l'utilisateur",
 
 	//Modal Category
-	MODAL_Category_Title : 'Modifier la catégorie',
-	MODAL_Category_Body : "Modifiez votre catégorie",
+	MODAL_Category_Title: 'Modifier la catégorie',
+	MODAL_Category_Body: 'Modifiez votre catégorie',
 	MODAL_Category_Name: 'Nom de la catégorie:',
 	MODAL_Category_Placeholder: 'Nom de la catégorie...',
 	MODAL_Category_Delete: 'Supprimer',
@@ -130,12 +172,12 @@ const fr: Translation = {
 	MODAL_Category_Save: 'Save',
 
 	//Modal Iconpicker
-	MODAL_IconPicker_Label : 'Icon:',
-	MODAL_IconPicker_Name : 'Nom:',
-	MODAL_IconPicker_Placeholder : 'Rechercher une icône...',
-	MODAL_IconPicker_Select : 'Select from Google Material Icons',
-	MODAL_IconPicker_Previous : 'Précédent',
-	MODAL_IconPicker_Next : 'Next',
+	MODAL_IconPicker_Label: 'Icon:',
+	MODAL_IconPicker_Name: 'Nom:',
+	MODAL_IconPicker_Placeholder: 'Rechercher une icône...',
+	MODAL_IconPicker_Select: 'Select from Google Material Icons',
+	MODAL_IconPicker_Previous: 'Précédent',
+	MODAL_IconPicker_Next: 'Next',
 
 	// Login
 	LOGIN_SignIn: 'Se connecter',

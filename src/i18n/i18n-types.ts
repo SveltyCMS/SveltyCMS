@@ -93,6 +93,30 @@ type RootTranslation = {
 	 */
 	CollectionCategory_Media: string
 	/**
+	 * S​y​s​t​e​m​ ​B​u​i​l​d​e​r
+	 */
+	BUILDER_PageTitle: string
+	/**
+	 * C​r​e​a​t​e​ ​a​ ​f​i​r​s​t​ ​c​o​l​l​e​c​t​i​o​n​ ​t​o​ ​g​e​t​ ​s​t​a​r​t​e​d
+	 */
+	BUILDER_First: string
+	/**
+	 * S​a​v​e
+	 */
+	BUILDER_Save: string
+	/**
+	 * A​d​d​ ​C​a​t​e​g​o​r​y
+	 */
+	BUILDER_AddCategory: string
+	/**
+	 * A​d​d​ ​C​o​l​l​e​c​t​i​o​n
+	 */
+	BUILDER_AddCollection: string
+	/**
+	 * U​n​a​s​s​i​g​n​e​d
+	 */
+	BUILDER_Unassigned: string
+	/**
 	 * P​a​g​e​ ​N​o​t​ ​F​o​u​n​d
 	 */
 	ERROR_Pagenotfound: string
@@ -203,7 +227,59 @@ type RootTranslation = {
 	/**
 	 * A​d​m​i​n​ ​A​r​e​a​:
 	 */
-	USER_AdminArea: string
+	USER_AdminArea_title: string
+	/**
+	 * B​l​o​c​k​e​d
+	 */
+	USER_AdminArea_Blocked: string
+	/**
+	 * A​v​a​t​a​r
+	 */
+	USER_AdminArea_Avatar: string
+	/**
+	 * U​s​e​r​n​a​m​e
+	 */
+	USER_AdminArea_Username: string
+	/**
+	 * L​a​s​t​ ​A​c​c​e​s​s
+	 */
+	USER_AdminArea_Access: string
+	/**
+	 * A​c​t​i​v​e​ ​S​e​s​s​i​o​n​s
+	 */
+	USER_AdminArea_Sessions: string
+	/**
+	 * E​x​p​i​r​e​s​ ​I​n
+	 */
+	USER_AdminArea_ExpiresIn: string
+	/**
+	 * M​e​m​b​e​r​ ​F​o​r
+	 */
+	USER_AdminArea_MemberFor: string
+	/**
+	 * U​s​e​r​ ​I​D
+	 */
+	USER_AdminArea_UserID: string
+	/**
+	 * E​m​a​i​l
+	 */
+	USER_AdminArea_Email: string
+	/**
+	 * T​o​k​e​n
+	 */
+	USER_AdminArea_Token: string
+	/**
+	 * R​o​l​e​:
+	 */
+	USER_AdminArea_Role: string
+	/**
+	 * C​r​e​a​t​e​d​ ​A​t
+	 */
+	USER_AdminArea_CreatedAt: string
+	/**
+	 * U​p​d​a​t​e​d​ ​A​t
+	 */
+	USER_AdminArea_UpdatedAt: string
 	/**
 	 * M​e​d​i​a​ ​G​a​l​l​e​r​y
 	 */
@@ -239,15 +315,15 @@ type RootTranslation = {
 	/**
 	 * S​y​s​t​e​m​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	SYSTEMCONFIG_Pagetitle: string
+	CONFIG_Pagetitle: string
 	/**
 	 * S​e​l​e​c​t​ ​y​o​u​r​ ​C​o​n​f​i​g​u​r​a​t​i​o​n
 	 */
-	SYSTEMCONFIG_Body: string
+	CONFIG_Body: string
 	/**
 	 * S​y​s​t​e​m​ ​B​u​i​l​d​e​r
 	 */
-	SYSTEMCONFIG_SystemBuilder: string
+	CONFIG_SystemBuilder: string
 	/**
 	 * L​i​s​t​ ​o​f​ ​U​s​e​r​:
 	 */
@@ -320,6 +396,66 @@ type RootTranslation = {
 	 * S​e​n​d
 	 */
 	MODAL_UserToken_Send: string
+	/**
+	 * E​n​t​e​r​ ​U​s​e​r​ ​T​o​k​e​n​ ​t​o​ ​S​i​g​n​U​p​:
+	 */
+	MODAL_UserOAuth_Title: string
+	/**
+	 * E​n​t​e​r​ ​y​o​u​r​ ​R​e​c​e​i​v​e​d​ ​T​o​k​e​n
+	 */
+	MODAL_UserOAuth_Placeholder: string
+	/**
+	 * C​a​n​c​e​l
+	 */
+	MODAL_UserOAuth_Cancel: string
+	/**
+	 * S​i​g​n​ ​U​p​ ​w​i​t​h​ ​G​o​o​g​l​e
+	 */
+	MODAL_UserOAuth_Submit: string
+	/**
+	 * E​d​i​t​ ​T​o​k​e​n​ ​D​a​t​a
+	 */
+	MODAL_MultiButtonToken_Title: string
+	/**
+	 * M​o​d​i​f​y​ ​t​h​i​s​ ​t​o​k​e​n​ ​d​a​t​a​ ​a​n​d​ ​t​h​e​n​ ​p​r​e​s​s​ ​S​a​v​e​.
+	 */
+	MODAL_MultiButtonToken_Body: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​U​s​e​r​ ​D​e​l​e​t​i​o​n
+	 */
+	MODAL_MultiButtonToken_DeleteTitle: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​d​e​l​e​t​e​ ​t​h​i​s​ ​u​s​e​r​?
+	 */
+	MODAL_MultiButtonToken_DeleteBody: string
+	/**
+	 * D​e​l​e​t​e​ ​U​s​e​r
+	 */
+	MODAL_MultiButtonToken_DeleteButtonText: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​U​s​e​r​ ​B​l​o​c​k
+	 */
+	MODAL_MultiButtonToken_BlockTitle: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​b​l​o​c​k​ ​t​h​i​s​ ​u​s​e​r​?
+	 */
+	MODAL_MultiButtonToken_BlockBody: string
+	/**
+	 * B​l​o​c​k​ ​U​s​e​r
+	 */
+	MODAL_MultiButtonToken_BlockButtonText: string
+	/**
+	 * P​l​e​a​s​e​ ​C​o​n​f​i​r​m​ ​U​s​e​r​ ​U​n​b​l​o​c​k
+	 */
+	MODAL_MultiButtonToken_UnBlockTitle: string
+	/**
+	 * A​r​e​ ​y​o​u​ ​s​u​r​e​ ​y​o​u​ ​w​i​s​h​ ​t​o​ ​u​n​b​l​o​c​k​ ​t​h​i​s​ ​u​s​e​r​?
+	 */
+	MODAL_MultiButtonToken_UnBlockBody: string
+	/**
+	 * U​n​b​l​o​c​k​ ​U​s​e​r
+	 */
+	MODAL_MultiButtonToken_UnBlockButtonText: string
 	/**
 	 * E​d​i​t​ ​y​o​u​r​ ​A​v​a​t​a​r​:
 	 */
@@ -1536,6 +1672,30 @@ export type TranslationFunctions = {
 	 */
 	CollectionCategory_Media: () => LocalizedString
 	/**
+	 * System Builder
+	 */
+	BUILDER_PageTitle: () => LocalizedString
+	/**
+	 * Create a first collection to get started
+	 */
+	BUILDER_First: () => LocalizedString
+	/**
+	 * Save
+	 */
+	BUILDER_Save: () => LocalizedString
+	/**
+	 * Add Category
+	 */
+	BUILDER_AddCategory: () => LocalizedString
+	/**
+	 * Add Collection
+	 */
+	BUILDER_AddCollection: () => LocalizedString
+	/**
+	 * Unassigned
+	 */
+	BUILDER_Unassigned: () => LocalizedString
+	/**
 	 * Page Not Found
 	 */
 	ERROR_Pagenotfound: () => LocalizedString
@@ -1646,7 +1806,59 @@ export type TranslationFunctions = {
 	/**
 	 * Admin Area:
 	 */
-	USER_AdminArea: () => LocalizedString
+	USER_AdminArea_title: () => LocalizedString
+	/**
+	 * Blocked
+	 */
+	USER_AdminArea_Blocked: () => LocalizedString
+	/**
+	 * Avatar
+	 */
+	USER_AdminArea_Avatar: () => LocalizedString
+	/**
+	 * Username
+	 */
+	USER_AdminArea_Username: () => LocalizedString
+	/**
+	 * Last Access
+	 */
+	USER_AdminArea_Access: () => LocalizedString
+	/**
+	 * Active Sessions
+	 */
+	USER_AdminArea_Sessions: () => LocalizedString
+	/**
+	 * Expires In
+	 */
+	USER_AdminArea_ExpiresIn: () => LocalizedString
+	/**
+	 * Member For
+	 */
+	USER_AdminArea_MemberFor: () => LocalizedString
+	/**
+	 * User ID
+	 */
+	USER_AdminArea_UserID: () => LocalizedString
+	/**
+	 * Email
+	 */
+	USER_AdminArea_Email: () => LocalizedString
+	/**
+	 * Token
+	 */
+	USER_AdminArea_Token: () => LocalizedString
+	/**
+	 * Role:
+	 */
+	USER_AdminArea_Role: () => LocalizedString
+	/**
+	 * Created At
+	 */
+	USER_AdminArea_CreatedAt: () => LocalizedString
+	/**
+	 * Updated At
+	 */
+	USER_AdminArea_UpdatedAt: () => LocalizedString
 	/**
 	 * Media Gallery
 	 */
@@ -1682,15 +1894,15 @@ export type TranslationFunctions = {
 	/**
 	 * System Configuration
 	 */
-	SYSTEMCONFIG_Pagetitle: () => LocalizedString
+	CONFIG_Pagetitle: () => LocalizedString
 	/**
 	 * Select your Configuration
 	 */
-	SYSTEMCONFIG_Body: () => LocalizedString
+	CONFIG_Body: () => LocalizedString
 	/**
 	 * System Builder
 	 */
-	SYSTEMCONFIG_SystemBuilder: () => LocalizedString
+	CONFIG_SystemBuilder: () => LocalizedString
 	/**
 	 * List of User:
 	 */
@@ -1763,6 +1975,66 @@ export type TranslationFunctions = {
 	 * Send
 	 */
 	MODAL_UserToken_Send: () => LocalizedString
+	/**
+	 * Enter User Token to SignUp:
+	 */
+	MODAL_UserOAuth_Title: () => LocalizedString
+	/**
+	 * Enter your Received Token
+	 */
+	MODAL_UserOAuth_Placeholder: () => LocalizedString
+	/**
+	 * Cancel
+	 */
+	MODAL_UserOAuth_Cancel: () => LocalizedString
+	/**
+	 * Sign Up with Google
+	 */
+	MODAL_UserOAuth_Submit: () => LocalizedString
+	/**
+	 * Edit Token Data
+	 */
+	MODAL_MultiButtonToken_Title: () => LocalizedString
+	/**
+	 * Modify this token data and then press Save.
+	 */
+	MODAL_MultiButtonToken_Body: () => LocalizedString
+	/**
+	 * Please Confirm User Deletion
+	 */
+	MODAL_MultiButtonToken_DeleteTitle: () => LocalizedString
+	/**
+	 * Are you sure you wish to delete this user?
+	 */
+	MODAL_MultiButtonToken_DeleteBody: () => LocalizedString
+	/**
+	 * Delete User
+	 */
+	MODAL_MultiButtonToken_DeleteButtonText: () => LocalizedString
+	/**
+	 * Please Confirm User Block
+	 */
+	MODAL_MultiButtonToken_BlockTitle: () => LocalizedString
+	/**
+	 * Are you sure you wish to block this user?
+	 */
+	MODAL_MultiButtonToken_BlockBody: () => LocalizedString
+	/**
+	 * Block User
+	 */
+	MODAL_MultiButtonToken_BlockButtonText: () => LocalizedString
+	/**
+	 * Please Confirm User Unblock
+	 */
+	MODAL_MultiButtonToken_UnBlockTitle: () => LocalizedString
+	/**
+	 * Are you sure you wish to unblock this user?
+	 */
+	MODAL_MultiButtonToken_UnBlockBody: () => LocalizedString
+	/**
+	 * Unblock User
+	 */
+	MODAL_MultiButtonToken_UnBlockButtonText: () => LocalizedString
 	/**
 	 * Edit your Avatar:
 	 */

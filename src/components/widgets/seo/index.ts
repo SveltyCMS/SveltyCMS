@@ -44,12 +44,13 @@ const widget = ({
 	const widget: { type: any; key: 'Seo' } = { type: Seo, key: 'Seo' };
 
 	const field = {
-		display,
-		schema: { [db_fieldName || label]: { type: { en: String } } },
+		// standard
 		label,
 		db_fieldName,
-		translated,
+		display,
 		icon,
+		translated,
+
 		// extras
 		color,
 		required,

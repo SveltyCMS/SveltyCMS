@@ -17,7 +17,7 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.Email({
-			label: 'email',
+			label: 'Email',
 			icon: 'material-symbols:mail'
 			// display: async (data, field, entry, contentLanguage) => {
 			// 	return data[contentLanguage];
@@ -25,7 +25,7 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			label: 'test',
+			label: 'Test',
 			db_fieldName: 'dbtest',
 			translated: true,
 			required: true,
@@ -34,7 +34,7 @@ const schema: Schema = {
 		}),
 
 		widgets.ImageUpload({
-			label: 'image',
+			label: 'Image',
 			required: true,
 			icon: 'material-symbols:image-outline',
 			path: 'images' //This save to image folder, and is not globally available
