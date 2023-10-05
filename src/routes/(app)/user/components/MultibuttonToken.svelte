@@ -14,7 +14,6 @@
 	import ModalEditForm from './ModalEditForm.svelte';
 	import { invalidateAll } from '$app/navigation';
 	import ModalEditToken from './ModalEditToken.svelte';
-	import ModalEditToken from './ModalEditToken.svelte';
 
 	// Popup Combobox
 	let listboxValue: string = 'edit';
@@ -36,14 +35,11 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditToken,
-			ref: ModalEditToken,
 			// Add your props as key/value pairs
 			props: {
 				token: selectedRows[0].data.token,
-				token: selectedRows[0].data.token,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				userId: selectedRows[0].data.userID
 				userId: selectedRows[0].data.userID
 			},
 			// Provide default slot content as a template literal
@@ -58,7 +54,6 @@
 			// Pass abitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('/api/user/editToken', {
 					const res = await fetch('/api/user/editToken', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
@@ -88,12 +83,12 @@
 				modalButtonText = $LL.MODAL_MultiButtonToken_DeleteButtonText();
 				break;
 			case 'block':
-				modalTitle =  $LL.MODAL_MultiButtonToken_BlockTitle();
+				modalTitle = $LL.MODAL_MultiButtonToken_BlockTitle();
 				modalBody = $LL.MODAL_MultiButtonToken_BlockBody();
 				modalButtonText = $LL.MODAL_MultiButtonToken_BlockButtonText();
 				break;
 			case 'unblock':
-			modalTitle =  $LL.MODAL_MultiButtonToken_UnBlockTitle();
+				modalTitle = $LL.MODAL_MultiButtonToken_UnBlockTitle();
 				modalBody = $LL.MODAL_MultiButtonToken_UnBlockBody();
 				modalButtonText = $LL.MODAL_MultiButtonToken_UnBlockButtonText();
 				break;
@@ -117,7 +112,6 @@
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
-				const endpoint = action === 'delete' ? 'deleteTokens' : '';
 				const endpoint = action === 'delete' ? 'deleteTokens' : '';
 				const res = await fetch(`/api/user/${endpoint}`, {
 					method: 'POST',

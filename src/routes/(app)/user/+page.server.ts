@@ -226,21 +226,10 @@ async function getAllUsers() {
 async function getTokens() {
 	const AUTH_User = mongoose.models['auth_user'];
 	const AUTH_KEY = mongoose.models['auth_tokens'];
-	const AUTH_User = mongoose.models['auth_user'];
-	const AUTH_KEY = mongoose.models['auth_tokens'];
 	// const tokens = await AUTH_KEY.find({ primary_key: false });
-	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const tokens = await AUTH_KEY.find({ type: 'register' });
 	const userToken = [] as any;
 	for (const token of tokens) {
-		const tokenOBJ = token.toObject();
-		delete tokenOBJ._id; // remove the _id property
-		delete tokenOBJ.__v; // remove the __v property
-		delete tokenOBJ.type; // remove the type property
-		const user = await AUTH_User.findOne({ _id: token['userID'] });
-		tokenOBJ.email = user?.email;
-		tokenOBJ.role = user?.role;
-		userToken.push(tokenOBJ);
 		const tokenOBJ = token.toObject();
 		delete tokenOBJ._id; // remove the _id property
 		delete tokenOBJ.__v; // remove the __v property
