@@ -70,6 +70,14 @@
 
 	$: $form.role = roleSelected;
 	$: $form.expiresIn = expiresIn;
+
+	// We've created a custom submit function to pass the response and close the modal.
+	function onFormSubmit(): void {
+		// console.log('modal submitted.');
+		if ($modalStore[0].response) $modalStore[0].response(formData);
+
+		modalStore.close();
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -159,7 +167,7 @@
 
 		<footer class="modal-footer {parent.regionFooter}">
 			<button class="btn variant-outline-secondary" on:click={parent.onClose}>{$LL.MODAL_UserToken_Cancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">{$LL.MODAL_UserToken_Send()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_UserToken_Send()}</button>
 		</footer>
 	</form>
 </div>

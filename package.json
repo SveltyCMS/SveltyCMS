@@ -64,6 +64,7 @@
 		"@tanstack/svelte-table": "^8.10.3",
 		"axios": "^1.5.1",
 		"buffer": "^6.0.3",
+		"deepmerge": "^4.3.1",
 		"graphql": "^16.8.1",
 		"graphql-yoga": "^4.0.5",
 		"iconify-icon": "^1.0.8",

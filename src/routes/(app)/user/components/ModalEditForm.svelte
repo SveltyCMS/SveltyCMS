@@ -276,11 +276,11 @@
 		{/if}
 
 		<!-- admin area -->
-		{#if user?.role == roles.admin}
-			<div class="flex flex-col gap-2 sm:flex-row">
+		{#if user?.role == roles.admin && !isFirstUser}
+			<div class="flex flex-col gap-2 sm:flex-row" >
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserEdit_Role()}</div>
 				<div class="flex-auto">
-					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" >
 						{#each Object.values(roles) as r}
 							<span
 								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
@@ -303,10 +303,15 @@
 	</form>
 	<!-- prettier-ignore -->
 	<footer class="modal-footer {parent.regionFooter} justify-between">
-
+		
+		{#if !isFirstUser}
 		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.userId == userId)}>
 			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
 		</button>
+		{:else}
+			<div></div>
+			<!-- Empty div when using the default avatar -->
+		{/if}
 
 		<div class="flex justify-between gap-2">
         <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{parent.buttonTextCancel}</button>

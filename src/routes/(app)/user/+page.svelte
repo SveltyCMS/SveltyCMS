@@ -171,11 +171,12 @@
 					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 				</button>
 				<!-- Delete Modal Button -->
-
-				<button on:click={modalConfirm} class="gradient-error btn text-white" disabled={isFirstUser}>
-					<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-					{$LL.USER_Delete()}
-				</button>
+				{#if !isFirstUser}
+					<button on:click={modalConfirm} class="gradient-error btn text-white">
+						<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
+						{$LL.USER_Delete()}
+					</button>
+				{/if}
 			</div>
 		</form>
 	</div>

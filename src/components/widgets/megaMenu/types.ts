@@ -24,46 +24,39 @@ export const GuiSchema = {
 	menu: { widget: GuiFields, required: true }
 };
 
-export const GraphqlSchema = ({ field, label, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 	const menu = field.menu;
-
+	const typeName = `${collection.name}_${getFieldName(field)}`;
 	const types = new Set();
 	let levelCount = 0;
-
-	// Check if menu is iterable
-	if (Array.isArray(menu)) {
-		for (const level of menu) {
-			const children: Array<any> = [];
-
-			// Check if level is iterable
-			if (Array.isArray(level)) {
-				for (const _field of level) {
-					types.add(widgets[_field.widget.key].GraphqlSchema({ label: `${getFieldName(_field)}_Level${levelCount}`, collection }));
-					if (levelCount > 0) {
-						children.push(`${getFieldName(_field)}:${collection.name}_${getFieldName(_field)}_Level${levelCount} `);
-					}
-				}
-			}
-
+	for (const level of menu) {
+		const children: Array<any> = [];
+		for (const _field of level) {
+			types.add(widgets[_field.widget.key].GraphqlSchema({ label: `${getFieldName(_field)}_Level${levelCount}`, collection }).graphql);
 			if (levelCount > 0) {
-				if (menu.length - levelCount > 1) {
-					children.push(`children:[${collection.name}_${getFieldName(field)}_Level${levelCount + 1}] `);
-				}
-				types.add(`
-				type ${collection.name}_${getFieldName(field)}_Level${levelCount} {
-					${Array.from(children).join('\n')}
-				}
-				`);
+				children.push(`${getFieldName(_field)}:${collection.name}_${getFieldName(_field)}_Level${levelCount} `);
 			}
-			levelCount++;
 		}
+		if (levelCount > 0) {
+			if (menu.length - levelCount > 1) {
+				children.push(`children:[${collection.name}_${getFieldName(field)}_Level${levelCount + 1}] `);
+			}
+			types.add(`
+			type ${collection.name}_${getFieldName(field)}_Level${levelCount} {
+				${Array.from(children).join('\n')}
+			}
+			`);
+		}
+		levelCount++;
 	}
-
-	return /* GraphQL */ `
+	return {
+		typeName,
+		graphql: /* GraphQL */ `
 		${Array.from(types).join('\n')}
-		type ${collection.name}_${getFieldName(field)} {
+		type ${typeName} {
 			Header: ${collection.name}_Header_Level0
 			children: [${collection.name}_${getFieldName(field)}_Level1]
 		}
-	`;
+	`
+	};
 };

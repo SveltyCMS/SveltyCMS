@@ -15,7 +15,6 @@ const widget = ({
 
 	// extras
 	required,
-	upload,
 	fields
 }: Params) => {
 	const uploader = fields[0] as ImageUpload_Params;
@@ -51,3 +50,4 @@ widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;
+

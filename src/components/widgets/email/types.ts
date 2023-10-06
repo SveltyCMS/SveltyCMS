@@ -29,10 +29,14 @@ export const GuiSchema = {
 	width: { widget: Input, required: false }
 };
 
-export const GraphqlSchema = ({ label }) => {
-	return /* GraphQL */ `
-		type ${label.replace(/ /g, '_')} {
+export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+	const typeName = `${collection.name}_${label}`;
+	return {
+		typeName,
+		graphql: /* GraphQL */ `
+		type ${typeName} {
 			en: String
 		}
-	`;
+	`
+	};
 };

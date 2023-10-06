@@ -7,6 +7,11 @@
     export let CONT_HEIGHT: string | undefined;
   
     function handleRotate() {
+      const preview = document.getElementById("preview") as HTMLImageElement;
+  if (!preview) {
+    console.log("Preview element not found");
+    return;
+  }
       if (image) {
         const img = new Image();
         img.src = URL.createObjectURL(image);
