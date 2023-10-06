@@ -8,7 +8,6 @@
 
 	let fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
-	//console.log('value: ', value);
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = defaultContentLanguage;

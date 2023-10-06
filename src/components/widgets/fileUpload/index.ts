@@ -31,7 +31,7 @@ const widget = ({
 		display,
 		icon,
 		translated,
-		
+
 		// extras
 		required,
 		path

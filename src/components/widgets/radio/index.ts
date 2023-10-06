@@ -53,7 +53,7 @@ const widget = ({
 		display,
 		icon,
 		translated,
-		
+
 		// extra
 		color,
 		required,

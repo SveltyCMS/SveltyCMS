@@ -80,8 +80,8 @@ const en: BaseTranslation = {
 	USER_AdminArea_Email: 'Email',
 	USER_AdminArea_Token: 'Token',
 	USER_AdminArea_Role: 'Role:',
-	USER_AdminArea_CreatedAt: 'Created At' ,
-	USER_AdminArea_UpdatedAt: 'Updated At' ,
+	USER_AdminArea_CreatedAt: 'Created At',
+	USER_AdminArea_UpdatedAt: 'Updated At',
 
 	// Media Gallery
 	MEDIAGALLERY_Pagetitle: 'Media Gallery',
@@ -127,8 +127,8 @@ const en: BaseTranslation = {
 	MODAL_UserOAuth_Submit: 'Sign Up with Google',
 
 	//Modal MultiButtonToken
-	MODAL_MultiButtonToken_Title: "Edit Token Data",
-	MODAL_MultiButtonToken_Body: "Modify this token data and then press Save.",
+	MODAL_MultiButtonToken_Title: 'Edit Token Data',
+	MODAL_MultiButtonToken_Body: 'Modify this token data and then press Save.',
 	MODAL_MultiButtonToken_DeleteTitle: 'Please Confirm User Deletion',
 	MODAL_MultiButtonToken_DeleteBody: 'Are you sure you wish to delete this user?',
 	MODAL_MultiButtonToken_DeleteButtonText: 'Delete User',

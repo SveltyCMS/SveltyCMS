@@ -44,10 +44,14 @@ export const GuiSchema = {
 	width: { widget: String, required: false }
 };
 
-export const GraphqlSchema = ({ label }) => {
-	return /* GraphQL */ `
-		type ${label} {
+export let GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+	let typeName = `${collection.name}_${label}`;
+	return {
+		typeName,
+		graphql: /* GraphQL */ `
+		type ${typeName} {
 			en: String
 		}
-	`;
+	`
+	};
 };

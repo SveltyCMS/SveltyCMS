@@ -47,7 +47,7 @@ const widget = ({
 		display,
 		icon,
 		translated,
-		
+
 		// extras
 		placeholder,
 		required

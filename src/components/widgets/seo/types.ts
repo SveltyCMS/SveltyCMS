@@ -9,7 +9,7 @@ export type Params = {
 	widget?: any;
 	translated?: boolean;
 	icon?: string;
-	
+
 	// Widget Specific parameters
 	color?: string;
 	required?: boolean;

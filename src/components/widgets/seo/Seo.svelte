@@ -31,6 +31,7 @@
 	let _data = $mode == 'create' ? {} : value;
 	// console.log(_data);
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+	let includeRobotsMeta = false;
 
 	export const WidgetData = async () => _data;
 
@@ -42,7 +43,8 @@
 	_data[_language] = {
 		...value,
 		title: _data[_language].title || '',
-		description: _data[_language].description || ''
+		description: _data[_language].description || '',
+		robotsMeta: _data[_language].robotsMeta || 'index, follow', 
 	};
 
 	// get current page url
@@ -285,6 +287,7 @@
 <div class="input-container">
 	<!-- TODO: Enhance color change of numbers only -->
 
+
 	<label
 		for="title-input"
 		class={title.length >= 50 && title.length <= 60
@@ -308,8 +311,7 @@
 					<span class="text-primary-500">{titleCharacterWidth}</span>/654px
 				</div>
 			</div>
-		</div></label
-	>
+		</div></label>
 	<!-- TODO:specify Title data save -->
 	<input
 		id="title-input"
@@ -361,12 +363,28 @@
 		on:input={handleDescriptionChange}
 		class="input"
 	/>
+
+
+	<!-- Robots Meta Data -->
+	<label for="robots-meta-select" class="label">
+		<span>Robots Meta Data:</span>
+		<select class="select"  id="robots-meta-select"
+		bind:value={_data[_language].robotsMeta} 
+		>
+		<option value="index, follow">Index, Follow</option>
+		<option value="noindex, follow">Noindex, Follow</option>
+		<option value="index, nofollow">Index, Nofollow</option>
+		<option value="noindex, nofollow">Noindex, Nofollow</option>
+		<option value="noarchive">Noarchive</option>
+		<option value="nosnippet">Nosnippet</option>
+		<option value="noimageindex">Noimageindex</option>
+		<option value="notranslate">Notranslate</option>
+		</select>
+	</label>
 </div>
 
 <!-- CTR display -->
-<div
-	class="dark:boder-white relative mt-2 border-t border-surface-500 dark:border-white dark:bg-transparent"
->
+<div class="dark:boder-white relative mt-2 border-t border-surface-500 dark:border-white dark:bg-transparent">
 	<h2 class="mt-1 text-right text-xl text-white sm:text-center sm:text-2xl">
 		{$LL.WIDGET_Seo_Suggestion_SeoPreview()}
 	</h2>
@@ -375,9 +393,7 @@
 	<div class="absolute left-0 top-1 flex justify-between gap-2">
 		<button
 			on:click={() => (SeoPreviewToggle = !SeoPreviewToggle)}
-			class="{SeoPreviewToggle
-				? 'hidden'
-				: 'block'} variant-filled-tertiary btn btn-sm flex items-center justify-center"
+			class="{SeoPreviewToggle ? 'hidden' : 'block'} variant-filled-tertiary btn btn-sm flex items-center justify-center"
 		>
 			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1" />
 			Desktop
@@ -385,9 +401,7 @@
 
 		<button
 			on:click={() => (SeoPreviewToggle = !SeoPreviewToggle)}
-			class="{SeoPreviewToggle
-				? 'block'
-				: 'hidden'} variant-filled-tertiary btn flex items-center justify-center"
+			class="{SeoPreviewToggle ? 'block' : 'hidden'} variant-filled-tertiary btn flex items-center justify-center"
 		>
 			<iconify-icon icon="bi:phone" width="18" class="mr-1" />
 			Mobile
@@ -420,12 +434,8 @@
 <div class="md:hidden">
 	<h3 class="mb-2 text-center">{$LL.WIDGET_Seo_Suggestion_ListOfSuggestion()}</h3>
 	<div class="flex items-center justify-around">
-		<ProgressRadial
-			value={progress}
-			stroke={200}
-			meter="stroke-primary-500"
-			width="w-20 sm:w-28"
-			class="mr-6 mt-1 text-white ">{progress}%</ProgressRadial
+		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white "
+			>{progress}%</ProgressRadial
 		>
 		<div class="flex flex-col items-center justify-start text-xs sm:text-sm">
 			<div class="gap sm:flex sm:gap-4">
@@ -434,23 +444,11 @@
 					<span class="flex-auto">0 - 49</span>
 				</div>
 				<div class="flex justify-center gap-2">
-					<span
-						><iconify-icon
-							icon="bi:hand-thumbs-up-fill"
-							width="20"
-							class="text-tertiary-500"
-						/></span
-					>
+					<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="text-tertiary-500" /></span>
 					<span class="flex-auto">50 - 79</span>
 				</div>
 				<div class="flex justify-center gap-2">
-					<span
-						><iconify-icon
-							icon="material-symbols:check-circle-outline"
-							class="text-success-500"
-							width="20"
-						/></span
-					>
+					<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="20" /></span>
 					<span class="flex-auto">80 - 100</span>
 				</div>
 			</div>
@@ -464,12 +462,7 @@
 <!-- desktop -->
 <div class="hidden md:block">
 	<div class="mt-2 flex items-center justify-center dark:text-white">
-		<ProgressRadial
-			value={progress}
-			stroke={200}
-			meter="stroke-primary-500"
-			class="mr-6 mt-1 w-20 text-2xl text-white">{progress}%</ProgressRadial
-		>
+		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">{progress}%</ProgressRadial>
 		<div class="mb-2">
 			<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
 				<h3 class="">{$LL.WIDGET_Seo_Suggestion_ListOfSuggestion()}</h3>
@@ -479,23 +472,11 @@
 					<span class="flex-auto">0 - 49</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<span
-						><iconify-icon
-							icon="bi:hand-thumbs-up-fill"
-							width="24"
-							class="text-tertiary-500"
-						/></span
-					>
+					<span><iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" /></span>
 					<span class="flex-auto">50 - 79</span>
 				</div>
 				<div class="flex items-center gap-2">
-					<span
-						><iconify-icon
-							icon="material-symbols:check-circle-outline"
-							class="text-success-500"
-							width="24"
-						/></span
-					>
+					<span><iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24" /></span>
 					<span class="flex-auto">80 - 100</span>
 				</div>
 			</div>
@@ -511,11 +492,7 @@
 		<li class="flex items-start p-1">
 			<div class="mr-4 flex-none">
 				{#if suggestion.impact === 3}
-					<iconify-icon
-						icon="material-symbols:check-circle-outline"
-						class="text-success-500"
-						width="24"
-					/>
+					<iconify-icon icon="material-symbols:check-circle-outline" class="text-success-500" width="24" />
 				{:else if suggestion.impact === 2}
 					<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" class="text-tertiary-500" />
 				{:else}
