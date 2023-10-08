@@ -1,9 +1,17 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
 	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 
 	let image: File | null | undefined; // Add undefined as a possible type
+	let selectedImage: string;
+
+	onMount(async () => {
+		const { params } = $page;
+		selectedImage = params.image;
+	});
 
 	const handleImageUpload = (event: Event) => {
 		const target = event.target as HTMLInputElement;
@@ -32,6 +40,8 @@
 <input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
-	<!-- <Cropper bind:image /> -->
-	<ImageEditor bind:image />
+	 <Cropper bind:image /> 
+	<!-- <ImageEditor bind:image />-->
+{:else if selectedImage}
+    <img src={selectedImage} alt="Selected Image"/>
 {/if}

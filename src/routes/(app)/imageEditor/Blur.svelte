@@ -42,7 +42,6 @@
 </script>
 
 <div class="relative">
-  <img src="your-image.jpg" alt="Your Image" class="w-full h-auto" />
 
   <div class="absolute top-0 left-0 w-full h-full">
     <MouseHandler on:move={handleMove} on:resize={handleResize} />
