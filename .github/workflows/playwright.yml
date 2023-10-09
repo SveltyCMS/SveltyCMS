@@ -15,9 +15,9 @@ jobs:
         image: mongo:${{ matrix.mongodb-version }}
         ports:
           - 27017:27017
-          environment:
-            MONGO_INITDB_ROOT_USERNAME: admin
-            MONGO_INITDB_ROOT_PASSWORD: admin
+        env:
+          MONGO_INITDB_ROOT_USERNAME: admin
+          MONGO_INITDB_ROOT_PASSWORD: admin
 
     strategy:
       matrix:
