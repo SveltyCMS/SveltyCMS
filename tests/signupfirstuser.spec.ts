@@ -3,8 +3,9 @@ import { test, expect } from '@playwright/test';
 test('Test loading', async ({ page }) => {
 	await page.goto('http://localhost:5173/');
 	await page.goto('http://localhost:5173/login');
+	// await expect(page).toHaveTitle(/SimpleCMS/)
 
-	// Expect a title "to contain" a substring.
+	// Expect this page
 	await page.locator('p').filter({ hasText: 'Sign Up' });
 	await page.locator('p').filter({ hasText: 'Sign In' });
 	await page.getByText('SimpleCMS').nth(2);
@@ -26,7 +27,7 @@ test('check language selection and button text', async ({ page }) => {
 // Test Signup First User
 test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:5173/login');
-	await page.locator('p').filter({ hasText: 'Sign Up' }).click()
+	await page.locator('p').filter({ hasText: 'Sign Up' }).click();
 	await page.getByText('Sign Up : Admin').click();
 	// Test Username
 	await page.locator('#username').click();
@@ -48,23 +49,57 @@ test('SignUp First User', async ({ page }) => {
 		.locator('#email-address')
 		.fill('tes');
 	await page.locator('section').filter({ hasText: 'SimpleCMS Sign Up : Admin * Required Username * Email Address * Password * Confi' }).click();
-await page.getByText('Invalid email').click();await page.locator('form').filter({ hasText: 'Username * Email Address * Invalid email Password * Confirm Password * Sign Up O' }).locator('#email-address').click();
-await page.locator('form').filter({ hasText: 'Username * Email Address * Invalid email Password * Confirm Password * Sign Up O' }).locator('#email-address').fill('test@test.de');
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' }).locator('#password').fill('Test123');
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' }).locator('#password').press('Tab');
-await page.getByText('Invalid,String must contain at least 8 character(s)').click();
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' }).getByRole('button').first().click();
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' }).locator('#password').click();
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' }).locator('#password').fill('Test123!');
-await page.locator('#confirm-password').click();
-await page.locator('#confirm-password').fill('Test1234!');
-await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' }).locator('#password').click();
-//missing Error message for Confirm Password
-await page.locator('#confirm-password').click();
-await page.locator('#confirm-password').fill('Test123!');
-await page.getByRole('button', { name: 'Sign Up' }).click();
-//Test not login to Dashboard
-await page.goto('http://localhost:5173/en/Posts');
+	await page.getByText('Invalid email').click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Invalid email Password * Confirm Password * Sign Up O' })
+		.locator('#email-address')
+		.click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Invalid email Password * Confirm Password * Sign Up O' })
+		.locator('#email-address')
+		.fill('test@test.de');
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' })
+		.locator('#password')
+		.fill('Test123');
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' })
+		.locator('#password')
+		.press('Tab');
+	await page.getByText('Invalid,String must contain at least 8 character(s)').click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' })
+		.getByRole('button')
+		.first()
+		.click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' })
+		.locator('#password')
+		.click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Invalid,String must contain at least 8 cha' })
+		.locator('#password')
+		.fill('Test123!');
+	await page.locator('#confirm-password').click();
+	await page.locator('#confirm-password').fill('Test1234!');
+	await page
+		.locator('form')
+		.filter({ hasText: 'Username * Email Address * Password * Confirm Password * Sign Up OAuth' })
+		.locator('#password')
+		.click();
+	//missing Error message for Confirm Password
+	await page.locator('#confirm-password').click();
+	await page.locator('#confirm-password').fill('Test123!');
+	await page.getByRole('button', { name: 'Sign Up' }).click();
+	//Test not login to Dashboard
+	await page.goto('http://localhost:5173/en/Posts');
 });
 
 // test('SignOut', async ({ page }) => {
@@ -87,7 +122,6 @@ await page.goto('http://localhost:5173/en/Posts');
 // 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In OAuth Forgotten Password' }).locator('#password').click();
 // 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In OAuth Forgotten Password' }).locator('#password').fill('Test123!');
 // 	await page.getByRole('button', { name: 'Sign In' }).click();
-  
+
 // 	await page.goto('http://localhost:5173/en/Posts');
 //   });
-

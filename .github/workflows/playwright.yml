@@ -7,22 +7,36 @@ on:
 
 jobs:
   test:
-    timeout-minutes: 60
+    name: SimpleCMS Test
+    timeout-minutes: 600
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
         node-version: [20.x]
+        # pnpm-version: [8.x]
+        # bun-version: [latest]
         mongodb-version: ['7.0']
 
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
 
-      - name: Use Node.js ${{ matrix.node-version }}
+      - name: Install Node.js ${{ matrix.node-version }}
         uses: actions/setup-node@v3
         with:
           node-version: ${{ matrix.node-version }}
+
+      # - name: Install Bun ${{ matrix.bun-version }}
+      #   uses: oven-sh/setup-bun@v1
+      #   with:
+      #     bun-version: ${{ matrix.bun-version }}
+
+      # - name: Install pnpm ${{ matrix.pnpm-version }}
+      #   uses: pnpm/action-setup@v2
+      #   with:
+      #     version: ${{ matrix.pnpm-version }}
+      #     run_install: false
 
       - name: Start MongoDB v${{ matrix.mongodb-version }}
         uses: supercharge/mongodb-github-action@1.10.0
@@ -34,13 +48,17 @@ jobs:
           mongodb-port: 27017
 
       - name: Install dependencies
-        run: npm install
+        run: npm install &
+        # run: pnpm install
+        # run: bun install
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
+        # run: bunx playwright install --with-deps
 
       - name: Run Playwright tests
         run: npx playwright test
+        # run: bunx playwright test
         env:
           DB_HOST: mongodb://localhost:27017/?authSource=admin
           DB_NAME: SimpleCMS
@@ -57,7 +75,6 @@ jobs:
           PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
           PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
           # Add more environment variables as needed...
-    
 
       - uses: actions/upload-artifact@v3
         if: always()
