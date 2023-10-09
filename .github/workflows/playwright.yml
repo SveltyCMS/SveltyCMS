@@ -40,6 +40,7 @@ jobs:
         run: npx playwright install --with-deps
 
       - name: Run Playwright tests
+        run: npx playwright test
         env:
           DB_HOST: mongodb://localhost:27017/?authSource=admin
           DB_NAME: SimpleCMS
@@ -56,8 +57,7 @@ jobs:
           PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
           PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
           # Add more environment variables as needed...
-
-        run: npx playwright test
+    
 
       - uses: actions/upload-artifact@v3
         if: always()
