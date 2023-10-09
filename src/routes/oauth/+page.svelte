@@ -79,8 +79,8 @@
 
 			<!-- Input Token -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">title{$LL.MODAL_UserOAuth_Title()}</h2>
-				<input placeholder="placeholder {$LL.MODAL_UserOAuth_Placeholder()}" class="input" type="text" name="token" minlength="16" maxlength="48" />
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">Enter User Token to SignUp:{$LL.MODAL_UserOAuth_Title()}</h2>
+				<input placeholder="Enter  your Received Token {$LL.MODAL_UserOAuth_Placeholder()}" class="input" type="text" name="token" minlength="16" maxlength="48" />
 			</label>
 			<div class="flex justify-between gap-2">
 				<!-- Cancel Button -->
@@ -89,7 +89,7 @@
 				<!-- Submit Button -->
 				<button type="submit" class="items center variant-filled my-2 py-3  flex flex-1 justify-center gap-2 uppercase">
 					<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-					<p>Send {$LL.MODAL_UserOAuth_Submit()}</p>
+					<p>Sign Up with Google {$LL.MODAL_UserOAuth_Submit()}</p>
 				</button>
 			</div>
 		</form>
