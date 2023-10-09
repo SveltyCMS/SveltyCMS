@@ -19,35 +19,46 @@
   }
 
   function handleResize(event) {
-    console.log('Resize event handled');
+  console.log('Resize event handled');
 
-    // Handle resize event dispatched by MouseHandler
-    // You can use the event data to adjust the size of the crop box
-    switch (event.detail.corner) {
-      case 'top-left':
+  // Define a minimum size for the crop box
+  const minSize = 50; // Adjust this value as needed
+
+  // Handle resize event dispatched by MouseHandler
+  // You can use the event data to adjust the size of the crop box
+  switch (event.detail.corner) {
+    case 'top-left':
+      if (cropBottom - (cropTop + event.detail.y) > minSize) {
         cropTop += event.detail.y;
-        cropLeft += event.detail.x;
-        break;
-      case 'top-right':
+      }
+      cropLeft += event.detail.x;
+      break;
+    case 'top-right':
+      if (cropBottom - (cropTop + event.detail.y) > minSize) {
         cropTop += event.detail.y;
-        cropRight -= event.detail.x;
-        break;
-      case 'bottom-left':
+      }
+      cropRight -= event.detail.x;
+      break;
+    case 'bottom-left':
+      if ((cropBottom - event.detail.y) - cropTop > minSize) {
         cropBottom -= event.detail.y;
-        cropLeft += event.detail.x;
-        break;
-      case 'bottom-right':
+      }
+      cropLeft += event.detail.x;
+      break;
+    case 'bottom-right':
+      if ((cropBottom - event.detail.y) - cropTop > minSize) {
         cropBottom -= event.detail.y;
-        cropRight -= event.detail.x;
-        break;
-      default:
-        break;
-    }
+      }
+      cropRight -= event.detail.x;
+      break;
+    default:
+      break;
   }
+}
+
 </script>
 
-<div class="relative">
-<div class="absolute top-[5%] left-[5%] w-[90%] h-[90%] border border-white">
+<div class="relative top-[5%] left-[5%] w-[90%] h-[90%] border border-white">
     <MouseHandler on:move={handleMove} on:resize={handleResize} />
 
     <div class="absolute top-1/4 left-1/4 w-1/2 h-1/2 border border-white">
@@ -58,10 +69,10 @@
       <div class="absolute bottom-0 right-0 w-4 h-4 border border-white bg-white cursor-pointer corner" data-corner="bottom-right"></div>
 
       <!-- Center -->
-      <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border border-white bg-white cursor-move inner"></div>
+      <!-- <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border border-white bg-white cursor-move inner">center</div> -->
     </div>
   </div>
-</div>
+
 
 
 

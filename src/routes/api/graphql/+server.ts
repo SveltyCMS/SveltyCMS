@@ -37,31 +37,31 @@ for (const collection of collections) {
 		status: String
 	`;
 	// console.log('collection.name: ', collection.name);
-	for (const field of collection.fields) {
-		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field), collection });
-		if (schema.resolver) {
-			resolvers = deepmerge(resolvers, schema.resolver);
-		}
-		if (schema) {
-			const _types = schema.graphql.split(/(?=type.*?{)/);
-			for (const type of _types) {
-				types.add(type);
-			}
-			if (!getFieldName(field) && 'fields' in field && field.fields.length > 0) {
-				// for helper widgets which extract its fields and does not exist in db itself like image array
-				const _fields = field.fields;
-				for (const _field of _fields) {
-					collectionSchema += `${getFieldName(_field)}: ${widgets[_field.widget.key].GraphqlSchema?.({
-						field: _field,
-						label: getFieldName(_field),
-						collection
-					}).typeName}\n`;
-				}
-			} else {
-				collectionSchema += `${getFieldName(field)}: ${schema.typeName}\n`;
-			}
-		}
-	}
+	// for (const field of collection.fields) {
+	// 	const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field), collection });
+	// 	if (schema.resolver) {
+	// 		resolvers = deepmerge(resolvers, schema.resolver);
+	// 	}
+	// 	if (schema) {
+	// 		const _types = schema.graphql.split(/(?=type.*?{)/);
+	// 		for (const type of _types) {
+	// 			types.add(type);
+	// 		}
+	// 		if (!getFieldName(field) && 'fields' in field && field.fields.length > 0) {
+	// 			// for helper widgets which extract its fields and does not exist in db itself like image array
+	// 			const _fields = field.fields;
+	// 			for (const _field of _fields) {
+	// 				collectionSchema += `${getFieldName(_field)}: ${widgets[_field.widget.key].GraphqlSchema?.({
+	// 					field: _field,
+	// 					label: getFieldName(_field),
+	// 					collection
+	// 				}).typeName}\n`;
+	// 			}
+	// 		} else {
+	// 			collectionSchema += `${getFieldName(field)}: ${schema.typeName}\n`;
+	// 		}
+	// 	}
+	// }
 	collectionSchemas.push(collectionSchema + '}\n');
 }
 

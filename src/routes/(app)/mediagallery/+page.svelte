@@ -76,6 +76,15 @@
 		localStorage.setItem('GalleryUserPreference', userPreference);
 	}
 
+	function filterData(searchValue, data) {
+		if (!searchValue) return data;
+
+		return data.filter((item) => {
+			// Define your filter logic here. For example, you might want to check if the item's name contains the searchValue.
+			return item.name.toLowerCase().includes(searchValue.toLowerCase());
+		});
+	}
+
 	export let data: {
 		props: {
 			data: {
@@ -145,6 +154,27 @@
 			cell: (info: any) => `${info.row.original.path}-${info.row.original.name}` // Construct full path
 		}
 	];
+
+	//Todo: Check if media is used in a collection before delete is possible
+	async function handleDeleteImage(image) {
+  try {
+    const response = await fetch(`/api/deleteImage/${encodeURIComponent(image.thumbnail)}`, {
+      method: 'DELETE',
+    });
+
+    if (response.ok) {
+      // Image was successfully deleted
+      // You might want to update the data array to reflect the deletion
+      // Example: setData(data.filter(item => item.thumbnail !== image.thumbnail));
+    } else {
+      // Handle error
+      console.error('Error deleting image:', response.statusText);
+    }
+  } catch (error) {
+    console.error('Error deleting image:', error);
+  }
+}
+
 </script>
 
 <div class="flex flex-col gap-1">
@@ -312,24 +342,36 @@
 		<!-- Grid display -->
 		{#if view === 'grid'}
 			<div class="mx-auto flex flex-wrap gap-2">
-				{#each data.props.data as image}
-					<div class={`card ${gridSize === 'small' ? 'card-small' : gridSize === 'medium' ? 'card-medium' : 'card-large'}`}>
-						<section class="p-4 text-center">
+				{#each filterData(globalSearchValue, data.props.data) as image}
+					<div class={`group card relative ${gridSize === 'small' ? 'card-small' : gridSize === 'medium' ? 'card-medium' : 'card-large'}`}>
+						<!-- Edit/Delete Image -->
+						<div class="absolute left-0 top-0 z-20 flex w-full justify-between p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+							<!-- Edit button -->
 							<a href={`/imageEditor/${encodeURIComponent(image.thumbnail)}/edit`}>
-								{#if image.thumbnail.endsWith('.jpg') || image.thumbnail.endsWith('.jpeg') || image.thumbnail.endsWith('.png') || image.thumbnail.endsWith('.svg') || image.thumbnail.endsWith('.webp') || image.thumbnail.endsWith('.avif')}
-									<!-- SVG Image -->
-									<img
-										class={`inline-block object-cover object-center ${
-											gridSize === 'small' ? 'h-16 w-16' : gridSize === 'medium' ? 'h-36 w-36' : 'h-80 w-80'
-										}`}
-										src={image.thumbnail}
-										alt={image.name}
-									/>
-								{:else}
-									<!-- Document icon -->
-									<iconify-icon icon={image.thumbnail} width={gridSize === 'small' ? '58' : gridSize === 'medium' ? '138' : '315'} />
-								{/if}
+								<button class="variant-filled-tertiary btn-icon">
+									<iconify-icon icon="mdi:pen" width="20" class="" />
+								</button>
 							</a>
+							<!-- Delete button -->
+							<button class="variant-filled-error btn-icon" on:click={() => handleDeleteImage(image)}>
+								<!-- Delete Icon -->
+								<iconify-icon icon="icomoon-free:bin" width="20" />
+							</button>
+						</div>
+						<section class="relative p-4 text-center">
+							{#if image.thumbnail.endsWith('.jpg') || image.thumbnail.endsWith('.jpeg') || image.thumbnail.endsWith('.png') || image.thumbnail.endsWith('.svg') || image.thumbnail.endsWith('.webp') || image.thumbnail.endsWith('.avif')}
+								<!-- SVG Image -->
+								<img
+									class={`inline-block object-cover object-center ${
+										gridSize === 'small' ? 'h-16 w-16' : gridSize === 'medium' ? 'h-36 w-36' : 'h-80 w-80'
+									}`}
+									src={image.thumbnail}
+									alt={image.name}
+								/>
+							{:else}
+								<!-- Document icon -->
+								<iconify-icon icon={image.thumbnail} width={gridSize === 'small' ? '58' : gridSize === 'medium' ? '138' : '315'} />
+							{/if}
 						</section>
 						<footer
 							class={`card-footer mt-1 flex w-full items-center justify-center break-all rounded-sm bg-white p-0 text-center text-xs dark:bg-surface-600 dark:text-white`}

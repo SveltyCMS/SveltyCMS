@@ -60,23 +60,34 @@
 
 <!-- Overlay functionality -->
 <div class="flex justify-center gap-3">
-	{#if !cropping}<button on:click={() => (cropping = true)} class="btn-primary btn p-0.5 text-white" title="save">
+	{#if !cropping}
+		<button on:click={() => (cropping = true)} class="btn-primary btn p-0.5 text-white" title="save">
 			<iconify-icon icon="material-symbols:crop" width="24" class="text-primary-500" />
 		</button>
-	{/if}
-
-	{#if cropping}<button on:click={() => (cropping = false)} class="btn-primary btn p-0.5 text-white" title="save">
+	{:else if cropping}
+		<button on:click={() => (cropping = false)} class="btn-primary btn p-0.5 text-white" title="save">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
 		</button>
 	{/if}
 
+	{#if !buring}
 	<button on:click={() => (buring = true)} class="btn-primary btn p-0.5 text-white" title="save">
 		<iconify-icon icon="ic:round-blur-circular" width="24" class="text-primary-500" />
 	</button>
-
+	{:else if buring}
+	<button on:click={() => (buring = false)} class="btn-primary btn p-0.5 text-white" title="save">
+		<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
+	</button>
+	{/if}
+	{#if !focalpoint}
 	<button on:click={() => (focalpoint = true)} class="btn-primary btn p-0.5 text-white" title="Focal Point">
 		<iconify-icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" />
 	</button>
+	{:else if focalpoint}
+	<button on:click={() => (focalpoint = false)} class="btn-primary btn p-0.5 text-white" title="save">
+		<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
+	</button>
+	{/if}
 </div>
 
 <!-- Pass rotate and rotateDetails to Rotate component -->
