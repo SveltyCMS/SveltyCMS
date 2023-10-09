@@ -1,5 +1,5 @@
 import { collections } from '@src/stores/store';
-import { fieldsToSchema } from '@src/utils/utils';
+
 import { dev } from '$app/environment';
 import type { Unsubscriber } from 'svelte/store';
 

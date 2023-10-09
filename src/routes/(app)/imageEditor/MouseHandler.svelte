@@ -1,4 +1,4 @@
-<script lang=ts>
+<script lang="ts">
   import { onMount } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
@@ -6,6 +6,7 @@
 
   let MOUSEDOWN_WHOLE = false;
   let MOUSEDOWN_CORNER = false;
+  let MOUSEDOWN_BOX = false;
   let MOUSE_START_LEFT;
   let MOUSE_START_TOP;
   let selectedCorner;
@@ -17,6 +18,7 @@
     e.preventDefault();
     const corner = e.target.closest('.corner');
     const isWhole = e.target.closest('.inner');
+    const isBox = e.target.closest('.box');
     if (corner) {
       MOUSEDOWN_CORNER = true;
       // Additional logic for the corner case
@@ -26,6 +28,10 @@
     } else if (isWhole) {
       MOUSEDOWN_WHOLE = true;
       // Additional logic for the whole object case
+      MOUSE_START_LEFT = e.pageX;
+      MOUSE_START_TOP = e.pageY;
+    } else if (isBox) {
+      MOUSEDOWN_BOX = true;
       MOUSE_START_LEFT = e.pageX;
       MOUSE_START_TOP = e.pageY;
     }
