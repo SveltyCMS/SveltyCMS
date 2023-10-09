@@ -15,9 +15,6 @@ jobs:
         image: mongo:${{ matrix.mongodb-version }}
         ports:
           - 27017:27017
-        env:
-          MONGO_INITDB_ROOT_USERNAME: admin
-          MONGO_INITDB_ROOT_PASSWORD: admin
 
     strategy:
       matrix:
@@ -39,10 +36,8 @@ jobs:
 
       - name: Run Playwright tests
         env:
-          DB_HOST: mongodb://localhost:27017/?authSource=admin
+          DB_HOST: mongodb://localhost:27017/
           DB_NAME: SimpleCMS
-          DB_USER: admin
-          DB_PASSWORD: admin
           PUBLIC_SITENAME: SimpleCMS
           HOST_DEV: http://localhost:5173
           HOST_PROD: https://localhost:4173
