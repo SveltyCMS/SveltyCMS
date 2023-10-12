@@ -9,6 +9,7 @@
 		"forceConsistentCasingInFileNames": true,
 		"resolveJsonModule": true,
 		"skipLibCheck": true,
+		"noErrorTruncation": true,
 		"sourceMap": true,
 		"strict": true,
 		"target": "ES2020", // which level of JS support to target

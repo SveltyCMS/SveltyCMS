@@ -1,14 +1,13 @@
 import Input from "@src/components/system/inputs/Input2.svelte";
 import Toggles from "@src/components/system/inputs/Toggles.svelte";
+
 import { getFieldName } from '@src/utils/utils';
 import widgets from "@src/components/widgets";
 
-import type ImageUpload from "@src/components/widgets/imageUpload";
 import type DefaultWidgets from "@src/components/widgets";
 
-type ommited = Omit<typeof DefaultWidgets, "ImageUpload">;
-type Widgets = ReturnType<ommited[keyof ommited]>;
-type Widgets2 = [ReturnType<typeof ImageUpload>, ...Widgets[]];
+type Widgets = ReturnType<(typeof DefaultWidgets)[keyof typeof DefaultWidgets]>;
+type Widgets2 = [...Widgets[]];
 
 export type Params = {
   // default required parameters
@@ -23,6 +22,11 @@ export type Params = {
   imageUploadTitle: string;
   fields: Widgets2;
   required?: boolean;
+  
+	uploader_label: string;
+  uploader_display?: DISPLAY;
+	uploader_db_fieldName?: string;  
+	uploader_path: string;
 };
 
 export const GuiSchema = {

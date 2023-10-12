@@ -1,5 +1,7 @@
 // ImageArray - allows multiple image upload with editor
 import ImageArray from './ImageArray.svelte';
+import ImageUpload from '../imageUpload';
+
 import { getFieldName } from '@src/utils/utils.js';
 
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
@@ -15,8 +17,14 @@ const widget = ({
 
 	// extras
 	required,
-	fields
+	fields,
+	uploader_label,
+	uploader_path,
+	uploader_display,
+	uploader_db_fieldName
+	
 }: Params) => {
+	fields.unshift(ImageUpload({ db_fieldName: uploader_db_fieldName, label: uploader_label, display: uploader_display, path: uploader_path }));
 	const uploader = fields[0] as ImageUpload_Params;
 
 	if (!display) {
@@ -39,7 +47,8 @@ const widget = ({
 		// extras
 		required,
 		upload: true,
-		fields
+		fields,
+		extract: true
 	};
 
 	return { ...field, widget };

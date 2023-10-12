@@ -13,7 +13,7 @@ let typeDefs = /* GraphQL */ ``;
 const types = new Set();
 
 // Initialize an empty resolvers object
-let resolvers: { [key: string]: any } = {
+const resolvers: { [key: string]: any } = {
 	Query: {}
 };
 
@@ -23,7 +23,7 @@ const collections = await getCollections();
 //console.log('collections', collections);
 
 for (const collection of collections) {
-	let collectionSchema = `
+	const collectionSchema = `
 	type ${collection.name} {
 		_id: String
 		createdAt: Float
@@ -47,7 +47,7 @@ for (const collection of collections) {
 	// 		for (const type of _types) {
 	// 			types.add(type);
 	// 		}
-	// 		if (!getFieldName(field) && 'fields' in field && field.fields.length > 0) {
+	// 		if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
 	// 			// for helper widgets which extract its fields and does not exist in db itself like image array
 	// 			const _fields = field.fields;
 	// 			for (const _field of _fields) {

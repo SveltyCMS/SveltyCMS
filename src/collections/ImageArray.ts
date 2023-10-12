@@ -15,18 +15,17 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.ImageArray({
-			label: 'Images Array',
+			label: 'ImageArray',
+			uploader_path: 'images',
+			uploader_label: 'image',
 			imageUploadTitle: 'image',
+
 			
 			fields: [
-				widgets.ImageUpload({
-					label: 'image',
-					path: 'images'
-				}),
 				widgets.Text({
-					label: 'Image Title',
+					label: 'title',
 					db_fieldName: 'title',
-					placeholder: 'Enter Title'
+					translated: false
 				}),
 				widgets.Text({
 					label: 'Alt Text',
@@ -38,5 +37,6 @@ const schema: Schema = {
 		})
 	]
 };
-
 export default schema;
+
+
