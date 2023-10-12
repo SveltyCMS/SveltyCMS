@@ -8,12 +8,12 @@
 <div
 	class:hide={!show}
 	class:pointer-events-none={!show}
-	class="icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer"
+	class="overflow icon dark:text-dark absolute left-[50%] top-[50%] translate-x-[-50%] translate-y-[-50%] cursor-pointer"
 >
 	<div class="flex flex-col items-center">
 		<div class="relative w-max rounded-full border-4 border-white p-3">
 			<svg
-				class="aspect-square h-12"
+				class="aspect-square h-12 over"
 				xmlns="http://www.w3.org/2000/svg"
 				xmlns:xlink="http://www.w3.org/1999/xlink"
 				viewBox="0 0 50 50"

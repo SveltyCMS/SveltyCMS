@@ -99,7 +99,7 @@
 	on:click
 	on:pointerenter
 	on:keydown
-	class="hover relative flex items-center"
+	class="hover relative flex items-center overflow-hidden"
 	class:active={active == 1}
 	class:inactive={active !== undefined && active !== 1}
 	class:hover={active == undefined || active == 0}
