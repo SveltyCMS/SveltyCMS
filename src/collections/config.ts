@@ -7,8 +7,7 @@
       collections.Posts,
       collections.Posts2,
       collections.Relation,
-      collections.Media,
-      collections.WidgetTest
+      collections.Media
     ]
   },
   {
@@ -16,8 +15,8 @@
     "icon": "bi:menu-button-wide",
     "collections": [
       collections.Names,
-      collections.Menu,
-      collections.ImageArray
+      collections.ImageArray,
+      collections.WidgetTest
     ]
   }
 ];}

@@ -5,7 +5,7 @@
 
 	//superforms
 	import { superForm } from 'sveltekit-superforms/client';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { addUserTokenSchema } from '@src/utils/formSchemas';
 	//export { addUserTokenSchema } from '
@@ -24,6 +24,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
@@ -41,14 +42,14 @@
 		dataType: 'json',
 
 		onSubmit: ({ cancel }) => {
-			console.log('test');
-			console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
 		},
-		onResult: ({ result, cancel }) => {
+		onResult: async ({ result, cancel }) => {
 			cancel();
 			if (result.type == 'success') {
 				response = result.data?.message;
+				modalStore.close();
+				await invalidateAll();
 			}
 		}
 	});
@@ -72,17 +73,18 @@
 	$: $form.expiresIn = expiresIn;
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
+	/*function onFormSubmit(): void {
+		console.log('onFormSubmit');
+
 		// console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
 		modalStore.close();
-	}
+	}*/
 </script>
 
-<!-- @component This example creates a simple form modal. -->
-
 <div class="modal-example-form {cBase}">
+	<!-- <SuperDebug data={$form} /> -->
 	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
 		{$modalStore[0]?.title ?? '(title missing)'}
 	</header>
@@ -105,69 +107,66 @@
 		</div>
 
 		<!-- User Role  -->
-<div class="flex flex-col gap-2 sm:flex-row ">
-	<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserToken_Role()}</div>
-	<div class="flex-auto">
-	  <div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
-		{#each Object.values(roles) as r}
-		  <span
-			class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-			on:click={() => {
-			  // filterRole(r);
-			  roleSelected = r;
-			}}
-			on:keypress
-			role="button"
-			tabindex="0"
-		  >
-			{#if roleSelected === r}
-			  <span><iconify-icon icon="fa:check" /></span>
-			{/if}
-			<span class="capitalize">{r}</span>
-		  </span>
-		{/each}
-	  </div>
-	</div>
-  </div>
-  
-
-<!-- Token validity  -->
-<div class="flex flex-col gap-2 pb-6 sm:flex-row ">
-	<div class="sm:w-1/4 text-center sm:text-left border-b sm:border-0">{$LL.MODAL_UserToken_Validity()}</div>
-	<div class="flex-auto">
-	  <div class="flex flex-wrap gap-2 space-x-2 justify-center sm:justify-start">
-		<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
-		{#each validityOptions as option}
-		  <span
-			class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-			on:click={() => {
-			  expiresIn = option.value;
-			  expirationTime = option.seconds;
-			}}
-			on:keypress
-			role="button"
-			tabindex="0"
-		  >
-			{#if expiresIn === option.value}
-			  <span><iconify-icon icon="fa:check" /></span>
-			{/if}
-			<span class="capitalize">{option.label}</span>
-		  </span>
-		{/each}
-	  </div>
-	  {#if $errors.expiresIn}
-		<div class="mt-1 text-xs text-error-500">
-		  {$errors.expiresIn}
+		<div class="flex flex-col gap-2 sm:flex-row">
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserToken_Role()}</div>
+			<div class="flex-auto">
+				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+					{#each Object.values(roles) as r}
+						<span
+							class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+							on:click={() => {
+								// filterRole(r);
+								roleSelected = r;
+							}}
+							on:keypress
+							role="button"
+							tabindex="0"
+						>
+							{#if roleSelected === r}
+								<span><iconify-icon icon="fa:check" /></span>
+							{/if}
+							<span class="capitalize">{r}</span>
+						</span>
+					{/each}
+				</div>
+			</div>
 		</div>
-	  {/if}
-	</div>
-  </div>
-  
-  
+
+		<!-- Token validity  -->
+		<div class="flex flex-col gap-2 pb-6 sm:flex-row">
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserToken_Validity()}</div>
+			<div class="flex-auto">
+				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
+					{#each validityOptions as option}
+						<span
+							class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+							on:click={() => {
+								expiresIn = option.value;
+								expirationTime = option.seconds;
+							}}
+							on:keypress
+							role="button"
+							tabindex="0"
+						>
+							{#if expiresIn === option.value}
+								<span><iconify-icon icon="fa:check" /></span>
+							{/if}
+							<span class="capitalize">{option.label}</span>
+						</span>
+					{/each}
+				</div>
+				{#if $errors.expiresIn}
+					<div class="mt-1 text-xs text-error-500">
+						{$errors.expiresIn}
+					</div>
+				{/if}
+			</div>
+		</div>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="btn variant-outline-secondary" on:click={parent.onClose}>{$LL.MODAL_UserToken_Cancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_UserToken_Send()}</button>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{$LL.MODAL_UserToken_Cancel()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}">{$LL.MODAL_UserToken_Send()}</button>
 		</footer>
 	</form>
 </div>

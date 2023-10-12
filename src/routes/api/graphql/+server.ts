@@ -39,10 +39,10 @@ for (const collection of collections) {
 	// console.log('collection.name: ', collection.name);
 	// for (const field of collection.fields) {
 	// 	const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field), collection });
-	// 	if (schema.resolver) {
+	// 	if (schema?.resolver) {
 	// 		resolvers = deepmerge(resolvers, schema.resolver);
 	// 	}
-	// 	if (schema) {
+	// 	if (schema && schema.graphql) {
 	// 		const _types = schema.graphql.split(/(?=type.*?{)/);
 	// 		for (const type of _types) {
 	// 			types.add(type);
@@ -77,6 +77,8 @@ type Query {
 
 // Loop over each collection
 for (const collection of collections) {
+	console.log('collection.name:', collection.name);
+
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () => await mongoose.models[collection.name as string].find({}).lean();
 }

@@ -60,6 +60,7 @@ export const actions: Actions = {
 	addUser: async (event) => {
 		// Validate addUserForm data
 		const addUserForm = await superValidate(event, addUserTokenSchema);
+		console.log(addUserForm);
 
 		const email = addUserForm.data.email;
 		const role = addUserForm.data.role;
