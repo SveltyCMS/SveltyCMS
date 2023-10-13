@@ -9,32 +9,18 @@
 	export let showFields = false;
 	export let maxDepth = 0;
 	export let isFirstHeader = false;
-	export let parent: { [key: string]: any; children: any[] } | null;
-
+	export let parent: { [key: string]: any; children: any[] } | null = null;
 
 	let expanded = false;
 
-	function deleteEntry() {
-		console.log('deleteEntry is called, parent:', parent);
-
-		if (parent !== null) {
-			let index = parent.children.indexOf(self);
-			console.log('index:', index);
-
-			if (index !== -1) {
-				parent.children.splice(index, 1);
-			}
-		}
-		// Delete all children of the current node
-		self.children = [];
-		// Add this line to update the UI after deletion
-		parent = { ...parent };
-	}
+	export const refresh = () => {
+		self.children = [...self.children];
+	};
 </script>
 
 <button on:click={() => (expanded = !expanded)} class="relative my-2 flex items-center justify-center gap-2" style="margin-left:{20 * level}px">
 	{#if !isFirstHeader && self.children?.length > 0}
-		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-red-500" />
+		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-error-500" />
 	{/if}
 
 	<span class="variant-outline-primary rounded p-2">{self?.Header[$contentLanguage]}</span>
@@ -43,7 +29,7 @@
 	{#if level < maxDepth - 1}
 		<!-- add  Button children -->
 		<button
-			on:click={() => {
+			on:click|stopPropagation={() => {
 				$currentChild = self;
 				depth = level + 1;
 				showFields = true;
@@ -56,19 +42,25 @@
 	{/if}
 	<!-- Edit Button children -->
 	<button
-		on:click={() => {
+		on:click|stopPropagation={() => {
 			$currentChild = self;
 			$mode = 'edit';
 			depth = level;
 			showFields = true;
 			//console.log(self);
 		}}
-		class="variant-ghost-primary btn-icon {level == 0 ? 'ml-auto' : ''}"
+		class="variant-ghost-primary btn-icon"
 		><iconify-icon icon="mdi:pen" width="28" class="" />
 	</button>
 
 	{#if !isFirstHeader && self.children?.length === 0}
-		<button type="button" on:click={deleteEntry} class="variant-ghost-error btn-icon {level == 0 ? 'ml-auto' : ''}">
+		<button
+			on:click|stopPropagation={() => {
+				parent?.children?.splice(parent?.children?.indexOf(self), 1);
+				refresh();
+			}}
+			class="variant-ghost-error btn-icon"
+		>
 			<iconify-icon icon="mdi:trash-can-outline" width="24" class="dark:text-white" />
 		</button>
 	{/if}
@@ -80,18 +72,7 @@
 	<ul>
 		{#each self.children as child}
 			<li class="cursor-pointer">
-				<svelte:self
-					self={child}
-					parent={self}
-					level={level + 1}
-					bind:depth
-					bind:showFields
-					{maxDepth}
-					on:click={() => {
-						depth = level;
-						showFields = true;
-					}}
-				/>
+				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} />
 			</li>
 		{/each}
 	</ul>
