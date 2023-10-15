@@ -11,14 +11,14 @@ import sharp from 'sharp';
 // resize image preview
 async function resizeImage(imagePath) {
 	const outputBuffer = await sharp(imagePath)
-	  .resize(800, 800, {
-		fit: 'inside',
-		withoutEnlargement: true
-	  })
-	  .toBuffer();
-  
+		.resize(800, 800, {
+			fit: 'inside',
+			withoutEnlargement: true
+		})
+		.toBuffer();
+
 	await fs.writeFile(imagePath, outputBuffer);
-  }
+}
 
 // Define the function to load image data
 // async function loadImageData(imageName: string): Promise<{
@@ -49,33 +49,33 @@ export async function load(event: any) {
 	const user = await validate(auth, session);
 	// If validation fails, redirect the user to the login page
 	if (user.status !== 200) {
-	  throw redirect(302, `/login`);
+		throw redirect(302, `/login`);
 	}
-  
+
 	try {
-	  const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component
-	  const filePath = path.join(PUBLIC_MEDIA_FOLDER, imageName);
-	  const fileStats = await fs.stat(filePath);
-  
-	  if (fileStats.isFile()) {
-		await resizeImage(filePath);
-  
-		const imageData = {
-		  name: imageName,
-		  path: filePath
-		};
-  
-		return {
-		  props: {
-			imageData
-		  }
-		};
-	  } else {
-		throw new Error('File not found');
-	  }
+		const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component
+		const filePath = path.join(PUBLIC_MEDIA_FOLDER, imageName);
+		const fileStats = await fs.stat(filePath);
+
+		if (fileStats.isFile()) {
+			await resizeImage(filePath);
+
+			const imageData = {
+				name: imageName,
+				path: filePath
+			};
+
+			return {
+				props: {
+					imageData
+				}
+			};
+		} else {
+			throw new Error('File not found');
+		}
 	} catch (error) {
-	  return {
-		status: 404
-	  };
+		return {
+			status: 404
+		};
 	}
-  }
+}

@@ -273,10 +273,8 @@ export function getFieldName(field: any) {
 	return (field?.db_fieldName || field?.label) as string;
 }
 
-
 const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 320 } as const;
-
 
 //Save Collections data to database
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {

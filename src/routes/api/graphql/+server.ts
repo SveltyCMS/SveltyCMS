@@ -78,7 +78,7 @@ type Query {
 // Loop over each collection
 for (const collection of collections) {
 	// console.log('collection.name:', collection.name);
-	
+
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () => await mongoose.models[collection.name as string].find({}).lean();
 }

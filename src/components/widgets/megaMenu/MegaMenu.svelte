@@ -32,27 +32,7 @@
 			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
 		}
 		_data = _data;
-		showFields = false;
-		mode.set(saveMode);
-		depth = 0;
-	}
-
-	async function deleteLayer() {
-		console.log('$mode:', $mode);
-		console.log('_data:', _data);
-
-
-		if ($mode == 'edit') {
-			if (_data !== null) {
-				let index = _data.children.indexOf($currentChild);
-				console.log('index:', index);
-
-				if (index !== -1) {
-					_data.children.splice(index, 1);
-				}
-			}
-		}
-		_data = null;
+		console.log(_data);
 		showFields = false;
 		mode.set(saveMode);
 		depth = 0;
@@ -65,12 +45,12 @@
 	</p>
 {/if}
 
+<!-- TODO: add enter to proceed -->
 {#if !_data || showFields}
-	<!-- TODO: fix save on enter  on:keydown={saveLayer} -->
-	{#key depth}
-		{(fieldsData = {}) && ''}
-		<Fields fields={field.menu[depth].fields} root={false} bind:fieldsData customData={$currentChild} />
-	{/key}
+  {#key depth}
+    {(fieldsData = {}) && ''}
+    <Fields fields={field.menu[depth].fields} root={false} bind:fieldsData customData={$currentChild} on:keydown={(e) => { if (e.key === 'Enter') saveLayer(); }} />
+  {/key}
 
 	<div class="flex items-center justify-between">
 		<!-- Next Button -->
@@ -79,17 +59,11 @@
 			{$LL.WIDGET_MegaMenu_Next()}
 		</button>
 
-		{#if _data}
-			<!-- remove/delete Button -->
-			<button type="button" on:click={deleteLayer} class="variant-filled-error btn mb-4 dark:text-white">
-				<iconify-icon icon="mdi:trash-can-outline" width="24" class="mr-1 dark:text-white" />
-				Remove
-			</button>
-		{/if}
+		
 	</div>
 {/if}
 
 <!-- Show children -->
 {#if _data && depth == 0}
-<ListNode isFirstHeader={true} self={_data} parent={null} bind:depth bind:showFields maxDepth={field.menu.length} />
+	<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
 {/if}

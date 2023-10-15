@@ -22,7 +22,6 @@ const widget = ({
 	uploader_path,
 	uploader_display,
 	uploader_db_fieldName
-	
 }: Params) => {
 	fields.unshift(ImageUpload({ db_fieldName: uploader_db_fieldName, label: uploader_label, display: uploader_display, path: uploader_path }));
 	const uploader = fields[0] as ImageUpload_Params;
@@ -59,4 +58,3 @@ widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;
-

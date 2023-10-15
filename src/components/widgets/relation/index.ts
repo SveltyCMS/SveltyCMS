@@ -55,4 +55,3 @@ widget.GraphqlSchema = GraphqlSchema;
 
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;
-

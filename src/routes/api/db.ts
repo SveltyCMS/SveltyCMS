@@ -115,15 +115,15 @@ const auth = lucia({
 let googleAuth;
 
 if (SECRET_GOOGLE_CLIENT_ID && SECRET_GOOGLE_CLIENT_SECERT) {
-  googleAuth = google(auth, {
-    clientId: SECRET_GOOGLE_CLIENT_ID,
-    clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
-    redirectUri: `${dev ? HOST_DEV : HOST_PROD}/oauth`,
-    scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
-    accessType: dev ? 'offline' : 'online'
-  });
+	googleAuth = google(auth, {
+		clientId: SECRET_GOOGLE_CLIENT_ID,
+		clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
+		redirectUri: `${dev ? HOST_DEV : HOST_PROD}/oauth`,
+		scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
+		accessType: dev ? 'offline' : 'online'
+	});
 } else {
-  console.warn('Google client ID and secret not provided. Google OAuth will not be available.');
+	console.warn('Google client ID and secret not provided. Google OAuth will not be available.');
 }
 
 // Export collections and auth objects
