@@ -41,7 +41,7 @@
 
 {#if image}
 	 <Cropper bind:image /> 
-	<!-- <ImageEditor bind:image />-->
+	 <ImageEditor bind:image />
 {:else if selectedImage}
     <img src={selectedImage} alt="Selected Image"/>
 {/if}

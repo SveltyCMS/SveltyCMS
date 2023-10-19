@@ -6,7 +6,6 @@
     "collections": [
       collections.Posts,
       collections.Posts2,
-      collections.Relation,
       collections.Media,
       collections.WidgetTest
     ]

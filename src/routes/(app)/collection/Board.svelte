@@ -18,9 +18,11 @@
 	}
 
 	function handleItemFinalize(columnIdx, newItems) {
-		columns[columnIdx].items = newItems;
-		onFinalUpdate([...columns]);
-	}
+    //console.log('Item dropped in column', columnIdx);
+    columns[columnIdx].items = newItems;
+    //console.log('Updated Columns:', columns);
+    onFinalUpdate([...columns]);
+}
 
 </script>
 

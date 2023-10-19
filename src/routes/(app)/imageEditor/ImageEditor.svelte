@@ -35,7 +35,8 @@
 	}
 </script>
 
-<!-- Imagebox where all effect should be applied to -->
+<!-- Imagebox  -->
+<h1>New imageEditor</h1>
 <div class="relative overflow-hidden">
   <img
   src={image ? URL.createObjectURL(image) : ''}
@@ -92,10 +93,11 @@
 
 <!-- Pass rotate and rotateDetails to Rotate component -->
 <Rotate
-		bind:rotate
-		bind:image
-		bind:CONT_WIDTH
-		bind:CONT_HEIGHT
-	/>
+	bind:rotate
+	bind:image
+	bind:CONT_WIDTH
+	bind:CONT_HEIGHT
+	
+/>
 
 

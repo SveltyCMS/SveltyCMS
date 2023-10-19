@@ -44,11 +44,11 @@
   </script>
   
 
-  <RangeSlider name="range-slider" class="m-2" bind:value={rotate} min={-180} max={180} step={1} >
-    <div class="flex items-center justify-between">
+  <RangeSlider name="range-slider" class="m-2 max-w-lg mx-auto" bind:value={rotate} min={-180} max={180} step={1} >
+    <div class="flex items-center justify-between ">
       <div class="font-bold text-primary-500">Rotate</div>
       <button on:click={() => (rotate = 0)} class="btn-primary btn p-0.5 text-white" title="Reset">
-        <iconify-icon icon="ic:baseline-rotate-left" width="24" class="text-primary-500" />
+        <iconify-icon icon="material-symbols:rotate-left-rounded" width="24" class="text-primary-500" />{rotate}°
       </button>
       
 

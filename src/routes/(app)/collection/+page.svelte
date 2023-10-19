@@ -1,11 +1,11 @@
 <script lang="ts">
-	import { categories, collection, unAssigned } from '@src/stores/store';
+	import { categories, unAssigned } from '@src/stores/store';
 	import Unassigned from '../config/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte'
+	import LL from '@src/i18n/i18n-svelte';
 
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -52,23 +52,25 @@
 	}
 
 	// Define the structure of an unassigned collection
-	let UnassignedCollections = $unAssigned.map((collection) => ({
+	$: UnassignedCollections = $unAssigned.map((collection) => ({
 		id: generateUniqueId(),
 		name: collection.name,
 		icon: collection.icon,
-		items: $unAssigned.map((collection: any, collectionIndex: number) => ({
+		items: $unAssigned.map((collection: any) => ({
 			id: generateUniqueId(),
 			name: collection.name,
 			icon: collection.icon
 		}))
 	}));
+	
+
 
 	// Define the structure of an Assigned collection
-	export let availableCollection = $categories.map((category) => ({
+	$: availableCollection = $categories.map((category) => ({
 		id: generateUniqueId(),
 		name: category.name,
 		icon: category.icon,
-		items: category.collections.map((collection: any, collectionIndex: number) => ({
+		items: category.collections.map((collection: any) => ({
 			id: generateUniqueId(),
 			name: collection.name,
 			icon: collection.icon
@@ -78,13 +80,13 @@
 	// Update the Assigned collection(s) where the item was dropped
 	function handleBoardUpdated(newColumnsData: any) {
 		availableCollection = newColumnsData;
-		// console.log('handleBoardUpdated:', availableCollection);
+		//console.log('handleBoardUpdated:', availableCollection);
 	}
 
 	// Update the Unassigned collection where the item was dropped
 	function handleUnassignedUpdated(newItems: any) {
 		UnassignedCollections = newItems;
-		// console.log('handleUnassignedUpdated:', UnassignedCollections);
+		//console.log('handleUnassignedUpdated:', UnassignedCollections);
 	}
 
 	//Saving changes to the config.ts

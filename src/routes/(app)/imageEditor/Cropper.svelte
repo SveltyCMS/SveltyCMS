@@ -45,7 +45,7 @@
 
 	// Defining props
 	export let image: any = '';
-	export let rotate: number | string = 0;
+	export let rotate: number = 0;
 	export let crop_left: { initialValue: number; value: number } = { initialValue: 10, value: 10 };
 	export let crop_right: { initialValue: number; value: number } = { initialValue: 10, value: 10 };
 	export let crop_top: { initialValue: number; value: number } = { initialValue: 10, value: 10 };
@@ -240,13 +240,6 @@
 		}
 	}
 
-	// function mouseoutBlurHandler(e) {
-	// 	e.target.removeEventListener('mousemove', moveBlurHandler);
-	// 	e.target.removeEventListener('mouseup', handleBlurMouseDown);
-	// 	e.target.removeEventListener('mousedown', mouseupBlurHandler);
-	// 	currentIndex = -1;
-	// }
-
 	function moveBlurHandler(e) {
 		blurs[currentIndex].top.value = blurs[currentIndex].top.initialValue + (e.pageY - blurCoords.pageY);
 		blurs[currentIndex].left.value = blurs[currentIndex].left.initialValue + (e.pageX - blurCoords.pageX);
@@ -439,9 +432,9 @@
 		</div>
 	{/if}
 
-	<button on:click={blurCrop} class="btn-primary btn p-0.5 text-white" title="blur"
-		><iconify-icon icon="ic:round-blur-circular" width="24" class="text-primary-500" /></button
-	>
+	<button on:click={blurCrop} class="btn-primary btn p-0.5 text-white" title="blur">
+		<iconify-icon icon="ic:round-blur-circular" width="24" class="text-primary-500" />
+	</button>
 	<div class="card variant-filled-secondary p-4" data-popup="blurPopup">
 		Blur Image
 		<!-- Append the arrow element -->
