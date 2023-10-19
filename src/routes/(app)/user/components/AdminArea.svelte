@@ -182,7 +182,7 @@
 		<!-- Email Token -->
 		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />
-			<span class="whitespace-normal break-words">{$LL.USER_EmailToken()}</span>
+			<span class="whitespace-normal break-words">{$LL.USER_AdminArea_EmailToken()}</span>
 		</button>
 
 		{#if tableDataUserToken}
@@ -190,21 +190,22 @@
 
 			<button on:click={toggleUserToken} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
-				{showUsertoken ? 'Hide User Token' : 'Show User Token'}
+				{showUsertoken ? $LL.USER_AdminArea_ShowToken() :  $LL.USER_AdminArea_TokenCollapse()}  
+				
 			</button>
 		{/if}
 
 		<!-- Show User List -->
 		<button on:click={toggleUserList} class="gradient-secondary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1" />
-			{showUserList ? $LL.USER_ListCollapse() : $LL.USER_ListShow()}
+			{showUserList ? $LL.USER_AdminArea_UserCollapse() : $LL.USER_AdminArea_ShowUser()}
 		</button>
 	</div>
 
 	{#if showUserList}
 		<!-- <UserList /> -->
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-primary-500">{$LL.USER_ListUser()}</h2>
+			<h2 class="font-bold text-primary-500">{$LL.USER_AdminArea_ListUser()}</h2>
 			<div class="hidden sm:flex">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
@@ -241,7 +242,7 @@
 	{#if showUsertoken}
 		<!-- User Token invites -->
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-black dark:text-primary-500">{$LL.USER_ListToken()}</h2>
+			<h2 class="font-bold text-black dark:text-primary-500">{$LL.USER_AdminArea_ListToken()}</h2>
 			<div class="hidden sm:flex">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>

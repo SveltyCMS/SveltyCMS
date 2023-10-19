@@ -96,13 +96,17 @@
   });
 </script>
 
+<!-- Use a div element instead of a button element -->
 <div class="my-component"
      onmousedown={handleMouseDown}
      onmousemove={handleMouseMove}
      onmouseup={handleMouseUp}
+
      ontouchstart={handleMouseDown}
      ontouchmove={handleMouseMove}
      ontouchend={handleMouseUp}
+     
      tabindex="0">
-<!-- Component elements -->
+<!-- Use slots to pass HTML content from parent component -->
+<slot></slot>
 </div>

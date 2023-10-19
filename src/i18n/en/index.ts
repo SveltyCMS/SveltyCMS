@@ -60,14 +60,17 @@ const en: BaseTranslation = {
 	USER_PageTitle: 'User Profile',
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
-	USER_Generate: 'Email User Registration token',
-	USER_ListShow: 'Show User List',
-	USER_ListCollapse: 'Collapse User List',
-	USER_EmailToken: 'Email User Registration token',
-	USER_ListToken: 'Token List:',
-	USER_ListUser: 'User List:',
+	
 
 	//User AdminArea
+	USER_AdminArea_Generate: 'Email User Registration token',
+	USER_AdminArea_ShowUser: 'Show User List',
+	USER_AdminArea_UserCollapse: 'Hide User List',
+	USER_AdminArea_ShowToken: 'Show User Token',
+	USER_AdminArea_TokenCollapse: 'Hide User Token',
+	USER_AdminArea_EmailToken: 'Email User Registration token',
+	USER_AdminArea_ListToken: 'Token List:',
+	USER_AdminArea_ListUser: 'User List:',
 	USER_AdminArea_title: 'Admin Area:',
 	USER_AdminArea_Blocked: 'Blocked',
 	USER_AdminArea_Avatar: 'Avatar',

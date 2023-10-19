@@ -203,27 +203,35 @@ type RootTranslation = {
 	/**
 	 * E​m​a​i​l​ ​U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​t​o​k​e​n
 	 */
-	USER_Generate: string
+	USER_AdminArea_Generate: string
 	/**
 	 * S​h​o​w​ ​U​s​e​r​ ​L​i​s​t
 	 */
-	USER_ListShow: string
+	USER_AdminArea_ShowUser: string
 	/**
-	 * C​o​l​l​a​p​s​e​ ​U​s​e​r​ ​L​i​s​t
+	 * H​i​d​e​ ​U​s​e​r​ ​L​i​s​t
 	 */
-	USER_ListCollapse: string
+	USER_AdminArea_UserCollapse: string
+	/**
+	 * S​h​o​w​ ​U​s​e​r​ ​T​o​k​e​n
+	 */
+	USER_AdminArea_ShowToken: string
+	/**
+	 * H​i​d​e​ ​U​s​e​r​ ​T​o​k​e​n
+	 */
+	USER_AdminArea_TokenCollapse: string
 	/**
 	 * E​m​a​i​l​ ​U​s​e​r​ ​R​e​g​i​s​t​r​a​t​i​o​n​ ​t​o​k​e​n
 	 */
-	USER_EmailToken: string
+	USER_AdminArea_EmailToken: string
 	/**
 	 * T​o​k​e​n​ ​L​i​s​t​:
 	 */
-	USER_ListToken: string
+	USER_AdminArea_ListToken: string
 	/**
 	 * U​s​e​r​ ​L​i​s​t​:
 	 */
-	USER_ListUser: string
+	USER_AdminArea_ListUser: string
 	/**
 	 * A​d​m​i​n​ ​A​r​e​a​:
 	 */
@@ -1782,27 +1790,35 @@ export type TranslationFunctions = {
 	/**
 	 * Email User Registration token
 	 */
-	USER_Generate: () => LocalizedString
+	USER_AdminArea_Generate: () => LocalizedString
 	/**
 	 * Show User List
 	 */
-	USER_ListShow: () => LocalizedString
+	USER_AdminArea_ShowUser: () => LocalizedString
 	/**
-	 * Collapse User List
+	 * Hide User List
 	 */
-	USER_ListCollapse: () => LocalizedString
+	USER_AdminArea_UserCollapse: () => LocalizedString
+	/**
+	 * Show User Token
+	 */
+	USER_AdminArea_ShowToken: () => LocalizedString
+	/**
+	 * Hide User Token
+	 */
+	USER_AdminArea_TokenCollapse: () => LocalizedString
 	/**
 	 * Email User Registration token
 	 */
-	USER_EmailToken: () => LocalizedString
+	USER_AdminArea_EmailToken: () => LocalizedString
 	/**
 	 * Token List:
 	 */
-	USER_ListToken: () => LocalizedString
+	USER_AdminArea_ListToken: () => LocalizedString
 	/**
 	 * User List:
 	 */
-	USER_ListUser: () => LocalizedString
+	USER_AdminArea_ListUser: () => LocalizedString
 	/**
 	 * Admin Area:
 	 */

@@ -91,22 +91,22 @@
 			bind:value={search}
 			on:input={filterCategories}
 			placeholder={$LL.SBL_Search()}
-			class="input variant-outline-surface mb-2 w-full border !border-surface-400"
+			class="input variant-outline-surface mb-2 w-full border !border-surface-400 "
 		/>
 	{/if}
 
 	<!-- TODO: Apply Tooltip for collapsed  -->
-	<Accordion regionControl="bg-surface-500 uppercase text-white hover:!bg-surface-400">
+	<Accordion regionControl="dark:bg-surface-500 uppercase text-white hover:!bg-surface-400">
 		<!-- Collection Parents -->
 		{#each filteredCategories as category}
 
 		<!-- TODO: Only keep one accordion open -->
 			<AccordionItem
 				bind:open={category.open}
-				regionPanel={`divide-y divide-black my-0 ${
+				regionPanel={`divide-y dark:divide-black my-0 ${
 					category.collections.length > 5 ? ($toggleLeftSidebar === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
 				} overflow-y-auto`}
-				class="divide-y rounded-md bg-surface-100 dark:bg-surface-300"
+				class="divide-y dark:divide-black rounded-md bg-surface-100 dark:bg-surface-300"
 			>
 				<svelte:fragment slot="lead">
 					<!-- TODO: Tooltip not fully working -->
@@ -116,7 +116,7 @@
 				<svelte:fragment slot="summary"
 					>{#if $toggleLeftSidebar === 'full'}
 						<!-- TODO: Translation not updating -->
-						<p>{category.name}</p>
+						<p class="text-black dark:text-white">{category.name}</p>
 					{/if}
 					<div class="card variant-filled-secondary p-4" data-popup="popupHover">
 						<p>{category.name}</p>
@@ -170,7 +170,7 @@
 		<!-- switchSideBar expanded -->
 		<a
 			href="/mediagallery"
-			class="btn mt-1.5 flex flex-row items-center justify-start bg-surface-600 py-2 pl-2 text-white"
+			class="btn mt-1.5 flex flex-row items-center justify-start bg-surface-50 dark:bg-surface-500 hover:!bg-surface-400 py-2 pl-2 dark:text-white"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
 					toggleLeftSidebar.clickBack();
@@ -184,14 +184,14 @@
 		<!-- switchSideBar collapsed -->
 		<a
 			href="/mediagallery"
-			class="btn mt-2 flex flex-col items-center bg-surface-600 py-1 pl-2 text-white"
+			class="btn mt-2 flex flex-col items-center bg-surface-50 dark:bg-surface-500 hover:!bg-surface-400 hover:text-white py-1 pl-2 dark:text-white"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
 					toggleLeftSidebar.clickBack();
 				}
 			}}
 		>
-			<p class="text-xs uppercase">{$LL.CollectionCategory_Media()}</p>
+			<p class="text-xs uppercase text-black dark:text-white">{$LL.CollectionCategory_Media()}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 		</a>
 	{/if}
