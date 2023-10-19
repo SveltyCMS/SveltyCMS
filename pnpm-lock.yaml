@@ -1401,7 +1401,7 @@ packages:
       sirv: 2.0.3
       svelte: 4.2.1
       tiny-glob: 0.2.9
-      undici: 5.26.3
+      undici: 5.26.4
       vite: 4.5.0(@types/node@20.8.7)
     transitivePeerDependencies:
       - supports-color
@@ -6554,8 +6554,8 @@ packages:
   /undici-types@5.25.3:
     resolution: {integrity: sha512-Ga1jfYwRn7+cP9v8auvEXN1rX3sWqlayd4HP7OKk4mZWylEmu3KzXDUGrQUN6Ol7qo1gPvB2e5gX6udnyEPgdA==}
 
-  /undici@5.26.3:
-    resolution: {integrity: sha512-H7n2zmKEWgOllKkIUkLvFmsJQj062lSm3uA4EYApG8gLuiOM0/go9bIoC3HVaSnfg4xunowDE2i9p8drkXuvDw==}
+  /undici@5.26.4:
+    resolution: {integrity: sha512-OG+QOf0fTLtazL9P9X7yqWxQ+Z0395Wk6DSkyTxtaq3wQEjIroVe7Y4asCX/vcCxYpNGMnwz8F0qbRYUoaQVMw==}
     engines: {node: '>=14.0'}
     dependencies:
       '@fastify/busboy': 2.0.0
