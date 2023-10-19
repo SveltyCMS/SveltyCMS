@@ -2,7 +2,7 @@
   import MouseHandler from './MouseHandler.svelte';
 
   // Define your props and logic for the Crop.svelte component
-  export let image: string; // The image to be cropped
+  export let image: File | null | undefined;
   export let aspect: number = 1; // The aspect ratio of the crop area
   export let minZoom: number = 1; // The minimum zoom of the image
   export let maxZoom: number = 3; // The maximum zoom of the image
@@ -29,10 +29,13 @@
   function handleResize(event) {
     console.log('Resize event handled');
 
+    // Update the crop object scale
+    crop.scale += event.detail.y / (maxZoom - minZoom);
+
     // Define a minimum size for the crop area in pixels
     const minSize = 50;
 
-    // Update the crop value with the event data
+    // Use a switch statement to handle the different cases for the corners
     switch (event.detail.corner) {
       case 'top-left':
         if (crop.scale * (maxZoom - minZoom) - event.detail.y > minSize) {
@@ -62,18 +65,6 @@
         break;
     }
   }
-
-  // Define a function to handle the mouse down event on the crop area
-  function handleMouseDown() {
-    console.log('Mouse down handled');
-    // You can add any logic here, such as changing the cursor style or highlighting the crop area
-  }
-
-  // Define a function to handle the mouse up event on the crop area
-  function handleMouseUp() {
-    console.log('Mouse up handled');
-    // You can add any logic here, such as resetting the cursor style or removing the highlight from the crop area
-  }
 </script>
 
 <style>
@@ -82,35 +73,38 @@
 
 <div class="relative top-[5%] left-[5%] w-[90%] h-[90%] border border-white">
   <!-- Wrap the crop area element inside the MouseHandler component tag -->
-  <MouseHandler on:move={handleMove} on:resize={handleResize} let:props>
-    <!-- Use the props and crop value to style and position the crop area element -->
-    <div
-      class="absolute border border-white"
-      style={`top: calc(50% + ${props.cropTop}px); left: calc(50% + ${props.cropLeft}px); width: ${props.cropRight -
-        props.cropLeft}px; height: ${props.cropBottom - props.cropTop}px; transform: translate(-50%, -50%) rotate(${crop.rotation}deg);`}
-      on:mousedown={handleMouseDown}  
-      on:mouseup={handleMouseUp}  
-    >
-      <!-- Corners -->
+  <MouseHandler 
+    on:move={handleMove} 
+    on:resize={handleResize} 
+    let:props 
+   >
+    <!-- Use an if block to conditionally render the crop area based on the image prop -->
+    {#if image}
+      <!-- Use some CSS filters to create a mask effect on the image -->
+      <img src={URL.createObjectURL(image)} alt="Image" class="w-full h-full object-contain filter contrast-50 brightness-75" />
+      <!-- Use some CSS properties to create a shape for the crop area element -->
       <div
-        class="absolute top-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="top-left"
-      ></div>
-      <div
-        class="absolute top-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="top-right"
-      ></div>
-      <div
-        class="absolute bottom-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="bottom-left"
-      ></div>
-      <div
-        class="absolute bottom-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="bottom-right"
-      ></div>
-
-      <!-- Center -->
-      <!-- <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border border-white bg-white cursor-move inner">center</div> -->
-    </div>
+        class="absolute border border-white"
+        style={`top: calc(50% + ${props.cropTop}px + ${crop.y}px); left: calc(50% + ${props.cropLeft}px + ${crop.x}px); width: ${props.cropRight - props.cropLeft}px; height: ${props.cropBottom - props.cropTop}px; transform: translate(-50%, -50%) scale(${crop.scale}) rotate(${crop.rotation}deg); clip-path: ${cropShape === 'rect' ? 'none' : 'circle(50%)'};`}
+      >
+        <!-- Corners -->
+        <div
+          class="absolute top-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
+          data-corner="top-left"
+        ></div>
+        <div
+          class="absolute top-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
+          data-corner="top-right"
+        ></div>
+        <div
+          class="absolute bottom-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
+          data-corner="bottom-left"
+        ></div>
+        <div
+          class="absolute bottom-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
+          data-corner="bottom-right"
+        ></div>
+      </div>
+    {/if}
   </MouseHandler>
 </div>

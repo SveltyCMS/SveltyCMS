@@ -2,7 +2,7 @@
   import MouseHandler from './MouseHandler.svelte';
 
   // Define your props and logic for the Blur.svelte component
-  export let image: string; // The image to be blurred
+  export let image: File | null | undefined;
   export let blur: number = 5; // The blur amount in pixels
   export let minZoom: number = 1; // The minimum zoom of the image
   export let maxZoom: number = 3; // The maximum zoom of the image
@@ -11,7 +11,6 @@
   export let blurRight: number;
   export let blurBottom: number;
   export let rotation: number = 0;
-  export let visible: boolean = true;
 
   // Initialize the blur value with default values
   let blurValue = {
@@ -33,10 +32,13 @@
   function handleResize(event) {
     console.log('Resize event handled');
 
+    // Update the blur object scale
+    blurValue.scale += event.detail.y / (maxZoom - minZoom);
+
     // Define a minimum size for the blur area in pixels
     const minSize = 50;
 
-    // Update the blur value with the event data
+    // Use a switch statement to handle the different cases for the corners
     switch (event.detail.corner) {
       case 'top-left':
         if (blurValue.scale * (maxZoom - minZoom) - event.detail.y > minSize) {
@@ -67,18 +69,6 @@
     }
   }
 
-  // Define a function to handle the mouse down event on the blur area
-  function handleMouseDown() {
-    console.log('Mouse down handled');
-    // You can add any logic here, such as changing the cursor style or highlighting the blur area
-  }
-
-  // Define a function to handle the mouse up event on the blur area
-  function handleMouseUp() {
-    console.log('Mouse up handled');
-    // You can add any logic here, such as resetting the cursor style or removing the highlight from the blur area
-  }
-
   // Define a function to handle the delete event on the blur area
   function handleDelete() {
     console.log('Delete event handled');
@@ -93,47 +83,17 @@
 
 <div class="relative top-[5%] left-[5%] w-[90%] h-[90%] border border-white">
   <!-- Wrap the blur area element inside the MouseHandler component tag -->
-  <MouseHandler on:move={handleMove} on:resize={handleResize} let:props>
-    <!-- Use an if block to conditionally render the blur area based on the visible prop -->
-    {#if visible}
-    <!-- Use the props and blur value to style and position the blur area element -->
-    <div
-      class="absolute"
-      style={`top: calc(50% + ${props.blurTop}px); left: calc(50% + ${props.blurLeft}px); width: ${props.blurRight -
-        props.blurLeft}px; height: ${props.blurBottom - props.blurTop}px; transform: translate(-50%, -50%) rotate(${rotation}deg);`}
-      on:mousedown={handleMouseDown}  
-      on:mouseup={handleMouseUp} 
-    >
-      <!-- Corners -->
-      <div
-        class="absolute top-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="top-left"
-      ></div>
-      <div
-        class="absolute top-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="top-right"
-      ></div>
-      <div
-        class="absolute bottom-0 left-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="bottom-left"
-      ></div>
-      <div
-        class="absolute bottom-0 right-0 w-2 h-2 border border-white bg-white cursor-pointer corner"
-        data-corner="bottom-right"
-      ></div>
-
-      <!-- Center -->
-      <!-- <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-4 h-4 border border-white bg-white cursor-move inner">center</div> -->
-
-      <!-- Image -->
-      <img
-        src={image}
-        style={`filter: blur(${blur}px); transform: translate(-50%, -50%) scale(${blurValue.scale}) rotate(${rotation}deg);`}
-      />
-
-      <!-- Delete button -->
-      <button on:click={handleDelete}>X</button>
-    </div>
+  <MouseHandler 
+    on:move={handleMove} 
+    on:resize={handleResize} 
+    let:props 
+   >
+    <!-- Use an if block to conditionally render the blur area based on the image prop -->
+    {#if image}
+      <!-- Use some CSS filters to create a blur effect on the image -->
+      <img src={URL.createObjectURL(image)} alt="Image" class="w-full h-full object-contain filter" style={`blur(${blur}px)`} />
+      <!-- Use a button element to delete the blur area -->
+      <button on:click={handleDelete}>Delete</button>
     {/if}
   </MouseHandler>
 </div>

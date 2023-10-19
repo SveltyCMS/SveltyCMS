@@ -1,76 +1,44 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { createEventDispatcher } from 'svelte';
 
   const dispatch = createEventDispatcher();
 
-  let MOUSEDOWN_WHOLE = false;
-  let MOUSEDOWN_CORNER = false;
-  let MOUSEDOWN_BOX = false;
-  let MOUSE_START_LEFT;
-  let MOUSE_START_TOP;
-  let selectedCorner;
-
-  // Function to handle mouse down event
-  export function handleMouseDown(e) {
-    console.log('Mouse down event triggered');
-
-    e.preventDefault();
-    const corner = e.target.closest('.corner');
-    const isWhole = e.target.closest('.inner');
-    const isBox = e.target.closest('.box');
-    if (corner) {
-      MOUSEDOWN_CORNER = true;
-      // Additional logic for the corner case
-      MOUSE_START_LEFT = e.pageX;
-      MOUSE_START_TOP = e.pageY;
-      selectedCorner = corner.getAttribute('data-corner');
-    } else if (isWhole) {
-      MOUSEDOWN_WHOLE = true;
-      // Additional logic for the whole object case
-      MOUSE_START_LEFT = e.pageX;
-      MOUSE_START_TOP = e.pageY;
-    } else if (isBox) {
-      MOUSEDOWN_BOX = true;
-      MOUSE_START_LEFT = e.pageX;
-      MOUSE_START_TOP = e.pageY;
-    }
-  }
-
-  // Function to handle mouse up event
-  export function handleMouseUp(e) {
-    console.log('Mouse up event triggered');
-
-        MOUSEDOWN_WHOLE = false;
-    MOUSEDOWN_CORNER = false;
-    // Reset initial values or any other necessary logic
-  }
+  let element; // The reference to the div element
+  let selectedCorner; // The selected corner for resizing
 
   // Function to handle mouse move event
   export function handleMouseMove(e) {
     console.log('Mouse move event triggered');
 
-        // Change some values based on mouse move on the X and Y axis
-    // You may want to memorize the previous position and use it to calculate deltas
-    // Based on deltas and the element state (whole or corner), you could also adjust the size or position of an element
-    if (MOUSEDOWN_WHOLE) {
-      dispatch('move', { x: e.pageX - MOUSE_START_LEFT, y: e.pageY - MOUSE_START_TOP });
-    } else if (MOUSEDOWN_CORNER) {
-      const deltaX = e.pageX - MOUSE_START_LEFT;
-      const deltaY = e.pageY - MOUSE_START_TOP;
+    // Get the size and position of the element
+    const { width, height, left, top } = element.getBoundingClientRect();
 
+    // Calculate the deltas based on the mouse position and the element position
+    const deltaX = e.clientX - left;
+    const deltaY = e.clientY - top;
+
+    // Check if the mouse is moving the whole element or a corner
+    if ($$props.moving && !selectedCorner) {
+      // Dispatch the move event with the deltas
+      dispatch('move', { x: deltaX, y: deltaY });
+    } else if ($$props.moving && selectedCorner) {
+      // Use a switch statement to handle the different cases for the corners
       switch (selectedCorner) {
         case 'top-left':
+          // Dispatch the resize event with the deltas and the corner
           dispatch('resize', { x: deltaX, y: deltaY, corner: 'top-left' });
           break;
         case 'top-right':
-          dispatch('resize', { x: deltaX, y: deltaY, corner: 'top-right' });
+          // Dispatch the resize event with the deltas and the corner
+          dispatch('resize', { x: width - deltaX, y: deltaY, corner: 'top-right' });
           break;
         case 'bottom-left':
-          dispatch('resize', { x: deltaX, y: deltaY, corner: 'bottom-left' });
+          // Dispatch the resize event with the deltas and the corner
+          dispatch('resize', { x: deltaX, y: height - deltaY, corner: 'bottom-left' });
           break;
         case 'bottom-right':
-          dispatch('resize', { x: deltaX, y: deltaY, corner: 'bottom-right' });
+          // Dispatch the resize event with the deltas and the corner
+          dispatch('resize', { x: width - deltaX, y: height - deltaY, corner: 'bottom-right' });
           break;
         default:
           break;
@@ -90,23 +58,34 @@
     }
   }
 
-  onMount(() => {
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  });
+  function handleMouseDown(e) {
+    console.log('Mouse down event triggered');
+
+    e.preventDefault();
+    const corner = e.target.closest('.corner');
+    if (corner) {
+      // Set the selected corner
+      selectedCorner = corner.getAttribute('data-corner');
+    }
+  }
+
+  function handleMouseUp(e) {
+    console.log('Mouse up event triggered');
+
+    // Reset the selected corner
+    selectedCorner = null;
+  }
 </script>
 
 <!-- Use a div element instead of a button element -->
 <div class="my-component"
-     onmousedown={handleMouseDown}
-     onmousemove={handleMouseMove}
-     onmouseup={handleMouseUp}
-
-     ontouchstart={handleMouseDown}
-     ontouchmove={handleMouseMove}
-     ontouchend={handleMouseUp}
-     
+     bind:this={element}
+     on:mousedown={handleMouseDown}
+     on:mouseup={handleMouseUp}
      tabindex="0">
 <!-- Use slots to pass HTML content from parent component -->
 <slot></slot>
 </div>
+
+<svelte:window on:mousemove={handleMouseMove} let:moving let:down />
+<svelte:window on:keydown={handleKeyDown} />
