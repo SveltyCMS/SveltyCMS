@@ -78,6 +78,8 @@ jobs:
           SECRET_GOOGLE_API_KEY: ''
           SECRET_GOOGLE_CLIENT_ID: ''
           SECRET_GOOGLE_CLIENT_SECERT: ''
+          SECRET_TWITCH_TOKEN: ''
+          SECRET_TIKTOK_TOKEN: ''
           # Add more environment variables as needed...
 
       - uses: actions/upload-artifact@v3
