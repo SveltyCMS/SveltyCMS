@@ -80,6 +80,13 @@ jobs:
           SECRET_GOOGLE_CLIENT_SECERT: ''
           SECRET_TWITCH_TOKEN: ''
           SECRET_TIKTOK_TOKEN: ''
+          SMTP_HOST: ''
+          SMTP_PORT: ''
+          SMTP_PASSWORD: ''
+          SMTP_EMAIL: 'test@example.com'
+          PUBLIC_MAPBOX_API_TOKEN: ''
+          SECRET_MAPBOX_API_TOKEN: ''
+          VITE_OPEN_AI_KEY: ''
           # Add more environment variables as needed...
 
       - uses: actions/upload-artifact@v3
