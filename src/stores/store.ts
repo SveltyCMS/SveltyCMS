@@ -29,6 +29,7 @@ export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANG
 
 // Subscribe to changes in credentials store and update local storage accordingly
 loadAllLocales(); // Load all locales
+
 // Subscribe to changes in systemLanguage store and set locale accordingly
 systemLanguage.subscribe((val) => {
 	setLocale(val as Locales);
