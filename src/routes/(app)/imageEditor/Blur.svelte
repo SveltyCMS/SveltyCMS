@@ -73,7 +73,7 @@
   function handleDelete() {
     console.log('Delete event handled');
     // Set the visible prop to false
-    visible = false;
+    //visible = false;
   }
 </script>
 
@@ -91,9 +91,9 @@
     <!-- Use an if block to conditionally render the blur area based on the image prop -->
     {#if image}
       <!-- Use some CSS filters to create a blur effect on the image -->
-      <img src={URL.createObjectURL(image)} alt="Image" class="w-full h-full object-contain filter" style={`blur(${blur}px)`} />
+      <!-- <img src={URL.createObjectURL(image)} alt="Image" class="w-full h-full object-contain filter" style={`blur(${blur}px)`} /> -->
       <!-- Use a button element to delete the blur area -->
-      <button on:click={handleDelete}>Delete</button>
+      <button on:click={handleDelete} class="absolute top-0 left-0">Delete</button>
     {/if}
   </MouseHandler>
 </div>

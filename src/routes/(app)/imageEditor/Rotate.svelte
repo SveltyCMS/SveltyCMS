@@ -3,12 +3,12 @@
 
     export let rotate: number;
     export let image: File | null | undefined;
-    export let CONT_WIDTH: string | undefined;
-    export let CONT_HEIGHT: string | undefined;
+
   
     function handleRotate() {
       const preview = document.getElementById("preview") as HTMLImageElement;
   if (!preview) {
+    // TODO: Fix this as preview is not found
     console.log("Preview element not found");
     return;
   }

@@ -3,12 +3,24 @@
 
   const dispatch = createEventDispatcher();
 
+   // Define your props here
+   let props = {
+    cropTop: 0,
+    cropLeft: 0,
+    cropRight: 0,
+    cropBottom: 0,
+    // other props...
+  };
+
   let element; // The reference to the div element
   let selectedCorner; // The selected corner for resizing
+  let moving = false; // Track if the mouse is moving
+  let down = false; // Track if the mouse is clicked down
 
   // Function to handle mouse move event
   export function handleMouseMove(e) {
-    console.log('Mouse move event triggered');
+    moving = true;
+   // console.log('Mouse move event triggered');
 
     // Get the size and position of the element
     const { width, height, left, top } = element.getBoundingClientRect();
@@ -18,10 +30,10 @@
     const deltaY = e.clientY - top;
 
     // Check if the mouse is moving the whole element or a corner
-    if ($$props.moving && !selectedCorner) {
+    if (moving && !selectedCorner) {
       // Dispatch the move event with the deltas
       dispatch('move', { x: deltaX, y: deltaY });
-    } else if ($$props.moving && selectedCorner) {
+    } else if (moving && selectedCorner) {
       // Use a switch statement to handle the different cases for the corners
       switch (selectedCorner) {
         case 'top-left':
@@ -59,7 +71,8 @@
   }
 
   function handleMouseDown(e) {
-    console.log('Mouse down event triggered');
+    down = true;
+    //console.log('Mouse down event triggered');
 
     e.preventDefault();
     const corner = e.target.closest('.corner');
@@ -70,7 +83,8 @@
   }
 
   function handleMouseUp(e) {
-    console.log('Mouse up event triggered');
+    down = false;
+    //console.log('Mouse up event triggered');
 
     // Reset the selected corner
     selectedCorner = null;
@@ -84,8 +98,8 @@
      on:mouseup={handleMouseUp}
      tabindex="0">
 <!-- Use slots to pass HTML content from parent component -->
-<slot></slot>
+<slot {props}></slot>
 </div>
 
-<svelte:window on:mousemove={handleMouseMove} let:moving let:down />
-<svelte:window on:keydown={handleKeyDown} />
+<svelte:window on:mousemove={handleMouseMove} on:keydown={handleKeyDown} />
+
