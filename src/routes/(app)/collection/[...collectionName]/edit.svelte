@@ -1,25 +1,25 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
 
 	// Get the value of the collection parameter from the page store
-	const { collection } = $page.params;
+	let { collection } = $page.params;
 
-	let schema = {};
+	// Create a writable store for schema
+	let schema = writable({});
 
-	async function getSchema() {
-		// Make a GET request to the /builder endpoint with the collection parameter
-		const response = await fetch(`/collection/${collection}`);
-		const data = await response.json();
+	export async function load({ page }) {
+		// Get the value of the collection parameter from the page store
+		const { collection } = page.params;
 
-		// Get the schema object from the response data
-		schema = data;
+		// Dynamically import the collection schema
+		const module = await import(`@src/collections/${collection}.ts`);
+
+		// Create a writable store for schema and set its value
+		let schema = writable(module.default);
+
+		return { props: { schema } };
 	}
-
-	onMount(() => {
-		getSchema();
-	});
-
 	function onSubmit(e) {
 		e.preventDefault();
 
@@ -31,12 +31,13 @@
 
 <form on:submit|preventDefault={onSubmit}>
 	<!-- Add input fields for each property in the schema object -->
-	{#each Object.entries(schema) as [key, value]}
+	{#each Object.entries($schema) as [key, value]}
 		<label>
 			{key}
-			<input type="text" bind:value={schema[key]} />
+			<input type="text" bind:value={$schema[key]} />
 		</label>
 	{/each}
 
 	<button type="submit">Save</button>
 </form>
+

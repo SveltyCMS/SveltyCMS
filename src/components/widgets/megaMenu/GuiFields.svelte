@@ -5,7 +5,7 @@
 	//console.log(value);
 </script>
 
-<div class="w-full flex flex-col items-center box-border border p-2">
+<div class="w-full flex flex-col items-center box-border border p-2 overflow-auto">
 	<p>Menu Fields</p>
 
 	<button on:click={() => (value = [...value, []])} 

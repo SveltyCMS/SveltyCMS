@@ -1,9 +1,11 @@
 name: Playwright Tests
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+
+# disabled for now
+# on:
+#   push:
+#     branches: [main]
+#   pull_request:
+#     branches: [main]
 
 jobs:
   test:

@@ -32,21 +32,11 @@ const schema: Schema = {
 		widgets.MegaMenu({
 			label: 'Menu',
 			menu: [
-				{
-					fields: [
-						widgets.Text({
-							label: 'Header',
-							placeholder: 'Enter Menu Name',
-							required: true,
-							translated: true
-						})
-					]
-				},
+
 				//level 1
-				{
-					fields: [
+				[
 						widgets.Text({
-							label: 'Header',
+							label: 'Level 1 Name',
 							placeholder: 'Enter Category Level 1 Name',
 							required: true,
 							translated: true
@@ -79,52 +69,11 @@ const schema: Schema = {
 							label: 'Seo',
 							translated: true
 						})
-					]
-				},
+					],
 				//level 2
-				{
-					fields: [
+				[
 						widgets.Text({
-							label: 'Header',
-							placeholder: 'Enter Category Level 1 Name',
-							required: true,
-							translated: true
-						}),
-						widgets.Text({
-							label: 'Description',
-							placeholder: 'Enter Description Level 1',
-							required: true,
-							translated: true
-						}),
-						widgets.ImageUpload({
-							label: 'image',
-							required: true,
-							icon: 'material-symbols:image-outline',
-							path: 'global'
-						}),
-						widgets.Text({
-							label: 'Title',
-							placeholder: 'Image Title',
-							required: true,
-							translated: true
-						}),
-						widgets.Text({
-							label: 'Alt Text',
-							placeholder: 'Image Alt Text',
-							required: true,
-							translated: true
-						}),
-						widgets.Seo({
-							label: 'Seo',
-							translated: true
-						})
-					]
-				},
-				//level 3
-				{
-					fields: [
-						widgets.Text({
-							label: 'Header',
+							label: 'Level 2 Name',
 							placeholder: 'Enter Category Level 2 Name',
 							required: true,
 							translated: true
@@ -132,6 +81,44 @@ const schema: Schema = {
 						widgets.Text({
 							label: 'Description',
 							placeholder: 'Enter Description Level 2',
+							required: true,
+							translated: true
+						}),
+						widgets.ImageUpload({
+							label: 'image',
+							required: true,
+							icon: 'material-symbols:image-outline',
+							path: 'global'
+						}),
+						widgets.Text({
+							label: 'Title',
+							placeholder: 'Image Title',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Alt Text',
+							placeholder: 'Image Alt Text',
+							required: true,
+							translated: true
+						}),
+						widgets.Seo({
+							label: 'Seo',
+							translated: true
+						})
+					],
+				
+				//level 3
+				 [
+						widgets.Text({
+							label: 'Level 3 Name',
+							placeholder: 'Enter Category Level 3 Name',
+							required: true,
+							translated: true
+						}),
+						widgets.Text({
+							label: 'Description',
+							placeholder: 'Enter Description Level 3',
 							required: true,
 							translated: true
 						}),
@@ -158,7 +145,7 @@ const schema: Schema = {
 							translated: true
 						})
 					]
-				}
+				
 			]
 		})
 	]

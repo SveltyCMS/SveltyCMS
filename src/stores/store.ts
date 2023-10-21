@@ -17,6 +17,9 @@ export const collections: Writable<Array<Schema>> = writable();
 export const unAssigned: Writable<Array<Schema>> = writable();
 export const collection: Writable<Schema> = writable();
 
+// Collections stores
+export const currentCollection = writable(null);
+
 // Create a writable store for Avatar
 export const avatarSrc: Writable<string> = writable();
 

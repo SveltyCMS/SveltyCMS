@@ -106,9 +106,9 @@
 	/>
 	<!-- Display selected icon -->
 	{#if iconselected}
-		<div class="hidden items-center justify-center gap-2 sm:flex">
+		<div class="hidden items-center justify-center gap-2 sm:flex mt-3">
 			<!--TODO: display icon.name -->
-			<iconify-icon icon={iconselected} width="30" class="text-primary-500" />
+			<iconify-icon icon={iconselected} width="30" class="btn-icon p-2 variant-ghost-primary" />
 			<p>{$LL.MODAL_IconPicker_Name()} <span class=" text-primary-500">{iconselected}</span></p>
 		</div>
 	{/if}

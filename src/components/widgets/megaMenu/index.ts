@@ -1,69 +1,62 @@
 // MegaMenu - allows multilevel menus for navigation
 import MegaMenu from './MegaMenu.svelte';
-import { writable, type Writable } from 'svelte/store';
+import Text from '../text';
 
+import { writable, type Writable } from 'svelte/store';
+import { getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { defaultContentLanguage } from '@src/stores/store';
+// import { defaultContentLanguage } from '@src/stores/store';
 
 // typesafe-i18n
-import { get } from 'svelte/store';
-import LL from '@src/i18n/i18n-svelte.js';
+// import { get } from 'svelte/store';
+// import LL from '@src/i18n/i18n-svelte.js';
 
 export const currentChild: Writable<any> = writable({});
 
-const widget = ({
-	// Accept parameters from collection
-	label,
-	db_fieldName,
-	display,
-	icon,
-	translated = false,
+// Define the widget function
+const widget = (params: Params) => {
+	// Define the display function
+	let display: any;
 
-	// extras
-	menu
-}: Params) => {
-	if (!display) {
-		display = async ({
-			data,
-			collection,
-			field,
-			entry,
-			contentLanguage
-		}: {
-			data: any;
-			collection: any;
-			field: any;
-			entry: any;
-			contentLanguage: string;
-		}) => {
+	if (!params.display) {
+		display = async ({ data, contentLanguage }) => {
 			// console.log(data);
-			data = data ? data : {}; // data can only be undefined if entry exists in db but this field was not set.
-			return translated
-				? data[contentLanguage] || get(LL).ENTRYLIST_Untranslated()
-				: data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
+			// Return the data for the default content language
+			return data.Header[contentLanguage];
 		};
 		display.default = true;
+	} else {
+		display = params.display;
 	}
 
-	const widget: { type: any; key: 'MegaMenu' } = { type: MegaMenu, key: 'MegaMenu' };
+	for (const level of params.menu) {
+		level.unshift(Text({ label: 'Header', translated: true }));
+	}
+	params.menu.unshift([Text({ label: 'Header', translated: true })]);
 
-	const field = {
-		// standard
-		label,
-		db_fieldName,
-		display,
-		icon,
-		translated,
-
-		// extras
-		menu
+	// Define the widget object
+	const widget: { type: typeof MegaMenu; key: 'MegaMenu'; GuiFields: ReturnType<typeof getGuiFields> } = {
+		type: MegaMenu,
+		key: 'MegaMenu',
+		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
+	// Define the field object
+	const field = {
+		display,
+		label: params.label,
+		db_fieldName: params.db_fieldName,
+		menu: params.menu
+	};
+
+	// Return the field and widget objects
 	return { ...field, widget };
 };
 
+// Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
+// Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

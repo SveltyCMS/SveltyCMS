@@ -10,6 +10,7 @@
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import ModalAddCategory from './ModalCategory.svelte';
+	import { currentCollection } from '@src/stores/store';
 
 	function editCategory(category: any): void {
 		const modalComponent: ModalComponent = {
@@ -62,9 +63,9 @@
 		<iconify-icon {icon} width="18" />
 		<span class="ml-2 dark:text-primary-500">{name}</span>
 	</div>
-	<div class="absolute right-1 top-2 flex gap-3">
+	<div class="absolute right-1 top-2 flex">
 		<button class="text-black" on:click={() => editCategory({ name, icon })} aria-label="Edit Category">
-			<iconify-icon icon="mdi:pen" width="18" class="text-surface-300" />
+			<iconify-icon icon="mdi:pen" width="18" class="text-surface-400" />
 		</button>
 		<iconify-icon icon="mdi:drag" width="18" class="" />
 	</div>
@@ -87,7 +88,7 @@
 					{item.name}</span
 				>
 
-				<button class="text-black" on:click={() => handleCollectionClick(item.name)}>
+				<button class="text-surface-400" on:click={() => handleCollectionClick(item.name)}>
 					<iconify-icon icon="mdi:pen" width="18" class="pr-0.5" />
 				</button>
 			</div>

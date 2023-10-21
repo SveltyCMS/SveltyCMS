@@ -7,7 +7,7 @@ import { get } from 'svelte/store';
 import { contentLanguage, entryData, mode, collections, collection } from '@src/stores/store';
 
 // lucia
-import type { Auth } from 'lucia-auth';
+import type { Auth } from 'lucia';
 import type { User } from '@src/collections/Auth';
 
 import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
@@ -18,6 +18,17 @@ export const config = {
 	headers: {
 		'Content-Type': 'multipart/form-data'
 	}
+};
+
+// This function generates GUI fields based on field parameters and a GUI schema.
+export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [key: string]: any }) => {
+	const guiFields = {};
+	for (const key in GuiSchema) {
+		// If the field parameter is an array, make a deep copy of it.
+		// Otherwise, just assign it directly.
+		guiFields[key] = Array.isArray(fieldParams[key]) ? deepCopy(fieldParams[key]) : fieldParams[key];
+	}
+	return guiFields;
 };
 
 // Function to convert an object to form data
@@ -36,7 +47,7 @@ export const obj2formData = (obj: any) => {
 					else if (key == 'schema') return undefined;
 					else if (key == 'display' && val.default == true) return undefined;
 					else if (key == 'display') return '🗑️' + val + '🗑️';
-					else if (key == 'widget') return { key: val.key };
+					else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
 					else if (key == 'relation') return '🗑️' + val + '🗑️';
 					else if (typeof val === 'function') {
 						return '🗑️' + val + '🗑️';
@@ -235,7 +246,9 @@ export function parse(obj: any) {
 			} else {
 				obj[key] = JSON.parse(obj[key]);
 			}
-		} catch (e) {}
+		} catch (e) {
+			console.error(e);
+		}
 
 		if (typeof obj[key] != 'string') {
 			parse(obj[key]);
@@ -353,17 +366,17 @@ export async function extractData(fieldsData: any) {
 	return temp;
 }
 
+// Validates a user session.
 export async function validate(auth: Auth, sessionID: string | null) {
+	// If the session ID is null, return a 404 status with an empty user object.
 	if (!sessionID) {
 		return { user: {} as User, status: 404 };
 	}
-
-	// const resp = await auth.validateSessionUser(sessionID).catch(() => null);
 	const resp = await auth.validateSession(sessionID).catch(() => null);
 
 	if (!resp) return { user: {} as User, status: 404 };
 
-	return { user: resp.user as User, status: 200 };
+	return { user: resp.user as unknown as User, status: 200 };
 }
 
 /**
@@ -431,8 +444,45 @@ function removeExtension(fileName) {
 
 export const asAny = (value: any) => value;
 
+// This function takes an object as a parameter and returns a deep copy of it
+function deepCopy(obj) {
+	// If the object is not an object or is null, return it as it is
+	if (typeof obj !== 'object' || obj === null) {
+		return obj;
+	}
+
+	// If the object is a Date instance, return a new Date with the same time value
+	if (obj instanceof Date) {
+		return new Date(obj.getTime());
+	}
+
+	// If the object is an Array instance, return a new array with deep copies of each element
+	if (obj instanceof Array) {
+		return obj.reduce((arr, item, i) => {
+			// Recursively call deepCopy on each element and assign it to the new array
+			arr[i] = deepCopy(item);
+			return arr;
+		}, []);
+	}
+
+	// If the object is a plain object, return a new object with deep copies of each property
+	if (obj instanceof Object) {
+		return Object.keys(obj).reduce((newObj, key) => {
+			// Recursively call deepCopy on each property value and assign it to the new object
+			newObj[key] = deepCopy(obj[key]);
+			return newObj;
+		}, {});
+	}
+}
+
+// This function generates a unique ID.
 export function generateUniqueId() {
+	// Get the current timestamp and convert it to a base-36 string.
 	const timestamp = new Date().getTime().toString(36);
+
+	// Generate a random number, convert it to a base-36 string, and take the first 9 characters.
 	const random = Math.random().toString(36).substr(2, 9);
+
+	// Concatenate the timestamp and random strings to form the unique ID.
 	return timestamp + random;
 }

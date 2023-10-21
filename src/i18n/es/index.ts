@@ -69,7 +69,7 @@ const es: Translation = {
 	USER_AdminArea_TokenCollapse: 'Ocultar token de usuario',
 	USER_AdminArea_EmailToken: 'Email token de registro',
 	USER_AdminArea_ListToken: 'Lista de tokens:',
-	USER_AdminArea_ListUser: 'Lista de usuarios:',	
+	USER_AdminArea_ListUser: 'Lista de usuarios:',
 	USER_AdminArea_title: 'Área Admin:',
 	USER_AdminArea_Blocked: 'Bloqueado',
 	USER_AdminArea_Avatar: 'Avatar',

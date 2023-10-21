@@ -2,59 +2,69 @@
 import ImageArray from './ImageArray.svelte';
 import ImageUpload from '../imageUpload';
 
-import { getFieldName } from '@src/utils/utils.js';
-
+import { getFieldName, getGuiFields } from '@src/utils/utils.js';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
-const widget = ({
-	// Accept parameters from collection
-	label,
-	db_fieldName,
-	display,
-	icon,
-	translated = false,
+// Define the widget function
+const widget = (params: Params) => {
+	params.fields.unshift(
+		ImageUpload({
+			db_fieldName: params.uploader_db_fieldName,
+			label: params.uploader_label,
+			display: params.uploader_display,
+			path: params.uploader_path
+		})
+	);
 
-	// extras
-	required,
-	fields,
-	uploader_label,
-	uploader_path,
-	uploader_display,
-	uploader_db_fieldName
-}: Params) => {
-	fields.unshift(ImageUpload({ db_fieldName: uploader_db_fieldName, label: uploader_label, display: uploader_display, path: uploader_path }));
-	const uploader = fields[0] as ImageUpload_Params;
+	const uploader = params.fields[0] as ImageUpload_Params;
 
-	if (!display) {
+	// Define the display function
+	let display: any;
+
+	if (!params.display) {
 		display = async ({ data, collection, field, entry, contentLanguage }) => {
 			return `<img class='max-w-[200px] inline-block' src="${entry[getFieldName(uploader)]?.thumbnail?.url}" />`;
 		};
 		display.default = true;
+	} else {
+		display = params.display;
 	}
 
-	const widget: { type: any; key: 'ImageArray' } = { type: ImageArray, key: 'ImageArray' };
+	// Define the widget object
+	const widget: { type: typeof ImageArray; key: 'ImageArray'; GuiFields: ReturnType<typeof getGuiFields> } = {
+		type: ImageArray,
+		key: 'ImageArray' as const,
+		GuiFields: getGuiFields(params, GuiSchema)
+	};
 
+	// Define the field object
 	const field = {
-		// standard
-		label,
-		db_fieldName,
+		// default fields
 		display,
-		icon,
-		translated,
+		label: params.label,
+		db_fieldName: params.db_fieldName,
 
-		// extras
-		required,
+		// extra fields
+		icon: params.icon,
 		upload: true,
-		fields,
+		fields: params.fields,
+		required: params.required,
+		uploader_label: params.uploader_label,
+		uploader_path: params.uploader_path,
+		uploader_display: params.uploader_display,
+		uploader_db_fieldName: params.uploader_db_fieldName,
 		extract: true
 	};
 
+	// Return the field and widget objects
 	return { ...field, widget };
 };
 
+// Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
+// Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

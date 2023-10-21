@@ -70,7 +70,7 @@
 		<form class="modal-form {cForm}">
 			<label class="label">
 				<span>{$LL.MODAL_Category_Name()}</span>
-				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
+				<input class="input " type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
 			</label>
 
 			<IconifyPicker bind:iconselected={formData.newCategoryIcon} />

@@ -60,7 +60,6 @@ const en: BaseTranslation = {
 	USER_PageTitle: 'User Profile',
 	USER_Edit_Avatar: 'Edit Avatar',
 	USER_Role: 'Role',
-	
 
 	//User AdminArea
 	USER_AdminArea_Generate: 'Email User Registration token',

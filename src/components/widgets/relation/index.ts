@@ -1,57 +1,62 @@
 import Relation from './Relation.svelte';
-import { findById } from '@src/utils/utils';
 
+import { findById, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
-const widget = ({
-	// Accept parameters from collection
-	label,
-	db_fieldName,
-	display,
-	icon,
-	translated = false,
+// typesafe-i18n
+// import { get } from 'svelte/store';
+// import LL from '@src/i18n/i18n-svelte.js';
 
-	// extras
-	relation
-}: Params) => {
-	if (!display) {
-		display = async ({ data, collection, field, entry, contentLanguage }) => {
+// Define the widget function
+const widget = (params: Params) => {
+	// Define the display function
+	let display: any;
+
+	if (!params.display) {
+		display = async ({ data, contentLanguage }) => {
+			// console.log(data);
 			if (typeof data == 'string') {
-				data = await findById(data, relation);
+				data = await findById(data, params.relation);
 			}
 			return Object.values(data)[1]?.[contentLanguage] || Object.values(data)[1]?.[defaultContentLanguage] || Object.values(data)[1];
 		};
 		display.default = true;
 	} else {
-		const _display = display;
 		display = async ({ data, collection, field, entry, contentLanguage }) => {
 			if (typeof data == 'string') {
-				data = await findById(data, relation);
+				data = await findById(data, params.relation);
 			}
-			return _display?.({ data, collection, field, entry, contentLanguage });
+			return params.display?.({ data, collection, field, entry, contentLanguage });
 		};
 	}
 
-	const widget: { type: any; key: 'Relation' } = { type: Relation, key: 'Relation' };
-
-	const field = {
-		// standard
-		label,
-		db_fieldName,
-		display,
-		icon,
-		translated,
-
-		// extras
-		relation
+	// Define the widget object
+	const widget: { type: typeof Relation; key: 'Relation'; GuiFields: ReturnType<typeof getGuiFields> } = {
+		type: Relation,
+		key: 'Relation',
+		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
+	// Define the field object
+	const field = {
+		// default fields
+		display,
+		label: params.label,
+		db_fieldName: params.db_fieldName,
+
+		// extra
+		relation: params.relation
+	};
+
+	// Return the field and widget objects
 	return { ...field, widget };
 };
 
+// Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
+// Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

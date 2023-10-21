@@ -14,6 +14,7 @@
     "name": "Menu",
     "icon": "bi:menu-button-wide",
     "collections": [
+      collections.Relation,
       collections.Names,
       collections.Menu,
       collections.ImageArray

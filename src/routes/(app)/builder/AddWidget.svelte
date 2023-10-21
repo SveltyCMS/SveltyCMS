@@ -2,10 +2,9 @@
 	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
 	import widgets from '@src/components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
-
+	import { asAny } from '@src/utils/utils';
 	export let fields: Array<any> = [];
-	export let addField: boolean = false;
-
+	export let addField: Boolean = false;
 	let selected_widget: keyof typeof widgets | null = null;
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 
@@ -13,7 +12,7 @@
 	$: if (selected_widget) {
 		guiSchema = widgets[selected_widget].GuiSchema;
 	}
-	let field = { widget: { key: selected_widget as unknown as keyof typeof widgets } };
+	let field = { widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>
 
 {#if !selected_widget}
@@ -22,26 +21,25 @@
 	</div>
 {:else}
 	<div class="properties">
-		<button class="btn text-primary-500" on:click={() => (selected_widget = null)}>Close</button>
+		<button class="btn" on:click={() => (selected_widget = null)}>close</button>
 
 		{#each Object.entries(guiSchema) as [property, value]}
-			<InputSwitch bind:value={field[property]} widget={value.widget} key={property} />
+			<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
 		{/each}
-		<button
-			class="btn"
+		<button class="btn" 
 			on:click={() => {
 				if (!selected_widget) return;
-				field.widget = { key: selected_widget };
+				field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
 				fields.push(field);
 				fields = fields;
 				addField = false;
-				// console.log(fields);
+				console.log(fields);
 			}}>Finish Widget</button
 		>
 	</div>
 {/if}
 
-<style lang="postcss">
+<style>
 	.properties {
 		position: fixed;
 		flex-direction: column;
