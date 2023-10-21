@@ -161,7 +161,4 @@ async function getFileSize(filePath: string): Promise<number> {
 	return fileStats.size;
 }
 
-function getOfficeDocumentProperties(filePath: string): any {
-	// Get the file properties using the appropriate library (e.g., Office for Mac, LibreOffice)
-	return {};
-}
+

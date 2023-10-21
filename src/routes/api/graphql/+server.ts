@@ -41,7 +41,7 @@ for (const collection of collections) {
 	// 	if (schema.resolver) {
 	// 		resolvers = deepmerge(resolvers, schema.resolver);
 	// 	}
-	// 	if (schema) {
+	// 	if (schema && schema.graphql) {
 	// 		const _types = schema.graphql.split(/(?=type.*?{)/);
 	// 		for (const type of _types) {
 	// 			types.add(type);
@@ -55,8 +55,9 @@ for (const collection of collections) {
 	// 					label: getFieldName(_field).replaceAll(' ', '_'),
 	// 					collection
 	// 				}).typeName}\n`;
-	// 				console.log('---------------------------');
-	// 				console.log(collectionSchema);
+					
+	// 				console.log("collectionSchema:", collectionSchema);
+					
 	// 				resolvers[collection.name as string] = deepmerge(
 	// 					{
 	// 						[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {

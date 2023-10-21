@@ -1,8 +1,9 @@
 import Input from '@src/components/system/inputs/Input2.svelte';
 import Toggles from '@src/components/system/inputs/Toggles.svelte';
 
-import { SIZES, getFieldName } from '@src/utils/utils';
+import { SIZES } from '@src/utils/utils';
 
+// Define the widget Parameters
 export type Params = {
 	// default required parameters
 	label: string;
@@ -17,6 +18,7 @@ export type Params = {
 	required?: boolean;
 };
 
+// Define the GuiSchema
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -42,9 +44,14 @@ const types = Object.keys(SIZES)
 }`
 	)
 	.join('\n');
+
+// Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
+	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
 	console.log(typeName);
+
+	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName,
 		graphql: /* GraphQL */ `

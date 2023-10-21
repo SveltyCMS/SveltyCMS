@@ -1,4 +1,6 @@
-import Input from '@src/components/system/inputs/Input.svelte';
+import Input from '@src/components/system/inputs/Input2.svelte';
+// import Toggles from '@src/components/system/inputs/Toggles.svelte';
+// import { contentLanguage } from '@src/stores/store';
 import GuiFields from '@src/components/widgets/megaMenu/GuiFields.svelte';
 import widgets from '..';
 import { getFieldName } from '@src/utils/utils';
@@ -16,6 +18,7 @@ export type Params = {
 	menu: any[]; // Make sure this is always an array of arrays
 };
 
+// Define the GuiSchema
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -24,11 +27,14 @@ export const GuiSchema = {
 	menu: { widget: GuiFields, required: true }
 };
 
+// Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 	const menu = field.menu;
 	const typeName = `${collection.name}_${getFieldName(field)}`;
 	const types = new Set();
+	
 	let levelCount = 0;
+	
 	for (const level of menu) {
 		const children: Array<any> = [];
 		for (const _field of level) {
@@ -49,6 +55,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 		}
 		levelCount++;
 	}
+	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName,
 		graphql: /* GraphQL */ `

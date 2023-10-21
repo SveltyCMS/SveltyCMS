@@ -6,9 +6,10 @@ import widgets from '@src/components/widgets';
 
 import type DefaultWidgets from '@src/components/widgets';
 
-type Widgets = ReturnType<(typeof DefaultWidgets)[keyof typeof DefaultWidgets]>;
-type Widgets2 = [...Widgets[]];
+interface Widgets extends Array<ReturnType<(typeof DefaultWidgets)[keyof typeof DefaultWidgets]>> {}
+type Widgets2 = Widgets[];
 
+// Define the widget Parameters
 export type Params = {
 	// default required parameters
 	label: string;
@@ -29,6 +30,7 @@ export type Params = {
 	uploader_path: string;
 };
 
+// Define the GuiSchema
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },

@@ -10,7 +10,7 @@
 	export let username: string = '';
 	export let systemLanguage: string = '';
 	setLocale(systemLanguage as any);
-	console.log('systemLanguage: ', systemLanguage);
+	//console.log('systemLanguage: ', systemLanguage);
 
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 

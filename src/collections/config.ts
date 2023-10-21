@@ -6,7 +6,10 @@
     "collections": [
       collections.Posts,
       collections.Posts2,
+      collections.Names,
       collections.Media,
+      collections.ImageArray,
+      collections.Relation,
       collections.WidgetTest
     ]
   },
@@ -14,10 +17,7 @@
     "name": "Menu",
     "icon": "bi:menu-button-wide",
     "collections": [
-      collections.Relation,
-      collections.Names,
-      collections.Menu,
-      collections.ImageArray
+      collections.Menu
     ]
   }
 ];}
