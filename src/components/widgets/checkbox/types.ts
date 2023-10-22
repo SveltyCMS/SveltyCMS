@@ -11,6 +11,7 @@ export type Params = {
 	widget?: any;
 	translated?: boolean;
 	icon?: string;
+	helper?: string;
 
 	// Widget Specific parameters
 	color?: string;

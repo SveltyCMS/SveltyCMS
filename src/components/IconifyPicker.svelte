@@ -16,12 +16,14 @@
 
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
+	import { addEmitHelper } from 'typescript';
 
 	export let icon = '';
 	let icons = []; // array of icon names
 	export let iconselected = '';
 	let loading = false; // loading state
 	export let searchQuery = '';
+	
 
 	//TODO: Update Search on Next/Previous event
 	let total = 0; // variable to store the total number of results
@@ -90,18 +92,18 @@
 </script>
 
 <!-- iconify icon -->
-<div class="mb-4 flex-col items-center gap-4">
-	<label for="icon" class="relative">
+<div class="mb-4 flex-col w-full items-center gap-4">
+	<!-- <label for="icon" class="relative">
 		{$LL.MODAL_IconPicker_Label()}
 		</label
 	
-	>
+	> -->
 	<input
 		type="text"
 		id="icon"
 		bind:value={searchQuery}
 		placeholder={$LL.MODAL_IconPicker_Placeholder()}
-		class="input "
+		class="w-full variant-filled-surface"
 		use:popup={popupIcon}
 	/>
 	<!-- Display selected icon -->

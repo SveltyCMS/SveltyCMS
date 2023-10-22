@@ -11,7 +11,7 @@
 
 	export let field: FieldType;
 	export const WidgetData = async () => (updated ? _data : null);
-	//export let file: File | undefined = undefined; // pass file directly from imageArray
+	export let file: File | undefined = undefined; // pass file directly from imageArray
 
 	let fieldName = getFieldName(field);
 	let optimizedFileName: string | undefined = undefined;
@@ -50,7 +50,7 @@
 
 		// Handle file selection
 		const handleFileSelection = async (files: FileList) => {
-			//console.log('handleFileSelection:', 'Function called');
+			console.log('handleFileSelection:', 'Function called');
 
 			updated = true;
 			_data = files;
@@ -65,7 +65,8 @@
 		} else if (file instanceof File) {
 			const fileList = new DataTransfer();
 			fileList.items.add(file);
-			handleFileSelection(fileList.files);
+			_data = fileList.files;
+			updated = true;
 
 			//TODO: File Preview not working for edit anymore
 		} else if ($mode === 'edit') {
@@ -77,7 +78,9 @@
 					type: $entryData[fieldName].mimetype
 				});
 				fileList.items.add(file);
-				handleFileSelection(fileList.files);
+				_data = fileList.files;
+				updated = true;
+				node.dispatchEvent(new Event('change')); // manually dispatch change event
 			});
 		}
 
@@ -86,8 +89,7 @@
 	}
 </script>
 
-<FileDropzone
-	name={fieldName}
+<FileDropzone bind:files={_data} name={fieldName}
 	accept=".pdf, .txt, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation"
 	multiple
 	on:change={setFile}

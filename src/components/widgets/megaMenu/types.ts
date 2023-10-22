@@ -13,6 +13,7 @@ export type Params = {
 	widget?: any;
 	translated?: boolean;
 	icon?: string;
+	helper?: string;
 
 	// Widget Specific parameters
 	menu: any[]; // Make sure this is always an array of arrays

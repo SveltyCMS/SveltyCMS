@@ -10,6 +10,7 @@ const schema: Schema = {
 	icon: 'bi:card-text',
 	status: 'published',
 	slug: 'posts',
+	
 
 	// Collection Permissions by user Roles
 
@@ -27,6 +28,7 @@ const schema: Schema = {
 		widgets.Text({
 			label: 'Test',
 			db_fieldName: 'dbtest',
+			helper: 'This is the helper text',
 			translated: true,
 			required: true,
 			icon: 'ri:t-box-line',

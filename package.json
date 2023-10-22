@@ -58,6 +58,7 @@
 		"@floating-ui/dom": "^1.5.3",
 		"@graphql-yoga/common": "^3.9.1",
 		"@graphql-yoga/render-graphiql": "^5.0.0",
+		"@inlang/paraglide-js": "1.0.0-prerelease.3",
 		"@lucia-auth/adapter-mongoose": "^3.0.0",
 		"@lucia-auth/oauth": "^3.3.1",
 		"@tanstack/svelte-table": "^8.10.7",

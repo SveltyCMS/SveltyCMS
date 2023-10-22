@@ -10,9 +10,7 @@
 	let updated = false;
 
 	export let field: FieldType;
-	//console.log('field', field);
 	export const WidgetData = async () => (updated ? _data : null);
-	//console.log('WidgetData', WidgetData);
 	export let file: File | undefined = undefined; // pass file directly from imageArray
 	//console.log('file', file);
 
@@ -50,7 +48,8 @@
 		} else if (file instanceof File) {
 			const fileList = new DataTransfer();
 			fileList.items.add(file);
-			handleFileSelection(fileList.files);
+			_data = fileList.files;
+			updated = true;
 
 			//TODO: Image Preview not working for edit anymore
 		} else if ($mode === 'edit') {
@@ -64,7 +63,9 @@
 					type: $entryData[fieldName].mimetype
 				});
 				fileList.items.add(file);
-				handleFileSelection(fileList.files);
+				_data = fileList.files;
+				updated = true;
+				node.dispatchEvent(new Event('change')); // manually dispatch change event
 			});
 		}
 
@@ -73,19 +74,19 @@
 	}
 </script>
 
-<FileDropzone name={fieldName} accept="image/*,image/webp,image/avif,image/svg+xml" on:change={setFile} slotMeta="opacity-100">
+<FileDropzone bind:files={_data} name={fieldName} accept="image/*,image/webp,image/avif,image/svg+xml" on:change={setFile} slotMeta="opacity-100">
 	<svelte:fragment slot="lead"
 		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />{/if}</svelte:fragment
 	>
 	<svelte:fragment slot="message">
-		{#if !_data}<span class="font-bold text-primary-500">Upload a file</span> or drag & drop
+		{#if !_data}<span class="font-bold text-primary-500">Upload a Image</span> or drag & drop
 		{:else}<span class="font-bold text-primary-500">Replace {_data[0].name}</span> or drag & drop
 		{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="meta">
-		{#if !_data}<p class="mt-1 text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>{/if}
-		<!-- Image preview and file info-->
-		{#if _data}
+		{#if !_data}<p class="mt-1 text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
+			<!-- Image preview and file info-->
+		{:else}
 			<div class="flex flex-col items-center !opacity-100 md:flex-row">
 				<div class="flex justify-center md:mr-4">
 					<img src={URL.createObjectURL(_data[0])} alt="" class="mt-4 h-60 rounded-md border" />
@@ -133,4 +134,3 @@
 		{/if}
 	</svelte:fragment>
 </FileDropzone>
-<!-- {#if _data}data {_data[0].name}{/if} -->

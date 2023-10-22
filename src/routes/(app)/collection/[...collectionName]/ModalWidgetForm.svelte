@@ -142,6 +142,46 @@
 						{/each}
 					</div>
 				{/if}
+
+				<!-- update to use GuiSchema
+					{#if selectedWidget}
+	<div class="mb-2 border-y text-center text-primary-500">
+		<div class="text-xl text-primary-500">
+			<span class="font-bold">{selectedWidget}</span> Widget Input Options
+		</div>
+		<div class="text-xs text-error-500">* Required</div>
+	</div>
+	<div class="options-table">
+		{#each Object.keys(GuiSchema) as option}
+			{#if GuiSchema[option].widget == Input}
+				<label for={option}>
+					{option}: {#if GuiSchema[option].required}<span class="text-error-500">*</span>{/if}
+				</label>
+				<input
+					type="text"
+					required={GuiSchema[option].required}
+					name={option}
+					id={option}
+					placeholder={`Enter ${option}`}
+					class="variant-filled-surface"
+					bind:value={selectedWidgetoptions[option]}
+				/>
+			{:else if GuiSchema[option].widget == Toggles}
+				<label for={option}>
+					{option}: {#if GuiSchema[option].required}<span class="text-error-500">*</span>{/if}
+				</label>
+				<input
+					type="checkbox"
+					name={option}
+					id={option}
+					class="variant-filled-surface"
+					bind:checked={selectedWidgetoptions[option]}
+				/>
+			{/if}
+		{/each}
+	</div>
+{/if} -->
+
 			</label>
 		</form>
 		<!-- prettier-ignore -->

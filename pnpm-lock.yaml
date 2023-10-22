@@ -14,6 +14,9 @@ dependencies:
   '@graphql-yoga/render-graphiql':
     specifier: ^5.0.0
     version: 5.0.0(graphql-yoga@5.0.0)
+  '@inlang/paraglide-js':
+    specifier: 1.0.0-prerelease.3
+    version: 1.0.0-prerelease.3
   '@lucia-auth/adapter-mongoose':
     specifier: ^3.0.0
     version: 3.0.0(lucia@2.7.1)(mongoose@7.6.3)
@@ -732,6 +735,127 @@ packages:
   /@iconify/types@2.0.0:
     resolution: {integrity: sha512-+wluvCrRhXrhyOmRDJ3q8mux9JkKy5SJ/v8ol2tu4FVjyYvtEzkc/3pK15ET6RKg4b4w4BmTk1+gsCUhf21Ykg==}
 
+  /@inlang/json-types@1.1.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-n6vS6AqETsCFbV4TdBvR/EH57waVXzKsMqeUQ+eH2Q6NUATfKhfLabgNms2A+QV3aedH/hLtb1pRmjl2ykBVZg==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/language-tag@1.2.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-AwKNPYPgJrhM9ebEYQvcG5PGM4v79jMPlsv2bUYEhEZzMpwIJKQo4t7P7EekMhO086sXOmeTu410Lm8abX/2Yw==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/message-lint-rule@1.3.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-cYaKkjIAWAcV4kzv12gmL3zv+KQjkLy6eqQfvChgdrEKad19mTVp+rEiFQEGILVpe3yHPI+uYnJyLQmfDvbgbQ==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/json-types': 1.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/message': 2.0.0(@sinclair/typebox@0.31.18)
+      '@inlang/project-settings': 2.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/translatable': 1.2.0(@sinclair/typebox@0.31.18)
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/message@2.0.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-RPFcbega2Cnxi78d08O7SbuXyuhEqsB819QjgloNTXWtlBFwVDkF87xAMIZN37hpM6JZzMaYv2O1ipyncU3Ccg==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/module@1.1.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-4PoW9GMV9S1wZsXpNPNQIgpgIdD3y6kqgaWTXCAiRk5vk/a82E0SJrcA7P4qEhcLxo7DHJu4djrMco6h0v4O5Q==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/message-lint-rule': 1.3.0(@sinclair/typebox@0.31.18)
+      '@inlang/plugin': 2.1.0(@sinclair/typebox@0.31.18)
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/paraglide-js@1.0.0-prerelease.3:
+    resolution: {integrity: sha512-9ANUVtYwrX4Il0zMHuEq2pkDvq7BxLeHGaAoHQyk8LjAETjXsDSZwIvO6uhZ1J/8v7JlmDjr95OYkAl+FnWJ9g==}
+    hasBin: true
+    dependencies:
+      '@inlang/sdk': 0.15.0
+      commander: 11.1.0
+      consola: 3.2.3
+      dedent: 1.5.1
+      typescript: 5.2.2
+    transitivePeerDependencies:
+      - babel-plugin-macros
+    dev: false
+
+  /@inlang/plugin@2.1.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-p4HeMrY9+azBCche2u9TxtVARqDjTOgMo7wxoJiajKJQKZjvBFHrRsXe5IaX9DWW0FoGXhHkjxAz/s4WICKOuw==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/json-types': 1.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/message': 2.0.0(@sinclair/typebox@0.31.18)
+      '@inlang/project-settings': 2.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/translatable': 1.2.0(@sinclair/typebox@0.31.18)
+      '@lix-js/fs': 0.3.0
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/project-settings@2.2.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-M1D150KYiYoyiHhQp627zhvo/w/M1B11ROEu2u7Jn9005mKEWZS1DDlEOsLuNRl5doHSPHfkGa9qItMtrqr0dA==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/json-types': 1.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
+  /@inlang/result@1.1.0:
+    resolution: {integrity: sha512-zLGroi9EUiHuOjUOaglUVTFO7EWdo2OARMJLBO1Q5Ga/xJmSQb6XS1lhqEXBFAjgFarfEMX5YEJWWALogYV3wA==}
+    dev: false
+
+  /@inlang/sdk@0.15.0:
+    resolution: {integrity: sha512-X2aDpKooRs2T/SoDsSRRFTrhKY++gArqzJLhytbE1eOyASpzC4WT9HgVrjhqEfKgqd4whkW9I7/SPD2sHVWUwQ==}
+    engines: {node: '>=18.0.0'}
+    dependencies:
+      '@inlang/json-types': 1.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/message': 2.0.0(@sinclair/typebox@0.31.18)
+      '@inlang/message-lint-rule': 1.3.0(@sinclair/typebox@0.31.18)
+      '@inlang/module': 1.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/plugin': 2.1.0(@sinclair/typebox@0.31.18)
+      '@inlang/project-settings': 2.2.0(@sinclair/typebox@0.31.18)
+      '@inlang/result': 1.1.0
+      '@inlang/translatable': 1.2.0(@sinclair/typebox@0.31.18)
+      '@lix-js/fs': 0.3.0
+      '@sinclair/typebox': 0.31.18
+      dedent: 1.5.1
+      deepmerge-ts: 5.1.0
+      solid-js: 1.6.12
+      throttle-debounce: 5.0.0
+    transitivePeerDependencies:
+      - babel-plugin-macros
+    dev: false
+
+  /@inlang/translatable@1.2.0(@sinclair/typebox@0.31.18):
+    resolution: {integrity: sha512-Od/nBm3qigfSpYJKu/Isg0rb34ohZApNk+fOtmZ0vBZXsTBzKaYFW0SeBVqwociRCr1tj40N659Ky+RoyLcv8A==}
+    peerDependencies:
+      '@sinclair/typebox': ^0.31.0
+    dependencies:
+      '@inlang/language-tag': 1.2.0(@sinclair/typebox@0.31.18)
+      '@sinclair/typebox': 0.31.18
+    dev: false
+
   /@jridgewell/gen-mapping@0.3.3:
     resolution: {integrity: sha512-HLhSWOLRi875zjjMG/r+Nv0oCW8umGb0BgEhyX3dDX3egwZtB8PqLnjz3yedt8R5StBrzcg4aBpnh8UA9D1BoQ==}
     engines: {node: '>=6.0.0'}
@@ -930,6 +1054,12 @@ packages:
       '@lexical/offset': 0.11.1(lexical@0.11.1)
       lexical: 0.11.1
       yjs: 13.6.2
+    dev: false
+
+  /@lix-js/fs@0.3.0:
+    resolution: {integrity: sha512-OKXfToFZXSZ6eiGue/6RZC29UdOTAabObF1trAHX2QXg1WCp8iLfi8IbWCSclqWK108tn0hRShgjof0aHvtjqw==}
+    dependencies:
+      js-base64: 3.7.5
     dev: false
 
   /@lucia-auth/adapter-mongoose@3.0.0(lucia@2.7.1)(mongoose@7.6.3):
@@ -1344,6 +1474,10 @@ packages:
     transitivePeerDependencies:
       - supports-color
     dev: true
+
+  /@sinclair/typebox@0.31.18:
+    resolution: {integrity: sha512-p2JGz+SciGJVl1zokCIK15f7LYDrI2ZsxItcLhkAyx50hEYEj/Qdy7z30qRYiakzdIu8dV4DfBi+e6xEZuugiQ==}
+    dev: false
 
   /@sindresorhus/is@3.1.2:
     resolution: {integrity: sha512-JiX9vxoKMmu8Y3Zr2RVathBL1Cdu4Nt4MuNWemt1Nc06A0RAin9c5FArkhGsyMBWfCu4zj+9b+GxtjAnE4qqLQ==}
@@ -2261,6 +2395,11 @@ packages:
     resolution: {integrity: sha512-y4Mg2tXshplEbSGzx7amzPwKKOCGuoSRP/CjEdwwk0FOGlUbq6lKuoyDZTNZkmxHdJtp54hdfY/JUrdL7Xfdug==}
     engines: {node: '>=14'}
 
+  /commander@11.1.0:
+    resolution: {integrity: sha512-yPVavfyCcRhmorC7rWlkHn15b4wDVgVmBA7kV4QVBsF7kv/9TKJAbAXVTxvTnwP8HHKjRCJDClKbciiYS7p0DQ==}
+    engines: {node: '>=16'}
+    dev: false
+
   /commander@4.1.1:
     resolution: {integrity: sha512-NOKm8xhkzAjzFx8B2v5OAHT+u5pRQc2UCa2Vq9jYL/31o2wi9mxBA7LIFs3sV5VSC49z6pEhfbMULvShKj26WA==}
     engines: {node: '>= 6'}
@@ -2295,6 +2434,11 @@ packages:
     dependencies:
       ini: 1.3.8
       proto-list: 1.2.4
+
+  /consola@3.2.3:
+    resolution: {integrity: sha512-I5qxpzLv+sJhTVEoLYNcTW+bThDCPsit0vLNKShZx6rLtpilNpmmeTPaeqJb9ZE9dV3DGaeby6Vuhrw38WjeyQ==}
+    engines: {node: ^14.18.0 || >=16.10.0}
+    dev: false
 
   /conventional-changelog-angular@7.0.0:
     resolution: {integrity: sha512-ROjNchA9LgfNMTTFSIWPzebCwOGFdgkEq45EnvvrmSLvCtAw0HSmrCs7/ty+wAeYUZyNay0YMUNYFTRL72PkBQ==}
@@ -2404,6 +2548,10 @@ packages:
     hasBin: true
     dev: true
 
+  /csstype@3.1.2:
+    resolution: {integrity: sha512-I7K1Uu0MBPzaFKg4nI5Q7Vs2t+3gWWW648spaF+Rg7pI9ds18Ugn+lvg4SHczUdKlHI5LWBXyqfS8+DufyBsgQ==}
+    dev: false
+
   /debug@2.6.9:
     resolution: {integrity: sha512-bC7ElrdJaJnPbAP+1EotYvqZsb3ecl5wi6Bfi6BJTUcNowp6cvspg0jXznRTKDjm/E7AdgFBVeAPVMNcKGsHMA==}
     peerDependencies:
@@ -2444,6 +2592,15 @@ packages:
       mimic-response: 3.1.0
     dev: true
 
+  /dedent@1.5.1:
+    resolution: {integrity: sha512-+LxW+KLWxu3HW3M2w2ympwtqPrqYRzU8fqi6Fhd18fBALe15blJPI/I4+UHveMVG6lJqB4JNd4UG0S5cnVHwIg==}
+    peerDependencies:
+      babel-plugin-macros: ^3.1.0
+    peerDependenciesMeta:
+      babel-plugin-macros:
+        optional: true
+    dev: false
+
   /deep-extend@0.6.0:
     resolution: {integrity: sha512-LOHxIOaPYdHlJRtCQfDIVZtfw/ufM8+rVj649RIHzcm/vGwQRXFt6OPqIFWsm2XEMrNIEtWR64sY1LEKD2vAOA==}
     engines: {node: '>=4.0.0'}
@@ -2452,6 +2609,11 @@ packages:
   /deep-is@0.1.4:
     resolution: {integrity: sha512-oIPzksmTg4/MriiaYGO+okXDT7ztn/w3Eptv/+gSIdMdKsJo0u4CfYNFJPy+4SKMuCqGw2wxnA+URMg3t8a/bQ==}
     dev: true
+
+  /deepmerge-ts@5.1.0:
+    resolution: {integrity: sha512-eS8dRJOckyo9maw9Tu5O5RUi/4inFLrnoLkBe3cPfDMx3WZioXtmOew4TXQaxq7Rhl4xjDtR7c6x8nNTxOvbFw==}
+    engines: {node: '>=16.0.0'}
+    dev: false
 
   /deepmerge@4.3.1:
     resolution: {integrity: sha512-3sUqbMEc77XqpdNO7FRyRog+eW3ph+GYCbj+rK+uYyRMuwsVy0rMiVtPn+QJlKFvWP/1PYpapqYn0Me2knFn+A==}
@@ -3966,6 +4128,10 @@ packages:
     resolution: {integrity: sha512-3TV69ZbrvV6U5DfQimop50jE9Dl6J8O1ja1dvBbMba/sZ3YBEQqJ2VZRoQPVnhlzjNtU1vaXRZVrVjU4qtm8yA==}
     hasBin: true
     dev: true
+
+  /js-base64@3.7.5:
+    resolution: {integrity: sha512-3MEt5DTINKqfScXKfJFrRbxkrnk2AxPWGBL/ycjz4dK8iqiSJ06UxD8jh8xuh6p10TX4t2+7FsBYVxxQbMg+qA==}
+    dev: false
 
   /js-beautify@1.14.9:
     resolution: {integrity: sha512-coM7xq1syLcMyuVGyToxcj2AlzhkDjmfklL8r0JgJ7A76wyGMpJ1oA35mr4APdYNO/o/4YY8H54NQIJzhMbhBg==}
@@ -5873,6 +6039,12 @@ packages:
       smart-buffer: 4.2.0
     dev: false
 
+  /solid-js@1.6.12:
+    resolution: {integrity: sha512-JFqRobfG3q5r1l4RYVOAukk6+FWtHpXGIjgh/GEsHKweN/kK+iHOtzUALE6+P5t/jIcSNeGiVitX8gmJg+cYvQ==}
+    dependencies:
+      csstype: 3.1.2
+    dev: false
+
   /sorcery@0.11.0:
     resolution: {integrity: sha512-J69LQ22xrQB1cIFJhPfgtLuI6BpWRiWu1Y3vSsIwK/eAScqJxd/+CJlUuHQRdX2C9NGFamq+KqNywGgaThwfHw==}
     hasBin: true
@@ -6394,6 +6566,11 @@ packages:
     dependencies:
       any-promise: 1.3.0
     dev: true
+
+  /throttle-debounce@5.0.0:
+    resolution: {integrity: sha512-2iQTSgkkc1Zyk0MeVrt/3BvuOXYPl/R8Z0U2xxo9rjwNciaHDG3R+Lm6dh4EeUci49DanvBnuqI6jshoQQRGEg==}
+    engines: {node: '>=12.22'}
+    dev: false
 
   /through2@2.0.5:
     resolution: {integrity: sha512-/mrRod8xqpA+IHSLyGCQ2s8SPHiCDEeQJSep1jqLYeEUClOFG2Qsh+4FU6G9VeqpZnGW/Su8LQGc4YKni5rYSQ==}

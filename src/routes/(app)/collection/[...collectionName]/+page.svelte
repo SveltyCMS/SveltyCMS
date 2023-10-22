@@ -183,7 +183,9 @@
 				<div class="mb-2 flex items-center gap-4 sm:mb-4 sm:ml-1.5">
 					<label for="name" class="relative"
 						>Name: <span class="text-error-500">*</span>
-						<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
+						{#if name.helper}
+							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
+						{/if}
 					</label>
 
 					<input
@@ -226,18 +228,28 @@
 
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
-					<div class="w-full">
+					<div class="w-full flex items-center gap-4">
+						<label for="icon" class="relative">
+							{$LL.MODAL_IconPicker_Label()}
+							</label
+						
+						>
+						{#if icon.helper}
+							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
+						{/if}
+
 						<IconifyPicker {searchQuery} {icon} {iconselected} />
 					</div>
 					<!-- status -->
 					<div class="mb-4 flex items-center gap-4">
 						<label class="relative" for="status">
 							Status:
+							{#if status.helper}
 							<iconify-icon
 								icon="material-symbols:info"
 								width="18"
 								class="absolute -top-3 right-1"
-							/>
+							/>{/if}
 						</label>
 						<select id="status" bind:value={status} class="variant-filled-surface w-full">
 							{#each statuses as statusOption}
@@ -250,11 +262,12 @@
 					<div class="mb-4 flex items-center gap-4">
 						<label for="slug" class="relative">
 							Slug:
+							{#if slug.helper}
 							<iconify-icon
 								icon="material-symbols:info"
 								width="18"
 								class="absolute -top-3 right-1"
-							/>
+							/>{/if}
 						</label>
 						<input
 							type="text"

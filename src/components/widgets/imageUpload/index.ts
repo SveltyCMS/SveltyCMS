@@ -5,8 +5,8 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 // import { defaultContentLanguage } from '@src/stores/store';
 
 // typesafe-i18n
-// import { get } from 'svelte/store';
-// import LL from '@src/i18n/i18n-svelte.js';
+import { get } from 'svelte/store';
+import LL from '@src/i18n/i18n-svelte.js';
 
 // Define the widget function
 const widget = (params: Params) => {
@@ -16,13 +16,15 @@ const widget = (params: Params) => {
 	if (!params.display) {
 		display = async ({ data }) => {
 			// console.log(data);
-
+			
 			// Return the formatted data as 200px thumbnail
-			return `<img class='max-w-[200px] inline-block' src="${data?.thumbnail.url}" />`;
+			if (data?.thumbnail.url) {
+				return `<img class='max-w-[200px]  max-h-[150px] inline-block' src="${data?.thumbnail.url}" />`;
+			} else {
+				return get(LL).ENTRYLIST_Untranslated();
+			}
 		};
 		display.default = true;
-	} else {
-		display = params.display;
 	}
 
 	// Define the widget object
