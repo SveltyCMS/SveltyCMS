@@ -69,7 +69,7 @@
 		<div class="flex {!$toggleLeftSidebar ? 'ml-2' : 'ml-1'}">
 			{#if collection && collection.icon}
 				<div class="flex items-center justify-center">
-					<iconify-icon icon={collection.icon} width="24" class="text-error-500" />
+					<iconify-icon icon={$collection.icon} width="24" class="text-error-500" />
 				</div>
 			{/if}
 
@@ -87,7 +87,7 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Check if user role has access to collection -->
-
+		<!-- TODO: Fix Collection Permission -->
 		{#if collection.permissions?.[user.role]?.write != false}
 			{#if $screenWidth !== 'desktop'}
 				<!-- Save Content -->
@@ -97,12 +97,7 @@
 				</button>
 
 				<!-- DropDown to show more Buttons -->
-				<button
-					type="button"
-					on:keydown
-					on:click={() => (showMore = !showMore)}
-					class="variant-ghost-surface btn-icon"
-				>
+				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 				</button>
 
@@ -116,9 +111,28 @@
 						<option {value}>{label}</option>
 					{/each}
 				</select>
+			{:else}
+				<!-- desktop -->
+
+				<!-- Clone Content -->
+				{#if $mode == 'edit'}
+					<div class="flex flex-col items-center justify-center">
+						<button type="button" on:click={cloneData} class="variant-filled-secondary btn-icon">
+							<iconify-icon icon="fa-solid:clone" width="24" />
+						</button>
+					</div>
+				{/if}
+
+				<!-- Select Content Language -->
+				<div class="hidden flex-col items-center justify-center md:flex">
+					<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
+						{#each Object.keys(options) as value}
+							<option {value}>{value.toUpperCase()}</option>
+						{/each}
+					</select>
+				</div>
 			{/if}
 		{:else}
-			<!-- TODO: Show Restriction -->
 			<button class="variant-ghost-error btn break-words">No Permission</button>
 		{/if}
 
@@ -128,14 +142,14 @@
 		</button>
 	</div>
 </header>
+
 {#if showMore && $collection.permissions?.[user?.role]?.write != false}
-	<div class="-mx-2 flex items-center justify-center gap-10 pt-2">
+	<div class="-mx-2 mb-2 flex items-center justify-center gap-10 pt-2">
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
 			<button type="button" on:click={$deleteEntry} class="variant-filled-error btn-icon">
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
-			<div class="-mt-1 text-center text-[9px] uppercase text-black dark:text-white">Delete</div>
 		</div>
 
 		<!-- Clone Content -->
@@ -144,7 +158,6 @@
 				<button type="button" on:click={cloneData} class="variant-filled-secondary btn-icon">
 					<iconify-icon icon="fa-solid:clone" width="24" />
 				</button>
-				<div class="-mt-1 text-center text-[9px] uppercase text-black dark:text-white">Clone</div>
 			</div>
 		{/if}
 
@@ -163,7 +176,6 @@
 					<option {value}>{value.toUpperCase()}</option>
 				{/each}
 			</select>
-			<div class="-mt-1 text-center text-[9px] uppercase text-black dark:text-white">Language</div>
 		</div>
 	</div>
 {/if}

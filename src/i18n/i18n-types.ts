@@ -537,7 +537,7 @@ type RootTranslation = {
 	 */
 	MODAL_Category_Title: string
 	/**
-	 * M​o​d​i​f​y​ ​y​o​u​r​ ​c​a​t​e​g​o​r​y
+	 * M​o​d​i​f​y​ ​y​o​u​r​ ​C​a​t​e​g​o​r​y
 	 */
 	MODAL_Category_Body: string
 	/**
@@ -548,6 +548,10 @@ type RootTranslation = {
 	 * E​n​t​e​r​ ​C​a​t​e​g​o​r​y​ ​n​a​m​e​.​.​.
 	 */
 	MODAL_Category_Placeholder: string
+	/**
+	 * I​c​o​n​:
+	 */
+	MODAL_Category_Icon: string
 	/**
 	 * D​e​l​e​t​e
 	 */
@@ -573,7 +577,7 @@ type RootTranslation = {
 	 */
 	MODAL_IconPicker_Placeholder: string
 	/**
-	 * S​e​l​e​c​t​ ​f​r​o​m​ ​G​o​o​g​l​e​ ​M​a​t​e​r​i​a​l​ ​I​c​o​n​s
+	 * S​e​l​e​c​t​ ​a​n​ ​I​c​o​n​i​f​y​ ​I​c​o​n
 	 */
 	MODAL_IconPicker_Select: string
 	/**
@@ -2124,7 +2128,7 @@ export type TranslationFunctions = {
 	 */
 	MODAL_Category_Title: () => LocalizedString
 	/**
-	 * Modify your category
+	 * Modify your Category
 	 */
 	MODAL_Category_Body: () => LocalizedString
 	/**
@@ -2135,6 +2139,10 @@ export type TranslationFunctions = {
 	 * Enter Category name...
 	 */
 	MODAL_Category_Placeholder: () => LocalizedString
+	/**
+	 * Icon:
+	 */
+	MODAL_Category_Icon: () => LocalizedString
 	/**
 	 * Delete
 	 */
@@ -2160,7 +2168,7 @@ export type TranslationFunctions = {
 	 */
 	MODAL_IconPicker_Placeholder: () => LocalizedString
 	/**
-	 * Select from Google Material Icons
+	 * Select an Iconify Icon
 	 */
 	MODAL_IconPicker_Select: () => LocalizedString
 	/**

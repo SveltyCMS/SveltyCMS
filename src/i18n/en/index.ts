@@ -166,9 +166,10 @@ const en: BaseTranslation = {
 
 	//Modal Category
 	MODAL_Category_Title: 'Edit Category',
-	MODAL_Category_Body: 'Modify your category',
+	MODAL_Category_Body: 'Modify your Category',
 	MODAL_Category_Name: 'Category Name:',
 	MODAL_Category_Placeholder: 'Enter Category name...',
+	MODAL_Category_Icon: 'Icon:',
 	MODAL_Category_Delete: 'Delete',
 	MODAL_Category_Cancel: 'Cancel',
 	MODAL_Category_Save: 'Save',
@@ -177,7 +178,7 @@ const en: BaseTranslation = {
 	MODAL_IconPicker_Label: 'Icon:',
 	MODAL_IconPicker_Name: 'Name:',
 	MODAL_IconPicker_Placeholder: 'Search for an icon...',
-	MODAL_IconPicker_Select: 'Select from Google Material Icons',
+	MODAL_IconPicker_Select: 'Select an Iconify Icon',
 	MODAL_IconPicker_Previous: 'Previous',
 	MODAL_IconPicker_Next: 'Next',
 

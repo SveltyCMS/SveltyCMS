@@ -62,8 +62,6 @@
 			icon: collection.icon
 		}))
 	}));
-	
-
 
 	// Define the structure of an Assigned collection
 	$: availableCollection = $categories.map((category) => ({
@@ -117,7 +115,7 @@
 	}
 </script>
 
-<div class="mb-2 flex items-center justify-between">
+<div class="mb-3 flex items-center justify-between">
 	<PageTitle name={$LL.BUILDER_PageTitle()} icon="" />
 
 	<button type="button" on:click={handleSaveClick} class="variant-filled-primary btn gap-2 !text-white">
@@ -126,19 +124,26 @@
 	</button>
 </div>
 
-<!-- add an input field and a button here -->
-<div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
-	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">{$LL.BUILDER_AddCategory()}</button>
-	<!-- add new Collection-->
-	<!-- TODO: only show  when Category exists -->
-	<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">{$LL.BUILDER_AddCollection()}</button>
-</div>
 {#if !availableCollection}
 	<p class="my-2 text-center">{$LL.BUILDER_First()}</p>
 {:else}
-	<!-- display unassigned collections -->
-	<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
 
-	<!-- display collections -->
-	<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
+<!-- TODO: add sticky top sticky top-0 z-50 -->
+	<div class="sticky top-0">
+		<!-- Category/Collection buttons -->
+		<div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
+			<!-- add new Category-->
+			<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">{$LL.BUILDER_AddCategory()}</button>
+			<!-- add new Collection-->
+			<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">{$LL.BUILDER_AddCollection()}</button
+			>
+		</div>
+
+		<!-- display unassigned collections -->
+		<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
+	</div>
+	
+		<!-- display collections -->
+		<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
+	
 {/if}

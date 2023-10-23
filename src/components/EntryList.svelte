@@ -49,6 +49,7 @@
 	import FloatingInput from './system/inputs/floatingInput.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
+	import { getFieldName } from '@src/utils/utils';
 
 	let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];
@@ -81,7 +82,7 @@
 				let obj: { [key: string]: any } = {};
 				for (let field of collection.fields) {
 					obj[field.label] = await field.display?.({
-						data: entry[field.label],
+						data: entry[getFieldName(field)],
 						collection: $collection.name,
 						field,
 						entry,
