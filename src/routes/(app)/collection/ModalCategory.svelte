@@ -47,12 +47,12 @@
 				return existingCategories.filter((category) => category.name !== existingCategory.name);
 			});
 
-		// Add the collections to the unAssigned store
-        unAssigned.update(existingUnassigned => {
-            const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
-            console.log('Collections to be unassigned:', collections);
-            return [...existingUnassigned, ...collections];
-        });
+			// Add the collections to the unAssigned store
+			unAssigned.update((existingUnassigned) => {
+				const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
+				console.log('Collections to be unassigned:', collections);
+				return [...existingUnassigned, ...collections];
+			});
 
 			// Close the modal
 			modalStore.close();
@@ -70,14 +70,14 @@
 		<form class="modal-form {cForm}">
 			<label class="label">
 				<span>{$LL.MODAL_Category_Name()}</span>
-				<input class="input " type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
+				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
 			</label>
 
 			<IconifyPicker bind:iconselected={formData.newCategoryIcon} />
 		</form>
 
-		<footer class="modal-footer flex {existingCategory.name && existingCategory.icon ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
-			{#if existingCategory.name && existingCategory.icon}
+		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
+			{#if existingCategory.name}
 				<!-- Check if existing category is being edited -->
 				<button type="button" on:click={deleteCategory} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden md:inline">{$LL.MODAL_Category_Delete()}</span>
