@@ -2,6 +2,7 @@
 	// Skeleton
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
+	import Icon from '@iconify/svelte';
 
 	// icon popup
 	const popupIcon: PopupSettings = {
@@ -23,7 +24,6 @@
 	export let iconselected = '';
 	let loading = false; // loading state
 	export let searchQuery = '';
-	
 
 	//TODO: Update Search on Next/Previous event
 	let total = 0; // variable to store the total number of results
@@ -35,11 +35,7 @@
 			// Use search API query with prefix and limit parameters
 			// Use prefix=ic to filter by Google Material icon set
 			// Use start variable to specify the start index of the result
-			const response = await fetch(
-				`https://api.iconify.design/search?query=${encodeURIComponent(
-					searchQuery
-				)}&prefix=ic&limit=50&start=${start}`
-			);
+			const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=ic&limit=50&start=${start}`);
 			const data = await response.json();
 			if (data && data.icons) {
 				total = data.total; // update total variable
@@ -89,10 +85,13 @@
 		//console.log('startprevPage:', start);
 		searchIcons(searchQuery);
 	}
+	function removeIcon() {
+		iconselected = '';
+	}
 </script>
 
 <!-- iconify icon -->
-<div class="mb-4 flex-col w-full items-center gap-4">
+<div class="mb-4 w-full flex-col items-center gap-4">
 	<!-- <label for="icon" class="relative">
 		{$LL.MODAL_IconPicker_Label()}
 		</label
@@ -103,26 +102,29 @@
 		id="icon"
 		bind:value={searchQuery}
 		placeholder={$LL.MODAL_IconPicker_Placeholder()}
-		class="w-full variant-filled-surface"
+		class="variant-filled-surface w-full"
 		use:popup={popupIcon}
 	/>
 	<!-- Display selected icon -->
 	{#if iconselected}
-		<div class="hidden items-center justify-center gap-2 sm:flex mt-3">
-			<!--TODO: display icon.name -->
-			<iconify-icon icon={iconselected} width="30" class="btn-icon p-2 variant-ghost-primary" />
+		<div class="mt-3 hidden items-center justify-center gap-2 sm:flex">
+			<!-- TODO: display icon.name -->
+			<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon p-2" />
 			<p>{$LL.MODAL_IconPicker_Name()} <span class=" text-primary-500">{iconselected}</span></p>
+			<button type="button" on:click={removeIcon}>
+				<Icon icon="akar-icons:cross" />
+			</button>
 		</div>
 	{/if}
 </div>
 <!-- Display selected icon -->
-{#if iconselected}
+<!-- {#if iconselected}
 	<div class="-mt-3 mb-1 flex items-center justify-center gap-2 sm:hidden">
-		<!-- todo: display icon.name -->
+		todo: display icon.name
 		<iconify-icon icon={iconselected} width="30" class="text-primary-500" />
 		<p>{$LL.MODAL_IconPicker_Name()} <span class=" text-primary-500">{iconselected}</span></p>
 	</div>
-{/if}
+{/if} -->
 
 <!-- icon popup -->
 <div class="card z-10 p-4 shadow-xl" data-popup="popupIcon">
@@ -145,18 +147,12 @@
 		<!-- TODO Button Click will close popup -->
 		<div class="mt-6 flex justify-between">
 			<!-- Disable the previous button if the start index is zero -->
-			<button
-				disabled={start === 0}
-				on:keydown
-				on:click={prevPage}
-				class="variant-filled-primary btn btn-sm">{$LL.MODAL_IconPicker_Previous()}</button
+			<button disabled={start === 0} on:keydown on:click={prevPage} class="variant-filled-primary btn btn-sm"
+				>{$LL.MODAL_IconPicker_Previous()}</button
 			>
 			<!-- Disable the next button if there are less than 50 icons in the current page -->
-			<button
-				disabled={icons.length < 50}
-				on:keydown
-				on:click={nextPage}
-				class="variant-filled-primary btn btn-sm">{$LL.MODAL_IconPicker_Next()}</button
+			<button disabled={icons.length < 50} on:keydown on:click={nextPage} class="variant-filled-primary btn btn-sm"
+				>{$LL.MODAL_IconPicker_Next()}</button
 			>
 		</div>
 	</div>
