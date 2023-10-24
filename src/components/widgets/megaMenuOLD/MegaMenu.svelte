@@ -8,7 +8,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
-
+	
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
 	export let value = $entryData[fieldName];
@@ -16,10 +16,10 @@
 
 	let showFields = false;
 	let depth = 0;
-	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
+	let _data: { [key: string]: any; children: any[] } | null = $mode == 'create' ? null : value;
 	let fieldsData = {};
 	let saveMode = $mode;
-	
+
 	async function saveLayer() {
 		if (!_data) {
 			_data = { ...(await extractData(fieldsData)), children: [] };
@@ -46,9 +46,9 @@
 {/if}
 
 <!-- TODO: add enter to proceed -->
-
 {#if !_data || showFields}
-	{#key depth}
+  
+{#key depth}
 		{(fieldsData = {}) && ''}
 		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} />
 	{/key}

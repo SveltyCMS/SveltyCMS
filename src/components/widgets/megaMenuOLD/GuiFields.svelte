@@ -14,9 +14,12 @@
 	</button>
 	
 	{#each value as level, index}
-		<div class="level">
+		<div class="text-center p-3 m-2 border border-dashed">
 			<p>level {index + 1}</p>
-			<WidgetBuilder fields={level} />
+			<WidgetBuilder fields={level}/>
 		</div>
 	{/each}
+
 </div>
+
+
