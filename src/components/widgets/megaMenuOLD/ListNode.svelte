@@ -4,14 +4,16 @@
 	import { contentLanguage } from '@src/stores/store';
 	import { dndzone } from 'svelte-dnd-action';
 
-	let expanded = false;
-
 	export let self: { [key: string]: any; children: any[] };
-	export let parent: { [key: string]: any; children: any[] } | null = null;
+	export let parent: { [key: string]: any; children: any[]; id: any } | null = null;
 	export let level = 0;
 	export let depth = 0;
 	export let showFields = false;
 	export let maxDepth = 0;
+
+	export let isFirstHeader = false;
+
+	let expanded = false;
 
 	export let refresh = () => {
 		self.children.length = self.children?.length;
@@ -24,10 +26,12 @@
 		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-error-500" />
 	{/if}
 
-	<span class="variant-outline-primary mr-2 rounded p-2">{self?.Header[$contentLanguage]}</span>
+	<span class="variant-outline-primary rounded p-2">{self?.Header[$contentLanguage]}</span>
 
-	<!-- Add  Button children -->
+	<!-- {console.log(level, maxDepth)} -->
+
 	{#if level < maxDepth - 1}
+		<!-- Add  Button children -->
 		<button
 			on:click|stopPropagation={() => {
 				$currentChild = self;
@@ -36,23 +40,22 @@
 				mode.set('create');
 			}}
 			class="variant-ghost-primary btn-icon"
-			>
-				<iconify-icon icon="icons8:plus" width="28" />
-			</button>
-		{/if}
+		>
+			<iconify-icon icon="icons8:plus" width="28" />
+		</button>
+	{/if}
 
 	<!-- Edit Button children -->
 	<button
 		on:click|stopPropagation={() => {
 			$currentChild = self;
-			$mode = 'edit';
+			mode.set('edit');
 			depth = level;
-			console.log(self);
 			showFields = true;
+			console.log(self);
 		}}
 		class="variant-ghost-primary btn-icon"
-	>
-		<iconify-icon icon="mdi:pen" width="28" class="" />
+		><iconify-icon icon="mdi:pen" width="28" class="" />
 	</button>
 
 	<!-- DeleteIcon -->
@@ -83,9 +86,12 @@
 	{/if}
 </button>
 
+<hr class="my-1 h-px border-0 bg-gray-200 dark:bg-gray-500" />
+
 {#if self.children?.length > 0 && expanded}
+	<!-- <ul use:dndzone={{items: self.children}}> -->
 	<ul>
-		{#each self.children as child}
+		{#each self.children as child (child.id)}
 			<li class="cursor-pointer">
 				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parrent={self} {maxDepth} />
 			</li>
@@ -93,3 +99,35 @@
 	</ul>
 {/if}
 
+{#if level == 0 && $mode != 'edit'}
+	<!-- Menu Name -->
+	<div class="mb-2 border border-x-0 py-2 text-center font-bold text-tertiary-500">Enter your Menu Categories</div>
+
+	<!-- Categories Children-->
+	{#if self.children?.length > 0}
+		<ul class="relative p-2">
+			{#each self.children as child}
+				<li class="cursor-pointer">
+					<svelte:self
+						self={child}
+						level={level + 1}
+						bind:depth
+						bind:showFields
+						{maxDepth}
+						on:keydown
+						on:click={() => {
+							depth = level;
+							showFields = true;
+						}}
+					/>
+				</li>
+			{/each}
+		</ul>
+	{/if}
+{/if}
+
+<style lang="postcss">
+	.expanded {
+		transform: rotate(-90deg);
+	}
+</style>

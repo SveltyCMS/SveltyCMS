@@ -3,14 +3,13 @@
 
   const dispatch = createEventDispatcher();
 
-   // Define your props here
-   let props = {
-    cropTop: 0,
-    cropLeft: 0,
-    cropRight: 0,
-    cropBottom: 0,
-    // other props...
-  };
+  // Use export to define your props
+  export let TopLeft = 0;
+  export let TopRight = 0;
+  export let BottomLeft = 0;
+  export let BottomRight = 0;
+  export let Center = 0;
+  export let Rotate = 0;
 
   let element; // The reference to the div element
   let selectedCorner; // The selected corner for resizing
@@ -20,7 +19,7 @@
   // Function to handle mouse move event
   export function handleMouseMove(e) {
     moving = true;
-   // console.log('Mouse move event triggered');
+    console.log('Mouse move event triggered');
 
     // Get the size and position of the element
     const { width, height, left, top } = element.getBoundingClientRect();
@@ -36,21 +35,21 @@
     } else if (moving && selectedCorner) {
       // Use a switch statement to handle the different cases for the corners
       switch (selectedCorner) {
-        case 'top-left':
+        case 'TopLeft':
           // Dispatch the resize event with the deltas and the corner
-          dispatch('resize', { x: deltaX, y: deltaY, corner: 'top-left' });
+          dispatch('resize', { x: deltaX, y: deltaY, corner: 'TopLeft' });
           break;
-        case 'top-right':
+        case 'TopRight':
           // Dispatch the resize event with the deltas and the corner
-          dispatch('resize', { x: width - deltaX, y: deltaY, corner: 'top-right' });
+          dispatch('resize', { x: width - deltaX, y: deltaY, corner: 'TopRight' });
           break;
-        case 'bottom-left':
+        case 'BottomLeft':
           // Dispatch the resize event with the deltas and the corner
-          dispatch('resize', { x: deltaX, y: height - deltaY, corner: 'bottom-left' });
+          dispatch('resize', { x: deltaX, y: height - deltaY, corner: 'BottomLeft' });
           break;
-        case 'bottom-right':
+        case 'BottomRight':
           // Dispatch the resize event with the deltas and the corner
-          dispatch('resize', { x: width - deltaX, y: height - deltaY, corner: 'bottom-right' });
+          dispatch('resize', { x: width - deltaX, y: height - deltaY, corner: 'BottomRight' });
           break;
         default:
           break;
@@ -72,8 +71,7 @@
 
   function handleMouseDown(e) {
     down = true;
-    //console.log('Mouse down event triggered');
-
+    console.log('Mouse down event triggered');
     e.preventDefault();
     const corner = e.target.closest('.corner');
     if (corner) {
@@ -84,11 +82,17 @@
 
   function handleMouseUp(e) {
     down = false;
-    //console.log('Mouse up event triggered');
+    console.log('Mouse up event triggered');
 
     // Reset the selected corner
     selectedCorner = null;
+
   }
+  
+   function handleMouseLeave(e) {
+     // Handle mouse leave event
+     handleMouseUp(e);
+   }
 </script>
 
 <!-- Use a div element instead of a button element -->
@@ -96,10 +100,21 @@
      bind:this={element}
      on:mousedown={handleMouseDown}
      on:mouseup={handleMouseUp}
-     tabindex="0">
+     on:mousemove={handleMouseMove}
+     on:mouseleave={handleMouseLeave}
+     tabindex="0"
+     style="--border-color: var(--primary-500); --background-color: var(--bg-2); --cursor: move;">
+  
 <!-- Use slots to pass HTML content from parent component -->
-<slot {props}></slot>
+<slot {TopLeft} {TopRight} {BottomLeft} {BottomRight} {Center} {Rotate}>
+</slot>
 </div>
 
-<svelte:window on:mousemove={handleMouseMove} on:keydown={handleKeyDown} />
-
+<style>
+  .my-component {
+    /* Add some styles to the div element */
+    border: 2px solid var(--border-color);
+    background-color: var(--background-color);
+    cursor: var(--cursor);
+  }
+</style>

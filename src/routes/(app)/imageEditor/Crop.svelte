@@ -4,8 +4,6 @@
 	// Define your props and logic for the Crop.svelte component
 	export let image: File | null | undefined;
 	export let aspect: number = 1; // The aspect ratio of the crop area
-	export let minZoom: number = 1; // The minimum zoom of the image
-	export let maxZoom: number = 3; // The maximum zoom of the image
 	export let cropShape: 'rect' | 'round' = 'rect'; // The shape of the crop area
 
 	// Initialize the crop value with default values
@@ -35,63 +33,56 @@
 	function handleResize(event) {
 		//console.log('Resize event handled');
 
-		// Update the crop object scale
-		crop.scale += event.detail.y / (maxZoom - minZoom);
-
-		// Define a minimum size for the crop area in pixels
-		const minSize = 50;
-
-		// Use a switch statement to handle the different cases for the corners
-		switch (event.detail.corner) {
-			case 'top-left':
-				if (crop.scale * (maxZoom - minZoom) - event.detail.y > minSize) {
-					crop.scale -= event.detail.y / (maxZoom - minZoom);
-				}
-				crop.x += event.detail.x;
-				break;
-			case 'top-right':
-				if (crop.scale * (maxZoom - minZoom) - event.detail.y > minSize) {
-					crop.scale -= event.detail.y / (maxZoom - minZoom);
-				}
-				crop.x -= event.detail.x;
-				break;
-			case 'bottom-left':
-				if (crop.scale * (maxZoom - minZoom) + event.detail.y > minSize) {
-					crop.scale += event.detail.y / (maxZoom - minZoom);
-				}
-				crop.x += event.detail.x;
-				break;
-			case 'bottom-right':
-				if (crop.scale * (maxZoom - minZoom) + event.detail.y > minSize) {
-					crop.scale += event.detail.y / (maxZoom - minZoom);
-				}
-				crop.x -= event.detail.x;
-				break;
-			default:
-				break;
-		}
-
 		// Update the crop object with new values based on corner
 		switch (event.detail.corner) {
-			case 'top-left':
+			case 'TopLeft':
 				crop.top += event.detail.y;
 				crop.left += event.detail.x;
 				break;
-			case 'top-right':
+			case 'TopRight':
 				crop.top += event.detail.y;
 				crop.right -= event.detail.x;
 				break;
-			case 'bottom-left':
+			case 'BottomLeft':
 				crop.bottom -= event.detail.y;
 				crop.left += event.detail.x;
 				break;
-			case 'bottom-right':
+			case 'BottomRight':
 				crop.bottom -= event.detail.y;
 				crop.right -= event.detail.x;
 				break;
 			default:
 				break;
 		}
+		
+        // Calculate the new width and height of the crop area based on aspect ratio
+        const newWidth = Math.min(crop.right - crop.left, (crop.bottom - crop.top) * aspect);
+        const newHeight = Math.min(crop.bottom - crop.top, (crop.right - crop.left) / aspect);
+
+        // Adjust the corners to maintain the aspect ratio
+        switch (event.detail.corner) {
+            case 'TopLeft':
+                crop.left = crop.right - newWidth;
+                crop.top = crop.bottom - newHeight;
+                break;
+            case 'TopRight':
+                crop.right = crop.left + newWidth;
+                crop.top = crop.bottom - newHeight;
+                break;
+            case 'BottomLeft':
+                crop.left = crop.right - newWidth;
+                crop.bottom = crop.top + newHeight;
+                break;
+            case 'BottomRight':
+                crop.right = crop.left + newWidth;
+                crop.bottom = crop.top + newHeight;
+                break;
+            default:
+                break;
+        }
+        
+        // Update the crop object scale
+        crop.scale = newWidth / crop.width;
 	}
 </script>
 
@@ -99,8 +90,6 @@
 	<!-- Wrap the crop area element inside the MouseHandler component tag -->
 	<MouseHandler on:move={handleMove} on:resize={handleResize} let:props>
 		<!-- Use an if block to conditionally render the crop area based on the image prop -->
-
-
 		{#if image}
 			<!-- <img src={URL.createObjectURL(image)} alt="Image" class="h-full w-full object-contain brightness-75 contrast-50 filter" /> -->
 
@@ -108,18 +97,52 @@
 			<div
 				class="absolute border border-white"
 				style={`top: calc(50% + ${crop.top}px + ${crop.y}px); left: calc(50% + ${crop.left}px + ${crop.x}px); width: ${
-					crop.right - props.cropLeft
-				}px; height: ${props.cropBottom - props.cropTop}px; transform: translate(-50%, -50%) scale(${crop.scale}) rotate(${
-					crop.rotation
-				}deg); clip-path: ${cropShape === 'rect' ? 'none' : 'circle(50%)'};`}
+					props.BottomRight - props.TopLeft
+				}px; height: ${props.BottomRight - props.TopLeft}px; transform: translate(-50%, -50%) scale(${crop.scale}) rotate(${props.Rotate}deg); border-radius: ${
+					cropShape === 'round' ? '50%' : '0'
+				};`}
 			>
-				<!-- Corners -->
-				<div class="corner absolute left-0 top-0 h-2 w-2 cursor-pointer border border-white bg-white" data-corner="top-left"></div>
-				<div class="corner absolute right-0 top-0 h-2 w-2 cursor-pointer border border-white bg-white" data-corner="top-right"></div>
-				<div class="corner absolute bottom-0 left-0 h-2 w-2 cursor-pointer border border-white bg-white" data-corner="bottom-left"></div>
-				<div class="corner absolute bottom-0 right-0 h-2 w-2 cursor-pointer border border-white bg-white" data-corner="bottom-right"></div>
-			</div>
+                <!-- Add 4 div elements with the corner class and data-corner attribute to make them draggable -->
+                <div class="corner" data-corner="TopLeft"></div>
+                <div class="corner" data-corner="TopRight"></div>
+                <div class="corner" data-corner="BottomLeft"></div>
+                <div class="corner" data-corner="BottomRight"></div>
+            </div>
 		{/if}
 	</MouseHandler>
 </div>
 
+<!-- Pass the new props to the slot tag -->
+<slot {TopLeft} {TopRight} {BottomLeft} {BottomRight} {Center} {Rotate}></slot>
+
+<style>
+    /* Add some styles for the corner elements */
+    .corner {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        background-color: white;
+        border: 2px solid black;
+        cursor: pointer;
+    }
+
+    .corner[data-corner="TopLeft"] {
+        top: -5px;
+        left: -5px;
+    }
+
+    .corner[data-corner="TopRight"] {
+        top: -5px;
+        right: -5px;
+    }
+
+    .corner[data-corner="BottomLeft"] {
+        bottom: -5px;
+        left: -5px;
+    }
+
+    .corner[data-corner="BottomRight"] {
+        bottom: -5px;
+        right: -5px;
+    }
+</style>
