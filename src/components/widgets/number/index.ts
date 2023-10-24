@@ -34,9 +34,26 @@ const widget = (params: Params) => {
 
 	// Define the field object
 	const field = {
+		// default fields
 		display,
 		label: params.label,
-		db_fieldName: params.db_fieldName
+		db_fieldName: params.db_fieldName,
+		translated: params.translated,
+		helper: params.helper,
+
+		//extra
+		placeholder: params.placeholder,
+		count: params.count,
+		minlength: params.minlength,
+		maxlength: params.maxlength,
+		step: params.step,
+		negative: params.negative,
+		prefix: params.prefix,
+		suffix: params.suffix,
+		required: params.required,
+		readonly: params.readonly,
+		width: params.width,
+		currencyCode: params.currencyCode
 	};
 
 	// Return the field and widget objects

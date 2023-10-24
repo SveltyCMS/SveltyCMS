@@ -16,6 +16,8 @@
 	export let refresh = () => {
 		self.children.length = self.children?.length;
 	};
+
+	console.log('self:', self); // Output self to the console
 </script>
 
 <button on:click={() => (expanded = !expanded)} class="relative my-2 flex items-center justify-center gap-2" style="margin-left:{20 * level}px">
@@ -36,10 +38,10 @@
 				mode.set('create');
 			}}
 			class="variant-ghost-primary btn-icon"
-			>
-				<iconify-icon icon="icons8:plus" width="28" />
-			</button>
-		{/if}
+		>
+			<iconify-icon icon="icons8:plus" width="28" />
+		</button>
+	{/if}
 
 	<!-- Edit Button children -->
 	<button
@@ -92,4 +94,3 @@
 		{/each}
 	</ul>
 {/if}
-

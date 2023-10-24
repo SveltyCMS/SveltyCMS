@@ -37,9 +37,25 @@ const widget = (params: Params) => {
 		// default fields
 		display,
 		label: params.label,
-		db_fieldName: params.db_fieldName
-	};
+		db_fieldName: params.db_fieldName,
+		icon: params.icon,
+		translated: params.translated,
+		helper: params.helper,
 
+		// extras
+		readonly: params.readonly,
+		required: params.required,
+		minlength: params.minlength,
+		maxlength: params.maxlength,
+		prefix: params.prefix,
+		suffix: params.suffix,
+		placeholder: params.placeholder,
+		step: params.step,
+		count: params.count,
+		negative: params.negative,
+		currencyCode: params.currencyCode,
+		width: params.width
+	};
 	// Return the field and widget objects
 	return { ...field, widget };
 };

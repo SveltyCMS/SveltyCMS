@@ -1,8 +1,8 @@
-import ImageUpload from './ImageUpload.svelte';
+import Address from './Address.svelte';
 
 import { getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-// import { defaultContentLanguage } from '@src/stores/store';
+import { defaultContentLanguage } from '@src/stores/store';
 
 // typesafe-i18n
 import { get } from 'svelte/store';
@@ -16,21 +16,19 @@ const widget = (params: Params) => {
 	if (!params.display) {
 		display = async ({ data }) => {
 			// console.log(data);
-
-			// Return the formatted data as 200px thumbnail
-			if (data?.thumbnail.url) {
-				return `<img class='max-w-[200px]  max-h-[150px] inline-block' src="${data?.thumbnail.url}" />`;
-			} else {
-				return get(LL).ENTRYLIST_Untranslated();
-			}
+			data = data ? data : {}; // Ensure data is not undefined
+			// Return the data for the default content language or a message indicating no data entry
+			return data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
 		};
 		display.default = true;
+	} else {
+		display = params.display;
 	}
 
 	// Define the widget object
-	const widget: { type: typeof ImageUpload; key: 'ImageUpload'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: ImageUpload,
-		key: 'ImageUpload',
+	const widget: { type: typeof Address; key: 'Address'; GuiFields: ReturnType<typeof getGuiFields> } = {
+		type: Address,
+		key: 'Address',
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -41,12 +39,10 @@ const widget = (params: Params) => {
 		label: params.label,
 		db_fieldName: params.db_fieldName,
 		icon: params.icon,
-		translated: params.translated,
-		helper: params.helper,
+		required: params.required,
+		translated: params.translated
 
 		// extras
-		required: params.required,
-		path: params.path || 'unique'
 	};
 
 	// Return the field and widget objects
