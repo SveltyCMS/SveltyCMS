@@ -33,54 +33,50 @@
 	import { categories, unAssigned } from '@src/stores/store';
 
 	function deleteCategory(): void {
-
 		// console.log('deleteCategory fired');
 		// console.log('Existing Category:', existingCategory);
 		// console.log('Category to delete:', existingCategory.name);
 		// console.log('unAssigned:', unAssigned);
 
-	if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {
-		console.log('No associated collections. Proceeding with deletion...');
+		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {
+			console.log('No associated collections. Proceeding with deletion...');
 
-		// Define the confirmation modal
-		const confirmModal: ModalSettings = {
-			type: 'confirm',
-			title: 'Please Confirm',
-			body: 'Are you sure you wish to delete this category?',
-			response: (r: boolean) => {
-				if (r) {
-					// User confirmed, proceed with deletion
+			// Define the confirmation modal
+			const confirmModal: ModalSettings = {
+				type: 'confirm',
+				title: 'Please Confirm',
+				body: 'Are you sure you wish to delete this category?',
+				response: (r: boolean) => {
+					if (r) {
+						// User confirmed, proceed with deletion
 
-					// Remove the category from the store
-					categories.update((existingCategories) => {
-						console.log('Updated Categories:', categories);
-						return existingCategories.filter((category) => category.name !== existingCategory.name);
-					});
+						// Remove the category from the store
+						categories.update((existingCategories) => {
+							console.log('Updated Categories:', categories);
+							return existingCategories.filter((category) => category.name !== existingCategory.name);
+						});
 
-					// Add the collections to the unAssigned store
-					unAssigned.update(existingUnassigned => {
-						const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
-						console.log('Collections to be unassigned:', collections);
-						return [...existingUnassigned, ...collections];
-					});
-
-					// Close the modal
-					modalStore.close();
-				} else {
-					// User cancelled, do not delete
-					console.log('User cancelled deletion.');
+						// Add the collections to the unAssigned store
+						unAssigned.update((existingUnassigned) => {
+							const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
+							console.log('Collections to be unassigned:', collections);
+							return [...existingUnassigned, ...collections];
+						});
+					} else {
+						// User cancelled, do not delete
+						console.log('User cancelled deletion.');
+					}
 				}
-			},
-		};
+			};
 
-		// Trigger the confirmation modal
-		modalStore.trigger(confirmModal);
-		
-	} else {
-		alert('Cannot delete category with associated collections.');
+			// Trigger the confirmation modal
+			modalStore.trigger(confirmModal);
+			// Close the modal
+			modalStore.close();
+		} else {
+			alert('Cannot delete category with associated collections.');
+		}
 	}
-}
-
 </script>
 
 {#if $modalStore[0]}
@@ -94,9 +90,10 @@
 				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
 			</label>
 
-				<label class="label">{$LL.MODAL_Category_Icon()}
-					<IconifyPicker bind:iconselected={formData.newCategoryIcon} />
-				</label>
+			<label class="label"
+				>{$LL.MODAL_Category_Icon()}
+				<IconifyPicker bind:iconselected={formData.newCategoryIcon} />
+			</label>
 		</form>
 
 		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
@@ -106,7 +103,7 @@
 					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden md:inline">{$LL.MODAL_Category_Delete()}</span>
 				</button>
 			{/if}
-			
+
 			<div class="flex gap-2">
 				<!-- Removed ml-auto -->
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{$LL.MODAL_Category_Cancel()}</button>
