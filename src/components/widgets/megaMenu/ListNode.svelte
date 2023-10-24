@@ -85,12 +85,30 @@
 	{/if}
 </button>
 
-{#if self.children?.length > 0 && expanded}
-	<ul>
+<!-- Categories Children-->
+{#if self.children?.length > 0}
+	<ul class="relative p-2">
 		{#each self.children as child}
 			<li class="cursor-pointer">
-				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parrent={self} {maxDepth} />
+				<svelte:self
+					self={child}
+					level={level + 1}
+					bind:depth
+					bind:showFields
+					{maxDepth}
+					on:keydown
+					on:click={() => {
+						depth = level;
+						showFields = true;
+					}}
+				/>
 			</li>
 		{/each}
 	</ul>
 {/if}
+
+<style lang="postcss">
+	.expanded {
+		transform: rotate(-90deg);
+	}
+</style>

@@ -14,8 +14,6 @@
 
 <div class="py-1 text-center text-xs text-error-500">* Required</div>
 <div class="m-2">
-
-
 	{#each fields || $collection.fields as field, index}
 		<!-- widget width -->
 		<!-- <div
@@ -43,7 +41,7 @@
 
 						<div class="flex gap-2">
 							<!-- Widget translated  -->
-							 {#if field.translated}
+							{#if field.translated}
 								<div class="flex items-center gap-1 px-2">
 									<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
 									<div class="text-xs font-normal text-error-500">

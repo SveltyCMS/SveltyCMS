@@ -26,7 +26,8 @@
 		{#each Object.entries(guiSchema) as [property, value]}
 			<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
 		{/each}
-		<button class="btn" 
+		<button
+			class="btn"
 			on:click={() => {
 				if (!selected_widget) return;
 				field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
@@ -52,6 +53,6 @@
 		height: 100vh;
 		background-color: #242728;
 		overflow: auto;
-		z-index: 111;
+		z-index: 911;
 	}
 </style>
