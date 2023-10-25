@@ -29,11 +29,12 @@
 	// function to fetch icons from Iconify API
 	async function searchIcons(query: string, liabraryCategory: string, event?: FocusEvent) {
 		loading = true;
-		console.log(liabraryCategory);
 		try {
 			// TODO: Allow Libray filtering `https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${selectedLibrary}&limit=50&start=${start}`
 			// Use search API query with prefix and limit parameters
-			const response = await fetch(`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${liabraryCategory}`);
+			const response = await fetch(
+				`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${liabraryCategory ? liabraryCategory : 'ic'}`
+			);
 			const data = await response.json();
 			if (data && data.icons) {
 				total = data.total; // update total variable
@@ -100,21 +101,12 @@
 	let iconLibraries = {}; // Default library is 'ic'
 
 	// Function to fetch available icon libraries
-	// export async function load({ fetch }) {
-	// 	try {
-	// 		const response = await fetch('https://api.iconify.design/@iconify/json/search.json');
-	// 		const data = await response.json();
-	// 		const iconLibraries = Object.keys(data.prefixes);
-	// 		return { props: { iconLibraries } };
-	// 	} catch (error) {
-	// 		console.error('An error occurred while fetching icon libraries:', error);
-	// 	}
-	// }
 	async function getIconLiabraries() {
 		try {
 			const response = await fetch('https://api.iconify.design/collections');
 			const data = await response.json();
 			iconLibraries = data;
+			console.log(iconLibraries);
 		} catch (error) {
 			console.log(error);
 		}
@@ -175,14 +167,22 @@
 			<p class="text-primary-500">Icon Filter</p>
 
 			<button on:click={getIconLiabraries} class="variant-filled-surface btn-sm w-full justify-between" use:popup={popupCombobox}>
-				<span class="capitalize">{selectedLibrary ?? 'Select Library'}</span>
-				<span>↓</span>
+				<span class="capitalize">{selectedLibrary ?? 'Google Material Icons'}</span>
+				<span>↓ </span>
 			</button>
 
-			<div class="w-50 card input z-10 h-72 overflow-y-auto py-2 shadow-xl" data-popup="popupCombobox">
+			<div class="card input z-10 h-72 w-72 overflow-y-auto py-2 shadow-xl" data-popup="popupCombobox">
 				<ListBox bind:value={selectedLibrary} rounded="rounded-none">
 					{#each Object.keys(iconLibraries) as library}
-						<ListBoxItem bind:group={selectedLibrary} value={library} name={library}>{iconLibraries[library].name}</ListBoxItem>
+						<ListBoxItem bind:group={selectedLibrary} value={library} name={library}>
+							{iconLibraries[library].name}
+							<span>
+								# {iconLibraries[library].total}
+							</span>
+							<p>
+								{iconLibraries[library].version ? 'version '.concat(iconLibraries[library].version) : ''}
+							</p>
+						</ListBoxItem>
 					{/each}
 				</ListBox>
 				<div class="bg-surface-100-800-token arrow" />
