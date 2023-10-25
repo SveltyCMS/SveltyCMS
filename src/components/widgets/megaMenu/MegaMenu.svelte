@@ -19,7 +19,7 @@
 	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
 	let fieldsData = {};
 	let saveMode = $mode;
-	
+
 	async function saveLayer() {
 		if (!_data) {
 			_data = { ...(await extractData(fieldsData)), children: [] };
@@ -45,8 +45,7 @@
 	</p>
 {/if}
 
-<!-- TODO: add enter to proceed -->
-
+<!-- TODO: add click enter to proceed -->
 {#if !_data || showFields}
 	{#key depth}
 		{(fieldsData = {}) && ''}

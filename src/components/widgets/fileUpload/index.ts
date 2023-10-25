@@ -15,8 +15,8 @@ const widget = (params: Params) => {
 
 	if (!params.display) {
 		display = async ({ data }) => {
-			 //console.log(data);
-			
+			//console.log(data);
+
 			// Return the formatted doctype as Icon
 			if (data?.fileExtension) {
 				const fileExt = data.fileExtension;
@@ -30,12 +30,12 @@ const widget = (params: Params) => {
 				} else if (fileExt === '.pdf') {
 					icon = 'vscode-icons:file-type-pdf2';
 				}
-				
+
 				if (icon) {
 					return `<iconify-icon icon="${icon}" width="30" />`;
 				}
 			}
-			
+
 			return get(LL).ENTRYLIST_Untranslated();
 		};
 		display.default = true;
@@ -53,7 +53,14 @@ const widget = (params: Params) => {
 		// default fields
 		display,
 		label: params.label,
-		db_fieldName: params.db_fieldName
+		db_fieldName: params.db_fieldName,
+		icon: params.icon,
+		translated: params.translated,
+		helper: params.helper,
+
+		// extras
+		required: params.required,
+		path: params.path
 	};
 
 	// Return the field and widget objects

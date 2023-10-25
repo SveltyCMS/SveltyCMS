@@ -1,6 +1,6 @@
 <script lang="ts">
 	import '@src/collections';
-	import Collections from '@src/components/Collections.svelte';
+	import Collections from './Collections.svelte';
 	import { mode } from '@src/stores/store.js';
 	import { collection, unAssigned } from '@src/stores/store';
 	import axios from 'axios';
@@ -16,11 +16,7 @@
 	function save() {
 		let data =
 			$mode == 'edit'
-				? obj2formData({
-						originalName: $collection.name,
-						collectionName: name,
-						fields: $collection.fields
-				  })
+				? obj2formData({ originalName: $collection.name, collectionName: name, fields: $collection.fields })
 				: obj2formData({ fields, collectionName: name });
 		axios.post(`?/saveCollection`, data, {
 			headers: {
@@ -33,14 +29,18 @@
 	});
 </script>
 
-<div class="body relative">
+<div class="body">
 	<!-- Menu Selection -->
 	<section class="left_panel">
 		<Collections modeSet={'edit'} />
+		<p class="text-primary-500">unAssigned Collections</p>
+
+		<p class="text-white">{$unAssigned.map((x) => x.name)}</p>
 	</section>
-	<p class="text-white">unAssigned Collections</p>
-	<p class="text-white">{$unAssigned.map((x) => x.name)}</p>
+
+	<!-- Display collections -->
 	<div class="flex w-full flex-col items-center">
+		<!-- add new Collection -->
 		<button
 			on:click={() => {
 				mode.set('create');

@@ -25,7 +25,7 @@ import Text from './text';
 
 const widgets = {
 	// Address flexible Address fields
-	// Address,
+	//Address,
 	// Checkbox - boolean true / false checkbox
 	Checkbox,
 	// Color Picker - choice of color

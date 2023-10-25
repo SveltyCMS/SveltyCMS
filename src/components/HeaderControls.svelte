@@ -1,13 +1,8 @@
 <script lang="ts">
 	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-	import { collection, categories } from '@src/stores/store';
-	import { saveFormData, cloneData, deleteData } from '@src/utils/utils';
-	import { page } from '$app/stores';
-	import type { User } from '@src/collections/Auth';
-
-	let user: User = $page.data.user;
-
 	import {
+		collection,
+		categories,
 		collectionValue,
 		deleteEntry,
 		mode,
@@ -16,6 +11,11 @@
 		handleSidebarToggle,
 		contentLanguage
 	} from '@src/stores/store';
+	import { saveFormData, cloneData, deleteData } from '@src/utils/utils';
+	import { page } from '$app/stores';
+	import type { User } from '@src/collections/Auth';
+
+	let user: User = $page.data.user;
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
@@ -56,18 +56,14 @@
 	<div class="flex items-center justify-start">
 		<!-- hamburger -->
 		{#if $toggleLeftSidebar === 'closed'}
-			<button
-				type="button"
-				on:click={() => toggleLeftSidebar.click()}
-				class="variant-ghost-surface btn-icon"
-			>
+			<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
 			</button>
 		{/if}
 
 		<!-- Collection type with icon -->
 		<div class="flex {!$toggleLeftSidebar ? 'ml-2' : 'ml-1'}">
-			{#if collection && collection.icon}
+			{#if $collection && $collection.icon}
 				<div class="flex items-center justify-center">
 					<iconify-icon icon={$collection.icon} width="24" class="text-error-500" />
 				</div>

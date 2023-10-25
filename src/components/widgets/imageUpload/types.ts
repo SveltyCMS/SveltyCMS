@@ -1,3 +1,4 @@
+import IconifyPicker from '@src/components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input2.svelte';
 import Toggles from '@src/components/system/inputs/Toggles.svelte';
 
@@ -22,11 +23,11 @@ export type Params = {
 // Define the GuiSchema
 export const GuiSchema = {
 	label: { widget: Input, required: true },
-	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	icon: { widget: IconifyPicker, required: false },
+	display: { widget: Input, required: true },
 	// widget?: any;
 	//translated: { widget: Toggles, required: false },
-	icon: { widget: Input, required: false },
 
 	// Widget Specific parameters
 	path: { widget: Input, required: false },

@@ -1,6 +1,6 @@
 import Input from '@src/components/system/inputs/Input2.svelte';
 import Toggles from '@src/components/system/inputs/Toggles.svelte';
-import { SIZES } from '@src/utils/utils';
+import { contentLanguage } from '@src/stores/store';
 
 // Define the widget Parameters
 export type Params = {
@@ -15,7 +15,6 @@ export type Params = {
 
 	// Widget Specific parameters
 	required?: boolean;
-	path: (string & {}) | 'global' | 'unique';
 };
 
 // Define the GuiSchema
@@ -24,42 +23,31 @@ export const GuiSchema = {
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
-	//translated: { widget: Toggles, required: false },
+	translated: { widget: Toggles, required: false },
 	icon: { widget: Input, required: false },
 
 	// Widget Specific parameters
-	path: { widget: Input, required: false },
 	required: { widget: Toggles, required: false }
 };
-
-const types = Object.keys(SIZES)
-	.map(
-		(size) =>
-			`type ${size} {
-	name: String
-	url: String
-	size: Int
-	type: String
-	lastModified: Float
-}`
-	)
-	.join('\n');
 
 // Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
-	console.log(typeName);
+	// Initialize an empty string to hold the fields
+	let fields = '';
+	// Iterate over each language
+	for (const lang in contentLanguage) {
+		fields += `${lang}: String\n`;
+	}
+
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName,
 		graphql: /* GraphQL */ `
-		${types}
-		type ${typeName} {
-			${Object.keys(SIZES)
-				.map((size) => `${size}: ${size}`)
-				.join('\n')}
-		}
-	`
+        type ${typeName} {
+            ${fields}
+        }
+        `
 	};
 };

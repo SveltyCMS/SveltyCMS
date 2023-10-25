@@ -1,11 +1,6 @@
 <script lang="ts">
-	import {
-		collection,
-		collectionValue,
-		mode,
-		deleteEntry,
-		handleSidebarToggle
-	} from '@src/stores/store';
+	import { collection, collectionValue, mode, deleteEntry, handleSidebarToggle } from '@src/stores/store';
+
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
 	import { saveFormData, getDates } from '@src/utils/utils';
@@ -19,30 +14,29 @@
 		mode.set('view' || 'edit');
 		handleSidebarToggle();
 	}
-
-	import { onMount } from 'svelte';
-
+	// console.log('collection', $collection);
 	let dates = { created: '', updated: '', revision: '' };
 
-	// onMount(async () => {
+	// export async function load({ page, fetch }) {
 	// 	try {
 	// 		dates = await getDates(collection.name);
 	// 	} catch (error) {
 	// 		console.error(error);
 	// 	}
-	// });
+
+	// 	return {
+	// 		props: {
+	// 			dates
+	// 		}
+	// 	};
+	// }
 </script>
 
 <!--  Check User Role collection Permission-->
-
 {#if collection.permissions?.[user.role]?.write != false}
 	<!-- Desktop Right Sidebar -->
 	{#if $mode == 'view'}
-		<button
-			type="button"
-			on:click={() => mode.set('create')}
-			class=" variant-filled-primary btn mt-2"
-		>
+		<button type="button" on:click={() => mode.set('create')} class=" variant-filled-primary btn mt-2">
 			<iconify-icon icon="mdi:pen" width="24" />Create
 		</button>
 	{:else if ['edit', 'create'].includes($mode)}
@@ -54,11 +48,7 @@
 				</button>
 
 				{#if $mode == 'edit'}
-					<button
-						type="button"
-						on:click={$deleteEntry}
-						class="variant-filled-error btn mt-2 w-full"
-					>
+					<button type="button" on:click={$deleteEntry} class="variant-filled-error btn mt-2 w-full">
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete {$collection.name}
 					</button>
 				{/if}

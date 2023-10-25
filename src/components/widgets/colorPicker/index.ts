@@ -37,7 +37,13 @@ const widget = (params: Params) => {
 		// default fields
 		display,
 		label: params.label,
-		db_fieldName: params.db_fieldName
+		db_fieldName: params.db_fieldName,
+		icon: params.icon,
+		translated: params.translated,
+		helper: params.helper,
+
+		// extras
+		required: params.required
 	};
 
 	// Return the field and widget objects
