@@ -5,7 +5,7 @@
 	export let existingCategory: any = { name: '', icon: '' };
 
 	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
@@ -33,11 +33,6 @@
 	import { categories, unAssigned } from '@src/stores/store';
 
 	function deleteCategory(): void {
-		// console.log('deleteCategory fired');
-		// console.log('Existing Category:', existingCategory);
-		// console.log('Category to delete:', existingCategory.name);
-		// console.log('unAssigned:', unAssigned);
-
 		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {
 			console.log('No associated collections. Proceeding with deletion...');
 
@@ -82,7 +77,7 @@
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
 		<header class={cHeader}>{$modalStore[0].title ?? '(title missing)'}</header>
-		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
+		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 		<form class="modal-form {cForm}">
 			<label class="label">
