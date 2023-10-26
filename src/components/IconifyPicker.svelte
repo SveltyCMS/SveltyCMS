@@ -10,8 +10,8 @@
 	let start = 0; // Declare a variable for the start index and initialize it to 0
 	let total = 0; // variable to store the total number of results
 	let selectedLibrary = 'ic'; // Default library is 'ic - Google Material Icons'
-	let iconLibraries = [selectedLibrary];
-	let librariesData = {}; // Declare a variable to store the fetched data
+	let iconLibraries = {};
+	// let librariesData = {}; // Declare a variable to store the fetched data
 	let showDropdown = false;
 
 	export const icon = '';
@@ -22,7 +22,7 @@
 	async function searchIcons(query: string, liabraryCategory: string, event?: FocusEvent) {
 		loading = true;
 		// Only show the dropdown if the search query is not empty
-		showDropdown = searchQuery.trim() !== '';
+		showDropdown = true;
 		try {
 			// TODO: Allow Libray filtering `https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${selectedLibrary}&limit=50&start=${start}`
 			// Use search API query with prefix and limit parameters
@@ -47,7 +47,7 @@
 	// function to select an icon
 	function selectIcon(icon: string) {
 		iconselected = icon; // update selected icon name
-		// showDropdown = false; // close the dropdown after selection
+		showDropdown = false; // close the dropdown after selection
 	}
 
 	// Function to go to the next page of results by increasing the start index by 50
@@ -89,7 +89,7 @@
 			</p>
 		</div>
 
-		<button class="variant-ghost btn-icon" type="button" on:click={removeIcon}>
+		<button class="variant-ghost btn-icon" type="button" on:click={() => removeIcon}>
 			<iconify-icon icon="icomoon-free:bin" width="24" class="" />
 		</button>
 	</div>
@@ -112,16 +112,17 @@
 		<div class="mb-4 w-full">
 			<select
 				bind:value={selectedLibrary}
+				on:click={getIconLiabraries}
 				on:change={() => {
 					start = 0;
-					searchIcons(searchQuery);
+					searchIcons(searchQuery, selectedLibrary);
 				}}
-				class="variant-filled-surface mt-1 w-full"
+				class="variant-filled-surface mt-2 w-full"
 			>
-				{#each iconLibraries as library}
-					{#if librariesData[library]}
-						<option value={library}>{librariesData[library].name}: {library}/{librariesData[library].total}</option>
-					{/if}
+				{#each Object.keys(iconLibraries) as library}
+					<option value={library}>
+						{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
+					</option>
 				{/each}
 			</select>
 		</div>
