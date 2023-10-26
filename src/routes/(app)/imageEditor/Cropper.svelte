@@ -1,47 +1,6 @@
 <script lang="ts">
 	//skeleton
-	import { RangeSlider, popup } from '@skeletonlabs/skeleton';
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
-	const popupCropSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'hover',
-		placement: 'right',
-		// Provide a matching 'data-popup' value.
-		target: 'cropPopup'
-	};
-
-	const popupSaveSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'hover',
-		placement: 'right',
-		// Provide a matching 'data-popup' value.
-		target: 'SavePopup'
-	};
-
-	const popupBlurSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'hover',
-		placement: 'right',
-		// Provide a matching 'data-popup' value.
-		target: 'blurPopup'
-	};
-
-	const popupFocalSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'hover',
-		placement: 'right',
-		// Provide a matching 'data-popup' value.
-		target: 'focalPopup'
-	};
-
-	const popupRotateSettings: PopupSettings = {
-		// Set the event as: click | hover | hover-click
-		event: 'hover',
-		placement: 'bottom',
-		// Provide a matching 'data-popup' value.
-		target: 'rotatePopup'
-	};
+	import { RangeSlider } from '@skeletonlabs/skeleton';
 
 	// Defining props
 	export let image: any = '';
@@ -52,10 +11,13 @@
 	export let crop_bottom: { initialValue: number; value: number } = { initialValue: 10, value: 10 };
 	export let blurs: any = [];
 	export const center: any = { x: 200, y: 115 };
+	// Add a reactive variable to track the focal point position
+	export let focalPoint = { x: center.x, y: center.y };
 
 	// Initializing variables
 	let currentIndex = 0;
 	let blurCoords: { pageX: number; pageY: number } = { pageX: 0, pageY: 0 };
+
 	export let SCALE = 1;
 	let TR_X = 0;
 	let TR_Y = 0;
@@ -66,6 +28,7 @@
 		tr_x: 0,
 		tr_y: 0
 	};
+
 	const isActive = false;
 	let WHOLE_WIDTH = 400,
 		WHOLE_HEIGHT = 225;
@@ -84,8 +47,6 @@
 	let cropping = false;
 	let checker: any;
 
-	//Use the memo function from the svelte/store module to memoize the result of a functionimport { memo } from 'svelte/store';
-
 	// Function to handle touch/mouse start event
 	function handleMouseDown(e) {
 		e.preventDefault();
@@ -97,6 +58,7 @@
 
 		const corner = e.target.closest('.corner');
 		const is_whole = e.target.closest('.inner');
+
 		if (corner) {
 			MOUSEDOWN_CORNER = true;
 			CHANGE_LEFT = corner.dataset.left;
@@ -229,6 +191,26 @@
 		document.removeEventListener('mouseup', handleMouseUp);
 	}
 
+	// Function to handle clicking on the focal point
+	function setFocalPoint() {
+		focalPoint.x = TR_X + WHOLE_WIDTH / 2;
+		focalPoint.y = TR_Y + WHOLE_HEIGHT / 2;
+	}
+
+	function changeCenter(e) {
+		TR_X -= e.layerX - WHOLE_WIDTH / 2;
+		TR_Y -= e.layerY - WHOLE_HEIGHT / 2;
+		console.log(TR_X, TR_Y);
+		e.target.removeEventListener('click', changeCenter);
+		e.target.classList.remove('cursor-crosshair');
+	}
+
+	function newCenter() {
+		const editor = document.getElementById('image_handler');
+		editor?.classList.add('cursor-crosshair');
+		editor?.addEventListener('click', changeCenter);
+	}
+
 	function mouseupBlurHandler(e) {
 		if (blurs[currentIndex]) {
 			e.target.removeEventListener('mousemove', moveBlurHandler);
@@ -240,125 +222,89 @@
 		}
 	}
 
+	//  logic for moving blur
 	function moveBlurHandler(e) {
 		blurs[currentIndex].top.value = blurs[currentIndex].top.initialValue + (e.pageY - blurCoords.pageY);
 		blurs[currentIndex].left.value = blurs[currentIndex].left.initialValue + (e.pageX - blurCoords.pageX);
 	}
 
 	function handleBlurMouseDown(e) {
-		if (!e.target.getAttribute('data')) {
-			blurCoords.pageX = e.pageX;
-			blurCoords.pageY = e.pageY;
-			currentIndex = e.target.getAttribute('key');
-			blurs[currentIndex].top.initialValue = blurs[currentIndex].top.value;
-			blurs[currentIndex].left.initialValue = blurs[currentIndex].left.value;
-			e.target.addEventListener('mousemove', moveBlurHandler);
-			e.target.addEventListener('mouseup', mouseupBlurHandler);
-			// e.target.addEventListener('mouseout', mouseoutBlurHandler);
-		} else {
-			blurCoords.pageX = e.pageX;
-			blurCoords.pageY = e.pageY;
-			currentIndex = e.target.getAttribute('data_key');
-			blurs[currentIndex].top.initialValue = blurs[currentIndex].top.value;
-			blurs[currentIndex].left.initialValue = blurs[currentIndex].left.value;
-			e.target.addEventListener('mousemove', moveCornerHandler);
-			e.target.addEventListener('mouseup', mouseupCornerHandler);
-			e.target.addEventListener('mouseout', mouseoutCornerHandler);
+		const target = e.target;
+		const dataKey = target.getAttribute('data-key');
+
+		if (dataKey !== null) {
+			const index = parseInt(dataKey, 10);
+			if (!isNaN(index) && blurs[index]) {
+				blurCoords.pageX = e.pageX;
+				blurCoords.pageY = e.pageY;
+				currentIndex = index;
+				blurs[currentIndex].top = blurs[currentIndex].top || { initialValue: 0, value: 0 };
+				blurs[currentIndex].left = blurs[currentIndex].left || { initialValue: 0, value: 0 };
+
+				blurs[currentIndex].top.initialValue = blurs[currentIndex].top.value;
+				blurs[currentIndex].left.initialValue = blurs[currentIndex].left.value;
+
+				if (!target.getAttribute('data-corner')) {
+					e.target.addEventListener('mousemove', moveBlurHandler);
+					e.target.addEventListener('mouseup', mouseupBlurHandler);
+				} else {
+					e.target.addEventListener('mousemove', moveCornerHandler);
+					e.target.addEventListener('mouseup', handleMouseUpOrOut);
+					e.target.addEventListener('mouseout', handleMouseUpOrOut);
+				}
+			}
 		}
 	}
+
 	function blurCrop() {
 		blurs[blurs.length] = {
-			top: { initialValue: 0, value: 0 },
-			left: { initialValue: 0, value: 0 },
+			top: { initialValue: 10, value: 10 },
+			left: { initialValue: 10, value: 10 },
 			width: { initialValue: 100, value: 100 },
 			height: { initialValue: 100, value: 100 }
 		};
 	}
 
-	function changeCenter(e) {
-		TR_X -= e.layerX - WHOLE_WIDTH / 2;
-		TR_Y -= e.layerY - WHOLE_HEIGHT / 2;
-		console.log(TR_X, TR_Y);
-		e.target.removeEventListener('click', changeCenter);
-		e.target.classList.remove('cursor-crosshair');
-	}
-	function newCenter() {
-		const editor = document.getElementById('image_handler');
-		editor?.classList.add('cursor-crosshair');
-		editor?.addEventListener('click', changeCenter);
-	}
+	// logic for moving corner
 	function moveCornerHandler(e) {
-		if (e.target.getAttribute('data') === '1') {
-			blurs[currentIndex].top.value = blurs[currentIndex].top.initialValue + (e.pageY - blurCoords.pageY);
-			blurs[currentIndex].height.value = blurs[currentIndex].height.initialValue + -(e.pageY - blurCoords.pageY);
-			blurs[currentIndex].width.value = blurs[currentIndex].width.initialValue + -(e.pageX - blurCoords.pageX);
-			blurs[currentIndex].left.value = blurs[currentIndex].left.initialValue + (e.pageX - blurCoords.pageX);
-		} else if (e.target.getAttribute('data') === '2') {
-			blurs[currentIndex].top.value = blurs[currentIndex].top.initialValue + (e.pageY - blurCoords.pageY);
-			blurs[currentIndex].height.value = blurs[currentIndex].height.initialValue + -(e.pageY - blurCoords.pageY);
-			blurs[currentIndex].width.value = blurs[currentIndex].width.initialValue + (e.pageX - blurCoords.pageX);
-		} else if (e.target.getAttribute('data') === '3') {
-			blurs[currentIndex].height.value = blurs[currentIndex].height.initialValue + (e.pageY - blurCoords.pageY);
-			blurs[currentIndex].width.value = blurs[currentIndex].width.initialValue + (e.pageX - blurCoords.pageX);
-		} else {
-			blurs[currentIndex].height.value = blurs[currentIndex].height.initialValue + (e.pageY - blurCoords.pageY);
-			blurs[currentIndex].width.value = blurs[currentIndex].width.initialValue + -(e.pageX - blurCoords.pageX);
-			blurs[currentIndex].left.value = blurs[currentIndex].left.initialValue + (e.pageX - blurCoords.pageX);
+		if (blurs[currentIndex] && blurs[currentIndex].top && blurs[currentIndex].left && blurs[currentIndex].width && blurs[currentIndex].height) {
+			const corner = e.target.getAttribute('data-corner');
+			const deltaY = e.pageY - blurCoords.pageY;
+			const deltaX = e.pageX - blurCoords.pageX;
+
+			blurs[currentIndex].top.value += corner === '1' || corner === '2' ? deltaY : 0;
+			blurs[currentIndex].height.value -= deltaY;
+			blurs[currentIndex].width.value += corner === '2' || corner === '3' ? deltaX : -deltaX;
+			blurs[currentIndex].left.value += corner === '1' || corner === '4' ? deltaX : 0;
 		}
 	}
-	function mouseupCornerHandler(e) {
+
+	function handleMouseUpOrOut(e) {
 		e.target.removeEventListener('mousemove', moveCornerHandler);
-		e.target.removeEventListener('mouseup', mouseupCornerHandler);
-		e.target.removeEventListener('mouseout', mouseoutCornerHandler);
+		e.target.removeEventListener('mouseup', handleMouseUpOrOut);
+		e.target.removeEventListener('mouseout', handleMouseUpOrOut);
 		blurs[currentIndex].width.initialValue = blurs[currentIndex].width.value;
 		blurs[currentIndex].height.initialValue = blurs[currentIndex].height.value;
 		currentIndex = -1;
-	}
-
-	function mouseoutCornerHandler(e) {
-		e.target.removeEventListener('mousemove', moveCornerHandler);
-		e.target.removeEventListener('mouseup', mouseupCornerHandler);
-		e.target.removeEventListener('mouseout', mouseoutCornerHandler);
-		blurs[currentIndex].width.initialValue = blurs[currentIndex].width.value;
-		blurs[currentIndex].height.initialValue = blurs[currentIndex].height.value;
-		currentIndex = -1;
-	}
-
-	let blurButton: any;
-	let x = true;
-
-	// Define the handleBlurClick function
-	function handleBlurClick(event) {
-		// Your logic for handling blur button click goes here
 	}
 </script>
 
 <div class="container border-2 text-black">
 	{#if image}
-	<div style="padding: 16px 50px; display: flex; gap: 20px;"> 
+		<div style="padding: 16px 50px; display: flex; gap: 20px;">
 			<div style="position: relative;" id="image_handler">
 				{#each blurs as item, index}
 					<div>
 						<button
-							class="-bg-white absolute z-10 h-2 w-2 rounded border border-white backdrop-blur"
-							style={`width: ${blurs[index].width.value}px; height: ${blurs[index].height.value}px; top: ${blurs[index].top.value}px; left: ${blurs[index].left.value}px;`}
-							bind:this={blurButton}
-							on:click={handleBlurClick}
-							aria-label="Blur Button"
+							class="blur_handler absolute z-10 border backdrop-blur"
+							style="width: {blurs[index].width.value}px; height: {blurs[index].height.value}px; top: {blurs[index].top.value}px; left: {blurs[index]
+								.left.value}px;"
+							on:mousedown={handleBlurMouseDown}
 						>
-							{#each [1, 2, 3, 4] as corner}
-								<button
-									class={`corner c_${corner}`}
-									on:click={handleBlurClick}
-									data-corner={corner}
-									data-key={index}
-									data-left={corner === 1 || corner === 4 ? '1' : undefined}
-									data-top={corner === 1 || corner === 2 ? '1' : undefined}
-									data-right={corner === 2 || corner === 3 ? '1' : undefined}
-									data-bottom={corner === 3 || corner === 4 ? '1' : undefined}
-									tabindex="0"
-								/>
-							{/each}
+							<button class="corner c_1" on:mousedown={handleBlurMouseDown} data-corner="1" data-key={index} data-left="1" data-top="1" />
+							<button class="corner c_2" on:mousedown={handleBlurMouseDown} data-corner="2" data-key={index} data-top="1" data-right="1" />
+							<button class="corner c_3" on:mousedown={handleBlurMouseDown} data-corner="3" data-key={index} data-right="1" data-bottom="1" />
+							<button class="corner c_4" on:mousedown={handleBlurMouseDown} data-corner="4" data-key={index} data-bottom="1" data-left="1" />
 						</button>
 					</div>
 				{/each}
@@ -410,53 +356,27 @@
 	{/if}
 
 	{#if !cropping}
-		{#if x}
-			<button on:click={openCrop} class="btn-primary btn p-0.5 text-white" title="size">
-				<iconify-icon icon="material-symbols:crop" width="24" class="text-primary-500" />
-			</button>
-		{/if}
-
-		<div class="card variant-filled-secondary p-4" data-popup="cropPopup">
-			Crop Image
-			<!-- Append the arrow element -->
-			<div class="variant-filled-secondary arrow" />
-		</div>
+		<button on:click={openCrop} class="btn-primary btn p-0.5 text-white" title="size">
+			<iconify-icon icon="material-symbols:crop" width="24" class="text-primary-500" />
+		</button>
 	{:else}
 		<button on:click={cropImage} class="btn-primary btn p-0.5 text-white" title="save">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
 		</button>
-		<div class="card variant-filled-secondary p-4" data-popup="savePopup">
-			Save Image
-			<!-- Append the arrow element -->
-			<div class="variant-filled-secondary arrow" />
-		</div>
 	{/if}
 
 	<button on:click={blurCrop} class="btn-primary btn p-0.5 text-white" title="blur">
 		<iconify-icon icon="ic:round-blur-circular" width="24" class="text-primary-500" />
 	</button>
-	<div class="card variant-filled-secondary p-4" data-popup="blurPopup">
-		Blur Image
-		<!-- Append the arrow element -->
-		<div class="variant-filled-secondary arrow" />
-	</div>
 
 	<button on:click={newCenter} class="btn-primary btn p-0.5 text-white" title="center">
-		<iconify-icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" /></button
-	>
-	<div class="card variant-filled-secondary p-4" data-popup="focalPopup">
-		Focal Point Image
-		<!-- Append the arrow element -->
-		<div class="variant-filled-secondary arrow" />
-	</div>
+		<iconify-icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" />
+		<p class="text-center text-white">Focal Point: x: {focalPoint.x}, y: {focalPoint.y}</p>
+	</button>
+
 	<label for="small-range" class="mb-4 flex w-full items-center justify-center text-sm font-medium text-gray-900 dark:text-white">
 		<iconify-icon icon="material-symbols:rotate-left-rounded" width="24" class="text-primary-500" />{rotate}°</label
 	>
-	<div class="card variant-filled-secondary p-4" data-popup="rotatePopup">
-		Rotate Image
-		<!-- Append the arrow element -->
-		<div class="variant-filled-secondary arrow" />
-	</div>
 
 	<RangeSlider name="range-slider" class="m-2" bind:value={rotate} max={360} step={1} ticked>
 		<div class="flex items-center justify-between">
@@ -498,7 +418,6 @@
 		height: 1000px;
 		z-index: 0;
 	}
-
 	.crop_window_handler .line {
 		position: absolute;
 		background: rgba(255, 255, 255, 0.6);
