@@ -61,9 +61,9 @@
 		searchIcons(searchQuery, selectedLibrary);
 	}
 
-	function removeIcon() {
+	const removeIcon = () => {
 		iconselected = '';
-	}
+	};
 
 	// Function to fetch available icon libraries
 	async function getIconLiabraries() {
@@ -71,7 +71,6 @@
 			const response = await fetch('https://api.iconify.design/collections');
 			const data = await response.json();
 			iconLibraries = data;
-			console.log(iconLibraries);
 		} catch (error) {
 			console.log(error);
 		}
@@ -88,8 +87,7 @@
 				<span class="text-primary-500">{iconselected}</span>
 			</p>
 		</div>
-
-		<button class="variant-ghost btn-icon" type="button" on:click={() => removeIcon}>
+		<button class="variant-ghost btn-icon" type="button" on:mouseup={removeIcon}>
 			<iconify-icon icon="icomoon-free:bin" width="24" class="" />
 		</button>
 	</div>
