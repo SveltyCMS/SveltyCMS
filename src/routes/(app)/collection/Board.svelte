@@ -18,12 +18,11 @@
 	}
 
 	function handleItemFinalize(columnIdx, newItems) {
-    //console.log('Item dropped in column', columnIdx);
-    columns[columnIdx].items = newItems;
-    //console.log('Updated Columns:', columns);
-    onFinalUpdate([...columns]);
-}
-
+		//console.log('Item dropped in column', columnIdx);
+		columns[columnIdx].items = newItems;
+		//console.log('Updated Columns:', columns);
+		onFinalUpdate([...columns]);
+	}
 </script>
 
 <section
@@ -37,7 +36,7 @@
 			class="w-full rounded-sm border border-surface-300 p-2 dark:border-surface-400 sm:w-1/2 md:float-left md:w-1/4"
 			animate:flip={{ duration: flipDurationMs }}
 		>
-			<Column {name} {icon} {items} onDrop={(newItems) => handleItemFinalize(idx, newItems)} />
+			<Column currentCategories={columns} {name} {icon} {items} onDrop={(newItems) => handleItemFinalize(idx, newItems)} />
 		</div>
 	{/each}
 </section>
