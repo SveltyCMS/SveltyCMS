@@ -117,11 +117,13 @@
 				}}
 				class="variant-filled-surface mt-2 w-full"
 			>
-				{#each Object.keys(iconLibraries) as library}
-					<option value={library}>
-						{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
-					</option>
-				{/each}
+				{#if getIconLiabraries()}
+					{#each Object.keys(iconLibraries) as library}
+						<option value={library}>
+							{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
+						</option>
+					{/each}
+				{/if}
 			</select>
 		</div>
 
