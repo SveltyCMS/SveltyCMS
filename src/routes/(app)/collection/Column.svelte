@@ -3,6 +3,7 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
 
+	export let currentCategories: any;
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
 
@@ -11,6 +12,7 @@
 	const modalStore = getModalStore();
 	import ModalAddCategory from './ModalCategory.svelte';
 	import { currentCollection } from '@src/stores/store';
+	import { categories } from '@src/stores/store';
 
 	function editCategory(category: any): void {
 		const modalComponent: ModalComponent = {
@@ -19,16 +21,25 @@
 				existingCategory: category // Pass the entire category object
 			}
 		};
-
 		const d: ModalSettings = {
 			type: 'component',
 			title: $LL.MODAL_Category_Title(),
 			body: $LL.MODAL_Category_Body(),
 			component: modalComponent,
 			response: (updatedCategory) => {
-				// Handle the response here
-				category.name = updatedCategory.newCategoryName;
-				category.icon = updatedCategory.newCategoryIcon;
+				const categoryToEdit = currentCategories.filter((cat) => cat.name === category.name);
+
+				if (categoryToEdit.length > 0) {
+					categories.update((category) => {
+						return category.map((existingCategory) => {
+							if (existingCategory.name === categoryToEdit[0].name) {
+								existingCategory.name = updatedCategory.newCategoryName;
+								existingCategory.icon = updatedCategory.newCategoryIcon;
+							}
+							return existingCategory;
+						});
+					});
+				}
 			}
 		};
 
