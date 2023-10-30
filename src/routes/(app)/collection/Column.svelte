@@ -28,17 +28,18 @@
 			component: modalComponent,
 			response: (updatedCategory) => {
 				const categoryToEdit = currentCategories.filter((cat) => cat.name === category.name);
-
-				if (categoryToEdit.length > 0) {
-					categories.update((category) => {
-						return category.map((existingCategory) => {
-							if (existingCategory.name === categoryToEdit[0].name) {
-								existingCategory.name = updatedCategory.newCategoryName;
-								existingCategory.icon = updatedCategory.newCategoryIcon;
-							}
-							return existingCategory;
+				if (updatedCategory) {
+					if (categoryToEdit.length > 0) {
+						categories.update((category) => {
+							return category.map((existingCategory) => {
+								if (existingCategory.name === categoryToEdit[0].name) {
+									existingCategory.name = updatedCategory.newCategoryName;
+									existingCategory.icon = updatedCategory.newCategoryIcon;
+								}
+								return existingCategory;
+							});
 						});
-					});
+					}
 				}
 			}
 		};
