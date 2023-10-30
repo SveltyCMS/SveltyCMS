@@ -10,8 +10,9 @@
 	let start = 0; // Declare a variable for the start index and initialize it to 0
 	let total = 0; // variable to store the total number of results
 	let selectedLibrary = 'ic'; // Default library is 'ic - Google Material Icons'
+	let librariesLoaded = false;
 	let iconLibraries = {};
-	// let librariesData = {}; // Declare a variable to store the fetched data
+	let page = 0; // Initialize page counter
 	let showDropdown = false;
 
 	export const icon = '';
@@ -19,15 +20,16 @@
 	export let searchQuery = '';
 
 	// function to fetch icons from Iconify API
-	async function searchIcons(query: string, liabraryCategory: string, event?: FocusEvent) {
+	async function searchIcons(query: string, libraryCategory: string, event?: FocusEvent) {
+		// Calculate start index based on current page number
+		start = page * 50; // Use page variable instead of start variable
+
 		loading = true;
-		// Only show the dropdown if the search query is not empty
 		showDropdown = true;
 		try {
-			// TODO: Allow Libray filtering `https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${selectedLibrary}&limit=50&start=${start}`
 			// Use search API query with prefix and limit parameters
 			const response = await fetch(
-				`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${liabraryCategory ? liabraryCategory : 'ic'}`
+				`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${libraryCategory ? libraryCategory : 'ic'}&start=${start}`
 			);
 			const data = await response.json();
 
@@ -44,21 +46,23 @@
 		loading = false;
 	}
 
+	// Function to go to the next page of results
+	function nextPage() {
+		page += 1;
+		searchIcons(searchQuery, selectedLibrary);
+	}
+
+	// Function to go to the previous page of results
+	function prevPage() {
+		page -= 1;
+		if (page < 0) page = 0;
+		searchIcons(searchQuery, selectedLibrary);
+	}
+
 	// function to select an icon
 	function selectIcon(icon: string) {
 		iconselected = icon; // update selected icon name
 		showDropdown = false; // close the dropdown after selection
-	}
-
-	// Function to go to the next page of results by increasing the start index by 50
-	function nextPage() {
-		start += 50;
-		searchIcons(searchQuery, selectedLibrary);
-	}
-	// Function to go to the previous page of results by decreasing the start index by 50
-	function prevPage() {
-		start -= 50;
-		searchIcons(searchQuery, selectedLibrary);
 	}
 
 	const removeIcon = () => {
@@ -66,14 +70,28 @@
 	};
 
 	// Function to fetch available icon libraries
-	async function getIconLiabraries() {
+	async function getIconLibraries() {
 		try {
 			const response = await fetch('https://api.iconify.design/collections');
 			const data = await response.json();
 			iconLibraries = data;
+			// Add 'All' option to iconLibraries
+			iconLibraries['all'] = { name: 'All Icon Libraries', total: 'all' };
+
+			// Move the 'All' option to the beginning
+			let tempLibraries = { all: iconLibraries['all'], ...iconLibraries };
+			iconLibraries = tempLibraries;
+
+			librariesLoaded = true;
 		} catch (error) {
 			console.log(error);
 		}
+	}
+
+	// Function to show dropdown and fetch libraries
+	function showLibrariesAndDropdown() {
+		getIconLibraries();
+		showDropdown = true;
 	}
 </script>
 
@@ -101,6 +119,7 @@
 	placeholder={$LL.MODAL_IconPicker_Placeholder()}
 	class="variant-filled-surface w-full"
 	on:input={() => searchIcons(searchQuery, selectedLibrary)}
+	on:focus={showLibrariesAndDropdown}
 />
 
 <!-- dropdown section -->
@@ -110,14 +129,14 @@
 		<div class="mb-4 w-full">
 			<select
 				bind:value={selectedLibrary}
-				on:click={getIconLiabraries}
+				on:click={getIconLibraries}
 				on:change={() => {
 					start = 0;
 					searchIcons(searchQuery, selectedLibrary);
 				}}
 				class="variant-filled-surface mt-2 w-full"
 			>
-				{#if getIconLiabraries()}
+				{#if librariesLoaded}
 					{#each Object.keys(iconLibraries) as library}
 						<option value={library}>
 							{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
@@ -136,12 +155,17 @@
 
 		<!-- Pagination buttons -->
 		<div class="mt-2 flex justify-between">
-			<button disabled={start === 0} on:keydown on:click={prevPage} class="variant-filled-primary btn btn-sm"
+			<button disabled={start === 0} on:keydown on:click={prevPage} class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
 				>{$LL.MODAL_IconPicker_Previous()}</button
 			>
-			<div class="text-white">Number of Icons: <span class="text-primary-500">{total}</span></div>
-			<button disabled={icons.length < 50} on:keydown on:click={nextPage} class="variant-filled-primary btn btn-sm"
-				>{$LL.MODAL_IconPicker_Next()}</button
+			<div class="text-white">
+				Showing Icons: <span class="text-primary-500">{icons.length}</span>
+			</div>
+			<button
+				disabled={icons.length < 50}
+				on:keydown
+				on:click={nextPage}
+				class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{$LL.MODAL_IconPicker_Next()}</button
 			>
 		</div>
 	</div>

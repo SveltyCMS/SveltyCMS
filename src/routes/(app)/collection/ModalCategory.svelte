@@ -100,7 +100,6 @@
 			{/if}
 
 			<div class="flex gap-2">
-				<!-- Removed ml-auto -->
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{$LL.MODAL_Category_Cancel()}</button>
 				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_Category_Save()}</button>
 			</div>
