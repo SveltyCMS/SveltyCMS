@@ -6,6 +6,7 @@
 
 	import Fields from '@src/components/Fields.svelte';
 	import EntryList from '@src/components/EntryList.svelte';
+	import EntryListNew from '@src/components/EntryList_New.svelte';
 
 	let ForwardBackward: boolean = false; // if using browser history
 
@@ -29,6 +30,7 @@
 	<div class="max-h-screen flex-grow overflow-auto">
 		{#if $mode == 'view' || $mode == 'delete'}
 			<EntryList />
+			<!-- <EntryListNew /> -->
 		{:else if ['edit', 'create'].includes($mode)}
 			<Fields />
 		{/if}

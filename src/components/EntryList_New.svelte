@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { categories, collection } from '@src/collections/index';
-
 	import {
+		contentLanguage,
+		categories,
+		collection,
 		mode,
 		entryData,
 		deleteEntry,
@@ -9,7 +10,7 @@
 		toggleLeftSidebar,
 		storeListboxValue
 	} from '@src/stores/store';
-	import { contentLanguage } from '@src/stores/store';
+
 	import axios from 'axios';
 
 	// TanstackFilter
@@ -37,9 +38,7 @@
 		if ($collection.name == '') return;
 
 		data = undefined;
-		data = (await axios
-			.get(`/api/${$collection.name}?page=${1}&length=${50}`)
-			.then((data) => data.data)) as { entryList: [any]; totalCount: number };
+		data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as { entryList: [any]; totalCount: number };
 
 		//console.log(data);
 
@@ -85,25 +84,13 @@
 		<!-- Collection type with icon -->
 		<!-- TODO: Translate Collection Name -->
 		<div class="mr-1 flex flex-col {!$toggleLeftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
-			{#if categories.length}<div
-					class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300"
-				>
-					{categories[0].name}
+			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
+					{$categories[0].name}
 				</div>{/if}
-			<div
-				class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl"
-			>
-				{#if $collection.icon}<span>
-						<iconify-icon
-							icon={$collection.icon}
-							width="24"
-							class="mr-1 text-error-500 sm:mr-2"
-						/></span
-					>{/if}
+			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+				{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
 				{#if $collection.name}
-					<div
-						class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1"
-					>
+					<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
 						{$collection.name}
 					</div>
 				{/if}
@@ -111,23 +98,12 @@
 		</div>
 	</div>
 
-	<button
-		type="button"
-		on:keydown
-		on:click={() => (searchShow = !searchShow)}
-		class="variant-ghost-surface btn-icon sm:hidden"
-	>
+	<button type="button" on:keydown on:click={() => (searchShow = !searchShow)} class="variant-ghost-surface btn-icon sm:hidden">
 		<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 	</button>
 
 	<div class="relative hidden items-center justify-center gap-2 sm:flex">
-		<TanstackFilter
-			bind:globalSearchValue
-			bind:searchShow
-			bind:filterShow
-			bind:columnShow
-			bind:density
-		/>
+		<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 		<TranslationStatus />
 	</div>
 
@@ -135,7 +111,6 @@
 	<EntryListMultiButton />
 </div>
 
-tanstack should show
 {#if tableData.length > 0}
 	<TanstackTable
 		data={tableData}
