@@ -27,7 +27,7 @@
 			body: $LL.MODAL_Category_Body(),
 			component: modalComponent,
 			response: (updatedCategory) => {
-				const categoryToEdit = currentCategories.filter((cat) => cat.name === category.name);
+				const categoryToEdit = currentCategories.filter((cat: any) => cat.name === category.name);
 				if (updatedCategory) {
 					if (categoryToEdit.length > 0) {
 						categories.update((category) => {
