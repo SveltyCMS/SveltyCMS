@@ -5,6 +5,7 @@ import { getFieldName } from '@src/utils/utils';
 import widgets from '@src/components/widgets';
 
 import type DefaultWidgets from '@src/components/widgets';
+import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
 interface Widgets extends Array<ReturnType<(typeof DefaultWidgets)[keyof typeof DefaultWidgets]>> {}
 type Widgets2 = Widgets[];
@@ -37,7 +38,7 @@ export const GuiSchema = {
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
 	// translated: { widget: Toggles, required: false },
-	icon: { widget: Input, required: false },
+	icon: { widget: IconifyPicker, required: false },
 
 	// Widget Specific parameters
 	imageUploadTitle: { widget: Input, required: false },

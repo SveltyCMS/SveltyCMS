@@ -16,20 +16,6 @@
 	}
 	// console.log('collection', $collection);
 	let dates = { created: '', updated: '', revision: '' };
-
-	// export async function load({ page, fetch }) {
-	// 	try {
-	// 		dates = await getDates(collection.name);
-	// 	} catch (error) {
-	// 		console.error(error);
-	// 	}
-
-	// 	return {
-	// 		props: {
-	// 			dates
-	// 		}
-	// 	};
-	// }
 </script>
 
 <!--  Check User Role collection Permission-->

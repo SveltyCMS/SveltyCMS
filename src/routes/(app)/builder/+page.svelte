@@ -29,56 +29,62 @@
 	});
 </script>
 
-<div class="body">
-	<!-- Menu Selection -->
-	<section class="left_panel">
+<div class="fixed flex h-screen w-screen bg-surface-500">
+	<!--Left Panel -->
+	<section class="w-[250px] pl-1 pt-1">
+		<!-- Menu Selection -->
 		<Collections modeSet={'edit'} />
-		<p class="text-primary-500">unAssigned Collections</p>
 
-		<p class="text-white">{$unAssigned.map((x) => x.name)}</p>
+		<!-- unAssigned Selection -->
+		{#if $unAssigned && $unAssigned.length > 0}
+			<div class="mt-5 flex flex-col items-center justify-center rounded border border-warning-500">
+				<p class="border-b text-center text-warning-500">UnAssigned Collections</p>
+				<div class="m-1 flex flex-wrap gap-2 text-white">
+					{@html $unAssigned.map((x) => `<button class="badge variant-filled-primary" role="button" tabindex="0">${x.name}</button>`).join('')}
+				</div>
+			</div>
+		{/if}
 	</section>
+
+	<!--Right Panel -->
 
 	<!-- Display collections -->
 	<div class="flex w-full flex-col items-center">
-		<!-- add new Collection -->
-		<button
-			on:click={() => {
-				mode.set('create');
-			}}
-			class="variant-filled-tertiary btn"
-		>
-			<iconify-icon icon="typcn:plus" class="text-white" width="30" />
-		</button>
+		<div class="flex justify-between gap-2">
+			<!-- add new Collection -->
+			{#if $mode == 'view'}
+				<button
+					on:click={() => {
+						mode.set('create');
+					}}
+					class="variant-filled-tertiary btn"
+				>
+					Add New
+				</button>
+			{/if}
+
+			{#if $mode != 'view'}
+				<!-- Save Collection -->
+				<button on:click={save} class="variant-filled-primary btn"> Save Collection</button>
+				<!-- Cancel -->
+				<button on:click={() => mode.set('view')} class="variant-ghost-secondary btn">Cancel</button>
+			{/if}
+		</div>
 
 		{#if $mode == 'create'}
 			<!-- add collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<p class="mb-2 text-center">Create Collection</p>
+				<p class="mb-2 rounded border text-center text-primary-500">Create Collection</p>
 				<FloatingInput label="name" name="name" bind:value={name} />
 				<WidgetBuilder {fields} bind:addField />
 			</div>
 		{:else if $mode == 'edit'}
 			<!-- list collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<p class="mb-2 text-center">Edit Collection</p>
+				<p class="mb-2 rounded border text-center text-primary-500">Edit Collection</p>
 				<FloatingInput label="name" name="name" bind:value={name} />
 				<WidgetBuilder fields={$collection.fields} bind:addField />
 			</div>
 		{/if}
 	</div>
-	<button on:click={save} class="variant-filled-primary btn absolute right-14 top-2"> Save </button>
 </div>
-
-<style lang="postcss">
-	.body {
-		display: flex;
-		position: fixed;
-		width: 75vw;
-		height: 90vh;
-	}
-
-	section {
-		width: 240px;
-		padding: 0 4px;
-	}
-</style>

@@ -10,30 +10,9 @@
 	}
 </script>
 
-<div>
+<div class="m-1 flex min-w-[280px] items-center gap-2">
 	{#if label}
-		<label for="input" class={labelClass}>{label}</label>
+		<label for="input" class={labelClass}>{label}:</label>
 	{/if}
-	<input use:typeAction id="input" class={inputClass} bind:value {placeholder} {...$$props} />
+	<input use:typeAction id="input" class="{inputClass} input" bind:value {placeholder} {...$$props} />
 </div>
-
-<style lang="postcss">
-	div {
-		min-width: 280px;
-		margin: 5px;
-		display: flex;
-		align-items: center;
-		justify-content: space-between;
-	}
-	label {
-		margin-right: 10px;
-	}
-	input {
-		border: 1px solid #242728;
-		border-radius: 6px;
-		padding: 5px;
-		color: black;
-		padding-right: 18px;
-		outline-color: #65caec;
-	}
-</style>

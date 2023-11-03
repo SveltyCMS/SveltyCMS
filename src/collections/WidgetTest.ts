@@ -25,9 +25,9 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.Text({
-			db_fieldName: 'First',
+			db_fieldName: 'firstname',
 			// label: get(LL).COLLECTION_TEST_First(),
-			label: 'first',
+			label: 'First',
 			icon: 'ri:t-box-line',
 			// placeholder: get(LL).COLLECTION_TEST_First_placeholder(),
 			placeholder: 'Enter First Name',
@@ -37,7 +37,7 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'Middle',
+			db_fieldName: 'middlename',
 			// label: get(LL).COLLECTION_TEST_Middle(),
 			label: 'Middle',
 			icon: 'ri:t-box-line',
@@ -48,7 +48,7 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'Last',
+			db_fieldName: 'lastname',
 			// label: get(LL).COLLECTION_TEST_Last(),
 			label: 'Last',
 			icon: 'ri:t-box-line',
@@ -60,7 +60,7 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'Full Text option',
+			db_fieldName: 'Full_Text_option',
 			// label: get(LL).COLLECTION_TEST_Full_Text_Option(),
 			label: 'Full Text option',
 			icon: 'carbon:character-whole-number',
@@ -76,8 +76,8 @@ const schema: Schema = {
 		}),
 
 		widgets.Email({
-			label: 'email',
-			db_fieldName: 'Email',
+			label: 'Email',
+			db_fieldName: 'email',
 			icon: 'material-symbols:mail-outline',
 			placeholder: 'Enter Email',
 			required: true
@@ -85,7 +85,7 @@ const schema: Schema = {
 
 		widgets.RemoteVideo({
 			label: 'RemoteVideo',
-			db_fieldName: 'RemoteVideo',
+			db_fieldName: 'remotevideo',
 			icon: 'mdi:youtube',
 			placeholder: 'Enter RemoteVideo',
 			required: true
@@ -93,28 +93,28 @@ const schema: Schema = {
 
 		widgets.ColorPicker({
 			label: 'ColorPicker',
-			db_fieldName: 'ColorPicker',
+			db_fieldName: 'colorpicker',
 			icon: 'bi:calendar3',
 			required: true
 		}),
 
 		widgets.Date({
 			label: 'Date',
-			db_fieldName: 'Date',
+			db_fieldName: 'date',
 			icon: 'bi:calendar3',
 			required: true
 		}),
 
 		widgets.DateTime({
 			label: 'DateTime',
-			db_fieldName: 'DateTime',
+			db_fieldName: 'datetime',
 			icon: 'bi:calendar3',
 			required: true
 		}),
 
 		widgets.Number({
 			label: 'Number',
-			db_fieldName: 'Number',
+			db_fieldName: 'number',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Number',
 			required: true,
@@ -125,7 +125,7 @@ const schema: Schema = {
 
 		widgets.Currency({
 			label: 'Currency',
-			db_fieldName: 'Currency',
+			db_fieldName: 'currency',
 			currencyCode: 'Euro',
 			icon: 'carbon:character-whole-number',
 			placeholder: 'Enter Currency',
@@ -137,7 +137,7 @@ const schema: Schema = {
 
 		widgets.PhoneNumber({
 			label: 'Phone Number',
-			db_fieldName: 'Phone',
+			db_fieldName: 'phonenumber',
 			icon: 'ph:phone',
 			placeholder: 'Enter Phone no',
 			required: true
@@ -145,7 +145,7 @@ const schema: Schema = {
 
 		widgets.Radio({
 			label: 'Radio',
-			db_fieldName: 'Radio',
+			db_fieldName: 'radio',
 			icon: 'akar-icons:radio-fill',
 			color: 'pink',
 			required: true
@@ -153,7 +153,7 @@ const schema: Schema = {
 
 		widgets.Checkbox({
 			label: 'Checkbox',
-			db_fieldName: 'Checkbox',
+			db_fieldName: 'checkbox',
 			icon: 'mdi:check-bold',
 			color: 'pink',
 			required: true
@@ -168,7 +168,7 @@ const schema: Schema = {
 
 		widgets.Seo({
 			label: 'Seo',
-			db_fieldName: 'Seo',
+			db_fieldName: 'seo',
 			icon: 'tabler:seo',
 			required: true
 		})

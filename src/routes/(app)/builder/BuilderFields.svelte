@@ -27,7 +27,7 @@
 <div>
 	{#if currentField}
 		{#each Object.entries(guiSchema) as property}
-			<InputSwitch value={currentField[property[0]]} type={property[1].type} key={property[0]} />
+			<InputSwitch value={currentField[property[0]]} widget={property[1].type} key={property[0]} />
 		{/each}
 	{/if}
 </div>

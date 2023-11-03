@@ -3,12 +3,14 @@
 	import widgets from '@src/components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
 	import { asAny } from '@src/utils/utils';
+
 	export let fields: Array<any> = [];
 	export let addField: Boolean = false;
+
 	let selected_widget: keyof typeof widgets | null = null;
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+
 	$: if (selected_widget) {
 		guiSchema = widgets[selected_widget].GuiSchema;
 	}
@@ -16,43 +18,29 @@
 </script>
 
 {#if !selected_widget}
-	<div class="properties">
+	<div class="z-100 fixed left-0 top-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-surface-500">
 		<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
 	</div>
 {:else}
-	<div class="properties">
-		<button class="btn" on:click={() => (selected_widget = null)}>close</button>
+	<div class="z-100 fixed left-0 top-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-surface-500">
+		<p class="mb-3 text-2xl">Define your <span class="text-primary-500">{selected_widget}</span></p>
+		<div class="w-100 flex justify-between gap-2">
+			<button
+				class="variant-filled-primary btn"
+				on:click={() => {
+					if (!selected_widget) return;
+					field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
+					fields.push(field);
+					fields = fields;
+					addField = false;
+					console.log(fields);
+				}}>Save {selected_widget} Widget</button
+			>
+			<button class="variant-ghost-secondary btn" on:click={() => (selected_widget = null)}>Cancel</button>
+		</div>
 
 		{#each Object.entries(guiSchema) as [property, value]}
 			<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
 		{/each}
-		<button
-			class="btn"
-			on:click={() => {
-				if (!selected_widget) return;
-				field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
-				fields.push(field);
-				fields = fields;
-				addField = false;
-				console.log(fields);
-			}}>Finish Widget</button
-		>
 	</div>
 {/if}
-
-<style>
-	.properties {
-		position: fixed;
-		flex-direction: column;
-		display: flex;
-		justify-content: center;
-		align-items: center;
-		top: 0;
-		left: 0;
-		width: 100vw;
-		height: 100vh;
-		background-color: #242728;
-		overflow: auto;
-		z-index: 911;
-	}
-</style>

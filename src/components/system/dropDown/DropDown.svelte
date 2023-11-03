@@ -6,15 +6,21 @@
 	let expanded = false;
 </script>
 
-<div class="container">
-	<button on:click={() => (expanded = !expanded)} class:selected={expanded}
-		>{selected || label}</button
-	>
+<div class="overflow-hidden">
+	<div class="mb-4 text-center">
+		<p class="text-primary-500">Click to Select a widget</p>
+		<button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
+		{#if expanded}
+			<button on:click={() => (expanded = !expanded)} class="variant-ghost-secondary btn">Cancel</button>
+		{/if}
+	</div>
+
+	<!-- dropdown -->
 	{#if expanded}
-		<div class="items">
+		<div class="flex flex-wrap items-center justify-center gap-2">
 			{#each items.filter((item) => item !== selected) as item}
 				<button
-					class="item"
+					class="variant-outline-warning btn relative hover:variant-filled-secondary"
 					on:click={() => {
 						selected = item;
 						expanded = false;
@@ -26,28 +32,3 @@
 		</div>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.container {
-		border-radius: 5px;
-		overflow: hidden;
-	}
-	.selected {
-		border-bottom: 1px solid white;
-	}
-	button {
-		position: relative;
-		background-color: gray;
-		padding: 5px 40px;
-		color: white;
-		text-align: center;
-		user-select: none;
-		cursor: pointer;
-	}
-	.item:hover {
-		background-color: aqua;
-	}
-	.item {
-		border-bottom: 1px solid rgb(153, 153, 153);
-	}
-</style>

@@ -1,3 +1,4 @@
+import IconifyPicker from '@src/components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input2.svelte';
 import Toggles from '@src/components/system/inputs/Toggles.svelte';
 import { contentLanguage } from '@src/stores/store';
@@ -26,7 +27,7 @@ export const GuiSchema = {
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
 	translated: { widget: Toggles, required: false },
-	icon: { widget: Input, required: false },
+	icon: { widget: IconifyPicker, required: false },
 
 	// Widget Specific parameters
 	color: { widget: Input, required: false },
@@ -37,21 +38,21 @@ export const GuiSchema = {
 // Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
-    const typeName = `${collection.name}_${label}`;
-	 // Initialize an empty string to hold the fields
-    let fields = '';
-	// Iterate over each language 
-    for (const lang in contentLanguage) {
-        fields += `${lang}: String\n`;
-    }
+	const typeName = `${collection.name}_${label}`;
+	// Initialize an empty string to hold the fields
+	let fields = '';
+	// Iterate over each language
+	for (const lang in contentLanguage) {
+		fields += `${lang}: String\n`;
+	}
 
 	// Return an object containing the type name and the GraphQL schema
-    return {
-        typeName,
-        graphql: /* GraphQL */ `
+	return {
+		typeName,
+		graphql: /* GraphQL */ `
         type ${typeName} {
             ${fields}
         }
         `
-    };
+	};
 };

@@ -9,7 +9,7 @@
 	{#if addField}
 		<AddWidget {fields} bind:addField />
 	{:else}
-		<button class="btn text-primary-500" on:click={() => (addField = true)}>Add Field</button>
+		<button class="variant-filled-primary btn mb-4 mt-1" on:click={() => (addField = true)}> Add Collection Field </button>
 		<WidgetFields {fields} />
 	{/if}
 </div>
