@@ -8,7 +8,9 @@
 
 <div class="overflow-hidden">
 	<div class="mb-4 text-center">
-		<p class="text-primary-500">Click to Select a widget</p>
+		{#if !expanded}
+			<p class="text-primary-500">Click to Select a widget</p>
+		{:else}{/if}
 		<button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
 		{#if expanded}
 			<button on:click={() => (expanded = !expanded)} class="variant-ghost-secondary btn">Cancel</button>
@@ -17,6 +19,7 @@
 
 	<!-- dropdown -->
 	{#if expanded}
+		<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
 		<div class="flex flex-wrap items-center justify-center gap-2">
 			{#each items.filter((item) => item !== selected) as item}
 				<button

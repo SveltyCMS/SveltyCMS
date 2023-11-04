@@ -6,7 +6,6 @@
 	export let fields: Array<any> = [];
 
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	let inputValue = '';
 	let currentFieldKey: keyof typeof widgets | null = null;
 	let currentField: any;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
@@ -40,8 +39,23 @@
 </div>
 
 {#if currentField}
-	<div class="fixed left-0 top-0 mr-5 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-surface-500">
-		<button class="variant-ghost-secondary btn" on:click={() => (currentField = null)}>Cancel</button>
+	<div class="fixed left-0 top-0 mr-5 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900">
+		<div>
+			<!-- TODO: Assign Save Button -->
+			<button class="variant-filled-primary btn" on:click={() => (currentField = null)}>Save not working</button>
+			<!-- <button
+					class="variant-filled-primary btn"
+					on:click={() => {
+						if (!selected_widget) return;
+						field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
+						fields.push(field);
+						fields = fields;
+						addField = false;
+						console.log(fields);
+					}}>Save {selected_widget} Widget</button
+				> -->
+			<button class="variant-ghost-secondary btn" on:click={() => (currentField = null)}>Cancel</button>
+		</div>
 		{#each Object.entries(guiSchema) as [property, value]}
 			<InputSwitch bind:value={currentField.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
 		{/each}

@@ -7,6 +7,7 @@
 	import { obj2formData } from '@src/utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import PageTitle from '@src/components/PageTitle.svelte';
 
 	let name = $mode == 'edit' ? $collection.name : '';
 	let fields = [];
@@ -29,27 +30,39 @@
 	});
 </script>
 
-<div class="fixed flex h-screen w-screen bg-surface-500">
-	<!--Left Panel -->
-	<section class="w-[250px] pl-1 pt-1">
-		<!-- Menu Selection -->
-		<Collections modeSet={'edit'} />
+<!-- Page Title -->
+{#if $mode == 'create'}
+	<PageTitle name="Edit Collection" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+{:else if $mode == 'edit'}
+	<PageTitle name="Create Collection" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+{:else if $mode == 'view'}
+	<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+	<p class="text-center text-primary-500">Click on any existing Category to edit or Create A New</p>
+{/if}
 
-		<!-- unAssigned Selection -->
-		{#if $unAssigned && $unAssigned.length > 0}
-			<div class="mt-5 flex flex-col items-center justify-center rounded border border-warning-500">
-				<p class="border-b text-center text-warning-500">UnAssigned Collections</p>
-				<div class="m-1 flex flex-wrap gap-2 text-white">
-					{@html $unAssigned.map((x) => `<button class="badge variant-filled-primary" role="button" tabindex="0">${x.name}</button>`).join('')}
+<div class="fixed mt-2 flex h-screen w-[calc(100%-250px)]">
+	{#if $mode == 'view'}
+		<!--Left Panel -->
+		<section class="w-[250px] pl-1 pt-1">
+			<!-- Menu Selection -->
+			<p class="text-center text-xl text-primary-500">Category</p>
+			<Collections modeSet={'edit'} />
+
+			<!-- unAssigned Selection -->
+			{#if $unAssigned && $unAssigned.length > 0}
+				<div class="mt-5 flex flex-col items-center justify-center rounded border border-warning-500">
+					<p class="border-b text-center text-warning-500">UnAssigned Collections</p>
+					<div class="m-1 flex flex-wrap gap-2 text-white">
+						{@html $unAssigned.map((x) => `<button class="badge variant-filled-primary" role="button" tabindex="0">${x.name}</button>`).join('')}
+					</div>
 				</div>
-			</div>
-		{/if}
-	</section>
+			{/if}
+		</section>{/if}
 
 	<!--Right Panel -->
 
 	<!-- Display collections -->
-	<div class="flex w-full flex-col items-center">
+	<div class="mt-8 flex w-full flex-col items-center">
 		<div class="flex justify-between gap-2">
 			<!-- add new Collection -->
 			{#if $mode == 'view'}
@@ -59,7 +72,7 @@
 					}}
 					class="variant-filled-tertiary btn"
 				>
-					Add New
+					Create New
 				</button>
 			{/if}
 
@@ -74,14 +87,12 @@
 		{#if $mode == 'create'}
 			<!-- add collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<p class="mb-2 rounded border text-center text-primary-500">Create Collection</p>
 				<FloatingInput label="name" name="name" bind:value={name} />
 				<WidgetBuilder {fields} bind:addField />
 			</div>
 		{:else if $mode == 'edit'}
 			<!-- list collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<p class="mb-2 rounded border text-center text-primary-500">Edit Collection</p>
 				<FloatingInput label="name" name="name" bind:value={name} />
 				<WidgetBuilder fields={$collection.fields} bind:addField />
 			</div>

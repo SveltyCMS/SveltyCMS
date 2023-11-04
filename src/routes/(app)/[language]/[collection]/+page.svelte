@@ -30,7 +30,7 @@
 	<div class="max-h-screen flex-grow overflow-auto">
 		{#if $mode == 'view' || $mode == 'delete'}
 			<EntryList />
-			<EntryListNew />
+			<!-- <EntryListNew /> -->
 		{:else if ['edit', 'create'].includes($mode)}
 			<Fields />
 		{/if}
