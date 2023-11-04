@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { categories, unAssigned } from '@src/stores/store';
+	import { categories, mode, unAssigned } from '@src/stores/store';
 	import Unassigned from '../config/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
@@ -127,23 +127,25 @@
 {#if !availableCollection}
 	<p class="my-2 text-center">{$LL.BUILDER_First()}</p>
 {:else}
-
-<!-- TODO: add sticky top sticky top-0 z-50 -->
+	<!-- TODO: add sticky top sticky top-0 z-50 -->
 	<div class="sticky top-0">
 		<!-- Category/Collection buttons -->
 		<div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
 			<!-- add new Category-->
-			<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">{$LL.BUILDER_AddCategory()}</button>
+			<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
+				{$LL.BUILDER_AddCategory()}
+			</button>
+
 			<!-- add new Collection-->
-			<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">{$LL.BUILDER_AddCollection()}</button
-			>
+			<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">
+				{$LL.BUILDER_AddCollection()}
+			</button>
 		</div>
 
 		<!-- display unassigned collections -->
 		<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
 	</div>
-	
-		<!-- display collections -->
-		<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
-	
+
+	<!-- display collections -->
+	<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
 {/if}

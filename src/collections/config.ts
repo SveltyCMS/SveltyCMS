@@ -5,7 +5,6 @@
     "icon": "bi:collection",
     "collections": [
       collections.Posts,
-      collections.Posts2,
       collections.Names,
       collections.Media,
       collections.ImageArray,

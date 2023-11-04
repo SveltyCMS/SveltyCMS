@@ -32,18 +32,25 @@
 
 <!-- Page Title -->
 {#if $mode == 'create'}
-	<PageTitle name="Edit Collection" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+	<div class="flex items-center justify-between">
+		<PageTitle name="Create New " icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+		<!-- Cancel -->
+
+		<button class="variant-ghost-secondary btn-icon mr-2 p-2" on:click={() => mode.set('view')}
+			><iconify-icon icon="material-symbols:close" width="24" /></button
+		>
+	</div>
 {:else if $mode == 'edit'}
-	<PageTitle name="Create Collection" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+	<PageTitle name="Edit {name} Category" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 {:else if $mode == 'view'}
 	<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 	<p class="text-center text-primary-500">Click on any existing Category to edit or Create A New</p>
 {/if}
 
-<div class="fixed mt-2 flex h-screen w-[calc(100%-250px)]">
+<div class="mt-2 flex">
 	{#if $mode == 'view'}
 		<!--Left Panel -->
-		<section class="w-[250px] pl-1 pt-1">
+		<section class="w-[280px] pl-1 pt-1">
 			<!-- Menu Selection -->
 			<p class="text-center text-xl text-primary-500">Category</p>
 			<Collections modeSet={'edit'} />
@@ -57,7 +64,8 @@
 					</div>
 				</div>
 			{/if}
-		</section>{/if}
+		</section>
+	{/if}
 
 	<!--Right Panel -->
 
@@ -77,10 +85,10 @@
 			{/if}
 
 			{#if $mode != 'view'}
-				<!-- Save Collection -->
-				<button on:click={save} class="variant-filled-primary btn"> Save Collection</button>
-				<!-- Cancel -->
-				<button on:click={() => mode.set('view')} class="variant-ghost-secondary btn">Cancel</button>
+				<div class="flex w-screen max-w-[300px] justify-center px-2">
+					<!-- Save Collection -->
+					<button on:click={save} class="variant-filled-primary btn"> Save Collection</button>
+				</div>
 			{/if}
 		</div>
 

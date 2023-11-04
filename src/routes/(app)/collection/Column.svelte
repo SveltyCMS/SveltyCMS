@@ -11,7 +11,7 @@
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import ModalAddCategory from './ModalCategory.svelte';
-	import { currentCollection } from '@src/stores/store';
+	import { currentCollection, mode } from '@src/stores/store';
 	import { categories } from '@src/stores/store';
 
 	function editCategory(category: any): void {

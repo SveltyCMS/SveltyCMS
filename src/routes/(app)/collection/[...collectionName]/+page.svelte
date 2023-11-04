@@ -10,7 +10,7 @@
 
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
-	import { toggleLeftSidebar, systemLanguage } from '@src/stores/store';
+	import { systemLanguage, mode } from '@src/stores/store';
 
 	// TS & Json export
 	function onCompleteHandler(e: Event): void {
@@ -18,6 +18,8 @@
 		const data = {
 			name,
 			DBName,
+			description,
+			helper,
 			icon,
 			iconselected,
 			slug
@@ -86,7 +88,9 @@
 
 	let name = '';
 	let DBName = '';
+	let autoUpdateDBName = true;
 	let description = '';
+	let helper = '';
 	let searchQuery = '';
 	let icon: any = '';
 	let iconselected: any = '';
@@ -125,14 +129,18 @@
 		modalStore.trigger(modal);
 	}
 
-	// TODO: Widget data
-	let items = [
-		{ id: 1, name: 'Item 1', DBName: 'item1', widget: 'Text' },
-		{ id: 2, name: 'Item 2', DBName: 'item2', widget: 'Text2' },
-		{ id: 3, name: 'Item 3', DBName: 'item3', widget: 'Text3' }
-	];
+	//  Widget data
+	export let items: any;
+	console.log('dataItem', items);
+	// let items = [
+	// 	{ id: 1, name: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
+	// 	{ id: 2, name: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
+	// 	{ id: 3, name: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
+	// 	{ id: 4, name: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
+	// ];
 
-	const headers = ['ID', 'Name', 'DBName', 'Widget'];
+	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
+
 	const flipDurationMs = 300;
 
 	const handleDndConsider = (e) => {
@@ -145,33 +153,24 @@
 </script>
 
 <div class="align-centre mb-2 mt-2 flex dark:text-white">
-	<!-- TODO: fix TypeScript, as Icon is already optional? -->
-	<PageTitle name="Collection Builder" icon="dashicons:welcome-widgets-menus" />
+	<PageTitle name="Category {name} Builder" icon="ic:baseline-build" />
 </div>
 <div class="m-2">
-	<p class="mb-2 hidden text-center sm:block">
-		This builder will help you to setup a new Content Collection
-	</p>
+	<p class="mb-2 hidden text-center text-primary-500 sm:block">This builder will help you to setup a new Content Collection</p>
 
 	<TabGroup on:complete={onCompleteHandler}>
 		<Tab bind:group={tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ic:baseline-edit" width="24" class="text-primary-500" />
-				Edit
-			</div></Tab
-		>
-		<Tab bind:group={tabSet} name="tab2" value={1}
-			><div class="flex items-center gap-1">
+				<span class:active={tabSet === 0} class:text-primary-500={tabSet === 0}>Edit</span>
+			</div>
+		</Tab>
+		<Tab bind:group={tabSet} name="tab2" value={1}>
+			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
-				Fields
-			</div></Tab
-		>
-		<Tab bind:group={tabSet} name="tab3" value={2}
-			><div class="flex items-center gap-1">
-				<iconify-icon icon="ic:twotone-shield" width="24" class="text-primary-500" />
-				Permisions
-			</div></Tab
-		>
+				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>Widget Fields</span>
+			</div>
+		</Tab>
 
 		<!-- Tab Panels --->
 		<svelte:fragment slot="panel">
@@ -180,13 +179,8 @@
 				<div class="mb-2 text-center text-xs text-error-500">* Required</div>
 
 				<!-- Collection Name -->
-				<div class="mb-2 flex items-center gap-4 sm:mb-4 sm:ml-1.5">
-					<label for="name" class="relative"
-						>Name: <span class="text-error-500">*</span>
-						{#if name.helper}
-							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
-						{/if}
-					</label>
+				<div class="mb-2 items-center gap-1 sm:mb-4 sm:flex">
+					<label for="name" class="relative">Name: <span class="text-error-500">*</span> </label>
 
 					<input
 						type="text"
@@ -195,7 +189,7 @@
 						bind:value={name}
 						on:input={checkInputName}
 						placeholder="Collection Unique Name"
-						class="variant-filled-surface ml-1.5 {name ? 'sm:w-1/2' : 'w-full'}"
+						class="variant-filled-surface {name ? 'sm:w-1/2' : 'w-full'}"
 					/>
 
 					{#if name}
@@ -209,11 +203,11 @@
 						Database Name: <span class="font-bold text-primary-500">{DBName}</span>
 					</p>
 				{/if}
-				<div class="rounded-md border p-2">
-					<p class="mb-2 font-bold text-primary-500">Optional values:</p>
+				<div class="flex flex-col gap-2 rounded-md border p-2">
+					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">Optional values:</p>
 
-					<!-- Collection Description -->
-					<div class="mb-3 flex items-center gap-4">
+					<!-- Description -->
+					<div class="items-center sm:flex">
 						<label for="description" class="relative">Description: </label>
 
 						<textarea
@@ -228,29 +222,19 @@
 
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
-					<div class="w-full flex items-center gap-4">
+					<div class="w-full items-center sm:flex">
 						<label for="icon" class="relative">
 							{$LL.MODAL_IconPicker_Label()}
-							</label
-						
-						>
+						</label>
 						{#if icon.helper}
 							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
 						{/if}
 
 						<IconifyPicker {searchQuery} {icon} {iconselected} />
 					</div>
-					<!-- status -->
-					<div class="mb-4 flex items-center gap-4">
-						<label class="relative" for="status">
-							Status:
-							{#if status.helper}
-							<iconify-icon
-								icon="material-symbols:info"
-								width="18"
-								class="absolute -top-3 right-1"
-							/>{/if}
-						</label>
+					<!-- Status -->
+					<div class="items-center sm:flex">
+						<label class="relative" for="status"> Status: </label>
 						<select id="status" bind:value={status} class="variant-filled-surface w-full">
 							{#each statuses as statusOption}
 								<option value={statusOption} class="">{statusOption}</option>
@@ -258,17 +242,9 @@
 						</select>
 					</div>
 
-					<!-- slug -->
-					<div class="mb-4 flex items-center gap-4">
-						<label for="slug" class="relative">
-							Slug:
-							{#if slug.helper}
-							<iconify-icon
-								icon="material-symbols:info"
-								width="18"
-								class="absolute -top-3 right-1"
-							/>{/if}
-						</label>
+					<!-- Slug -->
+					<div class="items-center sm:flex">
+						<label for="slug" class="relative"> Slug: </label>
 						<input
 							type="text"
 							id="slug"
@@ -282,11 +258,7 @@
 
 				<div class="flex justify-between">
 					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
-					<button
-						type="button"
-						on:click={() => (tabSet = 1)}
-						class="variant-filled-primary btn mt-2">Next</button
-					>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
 				</div>
 
 				<!-- Manage Fields -->
@@ -304,40 +276,25 @@
 				<!--dnd vertical row -->
 				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 					{#each items as item (item.id)}
-						<div
-							class="border-blue variant-ghost-secondary my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-primary-500"
-						>
-							<div class="marker: variant-outline-primary badge rounded-full text-white">
+						<div class="border-blue variant-ghost-secondary my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-primary-500">
+							<div class="marker: flex-grow-1 variant-outline-primary badge rounded-full text-white">
 								{item.id}
 							</div>
-							<div class="text-white">{item.name}</div>
-							<div class="text-white">{item.DBName}</div>
-							<div class="text-white">{item.widget}</div>
+							<iconify-icon icon={item.icon} width="24" class="flex-grow-1 text-primary-500" />
+							<div class="flex-grow-2 text-white">{item.name}</div>
+							<div class="flex-grow-2 text-white">{item.DBName}</div>
+							<div class="flex-grow-2 text-white">{item.widget}</div>
 						</div>
 					{/each}
 				</VerticalList>
 
 				<div class=" border-surface-400-500-token border-t text-center">
-					<button class="variant-filled-tertiary btn mt-2" on:click={modalComponentForm}
-						>Add more Fields</button
-					>
+					<button class="variant-filled-tertiary btn mt-2" on:click={modalComponentForm}>Add more Fields</button>
 				</div>
 				<div class=" flex items-center justify-between">
-					<button
-						type="button"
-						on:click={() => (tabSet = 0)}
-						class="variant-filled-secondary btn mt-2 justify-end">Previous</button
-					>
-					<button
-						type="button"
-						on:click={onCompleteHandler}
-						class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button
-					>
+					<button type="button" on:click={() => (tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
+					<button type="button" on:click={onCompleteHandler} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
 				</div>
-
-				<!-- Manage Permissions -->
-			{:else if tabSet === 2}
-				only if required (tab panel 3 contents)
 			{/if}
 		</svelte:fragment>
 	</TabGroup>

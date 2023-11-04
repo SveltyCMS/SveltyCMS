@@ -5,7 +5,7 @@
 		collection,
 		mode,
 		entryData,
-		deleteEntry,
+		modifyEntry,
 		handleSidebarToggle,
 		toggleLeftSidebar,
 		storeListboxValue
@@ -261,17 +261,32 @@
 		}
 	}
 
-	// Tick Row Process Entry (formerly $deleteEntry)processEntry function
-	$deleteEntry = async () => {
-		let deleteList: Array<string> = [];
+	// Tick Row Process Entry
+	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'TEST') => {
+		let modifyList: Array<string> = [];
 		for (let item in tickMap) {
 			//console.log(tableData[item]);
-			tickMap[item] && deleteList.push(tableData[item]._id);
+			tickMap[item] && modifyList.push(tableData[item]._id);
 		}
-		if (deleteList.length == 0) return;
+		if (modifyList.length == 0) return;
 		let formData = new FormData();
-		formData.append('ids', JSON.stringify(deleteList));
-		await axios.delete(`/api/${$collection.name}`, { data: formData });
+
+		formData.append('ids', JSON.stringify(modifyList));
+		formData.append('status', status == 'TEST' ? status + 'ING' : status + 'ED');
+
+		switch (status) {
+			case 'TEST':
+			case 'delete':
+				await axios.delete(`/api/${$collection.name}`, { data: formData });
+				break;
+			case 'publish':
+			case 'unpublish':
+			case 'schedule':
+			case 'clone':
+				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
+				break;
+		}
+
 		refresh($collection);
 		mode.set('view');
 	};
@@ -364,6 +379,20 @@
 		return $table.getAllLeafColumns().find((col) => {
 			return col.id == name;
 		});
+	}
+
+	// define status badge color
+	function getStatusClass(status) {
+		switch (status) {
+			case 'publish':
+				return 'gradient-tertiary';
+			case 'unpublish':
+				return 'gradient-yellow';
+			case 'schedule':
+				return 'gradient-pink';
+			default:
+				return 'gradient-error';
+		}
 	}
 </script>
 
@@ -494,10 +523,13 @@
 		<thead class="text-dark dark:text-primary-500">
 			{#each $table.getHeaderGroups() as headerGroup}
 				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+					<!-- Tanstack Tickbox -->
 					<th class="!w-6">
 						<TanstackIcons bind:checked={tickAll} />
 					</th>
-
+					<!-- Tanstack Status -->
+					<th class="!w-4"> Status </th>
+					<!-- Tanstack Other Headers -->
 					{#each headerGroup.headers as header}
 						<th class="">
 							{#if !header.isPlaceholder}
@@ -548,6 +580,20 @@
 				>
 					<td>
 						<TanstackIcons bind:checked={tickMap[index]} class="ml-1" />
+					</td>
+
+					<td>
+						<span class="badge rounded-full {getStatusClass(row.status)}">
+							{#if row.status === 'publish'}
+								<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
+							{:else if row.status === 'unpublish'}
+								<iconify-icon icon="bi:pause-circle" width="24" />
+							{:else if row.status === 'schedule'}
+								<iconify-icon icon="bi:clock" width="24" />
+							{:else if row.status === 'undefined'}
+								<iconify-icon icon="material-symbols:error" width="24" />
+							{/if}
+						</span>
 					</td>
 
 					{#each row.getVisibleCells() as cell}

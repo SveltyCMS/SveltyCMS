@@ -99,7 +99,7 @@
 {#if iconselected}
 	<div class="-mt-3 mb-1 flex items-center justify-around gap-2">
 		<div class="flex items-center gap-2 p-2">
-			<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon p-2" />
+			<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon mt-1 py-2" />
 			<p>
 				{$LL.MODAL_IconPicker_Name()}
 				<span class="text-primary-500">{iconselected}</span>

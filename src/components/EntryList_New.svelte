@@ -5,7 +5,7 @@
 		collection,
 		mode,
 		entryData,
-		deleteEntry,
+		modifyEntry,
 		handleSidebarToggle,
 		toggleLeftSidebar,
 		storeListboxValue

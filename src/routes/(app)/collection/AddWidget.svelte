@@ -21,9 +21,7 @@
 <div class="z-100 fixed left-0 top-0 flex h-screen w-screen flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="flex items-center justify-between">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
-		<button class="variant-ghost-secondary btn-icon mr-2" on:click={() => (addField = false)}
-			><iconify-icon icon="material-symbols:close" width="24" /></button
-		>
+		<button class="variant-ghost-secondary btn mr-2" on:click={() => (addField = false)}>Cancel</button>
 	</div>
 	{#if !selected_widget}
 		<div class="flex items-center justify-center">
@@ -31,8 +29,8 @@
 		</div>
 	{:else}
 		<div class=" flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">Define your <span class="text-primary-500">{selected_widget}</span></p>
-			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
+			<p class="mb-3 text-2xl">Define your <span class="text-primary-500">{selected_widget}</span></p>
+			<div class="w-100 flex justify-between gap-2">
 				<button
 					class="variant-filled-primary btn"
 					on:click={() => {

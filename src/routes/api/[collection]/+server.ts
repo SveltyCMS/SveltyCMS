@@ -105,6 +105,8 @@ export const POST: RequestHandler = async ({ params, request }) => {
 		}
 	}
 
+	// Set the status property to 'Published'
+	body['status'] = 'Published';
 	console.log('body', body);
 
 	try {

@@ -12,9 +12,6 @@
 			<p class="text-primary-500">Click to Select a widget</p>
 		{:else}{/if}
 		<button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
-		{#if expanded}
-			<button on:click={() => (expanded = !expanded)} class="variant-ghost-secondary btn">Cancel</button>
-		{/if}
 	</div>
 
 	<!-- dropdown -->

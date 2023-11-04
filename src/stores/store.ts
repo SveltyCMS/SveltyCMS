@@ -50,16 +50,14 @@ export const translationStatusOpen = writable(false);
 // collective data of collection
 export const collectionValue: any = writable({});
 export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone'> = writable('view');
+export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'TEST') => any> = writable(() => {});
 export const entryData: Writable<any> = writable({});
-
-//TODO: check deleteEntry function and ad modal to confirm deletion
-export const deleteEntry: Writable<() => any> = writable(() => {});
-
-// Store image data while editing
-export const saveEditedImage: Writable<boolean> = writable(false);
 
 // Store ListboxValue
 export const storeListboxValue: Writable<string> = writable('create');
+
+// Store image data while editing
+export const saveEditedImage: Writable<boolean> = writable(false);
 
 // Create a writable store to hold the selected row data
 export const selectedRows = writable([]);

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { collection, collectionValue, mode, deleteEntry, handleSidebarToggle } from '@src/stores/store';
+	import { collection, collectionValue, mode, modifyEntry, handleSidebarToggle } from '@src/stores/store';
 
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
@@ -11,7 +11,7 @@
 		await saveFormData({ data: $collectionValue });
 
 		// a function to undo the changes made by handleButtonClick
-		mode.set('view' || 'edit');
+		mode.set('view');
 		handleSidebarToggle();
 	}
 	// console.log('collection', $collection);
@@ -34,7 +34,7 @@
 				</button>
 
 				{#if $mode == 'edit'}
-					<button type="button" on:click={$deleteEntry} class="variant-filled-error btn mt-2 w-full">
+					<button type="button" on:click={() => $modifyEntry('delete')} class="variant-filled-error btn mt-2 w-full">
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete {$collection.name}
 					</button>
 				{/if}
@@ -62,7 +62,7 @@
 		</div>
 	{:else if $mode == 'delete'}
 		<!-- no permission -->
-		<button type="button" on:click={$deleteEntry} class="variant-filled-success btn">
+		<button type="button" on:click={() => $modifyEntry('delete')} class="variant-filled-success btn">
 			<iconify-icon icon="icomoon-free:bin" width="24" />Delete
 		</button>
 	{/if}
