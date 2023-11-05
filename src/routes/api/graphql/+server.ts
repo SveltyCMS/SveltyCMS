@@ -55,9 +55,9 @@ for (const collection of collections) {
 	// 					label: getFieldName(_field).replaceAll(' ', '_'),
 	// 					collection
 	// 				}).typeName}\n`;
-					
+
 	// 				console.log("collectionSchema:", collectionSchema);
-					
+
 	// 				resolvers[collection.name as string] = deepmerge(
 	// 					{
 	// 						[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {
@@ -99,7 +99,8 @@ for (const collection of collections) {
 	// console.log('collection.name:', collection.name);
 
 	// Add a resolver function for collections
-	resolvers.Query[collection.name as string] = async () => await mongoose.models[collection.name as string].find({}).lean();
+	resolvers.Query[collection.name as string] = async () =>
+		await mongoose.models[collection.name as string].find({ status: { $ne: 'UNPUBLISHED' } }).lean();
 }
 // console.log('resolvers.Query:', resolvers.Query);
 

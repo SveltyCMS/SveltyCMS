@@ -261,33 +261,57 @@
 		}
 	}
 
-	// Tick Row Process Entry
-	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'TEST') => {
+	// Tick Row - modify STATUS of an Entry
+	$modifyEntry = async (status: 'Delete' | 'Publish' | 'Unpublish' | 'Schedule' | 'Clone') => {
+		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
+
+		// Loop over the tickMap object
 		for (let item in tickMap) {
-			//console.log(tableData[item]);
+			// If the item is ticked, add its ID to the modifyList
 			tickMap[item] && modifyList.push(tableData[item]._id);
 		}
+
+		// If no items are ticked, exit the function
 		if (modifyList.length == 0) return;
+
+		// Initialize a new FormData object
 		let formData = new FormData();
 
-		formData.append('ids', JSON.stringify(modifyList));
-		formData.append('status', status == 'TEST' ? status + 'ING' : status + 'ED');
+		// Define a map from input status to output status
+		let statusMap = {
+			Delete: 'Deleted',
+			Publish: 'Published',
+			Unpublish: 'Unpublished',
+			Schedule: 'Scheduled',
+			Clone: 'Cloned'
+		};
 
+		// Append the IDs of the items to be modified to formData
+		formData.append('ids', JSON.stringify(modifyList));
+
+		// Append the status to formData
+		formData.append('status', statusMap[status]);
+
+		// Use the status to determine which API endpoint to call and what HTTP method to use
 		switch (status) {
-			case 'TEST':
-			case 'delete':
+			case 'Delete':
+				// If the status is 'Delete', call the delete endpoint
 				await axios.delete(`/api/${$collection.name}`, { data: formData });
 				break;
-			case 'publish':
-			case 'unpublish':
-			case 'schedule':
-			case 'clone':
+			case 'Publish':
+			case 'Unpublish':
+			case 'Schedule':
+			case 'Clone':
+				// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 		}
 
+		// Refresh the collection
 		refresh($collection);
+
+		// Set the mode to 'view'
 		mode.set('view');
 	};
 
@@ -527,8 +551,7 @@
 					<th class="!w-6">
 						<TanstackIcons bind:checked={tickAll} />
 					</th>
-					<!-- Tanstack Status -->
-					<th class="!w-4"> Status </th>
+
 					<!-- Tanstack Other Headers -->
 					{#each headerGroup.headers as header}
 						<th class="">
@@ -569,7 +592,9 @@
 		<tbody>
 			{#each $table.getRowModel().rows as row, index}
 				<tr
-					class="divide-x divide-surface-400"
+					class={`${
+						data?.entryList[index]?.status == 'Unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'TESTING' ? 'bg-red-800' : ''
+					} divide-x divide-surface-400`}
 					on:keydown
 					on:click={() => {
 						entryData.set(data?.entryList[index]);
@@ -582,7 +607,7 @@
 						<TanstackIcons bind:checked={tickMap[index]} class="ml-1" />
 					</td>
 
-					<td>
+					<!-- <td>
 						<span class="badge rounded-full {getStatusClass(row.status)}">
 							{#if row.status === 'publish'}
 								<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -594,7 +619,7 @@
 								<iconify-icon icon="material-symbols:error" width="24" />
 							{/if}
 						</span>
-					</td>
+					</td> -->
 
 					{#each row.getVisibleCells() as cell}
 						<td>

@@ -50,7 +50,7 @@ export const translationStatusOpen = writable(false);
 // collective data of collection
 export const collectionValue: any = writable({});
 export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone'> = writable('view');
-export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'TEST') => any> = writable(() => {});
+export const modifyEntry: Writable<(status: 'Delete' | 'Publish' | 'Unpublish' | 'Schedule' | 'Clone') => any> = writable(() => {});
 export const entryData: Writable<any> = writable({});
 
 // Store ListboxValue

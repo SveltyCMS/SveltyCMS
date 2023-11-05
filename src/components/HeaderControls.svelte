@@ -109,34 +109,7 @@
 				</select>
 			{:else}
 				<!-- desktop -->
-				{#if $mode == 'edit'}
-					<!-- TODO: use correct value-->
-					{#if $modifyEntry('unpublish')}
-						<div class="flex flex-col items-center justify-center">
-							<button type="button" on:click={publishData} class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon">
-								<iconify-icon icon="ic:baseline-check-circle" width="24" />
-							</button>
-						</div>
-					{:else}
-						<div class="flex flex-col items-center justify-center">
-							<button type="button" on:click={unpublishData} class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon">
-								<iconify-icon icon="bi:pause-circle" width="24" />
-							</button>
-						</div>
-					{/if}
 
-					<div class="flex flex-col items-center justify-center">
-						<button type="button" on:click={cloneData} class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon">
-							<iconify-icon icon="bi:clipboard-data-fill" width="24" />
-						</button>
-					</div>
-
-					<div class="flex flex-col items-center justify-center">
-						<button type="button" on:click={scheduleData} class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon">
-							<iconify-icon icon="bi:clock" width="24" />
-						</button>
-					</div>
-				{/if}
 				<!-- Select Content Language -->
 				<div class="hidden flex-col items-center justify-center md:flex">
 					<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
@@ -161,14 +134,14 @@
 	<div class="-mx-2 mb-2 flex items-center justify-center gap-3 pt-2">
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
-			<button type="button" on:click={() => $modifyEntry('delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
+			<button type="button" on:click={() => $modifyEntry('Delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
 		</div>
 
 		<!-- Clone Content -->
 		{#if $mode == 'edit'}
-			{#if $modifyEntry('unpublish')}
+			{#if $modifyEntry('Unpublish')}
 				<div class="flex flex-col items-center justify-center">
 					<button type="button" on:click={publishData} class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon">
 						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
