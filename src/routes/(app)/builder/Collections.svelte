@@ -100,8 +100,8 @@
 								bind:checked={checked[asAny(_collection.name)]}
 								callback={() => {
 									checked = checked;
-									category.collections = category.collections.filter((x) => x.name != _collection.name);
-									$unAssigned = [...$unAssigned, _collection];
+									category.collections.push(_collection);
+									$unAssigned = $unAssigned.filter((x) => x.name != _collection.name);
 								}}
 								svg={CheckIcon}
 							/>

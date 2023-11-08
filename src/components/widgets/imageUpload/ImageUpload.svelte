@@ -5,6 +5,7 @@
 	import { getFieldName } from '@src/utils/utils';
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
+	import { onMount } from 'svelte';
 
 	let _data: FileList;
 	let updated = false;
@@ -52,7 +53,13 @@
 			updated = true;
 
 			//TODO: Image Preview not working for edit anymore
-		} else if ($mode === 'edit') {
+		}
+
+		// All files processed, set loading progress to 100%
+		loadingProgress.set(100);
+	}
+	onMount(() => {
+		if ($mode === 'edit') {
 			console.log('mode edit:', $mode);
 			console.log('entryData:', $entryData[fieldName]);
 			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
@@ -65,13 +72,9 @@
 				fileList.items.add(file);
 				_data = fileList.files;
 				updated = true;
-				node.dispatchEvent(new Event('change')); // manually dispatch change event
 			});
 		}
-
-		// All files processed, set loading progress to 100%
-		loadingProgress.set(100);
-	}
+	});
 </script>
 
 <FileDropzone bind:files={_data} name={fieldName} accept="image/*,image/webp,image/avif,image/svg+xml" on:change={setFile} slotMeta="opacity-100">
