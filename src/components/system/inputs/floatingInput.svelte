@@ -89,10 +89,7 @@ This FloatingInput component has the following properties:
 	function initInput(node: HTMLInputElement) {
 		node.type = type;
 	}
-	$: if (type === 'password')
-		showPassword
-			? inputElement && (inputElement.type = 'text')
-			: inputElement && (inputElement.type = 'password');
+	$: if (type === 'password') showPassword ? inputElement && (inputElement.type = 'text') : inputElement && (inputElement.type = 'password');
 </script>
 
 <div class="group relative w-full">
@@ -105,7 +102,7 @@ This FloatingInput component has the following properties:
 		bind:value
 		{id}
 		{autocomplete}
-		class="{inputClass} peer relative block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
+		class="{inputClass} peer relative block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:!outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
 		{name}
 		{required}
 		{disabled}
@@ -123,9 +120,7 @@ This FloatingInput component has the following properties:
 			{tabindex}
 			role="button"
 			icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
-			class={`absolute right-0 ${
-				showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'
-			}`}
+			class={`absolute right-0 ${showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'}`}
 			width="24"
 			on:keydown
 			on:click|preventDefault={togglePasswordVisibility}

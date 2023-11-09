@@ -9,7 +9,7 @@
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { addUserTokenSchema } from '@src/utils/formSchemas';
-	
+
 	export let addUserForm: PageData['addUserForm'];
 
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
@@ -46,7 +46,7 @@
 			console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
 		},
-		
+
 		onResult: async ({ result, cancel }) => {
 			cancel();
 			if (result.type == 'success') {
@@ -62,6 +62,7 @@
 
 	/// Calculate expiration time in seconds based on expiresIn value
 	let expiresIn = '2 hrs'; // Set the default validity
+	let expiresInLabel = '';
 	let expirationTime;
 
 	// Define the validity options and their corresponding seconds
@@ -74,12 +75,12 @@
 
 	$: $form.role = roleSelected;
 	$: $form.expiresIn = expiresIn;
+	$: $form.expiresInLabel = expiresInLabel;
 </script>
 
 <!-- @component This example creates a simple form modal. -->
 
 <div class="modal-example-form {cBase}">
-
 	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
 		{$modalStore[0]?.title ?? '(title missing)'}
 	</header>
@@ -90,8 +91,16 @@
 	<!-- <SuperDebug data={$form} /> -->
 	<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
 		<!-- Email field -->
-		<div class="group relative z-0 mb-6 w-full">
-			<FloatingInput label={$LL.LOGIN_EmailAddress()} icon="mdi:email" name="email" type="email" bind:value={$form.email} required />
+		<div class="group relative mb-6 w-full">
+			<FloatingInput
+				label={$LL.LOGIN_EmailAddress()}
+				icon="mdi:email"
+				name="email"
+				type="email"
+				inputClass="border-primary-500"
+				bind:value={$form.email}
+				required
+			/>
 
 			{#if $errors.email}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -138,6 +147,7 @@
 							on:click={() => {
 								expiresIn = option.value;
 								expirationTime = option.seconds;
+								expiresInLabel = option.label;
 							}}
 							on:keypress
 							role="button"

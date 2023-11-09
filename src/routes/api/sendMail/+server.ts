@@ -21,6 +21,7 @@ interface EmailProps {
 	role?: string;
 	token?: string;
 	expires_in?: string;
+	expiresInLabel?: string;
 	systemLanguage?: string;
 	// ... any other props used by both templates
 }

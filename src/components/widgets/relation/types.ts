@@ -21,7 +21,7 @@ export type Params = {
 	helper?: string;
 
 	// Widget Specific parameters
-	relation: Schema;
+	relation: string;
 };
 
 // Define the GuiSchema
@@ -39,16 +39,15 @@ export const GuiSchema = {
 
 // Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
-
 	// Return an object containing the type name and the GraphQL schema
 	return {
-		typeName: field.relation.name,
+		typeName: field.relation,
 		graphql: '', // relation does not need its own graphql because it copies related collection type
 		resolver: {
 			[collection.name]: {
-				async [getFieldName(field)](parent:any) {
+				async [getFieldName(field)](parent) {
 					console.log(getFieldName(field));
-					const res = await mongoose.models[field.relation.name as string].findById(parent[getFieldName(field)]).lean();
+					const res = await mongoose.models[field.relation].findById(parent[getFieldName(field)]).lean();
 
 					return res;
 				}

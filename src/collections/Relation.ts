@@ -1,5 +1,4 @@
 import widgets from '@src/components/widgets';
-import Posts from './Names';
 import { roles } from './types';
 import type { Schema } from './types';
 
@@ -16,9 +15,17 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.Relation({
-			db_fieldName: 'relation',
 			label: 'Relation M2M to Posts',
-			relation: Posts,
+			db_fieldName: 'relation',
+			relation: 'Posts',
+			display({ data, contentLanguage }) {
+				return data?.['text 2'][contentLanguage];
+			}
+		}),
+		widgets.Relation({
+			label: 'Relation M2M to Posts2',
+			db_fieldName: 'relation',
+			relation: 'Posts2',
 			display({ data, contentLanguage }) {
 				return data?.['text 2'][contentLanguage];
 			}

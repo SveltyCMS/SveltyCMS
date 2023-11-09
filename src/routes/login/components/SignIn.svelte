@@ -78,7 +78,7 @@
 					message: $LL.LOGIN_SignInSuccess(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 3000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};

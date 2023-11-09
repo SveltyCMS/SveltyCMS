@@ -8,6 +8,10 @@
 	import { asAny, obj2formData } from '@src/utils/utils';
 	import axios from 'axios';
 
+	//skeleton
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
+
 	import type { User } from '@src/collections/Auth';
 
 	export let modeSet: typeof $mode = 'view';
@@ -32,11 +36,29 @@
 			});
 		}
 
-		axios.post(`?/saveConfig`, obj2formData({ categories: _categories }), {
-			headers: {
-				'Content-Type': 'multipart/form-data'
-			}
-		});
+		axios
+			.post(`?/saveConfig`, obj2formData({ categories: _categories }), {
+				headers: {
+					'Content-Type': 'multipart/form-data'
+				}
+			})
+			.then((response) => {
+				if (response.status === 200) {
+					// Trigger the toast
+					const t = {
+						message: '✔️ Configuration Saved',
+						// Provide any utility or variant background style:
+						background: 'gradient-primary',
+						timeout: 2000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
+			})
+			.catch((error) => {
+				console.error('Error saving configuration:', error);
+			});
 	}
 </script>
 

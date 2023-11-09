@@ -3,9 +3,10 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
@@ -48,7 +49,7 @@
 			title: 'Edit User Data',
 			body: 'Modify your data and then press Save.',
 			component: modalComponent,
-			// Pass abitrary data to the component
+			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
 					const res = await fetch('/api/user/editUser', {
@@ -70,22 +71,30 @@
 		let modalTitle: string;
 		let modalBody: string;
 		let modalButtonText: string;
+		let toastMessage: string;
+		let toastBackground: string;
 
 		switch (action) {
 			case 'delete':
 				modalTitle = 'Please Confirm User Deletion';
 				modalBody = 'Are you sure you wish to delete this user?';
 				modalButtonText = 'Delete User';
+				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Deleted';
+				toastBackground = 'gradient-error';
 				break;
 			case 'block':
 				modalTitle = 'Please Confirm User Block';
 				modalBody = 'Are you sure you wish to block this user?';
 				modalButtonText = 'Block User';
+				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Blocked';
+				toastBackground = 'gradient-yellow';
 				break;
 			case 'unblock':
 				modalTitle = 'Please Confirm User Unblock';
 				modalBody = 'Are you sure you wish to unblock this user?';
 				modalButtonText = 'Unblock User';
+				toastMessage = '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Unblocked';
+				toastBackground = 'gradient-primary';
 				break;
 			default:
 				throw new Error(`Invalid action ${action}`);
@@ -111,6 +120,17 @@
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(selectedRows.map((row) => row.data))
 				});
+
+				// Trigger the toast
+				const t = {
+					message: toastMessage,
+					// Provide any utility or variant background style:
+					background: toastBackground,
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 
 				if (res.status === 200) {
 					await invalidateAll();
@@ -179,11 +199,12 @@
 	<button
 		type="button"
 		on:click={() => {
-			getButtonAndIconValues(listboxValue, listboxValue);
+			const { buttonClass, iconValue } = getButtonAndIconValues(listboxValue, listboxValue);
+			// ...
 		}}
-		class="{getButtonAndIconValues(listboxValue).buttonClass} font-semibold uppercase hover:bg-primary-400"
+		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} font-semibold uppercase hover:bg-primary-400"
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}
 	</button>
 

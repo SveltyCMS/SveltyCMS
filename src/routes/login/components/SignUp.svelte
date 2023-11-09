@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { PageData, SubmitFunction } from '../$types';
+	import type { PageData } from '../$types';
 	import { superForm } from 'sveltekit-superforms/client';
 	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 

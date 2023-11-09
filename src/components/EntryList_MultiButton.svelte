@@ -28,9 +28,9 @@
 		handleSidebarToggle();
 	}
 
+	// handleOptionClick for Button Dropdown
 	function handleOptionClick(value: any) {
 		storeListboxValue.set(value);
-		console.log('storeListboxValue:', $storeListboxValue);
 
 		({ actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue));
 		dropdownOpen = false;

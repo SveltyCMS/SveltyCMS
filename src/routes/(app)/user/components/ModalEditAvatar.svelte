@@ -10,8 +10,10 @@
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
-	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// skeleton
+	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+
+	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// skeleton
@@ -119,6 +121,18 @@
 				_avatarSrc = undefined;
 				avatarSrc.set('/Default_User.svg'); // Set default avatar or empty
 
+				// Trigger the toast
+				const t = {
+					message: '<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted',
+
+					// Provide any utility or variant background style:
+					background: 'gradient-error',
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+
 				// Close the modal after successful deletion
 				modalStore.close();
 			}
@@ -186,7 +200,7 @@
 			<!-- Empty div when using the default avatar -->
 		{/if}
 		<div class="flex justify-between gap-2">
-			<button class="btn variant-outline-secondary" on:click={parent.onClose}>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
 				{$LL.MODAL_UserAvatar_Cancel()}
 			</button>
 			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_UserAvatar_Save()}</button>

@@ -19,10 +19,11 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalEditAvatar from './components/ModalEditAvatar.svelte';
 	import ModalEditForm from './components/ModalEditForm.svelte';
-
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
+
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import AdminArea from './components/AdminArea.svelte';
 	import { avatarSrc } from '@src/stores/store';
@@ -44,6 +45,7 @@
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
+
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -54,6 +56,7 @@
 			title: $LL.MODAL_UserEdit_Title(),
 			body: $LL.MODAL_UserEdit_Body(),
 			component: modalComponent,
+
 			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
@@ -62,6 +65,17 @@
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ ...r, id })
 					});
+
+					// Trigger the toast
+					const t = {
+						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
+						// Provide any utility or variant background style:
+						background: 'gradient-tertiary',
+						timeout: 3000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
 
 					if (res.status === 200) {
 						await invalidateAll();
@@ -94,6 +108,18 @@
 			response: (r: { dataURL: string }) => {
 				if (r) {
 					avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
+
+					// Trigger the toast
+					const t = {
+						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
+
+						// Provide any utility or variant background style:
+						background: 'gradient-primary',
+						timeout: 3000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
 				}
 			}
 		};
@@ -121,7 +147,7 @@
 				}
 			},
 			// Optionally override the button text
-			// TODO: fix light background and change Deletebutton to red
+			// TODO: fix light background and change Delete button to red
 			//backdropClasses: 'bg-white',
 			buttonTextCancel: $LL.MODAL_UserConfirm_Cancel(),
 			buttonTextConfirm: $LL.MODAL_UserConfirm_Delete()
@@ -165,14 +191,15 @@
 				>{$LL.USER_Password()}:
 				<input bind:value={password} name="password" type="password" disabled class="input" />
 			</label>
-			<div class="mt-2 flex flex-col flex-wrap justify-between gap-2 sm:flex-row sm:justify-between sm:gap-1">
+			<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 				<!-- Edit Modal Button -->
-				<button class="gradient-secondary btn text-white md:w-auto" on:click={modalUserForm}>
+				<button class="gradient-secondary btn w-full max-w-sm text-white" on:click={modalUserForm}>
 					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{$LL.USER_Edit()}:
 				</button>
+
 				<!-- Delete Modal Button -->
 				{#if !isFirstUser}
-					<button on:click={modalConfirm} class="gradient-error btn text-white">
+					<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
 						<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
 						{$LL.USER_Delete()}
 					</button>

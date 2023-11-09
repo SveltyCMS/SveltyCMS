@@ -84,7 +84,7 @@
 			})
 		);
 
-		console.log(tableData);
+		//console.log(tableData);
 
 		const storedValue = localStorage.getItem(`TanstackConfiguration-${$collection.name}`);
 		const columns = storedValue ? JSON.parse(storedValue) : defaultColumns;

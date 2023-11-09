@@ -15,6 +15,7 @@
 	// typesafe-i18n
 	import LL from '@src/i18n/i18n-svelte';
 	import { invalidateAll } from '$app/navigation';
+	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 
 	// Lucia
 	const user = $page.data.user;
@@ -91,24 +92,15 @@
 		<!-- Username field -->
 		<div class="group relative z-0 mb-6 w-full">
 			<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-			<input
-				bind:value={formData.username}
-				on:keydown={() => (errorStatus.username.status = false)}
-				color={errorStatus.username.status ? 'red' : 'base'}
+			<FloatingInput
 				type="text"
 				name="username"
-				class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-				placeholder=" "
+				label={$LL.LOGIN_Username()}
+				bind:value={formData.username}
+				on:keydown={() => (errorStatus.username.status = false)}
 				required
 				disabled={isGivenData && userId != user?.userId}
 			/>
-			<label
-				for="username"
-				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-			>
-				{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
-			</label>
-
 			{#if !errorStatus.username.status}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
 					{errorStatus.username.msg}
@@ -121,23 +113,15 @@
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-				<input
-					bind:value={formData.email}
-					on:keydown={() => (errorStatus.email.status = false)}
-					color={errorStatus.email.status ? 'red' : 'base'}
+				<FloatingInput
 					type="email"
 					name="email"
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
+					label={$LL.LOGIN_EmailAddress()}
+					bind:value={formData.email}
+					on:keydown={() => (errorStatus.email.status = false)}
 					required
 					disabled
 				/>
-				<label
-					for="email"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-				>
-					{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span>
-				</label>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.email.msg}
@@ -148,21 +132,16 @@
 			<!-- only show email but normal user cant change it -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
-				<input
+				<FloatingInput
+					type="email"
+					name="email"
+					label="Email Cannot be changed"
 					bind:value={formData.email}
 					on:keydown={() => (errorStatus.email.status = false)}
-					color={errorStatus.email.status ? 'red' : 'base'}
-					type="email"
-					name="email "
-					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-					placeholder=" "
+					icon="mdi:email"
+					iconColor="white"
+					textColor="white"
 				/>
-				<label
-					for="email"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-red-400 peer-focus:dark:text-tertiary-500"
-				>
-					Email Cannot be changed<span class="ml-2 text-error-500">*</span>
-				</label>
 				{#if errorStatus.email.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
 						{errorStatus.email.msg}
@@ -175,35 +154,26 @@
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
 				{#if showPassword}
-					<input
-						bind:value={formData.password}
-						on:keydown={() => (errorStatus.password.status = false)}
-						color={errorStatus.password.status ? 'red' : 'base'}
+					<FloatingInput
 						type="text"
 						name="password"
-						autocomplete="current-password"
 						id="password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-						placeholder=" "
-						required
-					/>{:else}
-					<input
+						label={$LL.USER_NewPassword()}
 						bind:value={formData.password}
 						on:keydown={() => (errorStatus.password.status = false)}
-						color={errorStatus.password.status ? 'red' : 'base'}
+						autocomplete="current-password"
+						required
+					/>{:else}
+					<FloatingInput
 						type="password"
 						name="password"
+						label={$LL.USER_NewPassword()}
 						autocomplete="current-password"
 						id="password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-						placeholder=" "
+						bind:value={formData.password}
+						on:keydown={() => (errorStatus.password.status = false)}
 						required
 					/>{/if}
-				<label
-					for="password"
-					class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-					>{$LL.USER_NewPassword()}<span class="ml-2 text-error-500">*</span></label
-				>
 
 				<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
 					{#if showPassword}
@@ -225,38 +195,26 @@
 				<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
 
 				{#if showPassword}
-					<input
-						bind:value={formData.confirmPassword}
-						on:keydown={() => (errorStatus.confirm.status = false)}
-						color={errorStatus.confirm.status ? 'red' : 'base'}
+					<FloatingInput
 						type="text"
 						name="confirm_password"
 						id="confirm_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-						placeholder=" "
-						required
-					/><label
-						for="confirm_password"
-						class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-					>
-				{:else}
-					<input
+						label={$LL.LOGIN_ConfirmPassword()}
 						bind:value={formData.confirmPassword}
 						on:keydown={() => (errorStatus.confirm.status = false)}
-						color={errorStatus.confirm.status ? 'red' : 'base'}
+						required
+					/>
+				{:else}
+					<FloatingInput
 						type="password"
 						name="confirm_password"
 						id="confirm_password"
-						class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
-						placeholder=" "
+						label={$LL.LOGIN_ConfirmPassword()}
+						bind:value={formData.confirmPassword}
+						on:keydown={() => (errorStatus.confirm.status = false)}
 						required
 					/>
-					<label
-						for="confirm_password"
-						class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm text-surface-500 duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
-						>{$LL.LOGIN_ConfirmPassword()}<span class="ml-2 text-error-500">*</span></label
-					>{/if}
+				{/if}
 
 				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
@@ -277,10 +235,10 @@
 
 		<!-- admin area -->
 		{#if user?.role == roles.admin && !isFirstUser}
-			<div class="flex flex-col gap-2 sm:flex-row" >
+			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserEdit_Role()}</div>
 				<div class="flex-auto">
-					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start" >
+					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}
 							<span
 								class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"

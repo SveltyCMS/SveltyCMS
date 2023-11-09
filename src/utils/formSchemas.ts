@@ -89,9 +89,13 @@ export const signUpOAuthFormSchema = z.object({
 
 // Validate New User Token ------------------------------------
 export const addUserTokenSchema = z.object({
-	email: z.string({ required_error: get(LL).LOGIN_ZOD_Email_string() }).email({ message: get(LL).LOGIN_ZOD_Email_email() }),
+	email: z
+		.string({ required_error: get(LL).LOGIN_ZOD_Email_string() })
+		.email({ message: get(LL).LOGIN_ZOD_Email_email() })
+		.transform((value) => value.toLowerCase()), // Convert email to lowercase before validation
 	role: z.string(),
-	expiresIn: z.string()
+	expiresIn: z.string(),
+	expiresInLabel: z.string()
 });
 
 // Change Password ------------------------------------

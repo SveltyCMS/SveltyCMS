@@ -9,9 +9,11 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
+
 	export let data: PageData;
 	//console.log(data);
 
@@ -34,6 +36,18 @@
 			// Pass arbitrary data to the component
 			response: (r: any) => {
 				if (r) console.log('response:', r);
+
+				// Trigger the toast
+				const t = {
+					message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Send',
+					// Provide any utility or variant background style:
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				return;
 			}
 		};
 		modalStore.trigger(d);
@@ -190,8 +204,7 @@
 
 			<button on:click={toggleUserToken} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
-				{showUsertoken ? $LL.USER_AdminArea_ShowToken() :  $LL.USER_AdminArea_TokenCollapse()}  
-				
+				{showUsertoken ? $LL.USER_AdminArea_ShowToken() : $LL.USER_AdminArea_TokenCollapse()}
 			</button>
 		{/if}
 

@@ -4,11 +4,7 @@ import Toggles from '@src/components/system/inputs/Toggles.svelte';
 import { getFieldName } from '@src/utils/utils';
 import widgets from '@src/components/widgets';
 
-import type DefaultWidgets from '@src/components/widgets';
 import IconifyPicker from '@src/components/IconifyPicker.svelte';
-
-interface Widgets extends Array<ReturnType<(typeof DefaultWidgets)[keyof typeof DefaultWidgets]>> {}
-type Widgets2 = Widgets[];
 
 // Define the widget Parameters
 export type Params = {
@@ -21,10 +17,8 @@ export type Params = {
 	icon?: string;
 
 	// Widget Specific parameters
-	imageUploadTitle: string;
-	fields: Widgets2;
+	fields: any;
 	required?: boolean;
-
 	uploader_label: string;
 	uploader_display?: DISPLAY;
 	uploader_db_fieldName?: string;
@@ -36,15 +30,16 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
-	// widget?: any;
 	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 
 	// Widget Specific parameters
-	imageUploadTitle: { widget: Input, required: false },
+	uploader_path: { widget: Input, required: true },
+	uploader_label: { widget: Input, required: true },
 	required: { widget: Toggles, required: false }
 };
 
+// Define the GraphqlSchema function
 export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 	let fieldTypes = '';
 	for (const _field of field.fields) {

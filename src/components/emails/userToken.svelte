@@ -22,20 +22,14 @@
 		role?: string;
 		token?: string;
 		expiresIn?: string;
+		expiresInLabel?: string;
 	}
 	export let email: EmailProps['email'];
 	// export let sitename: EmailProps['sitename'];
 	export let role: EmailProps['role'];
 	export let token: EmailProps['token'];
-	export let expiresIn: EmailProps['expiresIn'];
+	export let expiresInLabel: EmailProps['expiresInLabel'];
 	export let tokenLink = `${dev ? HOST_DEV : HOST_PROD}/login?regToken=${token}`;
-	console.log(email, role, token, expiresIn, tokenLink);
-
-	let currentTime = new Date();
-	let expirationTime = expiresIn ? new Date(expiresIn) : new Date();
-	let timeDiff = currentTime.getTime() - expirationTime.getTime();
-	let hoursDiff = Math.floor(timeDiff / (1000 * 60 * 60));
-	let readable_expires_at = `${hoursDiff} hours`;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -153,7 +147,7 @@
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{role}</span></Text>
-					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{readable_expires_at}</span></Text>
+					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{expiresInLabel}</span></Text>
 				</Column>
 			</Section>
 

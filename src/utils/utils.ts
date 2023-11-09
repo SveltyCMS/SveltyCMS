@@ -269,24 +269,17 @@ export const fieldsToSchema = (fields: Array<any>) => {
 };
 
 // Finds documents in collection that match query
-export async function find(query: object, collection: Schema) {
-	if (!collection) return;
+export async function find(query: object, collectionName: string) {
+	if (!collectionName) return;
 	const _query = JSON.stringify(query);
-	return (await axios.get(`/api/find?collection=${collection.name}&query=${_query}`)).data;
+	return (await axios.get(`/api/find?collection=${collectionName}&query=${_query}`)).data;
 }
 
 // Finds document in collection with specified ID
-export async function findById(id: string, collection: Schema) {
-	if (!id || !collection) return;
-	return (await axios.get(`/api/find?collection=${collection.name}&id=${id}`)).data;
+export async function findById(id: string, collectionName: string) {
+	if (!id || !collectionName) return;
+	return (await axios.get(`/api/find?collection=${collectionName}&id=${id}`)).data;
 }
-
-// Returns field's database field name or label
-// export function getFieldName(field: any) {
-// 	const dbFieldName = field && field.db_fieldName;
-// 	const label = field && field.label;
-// 	return (dbFieldName || label)?.replace(/\s/g, '_') as string;
-// }
 
 // Returns field's database field name or label
 export function getFieldName(field: any) {
@@ -298,7 +291,7 @@ export const SIZES = { ...env_sizes, original: 0, thumbnail: 320 } as const;
 
 //Save Collections data to database
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
-	console.log('saveFormData was called');
+	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);

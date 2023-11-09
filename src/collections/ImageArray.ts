@@ -18,9 +18,7 @@ const schema: Schema = {
 			label: 'ImageArray',
 			uploader_path: 'images',
 			uploader_label: 'image',
-			imageUploadTitle: 'image',
 
-			
 			fields: [
 				widgets.Text({
 					label: 'title',
@@ -38,5 +36,3 @@ const schema: Schema = {
 	]
 };
 export default schema;
-
-

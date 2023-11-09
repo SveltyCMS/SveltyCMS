@@ -1,12 +1,11 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { entryData, mode } from '@src/stores/store';
+	import { entryData, mode, contentLanguage, collection, collections } from '@src/stores/store';
 	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
 	import DropDown from './DropDown.svelte';
 	import Fields from '@src/components/Fields.svelte';
-	import { contentLanguage, collection } from '@src/stores/store';
 
-	export let field: FieldType;
+	export let field: FieldType | undefined;
 	let fieldName = getFieldName(field);
 	export const value = $entryData[fieldName];
 	export let expanded = false;
@@ -16,27 +15,19 @@
 	let fieldsData = {};
 	let showDropDown = false;
 	let entryMode: 'create' | 'edit' | 'choose' = 'choose';
-	let relation_entry: { _id: any };
+	let relation_entry: any;
+	let relationCollection = $collections.find((x) => x.name == field?.relation);
 
 	export const WidgetData = async () => {
 		let relation_id = '';
 		if (!field) return;
 		if (entryMode == 'create') {
-			relation_id = (
-				await saveFormData({ data: fieldsData, _collection: field.relation, _mode: 'create' })
-			)[0]?._id;
-			//console.log(relation_id);
+			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' }))[0]?._id;
+			console.log(relation_id);
 		} else if (entryMode == 'choose') {
 			relation_id = selected?._id;
 		} else if (entryMode == 'edit') {
-			relation_id = (
-				await saveFormData({
-					data: fieldsData,
-					_collection: field.relation,
-					_mode: 'edit',
-					id: relation_entry._id
-				})
-			)[0]?._id;
+			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'edit', id: relation_entry._id }))[0]?._id;
 		}
 		return relation_id;
 	};
@@ -62,18 +53,12 @@
 		} else {
 			data = await extractData(fieldsData);
 		}
-		display = await field?.display({
-			data,
-			field,
-			collection: $collection,
-			entry: $entryData,
-			contentLanguage: $contentLanguage
-		});
+		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
 	})(expanded);
 </script>
 
 {#if !expanded && !showDropDown}
-	<div class="flex mt-2 gap-2">
+	<div class="mt-2 flex gap-2">
 		<button class="variant-outline-primary rounded px-2" type="button" on:keydown on:click={openDropDown}
 			>{selected?.display || display || 'Select New Relation'}</button
 		>
@@ -107,12 +92,7 @@
 {:else if !expanded && showDropDown}
 	<DropDown {dropDownData} {field} bind:selected bind:showDropDown />
 {:else}
-	<Fields
-		fields={field?.relation.fields}
-		root={false}
-		bind:fieldsData
-		customData={relation_entry}
-	/>
+	<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
 
 	<button type="button" on:click={() => (expanded = false)} class="variant-filled-primary btn">
 		<iconify-icon icon="material-symbols:save" width="24" />Save

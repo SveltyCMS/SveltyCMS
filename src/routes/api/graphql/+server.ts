@@ -1,4 +1,4 @@
-// yoga
+// Graphql Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -13,7 +13,7 @@ let typeDefs = /* GraphQL */ ``;
 const types = new Set();
 
 // Initialize an empty resolvers object
-const resolvers: { [key: string]: any } = {
+let resolvers: { [key: string]: any } = {
 	Query: {}
 };
 
@@ -22,58 +22,57 @@ const collections = await getCollections();
 
 for (const collection of collections) {
 	resolvers[collection.name as string] = {};
-
-	// this is the same for all data
-	const collectionSchema = `
+	// Default same for all Content
+	let collectionSchema = `
 	type ${collection.name} {
 		_id: String
 		createdAt: Float
 		updatedAt: Float
-		
 	`;
-	// console.log('collection.name: ', collection.name);
-	//for (const field of collection.fields) {
-	// 	const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field).replaceAll(' ', '_'), collection });
-	// 	if (schema.resolver) {
-	// 		resolvers = deepmerge(resolvers, schema.resolver);
-	// 	}
-	// 	if (schema && schema.graphql) {
-	// 		const _types = schema.graphql.split(/(?=type.*?{)/);
-	// 		for (const type of _types) {
-	// 			types.add(type);
-	// 		}
-	// 		if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
-	// 			// for helper widgets which extract its fields and does not exist in db itself like imagearray
-	// 			const _fields = field.fields;
-	// 			for (const _field of _fields) {
-	// 				collectionSchema += `${getFieldName(_field).replaceAll(' ', '_')}: ${widgets[_field.widget.key].GraphqlSchema?.({
-	// 					field: _field,
-	// 					label: getFieldName(_field).replaceAll(' ', '_'),
-	// 					collection
-	// 				}).typeName}\n`;
-	// 				console.log("collectionSchema:", collectionSchema);
-	// 				resolvers[collection.name as string] = deepmerge(
-	// 					{
-	// 						[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {
-	// 							return parent[getFieldName(_field)];
-	// 						}
-	// 					},
-	// 					resolvers[collection.name as string]
-	// 				);
-	// 			}
-	// 		} else {
-	// 			collectionSchema += `${getFieldName(field).replaceAll(' ', '_')}: ${schema.typeName}\n`;
-	// 			resolvers[collection.name as string] = deepmerge(
-	// 				{
-	// 					[getFieldName(field).replaceAll(' ', '_')]: (parent) => {
-	// 						return parent[getFieldName(field)];
-	// 					}
-	// 				},
-	// 				resolvers[collection.name as string]
-	// 			);
-	// 		}
-	// 	}
-	//}
+	for (const field of collection.fields) {
+		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field).replaceAll(' ', '_'), collection });
+		if (schema.resolver) {
+			resolvers = deepmerge(resolvers, schema.resolver);
+		}
+		if (schema) {
+			const _types = schema.graphql.split(/(?=type.*?{)/);
+			for (const type of _types) {
+				types.add(type);
+			}
+			if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
+				// for helper widgets which extract its fields and does not exist in db itself like imagearray
+				const _fields = field.fields;
+				for (const _field of _fields) {
+					collectionSchema += `${getFieldName(_field).replaceAll(' ', '_')}: ${widgets[_field.widget.key].GraphqlSchema?.({
+						field: _field,
+						label: getFieldName(_field).replaceAll(' ', '_'),
+						collection
+					}).typeName}\n`;
+					console.log('---------------------------');
+					console.log(collectionSchema);
+					resolvers[collection.name as string] = deepmerge(
+						{
+							[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {
+								return parent[getFieldName(_field)];
+							}
+						},
+						resolvers[collection.name as string]
+					);
+				}
+			} else {
+				collectionSchema += `${getFieldName(field).replaceAll(' ', '_')}: ${schema.typeName}\n`;
+
+				resolvers[collection.name as string] = deepmerge(
+					{
+						[getFieldName(field).replaceAll(' ', '_')]: (parent) => {
+							return parent[getFieldName(field)];
+						}
+					},
+					resolvers[collection.name as string]
+				);
+			}
+		}
+	}
 	collectionSchemas.push(collectionSchema + '}\n');
 }
 
@@ -103,7 +102,7 @@ const yogaApp = createYoga<RequestEvent>({
 		typeDefs,
 		resolvers
 	}),
-	// Define the GraphQL endpoint
+	// Define explicitly the GraphQL endpoint
 	graphqlEndpoint: '/api/graphql',
 	// Use SvelteKit's Response object
 	fetchAPI: globalThis
