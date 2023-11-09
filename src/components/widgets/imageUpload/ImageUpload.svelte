@@ -58,8 +58,12 @@
 		// All files processed, set loading progress to 100%
 		loadingProgress.set(100);
 	}
+
 	onMount(() => {
-		if ($mode === 'edit') {
+		//TODO: Display thumbnail but load original image data
+		//TODO: MineType is not obtained
+
+		if ($mode === 'edit' && $entryData[fieldName]) {
 			console.log('mode edit:', $mode);
 			console.log('entryData:', $entryData[fieldName]);
 			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
@@ -83,7 +87,7 @@
 	>
 	<svelte:fragment slot="message">
 		{#if !_data}<span class="font-bold text-primary-500">Upload a Image</span> or drag & drop
-		{:else}<span class="font-bold text-primary-500">Replace {_data[0].name}</span> or drag & drop
+		{:else}<span class="font-bold text-primary-500">Replace Image</span> or drag & drop
 		{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="meta">
@@ -121,8 +125,6 @@
 						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
 						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
 					{:else if optimizedFileName}
-						<!-- display optimized on mode edit -->
-
 						<!-- Display optimized status once the WebP/AVIF file is generated -->
 						<p>File Name: <span class="text-primary-500">{optimizedFileName}</span></p>
 						<p>

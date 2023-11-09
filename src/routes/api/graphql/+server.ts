@@ -13,7 +13,7 @@ let typeDefs = /* GraphQL */ ``;
 const types = new Set();
 
 // Initialize an empty resolvers object
-let resolvers: { [key: string]: any } = {
+const resolvers: { [key: string]: any } = {
 	Query: {}
 };
 
@@ -22,21 +22,17 @@ const collections = await getCollections();
 
 for (const collection of collections) {
 	resolvers[collection.name as string] = {};
-	let collectionSchema = `
+
+	// this is the same for all data
+	const collectionSchema = `
 	type ${collection.name} {
 		_id: String
 		createdAt: Float
 		updatedAt: Float
-		permissions: String
-		name: String
-		icon: String
-		slug: String
-		fields: [String]
-		strict: Boolean
-		status: String
+		
 	`;
 	// console.log('collection.name: ', collection.name);
-	// for (const field of collection.fields) {
+	//for (const field of collection.fields) {
 	// 	const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field).replaceAll(' ', '_'), collection });
 	// 	if (schema.resolver) {
 	// 		resolvers = deepmerge(resolvers, schema.resolver);
@@ -55,9 +51,7 @@ for (const collection of collections) {
 	// 					label: getFieldName(_field).replaceAll(' ', '_'),
 	// 					collection
 	// 				}).typeName}\n`;
-
 	// 				console.log("collectionSchema:", collectionSchema);
-
 	// 				resolvers[collection.name as string] = deepmerge(
 	// 					{
 	// 						[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {
@@ -69,7 +63,6 @@ for (const collection of collections) {
 	// 			}
 	// 		} else {
 	// 			collectionSchema += `${getFieldName(field).replaceAll(' ', '_')}: ${schema.typeName}\n`;
-
 	// 			resolvers[collection.name as string] = deepmerge(
 	// 				{
 	// 					[getFieldName(field).replaceAll(' ', '_')]: (parent) => {
@@ -80,7 +73,7 @@ for (const collection of collections) {
 	// 			);
 	// 		}
 	// 	}
-	// }
+	//}
 	collectionSchemas.push(collectionSchema + '}\n');
 }
 

@@ -13,6 +13,7 @@
 		collection,
 		collectionValue,
 		mode,
+		modifyEntry,
 		defaultContentLanguage,
 		handleSidebarToggle,
 		screenWidth,
@@ -190,6 +191,7 @@
 	import { get } from 'svelte/store';
 	import type { Schema } from '@src/collections/types';
 	import Loading from '@src/components/Loading.svelte';
+	import MultibuttonToken from './user/components/MultibuttonToken.svelte';
 
 	let dates = { created: '', updated: '', revision: '' };
 
@@ -238,7 +240,6 @@
 <!-- <div>
 	Mode <span class="font-bold text-primary-500">{$mode}</span>
 </div> -->
-
 <!-- TODO: Fix Right And mobile Version of sidebars -->
 <!-- <div
 	class="flex flex-wrap justify-center
@@ -247,6 +248,10 @@
 	<div class="mx-2 flex flex-col items-center">
 		Mode
 		<div class="font-bold text-primary-500">{$mode}</div>
+	</div>
+	<div class="mx-2 flex flex-col items-center">
+		ModifyEntry
+		<div class="font-bold text-primary-500">{$modifyEntry}</div>
 	</div>
 	<div class="mx-2 flex flex-col items-center">
 		screenWidth
@@ -272,7 +277,7 @@
 		togglePageFooter
 		<div class="font-bold text-primary-500">{$togglePageFooter}</div>
 	</div>
-	<div class="mx-2 flex flex-col items-center">
+		<div class="mx-2 flex flex-col items-center">
 		storeListboxValue
 		<div class="font-bold text-primary-500">{$storeListboxValue}</div>
 	</div>
@@ -454,7 +459,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								on:click={signOut}
 								type="submit"
 								value="Sign out"
-								class="btn-icon hover:bg-surface-500 hover:text-white">
+								class="btn-icon hover:bg-surface-500 hover:text-white"
+							>
 								<iconify-icon icon="uil:signout" width="26" />
 							</button>
 

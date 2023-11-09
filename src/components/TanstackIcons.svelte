@@ -4,19 +4,11 @@
 
 	const dispatch = createEventDispatcher();
 
-	export let iconMode = 'cross';
 	export let checked = false;
-	// export let rowId;
-
-	//console.log('checked in TanstackIcons:', checked);
-	//console.log('storeListboxValue in TanstackIcons:', $storeListboxValue);
 
 	function handleIconClick() {
 		checked = !checked;
 		dispatch('iconClick');
-
-		// Dispatch a custom event with the row ID and selection status
-		// dispatch('rowSelect', { rowId, selected: checked });
 
 		// Update storeListboxValue based on current value and desired behavior
 		if ($storeListboxValue === 'create') {
@@ -30,7 +22,7 @@
 	on:keydown
 	on:click|stopPropagation={handleIconClick}
 >
-	{#if checked && iconMode === 'cross'}
+	{#if checked && $storeListboxValue === 'delete'}
 		<!--Red Cross icon 3d-->
 		<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 224 224">
 			<mask id="a" width="224" height="224" x="0" y="0" maskUnits="userSpaceOnUse" style="mask-type:alpha">
@@ -96,7 +88,18 @@
 				</linearGradient>
 			</defs>
 		</svg>
-	{:else if checked && iconMode === 'tick'}
+	{:else if checked && $storeListboxValue === 'test'}
+		<!-- Yellow Exclamation  icon 3d -->
+		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50">
+			<!-- Yellow triangle -->
+			<polygon points="25,5 45,40 5,40" style="fill:yellow;stroke:black;stroke-width:1" />
+			<!-- Black exclamation mark -->
+			<line x1="25" y1="15" x2="25" y2="30" style="stroke:black;stroke-width:2" />
+			<circle cx="25" cy="35" r="2" style="fill:black" />
+			<!-- Shadow for 3D effect -->
+			<polygon points="27,7 47,42 7,42" style="fill:rgba(0,0,0,0.1)" />
+		</svg>
+	{:else if checked && $storeListboxValue !== 'delete' && $storeListboxValue !== 'test'}
 		<!--Green Check icon 3d-->
 		<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
 			<defs>

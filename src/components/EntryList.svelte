@@ -1,15 +1,5 @@
 <script lang="ts">
-	import {
-		contentLanguage,
-		categories,
-		collection,
-		mode,
-		entryData,
-		modifyEntry,
-		handleSidebarToggle,
-		toggleLeftSidebar,
-		storeListboxValue
-	} from '@src/stores/store';
+	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@src/stores/store';
 
 	import axios from 'axios';
 	import { writable } from 'svelte/store';
@@ -262,7 +252,7 @@
 	}
 
 	// Tick Row - modify STATUS of an Entry
-	$modifyEntry = async (status: 'Delete' | 'Publish' | 'Unpublish' | 'Schedule' | 'Clone') => {
+	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => {
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 
@@ -280,11 +270,12 @@
 
 		// Define a map from input status to output status
 		let statusMap = {
-			Delete: 'Deleted',
-			Publish: 'Published',
-			Unpublish: 'Unpublished',
-			Schedule: 'Scheduled',
-			Clone: 'Cloned'
+			delete: 'deleted',
+			publish: 'published',
+			unpublish: 'unpublished',
+			schedule: 'scheduled',
+			clone: 'cloned',
+			test: 'testing'
 		};
 
 		// Append the IDs of the items to be modified to formData
@@ -295,15 +286,21 @@
 
 		// Use the status to determine which API endpoint to call and what HTTP method to use
 		switch (status) {
-			case 'Delete':
+			case 'delete':
 				// If the status is 'Delete', call the delete endpoint
 				await axios.delete(`/api/${$collection.name}`, { data: formData });
 				break;
-			case 'Publish':
-			case 'Unpublish':
-			case 'Schedule':
-			case 'Clone':
-				// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
+			case 'publish':
+			case 'unpublish':
+			case 'clone':
+				await axios.post(`/api/${$collection.name}/clone`, formData);
+				break;
+			case 'schedule':
+				await axios.post(`/api/${$collection.name}/schedule`, formData);
+				break;
+
+			case 'test':
+				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 		}

@@ -3,7 +3,7 @@
 	import LL from '@src/i18n/i18n-svelte';
 
 	import { createEventDispatcher } from 'svelte';
-	import { mode, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
+	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
 	import { get } from 'svelte/store';
 
 	const dispatch = createEventDispatcher();
@@ -12,20 +12,25 @@
 	let { actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue);
 
 	function handleButtonClick() {
-		mode.set($storeListboxValue);
+		if ($storeListboxValue === 'create') {
+			mode.set('create');
+		} else {
+			$modifyEntry($storeListboxValue);
+		}
+
 		dispatch($storeListboxValue);
 		dropdownOpen = false;
+
 		if (get(screenWidth) === 'mobile') {
 			toggleLeftSidebar.clickBack();
 		}
 
-		// Automatically switch the correct sidebar
 		handleSidebarToggle();
 	}
 
-	function handleOptionClick(value) {
+	function handleOptionClick(value: any) {
 		storeListboxValue.set(value);
-		//console.log('storeListboxValue:', $storeListboxValue);
+		console.log('storeListboxValue:', $storeListboxValue);
 
 		({ actionname, buttonClass, iconValue } = getButtonAndIconValues($storeListboxValue));
 		dropdownOpen = false;
@@ -67,6 +72,11 @@
 				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
+			case 'test':
+				actionname = 'testing';
+				buttonClass = 'gradient-error';
+				iconValue = 'icon-park-outline:preview-open';
+				break;
 			default:
 				actionname = '';
 				buttonClass = '';
@@ -96,7 +106,6 @@
 		type="button"
 		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-[135px] ${buttonClass}`}
 		on:click|preventDefault={handleButtonClick}
-		on:click={() => mode.set($storeListboxValue)}
 	>
 		<span class="flex items-center">
 			<iconify-icon icon={iconValue} width="24" />
@@ -124,7 +133,6 @@
 						type="button"
 						class="gradient-primary-hover gradient-primary-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('create')}
-						on:click={() => mode.set('create')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="ic:round-plus" width="24" />
@@ -140,7 +148,6 @@
 						type="button"
 						class="gradient-tertiary-hover gradient-tertiary-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('publish')}
-						on:click={() => mode.set('publish')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -156,7 +163,6 @@
 						type="button"
 						class="gradient-yellow-hover gradient-yellow-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('unpublish')}
-						on:click={() => mode.set('unpublish')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:pause-circle" width="24" />
@@ -172,7 +178,6 @@
 						type="button"
 						class="gradient-pink-hover gradient-pink-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('schedule')}
-						on:click={() => mode.set('schedule')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clock" width="24" />
@@ -188,7 +193,6 @@
 						type="button"
 						class="gradient-secondary-hover gradient-secondary-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('clone')}
-						on:click={() => mode.set('clone')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clipboard-data-fill" width="24" />
@@ -204,11 +208,25 @@
 						type="button"
 						class="gradient-error-hover gradient-error-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('delete')}
-						on:click={() => mode.set('delete')}
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:trash3-fill" width="24" />
 							<span class="ml-2">Delete</span>
+						</span>
+					</button>
+				</li>
+			{/if}
+
+			{#if $storeListboxValue !== 'test'}
+				<li>
+					<button
+						type="button"
+						class="w-full px-4 py-2 text-left hover:text-error-500 focus:outline-none"
+						on:click|preventDefault={() => handleOptionClick('test')}
+					>
+						<span class="flex items-center">
+							<iconify-icon icon="icon-park-outline:preview-open" width="24" />
+							<span class="ml-2">Testing</span>
 						</span>
 					</button>
 				</li>

@@ -282,6 +282,13 @@ export async function findById(id: string, collection: Schema) {
 }
 
 // Returns field's database field name or label
+// export function getFieldName(field: any) {
+// 	const dbFieldName = field && field.db_fieldName;
+// 	const label = field && field.label;
+// 	return (dbFieldName || label)?.replace(/\s/g, '_') as string;
+// }
+
+// Returns field's database field name or label
 export function getFieldName(field: any) {
 	return (field?.db_fieldName || field?.label) as string;
 }
@@ -307,47 +314,6 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 			formData.append('_id', id || $entryData._id);
 			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
 	}
-}
-
-// Clone FormData to database
-export async function cloneData(data) {
-	const $collection = get(collection);
-	const formData = data instanceof FormData ? data : await col2formData(data);
-	if (!formData) return;
-	await fetch(`/api/${$collection.name}`, {
-		method: 'POST',
-		body: formData
-	});
-}
-
-// Publish FormData to database
-export async function publishData(id) {
-	const $collection = get(collection);
-	await fetch(`/api/${$collection.name}/${id}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ published: true })
-	});
-}
-
-// Unpublish FormData to database
-export async function unpublishData(id) {
-	const $collection = get(collection);
-	await fetch(`/api/${$collection.name}/${id}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ published: false })
-	});
-}
-
-// Schedule FormData to database
-export async function scheduleData(id, date) {
-	const $collection = get(collection);
-	await fetch(`/api/${$collection.name}/${id}`, {
-		method: 'PATCH',
-		headers: { 'Content-Type': 'application/json' },
-		body: JSON.stringify({ publishDate: date })
-	});
 }
 
 // Delete FormData

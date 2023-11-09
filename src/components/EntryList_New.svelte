@@ -1,15 +1,5 @@
 <script lang="ts">
-	import {
-		contentLanguage,
-		categories,
-		collection,
-		mode,
-		entryData,
-		modifyEntry,
-		handleSidebarToggle,
-		toggleLeftSidebar,
-		storeListboxValue
-	} from '@src/stores/store';
+	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@src/stores/store';
 
 	import axios from 'axios';
 
@@ -60,6 +50,70 @@
 		);
 
 		//console.log(tableData);
+	};
+
+	// Tick Row - modify STATUS of an Entry
+	let tickMap = {}; // Object to track ticked rows
+	let tickAll = false;
+
+	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => {
+		// Initialize an array to store the IDs of the items to be modified
+		let modifyList: Array<string> = [];
+
+		// Loop over the tickMap object
+		for (let item in tickMap) {
+			// If the item is ticked, add its ID to the modifyList
+			tickMap[item] && modifyList.push(tableData[item]._id);
+		}
+
+		// If no items are ticked, exit the function
+		if (modifyList.length == 0) return;
+
+		// Initialize a new FormData object
+		let formData = new FormData();
+
+		// Define a map from input status to output status
+		let statusMap = {
+			delete: 'deleted',
+			publish: 'published',
+			unpublish: 'unpublished',
+			schedule: 'scheduled',
+			clone: 'cloned',
+			test: 'testing'
+		};
+
+		// Append the IDs of the items to be modified to formData
+		formData.append('ids', JSON.stringify(modifyList));
+
+		// Append the status to formData
+		formData.append('status', statusMap[status]);
+
+		// Use the status to determine which API endpoint to call and what HTTP method to use
+		switch (status) {
+			case 'delete':
+				// If the status is 'Delete', call the delete endpoint
+				await axios.delete(`/api/${$collection.name}`, { data: formData });
+				break;
+			case 'publish':
+			case 'unpublish':
+			case 'clone':
+				await axios.post(`/api/${$collection.name}/clone`, formData);
+				break;
+			case 'schedule':
+				await axios.post(`/api/${$collection.name}/schedule`, formData);
+				break;
+
+			case 'test':
+				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
+				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
+				break;
+		}
+
+		// Refresh the collection
+		refresh($collection);
+
+		// Set the mode to 'view'
+		mode.set('view');
 	};
 </script>
 

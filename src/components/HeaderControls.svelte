@@ -4,14 +4,14 @@
 		collection,
 		categories,
 		collectionValue,
-		modifyEntry,
 		mode,
+		modifyEntry,
 		screenWidth,
 		toggleLeftSidebar,
 		handleSidebarToggle,
 		contentLanguage
 	} from '@src/stores/store';
-	import { saveFormData, cloneData, unpublishData, publishData, scheduleData } from '@src/utils/utils';
+	import { saveFormData } from '@src/utils/utils';
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
 
@@ -69,11 +69,12 @@
 				</div>
 			{/if}
 
+			<!--TODO: fix {#if $categories && $categories[0]} -->
 			{#if categories && categories[0]}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-primary-500">{$mode}:</div>
 					<div class="text-xs capitalize">
-						{categories[0].name}
+						{$categories[0].name}
 						<span class=" uppercase text-primary-500">{$collection.name}</span>
 					</div>
 				</div>
@@ -83,44 +84,40 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Check if user role has access to collection -->
-		<!-- TODO: Fix Collection Permission -->
-		{#if collection.permissions?.[user.role]?.write != false}
-			{#if $screenWidth !== 'desktop'}
-				<!-- Save Content -->
-				<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
-					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-					<span class="hidden md:block">Save</span>
-				</button>
 
-				<!-- DropDown to show more Buttons -->
-				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-				</button>
+		{#if $screenWidth !== 'desktop'}
+			<!-- Save Content -->
+			<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
+				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+				<span class="hidden md:block">Save</span>
+			</button>
 
-				<!-- Desktop -->
-				<select
-					class="variant-ghost-surface hidden rounded border-surface-500 text-white md:block"
-					bind:value={$contentLanguage}
-					on:change={handleChange}
-				>
-					{#each Object.entries(options) as [value, label]}
-						<option {value}>{label}</option>
+			<!-- DropDown to show more Buttons -->
+			<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
+			</button>
+
+			<!-- Desktop -->
+			<select
+				class="variant-ghost-surface hidden rounded border-surface-500 text-white md:block"
+				bind:value={$contentLanguage}
+				on:change={handleChange}
+			>
+				{#each Object.entries(options) as [value, label]}
+					<option {value}>{label}</option>
+				{/each}
+			</select>
+		{:else}
+			<!-- desktop -->
+
+			<!-- Select Content Language -->
+			<div class="hidden flex-col items-center justify-center md:flex">
+				<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
+					{#each Object.keys(options) as value}
+						<option {value}>{value.toUpperCase()}</option>
 					{/each}
 				</select>
-			{:else}
-				<!-- desktop -->
-
-				<!-- Select Content Language -->
-				<div class="hidden flex-col items-center justify-center md:flex">
-					<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
-						{#each Object.keys(options) as value}
-							<option {value}>{value.toUpperCase()}</option>
-						{/each}
-					</select>
-				</div>
-			{/if}
-		{:else}
-			<button class="variant-ghost-error btn break-words">No Permission</button>
+			</div>
 		{/if}
 
 		<!-- Cancel -->
@@ -130,39 +127,51 @@
 	</div>
 </header>
 
-{#if showMore && $collection.permissions?.[user?.role]?.write != false}
+{#if showMore}
 	<div class="-mx-2 mb-2 flex items-center justify-center gap-3 pt-2">
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
-			<button type="button" on:click={() => $modifyEntry('Delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
+			<button type="button" on:click={() => $modifyEntry('delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
 		</div>
 
 		<!-- Clone Content -->
 		{#if $mode == 'edit'}
-			{#if $modifyEntry('Unpublish')}
+			{#if $modifyEntry('unpublish')}
 				<div class="flex flex-col items-center justify-center">
-					<button type="button" on:click={publishData} class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon">
+					<button
+						type="button"
+						on:click={() => $modifyEntry('publish')}
+						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
+					>
 						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
 					</button>
 				</div>
 			{:else}
 				<div class="flex flex-col items-center justify-center">
-					<button type="button" on:click={unpublishData} class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon">
+					<button
+						type="button"
+						on:click={() => $modifyEntry('unpublish')}
+						class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
+					>
 						<iconify-icon icon="bi:pause-circle" width="24" />
 					</button>
 				</div>
 			{/if}
 
 			<div class="flex flex-col items-center justify-center">
-				<button type="button" on:click={scheduleData} class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon">
+				<button type="button" on:click={() => $modifyEntry('schedule')} class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon">
 					<iconify-icon icon="bi:clock" width="24" />
 				</button>
 			</div>
 
 			<div class="flex flex-col items-center justify-center">
-				<button type="button" on:click={cloneData} class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon">
+				<button
+					type="button"
+					on:click={() => $modifyEntry('clone')}
+					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
+				>
 					<iconify-icon icon="bi:clipboard-data-fill" width="24" />
 				</button>
 			</div>

@@ -49,10 +49,12 @@ export const translationStatusOpen = writable(false);
 
 // collective data of collection
 export const collectionValue: any = writable({});
-export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone'> = writable('view');
-export const modifyEntry: Writable<(status: 'Delete' | 'Publish' | 'Unpublish' | 'Schedule' | 'Clone') => any> = writable(() => {});
 export const entryData: Writable<any> = writable({});
 
+// collective crud
+export const mode: Writable<'view' | 'edit' | 'create' | 'delete'> = writable('view');
+// collective status
+export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
 // Store ListboxValue
 export const storeListboxValue: Writable<string> = writable('create');
 

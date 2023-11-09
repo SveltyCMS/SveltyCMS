@@ -171,7 +171,7 @@ export const actions: Actions = {
 
 		// Validate with Lucia
 		const username = signUpForm.data.username;
-		const email = signUpForm.data.email.toLocaleLowerCase();
+		const email = signUpForm.data.email;
 		const password = signUpForm.data.password;
 		const token = signUpForm.data.token;
 		const lang = signUpForm.data.lang;
