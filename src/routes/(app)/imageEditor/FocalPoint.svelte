@@ -1,44 +1,29 @@
 <script lang="ts">
-  import MouseHandler from './MouseHandler.svelte';
+	import MouseHandler from './MouseHandler.svelte';
 
-  // Define your props and logic for the FocalPoint.svelte component
-  export let image: string; // The image source
-  export let focalPoint: { x: number; y: number }; // The focal point coordinates
+	// Define your props for the FocalPoint.svelte component
+	export let focalPointCenter: { x: number; y: number } = { x: 0, y: 0 }; // Provide default coordinates
 
-  // Define a function to handle the drag event from the MouseHandler component
-  function handleDrag(event) {
-    console.log('Drag event handled');
+	// Define ImageSize for Overlay
+	export let CONT_WIDTH: number;
+	export let CONT_HEIGHT: number;
 
-    // Update the focal point coordinates with the event data
-    focalPoint.x = event.detail.x;
-    focalPoint.y = event.detail.y;
-  }
+	// Define a function to handle the drag event from the MouseHandler component
+	function handleMove(event: any) {
+		if (event.detail.x !== undefined && event.detail.y !== undefined) {
+			// Update the focal point coordinates with the event data
+			focalPointCenter.x = event.detail.x;
+			focalPointCenter.y = event.detail.y;
+		}
+	}
 </script>
 
-<style>
-  /* You can add any style here for your FocalPoint.svelte component */
-
-  /* Style for the focal point indicator */
-  .focal-point {
-    position: absolute;
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    border: 2px solid white;
-    transform: translate(-50%, -50%);
-  }
-</style>
-
-<div class="relative top-[5%] left-[5%] w-[90%] h-[90%] border border-white">
-  <!-- Wrap the image element inside the MouseHandler component tag -->
-  <MouseHandler on:drag={handleDrag} let:props>
-    <!-- Use the props and image source to render the image element -->
-    <img src={image} />
-
-    <!-- Use the focal point coordinates to render the focal point indicator -->
-    <div
-      class="focal-point"
-      style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}
-    ></div>
-  </MouseHandler>
+<div class="relative" style={`width: ${CONT_WIDTH}; height: ${CONT_HEIGHT};`}>
+	<!-- Wrap the image element inside the MouseHandler component tag -->
+	<MouseHandler on:move={handleMove}>
+		<!-- Use the focal point coordinates to render the focal point indicator -->
+		<div class="absolute translate-x-1/2 translate-y-1/2 text-primary-500" style={`left: ${focalPointCenter.x}px; top: ${focalPointCenter.y}px;`}>
+			<iconify-icon icon="bi:plus-circle-fill" width="30" />
+		</div>
+	</MouseHandler>
 </div>

@@ -1,36 +1,48 @@
 <script lang="ts">
 	import Blur from './Blur.svelte';
 	import Crop from './Crop.svelte';
+	import FocalPoint from './FocalPoint.svelte';
 	import Rotate from './Rotate.svelte';
 
 	export let image: File | null | undefined;
+	let CONT_WIDTH: number | undefined;
+	let CONT_HEIGHT: number | undefined;
+
 	let imageView: HTMLImageElement | undefined;
+
+	// Initialize the CROP values with default values
 	let cropping = false;
-  let aspect: number;
-  let minZoom: number;
-  let maxZoom: number;
-  let cropShape: string;
+	let cropTop = 10;
+	let cropLeft = 10;
+	let cropRight = 10;
+	let cropBottom = 10;
+	let cropCenter = 0;
+	let cropShape = 'rect'; // or 'round'
 
+	// Initialize the BLUR values with default values
 	let blurring = false;
-  let blurTop: number;
-  let blurLeft: number;
-  let blurRight: number;
-  let blurBottom: number;
+	let blurTop = 10;
+	let blurLeft = 10;
+	let blurRight = 10;
+	let blurBottom = 10;
+	let blurCenter = 10;
+	let blurAmount = 5;
+	let blurRotate = 0;
 
+	// Initialize the BLUR values with default values
 	let focalpoint = false;
+	let focalPointCenter = { x: 0, y: 0 };
+
+	// Initialize the Rotate values with default values,
 	let rotate: number = 0;
 
-	let CONT_WIDTH: string | undefined;
-	let CONT_HEIGHT: string | undefined;
-
-  // Use the use:action directive to bind the image element to the imageView variable
-	function bindImageView(node) {
+	// Use the use:action directive to bind the image element to the imageView variable
+	function bindImageView(node: any) {
 		imageView = node;
 		if (imageView) {
-
-      // Use CONT_WIDTH and CONT_HEIGHT as needed
-			CONT_WIDTH = `${imageView.naturalWidth}px`;
-			CONT_HEIGHT = `${imageView.naturalHeight}px`;			
+			// Use CONT_WIDTH and CONT_HEIGHT as needed
+			CONT_WIDTH = imageView.naturalWidth;
+			CONT_HEIGHT = imageView.naturalHeight;
 		}
 	}
 
@@ -51,10 +63,11 @@
 
 <!-- Imagebox  -->
 <h1>New imageEditor</h1>
+
 <div class="relative overflow-hidden">
 	<!-- Use the use:imageView action to bind the image element -->
 	<img
-		use:bindImageView={imageView}
+		use:bindImageView
 		src={image ? URL.createObjectURL(image) : ''}
 		alt=""
 		class="mx-auto max-h-[40vh] w-auto"
@@ -62,15 +75,18 @@
 	/>
 
 	{#if cropping || blurring || focalpoint}
-		<div class="absolute left-0 top-0 h-full w-full p-10 text-primary-500">
+		<div class="absolute left-0 top-0" style={`height: ${CONT_HEIGHT}; width: ${CONT_WIDTH};`}>
 			{#if cropping}
-				<!-- Pass the image and the crop values to the Crop component -->
-				<Crop {image}   />
-
+				<!-- Pass the image and the crop values to the Crop component  -->
+				<Crop {image} {cropTop} {cropLeft} {cropRight} {cropBottom} {cropCenter} {cropShape} />
 			{/if}
 			{#if blurring}
-				<!-- Pass the image and the blur values to the Blur component -->
-				<Blur {image} bind:blurTop bind:blurLeft bind:blurRight bind:blurBottom />
+				<!-- Pass the image and the blur values to the Blur component  -->
+				<Blur {image} {blurAmount} {blurTop} {blurLeft} {blurRight} {blurBottom} {blurCenter} {blurRotate} />
+			{/if}
+			{#if focalpoint}
+				<!-- Pass the image, the focal point coordinates, and the image dimensions to the FocalPoint component -->
+				<FocalPoint {focalPointCenter} {CONT_WIDTH} {CONT_HEIGHT} />
 			{/if}
 		</div>
 	{/if}

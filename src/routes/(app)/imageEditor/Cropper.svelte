@@ -411,13 +411,7 @@
 		box-shadow: inset 0 0 0 1px #fff;
 		z-index: 1;
 	}
-	.crop_window_handler .shadow {
-		position: absolute;
-		background: rgba(0, 0, 0, 0.5);
-		width: 1000px;
-		height: 1000px;
-		z-index: 0;
-	}
+
 	.crop_window_handler .line {
 		position: absolute;
 		background: rgba(255, 255, 255, 0.6);
@@ -480,14 +474,5 @@
 		width: 100%;
 		height: 100%;
 		position: relative;
-	}
-
-	.blur_handler .blur_corner {
-		position: absolute;
-		width: 10px;
-		height: 10px;
-		border-radius: 50%;
-		background: #fff;
-		z-index: 2;
 	}
 </style>

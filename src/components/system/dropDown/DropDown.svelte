@@ -8,9 +8,12 @@
 
 <div class="overflow-hidden">
 	<div class="mb-4 text-center">
-		{#if !expanded}
-			<p class="text-primary-500">Click to Select a widget</p>
-		{:else}{/if}
+	{#if !expanded}
+  <p class="text-primary-500">Click to Select a widget</p>
+{:else}
+  <button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
+{/if}
+
 		<button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
 	</div>
 

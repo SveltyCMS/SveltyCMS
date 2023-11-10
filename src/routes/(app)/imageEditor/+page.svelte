@@ -40,8 +40,8 @@
 <input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
-	 <Cropper bind:image />
-	 <ImageEditor bind:image />
+	<Cropper bind:image />
+	<ImageEditor bind:image />
 {:else if selectedImage}
-    <img src={selectedImage} alt="Selected Image"/>
+	<img src={selectedImage} alt="" />
 {/if}
