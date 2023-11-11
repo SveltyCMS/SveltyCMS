@@ -85,9 +85,9 @@
 				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
 			</label>
 
-			<label class="label">
+			<label class="label" for="newCategoryIcon">
 				{$LL.MODAL_Category_Icon()}
-				<IconifyPicker bind:iconselected={formData.newCategoryIcon} />
+				<IconifyPicker bind:iconselected={formData.newCategoryIcon} id="newCategoryIcon" />
 			</label>
 		</form>
 

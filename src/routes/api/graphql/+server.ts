@@ -30,7 +30,7 @@ for (const collection of collections) {
 		updatedAt: Float
 	`;
 	for (const field of collection.fields) {
-		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field).replaceAll(' ', '_'), collection });
+		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
 		if (schema.resolver) {
 			resolvers = deepmerge(resolvers, schema.resolver);
 		}
@@ -40,12 +40,12 @@ for (const collection of collections) {
 				types.add(type);
 			}
 			if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
-				// for helper widgets which extract its fields and does not exist in db itself like imagearray
+				// for helper widgets which extract its fields and does not exist in db itself like image array
 				const _fields = field.fields;
 				for (const _field of _fields) {
-					collectionSchema += `${getFieldName(_field).replaceAll(' ', '_')}: ${widgets[_field.widget.key].GraphqlSchema?.({
+					collectionSchema += `${getFieldName(_field, true)}: ${widgets[_field.widget.key].GraphqlSchema?.({
 						field: _field,
-						label: getFieldName(_field).replaceAll(' ', '_'),
+						label: getFieldName(_field, true),
 						collection
 					}).typeName}\n`;
 					console.log('---------------------------');
@@ -60,11 +60,11 @@ for (const collection of collections) {
 					);
 				}
 			} else {
-				collectionSchema += `${getFieldName(field).replaceAll(' ', '_')}: ${schema.typeName}\n`;
+				collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
 
 				resolvers[collection.name as string] = deepmerge(
 					{
-						[getFieldName(field).replaceAll(' ', '_')]: (parent) => {
+						[getFieldName(field, true)]: (parent) => {
 							return parent[getFieldName(field)];
 						}
 					},
@@ -80,7 +80,7 @@ typeDefs += Array.from(types).join('\n');
 typeDefs += collectionSchemas.join('\n');
 typeDefs += `
 type Query {
-	${collections.map((collection) => `${collection.name}: [${collection.name}]`).join('\n')}
+	${collections.map((collection: any) => `${collection.name}: [${collection.name}]`).join('\n')}
 }
 `;
 
@@ -92,7 +92,7 @@ for (const collection of collections) {
 
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () =>
-		await mongoose.models[collection.name as string].find({ status: { $ne: 'UNPUBLISHED' } }).lean();
+		await mongoose.models[collection.name as string].find({ status: { $ne: 'unpublished' } }).lean();
 }
 // console.log('resolvers.Query:', resolvers.Query);
 

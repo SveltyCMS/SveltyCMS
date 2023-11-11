@@ -29,27 +29,25 @@ export const GuiSchema = {
 };
 
 // Define the GraphqlSchema function
-export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	const menu = field.menu;
-	const typeName = `${collection.name}_${getFieldName(field)}`;
+	const typeName = `${collection.name}_${getFieldName(field, true)}`;
 	const types = new Set();
-	
 	let levelCount = 0;
-	
 	for (const level of menu) {
 		const children: Array<any> = [];
 		for (const _field of level) {
-			types.add(widgets[_field.widget.key].GraphqlSchema({ label: `${getFieldName(_field)}_Level${levelCount}`, collection }).graphql);
+			types.add(widgets[_field.widget.key].GraphqlSchema({ label: `${getFieldName(_field, true)}_Level${levelCount}`, collection }).graphql);
 			if (levelCount > 0) {
-				children.push(`${getFieldName(_field)}:${collection.name}_${getFieldName(_field)}_Level${levelCount} `);
+				children.push(`${getFieldName(_field, true)}:${collection.name}_${getFieldName(_field, true)}_Level${levelCount} `);
 			}
 		}
 		if (levelCount > 0) {
 			if (menu.length - levelCount > 1) {
-				children.push(`children:[${collection.name}_${getFieldName(field)}_Level${levelCount + 1}] `);
+				children.push(`children:[${collection.name}_${getFieldName(field, true)}_Level${levelCount + 1}] `);
 			}
 			types.add(`
-			type ${collection.name}_${getFieldName(field)}_Level${levelCount} {
+			type ${collection.name}_${getFieldName(field, true)}_Level${levelCount} {
 				${Array.from(children).join('\n')}
 			}
 			`);
@@ -63,7 +61,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
 		${Array.from(types).join('\n')}
 		type ${typeName} {
 			Header: ${collection.name}_Header_Level0
-			children: [${collection.name}_${getFieldName(field)}_Level1]
+			children: [${collection.name}_${getFieldName(field, true)}_Level1]
 		}
 	`
 	};

@@ -160,5 +160,3 @@ async function getFileSize(filePath: string): Promise<number> {
 	const fileStats = await fsPromises.stat(filePath);
 	return fileStats.size;
 }
-
-

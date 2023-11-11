@@ -13,7 +13,7 @@
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 
 	$: if (selected_widget) {
-		guiSchema = widgets[selected_widget].GuiSchema;
+		guiSchema = widgets[selected_widget]?.GuiSchema;
 	}
 	let field = { widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>

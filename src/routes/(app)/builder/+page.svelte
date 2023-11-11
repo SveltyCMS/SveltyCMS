@@ -7,9 +7,15 @@
 	import { obj2formData } from '@src/utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+
 	import PageTitle from '@src/components/PageTitle.svelte';
 
+	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';
+	let icon = $mode == 'edit' ? $collection.icon : '';
+	let status = $mode == 'edit' ? $collection.status : 'unpublish';
+	let slug = $mode == 'edit' ? $collection.slug : name;
+
 	let fields = [];
 	let addField = false;
 
@@ -17,8 +23,15 @@
 	function save() {
 		let data =
 			$mode == 'edit'
-				? obj2formData({ originalName: $collection.name, collectionName: name, fields: $collection.fields })
-				: obj2formData({ fields, collectionName: name });
+				? obj2formData({
+						originalName: $collection.name,
+						collectionName: name,
+						icon: $collection.icon,
+						status: $collection.status,
+						slug: $collection.slug,
+						fields: $collection.fields
+				  })
+				: obj2formData({ fields, collectionName: name, icon, status, slug });
 		axios.post(`?/saveCollection`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
@@ -93,15 +106,26 @@
 		</div>
 
 		{#if $mode == 'create'}
-			<!-- add collection fields -->
+			<!-- add new collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<FloatingInput label="name" name="name" bind:value={name} />
+				<p class="text-center text-xs text-error-500">Required</p>
+
+				<FloatingInput label="Name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
+				<p class="text-center text-xs text-primary-500">Optional</p>
+				<FloatingInput label="Icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
+				<FloatingInput label="Status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
+				<FloatingInput label="Slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
 				<WidgetBuilder {fields} bind:addField />
 			</div>
 		{:else if $mode == 'edit'}
-			<!-- list collection fields -->
+			<!-- edit collection fields -->
 			<div class="mt-3 bg-surface-500 p-2">
-				<FloatingInput label="name" name="name" bind:value={name} />
+				<p class="text-center text-xs text-error-500">Required</p>
+				<FloatingInput label="name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
+				<p class="text-center text-xs text-primary-500">Optional</p>
+				<FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
+				<FloatingInput label="status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
+				<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
 				<WidgetBuilder fields={$collection.fields} bind:addField />
 			</div>
 		{/if}

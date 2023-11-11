@@ -10,7 +10,7 @@
 	let currentField: any;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 	$: if (currentFieldKey) {
-		guiSchema = widgets[currentFieldKey].GuiSchema;
+		guiSchema = widgets[currentFieldKey]?.GuiSchema;
 	}
 	let destruct = (node: HTMLDivElement) => {
 		node.remove();

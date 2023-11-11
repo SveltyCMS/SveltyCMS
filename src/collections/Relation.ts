@@ -5,7 +5,7 @@ import type { Schema } from './types';
 const schema: Schema = {
 	// Collection Name comming from filename
 
-	// Optional & Icon , status, slug
+	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'mdi:relation-many-to-many',
 
@@ -16,18 +16,18 @@ const schema: Schema = {
 	fields: [
 		widgets.Relation({
 			label: 'Relation M2M to Posts',
-			db_fieldName: 'relation',
+			db_fieldName: 'relationM2MPosts',
 			relation: 'Posts',
 			display({ data, contentLanguage }) {
-				return data?.['text 2'][contentLanguage];
+				return data?.['text'][contentLanguage];
 			}
 		}),
 		widgets.Relation({
-			label: 'Relation M2M to Posts2',
-			db_fieldName: 'relation',
+			label: 'Relation M2M to Posts',
+			db_fieldName: 'relationM2MPosts2',
 			relation: 'Posts2',
 			display({ data, contentLanguage }) {
-				return data?.['text 2'][contentLanguage];
+				return data?.['text'][contentLanguage];
 			}
 		})
 	]

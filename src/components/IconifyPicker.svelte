@@ -16,8 +16,8 @@
 	let showDropdown = false;
 
 	export const icon = '';
-	export let iconselected = '';
-	export let searchQuery = '';
+	export let iconselected: string;
+	export let searchQuery: string;
 
 	// function to fetch icons from Iconify API
 	async function searchIcons(query: string, libraryCategory: string, event?: FocusEvent) {

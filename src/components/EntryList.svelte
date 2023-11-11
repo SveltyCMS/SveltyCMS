@@ -27,14 +27,8 @@
 	// Retrieve density from local storage or set to 'normal' if it doesn't exist
 	let density = localStorage.getItem('density') || 'normal';
 
-	import {
-		createSvelteTable,
-		flexRender as flexRenderBugged,
-		getCoreRowModel,
-		getSortedRowModel,
-		getPaginationRowModel
-	} from '@tanstack/svelte-table';
-	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/table-core/src/types';
+	import { createSvelteTable, flexRender as flexRenderBugged, getCoreRowModel, getSortedRowModel } from '@tanstack/svelte-table';
+	import type { TableOptions } from '@tanstack/table-core/src/types';
 
 	import FloatingInput from './system/inputs/floatingInput.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';

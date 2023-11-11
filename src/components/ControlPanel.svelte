@@ -8,6 +8,8 @@
 	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
 
 	import Toggles from './system/inputs/Toggles.svelte';
+	// let publishValue = data?.entryList[index]?.status;
+	let publishValue = 'false';
 
 	let user: User = $page.data.user;
 
@@ -60,7 +62,7 @@
 			</button>
 
 			<!-- Publish/Unpublish -->
-			<Toggles label="Publish" OnIcon="ic:baseline-check-circle" OffIcon="material-symbols:close" />
+			<Toggles label="Publish" OnIcon="ic:baseline-check-circle" OffIcon="material-symbols:close" bind:publishValue />
 
 			<!--Clone -->
 			<button

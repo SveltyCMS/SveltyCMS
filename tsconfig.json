@@ -2,18 +2,40 @@
 	"extends": "./.svelte-kit/tsconfig.json",
 
 	"compilerOptions": {
-		"allowJs": true,
-		"checkJs": true,
-		"emitDecoratorMetadata": false,
-		"esModuleInterop": true,
-		"forceConsistentCasingInFileNames": true,
-		"resolveJsonModule": true,
-		"skipLibCheck": true,
-		"noErrorTruncation": true,
-		"sourceMap": true,
-		"strict": true,
-		"target": "ES2020", // which level of JS support to target
-		"types": ["@sveltejs/kit"],
+		"moduleResolution": "bundler", // which module resolution strategy to use
+		"target": "ESNext", // which level of JS support to target
+		"module": "ESNext", // which module system to use
+
+		/**
+		 * svelte-preprocess cannot figure out whether you have
+		 * a value or a type, so tell TypeScript to enforce using
+		 * `import type` instead of `import` for Types.
+		 */
+
+		"isolatedModules": true, // use an isolated module
+		"resolveJsonModule": true, // resolve .json files
+
+		/**
+		 * To have warnings / errors of the Svelte compiler at the
+		 * correct position, enable source maps by default.
+		 */
+		"sourceMap": true, // generate source maps
+		"esModuleInterop": true, //	emit ECMAScript Module
+		"skipLibCheck": true, // skip type checking of lib files
+
+		/**
+		 * Typecheck JS in `.svelte` and `.js` files by default.
+		 * Disable this if you'd like to use dynamic types.
+		 */
+		"checkJs": true, // check javascript files
+		"allowJs": true, // allow javascript files
+		"strict": true, //enforce strict type checking
+
+		"emitDecoratorMetadata": false, //	emit decorator metadata
+		"forceConsistentCasingInFileNames": true, // force consistent casing in file names
+		"noErrorTruncation": true, // do not truncate error messages
+
+		"types": ["@sveltejs/kit"], //	add types
 		//"types": ["bun-types"],
 		"noImplicitAny": false,
 		"baseUrl": ".",
@@ -27,6 +49,10 @@
 		}
 	},
 
+	/**
+	 * Use global.d.ts instead of compilerOptions.types
+	 * to avoid limiting type declarations.
+	 */
 	"includes": ["src/**/*.ts", "src/**/*.svelte", "types/**/*.ts"],
 
 	"noUnusedLocals": true,

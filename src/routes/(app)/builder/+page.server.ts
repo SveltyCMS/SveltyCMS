@@ -34,16 +34,43 @@ export const actions: Actions = {
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
+		const collectionIcon = JSON.parse(formData.get('collectionIcon') as string);
+		const collectionStatus = JSON.parse(formData.get('collectionStatus') as string);
+		const collectionSlug = JSON.parse(formData.get('collectionSlug') as string);
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = goThrough(fields);
+
+		// Generate fields as formated string
+		const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
 
 		let content = `
 	${imports}
 	import widgets from '../components/widgets';
+	import { roles } from './types';
 	import type { Schema } from './types';
-	let schema: Schema = {
+	const schema: Schema = {
+		// Collection Name coming from filename so not needed
+
+		// Optional & Icon, status, slug
+		// See for possible Icons https://icon-sets.iconify.design/
+		icon: '${collectionIcon}',
+	    status: '${collectionStatus}',
+	    slug: '${collectionSlug}',
+
+		// Collection Permissions by user Roles
+		permissions: {
+			[roles.user]: {
+				read: true
+			},
+			[roles.admin]: {
+				write: true
+			}
+		},
+
+		// Defined Fields that are used in your Collection
+		// Widget fields can be inspected for individual options
 		fields: [
-			${fields}
+			${fieldsString}
 		]
 	};
 	export default schema;

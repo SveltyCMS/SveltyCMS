@@ -29,7 +29,7 @@ const widget = (params: Params) => {
 		display = params.display;
 	}
 
-		// Define the widget object
+	// Define the widget object
 	const widget: { type: typeof MegaMenu; key: 'MegaMenu'; GuiFields: ReturnType<typeof getGuiFields> } = {
 		type: MegaMenu,
 		key: 'MegaMenu',

@@ -6,7 +6,7 @@
 </script>
 
 <label for="toggleSwitch" class="text-dark flex cursor-pointer select-none items-center dark:text-white">
-	<label for="toggleSwitch" class="mr-3 text-primary-500">{label}</label>
+	<label for="toggleSwitch" class={`mr-3 ${value ? 'text-green-500' : 'text-red-500'}`}>{label}</label>
 
 	<div class="relative">
 		<input type="checkbox" id="toggleSwitch" class="peer sr-only" bind:checked={value} />

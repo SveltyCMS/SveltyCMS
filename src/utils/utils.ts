@@ -282,7 +282,10 @@ export async function findById(id: string, collectionName: string) {
 }
 
 // Returns field's database field name or label
-export function getFieldName(field: any) {
+export function getFieldName(field: any, sanitize = false) {
+	if (sanitize) {
+		return (field?.db_fieldName || field?.label)?.replaceAll(' ', '_');
+	}
 	return (field?.db_fieldName || field?.label) as string;
 }
 

@@ -16,7 +16,8 @@ export type Params = {
 	helper?: string;
 
 	// Widget Specific parameters
-	path: (string & {}) | 'global' | 'unique';
+	// path: (string & {}) | 'global' | 'unique';
+	path: string | 'global' | 'unique';
 	required?: boolean;
 };
 
@@ -48,7 +49,7 @@ const types = Object.keys(SIZES)
 	.join('\n');
 
 // Define the GraphqlSchema function
-export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
 	console.log(typeName);

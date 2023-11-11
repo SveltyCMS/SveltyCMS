@@ -5,7 +5,7 @@ import type { Schema } from './types';
 const schema: Schema = {
 	// Collection Name comming from filename
 
-	// Optional & Icon , status, slug
+	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:card-text',
 	slug: ' names',
