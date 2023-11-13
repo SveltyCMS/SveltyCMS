@@ -69,10 +69,13 @@
 	};
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//import LL from '@src/i18n/i18n-svelte';
 	import { locales } from '@src/i18n/i18n-util';
 	import type { Locales } from '@src/i18n/i18n-types';
 	import { setLocale } from '@src/i18n/i18n-svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
 
@@ -361,7 +364,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									</div>
 								</button>
 								<div class="card variant-filled-secondary p-4" data-popup="User">
-									{$LL.SBL_User()}
+									{m.applayoutuserprofile()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -382,7 +385,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								{/each}
 							</select>
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-								{$LL.SBL_SystemLanguage()}
+								{m.applayoutsystemlanguage()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -419,7 +422,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							</button>
 
 							<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
-								{$LL.SBL_SignOut()}
+								{m.applayoutsignout()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -439,7 +442,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								</a>
 
 								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-									{$LL.SBL_Configuration()}
+									{m.applayoutsystemconfiguration()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -452,7 +455,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									<iconify-icon icon="grommet-icons:github" width="30" />
 
 									<div class="card variant-filled-secondary p-4" data-popup="Github">
-										{$LL.SBL_GithubDiscussion()}
+										{m.applayoutgithubdiscussion()}
 										<div class="variant-filled-secondary arrow" />
 									</div>
 								</button>
@@ -463,7 +466,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-									>{#if $toggleLeftSidebar === 'full'}{$LL.SBL_Version()}{/if}{pkg}</span
+									>{#if $toggleLeftSidebar === 'full'}{m.applayoutversion()}{/if}{pkg}</span
 								>
 							</a>
 						</div>

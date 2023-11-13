@@ -26,7 +26,7 @@
 
 	// modals
 	function modalUserForm(): void {
-		if (selectedRows.length === 0) return console.log('No user selected');
+		if (selectedRows.length === 0) return console.log('No user selected2');
 		console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {

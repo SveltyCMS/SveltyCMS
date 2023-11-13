@@ -3,14 +3,11 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	// import { page } from '$app/stores';
-	// import type { User } from '@src/collections/Auth';
-
-	// const username: User = $page.data.user.username;
-
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
 	import { systemLanguage } from '@src/stores/store';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -118,10 +115,10 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>{$LL.EMAIL_UserToken_Title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={$LL.EMAIL_UserToken_Meta({ PUBLIC_SITENAME })} />
+		<title>{m.usertokentitle({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.usertokenmeta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_UserToken_Preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.usertokenpreview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -135,13 +132,13 @@
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>{$LL.EMAIL_UserToken_Access({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.usertokenaccesstoken({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
 				<Column style={label}>
-					<Text style={paragraph}>{$LL.EMAIL_UserToken_Email()}</Text>
-					<Text style={paragraph}>{$LL.EMAIL_UserToken_Token()}</Text>
-					<Text style={paragraph}>{$LL.EMAIL_UserToken_Role()}</Text>
-					<Text style={paragraph}>{$LL.EMAIL_UserToken_Valid()}</Text>
+					<Text style={paragraph}>{m.usertokenemail()}</Text>
+					<Text style={paragraph}>{m.usertokentoken()}</Text>
+					<Text style={paragraph}>{m.usertokenrole()}</Text>
+					<Text style={paragraph}>{m.usertokenvalid()}</Text>
 				</Column>
 				<Column style={variable}>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
@@ -151,12 +148,12 @@
 				</Column>
 			</Section>
 
-			<Text style={paragraph}>{$LL.EMAIL_UserToken_Press()}</Text>
+			<Text style={paragraph}>{m.usertokenbutton()}</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={tokenLink}>{$LL.EMAIL_UserToken_Button()}</Button>
+				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertokencreateuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_UserToken_Team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.usertokenteam({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

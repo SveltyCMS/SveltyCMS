@@ -6,31 +6,19 @@
 	import axios from 'axios';
 	import { goto } from '$app/navigation';
 
-	import {
-		avatarSrc,
-		contentLanguage,
-		screenWidth,
-		systemLanguage,
-		toggleLeftSidebar,
-		userPreferredState
-	} from '@src/stores/store';
+	import { avatarSrc, contentLanguage, screenWidth, systemLanguage, toggleLeftSidebar, userPreferredState } from '@src/stores/store';
 
-	import {
-		Avatar,
-		modeCurrent,
-		setModeUserPrefers,
-		popup,
-		type PopupSettings,
-		setModeCurrent
-	} from '@skeletonlabs/skeleton';
+	import { Avatar, modeCurrent, setModeUserPrefers, popup, type PopupSettings, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
 	import { locales } from '@src/i18n/i18n-util';
 	import type { Locales } from '@src/i18n/i18n-types';
 	import { setLocale } from '@src/i18n/i18n-svelte';
 	import { get } from 'svelte/store';
 	import { PUBLIC_SITENAME } from '$env/static/public';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
 	contentLanguage.set($page.params.language);
@@ -134,11 +122,7 @@
 {:else}
 	<!-- Corporate Identity Collapsed-->
 	<div class="flex justify-start gap-1.5">
-		<button
-			type="button"
-			on:click={() => toggleLeftSidebar.clickBack()}
-			class="variant-ghost-surface btn-icon mt-1"
-		>
+		<button type="button" on:click={() => toggleLeftSidebar.clickBack()} class="variant-ghost-surface btn-icon mt-1">
 			<iconify-icon icon="mingcute:menu-fill" width="24" />
 		</button>
 
@@ -179,34 +163,19 @@
 <Collections />
 
 <!-- Sidebar Left Footer -->
-<div
-	class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500"
->
+<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500">
 	<div class="mx-1 mb-1 border-t border-surface-400" />
 
 	<div
-		class="{$toggleLeftSidebar === 'full'
-			? 'grid-cols-3 grid-rows-3'
-			: 'grid-cols-2 grid-rows-2'} grid items-center justify-center overflow-hidden"
+		class="{$toggleLeftSidebar === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center overflow-hidden"
 	>
 		<!-- Avatar with user settings -->
 		<div class={$toggleLeftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
-			<button
-				class="btn-icon md:row-span-2"
-				use:popup={UserTooltip}
-				on:click={handleClick}
-				on:keypress={handleClick}
-			>
-				<button
-					on:click={handleClick}
-					on:keypress={handleClick}
-					class="relative cursor-pointer flex-col !no-underline"
-				>
+			<button class="btn-icon md:row-span-2" use:popup={UserTooltip} on:click={handleClick} on:keypress={handleClick}>
+				<button on:click={handleClick} on:keypress={handleClick} class="relative cursor-pointer flex-col !no-underline">
 					<Avatar
 						src={$avatarSrc ? $avatarSrc : '/Default_User.svg'}
-						class="mx-auto hover:bg-surface-500 hover:p-1 {$toggleLeftSidebar === 'full'
-							? 'w-[40px]'
-							: 'w-[35px]'}"
+						class="mx-auto hover:bg-surface-500 hover:p-1 {$toggleLeftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
 					/>
 					<div class="-mt-1 text-center text-[9px] uppercase text-black dark:text-white">
 						{#if $toggleLeftSidebar === 'full'}
@@ -217,7 +186,7 @@
 					</div>
 				</button>
 				<div class="card variant-filled-secondary p-4" data-popup="User">
-					{$LL.SBL_User()}
+					{m.sidebarleftuserprofile()}
 					<div class="variant-filled-secondary arrow" />
 				</div>
 			</button>
@@ -225,10 +194,7 @@
 
 		<!-- TODO: Fix Tooltip overflow -->
 		<!-- System Language i18n Handling -->
-		<div
-			class={$toggleLeftSidebar === 'full' ? 'order-3 row-span-2  ' : 'order-2'}
-			use:popup={SystemLanguageTooltip}
-		>
+		<div class={$toggleLeftSidebar === 'full' ? 'order-3 row-span-2  ' : 'order-2'} use:popup={SystemLanguageTooltip}>
 			<select
 				bind:value={selectedLocale}
 				on:change={handleLocaleChange}
@@ -241,18 +207,14 @@
 				{/each}
 			</select>
 			<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-				{$LL.SBL_SystemLanguage()}
+				{m.sidebarleftsystemlanguage()}
 				<div class="variant-filled-secondary arrow" />
 			</div>
 		</div>
 
 		<!-- light/dark mode switch -->
 		<div class="{$toggleLeftSidebar === 'full' ? 'order-2' : 'order-3'}  ">
-			<button
-				use:popup={SwitchThemeTooltip}
-				on:click={toggleTheme}
-				class="btn-icon hover:bg-surface-500 hover:text-white"
-			>
+			<button use:popup={SwitchThemeTooltip} on:click={toggleTheme} class="btn-icon hover:bg-surface-500 hover:text-white">
 				{#if !$modeCurrent}
 					<iconify-icon icon="bi:sun" width="22" />
 				{:else}
@@ -271,17 +233,12 @@
 
 		<!-- Lucia Sign Out -->
 		<div class={$toggleLeftSidebar === 'full' ? 'order-4' : 'order-4'}>
-			<button
-				use:popup={SignOutTooltip}
-				on:click={signOut}
-				type="submit"
-				value="Sign out"
-				class="btn-icon hover:bg-surface-500 hover:text-white"
+			<button use:popup={SignOutTooltip} on:click={signOut} type="submit" value="Sign out" class="btn-icon hover:bg-surface-500 hover:text-white"
 				><iconify-icon icon="uil:signout" width="26" /></button
 			>
 
 			<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
-				{$LL.SBL_SignOut()}
+				{m.sidebarleftsingout()}
 				<div class="variant-filled-secondary arrow" />
 			</div>
 		</div>
@@ -314,7 +271,7 @@
 					<iconify-icon icon="grommet-icons:github" width="30" />
 
 					<div class="card variant-filled-secondary p-4" data-popup="Github">
-						Github Discussion
+						{m.sidebarleftgithubdiscussion()}
 						<div class="variant-filled-secondary arrow" />
 					</div>
 				</button>
@@ -324,11 +281,10 @@
 		<!-- CMS Version -->
 		<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 			<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
-				<span
-					class="{$toggleLeftSidebar === 'full'
-						? 'py-1'
-						: 'py-0'} variant-filled-primary badge rounded-xl text-black hover:text-white"
-					>{#if $toggleLeftSidebar === 'full'}{$LL.SBL_Version()}{/if}{pkg}</span
+				<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} variant-filled-primary badge rounded-xl text-black hover:text-white"
+					>{#if $toggleLeftSidebar === 'full'}
+						{m.sidebarleftversion()}
+					{/if}{pkg}</span
 				>
 			</a>
 		</div>

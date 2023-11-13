@@ -4,8 +4,10 @@
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
 	import { setLocale, locale } from '@src/i18n/i18n-svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	export let username: string = '';
 	export let systemLanguage: string = '';
@@ -64,11 +66,11 @@
 
 <Html lang={systemLanguage}>
 	<Head>
-		<title>{$LL.EMAIL_Welcome_Title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={$LL.EMAIL_Welcome_Meta({ PUBLIC_SITENAME })} />
+		<title>{m.welcomeusertitle({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.welcomeusermeta({ PUBLIC_SITENAME })} />
 	</Head>
 
-	<Preview preview={$LL.EMAIL_Welcome_Preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.welcomeuserpreview({ PUBLIC_SITENAME })} />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
@@ -81,20 +83,21 @@
 					/>
 				</Link>
 			</Section>
-			<Text>{$LL.EMAIL_Welcome_Username({ username })}</Text>
-			<Text>{$LL.EMAIL_Welcome_Sitename({ PUBLIC_SITENAME })}</Text>
-			<Text>{$LL.EMAIL_Welcome_SimpleCMS()}</Text>
+			<Text>{m.welcomeuserusername({ username })}</Text>
+			<Text>{m.welcomeusersitename({ PUBLIC_SITENAME })}</Text>
+			<Text>{m.welcomeuserheadless()}</Text>
 			<Text>
-				{$LL.EMAIL_Welcome_Discussion1()}
-				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{$LL.EMAIL_Welcome_Discussion2()}</Link>
+				{m.welcomeuserdiscussion1()}
+
+				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{m.welcomeuserdiscussion2()}</Link>
 			</Text>
-			<Text>{$LL.EMAIL_Welcome_Thanks()}</Text>
+			<Text>{m.welcomeuserthanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>{$LL.EMAIL_Welcome_Button({ PUBLIC_SITENAME })}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>{m.welcomeuserbutton({ PUBLIC_SITENAME })}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_Welcome_Footer({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.welcomeuserteam({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

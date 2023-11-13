@@ -8,7 +8,7 @@
 	<slot />
 </button>
 
-<style>
+<style lang="postcss">
 	button {
 		padding: 10px 30px;
 		text-align: center;

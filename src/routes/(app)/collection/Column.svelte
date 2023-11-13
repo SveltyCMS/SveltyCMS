@@ -4,8 +4,9 @@
 	import { goto } from '$app/navigation';
 
 	export let currentCategories: any;
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -23,8 +24,8 @@
 		};
 		const d: ModalSettings = {
 			type: 'component',
-			title: $LL.MODAL_Category_Title(),
-			body: $LL.MODAL_Category_Body(),
+			title: m.column_edit_category(),
+			body: m.column_modify_category(),
 			component: modalComponent,
 			response: (updatedCategory) => {
 				const categoryToEdit = currentCategories.filter((cat: any) => cat.name === category.name);

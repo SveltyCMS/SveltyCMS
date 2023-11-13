@@ -75,7 +75,7 @@
 	</MouseHandler>
 </div>
 
-<style>
+<style lang="postcss">
 	.corner {
 		position: absolute;
 		width: 10px;

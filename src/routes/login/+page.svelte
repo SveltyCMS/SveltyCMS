@@ -8,11 +8,23 @@
 	export let data: PageData;
 	//console.log('PageData', data);
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	$: _languageTag = languageTag;
+	import { systemLanguage } from '@src/stores/store';
+	console.log('systemLanguage', $systemLanguage);
+
+	import { setLanguageTag, languageTag, onSetLanguageTag } from '@src/paraglide/runtime';
+	console.log('setLanguageTag:', setLanguageTag);
+	console.log('languageTag:', languageTag);
+	console.log('onSetLanguageTag:', onSetLanguageTag);
+	import { getContext, setContext } from 'svelte';
+	console.log('getContext:', getContext);
+	console.log('setContext:', setContext);
+
 	import { locales } from '@src/i18n/i18n-util';
 	import type { Locales } from '@src/i18n/i18n-types';
 	//console.log('locales', locales);
-	import { systemLanguage } from '@src/stores/store';
-	//console.log('systemLanguage', $systemLanguage);
 
 	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
 	setLocale(selectedLocale);
@@ -68,7 +80,7 @@
 						stroke-dasharray="191 191"
 						stroke-dashoffset="191"
 						transform="rotate(51.5, 80, 80)"
-						class="fill-none stroke-red-500"
+						class="fill-none stroke-error-500"
 					/>
 
 					<circle
@@ -79,7 +91,7 @@
 						stroke-dasharray="191 191"
 						stroke-dashoffset="191"
 						transform="rotate(231.5, 80, 80)"
-						class="fill-none stroke-red-500"
+						class="fill-none stroke-error-500"
 					/>
 				</svg>
 
@@ -132,7 +144,7 @@
 
 				<datalist id="locales" class="w-full divide-y divide-white uppercase">
 					{#each locales as locale}
-						<option value={locale} class=" uppercase text-red-500">{locale}</option>
+						<option value={locale} class=" uppercase text-error-500">{locale}</option>
 					{/each}
 				</datalist>
 			{:else}
@@ -148,6 +160,14 @@
 			{/if}
 		</div>
 	{/if}
+
+	<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-2 text-primary-700">
+		<p>System:{$systemLanguage}</p>
+		<p>languageTag:{languageTag}</p>
+		<p>_languageTag:{_languageTag}</p>
+		<button class="variant-filled-primary btn" on:click={() => setLanguageTag('de')}>change to "de"</button>
+		<button class="variant-filled-error btn" on:click={() => setLanguageTag('en')}>change to "en"</button>
+	</div>
 </div>
 
 <style lang="postcss">

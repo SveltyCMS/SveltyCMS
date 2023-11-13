@@ -173,7 +173,7 @@
 	<slot {TopLeft} {TopRight} {BottomLeft} {BottomRight} {Center} {Rotate} />
 </div>
 
-<style>
+<style lang="postcss">
 	.my-component {
 		/* Add some styles to the div element */
 		border: 2px solid var(--border-color);

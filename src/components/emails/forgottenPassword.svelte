@@ -6,13 +6,13 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
 	import { setLocale, locale } from '@src/i18n/i18n-svelte';
-
 	export let systemLanguage: string = '';
 	setLocale(systemLanguage as any);
-
 	//console.log('systemLanguage', systemLanguage);
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -150,10 +150,10 @@
 
 <Html lang={systemLanguage}>
 	<Head>
-		<title>{$LL.EMAIL_Forgotten_Title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={$LL.EMAIL_Forgotten_Meta({ PUBLIC_SITENAME })} />
+		<title> {m.forgottenpasswordtitle({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.forgottenpasswordmeta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_Forgotten_Preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.forgottenpasswordpreview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -167,24 +167,24 @@
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Hello({ email })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_Forgotten_Request({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.forgottenpasswordhello({ email })}</Text>
+			<Text style={paragraph}>{m.forgottenpasswordrequest({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
-				<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Token()}</Text>
+				<Text style={paragraph_center}>{m.forgottenpasswordtoken()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 				<br />
-				<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Valid()}</Text>
+				<Text style={paragraph_center}>{m.forgottenpasswordvalid()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expiresIn}</span></Text>
 			</Section>
 
-			<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Ignore()}</Text>
-			<Text style={paragraph_center}>{$LL.EMAIL_Forgotten_Press()}</Text>
+			<Text style={paragraph_center}>{m.forgottenpasswordignore()}</Text>
+			<Text style={paragraph_center}>{m.forgottenpasswordbutton()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>{$LL.EMAIL_Forgotten_Button()}</Button>
+				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpasswordresetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_Forgotten_Team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.forgottenpasswordteam({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

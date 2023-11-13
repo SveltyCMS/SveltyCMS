@@ -1,6 +1,6 @@
 <script lang="ts">
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import { createEventDispatcher } from 'svelte';
 	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
@@ -37,43 +37,43 @@
 	}
 
 	function getButtonAndIconValues(storeListboxValue: string) {
-		let actionname = '';
-		let buttonClass = '';
-		let iconValue = '';
+		let actionname: string;
+		let buttonClass: string;
+		let iconValue: string;
 
 		switch (storeListboxValue) {
 			case 'create':
-				actionname = $LL.ENTRYLIST_Create();
+				actionname = m.entrylistmultibuttoncreate();
 				buttonClass = 'gradient-primary';
 				iconValue = 'ic:round-plus';
 				break;
 			case 'publish':
-				actionname = $LL.ENTRYLIST_Publish();
+				actionname = m.entrylistmultibuttonpublish();
 				buttonClass = 'gradient-tertiary';
 				iconValue = 'bi:hand-thumbs-up-fill';
 				break;
 			case 'unpublish':
-				actionname = $LL.ENTRYLIST_Unpublish();
+				actionname = m.entrylistmultibuttonunpublish();
 				buttonClass = 'gradient-yellow';
 				iconValue = 'bi:pause-circle';
 				break;
 			case 'schedule':
-				actionname = $LL.ENTRYLIST_Schedule();
+				actionname = m.entrylistmultibuttonschedule();
 				buttonClass = 'gradient-pink';
 				iconValue = 'bi:clock';
 				break;
 			case 'clone':
-				actionname = $LL.ENTRYLIST_Clone();
+				actionname = m.entrylistmultibuttonclone();
 				buttonClass = 'gradient-secondary';
 				iconValue = 'bi:clipboard-data-fill';
 				break;
 			case 'delete':
-				actionname = $LL.ENTRYLIST_Delete();
+				actionname = m.entrylistmultibuttondelete();
 				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
 			case 'test':
-				actionname = 'testing';
+				actionname = m.entrylistmultibuttontesting();
 				buttonClass = 'gradient-error';
 				iconValue = 'icon-park-outline:preview-open';
 				break;
@@ -136,7 +136,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="ic:round-plus" width="24" />
-							<span class="ml-2">Create</span>
+							<span class="ml-2">{m.entrylistmultibuttoncreate()}</span>
 						</span>
 					</button>
 				</li>
@@ -151,7 +151,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
-							<span class="ml-2">Publish</span>
+							<span class="ml-2">{m.entrylistmultibuttonpublish()}</span>
 						</span>
 					</button>
 				</li>
@@ -166,7 +166,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:pause-circle" width="24" />
-							<span class="ml-2">Unpublish</span>
+							<span class="ml-2">{m.entrylistmultibuttonunpublish()}</span>
 						</span>
 					</button>
 				</li>
@@ -181,7 +181,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clock" width="24" />
-							<span class="ml-2">Schedule</span>
+							<span class="ml-2">{m.entrylistmultibuttonschedule()}</span>
 						</span>
 					</button>
 				</li>
@@ -196,7 +196,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clipboard-data-fill" width="24" />
-							<span class="ml-2">Clone</span>
+							<span class="ml-2">{m.entrylistmultibuttonclone()}</span>
 						</span>
 					</button>
 				</li>
@@ -211,7 +211,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:trash3-fill" width="24" />
-							<span class="ml-2">Delete</span>
+							<span class="ml-2">{m.entrylistmultibuttondelete()}</span>
 						</span>
 					</button>
 				</li>
@@ -226,7 +226,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="icon-park-outline:preview-open" width="24" />
-							<span class="ml-2">Testing</span>
+							<span class="ml-2">{m.entrylistmultibuttontesting()}</span>
 						</span>
 					</button>
 				</li>

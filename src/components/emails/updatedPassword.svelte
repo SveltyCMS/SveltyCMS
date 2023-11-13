@@ -8,8 +8,8 @@
 
 	const username: User = $page.data.user.username;
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
@@ -67,10 +67,10 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>{$LL.EMAIL_UpdatePW_Title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={$LL.EMAIL_UpdatePW_Meta({ PUBLIC_SITENAME })} />
+		<title>{m.updatedpasswordtitle({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.updatedpasswordmeta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={$LL.EMAIL_UpdatePW_Preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.updatedpasswordpreview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
@@ -81,11 +81,11 @@
 					height="auto"
 				/>
 			</Link>
-			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Hello({ username })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Success({ PUBLIC_SITENAME })}</Text>
-			<Text style={paragraph}>{$LL.EMAIL_UpdatePW_Contact()}</Text>
+			<Text style={paragraph}>{m.updatedpasswordhello({ username })}</Text>
+			<Text style={paragraph}>{m.updatedpasswordchange({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.updatedpasswordcontact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_UpdatePW_Team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.updatedpasswordteam({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

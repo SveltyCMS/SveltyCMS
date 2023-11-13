@@ -9,8 +9,8 @@
 
 	const key = Symbol();
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
@@ -216,20 +216,19 @@
 	<address class="w-full">
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><iconify-icon icon="bi:map" width="16" class="mr-2" />{$LL.WIDGET_Address_GetAddress()}</button
+				><iconify-icon icon="bi:map" width="16" class="mr-2" />{m.widgetadressgetfromaddress()}</button
 			>
 		</div>
 		<!-- <div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" /> -->
 
-		<label for="name">{$LL.WIDGET_Address_Geocoordinates()}</label>
+		<label for="name">{m.widgetadressgeocoordinates()}</label>
 		<div class="flex justify-center gap-2">
 			<input
 				required
 				type="text"
 				id="latitude"
 				name="latitude"
-				autocomplete="latitude"
-				placeholder={$LL.WIDGET_Address_Latitude()}
+				placeholder={m.widgetadresslatitude()}
 				class="input rounded-md"
 				bind:value={value.latitude}
 			/>
@@ -239,8 +238,7 @@
 				type="text"
 				id="longitude"
 				name="longitude"
-				autocomplete="longitude"
-				placeholder={$LL.WIDGET_Address_Longitude()}
+				placeholder={m.widgetadresslongitude()}
 				class="input rounded-md"
 				bind:value={value.longitude}
 			/>
@@ -248,52 +246,51 @@
 		<br />
 
 		<form>
-			<label for="name">{$LL.WIDGET_Address_Name()}</label>
+			<label for="name">{m.widgetadressname()}</label>
 			<input
 				required
 				type="text"
 				id="name"
 				name="name"
 				autocomplete="name"
-				placeholder={$LL.WIDGET_Address_Name()}
+				placeholder={m.widgetadressname()}
 				class="input rounded-md"
 				bind:value={value.name}
 			/>
 
-			<label for="street-address">{$LL.WIDGET_Address_Street()}</label>
+			<label for="street-address">{m.widgetadressstreet()}</label>
 			<input
 				type="text"
 				id="street-address"
 				name="street-address"
 				autocomplete="street-address"
-				placeholder={$LL.WIDGET_Address_Street()}
+				placeholder={m.widgetadressstreet()}
 				required
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.street}
 			/>
 
-			<label for="postal-code">{$LL.WIDGET_Address_Zip()}</label>
+			<label for="postal-code">{m.widgetadresszip()}</label>
 			<input
 				required
 				type="text"
 				id="postal-code"
 				name="postal-code"
-				placeholder={$LL.WIDGET_Address_Zip()}
+				placeholder={m.widgetadresszip()}
 				autocomplete="postal-code"
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.zip}
 			/>
 
-			<label for="city">{$LL.WIDGET_Address_City()}</label>
+			<label for="city">{m.widgetadresscity()}</label>
 			<input
 				required
 				type="text"
 				id="city"
 				name="city"
-				placeholder={$LL.WIDGET_Address_City()}
-				autocomplete="city"
+				placeholder="m.widgetadresscity()}"
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.city}
