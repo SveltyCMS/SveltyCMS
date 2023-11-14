@@ -480,7 +480,7 @@
 					}}
 					type="checkbox"
 				/>{' '}
-				{m.entrylistall()}
+				{m.entrylist_all()}
 			</label>
 			<section
 				class="flex flex-wrap justify-center gap-1 rounded-md p-2"
@@ -641,21 +641,21 @@
 	<div class="my-3 flex items-center justify-around text-surface-500">
 		<!-- show & count rows -->
 		<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
-			{m.entrylistpage()}
+			{m.entrylist_page()}
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{m.entrylistof()}
+			{m.entrylist_of()}
 			<!-- TODO: Get actual pages -->
 			<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 			<span class="text-black dark:text-white"
 				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
 			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{m.entrylisttotal()}
+			{m.entrylist_total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{m.entrylistrow()}
+				{m.entrylist_row()}
 			{:else}
-				{m.entrylistrows()}
+				{m.entrylist_rows()}
 			{/if}
 		</div>
 
@@ -703,7 +703,7 @@
 
 			<!-- input display -->
 			<div class="flex items-center justify-center px-2 text-sm">
-				<span class="pr-2"> {m.entrylistpage()} </span>
+				<span class="pr-2"> {m.entrylist_page()} </span>
 
 				<input
 					type="number"
@@ -714,7 +714,7 @@
 					class="variant-ghost-surface w-14 border-0"
 				/>
 				<span class="pl-2">
-					{' '}{m.entrylistof()}{' '}
+					{' '}{m.entrylist_of()}{' '}
 					<span class="">{$table.getPageCount()}</span>
 				</span>
 			</div>
@@ -753,7 +753,7 @@
 				{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
 					<option value={pageSize}>
 						{pageSize}
-						{m.entrylistrow()}
+						{m.entrylist_row()}
 					</option>
 				{/each}
 			</select>
@@ -762,7 +762,7 @@
 		<!-- Pagination -->
 		<div class="text-sm text-gray-400">
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{m.entrylistof()}
+			{m.entrylist_of()}
 			<!-- TODO: Get actual page -->
 			<!-- <span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
@@ -771,12 +771,12 @@
 				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
 			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{m.entrylisttotal()}
+			{m.entrylist_total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{m.entrylistrow()}
+				{m.entrylist_row()}
 			{:else}
-				{m.entrylistrows()}){/if}
+				{m.entrylist_rows()}){/if}
 		</div>
 	</div>
 </div>

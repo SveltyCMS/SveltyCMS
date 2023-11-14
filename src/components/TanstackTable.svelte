@@ -326,7 +326,7 @@
 						}}
 						type="checkbox"
 					/>{' '}
-					{m.tanstacktableall()}
+					{m.tanstacktable_all()}
 				</label>
 
 				<!-- Column Header -->
@@ -488,21 +488,21 @@
 		<div class="my-3 flex items-center justify-around text-surface-500">
 			<!-- show & count rows -->
 			<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
-				{m.tanstacktablepage()}
+				{m.tanstacktable_page()}
 				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-				{m.tanstacktableof()}
+				{m.tanstacktable_of()}
 				<!-- TODO: Get actual pages -->
 				<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 				<span class="text-black dark:text-white"
 					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 				>
 				- (<span class="text-black dark:text-white"> {$table.getPrePaginationRowModel().rows.length}</span>
-				{m.tanstacktabletotal()}
+				{m.tanstacktable_total()}
 
 				{#if $table.getPrePaginationRowModel().rows.length === 1}
-					{m.tanstacktablerow()}
+					{m.tanstacktable_row()}
 				{:else}
-					{m.tanstacktablerows()}
+					{m.tanstacktable_rows()}
 				{/if})
 			</div>
 
@@ -517,7 +517,7 @@
 					{#each availablePageSizes as pageSize}
 						<option value={pageSize}>
 							{pageSize}
-							{m.tanstacktablerows()}
+							{m.tanstacktable_rows()}
 						</option>
 					{/each}
 				</select>
@@ -553,7 +553,7 @@
 
 				<!-- input display -->
 				<div class="flex items-center justify-center px-2 text-sm">
-					<span class="pr-2"> {m.tanstacktablepage()} </span>
+					<span class="pr-2"> {m.tanstacktable_page()} </span>
 
 					<input
 						type="number"
@@ -564,7 +564,7 @@
 						class="variant-ghost-surface w-14 border-0"
 					/>
 					<span class="pl-2">
-						{' '}{m.tanstacktableof()}{' '}
+						{' '}{m.tanstacktable_of()}{' '}
 						<span class="">{$table.getPageCount()}</span>
 					</span>
 				</div>
@@ -603,7 +603,7 @@
 					{#each availablePageSizes as pageSize}
 						<option value={pageSize}>
 							{pageSize}
-							{m.tanstacktablerows()}
+							{m.tanstacktable_rows()}
 						</option>
 					{/each}
 				</select>
@@ -612,7 +612,7 @@
 			<!-- Pagination -->
 			<div class="text-sm text-gray-400">
 				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-				{m.tanstacktableof()}
+				{m.tanstacktable_of()}
 				<!-- TODO: Get actual page -->
 				<!-- <span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
@@ -621,12 +621,12 @@
 					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 				>
 				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-				{m.tanstacktabletotal()}
+				{m.tanstacktable_total()}
 
 				{#if $table.getPrePaginationRowModel().rows.length === 1}
-					{m.tanstacktablerow()}
+					{m.tanstacktable_row()}
 				{:else}
-					{m.tanstacktablerows()}{/if}
+					{m.tanstacktable_rows()}{/if}
 			</div>
 		</div>
 	</div>

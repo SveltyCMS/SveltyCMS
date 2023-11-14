@@ -41,7 +41,7 @@
 
 {#if !_data}
 	<p class="text-center font-bold text-tertiary-500">
-		{m.widgetmegamenutitle()}
+		{m.widget_megamenu_title()}
 	</p>
 {/if}
 
@@ -56,7 +56,7 @@
 		<!-- Next Button -->
 		<button type="button" on:click={saveLayer} class="variant-filled-primary btn mb-4 dark:text-white">
 			<iconify-icon icon="carbon:next-filled" width="24" class="mr-1 dark:text-white" />
-			{m.widgetmegamenunext()}
+			{m.widget_megamenu_next()}
 		</button>
 	</div>
 {/if}

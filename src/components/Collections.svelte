@@ -90,7 +90,7 @@
 			type="text"
 			bind:value={search}
 			on:input={filterCategories}
-			placeholder={m.collectionssearch()}
+			placeholder={m.collections_search()}
 			class="input variant-outline-surface mb-2 w-full border !border-surface-400"
 		/>
 	{/if}
@@ -190,7 +190,7 @@
 				}
 			}}
 		>
-			<p class="text-xs uppercase text-black dark:text-white">{m.collectionsmedia()}</p>
+			<p class="text-xs uppercase text-black dark:text-white">{m.collections_media()}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 		</a>
 	{/if}

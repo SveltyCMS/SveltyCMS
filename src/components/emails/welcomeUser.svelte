@@ -66,11 +66,11 @@
 
 <Html lang={systemLanguage}>
 	<Head>
-		<title>{m.welcomeusertitle({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.welcomeusermeta({ PUBLIC_SITENAME })} />
+		<title>{m.welcomeuser_title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.welcomeuser_meta({ PUBLIC_SITENAME })} />
 	</Head>
 
-	<Preview preview={m.welcomeuserpreview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.welcomeuser_preview({ PUBLIC_SITENAME })} />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
@@ -83,21 +83,21 @@
 					/>
 				</Link>
 			</Section>
-			<Text>{m.welcomeuserusername({ username })}</Text>
-			<Text>{m.welcomeusersitename({ PUBLIC_SITENAME })}</Text>
-			<Text>{m.welcomeuserheadless()}</Text>
+			<Text>{m.welcomeuser_username({ username })}</Text>
+			<Text>{m.welcomeuser_sitename({ PUBLIC_SITENAME })}</Text>
+			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
-				{m.welcomeuserdiscussion1()}
+				{m.welcomeuser_discussion1()}
 
-				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{m.welcomeuserdiscussion2()}</Link>
+				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{m.welcomeuser_discussion2()}</Link>
 			</Text>
-			<Text>{m.welcomeuserthanks()}</Text>
+			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>{m.welcomeuserbutton({ PUBLIC_SITENAME })}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>{m.welcomeuser_button({ PUBLIC_SITENAME })}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.welcomeuserteam({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.welcomeuser_team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

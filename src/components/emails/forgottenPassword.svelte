@@ -150,10 +150,10 @@
 
 <Html lang={systemLanguage}>
 	<Head>
-		<title> {m.forgottenpasswordtitle({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.forgottenpasswordmeta({ PUBLIC_SITENAME })} />
+		<title> {m.forgottenpassword_title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.forgottenpassword_meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={m.forgottenpasswordpreview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.forgottenpassword_preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -167,24 +167,24 @@
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>{m.forgottenpasswordhello({ email })}</Text>
-			<Text style={paragraph}>{m.forgottenpasswordrequest({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.forgottenpassword_hello({ email })}</Text>
+			<Text style={paragraph}>{m.forgottenpassword_request({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
-				<Text style={paragraph_center}>{m.forgottenpasswordtoken()}</Text>
+				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
 				<br />
-				<Text style={paragraph_center}>{m.forgottenpasswordvalid()}</Text>
+				<Text style={paragraph_center}>{m.forgottenpassword_valid()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{readable_expiresIn}</span></Text>
 			</Section>
 
-			<Text style={paragraph_center}>{m.forgottenpasswordignore()}</Text>
-			<Text style={paragraph_center}>{m.forgottenpasswordbutton()}</Text>
+			<Text style={paragraph_center}>{m.forgottenpassword_ignore()}</Text>
+			<Text style={paragraph_center}>{m.forgottenpassword_button()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpasswordresetbutton()}</Button>
+				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.forgottenpasswordteam({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.forgottenpassword_team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

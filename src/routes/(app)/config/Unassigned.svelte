@@ -26,7 +26,7 @@
 </script>
 
 <div class="ml-1 rounded-sm border border-surface-300 dark:border-surface-400">
-	<h2 class="mb-2 text-center font-bold dark:text-primary-500">{m.unassignedunassigned()}</h2>
+	<h2 class="mb-2 text-center font-bold dark:text-primary-500">{m.unassigned_unassigned()}</h2>
 	<div
 		class="my-1 flex w-full flex-wrap gap-1 overflow-x-scroll"
 		use:dndzone={{ items, flipDurationMs }}

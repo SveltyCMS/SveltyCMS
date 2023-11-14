@@ -20,9 +20,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-
 	// skeleton
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
 
@@ -34,7 +31,6 @@
 	let _data = $mode == 'create' ? {} : value;
 	// console.log(_data);
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
-	let includeRobotsMeta = false;
 
 	export const WidgetData = async () => _data;
 
@@ -120,7 +116,7 @@
 		// Check if the title is more than 50 characters
 		if (title.length > 50) {
 			suggestions.push({
-				text: m.widgetseosuggestiontitleperfect(),
+				text: m.widget_seo_suggestiontitleperfect(),
 
 				impact: 3
 			});
@@ -129,7 +125,7 @@
 		// Check if the title is more than 30 characters
 		else if (title.length > 30) {
 			suggestions.push({
-				text: m.widgetseosuggestiontitlegood(),
+				text: m.widget_seo_suggestiontitlegood(),
 
 				impact: 2
 			});
@@ -139,7 +135,7 @@
 		// Otherwise, the title is less than 30 characters
 		else if (title.length > 0) {
 			suggestions.push({
-				text: m.widgetseosuggestiontitlebad(),
+				text: m.widget_seo_suggestiontitlebad(),
 
 				impact: 1
 			});
@@ -149,7 +145,7 @@
 		// Check if the description is between 120 and 165 characters
 		if (description.length >= 120 && description.length <= 165) {
 			suggestions.push({
-				text: m.widgetseosuggestiondescriptionperfect(),
+				text: m.widget_seo_suggestiondescriptionperfect(),
 
 				impact: 3
 			});
@@ -158,7 +154,7 @@
 		// Check if the description is more than 90 characters
 		else if (description.length > 90) {
 			suggestions.push({
-				text: m.widgetseosuggestiondescriptiongood(),
+				text: m.widget_seo_suggestiondescriptiongood(),
 
 				impact: 2
 			});
@@ -168,7 +164,7 @@
 		// Otherwise, the description is less than 90 characters
 		else if (description.length > 0) {
 			suggestions.push({
-				text: m.widgetseosuggestiondescriptionbad(),
+				text: m.widget_seo_suggestiondescriptionbad(),
 
 				impact: 1
 			});
@@ -179,20 +175,20 @@
 		const sentences = description.split('.').filter((x) => x.length > 1);
 		if (sentences.length >= 2 && sentences.length <= 4) {
 			suggestions.push({
-				text: m.widgetseosuggestionsentenceperfect(),
+				text: m.widget_seo_suggestionsentenceperfect(),
 
 				impact: 3
 			});
 			scores.sentences_score = 3;
 		} else if (sentences.length > 0) {
 			suggestions.push({
-				text: m.widgetseosuggestionsentencegood(),
+				text: m.widget_seo_suggestionsentencegood(),
 
 				impact: 2
 			});
 		} else {
 			suggestions.push({
-				text: m.widgetseosuggestionsentencebad(),
+				text: m.widget_seo_suggestionsentencebad(),
 
 				impact: 1
 			});
@@ -202,14 +198,14 @@
 		// Check if the title uses numbers
 		if (title.length > 0 && /\d/.test(title)) {
 			suggestions.push({
-				text: m.widgetseosuggestionnumberperfect(),
+				text: m.widget_seo_suggestionnumberperfect(),
 
 				impact: 3
 			});
 			scores.title_numbers_score = 3;
 		} else if (title.length > 0) {
 			suggestions.push({
-				text: m.widgetseosuggestionnumberbad(),
+				text: m.widget_seo_suggestionnumberbad(),
 
 				impact: 1
 			});
@@ -217,13 +213,13 @@
 		}
 
 		// Check if the title has a power word
-		const powerWords = Object.values($LL.WIDGET_SEO_PowerWords).map((fn) => fn().toString());
-		//const powerWords = Object.values{m.widgetseopowerwords()}.map((fn) => fn().toString());
+		//const powerWords = Object.values($LL.WIDGET_SEO_PowerWords).map((fn) => fn().toString());
+		const powerWords = 'widget_seo_powerwords'.split(',');
 
 		for (const word of powerWords) {
 			if (title.toLowerCase().includes(word)) {
 				suggestions.push({
-					text: m.widgetseosuggestionpowerwordtitle(),
+					text: m.widget_seo_suggestionpowerwordtitle(),
 
 					// TODO: Add Variable  ${word} to translation
 					// text: `Your title has the Power Word ${word}. Perfect!`,
@@ -238,7 +234,7 @@
 		for (const word of powerWords) {
 			if (description.toLowerCase().includes(word)) {
 				suggestions.push({
-					text: m.widgetseosuggestionpowerworddescription(),
+					text: m.widget_seo_suggestionpowerworddescription(),
 
 					// TODO: Add Variable   ${word} to translation
 					// text: `Your description uses the Power Word ${word}. Perfect!`,
@@ -251,13 +247,13 @@
 		}
 
 		// Define the list of CTA keywords
-		const ctaKeywords = Object.values($LL.WIDGET_SEO_ctaKeywords).map((fn) => fn().toString());
-		//const ctaKeywords = Object.values(m.widgetseoctakeywords()).map((fn) => fn().toString());
+		//const ctaKeywords = Object.values($LL.WIDGET_SEO_ctaKeywords).map((fn) => fn().toString());
+		const ctaKeywords = 'widget_seo_ctakeywords'.split(',');
 		// Check if the title has a CTA keyword
 		for (const keyword of ctaKeywords) {
 			if (title.toLowerCase().includes(keyword)) {
 				suggestions.push({
-					text: m.widgetseosuggestionctakeywordstitle(),
+					text: m.widget_seo_suggestionctakeywordstitle(),
 
 					// TODO: Add Variable ${keyword to translation
 					// text: `Your title has the CTA keyword "${keyword}". Good!`,
@@ -272,7 +268,7 @@
 		for (const keyword of ctaKeywords) {
 			if (description.toLowerCase().includes(keyword)) {
 				suggestions.push({
-					text: m.widgetseosuggestionctakeywordsdescription(),
+					text: m.widget_seo_suggestionctakeywordsdescription(),
 					// TODO: Add Variable ${keyword to translation
 					// text: `Your description uses the CTA keyword "${keyword}". Good!`,
 					impact: 3
@@ -297,21 +293,21 @@
 		class={title.length >= 50 && title.length <= 60
 			? 'input-label green'
 			: title.length >= 30 && title.length <= 49
-			? 'input-label orange'
-			: title.length < 30
-			? 'input-label'
-			: 'input-label red'}
+			  ? 'input-label orange'
+			  : title.length < 30
+			    ? 'input-label'
+			    : 'input-label red'}
 	>
 		<div class="flex items-center justify-between">
-			<div class="text-black dark:text-white">{m.widgetseosuggestiontitle()}</div>
+			<div class="text-black dark:text-white">{m.widget_seo_suggestiontitle()}</div>
 			<div class="flex flex-col text-xs sm:flex-row sm:text-base">
 				<div>
-					{m.widgetseosuggestioncharacter()}
+					{m.widget_seo_suggestioncharacter()}
 					<span class="text-primary-500">{title.length}</span>
 				</div>
 				<div>
-					{m.widgetseosuggestionwidthdesktop()}
-					<span class="text-primary-500">{titleCharacterWidth}</span>/600px {m.widgetseosuggestionwidthmobile()}
+					{m.widget_seo_suggestionwidthdesktop()}
+					<span class="text-primary-500">{titleCharacterWidth}</span>/600px {m.widget_seo_suggestionwidthmobile()}
 					<span class="text-primary-500">{titleCharacterWidth}</span>/654px
 				</div>
 			</div>
@@ -322,7 +318,7 @@
 		id="title-input"
 		type="text"
 		class="input"
-		placeholder={m.widgetseosuggestionseotitle()}
+		placeholder={m.widget_seo_suggestionseotitle()}
 		required
 		bind:value={_data[_language].title}
 		on:input={handleTitleChange}
@@ -335,23 +331,23 @@
 		class={description.length >= 120 && description.length <= 165
 			? 'input-label green'
 			: description.length >= 30 && description.length <= 129
-			? 'input-label orange'
-			: description.length < 30
-			? 'input-label'
-			: 'input-label red'}
+			  ? 'input-label orange'
+			  : description.length < 30
+			    ? 'input-label'
+			    : 'input-label red'}
 	>
 		<div class="flex justify-between">
-			<div class="text-black dark:text-white">{m.widgetseosuggestiondescription()}</div>
+			<div class="text-black dark:text-white">{m.widget_seo_suggestiondescription()}</div>
 			<div class="flex flex-col text-xs sm:flex-row sm:text-base">
 				<div>
-					{m.widgetseosuggestioncharacter()}
+					{m.widget_seo_suggestioncharacter()}
 					<span class="text-primary-500">{description.length}</span>
 				</div>
 				<div>
-					{m.widgetseosuggestionwidthdesktop()}
+					{m.widget_seo_suggestionwidthdesktop()}
 					<span class="text-primary-500">{descriptionCharacterWidth}</span>/970px
 
-					{m.widgetseosuggestionwidthmobile()}
+					{m.widget_seo_suggestionwidthmobile()}
 					<span class="text-primary-500">{descriptionCharacterWidth}</span>/981px
 				</div>
 			</div>
@@ -361,7 +357,7 @@
 	<textarea
 		id="description-input"
 		name="description-input"
-		placeholder={m.widgetseosuggestionseodescription()}
+		placeholder={m.widget_seo_suggestionseodescription()}
 		rows="2"
 		cols="50"
 		bind:value={_data[_language].description}
@@ -388,7 +384,7 @@
 <!-- CTR display -->
 <div class="dark:boder-white relative mt-2 border-t border-surface-500 dark:border-white dark:bg-transparent">
 	<h2 class="mt-1 text-right text-xl text-white sm:text-center sm:text-2xl">
-		{m.widgetseosuggestionseopreview()}
+		{m.widget_seo_suggestionseopreview()}
 	</h2>
 
 	<!-- Toggle Desktop/Mobile buttons -->
@@ -398,7 +394,7 @@
 			class="{SeoPreviewToggle ? 'hidden' : 'block'} variant-filled-tertiary btn btn-sm flex items-center justify-center"
 		>
 			<iconify-icon icon="ion:desktop-outline" width="20" class="mr-1" />
-			Desktop
+			{m.widget_seo_suggestionwidthdesktop()}
 		</button>
 
 		<button
@@ -406,7 +402,7 @@
 			class="{SeoPreviewToggle ? 'block' : 'hidden'} variant-filled-tertiary btn flex items-center justify-center"
 		>
 			<iconify-icon icon="bi:phone" width="18" class="mr-1" />
-			Mobile
+			{m.widget_seo_suggestionwidthmobile()}
 		</button>
 	</div>
 
@@ -434,7 +430,7 @@
 
 <!-- Mobile -->
 <div class="md:hidden">
-	<h3 class="mb-2 text-center">{m.widgetseosuggestionlistofsuggestion()}</h3>
+	<h3 class="mb-2 text-center">{m.widget_seo_suggestionlistofsuggestion()}</h3>
 	<div class="flex items-center justify-around">
 		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white "
 			>{progress}%</ProgressRadial
@@ -455,7 +451,7 @@
 				</div>
 			</div>
 			<p class="mt-1 hidden text-justify !text-sm sm:block">
-				{m.widgetseosuggestiontext()}
+				{m.widget_seo_suggestiontext()}
 			</p>
 		</div>
 	</div>
@@ -467,7 +463,7 @@
 		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">{progress}%</ProgressRadial>
 		<div class="mb-2">
 			<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
-				<h3 class="">{m.widgetseosuggestionlistofsuggestion()}</h3>
+				<h3 class="">{m.widget_seo_suggestionlistofsuggestion()}</h3>
 
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />
@@ -483,7 +479,7 @@
 				</div>
 			</div>
 			<p>
-				{m.widgetseosuggestiontext()}
+				{m.widget_seo_suggestiontext()}
 			</p>
 		</div>
 	</div>

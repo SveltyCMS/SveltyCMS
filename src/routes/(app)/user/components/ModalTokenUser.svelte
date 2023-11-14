@@ -105,7 +105,7 @@
 		<!-- Email field -->
 		<div class="group relative mb-6 w-full">
 			<FloatingInput
-				label={m.modaltokenuseremail_address()}
+				label={m.modaltokenuser_email_address()}
 				icon="mdi:email"
 				name="email"
 				type="email"
@@ -123,7 +123,7 @@
 
 		<!-- User Role  -->
 		<div class="flex flex-col gap-2 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuseruserrole()}</div>
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_userrole()}</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 					{#each Object.values(roles) as r}
@@ -149,7 +149,7 @@
 
 		<!-- Token validity  -->
 		<div class="flex flex-col gap-2 pb-6 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenusertokenvalidity()}</div>
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
@@ -181,8 +181,8 @@
 		</div>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaltokenusercancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">{m.modaltokenusersend()}</button>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaltokenuser_cancel()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}">{m.modaltokenuser_send()}</button>
 		</footer>
 	</form>
 </div>

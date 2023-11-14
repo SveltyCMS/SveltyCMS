@@ -216,19 +216,19 @@
 	<address class="w-full">
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><iconify-icon icon="bi:map" width="16" class="mr-2" />{m.widgetadressgetfromaddress()}</button
+				><iconify-icon icon="bi:map" width="16" class="mr-2" />{m.widget_address_getfromaddress()}</button
 			>
 		</div>
 		<!-- <div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" /> -->
 
-		<label for="name">{m.widgetadressgeocoordinates()}</label>
+		<label for="name">{m.widget_address_geocoordinates()}</label>
 		<div class="flex justify-center gap-2">
 			<input
 				required
 				type="text"
 				id="latitude"
 				name="latitude"
-				placeholder={m.widgetadresslatitude()}
+				placeholder={m.widget_address_latitude()}
 				class="input rounded-md"
 				bind:value={value.latitude}
 			/>
@@ -238,7 +238,7 @@
 				type="text"
 				id="longitude"
 				name="longitude"
-				placeholder={m.widgetadresslongitude()}
+				placeholder={m.widget_address_longitude()}
 				class="input rounded-md"
 				bind:value={value.longitude}
 			/>
@@ -246,51 +246,51 @@
 		<br />
 
 		<form>
-			<label for="name">{m.widgetadressname()}</label>
+			<label for="name">{m.widget_address_name()}</label>
 			<input
 				required
 				type="text"
 				id="name"
 				name="name"
 				autocomplete="name"
-				placeholder={m.widgetadressname()}
+				placeholder={m.widget_address_name()}
 				class="input rounded-md"
 				bind:value={value.name}
 			/>
 
-			<label for="street-address">{m.widgetadressstreet()}</label>
+			<label for="street-address">{m.widget_address_street()}</label>
 			<input
 				type="text"
 				id="street-address"
 				name="street-address"
 				autocomplete="street-address"
-				placeholder={m.widgetadressstreet()}
+				placeholder={m.widget_address_street()}
 				required
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.street}
 			/>
 
-			<label for="postal-code">{m.widgetadresszip()}</label>
+			<label for="postal-code">{m.widget_address_zip()}</label>
 			<input
 				required
 				type="text"
 				id="postal-code"
 				name="postal-code"
-				placeholder={m.widgetadresszip()}
+				placeholder={m.widget_address_zip()}
 				autocomplete="postal-code"
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.zip}
 			/>
 
-			<label for="city">{m.widgetadresscity()}</label>
+			<label for="city">{m.widget_address_city()}</label>
 			<input
 				required
 				type="text"
 				id="city"
 				name="city"
-				placeholder="m.widgetadresscity()}"
+				placeholder="m.widget_address_city()}"
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.city}

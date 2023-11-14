@@ -67,10 +67,10 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>{m.updatedpasswordtitle({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.updatedpasswordmeta({ PUBLIC_SITENAME })} />
+		<title>{m.updatedpassword_title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.updatedpassword_meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={m.updatedpasswordpreview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.updatedpassword_preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
@@ -81,11 +81,11 @@
 					height="auto"
 				/>
 			</Link>
-			<Text style={paragraph}>{m.updatedpasswordhello({ username })}</Text>
-			<Text style={paragraph}>{m.updatedpasswordchange({ PUBLIC_SITENAME })}</Text>
-			<Text style={paragraph}>{m.updatedpasswordcontact()}</Text>
+			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
+			<Text style={paragraph}>{m.updatedpassword_change({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>{m.updatedpasswordteam({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.updatedpassword_team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

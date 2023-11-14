@@ -53,8 +53,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: m.usermodaluseredittitle(),
-			body: m.usermodalusereditbody(),
+			title: m.usermodaluser_edittitle(),
+			body: m.usermodaluser_editbody(),
 			component: modalComponent,
 
 			// Pass arbitrary data to the component
@@ -101,8 +101,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: m.usermodalusersettingtitle(),
-			body: m.usermodalusersettingbody(),
+			title: m.usermodaluser_settingtitle(),
+			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
 			// Pass arbitrary data to the component
 			response: (r: { dataURL: string }) => {
@@ -158,7 +158,7 @@
 
 <div class="flex flex-col gap-1">
 	<!-- TODO: fix TypeScript, as Icon is already optional? -->
-	<PageTitle name={m.userpagetitle()} icon="" />
+	<PageTitle name={m.userpage_title()} icon="" />
 
 	<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 		<!-- Avatar with user info -->
@@ -166,42 +166,42 @@
 			<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
 			<!-- edit button -->
-			<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpageeditavatar()}</button>
+			<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 			<!--User ID -->
 			<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-				{m.userpageuserid()}<span class="ml-2">{id}</span>
+				{m.userpage_userid()}<span class="ml-2">{id}</span>
 			</div>
 			<!-- Role -->
 			<div class="gradient-tertiary badge w-full max-w-xs text-white">
-				{m.userpagerole()}<span class="ml-2">{role}</span>
+				{m.userpage_role()}<span class="ml-2">{role}</span>
 			</div>
 		</div>
 
 		<!-- user fields -->
 		<form>
 			<label
-				>{m.userpageusername()}
+				>{m.userpage_username()}
 				<input bind:value={username} name="username" type="text" disabled class="input" />
 			</label>
 			<label
-				>{m.userpageemail()}
+				>{m.userpage_email()}
 				<input bind:value={email} name="email" type="email" disabled class="input" />
 			</label>
 			<label
-				>{m.userpagepassword()}
+				>{m.userpage_password()}
 				<input bind:value={password} name="password" type="password" disabled class="input" />
 			</label>
 			<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 				<!-- Edit Modal Button -->
 				<button class="gradient-secondary btn w-full max-w-sm text-white" on:click={modalUserForm}>
-					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpageedit_usersetting()}
+					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 				</button>
 
 				<!-- Delete Modal Button -->
 				{#if !isFirstUser}
 					<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
 						<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-						{m.userpagedelete()}
+						{m.userpage_delete()}
 					</button>
 				{/if}
 			</div>

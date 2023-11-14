@@ -78,7 +78,7 @@
 			if (result.type == 'redirect') {
 				// Trigger the toast
 				const t = {
-					message: m.signinsigninsuccess(),
+					message: m.signin_signinsuccess(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 3000,
@@ -178,7 +178,7 @@
 
 					// Trigger the Forgotton toast
 					const t = {
-						message: m.signinforgottontoast(),
+						message: m.signin_forgottontoast(),
 						// Provide any utility or variant background style:
 						background: 'variant-filled-primary',
 						timeout: 3000,
@@ -256,7 +256,7 @@
 
 				// Trigger the Reset toast
 				const t = {
-					message: m.signinrestpasswordtoast(),
+					message: m.signin_restpasswordtoast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 2000,
@@ -273,7 +273,7 @@
 				// Trigger the toast
 				// TODO: Toast in conflict with wiggle
 				const t = {
-					message: m.signinrestpasswordtoast(),
+					message: m.signin_restpasswordtoast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
 					timeout: 3000,
@@ -325,16 +325,16 @@
 			<h1 class="text-3xl font-bold text-black lg:text-4xl">
 				<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
 				{#if !PWforgot && !PWreset}
-					<div class="lg:-mt-1">{m.signinsignin()}</div>
+					<div class="lg:-mt-1">{m.signin_signin()}</div>
 				{:else if PWforgot && !PWreset}
-					<div class="text-2xl lg:-mt-1 lg:text-4xl">{m.signinforgottenpassword()}</div>
+					<div class="text-2xl lg:-mt-1 lg:text-4xl">{m.signin_forgottenpassword()}</div>
 				{:else if PWforgot && PWreset}
-					<div class="lg:-mt-1">{m.signinresetpassword()}</div>
+					<div class="lg:-mt-1">{m.signin_resetpassword()}</div>
 				{/if}
 			</h1>
 		</div>
 
-		<div class="-mt-2 text-right text-xs text-error-500">{m.signinrequired()}</div>
+		<div class="-mt-2 text-right text-xs text-error-500">{m.signin_required()}</div>
 
 		<!-- Sign In -->
 		{#if !PWforgot && !PWreset}
@@ -345,7 +345,7 @@
 					name="email"
 					type="email"
 					bind:value={$form.email}
-					label={m.signinemailaddress()}
+					label={m.signin_emailaddress()}
 					{...$constraints.email}
 					icon="mdi:email"
 					iconColor="black"
@@ -360,7 +360,7 @@
 					bind:value={$form.password}
 					{...$constraints.password}
 					bind:showPassword
-					label={m.signinpassword()}
+					label={m.signin_password()}
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
@@ -371,7 +371,7 @@
 					<!-- Row 1 -->
 					<div class="flex w-full justify-between gap-2 sm:w-auto">
 						<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
-							{m.signinsignin()}
+							{m.signin_signin()}
 							<!-- Loading indicators -->
 							{#if $delayed}
 								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
@@ -397,7 +397,7 @@
 								PWforgot = true;
 								PWreset = false;
 							}}
-							>{m.signinforgottenpassword()}
+							>{m.signin_forgottenpassword()}
 						</button>
 					</div>
 				</div>
@@ -409,7 +409,7 @@
 			<!-- <SuperDebug data={$forgotForm} /> -->
 			<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 				<div class="mb-2 text-center text-sm text-black">
-					<p class="mb-2 text-xs text-tertiary-500">{m.signinforgottenpasswordtext()}</p>
+					<p class="mb-2 text-xs text-tertiary-500">{m.signin_forgottenpasswordtext()}</p>
 				</div>
 				<!-- Email field -->
 				<FloatingInput
@@ -417,7 +417,7 @@
 					type="email"
 					bind:value={$forgotForm.email}
 					required
-					label={m.signinemailaddress()}
+					label={m.signin_emailaddress()}
 					icon="mdi:email"
 					iconColor="black"
 					textColor="black"
@@ -438,7 +438,7 @@
 
 				<div class="mt-4 flex items-center justify-between">
 					<button type="submit" class="variant-filled-surface btn">
-						{m.signinsentresetmail()}
+						{m.signin_sentresetmail()}
 					</button>
 
 					<!-- Loading indicators -->
@@ -473,7 +473,7 @@
 					type="password"
 					bind:value={$resetForm.password}
 					bind:showPassword
-					label={m.signinpassword()}
+					label={m.signin_password()}
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
@@ -491,7 +491,7 @@
 					type="password"
 					bind:value={$resetForm.confirm_password}
 					bind:showPassword
-					label={m.signinconfirmpassword()}
+					label={m.signin_confirmpassword()}
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
@@ -509,7 +509,7 @@
 					name="token"
 					bind:value={$resetForm.token}
 					bind:showPassword
-					label={m.signinregistrationtoken()}
+					label={m.signin_registrationtoken()}
 					icon="mdi:lock"
 					iconColor="black"
 					textColor="black"
@@ -532,7 +532,7 @@
 				<input type="hidden" name="lang" bind:value={$resetForm.lang} hidden />
 
 				<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
-					{m.signinsavenewpassword()}
+					{m.signin_savenewpassword()}
 					<!-- Loading indicators -->
 					{#if $resetDelayed}
 						<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />

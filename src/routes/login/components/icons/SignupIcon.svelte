@@ -25,7 +25,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-white">{m.signupiconsignup()}</p>
+		<p class="text-center font-semibold uppercase text-white">{m.signup_iconsignup()}</p>
 	</div>
 </div>
 

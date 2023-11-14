@@ -101,7 +101,7 @@
 		<div class="flex items-center gap-2 p-2">
 			<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon mt-1 py-2" />
 			<p>
-				{m.iconifypickername()}
+				{m.iconpicker_name()}
 				<span class="text-primary-500">{iconselected}</span>
 			</p>
 		</div>
@@ -116,7 +116,7 @@
 	type="text"
 	id="icon"
 	bind:value={searchQuery}
-	placeholder={m.iconpickerplaceholder()}
+	placeholder={m.iconpicker_placeholder()}
 	class="variant-filled-surface w-full"
 	on:input={() => searchIcons(searchQuery, selectedLibrary)}
 	on:focus={showLibrariesAndDropdown}
@@ -156,7 +156,7 @@
 		<!-- Pagination buttons -->
 		<div class="mt-2 flex justify-between">
 			<button disabled={start === 0} on:keydown on:click={prevPage} class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
-				>{m.iconpickerprevious()}
+				>{m.iconpicker_previous()}
 			</button>
 			<div class="text-white">
 				Showing Icons: <span class="text-primary-500">{icons.length}</span>
@@ -165,7 +165,7 @@
 				disabled={icons.length < 50}
 				on:keydown
 				on:click={nextPage}
-				class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.iconpickernext()}</button
+				class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.iconpicker_next()}</button
 			>
 		</div>
 	</div>

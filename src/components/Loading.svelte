@@ -11,9 +11,9 @@
 	<div class="absolute h-[190px] w-[190px] rounded-full border-[5px] border-tertiary-400 border-x-transparent" id="loader3" />
 	<div class="absolute h-[210px] w-[210px] rounded-full border-[4px] border-surface-400 border-x-transparent" id="loader4" />
 	<div class="absolute flex flex-col items-center justify-center rounded-full bg-transparent p-6 uppercase text-black dark:text-white">
-		<div>{m.loadingpleasewait()}</div>
+		<div>{m.loading_pleasewait()}</div>
 		<div><Logo className="w-10 p-1" fill="red" /></div>
-		<div>{m.loadingloading()}</div>
+		<div>{m.loading_loading()}</div>
 	</div>
 </div>
 

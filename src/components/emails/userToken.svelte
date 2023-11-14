@@ -115,10 +115,10 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>{m.usertokentitle({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.usertokenmeta({ PUBLIC_SITENAME })} />
+		<title>{m.usertoken_title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.usertoken_meta({ PUBLIC_SITENAME })} />
 	</Head>
-	<Preview preview={m.usertokenpreview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.usertoken_preview({ PUBLIC_SITENAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -132,13 +132,13 @@
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>{m.usertokenaccesstoken({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.usertoken_accesstoken({ PUBLIC_SITENAME })}</Text>
 			<Section style={review}>
 				<Column style={label}>
-					<Text style={paragraph}>{m.usertokenemail()}</Text>
-					<Text style={paragraph}>{m.usertokentoken()}</Text>
-					<Text style={paragraph}>{m.usertokenrole()}</Text>
-					<Text style={paragraph}>{m.usertokenvalid()}</Text>
+					<Text style={paragraph}>{m.usertoken_email()}</Text>
+					<Text style={paragraph}>{m.usertoken_token()}</Text>
+					<Text style={paragraph}>{m.usertoken_role()}</Text>
+					<Text style={paragraph}>{m.usertoken_valid()}</Text>
 				</Column>
 				<Column style={variable}>
 					<Text style={paragraph}><span style={styleToString(paragraphbold)}>{email}</span></Text>
@@ -148,12 +148,12 @@
 				</Column>
 			</Section>
 
-			<Text style={paragraph}>{m.usertokenbutton()}</Text>
+			<Text style={paragraph}>{m.usertoken_button()}</Text>
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertokencreateuser()}</Button>
+				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.usertokenteam({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.usertoken_team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

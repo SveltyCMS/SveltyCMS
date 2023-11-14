@@ -111,7 +111,7 @@
 			<h1 class="text-3xl font-bold text-white lg:text-4xl">
 				<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
 				<div class="break-words lg:-mt-1">
-					{m.signupsignup()}
+					{m.signup_signup()}
 					{#if !firstUserExists}
 						<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
 					{:else}
@@ -124,7 +124,7 @@
 			</h1>
 		</div>
 
-		<div class="-mt-2 text-right text-xs text-error-500">{m.signuprequired()}</div>
+		<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
 
 		<!-- <SuperDebug data={$form} /> -->
 		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
@@ -135,7 +135,7 @@
 				tabindex={tabIndex++}
 				required
 				bind:value={$form.username}
-				label={m.signupusername()}
+				label={m.signup_username()}
 				{...$constraints.username}
 				icon="mdi:user-circle"
 				iconColor="white"
@@ -152,7 +152,7 @@
 					tabindex={tabIndex++}
 					required
 					bind:value={$form.email}
-					label={m.signupemailaddess()}
+					label={m.signup_emailaddess()}
 					{...$constraints.email}
 					icon="mdi:email"
 					iconColor="white"
@@ -170,7 +170,7 @@
 					required
 					bind:value={$form.password}
 					bind:showPassword
-					label={m.signuppassword()}
+					label={m.signup_password()}
 					{...$constraints.password}
 					icon="mdi:password"
 					iconColor="white"
@@ -188,7 +188,7 @@
 					required
 					bind:value={$form.confirm_password}
 					bind:showPassword
-					label={m.signupconfirmpassword()}
+					label={m.signup_confirmpassword()}
 					{...$constraints.confirm_password}
 					icon="mdi:password"
 					iconColor="white"
@@ -207,7 +207,7 @@
 					tabindex={tabIndex++}
 					required
 					bind:value={$form.token}
-					label={m.signupregistrationtoken()}
+					label={m.signup_registrationtoken()}
 					{...$constraints.token}
 					icon="mdi:key-chain"
 					iconColor="white"
@@ -224,7 +224,7 @@
 			{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
 				<!-- email signin only -->
 				<button type="submit" class="variant-filled btn mt-4 uppercase"
-					>{m.signupsignup()}
+					>{m.signup_signup()}
 					<!-- Loading indicators -->
 					{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 				</button>
@@ -233,7 +233,7 @@
 			{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
 				<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-error-500">
 					<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
-						<span class="text-black">{m.signupsignup()} </span>
+						<span class="text-black">{m.signup_signup()} </span>
 						<!-- Loading indicators -->
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
@@ -251,7 +251,7 @@
 					<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
 						<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
 						<p>Sign Up with Google</p>
-						<!-- <p>{m.signupsignupwithgoogle()}</p>-->
+						<!-- <p>{m.signup_signupwithgoogle()}</p>-->
 					</button>
 				</form>
 			{/if}

@@ -29,8 +29,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: m.adminareatitle(),
-			body: m.adminareabody(),
+			title: m.adminarea_title(),
+			body: m.adminarea_body(),
 			component: modalComponent,
 
 			// Pass arbitrary data to the component
@@ -93,14 +93,14 @@
 	// Display User Columns
 	let items = [
 		{
-			header: m.adminareablocked(),
+			header: m.adminarea_blocked(),
 			accessorKey: 'blocked',
 			id: 'blocked',
 			// cell: (info: any) => (info.getValue() ? 'Yes' : 'No')
 			cell: (info: any) => flexRender(Boolean, { value: info.getValue() })
 		},
 		{
-			header: m.adminareaavatar(),
+			header: m.adminarea_avatar(),
 			accessorKey: 'avatar',
 			id: 'avatar',
 			//TODO: update Avatar size if density changes as table does not refresh)
@@ -111,35 +111,35 @@
 				})
 		},
 		{ header: 'ID', accessorKey: 'id', id: 'id' },
-		{ header: m.adminareausername(), accessorKey: 'username', id: 'username' },
+		{ header: m.adminarea_username(), accessorKey: 'username', id: 'username' },
 		{
-			header: m.adminarearole(),
+			header: m.adminarea_role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
 
-		{ header: m.adminareaemail(), accessorKey: 'email', id: 'email' },
+		{ header: m.adminarea_email(), accessorKey: 'email', id: 'email' },
 		{
-			header: m.adminarealastaccess(),
+			header: m.adminarea_lastaccess(),
 			accessorKey: 'updatedAt',
 			id: 'updatedAt',
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
 		},
 
 		{
-			header: m.adminareaactivesession(),
+			header: m.adminarea_activesession(),
 			accessorKey: 'activeSessions',
 			id: 'activeSessions'
 		},
 		{
-			header: m.adminareaexpiresin(),
+			header: m.adminarea_expiresin(),
 			accessorKey: 'lastAccess',
 			id: 'lastAccess',
 			accessorFn: (cell: any) => (cell.lastAccess ? moment(cell.lastAccess.active_expires).fromNow() : 'N/A')
 		},
 		{
-			header: m.adminareamemberfor(),
+			header: m.adminarea_memberfor(),
 			accessorKey: 'createdAt',
 			id: 'createdAt',
 			accessorFn: (cell: any) => moment(cell.createdAt).fromNow()
@@ -148,23 +148,23 @@
 
 	// Display Active User Registration Tokens
 	let itemsUserToken = [
-		{ header: m.adminareauserid(), accessorKey: 'userID', id: 'id' },
-		{ header: m.adminareaemail(), accessorKey: 'email', id: 'email' },
-		{ header: m.adminareatoken(), accessorKey: 'token', id: 'token' },
+		{ header: m.adminarea_userid(), accessorKey: 'userID', id: 'id' },
+		{ header: m.adminarea_email(), accessorKey: 'email', id: 'email' },
+		{ header: m.adminarea_token(), accessorKey: 'token', id: 'token' },
 		{
-			header: m.adminarearole(),
+			header: m.adminarea_role(),
 			accessorKey: 'role',
 			id: 'role',
 			cell: (info: any) => flexRender(Role, { value: info.getValue() })
 		},
 		{
-			header: m.adminareacreateat(),
+			header: m.adminarea_createat(),
 			accessorKey: 'createdAt',
 			id: 'createdAt',
 			accessorFn: (cell: any) => moment(cell.createdAt).fromNow()
 		},
 		{
-			header: m.adminareaupdatedat(),
+			header: m.adminarea_updatedat(),
 			accessorKey: 'updatedAt',
 			id: 'updatedAt',
 			accessorFn: (cell: any) => moment(cell.updatedAt).fromNow()
@@ -181,12 +181,12 @@
 </script>
 
 <div class="border-td mt-2 flex flex-col border-t-2">
-	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">{m.adminareaadminarea()}</p>
+	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">{m.adminarea_adminarea()}</p>
 	<div class=" flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<!-- Email Token -->
 		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />
-			<span class="whitespace-normal break-words">{m.adminareaemailtoken()}</span>
+			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
 		</button>
 
 		{#if tableDataUserToken}
@@ -194,21 +194,21 @@
 
 			<button on:click={toggleUserToken} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
 				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
-				{showUsertoken ? m.adminareashowtoken() : m.adminareahideusertoken()}
+				{showUsertoken ? m.adminarea_showtoken() : m.adminarea_hideusertoken()}
 			</button>
 		{/if}
 
 		<!-- Show User List -->
 		<button on:click={toggleUserList} class="gradient-secondary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1" />
-			{showUserList ? m.adminareahideuserlist() : m.adminareashowuserlist()}
+			{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}
 		</button>
 	</div>
 
 	{#if showUserList}
 		<!-- <UserList /> -->
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-primary-500">{m.adminareauserlist()}</h2>
+			<h2 class="font-bold text-primary-500">{m.adminarea_userlist()}</h2>
 			<div class="hidden sm:flex">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
@@ -245,7 +245,7 @@
 	{#if showUsertoken}
 		<!-- User Token invites -->
 		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-black dark:text-primary-500">{m.adminarealisttoken()}</h2>
+			<h2 class="font-bold text-black dark:text-primary-500">{m.adminarea_listtoken()}</h2>
 			<div class="hidden sm:flex">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>

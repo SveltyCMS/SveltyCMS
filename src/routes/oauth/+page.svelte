@@ -71,24 +71,31 @@
 					<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 						<Logo fill="black" className="w-8 h-8" />
 						<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
-						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.oauthslogan()}</div>
+						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.oauth_slogan()}</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- Input Token -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauthentertoken()}</h2>
-				<input placeholder="Enter  your Received Token {m.oauthplaceholder()}" class="input" type="text" name="token" minlength="16" maxlength="48" />
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauth_entertoken()}</h2>
+				<input
+					placeholder="Enter  your Received Token {m.oauth_placeholder()}"
+					class="input"
+					type="text"
+					name="token"
+					minlength="16"
+					maxlength="48"
+				/>
 			</label>
 			<div class="flex justify-between gap-2">
 				<!-- Cancel Button -->
-				<button class="items center variant-filled my-2 px-4 py-3 uppercase">{m.oauthcancel()}</button>
+				<button class="items center variant-filled my-2 px-4 py-3 uppercase">{m.oauth_cancel()}</button>
 
 				<!-- Submit Button -->
 				<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 py-3 uppercase">
 					<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-					<p>{m.oauthsignup()}</p>
+					<p>{m.oauth_signup()}</p>
 				</button>
 			</div>
 		</form>

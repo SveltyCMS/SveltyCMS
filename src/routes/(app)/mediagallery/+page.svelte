@@ -177,7 +177,7 @@
 </script>
 
 <div class="flex flex-col gap-1">
-	<PageTitle name={m.media_gallerypagetitle()} icon="bi:images" iconColor="text-primary-500" />
+	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-primary-500" />
 
 	<div class="flex items-center justify-between">
 		<!-- Search -->
@@ -207,7 +207,7 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">{m.media_gallerydisplay()}</p>
+								<p class="text-center text-xs">{m.mediagallery_display()}</p>
 								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: white`} />
 								<p class="text-xs">Table</p>
 							</button>
@@ -226,14 +226,14 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">{m.media_gallerydisplay()}</p>
+								<p class="text-center text-xs">{m.mediagallery_display()}</p>
 								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: white`} />
 
 								<!-- TODO: Center mobile labels -->
 								{#if view === 'table'}
-									<p class="text-center text-xs">{m.media_gallerygrid()}</p>
+									<p class="text-center text-xs">{m.mediagallery_grid()}</p>
 								{:else}
-									<p class="text-center text-xs">{m.media_gallerytable()}</p>
+									<p class="text-center text-xs">{m.mediagallery_table()}</p>
 								{/if}
 							</button>
 						{/if}

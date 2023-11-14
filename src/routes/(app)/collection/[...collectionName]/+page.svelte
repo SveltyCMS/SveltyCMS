@@ -204,11 +204,11 @@
 					</p>
 				{/if}
 				<div class="flex flex-col gap-2 rounded-md border p-2">
-					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">m.collectionnameoptional():</p>
+					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">m.collectionname_optional():</p>
 
 					<!-- Description -->
 					<div class="items-center sm:flex">
-						<label for="description" class="relative">{m.collectionnamedescription()} </label>
+						<label for="description" class="relative">{m.collectionname_description()} </label>
 
 						<textarea
 							id="description"
@@ -224,7 +224,7 @@
 					<!-- iconify icon chooser -->
 					<div class="w-full items-center sm:flex">
 						<label for="icon" class="relative">
-							{m.collectionnamelabelicon()}
+							{m.collectionname_labelicon()}
 						</label>
 						{#if icon.helper}
 							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />

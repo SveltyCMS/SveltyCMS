@@ -41,7 +41,7 @@
 		};
 		toastStore.trigger(t);
 
-		console.log('No user selectedd');
+		console.log('No user selected');
 		//console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {
@@ -60,8 +60,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: m.multibuttontokenmodaltitle(),
-			body: m.multibuttontokenmodalbody(),
+			title: m.multibuttontoken_modaltitle(),
+			body: m.multibuttontoken_modalbody(),
 			component: modalComponent,
 			// Pass abitrary data to the component
 			response: async (r: any) => {
@@ -90,19 +90,19 @@
 
 		switch (action) {
 			case 'delete':
-				modalTitle = m.multibuttontokendeletetitle();
-				modalBody = m.multibuttontokendeletebody();
-				modalButtonText = m.multibuttontokendeletebutton();
+				modalTitle = m.multibuttontoken_deletetitle();
+				modalBody = m.multibuttontoken_deletebody();
+				modalButtonText = m.multibuttontoken_deletebutton();
 				break;
 			case 'block':
-				modalTitle = m.multibuttontokenblocktitle();
-				modalBody = m.multibuttontokenblockbody();
-				modalButtonText = m.multibuttontokenblockbutton();
+				modalTitle = m.multibuttontoken_blocktitle();
+				modalBody = m.multibuttontoken_blockbody();
+				modalButtonText = m.multibuttontoken_blockbutton();
 				break;
 			case 'unblock':
-				modalTitle = m.multibuttontokenunblocktitle();
-				modalBody = m.multibuttontokenunblockbody();
-				modalButtonText = m.multibuttontokenunblockbutton();
+				modalTitle = m.multibuttontoken_unblocktitle();
+				modalBody = m.multibuttontoken_unblockbody();
+				modalButtonText = m.multibuttontoken_unblockbutton();
 				break;
 			default:
 				throw new Error(`Invalid action ${action}`);

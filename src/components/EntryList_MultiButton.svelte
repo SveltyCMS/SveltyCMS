@@ -43,37 +43,37 @@
 
 		switch (storeListboxValue) {
 			case 'create':
-				actionname = m.entrylistmultibuttoncreate();
+				actionname = m.entrylist_multibutton_create();
 				buttonClass = 'gradient-primary';
 				iconValue = 'ic:round-plus';
 				break;
 			case 'publish':
-				actionname = m.entrylistmultibuttonpublish();
+				actionname = m.entrylist_multibutton_publish();
 				buttonClass = 'gradient-tertiary';
 				iconValue = 'bi:hand-thumbs-up-fill';
 				break;
 			case 'unpublish':
-				actionname = m.entrylistmultibuttonunpublish();
+				actionname = m.entrylist_multibutton_unpublish();
 				buttonClass = 'gradient-yellow';
 				iconValue = 'bi:pause-circle';
 				break;
 			case 'schedule':
-				actionname = m.entrylistmultibuttonschedule();
+				actionname = m.entrylist_multibutton_schedule();
 				buttonClass = 'gradient-pink';
 				iconValue = 'bi:clock';
 				break;
 			case 'clone':
-				actionname = m.entrylistmultibuttonclone();
+				actionname = m.entrylist_multibutton_clone();
 				buttonClass = 'gradient-secondary';
 				iconValue = 'bi:clipboard-data-fill';
 				break;
 			case 'delete':
-				actionname = m.entrylistmultibuttondelete();
+				actionname = m.entrylist_multibutton_delete();
 				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
 			case 'test':
-				actionname = m.entrylistmultibuttontesting();
+				actionname = m.entrylist_multibutton_testing();
 				buttonClass = 'gradient-error';
 				iconValue = 'icon-park-outline:preview-open';
 				break;
@@ -136,7 +136,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="ic:round-plus" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttoncreate()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_create()}</span>
 						</span>
 					</button>
 				</li>
@@ -151,7 +151,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttonpublish()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_publish()}</span>
 						</span>
 					</button>
 				</li>
@@ -166,7 +166,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:pause-circle" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttonunpublish()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_unpublish()}</span>
 						</span>
 					</button>
 				</li>
@@ -181,7 +181,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clock" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttonschedule()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_schedule()}</span>
 						</span>
 					</button>
 				</li>
@@ -196,7 +196,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clipboard-data-fill" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttonclone()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_clone()}</span>
 						</span>
 					</button>
 				</li>
@@ -211,7 +211,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:trash3-fill" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttondelete()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_delete()}</span>
 						</span>
 					</button>
 				</li>
@@ -226,7 +226,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="icon-park-outline:preview-open" width="24" />
-							<span class="ml-2">{m.entrylistmultibuttontesting()}</span>
+							<span class="ml-2">{m.entrylist_multibutton_testing()}</span>
 						</span>
 					</button>
 				</li>
