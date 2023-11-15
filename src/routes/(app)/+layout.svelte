@@ -23,7 +23,6 @@
 		togglePageHeader,
 		togglePageFooter,
 		storeListboxValue,
-		systemLanguage,
 		pkgBgColor
 	} from '@src/stores/store';
 
@@ -68,21 +67,17 @@
 		}
 	};
 
-	// typesafe-i18n
-	//import LL from '@src/i18n/i18n-svelte';
-	import { locales } from '@src/i18n/i18n-util';
-	import type { Locales } from '@src/i18n/i18n-types';
-	import { setLocale } from '@src/i18n/i18n-svelte';
-
-	//ParaglideJS
+	// Paraglide JS
+	import ParaglideSvelteKit from '@src/components/ParaglideSvelteKit.svelte';
 	import * as m from '@src/paraglide/messages';
 
-	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
+	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
-	function handleLocaleChange(e) {
-		selectedLocale = e.target.value;
-		setLocale(selectedLocale);
-		localStorage.setItem('selectedLanguage', selectedLocale);
+	let _languageTag = languageTag(); // Get the current language tag
+
+	function handleLocaleChange(event: any) {
+		const newLanguageTag = event.target.value;
+		setLanguageTag(newLanguageTag); // Update the language tag
 	}
 
 	// @ts-expect-error reading from vite.config.jss
@@ -374,14 +369,14 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<!-- System Language i18n Handling -->
 						<div class={$toggleLeftSidebar === 'full' ? 'order-3 row-span-2  ' : 'order-2'} use:popup={SystemLanguageTooltip}>
 							<select
-								bind:value={selectedLocale}
+								bind:value={_languageTag}
 								on:change={handleLocaleChange}
 								class="{$toggleLeftSidebar === 'full'
 									? 'px-2.5 py-2'
 									: 'btn-icon-sm'} variant-filled-surface btn-icon appearance-none rounded-full uppercase text-white"
 							>
-								{#each locales as locale}
-									<option value={locale} selected={locale === $systemLanguage}>{locale}</option>
+								{#each availableLanguageTags as locale}
+									<option value={locale} selected={locale === _languageTag}>{locale}</option>
 								{/each}
 							</select>
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">

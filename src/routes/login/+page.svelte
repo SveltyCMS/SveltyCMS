@@ -9,37 +9,13 @@
 	//console.log('PageData', data);
 
 	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	$: _languageTag = languageTag;
-	import { systemLanguage } from '@src/stores/store';
-	console.log('systemLanguage', $systemLanguage);
+	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
-	import { setLanguageTag, languageTag, onSetLanguageTag } from '@src/paraglide/runtime';
-	console.log('setLanguageTag:', setLanguageTag);
-	console.log('languageTag:', languageTag);
-	console.log('onSetLanguageTag:', onSetLanguageTag);
-	import { getContext, setContext } from 'svelte';
-	console.log('getContext:', getContext);
-	console.log('setContext:', setContext);
+	let _languageTag = languageTag(); // Get the current language tag
 
-	import { locales } from '@src/i18n/i18n-util';
-	import type { Locales } from '@src/i18n/i18n-types';
-	//console.log('locales', locales);
-
-	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
-	setLocale(selectedLocale);
-	systemLanguage.set(selectedLocale);
-	//console.log('selectedLocale', selectedLocale);
-
-	import { setLocale } from '@src/i18n/i18n-svelte';
-	//console.log('setLocale', setLocale);
-
-	function handleLocaleChange(e) {
-		selectedLocale = e.target.value;
-		setLocale(selectedLocale);
-		systemLanguage.set(selectedLocale);
-		localStorage.setItem('selectedLanguage', selectedLocale);
-		//console.log('selectedLocaleUpdated', selectedLocale);
+	function handleLocaleChange(event: any) {
+		const newLanguageTag = event.target.value;
+		setLanguageTag(newLanguageTag); // Update the language tag
 	}
 
 	let isFocused = false;
@@ -134,56 +110,35 @@
 		<div
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
-			{#if locales.length > 5}
-				<!-- Autocomplete input -->
+			<!-- Autocomplete input -->
+			{#if availableLanguageTags.length > 5}
 				<input
 					type="text"
 					list="locales"
 					on:input={handleLocaleChange}
-					on:focus={handleFocus}
-					on:blur={handleBlur}
-					placeholder={selectedLocale}
-					class="{isFocused ? 'w-40' : 'w-20'} input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
+					placeholder={_languageTag}
+					class="input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
 				/>
 
 				<datalist id="locales" class="w-full divide-y divide-white uppercase">
-					{#each locales as locale}
-						<option value={locale} class=" uppercase text-error-500">{locale}</option>
+					{#each availableLanguageTags as locale}
+						<option value={locale} class="uppercase text-error-500">{locale}</option>
 					{/each}
 				</datalist>
 			{:else}
 				<!-- Dropdown select -->
 				<select
-					bind:value={selectedLocale}
+					bind:value={_languageTag}
 					on:change={handleLocaleChange}
 					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
 				>
-					{#each locales as locale}
-						<option value={locale} selected={locale === $systemLanguage}>{locale.toUpperCase()} </option>{/each}
+					{#each availableLanguageTags as locale}
+						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
+					{/each}
 				</select>
 			{/if}
 		</div>
 	{/if}
-
-	<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-2 text-primary-700">
-		<p>System:{$systemLanguage}</p>
-		<p>languageTag:{languageTag}</p>
-		<p>_languageTag:{_languageTag}</p>
-		<button
-			class="variant-filled-primary btn"
-			on:click={() => {
-				systemLanguage.set('de');
-				setLanguageTag('de');
-			}}>change to "de"</button
-		>
-		<button
-			class="variant-filled-error btn"
-			on:click={() => {
-				systemLanguage.set('en');
-				setLanguageTag('en');
-			}}>change to "en"</button
-		>
-	</div>
 </div>
 
 <style lang="postcss">

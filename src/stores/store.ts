@@ -1,9 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 import { get } from 'svelte/store';
-import { PUBLIC_SYSTEM_LANGUAGE, PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-import { setLocale } from '@src/i18n/i18n-svelte';
-import type { Locales } from '@src/i18n/i18n-types';
-import { loadAllLocales } from '@src/i18n/i18n-util.sync';
+import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 import type { Schema } from '@src/collections/types';
 
 export const categories: Writable<
@@ -23,20 +20,9 @@ export const currentCollection = writable(null);
 // Create a writable store for Avatar
 export const avatarSrc: Writable<string> = writable();
 
-// Create a writable store for systemLanguage with initial value of PUBLIC_SYSTEM_LANGUAGE
-export const systemLanguage: Writable<string> = writable(PUBLIC_SYSTEM_LANGUAGE);
-
 // Create a writable store for contentLanguage with initial value of PUBLIC_CONTENT_LANGUAGES
 export const contentLanguage = writable(Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0]);
 export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0];
-
-// Subscribe to changes in credentials store and update local storage accordingly
-loadAllLocales(); // Load all locales
-
-// Subscribe to changes in systemLanguage store and set locale accordingly
-systemLanguage.subscribe((val) => {
-	setLocale(val as Locales);
-});
 
 // Git Version check
 export const pkgBgColor = writable('variant-filled-primary');

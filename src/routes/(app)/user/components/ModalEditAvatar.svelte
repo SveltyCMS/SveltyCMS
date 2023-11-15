@@ -53,14 +53,14 @@
 					if (val.size > 5242880) {
 						ctx.addIssue({
 							code: z.ZodIssueCode.custom,
-							message: m.modaleditavatarfilesize()
+							message: m.modaledit_avatarfilesize()
 						});
 					}
 
 					if (!imageTypes.includes(val.type)) {
 						ctx.addIssue({
 							code: z.ZodIssueCode.custom,
-							message: m.modaleditavatarunsupported()
+							message: m.modaledit_avatarunsupported()
 						});
 					}
 				}
@@ -182,18 +182,18 @@
 						></svg
 					>
 				</svelte:fragment>
-				<svelte:fragment slot="meta">{m.modaleditavatarfilesallowed()}</svelte:fragment>
+				<svelte:fragment slot="meta">{m.modaledit_avatarfilesallowed()}</svelte:fragment>
 			</FileDropzone>
 		</div>
 		{#if !files}
-			<small class="block text-center opacity-75">{m.modaleditavatarfilesize()}</small>
+			<small class="block text-center opacity-75">{m.modaledit_avatarfilesize()}</small>
 		{/if}
 	</form>
 
 	<footer class="modal-footer {parent.regionFooter} justify-between">
 		{#if $avatarSrc !== '/Default_User.svg'}
 			<button type="button" on:click={deleteAvatar} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaleditavatardelete()}</span>
+				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaledit_avatardelete()}</span>
 			</button>
 		{:else}
 			<div></div>
@@ -201,9 +201,9 @@
 		{/if}
 		<div class="flex justify-between gap-2">
 			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
-				{m.modaleditavatarcancel()}
+				{m.modaledit_avatarcancel()}
 			</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaleditavatarsave()}</button>
+			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_avatarsave()}</button>
 		</div>
 	</footer>
 </div>

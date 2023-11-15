@@ -15,7 +15,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@src/stores/store';
 
 	import { signUpFormSchema } from '@src/utils/formSchemas';
 
@@ -219,7 +218,7 @@
 			{/if}
 
 			{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
-			<input type="hidden" name="lang" value={$systemLanguage} />
+			<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
 
 			{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
 				<!-- email signin only -->
@@ -238,7 +237,7 @@
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 					<form method="post" action="?/OAuth" class="w-fit">
-						<input type="hidden" name="lang" value={$systemLanguage} />
+						<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
 						<button type="submit" class="uppercase">
 							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
 							<span>OAuth</span>

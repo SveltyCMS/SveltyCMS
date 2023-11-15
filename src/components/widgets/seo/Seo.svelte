@@ -430,7 +430,7 @@
 
 <!-- Mobile -->
 <div class="md:hidden">
-	<h3 class="mb-2 text-center">{m.widget_seo_suggestionlistofsuggestion()}</h3>
+	<h3 class="mb-2 text-center">{m.widget_seo_suggestionlist()}</h3>
 	<div class="flex items-center justify-around">
 		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" width="w-20 sm:w-28" class="mr-6 mt-1 text-white "
 			>{progress}%</ProgressRadial
@@ -463,7 +463,7 @@
 		<ProgressRadial value={progress} stroke={200} meter="stroke-primary-500" class="mr-6 mt-1 w-20 text-2xl text-white">{progress}%</ProgressRadial>
 		<div class="mb-2">
 			<div class="mb-2 flex items-center justify-between lg:justify-start lg:gap-5">
-				<h3 class="">{m.widget_seo_suggestionlistofsuggestion()}</h3>
+				<h3 class="">{m.widget_seo_suggestionlist()}</h3>
 
 				<div class="flex items-center gap-2">
 					<iconify-icon icon="mdi:close-octagon" class="text-error-500" width="24" />

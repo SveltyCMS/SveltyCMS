@@ -15,10 +15,6 @@
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { systemLanguage } from '@src/stores/store';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -296,11 +292,10 @@
 	let formElement: HTMLFormElement;
 
 	// reactive statement when systemLanguage changes
-	$: $forgotForm = { ...$forgotForm, lang: $systemLanguage };
+	$: $forgotForm = { ...$forgotForm };
 
 	$: $resetForm = {
 		...$resetForm,
-		lang: $systemLanguage,
 		email: hide_email,
 		token: registration_token
 	};

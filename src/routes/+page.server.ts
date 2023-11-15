@@ -1,4 +1,3 @@
-import { PUBLIC_SYSTEM_LANGUAGE } from '$env/static/public';
 import { getCollections } from '@src/collections';
 import { redirect } from '@sveltejs/kit';
 
@@ -6,6 +5,14 @@ import { redirect } from '@sveltejs/kit';
 import { validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { auth } from './api/db';
+
+//paraglidejs
+import { languageTag, setLanguageTag, sourceLanguageTag } from '@src/paraglide/runtime';
+// console.log('languageTag', languageTag);
+// console.log('setLanguageTag', setLanguageTag);
+// console.log('sourceLanguageTag', sourceLanguageTag);
+
+// Initialize currentLanguageTag with a default value
 
 export async function load({ cookies }) {
 	// Get the session cookie
@@ -21,5 +28,5 @@ export async function load({ cookies }) {
 	//console.log('_filtered', _filtered);
 
 	// Redirect to the first collection in the collections array
-	throw redirect(302, `/${PUBLIC_SYSTEM_LANGUAGE}/${_filtered[0].name}`);
+	throw redirect(302, `/${languageTag()}/${_filtered[0].name}`);
 }

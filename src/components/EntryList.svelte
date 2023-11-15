@@ -653,9 +653,9 @@
 			{m.entrylist_total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{m.entrylist_row()}
+				{m.entrylist_row()})
 			{:else}
-				{m.entrylist_rows()}
+				{m.entrylist_rows()})
 			{/if}
 		</div>
 

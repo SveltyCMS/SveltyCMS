@@ -43,7 +43,6 @@
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
 
-<!-- <ParaglideSvelteKit>
+<ParaglideSvelteKit>
 	<slot />
-</ParaglideSvelteKit> -->
-<slot />
+</ParaglideSvelteKit>
