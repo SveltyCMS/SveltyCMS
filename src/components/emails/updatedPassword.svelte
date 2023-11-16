@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
-	import { systemLanguage } from '@src/stores/store';
 
 	import { page } from '$app/stores';
 	import type { User } from '@src/collections/Auth';
@@ -10,6 +9,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
@@ -65,7 +65,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={languageTag()}>
 	<Head>
 		<title>{m.updatedpassword_title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={m.updatedpassword_meta({ PUBLIC_SITENAME })} />

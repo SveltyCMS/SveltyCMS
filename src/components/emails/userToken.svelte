@@ -3,11 +3,9 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	// typesafe-i18n
-	import { systemLanguage } from '@src/stores/store';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -113,7 +111,7 @@
 	};
 </script>
 
-<Html lang={$systemLanguage}>
+<Html lang={languageTag()}>
 	<Head>
 		<title>{m.usertoken_title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={m.usertoken_meta({ PUBLIC_SITENAME })} />

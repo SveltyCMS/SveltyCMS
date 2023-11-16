@@ -271,7 +271,7 @@
 		{/if}
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>Ca{m.modaleditform_cancel()}ncel</button>
+        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{m.modaleditform_cancel()}</button>
         <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaleditform_save()}</button>
 	</div>
     </footer>

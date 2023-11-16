@@ -3,11 +3,10 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	// typesafe-i18n
-	import { setLocale, locale } from '@src/i18n/i18n-svelte';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+
 
 	export let username: string = '';
 	export let systemLanguage: string = '';
@@ -64,7 +63,7 @@
 	};
 </script>
 
-<Html lang={systemLanguage}>
+<Html lang={languageTag()}>
 	<Head>
 		<title>{m.welcomeuser_title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={m.welcomeuser_meta({ PUBLIC_SITENAME })} />

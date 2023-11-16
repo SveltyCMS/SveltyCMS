@@ -3,16 +3,11 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
-
-	// typesafe-i18n
-	import { setLocale, locale } from '@src/i18n/i18n-svelte';
-	export let systemLanguage: string = '';
-	setLocale(systemLanguage as any);
-	//console.log('systemLanguage', systemLanguage);
+	export let tokenLink = dev ? HOST_DEV : HOST_PROD;;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 	// svelte-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
@@ -148,7 +143,7 @@
 	};
 </script>
 
-<Html lang={systemLanguage}>
+<Html lang={languageTag()}>
 	<Head>
 		<title> {m.forgottenpassword_title({ PUBLIC_SITENAME })}</title>
 		<meta name="description" content={m.forgottenpassword_meta({ PUBLIC_SITENAME })} />

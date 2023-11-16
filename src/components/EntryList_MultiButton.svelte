@@ -104,7 +104,7 @@
 	<!-- left button -->
 	<button
 		type="button"
-		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-[135px] ${buttonClass}`}
+		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-auto ${buttonClass}`}
 		on:click|preventDefault={handleButtonClick}
 	>
 		<span class="flex items-center">

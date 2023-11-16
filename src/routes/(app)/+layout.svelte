@@ -105,13 +105,6 @@
 		})
 		.catch((error) => console.error('Error:', error));
 
-	// dark mode
-	const toggleTheme = () => {
-		$modeCurrent = !$modeCurrent;
-		setModeUserPrefers($modeCurrent);
-		setModeCurrent($modeCurrent);
-	};
-
 	// Lucia
 	const user = $page.data.user;
 	avatarSrc.set(user?.avatar);
@@ -134,11 +127,39 @@
 		}
 	}
 
+	const toggleTheme = () => {
+		let currentMode = get(modeCurrent); // get the current value of the store
+		let newMode = !currentMode; // toggle the mode
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		localStorage.setItem('theme', newMode ? 'light' : 'dark');
+	};
+
+	// On page load
+	document.addEventListener('DOMContentLoaded', (event) => {
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+	});
+
 	//skeleton
-	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
+	import {
+		initializeStores,
+		AppShell,
+		Avatar,
+		Modal,
+		popup,
+		Toast,
+		modeCurrent,
+		setModeUserPrefers,
+		setModeCurrent,
+		setInitialClassState
+	} from '@skeletonlabs/skeleton';
 	initializeStores();
 
-	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	//required for popups to function
@@ -359,7 +380,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									</div>
 								</button>
 								<div class="card variant-filled-secondary p-4" data-popup="User">
-									{m.applayoutuserprofile()}
+									{m.applayout_userprofile()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -380,7 +401,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								{/each}
 							</select>
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-								{m.applayoutsystemlanguage()}
+								{m.applayout_systemlanguage()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -398,8 +419,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							</button>
 
 							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-2" data-popup="SwitchTheme">
-								{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
+							<div class="card variant-filled-secondary overflow-auto p-2" data-popup="SwitchTheme">
+								{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -417,7 +438,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							</button>
 
 							<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
-								{m.applayoutsignout()}
+								{m.applayout_signout()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -437,7 +458,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								</a>
 
 								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-									{m.applayoutsystemconfiguration()}
+									{m.applayout_systemconfiguration()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -450,7 +471,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									<iconify-icon icon="grommet-icons:github" width="30" />
 
 									<div class="card variant-filled-secondary p-4" data-popup="Github">
-										{m.applayoutgithubdiscussion()}
+										{m.applayout_githubdiscussion()}
 										<div class="variant-filled-secondary arrow" />
 									</div>
 								</button>
@@ -461,7 +482,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-									>{#if $toggleLeftSidebar === 'full'}{m.applayoutversion()}{/if}{pkg}</span
+									>{#if $toggleLeftSidebar === 'full'}{m.applayout_version()}{/if}{pkg}</span
 								>
 							</a>
 						</div>

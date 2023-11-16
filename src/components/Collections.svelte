@@ -177,7 +177,7 @@
 			}}
 		>
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600" />
-			<p class="mr-auto text-center uppercase">Media</p></a
+			<p class="mr-auto text-center uppercase">{m.collections_media()}</p></a
 		>
 	{:else}
 		<!-- switchSideBar collapsed -->
