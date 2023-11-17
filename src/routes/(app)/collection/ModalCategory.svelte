@@ -9,8 +9,8 @@
 	const modalStore = getModalStore();
 	import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Form Data
 	let formData = {
@@ -81,12 +81,12 @@
 		<!-- Enable for debugging: -->
 		<form class="modal-form {cForm}">
 			<label class="label">
-				<span>{$LL.MODAL_Category_Name()}</span>
-				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={$LL.MODAL_Category_Placeholder()} />
+				<span>{m.modalcategory_categoryname()}</span>
+				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={m.modalcategory_placeholder()} />
 			</label>
 
 			<label class="label" for="newCategoryIcon">
-				{$LL.MODAL_Category_Icon()}
+				{m.modalcategory_icon()}
 				<IconifyPicker bind:iconselected={formData.newCategoryIcon} id="newCategoryIcon" />
 			</label>
 		</form>
@@ -95,13 +95,13 @@
 			{#if existingCategory.name}
 				<!-- Check if existing category is being edited -->
 				<button type="button" on:click={deleteCategory} class="variant-filled-error btn">
-					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden md:inline">{$LL.MODAL_Category_Delete()}</span>
+					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden md:inline">{m.modalcategory_delete()}</span>
 				</button>
 			{/if}
 
 			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{$LL.MODAL_Category_Cancel()}</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{$LL.MODAL_Category_Save()}</button>
+				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modalcategory_cancel()}</button>
+				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modalcategory_save()}</button>
 			</div>
 		</footer>
 	</div>

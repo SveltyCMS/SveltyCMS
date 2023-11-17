@@ -6,8 +6,8 @@
 	import ListNode from './ListNode.svelte';
 	import { entryData, mode } from '@src/stores/store';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
@@ -41,7 +41,7 @@
 
 {#if !_data}
 	<p class="text-center font-bold text-tertiary-500">
-		{$LL.WIDGET_MegaMenu_title()}
+		{m.widget_megamenu_title()}
 	</p>
 {/if}
 
@@ -56,7 +56,7 @@
 		<!-- Next Button -->
 		<button type="button" on:click={saveLayer} class="variant-filled-primary btn mb-4 dark:text-white">
 			<iconify-icon icon="carbon:next-filled" width="24" class="mr-1 dark:text-white" />
-			{$LL.WIDGET_MegaMenu_Next()}
+			{m.widget_megamenu_next()}
 		</button>
 	</div>
 {/if}

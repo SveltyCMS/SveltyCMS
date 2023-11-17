@@ -1,6 +1,6 @@
 <script lang="ts">
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import { createEventDispatcher } from 'svelte';
 	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
@@ -37,43 +37,43 @@
 	}
 
 	function getButtonAndIconValues(storeListboxValue: string) {
-		let actionname = '';
-		let buttonClass = '';
-		let iconValue = '';
+		let actionname: string;
+		let buttonClass: string;
+		let iconValue: string;
 
 		switch (storeListboxValue) {
 			case 'create':
-				actionname = $LL.ENTRYLIST_Create();
+				actionname = m.entrylist_multibutton_create();
 				buttonClass = 'gradient-primary';
 				iconValue = 'ic:round-plus';
 				break;
 			case 'publish':
-				actionname = $LL.ENTRYLIST_Publish();
+				actionname = m.entrylist_multibutton_publish();
 				buttonClass = 'gradient-tertiary';
 				iconValue = 'bi:hand-thumbs-up-fill';
 				break;
 			case 'unpublish':
-				actionname = $LL.ENTRYLIST_Unpublish();
+				actionname = m.entrylist_multibutton_unpublish();
 				buttonClass = 'gradient-yellow';
 				iconValue = 'bi:pause-circle';
 				break;
 			case 'schedule':
-				actionname = $LL.ENTRYLIST_Schedule();
+				actionname = m.entrylist_multibutton_schedule();
 				buttonClass = 'gradient-pink';
 				iconValue = 'bi:clock';
 				break;
 			case 'clone':
-				actionname = $LL.ENTRYLIST_Clone();
+				actionname = m.entrylist_multibutton_clone();
 				buttonClass = 'gradient-secondary';
 				iconValue = 'bi:clipboard-data-fill';
 				break;
 			case 'delete':
-				actionname = $LL.ENTRYLIST_Delete();
+				actionname = m.entrylist_multibutton_delete();
 				buttonClass = 'gradient-error';
 				iconValue = 'bi:trash3-fill';
 				break;
 			case 'test':
-				actionname = 'testing';
+				actionname = m.entrylist_multibutton_testing();
 				buttonClass = 'gradient-error';
 				iconValue = 'icon-park-outline:preview-open';
 				break;
@@ -104,7 +104,7 @@
 	<!-- left button -->
 	<button
 		type="button"
-		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-[135px] ${buttonClass}`}
+		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-auto ${buttonClass}`}
 		on:click|preventDefault={handleButtonClick}
 	>
 		<span class="flex items-center">
@@ -136,7 +136,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="ic:round-plus" width="24" />
-							<span class="ml-2">Create</span>
+							<span class="ml-2">{m.entrylist_multibutton_create()}</span>
 						</span>
 					</button>
 				</li>
@@ -151,7 +151,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
-							<span class="ml-2">Publish</span>
+							<span class="ml-2">{m.entrylist_multibutton_publish()}</span>
 						</span>
 					</button>
 				</li>
@@ -166,7 +166,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:pause-circle" width="24" />
-							<span class="ml-2">Unpublish</span>
+							<span class="ml-2">{m.entrylist_multibutton_unpublish()}</span>
 						</span>
 					</button>
 				</li>
@@ -181,7 +181,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clock" width="24" />
-							<span class="ml-2">Schedule</span>
+							<span class="ml-2">{m.entrylist_multibutton_schedule()}</span>
 						</span>
 					</button>
 				</li>
@@ -196,7 +196,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:clipboard-data-fill" width="24" />
-							<span class="ml-2">Clone</span>
+							<span class="ml-2">{m.entrylist_multibutton_clone()}</span>
 						</span>
 					</button>
 				</li>
@@ -211,7 +211,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="bi:trash3-fill" width="24" />
-							<span class="ml-2">Delete</span>
+							<span class="ml-2">{m.entrylist_multibutton_delete()}</span>
 						</span>
 					</button>
 				</li>
@@ -226,7 +226,7 @@
 					>
 						<span class="flex items-center">
 							<iconify-icon icon="icon-park-outline:preview-open" width="24" />
-							<span class="ml-2">Testing</span>
+							<span class="ml-2">{m.entrylist_multibutton_testing()}</span>
 						</span>
 					</button>
 				</li>

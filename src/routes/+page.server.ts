@@ -1,11 +1,13 @@
-import { PUBLIC_SYSTEM_LANGUAGE } from '$env/static/public';
 import { getCollections } from '@src/collections';
-import { redirect } from '@sveltejs/kit';
+import { redirect, type Actions } from '@sveltejs/kit';
 
 //lucia
 import { validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { auth } from './api/db';
+
+//paraglidejs
+import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
 	// Get the session cookie
@@ -13,13 +15,34 @@ export async function load({ cookies }) {
 
 	// Validate the user's session
 	const user = await validate(auth, session);
-	console.log('user', user);
 
-	//console.log('collections', collections);
-	// filters collection  based on reading permissions and redirects to first left one
+	// Get the collections and filter based on reading permissions
 	const _filtered = (await getCollections()).filter((c) => c?.permissions?.[user.user.role]?.read != false);
-	//console.log('_filtered', _filtered);
 
 	// Redirect to the first collection in the collections array
-	throw redirect(302, `/${PUBLIC_SYSTEM_LANGUAGE}/${_filtered[0].name}`);
+	throw redirect(302, `/${languageTag()}/${_filtered[0].name}`);
 }
+
+export const actions = {
+	default: async ({ cookies, request }) => {
+		const data = await request.formData();
+		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
+		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
+
+		// Check if the provided system language is available, if not, default to source language
+		if (!availableLanguageTags.includes(sourceLanguageTag)) {
+			systemlanguage = sourceLanguageTag;
+		}
+
+		// Set the cookies
+		cookies.set('theme', theme);
+		cookies.set('systemlanguage', systemlanguage);
+
+		// Update the language tag in paraglide
+		setLanguageTag(systemlanguage as any);
+
+		// Here you would also update these preferences on the server for the current user
+
+		throw redirect(303, '/');
+	}
+} satisfies Actions;

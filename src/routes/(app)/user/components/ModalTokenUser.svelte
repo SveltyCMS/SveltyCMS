@@ -20,11 +20,13 @@
 	export let parent: any;
 
 	// Skelton & Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+
+	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
@@ -42,7 +44,17 @@
 		dataType: 'json',
 
 		onSubmit: ({ cancel }) => {
-			console.log('test');
+			// Trigger the toast
+			const t = {
+				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Send',
+				// Provide any utility or variant background style:
+				background: 'gradient-tertiary',
+				timeout: 3000,
+				// Add your custom classes here:
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+
 			console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
 		},
@@ -93,7 +105,7 @@
 		<!-- Email field -->
 		<div class="group relative mb-6 w-full">
 			<FloatingInput
-				label={$LL.LOGIN_EmailAddress()}
+				label={m.modaltokenuser_email_address()}
 				icon="mdi:email"
 				name="email"
 				type="email"
@@ -111,7 +123,7 @@
 
 		<!-- User Role  -->
 		<div class="flex flex-col gap-2 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserToken_Role()}</div>
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_userrole()}</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 					{#each Object.values(roles) as r}
@@ -137,7 +149,7 @@
 
 		<!-- Token validity  -->
 		<div class="flex flex-col gap-2 pb-6 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserToken_Validity()}</div>
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
@@ -169,8 +181,8 @@
 		</div>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{$LL.MODAL_UserToken_Cancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">{$LL.MODAL_UserToken_Send()}</button>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaltokenuser_cancel()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}">{m.modaltokenuser_send()}</button>
 		</footer>
 	</form>
 </div>

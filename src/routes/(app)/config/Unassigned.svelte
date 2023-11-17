@@ -3,8 +3,8 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte'
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	const flipDurationMs = 200;
 	export let items: any;
@@ -26,7 +26,7 @@
 </script>
 
 <div class="ml-1 rounded-sm border border-surface-300 dark:border-surface-400">
-	<h2 class="mb-2 text-center font-bold dark:text-primary-500">{$LL.BUILDER_Unassigned()}</h2>
+	<h2 class="mb-2 text-center font-bold dark:text-primary-500">{m.unassigned_unassigned()}</h2>
 	<div
 		class="my-1 flex w-full flex-wrap gap-1 overflow-x-scroll"
 		use:dndzone={{ items, flipDurationMs }}
@@ -45,8 +45,7 @@
 					{item.name}</span
 				>
 
-				<button class="text-black" on:click={() => handleCollectionClick(item.name)}
-					><iconify-icon icon="mdi:pen" width="18" class="pr-0.5" /></button
+				<button class="text-black" on:click={() => handleCollectionClick(item.name)}><iconify-icon icon="mdi:pen" width="18" class="pr-0.5" /></button
 				>
 			</div>
 		{/each}

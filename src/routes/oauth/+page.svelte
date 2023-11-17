@@ -1,7 +1,6 @@
 <script lang="ts">
-
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import Loading from '@src/components/Loading.svelte';
 	import Logo from '../login/components/icons/Logo.svelte';
@@ -31,7 +30,7 @@
 							stroke-dasharray="191 191"
 							stroke-dashoffset="191"
 							transform="rotate(51.5, 80, 80)"
-							class="fill-none stroke-red-500"
+							class="fill-none stroke-error-500"
 						/>
 
 						<circle
@@ -42,7 +41,7 @@
 							stroke-dasharray="191 191"
 							stroke-dashoffset="191"
 							transform="rotate(231.5, 80, 80)"
-							class="fill-none stroke-red-500"
+							class="fill-none stroke-error-500"
 						/>
 					</svg>
 
@@ -72,24 +71,31 @@
 					<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 						<Logo fill="black" className="w-8 h-8" />
 						<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
-						<div class="-mt-[1px] text-[11px] font-bold text-black">with Sveltekit Power</div>
+						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.oauth_slogan()}</div>
 					</div>
 				</div>
 			</div>
 
 			<!-- Input Token -->
 			<label>
-				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">Enter User Token to SignUp:{$LL.MODAL_UserOAuth_Title()}</h2>
-				<input placeholder="Enter  your Received Token {$LL.MODAL_UserOAuth_Placeholder()}" class="input" type="text" name="token" minlength="16" maxlength="48" />
+				<h2 class="mb-2 text-center text-xl font-bold text-primary-500">{m.oauth_entertoken()}</h2>
+				<input
+					placeholder="Enter  your Received Token {m.oauth_placeholder()}"
+					class="input"
+					type="text"
+					name="token"
+					minlength="16"
+					maxlength="48"
+				/>
 			</label>
 			<div class="flex justify-between gap-2">
 				<!-- Cancel Button -->
-				<button class="items center variant-filled my-2 py-3 px-4 uppercase">Cancel{$LL.MODAL_UserOAuth_Cancel()}</button>
+				<button class="items center variant-filled my-2 px-4 py-3 uppercase">{m.oauth_cancel()}</button>
 
 				<!-- Submit Button -->
-				<button type="submit" class="items center variant-filled my-2 py-3  flex flex-1 justify-center gap-2 uppercase">
+				<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 py-3 uppercase">
 					<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-					<p>Sign Up with Google {$LL.MODAL_UserOAuth_Submit()}</p>
+					<p>{m.oauth_signup()}</p>
 				</button>
 			</div>
 		</form>

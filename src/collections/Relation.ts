@@ -21,14 +21,6 @@ const schema: Schema = {
 			display({ data, contentLanguage }) {
 				return data?.['text'][contentLanguage];
 			}
-		}),
-		widgets.Relation({
-			label: 'Relation M2M to Posts',
-			db_fieldName: 'relationM2MPosts2',
-			relation: 'Posts2',
-			display({ data, contentLanguage }) {
-				return data?.['text'][contentLanguage];
-			}
 		})
 	]
 };

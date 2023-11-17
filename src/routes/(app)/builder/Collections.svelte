@@ -66,7 +66,7 @@
 	<div
 		role="button"
 		tabindex="0"
-		class="tooltip_right arrow relative mb-1 cursor-pointer overflow-visible rounded-sm border bg-[#363b4e] bg-surface-600 py-2 text-center text-white"
+		class="tooltip_right arrow relative mb-1 cursor-pointer overflow-visible rounded-sm border bg-surface-600 py-2 text-center text-white"
 		class:arrow_up={expanded[index]}
 		on:click={(e) => {
 			expanded[index] = !expanded[index];
@@ -142,7 +142,7 @@
 	<button class="variant-ghost-primary btn mt-2 w-full" on:click={saveConfig}>Save Categories</button>
 {/if}
 
-<style>
+<style lang="postcss">
 	.wrapper {
 		display: grid;
 		grid-template-rows: 0fr;

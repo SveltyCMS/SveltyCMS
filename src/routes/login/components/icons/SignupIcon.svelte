@@ -1,6 +1,6 @@
 <script lang="ts">
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	export let show = true;
 </script>
@@ -13,7 +13,7 @@
 	<div class="flex flex-col items-center">
 		<div class="relative w-max rounded-full border-4 border-white p-3">
 			<svg
-				class="aspect-square h-12 over"
+				class="over aspect-square h-12"
 				xmlns="http://www.w3.org/2000/svg"
 				xmlns:xlink="http://www.w3.org/1999/xlink"
 				viewBox="0 0 50 50"
@@ -25,7 +25,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase text-white">{$LL.LOGIN_SignUp()}</p>
+		<p class="text-center font-semibold uppercase text-white">{m.signup_iconsignup()}</p>
 	</div>
 </div>
 
