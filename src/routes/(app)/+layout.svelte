@@ -296,7 +296,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 {$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
 {$toggleLeftSidebar === 'closed' ? 'hidden' : 'block'}
 lg:overflow-y-scroll lg:max-h-screen}"
-			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center
+			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center p-2
 	{$toggleRightSidebar === 'closed' ? 'hidden' : 'block'}"
 			slotPageHeader="relative bg-white dark:bg-gradient-to-t dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center px-1  border-b 
 	{$togglePageHeader === 'closed' ? 'hidden' : 'block'}"

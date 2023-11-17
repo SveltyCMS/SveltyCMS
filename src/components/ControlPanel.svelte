@@ -54,23 +54,38 @@
 		<iconify-icon icon="mdi:pen" width="24" />Create
 	</button>
 {:else if ['edit', 'create'].includes($mode)}
-	<div class="mx-2 mt-2 flex h-screen flex-col justify-between">
-		<header class="mx-2 flex flex-col items-center justify-center gap-2">
+	<div class="flex h-screen w-full flex-col justify-between">
+		<header class="flex flex-col items-center justify-center gap-2">
 			<button type="button" on:click={saveData} class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
 				Save
 			</button>
 
 			<!-- Publish/Unpublish -->
-			<Toggles label="Publish" OnIcon="ic:baseline-check-circle" OffIcon="material-symbols:close" bind:publishValue />
+			<div class="gradient-secondary btn w-full gap-2">
+				<Toggles
+					label={publishValue ? 'Published' : 'Unpublished'}
+					icon={publishValue ? 'ic:baseline-check-circle' : 'material-symbols:close'}
+					bind:value={publishValue}
+				/>
+			</div>
+
+			<!-- Revision -->
+			<div class="gradient-secondary btn flex w-full items-center justify-between text-white">
+				Revisions:
+				<div class="variant-outline-primary badge ml-2 rounded-full px-3 py-0 text-lg text-primary-500">
+					<iconify-icon icon="pepicons-pop:countdown" width="18" />
+					<div class="text-white">2</div>
+				</div>
+			</div>
 
 			<!--Clone -->
 			<button
 				type="button"
 				on:click={() => $modifyEntry('clone')}
-				class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn mt-5 w-full gap-2"
+				class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 			>
-				<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone
+				<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection.name}</span>
 			</button>
 
 			{#if $mode == 'edit'}
@@ -87,16 +102,16 @@
 		</header>
 
 		<!-- Publish Options -->
-		<main class="mt-4 flex w-full flex-col items-center justify-center gap-2 text-white">
-			<p class="mt-2 w-full border-b font-bold uppercase text-primary-500">Publish Options:</p>
+		<main class="mt-4 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
+			<p class="mt-2 w-full border-b text-center font-bold uppercase text-primary-500">Publish Options:</p>
 
 			<!--Authored by autocomplete -->
-			<div class="mx-2 flex flex-col items-center justify-center overflow-auto">
-				<p class="mr-2 text-primary-500">Authored by:</p>
+			<div class="flex flex-col">
+				<p class="">Authored by:</p>
 				<div class="relative z-50">
 					<!-- add use:popup directive to the element that triggers the popup -->
 					<input
-						class="autocomplete input"
+						class="autocomplete variant-filled-surface text-sm"
 						type="search"
 						name="autocomplete-search"
 						bind:value={inputPopupUser}
@@ -112,13 +127,13 @@
 			</div>
 
 			<!--Authored on -->
-			<p class="mt-2">Schedule | Authored on:</p>
+			<p class="text-left">Schedule / Authored on:</p>
 			<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
 		</main>
 
-		<footer class="-mx-1 mb-2 flex w-full flex-col items-center justify-center gap-2 text-white">
+		<footer class="-mx-1 mb-2 flex w-full flex-col items-center justify-center gap-2 dark:text-white">
 			<!--Content Info -->
-			<h2 class="text-center font-bold uppercase text-primary-500">{$collection.name} Info:</h2>
+			<h2 class="text-center font-bold uppercase text-primary-500">Content Info:</h2>
 
 			<div class="mt-2 grid grid-cols-3 items-center gap-x-2 text-[12px] leading-tight">
 				{#each Object.keys(dates) as key}
