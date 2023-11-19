@@ -145,6 +145,8 @@
 	"modaledit_tokenregistrationtoken": "Jeton d'enregistrement",
 	"modaledit_tokenuserrole": "Rôle d'utilisateur:",
 	"modaledit_tokendelete": "Supprimer",
+	"modaledit_tokencancel": "Annuler",
+	"modaledit_tokensave": "Sauvegarder",
 	"modaltokenuser_email_address": "Adresse e-mail",
 	"modaltokenuser_userrole": "Rôle d'utilisateur:",
 	"modaltokenuser_tokenvalidity": "Validité du jeton :",
@@ -253,5 +255,16 @@
 	"mediagallery_small": "Petit",
 	"mediagallery_medium": "Moyen",
 	"mediagallery_large": "Grand",
-	"mediagallery_table": "Tableau"
+	"mediagallery_table": "Tableau",
+	"widgets_nodata": "Pas de données",
+	"formSchemas_EmailisRequired": "L'e-mail est requis",
+	"formSchemas_Emailvalid": "L'e-mail doit être un e-mail valide",
+	"formSchemas_PasswordisRequired": "Mot de passe requis",
+	"formSchemas_PasswordMessage": "Le mot de passe doit comporter au moins 8 caractères et contenir au moins une lettre, un chiffre et un caractère spécial.",
+	"formSchemas_Passwordmatch": "Le mot de passe et le mot de passe de confirmation doivent correspondre",
+	"formSchemas_ConfimPassword": "Confirmer que le mot de passe est requis",
+	"formSchemas_usernameRequired": "Nom d'utilisateur est nécessaire",
+	"formSchemas_usernameregex": "Le nom ne peut contenir que des lettres, des chiffres et @$!%*#",
+	"formSchemas_username_min": "Le nom doit comporter au moins 2 caractères",
+	"formSchemas_username_max": "Le nom ne peut contenir que 24 caractères"
 }
