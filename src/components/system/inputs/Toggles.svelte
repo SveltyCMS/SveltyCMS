@@ -1,19 +1,25 @@
 <script lang="ts">
 	export let value: boolean = false;
 	export let label: string = '';
-	export let OnIcon: any = null;
-	export let OffIcon: any = null;
+	export let icon: any = null;
 </script>
 
-<label for="toggleSwitch" class="text-dark flex cursor-pointer select-none items-center dark:text-white">
-	<label for="toggleSwitch" class={`mr-3 ${value ? 'text-green-500' : 'text-red-500'}`}>{label}</label>
+<label for="toggleSwitch" class="text-dark flex cursor-pointer select-none items-center text-white">
+	<label for="toggleSwitch" class={`mr-3 flex items-center gap-2 ${value ? 'text-primary-500' : 'text-error-500'}`}>
+		<!-- {#if value}
+			<iconify-icon icon="wpf:invisible" width="24" class="text-white" />
+		{:else}
+			<iconify-icon icon="gridicons:not-visible" width="24" class="text-white" />
+		{/if} -->
+		{label}
+	</label>
 
 	<div class="relative">
 		<input type="checkbox" id="toggleSwitch" class="peer sr-only" bind:checked={value} />
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
-			<span class="absolute inset-0 flex items-center justify-end pr-4 text-white">
-				{value ? (OnIcon ? '' : 'ON') : OffIcon ? '' : 'OFF'}
+			<span class="absolute inset-0 flex items-center justify-center rounded-full border-2 pr-[25px] text-white">
+				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
 			</span>
 		</div>
 
@@ -22,9 +28,9 @@
 			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
 		>
 			{#if value}
-				<iconify-icon icon={OnIcon} width="24" />
+				<iconify-icon {icon} width="24" />
 			{:else}
-				<iconify-icon icon={OffIcon} width="24" />
+				<iconify-icon {icon} width="24" />
 			{/if}
 		</div>
 	</div>

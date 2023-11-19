@@ -17,9 +17,9 @@ const schema: Schema = {
 		widgets.Relation({
 			label: 'Relation M2M to Posts',
 			db_fieldName: 'relationM2MPosts',
-			relation: 'Posts',
+			relation: 'Names',
 			display({ data, contentLanguage }) {
-				return data?.['text'][contentLanguage];
+				return data?.['First Name'][contentLanguage];
 			}
 		})
 	]

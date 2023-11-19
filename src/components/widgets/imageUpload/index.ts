@@ -4,9 +4,8 @@ import { getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 // import { defaultContentLanguage } from '@src/stores/store';
 
-// typesafe-i18n
-import { get } from 'svelte/store';
-import LL from '@src/i18n/i18n-svelte.js';
+//ParaglideJS
+import * as m from '@src/paraglide/messages';
 
 // Define the widget function
 const widget = (params: Params) => {
@@ -21,7 +20,7 @@ const widget = (params: Params) => {
 			if (data?.thumbnail.url) {
 				return `<img class='max-w-[200px]  max-h-[150px] inline-block' src="${data?.thumbnail.url}" />`;
 			} else {
-				return get(LL).ENTRYLIST_Untranslated();
+				return m.widgets_nodata();
 			}
 		};
 		display.default = true;

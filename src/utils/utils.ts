@@ -362,6 +362,7 @@ export async function getDates(collectionName: string) {
 	// Send a GET request to the endpoint that retrieves the data from the MongoDB database
 	const response = await fetch(`/api/${collectionName}`);
 	const data = await response.json();
+
 	// Check if the entryList array is empty
 	if (data.entryList.length === 0) {
 		// Return an object with '-' for each field
@@ -373,26 +374,61 @@ export async function getDates(collectionName: string) {
 	} else {
 		// Get the first entry from the entryList array
 		const result = data.entryList[0];
-		// Convert the timestamps to Date objects or '-' if null
-		const options: Intl.DateTimeFormatOptions = {
-			day: '2-digit',
-			month: '2-digit',
-			year: 'numeric',
-			hour: '2-digit',
-			minute: '2-digit',
-			hour12: false
-		};
-		const locale = get(contentLanguage);
-		const createdDate = result.createdAt ? new Date(result.createdAt).toLocaleString(locale, options) : '-';
-		const updatedDate = result.updatedAt ? new Date(result.updatedAt).toLocaleString(locale, options) : '-';
 
-		// Return the result
+		// Convert the timestamps to readable date formats
+		const createdDate = convertTimestampToDateString(result.createdAt);
+		const updatedDate = convertTimestampToDateString(result.updatedAt);
+
+		// Return the result with converted date formats
 		return {
 			created: createdDate,
 			updated: updatedDate,
 			revision: result.revision || '-'
 		};
 	}
+}
+
+// Function to convert Unix timestamp to readable date string
+export function convertTimestampToDateString(timestamp: number) {
+	if (timestamp === null || timestamp === undefined) {
+		return '-';
+	}
+
+	const options: Intl.DateTimeFormatOptions = {
+		day: '2-digit',
+		month: '2-digit',
+		year: 'numeric',
+		hour: '2-digit',
+		minute: '2-digit',
+		hour12: false
+	};
+	const locale = get(contentLanguage);
+
+	const date = new Date(timestamp);
+	return date.toLocaleDateString(locale, options);
+}
+
+export function formatUptime(uptime: number) {
+	const units = [
+		{ label: ['year', 'years'], value: 365 * 24 * 60 * 60 },
+		{ label: ['month', 'months'], value: 30 * 24 * 60 * 60 },
+		{ label: ['week', 'weeks'], value: 7 * 24 * 60 * 60 },
+		{ label: ['day', 'days'], value: 24 * 60 * 60 },
+		{ label: ['hour', 'hours'], value: 60 * 60 },
+		{ label: ['minute', 'minutes'], value: 60 },
+		{ label: ['second', 'seconds'], value: 1 }
+	];
+
+	const result: string[] = [];
+	for (const unit of units) {
+		const quotient = Math.floor(uptime / unit.value);
+		if (quotient > 0) {
+			result.push(`${quotient} ${unit.label[quotient > 1 ? 1 : 0]}`);
+			uptime %= unit.value;
+		}
+	}
+
+	return result.join(' ');
 }
 
 function removeExtension(fileName) {

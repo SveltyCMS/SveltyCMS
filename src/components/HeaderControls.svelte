@@ -17,8 +17,8 @@
 
 	let user: User = $page.data.user;
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Manually parse the object from JSON string
 	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));

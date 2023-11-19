@@ -7,7 +7,7 @@ const schema: Schema = {
 
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
-	icon: 'bi:images',
+	icon: 'pajamas:media',
 
 	// Collection Permissions by user Roles
 

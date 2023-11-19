@@ -8,9 +8,9 @@
 	import VerticalList from '@src/components/VerticalList.svelte';
 	import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { systemLanguage, mode } from '@src/stores/store';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { mode } from '@src/stores/store';
 
 	// TS & Json export
 	function onCompleteHandler(e: Event): void {
@@ -130,14 +130,14 @@
 	}
 
 	//  Widget data
-	export let items: any;
-	console.log('dataItem', items);
-	// let items = [
-	// 	{ id: 1, name: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
-	// 	{ id: 2, name: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
-	// 	{ id: 3, name: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
-	// 	{ id: 4, name: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
-	// ];
+	// export let items: any;
+	// console.log('dataItem', items);
+	let items = [
+		{ id: 1, name: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
+		{ id: 2, name: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
+		{ id: 3, name: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
+		{ id: 4, name: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
+	];
 
 	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
 
@@ -204,11 +204,11 @@
 					</p>
 				{/if}
 				<div class="flex flex-col gap-2 rounded-md border p-2">
-					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">Optional values:</p>
+					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">m.collectionname_optional():</p>
 
 					<!-- Description -->
 					<div class="items-center sm:flex">
-						<label for="description" class="relative">Description: </label>
+						<label for="description" class="relative">{m.collectionname_description()} </label>
 
 						<textarea
 							id="description"
@@ -224,7 +224,7 @@
 					<!-- iconify icon chooser -->
 					<div class="w-full items-center sm:flex">
 						<label for="icon" class="relative">
-							{$LL.MODAL_IconPicker_Label()}
+							{m.collectionname_labelicon()}
 						</label>
 						{#if icon.helper}
 							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
@@ -275,15 +275,15 @@
 
 				<!--dnd vertical row -->
 				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each items as item (item.id)}
+					{#each items as { id, icon, name, DBName, widget } (id)}
 						<div class="border-blue variant-ghost-secondary my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-primary-500">
 							<div class="marker: flex-grow-1 variant-outline-primary badge rounded-full text-white">
-								{item.id}
+								{id}
 							</div>
-							<iconify-icon icon={item.icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-2 text-white">{item.name}</div>
-							<div class="flex-grow-2 text-white">{item.DBName}</div>
-							<div class="flex-grow-2 text-white">{item.widget}</div>
+							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
+							<div class="flex-grow-2 text-white">{name}</div>
+							<div class="flex-grow-2 text-white">{DBName}</div>
+							<div class="flex-grow-2 text-white">{widget}</div>
 						</div>
 					{/each}
 				</VerticalList>

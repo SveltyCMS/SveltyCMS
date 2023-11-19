@@ -386,7 +386,7 @@
 	</RangeSlider>
 </div>
 
-<style>
+<style lang="postcss">
 	#image_handler {
 		position: relative;
 		overflow: hidden;

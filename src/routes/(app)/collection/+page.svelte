@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { categories, mode, unAssigned } from '@src/stores/store';
-	import Unassigned from '../config/Unassigned.svelte';
+	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	//skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -116,16 +116,16 @@
 </script>
 
 <div class="mb-3 flex items-center justify-between">
-	<PageTitle name={$LL.BUILDER_PageTitle()} icon="" />
+	<PageTitle name={m.collection_pagetitle()} icon="" />
 
 	<button type="button" on:click={handleSaveClick} class="variant-filled-primary btn gap-2 !text-white">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-		{$LL.BUILDER_Save()}
+		{m.collection_save()}
 	</button>
 </div>
 
 {#if !availableCollection}
-	<p class="my-2 text-center">{$LL.BUILDER_First()}</p>
+	<p class="my-2 text-center">{m.collection_first()}</p>
 {:else}
 	<!-- TODO: add sticky top sticky top-0 z-50 -->
 	<div class="sticky top-0">
@@ -133,12 +133,12 @@
 		<div class="my-1 ml-1 flex flex-col justify-around gap-1 rounded-sm bg-surface-500 p-2 sm:flex-row">
 			<!-- add new Category-->
 			<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
-				{$LL.BUILDER_AddCategory()}
+				{m.collection_addcategory()}
 			</button>
 
 			<!-- add new Collection-->
 			<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">
-				{$LL.BUILDER_AddCollection()}
+				{m.collection_addcollection()}
 			</button>
 		</div>
 

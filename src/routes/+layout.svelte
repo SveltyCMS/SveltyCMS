@@ -12,6 +12,9 @@
 	import { initializeStores } from '@skeletonlabs/skeleton';
 	initializeStores();
 
+	// Paraglide JS
+	import ParaglideSvelteKit from '@src/components/ParaglideSvelteKit.svelte';
+
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
 	const SeoDescription = `${PUBLIC_SITENAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
@@ -40,4 +43,6 @@
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
 
-<slot />
+<ParaglideSvelteKit>
+	<slot />
+</ParaglideSvelteKit>

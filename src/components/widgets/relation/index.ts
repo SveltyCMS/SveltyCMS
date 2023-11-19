@@ -4,9 +4,8 @@ import { findById, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
-// typesafe-i18n
-// import { get } from 'svelte/store';
-// import LL from '@src/i18n/i18n-svelte.js';
+//ParaglideJS
+import * as m from '@src/paraglide/messages';
 
 // Define the widget function
 const widget = (params: Params) => {

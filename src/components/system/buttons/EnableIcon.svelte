@@ -5,7 +5,7 @@
 
 <iconify-icon {...$$props} {icon} class="icon text-gray-400 {$$props.class}" width="24" class:checked on:click={() => (checked = !checked)} />
 
-<style>
+<style lang="postcss">
 	.icon {
 		cursor: pointer;
 	}

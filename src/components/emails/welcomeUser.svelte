@@ -3,13 +3,12 @@
 	import { dev } from '$app/environment';
 	import { HOST_DEV, HOST_PROD } from '$env/static/private';
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { setLocale, locale } from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { languageTag } from '@src/paraglide/runtime';
 
 	export let username: string = '';
-	export let systemLanguage: string = '';
-	setLocale(systemLanguage as any);
+
 	//console.log('systemLanguage: ', systemLanguage);
 
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
@@ -62,13 +61,13 @@
 	};
 </script>
 
-<Html lang={systemLanguage}>
+<Html lang={languageTag()}>
 	<Head>
-		<title>{$LL.EMAIL_Welcome_Title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={$LL.EMAIL_Welcome_Meta({ PUBLIC_SITENAME })} />
+		<title>{m.welcomeuser_title({ PUBLIC_SITENAME })}</title>
+		<meta name="description" content={m.welcomeuser_meta({ PUBLIC_SITENAME })} />
 	</Head>
 
-	<Preview preview={$LL.EMAIL_Welcome_Preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.welcomeuser_preview({ PUBLIC_SITENAME })} />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
@@ -81,20 +80,21 @@
 					/>
 				</Link>
 			</Section>
-			<Text>{$LL.EMAIL_Welcome_Username({ username })}</Text>
-			<Text>{$LL.EMAIL_Welcome_Sitename({ PUBLIC_SITENAME })}</Text>
-			<Text>{$LL.EMAIL_Welcome_SimpleCMS()}</Text>
+			<Text>{m.welcomeuser_username({ username })}</Text>
+			<Text>{m.welcomeuser_sitename({ PUBLIC_SITENAME })}</Text>
+			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
-				{$LL.EMAIL_Welcome_Discussion1()}
-				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{$LL.EMAIL_Welcome_Discussion2()}</Link>
+				{m.welcomeuser_discussion1()}
+
+				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{m.welcomeuser_discussion2()}</Link>
 			</Text>
-			<Text>{$LL.EMAIL_Welcome_Thanks()}</Text>
+			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>{$LL.EMAIL_Welcome_Button({ PUBLIC_SITENAME })}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>{m.welcomeuser_button({ PUBLIC_SITENAME })}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{$LL.EMAIL_Welcome_Footer({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.welcomeuser_team({ PUBLIC_SITENAME })}</Text>
 		</Container>
 	</Section>
 </Html>

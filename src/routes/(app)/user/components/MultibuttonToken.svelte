@@ -1,14 +1,15 @@
 <script lang="ts">
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { ListBox, ListBoxItem } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import ModalEditForm from './ModalEditForm.svelte';
@@ -29,8 +30,19 @@
 
 	// modals
 	function modalUserForm(): void {
-		if (selectedRows.length === 0) return console.log('No user selected');
-		console.log(selectedRows[0].data);
+		if (selectedRows.length === 0) return; // Trigger the toast
+		const t = {
+			message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
+			// Provide any utility or variant background style:
+			background: 'gradient-tertiary',
+			timeout: 3000,
+			// Add your custom classes here:
+			classes: 'border-1 !rounded-md'
+		};
+		toastStore.trigger(t);
+
+		console.log('No user selected');
+		//console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
@@ -48,8 +60,8 @@
 		const d: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
-			title: $LL.MODAL_MultiButtonToken_Title(),
-			body: $LL.MODAL_MultiButtonToken_Body(),
+			title: m.multibuttontoken_modaltitle(),
+			body: m.multibuttontoken_modalbody(),
 			component: modalComponent,
 			// Pass abitrary data to the component
 			response: async (r: any) => {
@@ -78,19 +90,19 @@
 
 		switch (action) {
 			case 'delete':
-				modalTitle = $LL.MODAL_MultiButtonToken_DeleteTitle();
-				modalBody = $LL.MODAL_MultiButtonToken_DeleteBody();
-				modalButtonText = $LL.MODAL_MultiButtonToken_DeleteButtonText();
+				modalTitle = m.multibuttontoken_deletetitle();
+				modalBody = m.multibuttontoken_deletebody();
+				modalButtonText = m.multibuttontoken_deletebutton();
 				break;
 			case 'block':
-				modalTitle = $LL.MODAL_MultiButtonToken_BlockTitle();
-				modalBody = $LL.MODAL_MultiButtonToken_BlockBody();
-				modalButtonText = $LL.MODAL_MultiButtonToken_BlockButtonText();
+				modalTitle = m.multibuttontoken_blocktitle();
+				modalBody = m.multibuttontoken_blockbody();
+				modalButtonText = m.multibuttontoken_blockbutton();
 				break;
 			case 'unblock':
-				modalTitle = $LL.MODAL_MultiButtonToken_UnBlockTitle();
-				modalBody = $LL.MODAL_MultiButtonToken_UnBlockBody();
-				modalButtonText = $LL.MODAL_MultiButtonToken_UnBlockButtonText();
+				modalTitle = m.multibuttontoken_unblocktitle();
+				modalBody = m.multibuttontoken_unblockbody();
+				modalButtonText = m.multibuttontoken_unblockbutton();
 				break;
 			default:
 				throw new Error(`Invalid action ${action}`);
@@ -116,12 +128,11 @@
 				const res = await fetch(`/api/user/${endpoint}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify(selectedRows.map((row) => row.data))
+					body: JSON.stringify(selectedRows.map((row: any) => row.data))
 				});
 
 				if (res.status === 200) {
 					await invalidateAll();
-					// close
 					// close
 				}
 			}
@@ -190,9 +201,9 @@
 		on:click={() => {
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
-		class="{getButtonAndIconValues(listboxValue).buttonClass} font-semibold uppercase hover:bg-primary-400"
+		class="{getButtonAndIconValues(listboxValue, 'edit').buttonClass} font-semibold uppercase hover:bg-primary-400"
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue).iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue, 'edit').iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}
 	</button>
 
@@ -209,14 +220,15 @@
 		{#if listboxValue != 'edit'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
 				><svelte:fragment slot="lead"><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment>
-				Edit
+				{m.multibuttonedit()}
 			</ListBoxItem>
 		{/if}
 
 		{#if listboxValue != 'delete'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
 				><svelte:fragment slot="lead"><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment>
-				Delete
+
+				{m.multibuttondelete()}
 			</ListBoxItem>
 		{/if}
 	</ListBox>

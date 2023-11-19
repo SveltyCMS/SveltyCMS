@@ -1,4 +1,4 @@
-<script>
+<script lang="ts">
 	import { translationStatusOpen } from '@src/stores/store';
 
 	// Define reactive variables to track the state of each element
@@ -103,7 +103,7 @@
 		class="variant-ghost-surface btn-icon"
 	>
 		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" />
-		<!-- {$LL.TANSTACK_Column()} -->
+		<!--  Column  -->
 	</button>
 
 	<!-- Spacing/Density  -->

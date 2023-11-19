@@ -47,7 +47,7 @@ New Collections can easily be implemented, due to full typescript support with a
 
 All fields offer full translations, and customization as well as access restriction handled by Lucia auth.
 
-The System language uses typesave-i18n with inlang for providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to support further languages.
+The System language uses ParaglideJS aJavaScript i18n library to providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to support further languages.
 
 We used tailwindcss and a skeleton UI toolkit, so the CMS can be quickly optimized.
 
@@ -57,18 +57,22 @@ Data is provided via yoga graphql, to build extremely fast frontend
 
 ### Clone the repository
 
-To clone this repository you need to be able to use [Git](https://git-scm.com/downloads).
+To clone our [repository](https://github.com/Rar9/SimpleCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
 
 ```bash
 git clone https://github.com/Rar9/SimpleCMS.git
+
+cd SimpleCMS
 ```
 
 ### Install all dependencies
 
-Your need [Node.js](https://nodejs.org/en) to get started. We support 18 newer versions.
+Your need [Node.js](https://nodejs.org/en) to get started which ships with npm.
+We recommend the faster [pnpm](https://pnpm.io) package manager.
+[Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used.
 
 ```bash
-pnpm i
+pnpm install  # installs all required package dependencies
 ```
 
 ### Setup Environment File
@@ -77,15 +81,16 @@ rename the `.env.example` to `.env`.
 
 - Enter fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
 - Extend database Languages if other are required
-- Setup your Email SMTP & HOST
-- Add your API Tokes for the individual Widget you need to use
+- Setup your Email `SMTP` & `HOST` to allow sending emails
+- Add your required API Tokens for the Widgets you need use
 
-### Start the application
+### Start the application for development or production
 
-See `package.json` for more information like build.
+See our `package.json` for more information like development, preview, build and testing.
 
 ```bash
-pnpm dev
+pnpm dev     # run development on localhost:5173
+pnpm build   # runs for production and can be previewed localhost:4173
 ```
 
 ## :lock: Authentication & Security
@@ -100,15 +105,15 @@ Field-based content access enables the allocation of varying levels of access to
 
 ## :art: Easy Theme Adaptions to your needs
 
-If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `theme.postcss` to your needs
+If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `SimpleCMSTheme.ts` to your needs
 
-## :earth_africa: Great System Localization infrastructure
+## :earth_africa: Great System Localization i18n infrastructure
 
-We use [Typesafe-i18n ](https://github.com/ivanhofer/typesafe-i18n) and [inlang](https://inlang.com/) for System Translations.
+We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), the best i18n library together with [inlang](https://inlang.com/) ecosystem for first class System Translations with full typescript support.
 
-Current System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SimpleCMS)
+Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SimpleCMS) and can easily be extended.
 
-If a language has not yet been defined, reach out to us, so that you can help to extend the System Localization.
+If a language has not yet been defined, reach out to us, so that you can help extend the System Localization.
 
 ## :clipboard: Easily create Data Collections
 

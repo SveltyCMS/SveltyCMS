@@ -1,16 +1,12 @@
-<script>
-
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+<script lang="ts">
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// The boolean value to display
-	export let value;
+	export let value: boolean;
+</script>
 
-  </script>
-  
-  <!-- Display 'Yes' for true and 'No' for false with badges -->
-  <span class={value ? 'rounded badge gradient-error' : 'rounded badge gradient-primary'}>
-	{value ? $LL.TANSTACK_Yes() : $LL.TANSTACK_No()}
-
-  </span>
-  
+<!-- Display 'Yes' for true and 'No' for false with badges -->
+<span class={value ? 'gradient-error badge rounded' : 'gradient-primary badge rounded'}>
+	{value ? m.boolean_yes() : m.boolean_no()}
+</span>

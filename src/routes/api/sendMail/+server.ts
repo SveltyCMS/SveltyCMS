@@ -12,7 +12,9 @@ import nodemailer from 'nodemailer';
 
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
-import { systemLanguage } from '@src/stores/store';
+
+// paraglide
+import { languageTag } from '@src/paraglide/runtime';
 
 interface EmailProps {
 	sitename?: string;
@@ -22,7 +24,7 @@ interface EmailProps {
 	token?: string;
 	expires_in?: string;
 	expiresInLabel?: string;
-	systemLanguage?: string;
+	languageTag?: string;
 	// ... any other props used by both templates
 }
 
@@ -64,7 +66,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 		template: templates[templateName],
 		props: {
 			...props,
-			systemLanguage: lang
+			languageTag: lang
 		}
 	});
 

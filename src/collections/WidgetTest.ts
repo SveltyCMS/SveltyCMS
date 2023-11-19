@@ -12,7 +12,7 @@ const schema: Schema = {
 
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
-	icon: 'bi:card-text',
+	icon: 'carbon:rule-test',
 
 	// Collection Permissions by user Roles
 	permissions: {

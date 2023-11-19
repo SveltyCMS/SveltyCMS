@@ -8,26 +8,14 @@
 	export let data: PageData;
 	//console.log('PageData', data);
 
-	import { locales } from '@src/i18n/i18n-util';
-	import type { Locales } from '@src/i18n/i18n-types';
-	//console.log('locales', locales);
-	import { systemLanguage } from '@src/stores/store';
-	//console.log('systemLanguage', $systemLanguage);
+	//ParaglideJS
+	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
-	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
-	setLocale(selectedLocale);
-	systemLanguage.set(selectedLocale);
-	//console.log('selectedLocale', selectedLocale);
+	let _languageTag = languageTag(); // Get the current language tag
 
-	import { setLocale } from '@src/i18n/i18n-svelte';
-	//console.log('setLocale', setLocale);
-
-	function handleLocaleChange(e) {
-		selectedLocale = e.target.value;
-		setLocale(selectedLocale);
-		systemLanguage.set(selectedLocale);
-		localStorage.setItem('selectedLanguage', selectedLocale);
-		//console.log('selectedLocaleUpdated', selectedLocale);
+	function handleLocaleChange(event: any) {
+		const newLanguageTag = event.target.value;
+		setLanguageTag(newLanguageTag); // Update the language tag
 	}
 
 	let isFocused = false;
@@ -59,6 +47,7 @@
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
+				<!-- red circle -->
 				<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 					<circle
 						cx="80"
@@ -68,7 +57,7 @@
 						stroke-dasharray="191 191"
 						stroke-dashoffset="191"
 						transform="rotate(51.5, 80, 80)"
-						class="fill-none stroke-red-500"
+						class="fill-none stroke-error-500"
 					/>
 
 					<circle
@@ -79,10 +68,10 @@
 						stroke-dasharray="191 191"
 						stroke-dashoffset="191"
 						transform="rotate(231.5, 80, 80)"
-						class="fill-none stroke-red-500"
+						class="fill-none stroke-error-500"
 					/>
 				</svg>
-
+				<!-- black circle -->
 				<svg width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 					<circle
 						cx="85"
@@ -107,8 +96,11 @@
 				</svg>
 
 				<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+					<!-- Logo -->
 					<Logo fill="black" className="w-8 h-8" />
+					<!-- PUBLIC SITENAME -->
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
+					<!-- Slogan -->
 					<div class="-mt-[1px] text-[11px] font-bold text-black">with Sveltekit Power</div>
 				</div>
 			</div>
@@ -118,32 +110,31 @@
 		<div
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
-			{#if locales.length > 5}
-				<!-- Autocomplete input -->
+			<!-- Autocomplete input -->
+			{#if availableLanguageTags.length > 5}
 				<input
 					type="text"
 					list="locales"
 					on:input={handleLocaleChange}
-					on:focus={handleFocus}
-					on:blur={handleBlur}
-					placeholder={selectedLocale}
-					class="{isFocused ? 'w-40' : 'w-20'} input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
+					placeholder={_languageTag}
+					class="input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
 				/>
 
 				<datalist id="locales" class="w-full divide-y divide-white uppercase">
-					{#each locales as locale}
-						<option value={locale} class=" uppercase text-red-500">{locale}</option>
+					{#each availableLanguageTags as locale}
+						<option value={locale} class="uppercase text-error-500">{locale}</option>
 					{/each}
 				</datalist>
 			{:else}
 				<!-- Dropdown select -->
 				<select
-					bind:value={selectedLocale}
+					bind:value={_languageTag}
 					on:change={handleLocaleChange}
 					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
 				>
-					{#each locales as locale}
-						<option value={locale} selected={locale === $systemLanguage}>{locale.toUpperCase()} </option>{/each}
+					{#each availableLanguageTags as locale}
+						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
+					{/each}
 				</select>
 			{/if}
 		</div>

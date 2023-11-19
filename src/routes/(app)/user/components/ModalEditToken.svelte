@@ -1,20 +1,18 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { roles } from '@src/collections/types';
+	import { invalidateAll } from '$app/navigation';
 
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
-	// Skelton & Stores
-
+	// Skeleton & Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
-
 	const modalStore = getModalStore();
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { invalidateAll } from '$app/navigation';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Lucia
 	const user = $page.data.user;
@@ -101,7 +99,7 @@
 				for="username"
 				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 			>
-				{$LL.LOGIN_Username()}<span class="ml-2 text-error-500">*</span>
+				{m.modaledit_tokenusername()}<span class="ml-2 text-error-500">*</span>
 			</label>
 
 			{#if !errorStatus.userId.status}
@@ -129,7 +127,7 @@
 				for="email"
 				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 			>
-				{$LL.LOGIN_EmailAddress()}<span class="ml-2 text-error-500">*</span>
+				{m.modaledit_tokenemailaddress()}<span class="ml-2 text-error-500">*</span>
 			</label>
 			{#if errorStatus.email.status}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -155,7 +153,7 @@
 				for="token"
 				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 			>
-				{$LL.LOGIN_Token()}
+				{m.modaledit_tokenregistrationtoken()}
 				<span class="ml-2 text-error-500">*</span>
 			</label>
 			{#if errorStatus.token.status}
@@ -168,7 +166,7 @@
 		<!-- admin area -->
 		{#if user?.role == roles.admin}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserEdit_Role()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaledit_tokenuserrole()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}
@@ -197,12 +195,12 @@
 	<footer class="modal-footer {parent.regionFooter} justify-between">
 
 		<button type="button" on:click={deleteToken} class="variant-filled-error btn">
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
+			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaledit_tokendelete()}</span>
 		</button>
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={parent.onClose}>{parent.buttonTextCancel}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Save</button>
+        <button class="btn variant-outline-secondary" on:click={parent.onClose}>{m.modaledit_tokencancel()}</button>
+        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_tokensave()}</button>
 	</div>
     </footer>
 </div>

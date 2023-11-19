@@ -4,9 +4,8 @@ import { getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
-// typesafe-i18n
-import { get } from 'svelte/store';
-import LL from '@src/i18n/i18n-svelte.js';
+//ParaglideJS
+import * as m from '@src/paraglide/messages';
 
 // Define the widget function
 const widget = (params: Params) => {
@@ -18,9 +17,7 @@ const widget = (params: Params) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
-			return params.translated
-				? data[contentLanguage] || get(LL).ENTRYLIST_Untranslated()
-				: data[defaultContentLanguage] || get(LL).ENTRYLIST_Untranslated();
+			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[defaultContentLanguage] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {

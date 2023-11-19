@@ -6,7 +6,8 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { getCollections } from '@src/collections';
 
 import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-import { locales } from '@src/i18n/i18n-util';
+
+import { languageTag } from '@src/paraglide/runtime';
 
 export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
@@ -20,7 +21,7 @@ export async function load({ cookies, route, params }) {
 		throw redirect(302, `/user`);
 	}
 
-	if (!locales.includes(params.language as any) || (!collection && params.collection)) {
+	if (!languageTag().includes(params.language as any) || (!collection && params.collection)) {
 		// if collection is set in url but does not exists.
 		throw error(404, {
 			message: 'Not found'

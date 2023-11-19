@@ -23,7 +23,6 @@
 		togglePageHeader,
 		togglePageFooter,
 		storeListboxValue,
-		systemLanguage,
 		pkgBgColor
 	} from '@src/stores/store';
 
@@ -68,18 +67,16 @@
 		}
 	};
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { locales } from '@src/i18n/i18n-util';
-	import type { Locales } from '@src/i18n/i18n-types';
-	import { setLocale } from '@src/i18n/i18n-svelte';
+	// Paraglide JS
+	import * as m from '@src/paraglide/messages';
 
-	let selectedLocale = (localStorage.getItem('selectedLanguage') || $systemLanguage) as Locales;
+	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
-	function handleLocaleChange(e) {
-		selectedLocale = e.target.value;
-		setLocale(selectedLocale);
-		localStorage.setItem('selectedLanguage', selectedLocale);
+	let _languageTag = languageTag(); // Get the current language tag
+
+	function handleLocaleChange(event: any) {
+		const newLanguageTag = event.target.value;
+		setLanguageTag(newLanguageTag); // Update the language tag
 	}
 
 	// @ts-expect-error reading from vite.config.jss
@@ -107,13 +104,6 @@
 		})
 		.catch((error) => console.error('Error:', error));
 
-	// dark mode
-	const toggleTheme = () => {
-		$modeCurrent = !$modeCurrent;
-		setModeUserPrefers($modeCurrent);
-		setModeCurrent($modeCurrent);
-	};
-
 	// Lucia
 	const user = $page.data.user;
 	avatarSrc.set(user?.avatar);
@@ -136,11 +126,39 @@
 		}
 	}
 
+	const toggleTheme = () => {
+		let currentMode = get(modeCurrent); // get the current value of the store
+		let newMode = !currentMode; // toggle the mode
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		localStorage.setItem('theme', newMode ? 'light' : 'dark');
+	};
+
+	// On page load
+	document.addEventListener('DOMContentLoaded', (event) => {
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+	});
+
 	//skeleton
-	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
+	import {
+		initializeStores,
+		AppShell,
+		Avatar,
+		Modal,
+		popup,
+		Toast,
+		modeCurrent,
+		setModeUserPrefers,
+		setModeCurrent,
+		setInitialClassState
+	} from '@skeletonlabs/skeleton';
 	initializeStores();
 
-	import { modeCurrent } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	//required for popups to function
@@ -277,7 +295,7 @@ dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-30
 {$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
 {$toggleLeftSidebar === 'closed' ? 'hidden' : 'block'}
 lg:overflow-y-scroll lg:max-h-screen}"
-			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center
+			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center p-2
 	{$toggleRightSidebar === 'closed' ? 'hidden' : 'block'}"
 			slotPageHeader="relative bg-white dark:bg-gradient-to-t dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center px-1  border-b 
 	{$togglePageHeader === 'closed' ? 'hidden' : 'block'}"
@@ -361,7 +379,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									</div>
 								</button>
 								<div class="card variant-filled-secondary p-4" data-popup="User">
-									{$LL.SBL_User()}
+									{m.applayout_userprofile()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -371,18 +389,18 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<!-- System Language i18n Handling -->
 						<div class={$toggleLeftSidebar === 'full' ? 'order-3 row-span-2  ' : 'order-2'} use:popup={SystemLanguageTooltip}>
 							<select
-								bind:value={selectedLocale}
+								bind:value={_languageTag}
 								on:change={handleLocaleChange}
 								class="{$toggleLeftSidebar === 'full'
 									? 'px-2.5 py-2'
 									: 'btn-icon-sm'} variant-filled-surface btn-icon appearance-none rounded-full uppercase text-white"
 							>
-								{#each locales as locale}
-									<option value={locale} selected={locale === $systemLanguage}>{locale}</option>
+								{#each availableLanguageTags as locale}
+									<option value={locale} selected={locale === _languageTag}>{locale}</option>
 								{/each}
 							</select>
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
-								{$LL.SBL_SystemLanguage()}
+								{m.applayout_systemlanguage()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -400,8 +418,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							</button>
 
 							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary p-2" data-popup="SwitchTheme">
-								{`Switch to ${!$modeCurrent ? 'Light' : 'Dark'} Mode`}
+							<div class="card variant-filled-secondary overflow-auto p-2" data-popup="SwitchTheme">
+								{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -419,7 +437,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							</button>
 
 							<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
-								{$LL.SBL_SignOut()}
+								{m.applayout_signout()}
 								<div class="variant-filled-secondary arrow" />
 							</div>
 						</div>
@@ -439,7 +457,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								</a>
 
 								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-									{$LL.SBL_Configuration()}
+									{m.applayout_systemconfiguration()}
 									<div class="variant-filled-secondary arrow" />
 								</div>
 							</button>
@@ -452,7 +470,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									<iconify-icon icon="grommet-icons:github" width="30" />
 
 									<div class="card variant-filled-secondary p-4" data-popup="Github">
-										{$LL.SBL_GithubDiscussion()}
+										{m.applayout_githubdiscussion()}
 										<div class="variant-filled-secondary arrow" />
 									</div>
 								</button>
@@ -463,7 +481,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-									>{#if $toggleLeftSidebar === 'full'}{$LL.SBL_Version()}{/if}{pkg}</span
+									>{#if $toggleLeftSidebar === 'full'}{m.applayout_version()}{/if}{pkg}</span
 								>
 							</a>
 						</div>

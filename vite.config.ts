@@ -50,8 +50,7 @@ const config = {
 		alias: {
 			'@src': Path.resolve('src/'),
 			'@static': Path.resolve('static/'),
-			'@root': Path.resolve('./'),
-			'@i18n': Path.resolve('src/i18n')
+			'@root': Path.resolve('./')
 		}
 	},
 

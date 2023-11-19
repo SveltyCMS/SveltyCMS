@@ -14,8 +14,8 @@
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import TanstackFilter from './TanstackFilter.svelte';
 
@@ -480,7 +480,7 @@
 					}}
 					type="checkbox"
 				/>{' '}
-				{$LL.TANSTACK_Toggle()}
+				{m.entrylist_all()}
 			</label>
 			<section
 				class="flex flex-wrap justify-center gap-1 rounded-md p-2"
@@ -641,21 +641,21 @@
 	<div class="my-3 flex items-center justify-around text-surface-500">
 		<!-- show & count rows -->
 		<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
-			{$LL.TANSTACK_Page()}
+			{m.entrylist_page()}
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{$LL.TANSTACK_of()}
+			{m.entrylist_of()}
 			<!-- TODO: Get actual pages -->
 			<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
 			<span class="text-black dark:text-white"
 				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
 			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{$LL.TANSTACK_Total()}
+			{m.entrylist_total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{$LL.TANSTACK_Row()})
+				{m.entrylist_row()})
 			{:else}
-				{$LL.TANSTACK_Rows()})
+				{m.entrylist_rows()})
 			{/if}
 		</div>
 
@@ -703,7 +703,7 @@
 
 			<!-- input display -->
 			<div class="flex items-center justify-center px-2 text-sm">
-				<span class="pr-2"> {$LL.TANSTACK_Page()} </span>
+				<span class="pr-2"> {m.entrylist_page()} </span>
 
 				<input
 					type="number"
@@ -714,7 +714,7 @@
 					class="variant-ghost-surface w-14 border-0"
 				/>
 				<span class="pl-2">
-					{' '}{$LL.TANSTACK_of()}{' '}
+					{' '}{m.entrylist_of()}{' '}
 					<span class="">{$table.getPageCount()}</span>
 				</span>
 			</div>
@@ -753,7 +753,7 @@
 				{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
 					<option value={pageSize}>
 						{pageSize}
-						{$LL.TANSTACK_Rows()}
+						{m.entrylist_row()}
 					</option>
 				{/each}
 			</select>
@@ -762,7 +762,7 @@
 		<!-- Pagination -->
 		<div class="text-sm text-gray-400">
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{$LL.TANSTACK_of()}
+			{m.entrylist_of()}
 			<!-- TODO: Get actual page -->
 			<!-- <span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
@@ -771,12 +771,12 @@
 				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
 			>
 			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{$LL.TANSTACK_Total()}
+			{m.entrylist_total()}
 
 			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{$LL.TANSTACK_Row()})
+				{m.entrylist_row()}
 			{:else}
-				{$LL.TANSTACK_Rows()}){/if}
+				{m.entrylist_rows()}){/if}
 		</div>
 	</div>
 </div>

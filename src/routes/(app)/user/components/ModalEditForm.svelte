@@ -1,21 +1,20 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { roles } from '@src/collections/types';
+	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import { invalidateAll } from '$app/navigation';
 
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
 	// Skelton & Stores
-
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
 
-	// typesafe-i18n
-	import LL from '@src/i18n/i18n-svelte';
-	import { invalidateAll } from '$app/navigation';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Lucia
 	const user = $page.data.user;
@@ -95,7 +94,7 @@
 			<FloatingInput
 				type="text"
 				name="username"
-				label={$LL.LOGIN_Username()}
+				label={m.modaleditform_username()}
 				bind:value={formData.username}
 				on:keydown={() => (errorStatus.username.status = false)}
 				required
@@ -116,7 +115,7 @@
 				<FloatingInput
 					type="email"
 					name="email"
-					label={$LL.LOGIN_EmailAddress()}
+					label={m.modaleditform_emailaddress()}
 					bind:value={formData.email}
 					on:keydown={() => (errorStatus.email.status = false)}
 					required
@@ -158,7 +157,7 @@
 						type="text"
 						name="password"
 						id="password"
-						label={$LL.USER_NewPassword()}
+						label={m.modaleditform_newpassword()}
 						bind:value={formData.password}
 						on:keydown={() => (errorStatus.password.status = false)}
 						autocomplete="current-password"
@@ -167,7 +166,7 @@
 					<FloatingInput
 						type="password"
 						name="password"
-						label={$LL.USER_NewPassword()}
+						label={m.modaleditform_newpassword()}
 						autocomplete="current-password"
 						id="password"
 						bind:value={formData.password}
@@ -199,7 +198,7 @@
 						type="text"
 						name="confirm_password"
 						id="confirm_password"
-						label={$LL.LOGIN_ConfirmPassword()}
+						label={m.modaleditform_confirmpassword()}
 						bind:value={formData.confirmPassword}
 						on:keydown={() => (errorStatus.confirm.status = false)}
 						required
@@ -209,7 +208,7 @@
 						type="password"
 						name="confirm_password"
 						id="confirm_password"
-						label={$LL.LOGIN_ConfirmPassword()}
+						label={m.modaleditform_confirmpassword()}
 						bind:value={formData.confirmPassword}
 						on:keydown={() => (errorStatus.confirm.status = false)}
 						required
@@ -236,7 +235,7 @@
 		<!-- admin area -->
 		{#if user?.role == roles.admin && !isFirstUser}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{$LL.MODAL_UserEdit_Role()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaleditform_userrole()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}
@@ -264,7 +263,7 @@
 		
 		{#if !isFirstUser}
 		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.userId == userId)}>
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{$LL.MODAL_UserAvatar_Delete()}</span>
+			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaleditform_delete()}</span>
 		</button>
 		{:else}
 			<div></div>
@@ -272,8 +271,8 @@
 		{/if}
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{parent.buttonTextCancel}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>Save</button>
+        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{m.modaleditform_cancel()}</button>
+        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaleditform_save()}</button>
 	</div>
     </footer>
 </div>
