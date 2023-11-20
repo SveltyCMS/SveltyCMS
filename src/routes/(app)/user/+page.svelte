@@ -193,7 +193,7 @@
 			</label>
 			<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 				<!-- Edit Modal Button -->
-				<button class="gradient-secondary btn w-full max-w-sm text-white" on:click={modalUserForm}>
+				<button class="gradient-tertiary btn w-full max-w-sm text-white" on:click={modalUserForm}>
 					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 				</button>
 

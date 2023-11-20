@@ -3,6 +3,10 @@
 
 	import axios from 'axios';
 
+	import Loading from './Loading.svelte';
+	let isLoading = false;
+	let loadingTimer: any; // recommended time of around 200-300ms
+
 	// TanstackFilter
 	import TanstackFilter from '@src/components/TanstackFilter.svelte';
 	let globalSearchValue = '';
@@ -19,11 +23,15 @@
 	import { getFieldName } from '@src/utils/utils';
 
 	let data: any = [];
+	//let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	let refresh = async (collection: typeof $collection) => {
-		//console.log($collection);
+		loadingTimer = setTimeout(() => {
+			isLoading = true;
+		}, 400);
+		//console.log('collection', $collection);
 
 		if ($collection.name == '') return;
 
@@ -164,8 +172,9 @@
 	<!-- MultiButton -->
 	<EntryListMultiButton />
 </div>
-
-{#if tableData.length > 0}
+{#if isLoading}
+	<Loading />
+{:else if tableData.length > 0}
 	<TanstackTable
 		data={tableData}
 		items={data}

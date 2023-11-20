@@ -7,13 +7,30 @@
 
 	import { page } from '$app/stores';
 	import { goto } from '$app/navigation';
+
+	//skeleton
+	import {
+		initializeStores,
+		AppShell,
+		Avatar,
+		Modal,
+		popup,
+		Toast,
+		modeCurrent,
+		setModeUserPrefers,
+		setModeCurrent,
+		setInitialClassState
+	} from '@skeletonlabs/skeleton';
+	initializeStores();
+
+	console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
+
 	import {
 		avatarSrc,
 		collections,
 		collection,
 		collectionValue,
 		mode,
-		modifyEntry,
 		defaultContentLanguage,
 		handleSidebarToggle,
 		screenWidth,
@@ -22,7 +39,6 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		storeListboxValue,
 		pkgBgColor
 	} from '@src/stores/store';
 
@@ -79,7 +95,7 @@
 		setLanguageTag(newLanguageTag); // Update the language tag
 	}
 
-	// @ts-expect-error reading from vite.config.jss
+	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
 	let githubVersion = '';
 
@@ -105,7 +121,7 @@
 		.catch((error) => console.error('Error:', error));
 
 	// Lucia
-	const user = $page.data.user;
+	const user = $page.data.user; //TODO update Username dynamically on change
 	avatarSrc.set(user?.avatar);
 
 	//signOut
@@ -137,27 +153,13 @@
 	// On page load
 	document.addEventListener('DOMContentLoaded', (event) => {
 		const savedTheme = localStorage.getItem('theme');
+		console.log('Saved theme:', savedTheme); // Log the saved theme
 		if (savedTheme) {
 			let newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
 		}
 	});
-
-	//skeleton
-	import {
-		initializeStores,
-		AppShell,
-		Avatar,
-		Modal,
-		popup,
-		Toast,
-		modeCurrent,
-		setModeUserPrefers,
-		setModeCurrent,
-		setInitialClassState
-	} from '@skeletonlabs/skeleton';
-	initializeStores();
 
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
@@ -205,11 +207,9 @@
 
 	import HeaderControls from '@src/components/HeaderControls.svelte';
 
-	import { onMount, tick } from 'svelte';
 	import { get } from 'svelte/store';
 	import type { Schema } from '@src/collections/types';
 	import Loading from '@src/components/Loading.svelte';
-	import MultibuttonToken from './user/components/MultibuttonToken.svelte';
 
 	let dates = { created: '', updated: '', revision: '' };
 
@@ -256,6 +256,9 @@
 </script>
 
 <svelte:head>
+	<!-- darkmode -->
+	<!-- {@html `<script>(${setInitialClassState.toString()})();</script>`} -->
+
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
@@ -364,25 +367,28 @@ lg:overflow-y-scroll lg:max-h-screen}"
 					>
 						<!-- Avatar with user settings -->
 						<div class={$toggleLeftSidebar === 'full' ? 'order-1 row-span-2' : 'order-1'}>
-							<button class="btn-icon md:row-span-2" use:popup={UserTooltip} on:click={handleClick} on:keypress={handleClick}>
-								<button on:click={handleClick} on:keypress={handleClick} class="relative cursor-pointer flex-col !no-underline">
-									<Avatar
-										src={$avatarSrc ? $avatarSrc : '/Default_User.svg'}
-										class="mx-auto hover:bg-surface-500 hover:p-1 {$toggleLeftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
-									/>
-									<div class="-mt-1 text-center text-[9px] uppercase text-black dark:text-white">
-										{#if $toggleLeftSidebar === 'full'}
-											{#if user?.username}
-												<div class="text-[10px] uppercase">{user?.username}</div>
-											{/if}
+							<button
+								use:popup={UserTooltip}
+								on:click={handleClick}
+								on:keypress={handleClick}
+								class="btn-icon relative cursor-pointer flex-col items-center justify-center text-center !no-underline md:row-span-2"
+							>
+								<Avatar
+									src={$avatarSrc ? $avatarSrc : '/Default_User.svg'}
+									class="mx-auto hover:bg-surface-500  {$toggleLeftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
+								/>
+								<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
+									{#if $toggleLeftSidebar === 'full'}
+										{#if user?.username}
+											<div class=" -ml-1.5">{user?.username}</div>
 										{/if}
-									</div>
-								</button>
-								<div class="card variant-filled-secondary p-4" data-popup="User">
-									{m.applayout_userprofile()}
-									<div class="variant-filled-secondary arrow" />
+									{/if}
 								</div>
 							</button>
+							<div class="card variant-filled-secondary p-4" data-popup="User">
+								{m.applayout_userprofile()}
+								<div class="variant-filled-secondary arrow" />
+							</div>
 						</div>
 
 						<!-- TODO: Fix Tooltip overflow -->
@@ -391,9 +397,9 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							<select
 								bind:value={_languageTag}
 								on:change={handleLocaleChange}
-								class="{$toggleLeftSidebar === 'full'
-									? 'px-2.5 py-2'
-									: 'btn-icon-sm'} variant-filled-surface btn-icon appearance-none rounded-full uppercase text-white"
+								class="variant-filled-surface !appearance-none rounded-full uppercase text-white {$toggleLeftSidebar === 'full'
+									? 'btn-icon px-2.5 py-2'
+									: 'btn-icon-sm px-1.5 py-0'}"
 							>
 								{#each availableLanguageTags as locale}
 									<option value={locale} selected={locale === _languageTag}>{locale}</option>
@@ -446,21 +452,21 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<div class={$toggleLeftSidebar === 'full' ? 'order-5' : 'order-6'}>
 							<button
 								class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
+								use:popup={ConfigTooltip}
 								on:click={() => {
 									if (get(screenWidth) === 'mobile') {
 										toggleLeftSidebar.clickBack();
 									}
 								}}
 							>
-								<a href="/config" use:popup={ConfigTooltip}>
+								<a href="/config">
 									<iconify-icon icon="material-symbols:build-circle" width="32" />
 								</a>
-
-								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-									{m.applayout_systemconfiguration()}
-									<div class="variant-filled-secondary arrow" />
-								</div>
 							</button>
+							<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
+								{m.applayout_systemconfiguration()}
+								<div class="variant-filled-secondary arrow" />
+							</div>
 						</div>
 
 						<!-- Github discussions -->

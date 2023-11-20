@@ -145,6 +145,8 @@
 	"modaledit_tokenregistrationtoken": "Ficha de registro",
 	"modaledit_tokenuserrole": "Rol del usuario:",
 	"modaledit_tokendelete": "Borrar",
+	"modaledit_tokencancel": "Cancelar",
+	"modaledit_tokensave": "Ahorrar",
 	"modaltokenuser_email_address": "Dirección de correo electrónico",
 	"modaltokenuser_userrole": "Rol del usuario:",
 	"modaltokenuser_tokenvalidity": "Validez del token:",
@@ -253,5 +255,16 @@
 	"mediagallery_small": "Pequeño",
 	"mediagallery_medium": "Medio",
 	"mediagallery_large": "Grande",
-	"mediagallery_table": "Mesa"
+	"mediagallery_table": "Mesa",
+	"widgets_nodata": "Sin datos",
+	"formSchemas_EmailisRequired": "correo electronico es requerido",
+	"formSchemas_Emailvalid": "El correo electrónico debe ser un correo electrónico válido.",
+	"formSchemas_PasswordisRequired": "se requiere contraseña",
+	"formSchemas_PasswordMessage": "La contraseña debe tener un mínimo de 8 caracteres y contener al menos una letra, un número y un carácter especial.",
+	"formSchemas_Passwordmatch": "La contraseña y la confirmación de contraseña deben coincidir",
+	"formSchemas_ConfimPassword": "Confirmar Se requiere contraseña",
+	"formSchemas_usernameRequired": "Se requiere nombre de usuario",
+	"formSchemas_usernameregex": "El nombre solo puede contener letras, dígitos y @$!%*#",
+	"formSchemas_username_min": "El nombre debe tener al menos 2 caracteres.",
+	"formSchemas_username_max": "El nombre solo puede tener 24 caracteres."
 }
