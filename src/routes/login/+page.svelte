@@ -4,29 +4,20 @@
 	import SignUp from './components/SignUp.svelte';
 	import Logo from './components/icons/Logo.svelte';
 	import type { PageData } from './$types';
+	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@src/stores/store';
 
 	export let data: PageData;
 	//console.log('PageData', data);
 
 	//ParaglideJS
-	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
-
+	import { languageTag } from '@src/paraglide/runtime';
 	let _languageTag = languageTag(); // Get the current language tag
 
 	function handleLocaleChange(event: any) {
-		const newLanguageTag = event.target.value;
-		setLanguageTag(newLanguageTag); // Update the language tag
+		$systemLanguage = event.target.value;
 	}
-
-	let isFocused = false;
-
-	function handleFocus() {
-		isFocused = true;
-	}
-
-	function handleBlur() {
-		isFocused = false;
-	}
+	let inputlangeuagevalue = '';
+	$: filteredLanguages = AVAILABLE_SYSTEMLANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
@@ -111,18 +102,19 @@
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
 			<!-- Autocomplete input -->
-			{#if availableLanguageTags.length > 5}
+			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}
 				<input
 					type="text"
 					list="locales"
-					on:input={handleLocaleChange}
+					bind:value={inputlangeuagevalue}
 					placeholder={_languageTag}
-					class="input rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2"
+					class="w-1/2 rounded-full border-2 border-white bg-black uppercase text-white focus:ring-2"
+					on:input={() => ($systemLanguage = inputlangeuagevalue)}
 				/>
 
 				<datalist id="locales" class="w-full divide-y divide-white uppercase">
-					{#each availableLanguageTags as locale}
-						<option value={locale} class="uppercase text-error-500">{locale}</option>
+					{#each filteredLanguages as locale}
+						<option class="uppercase text-error-500">{locale}</option>
 					{/each}
 				</datalist>
 			{:else}
@@ -132,7 +124,7 @@
 					on:change={handleLocaleChange}
 					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
 				>
-					{#each availableLanguageTags as locale}
+					{#each filteredLanguages as locale}
 						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
 					{/each}
 				</select>

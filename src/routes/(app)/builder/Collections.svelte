@@ -8,13 +8,16 @@
 	import { asAny, obj2formData } from '@src/utils/utils';
 	import axios from 'axios';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	//skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
 	import type { User } from '@src/collections/Auth';
 
-	export let modeSet: typeof $mode = 'view';
+	export let modeSet: typeof $mode = 'edit';
 
 	let expanded: any = {};
 	let user: User = $page.data.user;
@@ -139,7 +142,7 @@
 {/each}
 
 {#if modeSet == 'edit'}
-	<button class="variant-ghost-primary btn mt-2 w-full" on:click={saveConfig}>Save Categories</button>
+	<button class="variant-ghost-primary btn mt-2 w-full" on:click={saveConfig}>{m.collection_SaveCategories()}</button>
 {/if}
 
 <style lang="postcss">

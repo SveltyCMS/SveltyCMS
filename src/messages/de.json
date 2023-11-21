@@ -266,5 +266,13 @@
 	"formSchemas_usernameRequired": "Benutzername wird benötigt",
 	"formSchemas_usernameregex": "Der Name darf nur Buchstaben, Ziffern und @$!%*# enthalten.",
 	"formSchemas_username_min": "Der Name muss mindestens 2 Zeichen lang sein",
-	"formSchemas_username_max": "Der Name darf nur 24 Zeichen lang sein"
+	"formSchemas_username_max": "Der Name darf nur 24 Zeichen lang sein",
+	"test": "Dropdown-Auswahl",
+	"WidgetBuilder_AddColectionField": "Sammlungsfeld hinzufügen",
+	"builder_createnew": "Erstelle neu",
+	"builder_SaveCollection": "Sammlung speichern",
+	"Builder_required": "Erforderlich",
+	"builder_optional": "Optional",
+	"collection_SaveCategories": "Kategorien speichern",
+	"builder_Unassinged": "Nicht zugewiesene Sammlungen"
 }

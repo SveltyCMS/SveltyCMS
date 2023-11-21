@@ -15,6 +15,7 @@
 		if ($storeListboxValue === 'create') {
 			mode.set('create');
 		} else {
+			mode.set('view');
 			$modifyEntry($storeListboxValue);
 		}
 

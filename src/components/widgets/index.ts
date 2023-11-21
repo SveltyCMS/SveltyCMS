@@ -78,7 +78,6 @@ const widgets = {
 };
 
 type K = ReturnType<(typeof widgets)[keyof typeof widgets]>['widget']['key'];
-type WidgetType = { [key in K]: (typeof widgets)[key] };
-
+export type WidgetType = { [key in K]: (typeof widgets)[key] };
 export const initWidgets = () => (globalThis.widgets = widgets);
 export default widgets as WidgetType;

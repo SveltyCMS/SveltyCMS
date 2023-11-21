@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { languageTag, onSetLanguageTag } from '@src/paraglide/runtime';
-	import { onMount } from 'svelte';
+	import { languageTag, onSetLanguageTag, setLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@src/stores/store';
 
 	// initialize the language tag
 	$: _languageTag = languageTag;
@@ -9,20 +9,13 @@
 	if (import.meta.env.SSR === false) {
 		onSetLanguageTag((newLanguageTag) => {
 			_languageTag = () => newLanguageTag;
-
-			// Store the new language tag in a cookie
-			document.cookie = `languageTag=${newLanguageTag}; path=/; max-age=31536000`; // max-age is set to one year
 		});
 	}
 
-	onMount(() => {
-		if (_languageTag) {
-			// Store the new language tag in a cookie
-			document.cookie = `languageTag=${_languageTag}; path=/; max-age=31536000; Secure; SameSite=Lax`;
-		}
+	systemLanguage.subscribe((value: any) => {
+		setLanguageTag(value); // Update the language tag
+		globalThis.localStorage.setItem('systemLanguage', value);
 	});
-
-	// When the page loads, check if the languageTag cookie exists and use its value
 </script>
 
 {#key _languageTag}

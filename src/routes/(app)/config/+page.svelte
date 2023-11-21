@@ -18,7 +18,7 @@
 	</a>
 
 	<!-- builder to be replaced -->
-	<a href="/builder" class="variant-outline-tertiary btn gap-2 py-6 dark:variant-outline-secondary">
+	<a href="/builder" rel="external" class="variant-outline-tertiary btn gap-2 py-6 dark:variant-outline-secondary">
 		<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-error-600" />
 		<p class="uppercase">{m.config_collectionbuilder()}</p>
 	</a>

@@ -17,11 +17,7 @@
 <div class="flex items-center">
 	<!-- Hamburger -->
 	{#if $toggleLeftSidebar === 'closed'}
-		<button
-			type="button"
-			on:click={() => toggleLeftSidebar.click()}
-			class="variant-ghost-surface btn-icon mt-1"
-		>
+		<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon mt-1">
 			<iconify-icon icon="mingcute:menu-fill" width="24" />
 		</button>
 	{/if}

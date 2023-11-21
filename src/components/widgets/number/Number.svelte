@@ -23,15 +23,9 @@
 		const value = target.value;
 		const decimalSeparator = getDecimalSeparator(language);
 		if (value[value.length - 1] !== decimalSeparator) {
-			const number = parseFloat(
-				value
-					.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '')
-					.replace(decimalSeparator, '.')
-			);
+			const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 			if (!isNaN(number)) {
-				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
-					number
-				);
+				target.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
 			} else {
 				target.value = value;
 			}
@@ -46,13 +40,9 @@
 	$: if (numberInput) {
 		const value = numberInput.value;
 		const decimalSeparator = getDecimalSeparator(language);
-		const number = parseFloat(
-			value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.')
-		);
+		const number = parseFloat(value.replace(new RegExp(`[^0-9${decimalSeparator}]`, 'g'), '').replace(decimalSeparator, '.'));
 		if (!isNaN(number)) {
-			numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(
-				number
-			);
+			numberInput.value = new Intl.NumberFormat(language, { maximumFractionDigits: 20 }).format(number);
 		} else {
 			numberInput.value = value;
 		}
@@ -77,7 +67,7 @@
 	};
 </script>
 
-<div class="btn-group variant-filled-surface flex w-full rounded">
+<div class="variant-filled-surface btn-group flex w-full rounded">
 	{#if field?.prefix}
 		<button class=" !px-2">{field?.prefix}</button>
 	{/if}
@@ -89,9 +79,7 @@
 		on:input|preventDefault={handleInput}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== ''
-			? field?.placeholder
-			: field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 		required={field?.required}
 		readonly={field?.readonly}
 		minlength={field?.minlength}

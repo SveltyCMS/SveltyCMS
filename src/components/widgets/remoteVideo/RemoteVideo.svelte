@@ -73,9 +73,7 @@
 	on:blur={handleSubmit}
 	name={field?.db_fieldName}
 	id={field?.db_fieldName}
-	placeholder={field?.placeholder && field?.placeholder !== ''
-		? field?.placeholder
-		: field?.db_fieldName}
+	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 	required={field?.required}
 	class="input flex-1 rounded-none"
 />
@@ -102,23 +100,13 @@
 					<td class="text-tertiary-500">{myData?.duration} min</td>
 				</tr>
 			</table>
-			<a
-				href={myData?.videoUrl}
-				target="_blank"
-				rel="noreferrer"
-				class="variant-filled-tertiary btn btn-sm mt-4"
-			>
+			<a href={myData?.videoUrl} target="_blank" rel="noreferrer" class="variant-filled-tertiary btn btn-sm mt-4">
 				<span><iconify-icon icon="material-symbols:play-circle-outline" width="18" /></span>
 				<span>Watch Video</span>
 			</a>
 		</div>
 		<a href={myData?.videoUrl} target="_blank" rel="noreferrer">
-			<img
-				class="mt-1 w-full md:h-auto md:w-1/2"
-				data-sveltekit-preload-data="hover"
-				src={myData?.videoThumbnail}
-				alt={myData?.videoTitle}
-			/>
+			<img class="mt-1 w-full md:h-auto md:w-1/2" data-sveltekit-preload-data="hover" src={myData?.videoThumbnail} alt={myData?.videoTitle} />
 		</a>
 	</div>
 {/if}

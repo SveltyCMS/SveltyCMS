@@ -39,13 +39,14 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		pkgBgColor
+		pkgBgColor,
+		storeListboxValue
 	} from '@src/stores/store';
 
 	import { getCollections } from '@src/collections';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
-	$: handleSidebarToggle;
+	$: handleSidebarToggle();
 
 	import { contentLanguage } from '@src/stores/store';
 
@@ -68,6 +69,7 @@
 	import ControlPanel from '@src/components/ControlPanel.svelte';
 	import Collections from '@src/components/Collections.svelte';
 	import { getDates } from '@src/utils/utils';
+	import { systemLanguage } from '@src/stores/store';
 
 	contentLanguage.set($page.params.language);
 
@@ -90,8 +92,7 @@
 	let _languageTag = languageTag(); // Get the current language tag
 
 	function handleLocaleChange(event: any) {
-		const newLanguageTag = event.target.value;
-		setLanguageTag(newLanguageTag); // Update the language tag
+		$systemLanguage = event.target.value;
 	}
 
 	// @ts-expect-error reading from vite.config.js
@@ -517,7 +518,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			<svelte:fragment slot="pageFooter">
 				{#if $mode !== 'view'}
 					<h2 class="text-center !text-sm font-bold uppercase text-primary-500">
-						{$collection.name} Info:
+						{$collection?.name} Info:
 					</h2>
 
 					<div class="mb-1 mt-2 grid grid-cols-3 items-center gap-x-2 text-[12px] leading-tight">

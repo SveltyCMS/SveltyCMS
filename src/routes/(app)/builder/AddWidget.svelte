@@ -4,6 +4,7 @@
 	import InputSwitch from './InputSwitch.svelte';
 	import { asAny } from '@src/utils/utils';
 	import PageTitle from '@src/components/PageTitle.svelte';
+	import { toggleLeftSidebar } from '@src/stores/store';
 
 	export let fields: Array<any> = [];
 	export let addField: Boolean = false;
@@ -18,8 +19,12 @@
 	let field = { widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>
 
-<div class="z-100 fixed left-0 top-0 flex h-screen w-screen flex-col overflow-auto bg-white dark:bg-surface-900">
-	<div class="flex items-center justify-between">
+<div
+	class="fixed left-0 top-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar === 'full'
+		? 'w-[220px]'
+		: 'w-full'}"
+>
+	<div class="mb-3 flex items-center justify-between">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 		<button class="variant-ghost-secondary btn-icon mr-2" on:click={() => (addField = false)}
 			><iconify-icon icon="material-symbols:close" width="24" /></button

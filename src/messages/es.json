@@ -266,5 +266,13 @@
 	"formSchemas_usernameRequired": "Se requiere nombre de usuario",
 	"formSchemas_usernameregex": "El nombre solo puede contener letras, dígitos y @$!%*#",
 	"formSchemas_username_min": "El nombre debe tener al menos 2 caracteres.",
-	"formSchemas_username_max": "El nombre solo puede tener 24 caracteres."
+	"formSchemas_username_max": "El nombre solo puede tener 24 caracteres.",
+	"test": "Selección desplegable",
+	"WidgetBuilder_AddColectionField": "Agregar campo de colección",
+	"builder_createnew": "Crear nuevo",
+	"builder_SaveCollection": "Guardar colección",
+	"Builder_required": "Requerido",
+	"builder_optional": "Opcional",
+	"collection_SaveCategories": "Guardar categorías",
+	"builder_Unassinged": "Colecciones no asignadas"
 }

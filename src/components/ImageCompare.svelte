@@ -39,29 +39,11 @@
 	export { before, after, offset, overlay, contain, hideOnSlide };
 </script>
 
-<svelte:window
-	on:touchmove={move}
-	on:touchend={end}
-	on:mousemove={move}
-	on:mouseup={end}
-	on:resize={resize}
-/>
+<svelte:window on:touchmove={move} on:touchend={end} on:mousemove={move} on:mouseup={end} on:resize={resize} />
 
 <button class="container" {style} on:touchstart={start} on:mousedown={start}>
-	<img
-		bind:this={img}
-		src={after}
-		alt="after"
-		on:mousedown|preventDefault
-		on:load={resize}
-		{style}
-	/>
-	<img
-		src={before}
-		alt="before"
-		on:mousedown|preventDefault
-		style="{style}clip:rect(0, {x}px, {h}px, 0);"
-	/>
+	<img bind:this={img} src={after} alt="after" on:mousedown|preventDefault on:load={resize} {style} />
+	<img src={before} alt="before" on:mousedown|preventDefault style="{style}clip:rect(0, {x}px, {h}px, 0);" />
 	{#if overlay}
 		<div class="overlay" style="opacity:{opacity}" />
 	{/if}

@@ -1,7 +1,8 @@
 import { writable, type Writable } from 'svelte/store';
 import { get } from 'svelte/store';
-import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+import { PUBLIC_CONTENT_LANGUAGES, PUBLIC_AVAILABLE_SYSTEMLANGUAGES } from '$env/static/public';
 import type { Schema } from '@src/collections/types';
+import { sourceLanguageTag } from '@src/paraglide/runtime';
 
 export const categories: Writable<
 	Array<{
@@ -23,6 +24,8 @@ export const avatarSrc: Writable<string> = writable();
 // Create a writable store for contentLanguage with initial value of PUBLIC_CONTENT_LANGUAGES
 export const contentLanguage = writable(Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0]);
 export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0];
+export const systemLanguage = writable(globalThis?.localStorage?.getItem('systemLanguage') || sourceLanguageTag);
+export const AVAILABLE_SYSTEMLANGUAGES = JSON.parse(PUBLIC_AVAILABLE_SYSTEMLANGUAGES) as string[];
 
 // Git Version check
 export const pkgBgColor = writable('variant-filled-primary');
@@ -151,21 +154,21 @@ export const userPreferredState = writable('collapsed');
 
 export const handleSidebarToggle = () => {
 	if (get(screenWidth) === 'mobile') {
-		if (get(mode) === 'view') {
-			// logic for view mode on mobile
-			toggleLeftSidebar.click('full');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		} else {
+		if (['edit', 'create'].includes(get(mode))) {
 			// logic for all other modes on mobile
 			toggleLeftSidebar.clickBack('closed');
 			toggleRightSidebar.close();
 			togglePageHeader.open();
 			togglePageFooter.open();
+		} else {
+			// logic for view mode on mobile
+			toggleLeftSidebar.click('full');
+			toggleRightSidebar.close();
+			togglePageHeader.close();
+			togglePageFooter.close();
 		}
 	} else if (get(screenWidth) === 'tablet') {
-		if (get(mode) === 'view') {
+		if (['edit', 'create'].includes(get(mode))) {
 			// logic for view mode on tablet
 			toggleLeftSidebar.click('closed');
 			toggleRightSidebar.close();
@@ -179,17 +182,17 @@ export const handleSidebarToggle = () => {
 			togglePageFooter.open();
 		}
 	} else if (get(screenWidth) === 'desktop') {
-		if (get(mode) === 'view') {
-			// logic for view mode on desktop
-			toggleLeftSidebar.click('collapsed');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		} else {
+		if (['edit', 'create'].includes(get(mode))) {
 			// logic for all other modes on desktop
 			toggleLeftSidebar.click('collapsed');
 			toggleRightSidebar.open();
 			togglePageHeader.open();
+			togglePageFooter.close();
+		} else {
+			// logic for view mode on desktop
+			toggleLeftSidebar.click('collapsed');
+			toggleRightSidebar.close();
+			togglePageHeader.close();
 			togglePageFooter.close();
 		}
 	}

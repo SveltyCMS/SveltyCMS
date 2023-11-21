@@ -286,16 +286,15 @@
 				break;
 			case 'publish':
 			case 'unpublish':
+			case 'test':
+				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
+				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
+				break;
 			case 'clone':
 				await axios.post(`/api/${$collection.name}/clone`, formData);
 				break;
 			case 'schedule':
 				await axios.post(`/api/${$collection.name}/schedule`, formData);
-				break;
-
-			case 'test':
-				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
-				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 		}
 
@@ -584,7 +583,7 @@
 			{#each $table.getRowModel().rows as row, index}
 				<tr
 					class={`${
-						data?.entryList[index]?.status == 'Unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'TESTING' ? 'bg-red-800' : ''
+						data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
 					} divide-x divide-surface-400`}
 					on:keydown
 					on:click={() => {

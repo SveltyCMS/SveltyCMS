@@ -44,7 +44,7 @@
 	}
 </script>
 
-<div class="btn-group variant-filled-surface flex w-full rounded">
+<div class="variant-filled-surface btn-group flex w-full rounded">
 	{#if field?.prefix}
 		<button class=" !px-2">{field?.prefix}</button>
 	{/if}
@@ -55,9 +55,7 @@
 		on:input={checkRequired}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== ''
-			? field?.placeholder
-			: field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 		required={field?.required}
 		disabled={field?.disabled}
 		readonly={field?.readonly}

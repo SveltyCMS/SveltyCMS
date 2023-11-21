@@ -266,5 +266,13 @@
 	"formSchemas_usernameRequired": "Username is required",
 	"formSchemas_usernameregex": "Name can only contain letters, digits and @$!%*#",
 	"formSchemas_username_min": "Name must be at least 2 characters",
-	"formSchemas_username_max": "Name can only be 24 characters"
+	"formSchemas_username_max": "Name can only be 24 characters",
+	"test": "Dropdown select",
+	"WidgetBuilder_AddColectionField": "Add Collection Field",
+	"builder_createnew": "Create New",
+	"builder_SaveCollection": "Save Collection",
+	"Builder_required": "Required",
+	"builder_optional": "Optional",
+	"collection_SaveCategories": "Save Categories",
+	"builder_Unassinged": "UnAssigned Collections"
 }

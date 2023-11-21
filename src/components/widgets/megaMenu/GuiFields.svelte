@@ -5,14 +5,11 @@
 	//console.log(value);
 </script>
 
-<div class="w-full flex flex-col items-center box-border border p-2 overflow-auto">
+<div class="box-border flex w-full flex-col items-center overflow-auto border p-2">
 	<p>Menu Fields</p>
 
-	<button on:click={() => (value = [...value, []])} 
-		class="variant-filled-primary btn">
-		Add Level
-	</button>
-	
+	<button on:click={() => (value = [...value, []])} class="variant-filled-primary btn"> Add Level </button>
+
 	{#each value as level, index}
 		<div class="level">
 			<p>level {index + 1}</p>

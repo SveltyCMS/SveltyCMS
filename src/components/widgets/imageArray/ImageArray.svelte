@@ -46,12 +46,9 @@
 
 <!-- TODO: Add Image display and link File--><!-- <FileDropzone /> -->
 <FileDropzone {name} accept="image/*" multiple on:change={onDropzoneChangeHandler}>
-	<svelte:fragment slot="lead"
-		><iconify-icon icon="fa6-solid:file-arrow-up" width="45" /></svelte:fragment
-	>
+	<svelte:fragment slot="lead"><iconify-icon icon="fa6-solid:file-arrow-up" width="45" /></svelte:fragment>
 	<svelte:fragment slot="message"
-		><span class="font-bold">Upload <span class="text-primary-500">Multiple </span>files</span> or drag
-		& drop</svelte:fragment
+		><span class="font-bold">Upload <span class="text-primary-500">Multiple </span>files</span> or drag & drop</svelte:fragment
 	>
 	<svelte:fragment slot="meta">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</svelte:fragment>
 </FileDropzone>

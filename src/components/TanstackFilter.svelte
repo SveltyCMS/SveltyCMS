@@ -126,8 +126,8 @@
 			icon={density === 'compact'
 				? 'material-symbols:align-space-even-rounded'
 				: density === 'normal'
-				? 'material-symbols:align-space-around-rounded'
-				: 'material-symbols:align-space-between-rounded'}
+				  ? 'material-symbols:align-space-around-rounded'
+				  : 'material-symbols:align-space-between-rounded'}
 			width="24"
 		/>
 	</button>

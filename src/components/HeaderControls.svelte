@@ -70,12 +70,12 @@
 			{/if}
 
 			<!--TODO: fix {#if $categories && $categories[0]} -->
-			{#if categories && categories[0]}
+			{#if $categories && $categories[0]}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
 					<div class="text-sm font-bold uppercase text-primary-500">{$mode}:</div>
 					<div class="text-xs capitalize">
 						{$categories[0].name}
-						<span class=" uppercase text-primary-500">{$collection.name}</span>
+						<span class=" uppercase text-primary-500">{$collection?.name}</span>
 					</div>
 				</div>
 			{/if}

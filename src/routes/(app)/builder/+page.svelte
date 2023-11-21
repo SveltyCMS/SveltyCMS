@@ -9,6 +9,10 @@
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 
 	import PageTitle from '@src/components/PageTitle.svelte';
+	import IconifyPicker from '@src/components/IconifyPicker.svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';
@@ -44,23 +48,17 @@
 </script>
 
 <!-- Page Title -->
-{#if $mode == 'create'}
-	<div class="flex items-center justify-between">
-		<PageTitle name="Create New " icon="material-symbols:ink-pen" iconColor="text-primary-500" />
-		<!-- Cancel -->
-
+<div class="flex items-center justify-between">
+	{#if $mode == 'create' || $mode == 'edit'}
+		<PageTitle name={$mode == 'create' ? 'Create New ' : `Edit ${name} Category`} icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 		<button class="variant-ghost-secondary btn-icon mr-2 p-2" on:click={() => mode.set('view')}
 			><iconify-icon icon="material-symbols:close" width="24" /></button
 		>
-	</div>
-{:else if $mode == 'edit'}
-	<PageTitle name="Edit {name} Category" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
-{:else if $mode == 'view'}
-	<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
-	<p class="text-center text-primary-500">Click on any existing Category to edit or Create A New</p>
-{/if}
-
-<div class="mt-2 flex">
+	{:else if $mode == 'view'}
+		<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+	{/if}
+</div>
+<div class="mt-2 flex text-white">
 	{#if $mode == 'view'}
 		<!--Left Panel -->
 		<section class="w-[280px] pl-1 pt-1">
@@ -71,7 +69,7 @@
 			<!-- unAssigned Selection -->
 			{#if $unAssigned && $unAssigned.length > 0}
 				<div class="mt-5 flex flex-col items-center justify-center rounded border border-warning-500">
-					<p class="border-b text-center text-warning-500">UnAssigned Collections</p>
+					<p class="border-b text-center text-warning-500">{m.builder_Unassinged()}</p>
 					<div class="m-1 flex flex-wrap gap-2 text-white">
 						{@html $unAssigned.map((x) => `<button class="badge variant-filled-primary" role="button" tabindex="0">${x.name}</button>`).join('')}
 					</div>
@@ -81,10 +79,10 @@
 	{/if}
 
 	<!--Right Panel -->
-
 	<!-- Display collections -->
 	<div class="mt-8 flex w-full flex-col items-center">
 		<div class="flex justify-between gap-2">
+			<!-- <p class="text-center text-primary-500">Click on any existing Category to edit or Create A New</p> -->
 			<!-- add new Collection -->
 			{#if $mode == 'view'}
 				<button
@@ -93,25 +91,28 @@
 					}}
 					class="variant-filled-tertiary btn"
 				>
-					Create New
+					{m.builder_createnew()}
 				</button>
 			{/if}
 
 			{#if $mode != 'view'}
-				<div class="flex w-screen max-w-[300px] justify-center px-2">
+				<div class="flex w-screen max-w-[400px] justify-center px-2">
 					<!-- Save Collection -->
-					<button on:click={save} class="variant-filled-primary btn"> Save Collection</button>
+					<button on:click={save} class="variant-filled-primary btn">{m.builder_SaveCollection()}</button>
 				</div>
 			{/if}
 		</div>
 
 		{#if $mode == 'create'}
 			<!-- add new collection fields -->
-			<div class="mt-3 bg-surface-500 p-2">
-				<p class="text-center text-xs text-error-500">Required</p>
+			<div class="mt-3 min-w-[300px] gap-2 rounded bg-surface-500 p-2">
+				<p class="text-center text-xs text-error-500">{m.Builder_required()}</p>
 
 				<FloatingInput label="Name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
-				<p class="text-center text-xs text-primary-500">Optional</p>
+				<p class="text-center text-xs text-primary-500">{m.builder_optional()}</p>
+				<!-- <div class="max-w-[300px]">
+					<IconifyPicker bind:iconselected={icon} />
+				</div> -->
 				<FloatingInput label="Icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
 				<FloatingInput label="Status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
 				<FloatingInput label="Slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
@@ -119,13 +120,14 @@
 			</div>
 		{:else if $mode == 'edit'}
 			<!-- edit collection fields -->
-			<div class="mt-3 bg-surface-500 p-2">
-				<p class="text-center text-xs text-error-500">Required</p>
+			<div class="mt-3 space-y-2 bg-surface-500 p-2">
+				<p class="text-center text-xs text-error-500">{m.Builder_required()}</p>
 				<FloatingInput label="name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
-				<p class="text-center text-xs text-primary-500">Optional</p>
+				<p class=" text-center text-xs">Optional</p>
 				<FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
 				<FloatingInput label="status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
 				<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
+
 				<WidgetBuilder fields={$collection.fields} bind:addField />
 			</div>
 		{/if}

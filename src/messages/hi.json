@@ -266,5 +266,13 @@
 	"formSchemas_usernameRequired": "उपयोगकर्ता नाम आवश्यक है",
 	"formSchemas_usernameregex": "नाम में केवल अक्षर, अंक और @$!%*# शामिल हो सकते हैं",
 	"formSchemas_username_min": "नाम कम से कम 2 अक्षर का होना चाहिए",
-	"formSchemas_username_max": "नाम केवल 24 अक्षर का हो सकता है"
+	"formSchemas_username_max": "नाम केवल 24 अक्षर का हो सकता है",
+	"test": "ड्रॉपडाउन चयन करें",
+	"WidgetBuilder_AddColectionField": "संग्रह फ़ील्ड जोड़ें",
+	"builder_createnew": "नया निर्माण",
+	"builder_SaveCollection": "संग्रह सहेजें",
+	"Builder_required": "आवश्यक",
+	"builder_optional": "वैकल्पिक",
+	"collection_SaveCategories": "श्रेणियाँ सहेजें",
+	"builder_Unassinged": "अनिर्धारित संग्रह"
 }

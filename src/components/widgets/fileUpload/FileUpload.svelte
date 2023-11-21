@@ -89,7 +89,9 @@
 	}
 </script>
 
-<FileDropzone bind:files={_data} name={fieldName}
+<FileDropzone
+	bind:files={_data}
+	name={fieldName}
 	accept=".pdf, .txt, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation"
 	multiple
 	on:change={setFile}

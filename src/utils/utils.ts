@@ -33,37 +33,30 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 
 // Function to convert an object to form data
 export const obj2formData = (obj: any) => {
-	try {
-		// Create a new FormData object
-		const formData = new FormData();
+	// Create a new FormData object
+	const formData = new FormData();
+	// Iterate over the keys of the input object
+	for (const key in obj) {
+		// Append each key-value pair to the FormData object as a string
+		formData.append(
+			key,
+			JSON.stringify(obj[key], (key, val) => {
+				if (!val && val !== false) return undefined;
+				else if (key == 'schema') return undefined;
+				else if (key == 'display' && val.default == true) return undefined;
+				else if (key == 'display') return '🗑️' + val + '🗑️';
+				else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
+				else if (key == 'relation') return '🗑️' + val + '🗑️';
+				else if (typeof val === 'function') {
+					return '🗑️' + val + '🗑️';
+				}
 
-		// Iterate over the keys of the input object
-		for (const key in obj) {
-			// Append each key-value pair to the FormData object as a string
-			formData.append(
-				key,
-				JSON.stringify(obj[key], (key, val) => {
-					if (!val && val !== false) return undefined;
-					else if (key == 'schema') return undefined;
-					else if (key == 'display' && val.default == true) return undefined;
-					else if (key == 'display') return '🗑️' + val + '🗑️';
-					else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-					else if (key == 'relation') return '🗑️' + val + '🗑️';
-					else if (typeof val === 'function') {
-						return '🗑️' + val + '🗑️';
-					}
-					return val;
-				})
-			);
-		}
-
-		// Return the FormData object
-		return formData;
-	} catch (error) {
-		// Handle any errors that might occur
-		console.error(error);
-		return null;
+				return val;
+			})
+		);
 	}
+	// Return the FormData object
+	return formData;
 };
 
 // Converts data to FormData object

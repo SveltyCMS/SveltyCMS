@@ -69,30 +69,11 @@
 		formData.append('crop_top', ((crop_top.value * height) / 225).toFixed(0));
 		formData.append('crop_bottom', ((crop_bottom.value * height) / 225).toFixed(0));
 		formData.append('blur_areas', JSON.stringify(blurAreas));
-
-		
 	}
-
 </script>
 
-<input
-	use:setFile
-	name={field.db_fieldName}
-	class="input"
-	type="file"
-/>
+<input use:setFile name={field.db_fieldName} class="input" type="file" />
 
 {#if image}
-<Cropper
-	bind:SCALE={scale}
-	bind:rotateDetails
-	bind:image={image}
-	bind:rotate
-	bind:blurs
-	bind:crop_left
-	bind:crop_right
-	bind:crop_top
-	bind:crop_bottom
-/>
+	<Cropper bind:SCALE={scale} bind:rotateDetails bind:image bind:rotate bind:blurs bind:crop_left bind:crop_right bind:crop_top bind:crop_bottom />
 {/if}
-

@@ -24,16 +24,14 @@
 	}
 </script>
 
-<div class="btn-group variant-filled-surface flex w-full rounded">
+<div class="variant-filled-surface btn-group flex w-full rounded">
 	<input
 		type="number"
 		bind:value={_data[_language]}
 		on:input={checkRequired}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
-		placeholder={field?.placeholder && field?.placeholder !== ''
-			? field?.placeholder
-			: field?.db_fieldName}
+		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 		required={field?.required}
 		readonly={field?.readonly}
 		class="input flex-1 rounded-none"

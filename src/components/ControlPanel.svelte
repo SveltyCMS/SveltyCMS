@@ -20,7 +20,7 @@
 		mode.set('view');
 		handleSidebarToggle();
 	}
-	// console.log('collection', $collection);
+	//console.log('collection', $collection);
 
 	let dates = { created: '', updated: '', revision: '' };
 
@@ -85,7 +85,7 @@
 				on:click={() => $modifyEntry('clone')}
 				class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 			>
-				<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection.name}</span>
+				<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
 			</button>
 
 			{#if $mode == 'edit'}

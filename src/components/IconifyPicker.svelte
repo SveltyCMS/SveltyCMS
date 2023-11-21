@@ -15,7 +15,7 @@
 	let page = 0; // Initialize page counter
 	let showDropdown = false;
 
-	export const icon = '';
+	export const icon: string = '';
 	export let iconselected: string;
 	export let searchQuery: string;
 
