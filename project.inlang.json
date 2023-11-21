@@ -6,7 +6,8 @@
     "de",
     "es",
     "fr",
-    "hi"
+    "hi",
+    "ka"
   ],
   "modules": [
     "https://cdn.jsdelivr.net/npm/@inlang/message-lint-rule-empty-pattern@latest/dist/index.js",
