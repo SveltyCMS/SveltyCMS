@@ -85,7 +85,6 @@
 
 	// Paraglide JS
 	import * as m from '@src/paraglide/messages';
-
 	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 	let _languageTag = languageTag(); // Get the current language tag

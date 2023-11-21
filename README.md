@@ -39,9 +39,9 @@
 
 <h2 align="center">A powerful Headless CMS with sveltekit power</h2>
 
-<h3 align="center"><strong>It's fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
+<h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
 
-This CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
+This sveltekit CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
 
 New Collections can easily be implemented, due to full typescript support with already many support available widgets.
 

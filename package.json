@@ -41,6 +41,7 @@
 		"eslint-config-prettier": "^9.0.0",
 		"eslint-plugin-prettier": "^5.0.1",
 		"eslint-plugin-svelte": "^2.35.0",
+		"lightningcss": "^1.22.1",
 		"postcss": "^8.4.31",
 		"prettier": "^3.1.0",
 		"prettier-plugin-svelte": "^3.1.0",
