@@ -2,7 +2,9 @@ import { writable, type Writable } from 'svelte/store';
 import { get } from 'svelte/store';
 import { PUBLIC_CONTENT_LANGUAGES, PUBLIC_AVAILABLE_SYSTEMLANGUAGES } from '$env/static/public';
 import type { Schema } from '@src/collections/types';
-import { sourceLanguageTag } from '@src/paraglide/runtime';
+
+//paraglidejs
+import { sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export const categories: Writable<
 	Array<{
@@ -24,8 +26,14 @@ export const avatarSrc: Writable<string> = writable();
 // Create a writable store for contentLanguage with initial value of PUBLIC_CONTENT_LANGUAGES
 export const contentLanguage = writable(Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0]);
 export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0];
+
+// Create a writable store for systemLanguage
 export const systemLanguage = writable(globalThis?.localStorage?.getItem('systemLanguage') || sourceLanguageTag);
-export const AVAILABLE_SYSTEMLANGUAGES = JSON.parse(PUBLIC_AVAILABLE_SYSTEMLANGUAGES) as string[];
+
+//Filter systemLanguage via envirment file
+export const AVAILABLE_SYSTEMLANGUAGES = PUBLIC_AVAILABLE_SYSTEMLANGUAGES
+	? (JSON.parse(PUBLIC_AVAILABLE_SYSTEMLANGUAGES) as string[])
+	: availableLanguageTags; // default value
 
 // Git Version check
 export const pkgBgColor = writable('variant-filled-primary');

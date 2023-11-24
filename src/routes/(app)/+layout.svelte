@@ -23,7 +23,7 @@
 	} from '@skeletonlabs/skeleton';
 	initializeStores();
 
-	console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
+	//console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
 
 	import {
 		avatarSrc,
@@ -32,6 +32,7 @@
 		collectionValue,
 		mode,
 		defaultContentLanguage,
+		AVAILABLE_SYSTEMLANGUAGES,
 		handleSidebarToggle,
 		screenWidth,
 		userPreferredState,
@@ -39,8 +40,7 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		pkgBgColor,
-		storeListboxValue
+		pkgBgColor
 	} from '@src/stores/store';
 
 	import { getCollections } from '@src/collections';
@@ -85,15 +85,17 @@
 		}
 	};
 
-	// Paraglide JS
+	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { setLanguageTag, languageTag, availableLanguageTags } from '@src/paraglide/runtime';
+	import { languageTag } from '@src/paraglide/runtime';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
 	function handleLocaleChange(event: any) {
 		$systemLanguage = event.target.value;
 	}
+	let inputlangeuagevalue = '';
+	$: filteredLanguages = AVAILABLE_SYSTEMLANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
 
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
@@ -401,8 +403,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 									? 'btn-icon px-2.5 py-2'
 									: 'btn-icon-sm px-1.5 py-0'}"
 							>
-								{#each availableLanguageTags as locale}
-									<option value={locale} selected={locale === _languageTag}>{locale}</option>
+								{#each filteredLanguages as locale}
+									<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
 								{/each}
 							</select>
 							<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">

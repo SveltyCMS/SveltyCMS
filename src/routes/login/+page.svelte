@@ -10,7 +10,8 @@
 	//console.log('PageData', data);
 
 	//ParaglideJS
-	import { languageTag } from '@src/paraglide/runtime';
+	import { languageTag, availableLanguageTags } from '@src/paraglide/runtime';
+	import Autocomplete from '@src/components/Autocomplete.svelte';
 	let _languageTag = languageTag(); // Get the current language tag
 
 	function handleLocaleChange(event: any) {
@@ -21,6 +22,8 @@
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
+
+	let options = availableLanguageTags;
 </script>
 
 <div class="body" style="background:{background} ">
@@ -102,7 +105,8 @@
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
 			<!-- Autocomplete input -->
-			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}
+			{#if AVAILABLE_SYSTEMLANGUAGES.length > 6}
+				<!-- <Autocomplete {options} placeholder={_languageTag} bind:value={inputlangeuagevalue} /> -->
 				<input
 					type="text"
 					list="locales"
