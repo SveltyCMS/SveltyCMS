@@ -93,7 +93,7 @@ export function sanitize(str: string) {
 }
 
 // Saves POSTS files to disk and returns file information
-//TODO: add optimization progress status
+// TODO: add optimization progress status
 export async function saveImages(data: FormData, collectionName: string) {
 	if (browser) return;
 
@@ -113,6 +113,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 	}
 
 	if (_files.length === 0) return null;
+
 	// Check if directories exist and create them if necessary
 	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
 	if (!fs.existsSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}`)) {
@@ -123,89 +124,94 @@ export async function saveImages(data: FormData, collectionName: string) {
 		}
 	}
 
-	await Promise.all(
+	await Promise.allSettled(
 		_files.map(async (file) => {
-			const { blob, fieldname } = file;
-			const name = removeExtension(blob.name);
-			const sanitizedFileName = sanitize(name);
+			try {
+				const { blob, fieldname } = file;
+				const name = removeExtension(blob.name);
+				const sanitizedFileName = sanitize(name);
 
-			const arrayBuffer = await blob.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
-			const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+				const buffer = Buffer.from(await blob.arrayBuffer());
+				const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 
-			const url = `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
+				const url = `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
 
-			const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
-			const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
+				const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
+				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
 
-			files[fieldname as keyof typeof files] = {
-				original: {
-					name: `${hash}-${sanitizedFileName}`,
-					url,
-					size: blob.size,
-					type: mimeType,
-					lastModified: blob.lastModified
-				}
-			};
-
-			await Promise.all(
-				Object.keys(SIZES).map(async (size) => {
-					if (size == 'original') return;
-					const fullName =
-						outputFormat === 'original' ? `${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}` : `${hash}-${sanitizedFileName}.${outputFormat}`;
-					const arrayBuffer = await blob.arrayBuffer();
-
-					const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
-						.rotate()
-						.resize({ width: SIZES[size] })
-						.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-							quality: size === 'original' ? 100 : outputFormat === 'webp' ? 80 : 50,
-							progressive: true
-						})
-						.toBuffer();
-
-					fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
-					const url = `/media/${path}/${collectionName}/${size}/${fullName}`;
-					files[fieldname as keyof typeof files][size] = {
-						name: fullName,
+				files[fieldname as keyof typeof files] = {
+					original: {
+						name: `${hash}-${sanitizedFileName}`,
 						url,
 						size: blob.size,
 						type: mimeType,
 						lastModified: blob.lastModified
-					};
-				})
-			);
+					}
+				};
 
-			let optimizedOriginalBuffer: Buffer;
-			if (outputFormat !== 'original') {
-				optimizedOriginalBuffer = await sharp(Buffer.from(await blob.arrayBuffer()))
-					.rotate()
-					.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-						quality: outputFormat === 'webp' ? 80 : 50
+				await Promise.all(
+					Object.keys(SIZES).map(async (size) => {
+						if (size == 'original') return;
+						const fullName =
+							outputFormat === 'original'
+								? `${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`
+								: `${hash}-${sanitizedFileName}.${outputFormat}`;
+						const arrayBuffer = await blob.arrayBuffer();
+
+						const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
+							.rotate()
+							.resize({ width: SIZES[size] })
+							.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
+								quality: size === 'original' ? 100 : outputFormat === 'webp' ? 80 : 50,
+								progressive: true
+							})
+							.toBuffer();
+
+						fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
+						const url = `/media/${path}/${collectionName}/${size}/${fullName}`;
+						files[fieldname as keyof typeof files][size] = {
+							name: fullName,
+							url,
+							size: blob.size,
+							type: mimeType,
+							lastModified: blob.lastModified
+						};
 					})
-					.toBuffer();
+				);
 
-				fs.writeFileSync(
-					`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
-					optimizedOriginalBuffer
-				);
-			} else {
-				const arrayBuffer = await blob.arrayBuffer();
-				optimizedOriginalBuffer = Buffer.from(arrayBuffer);
-				fs.writeFileSync(
-					`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`,
-					optimizedOriginalBuffer
-				);
+				let optimizedOriginalBuffer: Buffer;
+				if (outputFormat !== 'original') {
+					optimizedOriginalBuffer = await sharp(buffer)
+						.rotate()
+						.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
+							quality: outputFormat === 'webp' ? 80 : 50
+						})
+						.toBuffer();
+
+					fs.writeFileSync(
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
+						optimizedOriginalBuffer
+					);
+				} else {
+					optimizedOriginalBuffer = buffer;
+					fs.writeFileSync(
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`,
+						optimizedOriginalBuffer
+					);
+				}
+
+				// Add the optimized original file data to the files object
+				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
+					name: `${hash}-${sanitizedFileName}.${outputFormat}`,
+					url: `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
+					size: optimizedOriginalBuffer.byteLength,
+					type: mimeType,
+					lastModified: blob.lastModified
+				};
+			} catch (error) {
+				console.error(`Error processing file: ${error}`);
+				// Handle the error appropriately, you can choose to log it, throw it, or take other actions
 			}
-
-			// Add the optimized original file data to the files object
-			files[fieldname as keyof typeof files]['optimizedOriginal'] = {
-				name: `${hash}-${sanitizedFileName}.${outputFormat}`,
-				url: `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
-				size: optimizedOriginalBuffer.byteLength,
-				type: mimeType,
-				lastModified: blob.lastModified
-			};
 		})
 	);
 
@@ -305,11 +311,50 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 	}
 }
 
+// Function to delete image files associated with a content item
+export async function deleteImageFiles(collectionName: string, fileName: string) {
+	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+
+	const collection = get(collections).find((collection) => collection.name === collectionName);
+
+	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
+
+	try {
+		// Delete the original image file
+		fs.unlinkSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`);
+
+		// Delete resized image files
+		for (const size in SIZES) {
+			fs.unlinkSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
+		}
+
+		console.log(`Deleted image files associated with ${fileName}`);
+	} catch (error) {
+		console.error(`Error deleting image files: ${error}`);
+		// Handle the error as needed
+	}
+}
+
 // Delete FormData
 // TODO: move images/files to trash folder see [collection]/+server.ts
-export async function deleteData(id) {
-	const $collection = get(collection);
-	await fetch(`/api/${$collection.name}/${id}`, { method: 'DELETE' });
+export async function deleteData(id, collectionName) {
+	// Fetch the entry data before deleting
+	const entryData = await findById(id, collectionName);
+
+	// Check if the collection has an 'images' field
+	if (entryData && entryData.images) {
+		// Delete image files associated with the entry
+		for (const fieldName in entryData.images) {
+			const fileName = entryData.images[fieldName]?.original?.name;
+			if (fileName) {
+				await deleteImageFiles(collectionName, fileName);
+			}
+		}
+	}
+
+	// Continue with the deletion of the content item
+	await fetch(`/api/${collectionName}/${id}`, { method: 'DELETE' });
 }
 
 export async function extractData(fieldsData: any) {

@@ -96,7 +96,7 @@
 					<!-- PUBLIC SITENAME -->
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
 					<!-- Slogan -->
-					<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}r</div>
+					<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}</div>
 				</div>
 			</div>
 		</div>
