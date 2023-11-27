@@ -217,7 +217,7 @@
 	"oauth_entertoken": "Ingrese el token de usuario para registrarse:",
 	"oauth_cancel": "Cancelar",
 	"oauth_signup": "Regístrate con Google",
-	"oauth_slogan": "con potencia Sveltekit",
+	"logo_slogan": "con potencia Sveltekit",
 	"multibuttontoken_modaltitle": "Editar datos de token",
 	"multibuttontoken_modalbody": "Modifique los datos de este token y luego presione Guardar.",
 	"multibuttontoken_deletetitle": "Confirme la eliminación del usuario",

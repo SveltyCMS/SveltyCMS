@@ -217,7 +217,7 @@
 	"oauth_entertoken": "შეიყვანეთ მომხმარებლის ტოკენი რეგისტრაციისთვის:",
 	"oauth_cancel": "გაუქმება",
 	"oauth_signup": "დარეგისტრირდით Google-ით",
-	"oauth_slogan": "Sveltekit Power-ით",
+	"logo_slogan": "Sveltekit Power-ით",
 	"multibuttontoken_modaltitle": "ტოკენის მონაცემების რედაქტირება",
 	"multibuttontoken_modalbody": "შეცვალეთ ამ ნიშნის მონაცემები და შემდეგ დააჭირეთ შენახვას.",
 	"multibuttontoken_deletetitle": "გთხოვთ დაადასტუროთ მომხმარებლის წაშლა",

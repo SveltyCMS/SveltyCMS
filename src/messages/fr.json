@@ -217,7 +217,7 @@
 	"oauth_entertoken": "Entrez le jeton utilisateur pour vous inscrire :",
 	"oauth_cancel": "Annuler",
 	"oauth_signup": "Inscrivez-vous avec Google",
-	"oauth_slogan": "avec la puissance Sveltekit",
+	"logo_slogan": "avec Sveltekit Power",
 	"multibuttontoken_modaltitle": "Modifier les données du jeton",
 	"multibuttontoken_modalbody": "Modifiez ces données de jeton, puis appuyez sur Enregistrer.",
 	"multibuttontoken_deletetitle": "Veuillez confirmer la suppression de l'utilisateur",

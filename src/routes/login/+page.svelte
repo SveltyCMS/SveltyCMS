@@ -10,6 +10,7 @@
 	//console.log('PageData', data);
 
 	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 	import { languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 	import Autocomplete from '@src/components/Autocomplete.svelte';
 	let _languageTag = languageTag(); // Get the current language tag
@@ -95,7 +96,7 @@
 					<!-- PUBLIC SITENAME -->
 					<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
 					<!-- Slogan -->
-					<div class="-mt-[1px] text-[11px] font-bold text-black">with Sveltekit Power</div>
+					<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}r</div>
 				</div>
 			</div>
 		</div>

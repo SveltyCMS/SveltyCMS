@@ -217,7 +217,7 @@
 	"oauth_entertoken": "Enter User Token to SignUp:",
 	"oauth_cancel": "Cancel",
 	"oauth_signup": "Sign Up with Google",
-	"oauth_slogan": "with Sveltekit Power",
+	"logo_slogan": "with Sveltekit Power",
 	"multibuttontoken_modaltitle": "Edit Token Data",
 	"multibuttontoken_modalbody": "Modify this token data and then press Save.",
 	"multibuttontoken_deletetitle": "Please Confirm User Deletion",

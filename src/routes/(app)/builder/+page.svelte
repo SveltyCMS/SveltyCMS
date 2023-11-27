@@ -1,15 +1,12 @@
 <script lang="ts">
 	import '@src/collections';
 	import Collections from './Collections.svelte';
-	import { mode } from '@src/stores/store.js';
-	import { collection, unAssigned } from '@src/stores/store';
+	import { mode, collection, unAssigned } from '@src/stores/store';
 	import axios from 'axios';
 	import { obj2formData } from '@src/utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
-
 	import PageTitle from '@src/components/PageTitle.svelte';
-	import IconifyPicker from '@src/components/IconifyPicker.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

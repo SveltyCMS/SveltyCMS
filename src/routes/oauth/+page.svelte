@@ -71,7 +71,7 @@
 					<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 						<Logo fill="black" className="w-8 h-8" />
 						<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
-						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.oauth_slogan()}</div>
+						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}</div>
 					</div>
 				</div>
 			</div>
