@@ -1,11 +1,11 @@
 <script lang="ts">
 	import axios from 'axios';
+	import { onMount } from 'svelte';
 	import type { FieldType } from './';
 	import { entryData, mode, loadingProgress } from '@src/stores/store';
 	import { getFieldName } from '@src/utils/utils';
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
-	import { onMount } from 'svelte';
 
 	let _data: FileList;
 	let updated = false;
@@ -59,24 +59,31 @@
 		loadingProgress.set(100);
 	}
 
-	onMount(() => {
-		//TODO: Display thumbnail but load original image data
-		//TODO: MineType is not obtained
+	// Gets Thumbnail data
+	async function fetchImage() {
+		try {
+			const { data, headers } = await axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' });
+			const fileList = new DataTransfer();
+			const file = new File([data], $entryData[fieldName].thumbnail.name, {
+				type: headers['content-type'] || $entryData[fieldName].mimetype
+			});
+			fileList.items.add(file);
+			_data = fileList.files;
+			updated = true;
 
+			// Set optimizedMimeType to the fetched image's MIME type
+			optimizedMimeType = file.type;
+		} catch (error) {
+			console.error('Error fetching Image:', error);
+			// Handle error appropriately
+		}
+	}
+
+	onMount(() => {
 		if ($mode === 'edit' && $entryData[fieldName]) {
 			console.log('mode edit:', $mode);
 			console.log('entryData:', $entryData[fieldName]);
-			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
-				const fileList = new DataTransfer();
-				console.log('fileList:', fileList);
-				// Return Thumbnail Image
-				const file = new File([data], $entryData[fieldName].thumbnail.name, {
-					type: $entryData[fieldName].mimetype
-				});
-				fileList.items.add(file);
-				_data = fileList.files;
-				updated = true;
-			});
+			fetchImage();
 		}
 	});
 </script>
@@ -86,13 +93,15 @@
 		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />{/if}</svelte:fragment
 	>
 	<svelte:fragment slot="message">
-		{#if !_data}<span class="font-bold text-primary-500">Upload a Image</span> or drag & drop
-		{:else}<span class="font-bold text-primary-500">Replace Image</span> or drag & drop
+		{#if !_data}
+			<span class="font-bold text-primary-500">Upload a Image</span> or drag & drop
+		{:else}
+			<span class="font-bold text-primary-500">Replace Image</span> or drag & drop
 		{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="meta">
-		{#if !_data}<p class="mt-1 text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
-			<!-- Image preview and file info-->
+		{#if !_data}
+			<p class="mt-1 text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
 		{:else}
 			<div class="flex flex-col items-center !opacity-100 md:flex-row">
 				<div class="flex justify-center md:mr-4">
@@ -108,29 +117,20 @@
 
 					<br />
 
-					<!-- Display loading progress -->
 					{#if $loadingProgress != 100}
 						<ProgressBar label="Image Optimization" value={$loadingProgress} max={100} meter="bg-surface-900-50-token" />
 
-						<!-- Display optimized image information -->
 						<p class="text-lg font-semibold text-primary-500">
-							Optimized as <span class="uppercase">{PUBLIC_MEDIA_OUTPUT_FORMAT}: </span>
-						</p>
-						<!-- Display optimized status once the WebP/AVIF file is generated -->
-						<p>Uploaded File: <span class="text-primary-500">{optimizedFileName}</span></p>
-						<p>
-							File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+							{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
+							{#if $loadingProgress != 100}Optimized as <span class="uppercase">{PUBLIC_MEDIA_OUTPUT_FORMAT}: </span>{/if}
 						</p>
 
-						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
+						<p>File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
+						<p>MIME type: <span class="text-error-500">{optimizedMimeType || _data[0].type}</span></p>
 						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
 					{:else if optimizedFileName}
-						<!-- Display optimized status once the WebP/AVIF file is generated -->
 						<p>File Name: <span class="text-primary-500">{optimizedFileName}</span></p>
-						<p>
-							File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
-						</p>
-
+						<p>File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
 						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
 						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
 					{/if}
