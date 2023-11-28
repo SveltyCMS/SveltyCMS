@@ -17,6 +17,7 @@ vite.config.ts.timestamp-*
 # simpleCMS
 /tmp
 trash/
+media/
 mediaFiles/
 collections/
 

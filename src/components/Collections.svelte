@@ -15,6 +15,7 @@
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { get } from 'svelte/store';
+	import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 
 	const popupCollections: PopupSettings = {
 		event: 'hover',
@@ -177,7 +178,7 @@
 			}}
 		>
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600" />
-			<p class="mr-auto text-center uppercase">{m.collections_media()}</p></a
+			<p class="mr-auto text-center uppercase">{PUBLIC_MEDIA_FOLDER}</p></a
 		>
 	{:else}
 		<!-- switchSideBar collapsed -->
@@ -190,7 +191,7 @@
 				}
 			}}
 		>
-			<p class="text-xs uppercase text-black dark:text-white">{m.collections_media()}</p>
+			<p class="text-xs uppercase text-black dark:text-white">{PUBLIC_MEDIA_FOLDER}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 		</a>
 	{/if}

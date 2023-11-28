@@ -134,7 +134,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				const buffer = Buffer.from(await blob.arrayBuffer());
 				const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 
-				const url = `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
+				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
 
 				const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
 				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
@@ -168,7 +168,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 							.toBuffer();
 
 						fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
-						const url = `/media/${path}/${collectionName}/${size}/${fullName}`;
+						const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
 						files[fieldname as keyof typeof files][size] = {
 							name: fullName,
 							url,
@@ -203,7 +203,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				// Add the optimized original file data to the files object
 				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
 					name: `${hash}-${sanitizedFileName}.${outputFormat}`,
-					url: `/media/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
+					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
 					size: optimizedOriginalBuffer.byteLength,
 					type: mimeType,
 					lastModified: blob.lastModified

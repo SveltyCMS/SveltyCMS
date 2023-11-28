@@ -9,7 +9,7 @@ import { redirect } from '@sveltejs/kit';
 import sharp from 'sharp';
 
 // resize image preview
-async function resizeImage(imagePath) {
+async function resizeImage(imagePath: any) {
 	const outputBuffer = await sharp(imagePath)
 		.resize(800, 800, {
 			fit: 'inside',

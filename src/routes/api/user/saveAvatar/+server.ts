@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			fs.writeFileSync(`${outputPath}/${fileName}`, optimizedBuffer);
 		}
 
-		url = `/media/images/avatars/${fileName}`;
+		url = `/${PUBLIC_MEDIA_FOLDER}/images/avatars/${fileName}`;
 	}
 
 	auth.updateUserAttributes(userID, {
