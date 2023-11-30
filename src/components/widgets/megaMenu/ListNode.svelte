@@ -20,7 +20,11 @@
 	console.log('self:', self); // Output self to the console
 </script>
 
-<button on:click={() => (expanded = !expanded)} class="relative my-2 flex items-center justify-center gap-2" style="margin-left:{20 * level}px">
+<button
+	on:click={() => (expanded = !expanded)}
+	class="relative my-2 flex items-center justify-center gap-2"
+	style="margin-left:{level === maxDepth - 1 ? (level + 7) * 5 : level * 5}px"
+>
 	<!-- Display chevron-down icon for expandable children except the first header -->
 	{#if level > 0 && self.children?.length > 0}
 		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-error-500" />

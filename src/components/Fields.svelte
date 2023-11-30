@@ -4,7 +4,6 @@
 	import { asAny, getFieldName } from '@src/utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;
-
 	export let root = true; // if Fields is not part of any widget.
 	export let fieldsData = {};
 	export let customData = {};
@@ -41,7 +40,7 @@
 
 						<div class="flex gap-2">
 							<!-- Widget translated  -->
-							{#if field.translated}
+							{#if 'translated' in field}
 								<div class="flex items-center gap-1 px-2">
 									<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
 									<div class="text-xs font-normal text-error-500">
@@ -51,8 +50,8 @@
 							{/if}
 
 							<!-- Widget icon -->
-							{#if field.icon}
-								<iconify-icon icon={field.icon} color="dark" width="22" class="" />
+							{#if 'icon' in field}
+								<iconify-icon icon={field?.icon} color="dark" width="22" class="" />
 							{/if}
 						</div>
 					</div>
