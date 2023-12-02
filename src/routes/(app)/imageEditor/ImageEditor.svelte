@@ -5,8 +5,10 @@
 	import Rotate from './Rotate.svelte';
 
 	export let image: File | null | undefined;
-	let CONT_WIDTH: number | undefined;
-	let CONT_HEIGHT: number | undefined;
+
+	// Initialize CONT_WIDTH and CONT_HEIGHT with a default value
+	let CONT_WIDTH: number = 0;
+	let CONT_HEIGHT: number = 0;
 
 	let imageView: HTMLImageElement | undefined;
 
@@ -17,7 +19,7 @@
 	let cropRight = 10;
 	let cropBottom = 10;
 	let cropCenter = 0;
-	let cropShape = 'rect'; // or 'round'
+	let cropShape: 'rect' | 'round' = 'rect'; // or 'round'
 
 	// Initialize the BLUR values with default values
 	let blurring = false;
@@ -37,10 +39,17 @@
 	let rotate: number = 0;
 
 	// Use the use:action directive to bind the image element to the imageView variable
-	function bindImageView(node: any) {
+	function bindImageView(node: HTMLImageElement) {
 		imageView = node;
 		if (imageView) {
-			// Use CONT_WIDTH and CONT_HEIGHT as needed
+			// Use clientWidth and clientHeight to get the actual displayed image size
+			CONT_WIDTH = imageView.clientWidth;
+			CONT_HEIGHT = imageView.clientHeight;
+		}
+	}
+
+	function handleImageLoad() {
+		if (imageView) {
 			CONT_WIDTH = imageView.naturalWidth;
 			CONT_HEIGHT = imageView.naturalHeight;
 		}
@@ -61,28 +70,42 @@
 	}
 </script>
 
-<!-- Imagebox  -->
-<h1>New imageEditor</h1>
+<div class="flex justify-center gap-2">
+	<p>Image width: <span class="text-error-500">{CONT_WIDTH}</span></p>
+	<p>Image height: <span class="text-error-500">{CONT_HEIGHT}</span></p>
+</div>
 
-<div class="relative overflow-hidden">
-	<!-- Use the use:imageView action to bind the image element -->
+<div class="relative overflow-hidden border-2 border-error-500" style="max-height: 60vh;">
+	<!-- Use the use:bindImageView action to bind the image element -->
 	<img
 		use:bindImageView
 		src={image ? URL.createObjectURL(image) : ''}
 		alt=""
-		class="mx-auto max-h-[40vh] w-auto"
+		class="relative mx-auto w-auto border border-white"
 		style={`transform: rotate(${rotate}deg);`}
+		on:load={() => handleImageLoad()}
 	/>
 
 	{#if cropping || blurring || focalpoint}
-		<div class="absolute left-0 top-0" style={`height: ${CONT_HEIGHT}; width: ${CONT_WIDTH};`}>
+		<div class="absolute left-0 top-0 translate-x-1/2 translate-y-1/2" style={`height: ${CONT_HEIGHT}; width: ${CONT_WIDTH};`}>
 			{#if cropping}
 				<!-- Pass the image and the crop values to the Crop component  -->
-				<Crop {image} {cropTop} {cropLeft} {cropRight} {cropBottom} {cropCenter} {cropShape} />
+				<Crop bind:cropTop bind:cropLeft bind:cropRight bind:cropBottom bind:cropCenter bind:cropShape {CONT_WIDTH} {CONT_HEIGHT} />
 			{/if}
 			{#if blurring}
 				<!-- Pass the image and the blur values to the Blur component  -->
-				<Blur {image} {blurAmount} {blurTop} {blurLeft} {blurRight} {blurBottom} {blurCenter} {blurRotate} />
+				<Blur
+					bind:image
+					bind:blurAmount
+					bind:blurTop
+					bind:blurLeft
+					bind:blurRight
+					bind:blurBottom
+					bind:blurCenter
+					bind:blurRotate
+					{CONT_WIDTH}
+					{CONT_HEIGHT}
+				/>
 			{/if}
 			{#if focalpoint}
 				<!-- Pass the image, the focal point coordinates, and the image dimensions to the FocalPoint component -->
@@ -92,7 +115,7 @@
 	{/if}
 </div>
 
-<!-- Overlay functionality -->
+<!-- Enable and Disable module 	functionality -->
 <div class="flex justify-center gap-3">
 	{#if !cropping}
 		<button on:click={() => (cropping = true)} class="btn-primary btn p-0.5 text-white" title="save">
@@ -113,6 +136,7 @@
 			<iconify-icon icon="material-symbols:save" width="24" class="text-primary-500" />
 		</button>
 	{/if}
+
 	{#if !focalpoint}
 		<button on:click={() => (focalpoint = true)} class="btn-primary btn p-0.5 text-white" title="Focal Point">
 			<iconify-icon icon="material-symbols:center-focus-strong" width="24" class="text-primary-500" />
@@ -125,4 +149,4 @@
 </div>
 
 <!-- Pass rotate and rotateDetails to Rotate component -->
-<Rotate bind:rotate bind:image bind:CONT_WIDTH bind:CONT_HEIGHT />
+<Rotate bind:rotate bind:image />

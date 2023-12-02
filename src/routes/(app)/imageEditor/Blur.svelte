@@ -86,7 +86,10 @@
 				style={`filter: blur(${blurAmount}px);`}
 			/>
 			<!-- Use a button element to delete the blur area -->
-			<button on:click={handleDelete} class="absolute left-0 top-0">Delete</button>
+			<!-- Delete Content -->
+			<button type="button" on:click={handleDelete} class="gradient-error gradient-error-hover gradient-error-focus btn-icon absolute left-2 top-2">
+				<iconify-icon icon="icomoon-free:bin" width="24" />
+			</button>
 		{/if}
 
 		<!-- Pass the new props to the slot tag -->
