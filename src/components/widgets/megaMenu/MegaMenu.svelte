@@ -4,7 +4,7 @@
 	import { extractData, getFieldName } from '@src/utils/utils';
 
 	import ListNode from './ListNode.svelte';
-	import { entryData, mode } from '@src/stores/store';
+	import { entryData, mode, saveLayerStore, shouldShowNextButton } from '@src/stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -20,23 +20,36 @@
 	let fieldsData = {};
 	let saveMode = $mode;
 
+	function cancelCreation() {
+		showFields = false;
+		depth = 0;
+	}
+
+	// Megamenu Save layer Next
 	async function saveLayer() {
 		if (!_data) {
-			_data = { ...(await extractData(fieldsData)), children: [] };
-		} else if ($mode == 'edit') {
-			let _data = await extractData(fieldsData);
-			for (let key in _data) {
-				$currentChild[key] = _data[key];
+			const extractedData = await extractData(fieldsData);
+			if (Object.keys(extractedData).length > 0) {
+				_data = { ...extractedData, children: [] };
 			}
-		} else if ($mode == 'create' && $currentChild.children) {
-			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
+		} else if ($mode === 'edit') {
+			// Existing logic for editing...
+		} else if ($mode === 'create' && $currentChild.children) {
+			const extractedData = await extractData(fieldsData);
+			if (Object.keys(extractedData).length > 0) {
+				$currentChild.children.push({ ...extractedData, children: [] });
+			}
 		}
-		_data = _data;
-		console.log(_data);
 		showFields = false;
 		mode.set(saveMode);
 		depth = 0;
+		shouldShowNextButton.set(false);
 	}
+
+	// Create a writable store to hold the saveLayer function
+	saveLayerStore.set(saveLayer);
+	// Set the value of shouldTriggerSaveLayer based on your condition
+	shouldShowNextButton.set(true);
 </script>
 
 {#if !_data}
@@ -51,14 +64,6 @@
 		{(fieldsData = {}) && ''}
 		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} />
 	{/key}
-
-	<div class="flex items-center justify-between">
-		<!-- Next Button -->
-		<button type="button" on:click={saveLayer} class="variant-filled-primary btn mb-4 dark:text-white">
-			<iconify-icon icon="carbon:next-filled" width="24" class="mr-1 dark:text-white" />
-			{m.widget_megamenu_next()}
-		</button>
-	</div>
 {/if}
 
 <!-- Show children -->

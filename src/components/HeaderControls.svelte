@@ -9,7 +9,9 @@
 		screenWidth,
 		toggleLeftSidebar,
 		handleSidebarToggle,
-		contentLanguage
+		contentLanguage,
+		saveLayerStore,
+		shouldShowNextButton
 	} from '@src/stores/store';
 	import { saveFormData } from '@src/utils/utils';
 	import { page } from '$app/stores';
@@ -46,6 +48,12 @@
 	$: if ($mode === 'edit' || $mode === 'create') {
 		showMore = false;
 	}
+
+	let next = () => {};
+	saveLayerStore.subscribe((value) => {
+		next = value;
+		shouldShowNextButton.set(false);
+	});
 </script>
 
 <header
@@ -84,29 +92,37 @@
 
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Check if user role has access to collection -->
-
+		<!-- mobile mode -->
 		{#if $screenWidth !== 'desktop'}
-			<!-- Save Content -->
-			<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-				<span class="hidden md:block">Save</span>
-			</button>
+			{#if $shouldShowNextButton}
+				<!-- Next Button  -->
+				<button type="button" on:click={next} class="variant-filled-primary btn-icon md:btn">
+					<iconify-icon icon="carbon:next-filled" width="24" class="text-white" />
+					<span class="hidden md:block">{m.widget_megamenu_next()}</span>
+				</button>
+			{:else}
+				<!-- Save Content -->
+				<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
+					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+					<span class="hidden md:block">Save</span>
+				</button>
 
-			<!-- DropDown to show more Buttons -->
-			<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-			</button>
+				<!-- DropDown to show more Buttons -->
+				<button type="button" on:keydown on:click={() => (showMore = !showMore)} class="variant-ghost-surface btn-icon">
+					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
+				</button>
 
-			<!-- Desktop -->
-			<select
-				class="variant-ghost-surface hidden rounded border-surface-500 text-white md:block"
-				bind:value={$contentLanguage}
-				on:change={handleChange}
-			>
-				{#each Object.entries(options) as [value, label]}
-					<option {value}>{label}</option>
-				{/each}
-			</select>
+				<!-- Desktop -->
+				<select
+					class="variant-ghost-surface hidden rounded border-surface-500 text-white md:block"
+					bind:value={$contentLanguage}
+					on:change={handleChange}
+				>
+					{#each Object.entries(options) as [value, label]}
+						<option {value}>{label}</option>
+					{/each}
+				</select>
+			{/if}
 		{:else}
 			<!-- desktop -->
 

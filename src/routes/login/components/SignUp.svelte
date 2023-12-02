@@ -1,7 +1,8 @@
 <script lang="ts">
 	import type { PageData } from '../$types';
 	import { superForm } from 'sveltekit-superforms/client';
-	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// import { dev } from '$app/environment';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
@@ -23,16 +24,6 @@
 
 	let response: any;
 	let firstUserExists = FormSchemaSignUp.data.token != null;
-
-	$: {
-		if ($form.password !== $form.confirm_password) {
-			console.log('Passwords do not match');
-			// Trigger validation here
-		} else {
-			console.log('Passwords match');
-			// Trigger validation here
-		}
-	}
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
@@ -125,7 +116,8 @@
 
 		<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
 
-		<!-- <SuperDebug data={$form} /> -->
+		<!-- <SuperDebug data={$form} display={dev} /> -->
+
 		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 			<!-- Username field -->
 			<FloatingInput

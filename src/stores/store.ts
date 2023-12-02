@@ -41,6 +41,10 @@ export const pkgBgColor = writable('variant-filled-primary');
 // loading indicator
 export const loadingProgress = writable(0);
 
+//MegaMenu Save Layer Store & trigger
+export const saveLayerStore = writable(async () => {});
+export const shouldShowNextButton = writable(false);
+
 // TranslationStatus.svelte
 export const translationStatusOpen = writable(false);
 
@@ -170,7 +174,7 @@ export const handleSidebarToggle = () => {
 			togglePageFooter.open();
 		} else {
 			// logic for view mode on mobile
-			toggleLeftSidebar.click('full');
+			toggleLeftSidebar.click('collapsed');
 			toggleRightSidebar.close();
 			togglePageHeader.close();
 			togglePageFooter.close();
@@ -178,16 +182,16 @@ export const handleSidebarToggle = () => {
 	} else if (get(screenWidth) === 'tablet') {
 		if (['edit', 'create'].includes(get(mode))) {
 			// logic for view mode on tablet
-			toggleLeftSidebar.click('closed');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		} else {
-			// logic for all other modes on tablet
-			toggleLeftSidebar.clickBack();
+			toggleLeftSidebar.click('collapsed');
 			toggleRightSidebar.close();
 			togglePageHeader.open();
 			togglePageFooter.open();
+		} else {
+			// logic for all other modes on tablet
+			toggleLeftSidebar.clickBack('collapsed');
+			toggleRightSidebar.close();
+			togglePageHeader.close();
+			togglePageFooter.close();
 		}
 	} else if (get(screenWidth) === 'desktop') {
 		if (['edit', 'create'].includes(get(mode))) {

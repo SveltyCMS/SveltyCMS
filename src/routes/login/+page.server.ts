@@ -59,6 +59,7 @@ export const actions: Actions = {
 		const isToken = signInForm.data.isToken;
 
 		const resp = await signIn(email, password, isToken, event.cookies);
+		console.log('response: ', resp);
 
 		if (resp.status) {
 			// Return message if form is submitted successfully
@@ -146,7 +147,7 @@ export const actions: Actions = {
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
 		const email = pwresetForm.data.email;
-		const lang = pwresetForm.data.lang;
+		//const lang = pwresetForm.data.lang;
 
 		// Define expiresIn
 		const expiresIn = 2 * 60 * 60; // expiration in 2 hours
@@ -192,7 +193,7 @@ export const actions: Actions = {
 			resp = await FirstUsersignUp(username, email, password, event.cookies);
 		} else if (key && key.passwordDefined == false) {
 			// unfinished account exists
-			resp = await finishRegistration(username, email, password, token, event.cookies, event);
+			resp = await finishRegistration(username, email, password, token, event.cookies);
 			// console.log('resp', resp);
 		} else if (!key && !isFirst) {
 			resp = { status: false, message: 'This user was not defined by admin' };
@@ -388,21 +389,21 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 	}
 }
 
-async function updatePassword(userId: string, newPassword: string) {
-	try {
-		// Use your authentication service's method to update the password
-		await auth.updateKeyPassword('email', userId, newPassword);
+// async function updatePassword(userId: string, newPassword: string) {
+// 	try {
+// 		// Use your authentication service's method to update the password
+// 		await auth.updateKeyPassword('email', userId, newPassword);
 
-		// Optionally, you can update the user's authentication method if needed
-		const authMethod = 'password';
-		await auth.updateUserAttributes(userId, { authMethod });
+// 		// Optionally, you can update the user's authentication method if needed
+// 		const authMethod = 'password';
+// 		await auth.updateUserAttributes(userId, { authMethod });
 
-		return { status: true, message: 'Password updated successfully' };
-	} catch (error) {
-		console.error('Error updating password:', error);
-		return { status: false, message: 'An error occurred while updating the password' };
-	}
-}
+// 		return { status: true, message: 'Password updated successfully' };
+// 	} catch (error) {
+// 		console.error('Error updating password:', error);
+// 		return { status: false, message: 'An error occurred while updating the password' };
+// 	}
+// }
 
 // Update the password
 // const updateResult = await updatePassword(key.userId, password);
@@ -466,7 +467,7 @@ async function updatePassword(userId: string, newPassword: string) {
 // }
 
 // Function create a new OTHER USER account and creating a session.
-async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies, event: any) {
+async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
 	// SignUp Token
 
 	const key = await auth.getKey('email', email).catch(() => null);

@@ -5,10 +5,11 @@
 	export let label: string = '';
 	export let icon: any = null;
 	let random = generateUniqueId();
+	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
 </script>
 
-<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
-	<label for="toggleSwitch{random}" class={`mr-3 flex items-center gap-2 ${value ? 'text-primary-500' : 'text-error-500'}`}>
+<label for="toggleSwitch{random}" class={`text-dark flex cursor-pointer select-none items-center text-white`}>
+	<label for="toggleSwitch{random}" class={`mr-3 flex items-center gap-2 ${labelColor}`}>
 		<!-- {#if value}
 			<iconify-icon icon="wpf:invisible" width="24" class="text-white" />
 		{:else}
@@ -28,7 +29,7 @@
 
 		<!-- icon with background color -->
 		<div
-			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
+			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-end rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
 		>
 			{#if value}
 				<iconify-icon {icon} width="24" />

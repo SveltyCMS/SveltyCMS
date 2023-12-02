@@ -233,7 +233,8 @@
 		{/if}
 
 		<!-- admin area -->
-		{#if user?.role == roles.admin && !isFirstUser}
+		<!-- TODO:  Self or last first user cannot change role -->
+		{#if user?.role == roles.admin}
 			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaleditform_userrole()}</div>
 				<div class="flex-auto">

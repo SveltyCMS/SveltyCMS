@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { mode } from '@src/stores/store';
+	import { mode, contentLanguage, shouldShowNextButton } from '@src/stores/store';
 	import { currentChild } from '.';
-	import { contentLanguage } from '@src/stores/store';
+
 	import { dndzone } from 'svelte-dnd-action';
 
 	let expanded = false;
@@ -15,6 +15,7 @@
 
 	export let refresh = () => {
 		self.children.length = self.children?.length;
+		console.log('Refreshing:', self);
 	};
 
 	console.log('self:', self); // Output self to the console
@@ -40,6 +41,7 @@
 				depth = level + 1;
 				showFields = true;
 				mode.set('create');
+				shouldShowNextButton.set(true);
 			}}
 			class="variant-ghost-primary btn-icon"
 		>
@@ -53,8 +55,9 @@
 			$currentChild = self;
 			$mode = 'edit';
 			depth = level;
-			console.log(self);
+			//console.log(self);
 			showFields = true;
+			shouldShowNextButton.set(true);
 		}}
 		class="variant-ghost-primary btn-icon"
 	>
@@ -62,20 +65,28 @@
 	</button>
 
 	<!-- DeleteIcon -->
+	<!-- <TODO: Delete not refreshing correctly -->
 	{#if level > 0}
 		<button
 			on:click|stopPropagation={() => {
+				console.log('Deleting:', self);
+				console.log('Parent:', parent);
 				if (self.children && self.children.length > 0) {
 					alert('This term has children. Please delete the children first.');
-				} else if (confirm('Are you sure you want to delete this item?')) {
+				} else {
 					if (parent) {
-						// Check if parent is not null
 						const index = parent.children.indexOf(self);
 						if (index !== -1) {
+							// Remove the item from the parent's children array
 							parent.children = [...parent.children.slice(0, index), ...parent.children.slice(index + 1)];
+							console.log('New children array:', parent.children);
+							// Trigger refresh
+							refresh();
 						}
+					} else {
+						// Handle the case where parent is null
+						console.log('Parent is null. Cannot delete item.');
 					}
-					refresh();
 				}
 			}}
 			class="btn-icon {self.children && self.children.length > 0 ? 'variant-ghost-warning' : 'variant-ghost-error'}"
@@ -85,6 +96,13 @@
 			{:else}
 				<iconify-icon icon="mdi:trash-can-outline" width="24" class="text-white" />
 			{/if}
+		</button>
+	{/if}
+
+	<!-- Cancel Button for Term Creation -->
+	{#if showFields}
+		<button on:click|stopPropagation={cancelCreation} class="variant-ghost-error btn-icon">
+			<iconify-icon icon="mdi:close" width="24" class="text-white" />
 		</button>
 	{/if}
 </button>
