@@ -391,7 +391,7 @@
 			<!-- TanstackTable for table view -->
 			<TanstackTable
 				data={data.props.data}
-				{items}
+				columnFields={items}
 				tableData={data.props.data}
 				dataSourceName="MediaGallery"
 				bind:globalSearchValue

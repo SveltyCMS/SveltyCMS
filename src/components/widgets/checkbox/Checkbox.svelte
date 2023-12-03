@@ -29,7 +29,7 @@
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
-		width: z.string().optional(),
+		width: z.number().optional(),
 		required: z.boolean().optional()
 	});
 

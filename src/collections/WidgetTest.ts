@@ -33,7 +33,7 @@ const schema: Schema = {
 			placeholder: 'Enter First Name',
 			required: true,
 			translated: true,
-			width: 3
+			width: 3,
 		}),
 
 		widgets.Text({
@@ -44,7 +44,7 @@ const schema: Schema = {
 			// placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 			placeholder: 'Enter Middle Name',
 			readonly: true,
-			width: 3
+			width: 3,
 		}),
 
 		widgets.Text({
@@ -91,12 +91,7 @@ const schema: Schema = {
 			required: true
 		}),
 
-		widgets.ColorPicker({
-			label: 'ColorPicker',
-			db_fieldName: 'colorpicker',
-			icon: 'bi:calendar3',
-			required: true
-		}),
+	
 
 		widgets.Date({
 			label: 'Date',
@@ -148,7 +143,8 @@ const schema: Schema = {
 			db_fieldName: 'radio',
 			icon: 'akar-icons:radio-fill',
 			color: 'pink',
-			required: true
+			required: true,
+			width: 3,
 		}),
 
 		widgets.Checkbox({
@@ -156,7 +152,16 @@ const schema: Schema = {
 			db_fieldName: 'checkbox',
 			icon: 'mdi:check-bold',
 			color: 'pink',
-			required: true
+			required: true,
+			width: 3,
+		}),
+
+		widgets.ColorPicker({
+			label: 'ColorPicker',
+			db_fieldName: 'colorpicker',
+			icon: 'pepicons:color-picker',
+			required: true,
+			width: 3,
 		}),
 
 		// widgets.RichText({

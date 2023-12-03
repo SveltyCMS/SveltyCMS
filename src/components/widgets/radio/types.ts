@@ -13,12 +13,13 @@ export type Params = {
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	color?: string;
 	required?: boolean;
 	readonly?: boolean;
-	width?: string;
+
 };
 
 // Define the GuiSchema

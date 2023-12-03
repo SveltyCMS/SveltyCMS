@@ -95,6 +95,7 @@
 			})
 		}));
 
+		// Tick Row - modify STATUS of an Entry
 		tickMap = {};
 		tickAll = false;
 
@@ -492,7 +493,7 @@
 			</label>
 			<section
 				class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-				use:dndzone={{ columnFields: items, flipDurationMs }}
+				use:dndzone={{ items: items, flipDurationMs }}
 				on:consider={handleDndConsider}
 				on:finalize={handleDndFinalize}
 			>

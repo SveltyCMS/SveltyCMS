@@ -13,6 +13,7 @@ export type Params = {
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	placeholder?: string;
@@ -25,7 +26,6 @@ export type Params = {
 	suffix?: string;
 	required?: boolean;
 	readonly?: boolean;
-	width?: string;
 	currencyCode?: string;
 };
 

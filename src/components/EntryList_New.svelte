@@ -21,47 +21,53 @@
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
 	import { getFieldName } from '@src/utils/utils';
-	import { createSvelteTable } from '@tanstack/svelte-table';
+
 
 	let data: any = [];
 	//let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];
+	let columnFields: any[] = []; // Declare columnFields variables
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
-	let refresh = async (collection: typeof $collection) => {
-		loadingTimer = setTimeout(() => {
-			isLoading = true;
-		}, 400);
-		//console.log('collection', $collection);
+	let refresh = async (fetch: boolean = true) => {
+		loadingTimer && clearTimeout(loadingTimer);
 
 		if ($collection.name == '') return;
 
-		data = undefined;
-		data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as { entryList: [any]; totalCount: number };
+		if (fetch) {
+			loadingTimer = setTimeout(() => {
+				isLoading = true;
+			}, 400);
 
-		//console.log(data);
+			data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as {
+				entryList: [any];
+				totalCount: number;
+			};
 
-		tableData = await Promise.all(
-			data.entryList.map(async (entry) => {
-				let obj: { [key: string]: any } = {};
-				for (let field of collection.fields) {
-					obj[field.label] = await field.display?.({
-						data: entry[getFieldName(field)],
-						collection: $collection.name,
-						field,
-						entry,
-						contentLanguage: $contentLanguage
-					});
-				}
-				obj._id = entry._id;
-				return obj;
-			})
-		);
+			isLoading = false;
+			clearTimeout(loadingTimer);
+		}
 
-		console.log(tableData);
-	};
+		data &&
+			(tableData = await Promise.all(
+				data.entryList.map(async (entry) => {
+					let obj: { [key: string]: any } = {};
+					for (let field of $collection.fields) {
+						obj[field.label] = await field.display?.({
+							data: entry[getFieldName(field)],
+							collection: $collection.name,
+							field,
+							entry,
+							contentLanguage: $contentLanguage
+						});
+					}
+					obj._id = entry._id;
+					return obj;
+				})
+			));
+		};
 
-	$: refresh($collection);
+	$: refresh();
 
 	// Tick Row - modify STATUS of an Entry
 	let tickMap = {}; // Object to track ticked rows
@@ -121,18 +127,33 @@
 		}
 
 		// Refresh the collection
-		refresh($collection);
+		refresh();
 
 		// Set the mode to 'view'
 		mode.set('view');
 	};
 
-	// Update items array to be an array of column objects
-	$: columnFields = $collection.fields.map((field) => ({
-		accessorKey: field.label
-	}));
 
-	// $: console.log('items', items);
+	// Data for the array of column fields
+	$: columnFields = [
+  {
+    header: "Status",
+    accessorKey: 'status',
+    id: 'status',
+	cell: (info: any) => info.data?.entryList.status()
+	
+  },
+  ...$collection.fields.map((field) => ({
+    header: field.label,
+    accessorKey: field.label,
+    id: field.label,
+  })),
+];
+
+
+
+$: console.log('columnFields', columnFields);
+
 </script>
 
 <!-- Header -->
@@ -182,18 +203,22 @@
 	<!-- MultiButton -->
 	<EntryListMultiButton />
 </div>
-<!-- {#if isLoading}
+
+ {#if isLoading}
 	<Loading />
-{:else if tableData.length > 0}{/if} -->
-{#key tableData}
-	<TanstackTable
-		data={tableData}
-		{columnFields}
-		{tableData}
-		dataSourceName="EntryList"
-		bind:globalSearchValue
-		bind:filterShow
-		bind:columnShow
-		bind:density
-	/>
-{/key}
+{:else if tableData.length > 0}
+	{#key tableData}
+		<TanstackTable
+			data={tableData}
+			{columnFields}
+			{tableData}
+			dataSourceName="EntryList"
+			bind:globalSearchValue
+			bind:filterShow
+			bind:columnShow
+			bind:density
+		/>
+	{/key}
+{/if} 
+
+

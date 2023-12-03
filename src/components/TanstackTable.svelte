@@ -221,12 +221,12 @@
 	const flipDurationMs = 100;
 
 	// TODO: Don't update table on drag and drop, only on release for performance
-	function handleDndConsider(e: { detail: { columnFields: { id: string; name: string; isVisible: boolean }[] } }) {
-		columnFields = e.detail.columnFields;
+	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
+		columnFields = e.detail.items;
 	}
 
-	function handleDndFinalize(e: { detail: { columnFields: { id: string; name: string; isVisible: boolean }[] } }) {
-		columnFields = e.detail.columnFields;
+	function handleDndFinalize(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
+		columnFields = e.detail.items;
 
 		// Update column Order based on new order
 		const newOrder = {};
@@ -307,7 +307,7 @@
 
 	$: availablePageSizes = calculateAvailablePageSizes(filteredData.length, pageSizeOptions);
 
-	console.log('columnFields', columnFields);
+	//console.log('items', items);
 </script>
 
 {#if isLoading}
@@ -334,7 +334,7 @@
 				<!-- Column Header -->
 				<section
 					class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-					use:dndzone={{ columnFields: columnFields, flipDurationMs }}
+					use:dndzone={{ items: columnFields, flipDurationMs }}
 					on:consider={handleDndConsider}
 					on:finalize={handleDndFinalize}
 				>
@@ -383,8 +383,8 @@
 			<!-- Tanstack Header -->
 			<thead class="text-black dark:text-primary-500">
 				{#each $table.getHeaderGroups() as headerGroup}
-					<tr class=" border dark:border-0">
-						<th class="w-8 border dark:border-0">
+					<tr class="divide-x divide-surface-400 border-b">
+						<th class="w-8">
 							<TanstackIcons bind:checked={SelectAll} />
 						</th>
 						{#each headerGroup.headers as header, index}
@@ -458,8 +458,10 @@
 								class="ml-1"
 							/>
 						</td>
+
+		
 						{#each row.getVisibleCells() as cell}
-							<td class="break-all border dark:border-0">
+							<td class="break-all border-x border-surface-400">
 								<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
 							</td>
 						{/each}

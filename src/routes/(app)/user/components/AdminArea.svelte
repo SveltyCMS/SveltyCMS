@@ -91,7 +91,7 @@
 	// console.log(tableData);
 
 	// Display User Columns
-	let items = [
+	let UserColumns = [
 		{
 			header: m.adminarea_blocked(),
 			accessorKey: 'blocked',
@@ -147,8 +147,8 @@
 	];
 
 	// Display Active User Registration Tokens
-	let itemsUserToken = [
-		{ header: m.adminarea_userid(), accessorKey: 'userID', id: 'id' },
+	let UserTokenColumns = [
+		{ header: m.adminarea_userid(), accessorKey: 'userID', id: 'userID' },
 		{ header: m.adminarea_email(), accessorKey: 'email', id: 'email' },
 		{ header: m.adminarea_token(), accessorKey: 'token', id: 'token' },
 		{
@@ -175,7 +175,7 @@
 	let currentAction = null;
 
 	// Define the function to handle the CRUD action
-	function handleCRUDAction(action) {
+	function handleCRUDAction(action:any) {
 		currentAction = action;
 	}
 </script>
@@ -231,7 +231,7 @@
 		{#if tableData.length > 0}
 			<TanstackTable
 				data={tableData}
-				{items}
+				columnFields={UserColumns}
 				{tableData}
 				dataSourceName="AdminArea"
 				bind:selectedRows
@@ -257,7 +257,7 @@
 				</button>
 
 				<MultibuttonToken {selectedRows} />
-				<!-- <Multibutton on:crudAction={handleCRUDAction} /> -->
+			
 			</div>
 
 			{#if showMoreUserToken}
@@ -270,7 +270,7 @@
 		{#if tableDataUserToken.length > 0}
 			<TanstackTable
 				data={tableDataUserToken}
-				items={itemsUserToken}
+				columnFields={UserTokenColumns}
 				tableData={tableDataUserToken}
 				dataSourceName="AdminArea"
 				bind:selectedRows

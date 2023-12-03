@@ -13,6 +13,7 @@ export type Params = {
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	currencyCode: string;
@@ -26,7 +27,7 @@ export type Params = {
 	suffix?: string;
 	required?: boolean;
 	readonly?: boolean;
-	width?: string;
+
 };
 
 // Define the GuiSchema

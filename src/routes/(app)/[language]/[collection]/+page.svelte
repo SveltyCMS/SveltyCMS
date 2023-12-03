@@ -17,6 +17,7 @@
 		ForwardBackward = true;
 		collection.set($collections.find((x) => x.name === $page.params.collection) as Schema);
 	};
+
 	collection.subscribe((_) => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
@@ -29,7 +30,7 @@
 <div class=" wrapper flex-grow">
 	{#if $mode == 'view' || $mode == 'delete'}
 		<EntryList />
-		<!-- <EntryListNew /> -->
+		<!-- <EntryListNew />  -->
 	{:else if ['edit', 'create'].includes($mode)}
 		<div class="fields">
 			<Fields />
