@@ -26,12 +26,14 @@ const schema: Schema = {
 			label: 'First Name',
 			translated: true,
 			icon: 'ri:t-box-line',
-			placeholder: 'Enter First Name'
+			placeholder: 'Enter First Name',
+			width: 2,
 		}),
 		widgets.Text({
 			label: 'Last Name',
 			icon: 'ri:t-box-line',
-			placeholder: 'Enter Last Name'
+			placeholder: 'Enter Last Name',
+			width: 2
 		})
 	]
 };

@@ -84,7 +84,7 @@
 	</div>
 	<div
 		class="-mr-2 h-[calc(100%-2.5em)] min-h-[1em] overflow-y-scroll"
-		use:dndzone={{ items, flipDurationMs, zoneTabIndex: -1 }}
+		use:dndzone={{ columnFields: items, flipDurationMs, zoneTabIndex: -1 }}
 		on:consider={handleDndConsiderCards}
 		on:finalize={handleDndFinalizeCards}
 	>

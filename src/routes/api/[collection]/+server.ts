@@ -71,8 +71,9 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			body[key] = data.get(key) as string;
 		}
 	}
-	// Set the status field of the body to 'PUBLISHED'
-	body['status'] = 'published';
+	// Set the status field of the body to 'Published if not set'
+	body['status'] = body['status'] ? body['status'] : 'PUBLISHED';
+
 	// If the collection does not exist, return a response with the message 'collection not found!!'
 	if (!collection) return new Response('collection not found!!');
 	// Save any images from the form data

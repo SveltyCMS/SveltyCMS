@@ -63,7 +63,7 @@
 		{#if $shouldShowNextButton}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white" />
-				{m.widget_megamenu_next()}
+				Save
 			</button>
 		{:else}
 			<header class="flex flex-col items-center justify-center gap-2">

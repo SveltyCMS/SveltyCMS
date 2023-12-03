@@ -19,6 +19,11 @@
 	};
 
 	console.log('self:', self); // Output self to the console
+
+	function cancelCreation() {
+		showFields = false;
+		depth = 0;
+	}
 </script>
 
 <button
@@ -100,11 +105,11 @@
 	{/if}
 
 	<!-- Cancel Button for Term Creation -->
-	{#if showFields}
+	<!-- {#if showFields}
 		<button on:click|stopPropagation={cancelCreation} class="variant-ghost-error btn-icon">
 			<iconify-icon icon="mdi:close" width="24" class="text-white" />
 		</button>
-	{/if}
+	{/if} -->
 </button>
 
 <!-- Categories Children-->

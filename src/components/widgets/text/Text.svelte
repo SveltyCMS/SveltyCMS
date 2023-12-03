@@ -61,7 +61,7 @@
 		readonly={field?.readonly}
 		minlength={field?.minlength}
 		maxlength={field?.maxlength}
-		class="input flex-1 rounded-none"
+		class="input w-full flex-1 rounded-none"
 	/>
 
 	<!-- suffix -->

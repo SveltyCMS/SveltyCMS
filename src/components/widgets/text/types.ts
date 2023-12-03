@@ -13,6 +13,7 @@ export type Params = {
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	placeholder?: string;
@@ -24,7 +25,6 @@ export type Params = {
 	required?: boolean;
 	readonly?: boolean;
 	disabled?: boolean;
-	width?: string;
 };
 
 // Define the GuiSchema

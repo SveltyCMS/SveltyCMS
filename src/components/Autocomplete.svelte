@@ -55,6 +55,13 @@
 			on:click={() => {
 				showDropdown = !showDropdown;
 			}}
+			on:keydown={(event) => {
+				if (event.key === 'Enter') {
+					showDropdown = !showDropdown;
+				}
+			}}
+			role="button"
+			tabindex="0"
 		/>
 	</div>
 </div>

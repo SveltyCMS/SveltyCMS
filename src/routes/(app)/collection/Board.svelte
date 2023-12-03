@@ -27,7 +27,7 @@
 
 <section
 	class="ml-1 mr-4 mt-2 flex flex-wrap gap-1 md:mr-1"
-	use:dndzone={{ items: columns, flipDurationMs, type: 'column' }}
+	use:dndzone={{ columnFields: columns, flipDurationMs, type: 'column' }}
 	on:consider={handleDndConsiderColumns}
 	on:finalize={handleDndFinalizeColumns}
 >

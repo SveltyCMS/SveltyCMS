@@ -36,11 +36,12 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		icon: params.icon,
-		required: params.required,
 		translated: params.translated,
+		required: params.required,
+		icon: params.icon,
+		width: params.width,
 		helper: params.helper,
-
+		
 		//extra
 		placeholder: params.placeholder
 	};

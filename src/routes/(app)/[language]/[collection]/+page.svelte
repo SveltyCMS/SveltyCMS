@@ -26,13 +26,25 @@
 	});
 </script>
 
-<div class="flex">
-	<div class="max-h-screen flex-grow overflow-auto">
-		{#if $mode == 'view' || $mode == 'delete'}
-			<EntryList />
-			<!-- <EntryListNew /> -->
-		{:else if ['edit', 'create'].includes($mode)}
+<div class=" wrapper flex-grow">
+	{#if $mode == 'view' || $mode == 'delete'}
+		<EntryList />
+		<!-- <EntryListNew /> -->
+	{:else if ['edit', 'create'].includes($mode)}
+		<div class="fields">
 			<Fields />
-		{/if}
-	</div>
+		</div>
+	{/if}
 </div>
+
+<style>
+	.fields {
+		max-height: 100%;
+		overflow: auto;
+	}
+
+	.wrapper {
+		max-height: calc(100% - 400px);
+		overflow: hidden;
+	}
+</style>

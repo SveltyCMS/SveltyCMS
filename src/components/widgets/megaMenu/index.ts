@@ -40,12 +40,19 @@ const widget = (params: Params) => {
 	}
 	params.menu.unshift([Text({ label: 'Header', translated: true })]);
 
-	// Define the field object
-	const field = {
-		display,
-		label: params.label,
-		db_fieldName: params.db_fieldName,
-		menu: params.menu
+		// Define the field object
+		const field = {
+			// default fields
+			display,
+			label: params.label,
+			db_fieldName: params.db_fieldName,
+			translated: params.translated,
+			icon: params.icon,
+			width: params.width,
+			helper: params.helper,
+
+			// extras	
+			menu: params.menu
 	};
 
 	// Return the field and widget objects

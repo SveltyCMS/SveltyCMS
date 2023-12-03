@@ -52,7 +52,7 @@ for (const collection of collections) {
 					console.log(collectionSchema);
 					resolvers[collection.name as string] = deepmerge(
 						{
-							[getFieldName(_field).replaceAll(' ', '_')]: (parent) => {
+							[getFieldName(_field, true)]: (parent) => {
 								return parent[getFieldName(_field)];
 							}
 						},

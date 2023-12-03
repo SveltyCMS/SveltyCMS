@@ -302,6 +302,8 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 		throw new Error('ID is required for edit mode.');
 	}
 	if (!formData) return;
+	// define status for each collection
+	formData.append('status', $collection.status || 'published');
 	switch ($mode) {
 		case 'create':
 			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);

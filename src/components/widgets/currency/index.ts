@@ -37,13 +37,13 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		icon: params.icon,
 		translated: params.translated,
+		required: params.required,
+		icon: params.icon,
+		width: params.width,
 		helper: params.helper,
 
 		// extras
-		readonly: params.readonly,
-		required: params.required,
 		minlength: params.minlength,
 		maxlength: params.maxlength,
 		prefix: params.prefix,
@@ -53,7 +53,7 @@ const widget = (params: Params) => {
 		count: params.count,
 		negative: params.negative,
 		currencyCode: params.currencyCode,
-		width: params.width
+
 	};
 	// Return the field and widget objects
 	return { ...field, widget };

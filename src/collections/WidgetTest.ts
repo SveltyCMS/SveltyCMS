@@ -33,7 +33,7 @@ const schema: Schema = {
 			placeholder: 'Enter First Name',
 			required: true,
 			translated: true,
-			width: '33%'
+			width: 3
 		}),
 
 		widgets.Text({
@@ -44,7 +44,7 @@ const schema: Schema = {
 			// placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 			placeholder: 'Enter Middle Name',
 			readonly: true,
-			width: '13%'
+			width: 3
 		}),
 
 		widgets.Text({
@@ -54,7 +54,7 @@ const schema: Schema = {
 			icon: 'ri:t-box-line',
 			// placeholder: get(LL).COLLECTION_TEST_Last_placeholder(),
 			placeholder: 'Enter Last Name',
-			width: '53%',
+			width: 3,
 			translated: true,
 			disabled: true
 		}),

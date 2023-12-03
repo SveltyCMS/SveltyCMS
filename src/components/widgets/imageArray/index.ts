@@ -44,12 +44,15 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
+		translated: params.translated,
+		required: params.required,
+		icon: params.icon,
+		width: params.width,
+		helper: params.helper,
 
 		// extra fields
-		icon: params.icon,
 		upload: true,
 		fields: params.fields,
-		required: params.required,
 		uploader_label: params.uploader_label,
 		uploader_path: params.uploader_path,
 		uploader_display: params.uploader_display,

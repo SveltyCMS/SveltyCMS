@@ -38,6 +38,9 @@ const widget = (params: Params) => {
 		label: params.label,
 		db_fieldName: params.db_fieldName,
 		translated: params.translated,
+		required: params.required,
+		icon: params.icon,
+		width: params.width,
 		helper: params.helper,
 
 		//extra
@@ -49,9 +52,7 @@ const widget = (params: Params) => {
 		negative: params.negative,
 		prefix: params.prefix,
 		suffix: params.suffix,
-		required: params.required,
 		readonly: params.readonly,
-		width: params.width,
 		currencyCode: params.currencyCode
 	};
 

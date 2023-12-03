@@ -19,7 +19,7 @@
 	</div>
 
 	<section
-		use:dndzone={{ items, flipDurationMs }}
+		use:dndzone={{ columnFields: items, flipDurationMs }}
 		on:consider={handleDndConsider}
 		on:finalize={handleDndFinalize}
 		class="my-2 w-full overflow-scroll border border-surface-400 p-2"

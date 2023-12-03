@@ -21,6 +21,7 @@
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
 	import { getFieldName } from '@src/utils/utils';
+	import { createSvelteTable } from '@tanstack/svelte-table';
 
 	let data: any = [];
 	//let data: { entryList: [any]; totalCount: number } | undefined;
@@ -57,8 +58,10 @@
 			})
 		);
 
-		//console.log(tableData);
+		console.log(tableData);
 	};
+
+	$: refresh($collection);
 
 	// Tick Row - modify STATUS of an Entry
 	let tickMap = {}; // Object to track ticked rows
@@ -123,6 +126,13 @@
 		// Set the mode to 'view'
 		mode.set('view');
 	};
+
+	// Update items array to be an array of column objects
+	$: columnFields = $collection.fields.map((field) => ({
+		accessorKey: field.label
+	}));
+
+	// $: console.log('items', items);
 </script>
 
 <!-- Header -->
@@ -172,12 +182,13 @@
 	<!-- MultiButton -->
 	<EntryListMultiButton />
 </div>
-{#if isLoading}
+<!-- {#if isLoading}
 	<Loading />
-{:else if tableData.length > 0}
+{:else if tableData.length > 0}{/if} -->
+{#key tableData}
 	<TanstackTable
 		data={tableData}
-		items={data}
+		{columnFields}
 		{tableData}
 		dataSourceName="EntryList"
 		bind:globalSearchValue
@@ -185,4 +196,4 @@
 		bind:columnShow
 		bind:density
 	/>
-{/if}
+{/key}

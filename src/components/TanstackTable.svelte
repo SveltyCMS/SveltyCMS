@@ -19,7 +19,7 @@
 	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/table-core/src/types';
 
 	export const data: any[] = [];
-	export let items: any[];
+	export let columnFields: any[];
 	export let dataSourceName: string;
 
 	// TanstackFilter export
@@ -127,10 +127,10 @@
 		setCurrentPage(parseInt(target.value) - 1);
 	}
 	//console.log(items);
-	const defaultColumns = items;
+	const defaultColumns = columnFields;
 
 	const storedValue = localStorage.getItem(`TanstackConfiguration-${dataSourceName}`);
-	const columnsData = items;
+	const columnsData = columnFields;
 
 	const options = writable<TableOptions<any>>({
 		data: tableData,
@@ -221,20 +221,20 @@
 	const flipDurationMs = 100;
 
 	// TODO: Don't update table on drag and drop, only on release for performance
-	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
-		items = e.detail.items;
+	function handleDndConsider(e: { detail: { columnFields: { id: string; name: string; isVisible: boolean }[] } }) {
+		columnFields = e.detail.columnFields;
 	}
 
-	function handleDndFinalize(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
-		items = e.detail.items;
+	function handleDndFinalize(e: { detail: { columnFields: { id: string; name: string; isVisible: boolean }[] } }) {
+		columnFields = e.detail.columnFields;
 
 		// Update column Order based on new order
 		const newOrder = {};
-		items.forEach((item) => {
+		columnFields.forEach((item) => {
 			newOrder[item.id] = item.isVisible;
 		});
 
-		items = items.map((item) => {
+		columnFields = columnFields.map((item) => {
 			return {
 				...item,
 				getToggleVisibilityHandler() {
@@ -249,7 +249,7 @@
 
 		$table.setColumnOrder(newOrder);
 
-		var remappedColumns = items.map((item) => {
+		var remappedColumns = columnFields.map((item) => {
 			return defaultColumns.find((col: any) => {
 				return col.accessorKey == item.id;
 			});
@@ -279,7 +279,7 @@
 	}
 
 	// Add toggle Order function to each column object
-	items = items.map((item) => {
+	columnFields = columnFields.map((item) => {
 		return {
 			...item,
 			getToggleVisibilityHandler() {
@@ -306,6 +306,8 @@
 	const pageSizeOptions = [10, 25, 50, 100, 500, 1000, 2000, 5000, 10000]; // You can adjust this array as needed
 
 	$: availablePageSizes = calculateAvailablePageSizes(filteredData.length, pageSizeOptions);
+
+	console.log('columnFields', columnFields);
 </script>
 
 {#if isLoading}
@@ -332,11 +334,11 @@
 				<!-- Column Header -->
 				<section
 					class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-					use:dndzone={{ items, flipDurationMs }}
+					use:dndzone={{ columnFields: columnFields, flipDurationMs }}
 					on:consider={handleDndConsider}
 					on:finalize={handleDndFinalize}
 				>
-					{#each items as item (item.id)}
+					{#each columnFields as item (item.id)}
 						<button
 							class="chip {$table
 								.getAllLeafColumns()
@@ -350,7 +352,7 @@
 								localStorage.setItem(
 									`TanstackColumnVisibility-${dataSourceName}`,
 									JSON.stringify(
-										items.map((item) => {
+										columnFields.map((item) => {
 											return {
 												// Headers: item.Headers,
 												accessorKey: item.id,
@@ -381,8 +383,8 @@
 			<!-- Tanstack Header -->
 			<thead class="text-black dark:text-primary-500">
 				{#each $table.getHeaderGroups() as headerGroup}
-					<tr class="divide-x border">
-						<th class="w-8 border">
+					<tr class=" border dark:border-0">
+						<th class="w-8 border dark:border-0">
 							<TanstackIcons bind:checked={SelectAll} />
 						</th>
 						{#each headerGroup.headers as header, index}
@@ -447,7 +449,7 @@
 				{#each $table.getRowModel().rows as row}
 					<tr>
 						<!-- TickRows -->
-						<td class="border">
+						<td class="">
 							<TanstackIcons
 								bind:checked={$selectedMap[row.id]}
 								on:click={() => {
@@ -457,7 +459,7 @@
 							/>
 						</td>
 						{#each row.getVisibleCells() as cell}
-							<td class="break-all border">
+							<td class="break-all border dark:border-0">
 								<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
 							</td>
 						{/each}

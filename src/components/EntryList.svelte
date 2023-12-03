@@ -47,41 +47,46 @@
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 
-	let refresh = async (collection: typeof $collection) => {
-		loadingTimer = setTimeout(() => {
-			isLoading = true;
-		}, 400);
-
-		//console.log('collection', $collection);
+	let refresh = async (fetch: boolean = true) => {
+		loadingTimer && clearTimeout(loadingTimer);
 
 		if ($collection.name == '') return;
 
-		data = undefined;
-		data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as { entryList: [any]; totalCount: number };
+		if (fetch) {
+			loadingTimer = setTimeout(() => {
+				isLoading = true;
+			}, 400);
 
-		//console.log('data', data);
+			data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as {
+				entryList: [any];
+				totalCount: number;
+			};
 
-		tableData = await Promise.all(
-			data.entryList.map(async (entry) => {
-				let obj: { [key: string]: any } = {};
-				for (let field of collection.fields) {
-					obj[field.label] = await field.display?.({
-						data: entry[getFieldName(field)],
-						collection: $collection.name,
-						field,
-						entry,
-						contentLanguage: $contentLanguage
-					});
-				}
-				obj._id = entry._id;
-				return obj;
-			})
-		);
+			isLoading = false;
+			clearTimeout(loadingTimer);
+		}
 
-		//console.log(tableData);
+		data &&
+			(tableData = await Promise.all(
+				data.entryList.map(async (entry) => {
+					let obj: { [key: string]: any } = {};
+					for (let field of $collection.fields) {
+						obj[field.label] = await field.display?.({
+							data: entry[getFieldName(field)],
+							collection: $collection.name,
+							field,
+							entry,
+							contentLanguage: $contentLanguage
+						});
+					}
+					obj._id = entry._id;
+					return obj;
+				})
+			));
 
 		const storedValue = localStorage.getItem(`TanstackConfiguration-${$collection.name}`);
 		const columns = storedValue ? JSON.parse(storedValue) : defaultColumns;
+
 		options.update((options) => ({
 			...options,
 			data: tableData,
@@ -92,9 +97,6 @@
 
 		tickMap = {};
 		tickAll = false;
-
-		clearTimeout(loadingTimer);
-		isLoading = false;
 
 		// READ CONFIG FROM LOCAL STORAGE AND APPLY THE VISIBILITY
 		if (localStorage.getItem(`TanstackConfiguration-${$collection.name}`)) {
@@ -198,7 +200,14 @@
 		setCurrentPage(parseInt(target.value) - 1);
 	}
 
-	$: refresh($collection);
+	$: {
+		refresh();
+		$collection;
+	}
+	$: {
+		refresh(false);
+		$contentLanguage;
+	}
 	$: process_tickAll(tickAll);
 	$: Object.values(tickMap).includes(true) ? mode.set('delete') : mode.set('view');
 
@@ -299,7 +308,7 @@
 		}
 
 		// Refresh the collection
-		refresh($collection);
+		refresh();
 
 		// Set the mode to 'view'
 		mode.set('view');
@@ -483,7 +492,7 @@
 			</label>
 			<section
 				class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-				use:dndzone={{ items, flipDurationMs }}
+				use:dndzone={{ columnFields: items, flipDurationMs }}
 				on:consider={handleDndConsider}
 				on:finalize={handleDndFinalize}
 			>
@@ -528,76 +537,75 @@
 <!-- Tanstack Table -->
 {#if isLoading}
 	<Loading />
-{/if}
-
-<!-- Tanstack Table -->
-<div class="table-container">
-	<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
-		<!-- Tanstack Header -->
-		<thead class="text-dark dark:text-primary-500">
-			{#each $table.getHeaderGroups() as headerGroup}
-				<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-					<!-- Tanstack Tickbox -->
-					<th class="!w-6">
-						<TanstackIcons bind:checked={tickAll} />
-					</th>
-
-					<!-- Tanstack Other Headers -->
-					{#each headerGroup.headers as header}
-						<th class="">
-							{#if !header.isPlaceholder}
-								<button
-									class:cursor-pointer={header.column.getCanSort()}
-									class:select-none={header.column.getCanSort()}
-									on:keydown
-									on:click={header.column.getToggleSortingHandler()}
-								>
-									<svelte:component this={flexRender(header.column.columnDef.header, header.getContext())} />
-									{#if header.column.getIsSorted() === 'asc'}
-										<iconify-icon icon="material-symbols:arrow-upward-rounded" width="16" />
-									{:else if header.column.getIsSorted() === 'desc'}
-										<iconify-icon icon="material-symbols:arrow-downward-rounded" width="16" />
-									{/if}
-								</button>
-								{#if filterShow}
-									<div transition:slide|global>
-										<FloatingInput
-											type="text"
-											icon="material-symbols:search-rounded"
-											label="Filter ..."
-											on:input={(e) => {
-												// Update filter value for this column
-												header.column.setFilter(e.target.value);
-											}}
-										/>
-									</div>
-								{/if}
-							{/if}
+{:else}
+	<!-- Tanstack Table -->
+	<div class="table-container">
+		<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+			<!-- Tanstack Header -->
+			<thead class="text-dark dark:text-primary-500">
+				{#each $table.getHeaderGroups() as headerGroup}
+					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						<!-- Tanstack Tickbox -->
+						<th class="!w-6">
+							<TanstackIcons bind:checked={tickAll} />
 						</th>
-					{/each}
-				</tr>
-			{/each}
-		</thead>
 
-		<tbody>
-			{#each $table.getRowModel().rows as row, index}
-				<tr
-					class={`${
-						data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
-					} divide-x divide-surface-400`}
-					on:keydown
-					on:click={() => {
-						entryData.set(data?.entryList[index]);
-						//console.log(data)
-						mode.set('edit');
-						handleSidebarToggle();
-					}}
-				>
-					<td>
-						<TanstackIcons bind:checked={tickMap[index]} class="ml-1" />
-					</td>
+						<!-- Tanstack Other Headers -->
+						{#each headerGroup.headers as header}
+							<th class="">
+								{#if !header.isPlaceholder}
+									<button
+										class:cursor-pointer={header.column.getCanSort()}
+										class:select-none={header.column.getCanSort()}
+										on:keydown
+										on:click={header.column.getToggleSortingHandler()}
+									>
+										<svelte:component this={flexRender(header.column.columnDef.header, header.getContext())} />
+										{#if header.column.getIsSorted() === 'asc'}
+											<iconify-icon icon="material-symbols:arrow-upward-rounded" width="16" />
+										{:else if header.column.getIsSorted() === 'desc'}
+											<iconify-icon icon="material-symbols:arrow-downward-rounded" width="16" />
+										{/if}
+									</button>
+									{#if filterShow}
+										<div transition:slide|global>
+											<FloatingInput
+												type="text"
+												icon="material-symbols:search-rounded"
+												label="Filter ..."
+												on:input={(e) => {
+													// Update filter value for this column
+													header.column.setFilter(e.target.value);
+												}}
+											/>
+										</div>
+									{/if}
+								{/if}
+							</th>
+						{/each}
+					</tr>
+				{/each}
+			</thead>
 
-					<!-- <td>
+			<tbody>
+				{#each $table.getRowModel().rows as row, index}
+					<tr
+						class={`${
+							data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
+						} divide-x divide-surface-400`}
+						on:keydown
+						on:click={() => {
+							entryData.set(data?.entryList[index]);
+							//console.log(data)
+							mode.set('edit');
+							handleSidebarToggle();
+						}}
+					>
+						<td>
+							<TanstackIcons bind:checked={tickMap[index]} class="ml-1" />
+						</td>
+
+						<!-- <td>
 						<span class="badge rounded-full {getStatusClass(row.status)}">
 							{#if row.status === 'publish'}
 								<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -611,17 +619,17 @@
 						</span>
 					</td> -->
 
-					{#each row.getVisibleCells() as cell}
-						<td>
-							<!-- {cell.getValue()} -->
-							{@html cell.getValue()}
-						</td>
-					{/each}
-				</tr>
-			{/each}
-		</tbody>
+						{#each row.getVisibleCells() as cell}
+							<td>
+								<!-- {cell.getValue()} -->
+								{@html cell.getValue()}
+							</td>
+						{/each}
+					</tr>
+				{/each}
+			</tbody>
 
-		<!-- <tfoot>
+			<!-- <tfoot>
 			{#each $table.getFooterGroups() as footerGroup}
 				<tr>
 					{#each footerGroup.headers as header}
@@ -634,148 +642,151 @@
 				</tr>
 			{/each}
 		</tfoot> -->
-	</table>
+		</table>
 
-	<!-- Pagination Desktop -->
-	<div class="my-3 flex items-center justify-around text-surface-500">
-		<!-- show & count rows -->
-		<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
-			{m.entrylist_page()}
-			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{m.entrylist_of()}
-			<!-- TODO: Get actual pages -->
-			<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
-			<span class="text-black dark:text-white"
-				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
-			>
-			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{m.entrylist_total()}
+		<!-- Pagination Desktop -->
+		<div class="my-3 flex items-center justify-around text-surface-500">
+			<!-- show & count rows -->
+			<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
+				{m.entrylist_page()}
+				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
+				{m.entrylist_of()}
+				<!-- TODO: Get actual pages -->
+				<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
+				<span class="text-black dark:text-white"
+					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
+				>
+				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
+				{m.entrylist_total()}
 
-			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{m.entrylist_row()})
-			{:else}
-				{m.entrylist_rows()})
-			{/if}
-		</div>
-
-		<!-- number of pages -->
-		{#if $table.getPrePaginationRowModel().rows.length > 10}
-			<!-- number of pages -->
-			<select
-				value={$table.getState().pagination.pageSize}
-				on:change={setPageSize}
-				class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
-			>
-				{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
-					<option value={pageSize}>
-						{pageSize} Rows
-					</option>
-				{/each}
-			</select>
-		{/if}
-
-		<!-- next/previous pages -->
-		<div class="variant-ghost btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500">
-			<button
-				type="button"
-				class="w-6"
-				aria-label="Go to First Page"
-				on:keydown
-				on:click={() => setCurrentPage(0)}
-				class:is-disabled={!$table.getCanPreviousPage()}
-				disabled={!$table.getCanPreviousPage()}
-			>
-				<iconify-icon icon="material-symbols:first-page" width="24" />
-			</button>
-
-			<button
-				type="button"
-				class="w-6"
-				aria-label="Go to Previous Page"
-				on:keydown
-				on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
-				class:is-disabled={!$table.getCanPreviousPage()}
-				disabled={!$table.getCanPreviousPage()}
-			>
-				<iconify-icon icon="material-symbols:chevron-left" width="24" />
-			</button>
-
-			<!-- input display -->
-			<div class="flex items-center justify-center px-2 text-sm">
-				<span class="pr-2"> {m.entrylist_page()} </span>
-
-				<input
-					type="number"
-					value={$table.getState().pagination.pageIndex + 1}
-					min={0}
-					max={$table.getPageCount() - 1}
-					on:change={handleCurrPageInput}
-					class="variant-ghost-surface w-14 border-0"
-				/>
-				<span class="pl-2">
-					{' '}{m.entrylist_of()}{' '}
-					<span class="">{$table.getPageCount()}</span>
-				</span>
+				{#if $table.getPrePaginationRowModel().rows.length === 1}
+					{m.entrylist_row()})
+				{:else}
+					{m.entrylist_rows()})
+				{/if}
 			</div>
 
-			<button
-				type="button"
-				class="w-6"
-				aria-label="Go to Next Page"
-				on:keydown
-				on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
-				class:is-disabled={!$table.getCanNextPage()}
-				disabled={!$table.getCanNextPage()}
-			>
-				<iconify-icon icon="material-symbols:chevron-right" width="24" />
-			</button>
-
-			<button
-				type="button"
-				class="w-6"
-				aria-label="Go to Last Page"
-				on:keydown
-				on:click={() => setCurrentPage($table.getPageCount() - 1)}
-				class:is-disabled={!$table.getCanNextPage()}
-				disabled={!$table.getCanNextPage()}
-			>
-				<iconify-icon icon="material-symbols:last-page" width="24" />
-			</button>
-		</div>
-	</div>
-
-	<!-- Pagination Mobile-->
-	<div class="flex flex-col items-center justify-center gap-2 md:hidden">
-		{#if $table.getPrePaginationRowModel().rows.length > 10}
 			<!-- number of pages -->
-			<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select max-w-[100px] text-sm sm:hidden">
-				{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
-					<option value={pageSize}>
-						{pageSize}
-						{m.entrylist_row()}
-					</option>
-				{/each}
-			</select>
-		{/if}
+			{#if $table.getPrePaginationRowModel().rows.length > 10}
+				<!-- number of pages -->
+				<select
+					value={$table.getState().pagination.pageSize}
+					on:change={setPageSize}
+					class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
+				>
+					{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
+						<option value={pageSize}>
+							{pageSize} Rows
+						</option>
+					{/each}
+				</select>
+			{/if}
 
-		<!-- Pagination -->
-		<div class="text-sm text-gray-400">
-			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-			{m.entrylist_of()}
-			<!-- TODO: Get actual page -->
-			<!-- <span class="text-surface-700 dark:text-white"
+			<!-- next/previous pages -->
+			<div
+				class="variant-ghost btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500"
+			>
+				<button
+					type="button"
+					class="w-6"
+					aria-label="Go to First Page"
+					on:keydown
+					on:click={() => setCurrentPage(0)}
+					class:is-disabled={!$table.getCanPreviousPage()}
+					disabled={!$table.getCanPreviousPage()}
+				>
+					<iconify-icon icon="material-symbols:first-page" width="24" />
+				</button>
+
+				<button
+					type="button"
+					class="w-6"
+					aria-label="Go to Previous Page"
+					on:keydown
+					on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
+					class:is-disabled={!$table.getCanPreviousPage()}
+					disabled={!$table.getCanPreviousPage()}
+				>
+					<iconify-icon icon="material-symbols:chevron-left" width="24" />
+				</button>
+
+				<!-- input display -->
+				<div class="flex items-center justify-center px-2 text-sm">
+					<span class="pr-2"> {m.entrylist_page()} </span>
+
+					<input
+						type="number"
+						value={$table.getState().pagination.pageIndex + 1}
+						min={0}
+						max={$table.getPageCount() - 1}
+						on:change={handleCurrPageInput}
+						class="variant-ghost-surface w-14 border-0"
+					/>
+					<span class="pl-2">
+						{' '}{m.entrylist_of()}{' '}
+						<span class="">{$table.getPageCount()}</span>
+					</span>
+				</div>
+
+				<button
+					type="button"
+					class="w-6"
+					aria-label="Go to Next Page"
+					on:keydown
+					on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
+					class:is-disabled={!$table.getCanNextPage()}
+					disabled={!$table.getCanNextPage()}
+				>
+					<iconify-icon icon="material-symbols:chevron-right" width="24" />
+				</button>
+
+				<button
+					type="button"
+					class="w-6"
+					aria-label="Go to Last Page"
+					on:keydown
+					on:click={() => setCurrentPage($table.getPageCount() - 1)}
+					class:is-disabled={!$table.getCanNextPage()}
+					disabled={!$table.getCanNextPage()}
+				>
+					<iconify-icon icon="material-symbols:last-page" width="24" />
+				</button>
+			</div>
+		</div>
+
+		<!-- Pagination Mobile-->
+		<div class="flex flex-col items-center justify-center gap-2 md:hidden">
+			{#if $table.getPrePaginationRowModel().rows.length > 10}
+				<!-- number of pages -->
+				<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select max-w-[100px] text-sm sm:hidden">
+					{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
+						<option value={pageSize}>
+							{pageSize}
+							{m.entrylist_row()}
+						</option>
+					{/each}
+				</select>
+			{/if}
+
+			<!-- Pagination -->
+			<div class="text-sm text-gray-400">
+				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
+				{m.entrylist_of()}
+				<!-- TODO: Get actual page -->
+				<!-- <span class="text-surface-700 dark:text-white"
 				>{$table.getState().pagination.pageIndex + 1}</span
 			> -->
-			<span class="text-black dark:text-white"
-				>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
-			>
-			- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-			{m.entrylist_total()}
+				<span class="text-black dark:text-white"
+					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
+				>
+				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
+				{m.entrylist_total()}
 
-			{#if $table.getPrePaginationRowModel().rows.length === 1}
-				{m.entrylist_row()}
-			{:else}
-				{m.entrylist_rows()}){/if}
+				{#if $table.getPrePaginationRowModel().rows.length === 1}
+					{m.entrylist_row()}
+				{:else}
+					{m.entrylist_rows()}){/if}
+			</div>
 		</div>
 	</div>
-</div>
+{/if}

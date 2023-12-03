@@ -19,6 +19,7 @@ export type Params = {
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
+	width?: number;
 
 	// Widget Specific parameters
 	relation: string;
