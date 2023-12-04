@@ -42,7 +42,7 @@ const widget = (params: Params) => {
 		icon: params.icon,
 		width: params.width,
 		helper: params.helper,
-		
+
 		//extra
 		placeholder: params.placeholder,
 		readonly: params.readonly

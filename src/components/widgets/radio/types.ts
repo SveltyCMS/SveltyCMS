@@ -19,7 +19,6 @@ export type Params = {
 	color?: string;
 	required?: boolean;
 	readonly?: boolean;
-
 };
 
 // Define the GuiSchema

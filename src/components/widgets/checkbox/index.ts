@@ -44,8 +44,7 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		color: params.color,
-
+		color: params.color
 	};
 
 	// Return the field and widget objects

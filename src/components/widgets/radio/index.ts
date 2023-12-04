@@ -45,7 +45,7 @@ const widget = (params: Params) => {
 
 		// extras
 		color: params.color,
-		readonly: params.readonly,
+		readonly: params.readonly
 	};
 
 	// Return the field and widget objects

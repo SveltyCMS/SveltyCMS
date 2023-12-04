@@ -40,7 +40,6 @@
 	import Loading from '../../Loading.svelte';
 	import { asAny } from '@src/utils/utils';
 	import { handleSidebarToggle, mode } from '@src/stores/store';
-	export let isLoading = false;
 
 	export let tableData: any[];
 	let filteredData = tableData;

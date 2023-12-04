@@ -73,6 +73,7 @@ We recommend the faster [pnpm](https://pnpm.io) package manager.
 
 ```bash
 pnpm install  # installs all required package dependencies
+pnpm devvv    # build available lanaguages
 ```
 
 ### Setup Environment File

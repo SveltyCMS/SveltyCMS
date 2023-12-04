@@ -27,7 +27,6 @@ export type Params = {
 	suffix?: string;
 	required?: boolean;
 	readonly?: boolean;
-
 };
 
 // Define the GuiSchema

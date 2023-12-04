@@ -44,8 +44,7 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		placeholder: params.placeholder,
-
+		placeholder: params.placeholder
 	};
 
 	// Return the field and widget objects

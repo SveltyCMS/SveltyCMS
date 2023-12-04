@@ -52,8 +52,7 @@ const widget = (params: Params) => {
 		step: params.step,
 		count: params.count,
 		negative: params.negative,
-		currencyCode: params.currencyCode,
-
+		currencyCode: params.currencyCode
 	};
 	// Return the field and widget objects
 	return { ...field, widget };
