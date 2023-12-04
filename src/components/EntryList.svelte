@@ -5,7 +5,7 @@
 	import { writable } from 'svelte/store';
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
-	import TanstackIcons from './TanstackIcons.svelte';
+	import TanstackIcons from './system/tanstack/TanstackIcons.svelte';
 
 	//svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
@@ -17,7 +17,7 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import TanstackFilter from './TanstackFilter.svelte';
+	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
 
 	let searchValue = '';
 	let searchShow = false;

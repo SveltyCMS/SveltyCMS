@@ -30,7 +30,7 @@
 <div class=" wrapper flex-grow">
 	{#if $mode == 'view' || $mode == 'delete'}
 		<EntryList />
-		<!-- <EntryListNew />  -->
+		<!-- <EntryListNew /> -->
 	{:else if ['edit', 'create'].includes($mode)}
 		<div class="fields">
 			<Fields />

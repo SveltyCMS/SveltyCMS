@@ -59,7 +59,7 @@
 	}
 
 	// TanstackFilter
-	import TanstackFilter from '@src/components/TanstackFilter.svelte';
+	import TanstackFilter from '@src/components/system/tanstack/TanstackFilter.svelte';
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -67,7 +67,7 @@
 	let density = 'normal';
 
 	// TanstackTable
-	import TanstackTable from '@src/components/TanstackTable.svelte';
+	import TanstackTable from '@src/components/system/tanstack/TanstackTable.svelte';
 	import { flexRender } from '@tanstack/svelte-table';
 	import moment from 'moment';
 
@@ -175,7 +175,7 @@
 	let currentAction = null;
 
 	// Define the function to handle the CRUD action
-	function handleCRUDAction(action:any) {
+	function handleCRUDAction(action: any) {
 		currentAction = action;
 	}
 </script>
@@ -257,7 +257,6 @@
 				</button>
 
 				<MultibuttonToken {selectedRows} />
-			
 			</div>
 
 			{#if showMoreUserToken}

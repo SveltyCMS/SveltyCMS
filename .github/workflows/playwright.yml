@@ -18,7 +18,7 @@ jobs:
         node-version: [20.x]
         pnpm-version: [8.x]
         bun-version: [latest]
-        mongodb-version: ['7.0']
+        mongodb-version: ['8.0']
 
     steps:
       - name: Git checkout
@@ -71,7 +71,7 @@ jobs:
           HOST_PROD: https://localhost:4173
           PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
           PUBLIC_PKG: '{ VERSION: pkg.version }'
-          PUBLIC_MEDIA_FOLDER: mediaFiles
+          PUBLIC_MEDIA_FOLDER: media
           PUBLIC_MEDIASERVER_URL: ''
           PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
           PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'

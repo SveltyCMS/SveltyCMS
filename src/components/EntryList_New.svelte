@@ -8,7 +8,7 @@
 	let loadingTimer: any; // recommended time of around 200-300ms
 
 	// TanstackFilter
-	import TanstackFilter from '@src/components/TanstackFilter.svelte';
+	import TanstackFilter from '@src/components/system/tanstack/TanstackFilter.svelte';
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -16,14 +16,16 @@
 	let density = 'normal';
 
 	// TanstackTable
-	import TanstackTable from '@src/components/TanstackTable.svelte';
+	import TanstackTable from '@src/components/system/tanstack/TanstackTable.svelte';
+	import { flexRender } from '@tanstack/svelte-table';
+	import TanstackStatus from './system/tanstack/TanstackStatus.svelte';
 
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
 	import { getFieldName } from '@src/utils/utils';
-
+	import TranslationStatus from './TranslationStatus.svelte';
 
 	let data: any = [];
+
 	//let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];
 	let columnFields: any[] = []; // Declare columnFields variables
@@ -61,11 +63,13 @@
 							contentLanguage: $contentLanguage
 						});
 					}
-					obj._id = entry._id;
+					obj.status = entry.status; //get status
+					obj._id = entry._id; //get fields
+
 					return obj;
 				})
 			));
-		};
+	};
 
 	$: refresh();
 
@@ -113,16 +117,15 @@
 				break;
 			case 'publish':
 			case 'unpublish':
+			case 'test':
+				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
+				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
+				break;
 			case 'clone':
 				await axios.post(`/api/${$collection.name}/clone`, formData);
 				break;
 			case 'schedule':
 				await axios.post(`/api/${$collection.name}/schedule`, formData);
-				break;
-
-			case 'test':
-				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
-				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 		}
 
@@ -133,27 +136,22 @@
 		mode.set('view');
 	};
 
-
 	// Data for the array of column fields
 	$: columnFields = [
-  {
-    header: "Status",
-    accessorKey: 'status',
-    id: 'status',
-	cell: (info: any) => info.data?.entryList.status()
-	
-  },
-  ...$collection.fields.map((field) => ({
-    header: field.label,
-    accessorKey: field.label,
-    id: field.label,
-  })),
-];
+		{
+			header: 'Status',
+			accessorKey: 'status',
+			id: 'status',
+			cell: (info: any) => flexRender(TanstackStatus, { value: info.getValue('status') })
+		},
+		...$collection.fields.map((field) => ({
+			header: field.label,
+			accessorKey: field.label,
+			id: field.label
+		}))
+	];
 
-
-
-$: console.log('columnFields', columnFields);
-
+	$: console.log('columnFields', columnFields);
 </script>
 
 <!-- Header -->
@@ -204,7 +202,7 @@ $: console.log('columnFields', columnFields);
 	<EntryListMultiButton />
 </div>
 
- {#if isLoading}
+{#if isLoading}
 	<Loading />
 {:else if tableData.length > 0}
 	{#key tableData}
@@ -219,6 +217,4 @@ $: console.log('columnFields', columnFields);
 			bind:density
 		/>
 	{/key}
-{/if} 
-
-
+{/if}

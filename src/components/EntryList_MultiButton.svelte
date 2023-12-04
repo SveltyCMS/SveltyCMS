@@ -45,12 +45,12 @@
 		switch (storeListboxValue) {
 			case 'create':
 				actionname = m.entrylist_multibutton_create();
-				buttonClass = 'gradient-primary';
+				buttonClass = 'gradient-tertiary';
 				iconValue = 'ic:round-plus';
 				break;
 			case 'publish':
 				actionname = m.entrylist_multibutton_publish();
-				buttonClass = 'gradient-tertiary';
+				buttonClass = 'gradient-primary';
 				iconValue = 'bi:hand-thumbs-up-fill';
 				break;
 			case 'unpublish':
@@ -132,7 +132,7 @@
 					<!-- TODO: FIX Sidebar & RightSidebar Toggle -->
 					<button
 						type="button"
-						class="gradient-primary-hover gradient-primary-focus w-full px-4 py-2 text-left focus:outline-none"
+						class="gradient-tertiary-hover gradient-tertiary-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('create')}
 					>
 						<span class="flex items-center">
@@ -147,7 +147,7 @@
 				<li>
 					<button
 						type="button"
-						class="gradient-tertiary-hover gradient-tertiary-focus w-full px-4 py-2 text-left focus:outline-none"
+						class="gradient-primary-hover gradient-primary-focus w-full px-4 py-2 text-left focus:outline-none"
 						on:click|preventDefault={() => handleOptionClick('publish')}
 					>
 						<span class="flex items-center">
