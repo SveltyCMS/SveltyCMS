@@ -1,11 +1,10 @@
 name: Playwright Tests
 
-# disabled for now
-# on:
-#   push:
-#     branches: [main]
-#   pull_request:
-#     branches: [main]
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 jobs:
   test:
@@ -50,9 +49,14 @@ jobs:
           mongodb-port: 27017
 
       - name: Install dependencies
-        run: npm install &
+        run: npm install
         # run: pnpm install
         # run: bun install
+
+      - name: Build Languages
+        run: npm run devvv
+        # run: pnpm devvv
+        # run: bun devvv
 
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
