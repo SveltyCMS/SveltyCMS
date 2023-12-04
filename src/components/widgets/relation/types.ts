@@ -4,7 +4,6 @@ import Input from '@src/components/system/inputs/Input2.svelte';
 // import Toggles from '@src/components/system/inputs/Toggles.svelte';
 // import { contentLanguage } from '@src/stores/store';
 
-import type { Schema } from '@src/collections/types';
 import { getFieldName } from '@src/utils/utils';
 
 import mongoose from 'mongoose';
@@ -39,7 +38,7 @@ export const GuiSchema = {
 };
 
 // Define the GraphqlSchema function
-export const GraphqlSchema: GraphqlSchema = ({ field, label, collection }) => {
+export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName: field.relation,

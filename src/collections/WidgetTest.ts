@@ -1,4 +1,3 @@
-import { redirect } from '@sveltejs/kit';
 import widgets from '@src/components/widgets';
 import { roles } from './types';
 import type { Schema } from './types';
@@ -33,7 +32,7 @@ const schema: Schema = {
 			placeholder: 'Enter First Name',
 			required: true,
 			translated: true,
-			width: 3,
+			width: 3
 		}),
 
 		widgets.Text({
@@ -44,7 +43,7 @@ const schema: Schema = {
 			// placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 			placeholder: 'Enter Middle Name',
 			readonly: true,
-			width: 3,
+			width: 3
 		}),
 
 		widgets.Text({
@@ -90,8 +89,6 @@ const schema: Schema = {
 			placeholder: 'Enter RemoteVideo',
 			required: true
 		}),
-
-	
 
 		widgets.Date({
 			label: 'Date',
@@ -144,7 +141,7 @@ const schema: Schema = {
 			icon: 'akar-icons:radio-fill',
 			color: 'pink',
 			required: true,
-			width: 3,
+			width: 3
 		}),
 
 		widgets.Checkbox({
@@ -153,7 +150,7 @@ const schema: Schema = {
 			icon: 'mdi:check-bold',
 			color: 'pink',
 			required: true,
-			width: 3,
+			width: 3
 		}),
 
 		widgets.ColorPicker({
@@ -161,7 +158,7 @@ const schema: Schema = {
 			db_fieldName: 'colorpicker',
 			icon: 'pepicons:color-picker',
 			required: true,
-			width: 3,
+			width: 3
 		}),
 
 		// widgets.RichText({

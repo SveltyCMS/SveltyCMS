@@ -14,7 +14,7 @@
 	let separator = ' • ';
 
 	let array: any = [];
-	$: array = [...Array(repeat)].map((_) => [...text].concat([...separator])).flat();
+	$: array = [...Array(repeat)].map(() => [...text].concat([...separator])).flat();
 </script>
 
 {#if $page}

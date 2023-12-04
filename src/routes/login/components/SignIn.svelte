@@ -18,8 +18,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import { redirect } from '@sveltejs/kit';
-
 	let showPassword = false;
 
 	export let registration_token = '';

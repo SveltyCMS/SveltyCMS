@@ -2,7 +2,7 @@
 	import PageTitle from '@src/components/PageTitle.svelte';
 
 	// Collection Creation
-	import { TabGroup, Tab, Modal, getModalStore } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import VerticalList from '@src/components/VerticalList.svelte';
@@ -10,7 +10,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { mode } from '@src/stores/store';
 
 	// TS & Json export
 	function onCompleteHandler(e: Event): void {

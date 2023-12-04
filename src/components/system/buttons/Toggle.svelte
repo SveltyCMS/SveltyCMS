@@ -11,9 +11,9 @@
 
 <div class="container">
 	<p class={twMerge('text-white ', labelClass)}>{label}</p>
-	<div on:click={() => (value = !value)} class={twMerge('track bg-white ', trackClass)} style="width: {width}px; height: {height}px">
+	<button on:click={() => (value = !value)} class={twMerge('track bg-white ', trackClass)} style="width: {width}px; height: {height}px">
 		<div class:checked={value} class={twMerge('thumb bg-gray-400', thumbClass)} style="width: {width / 2}px; height: {height}px" />
-	</div>
+	</button>
 </div>
 
 <style lang="postcss">

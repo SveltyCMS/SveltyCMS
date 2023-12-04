@@ -14,10 +14,10 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x]
+        node-version: [18.x, 20.x]
         pnpm-version: [8.x]
         bun-version: [latest]
-        mongodb-version: ['8.0']
+        mongodb-version: ['7.x', '8.x']
 
     steps:
       - name: Git checkout

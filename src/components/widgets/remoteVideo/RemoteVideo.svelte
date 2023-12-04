@@ -11,7 +11,6 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = defaultContentLanguage;
 	let valid = true;
 	export const WidgetData = async () => _data;
 
@@ -55,16 +54,16 @@
 		required: z.boolean().optional()
 	});
 
-	let validationError: string | null = null;
+	// let validationError: string | null = null;
 
-	$: validationError = (() => {
-		try {
-			videoSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
-		}
-	})();
+	// $: validationError = (() => {
+	// 	try {
+	// 		videoSchema.parse(widgetValueObject);
+	// 		return null;
+	// 	} catch (error) {
+	// 		return (error as Error).message;
+	// 	}
+	// })();
 </script>
 
 <input

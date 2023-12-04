@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
 	import { mode, entryData } from '@src/stores/store';
 	import { getFieldName } from '@src/utils/utils';
@@ -82,7 +81,6 @@
 		id={field?.db_fieldName}
 		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 		required={field?.required}
-		readonly={field?.readonly}
 		minlength={field?.minlength}
 		maxlength={field?.maxlength}
 		step={field?.step}
@@ -98,8 +96,6 @@
 						{count}/{field?.maxlength}
 					{:else if field?.maxlength}
 						{count}/{field?.maxlength}
-					{:else if field?.minlength && field?.maxlength}
-						{count} => {field?.minlength}/{field?.maxlength}
 					{:else if field?.minlength}
 						min {field?.minlength}
 					{/if}
@@ -113,8 +109,6 @@
 				{count}/{field?.maxlength}
 			{:else if field?.maxlength}
 				{count}/{field?.maxlength}
-			{:else if field?.minlength && field?.maxlength}
-				{count} => {field?.minlength}/{field?.maxlength}
 			{:else if field?.minlength}
 				min {field?.minlength}
 			{/if}

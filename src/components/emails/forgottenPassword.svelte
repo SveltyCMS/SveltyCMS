@@ -9,7 +9,7 @@
 	import { languageTag } from '@src/paraglide/runtime';
 
 	// svelte-email
-	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
+	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
 	interface EmailProps {
 		email?: string;

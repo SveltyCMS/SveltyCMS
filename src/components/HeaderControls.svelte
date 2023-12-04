@@ -14,10 +14,6 @@
 		shouldShowNextButton
 	} from '@src/stores/store';
 	import { saveFormData } from '@src/utils/utils';
-	import { page } from '$app/stores';
-	import type { User } from '@src/collections/Auth';
-
-	let user: User = $page.data.user;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -39,7 +39,7 @@
 			}
 		});
 	}
-	collection.subscribe((_) => {
+	collection.subscribe(() => {
 		name = $mode == 'edit' ? $collection.name : '';
 	});
 </script>

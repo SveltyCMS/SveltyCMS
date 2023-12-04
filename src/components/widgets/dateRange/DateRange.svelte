@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
 	import { mode, entryData } from '@src/stores/store';
 	import { getFieldName } from '@src/utils/utils';
+
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
@@ -12,16 +13,9 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+	let endDateValue: any;
 
 	export const WidgetData = async () => _data;
-
-	// TODO: Allow User/System to define Date formate
-	let format = 'ddd, MMMM D, YYYY';
-
-	// Use the language variable to determine the desired date format
-	//$: format = date.formats[language];
-
-	import * as z from 'zod';
 
 	var widgetValueObject = {
 		db_fieldName: field.db_fieldName,
@@ -52,7 +46,7 @@
 <input id="start-date" type="date" bind:value={_data[_language]} class="input rounded-md" />
 
 <label for="end-date">End Date:</label>
-<input id="end-date" type="date" bind:endDateValue class="input rounded-md" />
+<input id="end-date" type="date" bind:value={endDateValue} class="input rounded-md" />
 
 {#if validationError !== null}
 	<p class="text-error-500">{validationError}</p>

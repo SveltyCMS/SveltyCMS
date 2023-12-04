@@ -4,9 +4,6 @@ import { findById, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@src/stores/store';
 
-//ParaglideJS
-import * as m from '@src/paraglide/messages';
-
 // Define the widget function
 const widget = (params: Params) => {
 	// Define the display function

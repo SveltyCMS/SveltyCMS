@@ -17,7 +17,7 @@ export type Params = {
 
 	// Widget Specific parameters
 	required?: boolean;
-	path: (string & {}) | 'global' | 'unique';
+	path: (string & Record<string, never>) | 'global' | 'unique';
 };
 
 // Define the GuiSchema

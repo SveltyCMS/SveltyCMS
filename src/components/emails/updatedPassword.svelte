@@ -14,7 +14,7 @@
 	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
 
 	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
+	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -27,29 +27,10 @@
 		padding: '20px 0 48px'
 	};
 
-	const logo = {
-		margin: '0 auto'
-	};
-
 	const paragraph = {
 		fontFamily,
 		fontSize: '16px',
 		lineHeight: '26px'
-	};
-
-	const btnContainer = {
-		textAlign: 'center'
-	};
-
-	const button = {
-		fontFamily,
-		backgroundColor: '#5F51E8',
-		borderRadius: '3px',
-		color: '#fff',
-		fontSize: '16px',
-		textDecoration: 'none',
-		textAlign: 'center',
-		display: 'block'
 	};
 
 	const hr = {

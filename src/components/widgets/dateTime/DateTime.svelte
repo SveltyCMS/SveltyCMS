@@ -1,9 +1,10 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
 	import { mode, entryData } from '@src/stores/store';
 	import { getFieldName } from '@src/utils/utils';
+
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
@@ -14,14 +15,6 @@
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
 
 	export const WidgetData = async () => _data;
-
-	// TODO: Allow User/System to define Date formate
-	let format = 'ddd, D MMMM YYYY HH:mm';
-
-	// Use the language variable to determine the desired date format
-	//$: format = date.formats[language];
-
-	import * as z from 'zod';
 
 	var widgetValueObject = {
 		db_fieldName: field.db_fieldName,

@@ -16,15 +16,24 @@ jobs:
 
     runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
 
+    strategy:
+      matrix:
+        node-version: ['18.x', '20.x'] # Specify the Node.js versions
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3 # Use the checkout action to clone the repository
 
-      - name: Setup code
+      - name: Setup Node.js
         uses: actions/setup-node@v3 # Use the setup-node action to install Node.js
+        with:
+          node-version: ${{ matrix.node-version }}
 
       - name: Install dependencies
-        run: npm i # Install the package dependencies
+        run: npm ci # Install the package dependencies
+
+      - name: Install languages
+        run: npm run devvv
 
       - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
         env:

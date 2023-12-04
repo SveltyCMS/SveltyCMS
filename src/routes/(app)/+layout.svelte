@@ -9,18 +9,7 @@
 	import { goto } from '$app/navigation';
 
 	//skeleton
-	import {
-		initializeStores,
-		AppShell,
-		Avatar,
-		Modal,
-		popup,
-		Toast,
-		modeCurrent,
-		setModeUserPrefers,
-		setModeCurrent,
-		setInitialClassState
-	} from '@skeletonlabs/skeleton';
+	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 	initializeStores();
 
 	//console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
@@ -153,7 +142,7 @@
 	};
 
 	// On page load
-	document.addEventListener('DOMContentLoaded', (event) => {
+	document.addEventListener('DOMContentLoaded', () => {
 		const savedTheme = localStorage.getItem('theme');
 		console.log('Saved theme:', savedTheme); // Log the saved theme
 		if (savedTheme) {
@@ -228,7 +217,7 @@
 
 	// Subscribe to changes in the collection store and do redirects
 	let initial = true;
-	collection.subscribe((_) => {
+	collection.subscribe(() => {
 		// console.log(!$collection, !$page.params.language);
 		if (!$collection) return;
 

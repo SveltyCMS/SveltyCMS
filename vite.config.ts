@@ -16,8 +16,6 @@ const pkg = JSON.parse(json);
 import type vite from 'vite';
 import Path from 'path';
 
-const file = fileURLToPath(new URL('package.json', import.meta.url));
-
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);

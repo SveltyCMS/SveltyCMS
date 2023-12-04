@@ -34,7 +34,7 @@ export const GuiSchema = {
 	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
 	translated: { widget: Toggles, required: false },
-	icon: { widget: Input, required: false },
+	icon: { widget: IconifyPicker, required: false },
 
 	// Widget Specific parameters
 	placeholder: { widget: Input, required: false },

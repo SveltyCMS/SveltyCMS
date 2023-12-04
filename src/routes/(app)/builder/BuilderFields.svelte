@@ -4,7 +4,6 @@
 
 	export let fields: Array<any> = [];
 
-	let inputValue = '';
 	let currentFieldKey: keyof typeof widgets = 'Text';
 	let currentField: any;
 	let guiSchema = widgets[currentFieldKey].GuiSchema;

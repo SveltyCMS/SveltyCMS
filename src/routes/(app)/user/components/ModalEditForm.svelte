@@ -215,7 +215,6 @@
 					/>
 				{/if}
 
-				<!-- svelte-ignore a11y-click-events-have-key-events -->
 				<button class="absolute right-2 top-2" on:click={() => (showPassword = !showPassword)}>
 					{#if showPassword}
 						<iconify-icon icon="bi:eye-fill" color="base" width="24" />

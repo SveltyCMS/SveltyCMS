@@ -6,7 +6,7 @@ declare global {
 	declare namespace Lucia {
 		type Auth = import('@src/routes/api/db.ts').Auth; // no change
 		type DatabaseUserAttributes = {
-			// username: string;
+			//username: string;
 		};
 		type DatabaseSessionAttributes = {}; // new
 	}

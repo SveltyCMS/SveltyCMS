@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { theme } from '../stores/themeStore';
-	import { fade } from 'svelte/transition';
 
 	let currentTheme: string;
 
@@ -26,10 +25,10 @@
 </script>
 
 <!-- TODO: Add transition & Tooltip -->
-<div on:click={toggleTheme} class="hover:cursor-pointer">
+<button on:click={toggleTheme} class="hover:cursor-pointer">
 	{#if currentTheme === 'dark'}
 		<iconify-icon icon="bi:moon-fill" width="18" />
 	{:else}
 		<iconify-icon icon="bi:sun-fill" width="18" />
 	{/if}
-</div>
+</button>

@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
-	import { number } from 'zod';
 
 	export let items: any;
 	export let flipDurationMs: number;
@@ -19,7 +18,7 @@
 	</div>
 
 	<section
-		use:dndzone={{ columnFields: items, flipDurationMs }}
+		use:dndzone={{ items: items, flipDurationMs }}
 		on:consider={handleDndConsider}
 		on:finalize={handleDndFinalize}
 		class="my-2 w-full overflow-scroll border border-surface-400 p-2"

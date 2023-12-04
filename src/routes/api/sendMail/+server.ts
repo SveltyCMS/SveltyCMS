@@ -37,13 +37,13 @@ const templates: Record<string, ComponentType> = {
 
 export const POST: RequestHandler = async ({ request }) => {
 	// console.log(request);
-	const { email, subject, message, templateName, lang, props } = await request.json();
-	await sendMail(email, subject, message, templateName, props, lang);
-
+	const { email, subject, message, templateName, props } = await request.json();
+	const userLanguage = languageTag(); // Get the user's language
+	await sendMail(email, subject, message, templateName, props, userLanguage);
 	return new Response(null, { status: 200 });
 };
 
-async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang = 'en') {
+async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
 	// console.log(email, subject, message);
 	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
@@ -66,7 +66,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 		template: templates[templateName],
 		props: {
 			...props,
-			languageTag: lang
+			languageTag: lang // Use the user's language
 		}
 	});
 

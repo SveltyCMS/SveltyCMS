@@ -9,10 +9,9 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
-	const toastStore = getToastStore();
 
 	export let data: PageData;
 	//console.log(data);

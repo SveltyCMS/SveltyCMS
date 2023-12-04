@@ -11,7 +11,7 @@
 	export let parent: any;
 
 	// skeleton
-	import { Toast, getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { categories, mode, unAssigned } from '@src/stores/store';
+	import { categories, unAssigned } from '@src/stores/store';
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';

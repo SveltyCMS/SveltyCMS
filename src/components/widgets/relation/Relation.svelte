@@ -41,7 +41,7 @@
 
 	let display = '';
 
-	$: (async (_) => {
+	$: (async () => {
 		let data;
 		if ($mode == 'edit' && field) {
 			if (entryMode == 'edit' || entryMode == 'create') {
@@ -54,7 +54,7 @@
 			data = await extractData(fieldsData);
 		}
 		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
-	})(expanded);
+	})();
 </script>
 
 {#if !expanded && !showDropDown}

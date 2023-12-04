@@ -20,11 +20,6 @@
 	let fieldsData = {};
 	let saveMode = $mode;
 
-	function cancelCreation() {
-		showFields = false;
-		depth = 0;
-	}
-
 	// Megamenu Save layer Next
 	async function saveLayer() {
 		if (!_data) {

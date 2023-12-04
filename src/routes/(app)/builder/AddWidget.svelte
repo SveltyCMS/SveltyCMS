@@ -7,7 +7,7 @@
 	import { toggleLeftSidebar } from '@src/stores/store';
 
 	export let fields: Array<any> = [];
-	export let addField: Boolean = false;
+	export let addField: boolean = false;
 
 	let selected_widget: keyof typeof widgets | null = null;
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;

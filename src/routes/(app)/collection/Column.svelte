@@ -2,6 +2,7 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
+	import { categories } from '@src/stores/store';
 
 	export let currentCategories: any;
 
@@ -12,8 +13,6 @@
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import ModalAddCategory from './ModalCategory.svelte';
-	import { currentCollection, mode } from '@src/stores/store';
-	import { categories } from '@src/stores/store';
 
 	function editCategory(category: any): void {
 		const modalComponent: ModalComponent = {

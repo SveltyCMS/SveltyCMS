@@ -3,9 +3,6 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	const flipDurationMs = 200;
 	export let items: any;
 	export let onDrop: any;

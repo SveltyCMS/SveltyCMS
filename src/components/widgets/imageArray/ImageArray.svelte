@@ -7,7 +7,6 @@
 	// sveltekit
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
-	import { ImportsNotUsedAsValues } from 'typescript';
 
 	export let field: FieldType;
 
@@ -31,7 +30,6 @@
 			let fieldsData = _fieldsValue[i];
 
 			//console.log('fieldsData:', fieldsData);
-			debugger;
 			await saveFormData(fieldsData);
 		}
 		if (!files.length) {
