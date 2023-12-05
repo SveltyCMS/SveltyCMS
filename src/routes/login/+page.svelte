@@ -48,7 +48,7 @@
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 				<!-- Seasons -->
 				{#if isDecember}
-					<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-7 -top-7 h-24 w-24" />
+					<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
 				{/if}
 
 				{#if isHalloween}
