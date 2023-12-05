@@ -23,11 +23,14 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v3 # Use the setup-node action to install Node.js
 
+      - name: Install Bun
+        run: npm i bun
+
       - name: Update package-lock.json
-        run: npm install
+        run: bun install
 
       - name: Install dependencies
-        run: npm ci # Install the package dependencies
+        run: bun ci # Install the package dependencies
 
       - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
         env:
