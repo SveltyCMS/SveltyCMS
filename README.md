@@ -73,7 +73,7 @@ We recommend the faster [pnpm](https://pnpm.io) package manager.
 
 ```bash
 pnpm install  # installs all required package dependencies
-pnpm devvv    # build available lanaguages
+pnpm inlang    # build available lanaguages
 ```
 
 ### Setup Environment File
@@ -141,6 +141,13 @@ When submitting pull requests, please make sure your commit messages follow the 
 
 Please also read our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
 
+If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running pnpm changeset and following the prompts.
+Changesets that add features should be minor and those that fix bugs should be patch.
+
+Run the tests with `pnpm test` and lint the project with `pnpm lint` and `pnpm check`
+
+Please prefix changeset messages with `feat:`, `fix:`, or `chore:`.
+
 Thank you for helping us maintain a consistent and predictable release process! :heart:
 
 ## :moneybag: Sponsoring
@@ -156,8 +163,8 @@ Thank you for your support!
 
 ## :clap: Thanks
 
-to all our contributors without this would never have been possible
+To all our contributors without this would never have been possible
 
 # :star: Give us a star
 
-if you like what we're doing, give us a star and share our SimpleCMS project with others
+If you like what we're doing, give us a `star` and share our `SimpleCMS` project with others

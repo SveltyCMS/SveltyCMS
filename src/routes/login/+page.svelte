@@ -7,13 +7,17 @@
 	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@src/stores/store';
 
 	export let data: PageData;
-	//console.log('PageData', data);
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag, availableLanguageTags } from '@src/paraglide/runtime';
 	import Autocomplete from '@src/components/Autocomplete.svelte';
 	let _languageTag = languageTag(); // Get the current language tag
+
+	// Seasons
+	let date = new Date();
+	let isDecember = date.getMonth() === 11;
+	let isHalloween = date.getMonth() === 9 && date.getDate() === 31;
 
 	function handleLocaleChange(event: any) {
 		$systemLanguage = event.target.value;
@@ -42,6 +46,15 @@
 		<!-- CSS Logo -->
 		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
+				<!-- Seasons -->
+				{#if isDecember}
+					<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-7 -top-7 h-24 w-24" />
+				{/if}
+
+				{#if isHalloween}
+					<img src="/Halloween.png" alt="Spider" class="absolute -bottom-[170px] left-0" />
+				{/if}
+
 				<!-- red circle -->
 				<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 					<circle
@@ -113,7 +126,7 @@
 					list="locales"
 					bind:value={inputlangeuagevalue}
 					placeholder={_languageTag}
-					class="w-1/2 rounded-full border-2 border-white bg-black uppercase text-white focus:ring-2"
+					class=" w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
 					on:input={() => ($systemLanguage = inputlangeuagevalue)}
 				/>
 

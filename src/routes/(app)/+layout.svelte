@@ -90,6 +90,8 @@
 	const pkg = __VERSION__;
 	let githubVersion = '';
 
+	const currentMonth = new Date().getMonth();
+
 	// Fetch the latest release from GitHub
 	axios
 		.get('https://api.github.com/repos/Rar9/SimpleCMS/releases/latest')
@@ -105,9 +107,9 @@
 				$pkgBgColor = 'variant-filled-error';
 			}
 
-			// console.log(`Local version: ${pkg}`);
-			// console.log(`GitHub version: ${githubVersion}`);
-			// console.log(`pkgBgColor: ${$pkgBgColor}`);
+			console.log(`Local version: ${pkg}`);
+			console.log(`GitHub version: ${githubVersion}`);
+			console.log(`pkgBgColor: ${$pkgBgColor}`);
 		})
 		.catch((error) => console.error('Error:', error));
 
@@ -284,7 +286,7 @@
 		<slot />
 	{:else}
 		<AppShell
-			slotSidebarLeft="pt-2 !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-900 dark:via-surface-700
+			slotSidebarLeft="relative pt-2 !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-900 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col z-10
 {$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
 {$toggleLeftSidebar === 'closed' ? 'hidden' : 'block'}
@@ -300,9 +302,14 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				<!-- Corporate Identity Full-->
 				{#if $toggleLeftSidebar === 'full'}
 					<a href="/" class="t flex pt-2 !no-underline">
-						<SimpleCmsLogo fill="red" className="h-8" />
+						<SimpleCmsLogo fill="red" className="h-8 " />
 
-						<span class="pl-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME}</span>
+						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white"
+							>{PUBLIC_SITENAME}
+							{#if currentMonth === 11}
+								<img src="/SantaHat.png" alt="Santa hat" class="z-100 absolute right-[-11px] top-[-8px] h-8 w-8 -rotate-[25deg]" />
+							{/if}
+						</span>
 					</a>
 				{:else}
 					<!-- Corporate Identity Collapsed-->
@@ -478,8 +485,9 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
 							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
 								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
-									>{#if $toggleLeftSidebar === 'full'}{m.applayout_version()}{/if}{pkg}</span
-								>
+									>{#if $toggleLeftSidebar === 'full'}{m.applayout_version()}{/if}
+									{pkg}
+								</span>
 							</a>
 						</div>
 					</div>

@@ -14,7 +14,6 @@
 	const modalStore = getModalStore();
 
 	export let data: PageData;
-	//console.log(data);
 
 	// Modal Trigger - Generate User Registration email Token
 	function modalTokenUser(): void {
