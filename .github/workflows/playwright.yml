@@ -73,6 +73,7 @@ jobs:
           PUBLIC_SITENAME: SimpleCMS
           HOST_DEV: http://localhost:5173
           HOST_PROD: https://localhost:4173
+          PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
           PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
           PUBLIC_PKG: '{ VERSION: pkg.version }'
           PUBLIC_MEDIA_FOLDER: media
