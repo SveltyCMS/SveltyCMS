@@ -276,8 +276,8 @@
 	"WidgetBuilder_AddColectionField": "დაამატეთ კოლექციის ველი",
 	"builder_createnew": "Შექმენი ახალი",
 	"builder_SaveCollection": "კოლექციის შენახვა",
-	"Builder_required": "საჭირო",
+	"builder_required": "საჭირო",
 	"builder_optional": "სურვილისამებრ",
 	"collection_SaveCategories": "კატეგორიების შენახვა",
-	"builder_Unassinged": "გამოუყენებელი კოლექციები"
+	"builder_Unassigned": "გამოუყენებელი კოლექციები"
 }

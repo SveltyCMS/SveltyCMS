@@ -276,8 +276,8 @@
 	"WidgetBuilder_AddColectionField": "संग्रह फ़ील्ड जोड़ें",
 	"builder_createnew": "नया निर्माण",
 	"builder_SaveCollection": "संग्रह सहेजें",
-	"Builder_required": "आवश्यक",
+	"builder_required": "आवश्यक",
 	"builder_optional": "वैकल्पिक",
 	"collection_SaveCategories": "श्रेणियाँ सहेजें",
-	"builder_Unassinged": "अनिर्धारित संग्रह"
+	"builder_Unassigned": "अनिर्धारित संग्रह"
 }

@@ -96,7 +96,7 @@ devDependencies:
     version: 1.40.1
   '@semantic-release/git':
     specifier: ^10.0.1
-    version: 10.0.1(semantic-release@22.0.9)
+    version: 10.0.1(semantic-release@22.0.10)
   '@skeletonlabs/skeleton':
     specifier: ^2.5.1
     version: 2.5.1(svelte@4.2.8)
@@ -161,11 +161,11 @@ devDependencies:
     specifier: ^3.1.2
     version: 3.1.2(prettier@3.1.0)(svelte@4.2.8)
   prettier-plugin-tailwindcss:
-    specifier: ^0.5.8
-    version: 0.5.8(prettier-plugin-svelte@3.1.2)(prettier@3.1.0)
+    specifier: ^0.5.9
+    version: 0.5.9(prettier-plugin-svelte@3.1.2)(prettier@3.1.0)
   semantic-release:
-    specifier: ^22.0.9
-    version: 22.0.9(typescript@5.3.2)
+    specifier: ^22.0.10
+    version: 22.0.10(typescript@5.3.2)
   sharp:
     specifier: ^0.33.0
     version: 0.33.0
@@ -184,6 +184,9 @@ devDependencies:
   tailwindcss:
     specifier: ^3.3.6
     version: 3.3.6
+  ts-morph:
+    specifier: ^21.0.1
+    version: 21.0.1
   tslib:
     specifier: ^2.6.2
     version: 2.6.2
@@ -508,8 +511,8 @@ packages:
     engines: {node: '>=14'}
     dev: true
 
-  /@floating-ui/core@1.5.1:
-    resolution: {integrity: sha512-QgcKYwzcc8vvZ4n/5uklchy8KVdjJwcOeI+HnnTNclJjs2nYsy23DOCf+sSV1kBwD9yDAoVKCkv/gEPzgQU3Pw==}
+  /@floating-ui/core@1.5.2:
+    resolution: {integrity: sha512-Ii3MrfY/GAIN3OhXNzpCKaLxHQfJF9qvwq/kEJYdqDxeIHa01K8sldugal6TmeeXl+WMvhv9cnVzUTaFFJF09A==}
     dependencies:
       '@floating-ui/utils': 0.1.6
     dev: false
@@ -517,7 +520,7 @@ packages:
   /@floating-ui/dom@1.5.3:
     resolution: {integrity: sha512-ClAbQnEqJAKCJOEbbLo5IUlZHkNszqhuxS4fHAVxRPXPya6Ysf2G8KypnYcOTpx6I8xcgF9bbHb6g/2KpbV8qA==}
     dependencies:
-      '@floating-ui/core': 1.5.1
+      '@floating-ui/core': 1.5.2
       '@floating-ui/utils': 0.1.6
     dev: false
 
@@ -1564,7 +1567,7 @@ packages:
       selderee: 0.11.0
     dev: false
 
-  /@semantic-release/commit-analyzer@11.1.0(semantic-release@22.0.9):
+  /@semantic-release/commit-analyzer@11.1.0(semantic-release@22.0.10):
     resolution: {integrity: sha512-cXNTbv3nXR2hlzHjAMgbuiQVtvWHTlwwISt60B+4NZv01y/QRY7p2HcJm8Eh2StzcTJoNnflvKjHH/cjFS7d5g==}
     engines: {node: ^18.17 || >=20.6.1}
     peerDependencies:
@@ -1577,7 +1580,7 @@ packages:
       import-from-esm: 1.3.3
       lodash-es: 4.17.21
       micromatch: 4.0.5
-      semantic-release: 22.0.9(typescript@5.3.2)
+      semantic-release: 22.0.10(typescript@5.3.2)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1592,7 +1595,7 @@ packages:
     engines: {node: '>=18'}
     dev: true
 
-  /@semantic-release/git@10.0.1(semantic-release@22.0.9):
+  /@semantic-release/git@10.0.1(semantic-release@22.0.10):
     resolution: {integrity: sha512-eWrx5KguUcU2wUPaO6sfvZI0wPafUKAMNC18aXY4EnNcrZL86dEmpNVnC9uMpGZkmZJ9EfCVJBQx4pV4EMGT1w==}
     engines: {node: '>=14.17'}
     peerDependencies:
@@ -1606,12 +1609,12 @@ packages:
       lodash: 4.17.21
       micromatch: 4.0.5
       p-reduce: 2.1.0
-      semantic-release: 22.0.9(typescript@5.3.2)
+      semantic-release: 22.0.10(typescript@5.3.2)
     transitivePeerDependencies:
       - supports-color
     dev: true
 
-  /@semantic-release/github@9.2.4(semantic-release@22.0.9):
+  /@semantic-release/github@9.2.4(semantic-release@22.0.10):
     resolution: {integrity: sha512-VMzqiuSLhHc0/1Q8M/FmWnOaclh5aXL2pQWceldWBYSWLNzQu8GOR4bkGl57ciUtvm+MCMi4FaStZxSDJGEfUg==}
     engines: {node: '>=18'}
     peerDependencies:
@@ -1632,13 +1635,13 @@ packages:
       lodash-es: 4.17.21
       mime: 4.0.0
       p-filter: 3.0.0
-      semantic-release: 22.0.9(typescript@5.3.2)
+      semantic-release: 22.0.10(typescript@5.3.2)
       url-join: 5.0.0
     transitivePeerDependencies:
       - supports-color
     dev: true
 
-  /@semantic-release/npm@11.0.1(semantic-release@22.0.9):
+  /@semantic-release/npm@11.0.1(semantic-release@22.0.10):
     resolution: {integrity: sha512-nFcT0pgVwpXsPkzjqP3ObH+pILeN1AbYscCDuYwgZEPZukL+RsGhrtdT4HA1Gjb/y1bVbE90JNtMIcgRi5z/Fg==}
     engines: {node: ^18.17 || >=20}
     peerDependencies:
@@ -1655,12 +1658,12 @@ packages:
       rc: 1.2.8
       read-pkg: 9.0.1
       registry-auth-token: 5.0.2
-      semantic-release: 22.0.9(typescript@5.3.2)
+      semantic-release: 22.0.10(typescript@5.3.2)
       semver: 7.5.4
       tempy: 3.1.0
     dev: true
 
-  /@semantic-release/release-notes-generator@12.1.0(semantic-release@22.0.9):
+  /@semantic-release/release-notes-generator@12.1.0(semantic-release@22.0.10):
     resolution: {integrity: sha512-g6M9AjUKAZUZnxaJZnouNBeDNTCUrJ5Ltj+VJ60gJeDaRRahcHsry9HW8yKrnKkKNkx5lbWiEP1FPMqVNQz8Kg==}
     engines: {node: ^18.17 || >=20.6.1}
     peerDependencies:
@@ -1676,7 +1679,7 @@ packages:
       into-stream: 7.0.0
       lodash-es: 4.17.21
       read-pkg-up: 11.0.0
-      semantic-release: 22.0.9(typescript@5.3.2)
+      semantic-release: 22.0.10(typescript@5.3.2)
     transitivePeerDependencies:
       - supports-color
     dev: true
@@ -1829,6 +1832,15 @@ packages:
     resolution: {integrity: sha512-KQk5OMg5OH6rmbHZxuNROvdI+hKDIUxANaHlV+dPlNN7ED3qYQ/WkpY2qlXww1SIdeMlkIhpN/2L00rof0fXFw==}
     engines: {node: '>=12'}
     dev: false
+
+  /@ts-morph/common@0.22.0:
+    resolution: {integrity: sha512-HqNBuV/oIlMKdkLshXd1zKBqNQCsuPEsgQOkfFQ/eUKjRlwndXW1AjN9LVkBEIukm00gGXSRmfkl0Wv5VXLnlw==}
+    dependencies:
+      fast-glob: 3.3.2
+      minimatch: 9.0.3
+      mkdirp: 3.0.1
+      path-browserify: 1.0.1
+    dev: true
 
   /@types/cacheable-request@6.0.3:
     resolution: {integrity: sha512-IQ3EbTzGxIigb1I3qPZc1rWJnH0BmSKv5QYTalEwweFvyBDLSAe24zP0le/hyi7ecGfZVlIVAg4BZqb8WBwKqw==}
@@ -2368,7 +2380,7 @@ packages:
     hasBin: true
     dependencies:
       caniuse-lite: 1.0.30001566
-      electron-to-chromium: 1.4.603
+      electron-to-chromium: 1.4.605
       node-releases: 2.0.14
       update-browserslist-db: 1.0.13(browserslist@4.22.2)
     dev: true
@@ -2566,6 +2578,10 @@ packages:
       mimic-response: 1.0.1
     dev: false
 
+  /code-block-writer@12.0.0:
+    resolution: {integrity: sha512-q4dMFMlXtKR3XNBHyMHt/3pwYNA69EDk00lloMOaaUMKPUXBw6lpXtbu3MMVG6/uOihGnRDOlkyqsONEUj60+w==}
+    dev: true
+
   /code-red@1.0.4:
     resolution: {integrity: sha512-7qJWqItLA8/VPVlKJlFXU+NBlo/qyfs39aJcuMT/2ere32ZqvF5OSxgdM5xOfJJ7O429gg2HM47y8v9P+9wrNw==}
     dependencies:
@@ -2707,8 +2723,8 @@ packages:
     resolution: {integrity: sha512-ZQBvi1DcpJ4GDqanjucZ2Hj3wEO5pZDS89BWbkcrvdxksJorwUDDZamX9ldFkp9aw2lmBDLgkObEA4DWNJ9FYQ==}
     dev: true
 
-  /cosmiconfig@9.0.0(typescript@5.3.2):
-    resolution: {integrity: sha512-itvL5h8RETACmOTFc4UfIyB2RfEHi71Ax6E/PivVxq9NseKbOWpeyHEOIbmAw1rs8Ak0VursQNww7lf7YtUwzg==}
+  /cosmiconfig@8.3.6(typescript@5.3.2):
+    resolution: {integrity: sha512-kcZ6+W5QzcJ3P1Mt+83OUv/oHFqZHIx8DuxG6eZ5RGMERoLqp4BuGjhHLYGK+Kf5XVkQvqBSmAy/nGWN3qDgEA==}
     engines: {node: '>=14'}
     peerDependencies:
       typescript: '>=4.9.5'
@@ -2716,10 +2732,10 @@ packages:
       typescript:
         optional: true
     dependencies:
-      env-paths: 2.2.1
       import-fresh: 3.3.0
       js-yaml: 4.1.0
       parse-json: 5.2.0
+      path-type: 4.0.0
       typescript: 5.3.2
     dev: true
 
@@ -3032,8 +3048,8 @@ packages:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
     dev: false
 
-  /electron-to-chromium@1.4.603:
-    resolution: {integrity: sha512-Dvo5OGjnl7AZTU632dFJtWj0uJK835eeOVQIuRcmBmsFsTNn3cL05FqOyHAfGQDIoHfLhyJ1Tya3PJ0ceMz54g==}
+  /electron-to-chromium@1.4.605:
+    resolution: {integrity: sha512-V52j+P5z6cdRqTjPR/bYNxx7ETCHIkm5VIGuyCy3CMrfSnbEpIlLnk5oHmZo7gYvDfh2TfHeanB6rawyQ23ktg==}
     dev: true
 
   /emoji-regex@8.0.0:
@@ -3081,11 +3097,6 @@ packages:
     dependencies:
       execa: 8.0.1
       java-properties: 1.0.2
-    dev: true
-
-  /env-paths@2.2.1:
-    resolution: {integrity: sha512-+h1lkLKhZMTYjog1VEpJNG7NZJWcuc2DDk/qsqSTRRCOXiLjeQ1d1/udrUGhqMxUgAlwKNZ0cf2uqan5GLuS2A==}
-    engines: {node: '>=6'}
     dev: true
 
   /errno@0.1.8:
@@ -4901,7 +4912,6 @@ packages:
     engines: {node: '>=16 || 14 >=14.17'}
     dependencies:
       brace-expansion: 2.0.1
-    dev: false
 
   /minimist-options@4.1.0:
     resolution: {integrity: sha512-Q4r8ghd80yhO/0j1O3B2BjweX3fiHg9cdOwjJd2J76Q135c+NDxGCqdYKQ1SKBuFfgWbAUzBfvYjPUEeNgqN1A==}
@@ -4931,6 +4941,12 @@ packages:
     hasBin: true
     dependencies:
       minimist: 1.2.8
+    dev: true
+
+  /mkdirp@3.0.1:
+    resolution: {integrity: sha512-+NsyUUAZDmo6YVHzL/stxSu3t9YS1iljliy3BSDrXJ/dkn1KYdmtZODGGjLcc9XLgVVpH4KshHB8XmZgMhaBXg==}
+    engines: {node: '>=10'}
+    hasBin: true
     dev: true
 
   /moment@2.29.4:
@@ -5445,6 +5461,10 @@ packages:
     engines: {node: '>= 0.8'}
     dev: false
 
+  /path-browserify@1.0.1:
+    resolution: {integrity: sha512-b7uo2UCUOYZcnF/3ID0lulOJi/bafxa1xPe7ZPsammBSpjSWQkjNxlt635YGS2MiR9GjvuXCtz2emr3jbsz98g==}
+    dev: true
+
   /path-exists@3.0.0:
     resolution: {integrity: sha512-bpC7GYwiDYQ4wYLe+FA8lhRjhQCMcQGuSgGGqDkg/QerRWw9CmGRT0iSOVRSZJ29NMLZgIzqaljJ63oaL4NIJQ==}
     engines: {node: '>=4'}
@@ -5719,8 +5739,8 @@ packages:
       svelte: 4.2.8
     dev: true
 
-  /prettier-plugin-tailwindcss@0.5.8(prettier-plugin-svelte@3.1.2)(prettier@3.1.0):
-    resolution: {integrity: sha512-9XqjDi0zA/6IUYe3cC80+Eb+z0DU4vFF4yARVKddRZaW2ocBVawjpsFU7FtLn/xlBA8Fubp6Pd3HP3415Go4aw==}
+  /prettier-plugin-tailwindcss@0.5.9(prettier-plugin-svelte@3.1.2)(prettier@3.1.0):
+    resolution: {integrity: sha512-9x3t1s2Cjbut2QiP+O0mDqV3gLXTe2CgRlQDgucopVkUdw26sQi53p/q4qvGxMLBDfk/dcTV57Aa/zYwz9l8Ew==}
     engines: {node: '>=14.21.3'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
@@ -6096,18 +6116,18 @@ packages:
       parseley: 0.12.1
     dev: false
 
-  /semantic-release@22.0.9(typescript@5.3.2):
-    resolution: {integrity: sha512-4uDzd0r57oqExHsVad4LS86CagqEblCsWBZ3cZSxsWex4nkfLX0L+e5ImBDjeuzot1Ad8K3eE+Cm2OLJE7TsvQ==}
+  /semantic-release@22.0.10(typescript@5.3.2):
+    resolution: {integrity: sha512-4ahPaOX+0UYpYlosjc/tfCzB/cqlnjN0/xSKGryEC4bOpuYSkoK+QHw7xDPmAuiMNBBvkFD+m3aVMENUr++CIg==}
     engines: {node: ^18.17 || >=20.6.1}
     hasBin: true
     dependencies:
-      '@semantic-release/commit-analyzer': 11.1.0(semantic-release@22.0.9)
+      '@semantic-release/commit-analyzer': 11.1.0(semantic-release@22.0.10)
       '@semantic-release/error': 4.0.0
-      '@semantic-release/github': 9.2.4(semantic-release@22.0.9)
-      '@semantic-release/npm': 11.0.1(semantic-release@22.0.9)
-      '@semantic-release/release-notes-generator': 12.1.0(semantic-release@22.0.9)
+      '@semantic-release/github': 9.2.4(semantic-release@22.0.10)
+      '@semantic-release/npm': 11.0.1(semantic-release@22.0.10)
+      '@semantic-release/release-notes-generator': 12.1.0(semantic-release@22.0.10)
       aggregate-error: 5.0.0
-      cosmiconfig: 9.0.0(typescript@5.3.2)
+      cosmiconfig: 8.3.6(typescript@5.3.2)
       debug: 4.3.4
       env-ci: 10.0.0
       execa: 8.0.1
@@ -6863,6 +6883,13 @@ packages:
 
   /ts-interface-checker@0.1.13:
     resolution: {integrity: sha512-Y/arvbn+rrz3JCKl9C4kVNfTfSm2/mEp5FSz5EsZSANGPSlQrpRI5M4PKF+mJnE52jOO90PnPSc3Ur3bTQw0gA==}
+    dev: true
+
+  /ts-morph@21.0.1:
+    resolution: {integrity: sha512-dbDtVdEAncKctzrVZ+Nr7kHpHkv+0JDJb2MjjpBaj8bFeCkePU9rHfMklmhuLFnpeq/EJZk2IhStY6NzqgjOkg==}
+    dependencies:
+      '@ts-morph/common': 0.22.0
+      code-block-writer: 12.0.0
     dev: true
 
   /tslib@2.6.2:

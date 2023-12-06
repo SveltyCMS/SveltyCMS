@@ -107,9 +107,9 @@
 				$pkgBgColor = 'variant-filled-error';
 			}
 
-			console.log(`Local version: ${pkg}`);
-			console.log(`GitHub version: ${githubVersion}`);
-			console.log(`pkgBgColor: ${$pkgBgColor}`);
+			// console.log(`Local version: ${pkg}`);
+			// console.log(`GitHub version: ${githubVersion}`);
+			// console.log(`pkgBgColor: ${$pkgBgColor}`);
 		})
 		.catch((error) => console.error('Error:', error));
 

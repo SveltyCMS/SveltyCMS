@@ -1,8 +1,10 @@
 import { test } from '@playwright/test';
 
 test('Test loading', async ({ page }) => {
-	await page.goto('http://localhost:5173/');
-	await page.goto('http://localhost:5173/login');
+	console.log('Current URL:', page.url());
+	await page.screenshot({ path: 'error-screenshot.png' });
+	await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
+	await page.goto('http://localhost:5173/login', { waitUntil: 'domcontentloaded' });
 	// await expect(page).toHaveTitle(/SimpleCMS/)
 
 	// Expect this page

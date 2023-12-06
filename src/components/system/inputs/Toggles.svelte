@@ -22,9 +22,9 @@
 		<input name={label} type="checkbox" id="toggleSwitch{random}" class="peer sr-only" on:click={() => (value = !value)} />
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
-			<span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
+			<!-- <span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
 				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
-			</span>
+			</span> -->
 		</div>
 
 		<!-- icon with background color -->

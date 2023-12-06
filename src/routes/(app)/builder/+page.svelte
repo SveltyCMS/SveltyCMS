@@ -6,16 +6,22 @@
 	import { obj2formData } from '@src/utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
 	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import IconifyPicker from '@src/components/IconifyPicker.svelte';
+
 	import PageTitle from '@src/components/PageTitle.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
 
 	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';
 	let icon = $mode == 'edit' ? $collection.icon : '';
 	let status = $mode == 'edit' ? $collection.status : 'unpublish';
 	let slug = $mode == 'edit' ? $collection.slug : name;
+
+	//dropdown list
+	let items = ['published', 'unpublished', 'draft', 'schedule'];
 
 	let fields = [];
 	let addField = false;
@@ -41,6 +47,9 @@
 	}
 	collection.subscribe(() => {
 		name = $mode == 'edit' ? $collection.name : '';
+		icon = $mode == 'edit' ? $collection.icon : '';
+		status = $mode == 'edit' ? $collection.status : 'unpublish';
+		slug = $mode == 'edit' ? $collection.slug : name;
 	});
 </script>
 
@@ -66,7 +75,7 @@
 			<!-- unAssigned Selection -->
 			{#if $unAssigned && $unAssigned.length > 0}
 				<div class="mt-5 flex flex-col items-center justify-center rounded border border-warning-500">
-					<p class="border-b text-center text-warning-500">{m.builder_Unassinged()}</p>
+					<p class="border-b text-center text-warning-500">{m.builder_Unassigned()}</p>
 					<div class="m-1 flex flex-wrap gap-2 text-white">
 						{@html $unAssigned.map((x) => `<button class="badge variant-filled-primary" role="button" tabindex="0">${x.name}</button>`).join('')}
 					</div>
@@ -103,7 +112,7 @@
 		{#if $mode == 'create'}
 			<!-- add new collection fields -->
 			<div class="mt-3 min-w-[300px] gap-2 rounded bg-surface-500 p-2">
-				<p class="text-center text-xs text-error-500">{m.Builder_required()}</p>
+				<p class="text-center text-xs text-error-500">{m.builder_required()}</p>
 
 				<FloatingInput label="Name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
 				<p class="text-center text-xs text-primary-500">{m.builder_optional()}</p>
@@ -118,11 +127,16 @@
 		{:else if $mode == 'edit'}
 			<!-- edit collection fields -->
 			<div class="mt-3 space-y-2 bg-surface-500 p-2">
-				<p class="text-center text-xs text-error-500">{m.Builder_required()}</p>
+				<p class="text-center text-xs text-error-500">{m.builder_required()}</p>
 				<FloatingInput label="name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
 				<p class=" text-center text-xs">Optional</p>
-				<FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
+
+				<!-- <FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} /> -->
+				<IconifyPicker bind:iconselected={icon} />
+
 				<FloatingInput label="status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
+				<!-- <DropDown {items} bind:selected={status} /> -->
+
 				<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
 
 				<WidgetBuilder fields={$collection.fields} bind:addField />

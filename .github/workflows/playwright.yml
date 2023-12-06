@@ -66,6 +66,7 @@ jobs:
         run: npx playwright test
         # run: bunx playwright test
         env:
+          BASE_URL: http://localhost:5173/
           DB_HOST: mongodb://localhost:27017/?authSource=admin
           DB_NAME: SimpleCMS
           DB_USER: admin

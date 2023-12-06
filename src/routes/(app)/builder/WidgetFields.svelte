@@ -47,9 +47,7 @@
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
-		<div
-			class="fixed top-0 flex items-center justify-between bg-error-400 {$toggleLeftSidebar === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}"
-		>
+		<div class="fixed top-0 flex items-center justify-between {$toggleLeftSidebar === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}">
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
 			<div class="flex gap-2">

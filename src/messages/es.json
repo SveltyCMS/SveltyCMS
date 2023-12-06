@@ -276,8 +276,8 @@
 	"WidgetBuilder_AddColectionField": "Agregar campo de colección",
 	"builder_createnew": "Crear nuevo",
 	"builder_SaveCollection": "Guardar colección",
-	"Builder_required": "Requerido",
+	"builder_required": "Requerido",
 	"builder_optional": "Opcional",
 	"collection_SaveCategories": "Guardar categorías",
-	"builder_Unassinged": "Colecciones no asignadas"
+	"builder_Unassigned": "Colecciones no asignadas"
 }

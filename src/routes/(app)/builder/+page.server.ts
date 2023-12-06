@@ -30,12 +30,14 @@ export async function load(event) {
 export const actions: Actions = {
 	saveCollection: async ({ request }) => {
 		const formData = await request.formData();
+		console.log(formData);
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
 		const collectionIcon = JSON.parse(formData.get('collectionIcon') as string);
 		const collectionStatus = JSON.parse(formData.get('collectionStatus') as string);
 		const collectionSlug = JSON.parse(formData.get('collectionSlug') as string);
+
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);
 
@@ -110,37 +112,38 @@ export const actions: Actions = {
 	}
 };
 
-async function goThrough(object: any, imports: Set<string> = new Set()) {
+// Recursively goes through an collection fields.
+async function goThrough(object: any): Promise<string> {
 	const widgets = (await import('../../../components/widgets')).default;
-	if (object instanceof Object) {
-		for (const key in object) {
-			const field = object[key];
-			await goThrough(field, imports);
+	const imports = new Set<string>();
 
-			if (field.widget) {
-				const widget = widgets[field.widget.key];
-				for (const key in widget.GuiSchema) {
-					if (!widget.GuiSchema[key].imports) continue;
-					for (const _import of widget.GuiSchema[key].imports) {
-						const replacement = field[key].replaceAll('🗑️', '').trim();
-						imports.add(_import.replaceAll(`{${key}}`, replacement));
+	//Asynchronously processes a field recursively.
+	async function processField(field: any) {
+		if (field instanceof Object) {
+			for (const key in field) {
+				await processField(field[key]);
+
+				if (field[key]?.widget) {
+					const widget = widgets[field[key].widget.key];
+					for (const importKey in widget.GuiSchema) {
+						const widgetImport = widget.GuiSchema[importKey].imports;
+						if (widgetImport) {
+							for (const _import of widgetImport) {
+								const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+								imports.add(_import.replace(`{${importKey}}`, replacement));
+							}
+						}
 					}
-				}
 
-				object[key] = `🗑️widgets.${object[key].widget.key}(
-					${JSON.stringify(object[key].widget.GuiFields, (key, value) => {
-						if (key == 'type' || key == 'key') {
-							return undefined;
-						}
-						if (typeof value == 'string') {
-							console.log(value);
-							return value.replace(/\s*🗑️\s*/g, '🗑️').trim();
-						}
-						return value;
-					})}
-				)🗑️`;
+					field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+						k === 'type' || k === 'key' ? undefined : typeof value === 'string' ? value.replace(/\s*🗑️\s*/g, '🗑️').trim() : value
+					)})🗑️`;
+				}
 			}
 		}
 	}
+
+	await processField(object);
+
 	return Array.from(imports).join('\n');
 }
