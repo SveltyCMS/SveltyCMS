@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { PUBLIC_SEASSONS, PUBLIC_SITENAME } from '$env/static/public';
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import Logo from './components/icons/Logo.svelte';
@@ -47,12 +47,14 @@
 		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 				<!-- Seasons -->
-				{#if isDecember}
-					<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
-				{/if}
+				{#if PUBLIC_SEASSONS}
+					{#if isDecember}
+						<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+					{/if}
 
-				{#if isHalloween}
-					<img src="/Halloween.png" alt="Spider" class="absolute -bottom-[170px] left-0" />
+					{#if isHalloween}
+						<img src="/Halloween.png" alt="Spider" class="absolute -bottom-[170px] left-0" />
+					{/if}
 				{/if}
 
 				<!-- red circle -->

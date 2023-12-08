@@ -1,5 +1,5 @@
 import { redirect, type Actions } from '@sveltejs/kit';
-import { auth, getCollectionModels } from '../../api/db';
+import { auth, getCollectionModels } from '@src/routes/api/db';
 import { validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import type { WidgetType } from '@src/components/widgets';
@@ -7,7 +7,7 @@ import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@src/collections';
-import { compile } from '../../api/compile/compile';
+import { compile } from '@src/routes/api/compile/compile';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 

@@ -54,7 +54,7 @@
 
 	import axios from 'axios';
 	import SimpleCmsLogo from '@src/components/SimpleCMS_Logo.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { PUBLIC_SEASSONS, PUBLIC_SITENAME } from '$env/static/public';
 	import ControlPanel from '@src/components/ControlPanel.svelte';
 	import Collections from '@src/components/Collections.svelte';
 	import { getDates } from '@src/utils/utils';
@@ -306,7 +306,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 
 						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white"
 							>{PUBLIC_SITENAME}
-							{#if currentMonth === 11}
+
+							{#if PUBLIC_SEASSONS && currentMonth === 11}
 								<img src="/SantaHat.png" alt="Santa hat" class="z-100 absolute right-[-11px] top-[-8px] h-8 w-8 -rotate-[25deg]" />
 							{/if}
 						</span>
