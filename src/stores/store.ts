@@ -20,6 +20,9 @@ export const collection: Writable<Schema> = writable();
 // Collections stores
 export const currentCollection = writable(null);
 
+// Permission store
+export const permissionStore = writable({});
+
 // Create a writable store for Avatar
 export const avatarSrc: Writable<string> = writable();
 
@@ -30,7 +33,7 @@ export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANG
 // Create a writable store for systemLanguage
 export const systemLanguage = writable(globalThis?.localStorage?.getItem('systemLanguage') || sourceLanguageTag);
 
-//Filter systemLanguage via envirment file
+//Filter systemLanguage via environment file
 export const AVAILABLE_SYSTEMLANGUAGES = PUBLIC_AVAILABLE_SYSTEMLANGUAGES
 	? (JSON.parse(PUBLIC_AVAILABLE_SYSTEMLANGUAGES) as string[])
 	: availableLanguageTags; // default value

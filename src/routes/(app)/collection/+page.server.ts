@@ -4,10 +4,14 @@ import { validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 // Load function that handles authentication and user validation
-export async function load(event: any) {
+
+export async function load(event) {
+	// Get session cookie value as string
 	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	// Validate user using auth and session value
 	const user = await validate(auth, session);
-	if (user.status === 200) {
+	// If user status is 200, return user object
+	if (user.status == 200) {
 		return {
 			user: user.user
 		};

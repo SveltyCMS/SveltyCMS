@@ -1,5 +1,15 @@
 <script lang="ts">
 	import PageTitle from '@src/components/PageTitle.svelte';
+	import Permissions from '@src/components/Permissions.svelte';
+
+	let permissions = {};
+	let availablePermissions = ['read', 'write', 'delete']; // Add more permissions as needed
+	function setPermission(role, permission, value) {
+		if (!permissions[role]) {
+			permissions[role] = {};
+		}
+		permissions[role][permission] = value;
+	}
 
 	// Collection Creation
 	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
@@ -254,7 +264,10 @@
 						/>
 					</div>
 				</div>
+				<!-- Permission -->
+				<Permissions />
 
+				<!-- Buttons -->
 				<div class="flex justify-between">
 					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
