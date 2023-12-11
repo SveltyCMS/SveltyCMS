@@ -62,6 +62,9 @@ jobs:
         run: npx playwright install --with-deps
         # run: bunx playwright install --with-deps
 
+      - name: Run local server
+        run: pnpm dev
+
       - name: Run Playwright tests
         run: npx playwright test
         # run: bunx playwright test
