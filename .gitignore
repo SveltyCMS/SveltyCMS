@@ -31,3 +31,4 @@ yarn-error.log*
 /test-results/
 /playwright-report/
 /playwright/.cache/
+/error-screenshot.png

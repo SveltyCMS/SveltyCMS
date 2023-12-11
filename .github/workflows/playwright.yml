@@ -50,6 +50,9 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+
+      - name: Install pnpm
+        run: npm install -g pnpm
         # run: pnpm install
         # run: bun install
 
@@ -61,6 +64,9 @@ jobs:
       - name: Install Playwright Browsers
         run: npx playwright install --with-deps
         # run: bunx playwright install --with-deps
+
+      - name: Run local server
+        run: pnpm dev &
 
       - name: Run Playwright tests
         run: npx playwright test

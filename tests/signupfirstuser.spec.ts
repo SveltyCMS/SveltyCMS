@@ -2,7 +2,7 @@ import { test } from '@playwright/test';
 
 test('Test loading', async ({ page }) => {
 	await page.goto('http://localhost:5173/', { waitUntil: 'domcontentloaded' });
-	await page.screenshot({ path: 'error-screenshot.png' });
+	// await page.screenshot({ path: 'error-screenshot.png' });
 	console.log('Current URL:', page.url());
 	await page.goto('http://localhost:5173/login', { waitUntil: 'domcontentloaded' });
 	// await expect(page).toHaveTitle(/SimpleCMS/)
