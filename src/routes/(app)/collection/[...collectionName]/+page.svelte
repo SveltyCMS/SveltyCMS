@@ -177,7 +177,13 @@
 		<Tab bind:group={tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>Widget Fields</span>
+				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>Permissions</span>
+			</div>
+		</Tab>
+		<Tab bind:group={tabSet} name="tab3" value={2}>
+			<div class="flex items-center gap-1">
+				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
+				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 2}>Widget Fields</span>
 			</div>
 		</Tab>
 
@@ -264,17 +270,27 @@
 						/>
 					</div>
 				</div>
+
+					<!-- Buttons -->
+					<div class="flex justify-between">
+						<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
+						<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
+					</div>
+
+				{:else if tabSet === 1}
 				<!-- Permission -->
 				<Permissions />
 
 				<!-- Buttons -->
 				<div class="flex justify-between">
 					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
+					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-primary btn mt-2">Next</button>
 				</div>
 
+			
+
 				<!-- Manage Fields -->
-			{:else if tabSet === 1}
+			{:else if tabSet === 2}
 				<h2 class="mb-2 flex items-center">
 					<p>Field field for :</p>
 					<iconify-icon icon={iconselected} width="24" class="mx-1 text-primary-500" />

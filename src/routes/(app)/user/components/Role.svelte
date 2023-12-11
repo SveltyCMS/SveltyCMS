@@ -11,12 +11,12 @@
 		value === roles.admin
 			? 'badge gradient-primary'
 			: value === roles.developer
-			  ? 'badge gradient-pink'
-			  : value === roles.editor
-			    ? 'badge gradient-tertiary'
-			    : value === roles.user
-			      ? 'badge gradient-secondary'
-			      : 'text-white'
+				? 'badge gradient-pink'
+				: value === roles.editor
+					? 'badge gradient-tertiary'
+					: value === roles.user
+						? 'badge gradient-secondary'
+						: 'text-white'
 	} rounded-full text-white`;
 </script>
 

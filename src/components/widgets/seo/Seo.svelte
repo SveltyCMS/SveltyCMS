@@ -293,10 +293,10 @@
 		class={title.length >= 50 && title.length <= 60
 			? 'input-label green'
 			: title.length >= 30 && title.length <= 49
-			  ? 'input-label orange'
-			  : title.length < 30
-			    ? 'input-label'
-			    : 'input-label red'}
+				? 'input-label orange'
+				: title.length < 30
+					? 'input-label'
+					: 'input-label red'}
 	>
 		<div class="flex items-center justify-between">
 			<div class="text-black dark:text-white">{m.widget_seo_suggestiontitle()}</div>
@@ -331,10 +331,10 @@
 		class={description.length >= 120 && description.length <= 165
 			? 'input-label green'
 			: description.length >= 30 && description.length <= 129
-			  ? 'input-label orange'
-			  : description.length < 30
-			    ? 'input-label'
-			    : 'input-label red'}
+				? 'input-label orange'
+				: description.length < 30
+					? 'input-label'
+					: 'input-label red'}
 	>
 		<div class="flex justify-between">
 			<div class="text-black dark:text-white">{m.widget_seo_suggestiondescription()}</div>

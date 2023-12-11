@@ -83,8 +83,9 @@
 				src={URL.createObjectURL(image)}
 				alt={image ? 'Decorative Image' : ''}
 				class="h-full w-full object-contain filter"
-				style={`filter: blur(${blurAmount}px);`}
+				style={`filter: blur(${blurAmount}px); position: relative;`}
 			/>
+
 			<!-- Use a button element to delete the blur area -->
 			<!-- Delete Content -->
 			<button type="button" on:click={handleDelete} class="gradient-error gradient-error-hover gradient-error-focus btn-icon absolute left-2 top-2">

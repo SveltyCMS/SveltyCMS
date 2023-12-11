@@ -82,14 +82,19 @@
 	{#if filteredRolesArray.length > 0}
 		<!-- Search Filter by role -->
 		<div class="input-group input-group-divider max-w-sm grid-cols-[auto_1fr_auto]">
-			<div class="input-group-shim"><iconify-icon icon="material-symbols:search" /></div>
+			<div class="input-group-shim">
+				<iconify-icon icon="material-symbols:search" />
+			</div>
 			<input bind:value={searchQuery} type="search" placeholder="Search..." />
 		</div>
 	{/if}
 
 	<!-- Add Permission -->
 	{#if MorePermissions}
-		<button on:click={addPermission} class="variant-filled-tertiary btn justify-end">Add Permission</button>
+		<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-end text-center sm:w-auto">
+			<iconify-icon icon="material-symbols:add" color="white" width="18" class="mr-1" />
+			Add Permissions</button
+		>
 	{/if}
 </div>
 {#if filteredRolesArray.length > 0}
@@ -137,7 +142,7 @@
 								</button>
 							</td>
 						{/each}
-
+						<!--Delete -->
 						<td class="text-center">
 							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
 						</td>

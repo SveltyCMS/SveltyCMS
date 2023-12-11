@@ -11,14 +11,14 @@
 	class={value === 'published'
 		? 'gradient-primary badge rounded'
 		: value === 'unpublished'
-		  ? 'gradient-yellow badge rounded'
-		  : value === 'schedule'
-		    ? 'gradient-pink badge rounded'
-		    : value === 'clone'
-		      ? 'gradient-secondary badge rounded'
-		      : value === 'testing'
-		        ? 'gradient-error badge rounded'
-		        : 'badge rounded text-white'}
+			? 'gradient-yellow badge rounded'
+			: value === 'schedule'
+				? 'gradient-pink badge rounded'
+				: value === 'clone'
+					? 'gradient-secondary badge rounded'
+					: value === 'testing'
+						? 'gradient-error badge rounded'
+						: 'badge rounded text-white'}
 >
 	{#if value == 'published'}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mr-2" /><span class="status-text hidden md:inline"

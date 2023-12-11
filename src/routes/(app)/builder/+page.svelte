@@ -37,7 +37,7 @@
 						status: $collection.status,
 						slug: $collection.slug,
 						fields: $collection.fields
-				  })
+					})
 				: obj2formData({ fields, collectionName: name, icon, status, slug });
 		axios.post(`?/saveCollection`, data, {
 			headers: {
