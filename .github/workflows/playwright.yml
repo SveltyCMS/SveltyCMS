@@ -76,6 +76,7 @@ jobs:
           HOST_PROD: http://localhost:4173
           PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
           PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
+          PUBLIC_SEASSONS: true
           PUBLIC_PKG: '{ VERSION: pkg.version }'
           PUBLIC_MEDIA_FOLDER: media
           PUBLIC_MEDIASERVER_URL: ''
