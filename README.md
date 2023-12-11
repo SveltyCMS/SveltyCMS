@@ -37,7 +37,7 @@
   <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
-<h2 align="center">A powerful Headless CMS with sveltekit power</h2>
+<h2 align="center">A powerful Headless CMS with sveltekit power.</h2>
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
 
