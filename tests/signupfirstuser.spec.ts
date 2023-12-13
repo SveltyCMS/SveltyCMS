@@ -104,11 +104,29 @@ test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/en/Posts');
 });
 
+
+// Signout user after login
 test('SignOut', async ({ page }) => {
-	await page.goto('http://localhost:4173/en/Posts');
-	await page.getByText('Posts').click();
+	await page.goto('http://localhost:4173/login');
+	await page.locator('p').filter({ hasText: 'Sign In' }).click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Email Address * Password * Sign In' })
+		.locator('#email-address')
+		.fill('test@test.de', { timeout: 60000 });
+	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
+	await page.getByRole('button', { name: 'Sign In' }).click();
+	const pageContentElement = (await page.$('#page-content')) ?? null;
+	if (pageContentElement) {
+		const buttonsInsidePageContent = await pageContentElement.$$('button');
+		await buttonsInsidePageContent[0].click();
+	}
 	await page.getByTestId('app-shell').locator('div').filter({ hasText: 'Sign Out' }).nth(3);
-	await page.locator('.order-4 > .btn-icon').click();
+	const signOutButton = await page.$('.btn-icon[value="Sign out"]');
+	if (signOutButton) {
+		await signOutButton.click();
+	}
+
 	await page.goto('http://localhost:4173/login');
 });
 
