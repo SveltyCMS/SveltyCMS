@@ -1,7 +1,6 @@
 import { test } from '@playwright/test';
 
 test('Test loading', async ({ page }) => {
-
 	await page.goto('http://localhost:4173/', { waitUntil: 'domcontentloaded' });
 
 	// await page.screenshot({ path: 'error-screenshot.png' });
@@ -104,6 +103,7 @@ test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/en/Posts');
 });
 
+// Signout user after login
 test('SignOut', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
