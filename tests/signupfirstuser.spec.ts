@@ -149,3 +149,25 @@ test('Login First User', async ({ page }) => {
 
 	await page.goto('http://localhost:4173/en/Posts');
 });
+
+test('Forgot Password', async ({ page }) => {
+	await page.goto('http://localhost:5173/login');
+	const forgottenPasswordButton = await page.waitForSelector('button:has-text("Forgotten Password")');
+	await forgottenPasswordButton.click();
+	(await page.locator('#email-address')).nth(0).fill('test@test2.de');
+	const sendPasswordEmail = await page.waitForSelector('button:has-text("Send Password Reset Email")');
+	await sendPasswordEmail.click();
+	await page
+		.locator('form')
+		.filter({ hasText: 'Password * Confirm Password * Registration Token' })
+		.locator('#password')
+		.fill('Test123!', { timeout: 60000 });
+	await page
+		.locator('form')
+		.filter({ hasText: 'Password * Confirm Password * Registration Token' })
+		.locator('#confirm-password')
+		.fill('Test123!', { timeout: 60000 });
+
+	const saveNewPassword = await page.waitForSelector('button:has-text("Save New Password")');
+	await saveNewPassword.click();
+});

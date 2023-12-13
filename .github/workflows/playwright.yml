@@ -70,7 +70,7 @@ jobs:
         run: npm run build && npm run preview &
 
       - name: Run Playwright tests
-        run: npx playwright test
+        run: npx playwright test --workers 4
         # run: bunx playwright test
         env:
           # BASE_URL: http://localhost:5173/
