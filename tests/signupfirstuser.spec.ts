@@ -1,7 +1,6 @@
 import { test } from '@playwright/test';
 
 test('Test loading', async ({ page }) => {
-
 	await page.goto('http://localhost:4173/', { waitUntil: 'domcontentloaded' });
 
 	// await page.screenshot({ path: 'error-screenshot.png' });
@@ -104,7 +103,6 @@ test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/en/Posts');
 });
 
-
 // Signout user after login
 test('SignOut', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
@@ -151,7 +149,7 @@ test('Login First User', async ({ page }) => {
 });
 
 test('Forgot Password', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto('http://localhost:4173/login');
 	const forgottenPasswordButton = await page.waitForSelector('button:has-text("Forgotten Password")');
 	await forgottenPasswordButton.click();
 	(await page.locator('#email-address')).nth(0).fill('test@test2.de');

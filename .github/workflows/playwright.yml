@@ -18,6 +18,7 @@ jobs:
         pnpm-version: [latest]
         bun-version: [latest]
         mongodb-version: [latest]
+        file: ['/tests/signupfirstuser.spect.ts', '/tests/user.spect.ts']
 
     steps:
       - name: Git checkout
@@ -66,11 +67,12 @@ jobs:
         # run: bunx playwright install --with-deps
 
       - name: Run local server
-
         run: npm run build && npm run preview &
 
       - name: Run Playwright tests
-        run: npx playwright test --workers 4
+        run: npx playwright test ${{ matrix.file }}
+
+        # run: npx playwright test
         # run: bunx playwright test
         env:
           # BASE_URL: http://localhost:5173/
