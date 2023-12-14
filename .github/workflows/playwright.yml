@@ -58,7 +58,6 @@ jobs:
 
       - name: Build Languages
         run: npm run inlang
-
         # run: pnpm inlang
         # run: bun inlang
 
@@ -67,12 +66,11 @@ jobs:
         # run: bunx playwright install --with-deps
 
       - name: Run local server
+
         run: npm run build && npm run preview &
 
       - name: Run Playwright tests
         run: npx playwright test
-
-        # run: npx playwright test
         # run: bunx playwright test
         env:
           # BASE_URL: http://localhost:5173/
@@ -104,7 +102,7 @@ jobs:
           PUBLIC_MAPBOX_API_TOKEN: ''
           SECRET_MAPBOX_API_TOKEN: ''
           VITE_OPEN_AI_KEY: ''
-        # Add more environment variables as needed...
+          # Add more environment variables as needed...
 
       - uses: actions/upload-artifact@v3
         if: always()
