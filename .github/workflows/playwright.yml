@@ -59,6 +59,9 @@ jobs:
 
       - name: Build Languages
         run: npm run inlang
+
+      - name: Install dotenv-cli
+        run: npm install -g dotenv-cli
         # run: pnpm inlang
         # run: bun inlang
 
@@ -69,42 +72,47 @@ jobs:
       - name: Run local server
         run: npm run build && npm run preview &
 
-      - name: Run Playwright tests
-        run: npx playwright test ${{ matrix.file }}
+      - name: Run Playwright tests - File 1
+        run: dotenv -e .env.example npx playwright test /tests/signupfirstuser.spec.ts
+        # env:
+        # Add environment variables specific to signupfirstuser.spec.ts...
+
+      - name: Run Playwright tests - File 2
+        run: dotenv -e .env.example npx playwright test /tests/user.spec.ts
 
         # run: npx playwright test
         # run: bunx playwright test
-        env:
-          # BASE_URL: http://localhost:5173/
-          DB_HOST: mongodb://localhost:27017/?authSource=admin
-          DB_NAME: SimpleCMS
-          DB_USER: admin
-          DB_PASSWORD: admin
-          PUBLIC_SITENAME: SimpleCMS
-          HOST_DEV: http://localhost:5173
-          HOST_PROD: http://localhost:4173
-          PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
-          PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
-          PUBLIC_SEASSONS: true
-          PUBLIC_PKG: '{ VERSION: pkg.version }'
-          PUBLIC_MEDIA_FOLDER: media
-          PUBLIC_MEDIASERVER_URL: ''
-          PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
-          PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
-          PUBLIC_USE_GOOGLE_OAUTH: 'false'
-          SECRET_GOOGLE_API_KEY: ''
-          SECRET_GOOGLE_CLIENT_ID: ''
-          SECRET_GOOGLE_CLIENT_SECERT: ''
-          SECRET_TWITCH_TOKEN: ''
-          SECRET_TIKTOK_TOKEN: ''
-          SMTP_HOST: ''
-          SMTP_PORT: ''
-          SMTP_PASSWORD: ''
-          SMTP_EMAIL: 'test@example.com'
-          PUBLIC_MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-          VITE_OPEN_AI_KEY: ''
-          # Add more environment variables as needed...
+        # env:
+        #   # BASE_URL: http://localhost:5173/
+        #   DB_HOST: mongodb://localhost:27017/?authSource=admin
+        #   DB_NAME: SimpleCMS
+        #   DB_USER: admin
+        #   DB_PASSWORD: admin
+        #   PUBLIC_SITENAME: SimpleCMS
+        #   HOST_DEV: http://localhost:5173
+        #   HOST_PROD: http://localhost:4173
+        #   PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
+        #   PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
+        #   PUBLIC_SEASSONS: true
+        #   PUBLIC_PKG: '{ VERSION: pkg.version }'
+        #   PUBLIC_MEDIA_FOLDER: media
+        #   PUBLIC_MEDIASERVER_URL: ''
+        #   PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
+        #   PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
+        #   PUBLIC_USE_GOOGLE_OAUTH: 'false'
+        #   SECRET_GOOGLE_API_KEY: ''
+        #   SECRET_GOOGLE_CLIENT_ID: ''
+        #   SECRET_GOOGLE_CLIENT_SECERT: ''
+        #   SECRET_TWITCH_TOKEN: ''
+        #   SECRET_TIKTOK_TOKEN: ''
+        #   SMTP_HOST: ''
+        #   SMTP_PORT: ''
+        #   SMTP_PASSWORD: ''
+        #   SMTP_EMAIL: 'test@example.com'
+        #   PUBLIC_MAPBOX_API_TOKEN: ''
+        #   SECRET_MAPBOX_API_TOKEN: ''
+        #   VITE_OPEN_AI_KEY: ''
+        # Add more environment variables as needed...
 
       - uses: actions/upload-artifact@v3
         if: always()
