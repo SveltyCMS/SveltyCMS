@@ -9,12 +9,12 @@ import { test } from '@playwright/test';
 // });
 
 test('Edit Avatar', async ({ page }) => {
-	await page.goto('http://localhost:5173/login');
+	await page.goto('http://localhost:4173/login');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
 	await page.locator('#page-content').filter({ hasText: 'Collections' }).nth(0).waitFor();
-	await page.goto('http://localhost:5173/user');
+	await page.goto('http://localhost:4173/user');
 	await page.locator('button').filter({ hasText: 'Edit Avatar' }).nth(0).waitFor();
 	await page.getByRole('button').filter({ hasText: 'Edit Avatar' }).click();
 	await page.waitForSelector('input[type="file"]', { timeout: 60000 });
