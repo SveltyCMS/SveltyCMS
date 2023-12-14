@@ -18,7 +18,7 @@ jobs:
         pnpm-version: [latest]
         bun-version: [latest]
         mongodb-version: [latest]
-        file: ['/tests/signupfirstuser.spect.ts', '/tests/user.spect.ts']
+        file: ['/tests/signupfirstuser.spec.ts', '/tests/user.spec.ts']
 
     steps:
       - name: Git checkout
