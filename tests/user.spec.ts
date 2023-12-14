@@ -13,11 +13,11 @@ test('Edit Avatar', async ({ page }) => {
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
-	await page.locator('#page-content').filter({ hasText: 'Collections' }).nth(0).waitFor();
+	await page.locator('#page-content').filter({ hasText: 'Collections' }).nth(0).waitFor({ state: 'visible' });
 	await page.goto('http://localhost:4173/user');
-	await page.locator('button').filter({ hasText: 'Edit Avatar' }).nth(0).waitFor();
+	await page.locator('button').filter({ hasText: 'Edit Avatar' }).nth(0).waitFor({ state: 'visible' });
 	await page.getByRole('button').filter({ hasText: 'Edit Avatar' }).click();
-	await page.waitForSelector('input[type="file"]', { timeout: 60000 });
+	await page.locator('input[type="file"]').waitFor({ state: 'visible', timeout: 60000 });
 	const fileInput = await page.locator('input[type="file"]');
 	await fileInput.setInputFiles('/download.png');
 	page.on('filechooser', async (fileChooser) => {
