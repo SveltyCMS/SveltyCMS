@@ -63,7 +63,7 @@ test('SignUp First User', async ({ page }) => {
 		.locator('form')
 		.filter({ hasText: 'Username * Email Address * Password * Confirm Password *' })
 		.locator('#email-address')
-		.fill('test@test.de');
+		.fill('test@test2.de');
 	await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Confirm Password *' }).locator('#password').fill('Test123');
 	await page.locator('form').filter({ hasText: 'Username * Email Address * Password * Confirm Password *' }).locator('#password').press('Tab');
 	// await page.getByText('Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character,String must contain at least 8 character(s)');
@@ -111,7 +111,7 @@ test('SignOut', async ({ page }) => {
 		.locator('form')
 		.filter({ hasText: 'Email Address * Password * Sign In' })
 		.locator('#email-address')
-		.fill('test@test.de', { timeout: 60000 });
+		.fill('test@test2.de', { timeout: 60000 });
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
 	const pageContentElement = (await page.$('#page-content')) ?? null;
@@ -137,10 +137,10 @@ test('Login First User', async ({ page }) => {
 	// await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In OAuth Forgotten Password' }).locator('#password').click();
 	// await page.getByText('Email must be a valid email');
 	await page.locator('span').filter({ hasText: 'Email must be a valid email' });
-	// await page.locator('form').locator('#email-address').nth(0).fill('test@test.de');
+	// await page.locator('form').locator('#email-address').nth(0).fill('test@test2.de');
 	// await page.locator('form').locator('#password').nth(0).fill('Test123!');
 	// await page.locator('form').filter({ hasText: 'Email Address * Invalid email Password * Sign In OAuth Forgotten Password' }).locator('#email-address').click();
-	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
+	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test2.de');
 	// await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In OAuth Forgotten Password' }).locator('#password').click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
