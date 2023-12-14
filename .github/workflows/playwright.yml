@@ -73,8 +73,11 @@ jobs:
 
       - name: Run Playwright tests - File 1
         run: dotenv -e .env.example npx playwright test
-        # env:
-        # Add environment variables specific to signupfirstuser.spec.ts..
+        env:
+          DB_HOST: mongodb://localhost:27017/?authSource=admin
+          DB_NAME: SimpleCMS
+          DB_USER: admin
+          DB_PASSWORD: admin
 
         # run: npx playwright test
         # run: bunx playwright test
