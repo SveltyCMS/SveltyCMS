@@ -159,11 +159,13 @@ test('Forgot Password', async ({ page }) => {
 		.locator('form')
 		.filter({ hasText: 'Password * Confirm Password * Registration Token' })
 		.locator('#password')
+		.nth(0)
 		.fill('Test123!', { timeout: 60000 });
 	await page
 		.locator('form')
 		.filter({ hasText: 'Password * Confirm Password * Registration Token' })
 		.locator('#confirm-password')
+		.nth(0)
 		.fill('Test123!', { timeout: 60000 });
 
 	const saveNewPassword = await page.waitForSelector('button:has-text("Save New Password")');
