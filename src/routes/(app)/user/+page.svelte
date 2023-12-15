@@ -1,8 +1,8 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import '@src/stores/store';
+	import '@stores/store';
 
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	export let data: PageData;
 
@@ -26,8 +26,8 @@
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import AdminArea from './components/AdminArea.svelte';
-	import { avatarSrc } from '@src/stores/store';
-	import { roles } from '@src/collections/types';
+	import { avatarSrc } from '@stores/store';
+	import { roles } from '@collections/types';
 
 	// let avatarSrc = writable(user?.avatar);
 	avatarSrc.set(user?.avatar);

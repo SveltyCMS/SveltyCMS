@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-	import { contentLanguage } from '@src/stores/store';
-	import { translationStatusOpen } from '@src/stores/store';
+	import { contentLanguage, translationStatusOpen } from '@stores/store';
 
 	//console.log('contentLanguage', contentLanguage);
 

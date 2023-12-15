@@ -2,7 +2,7 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
-	import { categories } from '@src/stores/store';
+	import { categories } from '@stores/store';
 
 	export let currentCategories: any;
 

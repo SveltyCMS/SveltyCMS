@@ -1,13 +1,13 @@
 <script lang="ts">
-	import PageTitle from '@src/components/PageTitle.svelte';
-	import TanstackTable from '@src/components/system/tanstack/TanstackTable.svelte';
-	import { formatSize } from '@src/utils/utils';
+	import PageTitle from '@components/PageTitle.svelte';
+	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
+	import { formatSize } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// TanstackFilter
-	import TanstackFilter from '@src/components/system/tanstack/TanstackFilter.svelte';
+	import TanstackFilter from '@components/system/tanstack/TanstackFilter.svelte';
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;

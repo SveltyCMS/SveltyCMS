@@ -2,7 +2,7 @@
 import ImageArray from './ImageArray.svelte';
 import ImageUpload from '../imageUpload';
 
-import { getFieldName, getGuiFields } from '@src/utils/utils.js';
+import { getFieldName, getGuiFields } from '@utils/utils';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 

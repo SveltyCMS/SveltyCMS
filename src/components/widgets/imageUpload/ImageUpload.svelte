@@ -2,8 +2,8 @@
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { FieldType } from './';
-	import { entryData, mode, loadingProgress } from '@src/stores/store';
-	import { getFieldName } from '@src/utils/utils';
+	import { entryData, mode, loadingProgress } from '@stores/store';
+	import { getFieldName } from '@utils/utils';
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 

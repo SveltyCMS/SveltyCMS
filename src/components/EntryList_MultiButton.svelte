@@ -3,7 +3,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	import { createEventDispatcher } from 'svelte';
-	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@src/stores/store';
+	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@stores/store';
 	import { get } from 'svelte/store';
 
 	const dispatch = createEventDispatcher();

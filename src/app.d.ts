@@ -4,11 +4,11 @@
 declare global {
 	/// <reference types="lucia" />
 	declare namespace Lucia {
-		type Auth = import('@src/routes/api/db.ts').Auth; // no change
+		type Auth = import('@api/db.ts').Auth; // no change
 		type DatabaseUserAttributes = {
 			//username: string;
 		};
-		type DatabaseSessionAttributes = {}; // new
+		type DatabaseSessionAttributes = {};
 	}
 
 	/// <reference path="./types/**/*.d.ts" />

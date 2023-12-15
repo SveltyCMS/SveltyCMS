@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { categories, unAssigned } from '@src/stores/store';
+	import { categories, unAssigned } from '@stores/store';
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
@@ -11,8 +11,8 @@
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import ModalCategory from './ModalCategory.svelte';
-	import PageTitle from '@src/components/PageTitle.svelte';
-	import { generateUniqueId } from '@src/utils/utils';
+	import PageTitle from '@components/PageTitle.svelte';
+	import { generateUniqueId } from '@utils/utils';
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {

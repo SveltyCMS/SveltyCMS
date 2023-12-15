@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { collectionValue, contentLanguage, collection } from '@src/stores/store';
+	import { collectionValue, contentLanguage, collection } from '@stores/store';
 
-	import { asAny, getFieldName } from '@src/utils/utils';
+	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;
 	export let root = true; // if Fields is not part of any widget.

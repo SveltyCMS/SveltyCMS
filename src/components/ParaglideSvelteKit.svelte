@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { languageTag, onSetLanguageTag, setLanguageTag } from '@src/paraglide/runtime';
-	import { systemLanguage } from '@src/stores/store';
+	import { systemLanguage } from '@stores/store';
 
 	// initialize the language tag
 	$: _languageTag = languageTag;

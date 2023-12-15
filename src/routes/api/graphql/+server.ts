@@ -4,9 +4,9 @@ import type { RequestEvent } from '@sveltejs/kit';
 
 import mongoose from 'mongoose';
 
-import { getCollections } from '@src/collections';
-import widgets from '@src/components/widgets';
-import { getFieldName } from '@src/utils/utils';
+import { getCollections } from '@collections';
+import widgets from '@components/widgets';
+import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 
 let typeDefs = /* GraphQL */ ``;

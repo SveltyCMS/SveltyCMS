@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { roles } from '@src/collections/types';
+	import { roles } from '@collections/types';
 	import { invalidateAll } from '$app/navigation';
 
 	// Props

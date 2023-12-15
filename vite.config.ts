@@ -44,14 +44,6 @@ const config = {
 
 	server: { fs: { allow: ['static', '.'] } },
 
-	resolve: {
-		alias: {
-			'@src': Path.resolve('src/'),
-			'@static': Path.resolve('static/'),
-			'@root': Path.resolve('./')
-		}
-	},
-
 	define: {
 		__VERSION__: JSON.stringify(pkg.version)
 	},

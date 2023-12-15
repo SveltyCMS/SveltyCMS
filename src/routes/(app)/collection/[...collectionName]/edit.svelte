@@ -13,7 +13,7 @@
 		const { collection } = page.params;
 
 		// Dynamically import the collection schema
-		const module = await import(`@src/collections/${collection}.ts`);
+		const module = await import(`../../../../collections/${collection}.ts`);
 
 		// Create a writable store for schema and set its value
 		let schema = writable(module.default);

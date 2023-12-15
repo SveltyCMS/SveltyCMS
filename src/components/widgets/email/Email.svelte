@@ -1,8 +1,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { defaultContentLanguage } from '@src/stores/store';
-	import { mode, entryData } from '@src/stores/store';
-	import { getFieldName } from '@src/utils/utils';
+	import { mode, entryData, defaultContentLanguage } from '@stores/store';
+	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 

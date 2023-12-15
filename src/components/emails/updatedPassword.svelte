@@ -3,7 +3,7 @@
 	import { dev } from '$app/environment';
 
 	import { page } from '$app/stores';
-	import type { User } from '@src/collections/Auth';
+	import type { User } from 'lucia';
 
 	const username: User = $page.data.user.username;
 

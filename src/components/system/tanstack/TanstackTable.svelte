@@ -37,9 +37,9 @@
 	import { slide } from 'svelte/transition';
 	import TanstackIcons from './TanstackIcons.svelte';
 
-	import Loading from '../../Loading.svelte';
-	import { asAny } from '@src/utils/utils';
-	import { handleSidebarToggle, mode } from '@src/stores/store';
+	import Loading from '@components/Loading.svelte';
+	import { asAny } from '@utils/utils';
+	import { handleSidebarToggle, mode } from '@stores/store';
 
 	export let tableData: any[];
 	let filteredData = tableData;

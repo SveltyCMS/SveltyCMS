@@ -1,6 +1,6 @@
 import type { RequestHandler } from './$types';
-import { getCollectionModels } from '@src/routes/api/db';
-import { parse, saveImages } from '@src/utils/utils';
+import { getCollectionModels } from '@api/db';
+import { parse, saveImages } from '@utils/utils';
 
 // Export an asynchronous function named GET that is a RequestHandler
 export const GET: RequestHandler = async ({ params, url }) => {

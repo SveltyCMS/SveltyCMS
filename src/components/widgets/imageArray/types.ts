@@ -1,10 +1,10 @@
-import Input from '@src/components/system/inputs/Input2.svelte';
-import Toggles from '@src/components/system/inputs/Toggles.svelte';
+import Input from '@components/system/inputs/Input2.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-import { getFieldName } from '@src/utils/utils';
-import widgets from '@src/components/widgets';
+import { getFieldName } from '@utils/utils';
+import widgets from '@components/widgets';
 
-import IconifyPicker from '@src/components/IconifyPicker.svelte';
+import IconifyPicker from '@components/IconifyPicker.svelte';
 
 // Define the widget Parameters
 export type Params = {

@@ -1,7 +1,7 @@
 import { writable, type Writable } from 'svelte/store';
 import { get } from 'svelte/store';
 import { PUBLIC_CONTENT_LANGUAGES, PUBLIC_AVAILABLE_SYSTEMLANGUAGES } from '$env/static/public';
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@collections/types';
 
 //paraglidejs
 import { sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';

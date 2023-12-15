@@ -1,6 +1,6 @@
 import { redirect } from '@sveltejs/kit';
-import { auth } from '../../api/db';
-import { validate } from '@src/utils/utils';
+import { auth } from '@api/db';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 // Load function that handles authentication and user validation
@@ -16,6 +16,6 @@ export async function load(event) {
 			user: user.user
 		};
 	} else {
-		throw redirect(302, `/login`);
+		redirect(302, `/login`);
 	}
 }

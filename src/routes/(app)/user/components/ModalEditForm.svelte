@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { roles } from '@src/collections/types';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import { roles } from '@collections/types';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	// Props

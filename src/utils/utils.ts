@@ -2,13 +2,12 @@ import fs from 'fs';
 import axios from 'axios';
 
 import { Blob } from 'buffer';
-import type { Schema } from '@src/collections/types';
+import type { Schema } from '@collections/types';
 import { get } from 'svelte/store';
-import { contentLanguage, entryData, mode, collections, collection } from '@src/stores/store';
+import { contentLanguage, entryData, mode, collections, collection } from '@stores/store';
 
 // lucia
-import type { Auth } from 'lucia';
-import type { User } from '@src/collections/Auth';
+import type { User, Auth } from 'lucia';
 
 import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 import { browser } from '$app/environment';

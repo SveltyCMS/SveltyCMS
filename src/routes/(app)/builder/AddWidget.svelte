@@ -1,10 +1,10 @@
 <script lang="ts">
-	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
-	import widgets from '@src/components/widgets';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
+	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
-	import { asAny } from '@src/utils/utils';
-	import PageTitle from '@src/components/PageTitle.svelte';
-	import { toggleLeftSidebar } from '@src/stores/store';
+	import { asAny } from '@utils/utils';
+	import PageTitle from '@components/PageTitle.svelte';
+	import { toggleLeftSidebar } from '@stores/store';
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;

@@ -1,8 +1,8 @@
 import { PUBLIC_MEDIA_FOLDER, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
-import { auth } from '@src/routes/api/db';
-import { sanitize } from '@src/utils/utils';
+import { auth } from '@api/db';
+import { sanitize } from '@utils/utils';
 import sharp from 'sharp';
 import crypto from 'crypto';
 

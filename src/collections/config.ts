@@ -1,10 +1,24 @@
-export function createCategories(collections) {
-	return [
-		{
-			name: 'Collections',
-			icon: 'bi:collection',
-			collections: [collections.Names, collections.Media, collections.ImageArray, collections.Relation, collections.WidgetTest]
-		},
-		{ name: 'Menu', icon: 'bi:menu-button-wide', collections: [collections.Posts2, collections.Menu] }
-	];
-}
+// Configure how Collections are sorted & displayed in Categories section
+    export function createCategories(collections: any) {return [
+  {
+    "name": "Collections",
+    "icon": "bi:collection",
+    "collections": [
+      collections.Names,
+      collections.Media,
+      collections.ImageArray,
+      collections.Relation,
+      collections.WidgetTest
+    ]
+  },
+  {
+    "name": "Menu",
+    "icon": "bi:menu-button-wide",
+    "collections": [
+      collections.Posts2,
+      collections.Menu,
+      collections.Posts
+    ]
+  }
+];}
+	

@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { collection, collectionValue, mode, modifyEntry, handleSidebarToggle, saveLayerStore, shouldShowNextButton } from '@src/stores/store';
+	import { collection, collectionValue, mode, modifyEntry, handleSidebarToggle, saveLayerStore, shouldShowNextButton } from '@stores/store';
 
 	import { page } from '$app/stores';
-	import type { User } from '@src/collections/Auth';
-	import { saveFormData, getDates } from '@src/utils/utils';
+	import type { User } from 'lucia';
+	import { saveFormData, getDates } from '@utils/utils';
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
 

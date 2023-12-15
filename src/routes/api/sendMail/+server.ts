@@ -3,10 +3,10 @@ import { render } from 'svelte-email';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 
 // Templates used by svelte email
-import userToken from '@src/components/emails/userToken.svelte';
-import welcomeUser from '@src/components/emails/welcomeUser.svelte';
-import forgottenPassword from '@src/components/emails/forgottenPassword.svelte';
-import updatedPassword from '@src/components/emails/updatedPassword.svelte';
+import userToken from '@components/emails/userToken.svelte';
+import welcomeUser from '@components/emails/welcomeUser.svelte';
+import forgottenPassword from '@components/emails/forgottenPassword.svelte';
+import updatedPassword from '@components/emails/updatedPassword.svelte';
 
 import nodemailer from 'nodemailer';
 

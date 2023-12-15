@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { mode, contentLanguage, shouldShowNextButton } from '@src/stores/store';
+	import { mode, contentLanguage, shouldShowNextButton } from '@stores/store';
 	import { currentChild } from '.';
 
 	import { dndzone } from 'svelte-dnd-action';

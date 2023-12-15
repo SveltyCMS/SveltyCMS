@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Logo from '../components/SimpleCMS_Logo.svelte';
+	import Logo from '@components/SimpleCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

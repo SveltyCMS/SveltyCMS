@@ -1,8 +1,8 @@
-import IconifyPicker from '@src/components/IconifyPicker.svelte';
-import Input from '@src/components/system/inputs/Input2.svelte';
-import Toggles from '@src/components/system/inputs/Toggles.svelte';
+import IconifyPicker from '@components/IconifyPicker.svelte';
+import Input from '@components/system/inputs/Input2.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 
-import { SIZES } from '@src/utils/utils';
+import { SIZES } from '@utils/utils';
 
 // Define the widget Parameters
 export type Params = {

@@ -1,8 +1,8 @@
-import { getCollections } from '@src/collections';
+import { getCollections } from '@collections';
 import { redirect, type Actions } from '@sveltejs/kit';
 
 // lucia
-import { validate } from '@src/utils/utils';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { auth } from './api/db';
 
@@ -20,7 +20,7 @@ export async function load({ cookies }) {
 	const _filtered = (await getCollections()).filter((c) => c?.permissions?.[user.user.role]?.read != false);
 
 	// Redirect to the first collection in the collections array
-	throw redirect(302, `/${languageTag()}/${_filtered[0].name}`);
+	redirect(302, `/${languageTag()}/${_filtered[0].name}`);
 	//throw redirect(302, `/dashboard`);
 }
 
@@ -36,8 +36,8 @@ export const actions = {
 		}
 
 		// Set the cookies
-		cookies.set('theme', theme);
-		cookies.set('systemlanguage', systemlanguage);
+		/* @migration task: add path argument */ cookies.set('theme', theme);
+		/* @migration task: add path argument */ cookies.set('systemlanguage', systemlanguage);
 
 		// Update the language tag in paraglide
 		setLanguageTag(systemlanguage as any);
@@ -48,6 +48,6 @@ export const actions = {
 
 		// Here you would also update these preferences on the server for the current user
 
-		throw redirect(303, '/');
+		redirect(303, '/');
 	}
 } satisfies Actions;

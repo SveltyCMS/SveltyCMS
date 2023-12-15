@@ -1,8 +1,8 @@
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';
-	import { entryData, mode, loadingProgress } from '@src/stores/store';
-	import { getFieldName } from '@src/utils/utils';
+	import { entryData, mode, loadingProgress } from '@stores/store';
+	import { getFieldName } from '@utils/utils';
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 
 	let _data: FileList;

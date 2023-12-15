@@ -13,7 +13,7 @@
 	initializeStores();
 
 	// Paraglide JS
-	import ParaglideSvelteKit from '@src/components/ParaglideSvelteKit.svelte';
+	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;

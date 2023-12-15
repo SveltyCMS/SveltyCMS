@@ -1,18 +1,18 @@
 <script lang="ts">
-	import '@src/collections';
+	import '@collections';
 	import Collections from './Collections.svelte';
-	import { mode, collection, unAssigned } from '@src/stores/store';
+	import { mode, collection, unAssigned } from '@stores/store';
 	import axios from 'axios';
-	import { obj2formData } from '@src/utils/utils';
+	import { obj2formData } from '@utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
-	import IconifyPicker from '@src/components/IconifyPicker.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import IconifyPicker from '@components/IconifyPicker.svelte';
 
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
 
 	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';

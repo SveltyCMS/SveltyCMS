@@ -1,9 +1,9 @@
 import { error, redirect } from '@sveltejs/kit';
-import { auth } from '../../api/db';
-import { validate } from '@src/utils/utils';
+import { auth } from '@api/db';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
-import { getCollections } from '@src/collections';
+import { getCollections } from '@collections';
 
 import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 
@@ -18,12 +18,12 @@ export async function load({ cookies, route, params }) {
 	//console.log(get(collections));
 
 	if (user.user.authMethod == 'token') {
-		throw redirect(302, `/user`);
+		redirect(302, `/user`);
 	}
 
 	if (!languageTag().includes(params.language as any) || (!collection && params.collection)) {
 		// if collection is set in url but does not exists.
-		throw error(404, {
+		error(404, {
 			message: 'Not found'
 		});
 	}
@@ -34,10 +34,10 @@ export async function load({ cookies, route, params }) {
 
 			// filters collection based on reading permissions and redirects to first left one
 			const _filtered = collections.filter((c) => c?.permissions?.[user.user.role]?.read != false);
-			throw redirect(302, `/${params.language || PUBLIC_CONTENT_LANGUAGES}/${_filtered[0].name}`);
+			redirect(302, `/${params.language || PUBLIC_CONTENT_LANGUAGES}/${_filtered[0].name}`);
 		}
 		if (collection?.permissions?.[user.user.role]?.read == false) {
-			throw error(404, {
+			error(404, {
 				message: 'No Access to this collection'
 			});
 		}
@@ -45,6 +45,6 @@ export async function load({ cookies, route, params }) {
 			user: user.user
 		};
 	} else {
-		throw redirect(302, `/login`);
+		redirect(302, `/login`);
 	}
 }

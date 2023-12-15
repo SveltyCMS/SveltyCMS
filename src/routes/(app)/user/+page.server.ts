@@ -1,16 +1,16 @@
 import mongoose from 'mongoose';
 
 //lucia
-import { auth } from '../../api/db';
-import { validate } from '@src/utils/utils';
+import { auth } from '@api/db';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
 import { superValidate } from 'sveltekit-superforms/server';
-import { addUserTokenSchema, changePasswordSchema } from '@src/utils/formSchemas';
+import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
-import { createToken } from '@src/utils/tokens';
-// import { passwordToken } from '@src/utils/passwordToken';
+import { createToken } from '@utils/tokens';
+// import { passwordToken } from '@utils/passwordToken';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -24,7 +24,7 @@ export async function load(event) {
 	// Validate the user's session.
 	const user = await validate(auth, session);
 	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) throw redirect(302, `/login`);
+	if (user.status != 200) redirect(302, `/login`);
 	const isFirstUser = allUsers[0].id == user.user.id;
 
 	const AUTH_KEY = mongoose.models['auth_key'];
@@ -32,11 +32,11 @@ export async function load(event) {
 	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
 	user.user.authMethod = userKey['_id'].split(':')[0];
 	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) throw redirect(302, `/login`);
+	if (user.status != 200) redirect(302, `/login`);
 
 	user.user.authMethod = userKey['_id'].split(':')[0];
 	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) throw redirect(302, `/login`);
+	if (user.status != 200) redirect(302, `/login`);
 
 	user.user.authMethod = userKey['_id'].split(':')[0];
 

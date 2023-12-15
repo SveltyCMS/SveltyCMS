@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { getCollectionModels } from '@src/routes/api/db';
+import { getCollectionModels } from '@api/db';
 
 // Export an asynchronous function named PATCH that is a RequestHandler
 export const PATCH: RequestHandler = async ({ params, request }) => {

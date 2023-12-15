@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { roles } from '@src/collections/types';
+	import { roles } from '@collections/types';
 
 	//import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 

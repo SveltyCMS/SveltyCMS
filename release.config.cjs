@@ -26,6 +26,7 @@ const config = {
 				// Disable success and failure comments on GitHub issues and pull requests
 				successComment: false,
 				failComment: false,
+
 				// Create pre-releases with the 'beta' identifier
 				prerelease: 'beta'
 			}

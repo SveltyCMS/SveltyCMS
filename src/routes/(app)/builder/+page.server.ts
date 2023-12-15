@@ -1,13 +1,13 @@
 import { redirect, type Actions } from '@sveltejs/kit';
-import { auth, getCollectionModels } from '@src/routes/api/db';
-import { validate } from '@src/utils/utils';
+import { auth, getCollectionModels } from '@api/db';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import type { WidgetType } from '@src/components/widgets';
+import type { WidgetType } from '@components/widgets';
 import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
-import { updateCollections } from '@src/collections';
-import { compile } from '@src/routes/api/compile/compile';
+import { updateCollections } from '@collections';
+import { compile } from '@api/compile/compile';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -23,7 +23,7 @@ export async function load(event) {
 			user: user.user
 		};
 	} else {
-		throw redirect(302, `/login`);
+		redirect(302, `/login`);
 	}
 }
 
@@ -48,7 +48,7 @@ export const actions: Actions = {
 
 		let content = `
 	${imports}
-	import widgets from '../components/widgets';
+	import widgets from '@components/widgets';
 	import { roles } from './types';
 	import type { Schema } from './types';
 	const schema: Schema = {
@@ -114,7 +114,7 @@ export const actions: Actions = {
 
 // Recursively goes through an collection fields.
 async function goThrough(object: any): Promise<string> {
-	const widgets = (await import('../../../components/widgets')).default;
+	const widgets = (await import('@components/widgets')).default;
 	const imports = new Set<string>();
 
 	//Asynchronously processes a field recursively.

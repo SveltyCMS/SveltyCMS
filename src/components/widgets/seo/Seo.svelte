@@ -13,9 +13,9 @@
 	// If all of these checks have an impact of 3, then you should get a maximum score of 24 (8 checks * 3 points per check)
 
 	import type { FieldType } from '.';
-	import { contentLanguage, defaultContentLanguage } from '@src/stores/store';
-	import { mode, entryData } from '@src/stores/store';
-	import { getFieldName } from '@src/utils/utils';
+	import { contentLanguage, defaultContentLanguage } from '@stores/store';
+	import { mode, entryData } from '@stores/store';
+	import { getFieldName } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

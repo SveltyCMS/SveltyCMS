@@ -1,6 +1,6 @@
 import type { Cookies } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-import { auth } from '@src/routes/api/db';
+import { auth } from '@api/db';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 // Define a POST request handler function
@@ -21,7 +21,7 @@ async function signOut(cookies: Cookies) {
 	try {
 		const sessionID = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 		await auth.invalidateSession(sessionID);
-		cookies.delete(DEFAULT_SESSION_COOKIE_NAME);
+		/* @migration task: add path argument */ cookies.delete(DEFAULT_SESSION_COOKIE_NAME);
 		return new Response(JSON.stringify({ status: 200 }));
 	} catch (e) {
 		return new Response(JSON.stringify({ status: 404 }));

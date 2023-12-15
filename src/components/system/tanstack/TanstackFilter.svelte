@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { translationStatusOpen } from '@src/stores/store';
+	import { translationStatusOpen } from '@stores/store'
 
 	// Define reactive variables to track the state of each element
 

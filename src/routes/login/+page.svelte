@@ -4,14 +4,14 @@
 	import SignUp from './components/SignUp.svelte';
 	import Logo from './components/icons/Logo.svelte';
 	import type { PageData } from './$types';
-	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@src/stores/store';
+	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@stores/store';
 
 	export let data: PageData;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag, availableLanguageTags } from '@src/paraglide/runtime';
-	import Autocomplete from '@src/components/Autocomplete.svelte';
+	import Autocomplete from '@components/Autocomplete.svelte';
 	let _languageTag = languageTag(); // Get the current language tag
 
 	// Seasons
@@ -44,7 +44,12 @@
 	<SignUp bind:active FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
 	{#if active == undefined}
 		<!-- CSS Logo -->
-		<div class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center">
+		<a
+			href="https://github.com/Rar9/SimpleCMS"
+			target="_blank"
+			rel="noopener"
+			class="absolute left-1/2 top-1/2 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center"
+		>
 			<div class="relative top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 				<!-- Seasons -->
 				{#if PUBLIC_SEASSONS}
@@ -114,7 +119,7 @@
 					<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}</div>
 				</div>
 			</div>
-		</div>
+		</a>
 
 		<!-- TODO: Fix Language switcher -->
 		<div

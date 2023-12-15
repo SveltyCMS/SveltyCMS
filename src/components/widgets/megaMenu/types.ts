@@ -1,9 +1,9 @@
-import Input from '@src/components/system/inputs/Input2.svelte';
-// import Toggles from '@src/components/system/inputs/Toggles.svelte';
-// import { contentLanguage } from '@src/stores/store';
-import GuiFields from '@src/components/widgets/megaMenu/GuiFields.svelte';
+import Input from '@components/system/inputs/Input2.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
+// import { contentLanguage } from '@stores/store';
+import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
 import widgets from '..';
-import { getFieldName } from '@src/utils/utils';
+import { getFieldName } from '@utils/utils';
 
 export type Params = {
 	// default required parameters

@@ -3,10 +3,10 @@ import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
 import { redirect } from '@sveltejs/kit';
-import { auth } from '../../api/db';
-import { validate } from '@src/utils/utils';
+import { auth } from '@api/db';
+import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { roles } from '@src/collections/types';
+import { roles } from '@collections/types';
 
 // Only display if user is allowed to access
 function hasFilePermission(user: any, file: string): boolean {
@@ -26,7 +26,7 @@ export async function load(event: any) {
 	const user = await validate(auth, session);
 	// If validation fails, redirect the user to the login page
 	if (user.status !== 200) {
-		throw redirect(302, `/login`);
+		redirect(302, `/login`);
 	}
 
 	const mediaDir = path.resolve(PUBLIC_MEDIA_FOLDER);

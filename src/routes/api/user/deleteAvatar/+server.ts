@@ -1,7 +1,7 @@
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
-import { auth } from '../../db';
+import { auth } from '@api/db';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const data = await request.json();

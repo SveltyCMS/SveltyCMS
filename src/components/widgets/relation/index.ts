@@ -1,8 +1,8 @@
 import Relation from './Relation.svelte';
 
-import { findById, getGuiFields } from '@src/utils/utils';
+import { findById, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { defaultContentLanguage } from '@src/stores/store';
+import { defaultContentLanguage } from '@stores/store';
 
 // Define the widget function
 const widget = (params: Params) => {

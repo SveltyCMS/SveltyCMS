@@ -1,4 +1,4 @@
-import type widgets from '@src/components/widgets';
+import type widgets from '@components/widgets';
 
 // Define Available Roles with Icons
 export const roles = {
@@ -14,8 +14,13 @@ export type permissions = {
 		// User Permissions
 		read?: boolean; // This permission allows users to view the content. They can’t make any changes to it.
 		write?: boolean; // This permission allows users to create new content and make changes to existing content.
-		delete?: boolean; //This permission allows users to remove content from the system
+		delete?: boolean; // This permission allows users to remove content from the system
 		// Admin can do everything
+		icon?: {
+			read?: 'bi:eye-fill';
+			write?: 'bi:pencil-fill';
+			delete?: 'bi:trash-fill';
+		};
 	} & (K extends typeof roles.admin ? { read?: true; write?: true; delete?: true } : {});
 };
 

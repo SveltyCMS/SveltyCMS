@@ -1,10 +1,6 @@
-import widgets from '@src/components/widgets';
+import widgets from '@components/widgets';
 import { roles } from './types';
 import type { Schema } from './types';
-
-// typesafe-i18n
-// import LL from '@src/i18n/i18n-svelte';
-// import { get } from 'svelte/store';
 
 const schema: Schema = {
 	// Collection Name comming from filename

@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { auth } from '../../db';
+import { auth } from '@api/db';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const data = await request.json();

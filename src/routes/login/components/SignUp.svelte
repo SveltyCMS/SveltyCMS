@@ -5,7 +5,7 @@
 	// import { dev } from '$app/environment';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	let tabIndex = 1;
 
 	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
@@ -17,7 +17,7 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import { signUpFormSchema } from '@src/utils/formSchemas';
+	import { signUpFormSchema } from '@utils/formSchemas';
 
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
-	import Loading from '@src/components/Loading.svelte';
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import Loading from '@components/Loading.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { Chart } from 'chart.js';
-	import { formatUptime } from '@src/utils/utils';
+	import { formatUptime } from '@utils/utils';
 
 	let systemInfo: any;
 	let loading = true; // Set loading to true by default

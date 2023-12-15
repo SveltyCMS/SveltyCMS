@@ -1,19 +1,19 @@
 <script lang="ts">
 	export let data: PageData;
 	import type { PageData } from '../$types';
-	import '@src/stores/store';
+	import '@stores/store';
 	import { invalidateAll } from '$app/navigation';
 
 	//superforms
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
-	import { addUserTokenSchema } from '@src/utils/formSchemas';
+	import { addUserTokenSchema } from '@utils/formSchemas';
 
 	export let addUserForm: PageData['addUserForm'];
 
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
-	import { roles } from '@src/collections/types';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import { roles } from '@collections/types';
 
 	// Props
 	/** Exposes parent props to this component. */

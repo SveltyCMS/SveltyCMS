@@ -1,8 +1,8 @@
 import type { RequestHandler } from './$types';
-import { auth } from '../../db';
+import { auth } from '@api/db';
 import mongoose from 'mongoose';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { validate } from '@src/utils/utils';
+import { validate } from '@utils/utils';
 
 // Define a POST request handler function
 export const POST: RequestHandler = async ({ request, cookies }) => {

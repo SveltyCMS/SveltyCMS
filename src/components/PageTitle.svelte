@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { toggleLeftSidebar } from '@src/stores/store';
+	import { toggleLeftSidebar } from '@stores/store';
 
 	interface PageTitleProps {
 		name: string;

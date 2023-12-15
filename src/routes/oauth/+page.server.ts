@@ -1,9 +1,9 @@
 import { redirect } from '@sveltejs/kit';
-import { auth, googleAuth } from '../api/db';
+import { auth, googleAuth } from '@api/db';
 import type { Actions, PageServerLoad } from './$types';
 import mongoose from 'mongoose';
-import type { User } from 'lucia-auth';
-import { consumeToken } from '@src/utils/tokens';
+import type { User } from 'lucia';
+import { consumeToken } from '@utils/tokens';
 
 let OAuth: any = null;
 
@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	};
 
-	if (!code || !state || !stateCookie || state != stateCookie) throw redirect(302, '/login');
+	if (!code || !state || !stateCookie || state != stateCookie) redirect(302, '/login');
 
 	try {
 		OAuth = await googleAuth.validateCallback(code);
@@ -88,9 +88,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	} catch (e) {
 		console.log(e);
 
-		throw redirect(302, '/login');
+		redirect(302, '/login');
 	}
-	if (!result.data.needSignIn) throw redirect(303, '/');
+	if (!result.data.needSignIn) redirect(303, '/');
 
 	return result;
 };
@@ -117,7 +117,7 @@ export const actions: Actions = {
 		const state = url.searchParams.get('state');
 		const { stateCookie, lang } = JSON.parse(cookies.get('google_oauth_state') ?? '{}');
 
-		if (!code || !state || !stateCookie || state != stateCookie) throw redirect(302, '/login');
+		if (!code || !state || !stateCookie || state != stateCookie) redirect(302, '/login');
 
 		try {
 			const { getExistingUser, googleUser, createUser } = OAuth;
@@ -192,10 +192,10 @@ export const actions: Actions = {
 			result.data = { user };
 		} catch (e) {
 			console.error('error:', e);
-			throw redirect(302, '/login');
+			redirect(302, '/login');
 		}
 
-		if (result.success) throw redirect(303, '/');
+		if (result.success) redirect(303, '/');
 		else return result;
 	}
 };

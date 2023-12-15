@@ -1,10 +1,10 @@
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
 import { createCategories } from './config';
-import { getCollectionFiles } from '@src/routes/api/getCollections/getCollectionFiles';
-import { categories, collections, unAssigned } from '@src/stores/store';
+import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
+import { categories, collections, unAssigned } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
-import { initWidgets } from '@src/components/widgets';
+import { initWidgets } from '@components/widgets';
 import type { Schema } from './types';
 
 initWidgets();
@@ -56,13 +56,7 @@ async function getImports(recompile: boolean = false) {
 	// If running in development or building mode
 	if (dev || building) {
 		// Dynamically import all TypeScript files in current directory, except for specified files
-		const modules = import.meta.glob([
-			'./*.ts',
-			'!./index.ts',
-			'!./types.ts',
-			'!./Auth.ts',
-			'!./config.ts'
-		]);
+		const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./Auth.ts', '!./config.ts']);
 
 		// Add imported modules to imports object
 		for (const module in modules) {
@@ -83,9 +77,7 @@ async function getImports(recompile: boolean = false) {
 
 			for (const file of files) {
 				const name = file.replace(/.js$/, '');
-				const collection = (
-					await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)
-				).default;
+				const collection = (await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)).default;
 				collection.name = name;
 				imports[name] = collection;
 			}
@@ -97,9 +89,7 @@ async function getImports(recompile: boolean = false) {
 			// Dynamically import returned files from folder specified by import.meta.env.collectionsFolder
 			for (const file of files) {
 				const name = file.replace(/.js$/, '');
-				const collection = (
-					await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd)
-				).default;
+				const collection = (await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd)).default;
 				collection.name = name;
 				imports[name] = collection;
 			}

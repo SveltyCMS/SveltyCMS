@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { permissionStore } from '@src/stores/store';
-	import { roles, type permissions } from '@src/collections/types';
+	import { permissionStore } from '@stores/store';
+	import { roles, type permissions } from '@collections/types';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();

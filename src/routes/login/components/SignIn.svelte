@@ -4,10 +4,10 @@
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
-	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@src/utils/formSchemas';
+	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
 	import SigninIcon from './icons/SigninIcon.svelte';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
 	import CMSLogo from './icons/Logo.svelte';
 

@@ -11,7 +11,6 @@
 		 * a value or a type, so tell TypeScript to enforce using
 		 * `import type` instead of `import` for Types.
 		 */
-
 		"isolatedModules": true, // use an isolated module
 		"resolveJsonModule": true, // resolve .json files
 
@@ -38,14 +37,7 @@
 		"types": ["@sveltejs/kit"], //	add types
 		//"types": ["bun-types"],
 		"noImplicitAny": false,
-		"baseUrl": ".",
-		"outDir": "../build",
-		"paths": {
-			"@src": ["src/"],
-			"@src/*": ["src/*"],
-			"@static/*": ["static/*"],
-			"@root/*": ["./*"]
-		}
+		"outDir": "../build"
 	},
 
 	/**

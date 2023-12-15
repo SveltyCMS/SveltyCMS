@@ -1,4 +1,4 @@
-import { collections } from '@src/stores/store';
+import { collections } from '@stores/store';
 
 import { dev } from '$app/environment';
 import type { Unsubscriber } from 'svelte/store';
@@ -7,7 +7,7 @@ import type { Unsubscriber } from 'svelte/store';
 import { lucia } from 'lucia';
 import { mongoose } from '@lucia-auth/adapter-mongoose';
 
-import { session, key, UserSchema, TokenSchema } from '@src/collections/Auth';
+import { session, key, UserSchema, TokenSchema } from '@collections/Auth';
 import { sveltekit } from 'lucia/middleware';
 import { google } from '@lucia-auth/oauth/providers';
 // mongoose

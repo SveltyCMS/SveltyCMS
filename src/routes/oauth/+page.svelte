@@ -2,7 +2,7 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import Loading from '@src/components/Loading.svelte';
+	import Loading from '@components/Loading.svelte';
 	import Logo from '../login/components/icons/Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 

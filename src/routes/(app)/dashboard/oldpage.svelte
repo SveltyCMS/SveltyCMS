@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { PUBLIC_SITENAME } from '$env/static/public';
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -12,8 +12,8 @@
 		contentLanguage,
 		saveLayerStore,
 		shouldShowNextButton
-	} from '@src/stores/store';
-	import { saveFormData } from '@src/utils/utils';
+	} from '@stores/store';
+	import { saveFormData } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { tiktok, twitch, vimeo, youtube } from '@src/components/widgets/remoteVideo/video';
+import { tiktok, twitch, vimeo, youtube } from '@components/widgets/remoteVideo/video';
 
 // Extracts the video ID from a YouTube URL
 function getYouTubeVideoId(url: string) {

@@ -37,19 +37,19 @@
   <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
-<h2 align="center">A powerful Headless CMS with sveltekit power</h2>
+<h2 align="center">A powerful Headless CMS with Sveltekit Power</h2>
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
 
-This sveltekit CMS provides a backend based on a modern sveltekit framework with a fast MongoDB for document database scalability and flexibility.
+This Sveltekit CMS provides a backend based on a modern [SvelteKit 2 CMS](https://svelte.dev/) framework with a fast MongoDB for document database scalability and flexibility.
 
-New Collections can easily be implemented, due to full typescript support with already many support available widgets.
+New Collections can easily be implemented, due to full typescript support with already many available widgets.
 
-All fields offer full translations, and customization as well as access restriction handled by Lucia auth.
+All fields offer full translation, and customization as well as access restriction handled by Lucia auth.
 
-The System language uses ParaglideJS aJavaScript i18n library to providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. It can easily be extended to support further languages.
+The System language uses ParaglideJS a JavaScript i18n library to providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. Languages can easily be extended to support further languages.
 
-We used tailwindcss and a skeleton UI toolkit, so the CMS can be quickly optimized.
+We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](https://www.skeleton.dev/), so the CMS can be quickly optimized to your personal needs.
 
 Data is provided via yoga graphql, to build extremely fast frontend
 
@@ -67,38 +67,39 @@ cd SimpleCMS
 
 ### Install all dependencies
 
-Your need [Node.js](https://nodejs.org/en) to get started which ships with npm.
-We recommend the faster [pnpm](https://pnpm.io) package manager.
-[Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used.
+Your need [Node.js](https://nodejs.org/en) 18.13 or higher to get started which ships with npm.
+
+We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used.
 
 ```bash
-pnpm install  # installs all required package dependencies
-pnpm inlang    # build available lanaguages
+npm run install   # installs all required package dependencies
+npm run inlang    # build available system languages
 ```
 
 ### Setup Environment File
 
-rename the `.env.example` to `.env`.
+rename the `.env.example` to `.env` and add at least your Database Access to start:
 
-- Enter fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
-- Extend database Languages if other are required
+- Fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
+- Change the content database Languages to your required needs
 - Setup your Email `SMTP` & `HOST` to allow sending emails
-- Add your required API Tokens for the Widgets you need use
+- Add your required API Tokens for the individual Widgets you need for your project
 
 ### Start the application for development or production
 
-See our `package.json` for more information like development, preview, build and testing.
+See our `package.json` for more information like development, build, preview, format, lint & testing. Here the most used commands:
 
 ```bash
-pnpm dev     # run development on localhost:5173
-pnpm build   # runs for production and can be previewed localhost:4173
+npm run dev       # run development on localhost:5173
+npm run build     # build for production
+npm run preview   # to run preview on localhost:4173
 ```
 
 ## :lock: Authentication & Security
 
 We want to keep your data Private and Secure.
 
-[Lucia Auth](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
+[Lucia Auth 2](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
 You can sign by email, github oauth and also enable 2FA for an extra layer of protection.
 
@@ -127,7 +128,8 @@ Build and send emails using [Svelte Email](https://svelte-email.vercel.app/) and
 
 ## :question: Need help
 
-Reach out to us if you're struggling with something - [GitHub Discussions](https://github.com/Rar9/SvelteCMS/discussions)
+Contact us if you're struggling installation or other issues via:
+[GitHub Discussions](https://github.com/Rar9/SvelteCMS/discussions)
 
 ## :rocket: Semantic Versioning
 

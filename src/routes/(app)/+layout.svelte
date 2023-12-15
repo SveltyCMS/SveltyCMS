@@ -6,7 +6,7 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
+	import { goto, invalidate } from '$app/navigation';
 
 	//skeleton
 	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
@@ -20,6 +20,7 @@
 		collection,
 		collectionValue,
 		mode,
+		contentLanguage,
 		defaultContentLanguage,
 		AVAILABLE_SYSTEMLANGUAGES,
 		handleSidebarToggle,
@@ -30,14 +31,12 @@
 		togglePageHeader,
 		togglePageFooter,
 		pkgBgColor
-	} from '@src/stores/store';
+	} from '@stores/store';
 
-	import { getCollections } from '@src/collections';
+	import { getCollections } from '@collections';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
-
-	import { contentLanguage } from '@src/stores/store';
 
 	//smooth view transitions via browser (only chrome)
 	import { onNavigate } from '$app/navigation';
@@ -53,12 +52,12 @@
 	});
 
 	import axios from 'axios';
-	import SimpleCmsLogo from '@src/components/SimpleCMS_Logo.svelte';
+	import SimpleCmsLogo from '@components/SimpleCMS_Logo.svelte';
 	import { PUBLIC_SEASSONS, PUBLIC_SITENAME } from '$env/static/public';
-	import ControlPanel from '@src/components/ControlPanel.svelte';
-	import Collections from '@src/components/Collections.svelte';
-	import { getDates } from '@src/utils/utils';
-	import { systemLanguage } from '@src/stores/store';
+	import ControlPanel from '@components/ControlPanel.svelte';
+	import Collections from '@components/Collections.svelte';
+	import { getDates } from '@utils/utils';
+	import { systemLanguage } from '@stores/store';
 
 	contentLanguage.set($page.params.language);
 
@@ -90,7 +89,7 @@
 	const pkg = __VERSION__;
 	let githubVersion = '';
 
-	const currentMonth = new Date().getMonth();
+	// const currentMonth = new Date().getMonth();
 
 	// Fetch the latest release from GitHub
 	axios
@@ -131,7 +130,7 @@
 			)
 		).data;
 		if (resp.status == 200) {
-			goto(`/login`);
+			await goto('/login', { invalidateAll: true, noScroll: true, replaceState: true });
 		}
 	}
 
@@ -198,11 +197,11 @@
 		placement: 'right'
 	};
 
-	import HeaderControls from '@src/components/HeaderControls.svelte';
+	import HeaderControls from '@components/HeaderControls.svelte';
 
 	import { get } from 'svelte/store';
-	import type { Schema } from '@src/collections/types';
-	import Loading from '@src/components/Loading.svelte';
+	import type { Schema } from '@collections/types';
+	import Loading from '@components/Loading.svelte';
 
 	let dates = { created: '', updated: '', revision: '' };
 
@@ -307,9 +306,9 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white"
 							>{PUBLIC_SITENAME}
 
-							{#if PUBLIC_SEASSONS && currentMonth === 11}
+							<!-- {#if PUBLIC_SEASSONS && currentMonth === 11}
 								<img src="/SantaHat.png" alt="Santa hat" class="z-100 absolute right-[-11px] top-[-8px] h-8 w-8 -rotate-[25deg]" />
-							{/if}
+							{/if} -->
 						</span>
 					</a>
 				{:else}

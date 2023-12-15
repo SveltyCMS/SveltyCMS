@@ -57,7 +57,7 @@
 	}
 
 	// TanstackFilter
-	import TanstackFilter from '@src/components/system/tanstack/TanstackFilter.svelte';
+	import TanstackFilter from '@components/system/tanstack/TanstackFilter.svelte';
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -65,7 +65,7 @@
 	let density = 'normal';
 
 	// TanstackTable
-	import TanstackTable from '@src/components/system/tanstack/TanstackTable.svelte';
+	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
 	import { flexRender } from '@tanstack/svelte-table';
 	import moment from 'moment';
 

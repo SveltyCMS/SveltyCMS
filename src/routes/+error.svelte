@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import SimpleCmsLogo from '@src/components/SimpleCMS_Logo.svelte';
+	import SimpleCmsLogo from '@components/SimpleCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 
 	//ParaglideJS

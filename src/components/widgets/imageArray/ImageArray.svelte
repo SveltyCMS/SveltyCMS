@@ -1,7 +1,7 @@
 <script lang="ts">
-	import Fields from '@src/components/Fields.svelte';
-	import { loadingProgress, mode } from '@src/stores/store';
-	import { saveFormData } from '@src/utils/utils';
+	import Fields from '@components/Fields.svelte';
+	import { loadingProgress, mode } from '@stores/store';
+	import { saveFormData } from '@utils/utils';
 	import type { FieldType } from '.';
 
 	// sveltekit

@@ -1,11 +1,10 @@
 <script lang="ts">
-	import { collection, unAssigned } from '@src/stores/store';
-	import { mode } from '@src/stores/store';
-	import { categories } from '@src/collections';
+	import { mode, collection, unAssigned } from '@stores/store';
+	import { categories } from '@collections';
 	import { page } from '$app/stores';
-	import CheckIcon from '@src/components/system/icons/CheckIcon.svelte';
-	import CheckBox from '@src/components/system/buttons/CheckBox.svelte';
-	import { asAny, obj2formData } from '@src/utils/utils';
+	import CheckIcon from '@components/system/icons/CheckIcon.svelte';
+	import CheckBox from '@components/system/buttons/CheckBox.svelte';
+	import { asAny, obj2formData } from '@utils/utils';
 	import axios from 'axios';
 
 	//ParaglideJS
@@ -15,7 +14,7 @@
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
-	import type { User } from '@src/collections/Auth';
+	import type { User } from 'lucia';
 
 	export let modeSet: typeof $mode = 'edit';
 

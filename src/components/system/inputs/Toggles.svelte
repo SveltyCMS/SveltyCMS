@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { generateUniqueId } from '@src/utils/utils';
+	import { generateUniqueId } from '@utils/utils';
 
 	export let value: boolean = false;
 	export let label: string = '';

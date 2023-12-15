@@ -1,8 +1,8 @@
 import FileUpload from './FileUpload.svelte';
 
-import { getGuiFields } from '@src/utils/utils';
+import { getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-// import { defaultContentLanguage } from '@src/stores/store';
+// import { defaultContentLanguage } from ''@stores/store'
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';

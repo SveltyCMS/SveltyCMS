@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getCollectionModels } from '../db';
-import { updateCollections } from '@src/collections';
+import { getCollectionModels } from '@api/db';
+import { updateCollections } from '@collections';
 import { compile } from './compile';
 
 // Define an async GET request handler

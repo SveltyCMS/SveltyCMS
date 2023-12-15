@@ -1,8 +1,8 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
-import { validate } from '@src/utils/utils';
-import { auth } from '../../api/db';
+import { validate } from '@utils/utils';
+import { auth } from '@api/db';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { redirect } from '@sveltejs/kit';
 
@@ -49,7 +49,7 @@ export async function load(event: any) {
 	const user = await validate(auth, session);
 	// If validation fails, redirect the user to the login page
 	if (user.status !== 200) {
-		throw redirect(302, `/login`);
+		redirect(302, `/login`);
 	}
 
 	try {

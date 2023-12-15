@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@src/stores/store';
+	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@stores/store';
 
 	import axios from 'axios';
 	import { writable } from 'svelte/store';
@@ -33,7 +33,7 @@
 	import FloatingInput from './system/inputs/floatingInput.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from './TranslationStatus.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/utils';
 
 	let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];

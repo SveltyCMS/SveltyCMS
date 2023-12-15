@@ -1,10 +1,10 @@
 <script lang="ts">
-	import Fields from '@src/components/Fields.svelte';
+	import Fields from '@components/Fields.svelte';
 	import { currentChild, type FieldType } from '.';
-	import { extractData, getFieldName } from '@src/utils/utils';
+	import { extractData, getFieldName } from '@utils/utils';
 
 	import ListNode from './ListNode.svelte';
-	import { entryData, mode, saveLayerStore, shouldShowNextButton } from '@src/stores/store';
+	import { entryData, mode, saveLayerStore, shouldShowNextButton } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

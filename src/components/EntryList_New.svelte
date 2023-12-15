@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@src/stores/store';
+	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@stores/store';
 
 	import axios from 'axios';
 
@@ -8,7 +8,7 @@
 	let loadingTimer: any; // recommended time of around 200-300ms
 
 	// TanstackFilter
-	import TanstackFilter from '@src/components/system/tanstack/TanstackFilter.svelte';
+	import TanstackFilter from '@components/system/tanstack/TanstackFilter.svelte';
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -16,12 +16,12 @@
 	let density = 'normal';
 
 	// TanstackTable
-	import TanstackTable from '@src/components/system/tanstack/TanstackTable.svelte';
+	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
 	import { flexRender } from '@tanstack/svelte-table';
 	import TanstackStatus from './system/tanstack/TanstackStatus.svelte';
 
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/utils';
 	import TranslationStatus from './TranslationStatus.svelte';
 
 	let data: any = [];

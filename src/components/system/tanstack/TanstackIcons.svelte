@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import { storeListboxValue } from '@src/stores/store';
+	import { storeListboxValue } from '@stores/store';
 
 	const dispatch = createEventDispatcher();
 

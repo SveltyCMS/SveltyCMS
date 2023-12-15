@@ -1,7 +1,7 @@
 <script lang="ts">
-	import type { Schema } from '@src/collections/types';
-	import { collections } from '@src/stores/store';
-	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
+	import type { Schema } from '@collections/types';
+	import { collections } from '@stores/store';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
 
 	export let value: Schema | string = '';
 	export const theme: 'dark' | 'light' = 'dark';

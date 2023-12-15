@@ -4,9 +4,9 @@ import type { PageServerLoad } from './$types';
 import mongoose from 'mongoose';
 
 import { superValidate, message } from 'sveltekit-superforms/server';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@src/utils/formSchemas';
-import { auth, googleAuth } from '@src/routes/api/db';
-import { consumeToken, createToken } from '@src/utils/tokens';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { auth, googleAuth } from '@api/db';
+import { consumeToken, createToken } from '@utils/tokens';
 
 // load and validate login and sign up forms
 export const load: PageServerLoad = async (event) => {
@@ -64,7 +64,7 @@ export const actions: Actions = {
 		if (resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
-			throw redirect(303, '/');
+			redirect(303, '/');
 		} else {
 			return { form: signInForm, message: resp.message };
 		}
@@ -159,7 +159,7 @@ export const actions: Actions = {
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
-			throw redirect(303, '/login');
+			redirect(303, '/login');
 		} else {
 			return { form: pwresetForm };
 		}
@@ -224,7 +224,7 @@ export const actions: Actions = {
 
 			// Return message if form is submitted successfully
 			message(signUpForm, 'SignUp User form submitted');
-			throw redirect(303, '/');
+			redirect(303, '/');
 		} else {
 			return { form: signUpForm, message: resp.message || 'Unknown error' };
 		}
@@ -246,7 +246,7 @@ export const actions: Actions = {
 			maxAge: 60 * 60 // a reasonable expiration date
 		});
 
-		throw redirect(302, url);
+		redirect(302, url);
 	}
 };
 

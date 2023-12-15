@@ -2,7 +2,7 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 </script>
 
 <div class="mb-2 flex items-center">

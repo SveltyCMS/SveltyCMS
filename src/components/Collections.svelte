@@ -1,7 +1,7 @@
 <script lang="ts">
-	import { mode, screenWidth, toggleLeftSidebar, collection, categories } from '@src/stores/store';
+	import { mode, screenWidth, toggleLeftSidebar, collection, categories } from '@stores/store';
 	import { page } from '$app/stores';
-	import type { User } from '@src/collections/Auth';
+	import type { User } from 'lucia';
 
 	let user: User = $page.data.user;
 
@@ -16,6 +16,7 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { get } from 'svelte/store';
 	import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
+	import type { lucia } from 'lucia';
 
 	const popupCollections: PopupSettings = {
 		event: 'hover',

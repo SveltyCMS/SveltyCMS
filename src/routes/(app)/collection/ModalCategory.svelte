@@ -7,7 +7,7 @@
 	// Stores
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import IconifyPicker from '@src/components/IconifyPicker.svelte';
+	import IconifyPicker from '@components/IconifyPicker.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -30,7 +30,7 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	// Assuming $categories is a writable store
-	import { categories, unAssigned } from '@src/stores/store';
+	import { categories, unAssigned } from '@stores/store';
 
 	function deleteCategory(): void {
 		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {

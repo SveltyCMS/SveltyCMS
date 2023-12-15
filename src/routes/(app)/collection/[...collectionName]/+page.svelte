@@ -1,6 +1,6 @@
 <script lang="ts">
-	import PageTitle from '@src/components/PageTitle.svelte';
-	import Permissions from '@src/components/Permissions.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
+	import Permissions from '@components/Permissions.svelte';
 
 	let permissions = {};
 	let availablePermissions = ['read', 'write', 'delete']; // Add more permissions as needed
@@ -15,8 +15,8 @@
 	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import VerticalList from '@src/components/VerticalList.svelte';
-	import IconifyPicker from '@src/components/IconifyPicker.svelte';
+	import VerticalList from '@components/VerticalList.svelte';
+	import IconifyPicker from '@components/IconifyPicker.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -35,7 +35,7 @@
 		};
 
 		// Generate TypeScript code from the data object
-		let tsCode = `import widgets from '../components/widgets';\n\n`;
+		let tsCode = `import widgets from '@components/widgets';\n\n`;
 		tsCode += `let schema = ${JSON.stringify(data, null, 2)};\n`;
 		tsCode += `export default schema;\n`;
 
@@ -271,13 +271,12 @@
 					</div>
 				</div>
 
-					<!-- Buttons -->
-					<div class="flex justify-between">
-						<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
-						<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
-					</div>
-
-				{:else if tabSet === 1}
+				<!-- Buttons -->
+				<div class="flex justify-between">
+					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
+				</div>
+			{:else if tabSet === 1}
 				<!-- Permission -->
 				<Permissions />
 
@@ -286,8 +285,6 @@
 					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
 					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-primary btn mt-2">Next</button>
 				</div>
-
-			
 
 				<!-- Manage Fields -->
 			{:else if tabSet === 2}

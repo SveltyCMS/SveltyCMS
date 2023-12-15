@@ -1,9 +1,9 @@
 <script lang="ts">
-	import widgets from '@src/components/widgets';
+	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
-	import { asAny } from '@src/utils/utils';
-	import { toggleLeftSidebar } from '@src/stores/store';
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import { asAny } from '@utils/utils';
+	import { toggleLeftSidebar } from '@stores/store';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	export let fields: Array<any> = [];
 

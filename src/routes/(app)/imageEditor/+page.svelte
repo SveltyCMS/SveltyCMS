@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
 	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 

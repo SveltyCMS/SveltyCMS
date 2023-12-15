@@ -1,5 +1,5 @@
 <script lang="ts">
-	import widgets from '@src/components/widgets';
+	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
 
 	export let fields: Array<any> = [];
