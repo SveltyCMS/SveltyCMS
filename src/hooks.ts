@@ -1,6 +1,6 @@
-import { sourceLanguageTag } from './paraglide/runtime';
+import { sourceLanguageTag } from '@src/paraglide/runtime';
 
-function getTextDirection(lang) {
+function getTextDirection(lang: string): string {
 	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi']; // Add more RTL languages if needed
 	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';
 }

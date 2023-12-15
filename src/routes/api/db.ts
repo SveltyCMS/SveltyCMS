@@ -97,6 +97,16 @@ const auth = lucia({
 	env: dev ? 'DEV' : 'PROD',
 	middleware: sveltekit(),
 
+	sessionCookie: {
+		expires: false
+	},
+
+	// sessions will expire within 60 minutes (max) since inactivity
+	sessionExpiresIn: {
+		activePeriod: 1000 * 60 * 60, // 60 minutes
+		idlePeriod: 1000 * 60 * 60 // 60 minutes
+	},
+
 	getUserAttributes: (userData) => {
 		return {
 			// `userId` included by default!!
@@ -107,8 +117,6 @@ const auth = lucia({
 	// csrfProtection: {
 	// 	allowedSubdomains: ["foo"] // allow https://foo.example.com
 	// }
-
-	// sessionExpiresIn // no change
 });
 
 // Google OAuth2 - optional authentication

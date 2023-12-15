@@ -4,7 +4,7 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
-	import { Chart } from 'chart.js';
+	import Chart from 'chart.js/auto';
 	import { formatUptime } from '@utils/utils';
 
 	let systemInfo: any;
@@ -14,15 +14,18 @@
 	let memoryChart: any;
 
 	const initializeCharts = () => {
-		cpuChart = initLineChart('cpuChart', 'CPU Usage', systemInfo.cpuInfo.timeStamps, systemInfo.cpuInfo.cpuUsage);
-		diskChart = initPieChart('diskChart', 'Disk Usage', ['Used', 'Free'], [systemInfo.diskInfo.usedGb, systemInfo.diskInfo.freeGb]);
-		memoryChart = initLineChart('memoryChart', 'Memory Usage', systemInfo.memoryInfo.timeStamps, systemInfo.memoryInfo.memoryData);
+		console.log('Initializing charts...');
+		// Initialize charts using Line and Pie components
+		cpuChart = initLineChart('cpuChart', 'line', systemInfo.cpuInfo.timeStamps, systemInfo.cpuInfo.cpuUsage);
+		diskChart = initPieChart('diskChart', 'pie', ['Used', 'Free'], [systemInfo.diskInfo.usedGb, systemInfo.diskInfo.freeGb]);
+		memoryChart = initLineChart('memoryChart', 'line', systemInfo.memoryInfo.timeStamps, systemInfo.memoryInfo.memoryData);
 	};
 
 	const initLineChart = (canvasId: string, label: string, labels: string[], data: number[]) => {
 		const canvasElement = document.getElementById(canvasId) as HTMLCanvasElement;
 		if (canvasElement) {
 			const ctx = canvasElement.getContext('2d');
+
 			if (ctx) {
 				const chart = new Chart(ctx, {
 					type: 'line',
@@ -33,7 +36,9 @@
 								label: label,
 								data: data,
 								fill: false,
-								borderColor: 'rgb(75, 192, 192)',
+								backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)', 'rgba(255, 206, 86, 0.2)'],
+								borderColor: ['rgb(255, 99, 132)', 'rgb(54, 162, 235)', 'rgb(255, 206, 86)'],
+								borderWidth: 1,
 								tension: 0.1
 							}
 						]
@@ -94,7 +99,44 @@
 		}
 	};
 
+	const updateDiskChart = async () => {
+		try {
+			const response = await axios.get('/api/systemInfo');
+			const newSystemInfo = response.data;
+
+			// Check if diskChart is defined
+			if (diskChart) {
+				// Update data points
+				diskChart.data.datasets[0].data = [newSystemInfo.diskInfo.usedGb, newSystemInfo.diskInfo.freeGb];
+
+				// Update chart
+				diskChart.update();
+			}
+		} catch (error) {
+			console.error(`Error updating Disk chart: ${error}`);
+		}
+	};
+
+	const updateMemoryChart = async () => {
+		try {
+			const response = await axios.get('/api/systemInfo');
+			const newSystemInfo = response.data;
+
+			// Check if memoryChart is defined
+			if (memoryChart) {
+				// Update data points
+				memoryChart.data.datasets[0].data = newSystemInfo.memoryInfo.memoryData;
+
+				// Update chart
+				memoryChart.update();
+			}
+		} catch (error) {
+			console.error(`Error updating Memory chart: ${error}`);
+		}
+	};
+
 	onMount(async () => {
+		console.log('Component mounted...');
 		try {
 			const response = await axios.get('/api/systemInfo');
 			systemInfo = response.data;
@@ -133,6 +175,7 @@
 				try {
 					const response = await axios.get('/api/systemInfo');
 					systemInfo.diskInfo = response.data.diskInfo;
+					updateDiskChart();
 				} catch (error) {
 					console.error(`Error updating disk info: ${error}`);
 				}
@@ -143,12 +186,20 @@
 				try {
 					const response = await axios.get('/api/systemInfo');
 					systemInfo.memoryInfo = response.data.memoryInfo;
+					updateMemoryChart();
 				} catch (error) {
 					console.error(`Error updating memory info: ${error}`);
 				}
 			}, 30000);
 		}
 	});
+
+	// Define a function to calculate the average of an array
+	const calculateAverage = (arr: any) => {
+		if (arr.length === 0) return 0; // Handle division by zero
+		const sum = arr.reduce((acc: any, val: any) => acc + val, 0);
+		return (sum / arr.length).toFixed(2);
+	};
 </script>
 
 <div class="mb-2 flex items-center">
@@ -156,93 +207,99 @@
 </div>
 
 {#if systemInfo}
-	<!-- Display system information here -->
-	<div>CPU Infos: {systemInfo.cpuInfo.avgIdle}%</div>
-	<div>Drive Free: {systemInfo.diskInfo.freeGb} GB</div>
-	<div>Drive Used: {systemInfo.diskInfo.usedGb} GB</div>
-	<div>Memory Free: {systemInfo.memoryInfo.freeMemMb} MB</div>
-	<div>Memory Total: {systemInfo.memoryInfo.totalMemMb} MB</div>
-
-	<div class="frounded card variant-outline-surface">
+	<div class="card variant-outline-surface rounded">
 		<header class="card-header rounded-t bg-primary-500 text-center text-lg font-bold">
-			<h2 class="flex items-center justify-center gap-2">
-				<iconify-icon icon="codicon:server-environment" width="24"></iconify-icon>
+			<h2 class="flex justify-center gap-2">
+				<iconify-icon icon="codicon:server-environment" width="24" />
 				Server Information
 			</h2>
 		</header>
-		<section class=" rounded-b p-4">
-			<div><span class="text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
-			<div><span class="text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
-			<div><span class="text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
-			<div><span class="text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
-			<div><span class="text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
-		</section>
+		<div class="flex justify-around rounded-b pb-2">
+			<section>
+				<!-- Display OS information  -->
+				<div><span class="text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
+				<div><span class="text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
+				<div><span class="text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
+				<div><span class="text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
+				<div><span class="text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
+			</section>
+
+			<!-- CPU Usage -->
+			<div class="card">
+				<header class="card-header font-bold text-primary-500">CPU Usage</header>
+				{#if cpuChart}
+					<section class="rounded border p-4">
+						<canvas id="cpuChart" />
+					</section>
+				{:else}
+					<div>Loading...</div>
+				{/if}
+				<footer class="card-footer"><span class="text-primary-500">Current CPU Usage:</span> {calculateAverage(systemInfo.cpuInfo.cpuUsage)}%</footer>
+			</div>
+		</div>
 	</div>
 
-	<div></div>
-
-	<!-- CPU Usage -->
-	{#if cpuChart}
-		<div class="card">
-			<header class="card-header font-bold text-primary-500">CPU Usage</header>
-			<section class="rounded border p-4">
-				<canvas id="cpuChart"></canvas>
-			</section>
-			<footer class="card-footer">Current CPU Usage: {systemInfo.cpuInfo.avgIdle}%</footer>
-		</div>
-	{:else}
-		<div>Loading...</div>
-	{/if}
-
-	<!-- Disk usage pie chart container -->
-	{#if diskChart}
-		<div class="card">
+	<hr />
+	<div class="flex justify-between gap-2">
+		<!-- Disk usage pie chart container -->
+		<div class="card w-full">
 			<header class="card-header font-bold text-primary-500">Disk Usage</header>
-			<section class="rounded p-4">
-				<canvas id="diskChart"></canvas>
-			</section>
-			<footer class="card-footer">Drive Free: {systemInfo.diskInfo.freeGb} GB, Drive Used: {systemInfo.diskInfo.usedGb} GB</footer>
+			{#if diskChart}
+				<section class="rounded p-4">
+					<canvas id="diskChart" />
+				</section>
+			{:else}
+				<div>Loading...</div>
+			{/if}
+			<footer class="card-footer">
+				<span class="text-primary-500">Drive Free:</span>
+				{systemInfo.diskInfo.freeGb} GB, <span class="text-primary-500">Drive Used:</span>
+				{systemInfo.diskInfo.usedGb} GB
+			</footer>
 		</div>
-	{:else}
-		<div>Loading...</div>
-	{/if}
 
-	<!-- Memory usage line chart container -->
-	{#if memoryChart}
-		<div class="card">
+		<!-- Memory usage line chart container -->
+		<div class="card w-full">
 			<header class="card-header font-bold text-primary-500">Memory Usage</header>
-			<section class="rounded p-4">
-				<canvas id="memoryChart"></canvas>
-			</section>
-			<footer class="card-footer">Memory Free: {systemInfo.memoryInfo.freeMemMb} MB, Memory Total: {systemInfo.memoryInfo.totalMemMb} MB</footer>
+			{#if memoryChart}
+				<section class="rounded p-4">
+					<canvas id="memoryChart" />
+				</section>
+			{:else}
+				<div>Loading...</div>
+			{/if}
+			<footer class="card-footer">
+				<span class="text-primary-500">Memory Free:</span>
+				{systemInfo.memoryInfo.freeMemMb} MB, <span class="text-primary-500">Memory Total:</span>: {systemInfo.memoryInfo.totalMemMb} MB
+			</footer>
 		</div>
-	{:else}
-		<div>Loading...</div>
-	{/if}
-
-	<!-- Top 5 Contents -->
-	<div class="card">
-		<header class="card-header font-bold text-primary-500">Top 5 Contents</header>
-		<section class="rounded p-4">
-			<li>Content Title</li>
-		</section>
-		<footer class="card-footer"></footer>
 	</div>
-	<!-- Last 5 Contents updates -->
 
-	<div class="card">
+	<div class="flex justify-between gap-2">
+		<!-- Top 5 Content -->
+		<div class="card w-full">
+			<header class="card-header font-bold text-primary-500">Top 5 Content</header>
+			<section class="rounded p-4">
+				<li>Content Title</li>
+			</section>
+			<footer class="card-footer"></footer>
+		</div>
+
+		<!-- Online Team Members -->
+		<div class="card w-full">
+			<header class="card-header font-bold text-primary-500">Online Team Members</header>
+			<section class="rounded p-4">
+				<li>Team name</li>
+			</section>
+			<footer class="card-footer"></footer>
+		</div>
+	</div>
+
+	<!-- Last 5 Contents updates -->
+	<div class="card w-full">
 		<header class="card-header font-bold text-primary-500">Last Content Updated</header>
 		<section class="rounded p-4">
 			<li>Content Title</li>
-		</section>
-		<footer class="card-footer"></footer>
-	</div>
-
-	<!-- Online Team Members -->
-	<div class="card">
-		<header class="card-header font-bold text-primary-500">Online Team Members</header>
-		<section class="rounded p-4">
-			<li>Team name</li>
 		</section>
 		<footer class="card-footer"></footer>
 	</div>

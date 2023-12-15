@@ -94,160 +94,162 @@
 	class:inactive={active !== undefined && active !== 1}
 	class:hover={active == undefined || active == 0}
 >
-	<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
-		<div class="mb-4 flex flex-row gap-2">
-			<CMSLogo className="w-12" fill="red" />
+	{#if active == 1}
+		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
+			<div class="mb-4 flex flex-row gap-2">
+				<CMSLogo className="w-12" fill="red" />
 
-			<h1 class="text-3xl font-bold text-white lg:text-4xl">
-				<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
-				<div class="break-words lg:-mt-1">
-					{m.signup_signup()}
-					{#if !firstUserExists}
-						<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
-					{:else}
-						<!-- TODO: Grab User Role from Token  -->
-						<span class="text-2xl text-primary-500 sm:text-3xl"
-							>{#if UserRole}: {UserRole}{:else}: New User{/if}</span
-						>
-					{/if}
-				</div>
-			</h1>
-		</div>
+				<h1 class="text-3xl font-bold text-white lg:text-4xl">
+					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+					<div class="break-words lg:-mt-1">
+						{m.signup_signup()}
+						{#if !firstUserExists}
+							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
+						{:else}
+							<!-- TODO: Grab User Role from Token  -->
+							<span class="text-2xl text-primary-500 sm:text-3xl"
+								>{#if UserRole}: {UserRole}{:else}: New User{/if}</span
+							>
+						{/if}
+					</div>
+				</h1>
+			</div>
 
-		<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
+			<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
 
-		<!-- <SuperDebug data={$form} display={dev} /> -->
+			<!-- <SuperDebug data={$form} display={dev} /> -->
 
-		<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
-			<!-- Username field -->
-			<FloatingInput
-				name="username"
-				type="text"
-				tabindex={tabIndex++}
-				required
-				bind:value={$form.username}
-				label={m.signup_username()}
-				{...$constraints.username}
-				icon="mdi:user-circle"
-				iconColor="white"
-				textColor="white"
-				inputClass="text-white"
-			/>
-			{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
-
-			{#if PUBLIC_USE_GOOGLE_OAUTH}
-				<!-- Email field -->
+			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
+				<!-- Username field -->
 				<FloatingInput
-					name="email"
-					type="email"
+					name="username"
+					type="text"
 					tabindex={tabIndex++}
 					required
-					bind:value={$form.email}
-					label={m.signup_emailaddess()}
-					{...$constraints.email}
-					icon="mdi:email"
+					bind:value={$form.username}
+					label={m.signup_username()}
+					{...$constraints.username}
+					icon="mdi:user-circle"
 					iconColor="white"
 					textColor="white"
 					inputClass="text-white"
 				/>
-				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-				<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
-				<!-- Password field -->
-				<FloatingInput
-					name="password"
-					type="password"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.password}
-					bind:showPassword
-					label={m.signup_password()}
-					{...$constraints.password}
-					icon="mdi:password"
-					iconColor="white"
-					textColor="white"
-					showPasswordBackgroundColor="dark"
-					inputClass="text-white"
-				/>
-				{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
+				{#if PUBLIC_USE_GOOGLE_OAUTH}
+					<!-- Email field -->
+					<FloatingInput
+						name="email"
+						type="email"
+						tabindex={tabIndex++}
+						required
+						bind:value={$form.email}
+						label={m.signup_emailaddess()}
+						{...$constraints.email}
+						icon="mdi:email"
+						iconColor="white"
+						textColor="white"
+						inputClass="text-white"
+					/>
+					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
-				<!-- Password Confirm -->
-				<FloatingInput
-					name="confirm_password"
-					type="password"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.confirm_password}
-					bind:showPassword
-					label={m.signup_confirmpassword()}
-					{...$constraints.confirm_password}
-					icon="mdi:password"
-					iconColor="white"
-					textColor="white"
-					showPasswordBackgroundColor="dark"
-					inputClass="text-white"
-				/>
-				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
-			{/if}
+					<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
+					<!-- Password field -->
+					<FloatingInput
+						name="password"
+						type="password"
+						tabindex={tabIndex++}
+						required
+						bind:value={$form.password}
+						bind:showPassword
+						label={m.signup_password()}
+						{...$constraints.password}
+						icon="mdi:password"
+						iconColor="white"
+						textColor="white"
+						showPasswordBackgroundColor="dark"
+						inputClass="text-white"
+					/>
+					{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
 
-			{#if $form.token != null}
-				<!-- Registration Token -->
-				<FloatingInput
-					name="token"
-					type="password"
-					tabindex={tabIndex++}
-					required
-					bind:value={$form.token}
-					label={m.signup_registrationtoken()}
-					{...$constraints.token}
-					icon="mdi:key-chain"
-					iconColor="white"
-					textColor="white"
-					showPasswordBackgroundColor="dark"
-					inputClass="text-white"
-				/>
-				{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
-			{/if}
+					<!-- Password Confirm -->
+					<FloatingInput
+						name="confirm_password"
+						type="password"
+						tabindex={tabIndex++}
+						required
+						bind:value={$form.confirm_password}
+						bind:showPassword
+						label={m.signup_confirmpassword()}
+						{...$constraints.confirm_password}
+						icon="mdi:password"
+						iconColor="white"
+						textColor="white"
+						showPasswordBackgroundColor="dark"
+						inputClass="text-white"
+					/>
+					{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
+				{/if}
 
-			{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
-			<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
+				{#if $form.token != null}
+					<!-- Registration Token -->
+					<FloatingInput
+						name="token"
+						type="password"
+						tabindex={tabIndex++}
+						required
+						bind:value={$form.token}
+						label={m.signup_registrationtoken()}
+						{...$constraints.token}
+						icon="mdi:key-chain"
+						iconColor="white"
+						textColor="white"
+						showPasswordBackgroundColor="dark"
+						inputClass="text-white"
+					/>
+					{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
+				{/if}
 
-			{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
-				<!-- email signin only -->
-				<button type="submit" class="variant-filled btn mt-4 uppercase"
-					>{m.signup_signup()}
-					<!-- Loading indicators -->
-					{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
-				</button>
+				{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
+				<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
 
-				<!-- email + oauth signin  -->
-			{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
-				<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-error-500">
-					<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
-						<span class="text-black">{m.signup_signup()} </span>
+				{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
+					<!-- email signin only -->
+					<button type="submit" class="variant-filled btn mt-4 uppercase"
+						>{m.signup_signup()}
 						<!-- Loading indicators -->
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
-					<form method="post" action="?/OAuth" class="w-fit">
-						<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
-						<button type="submit" class="uppercase">
-							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
-							<span>OAuth</span>
+
+					<!-- email + oauth signin  -->
+				{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
+					<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-error-500">
+						<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
+							<span class="text-black">{m.signup_signup()} </span>
+							<!-- Loading indicators -->
+							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
+						</button>
+						<form method="post" action="?/OAuth" class="w-fit">
+							<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
+							<button type="submit" class="uppercase">
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
+								<span>OAuth</span>
+							</button>
+						</form>
+					</div>
+				{:else}
+					<!-- TODO: not really used -->
+					<form method="post" action="?/OAuth" class="flex w-full">
+						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
+							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+							<p>Sign Up with Google</p>
+							<!-- <p>{m.signup_signupwithgoogle()}</p>-->
 						</button>
 					</form>
-				</div>
-			{:else}
-				<!-- TODO: not really used -->
-				<form method="post" action="?/OAuth" class="flex w-full">
-					<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3 uppercase">
-						<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-						<p>Sign Up with Google</p>
-						<!-- <p>{m.signup_signupwithgoogle()}</p>-->
-					</button>
-				</form>
-			{/if}
-		</form>
-	</div>
+				{/if}
+			</form>
+		</div>
+	{/if}
 
 	<SignupIcon show={active == 0 || active == undefined} />
 </section>

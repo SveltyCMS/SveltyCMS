@@ -89,8 +89,6 @@
 	const pkg = __VERSION__;
 	let githubVersion = '';
 
-	// const currentMonth = new Date().getMonth();
-
 	// Fetch the latest release from GitHub
 	axios
 		.get('https://api.github.com/repos/Rar9/SimpleCMS/releases/latest')
@@ -303,13 +301,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 					<a href="/" class="t flex pt-2 !no-underline">
 						<SimpleCmsLogo fill="red" className="h-8 " />
 
-						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white"
-							>{PUBLIC_SITENAME}
-
-							<!-- {#if PUBLIC_SEASSONS && currentMonth === 11}
-								<img src="/SantaHat.png" alt="Santa hat" class="z-100 absolute right-[-11px] top-[-8px] h-8 w-8 -rotate-[25deg]" />
-							{/if} -->
-						</span>
+						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME} </span>
 					</a>
 				{:else}
 					<!-- Corporate Identity Collapsed-->

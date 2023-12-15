@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { roles } from '@collections/types';
 
-	//import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+	//import  {PUBLIC_CONTENT_LANGUAGES} from '$env/static/public';
 
 	export let value: string;
 	// TODO| Add i18n PUBLIC_TRANSLATIONS

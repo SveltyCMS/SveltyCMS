@@ -19,7 +19,7 @@
 
 	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
 
-	let searchValue = '';
+	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
 	let columnShow = false;
@@ -110,10 +110,10 @@
 	let filteredData = tableData;
 	// Create a reactive statement that updates the filteredData array whenever the searchValue changes
 	$: {
-		if (searchValue) {
+		if (globalSearchValue) {
 			filteredData = tableData.filter((row) => {
 				// Check if any of the values in this row match the search value
-				return Object.values(row).some((value) => (value as string).toString().toLowerCase().includes(searchValue.toLowerCase()));
+				return Object.values(row).some((value) => (value as string).toString().toLowerCase().includes(globalSearchValue.toLowerCase()));
 			});
 		} else {
 			filteredData = tableData;
@@ -460,7 +460,7 @@
 	</button>
 
 	<div class="relative hidden items-center justify-center gap-2 sm:flex">
-		<TanstackFilter bind:searchValue bind:filterShow bind:columnShow bind:density />
+		<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 		<TranslationStatus />
 	</div>
 
@@ -471,7 +471,7 @@
 <!-- Row 2 for Mobile  / Center on desktop -->
 <!-- TODO:add  expand transition -->
 <div class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow ? 'hidden' : 'block'} sm:hidden">
-	<TanstackFilter bind:searchValue bind:filterShow bind:columnShow bind:density />
+	<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 	<TranslationStatus />
 </div>
 

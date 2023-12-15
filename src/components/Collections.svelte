@@ -16,7 +16,6 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import { get } from 'svelte/store';
 	import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
-	import type { lucia } from 'lucia';
 
 	const popupCollections: PopupSettings = {
 		event: 'hover',

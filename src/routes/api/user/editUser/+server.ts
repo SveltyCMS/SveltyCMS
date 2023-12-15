@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			attributes: {}
 		});
 		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 	}
 
 	return new Response(JSON.stringify('success'), { status: 200 });

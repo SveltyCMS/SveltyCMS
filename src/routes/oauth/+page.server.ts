@@ -27,7 +27,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		OAuth = await googleAuth.validateCallback(code);
 		const { getExistingUser, googleUser, createUser } = OAuth;
 
-		const getUser = async (): Promise<[User, boolean]> => {
+		const getUser = async (): Promise<[User | null, boolean]> => {
 			const existingUser = await getExistingUser();
 
 			if (existingUser) return [existingUser, false];
@@ -82,7 +82,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			});
 
 			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 		}
 		result.data = { needSignIn };
 	} catch (e) {
@@ -122,7 +122,7 @@ export const actions: Actions = {
 		try {
 			const { getExistingUser, googleUser, createUser } = OAuth;
 
-			const getUser = async (): Promise<[User, boolean]> => {
+			const getUser = async (): Promise<[User | null, boolean]> => {
 				const existingUser = await getExistingUser();
 				if (existingUser) return [existingUser, false];
 
@@ -187,7 +187,7 @@ export const actions: Actions = {
 				attributes: {}
 			});
 			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 
 			result.data = { user };
 		} catch (e) {

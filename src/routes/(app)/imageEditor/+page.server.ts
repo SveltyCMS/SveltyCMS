@@ -43,14 +43,14 @@ async function resizeImage(imagePath: any) {
 // }
 
 export async function load(event: any) {
-	// Secure this page with session cookie
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-	// Validate the user's session
-	const user = await validate(auth, session);
-	// If validation fails, redirect the user to the login page
-	if (user.status !== 200) {
-		redirect(302, `/login`);
-	}
+	// // Secure this page with session cookie
+	// const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	// // Validate the user's session
+	// const user = await validate(auth, session);
+	// // If validation fails, redirect the user to the login page
+	// if (user.status !== 200) {
+	// 	redirect(302, `/login`);
+	// }
 
 	try {
 		const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component

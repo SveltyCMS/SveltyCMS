@@ -17,7 +17,7 @@ export async function load({ cookies }) {
 	const user = await validate(auth, session);
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c) => c?.permissions?.[user.user.role]?.read != false);
+	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.user.role]?.read != false);
 
 	// Redirect to the first collection in the collections array
 	redirect(302, `/${languageTag()}/${_filtered[0].name}`);
@@ -28,7 +28,10 @@ export const actions = {
 	default: async ({ cookies, request }) => {
 		const data = await request.formData();
 		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
+		console.log(theme);
+
 		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
+		console.log(systemlanguage);
 
 		// Check if the provided system language is available, if not, default to source language
 		if (!availableLanguageTags.includes(sourceLanguageTag)) {
@@ -36,8 +39,8 @@ export const actions = {
 		}
 
 		// Set the cookies
-		/* @migration task: add path argument */ cookies.set('theme', theme);
-		/* @migration task: add path argument */ cookies.set('systemlanguage', systemlanguage);
+		cookies.set('theme', theme, { path: '/' });
+		cookies.set('systemlanguage', systemlanguage, { path: '/' });
 
 		// Update the language tag in paraglide
 		setLanguageTag(systemlanguage as any);

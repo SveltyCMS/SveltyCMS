@@ -54,11 +54,11 @@
 				<!-- Seasons -->
 				{#if PUBLIC_SEASSONS}
 					{#if isDecember}
-						<img src="/SantaHat.png" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+						<img src="/SantaHat.avif" alt="Santa hat" loading="lazy" class="absolute -right-5 -top-5 h-20 w-20" />
 					{/if}
 
 					{#if isHalloween}
-						<img src="/Halloween.png" alt="Spider" class="absolute -bottom-[170px] left-0" />
+						<img src="/Halloween.avif" alt="Spider" loading="lazy" class="absolute -bottom-[170px] left-0" />
 					{/if}
 				{/if}
 
@@ -126,24 +126,26 @@
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
 			<!-- Autocomplete input -->
-			{#if AVAILABLE_SYSTEMLANGUAGES.length > 6}
+			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}
 				<!-- <Autocomplete {options} placeholder={_languageTag} bind:value={inputlangeuagevalue} /> -->
 				<input
 					type="text"
 					list="locales"
 					bind:value={inputlangeuagevalue}
 					placeholder={_languageTag}
-					class=" w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
-					on:input={() => ($systemLanguage = inputlangeuagevalue)}
+					class="w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
+					on:input={() => ($systemLanguage = inputlangeuagevalue.toLowerCase())}
 				/>
 
-				<datalist id="locales" class="w-full divide-y divide-white uppercase">
+				<datalist id="locales" class="w-1/2 divide-y divide-white uppercase">
 					{#each filteredLanguages as locale}
-						<option class="uppercase text-error-500">{locale}</option>
+						<option class="uppercase text-error-500">{locale.toUpperCase()}</option>
 					{/each}
 				</datalist>
 			{:else}
 				<!-- Dropdown select -->
+				<label for="languageSelect" class="sr-only">Select Language</label>
+
 				<select
 					bind:value={_languageTag}
 					on:change={handleLocaleChange}

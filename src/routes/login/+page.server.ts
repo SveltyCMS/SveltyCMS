@@ -61,12 +61,14 @@ export const actions: Actions = {
 		const resp = await signIn(email, password, isToken, event.cookies);
 		console.log('response: ', resp);
 
-		if (resp.status) {
+		if (resp && resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
 			redirect(303, '/');
 		} else {
-			return { form: signInForm, message: resp.message };
+			// Handle the case when resp is undefined or when status is false
+			const errorMessage = resp?.message || 'An error occurred during sign-in.';
+			return { form: signInForm, message: errorMessage };
 		}
 	},
 
@@ -267,30 +269,15 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 				attributes: {}
 			});
 			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 
 			const authMethod = 'password';
 			await auth.updateUserAttributes(key.userId, { authMethod });
 
 			return { status: true };
-		} else {
-			// If isToken is true, sign in using token
-			/*const token = password;
-			const key = await auth.getKey('email', email).catch(() => null);
-			if (!key) return { status: false, message: 'User does not exist' };
-			const tokenHandler = passwordToken(auth as any, 'register', { expiresIn: 0 });
-
-			await tokenHandler.validate(token, key.userId);
-			const session = await auth.createSession({
-				userId: key.userId,
-				attributes: {}
-			});
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			const authMethod = 'token';
-			await auth.updateUserAttributes(key.userId, { authMethod });
-			return { status: true };*/
 		}
+
+		// Additional logic for token-based authentication can be added here if needed
 	} catch (e) {
 		console.error(e);
 		return { status: false, message: 'An error occurred' };
@@ -324,7 +311,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	});
 	const sessionCookie = auth.createSessionCookie(session);
 	// Set the credentials cookie
-	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+	cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 
 	return { status: true };
 }
@@ -389,83 +376,6 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 	}
 }
 
-// async function updatePassword(userId: string, newPassword: string) {
-// 	try {
-// 		// Use your authentication service's method to update the password
-// 		await auth.updateKeyPassword('email', userId, newPassword);
-
-// 		// Optionally, you can update the user's authentication method if needed
-// 		const authMethod = 'password';
-// 		await auth.updateUserAttributes(userId, { authMethod });
-
-// 		return { status: true, message: 'Password updated successfully' };
-// 	} catch (error) {
-// 		console.error('Error updating password:', error);
-// 		return { status: false, message: 'An error occurred while updating the password' };
-// 	}
-// }
-
-// Update the password
-// const updateResult = await updatePassword(key.userId, password);
-
-// if (updateResult.status) {
-// 	// Create a new session and set the session cookie
-// 	console.log('Creating session and setting session cookie...');
-// 	const session = await auth.createSession({
-//     userId: key.userId,
-//     attributes: {}
-// });
-// 	const sessionCookie = auth.createSessionCookie(session);
-// 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-
-// 	// Update user's authentication method
-// 	console.log('Updating user attributes...');
-// 	const authMethod = 'token';
-// 	await auth.updateUserAttributes(key.userId, { authMethod });
-
-// 	console.log('Password reset successful.');
-// 	return { status: true };
-// } else {
-// 	console.error(updateResult.message);
-// 	return { status: false, message: 'An error occurred during password update' };
-// }
-
-// Function create a new FIRST USER account as ADMIN and creating a session.
-// async function signUp(username: string, email: string, password: string, cookies: Cookies, event) {
-// 	// Convert email to lowercase
-// 	email = email.toLowerCase();
-
-// 	const user = await auth
-// 		.createUser({
-// 			key: {
-// 				providerId: 'email',
-// 				providerUserId: email,
-// 				password: password
-// 			},
-// 			attributes: {
-// 				username: username,
-// 				role: 'admin' // First User
-// 			}
-// 		})
-// 		.catch((e) => {
-// 			console.log(e);
-// 			return null;
-// 		});
-
-// 	if (!user) return { status: false, message: 'User does not exist' };
-
-// 	const session = await auth.createSession({
-// 		userId: user.id,
-// 		attributes: {}
-// 	});
-
-// 	// Set the credentials cookie
-// 	cookies.set('credentials', JSON.stringify({ username: user.username, session: session.sessionId }), {
-// 		path: '/'
-// 	});
-// 	return { status: true };
-// }
-
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
 	// SignUp Token
@@ -489,7 +399,7 @@ async function finishRegistration(username: string, email: string, password: str
 		const sessionCookie = auth.createSessionCookie(session);
 
 		// Set the credentials cookie
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 
 		return { status: true };
 	} catch (e) {

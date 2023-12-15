@@ -21,7 +21,7 @@ async function signOut(cookies: Cookies) {
 	try {
 		const sessionID = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 		await auth.invalidateSession(sessionID);
-		/* @migration task: add path argument */ cookies.delete(DEFAULT_SESSION_COOKIE_NAME);
+		cookies.delete(DEFAULT_SESSION_COOKIE_NAME, { path: '/' });
 		return new Response(JSON.stringify({ status: 200 }));
 	} catch (e) {
 		return new Response(JSON.stringify({ status: 404 }));

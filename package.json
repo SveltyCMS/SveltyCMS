@@ -25,7 +25,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/Rar9/SimpleCMS/"
+		"url": "https://github.com/Rar9/SimpleCMS"
 	},
 	"bugs": {
 		"url": "https://github.com/Rar9/SimpleCMS/issues"
@@ -86,7 +86,7 @@
 		"ts-morph": "^21.0.1",
 		"tslib": "^2.6.2",
 		"typescript": "^5.3.3",
-		"vite": "^5.0.9",
+		"vite": "^5.0.10",
 		"vite-plugin-tailwind-purgecss": "^0.1.4",
 		"zod": "^3.22.4"
 	},
