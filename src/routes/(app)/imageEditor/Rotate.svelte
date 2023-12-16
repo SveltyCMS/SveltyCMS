@@ -7,32 +7,39 @@
 
 	function handleRotate() {
 		const preview = document.getElementById('preview') as HTMLImageElement;
-		if (!preview) {
-			console.log('Preview element not found');
+		if (!preview || !image) {
+			console.log('Preview element or image not found');
 			return;
 		}
-		if (image) {
-			const img = new Image();
-			img.src = URL.createObjectURL(image);
-			img.onload = () => {
-				const canvas = document.createElement('canvas');
-				const ctx = canvas.getContext('2d')!;
-				const width = img.width;
-				const height = img.height;
 
-				canvas.width = width;
-				canvas.height = height;
+		const img = new Image();
+		img.src = URL.createObjectURL(image);
+		img.onload = () => {
+			const canvas = document.createElement('canvas');
+			const ctx = canvas.getContext('2d');
+			if (!ctx) {
+				console.log('Canvas context not supported');
+				return;
+			}
 
-				// Rotate the image
-				ctx.translate(width / 2, height / 2);
-				ctx.rotate((rotate * Math.PI) / 180);
-				ctx.drawImage(img, -width / 2, -height / 2);
+			const width = img.width;
+			const height = img.height;
 
-				// Update the preview
-				const preview = document.getElementById('preview') as HTMLImageElement;
-				preview.src = canvas.toDataURL();
-			};
-		}
+			canvas.width = width;
+			canvas.height = height;
+
+			// Translate to the center of the viewport
+			ctx.translate(canvas.width / 2, canvas.height / 2);
+
+			// Rotate the image
+			ctx.rotate((rotate * Math.PI) / 180);
+
+			// Draw the image back to its original position
+			ctx.drawImage(img, -width / 2, -height / 2);
+
+			// Update the preview
+			preview.src = canvas.toDataURL();
+		};
 	}
 
 	import { onMount, afterUpdate } from 'svelte';

@@ -6,19 +6,19 @@ import { auth } from '@api/db';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { redirect } from '@sveltejs/kit';
 
-import sharp from 'sharp';
+// import sharp from 'sharp';
 
-// resize image preview
-async function resizeImage(imagePath: any) {
-	const outputBuffer = await sharp(imagePath)
-		.resize(800, 800, {
-			fit: 'inside',
-			withoutEnlargement: true
-		})
-		.toBuffer();
+// // resize image preview
+// async function resizeImage(imagePath: any) {
+// 	const outputBuffer = await sharp(imagePath)
+// 		.resize(800, 800, {
+// 			fit: 'inside',
+// 			withoutEnlargement: true
+// 		})
+// 		.toBuffer();
 
-	await fs.writeFile(imagePath, outputBuffer);
-}
+// 	await fs.writeFile(imagePath, outputBuffer);
+// }
 
 // Define the function to load image data
 // async function loadImageData(imageName: string): Promise<{
@@ -43,14 +43,14 @@ async function resizeImage(imagePath: any) {
 // }
 
 export async function load(event: any) {
-	// // Secure this page with session cookie
-	// const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-	// // Validate the user's session
-	// const user = await validate(auth, session);
-	// // If validation fails, redirect the user to the login page
-	// if (user.status !== 200) {
-	// 	redirect(302, `/login`);
-	// }
+	// Secure this page with session cookie
+	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	// Validate the user's session
+	const user = await validate(auth, session);
+	// If validation fails, redirect the user to the login page
+	if (user.status !== 200) {
+		redirect(302, `/login`);
+	}
 
 	try {
 		const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component
@@ -58,7 +58,7 @@ export async function load(event: any) {
 		const fileStats = await fs.stat(filePath);
 
 		if (fileStats.isFile()) {
-			await resizeImage(filePath);
+			// await resizeImage(filePath);
 
 			const imageData = {
 				name: imageName,

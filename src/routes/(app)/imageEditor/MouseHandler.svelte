@@ -16,8 +16,18 @@
 	export let Center: number = 0;
 	export let Rotate: number = 0;
 
+	// Define an interface for the mouseHandlerProps
+	interface MouseHandlerProps {
+		TopLeft: number;
+		TopRight: number;
+		BottomLeft: number;
+		BottomRight: number;
+		Center: number;
+		Rotate: number;
+	}
+
 	// Combine the properties into an object
-	export const mouseHandlerProps = {
+	export const mouseHandlerProps: MouseHandlerProps = {
 		TopLeft,
 		TopRight,
 		BottomLeft,
@@ -30,6 +40,9 @@
 	let selectedCorner: string | null; // The selected corner for resizing
 	let moving: boolean = false; // Track if the mouse is moving
 	let down: boolean = false; // Track if the mouse is clicked down
+	let initialMousePosition: { x: number; y: number } | null = null; // Initial mouse position for handling slight movements
+	let isMouseDown: boolean = false; // Track if the mouse button is pressed
+	const movementThreshold = 2; // Adjust the threshold value as needed
 
 	// Function to handle mouse move event
 	export function handleMouseMove(e: MouseEvent): void {
@@ -55,8 +68,18 @@
 
 		// Check if the mouse is moving the whole element or a corner
 		if (moving && !selectedCorner) {
-			// Dispatch the move event with the deltas
-			dispatch('move', { x: deltaX - TopLeft, y: deltaY - TopLeft });
+			if (initialMousePosition) {
+				const distanceX = Math.abs(clientX - initialMousePosition.x);
+				const distanceY = Math.abs(clientY - initialMousePosition.y);
+
+				// Check if the mouse has moved beyond the threshold
+				if (distanceX >= movementThreshold || distanceY >= movementThreshold) {
+					// Dispatch the move event with the deltas
+					dispatch('move', { x: deltaX - TopLeft, y: deltaY - TopLeft });
+				}
+			} else {
+				initialMousePosition = { x: clientX, y: clientY };
+			}
 		} else if (moving && selectedCorner) {
 			// Use a switch statement to handle the different cases for the corners
 			switch (selectedCorner) {
@@ -98,13 +121,23 @@
 		}
 	}
 
+	// Function to handle mouse up event
 	export function handleMouseDown(e: MouseEvent): void {
 		handleDown(e);
+		isMouseDown = true;
+		// Reset the selected corner and initial mouse position
+		selectedCorner = null;
+		initialMousePosition = null;
 	}
 
+	// Function to handle touch end event
 	export function handleTouchStart(e: TouchEvent): void {
 		const touch = e.touches[0];
 		handleDown(touch);
+		isMouseDown = true;
+		// Reset the selected corner and initial mouse position
+		selectedCorner = null;
+		initialMousePosition = null;
 	}
 
 	function handleDown(e: MouseEvent | Touch): void {
@@ -125,12 +158,16 @@
 		}
 	}
 
+	// Function to handle mouse up event
 	export function handleMouseUp(e: MouseEvent): void {
 		handleUpMouse(e);
+		isMouseDown = false;
 	}
 
+	// Function to handle touch end event
 	export function handleTouchEnd(e: TouchEvent): void {
 		handleUpTouch(e);
+		isMouseDown = false;
 	}
 
 	function handleUpMouse(e: MouseEvent): void {
@@ -152,12 +189,19 @@
 
 		// Additional handling specific to TouchEvent if needed
 	}
+
+	// Additional styles for the div element to set the cursor based on mouse button state
+	let cursorStyle: string = 'var(--cursor)';
+	$: {
+		cursorStyle = isMouseDown ? 'grabbing' : 'var(--cursor)';
+	}
 </script>
 
 <!-- Use a div element instead of a button element -->
 <div
 	class="my-component"
 	bind:this={element}
+	on:keydown={handleKeyDown}
 	on:mousedown={handleMouseDown}
 	on:mouseup={handleMouseUp}
 	on:mousemove={handleMouseMove}

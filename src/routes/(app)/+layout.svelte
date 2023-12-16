@@ -53,7 +53,7 @@
 
 	import axios from 'axios';
 	import SimpleCmsLogo from '@components/SimpleCMS_Logo.svelte';
-	import { PUBLIC_SEASSONS, PUBLIC_SITENAME } from '$env/static/public';
+	import { PUBLIC_SITENAME } from '$env/static/public';
 	import ControlPanel from '@components/ControlPanel.svelte';
 	import Collections from '@components/Collections.svelte';
 	import { getDates } from '@utils/utils';

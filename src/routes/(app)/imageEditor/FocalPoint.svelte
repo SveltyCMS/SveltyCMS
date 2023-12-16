@@ -1,5 +1,8 @@
 <script lang="ts">
 	import MouseHandler from './MouseHandler.svelte';
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	// Define ImageSize for Overlay
 	export let CONT_WIDTH: number;
@@ -16,6 +19,9 @@
 			// Add constraints to keep the focal point within the image
 			focalPointCenter.x = Math.max(0, Math.min(CONT_WIDTH, event.detail.x));
 			focalPointCenter.y = Math.max(0, Math.min(CONT_HEIGHT, event.detail.y));
+
+			// Dispatch an event to notify the parent component about the updated focal point
+			dispatch('updateFocalPoint', focalPointCenter);
 		}
 	}
 </script>

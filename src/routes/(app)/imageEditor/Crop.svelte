@@ -16,6 +16,7 @@
 
 	// Define a function to handle the move event from the MouseHandler component
 	function handleMove(event: { detail: { x: number; y: number } }) {
+		console.log('Move event handled');
 		// Update the separate variables with the event data
 		cropCenter += event.detail.x;
 		cropCenter += event.detail.y;
@@ -23,27 +24,28 @@
 
 	// Define a function to handle the resize event from the MouseHandler component
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
+		console.log('Resize event handled');
 		// Update the separate variables based on corner
 		switch (event.detail.corner) {
 			case 'TopLeft':
-				cropTop += event.detail.y;
-				cropLeft += event.detail.x;
+				cropTop = cropTop + event.detail.y;
+				cropLeft = cropLeft + event.detail.x;
 				break;
 			case 'TopRight':
-				cropTop += event.detail.y;
-				cropRight -= event.detail.x;
+				cropTop = cropTop + event.detail.y;
+				cropRight = cropRight - event.detail.x;
 				break;
 			case 'BottomLeft':
-				cropBottom -= event.detail.y;
-				cropLeft += event.detail.x;
+				cropBottom = cropBottom - event.detail.y;
+				cropLeft = cropLeft + event.detail.x;
 				break;
 			case 'BottomRight':
-				cropBottom -= event.detail.y;
-				cropRight -= event.detail.x;
+				cropBottom = cropBottom - event.detail.y;
+				cropRight = cropRight - event.detail.x;
 				break;
 			case 'Center':
-				cropCenter += event.detail.x;
-				cropCenter += event.detail.y;
+				cropCenter = cropCenter + event.detail.x;
+				cropCenter = cropCenter + event.detail.y;
 				break;
 			default:
 				break;
@@ -56,7 +58,7 @@
 	<MouseHandler on:move={handleMove} on:resize={handleResize}>
 		<!-- Use some CSS properties to create a shape for the crop area element -->
 		<div
-			class="absolute border border-white"
+			class="absolute grid grid-cols-3 grid-rows-3 border-4 border-error-500 bg-white bg-opacity-20"
 			style={`top: calc(50% + ${cropTop}px + ${cropCenter}px); left: calc(50% + ${cropLeft}px + ${cropCenter}px); width: ${
 				cropRight - cropLeft
 			}px; height: ${cropBottom - cropTop}px; transform: translate(-50%, -50%); border-radius: ${cropShape === 'round' ? '50%' : '0'};`}
@@ -80,25 +82,26 @@
 		position: absolute;
 		width: 10px;
 		height: 10px;
-		background-color: white;
-		border: 2px solid black;
+		background-color: greenyellow;
+		border: 1px solid darkgray;
+		border-radius: 50%;
 		cursor: pointer;
 	}
 	.corner[data-corner='TopLeft'] {
-		top: -5px;
-		left: -5px;
+		top: -25px;
+		left: -25px;
 	}
 	.corner[data-corner='TopRight'] {
-		top: -5px;
-		right: -5px;
+		top: -25px;
+		right: -25px;
 	}
 	.corner[data-corner='BottomLeft'] {
-		bottom: -5px;
-		left: -5px;
+		bottom: -25px;
+		left: -25px;
 	}
 	.corner[data-corner='BottomRight'] {
-		bottom: -5px;
-		right: -5px;
+		bottom: -25px;
+		right: -25px;
 	}
 	.corner[data-corner='Center'] {
 		top: 50%;
