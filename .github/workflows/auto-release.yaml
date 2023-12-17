@@ -22,12 +22,14 @@ jobs:
 
       - name: Setup Node.js
         uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
+        with:
+          node-version: 'latest'
 
       - name: Cache pnpm dependencies
         id: npm-cache
         uses: actions/cache@v3
         with:
-          path: ./pnpm-cache
+          path: ./npm-cache
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
@@ -35,10 +37,10 @@ jobs:
         continue-on-error: true
 
       - name: Update package-lock.json
-        run: pnpm install && pnpm inlang
+        run: npm install && npm run inlang
 
       - name: Install dependencies
-        run: pnpm  ci # Install the package dependencies
+        run: npm ci # Install the package dependencies
 
       - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
         env:

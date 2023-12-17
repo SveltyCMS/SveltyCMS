@@ -53,11 +53,9 @@ jobs:
           mongodb-port: 27017
         if: ${{ github.event_name != 'pull_request' }}
 
-      - name: Install dependencies and Clear npm cache
+      - name: Install dependencies
         id: install
-        run: |
-          pnpm install
-          pnpm cache clean --force
+        run: pnpm install
 
       - name: Build Languages
         id: build-languages
