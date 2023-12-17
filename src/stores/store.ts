@@ -60,7 +60,8 @@ export const mode: Writable<'view' | 'edit' | 'create' | 'delete'> = writable('v
 // collective status
 export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
 // Store ListboxValue
-export const storeListboxValue: Writable<string> = writable('create');
+// export const storeListboxValue: Writable<string> = writable('create');
+export const storeListboxValue: Writable<'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test'> = writable('create');
 
 // Store image data while editing
 export const saveEditedImage: Writable<boolean> = writable(false);

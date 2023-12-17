@@ -30,7 +30,8 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		pkgBgColor
+		pkgBgColor,
+		storeListboxValue
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
@@ -282,6 +283,9 @@
 	{#if $page.url.pathname === '/login'}
 		<slot />
 	{:else}
+		<!-- <div>storeListboxValue{$storeListboxValue}</div>
+		<div>Mode {$mode}</div>
+		<div>toggleLeftSidebar {$toggleLeftSidebar}</div> -->
 		<AppShell
 			slotSidebarLeft="relative pt-2 !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-900 dark:via-surface-700
 dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col z-10

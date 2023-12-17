@@ -39,7 +39,7 @@
 
 	import Loading from '@components/Loading.svelte';
 	import { asAny } from '@utils/utils';
-	import { handleSidebarToggle, mode } from '@stores/store';
+	import { entryData, handleSidebarToggle, mode } from '@stores/store';
 
 	export let tableData: any[];
 	let filteredData = tableData;
@@ -443,7 +443,14 @@
 		<!-- Tanstack Body -->
 		<tbody>
 			{#each $table.getRowModel().rows as row}
-				<tr>
+				<tr
+					on:keydown
+					on:click={() => {
+						entryData.set(row.original);
+						mode.set('edit');
+						handleSidebarToggle();
+					}}
+				>
 					<!-- TickRows -->
 					<td class="">
 						<TanstackIcons
