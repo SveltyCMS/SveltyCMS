@@ -11,7 +11,7 @@ const schema: Schema = {
 	status: 'unpublished',
 	slug: ' names',
 
-	// Collection Permissions by user Roles
+	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
 		[roles.user]: {
 			read: false,

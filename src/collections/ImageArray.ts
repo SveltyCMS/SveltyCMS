@@ -25,6 +25,7 @@ const schema: Schema = {
 					db_fieldName: 'title',
 					translated: false
 				}),
+
 				widgets.Text({
 					label: 'Alt Text',
 					db_fieldName: 'alt',

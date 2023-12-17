@@ -20,6 +20,7 @@
 		<form class="card w-modal mt-2 flex flex-col gap-2 rounded border p-6 shadow-2xl" method="post">
 			<!-- CSS Logo -->
 			<div class="relative flex items-center justify-center">
+				<!--White Innere Background -->
 				<div class="relative mb-5 h-[170px] w-[170px] justify-center rounded-full bg-white">
 					<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 						<circle
@@ -71,7 +72,7 @@
 					<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 						<Logo fill="black" className="w-8 h-8" />
 						<div class="text-3xl font-bold text-error-500">{PUBLIC_SITENAME}</div>
-						<div class="-mt-[1px] text-[11px] font-bold text-black">{m.logo_slogan()}</div>
+						<div class="-mt-[1px] text-[12px] font-bold text-black">{m.logo_slogan()}</div>
 					</div>
 				</div>
 			</div>

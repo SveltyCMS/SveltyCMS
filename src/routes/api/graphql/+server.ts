@@ -84,7 +84,7 @@ type Query {
 }
 `;
 
-console.log(typeDefs);
+// console.log(typeDefs);
 
 // Loop over each collection
 for (const collection of collections) {

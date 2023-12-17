@@ -12,16 +12,16 @@ const schema: Schema = {
 	status: 'published',
 	slug: 'menu',
 
-	/**
-	 * Specifies access rights for user roles.
-	 * `read` and `write` properties define read/write access for each role.
-	 */
+	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
-		[roles.admin]: {
+		developer: {
+			read: true,
+			write: true
+		},
+		editor: {
 			read: true,
 			write: true
 		}
-		// other roles...
 	},
 
 	// Defined Fields that are used in Collection

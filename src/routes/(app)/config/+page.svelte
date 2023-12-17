@@ -10,7 +10,7 @@
 </div>
 
 <h2 class="ml-2 mt-8 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
-<div class="mt-4 grid gap-4 sm:grid-cols-2 md:grid-cols-3">
+<div class="mt-4 flex flex-wrap justify-center gap-4">
 	<!-- Collection -->
 	<a href="/collection" class="variant-outline-tertiary btn gap-2 py-6 dark:variant-outline-secondary">
 		<iconify-icon icon="mingcute:menu-fill" width="24" class="text-tertiary-600" />
@@ -31,7 +31,7 @@
 
 	<!-- Editor -->
 	<a href="/imageEditor" class="variant-outline-tertiary btn gap-2 py-6 dark:variant-outline-secondary">
-		<iconify-icon icon="bi:images" width="24" class="text-error-600" />
+		<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 		<p class="uppercase">{m.config_imageeditor()}</p>
 	</a>
 

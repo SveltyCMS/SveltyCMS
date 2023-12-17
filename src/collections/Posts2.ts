@@ -5,17 +5,20 @@ import type { Schema } from './types';
 const schema: Schema = {
 	// Collection Name comming from filename
 
-	// Collection Permissions by user Roles
+	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
 		[roles.user]: {
 			read: true
 		},
-		[roles.admin]: {
-			write: true
+		[roles.developer]: {
+			read: true
+		},
+		[roles.editor]: {
+			read: true
 		}
 	},
 
-	// Optional & Icon , status, slug
+	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'bi:card-text',
 

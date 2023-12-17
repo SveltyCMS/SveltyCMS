@@ -9,19 +9,29 @@ export const roles = {
 } as const;
 
 // Define a user Role permission that can be overwritten
-export type permissions = {
-	[K in (typeof roles)[keyof typeof roles]]: {
-		// User Permissions
+// export type permissions = {
+// 	[K in keyof typeof roles]?: {
+// 		// User Permissions
+// 		read?: boolean;
+// 		write?: boolean;
+// 		delete?: boolean;
+// 		// Admin can do everything
+// 		icon?: {
+// 			read?: 'bi:eye-fill';
+// 			write?: 'bi:pencil-fill';
+// 			delete?: 'bi:trash-fill';
+// 		};
+// 	} & (K extends typeof roles.admin ? { read?: true; write?: true; delete?: true } : {});
+// };
+
+// Define a new `permissions` type using a mapped type
+// The `admin` role has a default exception, with both `read` and `write`
+type permissions = {
+	[K in (typeof roles)[keyof typeof roles]]?: {
 		read?: boolean; // This permission allows users to view the content. They can’t make any changes to it.
 		write?: boolean; // This permission allows users to create new content and make changes to existing content.
-		delete?: boolean; // This permission allows users to remove content from the system
-		// Admin can do everything
-		icon?: {
-			read?: 'bi:eye-fill';
-			write?: 'bi:pencil-fill';
-			delete?: 'bi:trash-fill';
-		};
-	} & (K extends typeof roles.admin ? { read?: true; write?: true; delete?: true } : {});
+		delete?: boolean; //This permission allows users to remove content from the system
+	};
 };
 
 // Define a new `Schema` interface that represents the shape of an object with several properties

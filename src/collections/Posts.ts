@@ -45,7 +45,7 @@ const schema: Schema = {
 			label: 'File',
 			required: true,
 			icon: 'mdi:file-document-outline',
-			path: 'files' //This save to image folder, and is not globally available
+			path: 'global' //This save to image folder, and is not globally available
 		})
 	]
 };

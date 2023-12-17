@@ -73,7 +73,6 @@ jobs:
         run: npx playwright test
         # run: bunx playwright test
         env:
-          # BASE_URL: http://localhost:5173/
           DB_HOST: mongodb://localhost:27017/?authSource=admin
           DB_NAME: SimpleCMS
           DB_USER: admin
@@ -83,7 +82,7 @@ jobs:
           HOST_PROD: http://localhost:4173
           PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
           PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
-          PUBLIC_SEASSONS: true
+          PUBLIC_SEASONS: true
           PUBLIC_PKG: '{ VERSION: pkg.version }'
           PUBLIC_MEDIA_FOLDER: media
           PUBLIC_MEDIASERVER_URL: ''
