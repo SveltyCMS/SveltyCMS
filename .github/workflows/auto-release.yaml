@@ -18,16 +18,27 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3 # Use the checkout action to clone the repository
+        uses: actions/checkout@v4 # Use the checkout action to clone the repository
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3 # Use the setup-node action to install Node.js
+        uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
+
+      - name: Cache pnpm dependencies
+        id: npm-cache
+        uses: actions/cache@v3
+        with:
+          path: ./pnpm-cache
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+        # Continue workflow even if cache is not found
+        continue-on-error: true
 
       - name: Update package-lock.json
-        run: npm install
+        run: pnpm install && pnpm inlang
 
       - name: Install dependencies
-        run: npm ci # Install the package dependencies
+        run: pnpm  ci # Install the package dependencies
 
       - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
         env:

@@ -41,7 +41,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-          cache: true
 
       - name: Start MongoDB v${{ matrix.mongodb-version }}
         id: mongodb
