@@ -13,13 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: true
       matrix:
         node-version: [latest]
         pnpm-version: [latest]
         mongodb-version: [latest]
         test-file: ['/tests/signupfirstuser.spec.ts', '/tests/user.spec.ts']
-
-      max-parallel: 10
 
     steps:
       - name: Git checkout
@@ -77,7 +76,7 @@ jobs:
       - name: Run Playwright tests
         run: |
           for file in ${{ matrix.test-file }}; do
-            npx playwright test $file &
+            npx playwright test $file --workers 10 &
           done
           wait
         # run: bunx playwright test
