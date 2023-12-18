@@ -19,6 +19,7 @@ test('Test loading', async ({ page }) => {
 // Test language selection and button text
 test('check language selection and button text', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('check language selection and button text');
 	const inputSelector = 'input[type="text"][list="locales"]';
 	await page.fill(inputSelector, 'de');
 	await page.waitForSelector(inputSelector, { state: 'visible', timeout: 60000 });
@@ -31,6 +32,7 @@ test('check language selection and button text', async ({ page }) => {
 // Test Signup First User
 test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Test SignUp First User');
 	await page.locator('p').filter({ hasText: 'Sign Up' }).click();
 	await page.locator('div').filter({ hasText: 'Sign Up' });
 	await page.locator('span').filter({ hasText: ': User' });
@@ -106,6 +108,7 @@ test('SignUp First User', async ({ page }) => {
 // Signout user after login
 test('SignOut', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Signing out test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page
 		.locator('form')
@@ -131,6 +134,7 @@ test('SignOut', async ({ page }) => {
 
 test('Login First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Login First User');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	// await page.locator('form').locator('#email-address').nth(0).waitFor();
 	// await page.locator('form').locator('#email-address').nth(0).fill('test', { timeout: 60000 });
@@ -151,6 +155,7 @@ test('Login First User', async ({ page }) => {
 
 test('Forgot Password', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Forgot Password');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	const forgottenPasswordButton = await page.waitForSelector('button:has-text("Forgotten Password")');
 	await forgottenPasswordButton.click();

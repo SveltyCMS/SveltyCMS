@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('Login User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Login User test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -10,6 +11,7 @@ test('Login User', async ({ page }) => {
 
 test('Edit Avatar', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Edit Avatar test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -32,6 +34,7 @@ test('Edit Avatar', async ({ page }) => {
 
 test('Delete Avatar', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Delete Avatar test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -46,6 +49,7 @@ test('Delete Avatar', async ({ page }) => {
 
 test('Edit User Details', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Edit User Details test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -63,6 +67,7 @@ test('Edit User Details', async ({ page }) => {
 
 test('Registration Token', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Registration Token test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -84,6 +89,7 @@ test('Registration Token', async ({ page }) => {
 
 test('Show or Hide User Token', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Show or Hide User Token');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
@@ -100,6 +106,7 @@ test('Show or Hide User Token', async ({ page }) => {
 
 test('Show or Hide User List', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	console.log('Show or Hide User List test');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
