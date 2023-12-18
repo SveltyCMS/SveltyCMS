@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+// test for all /user
+
 test('Login User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
