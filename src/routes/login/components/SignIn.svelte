@@ -336,6 +336,7 @@
 				<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active != 0}>
 					<!-- Email field -->
 					<FloatingInput
+						id="emailsignIn"
 						name="email"
 						type="email"
 						bind:value={$form.email}
@@ -349,6 +350,7 @@
 
 					<!-- Password field -->
 					<FloatingInput
+						id="passwordsignIn"
 						name="password"
 						type="password"
 						bind:value={$form.password}
@@ -407,6 +409,7 @@
 					</div>
 					<!-- Email field -->
 					<FloatingInput
+						id="emailforgotPW"
 						name="email"
 						type="email"
 						bind:value={$forgotForm.email}
@@ -463,6 +466,7 @@
 					<!-- Password field -->
 
 					<FloatingInput
+						id="passwordresetPW"
 						name="password"
 						type="password"
 						bind:value={$resetForm.password}
@@ -481,6 +485,7 @@
 
 					<!-- Password  Confirm field -->
 					<FloatingInput
+						id="confirm_passwordresetPW"
 						name="confirm_password"
 						type="password"
 						bind:value={$resetForm.confirm_password}
@@ -499,8 +504,9 @@
 
 					<!-- Registration Token -->
 					<FloatingInput
-						type="password"
+						id="tokenresetPW"
 						name="token"
+						type="password"
 						bind:value={$resetForm.token}
 						bind:showPassword
 						label={m.signin_registrationtoken()}

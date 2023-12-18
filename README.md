@@ -9,7 +9,9 @@
 <p align="center"><strong>(Still in Development - Support always Appreciated!!)</strong></>
 
 <p align="center">
-  <img alt="GitHub package.json version" src="https://img.shields.io/github/package-json/v/Rar9/SimpleCMS">
+
+ <img alt="Latest SemVer)" src="https://img.shields.io/github/v/tag/Rar9/SimpleCMS">
+
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS">
 </p>
   

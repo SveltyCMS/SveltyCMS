@@ -7,8 +7,6 @@ const config = {
 		'@semantic-release/commit-analyzer',
 		// Generate release notes based on commit messages
 		'@semantic-release/release-notes-generator',
-		// Update the version number in the package.json file and create a release commit
-		'@semantic-release/git',
 		[
 			// Update the version number in the package.json file and create a release commit
 			'@semantic-release/git',
@@ -28,7 +26,7 @@ const config = {
 				failComment: false,
 
 				// Create pre-releases with the 'beta' identifier
-				prerelease: 'beta'
+				prerelease: 'false'
 			}
 		],
 		[

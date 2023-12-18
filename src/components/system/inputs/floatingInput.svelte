@@ -35,6 +35,7 @@ This FloatingInput component has the following properties:
 		labelClass?: string;
 		maxlength?: number;
 		minlength?: number;
+		id?: string;
 		name?: string;
 		onInput?: (value: string) => void;
 		required?: boolean;
@@ -42,6 +43,7 @@ This FloatingInput component has the following properties:
 		textColor?: string;
 		type?: 'text' | 'email' | 'password';
 		value?: string;
+		autocomplete?: 'on' | 'off';
 	}
 
 	export let disabled: InputProps['disabled'] = false;
@@ -61,7 +63,12 @@ This FloatingInput component has the following properties:
 	export let type: 'password' | 'text' | 'email' = 'text';
 	export let value: InputProps['value'] = '';
 	export let tabindex: number = 0;
+	export let id: string = getIdValue(label) || 'defaultInputId';
+	export let autocomplete: string = getAutocompleteValue(label);
+	export let showPassword = false;
+
 	let inputElement: HTMLInputElement;
+
 	function getAutocompleteValue(label: string | undefined): string {
 		if (label === undefined) {
 			return '';
@@ -70,17 +77,13 @@ This FloatingInput component has the following properties:
 		// Add checks for other types of labels here
 		return '';
 	}
-	export let id: string = getIdValue(label);
 
 	function getIdValue(label: string | undefined): string {
-		if (label === undefined) {
-			return '';
+		if (label === undefined || label.trim() === '') {
+			return 'defaultInputId';
 		}
 		return label.toLowerCase().replace(/\s+/g, '-');
 	}
-	export let autocomplete: string = getAutocompleteValue(label);
-
-	export let showPassword = false;
 
 	const togglePasswordVisibility = () => {
 		showPassword = !showPassword;
@@ -100,25 +103,27 @@ This FloatingInput component has the following properties:
 		on:keydown
 		on:click={handleClick}
 		bind:value
-		{id}
 		{autocomplete}
 		class="{inputClass} peer relative block w-full appearance-none rounded-none border-0 border-b-2 border-surface-300 bg-transparent pl-6 !text-{textColor} focus:border-tertiary-600 focus:!outline-none focus:ring-0 dark:border-surface-400 dark:focus:border-tertiary-500"
+		{id}
 		{name}
 		{required}
 		{disabled}
 		{...minlength !== undefined && { minlength }}
 		{...maxlength !== undefined && { maxlength }}
 		{...autocomplete && { autocomplete }}
+		aria-describedby="{id}-error"
 	/>
 
 	{#if icon}
-		<iconify-icon {icon} width="18" class="absolute top-3 text-{iconColor}" />
+		<iconify-icon aria-hidden="true" {icon} width="18" class="absolute top-3 text-{iconColor}" />
 	{/if}
 
 	{#if type === 'password'}
 		<iconify-icon
 			{tabindex}
 			role="button"
+			aria-label="Toggle password visibility"
 			icon={showPassword ? 'bi:eye-fill' : 'bi:eye-slash-fill'}
 			class={`absolute right-0 ${showPasswordBackgroundColor === 'light' ? 'text-surface-700' : 'text-surface-300'}`}
 			width="24"
@@ -129,7 +134,7 @@ This FloatingInput component has the following properties:
 
 	{#if label}
 		<label
-			for="input"
+			for={id}
 			class="{labelClass} pointer-events-none absolute left-6 transform text-sm text-surface-400 transition-all duration-200 ease-in-out peer-placeholder-shown:-top-1 peer-placeholder-shown:text-base peer-placeholder-shown:text-surface-400 peer-focus:-left-0 peer-focus:-top-1.5 peer-focus:text-xs peer-focus:text-tertiary-500 {value &&
 				'-left-0 -top-1.5 text-xs text-tertiary-500'}"
 		>

@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
         with:
-          node-version: 'latest'
+          node-version: '21'
 
       - name: Cache pnpm dependencies
         id: npm-cache
@@ -39,16 +39,17 @@ jobs:
       - name: Update package-lock.json
         run: npm install --legacy-peer-deps && npm run inlang
 
-      - name: Install dependencies
-        run: npm ci # Install the package dependencies
-
-      - run: npx semantic-release # Run semantic-release to analyze the commits and publish a new version if needed
+      - name: Install dependencies & Run semantic-release
+        run: |
+          npm ci
+          npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
           # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
+
       - name: Update package version
         run: |
-          npm version --no-git-tag-version
+          npm version --no-git-tag-version --allow-same-version
           git add package.json
           git commit -m "chore: update package version after semantic release" || true
-          git push origin $GITHUB_REF
+          git push origin ${{ github.ref }}
