@@ -5,7 +5,6 @@ test('Login User', async ({ page }) => {
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
-	await page.goto('http://localhost:4173/user');
 });
 
 // test('Edit Avatar', async ({ page }) => {
