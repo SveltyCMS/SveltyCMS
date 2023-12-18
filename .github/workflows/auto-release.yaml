@@ -37,7 +37,7 @@ jobs:
         continue-on-error: true
 
       - name: Update package-lock.json
-        run: npm install && npm run inlang
+        run: npm install --legacy-peer-deps && npm run inlang
 
       - name: Install dependencies
         run: npm ci # Install the package dependencies

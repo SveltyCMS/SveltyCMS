@@ -151,6 +151,7 @@ test('Login First User', async ({ page }) => {
 
 test('Forgot Password', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
+	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	const forgottenPasswordButton = await page.waitForSelector('button:has-text("Forgotten Password")');
 	await forgottenPasswordButton.click();
 	(await page.locator('#email-address')).nth(0).fill('test@test2.de');

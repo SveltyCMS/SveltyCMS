@@ -53,6 +53,9 @@ jobs:
           mongodb-port: 27017
         if: ${{ github.event_name != 'pull_request' }}
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Install dependencies
         id: install
         run: pnpm install
