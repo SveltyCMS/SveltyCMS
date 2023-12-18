@@ -23,9 +23,9 @@ test('Edit Avatar', async ({ page }) => {
 	await page.locator('//button[text()="Edit Avatar"]').click();
 	await page.locator('input[type="file"]').waitFor({ state: 'visible', timeout: 60000 });
 	const fileInput = await page.locator('input[type="file"]');
-	await fileInput.setInputFiles('/download.png');
+	await fileInput.setInputFiles('/tests/testthumb.png');
 	page.on('filechooser', async (fileChooser) => {
-		await fileChooser.setFiles('/download.png');
+		await fileChooser.setFiles('/tests/testthumb.png');
 	});
 	await page.getByRole('button').filter({ hasText: 'Save' }).click();
 });
