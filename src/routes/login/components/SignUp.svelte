@@ -89,7 +89,7 @@
 	on:click
 	on:pointerenter
 	on:keydown
-	class="hover relative flex items-center overflow-hidden"
+	class="hover relative flex items-center overflow-y-auto"
 	class:active={active == 1}
 	class:inactive={active !== undefined && active !== 1}
 	class:hover={active == undefined || active == 0}
@@ -122,6 +122,7 @@
 			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 				<!-- Username field -->
 				<FloatingInput
+					id="usernamesignUp"
 					name="username"
 					type="text"
 					tabindex={tabIndex++}
@@ -133,12 +134,14 @@
 					iconColor="white"
 					textColor="white"
 					inputClass="text-white"
+					autocomplete="on"
 				/>
 				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
 				{#if PUBLIC_USE_GOOGLE_OAUTH}
 					<!-- Email field -->
 					<FloatingInput
+						id="emailsignUp"
 						name="email"
 						type="email"
 						tabindex={tabIndex++}
@@ -150,12 +153,14 @@
 						iconColor="white"
 						textColor="white"
 						inputClass="text-white"
+						autocomplete="on"
 					/>
 					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
 					<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
 					<!-- Password field -->
 					<FloatingInput
+						id="passwordsignUp"
 						name="password"
 						type="password"
 						tabindex={tabIndex++}
@@ -169,11 +174,13 @@
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
+						autocomplete="on"
 					/>
 					{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
 
 					<!-- Password Confirm -->
 					<FloatingInput
+						id="confirm_passwordsignUp"
 						name="confirm_password"
 						type="password"
 						tabindex={tabIndex++}
@@ -187,6 +194,7 @@
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
+						autocomplete="on"
 					/>
 					{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
 				{/if}
@@ -194,6 +202,7 @@
 				{#if $form.token != null}
 					<!-- Registration Token -->
 					<FloatingInput
+						id="tokensignUp"
 						name="token"
 						type="password"
 						tabindex={tabIndex++}
@@ -206,6 +215,7 @@
 						textColor="white"
 						showPasswordBackgroundColor="dark"
 						inputClass="text-white"
+						autocomplete="off"
 					/>
 					{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
 				{/if}

@@ -35,7 +35,7 @@
 	let options = availableLanguageTags;
 </script>
 
-<div class="body" style="background:{background} ">
+<div class={`flex min-h-screen w-full overflow-y-auto bg-${background}`}>
 	<SignIn
 		{active}
 		FormSchemaLogin={data.loginForm}
@@ -146,10 +146,13 @@
 			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}
 				<!-- <Autocomplete {options} placeholder={_languageTag} bind:value={inputlanguagevalue} /> -->
 				<input
+					id="languageAuto"
+					name="language"
 					type="text"
 					list="locales"
 					bind:value={inputlanguagevalue}
 					placeholder={_languageTag}
+					aria-label="Enter Language"
 					class="w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
 					on:input={() => ($systemLanguage = inputlanguagevalue.toLowerCase())}
 				/>
@@ -162,6 +165,8 @@
 			{:else}
 				<!-- Dropdown select -->
 				<select
+					id="languageSelect"
+					name="language"
 					bind:value={_languageTag}
 					on:change={handleLocaleChange}
 					aria-label="Select Language"
@@ -186,13 +191,3 @@
 		</a>
 	{/if}
 </div>
-
-<style lang="postcss">
-	.body {
-		width: 100vw;
-		height: 100vh;
-		display: flex;
-		overflow: hidden;
-		background: linear-gradient(90deg, #242728 50%, white 50%);
-	}
-</style>
