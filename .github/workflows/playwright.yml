@@ -13,10 +13,12 @@ jobs:
     runs-on: ubuntu-latest
 
     strategy:
+      fail-fast: true
       matrix:
         node-version: [latest]
         pnpm-version: [latest]
         mongodb-version: [latest]
+        test-file: ['/tests/signupfirstuser.spec.ts', '/tests/user.spec.ts']
 
     steps:
       - name: Git checkout
@@ -72,8 +74,12 @@ jobs:
         run: pnpm run build && npm run preview &
 
       - name: Run Playwright tests
-        run: npx playwright test
-
+        run: |
+          for file in ${{ matrix.test-file }}; do
+            npx playwright test $file --workers 10 &
+          done
+          wait
+        # run: bunx playwright test
         env:
           DB_HOST: mongodb://localhost:27017/?authSource=admin
           DB_NAME: SimpleCMS
