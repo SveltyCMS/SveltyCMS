@@ -1,51 +1,46 @@
-<!-- Crop.svelte -->
 <script lang="ts">
 	import MouseHandler from './MouseHandler.svelte';
 
-	// Define your props for the Crop.svelte component
 	export let cropShape: 'rect' | 'round' = 'rect'; // The shape of the crop area
-	export let cropTop: number;
-	export let cropLeft: number;
-	export let cropRight: number;
-	export let cropBottom: number;
-	export let cropCenter: number;
+	export let cropTop = 100;
+	export let cropLeft = 100;
+	export let cropRight = 300;
+	export let cropBottom = 300;
+	export let cropCenter = 0;
 
 	// Define ImageSize for Overlay
 	export let CONT_WIDTH: number;
 	export let CONT_HEIGHT: number;
 
-	// Define a function to handle the move event from the MouseHandler component
 	function handleMove(event: { detail: { x: number; y: number } }) {
-		console.log('Move event handled');
-		// Update the separate variables with the event data
-		cropCenter += event.detail.x;
-		cropCenter += event.detail.y;
+		// Update cropLeft and cropTop instead of cropCenter
+		cropLeft += event.detail.x;
+		cropTop += event.detail.y;
 	}
 
-	// Define a function to handle the resize event from the MouseHandler component
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
 		console.log('Resize event handled');
 		// Update the separate variables based on corner
 		switch (event.detail.corner) {
 			case 'TopLeft':
-				cropTop = cropTop + event.detail.y;
-				cropLeft = cropLeft + event.detail.x;
+				cropTop += event.detail.y;
+				cropLeft += event.detail.x;
 				break;
 			case 'TopRight':
-				cropTop = cropTop + event.detail.y;
-				cropRight = cropRight - event.detail.x;
+				cropTop += event.detail.y;
+				cropRight -= event.detail.x;
 				break;
 			case 'BottomLeft':
-				cropBottom = cropBottom - event.detail.y;
-				cropLeft = cropLeft + event.detail.x;
+				cropBottom -= event.detail.y;
+				cropLeft += event.detail.x;
 				break;
 			case 'BottomRight':
-				cropBottom = cropBottom - event.detail.y;
-				cropRight = cropRight - event.detail.x;
+				cropBottom -= event.detail.y;
+				cropRight -= event.detail.x;
 				break;
 			case 'Center':
-				cropCenter = cropCenter + event.detail.x;
-				cropCenter = cropCenter + event.detail.y;
+				cropCenter += event.detail.x;
+				cropCenter += event.detail.y;
 				break;
 			default:
 				break;
@@ -58,23 +53,30 @@
 	<MouseHandler on:move={handleMove} on:resize={handleResize}>
 		<!-- Use some CSS properties to create a shape for the crop area element -->
 		<div
-			class="absolute grid grid-cols-3 grid-rows-3 border-4 border-error-500 bg-white bg-opacity-20"
-			style={`top: calc(50% + ${cropTop}px + ${cropCenter}px); left: calc(50% + ${cropLeft}px + ${cropCenter}px); width: ${
-				cropRight - cropLeft
-			}px; height: ${cropBottom - cropTop}px; transform: translate(-50%, -50%); border-radius: ${cropShape === 'round' ? '50%' : '0'};`}
+			class="crop-area absolute border-4 border-error-500 bg-white bg-opacity-20"
+			style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${cropBottom - cropTop}px; border-radius: ${
+				cropShape === 'round' ? '50%' : '0'
+			};`}
 		>
 			<!-- Add 4 div elements with the corner class and data-corner attribute to make them draggable -->
+			<div class="corner top-left" data-corner="TopLeft" style="top: -5px; left: -5px;"></div>
+			<div class="corner top-right" data-corner="TopRight" style="top: -5px; right: -5px;"></div>
+			<div class="corner bottom-left" data-corner="BottomLeft" style="bottom: -5px; left: -5px;"></div>
+			<div class="corner bottom-right" data-corner="BottomRight" style="bottom: -5px; right: -5px;"></div>
+
+			<!-- Add additional corners and lines to create a 3x3 grid -->
 			<div class="corner" data-corner="TopLeft"></div>
 			<div class="corner" data-corner="TopRight"></div>
 			<div class="corner" data-corner="BottomLeft"></div>
 			<div class="corner" data-corner="BottomRight"></div>
+
 			<!-- Add a div element for the Center -->
 			<div class="corner" data-corner="Center"></div>
 		</div>
-
-		<!-- Pass the new props to the slot tag -->
-		<slot />
 	</MouseHandler>
+
+	<!-- Pass the new props to the slot tag -->
+	<slot />
 </div>
 
 <style lang="postcss">
@@ -88,24 +90,34 @@
 		cursor: pointer;
 	}
 	.corner[data-corner='TopLeft'] {
-		top: -25px;
-		left: -25px;
+		top: 10px;
+		left: 10px;
+		cursor: nwse-resize;
 	}
 	.corner[data-corner='TopRight'] {
-		top: -25px;
-		right: -25px;
+		top: 10px;
+		right: 10px;
+		cursor: nesw-resize;
 	}
 	.corner[data-corner='BottomLeft'] {
-		bottom: -25px;
-		left: -25px;
+		bottom: 10px;
+		left: 10px;
+		cursor: nesw-resize;
 	}
 	.corner[data-corner='BottomRight'] {
-		bottom: -25px;
-		right: -25px;
+		bottom: 10px;
+		right: 10px;
+		cursor: nwse-resize;
 	}
+
 	.corner[data-corner='Center'] {
+		background-color: blue;
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
+		width: 20px;
+		height: 20px;
+		border: 1px solid blue;
+		cursor: move;
 	}
 </style>

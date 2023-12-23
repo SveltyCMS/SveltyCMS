@@ -3,11 +3,6 @@
 
 	const dispatch = createEventDispatcher();
 
-	// Constants for CSS Properties
-	const BORDER_COLOR = 'var(--primary-500)';
-	const BACKGROUND_COLOR = 'var(--bg-2)';
-	const CURSOR_STYLE = 'move';
-
 	// Use export to define your props
 	export let TopLeft: number = 0;
 	export let TopRight: number = 0;
@@ -24,6 +19,8 @@
 		BottomRight: number;
 		Center: number;
 		Rotate: number;
+		CONT_WIDTH: number;
+		CONT_HEIGHT: number;
 	}
 
 	// Combine the properties into an object
@@ -33,7 +30,9 @@
 		BottomLeft,
 		BottomRight,
 		Center,
-		Rotate
+		Rotate,
+		CONT_WIDTH: 0,
+		CONT_HEIGHT: 0
 	};
 
 	let element: HTMLElement | null; // The reference to the div element
@@ -41,26 +40,30 @@
 	let moving: boolean = false; // Track if the mouse is moving
 	let down: boolean = false; // Track if the mouse is clicked down
 	let initialMousePosition: { x: number; y: number } | null = null; // Initial mouse position for handling slight movements
-	let isMouseDown: boolean = false; // Track if the mouse button is pressed
+	let isMouseDown: boolean = true; // Set to true initially to avoid the initial check in handleMouseMove and handleTouchMove
 	const movementThreshold = 2; // Adjust the threshold value as needed
 
 	// Function to handle mouse move event
 	export function handleMouseMove(e: MouseEvent): void {
+		// Remove the condition
 		handleMove(e.clientX, e.clientY);
 	}
 
 	// Function to handle touch move event
 	export function handleTouchMove(e: TouchEvent): void {
+		// Remove the condition
 		const touch = e.touches[0];
 		handleMove(touch.clientX, touch.clientY);
 	}
 
 	function handleMove(clientX: number, clientY: number): void {
+		if (!initialMousePosition || !element) return;
+
 		moving = true;
 		//console.log('Mouse move event triggered');
 
 		// Get the size and position of the element
-		const { width, height, left, top } = element!.getBoundingClientRect();
+		const { width, height, left, top } = element.getBoundingClientRect();
 
 		// Calculate the deltas based on the mouse position and the element position
 		const deltaX = clientX - left;
@@ -121,8 +124,10 @@
 		}
 	}
 
-	// Function to handle mouse up event
+	// Function to handle mouse down event
 	export function handleMouseDown(e: MouseEvent): void {
+		// if (e.button !== 0) return;
+
 		handleDown(e);
 		isMouseDown = true;
 		// Reset the selected corner and initial mouse position
@@ -130,7 +135,7 @@
 		initialMousePosition = null;
 	}
 
-	// Function to handle touch end event
+	// Function to handle touch start event
 	export function handleTouchStart(e: TouchEvent): void {
 		const touch = e.touches[0];
 		handleDown(touch);
@@ -156,21 +161,32 @@
 			// Set the selected corner
 			selectedCorner = corner.getAttribute('data-corner');
 		}
+
+		// Stop the event from propagating further up the DOM hierarchy
+		// (e as Event).stopPropagation();
 	}
 
 	// Function to handle mouse up event
 	export function handleMouseUp(e: MouseEvent): void {
 		handleUpMouse(e);
 		isMouseDown = false;
+		// Reset the initial mouse position
+		initialMousePosition = null;
 	}
 
 	// Function to handle touch end event
 	export function handleTouchEnd(e: TouchEvent): void {
+		// if (!isMouseDown) return;
+
 		handleUpTouch(e);
 		isMouseDown = false;
+		// Reset the initial mouse position
+		initialMousePosition = null;
 	}
 
 	function handleUpMouse(e: MouseEvent): void {
+		// if (!isMouseDown || !element) return;
+
 		down = false;
 		console.log('Mouse up event triggered');
 
@@ -179,6 +195,8 @@
 
 		// Additional handling specific to MouseEvent if needed
 	}
+
+	// ...
 
 	function handleUpTouch(e: TouchEvent): void {
 		down = false;
@@ -189,15 +207,8 @@
 
 		// Additional handling specific to TouchEvent if needed
 	}
-
-	// Additional styles for the div element to set the cursor based on mouse button state
-	let cursorStyle: string = 'var(--cursor)';
-	$: {
-		cursorStyle = isMouseDown ? 'grabbing' : 'var(--cursor)';
-	}
 </script>
 
-<!-- Use a div element instead of a button element -->
 <div
 	class="my-component"
 	bind:this={element}
@@ -211,7 +222,6 @@
 	role="presentation"
 	aria-grabbed={down}
 	aria-dropeffect="move"
-	style={`--border-color: ${BORDER_COLOR}; --background-color: ${BACKGROUND_COLOR}; --cursor: ${CURSOR_STYLE};`}
 >
 	<!-- Use slots to pass HTML content from the parent component -->
 	<slot {TopLeft} {TopRight} {BottomLeft} {BottomRight} {Center} {Rotate} />

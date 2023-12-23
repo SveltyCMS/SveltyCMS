@@ -1,7 +1,12 @@
 <script lang="ts">
 	import { writable } from 'svelte/store';
+	import { handleSidebarToggle, mode, entryData } from '@stores/store';
 
-	export let density = 'normal';
+	import FloatingInput from '../inputs/floatingInput.svelte';
+	import { flip } from 'svelte/animate';
+	import { slide } from 'svelte/transition';
+	import TanstackIcons from './TanstackIcons.svelte';
+	import { asAny } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -18,6 +23,7 @@
 	} from '@tanstack/svelte-table';
 	import type { ColumnDef, TableOptions, SortDirection, FilterFn } from '@tanstack/table-core/src/types';
 
+	export let density = 'normal';
 	export const data: any[] = [];
 	export let columnFields: any[];
 	export let dataSourceName: string;
@@ -31,15 +37,6 @@
 	let sorting: any = [];
 	let columnOrder: any[] = [];
 	let columnVisibility = {};
-
-	import FloatingInput from '../inputs/floatingInput.svelte';
-	import { flip } from 'svelte/animate';
-	import { slide } from 'svelte/transition';
-	import TanstackIcons from './TanstackIcons.svelte';
-
-	import Loading from '@components/Loading.svelte';
-	import { asAny } from '@utils/utils';
-	import { entryData, handleSidebarToggle, mode } from '@stores/store';
 
 	export let tableData: any[];
 	let filteredData = tableData;
@@ -449,6 +446,7 @@
 						entryData.set(row.original);
 						mode.set('edit');
 						handleSidebarToggle();
+						console.log(row.original);
 					}}
 				>
 					<!-- TickRows -->
@@ -496,7 +494,7 @@
 	<!-- Pagination Desktop -->
 	<div class="my-3 flex items-center justify-around text-surface-500">
 		<!-- show & count rows -->
-		<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
+		<div class="hidden text-sm text-surface-500 md:block dark:text-surface-400">
 			{m.tanstacktable_page()}
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
 			{m.tanstacktable_of()}
@@ -521,7 +519,7 @@
 			<select
 				value={$table.getState().pagination.pageSize}
 				on:change={setPageSize}
-				class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
+				class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 sm:block dark:text-white"
 			>
 				{#each availablePageSizes as pageSize}
 					<option value={pageSize}>

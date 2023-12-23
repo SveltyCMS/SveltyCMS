@@ -5,6 +5,8 @@
 	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
 	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 
+	import { saveEditedImage } from '@stores/store';
+
 	let image: File | null | undefined; // Add undefined as a possible type
 	let selectedImage: string;
 
@@ -22,7 +24,16 @@
 	};
 
 	const handleSave = () => {
-		// Add code to save the edited image
+		// Convert the canvas to a blob
+		// const canvas = document.querySelector('canvas') as HTMLCanvasElement;
+		// canvas.toBlob((blob) => {
+		// 	// Create a new file object
+		// 	const file = new File([blob ?? new Blob()], image!.name, { type: image!.type });
+		// 	// Update the file store with the new file
+		// 	file.update(file);
+		// 	// Update the saveEditedImage store to true
+		// 	saveEditedImage.update((old) => true);
+		// });
 	};
 </script>
 
@@ -42,8 +53,13 @@
 {#if image}
 	<!-- old Image Editor -->
 	<Cropper bind:image />
+
 	<!-- New Image Editor -->
 	<ImageEditor bind:image />
 {:else if selectedImage}
 	<img src={selectedImage} alt="" />
+{/if}
+
+{#if $saveEditedImage}
+	<div class="success-message">Image saved successfully!</div>
 {/if}

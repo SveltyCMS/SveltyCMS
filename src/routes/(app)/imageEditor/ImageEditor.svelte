@@ -4,6 +4,7 @@
 	import Crop from './Crop.svelte';
 	import FocalPoint from './FocalPoint.svelte';
 	import Rotate from './Rotate.svelte';
+	import { onMount } from 'svelte';
 
 	export let image: File | null | undefined;
 
@@ -34,7 +35,7 @@
 	let blurRotate = 0;
 
 	// Initialize the BLUR values with default values
-	let focalPointCenter = { x: 0, y: 0 };
+	let focalPoint = { x: 0, y: 0 };
 
 	// Initialize the Rotate values with default values,
 	let rotate: number = 0;
@@ -42,36 +43,22 @@
 	// Use the use:action directive to bind the image element to the imageView variable
 	function bindImageView(node: HTMLImageElement) {
 		imageView = node;
-		if (imageView) {
-			// Use clientWidth and clientHeight to get the actual displayed image size
-			CONT_WIDTH = imageView.clientWidth;
-			CONT_HEIGHT = imageView.clientHeight;
-		}
 	}
+
+	onMount(() => {
+		if (imageView) {
+			imageView.addEventListener('load', handleImageLoad);
+		}
+	});
 
 	function handleImageLoad() {
-		if (imageView) {
-			CONT_WIDTH = imageView.naturalWidth;
-			CONT_HEIGHT = imageView.naturalHeight;
-		}
-	}
-
-	function handleSave() {
-		// Add code to save the cropped and blurred image
-		// You can use the cropTop, cropBottom, cropLeft, and cropRight values
-		// and the blurTop, blurBottom, blurLeft, and blurRight values
-		// to crop and blur the image using Sharp.js or a similar library
-		// Example:
-		// sharp('input.jpg')
-		//   .extract({ left: cropLeft, top: cropTop, width: cropRight - cropLeft, height: cropBottom - cropTop })
-		//   .blur({ left: blurLeft, top: blurTop, width: blurRight - blurLeft, height: blurBottom - blurTop })
-		//   .toFile('output.jpg', (err, info) => {
-		//     // Handle the save operation
-		//   });
+		CONT_WIDTH = imageView?.naturalWidth ?? 0;
+		CONT_HEIGHT = imageView?.naturalHeight ?? 0;
+		focalPoint = { x: CONT_WIDTH / 2, y: CONT_HEIGHT / 2 };
 	}
 </script>
 
-<div class="h-[calc(100vh - 20%)] relative flex min-h-[150px] w-screen items-center justify-center overflow-hidden rounded border border-surface-400">
+<div class="h-[calc(100vh -20%)] relative flex min-h-[150px] max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-gray-200">
 	<!-- Use the use:bindImageView action to bind the image element -->
 	<img
 		use:bindImageView
@@ -82,7 +69,7 @@
 		on:load={() => handleImageLoad()}
 	/>
 
-	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]" style={`height: ${CONT_HEIGHT}; width: ${CONT_WIDTH};`}>
+	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]">
 		{#if activeState === 'cropping'}
 			<!-- Pass the image and the crop values to the Crop component  -->
 			<Crop bind:cropTop bind:cropLeft bind:cropRight bind:cropBottom bind:cropCenter bind:cropShape {CONT_WIDTH} {CONT_HEIGHT} />
@@ -95,22 +82,22 @@
 
 		{#if activeState === 'focalpoint'}
 			<!-- Pass the image, the focal point coordinates, and the image dimensions to the FocalPoint component -->
-			<FocalPoint {focalPointCenter} {CONT_WIDTH} {CONT_HEIGHT} />
+			<FocalPoint bind:focalPoint on:move:handleMove {CONT_WIDTH} {CONT_HEIGHT} />
 		{/if}
 	</div>
 </div>
 
 <!-- Enable and Disable module functionality -->
 <div class="flex items-center justify-center gap-2 px-2 md:justify-between">
-	<p class="hidden md:block">Image Name <span class="text-error-500"> {image?.name} </span></p>
+	<p class="hidden md:block">Image Name: <span class="text-error-500"> {image?.name} </span></p>
 
-	<div class="w-90 variant-filled-surface btn-group mt-1 dark:[&>*+*]:border-surface-400">
+	<div class="w-90 variant-filled-surface btn-group mt-1 dark:[&>*+*]:border-gray-200">
 		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">
-			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-primary-500'} />
+			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-gray-500'} />
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')} title="Blur">
-			<iconify-icon icon="ic:round-blur-circular" width="26" class={activeState === 'blurring' ? 'text-error-500' : 'text-primary-500'} />
+			<iconify-icon icon="ic:round-blur-circular" width="26" class={activeState === 'blurring' ? 'text-error-500' : 'text-gray-500'} />
 		</button>
 
 		<button
@@ -121,20 +108,20 @@
 			<iconify-icon
 				icon="material-symbols:center-focus-strong"
 				width="26"
-				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-primary-500'}
+				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-gray-500'}
 			/>
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
-			<iconify-icon icon="material-symbols:rotate-left-rounded" width="26" class={activeState === 'rotate' ? 'text-error-500' : 'text-primary-500'} />
+			<iconify-icon icon="material-symbols:rotate-left-rounded" width="26" class={activeState === 'rotate' ? 'text-error-500' : 'text-gray-500'} />
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
-			<iconify-icon icon="material-symbols:zoom-out-map" width="26" class={activeState === 'zoom' ? 'text-error-500' : 'text-primary-500'} />
+			<iconify-icon icon="material-symbols:zoom-out-map" width="26" class={activeState === 'zoom' ? 'text-error-500' : 'text-gray-500'} />
 		</button>
 	</div>
 
-	<p class="hidden md:block">Width <span class="text-error-500">{CONT_WIDTH}</span> x Height <span class="text-error-500">{CONT_HEIGHT}</span></p>
+	<p class="hidden md:block">Width: <span class="text-error-500">{CONT_WIDTH}</span> x Height: <span class="text-error-500">{CONT_HEIGHT}</span></p>
 </div>
 
 {#if activeState !== 'rotate'}

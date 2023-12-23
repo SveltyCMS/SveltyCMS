@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { collectionValue, contentLanguage, collection } from '@stores/store';
-
+	import { collectionValue, contentLanguage, collection, entryData } from '@stores/store';
+	console.log($entryData);
 	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;
@@ -18,7 +18,7 @@
 			{#key $collection}
 				<div
 					class=" mx-auto text-center {!field?.width ? 'w-full' : 'max-md:!w-full'}"
-					style={'min-width:min(300px,100%);' + field?.width ? `width:${Math.floor(100 / field?.width)}%` : ''}
+					style={'min-width:min(300px,100%);' + (field?.width ? `width:${Math.floor(100 / field?.width)}%` : '')}
 				>
 					<!-- Widget label -->
 					<div class="inline-block w-full justify-between px-[5px] text-start">

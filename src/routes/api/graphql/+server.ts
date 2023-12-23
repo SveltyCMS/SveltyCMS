@@ -48,8 +48,8 @@ for (const collection of collections) {
 						label: getFieldName(_field, true),
 						collection
 					}).typeName}\n`;
-					// console.log('---------------------------');
-					// console.log(collectionSchema);
+					console.log('---------------------------');
+					console.log(collectionSchema);
 					resolvers[collection.name as string] = deepmerge(
 						{
 							[getFieldName(_field, true)]: (parent) => {

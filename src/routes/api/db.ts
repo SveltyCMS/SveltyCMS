@@ -101,10 +101,10 @@ const auth = lucia({
 		expires: false
 	},
 
-	// sessions will expire within 60 minutes (max) since inactivity
+	// sessions will expire within 120 minutes (max) since inactivity
 	sessionExpiresIn: {
-		activePeriod: 1000 * 60 * 60, // 60 minutes
-		idlePeriod: 1000 * 60 * 60 // 60 minutes
+		activePeriod: 1000 * 60 * 120, // 60 minutes
+		idlePeriod: 1000 * 60 * 120 // 60 minutes
 	},
 
 	getUserAttributes: (userData) => {

@@ -3,20 +3,19 @@ import { test } from '@playwright/test';
 test('Test loading', async ({ page }) => {
 	await page.goto('http://localhost:4173/', { waitUntil: 'domcontentloaded' });
 	console.log('Current URL:', page.url());
-  
+
 	await page.goto('http://localhost:4173/login', { waitUntil: 'domcontentloaded' });
 
 	// Expect this page
 	await page.locator('p').filter({ hasText: 'Sign Up' });
 	await page.locator('p').filter({ hasText: 'Sign In' });
 	await page.getByText('SimpleCMS').nth(2);
-
 });
 
 // Test language selection and button text
 test('check language selection and button text', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
-  
+
 	console.log('check language selection and button text');
 	const inputSelector = 'input[type="text"][list="locales"]';
 	await page.fill(inputSelector, 'de');
@@ -31,7 +30,7 @@ test('check language selection and button text', async ({ page }) => {
 test('SignUp First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	console.log('Test SignUp First User');
-  
+
 	await page.locator('p').filter({ hasText: 'Sign Up' }).click();
 	await page.locator('div').filter({ hasText: 'Sign Up' });
 	await page.locator('span').filter({ hasText: ': User' });
@@ -75,7 +74,7 @@ test('SignUp First User', async ({ page }) => {
 test('SignOut', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	console.log('Signing out test');
-  
+
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page
 		.locator('form')
@@ -102,7 +101,7 @@ test('SignOut', async ({ page }) => {
 test('Login First User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	console.log('Login First User');
-  
+
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test', { timeout: 60000 });
 	await page.locator('span').filter({ hasText: 'Email must be a valid email' });
@@ -116,7 +115,7 @@ test('Login First User', async ({ page }) => {
 test('Forgot Password', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	console.log('Forgot Password');
-  
+
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	const forgottenPasswordButton = await page.waitForSelector('button:has-text("Forgotten Password")');
 	await forgottenPasswordButton.click();

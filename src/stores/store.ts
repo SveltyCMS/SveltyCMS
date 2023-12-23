@@ -64,6 +64,7 @@ export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' |
 export const storeListboxValue: Writable<'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test'> = writable('create');
 
 // Store image data while editing
+export const file = writable<File | null>(null);
 export const saveEditedImage: Writable<boolean> = writable(false);
 
 // Create a writable store to hold the selected row data

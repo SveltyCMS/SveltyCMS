@@ -1,17 +1,15 @@
 import { test, expect } from '@playwright/test';
 
-
 test('Login User', async ({ page }) => {
 	await page.goto('http://localhost:4173/login');
 	console.log('Login User test');
 
-// test for all /user
+	// test for all /user
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#email-address').fill('test@test.de');
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
 	page.waitForTimeout(3000);
-
 });
 
 test('Edit Avatar', async ({ page }) => {
@@ -61,7 +59,6 @@ test('Edit User Details', async ({ page }) => {
 	await page.locator('form').filter({ hasText: 'Email Address * Password * Sign In' }).locator('#password').fill('Test123!');
 	await page.getByRole('button', { name: 'Sign In' }).click();
 	await page.waitForTimeout(10000);
-;
 	await page.goto('http://localhost:4173/user');
 
 	await page.locator('button').filter({ hasText: 'Edit User Settings:' }).click();
@@ -70,12 +67,10 @@ test('Edit User Details', async ({ page }) => {
 	await page.locator('#confirm_password').fill('Test123!');
 	await page.getByRole('button').filter({ hasText: 'Save' }).click();
 	page.waitForTimeout(3000);
-
-
 });
 
 test('Registration Token', async ({ page }) => {
-	await page.goto('http://localhost:4173/login')
+	await page.goto('http://localhost:4173/login');
 	console.log('Registration Token test');
 
 	await page.locator('p').filter({ hasText: 'Sign In' }).click();
@@ -96,7 +91,6 @@ test('Registration Token', async ({ page }) => {
 	}
 	await page.getByRole('button').filter({ hasText: 'Send' }).click();
 	page.waitForTimeout(3000);
-
 });
 
 test('Show or Hide User Token', async ({ page }) => {
@@ -116,7 +110,6 @@ test('Show or Hide User Token', async ({ page }) => {
 	const isVisible = await listElement.isVisible();
 	expect(isVisible).toEqual(false);
 	page.waitForTimeout(3000);
-
 });
 
 test('Show or Hide User List', async ({ page }) => {

@@ -32,7 +32,7 @@
 
 	// ------------widget builder ---------------
 	// create an array to store the input values for each widget
-	let inputPopupWidget = [''];
+	let inputPopupWidget = '';
 	//console.log(inputPopupWidget);
 
 	let popupSettings: PopupSettings = {
@@ -51,13 +51,12 @@
 	});
 
 	let selectedWidget = '';
-	let selectedWidgetoptions = {};
+	let selectedWidgetOptions = {};
 
 	// create a function to handle the selection of a widget and update the input value in the array
 	function onPopupWidgetSelect(event: CustomEvent<AutocompleteOption>) {
 		inputPopupWidget = event.detail.label;
-		selectedWidget = event.detail.value;
-		selectedWidgetOptions = {};
+		selectedWidget = event.detail.value as string;
 	}
 </script>
 
@@ -102,11 +101,10 @@
 									id={option}
 									placeholder={`Enter ${option}`}
 									class="variant-filled-surface"
-									bind:value={selectedWidgetoptions}
+									bind:value={selectedWidgetOptions[option]}
 								/>
 							{:else}
 								<label for={option}>{option}:</label>
-
 								{#if option === 'minlength' || option === 'maxlength' || option === 'count'}
 									<input
 										type="number"
@@ -114,10 +112,10 @@
 										id={option}
 										placeholder={`Enter ${option}`}
 										class="variant-filled-surface"
-										bind:value={selectedWidgetoptions[option]}
+										bind:value={selectedWidgetOptions[option]}
 									/>
 								{:else if option === 'required' || option === 'readonly' || option === 'disabled' || option === 'localization'}
-									<input type="checkbox" name={option} id={option} class="variant-filled-surface" bind:value={selectedWidgetoptions[option]} />
+									<input type="checkbox" name={option} id={option} class="variant-filled-surface" bind:value={selectedWidgetOptions[option]} />
 								{:else}
 									<input
 										type="text"
@@ -125,7 +123,7 @@
 										id={option}
 										placeholder={`Enter ${option}`}
 										class="variant-filled-surface"
-										bind:value={selectedWidgetoptions[option]}
+										bind:value={selectedWidgetOptions[option]}
 									/>
 								{/if}
 							{/if}

@@ -196,7 +196,7 @@
 		<!-- TODO: hide arrow for x mobile -->
 		<div class="flex flex-col items-center justify-center">
 			<select
-				class="md:appearance-auto variant-ghost-surface m-0 rounded text-white sm:appearance-none md:hidden"
+				class="variant-ghost-surface m-0 rounded text-white sm:appearance-none md:hidden md:appearance-auto"
 				bind:value={$contentLanguage}
 				on:change={handleChange}
 			>

@@ -1,10 +1,9 @@
-<!-- Blur.svelte -->
 <script lang="ts">
 	import MouseHandler from './MouseHandler.svelte';
 
 	import { onMount } from 'svelte';
 
-	// Define your props for the Blur.svelte component
+	// Define your props for the Blur.svelte component that considers the image dimensions
 	export let blurAmount: number = 5; // The blur amount in pixels
 	export let blurTop: number;
 	export let blurLeft: number;
@@ -17,27 +16,29 @@
 	export let CONT_WIDTH: number;
 	export let CONT_HEIGHT: number;
 
-	let blurArea;
-
-	onMount(() => {
+	onMount(async () => {
 		// Initialize your blur area here
-		// You might use the `sharp` library to apply the blur effect
+		// You might use the `sharp` library to apply the blur effect from +page.server.ts
+		// // Create a sharp instance with the image to be blurred
+		// const image = sharp('path/to/image.jpg');
+		// // Define the blur radius
+		const blurRadius = 5;
+		// // Apply the blur effect
+		// image.blur(blurRadius);
+		// // Output the blurred image to a file
+		// image.toFile('path/to/blurred_image.jpg');
 	});
 
-	// Define a function to handle the move event from the MouseHandler component
 	function handleMove(event: { detail: { x: number; y: number } }) {
 		console.log('Move event handled');
 
-		// Update the separate variables with the event data
-		blurCenter += event.detail.x;
-		blurCenter += event.detail.y;
+		blurTop += event.detail.y;
+		blurLeft += event.detail.x;
 	}
 
-	// Define a function to handle the resize event from the MouseHandler component
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
 		console.log('Resize event handled');
 
-		// Update the separate variables based on corner
 		switch (event.detail.corner) {
 			case 'TopLeft':
 				blurTop = blurTop + event.detail.y;
@@ -62,13 +63,37 @@
 			default:
 				break;
 		}
+
+		// Update the position of the corners based on the new values of blurTop, blurLeft, blurRight, and blurBottom
+		const corners = document.querySelectorAll('.corner');
+		corners.forEach((corner) => {
+			const cornerData = (corner as HTMLElement).dataset.corner;
+			if (cornerData === 'TopLeft') {
+				(corner as HTMLElement).style.top = `${blurTop}px`;
+				(corner as HTMLElement).style.left = `${blurLeft}px`;
+			} else if (cornerData === 'TopRight') {
+				(corner as HTMLElement).style.top = `${blurTop}px`;
+				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
+			} else if (cornerData === 'BottomLeft') {
+				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
+				(corner as HTMLElement).style.left = `${blurLeft}px`;
+			} else if (cornerData === 'BottomRight') {
+				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
+				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
+			}
+		});
 	}
 
-	// Define a function to handle the delete event on the blur area
+	function handleRotate(event: { detail: { x: number; y: number } }) {
+		console.log('Rotate event handled');
+
+		blurRotate += event.detail.x;
+	}
+
 	function handleDelete() {
 		console.log('Delete event handled');
+
 		// You can add logic here to reset or remove the blur area
-		// For example, you might reset the blur values to their default or set a flag to hide the blur area
 		blurTop = 0;
 		blurLeft = 0;
 		blurRight = 0;
@@ -86,19 +111,21 @@
 	}
 </script>
 
-<div class="relative" style={`width: ${CONT_WIDTH}; height: ${CONT_HEIGHT};`}>
+<div class="relative" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
 	<!-- Wrap the blur area element inside the MouseHandler component tag -->
-	<MouseHandler on:move={handleMove} on:resize={handleResize}>
+	<MouseHandler on:move={handleMove} on:resize={handleResize} on:rotate={handleRotate}>
 		<!-- Use an if block to conditionally render the blur area based on the image prop -->
 
 		<div
-			class=" absolute grid grid-cols-3 grid-rows-3 border-4 border-error-500 bg-white bg-opacity-20"
-			style={`top: calc(50% + ${blurTop}px + ${blurCenter}px); left: calc(50% + ${blurLeft}px + ${blurCenter}px); width: ${
-				blurRight - blurLeft
-			}px; height: ${blurBottom - blurTop}px; transform: translate(-50%, -50%); border-radius: `}
+			class="absolute grid grid-cols-2 grid-rows-2"
+			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${
+				blurBottom - blurTop
+			}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
 		>
 			<!-- Use a button elements -->
-			<div class="variant-filled-surface btn-group absolute -left-10 -top-10 divide-x divide-surface-400 rounded-full [&>*+*]:border-surface-400">
+			<div
+				class="variant-filled-surface btn-group absolute -top-14 left-0 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full"
+			>
 				<!-- Add Blur -->
 				<button type="button" on:click={handleAdd} class="">
 					<iconify-icon icon="clarity:clone-solid" width="14" />
@@ -109,7 +136,7 @@
 					<iconify-icon icon="icomoon-free:bin" width="12" />
 				</button>
 			</div>
-			<!-- Add 4 div elements with the corner class and data-corner attribute to make them draggable -->
+			<!-- Add additional corners and lines to create a 3x3 grid -->
 			<div class="corner" data-corner="TopLeft"></div>
 			<div class="corner" data-corner="TopRight"></div>
 			<div class="corner" data-corner="BottomLeft"></div>
@@ -118,6 +145,9 @@
 			<div class="corner" data-corner="Center"></div>
 			<!-- Add a div element for the Rotate -->
 			<div class="corner" data-corner="Rotate"></div>
+			<!-- Add a flexible border lines -->
+			<div class="middle-horizontal line"></div>
+			<div class="middle-vertical line"></div>
 		</div>
 
 		<!-- Pass the new props to the slot tag -->
@@ -136,34 +166,42 @@
 		cursor: pointer;
 	}
 	.corner[data-corner='TopLeft'] {
-		top: -25px;
-		left: -25px;
+		top: 10px;
+		left: 10px;
+		cursor: nwse-resize;
 	}
 	.corner[data-corner='TopRight'] {
-		top: -25px;
-		right: -25px;
+		top: 10px;
+		right: 10px;
+		cursor: nesw-resize;
 	}
 	.corner[data-corner='BottomLeft'] {
-		bottom: -25px;
-		left: -25px;
+		bottom: 10px;
+		left: 10px;
+		cursor: nesw-resize;
 	}
 	.corner[data-corner='BottomRight'] {
-		bottom: -25px;
-		right: -25px;
+		bottom: 10px;
+		right: 10px;
+		cursor: nwse-resize;
 	}
 	.corner[data-corner='Center'] {
 		background-color: blue;
 		top: 50%;
 		left: 50%;
 		transform: translate(-50%, -50%);
+		width: 20px;
+		height: 20px;
+		border: 1px solid blue;
+		cursor: move;
 	}
-
 	.corner[data-corner='Rotate'] {
-		background-color: red;
-		width: 15px;
-		height: 15px;
-		top: 50%;
+		background-color: white;
+		border: 2px solid red;
+		width: 12px;
+		height: 12px;
+		top: 26px;
 		left: 50%;
-		transform: translate(-50%, 200%);
+		transform: translateX(-50%);
 	}
 </style>
