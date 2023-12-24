@@ -43,6 +43,7 @@
 
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
+		id: 'login',
 		validators: loginFormSchema,
 		// Clear form on success.
 		resetForm: true,
@@ -99,6 +100,7 @@
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
 	} = superForm(FormSchemaForgot, {
+		id: 'forgot',
 		validators: forgotFormSchema,
 		// Clear form on success.
 		resetForm: true,
@@ -202,6 +204,7 @@
 		enhance: resetEnhance,
 		delayed: resetDelayed
 	} = superForm(FormSchemaReset, {
+		id: 'reset',
 		validators: resetFormSchema,
 		// Clear form on success.
 		resetForm: true,
@@ -265,7 +268,6 @@
 				// PWreset = true;
 
 				// Trigger the toast
-				// TODO: Toast in conflict with wiggle
 				const t = {
 					message: m.signin_restpasswordtoast(),
 					// Provide any utility or variant background style:

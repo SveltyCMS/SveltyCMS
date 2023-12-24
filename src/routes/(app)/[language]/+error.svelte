@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import SimpleCmsLogo from '@components/SimpleCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 
 	//ParaglideJS
@@ -25,7 +25,7 @@
 					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">{char}</div>
 				{/each}
 			</div>
-			<SimpleCmsLogo fill="red" className="absolute top-[50%] -translate-y-[50%] translate-x-[50%] left-0 h-16 mb-2" />
+			<SveltyCMSLogo fill="red" className="absolute top-[50%] -translate-y-[50%] translate-x-[50%] left-0 h-16 mb-2" />
 		</div>
 
 		<div class="relative">

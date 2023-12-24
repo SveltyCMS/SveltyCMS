@@ -9,7 +9,7 @@ test('Test loading', async ({ page }) => {
 	// Expect this page
 	await page.locator('p').filter({ hasText: 'Sign Up' });
 	await page.locator('p').filter({ hasText: 'Sign In' });
-	await page.getByText('SimpleCMS').nth(2);
+	await page.getByText('SveltyCMS').nth(2);
 });
 
 // Test language selection and button text

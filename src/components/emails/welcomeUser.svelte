@@ -58,7 +58,7 @@
 			<Section style={btnContainer}>
 				<Link href={hostLink}>
 					<Img
-						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS_Logo_Round.png"
 						alt="{PUBLIC_SITENAME} logo"
 						width="150"
 						height="auto"
@@ -71,7 +71,7 @@
 			<Text>
 				{m.welcomeuser_discussion1()}
 
-				<Link href="https://github.com/Rar9/SimpleCMS/discussions">{m.welcomeuser_discussion2()}</Link>
+				<Link href="https://github.com/Rar9/SveltyCMS/discussions">{m.welcomeuser_discussion2()}</Link>
 			</Text>
 			<Text>{m.welcomeuser_thanks()}</Text>
 

@@ -53,7 +53,7 @@
 	});
 
 	import axios from 'axios';
-	import SimpleCmsLogo from '@components/SimpleCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import ControlPanel from '@components/ControlPanel.svelte';
 	import Collections from '@components/Collections.svelte';
@@ -92,7 +92,7 @@
 
 	// Fetch the latest release from GitHub
 	axios
-		.get('https://api.github.com/repos/Rar9/SimpleCMS/releases/latest')
+		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')
 		.then((response) => {
 			githubVersion = response.data.tag_name.slice(1); // Remove the 'v' from the version tag
 
@@ -258,7 +258,7 @@
 	<meta property="og:title" content={SeoTitle} />
 	<meta property="og:description" content={SeoDescription} />
 	<meta property="og:type" content="website" />
-	<meta property="og:image" content="/SimpleCMS_Logo_Round.png" />
+	<meta property="og:image" content="/SveltyCMS_Logo_Round.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={$page.url.origin} />
@@ -267,7 +267,7 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
-	<meta name="twitter:image" content="/SimpleCMS_Logo_Round.png" />
+	<meta name="twitter:image" content="/SveltyCMS_Logo_Round.png" />
 	<meta property="twitter:domain" content={$page.url.origin} />
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
@@ -303,7 +303,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				<!-- Corporate Identity Full-->
 				{#if $toggleLeftSidebar === 'full'}
 					<a href="/" class="t flex pt-2 !no-underline">
-						<SimpleCmsLogo fill="red" className="h-8 " />
+						<SveltyCMSLogo fill="red" className="h-8 " />
 
 						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME} </span>
 					</a>
@@ -315,7 +315,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						</button>
 
 						<a href="/" class="flex pt-2 !no-underline">
-							<SimpleCmsLogo fill="red" className="h-9  mr-2" />
+							<SveltyCMSLogo fill="red" className="h-9  mr-2" />
 						</a>
 					</div>
 				{/if}
@@ -465,7 +465,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 
 						<!-- Github discussions -->
 						<div class="{$toggleLeftSidebar === 'full' ? 'order-7' : 'order-7 hidden'} ">
-							<a href="https://github.com/Rar9/SimpleCMS/discussions" target="blank">
+							<a href="https://github.com/Rar9/SveltyCMS/discussions" target="blank">
 								<button use:popup={GithubTooltip} class="btn-icon hover:bg-surface-500 hover:text-white">
 									<iconify-icon icon="grommet-icons:github" width="30" />
 
@@ -479,7 +479,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 
 						<!-- CMS Version -->
 						<div class={$toggleLeftSidebar === 'full' ? 'order-6' : 'order-5'}>
-							<a href="https://github.com/Rar9/SimpleCMS/" target="blank">
+							<a href="https://github.com/Rar9/SveltyCMS/" target="blank">
 								<span class="{$toggleLeftSidebar === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
 									>{#if $toggleLeftSidebar === 'full'}{m.applayout_version()}{/if}
 									{pkg}

@@ -68,7 +68,7 @@
 	"welcomeuser_sitename": "Добродошли у {PUBLIC_SITENAME} - флексибилни Хеадлесс ЦМС који покреће Свелтекит.",
 	"welcomeuser_headless": "СимплеЦМС је брз и флексибилан ЦМС без главе који вам омогућава да лако управљате својим садржајем. Са Свелтекит-ом који покреће нашу платформу, можете очекивати беспрекорно и ефикасно искуство.",
 	"welcomeuser_discussion1": "Ако имате било каквих питања или вам је потребна помоћ за почетак, посетите наша питања и одговоре на Гитхуб-у",
-	"welcomeuser_discussion2": "SimpleCMS Дискусија.",
+	"welcomeuser_discussion2": "SveltyCMS Дискусија.",
 	"welcomeuser_thanks": "Хвала вам што сте изабрали СимплеЦМС. Узбуђени смо што сте на броду!",
 	"welcomeuser_button": "Идите на {PUBLIC_SITENAME}",
 	"welcomeuser_team": "Ваш {PUBLIC_SITENAME} тим",

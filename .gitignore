@@ -14,7 +14,7 @@ vite.config.ts.timestamp-*
 .env.*
 !.env.example
 
-# simpleCMS
+# SveltyCMS
 /tmp
 trash/
 media/

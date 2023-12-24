@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from '../$types';
+	import { roles } from '@src/collections/types';
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	// import { dev } from '$app/environment';
@@ -27,8 +28,6 @@
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		//validators: (firstUserExists ? signUpFormSchema.omit({ token: true }) : signUpFormSchema) as typeof signUpFormSchema,
-
 		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
 
 		// Clear form on success.
@@ -79,7 +78,7 @@
 	let formElement: HTMLFormElement;
 
 	// TODO: Replace Role with the one assigned by token
-	let UserRole = 'User';
+	let UserRole = roles.user;
 
 	let showPassword = false;
 </script>
@@ -118,7 +117,6 @@
 			<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
 
 			<!-- <SuperDebug data={$form} display={dev} /> -->
-
 			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
 				<!-- Username field -->
 				<FloatingInput

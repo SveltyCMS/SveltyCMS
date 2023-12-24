@@ -1,7 +1,7 @@
 import type { CustomThemeConfig } from '@skeletonlabs/tw-plugin';
 
-export const SimpleCMSTheme: CustomThemeConfig = {
-	name: 'SimpleCMSTheme',
+export const SveltyCMSTheme: CustomThemeConfig = {
+	name: 'SveltyCMSTheme',
 	properties: {
 		// =~= Theme Properties =~=
 		'--theme-font-family-base': 'system-ui',

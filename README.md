@@ -1,18 +1,18 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png">
-      <img width="200" alt="SimpleCMC logo" src="https://github.com/Rar9/SimpleCMS/blob/main/static/SimpleCMS_Logo_Round.png">
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS_Logo_Round.png">
+      <img width="200" alt="SimpleCMC logo" src="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS_Logo_Round.png">
     </picture>
  </p>
 
-<h1 align="center"><strong>SimpleCMS</strong></h1>
+<h1 align="center"><strong>SveltyCMS</strong></h1>
 <p align="center"><strong>(Still in Development - Support always Appreciated!!)</strong></>
 
 <p align="center">
 
- <img alt="Latest SemVer)" src="https://img.shields.io/github/v/tag/Rar9/SimpleCMS">
+ <img alt="Latest SemVer)" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
 
-  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SimpleCMS">
+  <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
 </p>
   
 <p align="center">
@@ -34,9 +34,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/Rar9/SimpleCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
-  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/Rar9/SimpleCMS/actions/workflows/playwright.yml/badge.svg"></a>
-  <a href="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SimpleCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
+  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
+  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml/badge.svg"></a>
+  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
 <h2 align="center">A powerful Headless CMS with Sveltekit Power</h2>
@@ -59,12 +59,12 @@ Data is provided via yoga graphql, to build extremely fast frontend
 
 ### Clone the repository
 
-To clone our [repository](https://github.com/Rar9/SimpleCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+To clone our [repository](https://github.com/Rar9/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
 
 ```bash
-git clone https://github.com/Rar9/SimpleCMS.git
+git clone https://github.com/Rar9/SveltyCMS.git
 
-cd SimpleCMS
+cd SveltyCMS
 ```
 
 ### Install all dependencies
@@ -109,13 +109,13 @@ Field-based content access enables the allocation of varying levels of access to
 
 ## :art: Easy Theme Adaptions to your needs
 
-If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `SimpleCMSTheme.ts` to your needs
+If you require a different look, use the [skeleton theme generator](https://www.skeleton.dev/docs/generator) and modify the `SveltyCMSTheme.ts` to your needs
 
 ## :earth_africa: Great System Localization i18n infrastructure
 
 We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), the best i18n library together with [inlang](https://inlang.com/) ecosystem for first class System Translations with full typescript support.
 
-Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SimpleCMS) and can easily be extended.
+Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SveltyCMS) and can easily be extended.
 
 If a language has not yet been defined, reach out to us, so that you can help extend the System Localization.
 
@@ -171,4 +171,4 @@ To all our contributors without this would never have been possible
 
 # :star: Give us a star
 
-If you like what we're doing, give us a `star` and share our `SimpleCMS` project with others
+If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others

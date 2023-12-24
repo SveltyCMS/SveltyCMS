@@ -64,7 +64,7 @@ export const signUpFormSchema = z
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
 
 		lang: z.string(), // used for svelte-email
-		token: z.string().min(16) //registrtion user token
+		token: z.string().min(16) //registration user token
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),

@@ -49,7 +49,7 @@
 	{#if active == undefined}
 		<!-- CSS Logo -->
 		<a
-			href="https://github.com/Rar9/SimpleCMS"
+			href="https://github.com/Rar9/SveltyCMS"
 			target="_blank"
 			rel="noopener"
 			class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center border"
@@ -57,7 +57,8 @@
 			<!--White Inner Background -->
 			<div class="absolute top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 				<!-- Seasons -->
-				{#if PUBLIC_SEASONS}
+				{#if PUBLIC_SEASONS === true}
+					<!-- TODO: Fix broken avif Edge image -->
 					{#if isDecember && !isNewYear}
 						<img src="/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
 					{/if}
@@ -138,7 +139,7 @@
 			</div>
 		</a>
 
-		<!-- TODO: Fix Language switcher -->
+		<!-- Language Select -->
 		<div
 			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
@@ -181,10 +182,10 @@
 
 		<!-- CMS Version -->
 		<a
-			href="https://github.com/Rar9/SimpleCMS"
+			href="https://github.com/Rar9/SveltyCMS"
 			target="_blank"
 			rel="noopener"
-			class=" absolute bottom-5 left-1/2 right-1/3 flex min-w-[100px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20"
+			class=" absolute bottom-5 left-1/2 right-1/3 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20"
 		>
 			<p class="text-[#242728]">Ver.</p>
 			<p class="text-white">{pkg}</p>

@@ -6,7 +6,7 @@ import typography from '@tailwindcss/typography';
 // Import the Skeleton plugin
 import { skeleton } from '@skeletonlabs/tw-plugin';
 // Import Custom Theme
-import { SimpleCMSTheme } from './SimpleCMSTheme';
+import { SveltyCMSTheme } from './SveltyCMSTheme';
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
@@ -48,7 +48,7 @@ module.exports = {
 		//skeleton({ themes: { preset: [{ name: "skeleton", enhancements: true }]}}),
 		skeleton({
 			themes: {
-				custom: [SimpleCMSTheme]
+				custom: [SveltyCMSTheme]
 			}
 		})
 	]

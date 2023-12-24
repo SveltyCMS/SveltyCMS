@@ -122,7 +122,7 @@
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
 					<Img
-						src="https://github.com/Rar9/SimpleCMS/raw/main/static/SimpleCMS_Logo_Round.png"
+						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS_Logo_Round.png"
 						alt="{PUBLIC_SITENAME} logo"
 						width="150"
 						height="auto"

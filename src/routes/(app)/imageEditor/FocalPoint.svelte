@@ -8,8 +8,8 @@
 	export let CONT_WIDTH: number;
 	export let CONT_HEIGHT: number;
 
-	// Define your props for the FocalPoint.svelte component that considers the image dimensions
-	export let focalPoint: { x: number; y: number } = { x: 0, y: 0 };
+	// Define starting position that considers the image dimensions
+	export let focalPoint: { x: number; y: number } = { x: CONT_WIDTH / 2, y: CONT_HEIGHT / 2 };
 
 	// Define a function to handle the drag event from the MouseHandler component
 	export function handleMove(event: any) {
