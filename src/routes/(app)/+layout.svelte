@@ -258,7 +258,7 @@
 	<meta property="og:title" content={SeoTitle} />
 	<meta property="og:description" content={SeoDescription} />
 	<meta property="og:type" content="website" />
-	<meta property="og:image" content="/SveltyCMS_Logo_Round.png" />
+	<meta property="og:image" content="/SveltyCMS.png" />
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={$page.url.origin} />
@@ -267,7 +267,7 @@
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
 	<meta name="twitter:description" content={SeoDescription} />
-	<meta name="twitter:image" content="/SveltyCMS_Logo_Round.png" />
+	<meta name="twitter:image" content="/SveltyCMS.png" />
 	<meta property="twitter:domain" content={$page.url.origin} />
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
