@@ -6,8 +6,6 @@ import { auth } from '@api/db';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { redirect } from '@sveltejs/kit';
 
-
-
 export async function load(event: any) {
 	// Secure this page with session cookie
 	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;

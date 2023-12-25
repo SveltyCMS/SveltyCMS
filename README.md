@@ -1,7 +1,7 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
       <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
-      <img width="200" alt="SimpleCMC logo" src="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
+      <img width="200" alt="SveltyCMS logo" src="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
     </picture>
  </p>
 

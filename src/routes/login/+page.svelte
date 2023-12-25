@@ -57,7 +57,7 @@
 			<!--White Inner Background -->
 			<div class="absolute top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 				<!-- Seasons -->
-				{#if PUBLIC_SEASONS === true}
+				{#if PUBLIC_SEASONS === 'true'}
 					<!-- TODO: Fix broken avif Edge image -->
 					{#if isDecember && !isNewYear}
 						<img src="/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
