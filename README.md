@@ -14,7 +14,7 @@
 
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
 </p>
-  
+
 <p align="center">
   <a href="https://kit.svelte.dev/">
     <img src="https://img.shields.io/badge/Svelte-FF3E00?logo=svelte&amp;logoColor=fff&amp;" alt="Sveltekit Badge"/>
@@ -28,9 +28,9 @@
     <img src="https://img.shields.io/badge/MongoDB-47A248?logo=mongodb&amp;logoColor=fff&amp;" alt="Mongodb Badge" />
   </a>
 
-  <a href="https://tailwindcss.com/"> 
-    <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&" alt="Tailwindcss Badge" /> 
-  </a> 
+  <a href="https://tailwindcss.com/">
+    <img src="https://img.shields.io/badge/Tailwind%20CSS-06B6D4?logo=tailwindcss&logoColor=fff&" alt="Tailwindcss Badge" />
+  </a>
 </p>
 
 <p align="center">
@@ -74,8 +74,9 @@ Your need [Node.js](https://nodejs.org/en) 18.13 or higher to get started which 
 We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used.
 
 ```bash
-npm run install   # installs all required package dependencies
-npm run inlang    # build available system languages
+npm install   # installs all required package dependencies
+# If Post Install script is disabled, then also run the following
+# npm run inlang    # build available system languages
 ```
 
 ### Setup Environment File
