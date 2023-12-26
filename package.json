@@ -20,7 +20,8 @@
 		"format": "prettier --write .",
 		"---- OTHER ----------------------------------------------------------": "",
 		"vite": "vite dev --open ",
-		"preview": "vite preview"
+		"preview": "vite preview",
+		"postinstall": "npm run inlang"
 	},
 	"license": "MIT",
 	"repository": {
