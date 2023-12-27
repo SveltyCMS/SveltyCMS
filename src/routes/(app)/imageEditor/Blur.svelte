@@ -4,7 +4,7 @@
 	import { onMount } from 'svelte';
 
 	// Define your props for the Blur.svelte component that considers the image dimensions
-	export let blurAmount: number = 5; // The blur amount in pixels
+	// export let blurAmount: number = 5; // The blur amount in pixels
 	export let blurTop: number;
 	export let blurLeft: number;
 	export let blurRight: number;
@@ -32,8 +32,13 @@
 	function handleMove(event: { detail: { x: number; y: number } }) {
 		console.log('Move event handled');
 
-		blurTop += event.detail.y;
-		blurLeft += event.detail.x;
+		// Calculate offset from the image center
+		const offsetTop = event.detail.y - CONT_HEIGHT / 2;
+		const offsetX = event.detail.x - CONT_WIDTH / 2;
+
+		// Update blur top and left based on the offset
+		blurTop = blurCenter + offsetTop;
+		blurLeft = blurCenter + offsetX;
 	}
 
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {

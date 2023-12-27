@@ -77,7 +77,7 @@
 	</div>
 	<div class="absolute right-1 top-2 flex">
 		<button class="text-black" on:click={() => editCategory({ name, icon })} aria-label="Edit Category">
-			<iconify-icon icon="mdi:pen" width="18" class="text-surface-400" />
+			<iconify-icon icon="mdi:pen" width="18" class="hover:text-error-500 dark:text-white" />
 		</button>
 		<iconify-icon icon="mdi:drag" width="18" class="" />
 	</div>
@@ -100,8 +100,8 @@
 					{item.name}</span
 				>
 
-				<button class="text-surface-400" on:click={() => handleCollectionClick(item.name)}>
-					<iconify-icon icon="mdi:pen" width="18" class="pr-0.5" />
+				<button class="varient-filled-surface btn" on:click={() => handleCollectionClick(item.name)}>
+					<iconify-icon icon="mdi:pen" width="18" class=" text-surface-500 hover:text-error-500" />
 				</button>
 			</div>
 		{/each}

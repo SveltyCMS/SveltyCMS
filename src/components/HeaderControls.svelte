@@ -13,7 +13,11 @@
 		saveLayerStore,
 		shouldShowNextButton
 	} from '@stores/store';
+
 	import { saveFormData } from '@utils/utils';
+
+	import { page } from '$app/stores';
+	let userRole = $page.data.user.role;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -98,7 +102,12 @@
 				</button>
 			{:else}
 				<!-- Save Content -->
-				<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
+				<button
+					type="button"
+					on:click={saveData}
+					disabled={!$collection?.permissions?.[userRole]?.write}
+					class="variant-filled-primary btn-icon md:btn"
+				>
 					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 					<span class="hidden md:block">Save</span>
 				</button>
@@ -143,7 +152,12 @@
 	<div class="-mx-2 mb-2 flex items-center justify-center gap-3 pt-2">
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
-			<button type="button" on:click={() => $modifyEntry('delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
+			<button
+				type="button"
+				on:click={() => $modifyEntry('delete')}
+				disabled={!$collection?.permissions?.[userRole]?.delete}
+				class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
+			>
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
 		</div>
@@ -155,6 +169,7 @@
 					<button
 						type="button"
 						on:click={() => $modifyEntry('publish')}
+						disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
 						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 					>
 						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -165,6 +180,7 @@
 					<button
 						type="button"
 						on:click={() => $modifyEntry('unpublish')}
+						disabled={!$collection?.permissions?.[userRole]?.write}
 						class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 					>
 						<iconify-icon icon="bi:pause-circle" width="24" />
@@ -173,7 +189,12 @@
 			{/if}
 
 			<div class="flex flex-col items-center justify-center">
-				<button type="button" on:click={() => $modifyEntry('schedule')} class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon">
+				<button
+					type="button"
+					on:click={() => $modifyEntry('schedule')}
+					disabled={!$collection?.permissions?.[userRole]?.write}
+					class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
+				>
 					<iconify-icon icon="bi:clock" width="24" />
 				</button>
 			</div>
@@ -182,6 +203,7 @@
 				<button
 					type="button"
 					on:click={() => $modifyEntry('clone')}
+					disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
 					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 				>
 					<iconify-icon icon="bi:clipboard-data-fill" width="24" />

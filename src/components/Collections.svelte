@@ -1,16 +1,17 @@
 <script lang="ts">
 	import { mode, screenWidth, toggleLeftSidebar, collection, categories } from '@stores/store';
 	import { page } from '$app/stores';
-	import type { User } from 'lucia';
 
-	let user: User = $page.data.user;
+	// let user: User = $page.data.user;
+	let user = $page.data.user;
+	let createdBy = '';
 
 	export let modeSet: typeof $mode = 'view';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	//skeleton
+	// Skeleton
 	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
@@ -50,10 +51,22 @@
 
 	// Define filterCategories function
 	function filterCategories() {
+		// Get the current user's role and ID
+		const userRole = user.role;
+		const userId = user.id;
+
 		// Reduce $categories array to create new array of filtered categories
 		filteredCategories = ($categories as Category[]).reduce((acc: Category[], category) => {
 			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection) => collection.name.toLowerCase().includes(search.toLowerCase()));
+			const filteredCollections = category.collections.filter((collection) => {
+				// Check if user has read permission for the collection
+				const hasReadPermission = collection.permissions && userRole in collection.permissions && collection.permissions[userRole].read; // Check if the user is the creator of the collection
+				const isCreator = createdBy === userId;
+
+				// Only include the collection if the user has read permission or if the user is the creator
+				return hasReadPermission || isCreator;
+			});
+
 			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
 			if (filteredCollections.length > 0 || (search === '' && category.name.toLowerCase().includes(search.toLowerCase()))) {
 				// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
@@ -63,10 +76,16 @@
 					open: filteredCollections.length > 0 && search !== ''
 				});
 			}
+
 			// Return accumulator
 			return acc;
 		}, []);
+
+		// Filter out categories with no visible collections
+		filteredCategories = filteredCategories.filter((category) => category.collections.length > 0);
 	}
+
+	console.log(filterCategories());
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->

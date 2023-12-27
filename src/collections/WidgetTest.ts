@@ -10,11 +10,6 @@ const schema: Schema = {
 	icon: 'carbon:rule-test',
 
 	// Collection Permissions by user Roles
-	permissions: {
-		[roles.user]: {
-			read: false
-		}
-	},
 
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
