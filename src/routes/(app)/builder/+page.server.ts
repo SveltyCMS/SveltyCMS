@@ -34,14 +34,14 @@ export const actions: Actions = {
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
-		const collectionIcon = JSON.parse(formData.get('collectionIcon') as string);
-		const collectionStatus = JSON.parse(formData.get('collectionStatus') as string);
-		const collectionSlug = JSON.parse(formData.get('collectionSlug') as string);
+		const collectionIcon = JSON.parse(formData.get('icon') as string);
+		const collectionStatus = JSON.parse(formData.get('status') as string);
+		const collectionSlug = JSON.parse(formData.get('slug') as string);
 
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);
 
-		// Generate fields as formated string
+		// Generate fields as formatted string
 		//console.log(fields);
 
 		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');

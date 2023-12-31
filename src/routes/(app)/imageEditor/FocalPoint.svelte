@@ -27,10 +27,8 @@
 </script>
 
 <div class="relative" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-	<!-- Wrap the focal point indicator inside the MouseHandler component -->
 	<MouseHandler on:move={handleMove}>
-		<!-- Use the focal point coordinates to render the focal point indicator -->
-		<div class="absolute text-primary-500" style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}>
+		<div class="absolute cursor-move text-primary-500" style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}>
 			<iconify-icon icon="bi:plus-circle-fill" width="30" />
 		</div>
 	</MouseHandler>

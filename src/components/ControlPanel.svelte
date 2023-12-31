@@ -21,6 +21,8 @@
 	let publishValue = 'false';
 
 	let user: User = $page.data.user;
+	let userRole = $page.data.user.role;
+	let userId = $page.data.user.id;
 
 	async function saveData() {
 		await saveFormData({ data: $collectionValue });
@@ -58,7 +60,8 @@
 </script>
 
 <!-- Desktop Right Sidebar -->
-{#if ['edit', 'create'].includes($mode)}
+<!-- Check if user has create or write permission -->
+{#if ['edit', 'create'].includes($mode) && ($collection?.permissions?.[userRole]?.create || $collection?.permissions?.[userRole]?.write)}
 	<div class="flex h-screen w-full flex-col justify-between">
 		{#if $shouldShowNextButton}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
@@ -68,7 +71,12 @@
 		{:else}
 			<header class="flex flex-col items-center justify-center gap-2">
 				<!-- Save button -->
-				<button type="button" on:click={saveData} class="variant-filled-primary btn w-full gap-2">
+				<button
+					type="button"
+					on:click={saveData}
+					disabled={!$collection?.permissions?.[userRole]?.write}
+					class="variant-filled-primary btn w-full gap-2"
+				>
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
 					Save
 				</button>
@@ -96,13 +104,19 @@
 				<button
 					type="button"
 					on:click={() => $modifyEntry('clone')}
+					disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
 					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 				>
 					<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
 				</button>
 
 				{#if $mode == 'edit'}
-					<button type="button" on:click={() => $modifyEntry('delete')} class="variant-filled-error btn w-full">
+					<button
+						type="button"
+						on:click={() => $modifyEntry('delete')}
+						disabled={!$collection?.permissions?.[userRole]?.delete}
+						class="variant-filled-error btn w-full"
+					>
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete
 					</button>
 				{/if}

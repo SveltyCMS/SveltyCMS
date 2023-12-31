@@ -13,9 +13,20 @@
 	export let CONT_HEIGHT: number;
 
 	function handleMove(event: { detail: { x: number; y: number } }) {
-		// Update cropLeft and cropTop instead of cropCenter
-		cropLeft += event.detail.x;
-		cropTop += event.detail.y;
+		// Calculate the center of the image
+		let imageCenterX = CONT_WIDTH / 2;
+		let imageCenterY = CONT_HEIGHT / 2;
+
+		// Calculate the offset from the center of the image
+		let offsetX = event.detail.x - imageCenterX;
+		let offsetY = event.detail.y - imageCenterY;
+
+		// Adjust the crop area position based on the offset
+		cropLeft -= offsetX;
+		cropTop -= offsetY;
+
+		// Update the cropCenter variable for responsive resizing
+		cropCenter = (cropLeft + cropRight) / 2;
 	}
 
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
@@ -59,10 +70,10 @@
 			};`}
 		>
 			<!-- Add 4 div elements with the corner class and data-corner attribute to make them draggable -->
-			<div class="corner top-left" data-corner="TopLeft" style="top: -5px; left: -5px;"></div>
-			<div class="corner top-right" data-corner="TopRight" style="top: -5px; right: -5px;"></div>
-			<div class="corner bottom-left" data-corner="BottomLeft" style="bottom: -5px; left: -5px;"></div>
-			<div class="corner bottom-right" data-corner="BottomRight" style="bottom: -5px; right: -5px;"></div>
+			<div class="corner top-left" data-corner="TopLeft"></div>
+			<div class="corner top-right" data-corner="TopRight"></div>
+			<div class="corner bottom-left" data-corner="BottomLeft"></div>
+			<div class="corner bottom-right" data-corner="BottomRight"></div>
 
 			<!-- Add additional corners and lines to create a 3x3 grid -->
 			<div class="corner" data-corner="TopLeft"></div>
@@ -117,7 +128,7 @@
 		transform: translate(-50%, -50%);
 		width: 20px;
 		height: 20px;
-		border: 1px solid blue;
+		border: 1px solid white;
 		cursor: move;
 	}
 </style>

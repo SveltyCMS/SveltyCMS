@@ -2,15 +2,6 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 
-	let permissions = {};
-	let availablePermissions = ['read', 'write', 'delete']; // Add more permissions as needed
-	function setPermission(role, permission, value) {
-		if (!permissions[role]) {
-			permissions[role] = {};
-		}
-		permissions[role][permission] = value;
-	}
-
 	// Collection Creation
 	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
@@ -219,7 +210,7 @@
 					</p>
 				{/if}
 				<div class="flex flex-col gap-2 rounded-md border p-2">
-					<p class="mb-2 text-center font-bold text-primary-500 sm:text-left">{m.collectionname_optional()}</p>
+					<p class="mb-2 text-center font-bold text-primary-500">{m.collectionname_optional()}</p>
 
 					<!-- Description -->
 					<div class="items-center sm:flex">
@@ -237,7 +228,7 @@
 
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
-					<div class="w-full items-center sm:flex">
+					<div class="w-full items-center md:flex">
 						<label for="icon" class="relative">
 							{m.collectionname_labelicon()}
 						</label>
@@ -277,12 +268,12 @@
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
 				</div>
 			{:else if tabSet === 1}
-				<!-- Permission -->
+				<!-- Permissions -->
 				<Permissions />
 
 				<!-- Buttons -->
 				<div class="flex justify-between">
-					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
+					<button type="button" on:click={() => (tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
 					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-primary btn mt-2">Next</button>
 				</div>
 
@@ -313,11 +304,13 @@
 					{/each}
 				</VerticalList>
 
-				<div class=" border-surface-400-500-token border-t text-center">
-					<button class="variant-filled-tertiary btn mt-2" on:click={modalComponentForm}>Add more Fields</button>
+				<div class="mt-2 flex items-center justify-center gap-3">
+					<button class="variant-filled-tertiary btn" on:click={modalComponentForm}>Add more Fields</button>
+					<button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button>
 				</div>
+
 				<div class=" flex items-center justify-between">
-					<button type="button" on:click={() => (tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
 					<button type="button" on:click={onCompleteHandler} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
 				</div>
 			{/if}

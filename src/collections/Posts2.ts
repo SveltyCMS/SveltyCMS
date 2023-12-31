@@ -11,7 +11,8 @@ const schema: Schema = {
 			read: true
 		},
 		[roles.developer]: {
-			read: true
+			read: true,
+			write: true
 		},
 		[roles.editor]: {
 			read: true

@@ -55,7 +55,7 @@ export async function getCollectionModels() {
 				for (const collection of collections) {
 					// Create a new mongoose schema using the collection's fields and timestamps
 					const schema_object = new mongodb.Schema(
-						{ createdAt: Number, updatedAt: Number },
+						{ createdAt: Number, updatedAt: Number, createdBy: String },
 						{
 							typeKey: '$type',
 							strict: false,

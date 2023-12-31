@@ -31,7 +31,6 @@
 	let blurRight = 10;
 	let blurBottom = 10;
 	let blurCenter = 10;
-	let blurAmount = 5;
 	let blurRotate = 0;
 
 	// Initialize the BLUR values with default values
@@ -77,7 +76,7 @@
 
 		{#if activeState === 'blurring'}
 			<!-- Pass the image and the blur values to the Blur component  -->
-			<Blur bind:blurAmount bind:blurTop bind:blurLeft bind:blurRight bind:blurBottom bind:blurCenter bind:blurRotate {CONT_WIDTH} {CONT_HEIGHT} />
+			<Blur bind:blurTop bind:blurLeft bind:blurRight bind:blurBottom bind:blurCenter bind:blurRotate {CONT_WIDTH} {CONT_HEIGHT} />
 		{/if}
 
 		{#if activeState === 'focalpoint'}

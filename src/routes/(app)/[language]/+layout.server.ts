@@ -1,5 +1,6 @@
 import { error, redirect } from '@sveltejs/kit';
 import { auth } from '@api/db';
+
 import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
@@ -13,11 +14,10 @@ export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
 	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	const user = await validate(auth, session);
-	const collection = collections.find((c) => c.name == params.collection);
-
+	const collection = collections.find((c: any) => c.name == params.collection);
 	//console.log(get(collections));
 
-	if (user.user.authMethod == 'token') {
+	if (user.user.authMethod === 'token') {
 		redirect(302, `/user`);
 	}
 
