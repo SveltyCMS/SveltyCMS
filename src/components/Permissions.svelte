@@ -17,8 +17,23 @@
 
 	// Define a function to get the buttonMap based on a given role and permission
 	function getButtonMap(role: Role, permission: Permission) {
+		// Use the role parameter here
+		console.log(`Role: ${role}`);
+
 		return buttonMap[permission];
 	}
+
+	// TODO: Use Dynamic buttonMap to get data from types.ts
+	// const buttonMap = Object.keys(permissions.create.icon).reduce((acc, permission) => {
+	// 	acc[permission] = {
+	// 		enabled: `filled-${permissions.create.color[permission]}`,
+	// 		disabled: `outline-${permissions.create.color[permission]}`,
+	// 		icon: permissions.create.icon[permission],
+	// 		color: permissions.create.color[permission]
+	// 	};
+
+	// 	return acc;
+	// }, {});
 
 	const buttonMap = {
 		create: {
@@ -46,6 +61,7 @@
 			// color: permissions.write.color.write
 		},
 		delete: {
+			//TODO: Fix CSS as error is not applied
 			enabled: 'filled-error',
 			disabled: 'outline-error',
 			icon: 'bi:trash-fill',
@@ -82,8 +98,7 @@
 	}
 
 	function removeRole(index: number) {
-		rolesArray.splice(index, 1);
-		rolesArray = rolesArray;
+		rolesArray = rolesArray.filter((_, i) => i !== index);
 		MorePermissions = true;
 	}
 
@@ -91,8 +106,13 @@
 		event.stopPropagation();
 		if (role && role.permissions && permission in role.permissions) {
 			const typedPermission = permission as Permission;
-			role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
-			rolesArray = [...rolesArray];
+			const buttonInfo = getButtonMap(role.name, typedPermission);
+			if (buttonInfo) {
+				role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
+				rolesArray = [...rolesArray];
+			} else {
+				console.error('Button information not found for the permission:', permission);
+			}
 		} else {
 			console.error('Role or role.permissions is undefined');
 		}
@@ -104,7 +124,12 @@
 
 		if (allRolesHavePermission !== undefined) {
 			rolesArray.forEach((role) => {
-				role.permissions = { ...role.permissions, [typedPermission]: !allRolesHavePermission };
+				const buttonInfo = getButtonMap(role.name, typedPermission);
+				if (buttonInfo) {
+					role.permissions = { ...role.permissions, [typedPermission]: !allRolesHavePermission };
+				} else {
+					console.error('Button information not found for the permission:', permission);
+				}
 			});
 
 			rolesArray = [...rolesArray];
@@ -117,7 +142,14 @@
 	let filteredRolesArray: typeof rolesArray = [];
 
 	$: {
-		permissionHeaders = rolesArray.length > 0 ? Object.keys(rolesArray[0].permissions) : [];
+		if (rolesArray.length > 0 && rolesArray[0].permissions) {
+			permissionHeaders = Object.keys(rolesArray[0].permissions);
+		} else {
+			permissionHeaders = [];
+		}
+	}
+
+	$: {
 		filteredRolesArray = rolesArray.filter((role: (typeof rolesArray)[0]) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
 	}
 
@@ -125,14 +157,16 @@
 	$: {
 		let truePermissions = {};
 		rolesArray.forEach(({ name, permissions }) => {
-			Object.entries(permissions).forEach(([key, value]) => {
-				if (value === true) {
-					if (!truePermissions[name]) {
-						truePermissions[name] = {};
+			if (permissions) {
+				Object.entries(permissions).forEach(([key, value]) => {
+					if (value === true) {
+						if (!truePermissions[name]) {
+							truePermissions[name] = {};
+						}
+						truePermissions[name][key] = value;
 					}
-					truePermissions[name][key] = value;
-				}
-			});
+				});
+			}
 		});
 
 		// Update the permissionStore with the new permissions
@@ -213,15 +247,18 @@
 							{#each Object.keys(role.permissions) as permission}
 								<!-- Check if the permission exists in the role's permissions -->
 								<td>
+									{console.log('buttonMap:', buttonMap)}
 									<button
-										class={`variant-${buttonMap[permission].disabled} btn w-full text-center `}
-										class:toggle={`variant-${buttonMap[permission].enabled}`}
+										class={`variant-${buttonMap[permission]?.disabled} btn w-full text-center `}
+										class:toggle={`variant-${buttonMap[permission]?.enabled}`}
 										on:click={(event) => {
 											togglePermission(event, role, permission, index);
 										}}
 									>
-										<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1"></iconify-icon>
+										<iconify-icon icon={buttonMap[permission]?.icon} width="16" class="mr-1"></iconify-icon>
 										{permission.charAt(0).toUpperCase() + permission.slice(1)}
+										<!-- Debug Statements -->
+										{console.log(`variant-${buttonMap[permission]?.disabled}`, `variant-${buttonMap[permission]?.enabled}`)}
 									</button>
 								</td>
 							{/each}
@@ -235,5 +272,6 @@
 				{/each}
 			</tbody>
 		</table>
+		<div class="mt-4 text-center">Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span></div>
 	</div>
 {/if}

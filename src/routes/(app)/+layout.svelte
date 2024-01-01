@@ -6,7 +6,7 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/stores';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 
 	//skeleton
 	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
@@ -30,11 +30,23 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		pkgBgColor,
-		storeListboxValue
+		pkgBgColor
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
+
+	import { get } from 'svelte/store';
+	import type { Schema } from '@collections/types';
+	import Loading from '@components/Loading.svelte';
+	import axios from 'axios';
+	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
+	import { PUBLIC_SITENAME } from '$env/static/public';
+	import ControlPanel from '@components/ControlPanel.svelte';
+	import Collections from '@components/Collections.svelte';
+	import { systemLanguage } from '@stores/store';
+
+	import { getDates } from '@utils/utils';
+	let dates = { created: '', updated: '', revision: '' };
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
@@ -51,14 +63,6 @@
 			});
 		});
 	});
-
-	import axios from 'axios';
-	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import ControlPanel from '@components/ControlPanel.svelte';
-	import Collections from '@components/Collections.svelte';
-	import { getDates } from '@utils/utils';
-	import { systemLanguage } from '@stores/store';
 
 	contentLanguage.set($page.params.language);
 
@@ -198,12 +202,6 @@
 
 	import HeaderControls from '@components/HeaderControls.svelte';
 
-	import { get } from 'svelte/store';
-	import type { Schema } from '@collections/types';
-	import Loading from '@components/Loading.svelte';
-
-	let dates = { created: '', updated: '', revision: '' };
-
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
 
@@ -233,13 +231,13 @@
 		ForwardBackward = false;
 	});
 
-	// onMount(async () => {
-	// 	try {
-	// 		dates = await getDates($collection.name);
-	// 	} catch (error) {
-	// 		console.error(error);
-	// 	}
-	// });
+	//  onMount(async () => {
+	//  	try {
+	//  		dates = await getDates($collection.name);
+	//  	} catch (error) {
+	//  		console.error(error);
+	//  	}
+	//  });
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
@@ -413,8 +411,6 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								{:else}
 									<iconify-icon icon="bi:moon-fill" width="22" />
 								{/if}
-
-								<!-- TODO: tooltip overflow -->
 							</button>
 
 							<!-- Popup Tooltip with the arrow element -->

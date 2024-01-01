@@ -28,6 +28,6 @@
 			<iconify-icon {icon} width={iconSize} class={`mr-1 ${iconColor} sm:mr-2`} />
 		{/if}
 		<!-- Page Title -->
-		{name}
+		{@html name}
 	</h1>
 </div>

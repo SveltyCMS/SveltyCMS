@@ -9,8 +9,8 @@
 
 	let next = () => {};
 	saveLayerStore.subscribe((value) => {
-		shouldShowNextButton.set(false);
 		next = value;
+		shouldShowNextButton.set(false);
 	});
 
 	//ParaglideJS
@@ -57,11 +57,14 @@
 	function onPopupUserSelect(e: CustomEvent<AutocompleteOption<string, unknown>>): void {
 		throw new Error('Function not implemented.');
 	}
+
+	// console.log('User role:', $page.data.user.role);
+	// console.log('Mode:', $mode);
 </script>
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) && ($collection?.permissions?.[userRole]?.create || $collection?.permissions?.[userRole]?.write)}
+{#if ['edit', 'create'].includes($mode) || userRole == 'admin'}
 	<div class="flex h-screen w-full flex-col justify-between">
 		{#if $shouldShowNextButton}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
@@ -123,9 +126,9 @@
 
 				<!-- Promote -->
 				<!-- <label class="flex items-center space-x-2">
-				<p>Promote</p>
-				<input class="checkbox" type="checkbox" checked />
-			</label> -->
+        <p>Promote</p>
+        <input class="checkbox" type="checkbox" checked />
+      </label> -->
 			</header>
 
 			<!-- Publish Options -->

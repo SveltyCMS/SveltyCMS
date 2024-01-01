@@ -65,7 +65,7 @@
 
 	function handleCollectionClick(collectionName: string) {
 		// Define the logic for handling the click on a collection
-		goto(`/collection/${collectionName}/edit`);
+		goto(`/collection/${collectionName}`);
 	}
 </script>
 

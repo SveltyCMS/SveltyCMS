@@ -45,11 +45,12 @@ export type permissions = {
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
-	permissions?: permissions;
 	name?: string;
-	icon?: string;
 	slug?: string;
+	icon?: string;
+	description?: string;
+	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
+	permissions?: permissions;
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 	strict?: boolean;
-	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
 }

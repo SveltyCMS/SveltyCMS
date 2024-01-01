@@ -13,8 +13,9 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag, availableLanguageTags } from '@src/paraglide/runtime';
+	import { languageTag } from '@src/paraglide/runtime';
 	import Autocomplete from '@components/Autocomplete.svelte';
+
 	let _languageTag = languageTag(); // Get the current language tag
 
 	// Seasons
@@ -31,8 +32,6 @@
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
-
-	let options = availableLanguageTags;
 </script>
 
 <div class={`flex min-h-screen w-full overflow-y-auto bg-${background}`}>
@@ -73,6 +72,10 @@
 							<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
 							<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
 						</div>
+						<p class=" absolute left-[-50px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
+							{m.login_new_year()}
+							{new Date().getFullYear()}
+						</p>
 					{/if}
 				{/if}
 

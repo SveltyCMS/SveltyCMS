@@ -1,83 +1,42 @@
 <script lang="ts">
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
+	import { page } from '$app/stores';
 
-	// Collection Creation
-	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
+	// Log the entire $page object to the console
+
+	console.log($page);
+
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+
+	// skeleton
+	import { getToastStore, TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// TS & Json export
-	function onCompleteHandler(e: Event): void {
-		// Create an object containing the values of the collection builder
-		const data = {
-			name,
-			DBName,
-			description,
-			helper,
-			icon,
-			iconselected,
-			slug
-		};
+	// Access the data fetched from the server
+	let { isEditMode, formCollectionName } = $page.data;
+	let collectionName = formCollectionName || '';
 
-		// Generate TypeScript code from the data object
-		let tsCode = `import widgets from '@components/widgets';\n\n`;
-		tsCode += `let schema = ${JSON.stringify(data, null, 2)};\n`;
-		tsCode += `export default schema;\n`;
+	// $: fromCollectionName = formDataStore.collectionName;
+	//let isEditMode = collectionName !== 'new';
 
-		// Create a Blob object from the TypeScript code
-		const tsBlob = new Blob([tsCode], { type: 'text/typescript' });
-
-		// Create a URL for the TypeScript Blob object
-		const tsUrl = URL.createObjectURL(tsBlob);
-
-		// Create a link element for downloading the TypeScript file
-		const tsLink = document.createElement('a');
-		tsLink.href = tsUrl;
-
-		// Use the name entered by the user as the filename for the generated TypeScript file
-		tsLink.download = `${name}.ts`;
-
-		// Append the link element to the document body and click it to trigger the download
-		document.body.appendChild(tsLink);
-		tsLink.click();
-
-		// Remove the link element from the document body
-		document.body.removeChild(tsLink);
-
-		// Generate JSON code from the data object
-		const jsonCode = JSON.stringify(data, null, 2);
-
-		// Create a Blob object from the JSON code
-		const jsonBlob = new Blob([jsonCode], { type: 'application/json' });
-
-		// Create a URL for the JSON Blob object
-		const jsonUrl = URL.createObjectURL(jsonBlob);
-
-		// Create a link element for downloading the JSON file
-		const jsonLink = document.createElement('a');
-		jsonLink.href = jsonUrl;
-
-		// Use the name entered by the user as the filename for the generated JSON file
-		jsonLink.download = `${name}.json`;
-
-		// Append the link element to the document body and click it to trigger the download
-		document.body.appendChild(jsonLink);
-		jsonLink.click();
-
-		// Remove the link element from the document body
-		document.body.removeChild(jsonLink);
-	}
+	// Page Title
+	$: pageTitle = isEditMode
+		? `Edit <span class="text-primary-500">${collectionName} </span> Collection`
+		: collectionName
+			? `Create <span class="text-primary-500"> ${collectionName} </span> Collection`
+			: `Create <span class="text-primary-500"> new </span> Collection`;
 
 	let lockedName: boolean = true;
 
 	function checkInputName() {
-		if (name) {
+		if (collectionName) {
 			lockedName = false;
 		} else {
 			lockedName = true;
@@ -86,7 +45,6 @@
 
 	let tabSet: number = 0;
 
-	let name = '';
 	let DBName = '';
 	let autoUpdateDBName = true;
 	let description = '';
@@ -101,11 +59,11 @@
 
 	$: {
 		// Update DBName  lowercase and replace Spaces
-		DBName = name.toLowerCase().replace(/ /g, '_');
+		DBName = collectionName.toLowerCase().replace(/ /g, '_');
 
 		// Automatically update slug when name changes
 		if (autoUpdateSlug) {
-			slug = name.toLowerCase().replace(/\s+/g, '_');
+			slug = collectionName.toLowerCase().replace(/\s+/g, '_');
 		}
 	}
 
@@ -133,10 +91,10 @@
 	// export let items: any;
 	// console.log('dataItem', items);
 	let items = [
-		{ id: 1, name: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 2, name: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 3, name: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
-		{ id: 4, name: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
+		{ id: 1, collectionName: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
+		{ id: 2, collectionName: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
+		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
+		{ id: 4, collectionName: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
 	];
 
 	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
@@ -150,15 +108,55 @@
 	const handleDndFinalize = (e) => {
 		items = e.detail.items;
 	};
+
+	async function handleCollectionSave() {
+		// Prepare form data
+		const formData = new FormData();
+		formData.append('collectionName', collectionName);
+		// Append other form fields
+
+		// Send data to the server
+		// formDataStore.update((formData) => {
+		// 	// return { ...formData, [e.target.name]: e.target.value };
+		// 	console.log(formData);
+		// });
+
+		// Handle the server response as needed
+
+		// Trigger the toast
+		const t = {
+			message: "Collection Saved. You're all set to build your content.",
+			// Provide any utility or variant background style:
+			background: 'variant-filled-primary',
+			timeout: 3000,
+			// Add your custom classes here:
+			classes: 'border-1 !rounded-md'
+		};
+		toastStore.trigger(t);
+	}
 </script>
 
-<div class="align-centre mb-2 mt-2 flex dark:text-white">
-	<PageTitle name="Category {name} Builder" icon="ic:baseline-build" />
-</div>
-<div class="m-2">
-	<p class="mb-2 hidden text-center text-primary-500 sm:block">This builder will help you to setup a new Content Collection</p>
+<!-- {#await $page}
+	<p>Loading...</p>
+{:then}
+	
+	<div>
+		<p>Edit Mode: {isEditMode ? 'Yes' : 'No'}</p>
+		<p>Collection Name: {formCollectionName}</p>
+		
+{/await} -->
 
-	<TabGroup on:complete={onCompleteHandler}>
+<div class="align-centre mb-2 mt-2 flex justify-between dark:text-white">
+	<PageTitle name={pageTitle} icon="ic:baseline-build" />
+	{#if isEditMode}
+		<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
+	{/if}
+</div>
+
+<div class="m-2">
+	<p class="mb-2 hidden text-center text-primary-500 sm:block">This builder will help you to setup a Content Collection</p>
+
+	<TabGroup>
 		<Tab bind:group={tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ic:baseline-edit" width="24" class="text-primary-500" />
@@ -185,32 +183,55 @@
 				<div class="mb-2 text-center text-xs text-error-500">* Required</div>
 
 				<!-- Collection Name -->
-				<div class="mb-2 items-center gap-1 sm:mb-4 sm:flex">
-					<label for="name" class="relative">Name: <span class="text-error-500">*</span> </label>
+				<div class="mb-2 flex flex-col items-start justify-center gap-2 sm:flex-row sm:items-center sm:justify-start">
+					<label for="name" class="">Name: <span class="text-error-500">*</span> </label>
 
 					<input
 						type="text"
 						required
 						id="name"
-						bind:value={name}
+						bind:value={collectionName}
 						on:input={checkInputName}
 						placeholder="Collection Unique Name"
-						class="variant-filled-surface {name ? 'sm:w-1/2' : 'w-full'}"
+						class="variant-filled-surface {collectionName ? 'w-full md:w-1/2' : 'w-full'}"
 					/>
 
-					{#if name}
-						<p class="mb-3 hidden sm:block">
+					{#if collectionName}
+						<p class="mb-3 sm:mb-0">
 							Database Name: <span class="font-bold text-primary-500">{DBName}</span>
 						</p>
 					{/if}
 				</div>
-				{#if name}
-					<p class="mb-3 sm:hidden">
-						Database Name: <span class="font-bold text-primary-500">{DBName}</span>
-					</p>
-				{/if}
+
 				<div class="flex flex-col gap-2 rounded-md border p-2">
 					<p class="mb-2 text-center font-bold text-primary-500">{m.collectionname_optional()}</p>
+
+					<!-- TODO: Pass icon icon selected values -->
+					<!-- iconify icon chooser -->
+					<div class="w-full items-center sm:flex">
+						<label for="icon" class="relative">
+							{m.collectionname_labelicon()}
+						</label>
+
+						{#if icon.helper}
+							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
+						{/if}
+
+						<IconifyPicker {searchQuery} {icon} {iconselected} />
+					</div>
+
+					<!-- Slug -->
+					<div class="items-center sm:flex">
+						<label for="slug" class="relative"> Slug: </label>
+						<input
+							type="text"
+							id="slug"
+							bind:value={slug}
+							placeholder="Path for collection..."
+							class="variant-filled-surface w-full"
+							on:input={onSlugInput}
+						/>
+					</div>
 
 					<!-- Description -->
 					<div class="items-center sm:flex">
@@ -226,18 +247,6 @@
 						/>
 					</div>
 
-					<!-- TODO: Pass icon icon selected values -->
-					<!-- iconify icon chooser -->
-					<div class="w-full items-center md:flex">
-						<label for="icon" class="relative">
-							{m.collectionname_labelicon()}
-						</label>
-						{#if icon.helper}
-							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
-						{/if}
-
-						<IconifyPicker {searchQuery} {icon} {iconselected} />
-					</div>
 					<!-- Status -->
 					<div class="items-center sm:flex">
 						<label class="relative" for="status"> Status: </label>
@@ -246,19 +255,6 @@
 								<option value={statusOption} class="">{statusOption}</option>
 							{/each}
 						</select>
-					</div>
-
-					<!-- Slug -->
-					<div class="items-center sm:flex">
-						<label for="slug" class="relative"> Slug: </label>
-						<input
-							type="text"
-							id="slug"
-							bind:value={slug}
-							placeholder="Path for collection..."
-							class="variant-filled-surface w-full"
-							on:input={onSlugInput}
-						/>
 					</div>
 				</div>
 
@@ -279,27 +275,27 @@
 
 				<!-- Manage Fields -->
 			{:else if tabSet === 2}
-				<h2 class="mb-2 flex items-center">
-					<p>Field field for :</p>
-					<iconify-icon icon={iconselected} width="24" class="mx-1 text-primary-500" />
-					<div class="text-primary-500">{name}</div>
-				</h2>
 				<div class="variant-outline-primary rounded-t-md p-2 text-center">
-					<p>Select as many widget inputs as you require to create your Collection</p>
-					<p class="mb-2">Drag & Drop your widgets fields to sort them</p>
+					<p>
+						Add your required widget field to create your <span class="text-primary-500">{collectionName}</span> Collection inputs.
+					</p>
+					<p class="mb-2">Drag & Drop your created fields to sort them.</p>
 				</div>
 
 				<!--dnd vertical row -->
 				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each items as { id, icon, name, DBName, widget } (id)}
+					{#each items as { id, icon, collectionName, DBName, widget } (id)}
 						<div class="border-blue variant-ghost-secondary my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-primary-500">
-							<div class="marker: flex-grow-1 variant-outline-primary badge rounded-full text-white">
+							<div class="flex-grow-1 variant-outline-primary badge rounded-full text-white">
 								{id}
 							</div>
 							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-2 text-white">{name}</div>
+							<div class="flex-grow-3 text-white">{collectionName}</div>
 							<div class="flex-grow-2 text-white">{DBName}</div>
 							<div class="flex-grow-2 text-white">{widget}</div>
+							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
+								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
+							>
 						</div>
 					{/each}
 				</VerticalList>
@@ -311,7 +307,7 @@
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
-					<button type="button" on:click={onCompleteHandler} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
+					<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
 				</div>
 			{/if}
 		</svelte:fragment>

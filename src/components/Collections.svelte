@@ -63,8 +63,11 @@
 				const hasReadPermission = collection.permissions && userRole in collection.permissions && collection.permissions[userRole].read; // Check if the user is the creator of the collection
 				const isCreator = createdBy === userId;
 
-				// Only include the collection if the user has read permission or if the user is the creator
-				return hasReadPermission || isCreator;
+				// Check if the user is an admin
+				const isAdmin = userRole === 'admin';
+
+				// Only include the collection if the user has read permission, is the creator, or is an admin
+				return hasReadPermission || isCreator || isAdmin;
 			});
 
 			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
@@ -83,8 +86,10 @@
 
 		// Filter out categories with no visible collections
 		filteredCategories = filteredCategories.filter((category) => category.collections.length > 0);
-	}
 
+		// Return filtered categories
+		return filteredCategories;
+	}
 	console.log(filterCategories());
 </script>
 
