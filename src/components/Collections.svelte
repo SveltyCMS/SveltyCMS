@@ -62,6 +62,8 @@
 				// Check if user has read permission for the collection
 				const hasReadPermission = collection.permissions && userRole in collection.permissions && collection.permissions[userRole].read; // Check if the user is the creator of the collection
 				const isCreator = createdBy === userId;
+   // If userRole is admin, permit without checking individual permissions
+    if (userRole === 'admin') return true;
 
 				// Check if the user is an admin
 				const isAdmin = userRole === 'admin';
