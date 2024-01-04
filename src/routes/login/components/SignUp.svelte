@@ -231,7 +231,7 @@
 
 					<!-- email + oauth signin  -->
 				{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
-					<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-error-500">
+					<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-secondary-500">
 						<button type="submit" class="col-2 variant-filled w-3/4 text-center uppercase">
 							<span class="text-black">{m.signup_signup()} </span>
 							<!-- Loading indicators -->

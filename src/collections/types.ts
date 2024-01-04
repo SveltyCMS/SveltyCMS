@@ -53,4 +53,5 @@ export interface Schema {
 	permissions?: permissions;
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 	strict?: boolean;
+	revision?: boolean;
 }

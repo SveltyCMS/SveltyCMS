@@ -30,7 +30,8 @@
 		toggleRightSidebar,
 		togglePageHeader,
 		togglePageFooter,
-		pkgBgColor
+		pkgBgColor,
+		entryData
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
@@ -45,8 +46,11 @@
 	import Collections from '@components/Collections.svelte';
 	import { systemLanguage } from '@stores/store';
 
-	import { getDates } from '@utils/utils';
-	let dates = { created: '', updated: '', revision: '' };
+	// Convert timestamp to Date string
+	const dates = {
+		created: convertTimestampToDateString($entryData.createdAt),
+		updated: convertTimestampToDateString($entryData.updatedAt)
+	};
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
@@ -201,6 +205,7 @@
 	};
 
 	import HeaderControls from '@components/HeaderControls.svelte';
+	import { convertTimestampToDateString } from '@src/utils/utils';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -230,14 +235,6 @@
 		// Reset ForwardBackward to false
 		ForwardBackward = false;
 	});
-
-	//  onMount(async () => {
-	//  	try {
-	//  		dates = await getDates($collection.name);
-	//  	} catch (error) {
-	//  		console.error(error);
-	//  	}
-	//  });
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;

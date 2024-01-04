@@ -72,7 +72,7 @@
 							<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
 							<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
 						</div>
-						<p class=" absolute left-[-50px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
+						<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
 							{m.login_new_year()}
 							{new Date().getFullYear()}
 						</p>

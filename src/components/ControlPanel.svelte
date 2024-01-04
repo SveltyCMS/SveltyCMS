@@ -1,9 +1,23 @@
 <script lang="ts">
-	import { collection, collectionValue, mode, modifyEntry, handleSidebarToggle, saveLayerStore, shouldShowNextButton } from '@stores/store';
+	import {
+		collection,
+		collectionValue,
+		mode,
+		modifyEntry,
+		handleSidebarToggle,
+		saveLayerStore,
+		shouldShowNextButton,
+		entryData
+	} from '@stores/store';
+
+	// console.log('collection', $collection);
+	// console.log('collectionValue', $collectionValue);
+	// console.log('entryData', $entryData);
+
+	// console.log('Mode:', $mode);
 
 	import { page } from '$app/stores';
-	import type { User } from 'lucia';
-	import { saveFormData, getDates } from '@utils/utils';
+	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
 
@@ -17,13 +31,16 @@
 	import * as m from '@src/paraglide/messages';
 
 	import Toggles from './system/inputs/Toggles.svelte';
-	// let publishValue = data?.entryList[index]?.status;
-	let publishValue = 'false';
 
-	let user: User = $page.data.user;
-	let userRole = $page.data.user.role;
-	let userId = $page.data.user.id;
+	const user = $page.data.user;
+	let publishValue = $collection.status === 'published' ? true : false;
 
+	const dates = {
+		created: convertTimestampToDateString($entryData.createdAt),
+		updated: convertTimestampToDateString($entryData.updatedAt)
+	};
+
+	// Save data
 	async function saveData() {
 		await saveFormData({ data: $collectionValue });
 
@@ -32,8 +49,6 @@
 		handleSidebarToggle();
 	}
 	//console.log('collection', $collection);
-
-	let dates = { created: '', updated: '', revision: '' };
 
 	// TODO: Schedule
 	let date = new Date();
@@ -57,14 +72,11 @@
 	function onPopupUserSelect(e: CustomEvent<AutocompleteOption<string, unknown>>): void {
 		throw new Error('Function not implemented.');
 	}
-
-	// console.log('User role:', $page.data.user.role);
-	// console.log('Mode:', $mode);
 </script>
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || userRole == 'admin'}
+{#if ['edit', 'create'].includes($mode) || user.role == 'admin'}
 	<div class="flex h-screen w-full flex-col justify-between">
 		{#if $shouldShowNextButton}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
@@ -77,7 +89,7 @@
 				<button
 					type="button"
 					on:click={saveData}
-					disabled={!$collection?.permissions?.[userRole]?.write}
+					disabled={$collection?.permissions?.[user.role]?.write}
 					class="variant-filled-primary btn w-full gap-2"
 				>
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
@@ -91,33 +103,40 @@
 						labelColor={publishValue ? 'text-error-500' : 'text-primary-500'}
 						icon={publishValue ? 'ic:baseline-check-circle' : 'material-symbols:close'}
 						bind:value={publishValue}
+						on:toggle={() => {
+							$entryData.status = publishValue ? 'unpublished' : 'published';
+							$entryData.updatedAt = new Date();
+							$entryData.save();
+						}}
 					/>
 				</div>
 
 				<!-- Revision -->
-				<div class="gradient-secondary btn flex w-full items-center justify-between text-white">
-					Revisions:
-					<div class="variant-outline-primary badge ml-2 rounded-full px-3 py-0 text-lg text-primary-500">
-						<iconify-icon icon="pepicons-pop:countdown" width="18" />
-						<div class="text-white">2</div>
+				{#if $mode == 'edit'}
+					<div class="gradient-secondary btn flex w-full items-center justify-between text-white">
+						Revisions:
+						<div class="variant-outline-primary badge ml-2 rounded-full px-3 py-0 text-lg text-primary-500">
+							<iconify-icon icon="pepicons-pop:countdown" width="18" />
+							<div class="text-white">{$entryData.__v}</div>
+						</div>
 					</div>
-				</div>
 
-				<!--Clone -->
-				<button
-					type="button"
-					on:click={() => $modifyEntry('clone')}
-					disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
-					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
-				>
-					<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
-				</button>
+					<!--Clone -->
+					<button
+						type="button"
+						on:click={() => $modifyEntry('clone')}
+						disabled={$collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create}
+						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
+					>
+						<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
+					</button>
+				{/if}
 
 				{#if $mode == 'edit'}
 					<button
 						type="button"
 						on:click={() => $modifyEntry('delete')}
-						disabled={!$collection?.permissions?.[userRole]?.delete}
+						disabled={$collection?.permissions?.[user.role]?.delete}
 						class="variant-filled-error btn w-full"
 					>
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete
@@ -161,19 +180,11 @@
 				<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
 			</main>
 
-			<footer class="-mx-1 mb-2 flex w-full flex-col items-center justify-center gap-2 dark:text-white">
-				<!--Content Info -->
-				<h2 class="text-center font-bold uppercase text-primary-500">Content Info:</h2>
-
-				<div class="mt-2 grid grid-cols-3 items-center gap-x-2 text-[12px] leading-tight">
-					{#each Object.keys(dates) as key}
-						<div class="capitalize">{key}:</div>
-					{/each}
-
-					{#each Object.values(dates) as value}
-						<div class="text-primary-500">{value}</div>
-					{/each}
-				</div>
+			<footer class="-mx-2 mt-2 grid grid-cols-2 text-[12px] leading-tight">
+				{#each Object.keys(dates) as key}
+					<div class="pl-1 text-left capitalize">{key}:</div>
+					<div class="mb-2 text-left text-primary-500">{Object.values(dates)[Object.keys(dates).indexOf(key)]}</div>
+				{/each}
 			</footer>
 		{/if}
 	</div>

@@ -53,15 +53,33 @@ export async function getCollectionModels() {
 			if (collections) {
 				// Iterate over each collection
 				for (const collection of collections) {
+					// Create a detailed revisions schema
+					const RevisionSchema = new mongodb.Schema(
+						{
+							revisionNumber: { type: Number, default: 0 },
+							editedAt: { type: Date, default: Date.now },
+							editedBy: { type: String, default: 'System' },
+							changes: { type: Object, default: {} }
+						},
+						{ _id: false }
+					);
+
 					// Create a new mongoose schema using the collection's fields and timestamps
 					const schema_object = new mongodb.Schema(
-						{ createdAt: Number, updatedAt: Number, createdBy: String },
+						{
+							createdAt: Number,
+							updatedAt: Number,
+							createdBy: String,
+							__v: [RevisionSchema] // versionKey
+						},
 						{
 							typeKey: '$type',
 							strict: false,
 							timestamps: { currentTime: () => Date.now() }
 						}
 					);
+
+					// Add the revision field to the schema
 
 					// Add the mongoose model for the collection to the collectionsModels object
 					if (!collection.name) return;
