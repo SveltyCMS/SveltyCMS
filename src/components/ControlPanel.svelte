@@ -33,7 +33,8 @@
 	import Toggles from './system/inputs/Toggles.svelte';
 
 	const user = $page.data.user;
-	let publishValue = $collection.status === 'published' ? true : false;
+
+	let publishValue = $entryData.status === 'published' ? true : false;
 
 	const dates = {
 		created: convertTimestampToDateString($entryData.createdAt),

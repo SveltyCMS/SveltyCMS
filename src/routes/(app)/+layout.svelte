@@ -11,8 +11,7 @@
 	//skeleton
 	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 	initializeStores();
-
-	//console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	import {
 		avatarSrc,
@@ -160,14 +159,13 @@
 		}
 	});
 
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Popup Tooltips
+
 	let UserTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'User',

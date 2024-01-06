@@ -444,7 +444,7 @@
 			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 					{$categories[0].name}
 				</div>{/if}
-			<div class="-mt-2 flex justify-start text-sm font-bold uppercase md:text-2xl lg:text-xl dark:text-white">
+			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 				{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
 				{#if $collection.name}
 					<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
@@ -470,7 +470,7 @@
 
 <!-- Row 2 for Mobile  / Center on desktop -->
 <!-- TODO:add  expand transition -->
-<div class="relative flex h-14 items-center justify-center gap-1 py-2 sm:gap-2 dark:bg-surface-800 {!searchShow ? 'hidden' : 'block'} sm:hidden">
+<div class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow ? 'hidden' : 'block'} sm:hidden">
 	<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 	<TranslationStatus />
 </div>
@@ -648,7 +648,7 @@
 		<!-- Pagination Desktop -->
 		<div class="my-3 flex items-center justify-around text-surface-500">
 			<!-- show & count rows -->
-			<div class="hidden text-sm text-surface-500 md:block dark:text-surface-400">
+			<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
 				{m.entrylist_page()}
 				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
 				{m.entrylist_of()}
@@ -673,7 +673,7 @@
 				<select
 					value={$table.getState().pagination.pageSize}
 					on:change={setPageSize}
-					class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 sm:block dark:text-white"
+					class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
 				>
 					{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
 						<option value={pageSize}>

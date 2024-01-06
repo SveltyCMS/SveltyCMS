@@ -4,16 +4,15 @@
 	import { page } from '$app/stores';
 
 	// Log the entire $page object to the console
-
-	console.log($page);
+	// console.log($page);
 
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 
 	// skeleton
-	import { getToastStore, TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
+	import { getToastStore, TabGroup, Tab, getModalStore, popup } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent, PopupSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	//ParaglideJS
@@ -134,6 +133,33 @@
 		};
 		toastStore.trigger(t);
 	}
+
+	// Popup Tooltips
+	let NameTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Name',
+		placement: 'right'
+	};
+	let IconTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Icon',
+		placement: 'right'
+	};
+	let SlugTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Slug',
+		placement: 'right'
+	};
+	let DescriptionTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Description',
+		placement: 'right'
+	};
+	let StatusTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Status',
+		placement: 'right'
+	};
 </script>
 
 <!-- {#await $page}
@@ -154,25 +180,25 @@
 </div>
 
 <div class="m-2">
-	<p class="mb-2 hidden text-center text-primary-500 sm:block">This builder will help you to setup a Content Collection</p>
+	<p class="mb-2 hidden text-center text-primary-500 sm:block">{m.collection_helptext()}</p>
 
 	<TabGroup>
 		<Tab bind:group={tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ic:baseline-edit" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 0} class:text-primary-500={tabSet === 0}>Edit</span>
+				<span class:active={tabSet === 0} class:text-primary-500={tabSet === 0}>{m.collection_edit()}</span>
 			</div>
 		</Tab>
 		<Tab bind:group={tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>Permissions</span>
+				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>{m.collection_permission()}</span>
 			</div>
 		</Tab>
 		<Tab bind:group={tabSet} name="tab3" value={2}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 2}>Widget Fields</span>
+				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 2}>{m.collection_widgetfields()}</span>
 			</div>
 		</Tab>
 
@@ -180,11 +206,21 @@
 		<svelte:fragment slot="panel">
 			<!-- Edit -->
 			{#if tabSet === 0}
-				<div class="mb-2 text-center text-xs text-error-500">* Required</div>
+				<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 				<!-- Collection Name -->
 				<div class="mb-2 flex flex-col items-start justify-center gap-2 sm:flex-row sm:items-center sm:justify-start">
-					<label for="name" class="">Name: <span class="text-error-500">*</span> </label>
+					<label for="name" class="flex-grow-1 relative mr-2 flex w-fit">
+						{m.collection_name()} <span class="mx-1 text-error-500">*</span>
+						<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-primary-500" /></label
+					>
+
+					<!-- tooltip -->
+					<div class="card variant-filled-secondary p-4" data-popup="Name">
+						<p>{m.collection_name_tooltip1()}</p>
+						<p>{m.collection_name_tooltip2()}</p>
+						<div class="variant-filled-secondary arrow" />
+					</div>
 
 					<input
 						type="text"
@@ -192,13 +228,13 @@
 						id="name"
 						bind:value={collectionName}
 						on:input={checkInputName}
-						placeholder="Collection Unique Name"
+						placeholder={m.collection_name_placeholder()}
 						class="variant-filled-surface {collectionName ? 'w-full md:w-1/2' : 'w-full'}"
 					/>
 
 					{#if collectionName}
 						<p class="mb-3 sm:mb-0">
-							Database Name: <span class="font-bold text-primary-500">{DBName}</span>
+							{m.collection_DBname()} <span class="font-bold text-primary-500">{DBName}</span>
 						</p>
 					{/if}
 				</div>
@@ -209,25 +245,38 @@
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
 					<div class="w-full items-center sm:flex">
-						<label for="icon" class="relative">
+						<label for="icon" class="flex-grow-1 relative mr-2 flex w-fit">
 							{m.collectionname_labelicon()}
+							<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-primary-500" />
 						</label>
 
-						{#if icon.helper}
-							<iconify-icon icon="material-symbols:info" width="18" class="absolute -top-3 right-2" />
-						{/if}
+						<!-- tooltip -->
+						<div class="card variant-filled-secondary p-4" data-popup="Icon">
+							<p>{m.collection_icon_tooltip()}</p>
+							<div class="variant-filled-secondary arrow" />
+						</div>
 
 						<IconifyPicker {searchQuery} {icon} {iconselected} />
 					</div>
 
 					<!-- Slug -->
 					<div class="items-center sm:flex">
-						<label for="slug" class="relative"> Slug: </label>
+						<label for="slug" class="flex-grow-1 relative mr-2 flex w-fit">
+							{m.collection_slug()}
+							<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-primary-500" />
+						</label>
+
+						<!-- tooltip -->
+						<div class="card variant-filled-secondary p-4" data-popup="Slug">
+							<p>{m.collection_slug_tooltip()}</p>
+							<div class="variant-filled-secondary arrow" />
+						</div>
+
 						<input
 							type="text"
 							id="slug"
 							bind:value={slug}
-							placeholder="Path for collection..."
+							placeholder={m.collection_slug_input()}
 							class="variant-filled-surface w-full"
 							on:input={onSlugInput}
 						/>
@@ -235,21 +284,40 @@
 
 					<!-- Description -->
 					<div class="items-center sm:flex">
-						<label for="description" class="relative">{m.collectionname_description()} </label>
+						<label for="description" class="flex-grow-1 relative mr-2 flex w-fit">
+							{m.collectionname_description()}
+							<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="ml-1 text-primary-500" />
+						</label>
+
+						<!-- tooltip -->
+						<div class="card variant-filled-secondary p-4" data-popup="Description">
+							<p>{m.collection_description()}</p>
+							<div class="variant-filled-secondary arrow" />
+						</div>
 
 						<textarea
 							id="description"
 							rows="2"
 							cols="50"
 							bind:value={description}
-							placeholder="Describe your Collection"
+							placeholder={m.collection_description_placeholder()}
 							class="variant-filled-surface w-full"
 						/>
 					</div>
 
 					<!-- Status -->
 					<div class="items-center sm:flex">
-						<label class="relative" for="status"> Status: </label>
+						<label for="status" class="flex-grow-1 relative mr-2 flex w-fit">
+							{m.collection_status()}
+							<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-primary-500" />
+						</label>
+
+						<!-- tooltip -->
+						<div class="card variant-filled-secondary p-4" data-popup="Status">
+							<p>{m.collection_status_tooltip()}</p>
+							<div class="variant-filled-secondary arrow" />
+						</div>
+
 						<select id="status" bind:value={status} class="variant-filled-surface w-full">
 							{#each statuses as statusOption}
 								<option value={statusOption} class="">{statusOption}</option>
@@ -260,8 +328,8 @@
 
 				<!-- Buttons -->
 				<div class="flex justify-between">
-					<a href="/collection" class="variant-filled-secondary btn mt-2">Cancel</a>
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">Next</button>
+					<a href="/collection" class="variant-filled-secondary btn mt-2">{m.collection_cancel()}</a>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">{m.collection_next()}</button>
 				</div>
 			{:else if tabSet === 1}
 				<!-- Permissions -->
@@ -277,9 +345,9 @@
 			{:else if tabSet === 2}
 				<div class="variant-outline-primary rounded-t-md p-2 text-center">
 					<p>
-						Add your required widget field to create your <span class="text-primary-500">{collectionName}</span> Collection inputs.
+						{m.collection_widgetfield_addrequired()} <span class="text-primary-500">{collectionName}</span> Collection inputs.
 					</p>
-					<p class="mb-2">Drag & Drop your created fields to sort them.</p>
+					<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 				</div>
 
 				<!--dnd vertical row -->
@@ -301,13 +369,17 @@
 				</VerticalList>
 
 				<div class="mt-2 flex items-center justify-center gap-3">
-					<button class="variant-filled-tertiary btn" on:click={modalComponentForm}>Add more Fields</button>
+					<button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button>
 					<button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button>
 				</div>
 
 				<div class=" flex items-center justify-between">
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
-					<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
+						>{m.collection_widgetfield_previous()}</button
+					>
+					<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black"
+						>{m.collection_widgetfield_save()}</button
+					>
 				</div>
 			{/if}
 		</svelte:fragment>
