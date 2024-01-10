@@ -40,7 +40,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: Update package-lock.json
-        run: pnpm install --legacy-peer-deps && npm run inlang
+        run: pnpm install && npm run inlang
 
       - name: Install dependencies & Run semantic-release
         run: |
