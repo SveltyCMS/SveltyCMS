@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
         with:
           node-version: '21'
+          
+      - name: Install pnpm
+        run: curl -fsSL https://get.pnpm.io/install.sh | sh -
 
       - name: Cache pnpm dependencies
         id: npm-cache
@@ -34,23 +37,13 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-
-
       - name: Update pnpm-lock.yaml
         run: pnpm install
 
       - name: Install dependencies & Run semantic-release
         run: |
           pnpm ci
-
           npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN } # Provide the GitHub token as an environment variable
           # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
-
-      - name: Update package version
-        run: |
-          pnpm version --no-git-tag-version --allow-same-version
-          git add package.json
-          git commit -m "chore: update package version after semantic release" || true
-          git push origin ${{ github.ref }}
