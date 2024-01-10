@@ -34,12 +34,15 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
+
+
       - name: Update pnpm-lock.yaml
         run: pnpm install
 
       - name: Install dependencies & Run semantic-release
         run: |
           pnpm ci
+
           npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
