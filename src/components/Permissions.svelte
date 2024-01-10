@@ -101,11 +101,11 @@
 				// Update the role's permission
 				role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
 
-				// Update the roles array
-				rolesArray = [...rolesArray];
-
 				// Update the button map toggle based on the new permission state
 				buttonMap[permission].toggle = role.permissions[typedPermission];
+
+				// Update the roles array
+				rolesArray = [...rolesArray];
 			} else {
 				console.error('Button information not found for the permission:', permission);
 			}
@@ -178,26 +178,34 @@
 </script>
 
 <div class="dark mb-2 text-center sm:flex sm:flex-col">
-	<div>{m.collection_Permission_helper1()}</div>
-	<div class="mt-2 flex flex-row items-center justify-center gap-2">
+	<div>
+		{m.collection_Permission_helper1()}
+	</div>
+	<div class="mt-2 flex items-center justify-center space-x-4 divide-x-2 divide-surface-400">
 		<span class="text-primary-500">
-			<iconify-icon icon={buttonMap.create.icon} width="16" class="mr-1"></iconify-icon> Create
+			<iconify-icon icon={buttonMap.create.icon} width="16" class="mr-1 dark:text-white" />
+			Create
 		</span>
-		/
+
 		<span class="text-tertiary-500">
-			<iconify-icon icon={buttonMap.read.icon} width="16" class="mr-1"></iconify-icon> Read
+			<iconify-icon icon={buttonMap.read.icon} width="16" class="mx-1 dark:text-white" />
+			Read
 		</span>
-		/
+
 		<span class="text-warning-500">
-			<iconify-icon icon={buttonMap.write.icon} width="16" class="mr-1"></iconify-icon> Write
+			<iconify-icon icon={buttonMap.write.icon} width="16" class="mx-1 dark:text-white" />
+			Write
 		</span>
-		/
+
 		<span class="text-error-500">
-			<iconify-icon icon={buttonMap.delete.icon} width="16" class="mr-1"></iconify-icon> Delete
+			<iconify-icon icon={buttonMap.delete.icon} width="16" class="mx-1 dark:text-white" />
+			Delete
 		</span>
 	</div>
 </div>
-<p class="dark mb-2 text-center text-primary-500">{m.collection_permission_admin_helper()}</p>
+<p class="dark mb-2 text-center text-primary-500">
+	{m.collection_permission_admin_helper()}
+</p>
 
 <div class="mt-4 flex {filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
 	{#if filteredRolesArray.length > 0}

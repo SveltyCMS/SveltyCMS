@@ -122,7 +122,7 @@
 	"signin_emailaddress": "Dirección de correo electrónico",
 	"signin_password": "Contraseña",
 	"signin_forgottenpasswordtext": "No te preocupes. Le ayudaremos a recuperar su contraseña.",
-	"signin_sentresetmail": "Enviar correo electrónico para restablecer contraseña",
+	"signin_sentresetmail": "Restablecer contraseña",
 	"signin_confirmpassword": "confirmar Contraseña",
 	"signin_registrationtoken": "Ficha de registro",
 	"signin_savenewpassword": "Guardar nueva contraseña",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "Agregue el campo de widget requerido para crear su",
 	"collection_widgetfield_previous": "Anterior",
 	"collection_widgetfield_save": "Ahorrar",
-	"collection_widgetfield_addFields": "Agregar más campos"
+	"collection_widgetfield_addFields": "Agregar más campos",
+	"adminarea_nouser": "Usuario no encontrado",
+	"adminarea_notoken": "No se encontraron tokens de usuario"
 }

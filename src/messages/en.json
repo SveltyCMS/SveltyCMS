@@ -122,7 +122,7 @@
 	"signin_emailaddress": "Email Address",
 	"signin_password": "Password",
 	"signin_forgottenpasswordtext": "Do not worry. We will help you Recover your Password.",
-	"signin_sentresetmail": "Send Password Reset Email",
+	"signin_sentresetmail": "Reset Password",
 	"signin_confirmpassword": "Confirm Password",
 	"signin_registrationtoken": "Registration Token",
 	"signin_savenewpassword": "Save New Password",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "Add your required widget field to create your",
 	"collection_widgetfield_previous": "Previous",
 	"collection_widgetfield_save": "Save",
-	"collection_widgetfield_addFields": "Add more Fields"
+	"collection_widgetfield_addFields": "Add more Fields",
+	"adminarea_nouser": "No User Found",
+	"adminarea_notoken": "No User Tokens Found"
 }

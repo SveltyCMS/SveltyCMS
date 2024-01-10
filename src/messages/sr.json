@@ -122,7 +122,7 @@
 	"signin_emailaddress": "Адреса Е-поште",
 	"signin_password": "Лозинка",
 	"signin_forgottenpasswordtext": "Не брини. Ми ћемо вам помоћи да повратите своју лозинку.",
-	"signin_sentresetmail": "Пошаљите е-пошту за ресетовање лозинке",
+	"signin_sentresetmail": "Ресетуј шифру",
 	"signin_confirmpassword": "Потврди лозинку",
 	"signin_registrationtoken": "Регистрациони токен",
 	"signin_savenewpassword": "Сачувај нову лозинку",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "Додајте своје потребно поље виџета да бисте креирали своје",
 	"collection_widgetfield_previous": "Претходна",
 	"collection_widgetfield_save": "сачувати",
-	"collection_widgetfield_addFields": "Додајте још поља"
+	"collection_widgetfield_addFields": "Додајте још поља",
+	"adminarea_nouser": "Није пронађен ниједан корисник",
+	"adminarea_notoken": "Нису пронађени кориснички токени"
 }

@@ -122,7 +122,7 @@
 	"signin_emailaddress": "Ელექტრონული მისამართი",
 	"signin_password": "პაროლი",
 	"signin_forgottenpasswordtext": "Არ იდარდო. ჩვენ დაგეხმარებით თქვენი პაროლის აღდგენაში.",
-	"signin_sentresetmail": "პაროლის აღდგენის ელ.ფოსტის გაგზავნა",
+	"signin_sentresetmail": "პაროლის აღდგენა",
 	"signin_confirmpassword": "Პაროლის დადასტურება",
 	"signin_registrationtoken": "რეგისტრაციის ჟეტონი",
 	"signin_savenewpassword": "შეინახეთ ახალი პაროლი",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "დაამატეთ თქვენი საჭირო ვიჯეტის ველი თქვენი შესაქმნელად",
 	"collection_widgetfield_previous": "წინა",
 	"collection_widgetfield_save": "Გადარჩენა",
-	"collection_widgetfield_addFields": "დაამატეთ მეტი ველი"
+	"collection_widgetfield_addFields": "დაამატეთ მეტი ველი",
+	"adminarea_nouser": "მომხმარებელი ვერ მოიძებნა",
+	"adminarea_notoken": "მომხმარებლის ნიშნები ვერ მოიძებნა"
 }

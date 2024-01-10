@@ -9,7 +9,7 @@
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
-	import CMSLogo from './icons/Logo.svelte';
+	import CMSLogo from '@src/components/SveltyCMS_Logo.svelte';
 
 	// skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';

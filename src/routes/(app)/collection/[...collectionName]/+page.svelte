@@ -191,7 +191,7 @@
 		</Tab>
 		<Tab bind:group={tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
+				<iconify-icon icon="mdi:security-lock" width="24" class="text-primary-500" />
 				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>{m.collection_permission()}</span>
 			</div>
 		</Tab>
@@ -388,6 +388,6 @@
 
 <style lang="postcss">
 	label {
-		min-width: 100px;
+		min-width: 110px;
 	}
 </style>

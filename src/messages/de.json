@@ -122,7 +122,7 @@
 	"signin_emailaddress": "E-Mail-Adresse",
 	"signin_password": "Passwort",
 	"signin_forgottenpasswordtext": "Keine Sorge. Wir helfen Ihnen, Ihr Passwort wiederherzustellen.",
-	"signin_sentresetmail": "Senden Sie eine E-Mail zum Zurücksetzen des Passworts",
+	"signin_sentresetmail": "Passwort Zurücksetzen",
 	"signin_confirmpassword": "Bestätige das Passwort",
 	"signin_registrationtoken": "Registrierungstoken",
 	"signin_savenewpassword": "Neues Passwort speichern",
@@ -218,8 +218,8 @@
 	"config_collectionbuilder": "Sammlungsersteller",
 	"config_graphql": "Graphql-API",
 	"config_imageeditor": "Bildbearbeiter",
-	"oauth_placeholder": "Geben Sie Ihr empfangenes Token ein",
-	"oauth_entertoken": "Geben Sie den Benutzertoken ein, um sich anzumelden:",
+	"oauth_placeholder": "Geben Sie Ihren empfangen Token ein",
+	"oauth_entertoken": "Geben Sie den Benutzertoken ein um sich anzumelden:",
 	"oauth_cancel": "Abbrechen",
 	"oauth_signup": "Über Google anmelden",
 	"logo_slogan": "mit Sveltekit Power",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "Fügen Sie Ihr erforderliches Widget-Feld hinzu, um Ihr zu erstellen",
 	"collection_widgetfield_previous": "Vorherige",
 	"collection_widgetfield_save": "Speichern",
-	"collection_widgetfield_addFields": "Fügen Sie weitere Felder hinzu"
+	"collection_widgetfield_addFields": "Fügen Sie weitere Felder hinzu",
+	"adminarea_nouser": "Kein Benutzer gefunden",
+	"adminarea_notoken": "Keine Benutzertokens gefunden"
 }

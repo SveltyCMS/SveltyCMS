@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "अपना बनाने के लिए अपना आवश्यक विजेट फ़ील्ड जोड़ें",
 	"collection_widgetfield_previous": "पहले का",
 	"collection_widgetfield_save": "बचाना",
-	"collection_widgetfield_addFields": "अधिक फ़ील्ड जोड़ें"
+	"collection_widgetfield_addFields": "अधिक फ़ील्ड जोड़ें",
+	"adminarea_nouser": "कोई उपयोगकर्ता नहीं मिला",
+	"adminarea_notoken": "कोई उपयोगकर्ता टोकन नहीं मिला"
 }

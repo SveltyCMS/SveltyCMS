@@ -122,7 +122,7 @@
 	"signin_emailaddress": "ای میل اڈریس",
 	"signin_password": "پاس ورڈ",
 	"signin_forgottenpasswordtext": "فکر نہ کرو. ہم آپ کو اپنا پاس ورڈ بازیافت کرنے میں مدد کریں گے۔",
-	"signin_sentresetmail": "پاس ورڈ ری سیٹ ای میل بھیجیں۔",
+	"signin_sentresetmail": "پاس ورڈ ری سیٹ",
 	"signin_confirmpassword": "پاس ورڈ کی تصدیق کریں۔",
 	"signin_registrationtoken": "رجسٹریشن ٹوکن",
 	"signin_savenewpassword": "نیا پاس ورڈ محفوظ کریں۔",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "اپنا بنانے کے لیے اپنا مطلوبہ ویجیٹ فیلڈ شامل کریں۔",
 	"collection_widgetfield_previous": "پچھلا",
 	"collection_widgetfield_save": "محفوظ کریں۔",
-	"collection_widgetfield_addFields": "مزید فیلڈز شامل کریں۔"
+	"collection_widgetfield_addFields": "مزید فیلڈز شامل کریں۔",
+	"adminarea_nouser": "کوئی صارف نہیں ملا",
+	"adminarea_notoken": "کوئی صارف ٹوکن نہیں ملا"
 }

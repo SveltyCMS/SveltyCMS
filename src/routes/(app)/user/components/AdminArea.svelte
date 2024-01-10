@@ -238,6 +238,8 @@
 				bind:columnShow
 				bind:density
 			/>
+		{:else}
+			<div class="variant-ghost-error btn text-center font-bold">{m.adminarea_nouser()}</div>
 		{/if}
 	{/if}
 
@@ -277,6 +279,8 @@
 				bind:density
 				on:rowSelect={handleCRUDAction}
 			/>
+		{:else}
+			<div class="variant-ghost-error btn text-center font-bold">{m.adminarea_notoken()}</div>
 		{/if}
 	{/if}
 </div>

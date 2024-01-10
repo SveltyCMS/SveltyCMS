@@ -122,7 +122,7 @@
 	"signin_emailaddress": "Adresse e-mail",
 	"signin_password": "Mot de passe",
 	"signin_forgottenpasswordtext": "Ne t'inquiète pas. Nous vous aiderons à récupérer votre mot de passe.",
-	"signin_sentresetmail": "Envoyer un e-mail de réinitialisation du mot de passe",
+	"signin_sentresetmail": "Réinitialiser le mot de passe",
 	"signin_confirmpassword": "Confirmez le mot de passe",
 	"signin_registrationtoken": "Jeton d'enregistrement",
 	"signin_savenewpassword": "Enregistrer le nouveau mot de passe",
@@ -309,5 +309,7 @@
 	"collection_widgetfield_addrequired": "Ajoutez le champ de widget requis pour créer votre",
 	"collection_widgetfield_previous": "Précédent",
 	"collection_widgetfield_save": "Sauvegarder",
-	"collection_widgetfield_addFields": "Ajouter plus de champs"
+	"collection_widgetfield_addFields": "Ajouter plus de champs",
+	"adminarea_nouser": "Aucun utilisateur trouvé",
+	"adminarea_notoken": "Aucun jeton utilisateur trouvé"
 }
