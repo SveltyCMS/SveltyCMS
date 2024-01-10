@@ -36,6 +36,9 @@ jobs:
         # Continue workflow even if cache is not found
         continue-on-error: true
 
+      - name: Install pnpm
+        run: npm install -g pnpm
+
       - name: Update package-lock.json
         run: pnpm install --legacy-peer-deps && npm run inlang
 
