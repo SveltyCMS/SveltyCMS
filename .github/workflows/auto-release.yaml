@@ -33,15 +33,13 @@ jobs:
           key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-node-
-        # Continue workflow even if cache is not found
-        continue-on-error: true
 
-      - name: Update package-lock.json
-        run: npm install --legacy-peer-deps && npm run inlang
+      - name: Update pnpm-lock.yaml
+        run: pnpm install
 
       - name: Install dependencies & Run semantic-release
         run: |
-          npm ci
+          pnpm ci
           npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
@@ -49,7 +47,7 @@ jobs:
 
       - name: Update package version
         run: |
-          npm version --no-git-tag-version --allow-same-version
+          pnpm version --no-git-tag-version --allow-same-version
           git add package.json
           git commit -m "chore: update package version after semantic release" || true
           git push origin ${{ github.ref }}
