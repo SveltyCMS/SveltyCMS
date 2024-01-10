@@ -12,6 +12,7 @@
 	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 	initializeStores();
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 
 	import {
 		avatarSrc,
@@ -147,6 +148,15 @@
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
+	onMount(() => {
+		const savedTheme = localStorage.getItem('theme');
+		console.log('Saved theme:', savedTheme); // Log the saved theme
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+	});
 
 	// On page load
 	document.addEventListener('DOMContentLoaded', () => {
