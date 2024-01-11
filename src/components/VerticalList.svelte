@@ -6,16 +6,18 @@
 	export let flipDurationMs: number;
 	export let handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 	export let handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
-	export let headers: any;
+	export let headers: any[] = [];
 </script>
 
 <div>
 	<!-- Header -->
-	<div class="flex w-full items-center gap-6 bg-primary-500 p-1 py-2 pl-3 text-center font-semibold">
-		{#each headers as header}
-			<div class="text-black">{header}:</div>
-		{/each}
-	</div>
+	{#if headers.length > 0}
+		<div class="flex w-full items-center gap-6 bg-primary-500 p-1 py-2 pl-3 text-center font-semibold">
+			{#each headers as header}
+				<div class="text-black">{header}:</div>
+			{/each}
+		</div>
+	{/if}
 
 	<section
 		use:dndzone={{ items: items, flipDurationMs }}

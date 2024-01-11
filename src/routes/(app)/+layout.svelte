@@ -144,7 +144,7 @@
 	// On page load get the saved theme
 	onMount(() => {
 		const savedTheme = localStorage.getItem('theme');
-		console.log('Saved theme:', savedTheme); // Log the saved theme
+		// console.log('Saved theme:', savedTheme);
 		if (savedTheme) {
 			let newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
