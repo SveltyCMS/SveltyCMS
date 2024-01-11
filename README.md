@@ -49,7 +49,7 @@ New Collections can easily be implemented, due to full typescript support with a
 
 All fields offer full translation, and customization as well as access restriction handled by Lucia auth.
 
-The System language uses ParaglideJS a JavaScript i18n library to providing :gb: English, :de: German, :es: Spanish and :fr: French out of the box. Languages can easily be extended to support further languages.
+The System language uses [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) light weight JavaScript i18n library to providing :gb: English, and may other languages out of the box. More Languages can easily be extended to support further languages.
 
 We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](https://www.skeleton.dev/), so the CMS can be quickly optimized to your personal needs.
 
@@ -69,12 +69,13 @@ cd SveltyCMS
 
 ### Install all dependencies
 
-Your need [Node.js](https://nodejs.org/en) 18.13 or higher to get started which ships with npm.
+Install [Node.js](https://nodejs.org/en) to get started which ships with npm.
 
-We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used.
+We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used as well. Adapt the command accordingly.
 
 ```bash
 npm install   # installs all required package dependencies
+
 # If Post Install script is disabled, then also run the following
 # npm run inlang    # build available system languages
 ```
@@ -85,6 +86,7 @@ rename the `.env.example` to `.env` and add at least your Database Access to sta
 
 - Fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
 - Change the content database Languages to your required needs
+- Limit your system Languages to your required needs
 - Setup your Email `SMTP` & `HOST` to allow sending emails
 - Add your required API Tokens for the individual Widgets you need for your project
 

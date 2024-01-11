@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { collectionValue, contentLanguage, collection, entryData } from '@stores/store';
-	console.log($entryData);
+	//console.log($entryData);
 	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;

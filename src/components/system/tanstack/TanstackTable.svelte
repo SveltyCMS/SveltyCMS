@@ -494,7 +494,7 @@
 	<!-- Pagination Desktop -->
 	<div class="my-3 flex items-center justify-around text-surface-500">
 		<!-- show & count rows -->
-		<div class="hidden text-sm text-surface-500 md:block dark:text-surface-400">
+		<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
 			{m.tanstacktable_page()}
 			<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
 			{m.tanstacktable_of()}
@@ -519,7 +519,7 @@
 			<select
 				value={$table.getState().pagination.pageSize}
 				on:change={setPageSize}
-				class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 sm:block dark:text-white"
+				class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
 			>
 				{#each availablePageSizes as pageSize}
 					<option value={pageSize}>

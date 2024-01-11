@@ -177,7 +177,7 @@
 			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 					{$categories[0].name}
 				</div>{/if}
-			<div class="-mt-2 flex justify-start text-sm font-bold uppercase md:text-2xl lg:text-xl dark:text-white">
+			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 				{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
 				{#if $collection.name}
 					<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">

@@ -3,23 +3,24 @@
 	import { page } from '$app/stores';
 
 	// Get the value of the collection parameter from the page store
-	let { collection } = $page.params;
+	let { collectionName } = $page.params;
 
 	// Create a writable store for schema
 	let schema = writable({});
 
 	export async function load({ page }) {
 		// Get the value of the collection parameter from the page store
-		const { collection } = page.params;
+		const { collectionName } = page.params;
 
 		// Dynamically import the collection schema
-		const module = await import(`../../../../collections/${collection}.ts`);
+		const module = await import(`@src/collections/${collectionName}.ts`);
 
 		// Create a writable store for schema and set its value
 		let schema = writable(module.default);
 
 		return { props: { schema } };
 	}
+
 	function onSubmit(e) {
 		e.preventDefault();
 
@@ -27,7 +28,7 @@
 	}
 </script>
 
-<h1>Edit {collection} collection</h1>
+<h1 class="text-2xl text-error-500">Edit {collectionName} collection</h1>
 
 <form on:submit|preventDefault={onSubmit}>
 	<!-- Add input fields for each property in the schema object -->

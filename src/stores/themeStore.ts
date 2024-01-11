@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 
 // create a writable store to hold the current theme
-export const theme = writable<'light' | 'dark'>('light');
+export const theme = writable(localStorage.getItem('theme') || 'light');
 
 // check if the user has a preferred theme stored in localStorage
 if (localStorage.theme) {

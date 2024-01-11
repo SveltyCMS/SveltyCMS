@@ -10,6 +10,8 @@ const schema: Schema = {
 	icon: 'bi:card-text',
 	status: 'published',
 	slug: 'posts',
+	description: 'Posts Collection',
+	revision: true,
 
 	// Collection Permissions by user Roles
 

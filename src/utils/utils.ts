@@ -1,5 +1,6 @@
 import fs from 'fs';
 import axios from 'axios';
+import mongoose from 'mongoose';
 
 import { Blob } from 'buffer';
 import type { Schema } from '@collections/types';
@@ -301,13 +302,45 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 		throw new Error('ID is required for edit mode.');
 	}
 	if (!formData) return;
-	// define status for each collection
-	formData.append('status', $collection.status || 'published');
+
+	// Define status for each collection
+	formData.append('status', $collection.status || 'unpublished');
+
 	switch ($mode) {
+		// Create a new document
 		case 'create':
 			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);
+		// Edit an existing document
 		case 'edit':
 			formData.append('_id', id || $entryData._id);
+			formData.append('updatedAt', new Date().getTime().toString());
+
+			if ($collection.revision) {
+				// Create a new revision of the document
+				const newRevision = {
+					...$entryData,
+					_id: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the new revision
+					__v: [
+						{
+							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array
+							editedAt: new Date().getTime().toString(),
+							editedBy: { Username: get(user).username },
+							changes: {}
+						}
+					]
+				};
+
+				// Append the new revision to the existing revisions
+				const revisions = $entryData.__v || [];
+				revisions.push(newRevision);
+
+				// Update the __v array with the new revisions
+				$entryData.__v = revisions;
+
+				// Save the new revision to the database
+				await axios.post(`/api/${$collection.name}`, newRevision, config).then((res) => res.data);
+			}
+
 			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
 	}
 }
@@ -339,7 +372,7 @@ export async function deleteImageFiles(collectionName: string, fileName: string)
 
 // Delete FormData
 // TODO: move images/files to trash folder see [collection]/+server.ts
-export async function deleteData(id, collectionName) {
+export async function deleteData(id: any, collectionName: any) {
 	// Fetch the entry data before deleting
 	const entryData = await findById(id, collectionName);
 
@@ -394,36 +427,6 @@ export function formatSize(sizeInBytes) {
 		return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
 	} else {
 		return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
-	}
-}
-
-export async function getDates(collectionName: string) {
-	// Send a GET request to the endpoint that retrieves the data from the MongoDB database
-	const response = await fetch(`/api/${collectionName}`);
-	const data = await response.json();
-
-	// Check if the entryList array is empty
-	if (data.entryList.length === 0) {
-		// Return an object with '-' for each field
-		return {
-			created: '-',
-			updated: '-',
-			revision: '-'
-		};
-	} else {
-		// Get the first entry from the entryList array
-		const result = data.entryList[0];
-
-		// Convert the timestamps to readable date formats
-		const createdDate = convertTimestampToDateString(result.createdAt);
-		const updatedDate = convertTimestampToDateString(result.updatedAt);
-
-		// Return the result with converted date formats
-		return {
-			created: createdDate,
-			updated: updatedDate,
-			revision: result.revision || '-'
-		};
 	}
 }
 
