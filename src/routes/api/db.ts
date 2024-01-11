@@ -26,7 +26,7 @@ import {
 
 // Turn off strict mode for query filters. Default in Mongodb 7
 mongodb.set('strictQuery', false);
-
+console.log('-------------------> Trying to Connection to database');
 // Connect to MongoDB database using imported environment variables
 mongodb
 	.connect(DB_HOST, {
@@ -35,7 +35,7 @@ mongodb
 		pass: DB_PASSWORD,
 		dbName: DB_NAME
 	})
-	.then(() => console.log('---------------------Connection to database is successful! -----------------------'))
+	.then(() => console.log('-------------------> Connection to database is successful!'))
 	.catch((error) => console.error('Error connecting to database:', error));
 
 // Initialize collections object

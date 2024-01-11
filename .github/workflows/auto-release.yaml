@@ -42,7 +42,6 @@ jobs:
 
       - name: Install dependencies & Run semantic-release
         run: |
-          pnpm ci
           npx semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
