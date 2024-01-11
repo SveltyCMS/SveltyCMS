@@ -58,20 +58,16 @@ jobs:
       - name: Install pnpm
         run: npm install -g pnpm
 
-      - name: Install dependencies
+      - name: Install dependencies & Build Languages
         id: install
         run: pnpm install
-
-      - name: Build Languages
-        id: build-languages
-        run: pnpm run inlang
 
       - name: Install Playwright Browsers
         id: install-playwright
         run: npx playwright install --with-deps
 
       - name: Run local server
-        run: pnpm run build && npm run preview &
+        run: pnpm run build && pnpm run preview &
 
       - name: Run Playwright tests
         run: |

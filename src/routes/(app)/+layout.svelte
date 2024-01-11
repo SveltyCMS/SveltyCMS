@@ -6,13 +6,13 @@
 	import 'iconify-icon';
 
 	import { page } from '$app/stores';
-	import { goto, invalidate } from '$app/navigation';
+	import { goto } from '$app/navigation';
 
 	//skeleton
 	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 	initializeStores();
-
-	//console.log(initializeStores, modeCurrent, setModeUserPrefers, setModeCurrent, setInitialClassState);
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 
 	import {
 		avatarSrc,
@@ -31,10 +31,26 @@
 		togglePageHeader,
 		togglePageFooter,
 		pkgBgColor,
-		storeListboxValue
+		entryData
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
+
+	import { get } from 'svelte/store';
+	import type { Schema } from '@collections/types';
+	import Loading from '@components/Loading.svelte';
+	import axios from 'axios';
+	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
+	import { PUBLIC_SITENAME } from '$env/static/public';
+	import ControlPanel from '@components/ControlPanel.svelte';
+	import Collections from '@components/Collections.svelte';
+	import { systemLanguage } from '@stores/store';
+
+	// Convert timestamp to Date string
+	const dates = {
+		created: convertTimestampToDateString($entryData.createdAt),
+		updated: convertTimestampToDateString($entryData.updatedAt)
+	};
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
@@ -51,14 +67,6 @@
 			});
 		});
 	});
-
-	import axios from 'axios';
-	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import ControlPanel from '@components/ControlPanel.svelte';
-	import Collections from '@components/Collections.svelte';
-	import { getDates } from '@utils/utils';
-	import { systemLanguage } from '@stores/store';
 
 	contentLanguage.set($page.params.language);
 
@@ -140,6 +148,15 @@
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
+	onMount(() => {
+		const savedTheme = localStorage.getItem('theme');
+		console.log('Saved theme:', savedTheme); // Log the saved theme
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+	});
 
 	// On page load
 	document.addEventListener('DOMContentLoaded', () => {
@@ -152,14 +169,13 @@
 		}
 	});
 
-	import type { PopupSettings } from '@skeletonlabs/skeleton';
-
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Popup Tooltips
+
 	let UserTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'User',
@@ -197,12 +213,7 @@
 	};
 
 	import HeaderControls from '@components/HeaderControls.svelte';
-
-	import { get } from 'svelte/store';
-	import type { Schema } from '@collections/types';
-	import Loading from '@components/Loading.svelte';
-
-	let dates = { created: '', updated: '', revision: '' };
+	import { convertTimestampToDateString } from '@src/utils/utils';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -232,14 +243,6 @@
 		// Reset ForwardBackward to false
 		ForwardBackward = false;
 	});
-
-	// onMount(async () => {
-	// 	try {
-	// 		dates = await getDates($collection.name);
-	// 	} catch (error) {
-	// 		console.error(error);
-	// 	}
-	// });
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
@@ -413,8 +416,6 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								{:else}
 									<iconify-icon icon="bi:moon-fill" width="22" />
 								{/if}
-
-								<!-- TODO: tooltip overflow -->
 							</button>
 
 							<!-- Popup Tooltip with the arrow element -->

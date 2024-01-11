@@ -414,7 +414,7 @@
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white" />{hostUrl}
 			</p>
 			<p class="text-sm !font-medium text-primary-500 sm:px-4">{title}</p>
-			<p class=" mb-2 !text-sm text-black sm:px-4 dark:text-white">{description}</p>
+			<p class=" mb-2 !text-sm text-black dark:text-white sm:px-4">{description}</p>
 		</div>
 	{:else}
 		<!-- desktop preview-->
@@ -423,7 +423,7 @@
 				<iconify-icon icon="mdi:world" width="18" class="mr-2 text-white" />{hostUrl}
 			</p>
 			<p class="!font-medium text-primary-500 sm:px-4">{title}</p>
-			<p class=" mb-2 pb-4 text-lg text-black sm:px-4 dark:text-white">{description}</p>
+			<p class=" mb-2 pb-4 text-lg text-black dark:text-white sm:px-4">{description}</p>
 		</div>
 	{/if}
 </div>

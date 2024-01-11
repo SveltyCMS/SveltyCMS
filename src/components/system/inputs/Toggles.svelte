@@ -4,6 +4,8 @@
 	export let value: boolean = false;
 	export let label: string = '';
 	export let icon: any = null;
+	export let labelColor: string = 'text-primary-500'; // Default label color
+
 	let random = generateUniqueId();
 	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
 </script>

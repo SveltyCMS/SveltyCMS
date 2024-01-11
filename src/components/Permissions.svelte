@@ -3,6 +3,9 @@
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import { permissionStore } from '@src/stores/store';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	type Role = keyof typeof roles;
 	type Permission = keyof permissions[Role];
 
@@ -20,38 +23,35 @@
 		return buttonMap[permission];
 	}
 
+	// TODO: Use Dynamic buttonMap to get data from types.ts
 	const buttonMap = {
 		create: {
-			enabled: 'filled-primary',
-			disabled: 'outline-primary',
+			disabled: 'variant-outline-primary',
+			enabled: 'variant-filled-primary',
 			icon: 'bi:plus-circle-fill',
-			color: 'primary'
-			// icon: permissions.create.icon.create,
-			// color: permissions.create.color.create
+			color: 'primary',
+			toggle: false
 		},
 		read: {
-			enabled: 'filled-tertiary',
-			disabled: 'outline-tertiary',
+			disabled: 'variant-outline-tertiary',
+			enabled: 'variant-filled-tertiary',
 			icon: 'bi:eye-fill',
-			color: 'tertiary'
-			// icon: permissions.read.icon.read,
-			// color: permissions.read.color.read
+			color: 'tertiary',
+			toggle: false
 		},
 		write: {
-			enabled: 'filled-warning',
-			disabled: 'outline-warning',
+			disabled: 'variant-outline-warning',
+			enabled: 'variant-filled-warning',
 			icon: 'bi:pencil-fill',
-			color: 'warning'
-			// icon: permissions.write.icon.write,
-			// color: permissions.write.color.write
+			color: 'warning',
+			toggle: false
 		},
 		delete: {
-			enabled: 'filled-error',
-			disabled: 'outline-error',
+			disabled: 'variant-outline-error',
+			enabled: 'variant-filled-error',
 			icon: 'bi:trash-fill',
-			color: 'error'
-			// icon: permissions.delete.icon.delete,
-			// color: permissions.delete.color.delete
+			color: 'error',
+			toggle: false
 		}
 	};
 
@@ -82,17 +82,33 @@
 	}
 
 	function removeRole(index: number) {
-		rolesArray.splice(index, 1);
-		rolesArray = rolesArray;
+		rolesArray = rolesArray.filter((_, i) => i !== index);
 		MorePermissions = true;
 	}
 
 	function togglePermission(event: MouseEvent, role: { name: Role; permissions: permissions[Role] }, permission: string, index: number) {
 		event.stopPropagation();
+
 		if (role && role.permissions && permission in role.permissions) {
 			const typedPermission = permission as Permission;
-			role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
-			rolesArray = [...rolesArray];
+			const buttonInfo = getButtonMap(role.name, typedPermission);
+
+			console.log('Role:', role);
+			console.log('Permission:', permission);
+			console.log('Button Info:', buttonInfo);
+
+			if (buttonInfo) {
+				// Update the role's permission
+				role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
+
+				// Update the button map toggle based on the new permission state
+				buttonMap[permission].toggle = role.permissions[typedPermission];
+
+				// Update the roles array
+				rolesArray = [...rolesArray];
+			} else {
+				console.error('Button information not found for the permission:', permission);
+			}
 		} else {
 			console.error('Role or role.permissions is undefined');
 		}
@@ -104,9 +120,19 @@
 
 		if (allRolesHavePermission !== undefined) {
 			rolesArray.forEach((role) => {
-				role.permissions = { ...role.permissions, [typedPermission]: !allRolesHavePermission };
+				const buttonInfo = getButtonMap(role.name, typedPermission);
+				if (buttonInfo) {
+					// Update the role's permission
+					role.permissions = { ...role.permissions, [typedPermission]: !allRolesHavePermission };
+
+					// Update the button map
+					buttonMap[permission].toggle = !allRolesHavePermission;
+				} else {
+					console.error('Button information not found for the permission:', permission);
+				}
 			});
 
+			// Update the roles array
 			rolesArray = [...rolesArray];
 		} else {
 			console.error('Role or role.permissions is undefined');
@@ -117,7 +143,14 @@
 	let filteredRolesArray: typeof rolesArray = [];
 
 	$: {
-		permissionHeaders = rolesArray.length > 0 ? Object.keys(rolesArray[0].permissions) : [];
+		if (rolesArray.length > 0 && rolesArray[0].permissions) {
+			permissionHeaders = Object.keys(rolesArray[0].permissions);
+		} else {
+			permissionHeaders = [];
+		}
+	}
+
+	$: {
 		filteredRolesArray = rolesArray.filter((role: (typeof rolesArray)[0]) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
 	}
 
@@ -125,14 +158,16 @@
 	$: {
 		let truePermissions = {};
 		rolesArray.forEach(({ name, permissions }) => {
-			Object.entries(permissions).forEach(([key, value]) => {
-				if (value === true) {
-					if (!truePermissions[name]) {
-						truePermissions[name] = {};
+			if (permissions) {
+				Object.entries(permissions).forEach(([key, value]) => {
+					if (value === true) {
+						if (!truePermissions[name]) {
+							truePermissions[name] = {};
+						}
+						truePermissions[name][key] = value;
 					}
-					truePermissions[name][key] = value;
-				}
-			});
+				});
+			}
 		});
 
 		// Update the permissionStore with the new permissions
@@ -142,16 +177,37 @@
 	}
 </script>
 
-<p class="dark mb-2 text-center">
-	Define User Permissions to
-	<span class="text-primary-500">create</span> /
-	<span class="text-tertiary-500">read</span> /
-	<span class="text-warning-500">write</span> /
-	<span class="text-error-500">delete</span> this collection.
-</p>
-<p class="dark mb-2 text-center text-primary-500">Admin User has all permissions</p>
+<div class="dark mb-2 text-center sm:flex sm:flex-col">
+	<div>
+		{m.collection_Permission_helper1()}
+	</div>
+	<div class="mt-2 flex items-center justify-center space-x-4 divide-x-2 divide-surface-400">
+		<span class="text-primary-500">
+			<iconify-icon icon={buttonMap.create.icon} width="16" class="mr-1 dark:text-white" />
+			Create
+		</span>
 
-<div class="mt-4 flex justify-between gap-4">
+		<span class="text-tertiary-500">
+			<iconify-icon icon={buttonMap.read.icon} width="16" class="mx-1 dark:text-white" />
+			Read
+		</span>
+
+		<span class="text-warning-500">
+			<iconify-icon icon={buttonMap.write.icon} width="16" class="mx-1 dark:text-white" />
+			Write
+		</span>
+
+		<span class="text-error-500">
+			<iconify-icon icon={buttonMap.delete.icon} width="16" class="mx-1 dark:text-white" />
+			Delete
+		</span>
+	</div>
+</div>
+<p class="dark mb-2 text-center text-primary-500">
+	{m.collection_permission_admin_helper()}
+</p>
+
+<div class="mt-4 flex {filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
 	{#if filteredRolesArray.length > 0}
 		<!-- Search Filter by role -->
 		<div class="input-group input-group-divider max-w-sm grid-cols-[auto_1fr_auto]">
@@ -164,9 +220,9 @@
 
 	<!-- Add Permission -->
 	{#if MorePermissions}
-		<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-end text-center sm:w-auto">
+		<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-center text-center sm:w-auto sm:justify-end">
 			<iconify-icon icon="material-symbols:add" color="white" width="18" class="mr-1" />
-			Add Permissions</button
+			{m.collection_permission_addpermission()}</button
 		>
 	{/if}
 </div>
@@ -175,16 +231,16 @@
 		<table class="table table-hover table-compact">
 			<thead>
 				<tr class="divide-x divide-surface-400 border-b border-surface-400">
-					<th class=" text-center">Roles:</th>
+					<th class=" text-center">{m.collection_permission_roles()}</th>
 					{#each permissionHeaders as permission}
 						<th class="!p-3">
 							<button
-								class={`variant-${buttonMap[permission].disabled} btn w-full text-center `}
-								class:toggle={`variant-${buttonMap[permission].enabled}`}
+								class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
 								on:click={() => toggleAllPermissions(permission)}
 							>
-								<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1"></iconify-icon>
-								{permission.charAt(0).toUpperCase() + permission.slice(1)}
+								<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
+								<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
+								<!--{buttonMap[permission].toggle}-->
 							</button>
 						</th>
 					{/each}
@@ -214,14 +270,14 @@
 								<!-- Check if the permission exists in the role's permissions -->
 								<td>
 									<button
-										class={`variant-${buttonMap[permission].disabled} btn w-full text-center `}
-										class:toggle={`variant-${buttonMap[permission].enabled}`}
+										class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
 										on:click={(event) => {
 											togglePermission(event, role, permission, index);
 										}}
 									>
-										<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1"></iconify-icon>
-										{permission.charAt(0).toUpperCase() + permission.slice(1)}
+										<iconify-icon icon={buttonMap[permission]?.icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
+										<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
+										<!--{buttonMap[permission].toggle}-->
 									</button>
 								</td>
 							{/each}
@@ -235,5 +291,8 @@
 				{/each}
 			</tbody>
 		</table>
+		<div class="mt-4 text-center">
+			Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span>
+		</div>
 	</div>
 {/if}

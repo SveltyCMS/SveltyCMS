@@ -18,6 +18,7 @@
 
 	import { page } from '$app/stores';
 	let userRole = $page.data.user.role;
+	//console.log($page.data.user.role);
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
