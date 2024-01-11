@@ -13,6 +13,8 @@
 	initializeStores();
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
+	import { onMount } from 'svelte';
+
 	import {
 		avatarSrc,
 		collections,
@@ -139,6 +141,16 @@
 			await goto('/login', { invalidateAll: true, noScroll: true, replaceState: true });
 		}
 	}
+
+	onMount(() => {
+		const savedTheme = localStorage.getItem('theme');
+		console.log('Saved theme:', savedTheme); // Log the saved theme
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+	});
 
 	const toggleTheme = () => {
 		let currentMode = get(modeCurrent); // get the current value of the store

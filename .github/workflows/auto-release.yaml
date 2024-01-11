@@ -14,7 +14,7 @@ jobs:
       issues: write # Allow creating and updating issues
       pull-requests: write # Allow creating and updating pull requests
 
-    runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
+    runs-on: ubuntu-latest # Us the latest Ubuntu virtual environment
 
     steps:
       - name: Checkout code
@@ -24,6 +24,9 @@ jobs:
         uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
         with:
           node-version: '21'
+
+      - name: Install pnpm
+        run: npm install -g pnpm
 
       - name: Cache pnpm dependencies
         id: npm-cache
@@ -42,12 +45,5 @@ jobs:
           pnpm ci
           npx semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN } # Provide the GitHub token as an environment variable
           # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
-
-      - name: Update package version
-        run: |
-          pnpm version --no-git-tag-version --allow-same-version
-          git add package.json
-          git commit -m "chore: update package version after semantic release" || true
-          git push origin ${{ github.ref }}
