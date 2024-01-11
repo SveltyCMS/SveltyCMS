@@ -92,8 +92,8 @@ devDependencies:
     specifier: ^3.1.6
     version: 3.1.6(svelte@4.2.8)
   '@inlang/paraglide-js':
-    specifier: ^1.1.0
-    version: 1.1.0(@sinclair/typebox@0.31.28)
+    specifier: ^1.1.1
+    version: 1.1.1(@sinclair/typebox@0.31.28)
   '@playwright/test':
     specifier: ^1.40.1
     version: 1.40.1
@@ -107,8 +107,8 @@ devDependencies:
     specifier: ^0.3.1
     version: 0.3.1(tailwindcss@3.4.1)
   '@sveltejs/adapter-node':
-    specifier: ^2.1.1
-    version: 2.1.1(@sveltejs/kit@2.3.0)
+    specifier: ^3.0.0
+    version: 3.0.0(@sveltejs/kit@2.3.0)
   '@sveltejs/kit':
     specifier: ^2.3.0
     version: 2.3.0(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.11)
@@ -872,8 +872,8 @@ packages:
       '@sinclair/typebox': 0.31.28
     dev: true
 
-  /@inlang/paraglide-js@1.1.0(@sinclair/typebox@0.31.28):
-    resolution: {integrity: sha512-a6HeVYRCynltrZu7Q39pMFMcgiOunfyABfhEsblnuZqRlhopXvm/eqYjvRfQgkbCwMwUAeZOScyO9u+XxvImlg==}
+  /@inlang/paraglide-js@1.1.1(@sinclair/typebox@0.31.28):
+    resolution: {integrity: sha512-1M9aeEmh2kfgz3UG9IDg71uXHDpPnyFqYTx1Wid66nJz+38DRD63FwIryzls1JUuAC6AK46i/xw5Pez530wAig==}
     hasBin: true
     dependencies:
       '@inlang/detect-json-formatting': 1.0.0
@@ -1721,8 +1721,8 @@ packages:
       tailwindcss: 3.4.1
     dev: true
 
-  /@sveltejs/adapter-node@2.1.1(@sveltejs/kit@2.3.0):
-    resolution: {integrity: sha512-ypAqdvjoyfOEgucDbY3P6DM6nLEQ7OwiWMfyITKF8svffe9FIx1ow6uELJd1BzbCrouYndkQfc5m6ihj0xxqTg==}
+  /@sveltejs/adapter-node@3.0.0(@sveltejs/kit@2.3.0):
+    resolution: {integrity: sha512-+nmnMhgWB0c1C2kLcWXp/r1zmY22ayhO8zD2oyxy4VUHYPOKt1uEmFVvLCzF7jg5aYlTtstjmrzNdP2l0MiLoQ==}
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
     dependencies:
