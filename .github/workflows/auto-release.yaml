@@ -46,3 +46,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
           # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
+
+      # - name: Update package version
+      # run: |
+      #   pnpm version --no-git-tag-version --allow-same-version
+      #   git add package.json
+      #   git commit -m "chore: update package version after semantic release" || true
+      #   git push origin ${{ github.ref }}

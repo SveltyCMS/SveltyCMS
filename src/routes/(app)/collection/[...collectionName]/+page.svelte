@@ -229,7 +229,7 @@
 						bind:value={collectionName}
 						on:input={checkInputName}
 						placeholder={m.collection_name_placeholder()}
-						class="variant-filled-surface {collectionName ? 'w-full md:w-1/2' : 'w-full'}"
+						class="input {collectionName ? 'w-full md:w-1/2' : 'w-full'}"
 					/>
 
 					{#if collectionName}
@@ -272,14 +272,7 @@
 							<div class="variant-filled-secondary arrow" />
 						</div>
 
-						<input
-							type="text"
-							id="slug"
-							bind:value={slug}
-							placeholder={m.collection_slug_input()}
-							class="variant-filled-surface w-full"
-							on:input={onSlugInput}
-						/>
+						<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full" on:input={onSlugInput} />
 					</div>
 
 					<!-- Description -->
@@ -301,7 +294,7 @@
 							cols="50"
 							bind:value={description}
 							placeholder={m.collection_description_placeholder()}
-							class="variant-filled-surface w-full"
+							class="input w-full"
 						/>
 					</div>
 
@@ -318,7 +311,7 @@
 							<div class="variant-filled-secondary arrow" />
 						</div>
 
-						<select id="status" bind:value={status} class="variant-filled-surface w-full">
+						<select id="status" bind:value={status} class="input w-full">
 							{#each statuses as statusOption}
 								<option value={statusOption} class="">{statusOption}</option>
 							{/each}

@@ -141,6 +141,7 @@
 		}
 	}
 
+	// On page load get the saved theme
 	onMount(() => {
 		const savedTheme = localStorage.getItem('theme');
 		console.log('Saved theme:', savedTheme); // Log the saved theme
@@ -158,26 +159,6 @@
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
-	onMount(() => {
-		const savedTheme = localStorage.getItem('theme');
-		console.log('Saved theme:', savedTheme); // Log the saved theme
-		if (savedTheme) {
-			let newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-		}
-	});
-
-	// On page load
-	document.addEventListener('DOMContentLoaded', () => {
-		const savedTheme = localStorage.getItem('theme');
-		console.log('Saved theme:', savedTheme); // Log the saved theme
-		if (savedTheme) {
-			let newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-		}
-	});
 
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
@@ -185,7 +166,6 @@
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Popup Tooltips
-
 	let UserTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'User',
@@ -254,6 +234,7 @@
 		ForwardBackward = false;
 	});
 
+	//TODO: change to sveltekit code to update app.html tags
 	systemLanguage.subscribe((lang) => {
 		if (!lang) return;
 

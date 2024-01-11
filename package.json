@@ -2,7 +2,6 @@
 	"name": "sveltycms",
 	"description": "A powerful Headless CMS with sveltekit power",
 	"version": "0.0.5",
-	"author": "Rar9",
 	"scripts": {
 		"---- DEVELOP ----------------------------------------------------------": "",
 		"dev": "vite",

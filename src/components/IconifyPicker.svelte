@@ -117,7 +117,7 @@
 	id="icon"
 	bind:value={searchQuery}
 	placeholder={m.iconpicker_placeholder()}
-	class="variant-filled-surface w-full"
+	class="input w-full"
 	on:input={() => searchIcons(searchQuery, selectedLibrary)}
 	on:focus={showLibrariesAndDropdown}
 />
@@ -134,7 +134,7 @@
 					start = 0;
 					searchIcons(searchQuery, selectedLibrary);
 				}}
-				class="variant-filled-surface mt-2 w-full"
+				class="input mt-2 w-full"
 			>
 				{#if librariesLoaded}
 					{#each Object.keys(iconLibraries) as library}
@@ -158,7 +158,7 @@
 			<button disabled={start === 0} on:keydown on:click={prevPage} class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
 				>{m.iconpicker_previous()}
 			</button>
-			<div class="text-white">
+			<div class="dark:text-white">
 				Showing Icons: <span class="text-primary-500">{icons.length}</span>
 			</div>
 			<button

@@ -24,7 +24,7 @@
 		? 'w-[220px]'
 		: 'w-full'}"
 >
-	<div class="mb-3 flex items-center justify-between">
+	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 		<button class="variant-ghost-secondary btn-icon mr-2" on:click={() => (addField = false)}
 			><iconify-icon icon="material-symbols:close" width="24" /></button

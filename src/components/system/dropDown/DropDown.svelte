@@ -21,13 +21,13 @@
 		<div class="flex flex-wrap items-center justify-center gap-2">
 			{#each items.filter((item) => item !== selected) as item}
 				<button
-					class="variant-outline-warning btn relative hover:variant-filled-secondary"
+					class=" variant-outline-warning btn relative hover:variant-filled-secondary"
 					on:click={() => {
 						selected = item;
 						expanded = false;
 					}}
 				>
-					{item}
+					<span class="text-surface-700 dark:text-white">{item}</span>
 				</button>
 			{/each}
 		</div>
