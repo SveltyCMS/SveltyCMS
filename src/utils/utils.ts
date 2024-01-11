@@ -526,3 +526,8 @@ export function generateUniqueId() {
 	// Concatenate the timestamp and random strings to form the unique ID.
 	return timestamp + random;
 }
+
+export function getTextDirection(lang: string): string {
+	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi']; // Add more RTL languages if needed
+	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';
+}
