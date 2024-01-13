@@ -76,7 +76,9 @@
 
 {#if $modalStore[0]}
 	<div class="modal-example-form {cBase}">
-		<header class={cHeader}>{$modalStore[0].title ?? '(title missing)'}</header>
+		<header class={`text-center text-primary-500 ${cHeader}`}>
+			{$modalStore[0]?.title ?? '(title missing)'}
+		</header>
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 		<form class="modal-form {cForm}">

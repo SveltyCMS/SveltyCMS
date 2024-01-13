@@ -231,17 +231,16 @@
 
 					<!-- email + oauth signin  -->
 				{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
-					<div class="variant-ghost-secondary btn-group mt-4 [&>*+*]:border-secondary-500">
-						<button type="submit" class="col-2 variant-filled w-3/4 text-center">
-							<span class="text-black">{m.signup_signup()} </span>
+					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
+						<button type="submit" class="btn w-3/4 bg-surface-200">
+							<span class="w-full text-black hover:text-white">{m.signup_signup()}</span>
 							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 						<form method="post" action="?/OAuth" class="w-fit">
-							<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
-							<button type="submit" class="">
+							<button type="submit" class="btn w-full">
 								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
-								<span>OAuth</span>
+								<span class="">OAuth</span>
 							</button>
 						</form>
 					</div>
@@ -250,8 +249,7 @@
 					<form method="post" action="?/OAuth" class="flex w-full">
 						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3">
 							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-							<p>Sign Up with Google</p>
-							<!-- <p>{m.signup_signupwithgoogle()}</p>-->
+							<p>{m.signup_signupwithgoogle()}</p>
 						</button>
 					</form>
 				{/if}

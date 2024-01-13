@@ -685,7 +685,7 @@
 
 			<!-- next/previous pages -->
 			<div
-				class="variant-ghost btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500"
+				class="variant-outline btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500"
 			>
 				<button
 					type="button"
@@ -721,7 +721,7 @@
 						min={0}
 						max={$table.getPageCount() - 1}
 						on:change={handleCurrPageInput}
-						class="variant-ghost-surface w-14 border-0"
+						class="variant-ghost w-12 text-center"
 					/>
 					<span class="pl-2">
 						{' '}{m.entrylist_of()}{' '}

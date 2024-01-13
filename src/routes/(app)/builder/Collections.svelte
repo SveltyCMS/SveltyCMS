@@ -141,7 +141,7 @@
 {/each}
 
 {#if modeSet == 'edit'}
-	<button class="variant-ghost-primary btn mt-2 w-full" on:click={saveConfig}>{m.collection_SaveCategories()}</button>
+	<button class="variant-ghost-primary btn mt-2 w-full text-black dark:text-white" on:click={saveConfig}>{m.collection_SaveCategories()}</button>
 {/if}
 
 <style lang="postcss">

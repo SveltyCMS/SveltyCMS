@@ -375,13 +375,13 @@
 		<!-- Tanstack Header -->
 		<thead class="text-black dark:text-primary-500">
 			{#each $table.getHeaderGroups() as headerGroup}
-				<tr class="divide-x divide-surface-400 border-b">
-					<th class="w-8">
+				<tr class="divide-x divide-surface-200 border-b border-surface-400 dark:divide-surface-400">
+					<th class="w-8 bg-white dark:bg-surface-900">
 						<TanstackIcons bind:checked={SelectAll} />
 					</th>
 					<!-- Tanstack Other Headers -->
 					{#each headerGroup.headers as header, index}
-						<th>
+						<th class="bg-white dark:bg-surface-900">
 							{#if !header.isPlaceholder}
 								<button
 									class:cursor-pointer={header.column.getCanSort()}
@@ -448,6 +448,7 @@
 						handleSidebarToggle();
 						console.log(row.original);
 					}}
+					class="bg-white last:border-0 dark:bg-surface-900"
 				>
 					<!-- TickRows -->
 					<td class="">
@@ -464,7 +465,7 @@
 					</td>
 
 					{#each row.getVisibleCells() as cell}
-						<td class="break-all border-x border-surface-400">
+						<td class="break-all border-x border-surface-200 last:border-0 dark:border-surface-400">
 							<svelte:component this={flexRender(cell.column.columnDef.cell, cell.getContext())} />
 						</td>
 					{/each}

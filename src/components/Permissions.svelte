@@ -231,9 +231,9 @@
 		<table class="table table-hover table-compact">
 			<thead>
 				<tr class="divide-x divide-surface-400 border-b border-surface-400">
-					<th class=" text-center">{m.collection_permission_roles()}</th>
+					<th class="bg-white text-center dark:bg-surface-900">{m.collection_permission_roles()}</th>
 					{#each permissionHeaders as permission}
-						<th class="!p-3">
+						<th class="bg-white !p-3 dark:bg-surface-900">
 							<button
 								class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
 								on:click={() => toggleAllPermissions(permission)}
@@ -244,7 +244,7 @@
 							</button>
 						</th>
 					{/each}
-					<th class="text-center">
+					<th class="bg-white text-center dark:bg-surface-900">
 						<iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" />
 					</th>
 				</tr>
@@ -254,7 +254,7 @@
 				{#each filteredRolesArray as role, index (role.name)}
 					<tr class="divide-x divide-surface-400">
 						<!-- Header -->
-						<td class="!p-0">
+						<td class="bg-white !p-0 dark:bg-surface-900">
 							<select bind:value={role.name} class="input">
 								{#each Object.values(roles) as r}
 									{#if r !== 'admin'}
@@ -268,7 +268,7 @@
 							<!-- Loop over each permission of the role -->
 							{#each Object.keys(role.permissions) as permission}
 								<!-- Check if the permission exists in the role's permissions -->
-								<td>
+								<td class="bg-white dark:bg-surface-900">
 									<button
 										class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
 										on:click={(event) => {
@@ -284,7 +284,7 @@
 						{/if}
 
 						<!--Delete -->
-						<td class="text-center">
+						<td class="bg-white text-center dark:bg-surface-900">
 							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
 						</td>
 					</tr>

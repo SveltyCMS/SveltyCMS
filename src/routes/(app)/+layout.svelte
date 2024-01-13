@@ -5,14 +5,23 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
-	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-
 	//skeleton
-	import { initializeStores, AppShell, Avatar, Modal, popup, Toast, modeCurrent, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
+	import {
+		initializeStores,
+		AppShell,
+		Avatar,
+		Modal,
+		popup,
+		Toast,
+		modeCurrent,
+		setModeUserPrefers,
+		setModeCurrent,
+		setInitialClassState,
+		getModeOsPrefers
+	} from '@skeletonlabs/skeleton';
+
 	initializeStores();
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { onMount } from 'svelte';
 
 	import {
 		avatarSrc,
@@ -22,6 +31,7 @@
 		mode,
 		contentLanguage,
 		defaultContentLanguage,
+		systemLanguage,
 		AVAILABLE_SYSTEMLANGUAGES,
 		handleSidebarToggle,
 		screenWidth,
@@ -35,16 +45,17 @@
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
-
 	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
+	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 	import Loading from '@components/Loading.svelte';
-	import axios from 'axios';
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import ControlPanel from '@components/ControlPanel.svelte';
 	import Collections from '@components/Collections.svelte';
-	import { systemLanguage } from '@stores/store';
 
 	// Convert timestamp to Date string
 	const dates = {
@@ -55,7 +66,7 @@
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
 
-	//smooth view transitions via browser (only chrome)
+	// smooth view transitions via browser (only chrome)
 	import { onNavigate } from '$app/navigation';
 	onNavigate((navigation) => {
 		if (!(document as any).startViewTransition) return;
@@ -143,22 +154,17 @@
 
 	// On page load get the saved theme
 	onMount(() => {
-		const savedTheme = localStorage.getItem('theme');
-		// console.log('Saved theme:', savedTheme);
-		if (savedTheme) {
-			let newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
+		// Sync lightswitch with the theme
+		if (!('modeCurrent' in localStorage)) {
+			setModeCurrent(getModeOsPrefers());
 		}
 	});
 
-	const toggleTheme = () => {
-		let currentMode = get(modeCurrent); // get the current value of the store
-		let newMode = !currentMode; // toggle the mode
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
-	};
+	function toggleTheme(): void {
+		$modeCurrent = !$modeCurrent;
+		setModeUserPrefers($modeCurrent);
+		setModeCurrent($modeCurrent);
+	}
 
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
@@ -235,19 +241,19 @@
 	});
 
 	//TODO: change to sveltekit code to update app.html tags
-	systemLanguage.subscribe((lang) => {
-		if (!lang) return;
+	// systemLanguage.subscribe((lang) => {
+	// 	if (!lang) return;
 
-		const dir = getTextDirection(lang);
-		if (!dir) return;
-		// console.log(dir);
+	// 	const dir = getTextDirection(lang);
+	// 	if (!dir) return;
+	// 	// console.log(dir);
 
-		// This need be replace with svelte equivalent code
-		const rootNode = document.body?.parentElement;
-		if (!rootNode) return;
-		rootNode.dir = dir;
-		rootNode.lang = lang;
-	});
+	// 	// This need be replace with svelte equivalent code
+	// 	const rootNode = document.body?.parentElement;
+	// 	if (!rootNode) return;
+	// 	rootNode.dir = dir;
+	// 	rootNode.lang = lang;
+	// });
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
@@ -256,7 +262,14 @@
 
 <svelte:head>
 	<!-- darkmode -->
-	<!-- {@html `<script>(${setInitialClassState.toString()})();</script>`} -->
+	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
+	<!-- Language -->
+	{@html `<script> 
+	const language = systemLanguage.value;
+	const direction = getTextDirection(language);
+	document.documentElement.lang = language;
+	document.documentElement.dir = direction;
+	</script>`}
 
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>
@@ -295,24 +308,22 @@
 		<div>Mode {$mode}</div>
 		<div>toggleLeftSidebar {$toggleLeftSidebar}</div> -->
 		<AppShell
-			slotSidebarLeft="relative pt-2 !overflow-visible bg-white dark:bg-gradient-to-r dark:from-surface-900 dark:via-surface-700
-dark:to-surface-500 text-center h-full relative border-r !px-2 border-surface-300 flex flex-col z-10
+			slotSidebarLeft="relative pt-2 !overflow-visible dark:bg-gradient-to-r bg-white dark:from-surface-700 dark:to-surface-900 text-center h-full relative border-r !px-2 dark:border-surface-500 flex flex-col z-10
 {$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
 {$toggleLeftSidebar === 'closed' ? 'hidden' : 'block'}
 lg:overflow-y-scroll lg:max-h-screen}"
-			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-white border-l border-surface-300 dark:bg-gradient-to-r dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center p-2
+			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-surface-50 border-l dark:border-surface-500 bg-gradient-to-r dark:from-surface-700 dark:to-surface-900 text-center p-2
 	{$toggleRightSidebar === 'closed' ? 'hidden' : 'block'}"
-			slotPageHeader=" relative bg-white dark:bg-gradient-to-t dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center px-1  border-b
+			slotPageHeader=" relative bg-surface-50 bg-gradient-to-t dark:from-surface-700 dark:to-surface-900 text-center px-1  border-b dark:border-surface-500
 	{$togglePageHeader === 'closed' ? 'hidden' : 'block'}"
-			slotPageFooter="relative bg-white dark:bg-gradient-to-b dark:from-surface-600 dark:via-surface-700 dark:to-surface-900 text-center px-1  border-t
+			slotPageFooter="relative bg-surface-50 bg-gradient-to-b dark:from-surface-700 dark:to-surface-900 text-center px-1  border-t dark:border-surface-500
 	{$togglePageFooter === 'closed' ? 'hidden' : 'block'}"
 		>
 			<svelte:fragment slot="sidebarLeft">
 				<!-- Corporate Identity Full-->
 				{#if $toggleLeftSidebar === 'full'}
 					<a href="/" class="t flex pt-2 !no-underline">
-						<SveltyCMSLogo fill="red" className="h-8 " />
-
+						<SveltyCMSLogo fill="red" className="h-8 rtl:ml-2 " />
 						<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME} </span>
 					</a>
 				{:else}
@@ -322,8 +333,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							<iconify-icon icon="mingcute:menu-fill" width="24" />
 						</button>
 
-						<a href="/" class="flex pt-2 !no-underline">
-							<SveltyCMSLogo fill="red" className="h-9  mr-2" />
+						<a href="/" class="flex justify-center pt-2 !no-underline">
+							<SveltyCMSLogo fill="red" className="h-9 ltr:mr-2 rtl:ml-2" />
 						</a>
 					</div>
 				{/if}
@@ -331,7 +342,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				<!-- sidebar collapse button -->
 				<button
 					type="button"
-					class="absolute -right-3 top-4 flex items-center justify-center !rounded-full border-2 border-surface-300"
+					class="absolute top-4 flex items-center justify-center !rounded-full border-2 border-surface-300 ltr:-right-3 rtl:-left-3"
 					on:keydown
 					on:click={() => {
 						toggleLeftSidebar.clickSwitchSideBar();
@@ -343,14 +354,14 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<iconify-icon
 							icon="bi:arrow-left-circle-fill"
 							width="30"
-							class="rotate-180 rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
+							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:text-surface-700 dark:hover:bg-error-600 ltr:rotate-180"
 						/>
 					{:else}
 						<!-- Icon expanded -->
 						<iconify-icon
 							icon="bi:arrow-left-circle-fill"
 							width="30"
-							class="rounded-full bg-white text-surface-500 hover:cursor-pointer hover:bg-error-600 dark:text-surface-600 dark:hover:bg-error-600"
+							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 rtl:rotate-180"
 						/>
 					{/if}
 				</button>
@@ -359,7 +370,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				<Collections />
 
 				<!-- Sidebar Left Footer -->
-				<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-800 dark:via-surface-700 dark:to-surface-500">
+				<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
 					<div class="mx-1 mb-1 border-t border-surface-400" />
 
 					<div
@@ -377,7 +388,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 							>
 								<Avatar
 									src={$avatarSrc ? $avatarSrc : '/Default_User.svg'}
-									class="mx-auto hover:bg-surface-500  {$toggleLeftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
+									class="mx-auto {$toggleLeftSidebar === 'full' ? 'w-[40px]' : 'w-[35px]'}"
 								/>
 								<div class="-mt-1 text-center text-[10px] uppercase text-black dark:text-white">
 									{#if $toggleLeftSidebar === 'full'}
@@ -415,7 +426,12 @@ lg:overflow-y-scroll lg:max-h-screen}"
 
 						<!-- light/dark mode switch -->
 						<div class="{$toggleLeftSidebar === 'full' ? 'order-2' : 'order-3'}  ">
-							<button use:popup={SwitchThemeTooltip} on:click={toggleTheme} class="btn-icon hover:bg-surface-500 hover:text-white">
+							<button
+								use:popup={SwitchThemeTooltip}
+								on:click={toggleTheme}
+								aria-label="Toggle Theme"
+								class="btn-icon hover:bg-surface-500 hover:text-white"
+							>
 								{#if !$modeCurrent}
 									<iconify-icon icon="bi:sun" width="22" />
 								{:else}

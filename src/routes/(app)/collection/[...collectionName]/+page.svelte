@@ -178,8 +178,7 @@
 		<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
 	{/if}
 </div>
-
-<div class="m-2">
+<div class="content-container">
 	<p class="mb-2 hidden text-center text-primary-500 sm:block">{m.collection_helptext()}</p>
 
 	<TabGroup>

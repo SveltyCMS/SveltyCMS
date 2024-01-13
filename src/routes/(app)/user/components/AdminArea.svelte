@@ -178,8 +178,8 @@
 	}
 </script>
 
-<div class="border-td mt-2 flex flex-col border-t-2">
-	<p class="h2 my-2 text-center text-3xl font-bold dark:text-white">
+<div class="flex flex-col">
+	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">
 		{m.adminarea_adminarea()}
 	</p>
 	<div class=" flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">

@@ -123,29 +123,30 @@
 		{m.collection_save()}
 	</button>
 </div>
+<div class="content-container">
+	{#if !availableCollection}
+		<p class="my-2 text-center">{m.collection_first()}</p>
+	{:else}
+		<!-- TODO: add sticky top sticky top-0 z-50 -->
+		<div class="sticky top-0">
+			<!-- Category/Collection buttons -->
+			<div class="mb-3 flex flex-col justify-around gap-1 sm:flex-row">
+				<!-- add new Category-->
+				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
+					{m.collection_addcategory()}
+				</button>
 
-{#if !availableCollection}
-	<p class="my-2 text-center">{m.collection_first()}</p>
-{:else}
-	<!-- TODO: add sticky top sticky top-0 z-50 -->
-	<div class="sticky top-0">
-		<!-- Category/Collection buttons -->
-		<div class="my-1 ml-1 flex flex-col justify-around gap-1 p-2 sm:flex-row">
-			<!-- add new Category-->
-			<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
-				{m.collection_addcategory()}
-			</button>
+				<!-- add new Collection-->
+				<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">
+					{m.collection_addcollection()}
+				</button>
+			</div>
 
-			<!-- add new Collection-->
-			<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">
-				{m.collection_addcollection()}
-			</button>
+			<!-- display unassigned collections -->
+			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
 		</div>
 
-		<!-- display unassigned collections -->
-		<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
-	</div>
-
-	<!-- display collections -->
-	<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
-{/if}
+		<!-- display collections -->
+		<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
+	{/if}
+</div>

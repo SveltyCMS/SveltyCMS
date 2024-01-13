@@ -51,11 +51,13 @@
 <input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
-	<!-- old Image Editor -->
-	<Cropper bind:image />
+	<div class="content-container">
+		<!-- old Image Editor -->
+		<!-- <Cropper bind:image /> -->
 
-	<!-- New Image Editor -->
-	<ImageEditor bind:image />
+		<!-- New Image Editor -->
+		<ImageEditor bind:image />
+	</div>
 {:else if selectedImage}
 	<img src={selectedImage} alt="" />
 {/if}

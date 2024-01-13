@@ -14,7 +14,7 @@
 	export let iconSize: PageTitleProps['iconSize'] = '30';
 </script>
 
-<div class="flex items-center">
+<div class="mb-3 flex items-center">
 	<!-- Hamburger -->
 	{#if $toggleLeftSidebar === 'closed'}
 		<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon mt-1">

@@ -21,7 +21,7 @@
 <!-- TODO: Show translation Status -->
 <!-- Mobile -->
 <select
-	class="variant-ghost-surface rounded border-surface-500 text-white md:hidden"
+	class="variant-ghost-surface rounded border-surface-500 dark:text-white md:hidden"
 	bind:value={$contentLanguage}
 	on:change={handleChange}
 	on:focus={() => {
@@ -34,7 +34,7 @@
 </select>
 <!-- Desktop -->
 <select
-	class="variant-ghost-surface hidden rounded border-surface-500 text-white md:block"
+	class="variant-ghost-surface hidden rounded border-surface-500 dark:text-white md:block"
 	bind:value={$contentLanguage}
 	on:change={handleChange}
 	on:focus={() => {

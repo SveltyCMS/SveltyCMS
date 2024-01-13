@@ -176,10 +176,11 @@
 	}
 </script>
 
-<div class="flex flex-col gap-1">
+<div class="mb-2 flex items-center">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-primary-500" />
-
-	<div class="flex items-center justify-between">
+</div>
+<div class="content-container">
+	<div class="mb-2 flex items-center justify-between">
 		<!-- Search -->
 		<div>
 			<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
@@ -208,7 +209,7 @@
 								}}
 							>
 								<p class="text-center text-xs">{m.mediagallery_display()}</p>
-								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: white`} />
+								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`} />
 								<p class="text-xs">Table</p>
 							</button>
 						{:else}
@@ -227,7 +228,7 @@
 								}}
 							>
 								<p class="text-center text-xs">{m.mediagallery_display()}</p>
-								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: white`} />
+								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`} />
 
 								<!-- TODO: Center mobile labels -->
 								{#if view === 'table'}
@@ -243,20 +244,20 @@
 				<!-- switch between small, medium, and large images -->
 				<div class="flex flex-col items-center">
 					<p class="text-xs">{m.mediagallery_size()}</p>
-					<div class="flex divide-x divide-surface-500">
+					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color: white`} />
+								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`} />
 								<p class="text-xs">{m.mediagallery_small()}</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: white`} />
+								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`} />
 								<p class="text-xs">{m.mediagallery_medium()}</p>
 							</button>
 						{:else}
 							<button type="button" class="px-1" on:click={handleClick}>
-								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: white`} />
+								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`} />
 								<p class="text-xs">{m.mediagallery_large()}</p>
 							</button>
 						{/if}
@@ -282,7 +283,7 @@
 							}
 						}}
 					>
-						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'white' : 'grey'}`} />
+						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
 						<br />Grid
 					</button>
 					<button
@@ -299,7 +300,7 @@
 							}
 						}}
 					>
-						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'white' : 'grey'}`} />
+						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`} />
 						<br />Table
 					</button>
 				</div>
@@ -311,17 +312,17 @@
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color: white`} />
+							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" />
 							<br />Small
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: white`} />
+							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" />
 							<br />Medium
 						</button>
 					{:else}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: white`} /><br />Large
+							<iconify-icon icon="material-symbols:grid-view" height="40" /><br />Large
 						</button>
 					{/if}
 				</div>
@@ -342,7 +343,10 @@
 		{#if view === 'grid'}
 			<div class="mx-auto flex flex-wrap gap-2">
 				{#each filterData(globalSearchValue, data.props.data) as image}
-					<div class={`group card relative ${gridSize === 'small' ? 'card-small' : gridSize === 'medium' ? 'card-medium' : 'card-large'}`}>
+					<!-- Card -->
+					<div
+						class={`group card relative bg-transparent ${gridSize === 'small' ? 'card-small' : gridSize === 'medium' ? 'card-medium' : 'card-large'}`}
+					>
 						<!-- Edit/Delete Image -->
 						<div class="absolute left-0 top-0 z-20 flex w-full justify-between p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
 							<!-- Edit button -->
@@ -357,7 +361,8 @@
 								<iconify-icon icon="icomoon-free:bin" width="20" />
 							</button>
 						</div>
-						<section class="relative p-4 text-center">
+
+						<section class="relative border bg-white p-4 text-center dark:border-surface-500 dark:bg-surface-900">
 							{#if image.thumbnail.endsWith('.jpg') || image.thumbnail.endsWith('.jpeg') || image.thumbnail.endsWith('.png') || image.thumbnail.endsWith('.svg') || image.thumbnail.endsWith('.webp') || image.thumbnail.endsWith('.avif')}
 								<!-- SVG Image -->
 								<img
@@ -373,16 +378,14 @@
 							{/if}
 						</section>
 						<footer
-							class={`card-footer mt-1 flex w-full items-center justify-center break-all rounded-sm bg-white p-0 text-center text-xs dark:bg-surface-600 dark:text-white`}
+							class={`card-footer flex w-full flex-col items-center justify-center break-all  p-1 text-center text-xs dark:text-white`}
 							style={`max-width: ${gridSize === 'small' ? '6rem' : gridSize === 'medium' ? '12rem' : '24rem'}`}
 						>
-							<div class="flex-col">
-								<div class="mb-1 line-clamp-2 font-semibold text-primary-500">{image.name}</div>
-								<!-- <div class="line-clamp-1">{image.path}</div> -->
-								<div class="line-clamp-1 text-tertiary-500">{formatSize(image.size)}</div>
-								<div class="line-clamp-1">{image.hash}</div>
-								<!-- <div class="">{image.thumbnail}</div> -->
-							</div>
+							<div class="line-clamp-2 font-semibold dark:text-primary-500">{image.name}</div>
+							<!-- <div class="line-clamp-1">{image.path}</div> -->
+							<div class="line-clamp-1 text-tertiary-500">{formatSize(image.size)}</div>
+							<div class="line-clamp-1">{image.hash}</div>
+							<!-- <div class="">{image.thumbnail}</div> -->
 						</footer>
 					</div>
 				{/each}

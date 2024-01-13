@@ -87,10 +87,10 @@
 </div>
 
 <!-- Enable and Disable module functionality -->
-<div class="flex items-center justify-center gap-2 px-2 md:justify-between">
+<div class="mt-1 flex items-center justify-center gap-2 px-2 md:justify-between">
 	<p class="hidden md:block">Image Name: <span class="text-error-500"> {image?.name} </span></p>
 
-	<div class="w-90 variant-filled-surface btn-group mt-1 dark:[&>*+*]:border-gray-200">
+	<div class="w-90 btn-group mt-1 dark:[&>*+*]:border-gray-200">
 		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">
 			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-gray-500'} />
 		</button>

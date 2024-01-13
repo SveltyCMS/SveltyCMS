@@ -156,10 +156,11 @@
 	}
 </script>
 
-<div class="flex flex-col gap-1">
+<div class="mb-2 flex flex-col gap-1">
 	<!-- TODO: fix TypeScript, as Icon is already optional? -->
 	<PageTitle name={m.userpage_title()} icon="" />
-
+</div>
+<div class="content-container mb-2">
 	<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 		<!-- Avatar with user info -->
 		<div class="relative flex flex-col items-center justify-center gap-1">
@@ -207,7 +208,9 @@
 			</div>
 		</form>
 	</div>
+</div>
 
+<div class="content-container">
 	<!-- admin area -->
 	{#if user?.role == roles.admin}
 		<AdminArea {data} />

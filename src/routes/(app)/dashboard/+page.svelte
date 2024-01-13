@@ -207,101 +207,106 @@
 </div>
 
 {#if systemInfo}
-	<div class="card variant-outline-surface rounded">
-		<header class="card-header rounded-t bg-primary-500 text-center text-lg font-bold">
-			<h2 class="flex justify-center gap-2">
-				<iconify-icon icon="codicon:server-environment" width="24" />
-				Server Information
-			</h2>
-		</header>
-		<div class="flex justify-around rounded-b pb-2">
-			<section>
-				<!-- Display OS information  -->
-				<div><span class="text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
-				<div><span class="text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
-				<div><span class="text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
-				<div><span class="text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
-				<div><span class="text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
-			</section>
+	<div class="content-container">
+		<div class="card">
+			<header class="card-header rounded-t bg-primary-500 text-center text-lg font-bold">
+				<h2 class="flex justify-center gap-2">
+					<iconify-icon icon="codicon:server-environment" width="24" />
+					Server Information
+				</h2>
+			</header>
+			<div class="flex justify-around rounded-b pb-2">
+				<section>
+					<!-- Display OS information  -->
+					<div><span class="text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
+					<div><span class="text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
+					<div><span class="text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
+					<div><span class="text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
+					<div><span class="text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
+				</section>
 
-			<!-- CPU Usage -->
-			<div class="card">
-				<header class="card-header font-bold text-primary-500">CPU Usage</header>
-				{#if cpuChart}
-					<section class="rounded border p-4">
-						<canvas id="cpuChart" />
+				<!-- CPU Usage -->
+				<div class="card">
+					<header class="card-header font-bold text-primary-500">CPU Usage</header>
+					{#if cpuChart}
+						<section class="rounded border p-4">
+							<canvas id="cpuChart" />
+						</section>
+					{:else}
+						<div>Loading...</div>
+					{/if}
+					<footer class="card-footer">
+						<span class="text-primary-500">Current CPU Usage:</span>
+						{calculateAverage(systemInfo.cpuInfo.cpuUsage)}%
+					</footer>
+				</div>
+			</div>
+		</div>
+
+		<hr />
+		<div class="flex justify-between gap-2">
+			<!-- Disk usage pie chart container -->
+			<div class="card w-full">
+				<header class="card-header font-bold text-primary-500">Disk Usage</header>
+				{#if diskChart}
+					<section class="rounded p-4">
+						<canvas id="diskChart" />
 					</section>
 				{:else}
 					<div>Loading...</div>
 				{/if}
-				<footer class="card-footer"><span class="text-primary-500">Current CPU Usage:</span> {calculateAverage(systemInfo.cpuInfo.cpuUsage)}%</footer>
+				<footer class="card-footer">
+					<span class="text-primary-500">Drive Free:</span>
+					{systemInfo.diskInfo.freeGb} GB, <span class="text-primary-500">Drive Used:</span>
+					{systemInfo.diskInfo.usedGb} GB
+				</footer>
+			</div>
+
+			<!-- Memory usage line chart container -->
+			<div class="card w-full">
+				<header class="card-header font-bold text-primary-500">Memory Usage</header>
+				{#if memoryChart}
+					<section class="rounded p-4">
+						<canvas id="memoryChart" />
+					</section>
+				{:else}
+					<div>Loading...</div>
+				{/if}
+				<footer class="card-footer">
+					<span class="text-primary-500">Memory Free:</span>
+					{systemInfo.memoryInfo.freeMemMb} MB, <span class="text-primary-500">Memory Total:</span>: {systemInfo.memoryInfo.totalMemMb} MB
+				</footer>
 			</div>
 		</div>
-	</div>
 
-	<hr />
-	<div class="flex justify-between gap-2">
-		<!-- Disk usage pie chart container -->
-		<div class="card w-full">
-			<header class="card-header font-bold text-primary-500">Disk Usage</header>
-			{#if diskChart}
+		<div class="flex justify-between gap-2">
+			<!-- Top 5 Content -->
+			<div class="card w-full">
+				<header class="card-header font-bold text-primary-500">Top 5 Content</header>
 				<section class="rounded p-4">
-					<canvas id="diskChart" />
+					<li>Content Title</li>
 				</section>
-			{:else}
-				<div>Loading...</div>
-			{/if}
-			<footer class="card-footer">
-				<span class="text-primary-500">Drive Free:</span>
-				{systemInfo.diskInfo.freeGb} GB, <span class="text-primary-500">Drive Used:</span>
-				{systemInfo.diskInfo.usedGb} GB
-			</footer>
+				<footer class="card-footer"></footer>
+			</div>
+
+			<!-- Online Team Members -->
+			<div class="card w-full">
+				<header class="card-header font-bold text-primary-500">Online Team Members</header>
+				<section class="rounded p-4">
+					<li>Team name</li>
+				</section>
+				<footer class="card-footer"></footer>
+			</div>
 		</div>
 
-		<!-- Memory usage line chart container -->
+		<!-- Last 5 Contents updates -->
 		<div class="card w-full">
-			<header class="card-header font-bold text-primary-500">Memory Usage</header>
-			{#if memoryChart}
-				<section class="rounded p-4">
-					<canvas id="memoryChart" />
-				</section>
-			{:else}
-				<div>Loading...</div>
-			{/if}
-			<footer class="card-footer">
-				<span class="text-primary-500">Memory Free:</span>
-				{systemInfo.memoryInfo.freeMemMb} MB, <span class="text-primary-500">Memory Total:</span>: {systemInfo.memoryInfo.totalMemMb} MB
-			</footer>
-		</div>
-	</div>
-
-	<div class="flex justify-between gap-2">
-		<!-- Top 5 Content -->
-		<div class="card w-full">
-			<header class="card-header font-bold text-primary-500">Top 5 Content</header>
+			<header class="card-header font-bold text-primary-500">Last Content Updated</header>
 			<section class="rounded p-4">
 				<li>Content Title</li>
 			</section>
 			<footer class="card-footer"></footer>
 		</div>
-
-		<!-- Online Team Members -->
-		<div class="card w-full">
-			<header class="card-header font-bold text-primary-500">Online Team Members</header>
-			<section class="rounded p-4">
-				<li>Team name</li>
-			</section>
-			<footer class="card-footer"></footer>
-		</div>
-	</div>
-
-	<!-- Last 5 Contents updates -->
-	<div class="card w-full">
-		<header class="card-header font-bold text-primary-500">Last Content Updated</header>
-		<section class="rounded p-4">
-			<li>Content Title</li>
-		</section>
-		<footer class="card-footer"></footer>
 	</div>
 {:else if loading}
 	<Loading />

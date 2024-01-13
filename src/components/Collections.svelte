@@ -96,7 +96,6 @@
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->
-<!-- TODO: optimize scrollbar for smaller screen height -->
 <div class="mt-2 overflow-y-auto">
 	<!-- Search -->
 	{#if $toggleLeftSidebar === 'collapsed'}
@@ -107,7 +106,7 @@
 				toggleLeftSidebar.click('full');
 				// searchShow = true;
 			}}
-			class="variant-filled-surface btn mb-2 w-full"
+			class="input btn mb-2 w-full"
 		>
 			<iconify-icon icon="ic:outline-search" width="24" />
 		</button>
@@ -118,12 +117,12 @@
 			bind:value={search}
 			on:input={filterCategories}
 			placeholder={m.collections_search()}
-			class="input variant-outline-surface mb-2 w-full border !border-surface-400"
+			class="input variant-outline-surface mb-2 w-full border !border-surface-500 dark:!border-surface-400"
 		/>
 	{/if}
 
 	<!-- TODO: Apply Tooltip for collapsed  -->
-	<Accordion regionControl="dark:bg-surface-500 uppercase text-white hover:!bg-surface-400">
+	<Accordion regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
 		<!-- Collection Parents -->
 		{#each filteredCategories as category}
 			<!-- TODO: Only keep one accordion open -->
@@ -132,17 +131,17 @@
 				regionPanel={`divide-y dark:divide-black my-0 ${
 					category.collections.length > 5 ? ($toggleLeftSidebar === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
 				} overflow-y-auto`}
-				class="divide-y rounded-md bg-surface-100 dark:divide-black dark:bg-surface-300"
+				class="divide-y rounded-md bg-surface-300 dark:divide-black "
 			>
 				<svelte:fragment slot="lead">
 					<!-- TODO: Tooltip not fully working -->
-					<iconify-icon icon={category.icon} width="24" class="text-error-500" use:popup={popupCollections} />
+					<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
 				</svelte:fragment>
 
 				<svelte:fragment slot="summary"
 					>{#if $toggleLeftSidebar === 'full'}
 						<!-- TODO: Translation not updating -->
-						<p class="text-black dark:text-white">{category.name}</p>
+						<p class="text-white">{category.name}</p>
 					{/if}
 					<div class="card variant-filled-secondary p-4" data-popup="popupHover">
 						<p>{category.name}</p>
@@ -159,7 +158,7 @@
 							<div
 								role="button"
 								tabindex={index}
-								class="-mx-4 flex flex-row items-center py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
+								class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
 								on:keydown
 								on:click={() => {
 									mode.set(modeSet);
@@ -196,28 +195,28 @@
 		<!-- switchSideBar expanded -->
 		<a
 			href="/mediagallery"
-			class="btn mt-1.5 flex flex-row items-center justify-start bg-surface-50 py-2 pl-2 hover:!bg-surface-400 dark:bg-surface-500 dark:text-white"
+			class="btn mt-1 flex flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
 					toggleLeftSidebar.clickBack();
 				}
 			}}
 		>
-			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600" />
+			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
 			<p class="mr-auto text-center uppercase">{PUBLIC_MEDIA_FOLDER}</p></a
 		>
 	{:else}
 		<!-- switchSideBar collapsed -->
 		<a
 			href="/mediagallery"
-			class="btn mt-2 flex flex-col items-center bg-surface-50 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
+			class="btn mt-2 flex flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
 					toggleLeftSidebar.clickBack();
 				}
 			}}
 		>
-			<p class="text-xs uppercase text-black dark:text-white">{PUBLIC_MEDIA_FOLDER}</p>
+			<p class="text-xs uppercase text-white">{PUBLIC_MEDIA_FOLDER}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 		</a>
 	{/if}
