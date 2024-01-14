@@ -567,7 +567,7 @@
 					min={0}
 					max={$table.getPageCount() - 1}
 					on:change={handleCurrPageInput}
-					class="variant-ghost-surface w-14 border-0"
+					class="variant-ghost-surface border-0 outline-none"
 				/>
 				<span class="pl-2">
 					{' '}{m.tanstacktable_of()}{' '}

@@ -95,78 +95,86 @@
 	}
 </script>
 
-<!-- Display selected icon -->
-{#if iconselected}
-	<div class="-mt-3 mb-1 flex items-center justify-around gap-2">
-		<div class="flex items-center gap-2 p-2">
-			<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon mt-1 py-2" />
-			<p>
-				{m.iconpicker_name()}
-				<span class="text-primary-500">{iconselected}</span>
-			</p>
-		</div>
-		<button class="variant-ghost btn-icon" type="button" on:mouseup={removeIcon}>
-			<iconify-icon icon="icomoon-free:bin" width="24" class="" />
-		</button>
-	</div>
-{/if}
-
-<!-- Icon input with dropdown and pagination -->
-<input
-	type="text"
-	id="icon"
-	bind:value={searchQuery}
-	placeholder={m.iconpicker_placeholder()}
-	class="input w-full"
-	on:input={() => searchIcons(searchQuery, selectedLibrary)}
-	on:focus={showLibrariesAndDropdown}
-/>
-
-<!-- dropdown section -->
-{#if showDropdown}
-	<div class="dropdown">
-		<!-- Library filter dropdown -->
-		<div class="mb-4 w-full">
-			<select
-				bind:value={selectedLibrary}
-				on:click={getIconLibraries}
-				on:change={() => {
-					start = 0;
-					searchIcons(searchQuery, selectedLibrary);
-				}}
-				class="input mt-2 w-full"
-			>
-				{#if librariesLoaded}
-					{#each Object.keys(iconLibraries) as library}
-						<option value={library}>
-							{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
-						</option>
-					{/each}
-				{/if}
-			</select>
-		</div>
-
-		<!-- Render your dropdown content here -->
-		{#each icons as icon}
-			<button on:click={() => selectIcon(icon)}>
-				<iconify-icon {icon} width="24" class="hover:rounded hover:bg-primary-500" />
-			</button>
-		{/each}
-
-		<!-- Pagination buttons -->
-		<div class="mt-2 flex justify-between">
-			<button disabled={start === 0} on:keydown on:click={prevPage} class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
-				>{m.iconpicker_previous()}
-			</button>
-			<div class="dark:text-white">
-				Showing Icons: <span class="text-primary-500">{icons.length}</span>
+<div class="flex w-full flex-col">
+	<!-- Display selected icon -->
+	{#if iconselected}
+		<div class="-mt-3 mb-1 flex items-center justify-around gap-2">
+			<div class="flex items-center gap-2 p-2">
+				<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon mt-1 py-2" />
+				<p>
+					{m.iconpicker_name()}
+					<span class="text-primary-500">{iconselected}</span>
+				</p>
 			</div>
-			<button
-				disabled={icons.length < 50}
-				on:keydown
-				on:click={nextPage}
-				class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.iconpicker_next()}</button
-			>
+			<button class="variant-ghost btn-icon" type="button" on:mouseup={removeIcon}>
+				<iconify-icon icon="icomoon-free:bin" width="24" class="" />
+			</button>
 		</div>
-	</div>
-{/if}
+	{/if}
+
+	<!-- Icon input with dropdown and pagination -->
+	<input
+		type="text"
+		id="icon"
+		bind:value={searchQuery}
+		placeholder={m.iconpicker_placeholder()}
+		class="input w-full"
+		on:input={() => searchIcons(searchQuery, selectedLibrary)}
+		on:focus={showLibrariesAndDropdown}
+	/>
+
+	<!-- dropdown section -->
+	{#if showDropdown}
+		<div class="dropdown">
+			<!-- Library filter dropdown -->
+			<div class="mb-2">
+				<select
+					bind:value={selectedLibrary}
+					on:click={getIconLibraries}
+					on:change={() => {
+						start = 0;
+						searchIcons(searchQuery, selectedLibrary);
+					}}
+					class="input mt-2 w-full"
+				>
+					{#if librariesLoaded}
+						{#each Object.keys(iconLibraries) as library}
+							<option value={library}>
+								{iconLibraries[library].name}: {library}/{iconLibraries[library].total}
+							</option>
+						{/each}
+					{/if}
+				</select>
+			</div>
+
+			<!-- Render your dropdown content here -->
+			{#each icons as icon}
+				<button on:click={() => selectIcon(icon)}>
+					<iconify-icon {icon} width="24" class="hover:rounded hover:bg-primary-500" />
+				</button>
+			{/each}
+
+			<!-- Pagination buttons -->{#if icons.length > 0}
+				<div class="mt-2 flex justify-between">
+					<button
+						disabled={start === 0}
+						on:keydown
+						on:click={prevPage}
+						class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
+						>{m.iconpicker_previous()}
+					</button>
+
+					<div class="dark:text-white">
+						Showing Icons: <span class="text-primary-500">{icons.length}</span>
+					</div>
+					<button
+						disabled={icons.length < 50}
+						on:keydown
+						on:click={nextPage}
+						class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.iconpicker_next()}</button
+					>
+				</div>
+			{/if}
+		</div>
+	{/if}
+</div>

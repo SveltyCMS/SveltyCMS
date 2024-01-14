@@ -51,7 +51,7 @@
 <input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
-	<div class="content-container">
+	<div class="wrapper">
 		<!-- old Image Editor -->
 		<!-- <Cropper bind:image /> -->
 

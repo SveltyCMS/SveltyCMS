@@ -65,7 +65,7 @@
 	{/if}
 </div>
 
-<div class="content-container">
+<div class="wrapper">
 	<div class="flex text-white">
 		{#if $mode == 'view'}
 			<!--Left Panel -->

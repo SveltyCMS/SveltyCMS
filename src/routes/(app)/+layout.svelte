@@ -241,19 +241,19 @@
 	});
 
 	//TODO: change to sveltekit code to update app.html tags
-	// systemLanguage.subscribe((lang) => {
-	// 	if (!lang) return;
+	systemLanguage.subscribe((lang) => {
+		if (!lang) return;
 
-	// 	const dir = getTextDirection(lang);
-	// 	if (!dir) return;
-	// 	// console.log(dir);
+		const dir = getTextDirection(lang);
+		if (!dir) return;
+		// console.log(dir);
 
-	// 	// This need be replace with svelte equivalent code
-	// 	const rootNode = document.body?.parentElement;
-	// 	if (!rootNode) return;
-	// 	rootNode.dir = dir;
-	// 	rootNode.lang = lang;
-	// });
+		// This need be replace with svelte equivalent code
+		const rootNode = document.body?.parentElement;
+		if (!rootNode) return;
+		rootNode.dir = dir;
+		rootNode.lang = lang;
+	});
 
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
@@ -264,12 +264,12 @@
 	<!-- darkmode -->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 	<!-- Language -->
-	{@html `<script> 
+	<!-- {@html `<script> 
 	const language = systemLanguage.value;
 	const direction = getTextDirection(language);
 	document.documentElement.lang = language;
 	document.documentElement.dir = direction;
-	</script>`}
+	</script>`} -->
 
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>
@@ -342,7 +342,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				<!-- sidebar collapse button -->
 				<button
 					type="button"
-					class="absolute top-4 flex items-center justify-center !rounded-full border-2 border-surface-300 ltr:-right-3 rtl:-left-3"
+					class="absolute top-4 flex items-center justify-center !rounded-full border ltr:-right-3 rtl:-left-3"
 					on:keydown
 					on:click={() => {
 						toggleLeftSidebar.clickSwitchSideBar();
@@ -353,14 +353,14 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						<!-- Icon Collapsed -->
 						<iconify-icon
 							icon="bi:arrow-left-circle-fill"
-							width="30"
-							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:text-surface-700 dark:hover:bg-error-600 ltr:rotate-180"
+							width="28"
+							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-700 dark:hover:bg-error-600 ltr:rotate-180"
 						/>
 					{:else}
 						<!-- Icon expanded -->
 						<iconify-icon
 							icon="bi:arrow-left-circle-fill"
-							width="30"
+							width="28"
 							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 rtl:rotate-180"
 						/>
 					{/if}
@@ -371,7 +371,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 
 				<!-- Sidebar Left Footer -->
 				<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
-					<div class="mx-1 mb-1 border-t border-surface-400" />
+					<div class="mx-1 mb-1 border-0 border-t border-surface-400" />
 
 					<div
 						class="{$toggleLeftSidebar === 'full'
@@ -437,13 +437,13 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								{:else}
 									<iconify-icon icon="bi:moon-fill" width="22" />
 								{/if}
-							</button>
 
-							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled-secondary overflow-auto p-2" data-popup="SwitchTheme">
-								{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-								<div class="variant-filled-secondary arrow" />
-							</div>
+								<!-- Popup Tooltip with the arrow element -->
+								<div class="card variant-filled-secondary overflow-auto p-2" data-popup="SwitchTheme">
+									{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
+									<div class="variant-filled-secondary arrow" />
+								</div>
+							</button>
 						</div>
 
 						<!-- Lucia Sign Out -->
@@ -478,11 +478,12 @@ lg:overflow-y-scroll lg:max-h-screen}"
 								<a href="/config">
 									<iconify-icon icon="material-symbols:build-circle" width="32" />
 								</a>
+
+								<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
+									{m.applayout_systemconfiguration()}
+									<div class="variant-filled-secondary arrow" />
+								</div>
 							</button>
-							<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-								{m.applayout_systemconfiguration()}
-								<div class="variant-filled-secondary arrow" />
-							</div>
 						</div>
 
 						<!-- Github discussions -->

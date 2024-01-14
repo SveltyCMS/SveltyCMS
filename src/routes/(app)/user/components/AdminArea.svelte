@@ -205,27 +205,23 @@
 	</div>
 
 	{#if showUserList}
-		<!-- <UserList /> -->
-		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class=" font-bold text-primary-500">{m.adminarea_userlist()}</h2>
-			<div class="hidden sm:flex">
+		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
+			<h2 class="order-1 font-bold text-primary-500">{m.adminarea_userlist()}</h2>
+
+			<div class="order-3 sm:order-2">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
 
-			<div class="flex items-center justify-between gap-2">
-				<button type="button" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)} class="variant-ghost-surface btn-icon sm:hidden">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-				</button>
-				<!-- {JSON.stringify(selectedRows)} -->
-				<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
-			</div>
-
-			{#if showMoreUserList}
-				<div class="sm:hidden">
-					<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+			<div class="order-2 flex items-center justify-between gap-3 sm:order-3">
+				<div class="sm:flex-row">
+					<button type="button" class="btn-ghost btn mx-2 sm:hidden" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)}>
+						<span class="fa fa-filter mr-2"></span>
+					</button>
+					<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
 				</div>
-			{/if}
+			</div>
 		</div>
+
 		{#if tableData.length > 0}
 			<TanstackTable
 				data={tableData}
@@ -245,25 +241,22 @@
 
 	{#if showUsertoken}
 		<!-- User Token invites -->
-		<div class="my-2 flex flex-col items-center justify-between sm:flex-row">
-			<h2 class="font-bold text-black dark:text-primary-500">{m.adminarea_listtoken()}</h2>
-			<div class="hidden sm:flex">
+
+		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
+			<h2 class="order-1 font-bold text-black text-primary-500">{m.adminarea_listtoken()}</h2>
+
+			<div class="order-3 sm:order-2">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
 
-			<div class="flex items-center justify-between gap-2">
-				<button type="button" on:keydown on:click={() => (showMoreUserToken = !showMoreUserToken)} class="variant-ghost-surface btn-icon sm:hidden">
-					<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-				</button>
-
-				<MultibuttonToken {selectedRows} />
-			</div>
-
-			{#if showMoreUserToken}
-				<div class="sm:hidden">
-					<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+			<div class="order-2 flex items-center justify-between gap-3 sm:order-3">
+				<div class="sm:flex-row">
+					<button type="button" class="btn-ghost btn mx-2 sm:hidden" on:keydown on:click={() => (showMoreUserToken = !showMoreUserToken)}>
+						<span class="fa fa-filter mr-2"></span>
+					</button>
+					<Multibutton {selectedRows} />
 				</div>
-			{/if}
+			</div>
 		</div>
 
 		{#if tableDataUserToken.length > 0}

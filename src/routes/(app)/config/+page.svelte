@@ -8,7 +8,7 @@
 <div class="mb-2 flex items-center">
 	<PageTitle name={m.config_pagetitle()} icon="" />
 </div>
-<div class="content-container">
+<div class="wrapper">
 	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
 		<!-- Collection -->

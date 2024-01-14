@@ -123,7 +123,7 @@
 		{m.collection_save()}
 	</button>
 </div>
-<div class="content-container">
+<div class="wrapper">
 	{#if !availableCollection}
 		<p class="my-2 text-center">{m.collection_first()}</p>
 	{:else}

@@ -106,7 +106,7 @@
 							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
 						{:else}
 							<!-- TODO: Grab User Role from Token  -->
-							<span class="text-2xl text-primary-500 sm:text-3xl"
+							<span class="text-2xl capitalize text-primary-500 sm:text-3xl"
 								>{#if UserRole}: {UserRole}{:else}: New User{/if}</span
 							>
 						{/if}
@@ -232,7 +232,7 @@
 					<!-- email + oauth signin  -->
 				{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-						<button type="submit" class="btn w-3/4 bg-surface-200">
+						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
 							<span class="w-full text-black hover:text-white">{m.signup_signup()}</span>
 							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}

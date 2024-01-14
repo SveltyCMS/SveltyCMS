@@ -172,13 +172,13 @@
 		
 {/await} -->
 
-<div class="align-centre mb-2 mt-2 flex justify-between dark:text-white">
+<div class="align-center mb-2 mt-2 flex justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
 	{#if isEditMode}
 		<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
 	{/if}
 </div>
-<div class="content-container">
+<div class="wrapper">
 	<p class="mb-2 hidden text-center text-primary-500 sm:block">{m.collection_helptext()}</p>
 
 	<TabGroup>
@@ -208,14 +208,14 @@
 				<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 				<!-- Collection Name -->
-				<div class="mb-2 flex flex-col items-start justify-center gap-2 sm:flex-row sm:items-center sm:justify-start">
+				<div class="mb-2 flex flex-col items-start justify-center gap-2">
 					<label for="name" class="flex-grow-1 relative mr-2 flex w-fit">
 						{m.collection_name()} <span class="mx-1 text-error-500">*</span>
 						<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-primary-500" /></label
 					>
 
 					<!-- tooltip -->
-					<div class="card variant-filled-secondary p-4" data-popup="Name">
+					<div class="card variant-filled-secondary z-50 p-4" data-popup="Name">
 						<p>{m.collection_name_tooltip1()}</p>
 						<p>{m.collection_name_tooltip2()}</p>
 						<div class="variant-filled-secondary arrow" />
@@ -239,7 +239,7 @@
 				</div>
 
 				<div class="flex flex-col gap-2 rounded-md border p-2">
-					<p class="mb-2 text-center font-bold text-primary-500">{m.collectionname_optional()}</p>
+					<p class="mb-2 text-center font-bold text-primary-500">{m.collectionname_optional()}:</p>
 
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
@@ -250,7 +250,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary p-4" data-popup="Icon">
+						<div class="card variant-filled-secondary z-50 p-4" data-popup="Icon">
 							<p>{m.collection_icon_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -266,7 +266,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary p-4" data-popup="Slug">
+						<div class="card variant-filled-secondary z-50 p-4" data-popup="Slug">
 							<p>{m.collection_slug_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -282,7 +282,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary p-4" data-popup="Description">
+						<div class="card variant-filled-secondary z-50 p-4" data-popup="Description">
 							<p>{m.collection_description()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -305,7 +305,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary p-4" data-popup="Status">
+						<div class="card variant-filled-secondary z-50 p-4" data-popup="Status">
 							<p>{m.collection_status_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -345,14 +345,16 @@
 				<!--dnd vertical row -->
 				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 					{#each items as { id, icon, collectionName, DBName, widget } (id)}
-						<div class="border-blue variant-ghost-secondary my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-primary-500">
-							<div class="flex-grow-1 variant-outline-primary badge rounded-full text-white">
+						<div
+							class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
+						>
+							<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
 								{id}
 							</div>
 							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-3 text-white">{collectionName}</div>
-							<div class="flex-grow-2 text-white">{DBName}</div>
-							<div class="flex-grow-2 text-white">{widget}</div>
+							<div class="flex-grow-3">{collectionName}</div>
+							<div class="flex-grow-2">{DBName}</div>
+							<div class="flex-grow-2">{widget}</div>
 							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
 								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
 							>

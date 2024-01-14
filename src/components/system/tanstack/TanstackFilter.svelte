@@ -20,43 +20,31 @@
 
 <!-- Expanding Search -->
 {#if searchShow}
-	<div class="variant-ghost-surface btn-group relative flex items-center justify-end">
-		<!-- TODO: Improve input put css to match btn-group -->
+	<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
+		<!-- TODO: fix search -->
 		<input
 			type="text"
+			autofocus
 			placeholder="Search..."
-			class="varient-ghost-surface input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
 			bind:value={globalSearchValue}
-			on:blur={() => (searchShow = false)}
-			on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
+			on:keydown={(e) => e.key === 'Enter'}
+			on:focus={() => (searchShow = false)}
+			class="input outline-none transition-all duration-500 ease-in-out"
 		/>
-		<!-- TODO: leave input and blur  will not clear results  -->
-		<button
-			type="button"
-			on:click={() => {
-				closeOpenStates();
-				globalSearchValue = '';
-				searchShow = !searchShow;
-			}}
-			class="w-12 border-r border-surface-500"
-		>
-			<iconify-icon
-				icon="ic:outline-search-off"
-				width="24"
-				tabindex="0"
-				role="button"
+		{#if globalSearchValue}
+			<button
 				on:click={() => {
-					closeOpenStates();
 					globalSearchValue = '';
 				}}
 				on:keydown={(event) => {
 					if (event.key === 'Enter' || event.key === ' ') {
-						closeOpenStates();
 						globalSearchValue = '';
 					}
 				}}
-			/>
-		</button>
+				class="variant-filled-surface w-12"
+				><iconify-icon icon="ic:outline-search-off" width="24" />
+			</button>
+		{/if}
 	</div>
 {:else}
 	<button

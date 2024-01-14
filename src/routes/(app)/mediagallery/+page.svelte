@@ -179,13 +179,40 @@
 <div class="mb-2 flex items-center">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-primary-500" />
 </div>
-<div class="content-container">
-	<div class="mb-2 flex items-center justify-between">
+<div class="wrapper">
+	<div class="mb-2 flex items-center justify-between gap-4">
 		<!-- Search -->
-		<div>
-			<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
-		</div>
-
+		{#if view === 'table'}
+			<div class="flex items-center justify-between gap-2">
+				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+			</div>
+		{:else}
+			<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
+				<!-- TODO: fix search -->
+				<input
+					type="text"
+					placeholder="Search..."
+					class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+					bind:value={globalSearchValue}
+					on:blur={() => (searchShow = false)}
+					on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
+				/>
+				{#if globalSearchValue}
+					<button
+						on:click={() => {
+							globalSearchValue = '';
+						}}
+						on:keydown={(event) => {
+							if (event.key === 'Enter' || event.key === ' ') {
+								globalSearchValue = '';
+							}
+						}}
+						class="variant-filled-surface w-12"
+						><iconify-icon icon="ic:outline-search-off" width="24" />
+					</button>
+				{/if}
+			</div>
+		{/if}
 		<div class="flex items-center justify-center gap-4">
 			<!-- Header block -->
 			<!-- Mobile -->

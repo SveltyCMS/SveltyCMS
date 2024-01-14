@@ -1,6 +1,7 @@
 import { collections } from '@stores/store';
 
 import { dev } from '$app/environment';
+import { PUBLIC_SITENAME } from '$env/static/public';
 import type { Unsubscriber } from 'svelte/store';
 
 // Lucia v2
@@ -26,17 +27,22 @@ import {
 
 // Turn off strict mode for query filters. Default in Mongodb 7
 mongodb.set('strictQuery', false);
-console.log('-------------------> Trying to Connection to database');
+
+console.log('\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ' + DB_NAME + ' database ...\x1b[0m');
+
 // Connect to MongoDB database using imported environment variables
-mongodb
-	.connect(DB_HOST, {
+try {
+	await mongodb.connect(DB_HOST, {
 		authSource: 'admin',
 		user: DB_USER,
 		pass: DB_PASSWORD,
 		dbName: DB_NAME
-	})
-	.then(() => console.log('-------------------> Connection to database is successful!'))
-	.catch((error) => console.error('Error connecting to database:', error));
+	});
+	console.log(`\x1b[32m====> Connection to ${DB_NAME} database successful!\x1b[0m\n====> Enjoying your \x1b[31m${PUBLIC_SITENAME}\x1b[0m`);
+} catch (error) {
+	console.error('\x1b[31mError connecting to database:\x1b[0m', error);
+	throw new Error('Error connecting to database');
+}
 
 // Initialize collections object
 const collectionsModels: { [Key: string]: mongodb.Model<any> } = {};

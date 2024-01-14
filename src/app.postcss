@@ -8,11 +8,27 @@
 
 html,
 body {
-	@apply h-full overflow-hidden bg-[#F8FAFE] dark:bg-black;
+	@apply h-full overflow-hidden bg-[#f0eeee] dark:bg-black;
 }
 
-.content-container {
-	@apply rounded-xl border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900;
+.wrapper {
+	@apply rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900;
+}
+.wrapper2 {
+	@apply rounded-md border border-secondary-500 bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-400 dark:bg-surface-900;
+}
+
+.input,
+.textarea,
+.select,
+.input-group {
+	@apply w-full transition duration-200;
+	/* Background */
+	@apply bg-white hover:brightness-95 focus:brightness-95 dark:bg-surface-700 dark:hover:brightness-110 dark:focus:brightness-110;
+	/* Ring */
+	@apply !ring-0;
+	/* Border */
+	@apply border-surface-400-500-token border-token focus-within:border-tertiary-500 dark:focus-within:border-primary-500;
 }
 
 /* primary  */

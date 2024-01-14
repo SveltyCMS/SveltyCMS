@@ -230,7 +230,7 @@
 	<div class="table-container my-2">
 		<table class="table table-hover table-compact">
 			<thead>
-				<tr class="divide-x divide-surface-400 border-b border-surface-400">
+				<tr class="divide-x divide-surface-400 border-b-2 border-surface-400">
 					<th class="bg-white text-center dark:bg-surface-900">{m.collection_permission_roles()}</th>
 					{#each permissionHeaders as permission}
 						<th class="bg-white !p-3 dark:bg-surface-900">
@@ -252,7 +252,7 @@
 
 			<tbody>
 				{#each filteredRolesArray as role, index (role.name)}
-					<tr class="divide-x divide-surface-400">
+					<tr class="divide-x divide-surface-400 last:border-0">
 						<!-- Header -->
 						<td class="bg-white !p-0 dark:bg-surface-900">
 							<select bind:value={role.name} class="input">

@@ -26,6 +26,7 @@
 
 	// Search Collections
 	let search = '';
+	let searchShow = false;
 
 	interface Category {
 		id: number;
@@ -50,26 +51,12 @@
 	let filteredCategories: Category[] = ($categories as Category[]) || [];
 
 	// Define filterCategories function
-	function filterCategories() {
-		// Get the current user's role and ID
-		const userRole = user.role;
-		const userId = user.id;
-
+	function filterCategories(search, categories) {
 		// Reduce $categories array to create new array of filtered categories
-		filteredCategories = ($categories as Category[]).reduce((acc: Category[], category) => {
+		filteredCategories = categories.reduce((acc, category) => {
 			// Filter collections in current category by name
 			const filteredCollections = category.collections.filter((collection) => {
-				// Check if user has read permission for the collection
-				const hasReadPermission = collection.permissions && userRole in collection.permissions && collection.permissions[userRole].read; // Check if the user is the creator of the collection
-				const isCreator = createdBy === userId;
-				// If userRole is admin, permit without checking individual permissions
-				if (userRole === 'admin') return true;
-
-				// Check if the user is an admin
-				const isAdmin = userRole === 'admin';
-
-				// Only include the collection if the user has read permission, is the creator, or is an admin
-				return hasReadPermission || isCreator || isAdmin;
+				return collection.name.toLowerCase().includes(search.toLowerCase());
 			});
 
 			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty
@@ -92,33 +79,57 @@
 		// Return filtered categories
 		return filteredCategories;
 	}
-	// console.log(filterCategories());
+
+	// Call the filterCategories function with the current search value
+	console.log(filteredCategories);
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->
 <div class="mt-2 overflow-y-auto">
 	<!-- Search -->
 	{#if $toggleLeftSidebar === 'collapsed'}
-		<!-- show the search icon button -->
 		<button
 			type="button"
 			on:click={() => {
 				toggleLeftSidebar.click('full');
-				// searchShow = true;
+				searchShow = true;
 			}}
 			class="input btn mb-2 w-full"
 		>
 			<iconify-icon icon="ic:outline-search" width="24" />
 		</button>
 	{:else}
-		<!-- show the expanding search input -->
-		<input
-			type="text"
-			bind:value={search}
-			on:input={filterCategories}
-			placeholder={m.collections_search()}
-			class="input variant-outline-surface mb-2 w-full border !border-surface-500 dark:!border-surface-400"
-		/>
+		<div class="input-group input-group-divider mb-2 grid grid-cols-[auto_1fr_auto]">
+			<input
+				type="text"
+				autofocus
+				placeholder={m.collections_search()}
+				bind:value={search}
+				on:input={(e) => {
+					filterCategories(e.currentTarget.value, $categories);
+				}}
+				on:keydown={(e) => e.key === 'Enter'}
+				on:focus={() => (searchShow = false)}
+				class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+			/>
+			{#if search}
+				<button
+					on:click={() => {
+						search = '';
+						filterCategories('', $categories);
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
+							search = '';
+							filterCategories('', $categories);
+						}
+					}}
+					class="variant-filled-surface w-12"
+				>
+					<iconify-icon icon="ic:outline-search-off" width="24" />
+				</button>
+			{/if}
+		</div>
 	{/if}
 
 	<!-- TODO: Apply Tooltip for collapsed  -->

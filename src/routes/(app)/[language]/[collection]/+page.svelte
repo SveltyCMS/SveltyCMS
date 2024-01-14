@@ -27,7 +27,7 @@
 	});
 </script>
 
-<div class=" wrapper flex-grow">
+<div class="content flex-grow">
 	{#if $mode == 'view' || $mode == 'delete'}
 		<EntryList />
 		<!-- <EntryListNew /> -->
@@ -44,7 +44,7 @@
 		overflow: auto;
 	}
 
-	.wrapper {
+	.content {
 		max-height: calc(100% - 400px);
 		overflow: hidden;
 	}

@@ -207,7 +207,7 @@
 </div>
 
 {#if systemInfo}
-	<div class="content-container">
+	<div class="wrapper">
 		<div class="card">
 			<header class="card-header rounded-t bg-primary-500 text-center text-lg font-bold">
 				<h2 class="flex justify-center gap-2">
