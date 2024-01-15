@@ -2,12 +2,29 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
-
-	// Log the entire $page object to the console
-	// console.log($page);
-
+	import { mode, collection } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+
+	console.log('mode:', $mode);
+
+	// Required default widget fields
+	let name = $mode == 'edit' ? $collection.name : '';
+	let icon = $mode == 'edit' ? $collection.icon : '';
+	let description = $mode == 'edit' ? $collection.description : '';
+	let status = $mode == 'edit' ? $collection.status : 'unpublish';
+	let slug = $mode == 'edit' ? $collection.slug : name;
+
+	console.log('collectionName:', name);
+	console.log('collectionIcon:', icon);
+	console.log('collectionStatus:', status);
+	console.log('collectionSlug:', slug);
+
+	let DBName = '';
+	let searchQuery = '';
+	let iconselected: any = '';
+	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
+	let autoUpdateSlug = true;
 
 	// skeleton
 	import { getToastStore, TabGroup, Tab, getModalStore, popup } from '@skeletonlabs/skeleton';
@@ -43,18 +60,6 @@
 	}
 
 	let tabSet: number = 0;
-
-	let DBName = '';
-	let autoUpdateDBName = true;
-	let description = '';
-	let helper = '';
-	let searchQuery = '';
-	let icon: any = '';
-	let iconselected: any = '';
-	let status = 'unpublished';
-	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
-	let slug = '';
-	let autoUpdateSlug = true;
 
 	$: {
 		// Update DBName  lowercase and replace Spaces

@@ -340,6 +340,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				{/if}
 
 				<!-- sidebar collapse button -->
+
 				<button
 					type="button"
 					class="absolute top-4 flex items-center justify-center !rounded-full border ltr:-right-3 rtl:-left-3"
@@ -349,21 +350,11 @@ lg:overflow-y-scroll lg:max-h-screen}"
 						userPreferredState.set($toggleLeftSidebar === 'full' ? 'collapsed' : 'full');
 					}}
 				>
-					{#if $toggleLeftSidebar !== 'full'}
-						<!-- Icon Collapsed -->
-						<iconify-icon
-							icon="bi:arrow-left-circle-fill"
-							width="28"
-							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-700 dark:hover:bg-error-600 ltr:rotate-180"
-						/>
-					{:else}
-						<!-- Icon expanded -->
-						<iconify-icon
-							icon="bi:arrow-left-circle-fill"
-							width="28"
-							class="rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 rtl:rotate-180"
-						/>
-					{/if}
+					<iconify-icon
+						icon="bi:arrow-left-circle-fill"
+						width="30"
+						class={`rounded-full bg-surface-500 text-white hover:cursor-pointer hover:bg-error-600 dark:bg-white dark:text-surface-600 dark:hover:bg-error-600 ${$toggleLeftSidebar === 'full' ? 'rotate-0 rtl:rotate-180' : 'rotate-180 rtl:rotate-0'}`}
+					/>
 				</button>
 
 				<!--SideBar Middle -->

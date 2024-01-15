@@ -81,7 +81,7 @@
 	}
 
 	// Call the filterCategories function with the current search value
-	console.log(filteredCategories);
+	//console.log(filteredCategories);
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->

@@ -2,7 +2,7 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
-	import { categories } from '@stores/store';
+	import { mode, categories } from '@stores/store';
 
 	export let currentCategories: any;
 
@@ -65,6 +65,7 @@
 
 	function handleCollectionClick(collectionName: string) {
 		// Define the logic for handling the click on a collection
+		$mode = 'edit';
 		goto(`/collection/${collectionName}`);
 	}
 </script>
