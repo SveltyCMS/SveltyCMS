@@ -54,10 +54,10 @@
 	let selectedWidgetOptions = {};
 
 	// create a function to handle the selection of a widget and update the input value in the array
-	function onPopupWidgetSelect(event: CustomEvent<AutocompleteOption>) {
-		inputPopupWidget = event.detail.label;
-		selectedWidget = event.detail.value as string;
-	}
+	// function onPopupWidgetSelect(event: CustomEvent<AutocompleteOption>) {
+	// 	inputPopupWidget = event.detail.label;
+	// 	selectedWidget = event.detail.value as string;
+	// }
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -77,23 +77,23 @@
 					class="autocomplete input"
 					type="search"
 					name="autocomplete-search"
-					bind:value={inputPopupWidget}
+					bind:value={$modalStore[0].value}
 					use:popup={popupSettings}
 					placeholder="Select Widget..."
 				/>
-				<div data-popup="popupAutocomplete" class="w-full bg-surface-500 text-white">
+				<!-- <div data-popup="popupAutocomplete" class="w-full bg-surface-500 text-white">
 					<Autocomplete bind:input={inputPopupWidget} options={widgetOptions} on:selection={onPopupWidgetSelect} />
-				</div>
+				</div> -->
 
-				{#if selectedWidget}
+				{#if $modalStore[0].value}
 					<div class="mb-2 border-y text-center text-primary-500">
 						<div class="text-xl text-primary-500">
-							<span class="font-bold">{selectedWidget}</span> Widget Input Options
+							<span class="font-bold">{$modalStore[0].value}</span> Widget Input Options
 						</div>
 						<div class="text-xs text-error-500">* Required</div>
 					</div>
 					<div class="options-table">
-						{#each Object.keys(widgetList[0][selectedWidget]({})).filter((key) => key !== 'widget' && key !== 'display' && key !== 'schema') as option}
+						{#each Object.keys(widgetList[0][$modalStore[0].value]({})).filter((key) => key !== 'widget' && key !== 'display' && key !== 'schema') as option}
 							{#if option === 'label'}
 								<label for={option}>{option}: <span class="text-error-500">*</span></label>
 								<input

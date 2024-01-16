@@ -2,7 +2,8 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
-	import { mode, categories } from '@stores/store';
+	import { mode, categories, collection } from '@stores/store';
+	export let modeSet: typeof $mode = 'edit';
 
 	export let currentCategories: any;
 
@@ -63,10 +64,11 @@
 		onDrop(e.detail.items);
 	}
 
-	function handleCollectionClick(collectionName: string) {
+	function handleCollectionClick(item: any) {
 		// Define the logic for handling the click on a collection
-		$mode = 'edit';
-		goto(`/collection/${collectionName}`);
+		mode.set(modeSet);
+		collection.set(item.collections);
+		goto(`/collection/${item.name}`);
 	}
 </script>
 
@@ -101,7 +103,7 @@
 					{item.name}</span
 				>
 
-				<button class="varient-filled-surface btn" on:click={() => handleCollectionClick(item.name)}>
+				<button class="varient-filled-surface btn" on:click={() => handleCollectionClick(item)}>
 					<iconify-icon icon="mdi:pen" width="18" class=" text-surface-500 hover:text-error-500" />
 				</button>
 			</div>

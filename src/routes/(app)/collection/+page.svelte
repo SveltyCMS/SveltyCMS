@@ -59,7 +59,8 @@
 		items: $unAssigned.map((collection: any) => ({
 			id: generateUniqueId(),
 			name: collection.name,
-			icon: collection.icon
+			icon: collection.icon,
+			collections: collection
 		}))
 	}));
 
@@ -71,7 +72,8 @@
 		items: category.collections.map((collection: any) => ({
 			id: generateUniqueId(),
 			name: collection.name,
-			icon: collection.icon
+			icon: collection.icon,
+			collections: collection
 		}))
 	}));
 

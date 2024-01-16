@@ -2,6 +2,13 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
+	import axios from 'axios';
+	import widgets from '@components/widgets';
+	let selected_widget: keyof typeof widgets | null = null;
+	let selected: keyof typeof widgets | null = selected_widget;
+	let widget_keys = Object.keys(widgets) as (keyof typeof widgets)[];
+	let expanded = false;
+	// let selected = '';
 	import { mode, collection } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -9,16 +16,6 @@
 	console.log('mode:', $mode);
 
 	// Required default widget fields
-	let name = $mode == 'edit' ? $collection.name : '';
-	let icon = $mode == 'edit' ? $collection.icon : '';
-	let description = $mode == 'edit' ? $collection.description : '';
-	let status = $mode == 'edit' ? $collection.status : 'unpublish';
-	let slug = $mode == 'edit' ? $collection.slug : name;
-
-	console.log('collectionName:', name);
-	console.log('collectionIcon:', icon);
-	console.log('collectionStatus:', status);
-	console.log('collectionSlug:', slug);
 
 	let DBName = '';
 	let searchQuery = '';
@@ -36,8 +33,15 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Access the data fetched from the server
-	let { isEditMode, formCollectionName } = $page.data;
+	let { isEditMode, formCollectionName, collectionData } = $page.data;
 	let collectionName = formCollectionName || '';
+	let collectionObject = JSON.parse(collectionData);
+	let name = collectionObject.name;
+	let icon = collectionObject.icon;
+	let description = collectionObject.description;
+	let status = collectionObject.status;
+	let slug = collectionObject.slug;
+	let fields = collectionObject.fields;
 
 	// $: fromCollectionName = formDataStore.collectionName;
 	//let isEditMode = collectionName !== 'new';
@@ -79,13 +83,14 @@
 	//modal to display widget options
 	import MyCustomComponent from './ModalWidgetForm.svelte';
 
-	function modalComponentForm(): void {
+	function modalComponentForm(selected: any): void {
 		const c: ModalComponent = { ref: MyCustomComponent };
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
 			title: 'Widget Creation',
 			body: 'Complete the form below to create your widget and then press submit.',
+			value: selected,
 			response: (r: any) => console.log('response:', r)
 		};
 		modalStore.trigger(modal);
@@ -100,7 +105,7 @@
 		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
 		{ id: 4, collectionName: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
 	];
-
+	// export let itemsList: any;
 	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
 
 	const flipDurationMs = 300;
@@ -368,9 +373,33 @@
 				</VerticalList>
 
 				<div class="mt-2 flex items-center justify-center gap-3">
-					<button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button>
-					<button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button>
+					<!-- <button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button> -->
+					<button on:click={() => (expanded = !expanded)} class="variant-filled-tertiary btn" class:selected={expanded}
+						>{m.collection_widgetfield_addFields()}</button
+					>
+					<!-- <button on:click={() => (expanded = !expanded)} class="variant-filled-secondary btn" class:selected={expanded}
+						>Add more Fields overlay</button
+					> -->
+					<!-- <button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button> -->
 				</div>
+
+				{#if expanded}
+					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
+					<div class="flex flex-wrap items-center justify-center gap-2">
+						{#each widget_keys as item}
+							<button
+								class=" variant-outline-warning btn relative hover:variant-filled-secondary"
+								on:click={() => {
+									selected = item;
+									expanded = false;
+									modalComponentForm(selected);
+								}}
+							>
+								<span class="text-surface-700 dark:text-white">{item}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
