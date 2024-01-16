@@ -6,7 +6,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { page } from '$app/stores';
-
 	type Role = keyof typeof roles;
 	type Permission = keyof permissions[Role];
 
@@ -183,7 +182,7 @@
 	let collectionName = formCollectionName || '';
 	let collectionObject = JSON.parse(collectionData);
 	let permissionList = collectionObject.permissions;
-	let isPermissionsEmpty = !collectionObject.permissions || Object.keys(collectionObject.permissions).length > 0;
+	let isPermissionsEmpty = collectionObject.permissions && Object.keys(collectionObject.permissions).length > 0;
 
 	function addPermission() {
 		if (MorePermissions) {
@@ -211,37 +210,66 @@
 		}
 	}
 
-	function removeRole(index: number) {
+	function removeRole(index: number, role: { name: Role; permissions: permissions[Role] }) {
 		rolesArray = rolesArray.filter((_, i) => i !== index);
+		permissionStore.update((storeValue) => {
+			// Check if the role exists in the store
+			if (storeValue[role.name]) {
+				// Remove the role from the store
+				delete storeValue[role.name];
+			}
+			return storeValue;
+		});
 		MorePermissions = true;
 	}
 
 	function togglePermission(event: MouseEvent, role: { name: Role; permissions: permissions[Role] }, permission: string, index: number) {
 		event.stopPropagation();
+		// const typedPermission = permission as Permission;
+		permissionStore.update((storeValue) => {
+			if (!storeValue[role.name]) {
+				// If the role doesn't exist, create a new entry for the role
+				storeValue[role.name] = {};
+			}
+
+			// Toggle the permission (add if not present, remove if present)
+			storeValue[role.name][permission] = !storeValue[role.name][permission];
+
+			// Remove the key-value pair if the permission is now false
+			if (!storeValue[role.name][permission]) {
+				delete storeValue[role.name][permission];
+			}
+
+			// Remove the role if it has no permissions after toggling
+			if (Object.keys(storeValue[role.name]).length === 0) {
+				delete storeValue[role.name];
+			}
+
+			return storeValue;
+		});
+		// const classToUpdate =
+		// 	storeValue[role.name] && storeValue[role.name][permission]
+		// 		? selectedButtonMap[role.name][permission].enabled
+		// 		: selectedButtonMap[role.name][permission].disabled;
 
 		if (role && role.permissions && permission in role.permissions) {
 			const typedPermission = permission as Permission;
-			const buttonInfo = getButtonMap(role.name, typedPermission);
+			// 	const buttonInfo = getButtonMap(role.name, typedPermission);
+			// 	if (buttonInfo) {
+			// 		// Update the role's permission
+			role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
 
-			console.log('Role:', role);
-			console.log('Permission:', permission);
-			console.log('Button Info:', buttonInfo);
+			// 		// Update the button map toggle based on the new permission state
+			// 		// buttonMap[permission].toggle = role.permissions[typedPermission];
+			selectedButtonMap[role.name][permission].toggle = role.permissions[typedPermission];
 
-			if (buttonInfo) {
-				// Update the role's permission
-				role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
-
-				// Update the button map toggle based on the new permission state
-				// buttonMap[permission].toggle = role.permissions[typedPermission];
-				selectedButtonMap[role.name][permission].toggle = role.permissions[typedPermission];
-
-				// Update the roles array
-				rolesArray = [...rolesArray];
-			} else {
-				console.error('Button information not found for the permission:', permission);
-			}
-		} else {
-			console.error('Role or role.permissions is undefined');
+			// 		// Update the roles array
+			// 		rolesArray = [...rolesArray];
+			// 	} else {
+			// 		console.error('Button information not found for the permission:', permission);
+			// 	}
+			// } else {
+			// 	console.error('Role or role.permissions is undefined');
 		}
 	}
 
@@ -249,13 +277,13 @@
 		const newRole = Object.values(roles).find((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin');
 		let initialPermissions: permissions[Role] = { create: false, read: false, write: false, delete: false };
 		for (const role in permissionList) {
-			console.log('role', role);
 			rolesArray.push({
 				name: role as Role,
 				permissions: initialPermissions
 			});
 		}
 		MorePermissions = Object.values(roles).filter((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin').length > 0;
+		setTimeout(() => permissionStore.set(permissionList), 1000);
 	}
 
 	function toggleAllPermissions(permission: string) {
@@ -315,7 +343,7 @@
 		});
 
 		// Update the permissionStore with the new permissions
-		permissionStore.set(truePermissions);
+		// permissionStore.set(truePermissions);
 
 		console.log('permissions:', JSON.stringify(truePermissions));
 	}
@@ -351,8 +379,8 @@
 	{m.collection_permission_admin_helper()}
 </p>
 
-<div class="mt-4 flex {isPermissionsEmpty ? 'justify-between' : 'justify-center'}  gap-4">
-	{#if isPermissionsEmpty}
+<div class="mt-4 flex {isPermissionsEmpty || filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
+	{#if isPermissionsEmpty || filteredRolesArray.length > 0}
 		<!-- Search Filter by role -->
 		<div class="input-group input-group-divider max-w-sm grid-cols-[auto_1fr_auto]">
 			<div class="input-group-shim">
@@ -370,7 +398,7 @@
 	>
 	<!-- {/if} -->
 </div>
-{#if isPermissionsEmpty}
+{#if isPermissionsEmpty || filteredRolesArray.length > 0}
 	<div class="table-container my-2">
 		<table class="table table-hover table-compact">
 			<thead>
@@ -414,9 +442,13 @@
 								<!-- Check if the permission exists in the role's permissions -->
 								<td class="bg-white dark:bg-surface-900">
 									<button
-										class="btn w-full {selectedButtonMap[role.name][permission].toggle
-											? selectedButtonMap[role.name][permission].enabled
-											: selectedButtonMap[role.name][permission].disabled}"
+										class="btn w-full {isPermissionsEmpty
+											? permissionList[role.name]?.[permission]
+												? selectedButtonMap[role.name][permission].enabled
+												: selectedButtonMap[role.name][permission].disabled
+											: selectedButtonMap[role.name][permission].toggle
+												? selectedButtonMap[role.name][permission].enabled
+												: selectedButtonMap[role.name][permission].disabled}"
 										on:click={(event) => {
 											togglePermission(event, role, permission, index);
 										}}
@@ -431,14 +463,14 @@
 
 						<!--Delete -->
 						<td class="bg-white text-center dark:bg-surface-900">
-							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
+							<button on:click={() => removeRole(index, role)} class="variant-ghost-surface btn-icon">X</button>
 						</td>
 					</tr>
 				{/each}
 			</tbody>
 		</table>
-		<!-- <div class="mt-4 text-center">
+		<div class="mt-4 text-center">
 			Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span>
-		</div> -->
+		</div>
 	</div>
 {/if}

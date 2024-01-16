@@ -2,16 +2,16 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
-	import axios from 'axios';
 	import widgets from '@components/widgets';
 	let selected_widget: keyof typeof widgets | null = null;
 	let selected: keyof typeof widgets | null = selected_widget;
 	let widget_keys = Object.keys(widgets) as (keyof typeof widgets)[];
 	let expanded = false;
-	// let selected = '';
 	import { mode, collection } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+	import { obj2formData } from '@utils/utils';
+	import axios from 'axios';
 
 	console.log('mode:', $mode);
 
@@ -42,6 +42,8 @@
 	let status = collectionObject.status;
 	let slug = collectionObject.slug;
 	let fields = collectionObject.fields;
+	let permission = collectionObject.permissions;
+	fields = fields.map((item, index) => ({ ...item, id: index + 1 }));
 
 	// $: fromCollectionName = formDataStore.collectionName;
 	//let isEditMode = collectionName !== 'new';
@@ -111,17 +113,32 @@
 	const flipDurationMs = 300;
 
 	const handleDndConsider = (e) => {
-		items = e.detail.items;
+		fields = e.detail.items;
 	};
 
 	const handleDndFinalize = (e) => {
-		items = e.detail.items;
+		fields = e.detail.items;
 	};
 
 	async function handleCollectionSave() {
 		// Prepare form data
-		const formData = new FormData();
-		formData.append('collectionName', collectionName);
+		let data =
+			// $mode == 'edit'
+			obj2formData({
+				originalName: $collection.name,
+				collectionName: name,
+				icon: $collection.icon,
+				status: $collection.status,
+				slug: $collection.slug,
+				fields: $collection.fields,
+				permission: $collection.permissions
+			});
+		// : obj2formData({ fields, collectionName: name, icon, status, slug, permission });
+		axios.post(`?/saveCollections`, data, {
+			headers: {
+				'Content-Type': 'multipart/form-data'
+			}
+		});
 		// Append other form fields
 
 		// Send data to the server
@@ -353,18 +370,18 @@
 				</div>
 
 				<!--dnd vertical row -->
-				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each items as { id, icon, collectionName, DBName, widget } (id)}
+				<VerticalList {fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+					{#each fields as field}
 						<div
 							class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
 						>
 							<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
-								{id}
+								{field.id}
 							</div>
-							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-3">{collectionName}</div>
-							<div class="flex-grow-2">{DBName}</div>
-							<div class="flex-grow-2">{widget}</div>
+							<iconify-icon icon={field.icon} width="24" class="flex-grow-1 text-primary-500" />
+							<div class="flex-grow-3">{field.label}</div>
+							<div class="flex-grow-2">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+							<div class="flex-grow-2">{field.widget.key}</div>
 							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
 								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
 							>
