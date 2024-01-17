@@ -2,23 +2,20 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
+	import widgets from '@components/widgets';
+	let selected_widget: keyof typeof widgets | null = null;
+	let selected: keyof typeof widgets | null = selected_widget;
+	let widget_keys = Object.keys(widgets) as (keyof typeof widgets)[];
+	let expanded = false;
 	import { mode, collection } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+	import { obj2formData } from '@utils/utils';
+	import axios from 'axios';
 
 	console.log('mode:', $mode);
 
 	// Required default widget fields
-	let name = $mode == 'edit' ? $collection.name : '';
-	let icon = $mode == 'edit' ? $collection.icon : '';
-	let description = $mode == 'edit' ? $collection.description : '';
-	let status = $mode == 'edit' ? $collection.status : 'unpublish';
-	let slug = $mode == 'edit' ? $collection.slug : name;
-
-	console.log('collectionName:', name);
-	console.log('collectionIcon:', icon);
-	console.log('collectionStatus:', status);
-	console.log('collectionSlug:', slug);
 
 	let DBName = '';
 	let searchQuery = '';
@@ -36,8 +33,19 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Access the data fetched from the server
-	let { isEditMode, formCollectionName } = $page.data;
+	let { isEditMode, formCollectionName, collectionData } = $page.data;
 	let collectionName = formCollectionName || '';
+	let collectionObject = JSON.parse(collectionData);
+	let name = collectionObject.name;
+	let icon = collectionObject.icon;
+	let description = collectionObject.description;
+	let status = collectionObject.status;
+	let slug = collectionObject.slug;
+	let fields = collectionObject.fields;
+	let permission = collectionObject.permissions;
+	if (fields) {
+		fields = fields.map((item, index) => ({ ...item, id: index + 1 }));
+	}
 
 	// $: fromCollectionName = formDataStore.collectionName;
 	//let isEditMode = collectionName !== 'new';
@@ -79,13 +87,14 @@
 	//modal to display widget options
 	import MyCustomComponent from './ModalWidgetForm.svelte';
 
-	function modalComponentForm(): void {
+	function modalComponentForm(selected: any): void {
 		const c: ModalComponent = { ref: MyCustomComponent };
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
 			title: 'Widget Creation',
 			body: 'Complete the form below to create your widget and then press submit.',
+			value: selected,
 			response: (r: any) => console.log('response:', r)
 		};
 		modalStore.trigger(modal);
@@ -100,23 +109,38 @@
 		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
 		{ id: 4, collectionName: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
 	];
-
+	// export let itemsList: any;
 	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
 
 	const flipDurationMs = 300;
 
 	const handleDndConsider = (e) => {
-		items = e.detail.items;
+		fields = e.detail.items;
 	};
 
 	const handleDndFinalize = (e) => {
-		items = e.detail.items;
+		fields = e.detail.items;
 	};
 
 	async function handleCollectionSave() {
 		// Prepare form data
-		const formData = new FormData();
-		formData.append('collectionName', collectionName);
+		let data =
+			// $mode == 'edit'
+			obj2formData({
+				originalName: $collection.name,
+				collectionName: name,
+				icon: $collection.icon,
+				status: $collection.status,
+				slug: $collection.slug,
+				fields: $collection.fields,
+				permission: $collection.permissions
+			});
+		// : obj2formData({ fields, collectionName: name, icon, status, slug, permission });
+		axios.post(`?/saveCollections`, data, {
+			headers: {
+				'Content-Type': 'multipart/form-data'
+			}
+		});
 		// Append other form fields
 
 		// Send data to the server
@@ -348,29 +372,55 @@
 				</div>
 
 				<!--dnd vertical row -->
-				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each items as { id, icon, collectionName, DBName, widget } (id)}
-						<div
-							class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
-						>
-							<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
-								{id}
-							</div>
-							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-3">{collectionName}</div>
-							<div class="flex-grow-2">{DBName}</div>
-							<div class="flex-grow-2">{widget}</div>
-							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
-								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
+				{#if fields}
+					<VerticalList {fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+						{#each fields as field}
+							<div
+								class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
 							>
-						</div>
-					{/each}
-				</VerticalList>
+								<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
+									{field.id}
+								</div>
+								<iconify-icon icon={field.icon} width="24" class="flex-grow-1 text-primary-500" />
+								<div class="flex-grow-3">{field.label}</div>
+								<div class="flex-grow-2">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+								<div class="flex-grow-2">{field.widget.key}</div>
+								<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
+									><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
+								>
+							</div>
+						{/each}
+					</VerticalList>
+				{/if}
 
 				<div class="mt-2 flex items-center justify-center gap-3">
-					<button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button>
-					<button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button>
+					<!-- <button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button> -->
+					<button on:click={() => (expanded = !expanded)} class="variant-filled-tertiary btn" class:selected={expanded}
+						>{m.collection_widgetfield_addFields()}</button
+					>
+					<!-- <button on:click={() => (expanded = !expanded)} class="variant-filled-secondary btn" class:selected={expanded}
+						>Add more Fields overlay</button
+					> -->
+					<!-- <button class="variant-filled-secondary btn" on:click={modalComponentForm}>Add more Fields overlay</button> -->
 				</div>
+
+				{#if expanded}
+					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
+					<div class="flex flex-wrap items-center justify-center gap-2">
+						{#each widget_keys as item}
+							<button
+								class=" variant-outline-warning btn relative hover:variant-filled-secondary"
+								on:click={() => {
+									selected = item;
+									expanded = false;
+									modalComponentForm(selected);
+								}}
+							>
+								<span class="text-surface-700 dark:text-white">{item}</span>
+							</button>
+						{/each}
+					</div>
+				{/if}
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"

@@ -153,18 +153,31 @@
 	}
 
 	// On page load get the saved theme
+	const updateThemeBasedOnSystemPreference = (event) => {
+		const prefersDarkMode = event.matches;
+		setModeUserPrefers(prefersDarkMode);
+		setModeCurrent(prefersDarkMode);
+		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
+	};
+
 	onMount(() => {
-		// Sync lightswitch with the theme
-		if (!('modeCurrent' in localStorage)) {
-			setModeCurrent(getModeOsPrefers());
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
 		}
 	});
 
-	function toggleTheme(): void {
-		$modeCurrent = !$modeCurrent;
-		setModeUserPrefers($modeCurrent);
-		setModeCurrent($modeCurrent);
-	}
+	const toggleTheme = () => {
+		let currentMode = get(modeCurrent); // get the current value of the store
+		let newMode = !currentMode; // toggle the mode
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		localStorage.setItem('theme', newMode ? 'light' : 'dark');
+	};
 
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';

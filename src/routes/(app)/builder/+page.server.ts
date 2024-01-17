@@ -37,6 +37,10 @@ export const actions: Actions = {
 		const collectionIcon = JSON.parse(formData.get('icon') as string);
 		const collectionStatus = JSON.parse(formData.get('status') as string);
 		const collectionSlug = JSON.parse(formData.get('slug') as string);
+		console.log("fieldsData",collectionName)
+		console.log("fieldsData",collectionIcon)
+		console.log("fieldsData",collectionStatus)
+		console.log("fieldsData",collectionSlug)
 
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);

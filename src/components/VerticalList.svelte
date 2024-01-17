@@ -2,7 +2,7 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
 
-	export let items: any;
+	export let fields: any;
 	export let flipDurationMs: number;
 	export let handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 	export let handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
@@ -20,7 +20,7 @@
 	{/if}
 
 	<section
-		use:dndzone={{ items: items, flipDurationMs }}
+		use:dndzone={{ items: fields, flipDurationMs }}
 		on:consider={handleDndConsider}
 		on:finalize={handleDndFinalize}
 		class="my-2 w-full overflow-scroll border border-surface-400 p-2"
