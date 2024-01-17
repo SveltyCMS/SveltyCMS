@@ -51,8 +51,9 @@ jobs:
 
       - name: Update package.json version after semantic release
         run: |
-          git config user.email "${{ vars.GIT_USER_EMAIL }}"
-          git config user.name "${{ vars.GIT_USER_NAME }}"
+
+          git config user.email "RKroells@web.de"
+          git config user.name "Rar9"
           git checkout ${{ github.ref }}
           git pull origin ${{ github.ref }}
           GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" pnpm version --no-git-tag-version --allow-same-version
