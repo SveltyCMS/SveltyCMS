@@ -46,11 +46,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # Provide the GitHub token as an environment variable
           # NPM_TOKEN: ${{ secrets.NPM_TOKEN }} # Uncomment this line and provide the npm token as an environment variable if you want to publish to npm as well
+          GIT_USER_EMAIL: ${{ vars.GIT_USER_EMAIL }}
+          GIT_USER_NAME: ${{ vars.GIT_USER_NAME }}
 
       - name: Update package.json version after semantic release
         run: |
-          git config user.email "${{ secrets.GIT_USER_EMAIL }}"
-          git config user.name "${{ secrets.GIT_USER_NAME }}"
+          git config user.email "${{ vars.GIT_USER_EMAIL }}"
+          git config user.name "${{ vars.GIT_USER_NAME }}"
           git checkout ${{ github.ref }}
           git pull origin ${{ github.ref }}
           GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" pnpm version --no-git-tag-version --allow-same-version
