@@ -43,7 +43,9 @@
 	let slug = collectionObject.slug;
 	let fields = collectionObject.fields;
 	let permission = collectionObject.permissions;
-	fields = fields.map((item, index) => ({ ...item, id: index + 1 }));
+	if (fields) {
+		fields = fields.map((item, index) => ({ ...item, id: index + 1 }));
+	}
 
 	// $: fromCollectionName = formDataStore.collectionName;
 	//let isEditMode = collectionName !== 'new';
@@ -370,24 +372,26 @@
 				</div>
 
 				<!--dnd vertical row -->
-				<VerticalList {fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each fields as field}
-						<div
-							class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
-						>
-							<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
-								{field.id}
-							</div>
-							<iconify-icon icon={field.icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-3">{field.label}</div>
-							<div class="flex-grow-2">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-							<div class="flex-grow-2">{field.widget.key}</div>
-							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
-								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
+				{#if fields}
+					<VerticalList {fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+						{#each fields as field}
+							<div
+								class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
 							>
-						</div>
-					{/each}
-				</VerticalList>
+								<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
+									{field.id}
+								</div>
+								<iconify-icon icon={field.icon} width="24" class="flex-grow-1 text-primary-500" />
+								<div class="flex-grow-3">{field.label}</div>
+								<div class="flex-grow-2">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+								<div class="flex-grow-2">{field.widget.key}</div>
+								<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
+									><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
+								>
+							</div>
+						{/each}
+					</VerticalList>
+				{/if}
 
 				<div class="mt-2 flex items-center justify-center gap-3">
 					<!-- <button class="variant-filled-tertiary btn" on:click={modalComponentForm}>{m.collection_widgetfield_addFields()}</button> -->

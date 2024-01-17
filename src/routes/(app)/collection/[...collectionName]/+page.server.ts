@@ -124,9 +124,9 @@ export const actions: Actions = {
 		const collectionIcon = JSON.parse(formData.get('icon') as string);
 		const collectionStatus = JSON.parse(formData.get('status') as string);
 		const collectionSlug = JSON.parse(formData.get('slug') as string);
-		const collectionsPermission = JSON.parse(formData.get("permissions") as string)	
+		const collectionsPermission = JSON.parse(formData.get('permission') as string);
+		console.log('permissions',collectionsPermission)
 		const fieldsData = JSON.parse(formData.get('fields') as string);
-		console.log
 		const fields = fieldsData as Array<fields>;
 		const project = new ts.Project();
 		let sourceFile: ts.SourceFile | undefined; // Declare sourceFile with undefined
@@ -140,24 +140,48 @@ export const actions: Actions = {
 			  .getInitializerIfKind(ts.SyntaxKind.ObjectLiteralExpression);
 		  
 			if (schemaObjectLiteral) {
-			  // Update the properties of the schema object as needed
-			  // For example, updating the icon, status, and slug properties
-			const iconProperty = schemaObjectLiteral.getProperty('icon');
-			if (iconProperty) {
-				iconProperty.replaceWithText(`icon: '${collectionIcon}'`);
-			}
-		  
-			const statusProperty = schemaObjectLiteral.getProperty('status');
-			console.log("+iconProperty",`'${collectionStatus}'`)
-			if (statusProperty) {
-				statusProperty.replaceWithText(`status: '${collectionStatus}'`);
-			}
-		  
-			const slugProperty = schemaObjectLiteral.getProperty('slug');
-			console.log("+iconProperty",`'${collectionSlug}'`)
-			if (slugProperty) {
-				slugProperty.replaceWithText(`slug: '${collectionSlug}'`);
-			}
+				const iconProperty = schemaObjectLiteral.getProperty('icon');
+				if (iconProperty) {
+					iconProperty.replaceWithText(`icon: '${collectionIcon}'`);
+				}
+			
+				const statusProperty = schemaObjectLiteral.getProperty('status');
+				console.log("+iconProperty",`'${collectionStatus}'`)
+				if (statusProperty) {
+					statusProperty.replaceWithText(`status: '${collectionStatus}'`);
+				}
+			
+				const slugProperty = schemaObjectLiteral.getProperty('slug');
+				console.log("+iconProperty",`'${collectionSlug}'`)
+				if (slugProperty) {
+					slugProperty.replaceWithText(`slug: '${collectionSlug}'`);
+				}
+
+				const permissionsContent = Object.entries(collectionsPermission)
+				.map(([role, permissions]) => {
+					// Check if permissions is an object
+					if (typeof permissions === 'object' && permissions !== null) {
+						const permissionEntries = Object.entries(permissions)
+							.map(([action, value]) => `\t\t\t${action}: ${value},`)
+							.join('\n');
+						console.log("+++++++++",`\t\t[roles.${roles[role]}]: {\n${permissionEntries}\n\t\t},`)
+						return `\t\t[roles.${roles[role]}]: {\n${permissionEntries}\n\t\t},`;
+					} else {
+						// Handle the case when permissions is not an object (e.g., it could be an array)
+						console.error(`Invalid permissions format for role '${role}'. Expected an object.`);
+						return ''; // or handle it accordingly
+					}
+				})
+				.join('\n');
+				const permissionProperty = schemaObjectLiteral.getProperty('permissions')
+				if(permissionProperty){
+					permissionProperty.replaceWithText(`permissions: { ${permissionsContent} }`);
+				}
+
+				const fieldsProperty = schemaObjectLiteral.getProperty('fields')
+				if(fieldsProperty){
+					fieldsProperty.replaceWithText(`fields: ${JSON.stringify(fieldsData)}`);
+					}
 			}
 		  }
 		  sourceFile.saveSync();
