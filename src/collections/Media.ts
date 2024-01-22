@@ -1,5 +1,5 @@
 import widgets from '@components/widgets';
-import { roles } from './types';
+// import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {

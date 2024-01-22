@@ -31,6 +31,10 @@ export type Params = {
 
 // Define the GuiSchema
 export const GuiSchema = {
+	// widget icon and helper text
+	widgetIcon: 'fas fa-hashtag',
+	widgetDescription: 'Widget to enter a number value',
+
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },

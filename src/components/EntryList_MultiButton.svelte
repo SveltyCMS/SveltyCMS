@@ -18,6 +18,7 @@
 			mode.set('create');
 		} else {
 			mode.set('view');
+			console.log('EntryListMultibutton.svelte', $mode);
 			$modifyEntry($storeListboxValue);
 		}
 
@@ -54,44 +55,36 @@
 	}
 </script>
 
-<div class="inline-flex rounded">
+<!-- Multibutton group-->
+<div class="variant-filled-token rounded-0 btn-group z-10 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
 	<!-- left button -->
-	<button
-		type="button"
-		class={`inline-block w-[60px] rounded-l-full pl-3 font-medium uppercase leading-normal text-black transition duration-150 ease-in-out dark:text-white md:w-auto ${buttonClass}`}
-		on:click|preventDefault={handleButtonClick}
-	>
-		<span class="flex items-center">
-			<iconify-icon icon={iconValue} width="24" />
-			<span class="ml-2 hidden md:block">{actionname}</span>
+	<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass}`} on:click|preventDefault={handleButtonClick}>
+		<span class="flex items-center rtl:rotate-180">
+			<iconify-icon icon={iconValue} width="24" class="text-white" />
+			<span class="ml-2 hidden md:block rtl:mr-2">{actionname}</span>
 		</span>
 	</button>
 	<!-- white line -->
-	<div class="border-l-2 border-white"></div>
+	<div class="border-l-[3px] border-white" />
 
 	<!-- dropdown button -->
-	<button
-		type="button"
-		class="relative inline-block rounded-r bg-surface-600 px-2 text-xs font-medium uppercase leading-normal text-white transition duration-150 ease-in-out hover:bg-surface-500 focus:bg-surface-500 focus:outline-none focus:ring-0 active:bg-surface-500"
-		on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}
-	>
-		<iconify-icon icon="mdi:chevron-down" width="24" />
+	<!-- TODO: fix hover and roundness -->
+	<button type="button" class="w-[42px] bg-surface-400 dark:bg-surface-600" on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}>
+		<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
 	</button>
 
 	{#if dropdownOpen}
-		<ul class="absolute right-2 top-14 z-10 mt-1 divide-y rounded-sm border bg-surface-700 text-white ring-1 ring-black ring-opacity-5">
+		<ul class="drops absolute right-2 top-14 mt-1 divide-y divide-white rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto">
 			{#each Object.keys(buttonMap) as type}
 				{#if $storeListboxValue !== type}
-					<li>
+					<li class={` hover:text-white gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus`}>
 						<button
 							type="button"
-							class={`gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus w-full px-4 py-2 text-left focus:outline-none`}
+							class={`btn flex w-full justify-between gap-2 gradient-${buttonMap[type][1]} ${buttonMap[type][1]}-hover ${buttonMap[type][1]}-focus`}
 							on:click|preventDefault={() => handleOptionClick(type)}
 						>
-							<span class="flex items-center">
-								<iconify-icon icon={buttonMap[type][2]} width="24" />
-								<span class="ml-2">{buttonMap[type][0]}</span>
-							</span>
+							<iconify-icon icon={buttonMap[type][2]} width="24" class="" />
+							<p class="">{buttonMap[type][0]}</p>
 						</button>
 					</li>
 				{/if}

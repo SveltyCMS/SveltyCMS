@@ -1,5 +1,5 @@
 import widgets from '@components/widgets';
-import { roles } from './types';
+//import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
@@ -132,7 +132,7 @@ const schema: Schema = {
 			icon: 'akar-icons:radio-fill',
 			color: 'pink',
 			required: true,
-			width: 3
+			width: 4
 		}),
 
 		widgets.Checkbox({
@@ -141,7 +141,7 @@ const schema: Schema = {
 			icon: 'mdi:check-bold',
 			color: 'pink',
 			required: true,
-			width: 3
+			width: 4
 		}),
 
 		widgets.ColorPicker({
@@ -149,8 +149,17 @@ const schema: Schema = {
 			db_fieldName: 'colorpicker',
 			icon: 'pepicons:color-picker',
 			required: true,
-			width: 3
+			width: 4
 		}),
+
+		// widgets.Rating({
+		// 	label: 'Rating',
+		// 	db_fieldName: 'rating',
+		// 	icon: 'material-symbols:star',
+		// 	maxRating: 7,
+		// 	color: 'pink',
+		// 	width: 4
+		// }),
 
 		// widgets.RichText({
 		// 	label: 'RichText',

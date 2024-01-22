@@ -24,17 +24,12 @@
 		modalStore.close();
 	}
 
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
 	// Assuming $categories is a writable store
 	import { categories, unAssigned } from '@stores/store';
 
 	function deleteCategory(): void {
 		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {
-			console.log('No associated collections. Proceeding with deletion...');
+			// console.log('No associated collections. Proceeding with deletion...');
 
 			// Define the confirmation modal
 			const confirmModal: ModalSettings = {
@@ -47,14 +42,14 @@
 
 						// Remove the category from the store
 						categories.update((existingCategories) => {
-							console.log('Updated Categories:', categories);
+							//console.log('Updated Categories:', categories);
 							return existingCategories.filter((category) => category.name !== existingCategory.name);
 						});
 
 						// Add the collections to the unAssigned store
 						unAssigned.update((existingUnassigned) => {
 							const collections = Array.isArray(existingCategory.collections) ? existingCategory.collections : [];
-							console.log('Collections to be unassigned:', collections);
+							//console.log('Collections to be unassigned:', collections);
 							return [...existingUnassigned, ...collections];
 						});
 					} else {
@@ -72,6 +67,11 @@
 			alert('Cannot delete category with associated collections.');
 		}
 	}
+
+	// Base Classes
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
+	const cHeader = 'text-2xl font-bold';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 {#if $modalStore[0]}

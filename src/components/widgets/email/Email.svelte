@@ -3,6 +3,9 @@
 	import { mode, entryData, defaultContentLanguage } from '@stores/store';
 	import { getFieldName } from '@utils/utils';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	export let field: FieldType;
 
 	let fieldName = getFieldName(field);

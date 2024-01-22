@@ -16,16 +16,17 @@ export type Params = {
 	width?: number;
 
 	// Widget Specific parameters
-	placeholder?: string;
 	required?: boolean;
+	maxRating?: number;
+	color?: string;
+	size?: number;
+	iconEmpty?: string;
+	iconHalf?: string;
+	iconFull?: string;
 };
 
 // Define the GuiSchema
 export const GuiSchema = {
-	// widget icon and helper text
-	widgetIcon: 'fas fa-video',
-	widgetDescription: 'Widget to enter a remote video url like youtube, vimeo, etc.',
-
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -34,9 +35,13 @@ export const GuiSchema = {
 	icon: { widget: IconifyPicker, required: false },
 
 	// Widget Specific parameters
-	placeholder: { widget: Input, required: false },
 	required: { widget: Toggles, required: false },
-	readonly: { widget: Toggles, required: false }
+	maxRating: { widget: Input, required: false },
+	color: { widget: Input, required: false },
+	size: { widget: Input, required: false },
+	iconEmpty: { widget: IconifyPicker, required: false },
+	iconHalf: { widget: IconifyPicker, required: false },
+	iconFull: { widget: IconifyPicker, required: false }
 };
 
 // Define the GraphqlSchema function

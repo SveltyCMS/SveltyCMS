@@ -1,29 +1,22 @@
 import widgets from '@components/widgets';
 import { roles } from './types';
 import type { Schema } from './types';
-
 const schema: Schema = {
-	// Collection Name comming from filename
+	// Collection Name coming from filename so not needed
 
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublished',
-	slug: ' names',
 
-	// Collection Permissions by user Roles. Admin has all permissions by default,
+	// Collection Permissions by user Roles
 	permissions: {
-		[roles.developer]: {
-			create: true,
-			read: true,
-			write: true
-		},
-		[roles.editor]: {
+		[roles.user]: {
 			read: true
 		}
 	},
 
-	// Defined Fields that are used in Collection
+	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.Text({

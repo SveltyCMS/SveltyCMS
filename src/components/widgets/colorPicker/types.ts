@@ -21,6 +21,10 @@ export type Params = {
 
 // Define the GuiSchema
 export const GuiSchema = {
+	// widget icon and helper text
+	widgetIcon: 'fas fa-palette',
+	widgetDescription: 'A widget to add a color picker',
+
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },

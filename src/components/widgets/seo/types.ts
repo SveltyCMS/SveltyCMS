@@ -22,6 +22,10 @@ export type Params = {
 
 // Define the GuiSchema
 export const GuiSchema = {
+	// widget icon and helper text
+	widgetIcon: 'si-si-seo',
+	widgetDescription: 'A widget to add Seo information.',
+
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },

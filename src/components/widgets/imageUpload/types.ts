@@ -24,6 +24,10 @@ export type Params = {
 
 // Define the GuiSchema
 export const GuiSchema = {
+	// widget icon and helper text
+	widgetIcon: 'fas fa-image',
+	widgetDescription: 'Widget to upload an image',
+
 	label: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	icon: { widget: IconifyPicker, required: false },
