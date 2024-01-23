@@ -16,9 +16,8 @@
 	// Define the search term variable
 	let searchTerm: string = '';
 
-	// Define the type for widgets
+	// get all the widgets
 	type WidgetType = keyof typeof widgets | null;
-	console.log('widgets:', widgets);
 
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as WidgetType[];
@@ -33,18 +32,14 @@
 		selectedWidget: selected ?? null
 	};
 
-	// Define the submit function for the form
+	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
-		
-		// Set the selected widget in the form data
-		formData.selectedWidget = selected;
-
-		// If a response function is defined in the modal store, call it with the form data
-		if ($modalStore[0]?.response) {
-			$modalStore[0].response(formData);
+		if ($modalStore[0].response) {
+			// Set the selected widget in the form data and update the modalStore
+			$modalStore[0].response({ selectedWidget: selected });
 		}
-
-		// Close the modal
+		console.log('modalStore:', $modalStore[0].response);
+		// close the modal
 		modalStore.close();
 	}
 
@@ -57,7 +52,7 @@
 	function getIconTooltip(item: WidgetType): PopupSettings {
 		return {
 			event: 'hover',
-			target: item as string,
+			target: item as string
 		};
 	}
 </script>
@@ -94,13 +89,11 @@
 									icon="material-symbols:info"
 									width="20"
 									use:popup={getIconTooltip(item)}
-									class="absolute -right-1.5 -top-1.5 text-primary-500 "
+									class="absolute -right-1.5 -top-1.5 text-primary-500"
 								/>
-
-								
 							</button>
 							<!-- IconTooltip -->
-							<div class="card variant-filled-secondary p-4 z-50 max-w-sm" data-popup={item}>
+							<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup={item}>
 								<p>{widgets[item]?.Description}</p>
 								<div class="variant-filled-secondary arrow" />
 							</div>

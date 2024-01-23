@@ -57,7 +57,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'tabler:seo';
 widget.Description =
-	'This SEO widget enables the collection of user SEO data for purposes such as search engine optimization (SEO), social media, and advertising.';
+	{m.widget_seo_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

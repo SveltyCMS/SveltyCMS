@@ -58,7 +58,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 widget.Icon = 'ic:outline-colorize';
 widget.Description =
-	'This color picker widget an easy way to add a color picker. Use this widget to add interactivity and collect feedback from your users';
+	{m.widget_colorPicker_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

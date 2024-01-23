@@ -58,7 +58,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'material-symbols:star-outline';
-widget.Description = 'This Rating widget enables the collection of user rating data for purposes such as feedback, reviews, and ratings.';
+widget.Description = {m.widget_rating_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

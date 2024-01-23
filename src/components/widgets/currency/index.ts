@@ -67,7 +67,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'mdi:currency-usd';
 widget.Description =
-	'This Currency widget enables the collection of user currency data for purposes such as payments, exchange rates, and transactions.';
+	{m.widget_currency_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

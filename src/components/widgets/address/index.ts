@@ -58,7 +58,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'mdi:home-map-marker';
-widget.Description = 'A widget to add an address data';
+widget.Description = {m.widget_address_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

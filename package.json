@@ -94,7 +94,7 @@
 	"type": "module",
 	"dependencies": {
 		"@floating-ui/dom": "^1.5.4",
-		"@inlang/cli": "^2.9.0",
+		"@inlang/cli": "^2.10.0",
 		"@lucia-auth/adapter-mongoose": "^3.0.1",
 		"@lucia-auth/oauth": "^3.5.2",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",

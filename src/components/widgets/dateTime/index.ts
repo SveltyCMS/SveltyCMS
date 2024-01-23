@@ -59,7 +59,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'formkit:datetime';
 widget.Description =
-	'This DateTime widget enables the collection of user date and time data for purposes such as appointments, reminders, and events.';
+	{m.widget_DateTime_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

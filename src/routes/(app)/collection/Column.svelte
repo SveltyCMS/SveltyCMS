@@ -68,7 +68,7 @@
 		// Define the logic for handling the click on a collection
 		mode.set(modeSet);
 		collection.set(item.collections);
-		goto(`/collection/${item.name}`);
+		goto(`collection/${item.name}`);
 	}
 </script>
 

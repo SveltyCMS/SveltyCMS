@@ -61,7 +61,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'material-symbols:image-outline';
-widget.Description = 'This ImageUpload widget enables the collection of user images for purposes such as logos, banners, and other media. ';
+widget.Description = {m.widget_ImageUpload_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

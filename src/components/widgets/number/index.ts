@@ -68,7 +68,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'ant-design:number-outlined';
-widget.Description = 'This Number widget enables the collection of user number data for purposes such as appointments, reminders, and events.';
+widget.Description = {m.widget_number_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

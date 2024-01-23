@@ -64,7 +64,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'icon-park-outline:text';
-widget.Description = 'This Text widget enables the collection of user text data for purposes such as blog posts, comments, and feedback.';
+widget.Description = {m.widget_text_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

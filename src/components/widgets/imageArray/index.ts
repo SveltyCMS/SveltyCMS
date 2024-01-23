@@ -72,7 +72,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'bi:images';
-widget.Description = 'This ImageArray widget enables the collection of user images for purposes such as images, logos, and other media.';
+widget.Description = {m.widget_ImageArray_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

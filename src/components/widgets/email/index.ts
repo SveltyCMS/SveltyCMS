@@ -60,7 +60,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'ic:outline-email';
 widget.Description =
-	'This Email widget enables the collection of user email addresses for purposes such as newsletters, registrations, and feedback.';
+	{m.widget_email_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

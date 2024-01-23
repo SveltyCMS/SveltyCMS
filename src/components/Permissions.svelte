@@ -18,7 +18,7 @@
 		permissions: permissions[Role];
 	}[] = [];
 
-	console.log("rolesArray", rolesArray);
+	console.log('rolesArray', rolesArray);
 
 	const toastStore = getToastStore();
 	let MorePermissions = true;
@@ -238,8 +238,8 @@
 					{#each permissionHeaders as permission}
 						<th class="bg-white !p-3 dark:bg-surface-900">
 							<button
-							class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
-							on:click={() => toggleAllPermissions(permission)}
+								class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
+								on:click={() => toggleAllPermissions(permission)}
 							>
 								<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
 								<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
@@ -280,7 +280,6 @@
 									>
 										<iconify-icon icon={buttonMap[permission]?.icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
 										<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
-										
 									</button>
 								</td>
 							{/each}

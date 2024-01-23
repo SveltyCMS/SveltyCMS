@@ -65,7 +65,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'ic:baseline-phone-in-talk';
-widget.Description = 'This PhoneNumber widget enables the collection of user phone numbers for purposes such as phone calls, SMS, and WhatsApp.';
+widget.Description = {m.widget_phoneNumber_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

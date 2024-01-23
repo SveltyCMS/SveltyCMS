@@ -64,7 +64,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'lucide:menu-square';
-widget.Description = 'This MegaMenu widget allows multilevel menus for navigation.';
+widget.Description = {m.widget_megaMenu_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

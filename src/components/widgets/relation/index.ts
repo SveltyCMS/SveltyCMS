@@ -62,7 +62,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'fluent-mdl2:relationship';
 widget.Description =
-	'This Relation widget enables the collection of user email addresses for purposes such as newsletters, registrations, and feedback.';
+	{m.widget_relation_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

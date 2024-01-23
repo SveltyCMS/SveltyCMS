@@ -60,7 +60,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'ci:radio-fill';
-widget.Description = 'This Radio widget enables the collection of user radio data for purposes such as appointments, reminders, and events.';
+widget.Description = {m.widget_radio_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

@@ -61,7 +61,7 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'fuent-mdl2:text-box';
 widget.Description =
-	'This RichText widget is used to create rich text content. You can customize the label, color, and size of the text. Use this widget to add interactivity and collect feedback from your users';
+	{m.widget_richtText_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

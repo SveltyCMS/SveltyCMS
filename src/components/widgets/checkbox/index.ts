@@ -58,8 +58,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'tabler:checkbox';
-widget.Description =
-	'This widget lets you create a checkbox that users can select or deselect. You can customize the label, color, and size of the checkbox. Use this widget to add interactivity and collect feedback from your users';
+widget.Description = {m.widget_checkbox_description()};
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
