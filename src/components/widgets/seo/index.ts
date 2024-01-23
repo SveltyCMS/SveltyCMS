@@ -56,8 +56,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'tabler:seo';
-widget.Description =
-	{m.widget_seo_description()};
+widget.Description = m.widget_seo_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

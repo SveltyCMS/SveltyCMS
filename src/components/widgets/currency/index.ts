@@ -66,8 +66,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'mdi:currency-usd';
-widget.Description =
-	{m.widget_currency_description()};
+widget.Description = m.widget_currency_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

@@ -61,7 +61,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'material-symbols:image-outline';
-widget.Description = {m.widget_ImageUpload_description()};
+widget.Description = m.widget_ImageUpload_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

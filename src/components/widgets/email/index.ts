@@ -59,8 +59,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'ic:outline-email';
-widget.Description =
-	{m.widget_email_description()};
+widget.Description = m.widget_email_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

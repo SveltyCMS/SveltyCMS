@@ -57,8 +57,7 @@ widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
 widget.Icon = 'ic:outline-colorize';
-widget.Description =
-	{m.widget_colorPicker_description()};
+widget.Description = m.widget_colorPicker_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

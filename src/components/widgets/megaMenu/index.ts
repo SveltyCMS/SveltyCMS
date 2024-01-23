@@ -9,6 +9,9 @@ import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 export const currentChild: Writable<any> = writable({});
 
+//ParaglideJS
+import * as m from '@src/paraglide/messages';
+
 /**
  * Defines MegaMenu widget Parameters
  */
@@ -64,7 +67,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'lucide:menu-square';
-widget.Description = {m.widget_megaMenu_description()};
+widget.Description = m.widget_megaMenu_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

@@ -68,7 +68,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'ant-design:number-outlined';
-widget.Description = {m.widget_number_description()};
+widget.Description = m.widget_number_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

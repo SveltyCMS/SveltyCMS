@@ -60,8 +60,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'fuent-mdl2:text-box';
-widget.Description =
-	{m.widget_richtText_description()};
+widget.Description = m.widget_richtText_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

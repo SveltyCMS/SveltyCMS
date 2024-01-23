@@ -6,6 +6,9 @@ import { getFieldName, getGuiFields } from '@utils/utils';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
+//ParaglideJS
+import * as m from '@src/paraglide/messages';
+
 /**
  * Defines ImageArray widget Parameters
  */
@@ -72,7 +75,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'bi:images';
-widget.Description = {m.widget_ImageArray_description()};
+widget.Description = m.widget_ImageArray_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

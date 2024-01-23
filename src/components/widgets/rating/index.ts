@@ -58,7 +58,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // widget icon and helper text
 widget.Icon = 'material-symbols:star-outline';
-widget.Description = {m.widget_rating_description()};
+widget.Description = m.widget_rating_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
