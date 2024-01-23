@@ -13,6 +13,9 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Define the search term variable
+	let searchTerm: string = '';
+
 	// Define the type for widgets
 	type WidgetType = keyof typeof widgets | null;
 	console.log('widgets:', widgets);
@@ -27,14 +30,12 @@
 	let formData: {
 		selectedWidget: WidgetType;
 	} = {
-		selectedWidget: null
+		selectedWidget: selected ?? null
 	};
-
-	// Define the search term variable
-	let searchTerm: string = '';
 
 	// Define the submit function for the form
 	function onFormSubmit(): void {
+		
 		// Set the selected widget in the form data
 		formData.selectedWidget = selected;
 
@@ -56,8 +57,7 @@
 	function getIconTooltip(item: WidgetType): PopupSettings {
 		return {
 			event: 'hover',
-			target: item,
-			placement: 'right'
+			target: item as string,
 		};
 	}
 </script>
@@ -73,20 +73,20 @@
 			<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
 			<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
-			<div class="grid grid-cols-2 items-center justify-center gap-2 md:grid-cols-3 md:gap-3">
+			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
 				{#each widget_keys.filter((item) => item !== null) as item}
 					{#if item}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
-								class=" variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
+								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
-									: ' variant-outline-warning hover:variant-filled-secondary'}"
+									: ' variant-outline-warning hover:variant-ghost-warning'}"
 								on:click={() => {
 									selected = item;
 									onFormSubmit();
 								}}
 							>
-								<iconify-icon icon={widgets[item].widgetIcon} width="18" class="mr-1" />
+								<iconify-icon icon={widgets[item]?.Icon} width="22" class="mr-1 text-tertiary-500" />
 								<span class="text-surface-700 dark:text-white">{item}</span>
 
 								<!-- helpericon -->
@@ -94,15 +94,16 @@
 									icon="material-symbols:info"
 									width="20"
 									use:popup={getIconTooltip(item)}
-									class="absolute -right-1.5 -top-1.5 text-primary-500"
+									class="absolute -right-1.5 -top-1.5 text-primary-500 "
 								/>
 
-								<!-- IconTooltip -->
-								<div class="card variant-filled-surface z-50 p-4" data-popup={item}>
-									<p>{widgets[item].widgetDescription}</p>
-									<div class="variant-filled-surface arrow" />
-								</div>
+								
 							</button>
+							<!-- IconTooltip -->
+							<div class="card variant-filled-secondary p-4 z-50 max-w-sm" data-popup={item}>
+								<p>{widgets[item]?.Description}</p>
+								<div class="variant-filled-secondary arrow" />
+							</div>
 						{/if}
 					{/if}
 				{/each}

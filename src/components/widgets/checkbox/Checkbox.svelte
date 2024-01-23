@@ -20,6 +20,7 @@
 		db_fieldName: field.db_fieldName,
 		icon: field.icon,
 		color: field.color,
+		size: field.size,
 		width: field.width,
 		required: field.required
 	};
@@ -28,6 +29,7 @@
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
+		size: z.string().optional(),
 		width: z.number().optional(),
 		required: z.boolean().optional()
 	});
@@ -50,7 +52,7 @@
 		type="checkbox"
 		color={field.color}
 		bind:value={_data[_language]}
-		class="h-4 w-4 rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
+		class="h-[${field.size}] w-[${field.size}] rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
 		bind:checked={value}
 	/>
 	<label for="default-checkbox" class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"

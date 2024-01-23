@@ -3,7 +3,9 @@ import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import { contentLanguage } from '@stores/store';
 
-// Define the widget Parameters
+/**
+ * Defines SEO widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -20,12 +22,10 @@ export type Params = {
 	required?: boolean;
 };
 
-// Define the GuiSchema
+/**
+ * Defines SEO GuiSchema
+ */
 export const GuiSchema = {
-	// widget icon and helper text
-	widgetIcon: 'si-si-seo',
-	widgetDescription: 'A widget to add Seo information.',
-
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -37,7 +37,9 @@ export const GuiSchema = {
 	width: { widget: Input, required: false }
 };
 
-// Define the GraphqlSchema function
+/**
+ * Define SEO GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;

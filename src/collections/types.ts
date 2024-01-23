@@ -5,7 +5,8 @@ export const roles = {
 	admin: 'admin',
 	developer: 'developer',
 	editor: 'editor',
-	user: 'user'
+	user: 'user',
+	guest: 'guest'
 } as const;
 
 // Define a user Role permission that can be overwritten
@@ -16,21 +17,6 @@ export type permissions = {
 		write?: boolean; // This permission allows users to create new content and make changes to existing content.
 		delete?: boolean; // This permission allows users to remove content from the system
 
-		// Icons permission
-		icon?: {
-			create?: 'bi:plus-circle-fill';
-			read?: 'bi:eye-fill';
-			write?: 'bi:pencil-fill';
-			delete?: 'bi:trash-fill';
-		};
-
-		// Colors permission
-		color?: {
-			create?: 'primary';
-			read?: 'tertiary';
-			write?: 'warning';
-			delete?: 'error';
-		};
 		// Admin can do everything
 	}> &
 		(K extends typeof roles.admin
@@ -43,11 +29,27 @@ export type permissions = {
 			: {});
 };
 
+// Icons permission
+export const icon = {
+	create: 'bi:plus-circle-fill',
+	read: 'bi:eye-fill',
+	write: 'bi:pencil-fill',
+	delete: 'bi:trash-fill'
+} as const;
+
+// Colors permission
+export const color = {
+	create: 'primary',
+	read: 'tertiary',
+	write: 'warning',
+	delete: 'error'
+} as const;
+
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
 	name?: string;
 	slug?: string;
-	icon?: string;
+	icon: string;
 	description?: string;
 	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
 	permissions?: permissions;

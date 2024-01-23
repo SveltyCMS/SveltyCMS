@@ -7,7 +7,9 @@ import { defaultContentLanguage } from '@stores/store';
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-// Define the widget function
+/**
+ * Defines RichText widget Parameters
+ */
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
@@ -55,6 +57,11 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'fuent-mdl2:text-box';
+widget.Description =
+	'This RichText widget is used to create rich text content. You can customize the label, color, and size of the text. Use this widget to add interactivity and collect feedback from your users';
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

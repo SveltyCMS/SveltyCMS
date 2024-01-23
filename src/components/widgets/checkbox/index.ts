@@ -44,7 +44,8 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		color: params.color
+		color: params.color,
+		size: params.size
 	};
 
 	// Return the field and widget objects
@@ -54,6 +55,11 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'tabler:checkbox';
+widget.Description =
+	'This widget lets you create a checkbox that users can select or deselect. You can customize the label, color, and size of the checkbox. Use this widget to add interactivity and collect feedback from your users';
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

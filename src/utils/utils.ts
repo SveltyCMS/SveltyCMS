@@ -33,6 +33,7 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 
 // Function to convert an object to form data
 export const obj2formData = (obj: any) => {
+	console.log(obj);
 	// Create a new FormData object
 	const formData = new FormData();
 	// Iterate over the keys of the input object
@@ -44,9 +45,8 @@ export const obj2formData = (obj: any) => {
 				if (!val && val !== false) return undefined;
 				else if (key == 'schema') return undefined;
 				else if (key == 'display' && val.default == true) return undefined;
-				else if (key == 'display') return '🗑️' + val + '🗑️';
+				else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
 				else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-				else if (key == 'relation') return '🗑️' + val + '🗑️';
 				else if (typeof val === 'function') {
 					return '🗑️' + val + '🗑️';
 				}
@@ -324,7 +324,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 						{
 							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array
 							editedAt: new Date().getTime().toString(),
-							editedBy: { Username: get(user).username },
+							editedBy: { Username: get(User).username },
 							changes: {}
 						}
 					]

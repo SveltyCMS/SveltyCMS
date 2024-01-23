@@ -6,7 +6,9 @@ import widgets from '@components/widgets';
 
 import IconifyPicker from '@components/IconifyPicker.svelte';
 
-// Define the widget Parameters
+/**
+ * Defines ImageArray widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -27,12 +29,10 @@ export type Params = {
 	uploader_path: string;
 };
 
-// Define the GuiSchema
+/**
+ * Defines ImageArray GuiSchema
+ */
 export const GuiSchema = {
-	// widget icon and helper text
-	widgetIcon: 'fas fa-file-upload',
-	widgetDescription: 'Widget to upload multiple images.',
-
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -45,7 +45,9 @@ export const GuiSchema = {
 	required: { widget: Toggles, required: false }
 };
 
-// Define the GraphqlSchema function
+/**
+ * Define ImageArray GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	let fieldTypes = '';
 	for (const _field of field.fields) {

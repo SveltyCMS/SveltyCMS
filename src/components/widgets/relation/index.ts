@@ -4,7 +4,9 @@ import { findById, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { defaultContentLanguage } from '@stores/store';
 
-// Define the widget function
+/**
+ * Defines Relation widget Parameters
+ */
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
@@ -56,6 +58,11 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'fluent-mdl2:relationship';
+widget.Description =
+	'This Relation widget enables the collection of user email addresses for purposes such as newsletters, registrations, and feedback.';
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

@@ -3,7 +3,9 @@ import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import { contentLanguage } from '@stores/store';
 
-// Define the widget Parameters
+/**
+ * Defines Checkbox widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -17,15 +19,14 @@ export type Params = {
 
 	// Widget Specific parameters
 	color?: string;
+	size?: number;
 	required?: boolean;
 };
 
-// Define the GuiSchema
+/**
+ * Defines Checkbox GuiSchema
+ */
 export const GuiSchema = {
-	// widget icon and helper text
-	widgetIcon: 'fas fa-check',
-	widgetDescription: 'A checkbox widget.',
-
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -35,11 +36,14 @@ export const GuiSchema = {
 
 	// Widget Specific parameters
 	color: { widget: Input, required: false },
+	size: { widget: Input, required: false },
 	required: { widget: Toggles, required: false },
 	width: { widget: Input, required: false }
 };
 
-// Define the GraphqlSchema function
+/**
+ * Define Checkbox GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;

@@ -6,7 +6,9 @@ import { getFieldName, getGuiFields } from '@utils/utils';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
-// Define the widget function
+/**
+ * Defines ImageArray widget Parameters
+ */
 const widget = (params: Params) => {
 	params.fields.unshift(
 		ImageUpload({
@@ -67,6 +69,10 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'bi:images';
+widget.Description = 'This ImageArray widget enables the collection of user images for purposes such as images, logos, and other media.';
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

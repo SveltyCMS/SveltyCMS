@@ -8,7 +8,9 @@ import { getFieldName } from '@utils/utils';
 
 import mongoose from 'mongoose';
 
-// Define the widget Parameters
+/**
+ * Defines Relation widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -24,12 +26,10 @@ export type Params = {
 	relation: string;
 };
 
-// Define the GuiSchema
+/**
+ * Defines Relation GuiSchema
+ */
 export const GuiSchema = {
-	// widget icon and helper text
-	widgetIcon: 'fas fa-link',
-	widgetDescription: 'Widget to enter a relation between two entries',
-
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -41,7 +41,9 @@ export const GuiSchema = {
 	}
 };
 
-// Define the GraphqlSchema function
+/**
+ * Define Relation GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	// Return an object containing the type name and the GraphQL schema
 	return {

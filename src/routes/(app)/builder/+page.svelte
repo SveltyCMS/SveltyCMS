@@ -17,8 +17,10 @@
 	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';
 	let icon = $mode == 'edit' ? $collection.icon : '';
-	let status = $mode == 'edit' ? $collection.status : 'unpublish';
 	let slug = $mode == 'edit' ? $collection.slug : name;
+	let status = $mode == 'edit' ? $collection.status : 'unpublish';
+	let description = $mode == 'edit' ? $collection.description : '';
+	
 
 	//dropdown list
 	let items = ['published', 'unpublished', 'draft', 'schedule'];
@@ -28,17 +30,22 @@
 
 	// Function to save data by sending a POST request to the /api/builder endpoint
 	function save() {
+		
 		let data =
 			$mode == 'edit'
 				? obj2formData({
 						originalName: $collection.name,
 						collectionName: name,
-						icon: $collection.icon,
-						status: $collection.status,
-						slug: $collection.slug,
+						icon: icon,
+						slug: slug,
+						status: status,
+						description: description,
 						fields: $collection.fields
 					})
-				: obj2formData({ fields, collectionName: name, icon, status, slug });
+				: obj2formData({  collectionName: name, icon,slug, description, status,fields });
+				console.log(slug)
+				console.log(data)
+
 		axios.post(`?/saveCollection`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
@@ -48,9 +55,11 @@
 	collection.subscribe(() => {
 		name = $mode == 'edit' ? $collection.name : '';
 		icon = $mode == 'edit' ? $collection.icon : '';
-		status = $mode == 'edit' ? $collection.status : 'unpublish';
 		slug = $mode == 'edit' ? $collection.slug : name;
+		description = $mode == 'edit' ? $collection.description : '';
+		status = $mode == 'edit' ? $collection.status : 'unpublish';
 	});
+	
 </script>
 
 <!-- Page Title -->
@@ -122,8 +131,9 @@
 					<IconifyPicker bind:iconselected={icon} />
 				</div> -->
 					<FloatingInput label="Icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
-					<FloatingInput label="Status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
 					<FloatingInput label="Slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
+					<FloatingInput label="description" name="description" icon="material-symbols:notes" inputClass="text-primary-500" bind:value={description} />
+					<FloatingInput label="Status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
 					<WidgetBuilder {fields} bind:addField />
 				</div>
 			{:else if $mode == 'edit'}
@@ -136,10 +146,13 @@
 					<!-- <FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} /> -->
 					<IconifyPicker bind:iconselected={icon} />
 
+					<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
+					
+					<FloatingInput label="description" name="description" icon="material-symbols:notes" inputClass="text-primary-500" bind:value={description} />
+
 					<FloatingInput label="status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
 					<!-- <DropDown {items} bind:selected={status} /> -->
 
-					<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
 
 					<WidgetBuilder fields={$collection.fields} bind:addField />
 				</div>

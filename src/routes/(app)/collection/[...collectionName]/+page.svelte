@@ -2,42 +2,61 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
-	import { mode, collection } from '@stores/store';
+	import { mode, collection, collections } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import widgets from '@components/widgets';
 	import { obj2formData } from '@utils/utils';
 	import axios from 'axios';
+	import type { Schema } from '@collections/types';
 
+	// console.log('mode:', $mode);
+	// console.log('page:', $page);
+
+	// Extract the collection name from the URL
+	const collectionName = $page.params.collectionName;	
+	console.log('collectionName:', collectionName);
+
+	//check if collection Name exists set mode edit or create
+	if ($collections.find((x) => x.name === collectionName)) {
+		mode.set('edit');
+		collection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
+	} else {
+		mode.set('create');
+	}
+
+	// Set the value of the collection store to the collection object from the collections array that has a name property that matches the current page's collection parameter
 	console.log('mode:', $mode);
-	mode.set('edit');
-	console.log('mode:', $mode);
 
-	// Access the data fetched from the server
-	let { formCollectionName, collectionData } = $page.data;
-	let collectionName = formCollectionName || '';
+	// Get the collection object from the collection store
+	// collection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
+	console.log('collection:', collection);
 
-	console.log('collection:', $collection);
-	console.log('collectionData:', $page.data.collectionData);
-	
+	$: console.log('collection:', $collection);
 
 	// Required default widget fields
-	let name = $mode == 'edit' ? $page.data.collectionData.name : '';
-	let icon = $mode == 'edit' ? $page.data.collectionData.icon : '';
-	let description = $mode == 'edit' ? $page.data.collectionData.description : '';
-	let status = $mode == 'edit' ? $page.data.collectionData.status : 'unpublish';
-	let slug = $mode == 'edit' ? $page.data.collectionData.slug : name;
+	let name = $mode == 'edit' ? $collection.name : collectionName;
+	let icon = $mode == 'edit' ? $collection.icon : '';
+	let slug = $mode == 'edit' ? $collection.slug : name;
+	let description = $mode == 'edit' ? $collection.description : '';
+	let status = $mode == 'edit' ? $collection.status : 'unpublished';
 
-	let selected_widget: keyof typeof widgets | null = null;
+	//  Widget data
+	let fields = $mode == 'edit' ? $collection.fields.map((field, index) => {
+  return {
+    id: index + 1, // Add the id property first
+    ...field, // Copy all existing properties
+  };
+}) : [];
 
-	console.log('collectionName:', name);
-	console.log('collectionIcon:', icon);
-	console.log('collectionStatus:', status);
-	console.log('collectionSlug:', slug);
+	let permission = $mode == 'edit' ? $collection.permissions : [];
+
+	console.log('fields:', fields);
+	console.log('permission:', permission);
 
 	let DBName = '';
 	let searchQuery = '';
-	let iconselected: any = '';
+	let iconselected: any = icon || '';
 	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 	let autoUpdateSlug = true;
 	let expanded = false;
@@ -68,8 +87,6 @@
 		};
 		modalStore.trigger(modal);
 	}
-
-	console.log('check selected_widget:', selected_widget);
 
 	function modalWidgetForm(selected_widget: any): void {
 		const c: ModalComponent = { ref: ModalWidgetForm };
@@ -124,38 +141,18 @@
 		autoUpdateSlug = false;
 	}
 
-	//  Widget data
-
-	// let collectionObject = JSON.parse(collectionData);
-	// let name = collectionObject.name;
-	// let icon = collectionObject.icon;
-	// let description = collectionObject.description;
-	// let status = collectionObject.status;
-	// let slug = collectionObject.slug;
-	// let fields = collectionObject.fields;
-	// let permission = collectionObject.permissions;
-	// if (fields) {
-	// 	fields = fields.map((item, index) => ({ ...item, id: index + 1 }));
-	// }
-	// export let items: any;
-	// console.log('dataItem', items);
-	let items = [
-		{ id: 1, collectionName: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 2, collectionName: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
-		{ id: 4, collectionName: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
-	];
-
 	const headers = ['ID', 'Icon', 'Name', 'DBName', 'Widget'];
 
 	const flipDurationMs = 300;
 
 	const handleDndConsider = (e) => {
-		items = e.detail.items;
+		fields = e.detail.field;
+		console.log('handleDndConsider:', fields);
 	};
 
 	const handleDndFinalize = (e) => {
-		items = e.detail.items;
+		fields = e.detail.field;
+		console.log('handleDndFinalize:', fields);
 	};
 
 	async function handleCollectionSave() {
@@ -168,10 +165,11 @@
 				icon: $collection.icon,
 				status: $collection.status,
 				slug: $collection.slug,
+				description: $collection.description,				
 				fields: $collection.fields,
 				permission: $collection.permissions
 			});
-		// : obj2formData({ fields, collectionName: name, icon, status, slug, permission });
+		// : obj2formData({ fields, collectionName: name, icon, status, description, slug, permission });
 		axios.post(`?/saveCollections`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
@@ -262,7 +260,7 @@
 					>
 
 					<!-- tooltip -->
-					<div class="card variant-filled-secondary z-50 p-4" data-popup="Name">
+					<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup="Name">
 						<p>{m.collection_name_tooltip1()}</p>
 						<p>{m.collection_name_tooltip2()}</p>
 						<div class="variant-filled-secondary arrow" />
@@ -272,13 +270,13 @@
 						type="text"
 						required
 						id="name"
-						bind:value={collectionName}
+						bind:value={name}
 						on:input={checkInputName}
 						placeholder={m.collection_name_placeholder()}
-						class="input {collectionName ? 'w-full md:w-1/2' : 'w-full'}"
+						class="input {name ? 'w-full md:w-1/2' : 'w-full'}"
 					/>
 
-					{#if collectionName}
+					{#if name}
 						<p class="mb-3 sm:mb-0">
 							{m.collection_DBname()} <span class="font-bold text-primary-500">{DBName}</span>
 						</p>
@@ -297,7 +295,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary z-50 p-4" data-popup="Icon">
+						<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup="Icon">
 							<p>{m.collection_icon_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -313,7 +311,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary z-50 p-4" data-popup="Slug">
+						<div class="card variant-filled-secondary max-w-sm z-50 p-4" data-popup="Slug">
 							<p>{m.collection_slug_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -329,7 +327,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary z-50 p-4" data-popup="Description">
+						<div class="card variant-filled-secondary max-w-sm z-50 p-4" data-popup="Description">
 							<p>{m.collection_description()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -352,7 +350,7 @@
 						</label>
 
 						<!-- tooltip -->
-						<div class="card variant-filled-secondary z-50 p-4" data-popup="Status">
+						<div class="card variant-filled-secondary max-w-sm z-50 p-4" data-popup="Status">
 							<p>{m.collection_status_tooltip()}</p>
 							<div class="variant-filled-secondary arrow" />
 						</div>
@@ -372,7 +370,7 @@
 				</div>
 			{:else if tabSet === 1}
 				<!-- Permissions -->
-				<Permissions />
+				<Permissions  />
 
 				<!-- Buttons -->
 				<div class="flex justify-between">
@@ -390,21 +388,23 @@
 				</div>
 
 				<!--dnd vertical row -->
-				<VerticalList {items} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
-					{#each items as { id, icon, collectionName, DBName, widget } (id)}
+				<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+					{#each fields as field}
 						<div
-							class="border-blue variant-outline-surface my-2 flex w-full items-center gap-6 rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
+							class="border-blue variant-outline-surface my-2 grid grid-cols-6 w-full items-center rounded-md border p-1 text-center text-black hover:variant-filled-surface dark:text-white"
 						>
-							<div class="flex-grow-1 variant-ghost-primary badge rounded-full">
-								{id}
+							<div class="btn-icon variant-ghost-primary">
+								{field.id}
 							</div>
-							<iconify-icon {icon} width="24" class="flex-grow-1 text-primary-500" />
-							<div class="flex-grow-3">{collectionName}</div>
-							<div class="flex-grow-2">{DBName}</div>
-							<div class="flex-grow-2">{widget}</div>
-							<button type="button" class="btn-icon ml-auto hover:variant-ghost-primary"
-								><iconify-icon icon="bi:trash-fill" width="18" class="text-error-500" /></button
-							>
+							<!-- TODO: display the icon from guischema widget-->
+							<iconify-icon {icon} width="24" class="text-tertiary-500" />
+							<div class="text-primary-500">{field.label}</div>
+							<div class="">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+							<div class="">{field.widget.key}</div>
+							
+							<button class="ml-auto btn-icon variant-ghost-primary">
+								<iconify-icon icon="ic:baseline-edit" width="24" class="text-white" on:click={modalWidgetForm} />
+							</button>
 						</div>
 					{/each}
 				</VerticalList>
@@ -415,24 +415,6 @@
 						>{m.collection_widgetfield_addFields()}
 					</button>
 				</div>
-
-				<!-- {#if expanded}
-					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
-					<div class="flex flex-wrap items-center justify-center gap-2">
-						{#each widget_keys as item}
-							<button
-								class=" variant-outline-warning btn relative hover:variant-filled-secondary"
-								on:click={() => {
-									selected = item;
-									expanded = false;
-									modalComponentForm(selected);
-								}}
-							>
-								<span class="text-surface-700 dark:text-white">{item}</span>
-							</button>
-						{/each}
-					</div>
-				{/if} -->
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"

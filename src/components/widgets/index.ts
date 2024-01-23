@@ -4,7 +4,7 @@ import Currency from './currency';
 import ColorPicker from './colorPicker';
 import Date from './date';
 import DateTime from './dateTime';
-// import DateRange from './dateRange';
+import DateRange from './dateRange';
 import Email from './email';
 // import Group from './group';
 import FileUpload from './fileUpload';
@@ -38,7 +38,7 @@ const widgets = {
 	// Date - date / time field that saves a timestamp
 	DateTime,
 	// DateRange - date with start / Finish timestamps
-	// DateRange,
+	DateRange,
 	// Email - validates the entry is a properly formatted email
 	Email,
 	// Group - nest fields within an object with condition & tabs

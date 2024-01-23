@@ -7,7 +7,9 @@ import { defaultContentLanguage } from '@stores/store';
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-// Define the widget function
+/**
+ * Defines Rating widget Parameters
+ */
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
@@ -53,6 +55,10 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'material-symbols:star-outline';
+widget.Description = 'This Rating widget enables the collection of user rating data for purposes such as feedback, reviews, and ratings.';
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
