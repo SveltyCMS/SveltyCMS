@@ -2,15 +2,15 @@
 	import PageTitle from '@components/PageTitle.svelte';
 	import Permissions from '@components/Permissions.svelte';
 	import { page } from '$app/stores';
-	import { mode, collection, collections } from '@stores/store';
+	import { mode, collection, collections, permissionStore } from '@stores/store';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import { obj2formData } from '@utils/utils';
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
-	// console.log('mode:', $mode);
-	// console.log('page:', $page);
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
@@ -23,14 +23,18 @@
 		mode.set('create');
 	}
 
-	// Required default widget fields
+	// Default widget data (tab1)
 	let name = $mode == 'edit' ? $collection.name : collectionName;
 	let icon = $mode == 'edit' ? $collection.icon : '';
 	let slug = $mode == 'edit' ? $collection.slug : name;
 	let description = $mode == 'edit' ? $collection.description : '';
 	let status = $mode == 'edit' ? $collection.status : 'unpublished';
 
-	//  Widget data
+	// Widget Permissions (tab2)
+	let permissions = $mode == 'edit' ? $collection.permissions : [];
+	console.log('permissions:', permissions);
+
+	// Widget fields data(tab3)
 	let fields =
 		$mode == 'edit'
 			? $collection.fields.map((field, index) => {
@@ -40,27 +44,26 @@
 					};
 				})
 			: [];
-	//console.log('fields:', fields);
-	let permission = $mode == 'edit' ? $collection.permissions : [];
-	console.log('permission:', permission);
+	console.log('fields:', fields);
 
+	// Form fields
 	let DBName = '';
 	let searchQuery = '';
 	let iconselected: any = icon || '';
 	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 	let autoUpdateSlug = true;
 
-	// skeleton
+	// Skeleton
 	import { getToastStore, TabGroup, Tab, getModalStore, popup } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 	import type { ModalSettings, ModalComponent, PopupSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	//modal to display widget options
+	// Import Modals
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 
-	//modal to choose a widget
+	// Modal 1 to choose a widget
 	function modalSelectWidget(selected: any): void {
 		const c: ModalComponent = { ref: ModalSelectWidget };
 		const modal: ModalSettings = {
@@ -78,8 +81,7 @@
 		modalStore.trigger(modal);
 	}
 
-	// TODO: Fix Title edit tile selectedWidget.key to use no key
-	// Modal to Edit a selected widget
+	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
@@ -107,8 +109,32 @@
 		modalStore.trigger(modal);
 	}
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	// Popup Tooltips
+	let NameTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Name',
+		placement: 'right'
+	};
+	let IconTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Icon',
+		placement: 'right'
+	};
+	let SlugTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Slug',
+		placement: 'right'
+	};
+	let DescriptionTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Description',
+		placement: 'right'
+	};
+	let StatusTooltip: PopupSettings = {
+		event: 'hover',
+		target: 'Status',
+		placement: 'right'
+	};
 
 	// Page Title
 	$: pageTitle =
@@ -156,13 +182,16 @@
 		}
 	}
 
-	// Dynamically grab the id, label, dbname, and widget for each object in the fields array
+	// Collection headers
 	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
-	//const headers = Object.keys(fields[0]);
+
+	// Dynamically grab the id, label, dbname, and widget for each object in the fields array
+	// const headers = Object.keys(fields[0]);
 
 	//console.log('headers:', headers.length);
 	let gridClass = `grid grid-cols-${headers.length + 1}`;
 
+	// svelte-dnd-action
 	const flipDurationMs = 300;
 
 	const handleDndConsider = (e: any) => {
@@ -175,21 +204,26 @@
 		//console.log('handleDndFinalize:', fields);
 	};
 
-	async function handleCollectionSave() {
+	// Function to save data by sending a POST request
+	function handleCollectionSave() {
 		// Prepare form data
 		let data =
-			// $mode == 'edit'
-			obj2formData({
-				originalName: $collection.name,
-				collectionName: name,
-				icon: $collection.icon,
-				status: $collection.status,
-				slug: $collection.slug,
-				description: $collection.description,
-				fields: $collection.fields,
-				permission: $collection.permissions
-			});
-		// : obj2formData({ fields, collectionName: name, icon, status, description, slug, permission });
+			$mode == 'edit'
+				? obj2formData({
+						originalName: $collection.name,
+						collectionName: name,
+						icon: $collection.icon,
+						status: $collection.status,
+						slug: $collection.slug,
+						description: $collection.description,
+						permissions: $collection.permissions,
+						fields: $collection.fields
+					})
+				: obj2formData({ fields, permissions, collectionName: name, icon, slug, description, status });
+
+		console.log(data);
+
+		// Send the form data to the server
 		axios.post(`?/saveCollections`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
@@ -207,33 +241,6 @@
 		};
 		toastStore.trigger(t);
 	}
-
-	// Popup Tooltips
-	let NameTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Name',
-		placement: 'right'
-	};
-	let IconTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Icon',
-		placement: 'right'
-	};
-	let SlugTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Slug',
-		placement: 'right'
-	};
-	let DescriptionTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Description',
-		placement: 'right'
-	};
-	let StatusTooltip: PopupSettings = {
-		event: 'hover',
-		target: 'Status',
-		placement: 'right'
-	};
 </script>
 
 <div class="align-center mb-2 mt-2 flex justify-between dark:text-white">
@@ -411,7 +418,7 @@
 				<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 					{#each fields as field (field.id)}
 						<div
-							class="{gridClass} border-blue variant-outline-surface my-2 w-full items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
+							class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
 						>
 							<div class="variant-ghost-primary btn-icon">
 								{field.id}

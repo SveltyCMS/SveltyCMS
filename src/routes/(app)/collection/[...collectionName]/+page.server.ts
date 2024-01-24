@@ -2,16 +2,16 @@ import { redirect, type Actions } from '@sveltejs/kit';
 import { auth, getCollectionModels } from '@api/db';
 import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+import type { WidgetType } from '@components/widgets';
 import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
-import type { WidgetType } from '@components/widgets';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
-// Load function that handles authentication and user validation
+// Define load function as async function that takes an event parameter
 export async function load(event) {
 	// Get session cookie value as string
 	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
@@ -27,89 +27,82 @@ export async function load(event) {
 	}
 }
 
+// Create or Update Collection
 export const actions: Actions = {
-	saveCollections: async ({ request }) => {
-		console.log('New');
+	saveCollection: async ({ request }) => {
 		const formData = await request.formData();
 		console.log(formData);
-
+		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
 		const collectionIcon = JSON.parse(formData.get('icon') as string);
-		const collectionStatus = JSON.parse(formData.get('status') as string);
 		const collectionSlug = JSON.parse(formData.get('slug') as string);
-		const collectionsPermission = JSON.parse(formData.get('permission') as string);
-		console.log('permissions', collectionsPermission);
-		const fieldsData = JSON.parse(formData.get('fields') as string);
+		const collectionDescription = JSON.parse(formData.get('description') as string);
+		const collectionStatus = JSON.parse(formData.get('status') as string);
+		// Permissions
+		const permissionsData = JSON.parse(formData.get('permissions') as string);
+		// Widgets Fields
+		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);
 
-		const project = new ts.Project();
-		let sourceFile: ts.SourceFile | undefined; // Declare sourceFile with undefined
-		const filePath = `${import.meta.env.collectionsFolderTS}${collectionName}.ts`;
-		sourceFile = project.addSourceFileAtPath(filePath);
-		const variableDeclaration = sourceFile.getVariableDeclaration('schema');
+		// Generate fields as formatted string
+		//console.log(fields);
 
-		// Find the schema object literal expression
-		if (variableDeclaration) {
-			const schemaObjectLiteral = variableDeclaration.getInitializerIfKind(ts.SyntaxKind.ObjectLiteralExpression);
+		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
 
-			if (schemaObjectLiteral) {
-				const iconProperty = schemaObjectLiteral.getProperty('icon');
-				if (iconProperty) {
-					iconProperty.replaceWithText(`icon: '${collectionIcon}'`);
-				}
+		let content = `
+	${imports}
+	import widgets from '@components/widgets';
+	import { roles } from './types';
+	import type { Schema } from './types';
+	const schema: Schema = {
+		// Collection Name coming from filename so not needed
 
-				const statusProperty = schemaObjectLiteral.getProperty('status');
-				console.log('+iconProperty', `'${collectionStatus}'`);
-				if (statusProperty) {
-					statusProperty.replaceWithText(`status: '${collectionStatus}'`);
-				}
+		// Optional & Icon, status, slug
+		// See for possible Icons https://icon-sets.iconify.design/
+		icon: '${collectionIcon}',
+	    status: '${collectionStatus}',
+		description: '${collectionDescription}',
+	    slug: '${collectionSlug}',
 
-				const slugProperty = schemaObjectLiteral.getProperty('slug');
-				console.log('+iconProperty', `'${collectionSlug}'`);
-				if (slugProperty) {
-					slugProperty.replaceWithText(`slug: '${collectionSlug}'`);
-				}
+		// Collection Permissions by user Roles
+		permissions: {
+			${permissionsData}
+		},
 
-				const permissionsContent = Object.entries(collectionsPermission)
-					.map(([role, permissions]) => {
-						// Check if permissions is an object
-						if (typeof permissions === 'object' && permissions !== null) {
-							const permissionEntries = Object.entries(permissions)
-								.map(([action, value]) => `\t\t\t${action}: ${value},`)
-								.join('\n');
-							console.log('+++++++++', `\t\t[roles.${roles[role]}]: {\n${permissionEntries}\n\t\t},`);
-							return `\t\t[roles.${roles[role]}]: {\n${permissionEntries}\n\t\t},`;
-						} else {
-							// Handle the case when permissions is not an object (e.g., it could be an array)
-							console.error(`Invalid permissions format for role '${role}'. Expected an object.`);
-							return ''; // or handle it accordingly
-						}
-					})
-					.join('\n');
-				const permissionProperty = schemaObjectLiteral.getProperty('permissions');
-				if (permissionProperty) {
-					permissionProperty.replaceWithText(`permissions: { ${permissionsContent} }`);
-				}
+		// Defined Fields that are used in your Collection
+		// Widget fields can be inspected for individual options
+		fields: [
+			${fields}
+		]
+	};
+	export default schema;
+	
+	`;
+		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
 
-				const fieldsProperty = schemaObjectLiteral.getProperty('fields');
-				if (fieldsProperty) {
-					fieldsProperty.replaceWithText(`fields: ${JSON.stringify(fieldsData)}`);
-				}
-			}
+		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
+		console.log('content:', content);
+		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
+		if (originalName && originalName != collectionName) {
+			fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
 		}
-		sourceFile.saveSync();
+		fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
+		await compile();
+		await updateCollections(true);
+		await getCollectionModels();
+		return null;
 	},
 
 	saveConfig: async ({ request }) => {
 		const formData = await request.formData();
 		const categories = formData.get('categories') as string;
 		let config = `
-			export function createCategories(collections) {
-				return ${categories}
-		
-			}
-			`;
+		export function createCategories(collections) {
+			return ${categories}
+	
+		}
+		`;
 		config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 		config = await prettier.format(config, { ...(prettierConfig as any), parser: 'typescript' });
 		fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/config.ts`, config);
