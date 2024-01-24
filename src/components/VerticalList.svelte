@@ -22,7 +22,7 @@
 	{/if}
 
 	<section
-		use:dndzone={{ items: fields, flipDurationMs }}
+		use:dndzone={{ items: items, flipDurationMs }}
 		on:consider={handleDndConsider}
 		on:finalize={handleDndFinalize}
 		class="my-1 w-full overflow-scroll border border-surface-400 p-2"

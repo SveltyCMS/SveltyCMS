@@ -15,7 +15,7 @@
 	let page = 0; // Initialize page counter
 	let showDropdown = false;
 
-	export let icon: string;
+	export const icon: string = '';
 	export let iconselected: string;
 	export let searchQuery: string;
 
@@ -116,7 +116,7 @@
 	<input
 		type="text"
 		id="icon"
-		bind:value={icon}
+		bind:value={searchQuery}
 		placeholder={m.iconpicker_placeholder()}
 		class="input w-full"
 		on:input={() => searchIcons(searchQuery, selectedLibrary)}

@@ -9,7 +9,6 @@
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -440,24 +439,6 @@
 				<div class="mt-2 flex items-center justify-center gap-3">
 					<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 				</div>
-
-				{#if expanded}
-					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
-					<div class="flex flex-wrap items-center justify-center gap-2">
-						{#each widget_keys as item}
-							<button
-								class=" variant-outline-warning btn relative hover:variant-filled-secondary"
-								on:click={() => {
-									selected = item;
-									expanded = false;
-									modalComponentForm(selected);
-								}}
-							>
-								<span class="text-surface-700 dark:text-white">{item}</span>
-							</button>
-						{/each}
-					</div>
-				{/if}
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
