@@ -108,10 +108,10 @@ devDependencies:
     version: 0.3.1(tailwindcss@3.4.1)
   '@sveltejs/adapter-node':
     specifier: ^3.0.0
-    version: 3.0.0(@sveltejs/kit@2.3.2)
+    version: 3.0.0(@sveltejs/kit@2.4.3)
   '@sveltejs/kit':
-    specifier: ^2.3.2
-    version: 2.3.2(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
+    specifier: ^2.4.3
+    version: 2.4.3(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
   '@sveltejs/vite-plugin-svelte':
     specifier: ^3.0.1
     version: 3.0.1(svelte@4.2.8)(vite@5.0.12)
@@ -186,7 +186,7 @@ devDependencies:
     version: 0.9.38(svelte@4.2.8)
   sveltekit-superforms:
     specifier: ^1.13.3
-    version: 1.13.3(@sveltejs/kit@2.3.2)(svelte@4.2.8)(zod@3.22.4)
+    version: 1.13.3(@sveltejs/kit@2.4.3)(svelte@4.2.8)(zod@3.22.4)
   tailwindcss:
     specifier: ^3.4.1
     version: 3.4.1
@@ -1721,7 +1721,7 @@ packages:
       tailwindcss: 3.4.1
     dev: true
 
-  /@sveltejs/adapter-node@3.0.0(@sveltejs/kit@2.3.2):
+  /@sveltejs/adapter-node@3.0.0(@sveltejs/kit@2.4.3):
     resolution: {integrity: sha512-+nmnMhgWB0c1C2kLcWXp/r1zmY22ayhO8zD2oyxy4VUHYPOKt1uEmFVvLCzF7jg5aYlTtstjmrzNdP2l0MiLoQ==}
     peerDependencies:
       '@sveltejs/kit': ^2.0.0
@@ -1729,12 +1729,12 @@ packages:
       '@rollup/plugin-commonjs': 25.0.7(rollup@4.9.5)
       '@rollup/plugin-json': 6.1.0(rollup@4.9.5)
       '@rollup/plugin-node-resolve': 15.2.3(rollup@4.9.5)
-      '@sveltejs/kit': 2.3.2(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
+      '@sveltejs/kit': 2.4.3(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
       rollup: 4.9.5
     dev: true
 
-  /@sveltejs/kit@2.3.2(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12):
-    resolution: {integrity: sha512-AzGWV1TyUSkBuciy06E5NegXndIEgTthDtllv80qynEJFh8bZD62ZxLajiQLOsKGqRDilEQyshDARQxjIqiaqg==}
+  /@sveltejs/kit@2.4.3(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12):
+    resolution: {integrity: sha512-nKNhUdt61vtD961kQpUk6vLDhpnV0yku5F1uYNWvrJYFV0+cGfmW7ol0JVMSjHMXlMtmmv2FTc+nPRrTFwb2UA==}
     engines: {node: '>=18.13'}
     hasBin: true
     requiresBuild: true
@@ -6484,14 +6484,14 @@ packages:
       magic-string: 0.30.5
       periscopic: 3.1.0
 
-  /sveltekit-superforms@1.13.3(@sveltejs/kit@2.3.2)(svelte@4.2.8)(zod@3.22.4):
+  /sveltekit-superforms@1.13.3(@sveltejs/kit@2.4.3)(svelte@4.2.8)(zod@3.22.4):
     resolution: {integrity: sha512-/n2ZJ3ythMlCr4W0PQtnm2HgT7jfPdiAs3uvngQ5zPthTUwJ4bmyTlS1P0/kXuJROrEs8c/U7psZr0UgFObrfQ==}
     peerDependencies:
       '@sveltejs/kit': 1.x || 2.x
       svelte: 3.x || 4.x
       zod: 3.x
     dependencies:
-      '@sveltejs/kit': 2.3.2(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
+      '@sveltejs/kit': 2.4.3(@sveltejs/vite-plugin-svelte@3.0.1)(svelte@4.2.8)(vite@5.0.12)
       devalue: 4.3.2
       klona: 2.0.6
       svelte: 4.2.8
