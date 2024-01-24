@@ -2,19 +2,21 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
 
-	export let fields: any;
+	export let items: any;
+	export let headers: any[] = [];
 	export let flipDurationMs: number;
 	export let handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 	export let handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
-	export let headers: any[] = [];
+
+	let gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
 </script>
 
 <div>
 	<!-- Header -->
 	{#if headers.length > 0}
-		<div class="flex w-full items-center gap-6 bg-primary-500 p-1 py-2 pl-3 text-center font-semibold">
+		<div class={gridClass}>
 			{#each headers as header}
-				<div class="text-black">{header}:</div>
+				<div class="ml-2 text-left">{header}:</div>
 			{/each}
 		</div>
 	{/if}
@@ -23,7 +25,7 @@
 		use:dndzone={{ items: fields, flipDurationMs }}
 		on:consider={handleDndConsider}
 		on:finalize={handleDndFinalize}
-		class="my-2 w-full overflow-scroll border border-surface-400 p-2"
+		class="my-1 w-full overflow-scroll border border-surface-400 p-2"
 	>
 		<!-- Data -->
 		<slot />

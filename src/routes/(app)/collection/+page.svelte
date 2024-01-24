@@ -132,7 +132,7 @@
 		<!-- TODO: add sticky top sticky top-0 z-50 -->
 		<div class="sticky top-0">
 			<!-- Category/Collection buttons -->
-			<div class="mb-3 flex flex-col justify-around gap-1 sm:flex-row">
+			<div class="mb-3 flex flex-col justify-around gap-1 sm:flex-row lg:justify-center lg:gap-8">
 				<!-- add new Category-->
 				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
 					{m.collection_addcategory()}
@@ -144,7 +144,9 @@
 				</button>
 			</div>
 
+			<!-- TODO:calculate the width according to number of columns -->
 			<!-- display unassigned collections -->
+
 			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
 		</div>
 

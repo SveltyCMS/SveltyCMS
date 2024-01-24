@@ -9,6 +9,7 @@ import { contentLanguage, entryData, mode, collections, collection } from '@stor
 
 // lucia
 import type { User, Auth } from 'lucia';
+import { UserSchema } from '@src/collections/Auth';
 
 import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 import { browser } from '$app/environment';
@@ -33,6 +34,7 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 
 // Function to convert an object to form data
 export const obj2formData = (obj: any) => {
+	console.log(obj);
 	// Create a new FormData object
 	const formData = new FormData();
 	// Iterate over the keys of the input object
@@ -44,9 +46,8 @@ export const obj2formData = (obj: any) => {
 				if (!val && val !== false) return undefined;
 				else if (key == 'schema') return undefined;
 				else if (key == 'display' && val.default == true) return undefined;
-				else if (key == 'display') return '🗑️' + val + '🗑️';
+				else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
 				else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-				else if (key == 'relation') return '🗑️' + val + '🗑️';
 				else if (typeof val === 'function') {
 					return '🗑️' + val + '🗑️';
 				}
@@ -324,7 +325,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 						{
 							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array
 							editedAt: new Date().getTime().toString(),
-							editedBy: { Username: get(user).username },
+							editedBy: { Username: UserSchema.username },
 							changes: {}
 						}
 					]
@@ -370,25 +371,78 @@ export async function deleteImageFiles(collectionName: string, fileName: string)
 	}
 }
 
-// Delete FormData
-// TODO: move images/files to trash folder see [collection]/+server.ts
+// Move FormData to trash folder and delete trash files older than 30 days
 export async function deleteData(id: any, collectionName: any) {
 	// Fetch the entry data before deleting
 	const entryData = await findById(id, collectionName);
 
 	// Check if the collection has an 'images' field
 	if (entryData && entryData.images) {
-		// Delete image files associated with the entry
+		// Move image files associated with the entry to trash folder
 		for (const fieldName in entryData.images) {
 			const fileName = entryData.images[fieldName]?.original?.name;
 			if (fileName) {
-				await deleteImageFiles(collectionName, fileName);
+				await moveImageFilesToTrash(collectionName, fileName);
 			}
 		}
 	}
 
-	// Continue with the deletion of the content item
-	await fetch(`/api/${collectionName}/${id}`, { method: 'DELETE' });
+	// Move the content item to trash folder
+	await fetch(`/api/trash/${collectionName}/${id}`, { method: 'PUT' });
+
+	// Delete trash files older than 30 days
+	await deleteOldTrashFiles();
+}
+
+// Move image files to trash folder
+async function moveImageFilesToTrash(collectionName: string, fileName: string) {
+	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+
+	const collection = get(collections).find((collection) => collection.name === collectionName);
+
+	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
+
+	try {
+		// Move the original image file to trash folder
+		fs.renameSync(
+			`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`,
+			`${PUBLIC_MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`
+		);
+
+		// Move resized image files to trash folder
+		for (const size in SIZES) {
+			fs.renameSync(
+				`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`,
+				`${PUBLIC_MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`
+			);
+		}
+
+		console.log(`Moved image files associated with ${fileName} to trash folder`);
+	} catch (error) {
+		console.error(`Error moving image files to trash folder: ${error}`);
+		// Handle the error as needed
+	}
+}
+
+// Delete trash files older than 30 days
+async function deleteOldTrashFiles() {
+	// Get the current date
+	const current_date = new Date();
+
+	// Calculate the timestamp for 30 days ago
+	const thirty_days_ago = new Date(current_date.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+	// Find all trash files that were created before the 30-day mark
+	const old_trash_files = fs.readdirSync('/path/to/trash').filter((file) => {
+		const stats = fs.statSync(`/path/to/trash/${file}`);
+		return stats.ctime < thirty_days_ago;
+	});
+
+	// Delete the old trash files
+	old_trash_files.forEach((file) => {
+		fs.unlinkSync(`/path/to/trash/${file}`);
+	});
 }
 
 export async function extractData(fieldsData: any) {
@@ -418,7 +472,7 @@ export async function validate(auth: Auth, sessionID: string | null) {
  * @param sizeInBytes - The size of the file in bytes.
  * @returns The formatted file size as a string.
  */
-export function formatSize(sizeInBytes) {
+export function formatSize(sizeInBytes: any) {
 	if (sizeInBytes < 1024) {
 		return `${sizeInBytes} bytes`;
 	} else if (sizeInBytes < 1024 * 1024) {

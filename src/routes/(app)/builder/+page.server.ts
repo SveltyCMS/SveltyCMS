@@ -35,12 +35,9 @@ export const actions: Actions = {
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
 		const collectionIcon = JSON.parse(formData.get('icon') as string);
-		const collectionStatus = JSON.parse(formData.get('status') as string);
 		const collectionSlug = JSON.parse(formData.get('slug') as string);
-		console.log("fieldsData",collectionName)
-		console.log("fieldsData",collectionIcon)
-		console.log("fieldsData",collectionStatus)
-		console.log("fieldsData",collectionSlug)
+		const collectionDescription = JSON.parse(formData.get('description') as string);
+		const collectionStatus = JSON.parse(formData.get('status') as string);
 
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);
@@ -62,6 +59,7 @@ export const actions: Actions = {
 		// See for possible Icons https://icon-sets.iconify.design/
 		icon: '${collectionIcon}',
 	    status: '${collectionStatus}',
+		description: '${collectionDescription}',
 	    slug: '${collectionSlug}',
 
 		// Collection Permissions by user Roles

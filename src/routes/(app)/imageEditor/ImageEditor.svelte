@@ -88,7 +88,8 @@
 
 <!-- Enable and Disable module functionality -->
 <div class="mt-1 flex items-center justify-center gap-2 px-2 md:justify-between">
-	<p class="hidden md:block">Image Name: <span class="text-error-500"> {image?.name} </span></p>
+	<p class="hidden md:block">Image:</p>
+	<p class="text-primary-500">{image?.name}</p>
 
 	<div class="w-90 btn-group mt-1 dark:[&>*+*]:border-gray-200">
 		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">

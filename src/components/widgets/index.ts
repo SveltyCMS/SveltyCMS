@@ -4,7 +4,7 @@ import Currency from './currency';
 import ColorPicker from './colorPicker';
 import Date from './date';
 import DateTime from './dateTime';
-// import DateRange from './dateRange';
+import DateRange from './dateRange';
 import Email from './email';
 // import Group from './group';
 import FileUpload from './fileUpload';
@@ -16,6 +16,7 @@ import MegaMenu from './megaMenu';
 import Number from './number';
 import PhoneNumber from './phoneNumber';
 import Radio from './radio';
+import Rating from './rating';
 import Relation from './relation';
 import RemoteVideo from './remoteVideo';
 // import RichText from './richText';
@@ -25,7 +26,7 @@ import Text from './text';
 
 const widgets = {
 	// Address flexible Address fields
-	//Address,
+	// Address,
 	// Checkbox - boolean true / false checkbox
 	Checkbox,
 	// Color Picker - choice of color
@@ -37,7 +38,7 @@ const widgets = {
 	// Date - date / time field that saves a timestamp
 	DateTime,
 	// DateRange - date with start / Finish timestamps
-	// DateRange,
+	DateRange,
 	// Email - validates the entry is a properly formatted email
 	Email,
 	// Group - nest fields within an object with condition & tabs
@@ -60,6 +61,8 @@ const widgets = {
 	// Radio - radio button group, allowing only one value to be selected
 	Radio,
 	// Relation - assign relationships to other collections
+	Rating,
+	// Rating - Visual representation of a numeric range.
 	Relation, // :Relation,
 	// RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
 	RemoteVideo,

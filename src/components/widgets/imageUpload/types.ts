@@ -4,7 +4,9 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 
 import { SIZES } from '@utils/utils';
 
-// Define the widget Parameters
+/**
+ * Defines ImageUpload widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -22,7 +24,9 @@ export type Params = {
 	required?: boolean;
 };
 
-// Define the GuiSchema
+/**
+ * Defines ImageUpload GuiSchema
+ */
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
@@ -49,7 +53,9 @@ const types = Object.keys(SIZES)
 	)
 	.join('\n');
 
-// Define the GraphqlSchema function
+/**
+ * Define ImageUpload GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;

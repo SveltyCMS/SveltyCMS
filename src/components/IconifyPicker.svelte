@@ -154,7 +154,8 @@
 				</button>
 			{/each}
 
-			<!-- Pagination buttons -->{#if icons.length > 0}
+			<!-- Pagination buttons -->
+			{#if icons.length > 0}
 				<div class="mt-2 flex justify-between">
 					<button
 						disabled={start === 0}

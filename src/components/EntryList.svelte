@@ -313,6 +313,7 @@
 
 		// Set the mode to 'view'
 		mode.set('view');
+		console.log('EntryList.svelte', $mode);
 	};
 
 	const flipDurationMs = 100;
@@ -441,7 +442,7 @@
 		<!-- Collection type with icon -->
 		<!-- TODO: Translate Collection Name -->
 		<div class="mr-1 flex flex-col {!$toggleLeftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
-			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
+			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 					{$categories[0].name}
 				</div>{/if}
 			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
@@ -540,7 +541,7 @@
 	<Loading />
 {:else}
 	<!-- Tanstack Table -->
-	<div class="table-container">
+	<div class="table-container z-0">
 		<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 			<!-- Tanstack Header -->
 			<thead class="text-dark dark:text-primary-500">

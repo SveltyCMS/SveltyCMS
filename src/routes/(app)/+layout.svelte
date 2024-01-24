@@ -128,7 +128,14 @@
 			// console.log(`GitHub version: ${githubVersion}`);
 			// console.log(`pkgBgColor: ${$pkgBgColor}`);
 		})
-		.catch((error) => console.error('Error:', error));
+		.catch((error) => {
+			// Log the error to the console
+			console.error('Error von Github Release found:', error);
+
+			// Handle the error silently and use the current package.json version
+			githubVersion = pkg;
+			$pkgBgColor = 'variant-filled-tertiary';
+		});
 
 	// Lucia
 	const user = $page.data.user; //TODO update Username dynamically on change
@@ -317,9 +324,6 @@
 	{#if $page.url.pathname === '/login'}
 		<slot />
 	{:else}
-		<!-- <div>storeListboxValue{$storeListboxValue}</div>
-		<div>Mode {$mode}</div>
-		<div>toggleLeftSidebar {$toggleLeftSidebar}</div> -->
 		<AppShell
 			slotSidebarLeft="relative pt-2 !overflow-visible dark:bg-gradient-to-r bg-white dark:from-surface-700 dark:to-surface-900 text-center h-full relative border-r !px-2 dark:border-surface-500 flex flex-col z-10
 {$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
@@ -353,10 +357,9 @@ lg:overflow-y-scroll lg:max-h-screen}"
 				{/if}
 
 				<!-- sidebar collapse button -->
-
 				<button
 					type="button"
-					class="absolute top-4 flex items-center justify-center !rounded-full border ltr:-right-3 rtl:-left-3"
+					class="absolute top-4 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
 					on:keydown
 					on:click={() => {
 						toggleLeftSidebar.clickSwitchSideBar();

@@ -44,7 +44,8 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		color: params.color
+		color: params.color,
+		size: params.size
 	};
 
 	// Return the field and widget objects
@@ -54,6 +55,10 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'tabler:checkbox';
+widget.Description = m.widget_checkbox_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

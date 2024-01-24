@@ -7,7 +7,9 @@ import { defaultContentLanguage } from '@stores/store';
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-// Define the widget function
+/**
+ * Defines ColorPicker widget Parameters
+ */
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
@@ -53,6 +55,9 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+widget.Icon = 'ic:outline-colorize';
+widget.Description = m.widget_colorPicker_description();
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

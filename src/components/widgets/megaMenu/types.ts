@@ -5,6 +5,9 @@ import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
 import widgets from '..';
 import { getFieldName } from '@utils/utils';
 
+/**
+ * Defines MegaMenu widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -20,7 +23,9 @@ export type Params = {
 	menu: any[]; // Make sure this is always an array of arrays
 };
 
-// Define the GuiSchema
+/**
+ * Defines MegaMenu GuiSchema
+ */
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -29,7 +34,9 @@ export const GuiSchema = {
 	menu: { widget: GuiFields, required: true }
 };
 
-// Define the GraphqlSchema function
+/**
+ * Define MegaMenu GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	const menu = field.menu;
 	const typeName = `${collection.name}_${getFieldName(field, true)}`;

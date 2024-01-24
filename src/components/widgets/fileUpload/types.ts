@@ -3,7 +3,9 @@ import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import { SIZES } from '@utils/utils';
 
-// Define the widget Parameters
+/**
+ * Defines FileUpload widget Parameters
+ */
 export type Params = {
 	// default required parameters
 	label: string;
@@ -20,7 +22,9 @@ export type Params = {
 	path: (string & Record<string, never>) | 'global' | 'unique';
 };
 
-// Define the GuiSchema
+/**
+ * Defines FileUpload GuiSchema
+ */
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -47,7 +51,9 @@ const types = Object.keys(SIZES)
 	)
 	.join('\n');
 
-// Define the GraphqlSchema function
+/**
+ * Define FileUpload GraphqlSchema function
+ */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;

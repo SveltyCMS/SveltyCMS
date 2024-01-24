@@ -14,7 +14,7 @@ jobs:
       issues: write # Allow creating and updating issues
       pull-requests: write # Allow creating and updating pull requests
 
-    runs-on: ubuntu-latest # Us the latest Ubuntu virtual environment
+    runs-on: ubuntu-latest # Use the latest Ubuntu virtual environment
 
     steps:
       - name: Checkout code
@@ -23,7 +23,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4 # Use the setup-node action to install Node.js
         with:
-          node-version: '21'
+          node-version: '20'
 
       - name: Install pnpm
         run: npm install -g pnpm
@@ -50,10 +50,14 @@ jobs:
           GIT_USER_NAME: ${{ vars.GIT_USER_NAME }}
 
       - name: Update package.json version after semantic release
+        # Setting an environment variables defined in github Environments
+        env:
+          GIT_USER_EMAIL: '${{ env.GIT_USER_EMAIL }}'
+          GIT_USER_NAME: '${{ env.GIT_USER_NAME }}'
         run: |
 
-          git config user.email "RKroells@web.de"
-          git config user.name "Rar9"
+          git config user.email "${{ env.GIT_USER_EMAIL }}"
+          git config user.name "${{ env.GIT_USER_NAME }}"
           git checkout ${{ github.ref }}
           git pull origin ${{ github.ref }}
           GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}" pnpm version --no-git-tag-version --allow-same-version

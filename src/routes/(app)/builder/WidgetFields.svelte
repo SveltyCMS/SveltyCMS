@@ -42,7 +42,7 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed left-0 top-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar ===
+		class="fixed -top-16 left-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar ===
 		'full'
 			? 'left-[220px] '
 			: 'left-0 '}"

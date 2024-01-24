@@ -68,7 +68,7 @@
 		// Define the logic for handling the click on a collection
 		mode.set(modeSet);
 		collection.set(item.collections);
-		goto(`/collection/${item.name}`);
+		goto(`collection/${item.name}`);
 	}
 </script>
 
@@ -96,15 +96,15 @@
 				class="my-1 flex h-10 w-full items-center justify-between rounded-sm border border-surface-700 bg-surface-300 py-2 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
-				<iconify-icon icon="mdi:drag" width="18" class=" pl-0.5" />
+				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5" />
 
 				<span class="break-word flex items-center gap-2">
 					<iconify-icon icon={item.icon} width="18" class="text-error-500" />
 					{item.name}</span
 				>
 
-				<button class="varient-filled-surface btn" on:click={() => handleCollectionClick(item)}>
-					<iconify-icon icon="mdi:pen" width="18" class=" text-surface-500 hover:text-error-500" />
+				<button class="btn" on:click={() => handleCollectionClick(item)}>
+					<iconify-icon icon="mdi:pen" width="18" class="text-surface-500 hover:text-error-500" />
 				</button>
 			</div>
 		{/each}

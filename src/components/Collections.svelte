@@ -7,6 +7,7 @@
 	let createdBy = '';
 
 	export let modeSet: typeof $mode = 'view';
+	console.log('Collections.svelte', $mode);
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -102,7 +103,6 @@
 		<div class="input-group input-group-divider mb-2 grid grid-cols-[auto_1fr_auto]">
 			<input
 				type="text"
-				autofocus
 				placeholder={m.collections_search()}
 				bind:value={search}
 				on:input={(e) => {

@@ -29,7 +29,7 @@
 	let background: 'white' | '#242728' = 'white';
 </script>
 
-<div class={`flex min-h-screen w-full overflow-y-auto bg-${background}`}>
+<div class={`flex min-h-screen w-full overflow-y-auto bg-[#242728] bg-${background}`}>
 	<SignIn
 		{active}
 		FormSchemaLogin={data.loginForm}
@@ -46,7 +46,7 @@
 
 		<!-- Language Select -->
 		<div
-			class="absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
+			class=" absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
 			<!-- Autocomplete input -->
 			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}

@@ -17,7 +17,7 @@ export async function updateImports() {
 
 	// Initialize variables to store import statements and allCollections declaration
 	let imports = '';
-	let allCollections = ' const allCollections={';
+	let allCollections = 'const allCollections={';
 	// Loop through the files and generate import statements and allCollections declaration
 	for (const file of files) {
 		const name = file.replace('.ts', '');

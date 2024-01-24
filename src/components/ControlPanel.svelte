@@ -47,6 +47,7 @@
 
 		// a function to undo the changes made by handleButtonClick
 		mode.set('view');
+		console.log('ControlPanel.svelte', $mode);
 		handleSidebarToggle();
 	}
 	//console.log('collection', $collection);

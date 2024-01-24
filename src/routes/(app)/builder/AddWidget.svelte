@@ -20,7 +20,7 @@
 </script>
 
 <div
-	class="fixed left-0 top-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar === 'full'
+	class="fixed -top-16 left-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar === 'full'
 		? 'w-[220px]'
 		: 'w-full'}"
 >
@@ -30,6 +30,7 @@
 			><iconify-icon icon="material-symbols:close" width="24" /></button
 		>
 	</div>
+
 	{#if !selected_widget}
 		<div class="flex items-center justify-center">
 			<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
