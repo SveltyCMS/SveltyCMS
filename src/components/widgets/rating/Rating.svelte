@@ -31,3 +31,4 @@
 	<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color} /></svelte:fragment>
 	<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color} /></svelte:fragment>
 </Ratings>
+

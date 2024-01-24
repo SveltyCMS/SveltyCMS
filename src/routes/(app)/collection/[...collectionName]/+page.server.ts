@@ -1,3 +1,4 @@
+
 import { redirect, type Actions } from '@sveltejs/kit';
 import { auth, getCollectionModels } from '@api/db';
 import { validate } from '@utils/utils';
@@ -23,7 +24,7 @@ export async function load(event) {
 			user: user.user
 		};
 	} else {
-		redirect(302, `/login`);
+		return redirect(302, '/login');
 	}
 }
 
