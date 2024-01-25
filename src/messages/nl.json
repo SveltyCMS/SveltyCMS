@@ -332,5 +332,7 @@
 	"widget_remoteVideo_description": "Met deze RemoteVideo-widget kunnen gebruikersvideogegevens worden verzameld voor doeleinden zoals afspraken, herinneringen en evenementen.",
 	"widget_richtText_description": "Deze RichText-widget wordt gebruikt om rijke tekstinhoud te creëren. U kunt het label, de kleur en de grootte van de tekst aanpassen. Gebruik deze widget om interactiviteit toe te voegen en feedback van uw gebruikers te verzamelen.",
 	"widget_seo_description": "Deze SEO-widget maakt het verzamelen van SEO-gegevens van gebruikers mogelijk voor doeleinden zoals zoekmachineoptimalisatie (SEO), sociale media en reclame.",
-	"widget_text_description": "Met deze Tekstwidget kunt u tekstgegevens van gebruikers verzamelen voor doeleinden zoals blogposts, opmerkingen en feedback."
+	"widget_text_description": "Met deze Tekstwidget kunt u tekstgegevens van gebruikers verzamelen voor doeleinden zoals blogposts, opmerkingen en feedback.",
+	"Unassigned_Collections": "Niet-toegewezen collecties",
+	"collection_text_description": "Maak nieuwe categorieën of collecties aan en sleep deze naar wens"
 }

@@ -7,8 +7,9 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	//skeleton
-	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	// Skeleton
+	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 	import ModalCategory from './ModalCategory.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
@@ -105,14 +106,57 @@
 
 			// Check if the update was successful
 			if (response.ok) {
-				console.log('Config file updated successfully');
+				// Check the status of the response
+				if (response.status === 304) {
+					// If the status is 304, it means that the new content is the same as the existing content, and no save was done
+					console.log('Config file has not changed');
+
+					// Trigger a toast indicating that the config file has not changed
+					const t = {
+						message: 'Config file has not changed',
+						background: 'variant-variant-filled-tertiary',
+						timeout: 3000,
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				} else {
+					// If the status is not 304, it means that the update was successful
+					console.log('Config file updated successfully');
+
+					// Trigger a success toast
+					const t = {
+						message: 'Config file updated successfully',
+						background: 'variant-filled-primary',
+						timeout: 3000,
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
 			} else {
 				console.error('Error updating config file');
 				const errorDetails = await response.text();
 				console.error('Server response:', errorDetails);
+
+				// Trigger an error toast
+				const t = {
+					message: 'Error updating config file',
+					background: 'variant-filled-error',
+					timeout: 3000,
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 			}
 		} catch (error) {
 			console.error('Error updating config file:', error);
+
+			// Trigger an error toast
+			const t = {
+				message: 'Error updating config file',
+				background: 'variant-filled-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
 		}
 	}
 </script>
@@ -129,6 +173,7 @@
 	{#if !availableCollection}
 		<p class="my-2 text-center">{m.collection_first()}</p>
 	{:else}
+		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
 		<!-- TODO: add sticky top sticky top-0 z-50 -->
 		<div class="sticky top-0">
 			<!-- Category/Collection buttons -->
