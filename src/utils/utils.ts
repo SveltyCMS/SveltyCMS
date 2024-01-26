@@ -102,21 +102,29 @@ export async function saveImages(data: FormData, collectionName: string) {
 	const files: any = {};
 	const _files: Array<any> = [];
 
+	// Get the environment variables for image sizes
 	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+
+	// Define the available image sizes, including 'original' and 'thumbnail'
 	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
+	// Find the collection object by name
 	const collection = get(collections).find((collection) => collection.name === collectionName);
 
+	// Iterate over the form data and extract the files
 	for (const [fieldname, fieldData] of data.entries()) {
 		if (fieldData instanceof Blob) {
 			_files.push({ blob: fieldData, fieldname });
 		}
 	}
 
+	// Check if there are any files to process
 	if (_files.length === 0) return null;
 
-	// Check if directories exist and create them if necessary
+	// Get the path to the collection's media folder
 	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
+
+	// Create the necessary directories if they don't exist
 	if (!fs.existsSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}`)) {
 		for (const size in SIZES) {
 			fs.mkdirSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}`, {
@@ -125,24 +133,34 @@ export async function saveImages(data: FormData, collectionName: string) {
 		}
 	}
 
+	// Process each file asynchronously
 	await Promise.allSettled(
 		_files.map(async (file) => {
 			try {
+				// Extract the file's name, sanitized name, and blob
 				const { blob, fieldname } = file;
 				const name = removeExtension(blob.name);
 				const sanitizedFileName = sanitize(name);
 
+				// Create a buffer from the file's array buffer
 				const buffer = Buffer.from(await blob.arrayBuffer());
-				const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 
-				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}`;
+				// Generate a SHA-256 hash of the file
+				const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
+				// Construct the URL for the original file
+				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}`;
+
+				// Determine the output format based on the environment variable or default to 'original'
 				const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
+
+				// Set the MIME type based on the output format
 				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
 
+				// Add the original file data to the files object
 				files[fieldname as keyof typeof files] = {
 					original: {
-						name: `${hash}-${sanitizedFileName}`,
+						name: `${sanitizedFileName}.${hash}`,
 						url,
 						size: blob.size,
 						type: mimeType,
@@ -150,15 +168,22 @@ export async function saveImages(data: FormData, collectionName: string) {
 					}
 				};
 
+				// Process the file for different sizes
 				await Promise.all(
 					Object.keys(SIZES).map(async (size) => {
+						// Skip the 'original' size
 						if (size == 'original') return;
+
+						// Construct the full file name
 						const fullName =
 							outputFormat === 'original'
-								? `${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`
-								: `${hash}-${sanitizedFileName}.${outputFormat}`;
+								? `${sanitizedFileName}.${hash}.${blob.type.split('/')[1]}`
+								: `${sanitizedFileName}.${hash}.${outputFormat}`;
+
+						// Create a buffer from the file's array buffer
 						const arrayBuffer = await blob.arrayBuffer();
 
+						// Resize and convert the image using sharp
 						const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
 							.rotate()
 							.resize({ width: SIZES[size] })
@@ -168,8 +193,13 @@ export async function saveImages(data: FormData, collectionName: string) {
 							})
 							.toBuffer();
 
+						// Write the thumbnail to the file system
 						fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
+
+						// Construct the URL for the thumbnail
 						const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
+
+						// Add the thumbnail data to the files object
 						files[fieldname as keyof typeof files][size] = {
 							name: fullName,
 							url,
@@ -180,6 +210,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 					})
 				);
 
+				// Optimize the original image if the output format is not 'original'
 				let optimizedOriginalBuffer: Buffer;
 				if (outputFormat !== 'original') {
 					optimizedOriginalBuffer = await sharp(buffer)
@@ -189,22 +220,24 @@ export async function saveImages(data: FormData, collectionName: string) {
 						})
 						.toBuffer();
 
+					// Write the optimized original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${outputFormat}`,
 						optimizedOriginalBuffer
 					);
 				} else {
 					optimizedOriginalBuffer = buffer;
+					// Write the original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${blob.type.split('/')[1]}`,
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${blob.type.split('/')[1]}`,
 						optimizedOriginalBuffer
 					);
 				}
 
 				// Add the optimized original file data to the files object
 				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
-					name: `${hash}-${sanitizedFileName}.${outputFormat}`,
-					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${hash}-${sanitizedFileName}.${outputFormat}`,
+					name: `${sanitizedFileName}.${hash}.${outputFormat}`,
+					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${outputFormat}`,
 					size: optimizedOriginalBuffer.byteLength,
 					type: mimeType,
 					lastModified: blob.lastModified
