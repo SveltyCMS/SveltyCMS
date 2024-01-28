@@ -332,5 +332,7 @@
 	"widget_remoteVideo_description": "This RemoteVideo widget enables the collection of user video data for purposes such as appointments, reminders, and events.",
 	"widget_richtText_description": "This RichText widget is used to create rich text content. You can customize the label, color, and size of the text. Use this widget to add interactivity and collect feedback from your users.",
 	"widget_seo_description": "This SEO widget enables the collection of user SEO data for purposes such as search engine optimization (SEO), social media, and advertising.",
-	"widget_text_description": "This Text widget enables the collection of user text data for purposes such as blog posts, comments, and feedback."
+	"widget_text_description": "This Text widget enables the collection of user text data for purposes such as blog posts, comments, and feedback.",
+	"Unassigned_Collections": "Unassigned Collections",
+	"collection_text_description": "Create new categories or collections by and drag and drop these according to your needs"
 }

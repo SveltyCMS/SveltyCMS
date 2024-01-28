@@ -77,16 +77,16 @@
 	<!-- Column Categories -->
 	<div class="flex h-10 items-center font-bold">
 		<iconify-icon {icon} width="18" />
-		<span class="ml-2 dark:text-primary-500">{name}</span>
+		<span class="dark:text-primary-500 ltr:ml-2 rtl:mr-2">{name}</span>
 	</div>
-	<div class="absolute right-1 top-2 flex">
+	<div class="absolute top-2 flex ltr:right-1 rtl:left-1">
 		<button class="text-black" on:click={() => editCategory({ name, icon })} aria-label="Edit Category">
 			<iconify-icon icon="mdi:pen" width="18" class="hover:text-error-500 dark:text-white" />
 		</button>
 		<iconify-icon icon="mdi:drag" width="18" class="" />
 	</div>
 	<div
-		class="-mr-2 h-[calc(100%-2.5em)] min-h-[1em] overflow-y-scroll"
+		class="h-[calc(100%-2.5em)] min-h-[1em] overflow-y-scroll ltr:-mr-2 rtl:-ml-2"
 		use:dndzone={{ items: items, flipDurationMs, zoneTabIndex: -1 }}
 		on:consider={handleDndConsiderCards}
 		on:finalize={handleDndFinalizeCards}
@@ -97,7 +97,7 @@
 				class="my-1 flex h-10 w-full items-center justify-between rounded-sm border border-surface-700 bg-surface-300 py-2 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
-				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5" />
+				<iconify-icon icon="mdi:drag" width="18" class="ltr:pl-0.5 rtl:pr-0.5" />
 
 				<span class="break-word flex items-center gap-2">
 					<iconify-icon icon={item.icon} width="18" class="text-error-500" />

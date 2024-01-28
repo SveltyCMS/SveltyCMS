@@ -332,5 +332,7 @@
 	"widget_remoteVideo_description": "Este widget de RemoteVideo permite la recopilación de datos de vídeo del usuario para fines como citas, recordatorios y eventos.",
 	"widget_richtText_description": "Este widget RichText se utiliza para crear contenido de texto enriquecido. Puedes personalizar la etiqueta, el color y el tamaño del texto. Utilice este widget para agregar interactividad y recopilar comentarios de sus usuarios.",
 	"widget_seo_description": "Este widget de SEO permite la recopilación de datos de SEO del usuario para fines como optimización de motores de búsqueda (SEO), redes sociales y publicidad.",
-	"widget_text_description": "Este widget de texto permite la recopilación de datos de texto del usuario para fines como publicaciones de blog, comentarios y opiniones."
+	"widget_text_description": "Este widget de texto permite la recopilación de datos de texto del usuario para fines como publicaciones de blog, comentarios y opiniones.",
+	"Unassigned_Collections": "Colecciones no asignadas",
+	"collection_text_description": "Cree nuevas categorías o colecciones y arrástrelas y suéltelas según sus necesidades"
 }

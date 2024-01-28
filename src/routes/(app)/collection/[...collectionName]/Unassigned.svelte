@@ -3,6 +3,9 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	const flipDurationMs = 200;
 	export let items: any;
 	export let onDrop: any;
@@ -23,16 +26,16 @@
 </script>
 
 <div class="ml-1 rounded-sm border border-surface-300 hover:bg-surface-600 dark:border-surface-400">
-	<h2 class="mb-2 text-center font-bold dark:text-primary-500">Unassigned</h2>
+	<h2 class="mb-2 text-center font-bold dark:text-white">{m.Unassigned_Collections()}</h2>
 	<div
-		class="flex w-full flex-wrap overflow-x-scroll"
+		class="flex w-full flex-wrap overflow-x-auto p-2"
 		use:dndzone={{ items: items, flipDurationMs }}
 		on:consider={handleDndConsiderCards}
 		on:finalize={handleDndFinalizeCards}
 	>
 		{#each items as item (item.id)}
 			<div
-				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
+				class="mx-2 my-1 flex h-10 w-5/12 items-center justify-between overflow-x-auto rounded-sm border border-surface-700 bg-surface-300 text-center text-xs font-bold hover:bg-surface-400 dark:text-white"
 				animate:flip={{ duration: flipDurationMs }}
 			>
 				<iconify-icon icon="mdi:drag" width="18" class="pl-0.5" />

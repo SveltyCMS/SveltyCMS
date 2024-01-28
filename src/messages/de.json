@@ -332,5 +332,7 @@
 	"widget_remoteVideo_description": "Dieses RemoteVideo-Widget ermöglicht die Erfassung von Benutzervideodaten für Zwecke wie Termine, Erinnerungen und Ereignisse.",
 	"widget_richtText_description": "Dieses RichText-Widget wird zum Erstellen von Rich-Text-Inhalten verwendet. Sie können die Beschriftung, Farbe und Größe des Texts anpassen. Verwenden Sie dieses Widget, um Interaktivität hinzuzufügen und Feedback von Ihren Benutzern zu sammeln.",
 	"widget_seo_description": "Dieses SEO-Widget ermöglicht die Erfassung von Benutzer-SEO-Daten für Zwecke wie Suchmaschinenoptimierung (SEO), soziale Medien und Werbung.",
-	"widget_text_description": "Dieses Text-Widget ermöglicht die Erfassung von Benutzertextdaten für Zwecke wie Blogbeiträge, Kommentare und Feedback."
+	"widget_text_description": "Dieses Text-Widget ermöglicht die Erfassung von Benutzertextdaten für Zwecke wie Blogbeiträge, Kommentare und Feedback.",
+	"Unassigned_Collections": "Nicht zugewiesene Sammlungen",
+	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop"
 }
