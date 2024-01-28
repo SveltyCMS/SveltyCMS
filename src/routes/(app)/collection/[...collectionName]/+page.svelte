@@ -9,7 +9,6 @@
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -22,6 +21,7 @@
 		collection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
 	} else {
 		mode.set('create');
+		permissionStore.set({});
 	}
 
 	// Default widget data (tab1)
@@ -32,8 +32,12 @@
 	let status = $mode == 'edit' ? $collection.status : 'unpublished';
 
 	// Widget Permissions (tab2)
-	let permissions = $mode == 'edit' ? $collection.permissions : [];
-	console.log('permissions:', permissions);
+	if ($mode == 'edit') {
+		permissionStore.set($collection.permissions ?? {});
+	} else {
+		permissionStore.set([]);
+	}
+	console.log('permissionStore:', $permissionStore);
 
 	// Widget fields data(tab3)
 	let fields =
@@ -45,7 +49,7 @@
 					};
 				})
 			: [];
-	console.log('fields:', fields);
+	//console.log('fields:', fields);
 
 	// Form fields
 	let DBName = '';
@@ -84,6 +88,7 @@
 
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
+		// console.log('widget key:', field.widget);
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
 			type: 'component',
@@ -217,10 +222,10 @@
 						status: $collection.status,
 						slug: $collection.slug,
 						description: $collection.description,
-						permissions: $collection.permissions,
+						permissions: $permissionStore,
 						fields: $collection.fields
 					})
-				: obj2formData({ fields, permissions, collectionName: name, icon, slug, description, status });
+				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
 
 		console.log(data);
 
@@ -398,6 +403,7 @@
 				</div>
 			{:else if tabSet === 1}
 				<!-- Permissions -->
+
 				<Permissions />
 
 				<!-- Buttons -->
@@ -430,7 +436,7 @@
 							<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 							<div class=" ">{field.widget.key}</div>
 
-							<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field.widget.key)}>
+							<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field.widget)}>
 								<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 							</button>
 						</div>
@@ -441,7 +447,7 @@
 					<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 				</div>
 
-				{#if expanded}
+				<!-- {#if expanded}
 					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
 					<div class="flex flex-wrap items-center justify-center gap-2">
 						{#each widget_keys as item}
@@ -457,7 +463,7 @@
 							</button>
 						{/each}
 					</div>
-				{/if}
+				{/if} -->
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"

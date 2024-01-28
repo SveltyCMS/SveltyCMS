@@ -1,35 +1,49 @@
 <script lang="ts">
-	import { roles, color, icon, type permissions } from '@collections/types';
+	import { roles, color, icon } from '@collections/types';
+	import { mode, permissionStore } from '@src/stores/store';
+
+	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
-	import { permissionStore } from '@src/stores/store';
+	const toastStore = getToastStore();
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { page } from '$app/stores';
+
 	type Role = keyof typeof roles;
-	type Color = keyof typeof color;
-	type Icon = keyof typeof icon;
-	type Permission = keyof permissions[Role];
+
+	type Permissions = {
+		create: boolean;
+		read: boolean;
+		write: boolean;
+		delete: boolean;
+	};
+	type RolesPermissions = Record<Role, Permissions>;
 
 	let rolesArray: {
-		name: Role;
-		icon: Icon;
-		color: Color;
-		permissions: permissions[Role];
-	}[] = [];
+		name: string;
+		permissions: Permissions;
+	}[];
+	rolesArray = [];
 
-	console.log('rolesArray', rolesArray);
-
-	const toastStore = getToastStore();
-	let MorePermissions = true;
-	let searchQuery = '';
+	// Load rolesArray from permissionStore if mode is 'edit'
+	$: {
+		if ($mode === 'edit') {
+			const storedPermissions = $permissionStore;
+			rolesArray = Object.values(roles)
+				.filter((role) => role !== 'admin')
+				.map((role) => ({
+					name: role,
+					permissions: storedPermissions[role] || { create: false, read: false, write: false, delete: false }
+				}));
+		}
+	}
 
 	// Define a function to get the buttonMap based on a given role and permission
-	function getButtonMap(role: Role, permission: Permission) {
+	function getButtonMap(permission: 'create' | 'read' | 'write' | 'delete') {
 		return buttonMap[permission];
 	}
 
-	// TODO: Use Dynamic buttonMap to get data from types.ts
+	// Dynamic buttonMap based on data from types.ts
 	const buttonMap = {
 		create: {
 			disabled: 'variant-outline-primary',
@@ -61,325 +75,94 @@
 		}
 	};
 
-	const selectedButtonMap = {
-		developer: {
-			create: {
-				disabled: 'variant-outline-primary',
-				enabled: 'variant-filled-primary',
-				icon: 'bi:plus-circle-fill',
-				color: 'primary',
-				toggle: false
-			},
-			read: {
-				disabled: 'variant-outline-tertiary',
-				enabled: 'variant-filled-tertiary',
-				icon: 'bi:eye-fill',
-				color: 'tertiary',
-				toggle: false
-			},
-			write: {
-				disabled: 'variant-outline-warning',
-				enabled: 'variant-filled-warning',
-				icon: 'bi:pencil-fill',
-				color: 'warning',
-				toggle: false
-			},
-			delete: {
-				disabled: 'variant-outline-error',
-				enabled: 'variant-filled-error',
-				icon: 'bi:trash-fill',
-				color: 'error',
-				toggle: false
-			}
-		},
-		admin: {
-			create: {
-				disabled: 'variant-outline-primary',
-				enabled: 'variant-filled-primary',
-				icon: 'bi:plus-circle-fill',
-				color: 'primary',
-				toggle: false
-			},
-			read: {
-				disabled: 'variant-outline-tertiary',
-				enabled: 'variant-filled-tertiary',
-				icon: 'bi:eye-fill',
-				color: 'tertiary',
-				toggle: false
-			},
-			write: {
-				disabled: 'variant-outline-warning',
-				enabled: 'variant-filled-warning',
-				icon: 'bi:pencil-fill',
-				color: 'warning',
-				toggle: false
-			},
-			delete: {
-				disabled: 'variant-outline-error',
-				enabled: 'variant-filled-error',
-				icon: 'bi:trash-fill',
-				color: 'error',
-				toggle: false
-			}
-		},
-		editor: {
-			create: {
-				disabled: 'variant-outline-primary',
-				enabled: 'variant-filled-primary',
-				icon: 'bi:plus-circle-fill',
-				color: 'primary',
-				toggle: false
-			},
-			read: {
-				disabled: 'variant-outline-tertiary',
-				enabled: 'variant-filled-tertiary',
-				icon: 'bi:eye-fill',
-				color: 'tertiary',
-				toggle: false
-			},
-			write: {
-				disabled: 'variant-outline-warning',
-				enabled: 'variant-filled-warning',
-				icon: 'bi:pencil-fill',
-				color: 'warning',
-				toggle: false
-			},
-			delete: {
-				disabled: 'variant-outline-error',
-				enabled: 'variant-filled-error',
-				icon: 'bi:trash-fill',
-				color: 'error',
-				toggle: false
-			}
-		},
-		user: {
-			create: {
-				disabled: 'variant-outline-primary',
-				enabled: 'variant-filled-primary',
-				icon: 'bi:plus-circle-fill',
-				color: 'primary',
-				toggle: false
-			},
-			read: {
-				disabled: 'variant-outline-tertiary',
-				enabled: 'variant-filled-tertiary',
-				icon: 'bi:eye-fill',
-				color: 'tertiary',
-				toggle: false
-			},
-			write: {
-				disabled: 'variant-outline-warning',
-				enabled: 'variant-filled-warning',
-				icon: 'bi:pencil-fill',
-				color: 'warning',
-				toggle: false
-			},
-			delete: {
-				disabled: 'variant-outline-error',
-				enabled: 'variant-filled-error',
-				icon: 'bi:trash-fill',
-				color: 'error',
-				toggle: false
-			}
-		}
-	};
-
-	let { isEditMode, formCollectionName, collectionData } = $page.data;
-	let collectionName = formCollectionName || '';
-	let collectionObject = JSON.parse(collectionData);
-	let permissionList = collectionObject.permissions;
-	let isPermissionsEmpty = collectionObject.permissions && Object.keys(collectionObject.permissions).length > 0;
-
+	// Define a function to add a new role with default permissions
 	function addPermission() {
-		if (MorePermissions) {
-			const newRole = Object.values(roles).find((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin');
-
-			if (newRole) {
-				const initialPermissions: permissions[Role] = { create: false, read: false, write: false, delete: false };
-				rolesArray = [...rolesArray, { name: newRole, permissions: initialPermissions }];
-			}
-
-			MorePermissions = Object.values(roles).filter((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin').length > 0;
+		const newRole = Object.values(roles).find((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin');
+		if (newRole) {
+			const initialPermissions: Permissions = { create: false, read: false, write: false, delete: false };
+			rolesArray = [...rolesArray, { name: newRole, permissions: initialPermissions }];
 		} else {
-			console.error('No more roles available');
-			// Trigger the toast
+			console.error('Cannot add a new role when the store is empty');
 			const t = {
 				message: '<iconify-icon icon="mdi:user" color="white" width="24" class="mr-1"></iconify-icon> All roles have been added.',
-				// Provide any utility or variant background style:
 				background: 'gradient-tertiary',
 				timeout: 3000,
-				// Add your custom classes here:
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
-			MorePermissions = false;
 		}
 	}
 
-	function removeRole(index: number, role: { name: Role; permissions: permissions[Role] }) {
+	function togglePermission(role, permission) {
+		// Toggle the permission
+		role.permissions[permission] = !role.permissions[permission];
+
+		// Update the permission store
+		permissionStore.update((storeValue) => ({ ...storeValue, [role.name]: { ...role.permissions } }));
+
+		// Update the button map toggle based on the new permission state
+		buttonMap[permission].toggle = role.permissions[permission];
+	}
+
+	// Function to remove a role permission
+	function removeRole(index: number) {
+		const roleName = rolesArray[index].name;
 		rolesArray = rolesArray.filter((_, i) => i !== index);
-		permissionStore.update((storeValue) => {
-			// Check if the role exists in the store
-			if (storeValue[role.name]) {
-				// Remove the role from the store
-				delete storeValue[role.name];
-			}
-			return storeValue;
+		const updatedPermissions = { ...$permissionStore };
+		delete updatedPermissions[roleName];
+
+		permissionStore.set(updatedPermissions);
+	}
+
+	/// Function to toggle all permissions for a role
+	function toggleAllRolePermissions(permission: string) {
+		const enable = !rolesArray.every((role) => role.permissions[permission]);
+		rolesArray.forEach((role) => {
+			role.permissions[permission] = enable;
 		});
-		MorePermissions = true;
+		permissionStore.set(rolesArray.reduce((acc, role) => ({ ...acc, [role.name]: { ...role.permissions } }), {}));
+
+		// Update the button map toggle based on the new permission state
+		Object.keys(buttonMap).forEach((key) => (buttonMap[key].toggle = enable));
 	}
 
-	function togglePermission(event: MouseEvent, role: { name: Role; permissions: permissions[Role] }, permission: string, index: number) {
-		event.stopPropagation();
-		// const typedPermission = permission as Permission;
-		permissionStore.update((storeValue) => {
-			if (!storeValue[role.name]) {
-				// If the role doesn't exist, create a new entry for the role
-				storeValue[role.name] = {};
-			}
+	let searchQuery = '';
 
-			// Toggle the permission (add if not present, remove if present)
-			storeValue[role.name][permission] = !storeValue[role.name][permission];
-
-			if (buttonInfo) {
-				// Update the role's permission
-				role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
-
-			return storeValue;
-		});
-		// const classToUpdate =
-		// 	storeValue[role.name] && storeValue[role.name][permission]
-		// 		? selectedButtonMap[role.name][permission].enabled
-		// 		: selectedButtonMap[role.name][permission].disabled;
-
-		if (role && role.permissions && permission in role.permissions) {
-			const typedPermission = permission as Permission;
-			// 	const buttonInfo = getButtonMap(role.name, typedPermission);
-			// 	if (buttonInfo) {
-			// 		// Update the role's permission
-			role.permissions = { ...role.permissions, [typedPermission]: !role.permissions[typedPermission] };
-
-			// 		// Update the button map toggle based on the new permission state
-			// 		// buttonMap[permission].toggle = role.permissions[typedPermission];
-			selectedButtonMap[role.name][permission].toggle = role.permissions[typedPermission];
-
-			// 		// Update the roles array
-			// 		rolesArray = [...rolesArray];
-			// 	} else {
-			// 		console.error('Button information not found for the permission:', permission);
-			// 	}
-			// } else {
-			// 	console.error('Role or role.permissions is undefined');
-		}
+	// Filter roles based on search query
+	let filteredRolesArray: typeof rolesArray = [];
+	$: {
+		filteredRolesArray = rolesArray.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
 	}
 
-	if (isPermissionsEmpty) {
-		const newRole = Object.values(roles).find((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin');
-		let initialPermissions: permissions[Role] = { create: false, read: false, write: false, delete: false };
-		for (const role in permissionList) {
-			rolesArray.push({
-				name: role as Role,
-				permissions: initialPermissions
-			});
-		}
-		MorePermissions = Object.values(roles).filter((role) => !rolesArray.some((r) => r.name === role) && role !== 'admin').length > 0;
-		setTimeout(() => permissionStore.set(permissionList), 1000);
-	}
-
-	function toggleAllPermissions(permission: string) {
-		const typedPermission = permission as Permission;
-		const allRolesHavePermission = rolesArray.every((role) => role.permissions?.[typedPermission]);
-
-		if (allRolesHavePermission !== undefined) {
-			rolesArray.forEach((role) => {
-				const buttonInfo = getButtonMap(role.name, typedPermission);
-				if (buttonInfo) {
-					// Update the role's permission
-					role.permissions = { ...role.permissions, [typedPermission]: !allRolesHavePermission };
-
-				} else {
-					console.error('Button information not found for the permission:', permission);
+	function getTruePermissions(permissions: RolesPermissions): RolesPermissions {
+		const truePermissions: RolesPermissions = {} as RolesPermissions;
+		Object.keys(permissions).forEach((role) => {
+			truePermissions[role as Role] = {} as Permissions;
+			Object.keys(permissions[role]).forEach((permission) => {
+				if (permissions[role][permission]) {
+					truePermissions[role as Role][permission as keyof Permissions] = true;
 				}
 			});
-
-			// Update the roles array
-			rolesArray = [...rolesArray];
-		} else {
-			console.error('Role or role.permissions is undefined');
-		}
-	}
-
-	let permissionHeaders: string[] = [];
-	let filteredRolesArray: typeof rolesArray = [];
-
-	$: {
-		if (rolesArray.length > 0 && rolesArray[0].permissions) {
-			permissionHeaders = Object.keys(rolesArray[0].permissions);
-		} else {
-			permissionHeaders = [];
-		}
-	}
-
-	$: {
-		filteredRolesArray = rolesArray.filter((role: (typeof rolesArray)[0]) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
-	}
-
-	// output the selected Permission setting
-	let truePermissions = {};
-	$: {
-		truePermissions = {};
-		rolesArray.forEach(({ name, permissions }) => {
-			if (permissions) {
-				Object.entries(permissions).forEach(([key, value]) => {
-					if (value === true) {
-						if (!truePermissions[name]) {
-							truePermissions[name] = {};
-						}
-						truePermissions[name][key] = value;
-					}
-				});
-			}
 		});
-
-		// Update the permissionStore with the new permissions
-		// permissionStore.set(truePermissions);
-
-		console.log('permissions:', JSON.stringify(truePermissions));
+		return truePermissions;
 	}
 </script>
 
 <div class="dark mb-2 text-center sm:flex sm:flex-col">
-	<div>
-		{m.collection_Permission_helper1()}
-	</div>
+	<div>{m.collection_Permission_helper1()}</div>
 	<div class="mt-2 flex items-center justify-center space-x-4 divide-x-2 divide-surface-400">
-		<span class="text-primary-500">
-			<iconify-icon icon={buttonMap.create.icon} width="16" class="mr-1 dark:text-white" />
-			Create
-		</span>
-
-		<span class="text-tertiary-500">
-			<iconify-icon icon={buttonMap.read.icon} width="16" class="mx-1 dark:text-white" />
-			Read
-		</span>
-
-		<span class="text-warning-500">
-			<iconify-icon icon={buttonMap.write.icon} width="16" class="mx-1 dark:text-white" />
-			Write
-		</span>
-
-		<span class="text-error-500">
-			<iconify-icon icon={buttonMap.delete.icon} width="16" class="mx-1 dark:text-white" />
-			Delete
-		</span>
+		{#each Object.keys(buttonMap) as permission}
+			<span class="text-{buttonMap[permission].color}-500">
+				<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1 dark:text-white" />
+				{permission.charAt(0).toUpperCase() + permission.slice(1)}
+			</span>
+		{/each}
 	</div>
 </div>
-<p class="dark mb-2 text-center text-primary-500">
-	{m.collection_permission_admin_helper()}
-</p>
+<p class="dark mb-2 text-center text-primary-500">{m.collection_permission_admin_helper()}</p>
 
-<div class="mt-4 flex {isPermissionsEmpty || filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
-	{#if isPermissionsEmpty || filteredRolesArray.length > 0}
+<div class="mt-4 flex {filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
+	{#if filteredRolesArray.length > 0}
 		<!-- Search Filter by role -->
 		<div class="input-group input-group-divider max-w-sm grid-cols-[auto_1fr_auto]">
 			<div class="input-group-shim">
@@ -390,28 +173,31 @@
 	{/if}
 
 	<!-- Add Permission -->
-	<!-- {#if !permissionList || Object.keys(permissionList).length === 0} -->
-	<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-center text-center sm:w-auto sm:justify-end">
-		<iconify-icon icon="material-symbols:add" color="white" width="18" class="mr-1" />
-		{m.collection_permission_addpermission()}</button
-	>
-	<!-- {/if} -->
+	{#if Object.keys(permissionStore).length > 0}
+		<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-center text-center sm:w-auto sm:justify-end">
+			<iconify-icon icon="material-symbols:add" color="white" width="18" class="mr-1" />
+			{m.collection_permission_addpermission()}
+		</button>
+	{/if}
 </div>
-{#if isPermissionsEmpty || filteredRolesArray.length > 0}
+
+{#if filteredRolesArray.length > 0}
 	<div class="table-container my-2">
 		<table class="table table-hover table-compact">
+			<!-- Table Header -->
 			<thead>
 				<tr class="divide-x divide-surface-400 border-b-2 border-surface-400">
 					<th class="bg-white text-center dark:bg-surface-900">{m.collection_permission_roles()}</th>
-					{#each permissionHeaders as permission}
+					{#each Object.keys(buttonMap) as permission}
 						<th class="bg-white !p-3 dark:bg-surface-900">
 							<button
-								class="btn w-full {buttonMap[permission].toggle ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
-								on:click={() => toggleAllPermissions(permission)}
+								class="btn w-full {rolesArray.every((role) => role.permissions[permission])
+									? buttonMap[permission].enabled
+									: buttonMap[permission].disabled}"
+								on:click={() => toggleAllRolePermissions(permission)}
 							>
 								<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
 								<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
-								<!--{buttonMap[permission].toggle}-->
 							</button>
 						</th>
 					{/each}
@@ -421,41 +207,39 @@
 				</tr>
 			</thead>
 
+			<!-- Table Body -->
 			<tbody>
 				{#each filteredRolesArray as role, index (role.name)}
 					<tr class="divide-x divide-surface-400 last:border-0">
-						<!-- Header -->
+						<!-- Role Name -->
 						<td class="bg-white !p-0 dark:bg-surface-900">
 							<select bind:value={role.name} class="input">
 								{#each Object.values(roles) as r}
 									{#if r !== 'admin'}
-										<option value={r} disabled={rolesArray.some((r2) => r2.name === r)}>{r}</option>
+										<option value={r} disabled={rolesArray.some((existingRole) => existingRole.name === r && existingRole !== role)}>{r}</option>
 									{/if}
 								{/each}
 							</select>
 						</td>
-						<!-- Check if the role has permissions and they are of type object -->
+
+						<!-- Role Permissions -->
 						{#if role.permissions && typeof role.permissions === 'object'}
-							<!-- Loop over each permission of the role -->
 							{#each Object.keys(role.permissions) as permission}
-								<!-- Check if the permission exists in the role's permissions -->
 								<td class="bg-white dark:bg-surface-900">
 									<button
-										class="btn w-full {truePermissions[role.name]?.[permission] ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
-										on:click={(event) => {
-											togglePermission(event, role, permission, index);
-										}}
+										class="btn w-full {role.permissions[permission] ? buttonMap[permission].enabled : buttonMap[permission].disabled}"
+										on:click={() => togglePermission(role, permission)}
 									>
-										<iconify-icon icon={buttonMap[permission]?.icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
+										<iconify-icon icon={buttonMap[permission].icon} width="16" class="mr-1 sm:hidden md:inline-block"></iconify-icon>
 										<span class="hidden sm:inline-block">{permission.charAt(0).toUpperCase() + permission.slice(1)}</span>
 									</button>
 								</td>
 							{/each}
 						{/if}
 
-						<!--Delete -->
+						<!-- Delete Role Button -->
 						<td class="bg-white text-center dark:bg-surface-900">
-							<button on:click={() => removeRole(index, role)} class="variant-ghost-surface btn-icon">X</button>
+							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
 						</td>
 					</tr>
 				{/each}

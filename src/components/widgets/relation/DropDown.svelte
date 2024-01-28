@@ -13,7 +13,7 @@
 
 	//console.log(dropDownData);
 
-	Promise.all(
+	$: Promise.all(
 		dropDownData.map(async (item) => ({
 			display: await field?.display({ data: item, collection: $collection, field, entry: $entryData, contentLanguage: $contentLanguage }),
 			_id: item._id

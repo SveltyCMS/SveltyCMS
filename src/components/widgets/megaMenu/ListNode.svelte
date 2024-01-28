@@ -2,8 +2,6 @@
 	import { mode, contentLanguage, shouldShowNextButton } from '@stores/store';
 	import { currentChild } from '.';
 
-	import { dndzone } from 'svelte-dnd-action';
-
 	let expanded = false;
 
 	export let self: { [key: string]: any; children: any[] };
@@ -15,21 +13,17 @@
 
 	export let refresh = () => {
 		self.children.length = self.children?.length;
-		console.log('Refreshing:', self);
+		//console.log('Refreshing:', self);
 	};
 
 	console.log('self:', self); // Output self to the console
-
-	function cancelCreation() {
-		showFields = false;
-		depth = 0;
-	}
 </script>
 
 <button
-	on:click={() => (expanded = !expanded)}
-	class="relative my-2 flex items-center justify-center gap-2"
-	style="margin-left:{level === maxDepth - 1 ? (level + 7) * 5 : level * 5}px"
+	class="header"
+	class:!cursor-pointer={self.children?.length > 0}
+	style="margin-left:{20 * level}px;
+max-width:{window.screen.width <= 700 ? `calc(100% + ${20 * (maxDepth - level)}px)` : `calc(100% - ${20 * level}px)`}"
 >
 	<!-- Display chevron-down icon for expandable children except the first header -->
 	{#if level > 0 && self.children?.length > 0}
@@ -103,13 +97,6 @@
 			{/if}
 		</button>
 	{/if}
-
-	<!-- Cancel Button for Term Creation -->
-	<!-- {#if showFields}
-		<button on:click|stopPropagation={cancelCreation} class="variant-ghost-error btn-icon">
-			<iconify-icon icon="mdi:close" width="24" class="text-white" />
-		</button>
-	{/if} -->
 </button>
 
 <!-- Categories Children-->
@@ -135,7 +122,39 @@
 {/if}
 
 <style lang="postcss">
+	.header {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 2px;
+		border: 1px solid #80808045;
+		border-radius: 5px;
+		padding: 10px 0px;
+		padding-left: 50px;
+		padding-right: 10px;
+		margin-bottom: 5px;
+		width: 100vw;
+		min-width: 200px;
+		cursor: default;
+	}
+	.arrow {
+		position: absolute;
+		left: 10px;
+		top: 40%;
+		transform: translateY(-50%);
+		border: solid black;
+		border-width: 0 3px 3px 0;
+		display: inline-block;
+		padding: 3px;
+		transform: rotate(-45deg);
+		margin-right: 10px;
+		transition: transform 0.1s ease-in;
+	}
 	.expanded {
-		transform: rotate(-90deg);
+		transform: rotate(45deg);
+	}
+	button:active {
+		transform: scale(0.9);
 	}
 </style>

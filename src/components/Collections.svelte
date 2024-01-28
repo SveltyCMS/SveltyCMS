@@ -7,7 +7,7 @@
 	let createdBy = '';
 
 	export let modeSet: typeof $mode = 'view';
-	console.log('Collections.svelte', $mode);
+	//console.log('Collections.svelte', $mode);
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

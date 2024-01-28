@@ -17,21 +17,45 @@
 	export let parent: SvelteComponent;
 
 	// Form Data
-	const formData = {
-		selectedWidget: {
-			...widgets[$modalStore[0].value],
-			GuiFields: { ...widgets[$modalStore[0].value].GuiFields }
-		}
-	};
+	console.log([$modalStore[0].value]);
+
+	// Form Data
+	let formData = {};
+
+	// Check if the selected widget has a key property.
+	if ($modalStore[0].value.key) {
+		// If the selected widget has a key property, then it is an existing widget.
+		// Use the $modalStore[0].value object as the formData.
+		formData = {
+			...$modalStore[0].value
+		};
+	} else {
+		// If the selected widget does not have a key property, then it is a new widget.
+		// Create a new formData object for the new widget.
+		formData = {
+			// ...widgets[$modalStore[0].value],
+			key: $modalStore[0].value,
+			GuiFields: { ...widgets[$modalStore[0].value]?.GuiSchema }
+		};
+	}
 
 	console.log('formData:', formData);
 
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
-	$: if ($modalStore[0]?.value) {
-		guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
-	}
+	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
+	console.log('guiSchema:', guiSchema);
+
+	// let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+	// let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+	// $: if ($modalStore[0]?.value.key) {
+	// 	guiSchema = widgets[$modalStore[0].value.key]?.GuiSchema;
+	// 	console.log('guiSchema:', guiSchema);
+	// } else {
+	// 	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
+	// 	console.log('guiSchema:', guiSchema);
+	// }
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
@@ -60,21 +84,23 @@
 		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
 
 		<!-- Enable for debugging: -->
+
 		<form class="modal-form {cForm}">
 			{#if $modalStore[0].value}
 				<div class="mb-2 border-y text-center text-primary-500">
 					<div class="text-xl text-primary-500">
-						Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value}</span> Input Options
+						Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
 					</div>
 					<div class="my-1 text-xs text-error-500">* Required</div>
 				</div>
 				<div class="options-table">
 					{#each Object.entries(guiSchema) as [property, value]}
-						<InputSwitch bind:value={formData.selectedWidget.GuiFields[property]} widget={asAny(value).widget} key={property} />
+						<InputSwitch bind:value={formData[property]} widget={asAny(value).widget} key={property} />
 					{/each}
 				</div>
 			{/if}
 		</form>
+
 		<!-- prettier-ignore -->
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			<!-- Delete Button -->

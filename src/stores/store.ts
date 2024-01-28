@@ -187,7 +187,7 @@ export const handleSidebarToggle = () => {
 	} else if (get(screenWidth) === 'tablet') {
 		if (['edit', 'create'].includes(get(mode))) {
 			// logic for view mode on tablet
-			toggleLeftSidebar.click('collapsed');
+			toggleLeftSidebar.clickSwitchSideBar('collapsed');
 			toggleRightSidebar.close();
 			togglePageHeader.open();
 			togglePageFooter.open();
@@ -201,13 +201,13 @@ export const handleSidebarToggle = () => {
 	} else if (get(screenWidth) === 'desktop') {
 		if (['edit', 'create'].includes(get(mode))) {
 			// logic for all other modes on desktop
-			toggleLeftSidebar.click('collapsed');
+			toggleLeftSidebar.clickSwitchSideBar('collapsed');
 			toggleRightSidebar.open();
 			togglePageHeader.open();
 			togglePageFooter.close();
 		} else {
 			// logic for view mode on desktop
-			toggleLeftSidebar.click('collapsed');
+			toggleLeftSidebar.clickBack('collapsed');
 			toggleRightSidebar.close();
 			togglePageHeader.close();
 			togglePageFooter.close();

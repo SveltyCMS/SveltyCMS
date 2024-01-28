@@ -42,6 +42,10 @@
 			valid = true;
 		}
 	}
+
+	export function keydown(event) {
+		keydown(event);
+	}
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
@@ -53,6 +57,7 @@
 		type="text"
 		bind:value={_data[_language]}
 		on:input={checkRequired}
+		on:keydown={keydown}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
 		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

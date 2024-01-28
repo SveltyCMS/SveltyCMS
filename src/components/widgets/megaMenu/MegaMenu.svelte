@@ -45,6 +45,18 @@
 	saveLayerStore.set(saveLayer);
 	// Set the value of shouldTriggerSaveLayer based on your condition
 	shouldShowNextButton.set(true);
+
+	function handleKeyDown(event) {
+		console.log('handleKeyDown called');
+		if (event.key === 'Enter') {
+			console.log('Enter key pressed');
+			let next = () => {};
+			saveLayerStore.subscribe((value) => {
+				next = value;
+				shouldShowNextButton.set(false);
+			});
+		}
+	}
 </script>
 
 {#if !_data}
@@ -53,11 +65,12 @@
 	</p>
 {/if}
 
-<!-- TODO: add click enter to proceed -->
+<!-- First Menu Entry -->
+<!-- TODO Fix ON:keyDOWN -->
 {#if !_data || showFields}
 	{#key depth}
 		{(fieldsData = {}) && ''}
-		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} />
+		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} on:keydown={handleKeyDown} />
 	{/key}
 {/if}
 
