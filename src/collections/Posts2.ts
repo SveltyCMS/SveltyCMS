@@ -5,6 +5,10 @@ import type { Schema } from './types';
 const schema: Schema = {
 	// Collection Name comming from filename
 
+	// Optional & Icon, status, slug
+	// See for possible Icons https://icon-sets.iconify.design/
+	icon: 'bi:card-text',
+
 	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
 		[roles.user]: {
@@ -18,10 +22,6 @@ const schema: Schema = {
 			read: true
 		}
 	},
-
-	// Optional & Icon, status, slug
-	// See for possible Icons https://icon-sets.iconify.design/
-	icon: 'bi:card-text',
 
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options

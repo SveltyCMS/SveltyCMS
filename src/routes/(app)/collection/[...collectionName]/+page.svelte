@@ -100,14 +100,26 @@
 				console.log('response modalWidgetForm:', r);
 				console.log('fields old:', fields);
 
-				// add responds to the fields array and add new ID
-				fields = [
-					...fields,
-					{
-						id: fields.length + 1,
-						...r
-					}
-				];
+				// Find the index of the existing widget based on its ID
+				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
+
+				if (existingIndex !== -1) {
+					// If the existing widget is found, update its properties
+					fields = [
+						...fields.slice(0, existingIndex), // Copy widgets before the updated one
+						{ ...r }, // Update the existing widget
+						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
+					];
+				} else {
+					// If the existing widget is not found, add it as a new widget
+					fields = [
+						...fields,
+						{
+							id: fields.length + 1,
+							...r
+						}
+					];
+				}
 
 				console.log('fields new:', fields);
 			}

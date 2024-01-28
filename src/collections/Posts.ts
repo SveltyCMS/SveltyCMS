@@ -14,7 +14,12 @@ const schema: Schema = {
 	revision: true,
 
 	// Collection Permissions by user Roles
-
+	// Admin has all permissions by default
+	permissions: {
+		user: {
+			read: true
+		}
+	},
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [

@@ -20,7 +20,7 @@
 	console.log([$modalStore[0].value]);
 
 	// Form Data
-	let formData = {};
+	let formData: any = {};
 
 	// Check if the selected widget has a key property.
 	if ($modalStore[0].value.key) {
@@ -63,9 +63,17 @@
 		modalStore.close();
 	}
 
-	// Function to delete the user's avatar
+	// Function to delete the widget
 	function deleteWidget() {
-		alert('Delete Widget');
+		const confirmDelete = confirm('Are you sure you want to delete this widget?');
+		if (confirmDelete) {
+			// Perform deletion logic here
+			// For example:
+			console.log('Deleting widget:', formData);
+			// You can remove the widget from the UI or update data structures here
+			// Once deletion is complete, close the modal
+			modalStore.close();
+		}
 	}
 
 	// Base Classes
