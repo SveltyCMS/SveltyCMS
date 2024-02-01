@@ -1,6 +1,8 @@
 // See https://kit.svelte.dev/docs/types#app
 // for information about these interfaces
 // and what to do when importing types
+
+import type { PipelineStage } from 'mongoose';
 declare global {
 	/// <reference types="lucia" />
 	declare namespace Lucia {
@@ -35,10 +37,24 @@ declare global {
 	};
 
 	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
+
+	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
 	type GraphqlSchema = ({ field, label, collection }) => {
 		typeName: string | null;
 		graphql: string;
 		resolver?: { [key: string]: any };
+	};
+
+	/**
+	 * Defines the Aggregations type, which represents an object with optional methods for performing transformations, filters, and sorts on data.
+	 * The transformations method takes a field and content language, and returns a promise of an array of pipeline stages.
+	 * The filters method takes a field, content language, and filter, and returns a promise of an array of pipeline stages.
+	 * The sorts method takes a field, content language, and sort value, and returns a promise of an array of pipeline stages.
+	 */
+	type Aggregations = {
+		transformations?: ({ field, contentLanguage }: { field: any; contentLanguage: string }) => Promise<PipelineStage[]>;
+		filters?: ({ field, contentLanguage, filter }: { field: any; contentLanguage: string; filter: string }) => Promise<PipelineStage[]>;
+		sorts?: ({ field, contentLanguage, sort }: { field: any; contentLanguage: string; sort: number }) => Promise<PipelineStage[]>;
 	};
 }
 

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { entryData, mode, contentLanguage, collection, collections } from '@stores/store';
+	import { entryData, mode, contentLanguage, collection, collections, saveFunction } from '@stores/store';
 	import { extractData, find, findById, getFieldName, saveFormData } from '@utils/utils';
 	import DropDown from './DropDown.svelte';
 	import Fields from '@components/Fields.svelte';
@@ -41,27 +41,30 @@
 
 	let display = '';
 
-	$: (async () => {
+	$: (async (_) => {
 		let data;
 		if ($mode == 'edit' && field) {
 			if (entryMode == 'edit' || entryMode == 'create') {
 				data = await extractData(fieldsData);
 			} else if (entryMode == 'choose') {
-				data = await findById($entryData[getFieldName(field)], field.relation);
+				data = $entryData[getFieldName(field)];
 			}
 			!relation_entry && (relation_entry = data);
 		} else {
 			data = await extractData(fieldsData);
 		}
 		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
-	})();
+	})(expanded);
+
+	function save() {
+		expanded = false;
+		$saveFunction.reset();
+	}
 </script>
 
 {#if !expanded && !showDropDown}
 	<div class="mt-2 flex gap-2">
-		<button class="variant-outline-primary rounded px-2" type="button" on:keydown on:click={openDropDown}
-			>{selected?.display || display || 'Select New Relation'}</button
-		>
+		<button class="flex-grow text-center" on:click={openDropDown}>{@html selected?.display || display || 'select new'}</button>
 
 		<button
 			type="button"

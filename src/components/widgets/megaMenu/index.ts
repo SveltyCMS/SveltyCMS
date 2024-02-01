@@ -3,9 +3,8 @@ import MegaMenu from './MegaMenu.svelte';
 import Text from '../text';
 
 import { writable, type Writable } from 'svelte/store';
-import { getGuiFields } from '@utils/utils';
+import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-// import { defaultContentLanguage } from '@stores/store'
 
 export const currentChild: Writable<any> = writable({});
 
@@ -65,9 +64,23 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'lucide:menu-square';
 widget.Description = m.widget_megaMenu_description();
+
+// Widget Aggregations:
+widget.aggregations = {
+	filters: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+
+		return [{ $match: { [`${getFieldName(field)}.Header.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+	},
+	sorts: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		const fieldName = getFieldName(field);
+		return [{ $sort: { [`${fieldName}.Header.${info.contentLanguage}`]: info.sort } }];
+	}
+} as Aggregations;
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

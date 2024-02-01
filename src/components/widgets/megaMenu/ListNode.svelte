@@ -3,6 +3,7 @@
 	import { currentChild } from '.';
 
 	let expanded = false;
+	let ul: HTMLElement;
 
 	export let self: { [key: string]: any; children: any[] };
 	export let parent: { [key: string]: any; children: any[] } | null = null;
@@ -13,148 +14,147 @@
 
 	export let refresh = () => {
 		self.children.length = self.children?.length;
-		//console.log('Refreshing:', self);
 	};
 
-	console.log('self:', self); // Output self to the console
+	function setBorderHeight(node: HTMLElement | null | undefined) {
+		if (!node) return;
+		// if (!parent_border || !lastChild || !parent) return;
+		setTimeout(async () => {
+			let lastHeader = node?.lastChild?.firstChild as HTMLElement;
+			if (!lastHeader) return;
+			let border = node?.querySelector('.border') as HTMLElement;
+			border && (border.style.height = lastHeader.offsetTop + lastHeader.offsetHeight / 2 + 'px');
+		}, 0);
+	}
+
+	$: if (self.children.length) {
+		recalculateBorderHeight(ul);
+	}
+
+	function findFirstOuterUl(node: HTMLElement | null) {
+		if (!node) return;
+		if (node.tagName == 'UL') return node;
+		return findFirstOuterUl(node.parentElement);
+	}
+	function recalculateBorderHeight(node) {
+		let child = findFirstOuterUl(node);
+		setBorderHeight(child);
+		if (!child?.classList.contains('MENU_CONTAINER') && child) {
+			recalculateBorderHeight(child?.parentElement);
+		}
+	}
 </script>
 
+<!-- Start of menu -->
+
 <button
-	class="header"
+	on:click={(e) => {
+		if (expanded) {
+			recalculateBorderHeight(ul);
+		}
+		expanded = !expanded;
+	}}
+	class="relative mb-2 flex w-full min-w-[200px] cursor-default items-center gap-2 rounded border border-surface-400 py-2 pl-2"
 	class:!cursor-pointer={self.children?.length > 0}
 	style="margin-left:{20 * level}px;
-max-width:{window.screen.width <= 700 ? `calc(100% + ${20 * (maxDepth - level)}px)` : `calc(100% - ${20 * level}px)`}"
+
+	max-width:{window.screen.width <= 700 ? `calc(100% + ${10 * (maxDepth - level)}px)` : `calc(100% - ${10 * level}px)`}"
 >
+	<!-- ladder dashes -->
+	<div class="ladder" style="width:{10 * level}px" />
+
 	<!-- Display chevron-down icon for expandable children except the first header -->
-	{#if level > 0 && self.children?.length > 0}
-		<iconify-icon icon="mdi:chevron-down" width="30" class:expanded class=" btn-icon btn-icon-sm bg-error-500" />
+	{#if self.children?.length > 0}
+		<!-- <button class="arrow dark:!border-white" class:expanded /> -->
+		<iconify-icon icon="mdi:chevron-down" width="30" class="btn-icon btn-icon-sm text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}" />
 	{/if}
 
-	<span class="variant-outline-primary mr-2 rounded p-2">{self?.Header[$contentLanguage]}</span>
+	<!-- Label -->
+	<span class="">
+		{self?.Header[$contentLanguage]}
+	</span>
 
-	<!-- Add  Button children -->
-	{#if level < maxDepth - 1}
+	<!-- Buttons -->
+	<div class="ml-auto flex items-center justify-end gap-1">
+		<!-- Add Button  -->
+		{#if level < maxDepth - 1}
+			<button
+				on:click|stopPropagation={() => {
+					$currentChild = self;
+					depth = level + 1;
+					showFields = true;
+					mode.set('create');
+					shouldShowNextButton.set(true);
+				}}
+				class="btn-icon dark:text-primary-500"
+			>
+				<iconify-icon icon="icons8:plus" width="30" />
+			</button>
+		{/if}
+
+		<!-- Edit Button -->
 		<button
 			on:click|stopPropagation={() => {
 				$currentChild = self;
-				depth = level + 1;
+				$mode = 'edit';
+				depth = level;
+				//console.log(self);
 				showFields = true;
-				mode.set('create');
 				shouldShowNextButton.set(true);
 			}}
-			class="variant-ghost-primary btn-icon"
+			class="btn-icon dark:text-primary-500"
 		>
-			<iconify-icon icon="icons8:plus" width="28" />
+			<iconify-icon icon="mdi:pen" width="30" class="" />
 		</button>
-	{/if}
 
-	<!-- Edit Button children -->
-	<button
-		on:click|stopPropagation={() => {
-			$currentChild = self;
-			$mode = 'edit';
-			depth = level;
-			//console.log(self);
-			showFields = true;
-			shouldShowNextButton.set(true);
-		}}
-		class="variant-ghost-primary btn-icon"
-	>
-		<iconify-icon icon="mdi:pen" width="28" class="" />
-	</button>
-
-	<!-- DeleteIcon -->
-	<!-- <TODO: Delete not refreshing correctly -->
-	{#if level > 0}
-		<button
-			on:click|stopPropagation={() => {
-				console.log('Deleting:', self);
-				console.log('Parent:', parent);
-				if (self.children && self.children.length > 0) {
-					alert('This term has children. Please delete the children first.');
-				} else {
-					if (parent) {
-						const index = parent.children.indexOf(self);
-						if (index !== -1) {
-							// Remove the item from the parent's children array
-							parent.children = [...parent.children.slice(0, index), ...parent.children.slice(index + 1)];
-							console.log('New children array:', parent.children);
-							// Trigger refresh
-							refresh();
-						}
-					} else {
-						// Handle the case where parent is null
-						console.log('Parent is null. Cannot delete item.');
-					}
-				}
-			}}
-			class="btn-icon {self.children && self.children.length > 0 ? 'variant-ghost-warning' : 'variant-ghost-error'}"
-		>
-			{#if self.children && self.children.length > 0}
-				<iconify-icon icon="mdi:alert-octagon" width="24" class="text-white" />
-			{:else}
-				<iconify-icon icon="mdi:trash-can-outline" width="24" class="text-white" />
-			{/if}
-		</button>
-	{/if}
+		<!-- Delete Button -->
+		{#if level > 0}
+			<button
+				on:click|stopPropagation={() => {
+					parent?.children?.splice(parent?.children?.indexOf(self), 1);
+					refresh();
+				}}
+			>
+				{#if self.children && self.children.length > 0}
+					<iconify-icon icon="mdi:alert-octagon" width="30" class="text-warning-500" />
+				{:else}
+					<iconify-icon icon="mdi:trash-can-outline" width="30" class="text-error-500" />
+				{/if}
+			</button>
+		{/if}
+	</div>
 </button>
 
 <!-- Categories Children-->
-{#if self.children?.length > 0}
-	<ul class="relative p-2">
+{#if self.children?.length > 0 && expanded}
+	<ul bind:this={ul} class="children relative" style="margin-left:{20 * level + 15}px;">
+		<div class="border-dash" />
 		{#each self.children as child}
-			<li class="cursor-pointer">
-				<svelte:self
-					self={child}
-					level={level + 1}
-					bind:depth
-					bind:showFields
-					{maxDepth}
-					on:keydown
-					on:click={() => {
-						depth = level;
-						showFields = true;
-					}}
-				/>
+			<li>
+				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parrent={self} {maxDepth} />
 			</li>
 		{/each}
 	</ul>
 {/if}
 
 <style lang="postcss">
-	.header {
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
-		gap: 2px;
-		border: 1px solid #80808045;
-		border-radius: 5px;
-		padding: 10px 0px;
-		padding-left: 50px;
-		padding-right: 10px;
-		margin-bottom: 5px;
-		width: 100vw;
-		min-width: 200px;
-		cursor: default;
-	}
-	.arrow {
+	.ladder {
 		position: absolute;
-		left: 10px;
-		top: 40%;
-		transform: translateY(-50%);
-		border: solid black;
-		border-width: 0 3px 3px 0;
-		display: inline-block;
-		padding: 3px;
-		transform: rotate(-45deg);
-		margin-right: 10px;
-		transition: transform 0.1s ease-in;
+		height: 0;
+		right: 100%;
+		border-top: 1px dashed;
 	}
-	.expanded {
-		transform: rotate(45deg);
+
+	.border-dash {
+		content: '';
+		position: absolute;
+		left: 0;
+		width: 0;
+		border-left: 1px dashed;
+		max-height: 100%;
 	}
-	button:active {
-		transform: scale(0.9);
+
+	ul {
+		overflow: visible;
 	}
 </style>

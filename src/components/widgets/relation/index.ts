@@ -1,8 +1,10 @@
 import Relation from './Relation.svelte';
 
-import { findById, getGuiFields } from '@utils/utils';
+import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { defaultContentLanguage } from '@stores/store';
+import { getCollections } from '@src/collections';
+import widgets from '@src/components/widgets';
+import deepmerge from 'deepmerge';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -12,25 +14,20 @@ import * as m from '@src/paraglide/messages';
  */
 const widget = (params: Params) => {
 	// Define the display function
-	let display: any;
-
-	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
-			// console.log(data);
-			if (typeof data == 'string') {
-				data = await findById(data, params.relation);
-			}
-			return Object.values(data)[1]?.[contentLanguage] || Object.values(data)[1]?.[defaultContentLanguage] || Object.values(data)[1];
-		};
-		display.default = true;
-	} else {
-		display = async ({ data, collection, field, entry, contentLanguage }) => {
-			if (typeof data == 'string') {
-				data = await findById(data, params.relation);
-			}
-			return params.display?.({ data, collection, field, entry, contentLanguage });
-		};
-	}
+	const display = async ({ data, collection, field, entry, contentLanguage }) => {
+		const relative_collection = (await getCollections()).find((c) => c.name == field.relation);
+		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
+		return data[getFieldName(relative_field)]
+			? await relative_field?.display({
+					data: data[getFieldName(relative_field)],
+					collection,
+					field: relative_field,
+					entry,
+					contentLanguage
+				})
+			: '';
+	};
+	display.default = true;
 
 	// Define the widget object
 	const widget: { type: typeof Relation; key: 'Relation'; GuiFields: ReturnType<typeof getGuiFields> } = {
@@ -65,6 +62,36 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'fluent-mdl2:relationship';
 widget.Description = m.widget_relation_description();
+
+// Widget Aggregations:
+widget.aggregations = {
+	transformations: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		return [
+			{ $project: { relation: { $toObjectId: '$relation' } } },
+			{ $lookup: { from: field.relation.toLocaleLowerCase(), localField: 'relation', foreignField: '_id', as: 'relative_document' } },
+			{ $unwind: '$relative_document' },
+			{ $project: { relation: '$relative_document' } },
+			{ $project: { relative_document: 0 } }
+		];
+	},
+	filters: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		const relative_collection = (await getCollections()).find((c) => c.name == field.relation);
+		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
+		const widget = widgets[relative_field.widget.key];
+		const new_field = deepmerge(relative_field, { db_fieldName: 'relation.' + getFieldName(relative_field) }); //use db_fieldName since it overrides label.
+		return widget?.aggregations?.filters({ field: new_field, filter: info.filter, contentLanguage: info.contentLanguage }) ?? [];
+	},
+	sorts: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		const relative_collection = (await getCollections()).find((c) => c.name == field.relation);
+		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
+		const widget = widgets[relative_field.widget.key];
+		const new_field = deepmerge(relative_field, { db_fieldName: 'relation.' + getFieldName(relative_field) }); //use db_fieldName since it overrides label.
+		return widget?.aggregations?.sorts({ field: new_field, sort: info.sort, contentLanguage: info.contentLanguage }) ?? [];
+	}
+} as Aggregations;
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}

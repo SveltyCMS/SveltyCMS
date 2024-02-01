@@ -5,15 +5,20 @@
 	export let inputClass = '';
 	export let placeholder = '';
 	export let value = '';
-
 	function typeAction(node: HTMLInputElement) {
 		node.type = type;
 	}
 </script>
 
-<div class="m-1 flex min-w-[280px] items-center gap-2">
+<div class="m-1 flex max-w-full items-center justify-between gap-2">
 	{#if label}
-		<label for="input" class={labelClass}>{label}:</label>
+		<label for="input" class={labelClass}>{label}</label>
 	{/if}
-	<input use:typeAction id="input" class="{inputClass} input" bind:value {placeholder} {...$$props} />
+	<input use:typeAction id="input" class="input {inputClass}" bind:value {placeholder} {...$$props} />
 </div>
+
+<style lang="postcss">
+	label {
+		margin-right: 10px;
+	}
+</style>

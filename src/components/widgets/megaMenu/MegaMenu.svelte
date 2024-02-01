@@ -4,13 +4,15 @@
 	import { extractData, getFieldName } from '@utils/utils';
 
 	import ListNode from './ListNode.svelte';
-	import { entryData, mode, saveLayerStore, shouldShowNextButton } from '@stores/store';
+	import { entryData, mode, saveFunction, saveLayerStore, shouldShowNextButton } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
+	console.log(field);
+
 	export let value = $entryData[fieldName];
 	export const WidgetData = async () => _data;
 
@@ -20,32 +22,31 @@
 	let fieldsData = {};
 	let saveMode = $mode;
 
-	// Megamenu Save layer Next
-	async function saveLayer() {
-		if (!_data) {
-			const extractedData = await extractData(fieldsData);
-			if (Object.keys(extractedData).length > 0) {
-				_data = { ...extractedData, children: [] };
-			}
-		} else if ($mode === 'edit') {
-			// Existing logic for editing...
-		} else if ($mode === 'create' && $currentChild.children) {
-			const extractedData = await extractData(fieldsData);
-			if (Object.keys(extractedData).length > 0) {
-				$currentChild.children.push({ ...extractedData, children: [] });
-			}
-		}
-		showFields = false;
-		mode.set(saveMode);
-		depth = 0;
-		shouldShowNextButton.set(false);
-	}
-
 	// Create a writable store to hold the saveLayer function
 	saveLayerStore.set(saveLayer);
 	// Set the value of shouldTriggerSaveLayer based on your condition
 	shouldShowNextButton.set(true);
 
+	// MegaMenu Save Layer Next
+	async function saveLayer() {
+		if (!_data) {
+			_data = { ...(await extractData(fieldsData)), children: [] };
+		} else if ($mode == 'edit') {
+			let _data = await extractData(fieldsData);
+			for (let key in _data) {
+				$currentChild[key] = _data[key];
+			}
+		} else if ($mode == 'create' && $currentChild.children) {
+			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
+		}
+		_data = _data;
+		console.log(_data);
+		showFields = false;
+		mode.set(saveMode);
+		depth = 0;
+		shouldShowNextButton.set(false);
+		$saveFunction.reset();
+	}
 	function handleKeyDown(event) {
 		console.log('handleKeyDown called');
 		if (event.key === 'Enter') {
@@ -72,9 +73,12 @@
 		{(fieldsData = {}) && ''}
 		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} on:keydown={handleKeyDown} />
 	{/key}
+	{(($saveFunction.fn = saveLayer), '')}
 {/if}
 
 <!-- Show children -->
-{#if _data && depth == 0}
-	<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+{#if _data}
+	<ul class:hidden={depth != 0} class="children MENU_CONTAINER">
+		<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+	</ul>
 {/if}

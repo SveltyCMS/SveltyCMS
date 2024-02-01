@@ -2,11 +2,11 @@
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';
 
-	export let items;
-	export let flipDurationMs;
+	export let items: any;
+	export let flipDurationMs: any;
 	export let handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 	export let handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
-	export let headers;
+	export let headers: any;
 </script>
 
 <div>

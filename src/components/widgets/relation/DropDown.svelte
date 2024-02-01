@@ -35,7 +35,7 @@
 			}}
 			class="item"
 		>
-			{option.display}
+			{@html option.display}
 		</button>
 	{/each}
 </div>

@@ -1,6 +1,6 @@
 import FileUpload from './FileUpload.svelte';
 
-import { getGuiFields } from '@utils/utils';
+import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 // import { defaultContentLanguage } from ''@stores/store'
 
@@ -76,6 +76,19 @@ widget.GraphqlSchema = GraphqlSchema;
 // widget icon and helper text
 widget.Icon = 'mdi:file-upload';
 widget.Description = m.widget_fileUpload_description();
+
+// Widget Aggregations:
+widget.aggregations = {
+	filters: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		return [{ $match: { [`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+	},
+	sorts: async (info) => {
+		const field = info.field as ReturnType<typeof widget>;
+		const fieldName = getFieldName(field);
+		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
+	}
+} as Aggregations;
 
 // Export FieldType interface and widget function
 export interface FieldType extends ReturnType<typeof widget> {}
