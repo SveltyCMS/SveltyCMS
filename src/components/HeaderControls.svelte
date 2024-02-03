@@ -103,12 +103,8 @@
 				</button>
 			{:else}
 				<!-- Save Content -->
-				<button
-					type="button"
-					on:click={saveData}
-					disabled={!$collection?.permissions?.[userRole]?.write}
-					class="variant-filled-primary btn-icon md:btn"
-				>
+				<!-- disabled={!$collection?.permissions?.[userRole]?.write} -->
+				<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
 					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 					<span class="hidden md:block">Save</span>
 				</button>
@@ -153,12 +149,8 @@
 	<div class="-mx-2 mb-2 flex items-center justify-center gap-3 pt-2">
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
-			<button
-				type="button"
-				on:click={() => $modifyEntry('delete')}
-				disabled={!$collection?.permissions?.[userRole]?.delete}
-				class="gradient-error gradient-error-hover gradient-error-focus btn-icon"
-			>
+			<!-- disabled={!$collection?.permissions?.[userRole]?.delete} -->
+			<button type="button" on:click={() => $modifyEntry('delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
 		</div>

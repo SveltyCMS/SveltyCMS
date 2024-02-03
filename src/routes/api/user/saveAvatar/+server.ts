@@ -42,7 +42,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		// Construct the final filename
-		let fileName = `${hash}-${userID}-${sanitizedFileName}.${outputFormat}`;
+		let fileName = `${sanitizedFileName}-${userID}${hash}.${outputFormat}`;
 
 		const outputPath = `${PUBLIC_MEDIA_FOLDER}/images/avatars`;
 

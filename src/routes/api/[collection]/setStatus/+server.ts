@@ -1,53 +1,49 @@
+// Import the necessary modules.
+import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { getCollectionModels } from '@api/db';
+import { auth, getCollectionModels } from '@src/routes/api/db';
+import { validate } from '@src/utils/utils';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
-// Export an asynchronous function named PATCH that is a RequestHandler
-export const PATCH: RequestHandler = async ({ params, request }) => {
-	try {
-		// Retrieve the collection models from a database
-		const collections = await getCollectionModels();
-		// Identify the specific collection based on the params.collection value from the request
-		const collection = collections[params.collection];
+// Define the PATCH request handler.
+export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
+	// Get the session cookie.
+	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 
-		// Check if the collection exists
-		if (!collection) {
-			return new Response('Collection not found!!', { status: 404 });
-		}
+	// Validate the session.
+	const user = await validate(auth, session);
 
-		// Read the form data from the request
-		const data = await request.formData();
-		// Retrieve the 'ids' field from the form data and parse it as a JSON string
-		let ids = data.get('ids') as string;
-
-		// Check if 'ids' field is provided
-		if (!ids) {
-			return new Response('No ids provided in the request', { status: 400 });
-		}
-
-		ids = JSON.parse(ids);
-		// Retrieve the 'status' field from the form data
-		const status = data.get('status') as string;
-
-		// Check if 'status' field is provided
-		if (!status) {
-			return new Response('No status provided in the request', { status: 400 });
-		}
-
-		// Update the documents in the collection with the given ids to the given status
-		const result = await collection.updateMany(
-			{
-				_id: {
-					$in: ids
-				}
-			},
-			{ status }
-		);
-
-		// Return the result as a response
-		return new Response(JSON.stringify(result));
-	} catch (error) {
-		// Handle unexpected errors
-		console.error('An error occurred:', error);
-		return new Response('Internal Server Error', { status: 500 });
+	// Check if the user has write access to the collection.
+	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.user.role]?.write ?? true;
+	if (user.status != 200 || !has_write_access) {
+		return new Response('', { status: 403 });
 	}
+
+	// Get the collection model.
+	const collections = await getCollectionModels();
+	const collection = collections[params.collection];
+
+	// Get the form data.
+	const data = await request.formData();
+
+	// Get the ids of the entries to update.
+	let ids = data.get('ids') as string;
+	ids = JSON.parse(ids);
+
+	// Get the new status.
+	const status = data.get('status') as string;
+
+	// Update the entries.
+	return new Response(
+		JSON.stringify(
+			await collection.updateMany(
+				{
+					_id: {
+						$in: ids
+					}
+				},
+				{ status }
+			)
+		)
+	);
 };

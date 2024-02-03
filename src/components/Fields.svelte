@@ -12,6 +12,7 @@
 </script>
 
 <div class="py-1 text-center text-xs text-error-500">* Required</div>
+
 <div class="wrapper">
 	{#each fields || $collection.fields as field}
 		{#if field.widget}

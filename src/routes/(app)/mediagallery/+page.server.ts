@@ -64,9 +64,10 @@ export async function load(event: any) {
 	const mediaData = await Promise.all(
 		uniqueImageFiles.map(async (file) => {
 			const filePath = `${PUBLIC_MEDIA_FOLDER}/${file}`;
-			const fileName = path.basename(file);
+			const fileExt = path.extname(file).substring(1);
+			const fileName = `${path.basename(file).split('.')[0]}.${fileExt}`;
 
-			const hash = fileName.split('-')[0];
+			const hash = fileName.slice(0, 64);
 
 			const thumbnail = `${PUBLIC_MEDIA_FOLDER}/${file}`;
 			const size = await getFileSize(filePath);
@@ -115,12 +116,12 @@ export async function load(event: any) {
 				thumbnail = svgContent;
 			}
 
-			const parts = fileName.split('-');
+			const parts = fileName.split('.'); // Corrected this line
 			const hash = parts[0];
 			const hasPermission = hasFilePermission(user, file); // Check permission
 
 			return {
-				name: fileName,
+				name: `${fileName}.${hash}.${fileExt}`, // Adjust the name to have the same format as your images
 				path: path.dirname(file),
 				thumbnail,
 				size: await getFileSize(filePath),

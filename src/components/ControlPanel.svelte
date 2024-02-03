@@ -80,7 +80,7 @@
 <!-- Check if user has create or write permission -->
 {#if ['edit', 'create'].includes($mode) || user.role == 'admin'}
 	<div class="flex h-screen w-full flex-col justify-between">
-		{#if $shouldShowNextButton}
+		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white" />
 				{m.widget_megamenu_next()}

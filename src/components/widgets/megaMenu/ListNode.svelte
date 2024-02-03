@@ -2,6 +2,10 @@
 	import { mode, contentLanguage, shouldShowNextButton } from '@stores/store';
 	import { currentChild } from '.';
 
+	//skeleton
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
+
 	let expanded = false;
 	let ul: HTMLElement;
 
@@ -18,13 +22,19 @@
 
 	function setBorderHeight(node: HTMLElement | null | undefined) {
 		if (!node) return;
-		// if (!parent_border || !lastChild || !parent) return;
-		setTimeout(async () => {
-			let lastHeader = node?.lastChild?.firstChild as HTMLElement;
-			if (!lastHeader) return;
-			let border = node?.querySelector('.border') as HTMLElement;
-			border && (border.style.height = lastHeader.offsetTop + lastHeader.offsetHeight / 2 + 'px');
-		}, 0);
+
+		// Get the last header element inside the node
+		const lastHeader = node.lastChild?.firstChild as HTMLElement;
+		if (!lastHeader) return;
+
+		// Get the height of the last header element
+		const headerHeight = lastHeader.offsetHeight;
+
+		// Add the appropriate Tailwind CSS class to the border element
+		const border = node.querySelector('.border') as HTMLElement;
+		if (border) {
+			border.classList.add(`h-${headerHeight}`);
+		}
 	}
 
 	$: if (self.children.length) {
@@ -36,17 +46,52 @@
 		if (node.tagName == 'UL') return node;
 		return findFirstOuterUl(node.parentElement);
 	}
-	function recalculateBorderHeight(node) {
+
+	function recalculateBorderHeight(node: any) {
 		let child = findFirstOuterUl(node);
 		setBorderHeight(child);
 		if (!child?.classList.contains('MENU_CONTAINER') && child) {
 			recalculateBorderHeight(child?.parentElement);
 		}
 	}
+
+	function handleDelete() {
+		if (self.children && self.children.length > 0) {
+			// Show warning modal
+			const warningModal: ModalSettings = {
+				type: 'confirm',
+				title: 'Warning!',
+				body: 'Deleting this category will also delete all its children. <br>Are you sure you want to proceed?',
+				response: (response) => {
+					if (response) {
+						performDelete();
+					}
+				}
+			};
+			modalStore.trigger(warningModal);
+		} else {
+			// Show confirmation modal directly
+			const confirmModal: ModalSettings = {
+				type: 'confirm',
+				title: 'Confirm Deletion',
+				body: 'Are you sure you want to delete this category?',
+				response: (response) => {
+					if (response) {
+						performDelete();
+					}
+				}
+			};
+			modalStore.trigger(confirmModal);
+		}
+	}
+
+	function performDelete() {
+		parent?.children?.splice(parent?.children?.indexOf(self), 1);
+		refresh();
+	}
 </script>
 
-<!-- Start of menu -->
-
+<!-- label boxes-->
 <button
 	on:click={(e) => {
 		if (expanded) {
@@ -54,28 +99,32 @@
 		}
 		expanded = !expanded;
 	}}
-	class="relative mb-2 flex w-full min-w-[200px] cursor-default items-center gap-2 rounded border border-surface-400 py-2 pl-2"
+	class="relative mb-2 flex w-full min-w-[200px] cursor-default items-center gap-2 rounded border border-surface-400 pl-2"
 	class:!cursor-pointer={self.children?.length > 0}
-	style="margin-left:{20 * level}px;
+	style="margin-left:{10 * level}px;
 
-	max-width:{window.screen.width <= 700 ? `calc(100% + ${10 * (maxDepth - level)}px)` : `calc(100% - ${10 * level}px)`}"
+  max-width:{window.screen.width <= 700 ? `calc(100% + ${10 * (maxDepth - level)}px)` : `calc(100% - ${10 * level}px)`}"
 >
-	<!-- ladder dashes -->
-	<div class="ladder" style="width:{10 * level}px" />
+	<!-- ladder dashed vertical -->
+
+	<div class="absolute bottom-6 right-full mr-0.5 border-t-2 border-dashed border-surface-400 dark:border-primary-500" style="width:{10 * level}px" />
 
 	<!-- Display chevron-down icon for expandable children except the first header -->
 	{#if self.children?.length > 0}
-		<!-- <button class="arrow dark:!border-white" class:expanded /> -->
-		<iconify-icon icon="mdi:chevron-down" width="30" class="btn-icon btn-icon-sm text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}" />
+		<iconify-icon
+			icon="mdi:chevron-down"
+			width="30"
+			class="btn-icon btn-icon-sm dark:text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}"
+		/>
 	{/if}
 
 	<!-- Label -->
-	<span class="">
+	<span class="font-bold">
 		{self?.Header[$contentLanguage]}
 	</span>
 
 	<!-- Buttons -->
-	<div class="ml-auto flex items-center justify-end gap-1">
+	<div class="ml-auto flex items-center justify-end">
 		<!-- Add Button  -->
 		{#if level < maxDepth - 1}
 			<button
@@ -104,15 +153,15 @@
 			}}
 			class="btn-icon dark:text-primary-500"
 		>
-			<iconify-icon icon="mdi:pen" width="30" class="" />
+			<iconify-icon icon="mdi:pen" width="28" class="" />
 		</button>
 
 		<!-- Delete Button -->
 		{#if level > 0}
 			<button
+				class="btn-icon"
 				on:click|stopPropagation={() => {
-					parent?.children?.splice(parent?.children?.indexOf(self), 1);
-					refresh();
+					handleDelete();
 				}}
 			>
 				{#if self.children && self.children.length > 0}
@@ -121,39 +170,27 @@
 					<iconify-icon icon="mdi:trash-can-outline" width="30" class="text-error-500" />
 				{/if}
 			</button>
+		{:else}
+			<div class="btn-icon"></div>
 		{/if}
 	</div>
 </button>
 
 <!-- Categories Children-->
 {#if self.children?.length > 0 && expanded}
-	<ul bind:this={ul} class="children relative" style="margin-left:{20 * level + 15}px;">
-		<div class="border-dash" />
+	<ul bind:this={ul} class="children relative" style="margin-left:{10 * level + 5}px;">
+		<!-- dashed ladder horizontal -->
+		<div class="absolute -left-0.5 -top-1 h-1/2 border-l-2 border-dashed border-surface-400 dark:border-primary-500"></div>
+
 		{#each self.children as child}
 			<li>
-				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parrent={self} {maxDepth} />
+				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} />
 			</li>
 		{/each}
 	</ul>
 {/if}
 
 <style lang="postcss">
-	.ladder {
-		position: absolute;
-		height: 0;
-		right: 100%;
-		border-top: 1px dashed;
-	}
-
-	.border-dash {
-		content: '';
-		position: absolute;
-		left: 0;
-		width: 0;
-		border-left: 1px dashed;
-		max-height: 100%;
-	}
-
 	ul {
 		overflow: visible;
 	}

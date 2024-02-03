@@ -160,9 +160,10 @@ export async function saveImages(data: FormData, collectionName: string) {
 				// Add the original file data to the files object
 				files[fieldname as keyof typeof files] = {
 					original: {
-						name: `${sanitizedFileName}.${hash}`,
+						name: `${sanitizedFileName}`,
 						url,
 						size: blob.size,
+						hash: hash,
 						type: mimeType,
 						lastModified: blob.lastModified
 					}

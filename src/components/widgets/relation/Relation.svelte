@@ -42,7 +42,7 @@
 	let display = '';
 
 	$: (async (_) => {
-		let data;
+		let data: any;
 		if ($mode == 'edit' && field) {
 			if (entryMode == 'edit' || entryMode == 'create') {
 				data = await extractData(fieldsData);
@@ -63,41 +63,37 @@
 </script>
 
 {#if !expanded && !showDropDown}
-	<div class="mt-2 flex gap-2">
-		<button class="flex-grow text-center" on:click={openDropDown}>{@html selected?.display || display || 'select new'}</button>
-
-		<button
-			type="button"
-			on:click={() => {
-				expanded = !expanded;
-				entryMode = 'edit';
-				fieldsData = {};
-				selected = undefined;
-			}}
-			class="variant-ghost-primary btn-icon"
-		>
-			<iconify-icon icon="bi:pencil-fill" width="24" />
-		</button>
-
-		<button
-			type="button"
-			on:click={() => {
-				expanded = !expanded;
-				entryMode = 'create';
-				fieldsData = {};
-				selected = undefined;
-			}}
-			class="variant-ghost-primary btn-icon"
-		>
-			<iconify-icon icon="ic:baseline-plus" width="24" />
-		</button>
+	<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
+		<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown}>{@html selected?.display || display || 'select new'}</button>
+		<div class="ml-auto flex items-center pr-2">
+			{#if $mode == 'create'}
+				<button
+					on:click={() => {
+						expanded = !expanded;
+						entryMode = 'create';
+						fieldsData = {};
+						selected = undefined;
+						relation_entry = {};
+					}}
+					class="btn-icon"
+					><iconify-icon icon="icons8:plus" width="30" class="dark:text-primary-500" />
+				</button>
+			{/if}
+			<button
+				on:click={() => {
+					expanded = !expanded;
+					entryMode = 'edit';
+					fieldsData = {};
+					selected = undefined;
+				}}
+				class="btn-icons"
+				><iconify-icon icon="mdi:pen" width="28" class="dark:text-primary-500" />
+			</button>
+		</div>
 	</div>
 {:else if !expanded && showDropDown}
 	<DropDown {dropDownData} {field} bind:selected bind:showDropDown />
 {:else}
 	<Fields fields={relationCollection?.fields} root={false} bind:fieldsData customData={relation_entry} />
-
-	<button type="button" on:click={() => (expanded = false)} class="variant-filled-primary btn">
-		<iconify-icon icon="material-symbols:save" width="24" />Save
-	</button>
+	{(($saveFunction.fn = save), '')}
 {/if}

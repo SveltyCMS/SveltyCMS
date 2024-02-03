@@ -105,7 +105,7 @@ export const actions: Actions = {
 		}
 
 		// Calculate expiration time in seconds based on expiresIn value
-		let expirationTime;
+		let expirationTime: number;
 
 		switch (expiresIn) {
 			case '2 hrs':
