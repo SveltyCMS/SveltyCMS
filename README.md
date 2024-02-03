@@ -43,17 +43,21 @@
 
 <h3 align="center"><strong>It's lightning fast, flexible and an easy to use modern content management system to provide a headless backend </strong></h3>
 
-This Sveltekit CMS provides a backend based on a modern [SvelteKit 2 CMS](https://svelte.dev/) framework with a fast MongoDB for document database scalability and flexibility.
+This Sveltekit CMS provides a backend based on a modern [SvelteKit 2](https://svelte.dev/) framework with a fast MongoDB for document database scalability and flexibility.
 
-New Collections can easily be implemented, due to full typescript support with already many available widgets.
+New Collections can easily be implemented, due to full typescript support with already many available widgets. we offer two ways to use it, via code or via GUI.
 
-All fields offer full translation, and customization as well as access restriction handled by Lucia auth.
+All fields offer full translation, and customization as well as access restriction.
 
-The System language uses [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) light weight JavaScript i18n library to providing :gb: English, and may other languages out of the box. More Languages can easily be extended to support further languages.
+The System language uses [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs) a light weight JavaScript i18n library. :gb: English is our default and we offer multiple languages out of the box. More Languages can easily be extended to support further languages.
 
 We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](https://www.skeleton.dev/), so the CMS can be quickly optimized to your personal needs.
 
-Data is provided via yoga graphql, to build extremely fast frontend
+The Backend Data is provided via [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
+
+<p align="center">
+ <img width="100%" alt="SveltyCMS Gui" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
+</p>
 
 ## :rocket: Setup
 
@@ -104,9 +108,9 @@ npm run preview   # to run preview on localhost:4173
 
 We want to keep your data Private and Secure.
 
-[Lucia Auth 2](https://lucia-auth.com/) Authentication allows us to stay flexible for the future and adapt to changing security needs.
+Our Authentication allows us to stay flexible for the future and adapt to changing security needs.
 
-You can sign by email, github oauth and also enable 2FA for an extra layer of protection.
+You can sign by email and password or use google oauth.
 
 Field-based content access enables the allocation of varying levels of access to users according to their roles and permissions. This way, you can control who can view, edit, or delete your data.
 
@@ -175,3 +179,8 @@ To all our contributors without this would never have been possible
 # :star: Give us a star
 
 If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others
+
+<p align="center">
+<img width="100%" alt="SveltyCMS Builder" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
+<img width="100%" alt="SveltyCMS User" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
+</p>
