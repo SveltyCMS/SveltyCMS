@@ -63,14 +63,14 @@ export async function load(event: any) {
 
 	const mediaData = await Promise.all(
 		uniqueImageFiles.map(async (file) => {
-			const filePath = `${PUBLIC_MEDIA_FOLDER}/${file}`;
-			const fileExt = path.extname(file).substring(1);
-			const fileName = `${path.basename(file).split('.')[0]}.${fileExt}`;
-
-			const hash = fileName.slice(0, 64);
+			const mediaPath = `${PUBLIC_MEDIA_FOLDER}/${file}`; // Get the full path to the image
+			const mediaExt = path.extname(file).substring(1); // Get the extension
+			const mediaName = `${path.basename(file).split('.')[0]}.${mediaExt}`; // Get the name without hash
+			const hash = mediaName.slice(0, 64); // Get the hash
+			const onlyPath = mediaPath.substring(mediaPath.lastIndexOf('/') + 1); // Get the path only
 
 			const thumbnail = `${PUBLIC_MEDIA_FOLDER}/${file}`;
-			const size = await getFileSize(filePath);
+			const size = await getFileSize(mediaPath);
 			const hasPermission = hasFilePermission(user, file); // Check permission
 
 			// Check if this image has the same hash as a previously seen image
@@ -81,8 +81,8 @@ export async function load(event: any) {
 			}
 
 			return {
-				name: fileName,
-				path: path.dirname(file),
+				name: mediaName,
+				path: onlyPath,
 				thumbnail,
 				size,
 				hash,
@@ -121,8 +121,8 @@ export async function load(event: any) {
 			const hasPermission = hasFilePermission(user, file); // Check permission
 
 			return {
-				name: `${fileName}.${hash}.${fileExt}`, // Adjust the name to have the same format as your images
-				path: path.dirname(file),
+				name: fileName,
+				path: filePath,
 				thumbnail,
 				size: await getFileSize(filePath),
 				hash,

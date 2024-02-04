@@ -210,9 +210,9 @@
 	</div>
 </div>
 
-<div class="wrapper2">
-	<!-- admin area -->
-	{#if user?.role == roles.admin}
+<!-- admin area -->
+{#if user?.role == roles.admin}
+	<div class="wrapper2">
 		<AdminArea {data} />
-	{/if}
-</div>
+	</div>
+{/if}

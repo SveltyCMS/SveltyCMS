@@ -71,6 +71,7 @@ export const signUpFormSchema = z
 		path: ['confirm_password'] // Set error on confirm_password field
 	});
 
+// Google Oauth token ------------------------------------
 export const signUpOAuthFormSchema = z.object({
 	// username: z
 	// 	.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })

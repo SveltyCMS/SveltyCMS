@@ -26,11 +26,11 @@
 		{#if PUBLIC_SEASONS === 'true'}
 			<!-- TODO: Fix broken avif Edge image -->
 			{#if isDecember && !isNewYear}
-				<img src="/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
+				<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
 			{/if}
 
 			{#if isHalloween}
-				<img src="/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
+				<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
 			{/if}
 
 			{#if isNewYear && !isDecember}

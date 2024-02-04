@@ -68,7 +68,7 @@ export const key = {
 		type: String, // key id in the form of: ${providerId}:${providerUserId}
 		required: true
 	},
-	
+
 	user_id: {
 		type: String,
 		required: true // reference to user(id)
@@ -81,7 +81,7 @@ export const key = {
 	},
 	// Not strictly required by Lucia, but we'll be using it
 	hashed_password: String,
-	
+
 	expires: {
 		type: Number, // expiration for key if defined (number)
 		default: null

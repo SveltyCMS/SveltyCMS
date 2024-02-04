@@ -149,7 +149,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
 				// Construct the URL for the original file
-				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}`;
+				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}`;
 
 				// Determine the output format based on the environment variable or default to 'original'
 				const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
@@ -177,9 +177,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 
 						// Construct the full file name
 						const fullName =
-							outputFormat === 'original'
-								? `${sanitizedFileName}.${hash}.${blob.type.split('/')[1]}`
-								: `${sanitizedFileName}.${hash}.${outputFormat}`;
+							outputFormat === 'original' ? `${sanitizedFileName}${hash}.${blob.type.split('/')[1]}` : `${sanitizedFileName}${hash}.${outputFormat}`;
 
 						// Create a buffer from the file's array buffer
 						const arrayBuffer = await blob.arrayBuffer();
@@ -223,14 +221,14 @@ export async function saveImages(data: FormData, collectionName: string) {
 
 					// Write the optimized original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${outputFormat}`,
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
 						optimizedOriginalBuffer
 					);
 				} else {
 					optimizedOriginalBuffer = buffer;
 					// Write the original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${blob.type.split('/')[1]}`,
+						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${blob.type.split('/')[1]}`,
 						optimizedOriginalBuffer
 					);
 				}
@@ -238,7 +236,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				// Add the optimized original file data to the files object
 				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
 					name: `${sanitizedFileName}.${hash}.${outputFormat}`,
-					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}.${hash}.${outputFormat}`,
+					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
 					size: optimizedOriginalBuffer.byteLength,
 					type: mimeType,
 					lastModified: blob.lastModified
