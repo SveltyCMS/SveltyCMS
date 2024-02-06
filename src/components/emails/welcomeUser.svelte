@@ -13,8 +13,8 @@
 
 	export let hostLink = dev ? HOST_DEV : HOST_PROD;
 
-	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
+	// svelty-email
+	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

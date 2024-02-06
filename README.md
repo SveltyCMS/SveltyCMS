@@ -133,7 +133,7 @@ Full Typescript support to display all available widgets, options to create full
 
 ## :incoming_envelope: Flexible Email Templating System
 
-Build and send emails using [Svelte Email](https://svelte-email.vercel.app/) and TypeScript.
+Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and TypeScript.
 
 ## :question: Need help
 

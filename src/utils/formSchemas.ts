@@ -13,7 +13,7 @@ export const loginFormSchema = z.object({
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() }),
-	lang: z.string() // used for svelte-email
+	lang: z.string() // used for svelty-email
 });
 
 // SignIn Reset Password ------------------------------------
@@ -37,7 +37,7 @@ export const resetFormSchema = z
 			}),
 		//token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1),
 		token: z.string(),
-		lang: z.string(), // used for svelte-email
+		lang: z.string(), // used for svelty-email
 		email: z.string()
 	})
 	.refine((data: SignInResetFormData) => data.password === data.confirm_password, m.formSchemas_Passwordmatch());
@@ -63,7 +63,7 @@ export const signUpFormSchema = z
 
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
 
-		lang: z.string(), // used for svelte-email
+		lang: z.string(), // used for svelty-email
 		token: z.string().min(16) //registration user token
 	})
 	.refine((data) => data.password === data.confirm_password, {

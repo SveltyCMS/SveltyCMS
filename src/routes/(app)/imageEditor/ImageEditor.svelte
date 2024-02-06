@@ -87,11 +87,13 @@
 </div>
 
 <!-- Enable and Disable module functionality -->
-<div class="mt-1 flex items-center justify-center gap-2 px-2 md:justify-between">
-	<p class="hidden md:block">Image:</p>
-	<p class="text-primary-500">{image?.name}</p>
+<div class="mt-1 flex flex-col items-center justify-between gap-2 px-2 md:flex-row">
+	<p class="order-first flex gap-2">
+		<span class="">Image:</span>
+		<span class="text-primary-500">{image?.name}</span>
+	</p>
 
-	<div class="w-90 btn-group mt-1 dark:[&>*+*]:border-gray-200">
+	<div class="btn-group order-last gap-2 md:order-2">
 		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">
 			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-gray-500'} />
 		</button>
@@ -121,7 +123,9 @@
 		</button>
 	</div>
 
-	<p class="hidden md:block">Width: <span class="text-error-500">{CONT_WIDTH}</span> x Height: <span class="text-error-500">{CONT_HEIGHT}</span></p>
+	<p class="order-2 md:order-last">
+		Width: <span class="text-primary-500">{CONT_WIDTH}</span> x Height: <span class="text-primary-500">{CONT_HEIGHT}</span>
+	</p>
 </div>
 
 {#if activeState !== 'rotate'}

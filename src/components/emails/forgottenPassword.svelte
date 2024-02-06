@@ -8,8 +8,8 @@
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
-	// svelte-email
-	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelte-email';
+	// svelty-email
+	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
 	interface EmailProps {
 		email?: string;

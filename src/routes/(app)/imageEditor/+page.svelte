@@ -5,7 +5,8 @@
 	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
 	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 
-	import { saveEditedImage } from '@stores/store';
+	import { mode, saveEditedImage } from '@stores/store';
+	import { goto } from '$app/navigation';
 
 	let image: File | null | undefined; // Add undefined as a possible type
 	let selectedImage: string;
@@ -35,17 +36,36 @@
 		// 	saveEditedImage.update((old) => true);
 		// });
 	};
+
+	// function to undo the changes made by handleButtonClick
+	function handleCancel() {
+		mode.set('view');
+		goto('/');
+	}
 </script>
 
 <div class="mb-2 flex items-center justify-between">
 	<PageTitle name="Image Editor" icon="" />
 
-	{#if image}
-		<button type="button" on:click={handleSave} class="variant-filled-primary btn gap-2 !text-white">
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-			Save
+	<!-- buttons -->
+	<div class="mb-2 flex items-center gap-2">
+		<!-- Save Content -->
+		{#if image}
+			<button type="button" on:click={handleSave} class="variant-filled-primary btn-icon md:hidden">
+				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+			</button>
+			<!-- button hack  -->
+			<button type="button" on:click={handleSave} class="variant-filled-primary btn hidden md:inline-flex">
+				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+				<p class="hidden md:block">Save</p>
+			</button>
+		{/if}
+
+		<!-- Cancel -->
+		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
+			<iconify-icon icon="material-symbols:close" width="24" />
 		</button>
-	{/if}
+	</div>
 </div>
 
 <input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />

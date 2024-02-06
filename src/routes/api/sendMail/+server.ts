@@ -1,8 +1,8 @@
-// svelte-email
-import { render } from 'svelte-email';
+// svelty-email
+import { render } from 'svelty-email';
 import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 
-// Templates used by svelte email
+// Templates used by svelty-email
 import userToken from '@components/emails/userToken.svelte';
 import welcomeUser from '@components/emails/welcomeUser.svelte';
 import forgottenPassword from '@components/emails/forgottenPassword.svelte';
