@@ -6,6 +6,21 @@ import type { Schema } from '@collections/types';
 //paraglidejs
 import { sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
+// globalSearchIndex
+interface SearchData {
+	title: string;
+	description: string;
+	keywords: string[];
+	triggers: {
+		[key: string]: {
+			path: string;
+			modal: () => void;
+		};
+	};
+}
+export const isSearchVisible = writable(false);
+export const globalSearchIndex = writable<SearchData[]>([]);
+
 export const categories: Writable<
 	Array<{
 		name: string;

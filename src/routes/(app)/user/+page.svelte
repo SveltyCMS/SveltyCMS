@@ -26,7 +26,7 @@
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import AdminArea from './components/AdminArea.svelte';
-	import { avatarSrc } from '@stores/store';
+	import { avatarSrc, globalSearchIndex } from '@stores/store';
 	import { roles } from '@collections/types';
 
 	// let avatarSrc = writable(user?.avatar);
@@ -154,6 +154,25 @@
 		};
 		modalStore.trigger(d);
 	}
+
+	import { onMount } from 'svelte';
+
+	// Define the page data
+	const globalSearchData = {
+		title: 'User Profile',
+		description: 'View and edit your user profile.',
+		keywords: ['user', 'profile', 'settings', 'account'],
+		triggers: {
+			'Edit Avatar': { path: '/user', modal: modalEditAvatar }
+			// 'Change Role': { path: '/user/', modal: modalChangeRole },
+			// 'Change Password': { path: '/user', modal: modalChangePassword }
+		}
+	};
+
+	onMount(() => {
+		// Add the global search data to the global search index
+		globalSearchIndex.update((index) => [...index, globalSearchData]);
+	});
 </script>
 
 <div class="mb-2 flex flex-col gap-1">

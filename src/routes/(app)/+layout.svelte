@@ -41,7 +41,9 @@
 		togglePageHeader,
 		togglePageFooter,
 		pkgBgColor,
-		entryData
+		entryData,
+		isSearchVisible,
+		globalSearchIndex
 	} from '@stores/store';
 
 	import { getCollections } from '@collections';
@@ -275,6 +277,18 @@
 		rootNode.lang = lang;
 	});
 
+	import SearchComponent from '@components/SearchComponent.svelte';
+
+	// Add the following function to your script part
+	const onKeyDown = (event: KeyboardEvent) => {
+		// alt+d is equivalent to 'd' key and event.altKey
+		if (event.altKey && event.key === 'd') {
+			isSearchVisible.update((prev) => !prev);
+			// If needed, prevent the default action of "alt+d"
+			// event.preventDefault();
+		}
+	};
+
 	// SEO
 	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
 	const SeoDescription = `${PUBLIC_SITENAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
@@ -284,7 +298,7 @@
 	<!-- darkmode -->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
 	<!-- Language -->
-	<!-- {@html `<script> 
+	<!-- {@html `<script>
 	const language = systemLanguage.value;
 	const direction = getTextDirection(language);
 	document.documentElement.lang = language;
@@ -529,11 +543,17 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</svelte:fragment>
 
 			<!-- Router Slot -->
-			<Modal />
-			<Toast />
-			<div class="m-2">
+
+			<div class="m-2" on:keydown={onKeyDown}>
 				{#key $page.url}
 					<!-- <div in:fly|global={{ x: -200, duration: 200 }} out:fly|global={{ x: 200, duration: 200 }}> -->
+					<Modal />
+					<Toast />
+
+					<!-- TODO: Add Search Component -->
+					{#if $isSearchVisible}
+						<SearchComponent />
+					{/if}
 
 					<slot />
 				{/key}
