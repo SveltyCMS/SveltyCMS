@@ -1,10 +1,10 @@
 <script lang="ts">
-	import type { FieldType } from '.';
+	// Stores
 	import { mode, entryData, defaultContentLanguage } from '@stores/store';
-	import { getFieldName } from '@utils/utils';
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
+	import type { FieldType } from '.';
+
+	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 

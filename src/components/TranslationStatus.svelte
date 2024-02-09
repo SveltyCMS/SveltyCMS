@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+	// Stores
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
 
+	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 	//console.log('contentLanguage', contentLanguage);
 
 	// Manually parse the object from JSON string

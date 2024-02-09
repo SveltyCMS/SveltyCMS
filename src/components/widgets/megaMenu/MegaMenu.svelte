@@ -1,13 +1,17 @@
 <script lang="ts">
+	// Stores
+	import { entryData, mode, saveFunction, saveLayerStore, shouldShowNextButton } from '@stores/store';
+
+	// Components
 	import Fields from '@components/Fields.svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
 
 	import ListNode from './ListNode.svelte';
-	import { entryData, mode, saveFunction, saveLayerStore, shouldShowNextButton } from '@stores/store';
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);

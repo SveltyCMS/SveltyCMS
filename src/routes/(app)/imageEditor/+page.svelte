@@ -1,11 +1,14 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	// Stores
+	import { mode, saveEditedImage } from '@stores/store';
 	import { page } from '$app/stores';
+
+	import { onMount } from 'svelte';
+
 	import PageTitle from '@components/PageTitle.svelte';
 	import Cropper from '@src/routes/(app)/imageEditor/Cropper.svelte';
 	import ImageEditor from '@src/routes/(app)/imageEditor/ImageEditor.svelte';
 
-	import { mode, saveEditedImage } from '@stores/store';
 	import { goto } from '$app/navigation';
 
 	let image: File | null | undefined; // Add undefined as a possible type

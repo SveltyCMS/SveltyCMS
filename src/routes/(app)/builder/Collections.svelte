@@ -1,16 +1,20 @@
 <script lang="ts">
+	// Stores
 	import { mode, collection, unAssigned } from '@stores/store';
-	import { categories } from '@collections';
 	import { page } from '$app/stores';
+
+	// Components
 	import CheckIcon from '@components/system/icons/CheckIcon.svelte';
 	import CheckBox from '@components/system/buttons/CheckBox.svelte';
+	import { categories } from '@collections';
+
 	import { asAny, obj2formData } from '@utils/utils';
 	import axios from 'axios';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	//skeleton
+	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 

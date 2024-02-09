@@ -23,6 +23,7 @@
 	initializeStores();
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
+	// Stores
 	import {
 		avatarSrc,
 		collections,
@@ -33,26 +34,30 @@
 		defaultContentLanguage,
 		systemLanguage,
 		AVAILABLE_SYSTEMLANGUAGES,
+		pkgBgColor,
+		entryData,
+		isSearchVisible,
+		globalSearchIndex
+	} from '@stores/store';
+	import {
 		handleSidebarToggle,
 		screenWidth,
 		userPreferredState,
 		toggleLeftSidebar,
 		toggleRightSidebar,
 		togglePageHeader,
-		togglePageFooter,
-		pkgBgColor,
-		entryData,
-		isSearchVisible,
-		globalSearchIndex
-	} from '@stores/store';
-
-	import { getCollections } from '@collections';
+		togglePageFooter
+	} from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
+
+	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
+
+	// Components
 	import Loading from '@components/Loading.svelte';
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';

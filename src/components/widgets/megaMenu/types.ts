@@ -1,7 +1,8 @@
+// Components
 import Input from '@components/system/inputs/Input2.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
-// import { contentLanguage } from '@stores/store';
 import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
+// import Toggles from '@components/system/inputs/Toggles.svelte';
+
 import widgets from '..';
 import { getFieldName } from '@utils/utils';
 

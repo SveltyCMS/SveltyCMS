@@ -1,5 +1,7 @@
 <script>
 	import { goto } from '$app/navigation';
+
+	// Stores
 	import { isSearchVisible, globalSearchIndex } from '@stores/store';
 
 	// Function to search the global search index

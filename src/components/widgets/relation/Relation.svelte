@@ -1,9 +1,12 @@
 <script lang="ts">
-	import type { FieldType } from '.';
+	// Stores
 	import { entryData, mode, contentLanguage, collection, collections, saveFunction } from '@stores/store';
-	import { extractData, find, findById, getFieldName, saveFormData } from '@utils/utils';
+	// Components
 	import DropDown from './DropDown.svelte';
 	import Fields from '@components/Fields.svelte';
+
+	import type { FieldType } from '.';
+	import { extractData, find, findById, getFieldName, saveFormData } from '@utils/utils';
 
 	export let field: FieldType | undefined;
 	let fieldName = getFieldName(field);

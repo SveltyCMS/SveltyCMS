@@ -1,8 +1,13 @@
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';
+
+	// Stores
 	import { entryData, mode, loadingProgress } from '@stores/store';
+
 	import { getFieldName } from '@utils/utils';
+
+	// Skeleton
 	import { FileDropzone } from '@skeletonlabs/skeleton';
 
 	let _data: FileList;

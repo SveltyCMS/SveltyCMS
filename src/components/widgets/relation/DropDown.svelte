@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { FieldType } from '.';
+
+	// Stores
 	import { contentLanguage, collection, entryData } from '@stores/store';
+
 	export let dropDownData: any[] = [];
 
 	export let selected: { display: any; _id: any } | undefined = undefined;

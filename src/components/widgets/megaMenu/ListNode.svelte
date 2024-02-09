@@ -1,8 +1,9 @@
 <script lang="ts">
+	// Stores
 	import { mode, contentLanguage, shouldShowNextButton } from '@stores/store';
 	import { currentChild } from '.';
 
-	//skeleton
+	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 

@@ -2,8 +2,10 @@
 	import type { Rich_Text } from './types';
 	import type { FieldType } from '.';
 
+	// Stores
 	import { contentLanguage, defaultContentLanguage } from '@stores/store';
 	import { mode, entryData } from '@stores/store';
+
 	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;

@@ -1,15 +1,19 @@
 <script lang="ts">
+	// Stores
+	import { mode, entryData } from '@stores/store';
+	import { handleSidebarToggle } from '@stores/sidebarStore';
 	import { writable } from 'svelte/store';
-	import { handleSidebarToggle, mode, entryData } from '@stores/store';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Components
 	import FloatingInput from '../inputs/floatingInput.svelte';
+
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
 	import TanstackIcons from './TanstackIcons.svelte';
 	import { asAny } from '@utils/utils';
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	//svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';

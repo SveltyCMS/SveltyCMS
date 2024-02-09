@@ -1,8 +1,9 @@
+// Stores
 import { collections } from '@stores/store';
+import type { Unsubscriber } from 'svelte/store';
 
 import { dev } from '$app/environment';
 import { PUBLIC_SITENAME } from '$env/static/public';
-import type { Unsubscriber } from 'svelte/store';
 
 // Lucia v2
 import { lucia } from 'lucia';

@@ -1,7 +1,10 @@
+// Stores
+import { contentLanguage } from '@stores/store';
+
+// Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import { contentLanguage } from '@stores/store';
 
 /**
  * Defines Email widget Parameters

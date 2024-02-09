@@ -1,9 +1,12 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { contentLanguage, defaultContentLanguage } from '@stores/store';
-	import { mode, entryData } from '@stores/store';
+
+	// Stores
+	import { mode, entryData, defaultContentLanguage } from '@stores/store';
+
 	import { getFieldName } from '@utils/utils';
 
+	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
 
 	export let field: FieldType;

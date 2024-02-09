@@ -1,5 +1,10 @@
 <script lang="ts">
-	import { contentLanguage, categories, collection, mode, entryData, modifyEntry, handleSidebarToggle, toggleLeftSidebar } from '@stores/store';
+	// Stores
+	import { contentLanguage, categories, collection, mode, entryData, modifyEntry } from '@stores/store';
+	import { handleSidebarToggle, toggleLeftSidebar } from '@stores/sidebarStore';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import axios from 'axios';
 	import { writable } from 'svelte/store';
@@ -13,9 +18,6 @@
 	import Loading from './Loading.svelte';
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
 

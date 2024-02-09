@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+
+	// Stores
 	import '@stores/store';
+	import { page } from '$app/stores';
+	import { avatarSrc, globalSearchIndex } from '@stores/store';
 
 	import PageTitle from '@components/PageTitle.svelte';
 
@@ -10,7 +14,6 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Lucia
-	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	const user = $page.data.user;
 	const { isFirstUser } = $page.data;
@@ -26,7 +29,7 @@
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import AdminArea from './components/AdminArea.svelte';
-	import { avatarSrc, globalSearchIndex } from '@stores/store';
+
 	import { roles } from '@collections/types';
 
 	// let avatarSrc = writable(user?.avatar);

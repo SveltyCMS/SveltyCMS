@@ -1,10 +1,14 @@
 <script lang="ts">
+	// Stores
+	import { toggleLeftSidebar } from '@stores/sidebarStore';
+
+	// Components
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
-	import { asAny } from '@utils/utils';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { toggleLeftSidebar } from '@stores/store';
+
+	import { asAny } from '@utils/utils';
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;

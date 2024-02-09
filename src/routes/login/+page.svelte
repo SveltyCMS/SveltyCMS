@@ -3,6 +3,8 @@
 	import SignUp from './components/SignUp.svelte';
 	import SveltyCMSLogoFull from '@src/components/SveltyCMS_LogoFull.svelte';
 	import type { PageData } from './$types';
+
+	// Stores
 	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@stores/store';
 
 	export let data: PageData;

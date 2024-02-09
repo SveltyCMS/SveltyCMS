@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { contentLanguage, categories, collection, mode, modifyEntry, handleSidebarToggle, toggleLeftSidebar, entryData } from '@stores/store';
+	// Stores
+	import { contentLanguage, categories, collection, mode, modifyEntry, entryData } from '@stores/store';
+	import { toggleLeftSidebar } from '@stores/sidebarStore';
 
 	import axios from 'axios';
 

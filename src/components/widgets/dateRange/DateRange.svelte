@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { FieldType } from '.';
+
+	// Stores
 	import { mode, entryData, contentLanguage, defaultContentLanguage } from '@stores/store';
+
 	import { getFieldName } from '@utils/utils';
 
 	import * as z from 'zod';

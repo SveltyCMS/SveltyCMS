@@ -1,10 +1,14 @@
 <script lang="ts">
-	import PageTitle from '@components/PageTitle.svelte';
-	import Permissions from '@components/Permissions.svelte';
+	// Stores
 	import { page } from '$app/stores';
 	import { mode, collection, collections, permissionStore } from '@stores/store';
+
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+	import Permissions from '@components/Permissions.svelte';
 	import VerticalList from '@components/VerticalList.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
+
 	import { obj2formData } from '@utils/utils';
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';

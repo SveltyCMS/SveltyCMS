@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { collectionValue, contentLanguage, collection, entryData } from '@stores/store';
+	// Stores
+	import { collectionValue, contentLanguage, collection } from '@stores/store';
+
 	//console.log($entryData);
 	import { asAny, getFieldName } from '@utils/utils';
 

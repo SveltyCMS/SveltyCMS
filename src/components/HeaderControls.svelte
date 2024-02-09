@@ -1,27 +1,17 @@
 <script lang="ts">
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-	import {
-		collection,
-		categories,
-		collectionValue,
-		mode,
-		modifyEntry,
-		screenWidth,
-		toggleLeftSidebar,
-		handleSidebarToggle,
-		contentLanguage,
-		saveLayerStore,
-		shouldShowNextButton
-	} from '@stores/store';
-
-	import { saveFormData } from '@utils/utils';
-
+	// Stores
+	import { collection, categories, collectionValue, mode, modifyEntry, contentLanguage, saveLayerStore, shouldShowNextButton } from '@stores/store';
+	import { screenWidth, toggleLeftSidebar, handleSidebarToggle } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
+
 	let userRole = $page.data.user.role;
 	//console.log($page.data.user.role);
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+
+	import { saveFormData } from '@utils/utils';
 
 	// Manually parse the object from JSON string
 	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));

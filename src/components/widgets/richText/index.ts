@@ -1,11 +1,13 @@
 import RichText from './RichText.svelte';
 
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+// Stores
 import { defaultContentLanguage } from '@stores/store';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 /**
  * Defines RichText widget Parameters

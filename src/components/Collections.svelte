@@ -1,5 +1,7 @@
 <script lang="ts">
-	import { mode, screenWidth, toggleLeftSidebar, collection, categories } from '@stores/store';
+	// Stores
+	import { mode, collection, categories } from '@stores/store';
+	import { screenWidth, toggleLeftSidebar } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
 	// let user: User = $page.data.user;

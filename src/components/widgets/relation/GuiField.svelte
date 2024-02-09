@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { Schema } from '@collections/types';
+
+	// Stores
 	import { collections } from '@stores/store';
+
+	// Components
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 
 	export let value: Schema | string = '';

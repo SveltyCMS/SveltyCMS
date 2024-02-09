@@ -1,8 +1,11 @@
 <script lang="ts">
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
-	import { goto } from '$app/navigation';
+	// Stores
 	import { mode, categories, collection } from '@stores/store';
+
+	import { flip } from 'svelte/animate';
+	import { goto } from '$app/navigation';
+	import { dndzone } from 'svelte-dnd-action';
+
 	export let modeSet: typeof $mode = 'edit';
 
 	export let currentCategories: any;

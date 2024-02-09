@@ -1,11 +1,13 @@
 <script lang="ts">
+	// Stores
+	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
+	import { handleSidebarToggle, toggleLeftSidebar, screenWidth } from '@stores/sidebarStore';
+	import { get } from 'svelte/store';
+
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	import { createEventDispatcher } from 'svelte';
-	import { mode, modifyEntry, handleSidebarToggle, storeListboxValue, toggleLeftSidebar, screenWidth } from '@stores/store';
-	import { get } from 'svelte/store';
-
 	const dispatch = createEventDispatcher();
 
 	let dropdownOpen = false;

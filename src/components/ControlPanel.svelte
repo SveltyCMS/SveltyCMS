@@ -1,36 +1,26 @@
 <script lang="ts">
-	import {
-		collection,
-		collectionValue,
-		mode,
-		modifyEntry,
-		handleSidebarToggle,
-		saveLayerStore,
-		shouldShowNextButton,
-		entryData
-	} from '@stores/store';
-
-	// console.log('collection', $collection);
-	// console.log('collectionValue', $collectionValue);
-	// console.log('entryData', $entryData);
-
-	// console.log('Mode:', $mode);
-
+	// Stores
+	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData } from '@stores/store';
+	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { page } from '$app/stores';
-	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
+
+	// Skeleton
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Components
+	import Toggles from './system/inputs/Toggles.svelte';
+
+	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
 
 	let next = () => {};
 	saveLayerStore.subscribe((value) => {
 		next = value;
 		shouldShowNextButton.set(false);
 	});
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	import Toggles from './system/inputs/Toggles.svelte';
 
 	const user = $page.data.user;
 

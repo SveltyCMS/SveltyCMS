@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { contentLanguage, defaultContentLanguage } from '@stores/store';
-	import { mode, entryData } from '@stores/store';
+
+	// Stores
+	import { mode, entryData, contentLanguage, defaultContentLanguage } from '@stores/store';
+
 	import { getFieldName } from '@utils/utils';
 	//console.log('contentLanguage', $contentLanguage);
 	export let field: FieldType;

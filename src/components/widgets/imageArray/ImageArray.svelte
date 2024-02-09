@@ -1,14 +1,17 @@
 <script lang="ts">
-	import Fields from '@components/Fields.svelte';
+	// Stores
 	import { loadingProgress, mode } from '@stores/store';
-	import { saveFormData } from '@utils/utils';
-	import type { FieldType } from '.';
-	import VerticalList from '@src/components/VerticalList.svelte';
-	import { generateUniqueId } from '@utils/utils';
 
-	// sveltekit
-	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
+	// Components
+	import Fields from '@components/Fields.svelte';
+	import VerticalList from '@src/components/VerticalList.svelte';
+
+	import { saveFormData, generateUniqueId } from '@utils/utils';
+	import type { FieldType } from '.';
 	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
+
+	// Sveltekit
+	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
 
 	export let field: FieldType;
 

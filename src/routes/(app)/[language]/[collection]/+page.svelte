@@ -1,12 +1,16 @@
 <script lang="ts">
+	// Stores
 	import { page } from '$app/stores';
-	import { goto } from '$app/navigation';
-	import { collectionValue, mode, collections, collection, entryData } from '@stores/store';
-	import type { Schema } from '@collections/types';
+	import { collectionValue, mode, collections, collection } from '@stores/store';
 
+	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
 	import EntryListNew from '@components/EntryList_New.svelte';
+
+	import { goto } from '$app/navigation';
+
+	import type { Schema } from '@collections/types';
 
 	let ForwardBackward: boolean = false; // if using browser history
 
