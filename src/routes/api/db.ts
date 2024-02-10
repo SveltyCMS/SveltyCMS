@@ -12,6 +12,7 @@ import { mongoose } from '@lucia-auth/adapter-mongoose';
 import { session, key, UserSchema, TokenSchema } from '@collections/Auth';
 import { sveltekit } from 'lucia/middleware';
 import { google } from '@lucia-auth/oauth/providers';
+
 // mongoose
 import mongodb from 'mongoose';
 import {
@@ -19,6 +20,7 @@ import {
 	DB_NAME,
 	DB_USER,
 	DB_PASSWORD,
+	DB_COMPRESSOR,
 	HOST_PROD,
 	HOST_DEV,
 	SECRET_GOOGLE_CLIENT_ID,
@@ -37,7 +39,8 @@ try {
 		authSource: 'admin',
 		user: DB_USER,
 		pass: DB_PASSWORD,
-		dbName: DB_NAME
+		dbName: DB_NAME,
+		compressors: DB_COMPRESSOR
 	});
 	console.log(`\x1b[32m====> Connection to ${DB_NAME} database successful!\x1b[0m\n====> Enjoying your \x1b[31m${PUBLIC_SITENAME}\x1b[0m`);
 } catch (error) {

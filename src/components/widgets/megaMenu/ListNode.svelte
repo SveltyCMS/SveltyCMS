@@ -23,19 +23,13 @@
 
 	function setBorderHeight(node: HTMLElement | null | undefined) {
 		if (!node) return;
-
-		// Get the last header element inside the node
-		const lastHeader = node.lastChild?.firstChild as HTMLElement;
-		if (!lastHeader) return;
-
-		// Get the height of the last header element
-		const headerHeight = lastHeader.offsetHeight;
-
-		// Add the appropriate Tailwind CSS class to the border element
-		const border = node.querySelector('.border') as HTMLElement;
-		if (border) {
-			border.classList.add(`h-${headerHeight}`);
-		}
+		// if (!parent_border || !lastChild || !parent) return;
+		setTimeout(async () => {
+			let lastHeader = node?.lastChild?.firstChild as HTMLElement;
+			if (!lastHeader) return;
+			let border = node?.querySelector('.border') as HTMLElement;
+			border && (border.style.height = lastHeader.offsetTop + lastHeader.offsetHeight / 2 + 'px');
+		}, 0);
 	}
 
 	$: if (self.children.length) {
@@ -50,6 +44,7 @@
 
 	function recalculateBorderHeight(node: any) {
 		let child = findFirstOuterUl(node);
+
 		setBorderHeight(child);
 		if (!child?.classList.contains('MENU_CONTAINER') && child) {
 			recalculateBorderHeight(child?.parentElement);
@@ -92,7 +87,7 @@
 	}
 </script>
 
-<!-- label boxes-->
+<!-- label boxes -->
 <button
 	on:click={(e) => {
 		if (expanded) {
@@ -100,15 +95,14 @@
 		}
 		expanded = !expanded;
 	}}
-	class="relative mb-2 flex w-full min-w-[200px] cursor-default items-center gap-2 rounded border border-surface-400 pl-2"
+	class="header"
 	class:!cursor-pointer={self.children?.length > 0}
-	style="margin-left:{10 * level}px;
-
-  max-width:{window.screen.width <= 700 ? `calc(100% + ${10 * (maxDepth - level)}px)` : `calc(100% - ${10 * level}px)`}"
+	style="margin-left:{15 * level}px;
+	max-width:{window.screen.width <= 700 ? `calc(100% + ${15 * (maxDepth - level)}px)` : `calc(100% - ${15 * level}px)`}"
 >
 	<!-- ladder dashed vertical -->
-
-	<div class="absolute bottom-6 right-full mr-0.5 border-t-2 border-dashed border-surface-400 dark:border-primary-500" style="width:{10 * level}px" />
+	<div class="ladder" style="width:{15 * level}px" />
+	<!-- <div class="absolute bottom-6 right-full mr-0.5 border-t-2 border-dashed border-surface-400 dark:border-primary-500" style="width:{15 * level}px" /> -->
 
 	<!-- Display chevron-down icon for expandable children except the first header -->
 	{#if self.children?.length > 0}
@@ -148,7 +142,6 @@
 				$currentChild = self;
 				$mode = 'edit';
 				depth = level;
-				//console.log(self);
 				showFields = true;
 				shouldShowNextButton.set(true);
 			}}
@@ -179,9 +172,10 @@
 
 <!-- Categories Children-->
 {#if self.children?.length > 0 && expanded}
-	<ul bind:this={ul} class="children relative" style="margin-left:{10 * level + 5}px;">
+	<ul bind:this={ul} class="children relative" style="margin-left:{15 * level + 15}px;">
 		<!-- dashed ladder horizontal -->
-		<div class="absolute -left-0.5 -top-1 h-1/2 border-l-2 border-dashed border-surface-400 dark:border-primary-500"></div>
+		<div class="border" />
+		<!-- <div class="absolute -left-0.5 -top-1 h-1/2 border-l-2 border-dashed border-surface-400 dark:border-primary-500"></div> -->
 
 		{#each self.children as child}
 			<li>
@@ -191,8 +185,36 @@
 	</ul>
 {/if}
 
-<style lang="postcss">
-	ul {
-		overflow: visible;
+<style>
+	.header {
+		position: relative;
+		display: flex;
+		align-items: center;
+		justify-content: flex-start;
+		gap: 2px;
+		border: 1px solid #80808045;
+		border-radius: 5px;
+		padding: 10px 0px;
+		padding-left: 50px;
+		padding-right: 10px;
+		margin-bottom: 5px;
+		width: 100vw;
+		min-width: 200px;
+		cursor: default;
+	}
+	.ladder {
+		position: absolute;
+		height: 0;
+		right: 100%;
+		border-top: 1px dashed;
+	}
+
+	.border {
+		content: '';
+		position: absolute;
+		left: 0;
+		width: 0;
+		border-left: 1px dashed;
+		max-height: 100%;
 	}
 </style>

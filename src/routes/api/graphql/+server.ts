@@ -2,7 +2,11 @@
 import { createSchema, createYoga } from 'graphql-yoga';
 import type { RequestEvent } from '@sveltejs/kit';
 
+import { REDIS, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD } from '$env/static/public';
+
 import mongoose from 'mongoose';
+
+import { auth } from '@api/db';
 
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
@@ -98,16 +102,52 @@ for (const collection of collections) {
 }
 // console.log('resolvers.Query:', resolvers.Query);
 
-const yogaApp = createYoga<RequestEvent>({
-	// Import schema and resolvers
-	schema: createSchema({
-		typeDefs,
-		resolvers
-	}),
-	// Define explicitly the GraphQL endpoint
-	graphqlEndpoint: '/api/graphql',
-	// Use SvelteKit's Response object
-	fetchAPI: globalThis
-});
+let yogaApp;
+if (REDIS === 'true') {
+	// Use Redis as a cache
+	const redisClient = createRedisClient({
+		host: REDIS_HOST,
+		port: REDIS_PORT,
+		password: REDIS_PASSWORD
+	});
+
+	redisClient.on('connect', () => {
+		console.log('Connected to Redis');
+	});
+
+	redisClient.on('error', (err) => {
+		console.error('Error connecting to Redis:', err);
+	});
+
+	yogaApp = createYoga<RequestEvent>({
+		// Import schema and resolvers
+		schema: createSchema({
+			typeDefs,
+			resolvers
+		}),
+		// Define explicitly the GraphQL endpoint
+		graphqlEndpoint: '/api/graphql',
+		// Use SvelteKit's Response object
+		fetchAPI: globalThis,
+		// Enable Redis caching
+		redis: {
+			client: redisClient,
+			ttl: 60 * 60 // Cache for 1 hour
+		}
+	});
+} else {
+	// Don't use Redis
+	yogaApp = createYoga<RequestEvent>({
+		// Import schema and resolvers
+		schema: createSchema({
+			typeDefs,
+			resolvers
+		}),
+		// Define explicitly the GraphQL endpoint
+		graphqlEndpoint: '/api/graphql',
+		// Use SvelteKit's Response object
+		fetchAPI: globalThis
+	});
+}
 
 export { yogaApp as GET, yogaApp as POST };
