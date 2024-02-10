@@ -1,17 +1,31 @@
 // Graphql Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
 import type { RequestEvent } from '@sveltejs/kit';
-
-import { REDIS, REDIS_HOST, REDIS_PORT, REDIS_PASSWORD } from '$env/static/public';
-
 import mongoose from 'mongoose';
-
 import { auth } from '@api/db';
-
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
+
+// Redis
+import { PUBLIC_USE_REDIS } from '$env/static/public';
+import { REDIS_HOST, REDIS_PORT, REDIS_PASSWORD } from '$env/static/private';
+import { createClient } from 'redis';
+
+let redisClient: any = null;
+
+if (PUBLIC_USE_REDIS === 'true') {
+	// Create Redis client
+	redisClient = createClient({
+		url: `redis://${REDIS_HOST}:${REDIS_PORT}`,
+		password: REDIS_PASSWORD
+	});
+
+	redisClient.on('error', (err: Error) => {
+		console.log('Redis error: ', err);
+	});
+}
 
 let typeDefs = /* GraphQL */ ``;
 const types = new Set();
@@ -24,6 +38,7 @@ let resolvers: { [key: string]: any } = {
 const collectionSchemas: string[] = [];
 const collections = await getCollections();
 
+// Loop over each collection to define typeDefs and resolvers
 for (const collection of collections) {
 	resolvers[collection.name as string] = {};
 	// Default same for all Content
@@ -33,6 +48,7 @@ for (const collection of collections) {
 		createdAt: Float
 		updatedAt: Float
 	`;
+
 	for (const field of collection.fields) {
 		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
 		if (schema.resolver) {
@@ -92,62 +108,51 @@ type Query {
 
 // console.log(typeDefs);
 
-// Loop over each collection
+// Loop over each collection to define resolvers for querying data
 for (const collection of collections) {
 	// console.log('collection.name:', collection.name);
 
 	// Add a resolver function for collections
-	resolvers.Query[collection.name as string] = async () =>
-		await mongoose.models[collection.name as string].find({ status: { $ne: 'unpublished' } }).lean();
+	resolvers.Query[collection.name as string] = async () => {
+		if (PUBLIC_USE_REDIS === 'true') {
+			// Try to fetch the result from Redis first
+			const cachedResult = await new Promise((resolve, reject) => {
+				redisClient.get(collection.name, (err, result) => {
+					if (err) reject(err);
+					resolve(result ? JSON.parse(result) : null);
+				});
+			});
+
+			if (cachedResult !== null) {
+				// If the result was found in Redis, return it
+				return cachedResult;
+			}
+		}
+
+		// If the result was not found in Redis, fetch it from the database
+		const dbResult = await mongoose.models[collection.name as string].find({ status: { $ne: 'unpublished' } }).lean();
+
+		if (PUBLIC_USE_REDIS === 'true') {
+			// Store the DB result in Redis for future requests
+			redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
+		}
+
+		return dbResult;
+	};
 }
+
 // console.log('resolvers.Query:', resolvers.Query);
 
-let yogaApp;
-if (REDIS === 'true') {
-	// Use Redis as a cache
-	const redisClient = createRedisClient({
-		host: REDIS_HOST,
-		port: REDIS_PORT,
-		password: REDIS_PASSWORD
-	});
-
-	redisClient.on('connect', () => {
-		console.log('Connected to Redis');
-	});
-
-	redisClient.on('error', (err) => {
-		console.error('Error connecting to Redis:', err);
-	});
-
-	yogaApp = createYoga<RequestEvent>({
-		// Import schema and resolvers
-		schema: createSchema({
-			typeDefs,
-			resolvers
-		}),
-		// Define explicitly the GraphQL endpoint
-		graphqlEndpoint: '/api/graphql',
-		// Use SvelteKit's Response object
-		fetchAPI: globalThis,
-		// Enable Redis caching
-		redis: {
-			client: redisClient,
-			ttl: 60 * 60 // Cache for 1 hour
-		}
-	});
-} else {
-	// Don't use Redis
-	yogaApp = createYoga<RequestEvent>({
-		// Import schema and resolvers
-		schema: createSchema({
-			typeDefs,
-			resolvers
-		}),
-		// Define explicitly the GraphQL endpoint
-		graphqlEndpoint: '/api/graphql',
-		// Use SvelteKit's Response object
-		fetchAPI: globalThis
-	});
-}
+const yogaApp = createYoga<RequestEvent>({
+	// Import schema and resolvers
+	schema: createSchema({
+		typeDefs,
+		resolvers
+	}),
+	// Define explicitly the GraphQL endpoint
+	graphqlEndpoint: '/api/graphql',
+	// Use SvelteKit's Response object
+	fetchAPI: globalThis
+});
 
 export { yogaApp as GET, yogaApp as POST };

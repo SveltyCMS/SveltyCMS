@@ -23,8 +23,8 @@ import {
 	DB_COMPRESSOR,
 	HOST_PROD,
 	HOST_DEV,
-	SECRET_GOOGLE_CLIENT_ID,
-	SECRET_GOOGLE_CLIENT_SECERT
+	GOOGLE_CLIENT_ID,
+	GOOGLE_CLIENT_SECERT
 } from '$env/static/private';
 // import { Session } from 'inspector';
 
@@ -148,12 +148,12 @@ const auth = lucia({
 });
 
 // Google OAuth2 - optional authentication
-let googleAuth;
+let googleAuth: any;
 
-if (SECRET_GOOGLE_CLIENT_ID && SECRET_GOOGLE_CLIENT_SECERT) {
+if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECERT) {
 	googleAuth = google(auth, {
-		clientId: SECRET_GOOGLE_CLIENT_ID,
-		clientSecret: SECRET_GOOGLE_CLIENT_SECERT,
+		clientId: GOOGLE_CLIENT_ID,
+		clientSecret: GOOGLE_CLIENT_SECERT,
 		redirectUri: `${dev ? HOST_DEV : HOST_PROD}/oauth`,
 		scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
 		accessType: dev ? 'offline' : 'online'

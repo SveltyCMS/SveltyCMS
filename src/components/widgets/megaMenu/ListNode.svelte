@@ -21,6 +21,18 @@
 		self.children.length = self.children?.length;
 	};
 
+	// Svelte DND action
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
+
+	function handleDndConsider(e: any) {
+		self.children = e.detail.items;
+	}
+
+	function handleDndFinalize(e: any) {
+		self.children = e.detail.items;
+	}
+
 	function setBorderHeight(node: HTMLElement | null | undefined) {
 		if (!node) return;
 		// if (!parent_border || !lastChild || !parent) return;
@@ -95,22 +107,21 @@
 		}
 		expanded = !expanded;
 	}}
-	class="header"
+	class="header relative mb-2 flex w-screen min-w-[200px] cursor-default items-center justify-start rounded border border-surface-400 px-1"
 	class:!cursor-pointer={self.children?.length > 0}
 	style="margin-left:{15 * level}px;
 	max-width:{window.screen.width <= 700 ? `calc(100% + ${15 * (maxDepth - level)}px)` : `calc(100% - ${15 * level}px)`}"
 >
 	<!-- ladder dashed vertical -->
-	<div class="ladder" style="width:{15 * level}px" />
-	<!-- <div class="absolute bottom-6 right-full mr-0.5 border-t-2 border-dashed border-surface-400 dark:border-primary-500" style="width:{15 * level}px" /> -->
-
+	<div class="absolute bottom-6 right-full mr-0.5 border-t border-dashed border-surface-400 dark:border-primary-500" style="width:{15 * level}px" />
+	<!-- drag icon -->
+	<iconify-icon icon="mdi:drag" width="18" class="cursor-move" />
 	<!-- Display chevron-down icon for expandable children except the first header -->
 	{#if self.children?.length > 0}
-		<iconify-icon
-			icon="mdi:chevron-down"
-			width="30"
-			class="btn-icon btn-icon-sm dark:text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}"
-		/>
+		<iconify-icon icon="mdi:chevron-down" width="30" class="dark:text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}" />
+	{:else}
+		<!-- TODO: improve indentation -->
+		<div class="mr-7" />
 	{/if}
 
 	<!-- Label -->
@@ -174,47 +185,14 @@
 {#if self.children?.length > 0 && expanded}
 	<ul bind:this={ul} class="children relative" style="margin-left:{15 * level + 15}px;">
 		<!-- dashed ladder horizontal -->
-		<div class="border" />
-		<!-- <div class="absolute -left-0.5 -top-1 h-1/2 border-l-2 border-dashed border-surface-400 dark:border-primary-500"></div> -->
-
+		<div class="absolute -left-0.5 -top-1 max-h-full border border-dashed border-surface-400 content-none dark:border-primary-500" />
+		<!-- <section use:dndzone={{ items , flipDurationMs }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}> -->
 		{#each self.children as child}
 			<li>
+				<!-- <div animate:flip={{ duration: flipDurationMs }}>{item.name}</div> -->
 				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} />
 			</li>
 		{/each}
+		<!-- </section> -->
 	</ul>
 {/if}
-
-<style>
-	.header {
-		position: relative;
-		display: flex;
-		align-items: center;
-		justify-content: flex-start;
-		gap: 2px;
-		border: 1px solid #80808045;
-		border-radius: 5px;
-		padding: 10px 0px;
-		padding-left: 50px;
-		padding-right: 10px;
-		margin-bottom: 5px;
-		width: 100vw;
-		min-width: 200px;
-		cursor: default;
-	}
-	.ladder {
-		position: absolute;
-		height: 0;
-		right: 100%;
-		border-top: 1px dashed;
-	}
-
-	.border {
-		content: '';
-		position: absolute;
-		left: 0;
-		width: 0;
-		border-left: 1px dashed;
-		max-height: 100%;
-	}
-</style>
