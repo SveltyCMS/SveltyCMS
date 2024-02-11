@@ -1,22 +1,25 @@
 <script lang="ts">
 	// Stores
-	import { mode, collection, unAssigned } from '@stores/store';
+	import { mode, collection, drawerExpanded, unAssigned } from '@stores/store';
 
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
 
 	import '@collections';
 	import Collections from './Collections.svelte';
+	import { categories, updateCollections } from '@src/collections';
 
 	import axios from 'axios';
 	import { obj2formData } from '@utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
+	import Header from './Header.svelte';
+	import { onDestroy } from 'svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import DropDown from '@components/system/dropDown/DropDown.svelte';
 
 	// Required default widget fields
 	let name = $mode == 'edit' ? $collection.name : '';
@@ -30,30 +33,10 @@
 
 	let fields = [];
 	let addField = false;
+	let navButton;
+	$mode = 'create';
+	$drawerExpanded = true;
 
-	// Function to save data by sending a POST request to the /api/builder endpoint
-	function save() {
-		let data =
-			$mode == 'edit'
-				? obj2formData({
-						originalName: $collection.name,
-						collectionName: name,
-						icon: icon,
-						slug: slug,
-						status: status,
-						description: description,
-						fields: $collection.fields
-					})
-				: obj2formData({ collectionName: name, icon, slug, description, status, fields });
-		console.log(slug);
-		console.log(data);
-
-		axios.post(`?/saveCollection`, data, {
-			headers: {
-				'Content-Type': 'multipart/form-data'
-			}
-		});
-	}
 	collection.subscribe(() => {
 		name = $mode == 'edit' ? $collection.name : '';
 		icon = $mode == 'edit' ? $collection.icon : '';
@@ -61,6 +44,43 @@
 		description = $mode == 'edit' ? $collection.description : '';
 		status = $mode == 'edit' ? $collection.status : 'unpublish';
 	});
+
+	$: if ($mode == 'create') {
+		name = '';
+		icon = '';
+		fields = [];
+	}
+	onDestroy(async () => {
+		await updateCollections();
+	});
+
+	// Function to save data by sending a POST request to the /api/builder endpoint
+	function save() {
+		let _categories: { name: string; icon: string; collections: string[] }[] = [];
+		for (let category of $categories) {
+			_categories.push({
+				name: category.name,
+				icon: category.icon,
+				collections: category.collections.map((x) => `🗑️collections.${x.name}🗑️` as string)
+			});
+		}
+
+		axios.post(`?/saveConfig`, obj2formData({ categories: _categories }), {
+			headers: {
+				'Content-Type': 'multipart/form-data'
+			}
+		});
+		if (!name) return;
+		let data =
+			$mode == 'edit'
+				? obj2formData({ originalName: $collection.name, collectionName: name, fields: $collection.fields, icon })
+				: obj2formData({ fields, collectionName: name, icon });
+		axios.post(`?/saveCollection`, data, {
+			headers: {
+				'Content-Type': 'multipart/form-data'
+			}
+		});
+	}
 </script>
 
 <!-- Page Title -->
@@ -79,6 +99,7 @@
 	<div class="flex text-white">
 		{#if $mode == 'view'}
 			<!--Left Panel -->
+
 			<section class="w-[280px] pl-1 pt-1">
 				<!-- Menu Selection -->
 				<p class="text-center text-xl text-primary-500">Category</p>

@@ -24,7 +24,7 @@ export const currentCollection = writable(null);
 export const collectionValue: any = writable({});
 export const entryData: Writable<any> = writable({});
 // collective crud
-export const mode: Writable<'view' | 'edit' | 'create' | 'delete'> = writable('view');
+export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify'> = writable('view');
 // collective status
 export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
 
@@ -66,6 +66,10 @@ interface SearchData {
 }
 export const isSearchVisible = writable(false);
 export const globalSearchIndex = writable<SearchData[]>([]);
+
+// Cancel/Reload HeaderButton
+export const headerActionButton: Writable<ConstructorOfATypedSvelteComponent | string> = writable();
+export const drawerExpanded: Writable<boolean> = writable(true);
 
 // Permission store
 export const permissionStore = writable({});

@@ -26,6 +26,8 @@
 
 	let publishValue = $entryData.status === 'published' ? true : false;
 
+	// Convert timestamp to Date string
+
 	const dates = {
 		created: convertTimestampToDateString($entryData.createdAt),
 		updated: convertTimestampToDateString($entryData.updatedAt)
@@ -37,7 +39,7 @@
 
 		// a function to undo the changes made by handleButtonClick
 		mode.set('view');
-		//console.log('ControlPanel.svelte', $mode);
+		//console.log('RightSidebar.svelte', $mode);
 		handleSidebarToggle();
 	}
 	//console.log('collection', $collection);
@@ -172,10 +174,14 @@
 				<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
 			</main>
 
-			<footer class="-mx-2 mt-2 grid grid-cols-2 text-[12px] leading-tight">
-				{#each Object.keys(dates) as key}
-					<div class="pl-1 text-left capitalize">{key}:</div>
-					<div class="mb-2 text-left text-primary-500">{Object.values(dates)[Object.keys(dates).indexOf(key)]}</div>
+			<footer class="mb-1 mt-2">
+				{#each Object.entries(dates) as [key, value]}
+					<div class="flex items-center gap-x-2 text-[12px]">
+						<!-- Labels -->
+						<div class="capitalize">{key}:</div>
+						<!-- Data -->
+						<div class="text-primary-500">{value}</div>
+					</div>
 				{/each}
 			</footer>
 		{/if}

@@ -21,18 +21,6 @@
 		self.children.length = self.children?.length;
 	};
 
-	// Svelte DND action
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
-
-	function handleDndConsider(e: any) {
-		self.children = e.detail.items;
-	}
-
-	function handleDndFinalize(e: any) {
-		self.children = e.detail.items;
-	}
-
 	function setBorderHeight(node: HTMLElement | null | undefined) {
 		if (!node) return;
 		// if (!parent_border || !lastChild || !parent) return;
@@ -97,6 +85,46 @@
 		parent?.children?.splice(parent?.children?.indexOf(self), 1);
 		refresh();
 	}
+
+	//DND action
+	function drag(e) {
+		e.stopPropagation();
+		let node = e.currentTarget as HTMLElement;
+
+		let siblings = [...ul.children].slice(1).map((el) => ({ el: el as HTMLElement, top: el.getBoundingClientRect().top }));
+		node.onpointermove = (e) => {
+			node.onpointermove = null;
+			node.style.opacity = '0.5';
+			let clone = node.cloneNode(true) as HTMLElement;
+			ul.appendChild(clone);
+			clone.style.left = node.getBoundingClientRect().left + 'px';
+			clone.style.marginLeft = '0';
+			clone.style.position = 'fixed';
+			clone.style.top = e.clientY + 'px';
+			clone.setPointerCapture(e.pointerId);
+			clone.onpointermove = (e) => {
+				clone.style.top = e.clientY + 'px';
+				clone.style.opacity = '1';
+			};
+			clone.onpointerup = (e) => {
+				clone.remove();
+				node.style.opacity = '1';
+				siblings.sort((a, b) => (Math.abs(b.top - e.clientY) < Math.abs(a.top - e.clientY) ? 1 : -1));
+				let closest = siblings[0];
+				console.log(siblings);
+				console.log(e.clientY, closest.el);
+				if (e.clientY > closest.top + closest.el.offsetHeight / 2) {
+					closest.el.nextElementSibling ? ul.insertBefore(node, closest.el.nextElementSibling) : ul.appendChild(node);
+					node.onpointerdown = drag;
+				} else {
+					ul.insertBefore(node, closest.el);
+				}
+			};
+		};
+		node.onpointerup = (e) => {
+			node.onpointermove = null;
+		};
+	}
 </script>
 
 <!-- label boxes -->
@@ -109,11 +137,16 @@
 	}}
 	class="header relative mb-2 flex w-screen min-w-[200px] cursor-default items-center justify-start rounded border border-surface-400 px-1"
 	class:!cursor-pointer={self.children?.length > 0}
-	style="margin-left:{15 * level}px;
-	max-width:{window.screen.width <= 700 ? `calc(100% + ${15 * (maxDepth - level)}px)` : `calc(100% - ${15 * level}px)`}"
+	style="margin-left:{10 * (level > 0 ? 1 : 0)}px;
+	{window.screen.width <= 700
+		? `min-width:calc(100% + ${10 * (maxDepth * maxDepth - level)}px)`
+		: `max-width:calc(100% - ${10 * (level > 0 ? 1 : 0)}px)`}"
 >
 	<!-- ladder dashed vertical -->
-	<div class="absolute bottom-6 right-full mr-0.5 border-t border-dashed border-surface-400 dark:border-primary-500" style="width:{15 * level}px" />
+	<div
+		class="absolute bottom-6 right-full mr-0.5 border-t border-dashed border-surface-400 dark:border-primary-500"
+		style="width:{10 * (level > 0 ? 1 : 0)}px"
+	/>
 	<!-- drag icon -->
 	<iconify-icon icon="mdi:drag" width="18" class="cursor-move" />
 	<!-- Display chevron-down icon for expandable children except the first header -->
@@ -125,7 +158,7 @@
 	{/if}
 
 	<!-- Label -->
-	<span class="font-bold">
+	<span class="max-w-150px text-wrap font-bold sm:max-w-full">
 		{self?.Header[$contentLanguage]}
 	</span>
 
@@ -176,23 +209,21 @@
 				{/if}
 			</button>
 		{:else}
-			<div class="btn-icon"></div>
+			<div class="btn-icon" />
 		{/if}
 	</div>
 </button>
 
 <!-- Categories Children-->
 {#if self.children?.length > 0 && expanded}
-	<ul bind:this={ul} class="children relative" style="margin-left:{15 * level + 15}px;">
+	<ul bind:this={ul} class="children user-select-none relative overflow-visible" style="margin-left:{10 * (level > 0 ? 1 : 0) + 10}px;">
 		<!-- dashed ladder horizontal -->
 		<div class="absolute -left-0.5 -top-1 max-h-full border border-dashed border-surface-400 content-none dark:border-primary-500" />
-		<!-- <section use:dndzone={{ items , flipDurationMs }} on:consider={handleDndConsider} on:finalize={handleDndFinalize}> -->
+
 		{#each self.children as child}
-			<li>
-				<!-- <div animate:flip={{ duration: flipDurationMs }}>{item.name}</div> -->
+			<li on:pointerdown={drag}>
 				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} />
 			</li>
 		{/each}
-		<!-- </section> -->
 	</ul>
 {/if}

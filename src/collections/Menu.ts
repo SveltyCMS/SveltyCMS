@@ -41,28 +41,6 @@ const schema: Schema = {
 						placeholder: 'Enter Description Level 1',
 						required: true,
 						translated: true
-					}),
-					widgets.ImageUpload({
-						label: 'image',
-						required: true,
-						icon: 'material-symbols:image-outline',
-						path: 'global'
-					}),
-					widgets.Text({
-						label: 'Title',
-						placeholder: 'Image Title',
-						required: true,
-						translated: true
-					}),
-					widgets.Text({
-						label: 'Alt Text',
-						placeholder: 'Image Alt Text',
-						required: true,
-						translated: true
-					}),
-					widgets.Seo({
-						label: 'Seo',
-						translated: true
 					})
 				],
 				//level 2
@@ -78,31 +56,8 @@ const schema: Schema = {
 						placeholder: 'Enter Description Level 2',
 						required: true,
 						translated: true
-					}),
-					widgets.ImageUpload({
-						label: 'image',
-						required: true,
-						icon: 'material-symbols:image-outline',
-						path: 'global'
-					}),
-					widgets.Text({
-						label: 'Title',
-						placeholder: 'Image Title',
-						required: true,
-						translated: true
-					}),
-					widgets.Text({
-						label: 'Alt Text',
-						placeholder: 'Image Alt Text',
-						required: true,
-						translated: true
-					}),
-					widgets.Seo({
-						label: 'Seo',
-						translated: true
 					})
 				],
-
 				//level 3
 				[
 					widgets.Text({
@@ -116,27 +71,20 @@ const schema: Schema = {
 						placeholder: 'Enter Description Level 3',
 						required: true,
 						translated: true
-					}),
-
-					widgets.ImageUpload({
-						label: 'Image',
-						path: 'global'
-					}),
-
+					})
+				],
+				//level 4
+				[
 					widgets.Text({
-						label: 'Title',
-						placeholder: 'Image Title',
+						label: 'Level 4 Name',
+						placeholder: 'Enter Category Level 4 Name',
 						required: true,
 						translated: true
 					}),
 					widgets.Text({
-						label: 'Alt Text',
-						placeholder: 'Image Alt Text',
+						label: 'Description',
+						placeholder: 'Enter Description Level 4',
 						required: true,
-						translated: true
-					}),
-					widgets.Seo({
-						label: 'Seo',
 						translated: true
 					})
 				]

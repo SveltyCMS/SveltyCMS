@@ -73,6 +73,9 @@
 				data.entryList.map(async (entry) => {
 					let obj: { [key: string]: any } = {};
 					for (let field of $collection.fields) {
+						if ('callback' in field) {
+							field.callback({ data });
+						}
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
 							collection: $collection.name,

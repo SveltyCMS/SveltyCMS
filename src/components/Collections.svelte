@@ -54,11 +54,11 @@
 	let filteredCategories: Category[] = ($categories as Category[]) || [];
 
 	// Define filterCategories function
-	function filterCategories(search, categories) {
+	function filterCategories(search: any, categories: any) {
 		// Reduce $categories array to create new array of filtered categories
-		filteredCategories = categories.reduce((acc, category) => {
+		filteredCategories = categories.reduce((acc: any, category: any) => {
 			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection) => {
+			const filteredCollections = category.collections.filter((collection: any) => {
 				return collection.name.toLowerCase().includes(search.toLowerCase());
 			});
 
@@ -165,7 +165,8 @@
 				<!-- Collection Children -->
 				<svelte:fragment slot="content">
 					<!-- filtered by User Role Permission -->
-					{#each category.collections.filter((c) => c?.permissions?.[user?.role]?.read != false) as _collection, index}
+
+					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user.role]?.read != false) as _collection, index}
 						{#if $toggleLeftSidebar === 'full'}
 							<!-- switchSideBar expanded -->
 							<div

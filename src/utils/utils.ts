@@ -2,20 +2,20 @@ import fs from 'fs';
 import axios from 'axios';
 import mongoose from 'mongoose';
 
+import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 import { Blob } from 'buffer';
 import type { Schema } from '@collections/types';
+import { browser } from '$app/environment';
+import crypto from 'crypto';
 
 // Stores
 import { get } from 'svelte/store';
 import { contentLanguage, entryData, mode, collections, collection } from '@stores/store';
 
-// lucia
+// lucia Auth
 import type { User, Auth } from 'lucia';
 import { UserSchema } from '@src/collections/Auth';
-
-import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
-import { browser } from '$app/environment';
-import crypto from 'crypto';
+import type { z } from 'zod';
 
 export const config = {
 	headers: {
@@ -42,21 +42,19 @@ export const obj2formData = (obj: any) => {
 	// Iterate over the keys of the input object
 	for (const key in obj) {
 		// Append each key-value pair to the FormData object as a string
-		formData.append(
-			key,
-			JSON.stringify(obj[key], (key, val) => {
-				if (!val && val !== false) return undefined;
-				else if (key == 'schema') return undefined;
-				else if (key == 'display' && val.default == true) return undefined;
-				else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
-				else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-				else if (typeof val === 'function') {
-					return '🗑️' + val + '🗑️';
-				}
-
-				return val;
-			})
-		);
+		const data = JSON.stringify(obj[key], (key, val) => {
+			if (!val && val !== false) return undefined;
+			else if (key == 'schema') return undefined;
+			else if (key == 'display' && val.default == true) return undefined;
+			else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
+			else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
+			else if (typeof val === 'function') {
+				return '🗑️' + val + '🗑️';
+			}
+			return val;
+		});
+		if (!data) continue;
+		formData.append(key, data);
 	}
 	// Return the FormData object
 	return formData;
@@ -94,6 +92,10 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 export function sanitize(str: string) {
 	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 }
+
+// Get the environment variables for image sizes
+const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves POSTS files to disk and returns file information
 // TODO: add optimization progress status
@@ -254,19 +256,20 @@ export async function saveImages(data: FormData, collectionName: string) {
 }
 
 // finds field title that matches the fieldname and returns that field
-function _findFieldByTitle(schema: any, fieldname: string): any {
+function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
 	for (const field of schema.fields) {
-		//console.log('field is ', field.db_fieldName, field.label);
+		// console.log('field is ', field.db_fieldName, field.label);
 		if (field.db_fieldName == fieldname || field.label == fieldname) {
+			found.val = true;
+
 			return field;
 		} else if (field.fields && field.fields.length > 0) {
-			const result = _findFieldByTitle(field, fieldname);
-			if (result) {
-				return result;
-			}
+			return _findFieldByTitle(field, fieldname, found);
 		}
 	}
-	return null;
+	if (!found) {
+		throw new Error('FIELD NOT FOUND');
+	}
 }
 
 // takes an object and recursively parses any values that can be converted to JSON
@@ -322,9 +325,6 @@ export function getFieldName(field: any, sanitize = false) {
 	}
 	return (field?.db_fieldName || field?.label) as string;
 }
-
-const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
-export const SIZES = { ...env_sizes, original: 0, thumbnail: 320 } as const;
 
 //Save Collections data to database
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
@@ -573,7 +573,7 @@ function removeExtension(fileName) {
 export const asAny = (value: any) => value;
 
 // This function takes an object as a parameter and returns a deep copy of it
-function deepCopy(obj) {
+function deepCopy(obj: any) {
 	// If the object is not an object or is null, return it as it is
 	if (typeof obj !== 'object' || obj === null) {
 		return obj;
@@ -603,6 +603,25 @@ function deepCopy(obj) {
 	}
 }
 
+export function debounce(delay?: number) {
+	let timer: any;
+	return (fn: () => void) => {
+		clearTimeout(timer);
+		timer = setTimeout(() => {
+			fn();
+		}, delay);
+	};
+}
+
+export function validateZod<T>(schema: z.Schema<T>, value?: T): null | { [P in keyof T]?: string[] | undefined } {
+	const res = schema.safeParse(value);
+	if (res.success || !value) {
+		return null;
+	} else {
+		return res.error.flatten().fieldErrors as any;
+	}
+}
+
 // This function generates a unique ID.
 export function generateUniqueId() {
 	// Get the current timestamp and convert it to a base-36 string.
@@ -618,4 +637,33 @@ export function generateUniqueId() {
 export function getTextDirection(lang: string): string {
 	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi']; // Add more RTL languages if needed
 	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';
+}
+
+// Hoist animation function declaration
+function animation(current, d, end, cb, resolve) {
+	current -= d;
+
+	if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
+		cb(end);
+		resolve();
+	} else {
+		cb(current);
+		requestAnimationFrame(() => animation(current, d, end, cb, resolve));
+	}
+}
+
+// Motion function
+export function motion(start, end, duration, cb, useAnimation = true) {
+	const frequency = 16;
+	const d = (start - end) / (duration / frequency);
+
+	return new Promise((outerResolve) => {
+		const current = start;
+
+		if (useAnimation) {
+			requestAnimationFrame(() => animation(current, d, end, cb, outerResolve));
+		} else {
+			// interval implementation
+		}
+	});
 }

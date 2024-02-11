@@ -1,6 +1,16 @@
 <script lang="ts">
 	// Stores
-	import { collection, categories, collectionValue, mode, modifyEntry, contentLanguage, saveLayerStore, shouldShowNextButton } from '@stores/store';
+	import {
+		collection,
+		categories,
+		collectionValue,
+		mode,
+		modifyEntry,
+		contentLanguage,
+		saveLayerStore,
+		headerActionButton,
+		shouldShowNextButton
+	} from '@stores/store';
 	import { screenWidth, toggleLeftSidebar, handleSidebarToggle } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
@@ -34,6 +44,15 @@
 		mode.set('view');
 		handleSidebarToggle();
 	}
+
+	function handleReload() {
+		mode.set('view');
+	}
+
+	// $: {
+	// 	$headerActionButton = DeleteIcon;
+	// 	$collection;
+	// }
 
 	export let showMore = false;
 	$: if ($mode === 'edit' || $mode === 'create') {
@@ -128,10 +147,16 @@
 			</div>
 		{/if}
 
-		<!-- Cancel -->
-		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-			<iconify-icon icon="material-symbols:close" width="24" />
-		</button>
+		<!-- Cancel/Reload -->
+		{#if $headerActionButton === 'DeleteIcon'}
+			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="material-symbols:close" width="24" />
+			</button>
+		{:else}
+			<button type="button" on:click={handleReload} class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="fa:refresh" width="24" class="text-primary-500" />
+			</button>
+		{/if}
 	</div>
 </header>
 

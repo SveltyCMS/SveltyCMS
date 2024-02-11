@@ -17,7 +17,7 @@ export async function load({ cookies }) {
 	const user = await validate(auth, session);
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.user.role]?.read != false);
+	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.role]?.read != false);
 
 	// Redirect to the first collection in the collections array
 	redirect(302, `/${languageTag()}/${_filtered[0].name}`);

@@ -2,7 +2,10 @@
 import MegaMenu from './MegaMenu.svelte';
 import Text from '../text';
 
+// Stores
 import { writable, type Writable } from 'svelte/store';
+import { entryData, mode, headerActionButton } from '@src/stores/store';
+
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
@@ -41,6 +44,12 @@ const widget = (params: Params) => {
 	}
 	params.menu.unshift([Text({ label: 'Header', translated: true })]);
 
+	const callback = ({ data }) => {
+		entryData.set(data?.entryList[0]);
+		mode.set('edit');
+		headerActionButton.set('fa:refresh');
+	};
+
 	// Define the field object
 	const field = {
 		// default fields
@@ -53,7 +62,8 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		menu: params.menu
+		menu: params.menu,
+		callback
 	};
 
 	// Return the field and widget objects

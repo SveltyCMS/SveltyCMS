@@ -17,7 +17,7 @@ const widget = (params: Params) => {
 	const display = async ({ data, collection, field, entry, contentLanguage }) => {
 		const relative_collection = (await getCollections()).find((c) => c.name == field.relation);
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		return data[getFieldName(relative_field)]
+		return data?.[getFieldName(relative_field)]
 			? await relative_field?.display({
 					data: data[getFieldName(relative_field)],
 					collection,
@@ -68,11 +68,15 @@ widget.aggregations = {
 	transformations: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
 		return [
-			{ $project: { relation: { $toObjectId: '$relation' } } },
-			{ $lookup: { from: field.relation.toLocaleLowerCase(), localField: 'relation', foreignField: '_id', as: 'relative_document' } },
-			{ $unwind: '$relative_document' },
-			{ $project: { relation: '$relative_document' } },
-			{ $project: { relative_document: 0 } }
+			{
+				$addFields: {
+					convertedId: { $toObjectId: '$relation' }
+				}
+			},
+			{ $project: { relation: 0 } },
+			{ $lookup: { from: field.relation.toLocaleLowerCase(), localField: 'convertedId', foreignField: '_id', as: 'relative_document' } },
+			{ $addFields: { relation: { $first: '$relative_document' } } },
+			{ $project: { relative_document: 0, convertedId: 0 } }
 		];
 	},
 	filters: async (info) => {

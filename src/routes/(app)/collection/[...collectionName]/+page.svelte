@@ -13,6 +13,12 @@
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
+	import { onDestroy } from 'svelte';
+
+	onDestroy(async () => {
+		await updateCollections();
+	});
+
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -71,6 +77,7 @@
 	// Import Modals
 	import ModalSelectWidget from './ModalSelectWidget.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
+	import { updateCollections } from '@src/collections';
 
 	// Modal 1 to choose a widget
 	function modalSelectWidget(selected: any): void {

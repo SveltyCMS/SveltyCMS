@@ -61,14 +61,8 @@
 	import Loading from '@components/Loading.svelte';
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { PUBLIC_SITENAME } from '$env/static/public';
-	import ControlPanel from '@components/ControlPanel.svelte';
+	import RightSidebar from '@src/components/RightSidebar.svelte';
 	import Collections from '@components/Collections.svelte';
-
-	// Convert timestamp to Date string
-	const dates = {
-		created: convertTimestampToDateString($entryData.createdAt),
-		updated: convertTimestampToDateString($entryData.updatedAt)
-	};
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
@@ -283,6 +277,7 @@
 	});
 
 	import SearchComponent from '@components/SearchComponent.svelte';
+	import Footer from '@src/components/Footer.svelte';
 
 	// Add the following function to your script part
 	const onKeyDown = (event: KeyboardEvent) => {
@@ -540,16 +535,16 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</svelte:fragment>
 
 			<svelte:fragment slot="sidebarRight">
-				<ControlPanel />
+				<RightSidebar />
 			</svelte:fragment>
 
 			<svelte:fragment slot="pageHeader">
-				<HeaderControls />
+				<!-- <HeaderControls /> -->
 			</svelte:fragment>
 
 			<!-- Router Slot -->
 
-			<div class="m-2" on:keydown={onKeyDown}>
+			<div class={$toggleLeftSidebar === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'} on:keydown={onKeyDown}>
 				{#key $page.url}
 					<!-- <div in:fly|global={{ x: -200, duration: 200 }} out:fly|global={{ x: 200, duration: 200 }}> -->
 					<Modal />
@@ -565,22 +560,7 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</div>
 
 			<svelte:fragment slot="pageFooter">
-				{#if $mode !== 'view'}
-					<h2 class="text-center !text-sm font-bold uppercase text-primary-500">
-						{$collection?.name} Info:
-					</h2>
-
-					<div class="mb-1 mt-2 grid grid-cols-3 items-center gap-x-2 text-[12px] leading-tight">
-						<!-- Labels -->
-						{#each Object.keys(dates) as key}
-							<div class="capitalize">{key}:</div>
-						{/each}
-						<!-- Data -->
-						{#each Object.values(dates) as value}
-							<div class="text-primary-500">{value}</div>
-						{/each}
-					</div>
-				{/if}
+				<Footer />
 			</svelte:fragment>
 		</AppShell>
 	{/if}

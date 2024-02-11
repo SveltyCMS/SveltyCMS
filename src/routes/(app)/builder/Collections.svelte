@@ -1,14 +1,14 @@
 <script lang="ts">
 	// Stores
-	import { mode, collection, unAssigned } from '@stores/store';
+	import { mode, collection, unAssigned, drawerExpanded } from '@stores/store';
 	import { page } from '$app/stores';
 
 	// Components
 	import CheckIcon from '@components/system/icons/CheckIcon.svelte';
 	import CheckBox from '@components/system/buttons/CheckBox.svelte';
-	import { categories } from '@collections';
 
 	import { asAny, obj2formData } from '@utils/utils';
+	import { categories } from '@collections';
 	import axios from 'axios';
 
 	// ParaglideJS
@@ -18,9 +18,11 @@
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
+	// Auth
 	import type { User } from 'lucia';
+	// import type { User } from '@src/auth/types';
 
-	export let modeSet: typeof $mode = 'edit';
+	export let modeSet: typeof $mode = 'view';
 
 	let expanded: any = {};
 	let user: User = $page.data.user;
@@ -87,7 +89,7 @@
 	</div>
 
 	<div class:expand={expanded[index]} class="wrapper">
-		<div class={expanded[index] ? 'delayed-overflow' : 'overflow-hidden'}>
+		<div class={expanded[index] ? 'delayed-overflow ' : ' overflow-hidden'}>
 			{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user.role]?.read != false) as _collection}
 				<button
 					class="relative flex h-[40px] w-full cursor-pointer items-center justify-center border-b border-surface-200 bg-[#777a89] p-0 text-center text-white last:mb-1 last:border-b-0 hover:bg-[#65dfff] hover:text-white dark:bg-surface-400 dark:text-white dark:hover:bg-[#65dfff] dark:hover:text-white"
@@ -145,7 +147,15 @@
 {/each}
 
 {#if modeSet == 'edit'}
-	<button class="variant-ghost-primary btn mt-2 w-full text-black dark:text-white" on:click={saveConfig}>{m.collection_SaveCategories()}</button>
+	<button
+		callback={() => {
+			checked = checked;
+			category.collections = category.collections.filter((x) => x.name != _collection.name);
+			$unAssigned = [...$unAssigned, _collection];
+		}}
+		class="variant-ghost-primary btn mt-2 w-full text-black dark:text-white"
+		on:click={saveConfig}>{m.collection_SaveCategories()}</button
+	>
 {/if}
 
 <style lang="postcss">

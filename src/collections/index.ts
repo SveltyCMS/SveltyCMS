@@ -63,6 +63,7 @@ async function getImports(recompile: boolean = false) {
 			const name = module.replace(/.ts$/, '').replace('./', '');
 			const collection = ((await modules[module]()) as any).default;
 			collection.name = name;
+			!collection.icon && (collection.icon = 'iconoir:info-empty');
 			imports[name] = collection;
 		}
 
@@ -79,6 +80,7 @@ async function getImports(recompile: boolean = false) {
 				const name = file.replace(/.js$/, '');
 				const collection = (await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)).default;
 				collection.name = name;
+				!collection.icon && (collection.icon = 'iconoir:info-empty');
 				imports[name] = collection;
 			}
 
@@ -91,6 +93,7 @@ async function getImports(recompile: boolean = false) {
 				const name = file.replace(/.js$/, '');
 				const collection = (await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd)).default;
 				collection.name = name;
+				!collection.icon && (collection.icon = 'iconoir:info-empty');
 				imports[name] = collection;
 			}
 		}

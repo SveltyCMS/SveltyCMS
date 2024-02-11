@@ -179,7 +179,9 @@
 		<!-- TODO: add sticky top sticky top-0 z-50 -->
 		<div class="sticky top-0">
 			<!-- Category/Collection buttons -->
-			<div class="mb-3 flex flex-col justify-around gap-1 sm:flex-row lg:justify-center lg:gap-8">
+			<div
+				class=" mb-3 ml-1 flex flex-col justify-around gap-1 rounded-sm border border-surface-300 py-2 dark:border-surface-400 sm:flex-row lg:justify-center lg:gap-8"
+			>
 				<!-- add new Category-->
 				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
 					{m.collection_addcategory()}
