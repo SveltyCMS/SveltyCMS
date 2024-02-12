@@ -6,6 +6,7 @@
 	import { onMount } from 'svelte';
 	import Chart from 'chart.js/auto';
 	import { formatUptime } from '@utils/utils';
+	import { globalSearchIndex } from '@src/stores/store';
 
 	let systemInfo: any;
 	let loading = true; // Set loading to true by default
@@ -200,6 +201,35 @@
 		const sum = arr.reduce((acc: any, val: any) => acc + val, 0);
 		return (sum / arr.length).toFixed(2);
 	};
+
+	// Define the page data for the user dashboard
+	const globalSearchData = {
+		title: 'System Dashboard',
+		description: 'View and manage your dashboard.',
+		keywords: ['dashboard', 'profile', 'settings', 'load', 'system'],
+		triggers: { 'Go to Dashboard': { path: '/dashboard', action: () => {} } }
+	};
+
+	// Function to check if a page entry already exists in the global search index
+	const isPageEntryExists = (index: any, pageData: any) => {
+		return index.some((item: any) => {
+			return item.title === pageData.title; // Assuming title uniquely identifies a page
+		});
+	};
+
+	// Mount hook to add the configuration page data to the global search index
+	onMount(() => {
+		// Get the current value of the global search index
+		const currentIndex = $globalSearchIndex;
+
+		// Check if the configuration page data already exists in the index
+		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
+
+		// If the data doesn't exist, add it to the global search index
+		if (!isDataExists) {
+			globalSearchIndex.update((index) => [...index, globalSearchData]);
+		}
+	});
 </script>
 
 <div class="mb-2 flex items-center">

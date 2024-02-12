@@ -3,6 +3,9 @@
 	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
 	import { formatSize } from '@utils/utils';
 
+	// Stores
+	import { globalSearchIndex } from '@src/stores/store';
+
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -174,6 +177,39 @@
 			console.error('Error deleting image:', error);
 		}
 	}
+
+	import { onMount } from 'svelte';
+
+	// Define the page data
+	const globalSearchData = {
+		title: 'Media Gallery',
+		description: 'View and edit your media gallery.',
+		keywords: ['media', 'gallery', 'images', 'videos', 'documents'],
+		triggers: {
+			'Go to Media Gallery': { path: '/mediagallery', action: () => {} }
+		}
+	};
+
+	// Function to check if a page entry already exists in the global search index
+	const isPageEntryExists = (index: any, pageData: any) => {
+		return index.some((item: any) => {
+			return item.title === pageData.title; // Assuming title uniquely identifies a page
+		});
+	};
+
+	// Mount hook to add the configuration page data to the global search index
+	onMount(() => {
+		// Get the current value of the global search index
+		const currentIndex = $globalSearchIndex;
+
+		// Check if the configuration page data already exists in the index
+		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
+
+		// If the data doesn't exist, add it to the global search index
+		if (!isDataExists) {
+			globalSearchIndex.update((index) => [...index, globalSearchData]);
+		}
+	});
 </script>
 
 <div class="mb-2 flex items-center">

@@ -56,6 +56,7 @@
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
+	import { getTextDirection } from '@src/utils/utils';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -63,6 +64,9 @@
 	import { PUBLIC_SITENAME } from '$env/static/public';
 	import RightSidebar from '@src/components/RightSidebar.svelte';
 	import Collections from '@components/Collections.svelte';
+	import SearchComponent from '@components/SearchComponent.svelte';
+	import Footer from '@src/components/Footer.svelte';
+	import HeaderControls from '@components/HeaderControls.svelte';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	$: handleSidebarToggle();
@@ -160,33 +164,6 @@
 		}
 	}
 
-	// On page load get the saved theme
-	const updateThemeBasedOnSystemPreference = (event) => {
-		const prefersDarkMode = event.matches;
-		setModeUserPrefers(prefersDarkMode);
-		setModeCurrent(prefersDarkMode);
-		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
-	};
-
-	onMount(() => {
-		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
-		const savedTheme = localStorage.getItem('theme');
-		if (savedTheme) {
-			let newMode = savedTheme === 'light';
-			setModeUserPrefers(newMode);
-			setModeCurrent(newMode);
-		}
-	});
-
-	const toggleTheme = () => {
-		let currentMode = get(modeCurrent); // get the current value of the store
-		let newMode = !currentMode; // toggle the mode
-		setModeUserPrefers(newMode);
-		setModeCurrent(newMode);
-		localStorage.setItem('theme', newMode ? 'light' : 'dark');
-	};
-
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
@@ -228,9 +205,6 @@
 		target: 'SystemLanguage',
 		placement: 'right'
 	};
-
-	import HeaderControls from '@components/HeaderControls.svelte';
-	import { convertTimestampToDateString, getTextDirection } from '@src/utils/utils';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -276,17 +250,64 @@
 		rootNode.lang = lang;
 	});
 
-	import SearchComponent from '@components/SearchComponent.svelte';
-	import Footer from '@src/components/Footer.svelte';
+	// On page load get the saved theme
+	const updateThemeBasedOnSystemPreference = (event) => {
+		const prefersDarkMode = event.matches;
+		setModeUserPrefers(prefersDarkMode);
+		setModeCurrent(prefersDarkMode);
+		localStorage.setItem('theme', prefersDarkMode ? 'dark' : 'light');
+	};
 
-	// Add the following function to your script part
+	// Define the onKeyDown function at the top level of the script block
 	const onKeyDown = (event: KeyboardEvent) => {
-		// alt+d is equivalent to 'd' key and event.altKey
-		if (event.altKey && event.key === 'd') {
-			isSearchVisible.update((prev) => !prev);
-			// If needed, prevent the default action of "alt+d"
-			// event.preventDefault();
+		//console.log('Key pressed:', event.key);
+		// alt+s is equivalent to 's' key and event.altKey
+		if (event.altKey && event.key === 's') {
+			toggleSearchVisibility();
+			// If needed, prevent the default action of "alt+s"
+			event.preventDefault();
 		}
+	};
+
+	const toggleSearchVisibility = () => {
+		isSearchVisible.update((prev) => !prev);
+	};
+
+	onMount(() => {
+		// Match media query for dark mode preference
+		const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+		mediaQuery.addEventListener('change', updateThemeBasedOnSystemPreference);
+
+		// Check for saved theme preference in localStorage
+		const savedTheme = localStorage.getItem('theme');
+		if (savedTheme) {
+			let newMode = savedTheme === 'light';
+			setModeUserPrefers(newMode);
+			setModeCurrent(newMode);
+		}
+
+		// Keyboard event listener for toggling search visibility
+		document.addEventListener('keydown', onKeyDown);
+
+		// Console log the global search index
+		const unsubscribe = globalSearchIndex.subscribe((index) => {
+			console.log('Global Search Index:', index);
+		});
+
+		return () => {
+			// Cleanup: remove event listener and subscription
+			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
+			document.removeEventListener('keydown', onKeyDown);
+			unsubscribe();
+		};
+	});
+
+	const toggleTheme = () => {
+		let currentMode = get(modeCurrent); // get the current value of the store
+		let newMode = !currentMode; // toggle the mode
+		setModeUserPrefers(newMode);
+		setModeCurrent(newMode);
+		localStorage.setItem('theme', newMode ? 'light' : 'dark');
 	};
 
 	// SEO
@@ -543,7 +564,6 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</svelte:fragment>
 
 			<!-- Router Slot -->
-
 			<div class={$toggleLeftSidebar === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'} on:keydown={onKeyDown}>
 				{#key $page.url}
 					<!-- <div in:fly|global={{ x: -200, duration: 200 }} out:fly|global={{ x: 200, duration: 200 }}> -->
@@ -551,7 +571,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 					<Toast />
 
 					<!-- TODO: Add Search Component -->
-					{#if $isSearchVisible}
+					{#if $isSearchVisible == true}
+						<!-- Show search component -->
 						<SearchComponent />
 					{/if}
 

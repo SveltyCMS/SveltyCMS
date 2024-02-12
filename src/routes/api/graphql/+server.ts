@@ -2,11 +2,13 @@
 import { createSchema, createYoga } from 'graphql-yoga';
 import type { RequestEvent } from '@sveltejs/kit';
 import mongoose from 'mongoose';
-import { auth } from '@api/db';
+
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
+import { onMount } from 'svelte';
+import { globalSearchIndex } from '@src/stores/store';
 
 // Redis
 import { PUBLIC_USE_REDIS } from '$env/static/public';
@@ -26,6 +28,35 @@ if (PUBLIC_USE_REDIS === 'true') {
 		console.log('Redis error: ', err);
 	});
 }
+
+// Define the page data
+const globalSearchData = {
+	title: 'GraphQL API',
+	description: 'Access the GraphQL API endpoint.',
+	keywords: ['graphql', 'api', 'endpoint', 'data'],
+	triggers: { 'Go to GraphQL API': { path: '/api/graphql', action: () => {} } }
+};
+
+// Function to check if a page entry already exists in the global search index
+const isPageEntryExists = (index: any, pageData: any) => {
+	return index.some((item: any) => {
+		return item.title === pageData.title; // Assuming title uniquely identifies a page
+	});
+};
+
+// Mount hook to add the GraphQL API page data to the global search index
+onMount(() => {
+	// Get the current value of the global search index
+	const currentIndex = globalSearchIndex;
+
+	// Check if the GraphQL API page data already exists in the index
+	const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
+
+	// If the data doesn't exist, add it to the global search index
+	if (!isDataExists) {
+		globalSearchIndex.update((index) => [...index, globalSearchData]);
+	}
+});
 
 let typeDefs = /* GraphQL */ ``;
 const types = new Set();

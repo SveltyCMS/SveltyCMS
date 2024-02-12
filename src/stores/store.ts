@@ -60,7 +60,7 @@ interface SearchData {
 	triggers: {
 		[key: string]: {
 			path: string;
-			modal: () => void;
+			action: () => void;
 		};
 	};
 }

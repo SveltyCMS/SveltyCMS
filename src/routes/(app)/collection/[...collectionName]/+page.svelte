@@ -13,7 +13,7 @@
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
-	import { onDestroy } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	onDestroy(async () => {
 		await updateCollections();

@@ -95,7 +95,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@floating-ui/dom": "^1.6.1",
+		"@floating-ui/dom": "^1.6.3",
 		"@lucia-auth/adapter-mongoose": "^3.0.1",
 		"@lucia-auth/oauth": "^3.5.3",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",
@@ -113,7 +113,7 @@
 		"mapbox-gl": "^3.1.2",
 		"mime-types": "^2.1.35",
 		"moment": "^2.30.1",
-		"mongoose": "^8.1.1",
+		"mongoose": "^8.1.2",
 		"node-os-utils": "^1.3.7",
 		"nodemailer": "^6.9.9",
 		"pdf-thumbnail": "^1.0.6",

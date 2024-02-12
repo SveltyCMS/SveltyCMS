@@ -164,17 +164,33 @@
 	const globalSearchData = {
 		title: 'User Profile',
 		description: 'View and edit your user profile.',
-		keywords: ['user', 'profile', 'settings', 'account'],
+		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password'],
 		triggers: {
-			'Edit Avatar': { path: '/user', modal: modalEditAvatar }
-			// 'Change Role': { path: '/user/', modal: modalChangeRole },
-			// 'Change Password': { path: '/user', modal: modalChangePassword }
+			'Show User Profile': { path: '/user', action: () => {} },
+			'Edit Avatar Image': { path: '/user', action: modalEditAvatar },
+			'Change Username & Password': { path: '/user', action: modalUserForm }
 		}
 	};
 
+	// Function to check if a page entry already exists in the global search index
+	const isPageEntryExists = (index: any, pageData: any) => {
+		return index.some((item: any) => {
+			return item.title === pageData.title; // Assuming title uniquely identifies a page
+		});
+	};
+
+	// Mount hook to add the configuration page data to the global search index
 	onMount(() => {
-		// Add the global search data to the global search index
-		globalSearchIndex.update((index) => [...index, globalSearchData]);
+		// Get the current value of the global search index
+		const currentIndex = $globalSearchIndex;
+
+		// Check if the configuration page data already exists in the index
+		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
+
+		// If the data doesn't exist, add it to the global search index
+		if (!isDataExists) {
+			globalSearchIndex.update((index) => [...index, globalSearchData]);
+		}
 	});
 </script>
 
