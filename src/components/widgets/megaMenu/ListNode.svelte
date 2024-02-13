@@ -1,7 +1,12 @@
 <script lang="ts">
+	import type { CustomDragEvent } from './types';
+
 	// Stores
-	import { mode, contentLanguage, shouldShowNextButton } from '@stores/store';
+	import { mode, contentLanguage, shouldShowNextButton, headerActionButton } from '@stores/store';
 	import { currentChild } from '.';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
@@ -16,9 +21,10 @@
 	export let depth = 0;
 	export let showFields = false;
 	export let maxDepth = 0;
+	export let data: any;
 
 	export let refresh = () => {
-		self.children.length = self.children?.length;
+		self?.children && (self.children.length = self.children?.length);
 	};
 
 	function setBorderHeight(node: HTMLElement | null | undefined) {
@@ -32,18 +38,18 @@
 		}, 0);
 	}
 
-	$: if (self.children.length) {
+	$: if (self?.children?.length) {
 		recalculateBorderHeight(ul);
 	}
 
-	function findFirstOuterUl(node: HTMLElement | null) {
+	function findFirstOuterElement(node: HTMLElement | null, element: string = 'UL') {
 		if (!node) return;
-		if (node.tagName == 'UL') return node;
-		return findFirstOuterUl(node.parentElement);
+		if (node.tagName == element) return node;
+		return findFirstOuterElement(node.parentElement, element);
 	}
 
 	function recalculateBorderHeight(node: any) {
-		let child = findFirstOuterUl(node);
+		let child = findFirstOuterElement(node);
 
 		setBorderHeight(child);
 		if (!child?.classList.contains('MENU_CONTAINER') && child) {
@@ -57,7 +63,7 @@
 			const warningModal: ModalSettings = {
 				type: 'confirm',
 				title: 'Warning!',
-				body: 'Deleting this category will also delete all its children. <br>Are you sure you want to proceed?',
+				body: m.Listnode_confirm_body(),
 				response: (response) => {
 					if (response) {
 						performDelete();
@@ -70,7 +76,7 @@
 			const confirmModal: ModalSettings = {
 				type: 'confirm',
 				title: 'Confirm Deletion',
-				body: 'Are you sure you want to delete this category?',
+				body: m.Listnode_confirm_body(),
 				response: (response) => {
 					if (response) {
 						performDelete();
@@ -87,42 +93,75 @@
 	}
 
 	//DND action
-	function drag(e) {
-		e.stopPropagation();
-		let node = e.currentTarget as HTMLElement;
+	function drag(node: HTMLElement) {
+		node.addEventListener('custom:drag', (e) => {
+			let event = e as CustomDragEvent;
+			if (event.detail.isParent) {
+				self.children[event.detail.closest_index].children.push(event.detail.dragged_item);
+			} else {
+				self?.children?.splice(event.detail.closest_index, 0, event.detail.dragged_item);
+			}
 
-		let siblings = [...ul.children].slice(1).map((el) => ({ el: el as HTMLElement, top: el.getBoundingClientRect().top }));
-		node.onpointermove = (e) => {
-			node.onpointermove = null;
-			node.style.opacity = '0.5';
-			let clone = node.cloneNode(true) as HTMLElement;
-			ul.appendChild(clone);
-			clone.style.left = node.getBoundingClientRect().left + 'px';
-			clone.style.marginLeft = '0';
-			clone.style.position = 'fixed';
-			clone.style.top = e.clientY + 'px';
-			clone.setPointerCapture(e.pointerId);
-			clone.onpointermove = (e) => {
+			refresh();
+		});
+
+		node.onpointerdown = (e) => {
+			e.stopPropagation();
+			let node = e.currentTarget as HTMLElement;
+			let pointerID = e.pointerId;
+			let siblings = [...document.getElementsByClassName(`level-${level}`)].map((el) => {
+				let rect = el.getBoundingClientRect();
+				return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: false };
+			});
+			let parents = [...document.getElementsByClassName(`level-${level - 1}`)].map((el) => {
+				let rect = el.getBoundingClientRect();
+				return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
+			});
+
+			let targets = [...siblings, ...parents];
+
+			node.onpointerup = (e) => {
+				clearTimeout(timeout);
+			};
+
+			let timeout = setTimeout(() => {
+				node.style.opacity = '0.5';
+				let clone = node.cloneNode(true) as HTMLElement;
+				ul.appendChild(clone);
+				clone.style.left = node.getBoundingClientRect().left + 'px';
+				clone.style.marginLeft = '0';
+				clone.style.position = 'fixed';
 				clone.style.top = e.clientY + 'px';
-				clone.style.opacity = '1';
-			};
-			clone.onpointerup = (e) => {
-				clone.remove();
-				node.style.opacity = '1';
-				siblings.sort((a, b) => (Math.abs(b.top - e.clientY) < Math.abs(a.top - e.clientY) ? 1 : -1));
-				let closest = siblings[0];
-				console.log(siblings);
-				console.log(e.clientY, closest.el);
-				if (e.clientY > closest.top + closest.el.offsetHeight / 2) {
-					closest.el.nextElementSibling ? ul.insertBefore(node, closest.el.nextElementSibling) : ul.appendChild(node);
-					node.onpointerdown = drag;
-				} else {
-					ul.insertBefore(node, closest.el);
-				}
-			};
-		};
-		node.onpointerup = (e) => {
-			node.onpointermove = null;
+				clone.setPointerCapture(pointerID);
+				clone.onpointermove = (e) => {
+					clone.style.top = e.clientY + 'px';
+					clone.style.opacity = '1';
+					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					let closest = targets[0];
+					if (closest.el == node) return;
+					targets.forEach((el) => {
+						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = '#80808045');
+					});
+					closest.el.firstChild && ((closest.el.firstChild as HTMLElement).style.borderColor = 'red');
+				};
+				clone.onpointerup = (e) => {
+					clone.releasePointerCapture(pointerID);
+					clone.remove();
+					targets.forEach((el) => {
+						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = '#80808045');
+					});
+					node.style.opacity = '1';
+					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					let closest = targets[0];
+					if (closest.el == node) return;
+					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
+					let clone_index = parseInt(clone.getAttribute('data-index') as string);
+					let dragged_item = self?.children.splice(clone_index, 1)[0];
+					closest.el.dispatchEvent(
+						new CustomEvent('custom:drag', { detail: { closest_index: closest_index, clone_index, dragged_item, isParent: closest.isParent } })
+					);
+				};
+			}, 200);
 		};
 	}
 </script>
@@ -136,7 +175,7 @@
 		expanded = !expanded;
 	}}
 	class="header relative mb-2 flex w-screen min-w-[200px] cursor-default items-center justify-start rounded border border-surface-400 px-1"
-	class:!cursor-pointer={self.children?.length > 0}
+	class:!cursor-pointer={self?.children?.length > 0}
 	style="margin-left:{10 * (level > 0 ? 1 : 0)}px;
 	{window.screen.width <= 700
 		? `min-width:calc(100% + ${10 * (maxDepth * maxDepth - level)}px)`
@@ -147,10 +186,13 @@
 		class="absolute bottom-6 right-full mr-0.5 border-t border-dashed border-surface-400 dark:border-primary-500"
 		style="width:{10 * (level > 0 ? 1 : 0)}px"
 	/>
-	<!-- drag icon -->
-	<iconify-icon icon="mdi:drag" width="18" class="cursor-move" />
+	<!-- Drag icon -->
+	{#if level > 0 && self.children.length > 0}
+		<iconify-icon icon="mdi:drag" width="18" class="cursor-move" />
+	{/if}
+
 	<!-- Display chevron-down icon for expandable children except the first header -->
-	{#if self.children?.length > 0}
+	{#if self?.children?.length > 0}
 		<iconify-icon icon="mdi:chevron-down" width="30" class="dark:text-primary-500 {expanded === true ? 'rotate-0' : '-rotate-90'}" />
 	{:else}
 		<!-- TODO: improve indentation -->
@@ -215,14 +257,14 @@
 </button>
 
 <!-- Categories Children-->
-{#if self.children?.length > 0 && expanded}
+{#if self?.children?.length > 0 && expanded}
 	<ul bind:this={ul} class="children user-select-none relative overflow-visible" style="margin-left:{10 * (level > 0 ? 1 : 0) + 10}px;">
 		<!-- dashed ladder horizontal -->
 		<div class="absolute -left-0.5 -top-1 max-h-full border border-dashed border-surface-400 content-none dark:border-primary-500" />
 
-		{#each self.children as child}
-			<li on:pointerdown={drag}>
-				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} />
+		{#each self.children as child, index}
+			<li use:drag data-index={index} class={`level-${level}`}>
+				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} {data} />
 			</li>
 		{/each}
 	</ul>

@@ -399,7 +399,7 @@
 		<!-- Display a message when no media data is available -->
 		<div class="text-center">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="64" class="mb-2 text-primary-500" />
-			<p class="text-lg text-primary-500">No media files available.</p>
+			<p class="text-lg text-primary-500">{m.mediagallery_nomedia()}</p>
 		</div>
 	{:else}
 		<!-- Grid display -->

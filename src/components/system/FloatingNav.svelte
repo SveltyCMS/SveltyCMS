@@ -88,11 +88,11 @@
 			timeout = setTimeout(() => {
 				let x = e.offsetX - node.offsetWidth / 2;
 				let y = e.offsetY - node.offsetHeight / 2;
-				buttonInfo = { x: e.clientX - x, y: e.clientY - y };
+				buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
 				node.setPointerCapture(e.pointerId);
 				node.onpointermove = (e) => {
 					moved = true;
-					buttonInfo = { x: e.clientX - x, y: e.clientY - y };
+					buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
 					firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
 				};
 			}, 60);

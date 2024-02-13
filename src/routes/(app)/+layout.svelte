@@ -289,16 +289,10 @@
 		// Keyboard event listener for toggling search visibility
 		document.addEventListener('keydown', onKeyDown);
 
-		// Console log the global search index
-		const unsubscribe = globalSearchIndex.subscribe((index) => {
-			console.log('Global Search Index:', index);
-		});
-
 		return () => {
 			// Cleanup: remove event listener and subscription
 			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
 			document.removeEventListener('keydown', onKeyDown);
-			unsubscribe();
 		};
 	});
 

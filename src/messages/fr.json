@@ -334,5 +334,8 @@
 	"widget_seo_description": "Ce widget SEO permet la collecte de données SEO des utilisateurs à des fins telles que l'optimisation des moteurs de recherche (SEO), les médias sociaux et la publicité.",
 	"widget_text_description": "Ce widget Texte permet la collecte de données textuelles utilisateur à des fins telles que les articles de blog, les commentaires et les commentaires.",
 	"Unassigned_Collections": "Collections non attribuées",
-	"collection_text_description": "Créez de nouvelles catégories ou collections et faites-les glisser et déposez-les selon vos besoins"
+	"collection_text_description": "Créez de nouvelles catégories ou collections et faites-les glisser et déposez-les selon vos besoins",
+	"mediagallery_nomedia": "Aucun fichier multimédia disponible.",
+	"Listnode_warning_body": "La suppression de cette catégorie supprimera également tous ses enfants.<br> Êtes-vous sur de vouloir continuer?",
+	"Listnode_confirm_body": "Êtes-vous sûr de vouloir supprimer cette catégorie ?"
 }

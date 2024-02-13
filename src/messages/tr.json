@@ -334,5 +334,8 @@
 	"widget_seo_description": "Bu SEO widget'ı, arama motoru optimizasyonu (SEO), sosyal medya ve reklamcılık gibi amaçlarla kullanıcı SEO verilerinin toplanmasını sağlar.",
 	"widget_text_description": "Bu Metin widget'ı, blog gönderileri, yorumlar ve geri bildirimler gibi amaçlarla kullanıcı metin verilerinin toplanmasını sağlar.",
 	"Unassigned_Collections": "Atanmamış Koleksiyonlar",
-	"collection_text_description": "İhtiyaçlarınıza göre yeni kategoriler veya koleksiyonlar oluşturun ve bunları sürükleyip bırakın"
+	"collection_text_description": "İhtiyaçlarınıza göre yeni kategoriler veya koleksiyonlar oluşturun ve bunları sürükleyip bırakın",
+	"mediagallery_nomedia": "Medya dosyası yok.",
+	"Listnode_warning_body": "Bu kategorinin silinmesi aynı zamanda tüm alt öğelerinin de silinmesine neden olacaktır.<br> Devam etmek istediğinizden emin misiniz?",
+	"Listnode_confirm_body": "Bu kategoriyi silmek istediğinizden emin misiniz?"
 }

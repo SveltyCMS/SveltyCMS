@@ -334,5 +334,8 @@
 	"widget_seo_description": "Dieses SEO-Widget ermöglicht die Erfassung von Benutzer-SEO-Daten für Zwecke wie Suchmaschinenoptimierung (SEO), soziale Medien und Werbung.",
 	"widget_text_description": "Dieses Text-Widget ermöglicht die Erfassung von Benutzertextdaten für Zwecke wie Blogbeiträge, Kommentare und Feedback.",
 	"Unassigned_Collections": "Nicht zugewiesene Sammlungen",
-	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop"
+	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop",
+	"mediagallery_nomedia": "Keine Mediendateien verfügbar.",
+	"Listnode_warning_body": "Durch das Löschen dieser Kategorie werden auch alle untergeordneten Kategorien gelöscht.<br> Sind Sie sicher, dass Sie fortfahren möchten?",
+	"Listnode_confirm_body": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?"
 }

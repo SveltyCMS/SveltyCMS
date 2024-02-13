@@ -24,6 +24,15 @@ export type Params = {
 	menu: any[]; // Make sure this is always an array of arrays
 };
 
+export interface CustomDragEvent extends Event {
+	detail: {
+		closest_index: number;
+		clone_index: number;
+		dragged_item: any;
+		isParent: boolean;
+	};
+}
+
 /**
  * Defines MegaMenu GuiSchema
  */

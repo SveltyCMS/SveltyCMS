@@ -334,5 +334,8 @@
 	"widget_seo_description": "This SEO widget enables the collection of user SEO data for purposes such as search engine optimization (SEO), social media, and advertising.",
 	"widget_text_description": "This Text widget enables the collection of user text data for purposes such as blog posts, comments, and feedback.",
 	"Unassigned_Collections": "Unassigned Collections",
-	"collection_text_description": "Create new categories or collections by and drag and drop these according to your needs"
+	"collection_text_description": "Create new categories or collections by and drag and drop these according to your needs",
+	"mediagallery_nomedia": "No media files available.",
+	"Listnode_warning_body": "Deleting this category will also delete all its children. <br>Are you sure you want to proceed?",
+	"Listnode_confirm_body": "Are you sure you want to delete this category?"
 }

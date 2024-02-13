@@ -83,6 +83,6 @@
 <!-- Show children -->
 {#if _data}
 	<ul class:hidden={depth != 0} class="children MENU_CONTAINER">
-		<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+		<ListNode data={_data} self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
 	</ul>
 {/if}

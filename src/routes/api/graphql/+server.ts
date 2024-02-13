@@ -168,7 +168,8 @@ for (const collection of collections) {
 			redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
 		}
 
-		return dbResult;
+		// Convert the array of objects to a JSON object
+		return JSON.stringify(dbResult);
 	};
 }
 
