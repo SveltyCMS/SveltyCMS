@@ -10,7 +10,7 @@ export const GET: RequestHandler = async () => {
 
 	// Update the collections and log the collection models
 	await updateCollections(true);
-	console.log(await getCollectionModels());
+	// console.log(await getCollectionModels());
 
 	// Return a response with a 200 OK status and no body
 	return new Response(null, { status: 200 });

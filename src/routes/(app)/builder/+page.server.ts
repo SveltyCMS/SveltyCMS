@@ -30,7 +30,7 @@ export async function load(event) {
 export const actions: Actions = {
 	saveCollection: async ({ request }) => {
 		const formData = await request.formData();
-		console.log(formData);
+		// console.log(formData);
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
@@ -43,7 +43,7 @@ export const actions: Actions = {
 		const imports = await goThrough(fields);
 
 		// Generate fields as formatted string
-		//console.log(fields);
+		// console.log(fields);
 
 		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
 
@@ -84,7 +84,7 @@ export const actions: Actions = {
 		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
 
 		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-		console.log('content:', content);
+		// console.log('content:', content);
 		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
 		if (originalName && originalName != collectionName) {
 			fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);

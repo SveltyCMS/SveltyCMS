@@ -59,7 +59,7 @@ const types = Object.keys(SIZES)
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
-	console.log(typeName);
+	// console.log(typeName);
 
 	// Return an object containing the type name and the GraphQL schema
 	return {

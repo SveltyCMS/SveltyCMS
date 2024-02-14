@@ -36,7 +36,7 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 
 // Function to convert an object to form data
 export const obj2formData = (obj: any) => {
-	console.log(obj);
+	// console.log(obj);
 	// Create a new FormData object
 	const formData = new FormData();
 	// Iterate over the keys of the input object
@@ -398,7 +398,7 @@ export async function deleteImageFiles(collectionName: string, fileName: string)
 			fs.unlinkSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
 		}
 
-		console.log(`Deleted image files associated with ${fileName}`);
+		// console.log(`Deleted image files associated with ${fileName}`);
 	} catch (error) {
 		console.error(`Error deleting image files: ${error}`);
 		// Handle the error as needed

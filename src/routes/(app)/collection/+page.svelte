@@ -43,7 +43,7 @@
 							items: []
 						}
 					];
-					console.log('response:', r);
+					// console.log('response:', r);
 				}
 			}
 		};
@@ -96,7 +96,7 @@
 	//Saving changes to the config.ts
 	async function handleSaveClick() {
 		try {
-			console.log('availableCollection:', availableCollection);
+			// console.log('availableCollection:', availableCollection);
 
 			// Make a POST request to the /api/updateConfig endpoint with the new data
 			const response = await fetch('/api/updateConfig', {
@@ -112,7 +112,7 @@
 				// Check the status of the response
 				if (response.status === 304) {
 					// If the status is 304, it means that the new content is the same as the existing content, and no save was done
-					console.log('Config file has not changed');
+					// console.log('Config file has not changed');
 
 					// Trigger a toast indicating that the config file has not changed
 					const t = {
@@ -124,7 +124,7 @@
 					toastStore.trigger(t);
 				} else {
 					// If the status is not 304, it means that the update was successful
-					console.log('Config file updated successfully');
+					// console.log('Config file updated successfully');
 
 					// Trigger a success toast
 					const t = {

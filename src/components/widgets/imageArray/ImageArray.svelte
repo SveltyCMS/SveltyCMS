@@ -106,7 +106,7 @@
 
 	// Function to delete image
 	function deleteImage(index: number) {
-		console.log('deleteImage:', index);
+		// console.log('deleteImage:', index);
 
 		// Convert files to an array if it is not already one
 		if (!Array.isArray(files)) {

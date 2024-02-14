@@ -38,7 +38,7 @@
 			// Set the selected widget in the form data and update the modalStore
 			$modalStore[0].response({ selectedWidget: selected });
 		}
-		console.log('modalStore:', $modalStore[0].response);
+		// console.log('modalStore:', $modalStore[0].response);
 		// close the modal
 		modalStore.close();
 	}

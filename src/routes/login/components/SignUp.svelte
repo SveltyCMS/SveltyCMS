@@ -47,8 +47,8 @@
 		},
 
 		onResult: ({ result, cancel }) => {
-			console.log('Form result:', result);
-			//console.log('Error', $errors)
+			// console.log('Form result:', result);
+			// console.log('Error', $errors)
 
 			if (result.type == 'redirect') return;
 			cancel();

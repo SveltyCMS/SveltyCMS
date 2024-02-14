@@ -55,7 +55,7 @@
 			};
 			toastStore.trigger(t);
 
-			console.log($allErrors.length);
+			// console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
 		},
 

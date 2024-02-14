@@ -15,7 +15,7 @@
 	let memoryChart: any;
 
 	const initializeCharts = () => {
-		console.log('Initializing charts...');
+		// console.log('Initializing charts...');
 		// Initialize charts using Line and Pie components
 		cpuChart = initLineChart('cpuChart', 'line', systemInfo.cpuInfo.timeStamps, systemInfo.cpuInfo.cpuUsage);
 		diskChart = initPieChart('diskChart', 'pie', ['Used', 'Free'], [systemInfo.diskInfo.usedGb, systemInfo.diskInfo.freeGb]);
@@ -137,7 +137,7 @@
 	};
 
 	onMount(async () => {
-		console.log('Component mounted...');
+		// console.log('Component mounted...');
 		try {
 			const response = await axios.get('/api/systemInfo');
 			systemInfo = response.data;

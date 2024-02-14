@@ -450,7 +450,7 @@
 						entryData.set(row.original);
 						mode.set('edit');
 						handleSidebarToggle();
-						console.log(row.original);
+						// console.log(row.original);
 					}}
 					class="bg-white last:border-0 dark:bg-surface-900"
 				>

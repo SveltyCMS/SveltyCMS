@@ -8,7 +8,7 @@
 	function handleZoom() {
 		const preview = document.getElementById('preview') as HTMLImageElement;
 		if (!preview) {
-			console.log('Preview element not found');
+			// console.log('Preview element not found');
 			return;
 		}
 		// Scale the image

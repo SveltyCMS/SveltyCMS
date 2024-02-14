@@ -46,7 +46,7 @@
 	}
 
 	function onPopupDemoSelect(event: any): void {
-		console.log('Selected option value:', event.detail.value);
+		// console.log('Selected option value:', event.detail.value);
 		inputPopupDemo = event.detail.label;
 	}
 
@@ -130,7 +130,7 @@
 	});
 
 	geocoder.on('result', () => {
-		console.log('aa');
+		// console.log('aa');
 	});
 
 	let map: any;

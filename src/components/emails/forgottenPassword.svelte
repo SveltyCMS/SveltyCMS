@@ -26,9 +26,9 @@
 
 	export let expiresIn: EmailProps['expiresIn'];
 
-	console.log('EmailProps Token: ', token);
-	console.log('EmailProps resetLink', resetLink);
-	console.log('EmailProps expiresIn', expiresIn);
+	// console.log('EmailProps Token: ', token);
+	// console.log('EmailProps resetLink', resetLink);
+	// console.log('EmailProps expiresIn', expiresIn);
 
 	//Readable ExpireIn time sec to year
 	let currentTime = new Date();
@@ -60,7 +60,7 @@
 
 	let readable_expiresIn = `${yearsText} ${monthsText} ${weeksText} ${daysText} ${hoursText} ${minutesText} ${secondsText}`.trim();
 
-	console.log('readable_expires_at', readable_expiresIn);
+	// console.log('readable_expires_at', readable_expiresIn);
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

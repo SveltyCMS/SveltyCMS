@@ -26,7 +26,7 @@
 		if (!field) return;
 		if (entryMode == 'create') {
 			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' }))[0]?._id;
-			console.log(relation_id);
+			// console.log(relation_id);
 		} else if (entryMode == 'choose') {
 			relation_id = selected?._id;
 		} else if (entryMode == 'edit') {

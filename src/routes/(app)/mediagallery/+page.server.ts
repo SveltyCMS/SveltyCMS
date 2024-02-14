@@ -33,7 +33,7 @@ export async function load(event: any) {
 	//Create the media folder if it doesn't exist
 	if (!fs.existsSync(mediaDir)) {
 		fs.mkdirSync(mediaDir);
-		console.log(`Created media folder at ${mediaDir}`);
+		// console.log(`Created media folder at ${mediaDir}`);
 	}
 
 	const files = await getFilesRecursively(mediaDir);

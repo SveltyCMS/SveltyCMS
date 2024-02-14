@@ -127,7 +127,7 @@ export const actions: Actions = {
 
 		// Issue password token for new user
 		const token = await createToken(user.id, 'register', expirationTime * 1000);
-		console.log(token);
+		// console.log(token);
 
 		// Send the token to the user via email.
 		await event.fetch('/api/sendMail', {

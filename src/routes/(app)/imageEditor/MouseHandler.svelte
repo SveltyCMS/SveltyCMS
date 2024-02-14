@@ -147,7 +147,7 @@
 
 	function handleDown(e: MouseEvent | Touch): void {
 		down = true;
-		console.log('Mouse down event triggered');
+		// console.log('Mouse down event triggered');
 
 		// Check if the event is a MouseEvent and preventDefault if it is
 		if (e instanceof MouseEvent) {
@@ -188,7 +188,7 @@
 		// if (!isMouseDown || !element) return;
 
 		down = false;
-		console.log('Mouse up event triggered');
+		// console.log('Mouse up event triggered');
 
 		// Reset the selected corner
 		selectedCorner = null;
@@ -200,7 +200,7 @@
 
 	function handleUpTouch(e: TouchEvent): void {
 		down = false;
-		console.log('Touch end event triggered');
+		// console.log('Touch end event triggered');
 
 		// Reset the selected corner
 		selectedCorner = null;

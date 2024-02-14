@@ -263,7 +263,7 @@
 		<div class="absolute -left-0.5 -top-1 max-h-full border border-dashed border-surface-400 content-none dark:border-primary-500" />
 
 		{#each self.children as child, index}
-			<li use:drag data-index={index} class={`level-${level}`}>
+			<li use:drag data-index={index} class={`level-${level} touch-none`}>
 				<svelte:self {refresh} self={child} level={level + 1} bind:depth bind:showFields parent={self} {maxDepth} {data} />
 			</li>
 		{/each}

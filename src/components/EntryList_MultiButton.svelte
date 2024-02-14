@@ -20,7 +20,7 @@
 			mode.set('create');
 		} else {
 			mode.set('view');
-			console.log('EntryListMultibutton.svelte', $mode);
+			// console.log('EntryListMultibutton.svelte', $mode);
 			$modifyEntry($storeListboxValue);
 		}
 

@@ -19,7 +19,7 @@
 	$: myData;
 
 	const handleSubmit = async (event: Event) => {
-		console.log('handleSubmit called');
+		// console.log('handleSubmit called');
 
 		try {
 			const formData = new FormData();
@@ -28,10 +28,10 @@
 				method: 'POST',
 				body: formData
 			});
-			console.log('API Response:', response);
+			// console.log('API Response:', response);
 
 			const data = await response.json();
-			console.log('API Data:', data);
+			// console.log('API Data:', data);
 
 			myData = data;
 		} catch (error) {

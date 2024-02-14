@@ -152,7 +152,7 @@
 		}))
 	];
 
-	$: console.log('columnFields', columnFields);
+	// $: console.log('columnFields', columnFields);
 </script>
 
 <!-- Header -->

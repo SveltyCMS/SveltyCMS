@@ -8,7 +8,7 @@
 	function handleRotate() {
 		const preview = document.getElementById('preview') as HTMLImageElement;
 		if (!preview || !image) {
-			console.log('Preview element or image not found');
+			// console.log('Preview element or image not found');
 			return;
 		}
 
@@ -18,7 +18,7 @@
 			const canvas = document.createElement('canvas');
 			const ctx = canvas.getContext('2d');
 			if (!ctx) {
-				console.log('Canvas context not supported');
+				// console.log('Canvas context not supported');
 				return;
 			}
 

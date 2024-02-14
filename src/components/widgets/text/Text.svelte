@@ -10,8 +10,6 @@
 
 	let fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
-	// console.log('entryData', $entryData);
-	// console.log('value', value);
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;

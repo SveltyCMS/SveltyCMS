@@ -10,7 +10,7 @@ function getYouTubeVideoId(url: string) {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-	console.log('POST function called');
+	// console.log('POST function called');
 
 	try {
 		const data = await request.formData();

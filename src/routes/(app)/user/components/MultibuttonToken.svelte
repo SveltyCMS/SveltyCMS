@@ -41,7 +41,7 @@
 		};
 		toastStore.trigger(t);
 
-		console.log('No user selected');
+		// console.log('No user selected');
 		//console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {

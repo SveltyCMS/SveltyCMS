@@ -3,7 +3,7 @@
 	import widgets from '@components/widgets';
 	import InputSwitch from '../../../../routes/(app)/builder/InputSwitch.svelte';
 	import { asAny } from '@utils/utils';
-	export let addField: boolean = false;
+	export const addField: boolean = false;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -17,7 +17,7 @@
 	export let parent: SvelteComponent;
 
 	// Form Data
-	console.log([$modalStore[0].value]);
+	// console.log([$modalStore[0].value]);
 
 	// Form Data
 	let formData: any = {};
@@ -39,13 +39,13 @@
 		};
 	}
 
-	console.log('formData:', formData);
+	// console.log('formData:', formData);
 
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
-	console.log('guiSchema:', guiSchema);
+	// console.log('guiSchema:', guiSchema);
 
 	// let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	// let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
@@ -69,7 +69,7 @@
 		if (confirmDelete) {
 			// Perform deletion logic here
 			// For example:
-			console.log('Deleting widget:', formData);
+			// console.log('Deleting widget:', formData);
 			// You can remove the widget from the UI or update data structures here
 			// Once deletion is complete, close the modal
 			modalStore.close();

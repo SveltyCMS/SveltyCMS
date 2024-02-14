@@ -79,7 +79,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	}
 
 	// Log the aggregations.
-	console.log(aggregations);
+	// console.log(aggregations);
 
 	// Aggregate the collection.
 	const entryListWithCount = await collection.aggregate([

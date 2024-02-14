@@ -15,7 +15,7 @@
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
-	console.log(field);
+	// console.log(field);
 
 	export let value = $entryData[fieldName];
 	export const WidgetData = async () => _data;
@@ -44,17 +44,17 @@
 			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
 		}
 		_data = _data;
-		console.log(_data);
+		// console.log(_data);
 		showFields = false;
 		mode.set(saveMode);
 		depth = 0;
 		shouldShowNextButton.set(false);
 		$saveFunction.reset();
 	}
-	function handleKeyDown(event) {
-		console.log('handleKeyDown called');
+	function handleKeyDown(event: any) {
+		// console.log('handleKeyDown called');
 		if (event.key === 'Enter') {
-			console.log('Enter key pressed');
+			// console.log('Enter key pressed');
 			let next = () => {};
 			saveLayerStore.subscribe((value) => {
 				next = value;

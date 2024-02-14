@@ -2,7 +2,7 @@
 	// Stores
 	import { collectionValue, contentLanguage, collection } from '@stores/store';
 
-	//console.log($entryData);
+	// console.log($entryData);
 	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;

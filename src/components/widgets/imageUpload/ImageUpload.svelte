@@ -39,7 +39,7 @@
 
 		// Handle file selection
 		const handleFileSelection = async (files: FileList) => {
-			console.log('handleFileSelection:', 'Function called');
+			// console.log('handleFileSelection:', 'Function called');
 
 			updated = true;
 			_data = files;
@@ -86,8 +86,8 @@
 
 	onMount(() => {
 		if ($mode === 'edit' && $entryData[fieldName]) {
-			console.log('mode edit:', $mode);
-			console.log('entryData:', $entryData[fieldName]);
+			// console.log('mode edit:', $mode);
+			// console.log('entryData:', $entryData[fieldName]);
 			fetchImage();
 		}
 	});

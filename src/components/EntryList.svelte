@@ -318,7 +318,7 @@
 
 		// Set the mode to 'view'
 		mode.set('view');
-		console.log('EntryList.svelte', $mode);
+		// console.log('EntryList.svelte', $mode);
 	};
 
 	const flipDurationMs = 100;
@@ -330,7 +330,7 @@
 		isVisible: column.getIsVisible() // Set initial visibility state based on column visibility
 	}));
 
-	//console.log('EntryList item', items);
+	// console.log('EntryList item', items);
 
 	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
 		items = e.detail.items;

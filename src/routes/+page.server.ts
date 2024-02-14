@@ -28,10 +28,10 @@ export const actions = {
 	default: async ({ cookies, request }) => {
 		const data = await request.formData();
 		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
-		console.log(theme);
+		// console.log(theme);
 
 		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
-		console.log(systemlanguage);
+		// console.log(systemlanguage);
 
 		// Check if the provided system language is available, if not, default to source language
 		if (!availableLanguageTags.includes(sourceLanguageTag)) {

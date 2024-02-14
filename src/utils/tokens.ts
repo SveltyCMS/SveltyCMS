@@ -17,7 +17,7 @@ export async function createToken(userID: string, type: tokenTypes, expiresIn = 
 
 	const token = generateRandomString(32); // long enough to be secure.
 
-	console.log(userID, token);
+	// console.log(userID, token);
 	await tokens.insertMany({ userID, token, type, expiresIn: Date.now() + expiresIn });
 	return token;
 }
@@ -36,7 +36,7 @@ export async function deleteToken(token: string, userID: string) {
 export async function validateToken(token: string, userID: string) {
 	const tokens = mongoose.models['auth_tokens'];
 	const result = await tokens.findOne({ userID, token });
-	console.log(userID, token);
+	// console.log(userID, token);
 	if (result) {
 		if (isWithinExpiration(result.expiresIn)) {
 			return { status: true, message: 'token is Valid' };
@@ -51,9 +51,9 @@ export async function validateToken(token: string, userID: string) {
 export async function consumeToken(token: string, userID: string, type: tokenTypes) {
 	const tokens = mongoose.models['auth_tokens'];
 	const result = await tokens.findOne({ userID, token, type });
-	console.log(userID, token);
+	// console.log(userID, token);
 	if (result) {
-		console.log(await tokens.deleteOne({ userID, token }));
+		// console.log(await tokens.deleteOne({ userID, token }));
 		if (isWithinExpiration(result.expiresIn)) {
 			return { status: true, message: 'token is Valid' };
 		} else {

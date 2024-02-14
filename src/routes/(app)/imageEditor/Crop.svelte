@@ -30,7 +30,7 @@
 	}
 
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
-		console.log('Resize event handled');
+		// console.log('Resize event handled');
 		// Update the separate variables based on corner
 		switch (event.detail.corner) {
 			case 'TopLeft':

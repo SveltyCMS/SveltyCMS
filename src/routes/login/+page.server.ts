@@ -59,7 +59,7 @@ export const actions: Actions = {
 		const isToken = signInForm.data.isToken;
 
 		const resp = await signIn(email, password, isToken, event.cookies);
-		console.log('response: ', resp);
+		// console.log('response: ', resp);
 
 		if (resp && resp.status) {
 			// Return message if form is submitted successfully
@@ -140,7 +140,7 @@ export const actions: Actions = {
 
 	// Function for handling the RESET
 	resetPW: async (event) => {
-		console.log('resetPW');
+		// console.log('resetPW');
 
 		const pwresetForm = await superValidate(event, resetFormSchema);
 		//console.log('pwresetForm', pwresetForm);
@@ -156,7 +156,7 @@ export const actions: Actions = {
 
 		//console.log(token);
 		const resp = await resetPWCheck(password, token, email, expiresIn);
-		console.log('response: ', resp.status, resp.message);
+		// console.log('response: ', resp.status, resp.message);
 
 		if (resp) {
 			// Return message if form is submitted successfully

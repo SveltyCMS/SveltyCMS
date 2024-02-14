@@ -30,7 +30,7 @@
 	});
 
 	function handleMove(event: { detail: { x: number; y: number } }) {
-		console.log('Move event handled');
+		// console.log('Move event handled');
 
 		// Calculate offset from the image center
 		const offsetTop = event.detail.y - CONT_HEIGHT / 2;
@@ -42,7 +42,7 @@
 	}
 
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
-		console.log('Resize event handled');
+		// console.log('Resize event handled');
 
 		switch (event.detail.corner) {
 			case 'TopLeft':
@@ -90,13 +90,13 @@
 	}
 
 	function handleRotate(event: { detail: { x: number; y: number } }) {
-		console.log('Rotate event handled');
+		// console.log('Rotate event handled');
 
 		blurRotate += event.detail.x;
 	}
 
 	function handleDelete() {
-		console.log('Delete event handled');
+		// console.log('Delete event handled');
 
 		// You can add logic here to reset or remove the blur area
 		blurTop = 0;
@@ -111,7 +111,7 @@
 	}
 
 	function handleAdd() {
-		console.log('Add  event handled');
+		// console.log('Add  event handled');
 		// Update the separate variables with the event data
 	}
 </script>
