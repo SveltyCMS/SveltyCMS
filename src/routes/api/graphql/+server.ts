@@ -8,7 +8,9 @@ import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { onMount } from 'svelte';
-import { globalSearchIndex } from '@src/stores/store';
+
+// Global Search Index
+import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 // Redis
 import { PUBLIC_USE_REDIS } from '$env/static/public';

@@ -74,7 +74,7 @@
 	import Role from './Role.svelte';
 	import Boolean from './Boolean.svelte';
 	import MultibuttonToken from './MultibuttonToken.svelte';
-	import { globalSearchIndex } from '@src/stores/store';
+	import { isSearchVisible, globalSearchIndex } from '@utils/globalSearchIndex';
 
 	let tableData = [];
 	let tableDataUserToken = [];
@@ -177,38 +177,6 @@
 	function handleCRUDAction(action: any) {
 		currentAction = action;
 	}
-
-	// Define the page data
-	const globalSearchData = {
-		title: 'User Admin Area',
-		description: 'View and edit users in the user admin area.',
-		keywords: ['user', 'avatar', 'role', 'profile', 'settings', 'account', 'password', 'token'],
-		triggers: {
-			'Show Users': { path: '/user', action: () => {} },
-			'Email User Token': { path: '/user', action: modalTokenUser }
-		}
-	};
-
-	// Function to check if a page entry already exists in the global search index
-	const isPageEntryExists = (index: any, pageData: any) => {
-		return index.some((item: any) => {
-			return item.title === pageData.title; // Assuming title uniquely identifies a page
-		});
-	};
-
-	// Mount hook to add the configuration page data to the global search index
-	onMount(() => {
-		// Get the current value of the global search index
-		const currentIndex = $globalSearchIndex;
-
-		// Check if the configuration page data already exists in the index
-		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
-
-		// If the data doesn't exist, add it to the global search index
-		if (!isDataExists) {
-			globalSearchIndex.update((index) => [...index, globalSearchData]);
-		}
-	});
 </script>
 
 <div class="flex flex-col">

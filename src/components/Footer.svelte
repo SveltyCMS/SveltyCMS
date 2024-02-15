@@ -3,7 +3,7 @@
 	import { convertTimestampToDateString } from '@src/utils/utils';
 
 	// Convert timestamp to Date string
-	const dates = {
+	$: dates = {
 		created: convertTimestampToDateString($entryData.createdAt),
 		updated: convertTimestampToDateString($entryData.updatedAt)
 	};

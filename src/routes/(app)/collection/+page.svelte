@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Stores
-	import { categories, globalSearchIndex, unAssigned } from '@stores/store';
+	import { categories, unAssigned } from '@stores/store';
+	import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
@@ -162,35 +163,6 @@
 			toastStore.trigger(t);
 		}
 	}
-
-	// Define the page data
-	const globalSearchData = {
-		title: 'Collection Builder',
-		description: 'Configure your collection.',
-		keywords: ['configuration', 'settings', 'system', 'collection', 'category', 'builder'],
-		triggers: { 'Go to Collection Builders': { path: '/collection/', action: () => {} } }
-	};
-
-	// Function to check if a page entry already exists in the global search index
-	const isPageEntryExists = (index: any, pageData: any) => {
-		return index.some((item: any) => {
-			return item.title === pageData.title; // Assuming title uniquely identifies a page
-		});
-	};
-
-	// Mount hook to add the configuration page data to the global search index
-	onMount(() => {
-		// Get the current value of the global search index
-		const currentIndex = $globalSearchIndex;
-
-		// Check if the configuration page data already exists in the index
-		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
-
-		// If the data doesn't exist, add it to the global search index
-		if (!isDataExists) {
-			globalSearchIndex.update((index) => [...index, globalSearchData]);
-		}
-	});
 </script>
 
 <div class="mb-3 flex items-center justify-between">

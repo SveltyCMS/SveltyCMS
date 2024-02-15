@@ -8,11 +8,11 @@
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
 
@@ -22,13 +22,13 @@
 		shouldShowNextButton.set(false);
 	});
 
-	const user = $page.data.user;
+	const user = 'admin';
+	// const user = $page.data.user;
 
-	let publishValue = $entryData.status === 'published' ? true : false;
+	$: publishValue = $entryData.status === 'published' ? true : false;
 
 	// Convert timestamp to Date string
-
-	const dates = {
+	$: dates = {
 		created: convertTimestampToDateString($entryData.createdAt),
 		updated: convertTimestampToDateString($entryData.updatedAt)
 	};

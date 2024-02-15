@@ -1,7 +1,8 @@
 <script lang="ts">
 	// Stores
-	import { globalSearchIndex, mode, saveEditedImage } from '@stores/store';
+	import { mode, saveEditedImage } from '@stores/store';
 	import { page } from '$app/stores';
+	import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 	import { onMount } from 'svelte';
 
@@ -45,37 +46,6 @@
 		mode.set('view');
 		goto('/');
 	}
-
-	// Define the page data for the image editor
-	const globalSearchData = {
-		title: 'Image Editor',
-		description: 'Edit and manage images with the image editor.',
-		keywords: ['image', 'editor', 'edit', 'photos', 'media'],
-		triggers: {
-			'Go to Image Editor': { path: '/imageEditor', action: () => {} }
-		}
-	};
-
-	// Function to check if a page entry already exists in the global search index
-	const isPageEntryExists = (index: any, pageData: any) => {
-		return index.some((item: any) => {
-			return item.title === pageData.title; // Assuming title uniquely identifies a page
-		});
-	};
-
-	// Mount hook to add the configuration page data to the global search index
-	onMount(() => {
-		// Get the current value of the global search index
-		const currentIndex = $globalSearchIndex;
-
-		// Check if the configuration page data already exists in the index
-		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
-
-		// If the data doesn't exist, add it to the global search index
-		if (!isDataExists) {
-			globalSearchIndex.update((index) => [...index, globalSearchData]);
-		}
-	});
 </script>
 
 <div class="mb-2 flex items-center justify-between">

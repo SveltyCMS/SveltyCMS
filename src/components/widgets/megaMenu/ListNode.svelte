@@ -187,7 +187,7 @@
 		style="width:{10 * (level > 0 ? 1 : 0)}px"
 	/>
 	<!-- Drag icon -->
-	{#if level > 0 && self.children.length > 0}
+	{#if level > 0}
 		<iconify-icon icon="mdi:drag" width="18" class="cursor-move" />
 	{/if}
 

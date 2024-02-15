@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { isSearchVisible, globalSearchIndex } from '@stores/store';
+	import { isSearchVisible, globalSearchIndex } from '@utils/globalSearchIndex';
 	import { onMount } from 'svelte';
 
 	// Define the searchResults array and searchQuery variable
@@ -31,12 +31,18 @@
 		const path = result.triggers[trigger].path;
 		const action = result.triggers[trigger].modal;
 
-		// Close the search component
-		isSearchVisible.set(false);
-
 		// Navigate to the appropriate page and call the modal function
 		goto(path);
-		action();
+
+		// Check if action is a function before calling it
+		if (typeof action === 'function') {
+			action();
+		} else {
+			console.error('Error: action is not a function');
+		}
+
+		// Close the search component
+		isSearchVisible.set(false);
 	}
 
 	// Function to handle the keydown event

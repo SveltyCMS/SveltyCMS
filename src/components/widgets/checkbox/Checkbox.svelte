@@ -17,18 +17,11 @@
 
 	export const WidgetData = async () => _data;
 
+	// zod validation
 	import * as z from 'zod';
 
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		color: field.color,
-		size: field.size,
-		width: field.width,
-		required: field.required
-	};
-
-	const checkboxSchema = z.object({
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
@@ -39,14 +32,17 @@
 
 	let validationError: string | null = null;
 
-	$: validationError = (() => {
+	function validateInput() {
 		try {
-			checkboxSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data[_language]);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
 		}
-	})();
+	}
 </script>
 
 <div class="mb-4 flex items-center">
@@ -55,6 +51,7 @@
 		type="checkbox"
 		color={field.color}
 		bind:value={_data[_language]}
+		on:input={validateInput}
 		class="h-[${field.size}] w-[${field.size}] rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
 		bind:checked={value}
 	/>
@@ -62,6 +59,6 @@
 		>{field.label ? field.label : field.db_fieldName}</label
 	>
 	{#if validationError !== null}
-		<p class="text-error-500">{validationError}</p>
+		<p class="text-center text-sm text-error-500">{validationError}</p>
 	{/if}
 </div>

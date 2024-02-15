@@ -11,7 +11,7 @@ const config = {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
 			out: 'build', // default: true | The directory to build the server to
-			precompress: true, // default: false | Enables precompressing using gzip & brotli for assets & prerendered pages
+			precompress: false, // default: false | Enables precompressing using gzip & brotli for assets & prerendered pages
 			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
 			polyfill: false // default: true | should be disabled when using Node 18.11 or greatere
 		}),

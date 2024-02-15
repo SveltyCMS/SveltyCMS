@@ -5,7 +5,8 @@
 	import { page } from '$app/stores';
 
 	// let user: User = $page.data.user;
-	let user = $page.data.user;
+	// let user = $page.data.user;
+	const user = 'admin';
 	let createdBy = '';
 
 	export let modeSet: typeof $mode = 'view';

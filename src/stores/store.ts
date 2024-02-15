@@ -52,20 +52,6 @@ export const AVAILABLE_SYSTEMLANGUAGES = PUBLIC_AVAILABLE_SYSTEMLANGUAGES
 export const translationStatusOpen = writable(false);
 
 //  ------------ Other ------------
-// globalSearchIndex
-interface SearchData {
-	title: string;
-	description: string;
-	keywords: string[];
-	triggers: {
-		[key: string]: {
-			path: string;
-			action: () => void;
-		};
-	};
-}
-export const isSearchVisible = writable(false);
-export const globalSearchIndex = writable<SearchData[]>([]);
 
 // Cancel/Reload HeaderButton
 export const headerActionButton: Writable<ConstructorOfATypedSvelteComponent | string> = writable();

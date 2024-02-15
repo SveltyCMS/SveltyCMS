@@ -59,6 +59,16 @@ The Backend Data is provided via [GraphQL Yoga](https://the-guild.dev/graphql/yo
  <img width="100%" alt="SveltyCMS Gui" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
 </p>
 
+## :toolbox: SveltyCMS & DXP: Your Gateway to Streamlined Digital Experiences
+
+Leverage the power of SveltyCMS along with the capabilities of Developer Experience Platform (DXP). This potent combination redefines content development, making it agile, efficient and optimized.
+
+When DXP integrates into our CMS, it presents a suite of advanced tools, offering developers the freedom and adaptability for content creation and management. The result is a streamlined workflow and a quicker process of crafting superior quality content.
+
+Experience a leap in productivity with DXP seamlessly woven into SveltyCMS. Watch it automate routine tasks, provide clear interfaces and simplify CMS management. Developers can now channel their focus on core tasks - creating premium content and applications.
+
+Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesses the potential of DXP, driving functions, ensuring scalability, enhancing adaptability and delivering personalized digital experiences. Empower your development voyage today with the versatile capabilities of SveltyCMS integrated with DXP.
+
 ## :rocket: Setup
 
 ### Clone the repository

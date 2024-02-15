@@ -17,13 +17,14 @@
 		setModeUserPrefers,
 		setModeCurrent,
 		setInitialClassState,
-		getModeOsPrefers
+		getModeOsPrefers // TODO: get the current value of the store
 	} from '@skeletonlabs/skeleton';
 
 	initializeStores();
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 
 	// Stores
+	import { isSearchVisible } from '@utils/globalSearchIndex';
 	import {
 		avatarSrc,
 		collections,
@@ -35,9 +36,7 @@
 		systemLanguage,
 		AVAILABLE_SYSTEMLANGUAGES,
 		pkgBgColor,
-		entryData,
-		isSearchVisible,
-		globalSearchIndex
+		entryData
 	} from '@stores/store';
 	import {
 		handleSidebarToggle,
@@ -167,6 +166,7 @@
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 
 	// Popup Tooltips
@@ -246,8 +246,8 @@
 		// This need be replace with svelte equivalent code
 		const rootNode = document.body?.parentElement;
 		if (!rootNode) return;
-		rootNode.dir = dir;
-		rootNode.lang = lang;
+		document.documentElement.dir = dir;
+		document.documentElement.lang = lang;
 	});
 
 	// On page load get the saved theme
@@ -312,13 +312,6 @@
 <svelte:head>
 	<!-- darkmode -->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
-	<!-- Language -->
-	<!-- {@html `<script>
-	const language = systemLanguage.value;
-	const direction = getTextDirection(language);
-	document.documentElement.lang = language;
-	document.documentElement.dir = direction;
-	</script>`} -->
 
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>
@@ -554,11 +547,11 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</svelte:fragment>
 
 			<svelte:fragment slot="pageHeader">
-				<!-- <HeaderControls /> -->
+				<HeaderControls />
 			</svelte:fragment>
 
 			<!-- Router Slot -->
-			<div class={$toggleLeftSidebar === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'} on:keydown={onKeyDown}>
+			<div on:keydown={onKeyDown} class={$toggleLeftSidebar === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'}>
 				{#key $page.url}
 					<!-- <div in:fly|global={{ x: -200, duration: 200 }} out:fly|global={{ x: 200, duration: 200 }}> -->
 					<Modal />

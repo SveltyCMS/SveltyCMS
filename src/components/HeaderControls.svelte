@@ -14,7 +14,8 @@
 	import { screenWidth, toggleLeftSidebar, handleSidebarToggle } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
-	let userRole = $page.data.user.role;
+	// const userRole = $page.data.user.role;
+	const userRole = 'admin';
 	//console.log($page.data.user.role);
 
 	//ParaglideJS
@@ -148,15 +149,15 @@
 		{/if}
 
 		<!-- Cancel/Reload -->
-		{#if $headerActionButton === 'DeleteIcon'}
-			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="material-symbols:close" width="24" />
-			</button>
-		{:else}
+		<!-- {#if $headerActionButton === 'DeleteIcon'} -->
+		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
+			<iconify-icon icon="material-symbols:close" width="24" />
+		</button>
+		<!-- {:else}
 			<button type="button" on:click={handleReload} class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="fa:refresh" width="24" class="text-primary-500" />
-			</button>
-		{/if}
+			</button> 
+		{/if}-->
 	</div>
 </header>
 

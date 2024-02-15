@@ -11,6 +11,22 @@ initWidgets();
 
 let imports: { [Key: string]: Schema } = {};
 let rnd = Math.random();
+let unsubscribe: Unsubscriber | undefined;
+
+// Define getCollections function to return a promise that resolves with the value of the collections store
+export async function getCollections() {
+	// console.log('getting collections');
+	return new Promise<any>((resolve) => {
+		unsubscribe = collections.subscribe((collections) => {
+			if (collections?.length > 0) {
+				// collection.set(collections[0]);
+				unsubscribe && unsubscribe();
+				unsubscribe = undefined;
+				resolve(collections);
+			}
+		});
+	});
+}
 
 // Dynamic Import of Categories and Collections even from build system
 export const updateCollections = async (recompile: boolean = false) => {
@@ -61,10 +77,14 @@ async function getImports(recompile: boolean = false) {
 		// Add imported modules to imports object
 		for (const module in modules) {
 			const name = module.replace(/.ts$/, '').replace('./', '');
-			const collection = ((await modules[module]()) as any).default;
-			collection.name = name;
-			!collection.icon && (collection.icon = 'iconoir:info-empty');
-			imports[name] = collection;
+			const collection = ((await modules[module]()) as any).default ?? {};
+			if (collection) {
+				collection.name = name;
+				!collection.icon && (collection.icon = 'iconoir:info-empty');
+				imports[name] = collection;
+			} else {
+				console.error('Error importing collection', name, collection);
+			}
 		}
 
 		// If not running in development or building mode
@@ -75,13 +95,16 @@ async function getImports(recompile: boolean = false) {
 			// console.log('browser files', files);
 
 			// Dynamically import returned files from /api/collections/
-
 			for (const file of files) {
 				const name = file.replace(/.js$/, '');
 				const collection = (await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)).default;
-				collection.name = name;
-				!collection.icon && (collection.icon = 'iconoir:info-empty');
-				imports[name] = collection;
+				if (collection) {
+					collection.name = name;
+					!collection.icon && (collection.icon = 'iconoir:info-empty');
+					imports[name] = collection;
+				} else {
+					console.error('Error importing collection', name, collection);
+				}
 			}
 
 			// If not running in browser environment
@@ -92,29 +115,16 @@ async function getImports(recompile: boolean = false) {
 			for (const file of files) {
 				const name = file.replace(/.js$/, '');
 				const collection = (await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd)).default;
-				collection.name = name;
-				!collection.icon && (collection.icon = 'iconoir:info-empty');
-				imports[name] = collection;
+				if (collection) {
+					collection.name = name;
+					!collection.icon && (collection.icon = 'iconoir:info-empty');
+					imports[name] = collection;
+				} else {
+					console.error('Error importing collection', name, collection);
+				}
 			}
 		}
 	}
 	//console.log(imports);
 	return imports;
-}
-
-let unsubscribe: Unsubscriber | undefined;
-
-// Define getCollections function to return a promise that resolves with the value of the collections store
-export async function getCollections() {
-	// console.log('getting collections');
-	return new Promise<any>((resolve) => {
-		unsubscribe = collections.subscribe((collections) => {
-			if (collections?.length > 0) {
-				// collection.set(collections[0]);
-				unsubscribe && unsubscribe();
-				unsubscribe = undefined;
-				resolve(collections);
-			}
-		});
-	});
 }

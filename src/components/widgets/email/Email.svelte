@@ -16,27 +16,28 @@
 
 	export const WidgetData = async () => _data;
 
+	// zod validation
 	import * as z from 'zod';
 
 	// Create a branded schema for email
 	const Email = z.string().email().brand('Email');
 
 	// Customize the error messages for each rule
-	const emailSchema = Email.refine((value) => value.includes('@'), {
+	const validateSchema = Email.refine((value) => value.includes('@'), {
 		message: 'Please enter a valid email address',
 		path: ['email']
 	});
 
-	let errorMessage = '';
+	let validationError: string | null = null;
 
-	function validateEmail() {
+	function validateInput() {
 		try {
 			// Change .parseAsync to .parse
-			emailSchema.parse(value);
-			errorMessage = '';
+			validateSchema.parse(_data[_language]);
+			validationError = '';
 		} catch (error: unknown) {
 			if (error instanceof z.ZodError) {
-				errorMessage = error.errors[0].message;
+				validationError = error.errors[0].message;
 			}
 		}
 	}
@@ -45,12 +46,12 @@
 <input
 	type="email"
 	bind:value={_data[_language]}
-	on:input={validateEmail}
+	on:input={validateInput}
 	name={field?.db_fieldName}
 	id={field?.db_fieldName}
 	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 	class="input"
 />
-{#if errorMessage}
-	<p class="text-center text-sm text-error-500">{errorMessage}</p>
+{#if validationError !== null}
+	<p class="text-center text-sm text-error-500">{validationError}</p>
 {/if}

@@ -1,8 +1,9 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { collectionValue, mode, collections, collection, globalSearchIndex } from '@stores/store';
+	import { collectionValue, mode, collections, collection } from '@stores/store';
 	import { screenWidth } from '@src/stores/sidebarStore';
+	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Components
 	import HeaderControls from '@src/components/HeaderControls.svelte';
@@ -25,54 +26,57 @@
 	};
 
 	// Subscribe to changes in the collection store and do redirects
+	// TODO; fix redirect due to reload?
 	let unsubscribe = collection.subscribe((_) => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
+			// alert('ForwardBackward');
 			goto(`/${$page.params.language}/${$collection.name}`);
 		}
 		ForwardBackward = false;
 	});
 	onDestroy(() => {
+		// alert('onDestroy');
 		unsubscribe();
 	});
 
-	// Define the function to check if a page entry already exists in the global search index
-	const isPageEntryExists = (index: any[], pageData: any) => {
-		return index.some((item: any) => {
-			return item.title === pageData.title;
-		});
-	};
+	// // Define the function to check if a page entry already exists in the global search index
+	// const isPageEntryExists = (index: any[], pageData: any) => {
+	// 	return index.some((item: any) => {
+	// 		return item.title === pageData.title;
+	// 	});
+	// };
 
-	// Mount hook to add the configuration page data to the global search index
-	onMount(() => {
-		// Loop through each collection to generate search data
-		$collections.forEach((collection) => {
-			if (!collection.name) return; // Skip if collection name is undefined
+	// // Mount hook to add the configuration page data to the global search index
+	// onMount(() => {
+	// 	// Loop through each collection to generate search data
+	// 	$collections.forEach((collection) => {
+	// 		if (!collection.name) return; // Skip if collection name is undefined
 
-			const triggers = { [`Go to ${collection.name}`]: { path: `/${$page.params.language}/${collection.name}`, action: () => {} } };
+	// 		const triggers = { [`Go to ${collection.name}`]: { path: `/${$page.params.language}/${collection.name}`, action: () => {} } };
 
-			// Create the search data for this collection
-			const searchData = {
-				title: collection.name,
-				description: `View ${collection.description || collection.name}`,
-				keywords: [collection.name.toLowerCase()],
-				triggers
-			};
+	// 		// Create the search data for this collection
+	// 		const searchData = {
+	// 			title: collection.name,
+	// 			description: `View ${collection.description || collection.name}`,
+	// 			keywords: [collection.name.toLowerCase()],
+	// 			triggers
+	// 		};
 
-			// Check if the search data for this collection already exists in the index
-			const isDataExists = isPageEntryExists($globalSearchIndex, searchData);
+	// 		// Check if the search data for this collection already exists in the index
+	// 		const isDataExists = isPageEntryExists($globalSearchIndex, searchData);
 
-			// If the data doesn't exist, add it to the global search index
-			if (!isDataExists) {
-				globalSearchIndex.update((index) => [...index, searchData]);
-			}
-		});
-	});
+	// 		// If the data doesn't exist, add it to the global search index
+	// 		if (!isDataExists) {
+	// 			globalSearchIndex.update((index) => [...index, searchData]);
+	// 		}
+	// 	});
+	// });
 
-	// Clean up on component destruction
-	onDestroy(() => {
-		// Perform cleanup here if needed
-	});
+	// // Clean up on component destruction
+	// onDestroy(() => {
+	// 	// Perform cleanup here if needed
+	// });
 </script>
 
 <div class="content flex-grow">

@@ -4,7 +4,8 @@
 	// Stores
 	import '@stores/store';
 	import { page } from '$app/stores';
-	import { avatarSrc, globalSearchIndex } from '@stores/store';
+	import { avatarSrc } from '@stores/store';
+	import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 	import PageTitle from '@components/PageTitle.svelte';
 
@@ -157,41 +158,6 @@
 		};
 		modalStore.trigger(d);
 	}
-
-	import { onMount } from 'svelte';
-
-	// Define the page data
-	const globalSearchData = {
-		title: 'User Profile',
-		description: 'View and edit your user profile.',
-		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password'],
-		triggers: {
-			'Show User Profile': { path: '/user', action: () => {} },
-			'Edit Avatar Image': { path: '/user', action: modalEditAvatar },
-			'Change Username & Password': { path: '/user', action: modalUserForm }
-		}
-	};
-
-	// Function to check if a page entry already exists in the global search index
-	const isPageEntryExists = (index: any, pageData: any) => {
-		return index.some((item: any) => {
-			return item.title === pageData.title; // Assuming title uniquely identifies a page
-		});
-	};
-
-	// Mount hook to add the configuration page data to the global search index
-	onMount(() => {
-		// Get the current value of the global search index
-		const currentIndex = $globalSearchIndex;
-
-		// Check if the configuration page data already exists in the index
-		const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
-
-		// If the data doesn't exist, add it to the global search index
-		if (!isDataExists) {
-			globalSearchIndex.update((index) => [...index, globalSearchData]);
-		}
-	});
 </script>
 
 <div class="mb-2 flex flex-col gap-1">
