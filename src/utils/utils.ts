@@ -667,3 +667,46 @@ export function motion(start, end, duration, cb, useAnimation = true) {
 		}
 	});
 }
+
+// Function to calculate Levenshtein distance with fine-tuned parameters
+export function getEditDistance(a: string, b: string): number | undefined {
+	if (a.length === 0) return b.length;
+	if (b.length === 0) return a.length;
+
+	const insertionCost = 1; // Adjust the cost of insertion
+	const deletionCost = 1; // Adjust the cost of deletion
+	const substitutionCost = 1; // Adjust the cost of substitution
+
+	const matrix: number[][] = [];
+
+	// Initialize first row and column
+	for (let i = 0; i <= b.length; i++) {
+		matrix[i] = [i];
+	}
+	for (let j = 0; j <= a.length; j++) {
+		matrix[0][j] = j;
+	}
+
+	// Fill in the rest of the matrix
+	for (let i = 1; i <= b.length; i++) {
+		for (let j = 1; j <= a.length; j++) {
+			if (b.charAt(i - 1) === a.charAt(j - 1)) {
+				matrix[i][j] = matrix[i - 1][j - 1];
+			} else {
+				matrix[i][j] = Math.min(
+					matrix[i - 1][j - 1] + substitutionCost, // substitution
+					Math.min(
+						matrix[i][j - 1] + insertionCost, // insertion
+						matrix[i - 1][j] + deletionCost
+					) // deletion
+				);
+			}
+		}
+	}
+
+	// Normalize the distance to make it more intuitive (optional)
+	const maxDistance = Math.max(a.length, b.length);
+	const normalizedDistance = matrix[b.length][a.length] / maxDistance;
+
+	return normalizedDistance;
+}

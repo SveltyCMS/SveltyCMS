@@ -1,11 +1,33 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { onMount } from 'svelte';
 
 	// Stores
 	import '@stores/store';
 	import { page } from '$app/stores';
 	import { avatarSrc } from '@stores/store';
-	import { globalSearchIndex } from '@utils/globalSearchIndex';
+	import { triggerActionStore } from '@utils/globalSearchIndex';
+
+	// Function to execute actions stored in triggerActionStore
+	function executeActions() {
+		// Check if triggerActionStore contains any actions
+		if ($triggerActionStore) {
+			// Update triggerActionStore and execute each action
+			triggerActionStore.update((actions) => {
+				actions.forEach((action) => {
+					action();
+				});
+				return []; // Clear triggerActionStore after executing actions
+			});
+		}
+	}
+
+	// Execute actions on mount if triggerActionStore has data
+	onMount(() => {
+		if ($triggerActionStore) {
+			executeActions();
+		}
+	});
 
 	import PageTitle from '@components/PageTitle.svelte';
 
