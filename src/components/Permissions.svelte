@@ -240,7 +240,6 @@
 						<!-- Delete Role Button -->
 						<td class="bg-white text-center dark:bg-surface-900">
 							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
-							<button on:click={() => removeRole(index)} class="variant-ghost-surface btn-icon">X</button>
 						</td>
 					</tr>
 				{/each}

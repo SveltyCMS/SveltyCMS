@@ -7,7 +7,7 @@
 	//Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
 
-	console.log($globalSearchIndex);
+	//console.log($globalSearchIndex);
 
 	// Define the searchResults array and searchQuery variable
 	let searchResults: any[] = [];
@@ -81,8 +81,8 @@
 		const trigger = result.triggers[triggerKey];
 
 		// console.log('result:', result);
-		console.log('triggerKey:', triggerKey);
-		console.log('trigger:', trigger);
+		// console.log('triggerKey:', triggerKey);
+		// console.log('trigger:', trigger);
 
 		if (trigger && trigger.path && trigger.action && trigger.action.length > 0) {
 			const { path, action } = trigger;
@@ -91,13 +91,13 @@
 			console.log('path:', path);
 			console.log('action:', action);
 
-			// Store the trigger actions array in the triggerActionStore
-			triggerActionStore.set(actions);
-
 			// Navigate to the appropriate page if it's not the current page
 			if (window.location.pathname !== path) {
 				goto(path);
 			}
+
+			// Store the trigger actions array in the triggerActionStore
+			triggerActionStore.set(actions);
 
 			// Close the search component
 			isSearchVisible.set(false);

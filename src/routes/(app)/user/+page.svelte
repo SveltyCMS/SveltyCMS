@@ -8,28 +8,32 @@
 	import { avatarSrc } from '@stores/store';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
-	console.log('start triggerActionStore :', $triggerActionStore);
-
 	function executeActions() {
-		// Update triggerActionStore and execute each action
-		triggerActionStore.update((actions) => {
-			console.log('Actions in triggerActionStore:', actions);
+		console.log('executeActions called');
+		// Get the current value of the triggerActionStore
+		const actions = $triggerActionStore;
 
-			actions.forEach((action) => {
-				console.log('Executing action:', action);
+		// Execute the actions
+		if (actions.length === 1) {
+			// Only one action present, directly execute it
+			console.log('single action', actions[0]);
+			actions[0];
+		} else {
+			// Multiple actions present, iterate and execute each one sequentially
+			console.log('multiple actions');
+			for (const action of actions) {
+				console.log(action);
+				action;
+			}
+		}
 
-				action();
-			});
-			return []; // Clear triggerActionStore after executing actions
-		});
-		console.log('new triggerActionStore:', actions);
+		// Clear the triggerActionStore
+		triggerActionStore.set([]);
 	}
-
-	console.log('stop triggerActionStore :', $triggerActionStore);
 
 	// Execute actions on mount if triggerActionStore has data
 	onMount(() => {
-		if ($triggerActionStore) {
+		if ($triggerActionStore.length > 0) {
 			console.log('$triggerActionStore called:', $triggerActionStore);
 			executeActions();
 		}

@@ -40,8 +40,9 @@
 	let data: { entryList: [any]; totalCount: number } | undefined;
 	let tableData: any = [];
 
-	let tickMap = {}; // Object to track ticked rows
-	let tickAll = false;
+	//tick logic
+	let SelectAll = false;
+	let selectedMap = writable({});
 
 	let sorting: any = [];
 	let columnOrder: never[] = [];
@@ -99,10 +100,6 @@
 				return defaultColumns.find((col) => col.accessorKey == item.accessorKey);
 			})
 		}));
-
-		// Tick Row - modify STATUS of an Entry
-		tickMap = {};
-		tickAll = false;
 
 		// READ CONFIG FROM LOCAL STORAGE AND APPLY THE VISIBILITY
 		if (localStorage.getItem(`TanstackConfiguration-${$collection.name}`)) {
@@ -214,8 +211,8 @@
 		refresh(false);
 		$contentLanguage;
 	}
-	$: process_tickAll(tickAll);
-	$: Object.values(tickMap).includes(true) ? mode.set('delete') : mode.set('view');
+	$: process_selectAll(SelectAll);
+	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
 
 	const defaultColumns = $collection.fields.map((field) => ({
 		id: field.label,
@@ -248,14 +245,14 @@
 	let flexRender = flexRenderBugged as (...args: Parameters<typeof flexRenderBugged>) => any;
 
 	// Tick All
-	function process_tickAll(tickAll: boolean) {
-		if (tickAll) {
+	function process_selectAll(selectAll: boolean) {
+		if (selectAll) {
 			for (let item in tableData) {
-				tickMap[item] = true;
+				selectedMap[item] = true;
 			}
 		} else {
-			for (let item in tickMap) {
-				tickMap[item] = false;
+			for (let item in selectedMap) {
+				selectedMap[item] = false;
 			}
 		}
 	}
@@ -265,10 +262,10 @@
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 
-		// Loop over the tickMap object
-		for (let item in tickMap) {
+		// Loop over the selectedMap object
+		for (let item in selectedMap) {
 			// If the item is ticked, add its ID to the modifyList
-			tickMap[item] && modifyList.push(tableData[item]._id);
+			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
 
 		// If no items are ticked, exit the function
@@ -554,7 +551,7 @@
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<!-- Tanstack Tickbox -->
 						<th class="!w-6">
-							<TanstackIcons bind:checked={tickAll} />
+							<TanstackIcons bind:checked={SelectAll} />
 						</th>
 
 						<!-- Tanstack Other Headers -->
@@ -608,8 +605,18 @@
 							handleSidebarToggle();
 						}}
 					>
+						<!-- TickRows -->
 						<td>
-							<TanstackIcons bind:checked={tickMap[index]} class="ml-1" />
+							<TanstackIcons
+								bind:checked={selectedMap[index]}
+								on:keydown
+								on:click={() => {
+									selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
+									mode.set('edit');
+									handleSidebarToggle();
+								}}
+								class="ml-1"
+							/>
 						</td>
 
 						<!-- <td>

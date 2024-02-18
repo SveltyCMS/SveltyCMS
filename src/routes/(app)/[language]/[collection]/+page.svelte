@@ -81,8 +81,8 @@
 
 <div class="content flex-grow">
 	{#if $mode == 'view' || $mode == 'modify'}
-		<EntryList />
-		<!-- <EntryListNew /> -->
+		<!-- <EntryList /> -->
+		<EntryListNew />
 	{:else if ['edit', 'create'].includes($mode)}
 		{#if $screenWidth != 'desktop'}
 			<HeaderControls />

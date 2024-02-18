@@ -10,7 +10,7 @@ let showUsertoken: any;
 let toggleUserToken: any;
 
 export const isSearchVisible = writable(false);
-export const triggerActionStore = writable([]);
+export const triggerActionStore = writable<(() => void | Promise<void>)[]>([]);
 
 // Create a writable store for the global search index
 interface SearchData {
@@ -73,13 +73,13 @@ export const globalSearchIndex = writable<SearchData[]>([
 		title: 'Collection Builder',
 		description: 'Configure your collection.',
 		keywords: ['configuration', 'settings', 'system', 'collection', 'category', 'builder'],
-		triggers: { 'Go to Collection Builders': { path: '/collection/', action: [() => {}] } }
+		triggers: { 'Go to Collection Builders': { path: '/collection', action: [() => {}] } }
 	},
 	{
 		title: 'Builder',
 		description: 'Configure your collection.',
 		keywords: ['builder'],
-		triggers: { 'Go to Builders': { path: '/builder/', action: [() => {}] } }
+		triggers: { 'Go to Builders': { path: '/builder', action: [() => {}] } }
 	},
 	{
 		title: 'Media Gallery',
@@ -107,6 +107,6 @@ export const globalSearchIndex = writable<SearchData[]>([
 		title: 'Configuration',
 		description: 'Configure the system settings.',
 		keywords: ['configuration', 'settings', 'system'],
-		triggers: { 'Go to Configuration': { path: '/config/', action: [() => {}] } }
+		triggers: { 'Go to Configuration': { path: '/config', action: [() => {}] } }
 	}
 ]);
