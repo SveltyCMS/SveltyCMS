@@ -8,23 +8,29 @@
 	import { avatarSrc } from '@stores/store';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
-	// Function to execute actions stored in triggerActionStore
+	console.log('start triggerActionStore :', $triggerActionStore);
+
 	function executeActions() {
-		// Check if triggerActionStore contains any actions
-		if ($triggerActionStore) {
-			// Update triggerActionStore and execute each action
-			triggerActionStore.update((actions) => {
-				actions.forEach((action) => {
-					action();
-				});
-				return []; // Clear triggerActionStore after executing actions
+		// Update triggerActionStore and execute each action
+		triggerActionStore.update((actions) => {
+			console.log('Actions in triggerActionStore:', actions);
+
+			actions.forEach((action) => {
+				console.log('Executing action:', action);
+
+				action();
 			});
-		}
+			return []; // Clear triggerActionStore after executing actions
+		});
+		console.log('new triggerActionStore:', actions);
 	}
+
+	console.log('stop triggerActionStore :', $triggerActionStore);
 
 	// Execute actions on mount if triggerActionStore has data
 	onMount(() => {
 		if ($triggerActionStore) {
+			console.log('$triggerActionStore called:', $triggerActionStore);
 			executeActions();
 		}
 	});
@@ -68,6 +74,7 @@
 
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
+		console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
@@ -114,6 +121,7 @@
 
 	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
+		console.log('Triggered - modalEditAvatar');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,

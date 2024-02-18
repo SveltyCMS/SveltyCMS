@@ -38,14 +38,14 @@ export const globalSearchIndex = writable<SearchData[]>([
 		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password', 'delete'],
 		triggers: {
 			'Show User Profile': { path: '/user', action: [() => {}] },
-			'Edit Avatar Image': { path: '/user', action: [modalEditAvatar, modalUserForm] },
-			'Change Username & Password': { path: '/user', action: [modalUserForm] }
+			'Edit Avatar Image': { path: '/user', action: [() => modalEditAvatar] },
+			'Change Username & Password': { path: '/user', action: [() => modalUserForm] }
 		}
 	},
 	{
 		title: 'User Admin Area',
 		description: 'View and edit users in the user admin area.',
-		keywords: ['user', 'avatar', 'role', 'profile', 'settings', 'account', 'password', 'token'],
+		keywords: ['user', 'role', 'profile', 'settings', 'account', 'password', 'token'],
 		triggers: {
 			'Show User List': {
 				path: '/user',

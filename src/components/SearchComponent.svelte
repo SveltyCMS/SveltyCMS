@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
 	import { getEditDistance } from '@utils/utils';
 	import { onMount } from 'svelte';
+	import HighlightedText from './HighlightedText.svelte';
+
+	//Stores
+	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
 
 	console.log($globalSearchIndex);
 
@@ -13,7 +16,13 @@
 
 	// Function to perform fuzzy search
 	async function fuzzySearch(query: string) {
-		console.log('fuzzySearch', query);
+		// console.log('fuzzySearch', query);
+
+		// If the query is empty, clear the search results and return
+		if (query === '') {
+			searchResults = [];
+			return;
+		}
 
 		const index = $globalSearchIndex;
 
@@ -36,11 +45,18 @@
 			return a.distance - b.distance;
 		});
 
-		console.log('sortedResults', sortedResults); // Log the results array after sorting
+		// Filter sortedResults to only include matches that contain the input value
+		const filteredResults = sortedResults.filter(
+			(result) =>
+				result.title.toUpperCase().includes(query.toUpperCase()) ||
+				result.keywords.some((keyword) => keyword.toUpperCase().includes(query.toUpperCase()))
+		);
+
+		// console.log('sortedResults', sortedResults); // Log the results array after sorting
 
 		// Filter results based on a distance threshold
-		const threshold = Math.floor(Math.max(query.length * 0.6)); // Adjusted threshold calculation
-		console.log('threshold', threshold);
+		const threshold = Math.floor(Math.max(query.length * 0.9)); // Adjusted threshold calculation
+		// console.log('threshold', threshold);
 		const fuzzyResults = sortedResults.filter((result) => result.distance !== undefined && result.distance <= threshold);
 
 		// Check for exact matches in title or keywords
@@ -49,12 +65,15 @@
 				result.title.toUpperCase() === query.toUpperCase() || result.keywords.map((keyword) => keyword.toUpperCase()).includes(query.toUpperCase())
 		);
 
-		// If there are exact matches, prioritize them and limit the displayed results to one
+		// If there are exact matches, prioritize them and display top 5
 		if (exactMatches.length > 0) {
-			searchResults = [exactMatches[0]];
+			searchResults = exactMatches.slice(0, 5);
+		} else if (filteredResults.length > 0) {
+			// If no exact matches but there are filtered results, display top 5 filtered results
+			searchResults = filteredResults.slice(0, 5);
 		} else {
-			// If no exact matches, display fuzzy results with a limit of one
-			searchResults = fuzzyResults.slice(0, 1);
+			// If no exact matches or filtered results, display top 5 fuzzy results
+			searchResults = fuzzyResults.slice(0, 5);
 		}
 	}
 
@@ -69,11 +88,16 @@
 			const { path, action } = trigger;
 			const actions = action || [];
 
+			console.log('path:', path);
+			console.log('action:', action);
+
 			// Store the trigger actions array in the triggerActionStore
 			triggerActionStore.set(actions);
 
-			// Navigate to the appropriate page
-			goto(path);
+			// Navigate to the appropriate page if it's not the current page
+			if (window.location.pathname !== path) {
+				goto(path);
+			}
 
 			// Close the search component
 			isSearchVisible.set(false);
@@ -134,26 +158,37 @@
 		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 bg-surface-active-token">
 			{#each searchResults as result (result.title)}
 				<button class="border-b text-white last:border-0 last:pb-2 hover:bg-surface-400" on:click={() => handleResultClick(result, triggerKey)}>
-					<div class="grid grid-cols-3 items-center text-left sm:grid-cols-4">
-						<p class="text-left font-semibold text-primary-500">{result.title}:</p>
-						<p class="text-center text-sm sm:col-span-2 sm:text-left">{result.description}</p>
+					<div class="grid auto-cols-auto grid-flow-col text-left">
+						<!-- Highlighted title -->
+						<span class="whitespace-nowrap font-bold text-primary-500">
+							<HighlightedText text={result.title + ' : '} term={searchQuery} />
+						</span>
 
+						<!-- Highlighted description with full width -->
+						<span class="col-span-2 text-sm">
+							<HighlightedText text={result.description} term={searchQuery} />
+						</span>
+
+						<!-- Path for items with one trigger -->
 						{#if Object.entries(result.triggers).length === 1}
-							{#each Object.entries(result.triggers) as [trigger]}
-								<p class="text-right text-xs text-primary-500">{trigger.path}</p>
+							{#each Object.entries(result.triggers) as [triggerKey, trigger]}
+								<span class="w-[50px] text-xs text-primary-500">
+									{trigger.path}
+								</span>
 							{/each}
 						{/if}
 					</div>
 
 					<!-- Multiple triggers -->
 					{#if Object.entries(result.triggers).length > 1}
-						<div class="grid sm:col-span-2">
+						<div class="grid text-sm sm:col-span-2">
 							{#each Object.entries(result.triggers) as [triggerKey, trigger]}
 								<button
 									class="flex items-center justify-between px-6 py-1 hover:bg-surface-500"
 									on:click={() => handleResultClick(result, triggerKey)}
 								>
-									<p class="text-xs">{triggerKey}</p>
+									<!-- Highlighted trigger -->
+									<HighlightedText text={triggerKey} term={searchQuery} />
 									<p class="text-xs text-primary-500">{trigger.path}</p>
 								</button>
 							{/each}
