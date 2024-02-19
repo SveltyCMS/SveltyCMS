@@ -1,13 +1,13 @@
 <script lang="ts">
 	// Stores
 	import { contentLanguage, categories, collection, mode, entryData, modifyEntry } from '@stores/store';
-	import { handleSidebarToggle, toggleLeftSidebar } from '@stores/sidebarStore';
+	import { handleSidebarToggle, toggleSidebar, sidebarState, screenWidth } from '@stores/sidebarStore';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	import axios from 'axios';
-	import { writable } from 'svelte/store';
+	import { get, writable } from 'svelte/store';
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
 	import TanstackIcons from './system/tanstack/TanstackIcons.svelte';
@@ -428,14 +428,11 @@
 	<!-- Row 1 for Mobile -->
 	<div class="flex items-center justify-between">
 		<!-- Hamburger -->
-		{#if $toggleLeftSidebar === 'closed'}
+		{#if $sidebarState.left === 'hidden'}
 			<button
 				type="button"
 				on:keydown
-				on:click={() => {
-					// console.log('Hamburger clicked');
-					toggleLeftSidebar.click();
-				}}
+				on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
 				class="variant-ghost-surface btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
@@ -443,7 +440,7 @@
 		{/if}
 		<!-- Collection type with icon -->
 		<!-- TODO: Translate Collection Name -->
-		<div class="mr-1 flex flex-col {!$toggleLeftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+		<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 					{$categories[0].name}
 				</div>{/if}

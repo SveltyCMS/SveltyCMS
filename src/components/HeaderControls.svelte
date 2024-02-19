@@ -11,7 +11,7 @@
 		headerActionButton,
 		shouldShowNextButton
 	} from '@stores/store';
-	import { screenWidth, toggleLeftSidebar, handleSidebarToggle } from '@stores/sidebarStore';
+	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
 	// const userRole = $page.data.user.role;
@@ -23,6 +23,7 @@
 	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
 
 	import { saveFormData } from '@utils/utils';
+	import { get } from 'svelte/store';
 
 	// Manually parse the object from JSON string
 	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));
@@ -73,15 +74,20 @@
 		: 'border-b'} border-secondary-600-300-token bg-white p-2 dark:bg-surface-700"
 >
 	<div class="flex items-center justify-start">
-		<!-- hamburger -->
-		{#if $toggleLeftSidebar === 'closed'}
-			<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon">
+		<!-- Hamburger -->
+		{#if $sidebarState.left === 'hidden'}
+			<button
+				type="button"
+				on:keydown
+				on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+				class="variant-ghost-surface btn-icon mt-1"
+			>
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
 			</button>
 		{/if}
 
 		<!-- Collection type with icon -->
-		<div class="flex {!$toggleLeftSidebar ? 'ml-2' : 'ml-1'}">
+		<div class="flex {!$sidebarState.left ? 'ml-2' : 'ml-1'}">
 			{#if $collection && $collection.icon}
 				<div class="flex items-center justify-center">
 					<iconify-icon icon={$collection.icon} width="24" class="text-error-500" />

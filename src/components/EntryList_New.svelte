@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
-	import { contentLanguage, categories, collection, mode, modifyEntry, entryData } from '@stores/store';
-	import { toggleLeftSidebar } from '@stores/sidebarStore';
+	import { contentLanguage, categories, collection, mode, modifyEntry } from '@stores/store';
+	import { toggleSidebar, sidebarState, screenWidth } from '@stores/sidebarStore';
 
 	import axios from 'axios';
 
@@ -25,6 +25,7 @@
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import { getFieldName } from '@utils/utils';
 	import TranslationStatus from './TranslationStatus.svelte';
+	import { get } from 'svelte/store';
 
 	let data: any = [];
 
@@ -137,6 +138,8 @@
 		mode.set('view');
 	};
 
+	// console.log('$modifyEntry called', $modifyEntry);
+
 	// Data for the array of column fields
 	$: columnFields = [
 		{
@@ -160,14 +163,11 @@
 	<!-- Row 1 for Mobile -->
 	<div class="flex items-center justify-between">
 		<!-- Hamburger -->
-		{#if $toggleLeftSidebar === 'closed'}
+		{#if $sidebarState.left === 'hidden'}
 			<button
 				type="button"
 				on:keydown
-				on:click={() => {
-					// console.log('Hamburger clicked');
-					toggleLeftSidebar.click();
-				}}
+				on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
 				class="variant-ghost-surface btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
@@ -175,7 +175,7 @@
 		{/if}
 		<!-- Collection type with icon -->
 		<!-- TODO: Translate Collection Name -->
-		<div class="mr-1 flex flex-col {!$toggleLeftSidebar ? 'ml-2' : 'ml-1 sm:ml-2'}">
+		<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300">
 					{$categories[0].name}
 				</div>{/if}

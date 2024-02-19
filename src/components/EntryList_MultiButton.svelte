@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
-	import { handleSidebarToggle, toggleLeftSidebar, screenWidth } from '@stores/sidebarStore';
+	import { handleSidebarToggle, toggleSidebar, screenWidth } from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
 
 	//ParaglideJS
@@ -18,20 +18,16 @@
 	function handleButtonClick() {
 		if ($storeListboxValue === 'create') {
 			mode.set('create');
+			handleSidebarToggle();
 		} else {
 			mode.set('view');
 			// console.log('EntryListMultibutton.svelte', $mode);
 			$modifyEntry($storeListboxValue);
+			handleSidebarToggle();
 		}
 
 		dispatch($storeListboxValue);
 		dropdownOpen = false;
-
-		if (get(screenWidth) === 'mobile') {
-			toggleLeftSidebar.clickBack();
-		}
-
-		handleSidebarToggle();
 	}
 
 	// handleOptionClick for Button Dropdown

@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Stores
-	import { toggleLeftSidebar } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState, screenWidth } from '@stores/sidebarStore';
+	import { get } from 'svelte/store';
 
 	interface PageTitleProps {
 		name: string;
@@ -17,8 +18,13 @@
 
 <div class="mb-3 flex items-center">
 	<!-- Hamburger -->
-	{#if $toggleLeftSidebar === 'closed'}
-		<button type="button" on:click={() => toggleLeftSidebar.click()} class="variant-ghost-surface btn-icon mt-1">
+	{#if $sidebarState.left === 'hidden'}
+		<button
+			type="button"
+			on:keydown
+			on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+			class="variant-ghost-surface btn-icon mt-1"
+		>
 			<iconify-icon icon="mingcute:menu-fill" width="24" />
 		</button>
 	{/if}

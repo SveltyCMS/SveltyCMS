@@ -32,7 +32,8 @@
 	}
 
 	// Execute actions on mount if triggerActionStore has data
-	onMount(() => {
+	document.addEventListener('DOMContentLoaded', () => {
+		// Execute actions on mount if triggerActionStore has data
 		if ($triggerActionStore.length > 0) {
 			console.log('$triggerActionStore called:', $triggerActionStore);
 			executeActions();

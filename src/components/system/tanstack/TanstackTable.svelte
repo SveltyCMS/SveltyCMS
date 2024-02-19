@@ -385,7 +385,7 @@
 					</th>
 					<!-- Tanstack Other Headers -->
 					{#each headerGroup.headers as header, index}
-						<th class="bg-white dark:bg-surface-900">
+						<th class=" bg-white dark:bg-surface-900">
 							{#if !header.isPlaceholder}
 								<button
 									class:cursor-pointer={header.column.getCanSort()}

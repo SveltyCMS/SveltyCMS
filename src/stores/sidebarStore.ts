@@ -1,165 +1,131 @@
-import fsm from 'svelte-fsm';
 import { get, writable } from 'svelte/store';
 import { mode } from './store';
 
-//----------------- Sidebar logic -----------------
+// Enum for screen width
+export enum ScreenWidth {
+	Mobile = 'mobile',
+	Tablet = 'tablet',
+	Desktop = 'desktop'
+}
 
-// Update screenWidth whenever the window is resized
+// Store for screen width
 export const screenWidth = writable(getScreenWidthName());
 
+// Update screen width on resize
 if (typeof window !== 'undefined') {
-	// Update screenWidth whenever the window is resized
+	window.addEventListener('resize', () => {
+		screenWidth.set(getScreenWidthName());
+		handleSidebarToggle(); // Call the handleSidebarToggle function when the screen width changes
+	});
+}
+
+// Function to determine screen width
+function getScreenWidthName(): ScreenWidth {
+	if (typeof window === 'undefined') {
+		return ScreenWidth.Desktop; // Default to Desktop when running on server-side
+	}
+
+	const width = window.innerWidth;
+	if (width <= 567) {
+		return ScreenWidth.Mobile;
+	} else if (width >= 568 && width <= 767) {
+		return ScreenWidth.Tablet;
+	} else {
+		return ScreenWidth.Desktop;
+	}
+}
+
+// Update screen width on resize
+if (typeof window !== 'undefined') {
 	window.addEventListener('resize', () => {
 		screenWidth.set(getScreenWidthName());
 	});
 }
 
-function getScreenWidthName() {
-	if (typeof window === 'undefined') {
-		// Return a default value when running on the server-side
-		return 'desktop';
-	}
-
-	const width = window.innerWidth;
-	if (width <= 567) {
-		return 'mobile';
-	} else if (width >= 568 && width <= 767) {
-		return 'tablet';
-	} else {
-		return 'desktop';
-	}
+// Interface for sidebar states
+export interface SidebarState {
+	left: 'hidden' | 'collapsed' | 'full';
+	right: 'hidden' | 'collapsed' | 'full';
+	header: 'hidden' | 'collapsed' | 'full';
+	footer: 'hidden' | 'collapsed' | 'full';
 }
 
-// Sidebar States
-function getDefaultState() {
-	if (get(screenWidth) === 'mobile') {
-		return 'closed';
-	} else if (get(screenWidth) === 'tablet') {
-		return 'collapsed';
-	} else {
-		return 'full';
-	}
-}
-
-export const toggleLeftSidebar = fsm(getDefaultState(), {
-	closed: {
-		click: (nextState) => {
-			if (nextState === 'closed') {
-				return 'closed';
-			} else if (get(screenWidth) === 'mobile') {
-				return get(userPreferredState); // use the value of userPreferredState
-			} else if (get(screenWidth) === 'tablet') {
-				return 'collapsed';
-			} else {
-				return 'full';
-			}
-		},
-		clickSwitchSideBar: () => get(userPreferredState)
-	},
-
-	collapsed: {
-		click: () => 'full',
-		clickSwitchSideBar: () => 'full',
-		clickBack: () => 'closed'
-	},
-	full: {
-		click: () => {
-			//console.log('fsm-full-click');
-			if (get(screenWidth) === 'mobile' || get(screenWidth) === 'tablet') {
-				return 'collapsed';
-			} else {
-				return 'closed';
-			}
-		},
-		clickSwitchSideBar: () => {
-			//console.log('fsm-full-clickSwitchSideBar');
-			if (get(screenWidth) === 'mobile') {
-				return 'closed';
-			} else {
-				return 'collapsed';
-			}
-		},
-		clickBack: () => get(userPreferredState)
-	}
-});
-
-export const togglePageHeader = fsm('closed', {
-	closed: { open: () => 'open' },
-	open: { close: () => 'closed' }
-});
-
-export const togglePageFooter = fsm('closed', {
-	closed: { open: () => 'open' },
-	open: { close: () => 'closed' }
-});
-
-export const toggleRightSidebar = fsm('closed', {
-	closed: { open: () => 'open' },
-	open: { close: () => 'closed' }
-});
-
-export const width = writable('mobile');
-export const userPreferredState = writable('collapsed');
-
-export const handleSidebarToggle = () => {
-	if (get(screenWidth) === 'mobile') {
-		if (['edit', 'create'].includes(get(mode))) {
-			// logic for all other modes on mobile
-			toggleLeftSidebar.clickBack('closed');
-			toggleRightSidebar.close();
-			togglePageHeader.open();
-			togglePageFooter.open();
-		} else {
-			// logic for view mode on mobile
-			toggleLeftSidebar.click('collapsed');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		}
-	} else if (get(screenWidth) === 'tablet') {
-		if (['edit', 'create'].includes(get(mode))) {
-			// logic for view mode on tablet
-			toggleLeftSidebar.clickSwitchSideBar('collapsed');
-			toggleRightSidebar.close();
-			togglePageHeader.open();
-			togglePageFooter.open();
-		} else {
-			// logic for all other modes on tablet
-			toggleLeftSidebar.clickBack('collapsed');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		}
-	} else if (get(screenWidth) === 'desktop') {
-		if (['edit', 'create'].includes(get(mode))) {
-			// logic for all other modes on desktop
-			toggleLeftSidebar.clickSwitchSideBar('collapsed');
-			toggleRightSidebar.open();
-			togglePageHeader.open();
-			togglePageFooter.close();
-		} else {
-			// logic for view mode on desktop
-			toggleLeftSidebar.clickBack('collapsed');
-			toggleRightSidebar.close();
-			togglePageHeader.close();
-			togglePageFooter.close();
-		}
-	}
+// Default sidebar states
+const defaultState: SidebarState = {
+	left: getDefaultLeftState(),
+	right: 'hidden',
+	header: 'hidden',
+	footer: 'hidden'
 };
 
-// TODO: Add Screen/Browser resize without breaking load
-// screenWidth.subscribe(($screenWidth) => {
-// 	console.log('screenWidth changed:', $screenWidth);
-// 	if ($screenWidth === 'mobile') {
-// 		toggleLeftSidebar.click('closed');
-// 	} else if ($screenWidth === 'tablet') {
-// 		toggleLeftSidebar.click('collapsed');
-// 	} else {
-// 		toggleLeftSidebar.click('full');
-// 	}
-// });
+// Store for sidebar state
+export const sidebarState = writable(defaultState);
 
-export const handleSwitchSideBar = () => {
-	userPreferredState.set(get(toggleLeftSidebar));
-	toggleLeftSidebar.clickSwitchSideBar(); // This line changes the state of the left sidebar according to the clickSwitchSideBar transition
+// Function to get default left state based on screen width
+function getDefaultLeftState(): 'hidden' | 'collapsed' | 'full' {
+	const width = get(screenWidth);
+	if (width === ScreenWidth.Mobile) {
+		return 'hidden'; // Start hidden on mobile
+	} else if (width === ScreenWidth.Tablet) {
+		return 'collapsed'; // Start collapsed on tablet
+	} else {
+		return 'full'; // Start full on Desktop
+	}
+}
+
+// Function to toggle sidebar
+export const toggleSidebar = (side: keyof SidebarState, state: 'hidden' | 'collapsed' | 'full') => {
+	sidebarState.update((currentState: SidebarState) => {
+		const newState: SidebarState = { ...currentState };
+		newState[side] = state;
+		return newState;
+	});
+};
+
+// Store for user preferred sidebar state
+export const userPreferredState = writable<'hidden' | 'collapsed' | 'full'>('collapsed');
+
+// Function to handle sidebar toggle based on mode and screen width
+export const handleSidebarToggle = () => {
+	const width = get(screenWidth);
+	// Mobile
+	if (width === ScreenWidth.Mobile) {
+		if (get(mode) === 'view') {
+			toggleSidebar('left', 'hidden');
+			toggleSidebar('right', 'hidden');
+			toggleSidebar('header', 'hidden');
+			toggleSidebar('footer', 'hidden');
+		} else {
+			toggleSidebar('left', 'hidden');
+			toggleSidebar('right', 'hidden');
+			toggleSidebar('header', 'full');
+			toggleSidebar('footer', 'full');
+		}
+		// Tablet
+	} else if (width === ScreenWidth.Tablet) {
+		if (get(mode) === 'view') {
+			toggleSidebar('left', 'collapsed');
+			toggleSidebar('right', 'hidden');
+			toggleSidebar('header', 'hidden');
+			toggleSidebar('footer', 'hidden');
+		} else {
+			toggleSidebar('left', 'collapsed');
+			toggleSidebar('right', 'hidden');
+			toggleSidebar('header', 'full');
+			toggleSidebar('footer', 'full');
+		}
+		// Desktop
+	} else if (width === ScreenWidth.Desktop) {
+		if (get(mode) === 'view') {
+			toggleSidebar('left', 'full');
+			toggleSidebar('right', 'hidden');
+			toggleSidebar('header', 'hidden');
+			toggleSidebar('footer', 'hidden');
+		} else {
+			toggleSidebar('left', 'collapsed');
+			toggleSidebar('right', 'full');
+			toggleSidebar('header', 'full');
+			toggleSidebar('footer', 'hidden');
+		}
+	}
 };

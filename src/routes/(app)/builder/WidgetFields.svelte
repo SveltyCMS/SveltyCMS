@@ -1,6 +1,6 @@
 <script lang="ts">
 	//Stores
-	import { toggleLeftSidebar } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -46,12 +46,12 @@
 <!-- Edit individual selected widget  -->
 {#if currentField}
 	<div
-		class="fixed -top-16 left-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar ===
+		class="fixed -top-16 left-0 flex h-screen w-screen flex-col items-center justify-center overflow-auto bg-white dark:bg-surface-900 {$sidebarState.left ===
 		'full'
 			? 'left-[220px] '
 			: 'left-0 '}"
 	>
-		<div class="fixed top-0 flex items-center justify-between {$toggleLeftSidebar === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}">
+		<div class="fixed top-0 flex items-center justify-between {$sidebarState.left === 'full' ? 'left-[220px] w-full' : 'left-0 w-screen'}">
 			<PageTitle name="Edit Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
 
 			<div class="flex gap-2">

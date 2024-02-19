@@ -65,14 +65,13 @@ export async function load(event: any) {
 		uniqueImageFiles.map(async (file) => {
 			const mediaPath = `${PUBLIC_MEDIA_FOLDER}/${file}`; // Get the full path to the image
 			const mediaExt = path.extname(file).substring(1); // Get the extension
-			const mediaName = `${path.basename(file).split('.')[0]}.${mediaExt}`; // Get the name without hash
-			const hash = mediaName.slice(0, 64); // Get the hash
-			const onlyPath = mediaPath.substring(mediaPath.lastIndexOf('/') + 1); // Get the path only
+			const mediaName = `${path.basename(file).slice(0, -65)}.${mediaExt}`; // Remove last 64 characters (hash) from the file name // Get the name without hash
+			const hash = path.basename(file).slice(-64).split('.')[0]; // Get the hash
+			const onlyPath = mediaPath.substring(mediaPath.lastIndexOf('/') + 1, mediaPath.lastIndexOf('.') - 64);
 
 			const thumbnail = `${PUBLIC_MEDIA_FOLDER}/${file}`;
 			const size = await getFileSize(mediaPath);
 			const hasPermission = hasFilePermission(user, file); // Check permission
-
 			// Check if this image has the same hash as a previously seen image
 			if (thumbnailImages.has(hash)) {
 				return null; // Skip if a thumbnail for this hash already found

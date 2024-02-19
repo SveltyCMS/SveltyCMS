@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Stores
-	import { toggleLeftSidebar } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
 
 	// Components
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
@@ -24,7 +24,7 @@
 </script>
 
 <div
-	class="fixed -top-16 left-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$toggleLeftSidebar === 'full'
+	class="fixed -top-16 left-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$sidebarState.left === 'full'
 		? 'w-[220px]'
 		: 'w-full'}"
 >

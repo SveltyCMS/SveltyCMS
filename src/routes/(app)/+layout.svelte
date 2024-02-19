@@ -26,8 +26,7 @@
 
 	// Stores
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, defaultContentLanguage, systemLanguage } from '@stores/store';
-	import { handleSidebarToggle, toggleLeftSidebar, toggleRightSidebar, togglePageHeader, togglePageFooter } from '@stores/sidebarStore';
+	import { collections, collection, collectionValue, contentLanguage, defaultContentLanguage, systemLanguage, mode } from '@stores/store';
 	import { page } from '$app/stores';
 	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
@@ -45,20 +44,7 @@
 	import Footer from '@src/components/Footer.svelte';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
-	$: handleSidebarToggle();
-
-	// smooth view transitions via browser (only chrome)
-	import { onNavigate } from '$app/navigation';
-	onNavigate((navigation) => {
-		if (!(document as any).startViewTransition) return;
-
-		return new Promise((resolve) => {
-			(document as any).startViewTransition(async () => {
-				resolve();
-				await navigation.complete;
-			});
-		});
-	});
+	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -74,7 +60,6 @@
 	// Subscribe to changes in the collection store and do redirects
 	let initial = true;
 	collection.subscribe(() => {
-		// console.log(!$collection, !$page.params.language);
 		if (!$collection) return;
 
 		// Reset the value of the collectionValue store
@@ -89,15 +74,12 @@
 		ForwardBackward = false;
 	});
 
-	// contentLanguage.set($page.params.language);
-
 	// Setup system language
 	systemLanguage.subscribe((lang) => {
 		if (!lang) return;
 
 		const dir = getTextDirection(lang);
 		if (!dir) return;
-		// console.log(dir);
 
 		// This need be replace with svelte equivalent code
 		const rootNode = document.body?.parentElement;
@@ -116,11 +98,8 @@
 
 	// Define the onKeyDown function at the top level of the script block
 	const onKeyDown = (event: KeyboardEvent) => {
-		//console.log('Key pressed:', event.key);
-		// alt+s is equivalent to 's' key and event.altKey
 		if (event.altKey && event.key === 's') {
 			toggleSearchVisibility();
-			// If needed, prevent the default action of "alt+s"
 			event.preventDefault();
 		}
 	};
@@ -196,15 +175,15 @@
 	{:else}
 		<AppShell
 			slotSidebarLeft="relative pt-2 !overflow-visible dark:bg-gradient-to-r bg-white dark:from-surface-700 dark:to-surface-900 text-center h-full relative border-r !px-2 dark:border-surface-500 flex flex-col z-10
-{$toggleLeftSidebar === 'full' ? 'w-[220px]' : 'w-fit'}
-{$toggleLeftSidebar === 'closed' ? 'hidden' : 'block'}
-lg:overflow-y-scroll lg:max-h-screen}"
+	{$sidebarState.left === 'full' ? 'w-[220px]' : 'w-fit'}
+	{$sidebarState.left === 'hidden' ? 'hidden' : 'block'}
+	lg:overflow-y-scroll lg:max-h-screen}"
 			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-surface-50 border-l dark:border-surface-500 bg-gradient-to-r dark:from-surface-700 dark:to-surface-900 text-center p-2
-	{$toggleRightSidebar === 'closed' ? 'hidden' : 'block'}"
-			slotPageHeader=" relative bg-surface-50 bg-gradient-to-t dark:from-surface-700 dark:to-surface-900 text-center px-1  border-b dark:border-surface-500
-	{$togglePageHeader === 'closed' ? 'hidden' : 'block'}"
-			slotPageFooter="relative bg-surface-50 bg-gradient-to-b dark:from-surface-700 dark:to-surface-900 text-center px-1  border-t dark:border-surface-500
-	{$togglePageFooter === 'closed' ? 'hidden' : 'block'}"
+	{$sidebarState.right === 'hidden' ? 'hidden' : 'block'}"
+			slotPageHeader=" relative bg-surface-50 bg-gradient-to-t dark:from-surface-700 dark:to-surface-900 text-center px-1 border-b dark:border-surface-500
+	{$sidebarState.header === 'hidden' ? 'hidden' : 'block'}"
+			slotPageFooter="relative bg-surface-50 bg-gradient-to-b dark:from-surface-700 dark:to-surface-900 text-center px-1 border-t dark:border-surface-500
+			{$sidebarState.footer === 'hidden' ? 'hidden' : 'block'}"
 		>
 			<svelte:fragment slot="sidebarLeft">
 				<LeftSidebar />
@@ -219,9 +198,8 @@ lg:overflow-y-scroll lg:max-h-screen}"
 			</svelte:fragment>
 
 			<!-- Router Slot -->
-			<div on:keydown={onKeyDown} class={$toggleLeftSidebar === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'}>
+			<div on:keydown={onKeyDown} class={$sidebarState.left === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'}>
 				{#key $page.url}
-					<!-- <div in:fly|global={{ x: -200, duration: 200 }} out:fly|global={{ x: 200, duration: 200 }}> -->
 					<Modal />
 					<Toast />
 
@@ -232,6 +210,12 @@ lg:overflow-y-scroll lg:max-h-screen}"
 					{/if}
 
 					<slot />
+					<!-- <div>mode : {$mode}</div>
+					<div>screenWidth : {$screenWidth}</div>
+					<div>sidebarState.left : {$sidebarState.left}</div>
+					<div>sidebarState.right : {$sidebarState.right}</div>
+					<div>sidebarState.header : {$sidebarState.header}</div>
+					<div>sidebarState.footer : {$sidebarState.footer}</div> -->
 				{/key}
 			</div>
 

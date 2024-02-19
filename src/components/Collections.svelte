@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { mode, collection, categories } from '@stores/store';
-	import { screenWidth, toggleLeftSidebar } from '@stores/sidebarStore';
+	import { screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
 	// let user: User = $page.data.user;
@@ -91,11 +91,15 @@
 <!-- displays all collection parents and their Children as accordion -->
 <div class="mt-2 overflow-y-auto">
 	<!-- Search -->
-	{#if $toggleLeftSidebar === 'collapsed'}
+	{#if $sidebarState.left === 'collapsed'}
 		<button
 			type="button"
 			on:click={() => {
-				toggleLeftSidebar.click('full');
+				if (get(screenWidth) === 'mobile') {
+					toggleSidebar('left', 'hidden');
+				} else {
+					sidebarState.update((state) => ({ ...state, left: 'full' }));
+				}
 				searchShow = true;
 			}}
 			class="input btn mb-2 w-full"
@@ -143,7 +147,7 @@
 			<AccordionItem
 				bind:open={category.open}
 				regionPanel={`divide-y dark:divide-black my-0 ${
-					category.collections.length > 5 ? ($toggleLeftSidebar === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
+					category.collections.length > 5 ? ($sidebarState.left === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
 				} overflow-y-auto`}
 				class="divide-y rounded-md bg-surface-300 dark:divide-black "
 			>
@@ -152,8 +156,8 @@
 					<iconify-icon icon={category.icon} width="24" class="text-error-500 rtl:ml-2" use:popup={popupCollections} />
 				</svelte:fragment>
 
-				<svelte:fragment slot="summary"
-					>{#if $toggleLeftSidebar === 'full'}
+				<svelte:fragment slot="summary">
+					{#if $sidebarState.left === 'full'}
 						<!-- TODO: Translation not updating -->
 						<p class="text-white">{category.name}</p>
 					{/if}
@@ -168,7 +172,7 @@
 					<!-- filtered by User Role Permission -->
 
 					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user.role]?.read != false) as _collection, index}
-						{#if $toggleLeftSidebar === 'full'}
+						{#if $sidebarState.left === 'full'}
 							<!-- switchSideBar expanded -->
 							<div
 								role="button"
@@ -206,14 +210,14 @@
 	</Accordion>
 
 	<!-- Gallery -->
-	{#if $toggleLeftSidebar === 'full'}
+	{#if $sidebarState.left === 'full'}
 		<!-- switchSideBar expanded -->
 		<a
 			href="/mediagallery"
 			class="btn mt-1 flex flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
-					toggleLeftSidebar.clickBack();
+					toggleSidebar('left', 'hidden');
 				}
 			}}
 		>
@@ -227,7 +231,7 @@
 			class="btn mt-2 flex flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
 				if (get(screenWidth) === 'mobile') {
-					toggleLeftSidebar.clickBack();
+					toggleSidebar('left', 'hidden');
 				}
 			}}
 		>

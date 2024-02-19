@@ -3,9 +3,6 @@
 	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
 	import { formatSize } from '@utils/utils';
 
-	// Stores
-	import { globalSearchIndex } from '@utils/globalSearchIndex';
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -79,7 +76,7 @@
 		localStorage.setItem('GalleryUserPreference', userPreference);
 	}
 
-	function filterData(searchValue, data) {
+	function filterData(searchValue: any, data: any) {
 		if (!searchValue) return data;
 
 		return data.filter((item) => {
@@ -380,7 +377,7 @@
 						<!-- Edit/Delete Image -->
 						<div class="absolute left-0 top-0 z-20 flex w-full justify-between p-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
 							<!-- Edit button -->
-							<a href={`/imageEditor/${encodeURIComponent(image.thumbnail)}/edit`}>
+							<a href={`/imageEditor/${encodeURIComponent(image.path)}`}>
 								<button class="variant-filled-tertiary btn-icon">
 									<iconify-icon icon="mdi:pen" width="20" class="" />
 								</button>
