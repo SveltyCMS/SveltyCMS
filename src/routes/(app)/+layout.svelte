@@ -198,7 +198,7 @@
 			</svelte:fragment>
 
 			<!-- Router Slot -->
-			<div on:keydown={onKeyDown} class={$sidebarState.left === 'full' ? 'mx-2 mt-1' : 'mx-1 mt-1'}>
+			<div on:keydown={onKeyDown} class={$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}>
 				{#key $page.url}
 					<Modal />
 					<Toast />
@@ -210,6 +210,7 @@
 					{/if}
 
 					<slot />
+
 					<!-- <div>mode : {$mode}</div>
 					<div>screenWidth : {$screenWidth}</div>
 					<div>sidebarState.left : {$sidebarState.left}</div>

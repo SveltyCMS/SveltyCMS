@@ -244,7 +244,7 @@
 		<!-- User Token invites -->
 
 		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
-			<h2 class="order-1 font-bold text-black text-primary-500">{m.adminarea_listtoken()}</h2>
+			<h2 class="order-1 font-bold text-black dark:text-primary-500">{m.adminarea_listtoken()}</h2>
 
 			<div class="order-3 sm:order-2">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
@@ -274,7 +274,7 @@
 				on:rowSelect={handleCRUDAction}
 			/>
 		{:else}
-			<div class="variant-ghost-error btn text-center font-bold">{m.adminarea_notoken()}</div>
+			<div class="variant-ghost-error py-2 text-center font-bold">{m.adminarea_notoken()}</div>
 		{/if}
 	{/if}
 </div>

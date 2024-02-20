@@ -109,7 +109,7 @@ export const handleSidebarToggle = () => {
 			toggleSidebar('header', 'hidden');
 			toggleSidebar('footer', 'hidden');
 		} else {
-			toggleSidebar('left', 'collapsed');
+			toggleSidebar('left', 'hidden');
 			toggleSidebar('right', 'hidden');
 			toggleSidebar('header', 'full');
 			toggleSidebar('footer', 'full');
