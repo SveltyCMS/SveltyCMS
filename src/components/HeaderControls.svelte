@@ -69,7 +69,7 @@
 </script>
 
 <header
-	class="relative flex w-full items-center justify-between {showMore
+	class="sticky top-0 z-10 flex w-full items-center justify-between {showMore
 		? ''
 		: 'border-b'} border-secondary-600-300-token bg-white p-2 dark:bg-surface-700"
 >

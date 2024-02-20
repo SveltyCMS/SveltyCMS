@@ -105,16 +105,7 @@
 					/>
 				</div>
 
-				<!-- Revision -->
 				{#if $mode == 'edit'}
-					<div class="gradient-secondary btn flex w-full items-center justify-between text-white">
-						Revisions:
-						<div class="variant-outline-primary badge ml-2 rounded-full px-3 py-0 text-lg text-primary-500">
-							<iconify-icon icon="pepicons-pop:countdown" width="18" />
-							<div class="text-white">{$entryData.__v}</div>
-						</div>
-					</div>
-
 					<!--Clone -->
 					<button
 						type="button"
