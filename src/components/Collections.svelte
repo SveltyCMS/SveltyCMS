@@ -83,9 +83,6 @@
 		// Return filtered categories
 		return filteredCategories;
 	}
-
-	// Call the filterCategories function with the current search value
-	//console.log(filteredCategories);
 </script>
 
 <!-- displays all collection parents and their Children as accordion -->
@@ -140,15 +137,16 @@
 	{/if}
 
 	<!-- TODO: Apply Tooltip for collapsed  -->
-	<Accordion regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
+	<Accordion autocollapse regionControl="btn bg-surface-400 dark:bg-surface-500 uppercase text-white hover:!bg-surface-300">
 		<!-- Collection Parents -->
 		{#each filteredCategories as category}
-			<!-- TODO: Only keep one accordion open -->
+			<!-- TODO: perhaps calc max-height minus media -->
+			<!-- ${
+				category.collections.length > 5 ? ($sidebarState.left === 'full' ? 'max-h-80' : 'max-h-[256px]') : ''
+			} -->
 			<AccordionItem
 				bind:open={category.open}
-				regionPanel={`divide-y dark:divide-black my-0 ${
-					category.collections.length > 5 ? ($sidebarState.left === 'full' ? 'max-h-72' : 'max-h-[256px]') : ''
-				} overflow-y-auto`}
+				regionPanel={`divide-y dark:divide-black my-0  overflow-y-auto`}
 				class="divide-y rounded-md bg-surface-300 dark:divide-black "
 			>
 				<svelte:fragment slot="lead">

@@ -33,6 +33,7 @@
 		<option {value}>{value.toUpperCase()}</option>
 	{/each}
 </select>
+
 <!-- Desktop -->
 <select
 	class="variant-ghost-surface hidden rounded border-surface-500 dark:text-white md:block"

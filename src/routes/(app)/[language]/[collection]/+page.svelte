@@ -38,13 +38,11 @@
 	});
 </script>
 
-<div class="content max-h-[calc(100vh-400px)] flex-grow overflow-hidden">
+<div class="content">
 	{#if $mode == 'view'}
 		<!-- <EntryList /> -->
 		<EntryListNew />
 	{:else}
-		<div class="max-h-full overflow-auto">
-			<Fields />
-		</div>
+		<Fields />
 	{/if}
 </div>

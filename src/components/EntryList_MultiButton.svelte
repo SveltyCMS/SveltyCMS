@@ -21,8 +21,10 @@
 			handleSidebarToggle();
 		} else {
 			mode.set('view');
-			// console.log('EntryListMultibutton.svelte', $mode);
+			3;
+			console.log('storeListboxValue', $storeListboxValue);
 			$modifyEntry($storeListboxValue);
+			console.log('modifyEntry', $modifyEntry);
 			handleSidebarToggle();
 		}
 

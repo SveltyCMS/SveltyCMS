@@ -78,8 +78,13 @@
 
 	// Tick Row - modify STATUS of an Entry
 	let tickMap = {}; // Object to track ticked rows
+	console.log('mode', $mode);
+	console.log('$modifyEntry', $modifyEntry);
+	console.log('tickMap', tickMap);
 
 	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => {
+		console.log('modifyEntry called');
+
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 
@@ -87,6 +92,8 @@
 		for (let item in tickMap) {
 			// If the item is ticked, add its ID to the modifyList
 			tickMap[item] && modifyList.push(tableData[item]._id);
+			// Log each item in tickMap
+			console.log(`tickMap[${item}]`, tickMap[item]);
 		}
 
 		// If no items are ticked, exit the function
@@ -114,19 +121,23 @@
 		// Use the status to determine which API endpoint to call and what HTTP method to use
 		switch (status) {
 			case 'delete':
+				console.log('delete called');
 				// If the status is 'Delete', call the delete endpoint
 				await axios.delete(`/api/${$collection.name}`, { data: formData });
 				break;
 			case 'publish':
 			case 'unpublish':
 			case 'test':
+				console.log('setStatus called');
 				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 			case 'clone':
+				console.log('clone called');
 				await axios.post(`/api/${$collection.name}/clone`, formData);
 				break;
 			case 'schedule':
+				console.log('schedule called');
 				await axios.post(`/api/${$collection.name}/schedule`, formData);
 				break;
 		}
@@ -137,8 +148,6 @@
 		// Set the mode to 'view'
 		mode.set('view');
 	};
-
-	// console.log('$modifyEntry called', $modifyEntry);
 
 	// Data for the array of column fields
 	$: columnFields = [
@@ -159,9 +168,9 @@
 </script>
 
 <!-- Header -->
-<div class="mb-2 flex justify-between dark:text-white">
+<div class="sticky top-1 z-10 mb-2 flex justify-between bg-black pb-1 dark:text-white">
 	<!-- Row 1 for Mobile -->
-	<div class="flex items-center justify-between">
+	<div class=" flex items-center justify-between">
 		<!-- Hamburger -->
 		{#if $sidebarState.left === 'hidden'}
 			<button
@@ -195,12 +204,19 @@
 	</button>
 
 	<div class="relative hidden items-center justify-center gap-2 sm:flex">
-		<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
+		<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 		<TranslationStatus />
 	</div>
 
 	<!-- MultiButton -->
 	<EntryListMultiButton />
+
+	<!-- Row 2 for Mobile  / Center on desktop -->
+	<!-- TODO:add  expand transition -->
+	<div class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow ? 'hidden' : 'block'} sm:hidden">
+		<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+		<TranslationStatus />
+	</div>
 </div>
 
 {#if isLoading}

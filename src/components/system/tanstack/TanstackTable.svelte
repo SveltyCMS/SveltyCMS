@@ -193,7 +193,7 @@
 	selectedMap.subscribe((map) => {
 		// Create a new array of selected rows
 		selectedRows = Object.keys(map) // Get all keys from the map
-			.filter((key) => map[key]) // Filter out keys where the value is falsey
+			.filter((key) => map[key]) // Filter out keys where the value is falsy
 			.map((key, index) => ({
 				// Map each key to a new object
 				index, // Keep the original index
