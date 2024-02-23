@@ -40,8 +40,8 @@
 
 <div class="content">
 	{#if $mode == 'view'}
-		<!-- <EntryList /> -->
-		<EntryListNew />
+		<EntryList />
+		<!-- <EntryListNew /> -->
 	{:else}
 		<Fields />
 	{/if}

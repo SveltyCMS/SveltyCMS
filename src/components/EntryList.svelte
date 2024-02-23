@@ -76,6 +76,7 @@
 					for (let field of $collection.fields) {
 						if ('callback' in field) {
 							field.callback({ data });
+							handleSidebarToggle();
 						}
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],

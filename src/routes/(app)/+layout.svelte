@@ -44,7 +44,7 @@
 	import Footer from '@src/components/Footer.svelte';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
-	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { screenWidth, sidebarState } from '@stores/sidebarStore';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -211,12 +211,12 @@
 
 					<slot />
 
-					<!-- <div>mode : {$mode}</div>
+					<div>mode : {$mode}</div>
 					<div>screenWidth : {$screenWidth}</div>
 					<div>sidebarState.left : {$sidebarState.left}</div>
 					<div>sidebarState.right : {$sidebarState.right}</div>
 					<div>sidebarState.header : {$sidebarState.header}</div>
-					<div>sidebarState.footer : {$sidebarState.footer}</div> -->
+					<div>sidebarState.footer : {$sidebarState.footer}</div>
 				{/key}
 			</div>
 

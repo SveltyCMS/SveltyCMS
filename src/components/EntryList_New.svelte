@@ -27,9 +27,11 @@
 	import TranslationStatus from './TranslationStatus.svelte';
 	import { get } from 'svelte/store';
 
-	let data: any = [];
+	// let data: any = [];
 
-	//let data: { entryList: [any]; totalCount: number } | undefined;
+	let data: { entryList: [any]; totalCount: number } | undefined;
+
+	console.log('data', data);
 	let tableData: any = [];
 	let columnFields: any[] = []; // Declare columnFields variables
 
@@ -72,15 +74,17 @@
 					return obj;
 				})
 			));
+
+		console.log('data', data);
 	};
 
 	$: refresh();
 
 	// Tick Row - modify STATUS of an Entry
 	let tickMap = {}; // Object to track ticked rows
-	console.log('mode', $mode);
-	console.log('$modifyEntry', $modifyEntry);
-	console.log('tickMap', tickMap);
+	// console.log('mode', $mode);
+	// console.log('$modifyEntry', $modifyEntry);
+	// console.log('tickMap', tickMap);
 
 	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => {
 		console.log('modifyEntry called');
@@ -160,15 +164,24 @@
 		...$collection.fields.map((field) => ({
 			header: field.label,
 			accessorKey: field.label,
-			id: field.label
+			id: field.label,
+			cell: (info: any) => {
+				if (field.label === 'Image') {
+					// If the field is an image
+					const imageUrl = info.getValue('Image')?.thumbnail?.url; // Adjust 'thumbnail' to the desired size
+					return imageUrl ? `<img class='max-w-[200px] max-h-[150px] inline-block' src="${imageUrl}" />` : '';
+				} else {
+					return info.getValue(field.label); // Fallback to rendering the value directly
+				}
+			}
 		}))
 	];
 
-	// $: console.log('columnFields', columnFields);
+	$: console.log('columnFields', columnFields);
 </script>
 
 <!-- Header -->
-<div class="sticky top-1 z-10 mb-2 flex justify-between bg-black pb-1 dark:text-white">
+<div class="sticky top-1 z-10 mb-2 flex justify-between pb-1 dark:text-white">
 	<!-- Row 1 for Mobile -->
 	<div class=" flex items-center justify-between">
 		<!-- Hamburger -->

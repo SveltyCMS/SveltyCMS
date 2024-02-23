@@ -1,12 +1,15 @@
 <script lang="ts">
 	// Stores
-	import { collectionValue, contentLanguage, collection } from '@stores/store';
+	import { collectionValue, contentLanguage, collection, entryData } from '@stores/store';
 
 	// Skeleton
 	import { TabGroup, Tab, TabAnchor, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
 	let tabSet: number = 0;
 
-	// console.log($entryData);
+	import { dev } from '$app/environment';
+	import { PUBLIC_SITENAME } from '$env/static/public';
+	import HighlightedText from './HighlightedText.svelte';
+
 	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;
@@ -15,6 +18,26 @@
 	export let customData = {};
 
 	$: if (root) $collectionValue = fieldsData;
+
+	// Debug output
+	// console.log('fields:', fields);
+	// console.log('root:', root);
+	// console.log('fieldsData:', fieldsData);
+	// console.log('customData:', customData);
+	// console.log('collection:', $collection);
+	// console.log('collectionValue:', collectionValue);
+	// console.log($entryData);
+
+	let apiUrl = '';
+
+	$: if ($entryData) {
+		const id = $entryData._id; // Assuming _id is the property containing the ID
+		apiUrl = `${dev ? 'http://localhost:5173' : PUBLIC_SITENAME}/api/${$collection.name}/${id}`;
+	}
+
+	function handleRevert(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
+		alert('Function not implemented.');
+	}
 </script>
 
 <TabGroup
@@ -112,7 +135,7 @@
 			<!-- Revision -->
 			<div class="mb-2 flex items-center justify-between gap-2">
 				<p class="text-center text-primary-500">Compare Revision against:</p>
-				<button class="variant-ghost-primary btn">Revert</button>
+				<button class="variant-ghost-primary btn" on:click={handleRevert}>Revert</button>
 			</div>
 			<!-- dropdown -->
 			<select class="select mb-2">
@@ -120,42 +143,59 @@
 				<option value="2">February 19th 2024, 4:00 PM</option>
 			</select>
 
-			<div class="flex items-center justify-between dark:text-white">
+			<div class="flex justify-between dark:text-white">
 				<!-- Current version -->
 				<div class="text-center">
 					Current version
-					<code class="code">text here</code>
+					<CodeBlock
+						color="text-white dark:text-primary-500"
+						language="JSON"
+						rounded="rounded-container-token"
+						lineNumbers={true}
+						text="text-xs text-left w-full"
+						buttonLabel=""
+						code={JSON.stringify($entryData, null, 2)}
+					/>
 				</div>
-				<div class="inline-block w-0.5 self-stretch bg-neutral-100 opacity-100 dark:opacity-50" />
+				<div
+					class=" min-h-[1em] w-px self-stretch bg-gradient-to-tr from-transparent via-neutral-500 to-transparent opacity-20 dark:opacity-100"
+				></div>
 				<!-- Revision version -->
-				<div class="ml-2">
+				<div class="ml-2 text-left">
 					February 19th 2024, 4:00 PM
-					<code class="code">text here</code>
+					<!-- <HighlightedText text={JSON.stringify($entryData, null, 2)} term="bg-red-100" /> -->
+					<CodeBlock
+						on:copy={handleRevert}
+						color="text-white dark:text-primary-500"
+						language="JSON"
+						lineNumbers={true}
+						text="text-xs text-left text-white dark:text-primary-500"
+						buttonLabel="Revert"
+						code={JSON.stringify($entryData, null, 2)}
+					/>
 				</div>
 			</div>
 		{:else if tabSet === 2}
 			<!-- API Json -->
-
-			{#if $collectionValue != null}
+			{#if $entryData == null}
 				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">No Data yet</div>
 			{:else}
 				<div class="mb-4 flex items-center gap-1">
-					<button class="btn"
-						>API URL <iconify-icon
-							icon="ph:copy"
-							use:clipboard={'/api/posts/65d504cbc076935f7f8d8a1b?locale=undefined&draft=true&depth=0'}
-						/>:</button
-					>
-					<code class="code text-wrap">/api/posts/65d504cbc076935f7f8d8a1b?locale=undefined&draft=true&depth=0</code>
+					<button class="btn">
+						API URL
+						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} />
+						:
+					</button>
+					<code class="code text-wrap">{apiUrl}</code>
 				</div>
 
 				<CodeBlock
-					color="dark:text-primary-500"
+					color="text-white dark:text-primary-500"
 					language="JSON"
 					lineNumbers={true}
 					text="text-xs w-full"
 					buttonLabel="Copy"
-					code={JSON.stringify($collectionValue, null, 2)}
+					code={JSON.stringify($entryData, null, 2)}
 				></CodeBlock>
 			{/if}
 		{/if}

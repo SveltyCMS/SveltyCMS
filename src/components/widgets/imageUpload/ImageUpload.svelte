@@ -66,11 +66,22 @@
 
 	// Gets Thumbnail data
 	async function fetchImage() {
+		if (!entryData || !fieldName) {
+			console.error('Error fetching Image: entryData or fieldName is not defined');
+			return;
+		}
+
+		const thumbnail = $entryData[fieldName]?.thumbnail; // Ensure thumbnail exists
+		if (!thumbnail || !thumbnail.url) {
+			console.error('Error fetching Image: Thumbnail or URL is not defined');
+			return; // Exit if there's no thumbnail or URL
+		}
+
 		try {
-			const { data, headers } = await axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' });
+			const { data, headers } = await axios.get(thumbnail.url, { responseType: 'blob' });
 			const fileList = new DataTransfer();
-			const file = new File([data], $entryData[fieldName].thumbnail.name, {
-				type: headers['content-type'] || $entryData[fieldName].mimetype
+			const file = new File([data], thumbnail.name, {
+				type: headers['content-type'] || thumbnail.mimetype || 'application/octet-stream'
 			});
 			fileList.items.add(file);
 			_data = fileList.files;

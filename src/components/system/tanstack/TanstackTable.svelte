@@ -306,7 +306,7 @@
 
 	$: availablePageSizes = calculateAvailablePageSizes(filteredData.length, pageSizeOptions);
 
-	//console.log('items', items);
+	//console.log('Tanstack tableData', tableData);
 </script>
 
 <!-- TanstackHeader -->
@@ -447,10 +447,12 @@
 				<tr
 					on:keydown
 					on:click={() => {
+						console.log('row.original:', row.original);
 						entryData.set(row.original);
+						console.log('entryData.set(row.original)', entryData.set(row.original));
+
 						mode.set('edit');
 						handleSidebarToggle();
-						// console.log(row.original);
 					}}
 					class="bg-white last:border-0 dark:bg-surface-900"
 				>
@@ -463,6 +465,7 @@
 								selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
 								mode.set('edit');
 								handleSidebarToggle();
+								console.log('$selectedMap[row.id]', $selectedMap[row.id]);
 							}}
 							class="ml-1"
 						/>

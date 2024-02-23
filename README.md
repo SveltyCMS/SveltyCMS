@@ -130,11 +130,24 @@ If you require a different look, use the [skeleton theme generator](https://www.
 
 ## :earth_africa: Great System Localization i18n infrastructure
 
+<table>
+<tr>
+<td>
+
 We use [Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs), the best i18n library together with [inlang](https://inlang.com/) ecosystem for first class System Translations with full typescript support.
 
 Our System Translations are available at: [inlang](https://inlang.com/editor/github.com/Rar9/SveltyCMS) and can easily be extended.
 
 If a language has not yet been defined, reach out to us, so that you can help extend the System Localization.
+
+</td>
+<td>
+
+[![inlang status badge](https://badge.inlang.com/?url=github.com/Rar9/SveltyCMS)](https://fink.inlang.com/github.com/Rar9/SveltyCMS?ref=badge)
+
+</td>
+</tr>
+</table>
 
 ## :clipboard: Easily create Data Collections
 

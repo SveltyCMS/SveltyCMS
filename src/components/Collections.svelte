@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { mode, collection, categories } from '@stores/store';
-	import { screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 
 	// let user: User = $page.data.user;
@@ -178,7 +178,13 @@
 								class="-mx-4 flex flex-row items-center bg-surface-300 py-1 pl-3 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
 								on:keydown
 								on:click={() => {
-									mode.set(modeSet);
+									if ($mode === 'edit') {
+										mode.set('view');
+										handleSidebarToggle();
+									} else {
+										mode.set(modeSet);
+									}
+
 									collection.set(_collection);
 								}}
 							>
@@ -193,7 +199,13 @@
 								class="-mx-4 flex flex-col items-center py-1 hover:bg-surface-400 hover:text-white dark:text-black hover:dark:text-white"
 								on:keydown
 								on:click={() => {
-									mode.set(modeSet);
+									if ($mode === 'edit') {
+										mode.set('view');
+										handleSidebarToggle();
+									} else {
+										mode.set(modeSet);
+									}
+
 									collection.set(_collection);
 								}}
 							>

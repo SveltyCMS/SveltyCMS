@@ -22,10 +22,21 @@
 		shouldShowNextButton.set(false);
 	});
 
-	const user = 'admin';
-	// const user = $page.data.user;
+	//const user = 'admin';
+	const user = $page.data.user;
 
-	$: publishValue = $entryData.status === 'published' ? true : false;
+	// Map the status to boolean
+	console.log('Status', $entryData?.status);
+	let isPublished = $entryData?.status === 'published';
+	console.log('isPublished', isPublished);
+
+	// Function to toggle the status
+	function toggleStatus() {
+		isPublished = !isPublished;
+		$entryData.status = isPublished ? 'published' : 'unpublished';
+		$entryData.updatedAt = new Date();
+		$entryData.save();
+	}
 
 	// Convert timestamp to Date string
 	$: dates = {
@@ -93,15 +104,11 @@
 				<!-- Publish/Unpublish -->
 				<div class="gradient-secondary btn w-full gap-2">
 					<Toggles
-						label={publishValue ? 'Unpublished' : 'Published'}
-						labelColor={publishValue ? 'text-error-500' : 'text-primary-500'}
-						icon={publishValue ? 'ic:baseline-check-circle' : 'material-symbols:close'}
-						bind:value={publishValue}
-						on:toggle={() => {
-							$entryData.status = publishValue ? 'unpublished' : 'published';
-							$entryData.updatedAt = new Date();
-							$entryData.save();
-						}}
+						label={isPublished ? 'Published' : 'Unpublished'}
+						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
+						icon={isPublished ? 'ic:baseline-check-circle' : 'material-symbols:close'}
+						bind:value={isPublished}
+						on:toggle={toggleStatus}
 					/>
 				</div>
 
