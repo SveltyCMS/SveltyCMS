@@ -8,7 +8,6 @@
 	//skeleton
 	import {
 		initializeStores,
-		AppShell,
 		Modal,
 		Toast,
 		setModeUserPrefers,
@@ -41,7 +40,7 @@
 	import LeftSidebar from '@src/components/LeftSidebar.svelte';
 	import RightSidebar from '@src/components/RightSidebar.svelte';
 	import HeaderControls from '@components/HeaderControls.svelte';
-	import Footer from '@src/components/Footer.svelte';
+	import PageFooter from '@src/components/PageFooter.svelte';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	import { screenWidth, sidebarState } from '@stores/sidebarStore';
@@ -173,57 +172,86 @@
 	{#if $page.url.pathname === '/login'}
 		<slot />
 	{:else}
-		<AppShell
-			slotSidebarLeft="relative pt-2 !overflow-visible dark:bg-gradient-to-r bg-white dark:from-surface-700 dark:to-surface-900 text-center h-full relative border-r !px-2 dark:border-surface-500 flex flex-col z-10
-	{$sidebarState.left === 'full' ? 'w-[220px]' : 'w-fit'}
-	{$sidebarState.left === 'hidden' ? 'hidden' : 'block'}
-	lg:overflow-y-scroll lg:max-h-screen}"
-			slotSidebarRight="h-full relative border-r w-[200px] flex flex-col items-center bg-surface-50 border-l dark:border-surface-500 bg-gradient-to-r dark:from-surface-700 dark:to-surface-900 text-center p-2
-	{$sidebarState.right === 'hidden' ? 'hidden' : 'block'}"
-			slotPageHeader=" relative bg-surface-50 bg-gradient-to-t dark:from-surface-700 dark:to-surface-900 text-center px-1 border-b dark:border-surface-500
-	{$sidebarState.header === 'hidden' ? 'hidden' : 'block'}"
-			slotPageFooter="relative bg-surface-50 bg-gradient-to-b dark:from-surface-700 dark:to-surface-900 text-center px-1 border-t dark:border-surface-500
-			{$sidebarState.footer === 'hidden' ? 'hidden' : 'block'}"
-		>
-			<svelte:fragment slot="sidebarLeft">
-				<LeftSidebar />
-			</svelte:fragment>
+		<!-- Body -->
+		<div class="flex min-h-screen flex-col">
+			<!-- Header -->
+			<!-- {#if $sidebarState.header !== 'hidden'}
+				<header class="sticky top-0 z-10 bg-blue-500">
+				Header
+				</header>
+			{/if} -->
 
-			<svelte:fragment slot="sidebarRight">
-				<RightSidebar />
-			</svelte:fragment>
+			<div class="flex flex-1">
+				<!-- Sidebar Left -->
+				{#if $sidebarState.left !== 'hidden'}
+					<aside
+						class="{$sidebarState.left === 'full'
+							? 'w-[220px]'
+							: 'w-fit'}  relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+					>
+						<LeftSidebar />
+					</aside>
+				{/if}
 
-			<svelte:fragment slot="pageHeader">
-				<HeaderControls />
-			</svelte:fragment>
-
-			<!-- Router Slot -->
-			<div on:keydown={onKeyDown} class={$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}>
-				{#key $page.url}
-					<Modal />
-					<Toast />
-
-					<!-- TODO: Add Search Component -->
-					{#if $isSearchVisible == true}
-						<!-- Show search component -->
-						<SearchComponent />
+				<!-- Content Area -->
+				<main class="relative flex-1 overflow-auto">
+					<!-- Page Header -->
+					{#if $sidebarState.pageheader !== 'hidden'}
+						<header class="sticky top-0 z-10">
+							<HeaderControls />
+						</header>
 					{/if}
 
-					<slot />
+					<!-- Router Slot -->
+					<div on:keydown={onKeyDown} class="{$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} ">
+						{#key $page.url}
+							<Modal />
+							<Toast />
 
-					<div>mode : {$mode}</div>
-					<div>screenWidth : {$screenWidth}</div>
-					<div>sidebarState.left : {$sidebarState.left}</div>
-					<div>sidebarState.right : {$sidebarState.right}</div>
-					<div>sidebarState.header : {$sidebarState.header}</div>
-					<div>sidebarState.footer : {$sidebarState.footer}</div>
-				{/key}
+							<!-- TODO: Add Search Component -->
+							{#if $isSearchVisible == true}
+								<!-- Show search component -->
+								<SearchComponent />
+							{/if}
+
+							<slot />
+
+							<!-- <div>mode : {$mode}</div>
+							<div>screenWidth : {$screenWidth}</div>
+							<div>sidebarState.left : {$sidebarState.left}</div>
+							<div>sidebarState.right : {$sidebarState.right}</div>
+							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
+							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
+							<div>sidebarState.header : {$sidebarState.header}</div>
+							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
+						{/key}
+					</div>
+
+					<!-- Page Footer -->
+					{#if $sidebarState.pagefooter !== 'hidden'}
+						<footer
+							class="absolute bottom-0 left-0 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						>
+							<PageFooter />
+						</footer>
+					{/if}
+				</main>
+
+				<!-- Sidebar Right -->
+				{#if $sidebarState.right !== 'hidden'}
+					<aside class="border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
+						<RightSidebar />
+					</aside>
+				{/if}
 			</div>
 
-			<svelte:fragment slot="pageFooter">
-				<Footer />
-			</svelte:fragment>
-		</AppShell>
+			<!-- Footer -->
+			<!--{#if $sidebarState.footer !== 'hidden'}
+				<footer class="bg-blue-500">
+					 Footer Content 
+				</footer>
+			{/if}-->
+		</div>
 	{/if}
 {:catch error}
 	<div class="text-error-500">

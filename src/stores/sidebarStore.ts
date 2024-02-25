@@ -46,6 +46,8 @@ if (typeof window !== 'undefined') {
 export interface SidebarState {
 	left: 'hidden' | 'collapsed' | 'full';
 	right: 'hidden' | 'collapsed' | 'full';
+	pageheader: 'hidden' | 'collapsed' | 'full';
+	pagefooter: 'hidden' | 'collapsed' | 'full';
 	header: 'hidden' | 'collapsed' | 'full';
 	footer: 'hidden' | 'collapsed' | 'full';
 }
@@ -54,6 +56,8 @@ export interface SidebarState {
 const defaultState: SidebarState = {
 	left: getDefaultLeftState(),
 	right: 'hidden',
+	pageheader: 'hidden',
+	pagefooter: 'hidden',
 	header: 'hidden',
 	footer: 'hidden'
 };
@@ -93,38 +97,50 @@ export const handleSidebarToggle = () => {
 		if (get(mode) === 'view') {
 			toggleSidebar('left', 'hidden');
 			toggleSidebar('right', 'hidden');
+			toggleSidebar('pageheader', 'hidden');
+			toggleSidebar('pagefooter', 'hidden');
 			toggleSidebar('header', 'hidden');
 			toggleSidebar('footer', 'hidden');
 		} else {
 			toggleSidebar('left', 'hidden');
 			toggleSidebar('right', 'hidden');
-			toggleSidebar('header', 'full');
-			toggleSidebar('footer', 'full');
+			toggleSidebar('pageheader', 'full');
+			toggleSidebar('pagefooter', 'full');
+			toggleSidebar('header', 'hidden');
+			toggleSidebar('footer', 'hidden');
 		}
 		// Tablet
 	} else if (width === ScreenWidth.Tablet) {
 		if (get(mode) === 'view') {
 			toggleSidebar('left', 'collapsed');
 			toggleSidebar('right', 'hidden');
+			toggleSidebar('pageheader', 'hidden');
+			toggleSidebar('pagefooter', 'hidden');
 			toggleSidebar('header', 'hidden');
 			toggleSidebar('footer', 'hidden');
 		} else {
 			toggleSidebar('left', 'hidden');
 			toggleSidebar('right', 'hidden');
-			toggleSidebar('header', 'full');
-			toggleSidebar('footer', 'full');
+			toggleSidebar('pageheader', 'full');
+			toggleSidebar('pagefooter', 'full');
+			toggleSidebar('header', 'hidden');
+			toggleSidebar('footer', 'hidden');
 		}
 		// Desktop
 	} else if (width === ScreenWidth.Desktop) {
 		if (get(mode) === 'view') {
 			toggleSidebar('left', 'full');
 			toggleSidebar('right', 'hidden');
+			toggleSidebar('pageheader', 'hidden');
+			toggleSidebar('pagefooter', 'hidden');
 			toggleSidebar('header', 'hidden');
 			toggleSidebar('footer', 'hidden');
 		} else {
 			toggleSidebar('left', 'collapsed');
 			toggleSidebar('right', 'full');
-			toggleSidebar('header', 'full');
+			toggleSidebar('pageheader', 'full');
+			toggleSidebar('pagefooter', 'hidden');
+			toggleSidebar('header', 'hidden');
 			toggleSidebar('footer', 'hidden');
 		}
 	}
