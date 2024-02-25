@@ -6,35 +6,16 @@
 	import { page } from '$app/stores';
 	import { tick } from 'svelte';
 	import { motion } from '@src/utils/utils';
+
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
-	let buttonRadius = 25;
-	export let buttonInfo;
+	let buttonRadius = 25; // home button size
 	let showRoutes = false;
 	let center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-	window.onresize = async () => {
-		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
-		firstLine && firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
-		firstLine && firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
-		await tick();
-		firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
-	};
-
-	function getBasePath(pathname: string) {
-		let params = Object.values($page.params);
-		let replaced = params.reduce((acc, param) => {
-			acc = acc.replace(param, '');
-			return acc;
-		}, pathname);
-		return params.length > 0 ? replaced : pathname;
-	}
-	$: buttonInfo = { ...navigation_info?.[getBasePath($page.url.pathname)], ...{ radius: buttonRadius } } || {
-		x: 50,
-		y: window.innerHeight / 2,
-		radius: buttonRadius
-	};
 	let firstLine: SVGLineElement;
 	let firstCircle: HTMLDivElement;
+	let circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
+
 	let endpoints: {
 		x: number;
 		y: number;
@@ -53,13 +34,13 @@
 		{
 			x: 0,
 			y: 0,
-			url: { external: false, path: `/builder` },
+			url: { external: false, path: `/collection` },
 			icon: 'icomoon-free:wrench'
 		},
 		{
 			x: 0,
 			y: 0,
-			url: { external: false, path: `/profile` },
+			url: { external: false, path: `/user` },
 			icon: 'radix-icons:avatar'
 		},
 		{
@@ -67,9 +48,40 @@
 			y: 0,
 			url: { external: true, path: `/api/graphql` },
 			icon: 'teenyicons:graphql-outline'
+		},
+		{
+			x: 0,
+			y: 0,
+			url: { external: true, path: `/config` },
+			icon: 'mynaui:config'
 		}
 	];
-	let circles: HTMLDivElement[] = [];
+
+	export let buttonInfo: any;
+
+	window.onresize = async () => {
+		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		firstLine && firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
+		firstLine && firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
+		await tick();
+		firstLine && (firstLine.style.strokeDasharray = firstLine.getTotalLength().toString());
+	};
+
+	function getBasePath(pathname: string) {
+		let params = Object.values($page.params);
+		let replaced = params.reduce((acc, param) => {
+			acc = acc.replace(param, '');
+			return acc;
+		}, pathname);
+		return params.length > 0 ? replaced : pathname;
+	}
+
+	$: buttonInfo = { ...navigation_info?.[getBasePath($page.url.pathname)], ...{ radius: buttonRadius } } || {
+		x: 50,
+		y: window.innerHeight / 2,
+		radius: buttonRadius
+	};
+
 	// Function to calculate the coordinates of the endpoint of a vector
 	function calculateSecondVector(startX, startY, x1, y1, distance, angle) {
 		let firstAngle = Math.atan2(y1 - startY, x1 - startX) * (180 / Math.PI);
@@ -77,10 +89,14 @@
 		let y2 = Math.round(Math.sin(((firstAngle - angle) * Math.PI) / 180) * distance + y1);
 		return { x: x2, y: y2 };
 	}
-	$: endpoints[1] = { ...endpoints[1], ...calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 60) };
-	$: endpoints[2] = { ...endpoints[2], ...calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 0) };
-	$: endpoints[3] = { ...endpoints[3], ...calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, -60) };
 
+	// Calculate the coordinates of the endpoints
+	$: endpoints = endpoints.map((endpoint, index) => ({
+		...endpoint,
+		...(index === 0 ? {} : calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 40 * (index - 1)))
+	}));
+
+	// Show the routes when the component is visible
 	function drag(node: HTMLDivElement) {
 		let moved = false;
 		let timeout: ReturnType<typeof setTimeout>;
@@ -101,6 +117,7 @@
 			if (!moved) {
 				showRoutes = !showRoutes;
 			}
+
 			timeout && clearTimeout(timeout);
 			moved = false;
 			node.onpointermove = null;
@@ -114,6 +131,7 @@
 			];
 
 			let promise: any;
+
 			switch (distance.indexOf(Math.min(...distance))) {
 				case 0:
 					{
@@ -161,6 +179,8 @@
 			localStorage.setItem('navigation', JSON.stringify(navigation_info));
 		};
 	}
+
+	// Set the dash of the line
 	function setDash(node: SVGElement) {
 		let first = true;
 		for (let lineElement of node.children) {
@@ -173,6 +193,8 @@
 			}, 0);
 		}
 	}
+
+	// Reverse the dash
 	function reverse() {
 		if (!svg) return;
 		let first = true;
@@ -186,8 +208,10 @@
 			circle.style.display = 'none';
 		}
 	}
+
+	// Animate the dash
 	$: if (!showRoutes) reverse();
-	function keepAlive(node, { delay = 0, duration = 400, easing: easing$1 = linear } = {}) {
+	function keepAlive(node, { delay = 0, duration = 200, easing: easing$1 = linear } = {}) {
 		return {
 			delay,
 			duration,
@@ -197,10 +221,11 @@
 	}
 </script>
 
+<!-- Start  Nav Button-->
 <div
 	bind:this={firstCircle}
 	use:drag
-	class="circle relative flex touch-none items-center justify-center"
+	class="circle flex touch-none items-center justify-center bg-tertiary-500"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
 		buttonInfo.x,
 		window.innerWidth - buttonRadius
@@ -210,6 +235,8 @@
 >
 	<RoutesIcon />
 </div>
+
+<!-- Show the routes when the component is visible -->
 {#if showRoutes}
 	<button out:keepAlive|local on:click|self={() => (showRoutes = false)} class=" fixed left-0 top-0 z-[9999999]">
 		<svg bind:this={svg} xmlns="http://www.w3.org/2000/svg" use:setDash>
@@ -218,23 +245,27 @@
 				<line x1={center.x} y1={center.y} x2={endpoint.x} y2={endpoint.y} />
 			{/each}
 		</svg>
-		<!-- HOME -->
+
+		<!-- Home button -->
 		<div
 			transition:fade
-			class="shell"
+			class="absolute left-1/2 top-1/4 -z-10 !h-[340px] !w-[340px] -translate-x-1/2 -translate-y-1/2 rounded-full border bg-tertiary-500/40"
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		></div>
+
+		<!-- Other endpoint buttons -->
 		<div
 			bind:this={circles[0]}
 			on:click={() => {
 				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
 				showRoutes = false;
 			}}
-			class="circle flex items-center justify-center"
+			class="circle flex items-center justify-center bg-primary-500"
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		>
 			<iconify-icon width="30" style="color:white" icon="solar:home-bold" />
 		</div>
+
 		{#each endpoints.slice(1, endpoints.length) as endpoint, index}
 			<div
 				bind:this={circles[index + 1]}
@@ -242,47 +273,28 @@
 					endpoint?.url?.external ? (location.href = endpoint?.url?.path || '/') : goto(endpoint?.url?.path || '/');
 					showRoutes = false;
 				}}
-				class="circle flex items-center justify-center opacity-0"
+				class="circle flex items-center justify-center bg-tertiary-500 opacity-0"
 				style="top:{endpoint.y}px;left:{endpoint.x}px;animation: showEndPoints 0.2s 0.4s forwards"
 			>
+				<!-- Icon for the button -->
 				<iconify-icon width="30" style="color:white" icon={endpoint.icon} />
 			</div>
 		{/each}
 	</button>
 {/if}
 
-<style>
+<style lang="postcss">
 	div {
 		width: 100vw;
 		height: 100vh;
 	}
-	.shell {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		width: 340px;
-		height: 340px;
-		border-radius: 50%;
-		background-color: #37d1e759;
-		z-index: -1;
-		backdrop-filter: blur(15px);
-	}
-	svg {
-		position: fixed;
-		left: 0;
-		top: 0;
-		height: 100%;
-		width: 100%;
-		pointer-events: none;
-	}
+
 	.circle {
 		position: fixed;
 		transform: translate(-50%, -50%);
 		border-radius: 50%;
 		width: 50px;
 		height: 50px;
-		background-color: #26bdff;
 		cursor: pointer;
 		z-index: 99999999;
 	}
@@ -296,9 +308,18 @@
 		transform: translate(-50%, -50%) scale(0.9) !important;
 	}
 
+	svg {
+		position: fixed;
+		left: 0;
+		top: 0;
+		height: 100%;
+		width: 100%;
+		pointer-events: none;
+	}
+
 	line {
 		stroke: #da1f1f;
-		stroke-width: 4;
+		stroke-width: 3;
 		pointer-events: none;
 	}
 

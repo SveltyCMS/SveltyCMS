@@ -41,6 +41,7 @@
 	import RightSidebar from '@src/components/RightSidebar.svelte';
 	import HeaderControls from '@components/HeaderControls.svelte';
 	import PageFooter from '@src/components/PageFooter.svelte';
+	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
 	import { screenWidth, sidebarState } from '@stores/sidebarStore';
@@ -207,6 +208,10 @@
 						{#key $page.url}
 							<Modal />
 							<Toast />
+
+							{#if $screenWidth !== 'desktop'}
+								<FloatingNav />
+							{/if}
 
 							<!-- TODO: Add Search Component -->
 							{#if $isSearchVisible == true}

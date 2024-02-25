@@ -653,7 +653,7 @@ function animation(current, d, end, cb, resolve) {
 }
 
 // Motion function
-export function motion(start, end, duration, cb, useAnimation = true) {
+export function motion(start: any, end: any, duration: any, cb: any, useAnimation = true) {
 	const frequency = 16;
 	const d = (start - end) / (duration / frequency);
 
