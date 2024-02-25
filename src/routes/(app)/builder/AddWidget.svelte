@@ -29,7 +29,7 @@
 		: 'w-full'}"
 >
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
-		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
 		<button class="variant-ghost-secondary btn-icon mr-2" on:click={() => (addField = false)}
 			><iconify-icon icon="material-symbols:close" width="24" /></button
 		>
@@ -41,10 +41,10 @@
 		</div>
 	{:else}
 		<div class=" flex-col items-center justify-center overflow-auto">
-			<p class="text-wxl mb-3 text-center">Define your <span class="text-primary-500">{selected_widget}</span></p>
+			<p class="text-wxl mb-3 text-center">Define your <span class="text-tertiary-500 dark:text-primary-500">{selected_widget}</span></p>
 			<div class="w-100 mx-2 mb-2 flex justify-between gap-2">
 				<button
-					class="variant-filled-primary btn"
+					class="variant-filled-tertiary btn dark:variant-filled-primary"
 					on:click={() => {
 						if (!selected_widget) return;
 						field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
@@ -54,7 +54,7 @@
 						console.log(fields);
 					}}>Save {selected_widget} Widget</button
 				>
-				<button class="variant-ghost-secondary btn" on:click={() => (selected_widget = null)}>Cancel</button>
+				<button class="variant-filled-secondary btn dark:variant-ghost-secondary" on:click={() => (selected_widget = null)}>Cancel</button>
 			</div>
 
 			{#each Object.entries(guiSchema) as [property, value]}

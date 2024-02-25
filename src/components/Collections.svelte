@@ -246,7 +246,7 @@
 			}}
 		>
 			<p class="text-xs uppercase text-white">{PUBLIC_MEDIA_FOLDER}</p>
-			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
+			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
 		</a>
 	{/if}
 </div>

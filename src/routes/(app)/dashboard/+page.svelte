@@ -8,7 +8,6 @@
 	import { formatUptime } from '@utils/utils';
 
 	// Stores
-	import { globalSearchIndex } from '@src/stores/store';
 
 	let systemInfo: any;
 	let loading = true; // Set loading to true by default
@@ -212,7 +211,7 @@
 {#if systemInfo}
 	<div class="wrapper">
 		<div class="card">
-			<header class="card-header rounded-t bg-primary-500 text-center text-lg font-bold">
+			<header class="card-header rounded-t bg-tertiary-500 text-center text-lg font-bold text-white dark:bg-primary-500">
 				<h2 class="flex justify-center gap-2">
 					<iconify-icon icon="codicon:server-environment" width="24" />
 					Server Information
@@ -221,16 +220,16 @@
 			<div class="flex justify-around rounded-b pb-2">
 				<section>
 					<!-- Display OS information  -->
-					<div><span class="text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
-					<div><span class="text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
-					<div><span class="text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
-					<div><span class="text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
-					<div><span class="text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
+					<div><span class="text-tertiary-500 dark:text-primary-500">Operating System:</span> {systemInfo.osInfo.platform}</div>
+					<div><span class="text-tertiary-500 dark:text-primary-500">Hostname:</span> {systemInfo.osInfo.hostname}</div>
+					<div><span class="text-tertiary-500 dark:text-primary-500">Type:</span> {systemInfo.osInfo.type}</div>
+					<div><span class="text-tertiary-500 dark:text-primary-500">Architecture:</span> {systemInfo.osInfo.arch}</div>
+					<div><span class="text-tertiary-500 dark:text-primary-500">Uptime:</span> {formatUptime(systemInfo.osInfo.uptime)}</div>
 				</section>
 
 				<!-- CPU Usage -->
 				<div class="card">
-					<header class="card-header font-bold text-primary-500">CPU Usage</header>
+					<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">CPU Usage</header>
 					{#if cpuChart}
 						<section class="rounded border p-4">
 							<canvas id="cpuChart" />
@@ -239,7 +238,7 @@
 						<div>Loading...</div>
 					{/if}
 					<footer class="card-footer">
-						<span class="text-primary-500">Current CPU Usage:</span>
+						<span class="text-tertiary-500 dark:text-primary-500">Current CPU Usage:</span>
 						{calculateAverage(systemInfo.cpuInfo.cpuUsage)}%
 					</footer>
 				</div>
@@ -250,7 +249,7 @@
 		<div class="flex justify-between gap-2">
 			<!-- Disk usage pie chart container -->
 			<div class="card w-full">
-				<header class="card-header font-bold text-primary-500">Disk Usage</header>
+				<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">Disk Usage</header>
 				{#if diskChart}
 					<section class="rounded p-4">
 						<canvas id="diskChart" />
@@ -259,15 +258,15 @@
 					<div>Loading...</div>
 				{/if}
 				<footer class="card-footer">
-					<span class="text-primary-500">Drive Free:</span>
-					{systemInfo.diskInfo.freeGb} GB, <span class="text-primary-500">Drive Used:</span>
+					<span class="text-tertiary-500 dark:text-primary-500">Drive Free:</span>
+					{systemInfo.diskInfo.freeGb} GB, <span class="text-tertiary-500 dark:text-primary-500">Drive Used:</span>
 					{systemInfo.diskInfo.usedGb} GB
 				</footer>
 			</div>
 
 			<!-- Memory usage line chart container -->
 			<div class="card w-full">
-				<header class="card-header font-bold text-primary-500">Memory Usage</header>
+				<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">Memory Usage</header>
 				{#if memoryChart}
 					<section class="rounded p-4">
 						<canvas id="memoryChart" />
@@ -276,8 +275,9 @@
 					<div>Loading...</div>
 				{/if}
 				<footer class="card-footer">
-					<span class="text-primary-500">Memory Free:</span>
-					{systemInfo.memoryInfo.freeMemMb} MB, <span class="text-primary-500">Memory Total:</span>: {systemInfo.memoryInfo.totalMemMb} MB
+					<span class="text-tertiary-500 dark:text-primary-500">Memory Free:</span>
+					{systemInfo.memoryInfo.freeMemMb} MB, <span class="text-tertiary-500 dark:text-primary-500">Memory Total:</span>: {systemInfo.memoryInfo
+						.totalMemMb} MB
 				</footer>
 			</div>
 		</div>
@@ -285,7 +285,7 @@
 		<div class="flex justify-between gap-2">
 			<!-- Top 5 Content -->
 			<div class="card w-full">
-				<header class="card-header font-bold text-primary-500">Top 5 Content</header>
+				<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">Top 5 Content</header>
 				<section class="rounded p-4">
 					<li>Content Title</li>
 				</section>
@@ -294,7 +294,7 @@
 
 			<!-- Online Team Members -->
 			<div class="card w-full">
-				<header class="card-header font-bold text-primary-500">Online Team Members</header>
+				<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">Online Team Members</header>
 				<section class="rounded p-4">
 					<li>Team name</li>
 				</section>
@@ -304,7 +304,7 @@
 
 		<!-- Last 5 Contents updates -->
 		<div class="card w-full">
-			<header class="card-header font-bold text-primary-500">Last Content Updated</header>
+			<header class="card-header font-bold text-tertiary-500 dark:text-primary-500">Last Content Updated</header>
 			<section class="rounded p-4">
 				<li>Content Title</li>
 			</section>

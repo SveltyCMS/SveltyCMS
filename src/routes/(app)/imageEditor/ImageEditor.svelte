@@ -90,16 +90,16 @@
 <div class="mt-1 flex flex-col items-center justify-between gap-2 px-2 md:flex-row">
 	<p class="order-first flex gap-2">
 		<span class="">Image:</span>
-		<span class="text-primary-500">{image?.name}</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
 	</p>
 
 	<div class="btn-group order-last gap-2 md:order-2">
 		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">
-			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-gray-500'} />
+			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')} title="Blur">
-			<iconify-icon icon="ic:round-blur-circular" width="26" class={activeState === 'blurring' ? 'text-error-500' : 'text-gray-500'} />
+			<iconify-icon icon="ic:round-blur-circular" width="26" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
 		</button>
 
 		<button
@@ -110,21 +110,26 @@
 			<iconify-icon
 				icon="material-symbols:center-focus-strong"
 				width="26"
-				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-gray-500'}
+				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
 			/>
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
-			<iconify-icon icon="material-symbols:rotate-left-rounded" width="26" class={activeState === 'rotate' ? 'text-error-500' : 'text-gray-500'} />
+			<iconify-icon
+				icon="material-symbols:rotate-left-rounded"
+				width="26"
+				class={activeState === 'rotate' ? 'text-error-500' : 'text-surface-token'}
+			/>
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
-			<iconify-icon icon="material-symbols:zoom-out-map" width="26" class={activeState === 'zoom' ? 'text-error-500' : 'text-gray-500'} />
+			<iconify-icon icon="material-symbols:zoom-out-map" width="26" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
 		</button>
 	</div>
 
 	<p class="order-2 md:order-last">
-		Width: <span class="text-primary-500">{CONT_WIDTH}</span> x Height: <span class="text-primary-500">{CONT_HEIGHT}</span>
+		Width: <span class="text-tertiary-500 dark:text-primary-500">{CONT_WIDTH}</span> x Height:
+		<span class="text-tertiary-500 dark:text-primary-500">{CONT_HEIGHT}</span>
 	</p>
 </div>
 

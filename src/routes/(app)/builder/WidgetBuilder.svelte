@@ -14,7 +14,9 @@
 	{#if addField}
 		<AddWidget {fields} bind:addField />
 	{:else}
-		<button class="variant-filled-primary btn mb-4 mt-1" on:click={() => (addField = true)}> {m.WidgetBuilder_AddColectionField()} </button>
+		<button class="variant-filled-tertiary btn mb-4 mt-1 dark:variant-filled-primary" on:click={() => (addField = true)}>
+			{m.WidgetBuilder_AddColectionField()}
+		</button>
 		<WidgetFields {fields} />
 	{/if}
 </div>

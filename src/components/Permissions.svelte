@@ -159,7 +159,7 @@
 		{/each}
 	</div>
 </div>
-<p class="dark mb-2 text-center text-primary-500">{m.collection_permission_admin_helper()}</p>
+<p class="dark mb-2 text-center text-tertiary-500 dark:text-primary-500">{m.collection_permission_admin_helper()}</p>
 
 <div class="mt-4 flex {filteredRolesArray.length > 0 ? 'justify-between' : 'justify-center'}  gap-4">
 	{#if filteredRolesArray.length > 0}
@@ -174,7 +174,10 @@
 
 	<!-- Add Permission -->
 	{#if Object.keys(permissionStore).length > 0}
-		<button on:click={addPermission} class="variant-filled-tertiary btn w-full justify-center text-center sm:w-auto sm:justify-end">
+		<button
+			on:click={addPermission}
+			class="variant-filled-success btn w-full justify-center text-center dark:variant-filled-tertiary sm:w-auto sm:justify-end"
+		>
 			<iconify-icon icon="material-symbols:add" color="white" width="18" class="mr-1" />
 			{m.collection_permission_addpermission()}
 		</button>

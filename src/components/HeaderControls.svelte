@@ -97,10 +97,10 @@
 			<!--TODO: fix {#if $categories && $categories[0]} -->
 			{#if $categories && $categories[0]}
 				<div class="ml-2 flex flex-col text-left text-gray-400 dark:text-gray-300">
-					<div class="text-sm font-bold uppercase text-primary-500">{$mode}:</div>
+					<div class="text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">{$mode}:</div>
 					<div class="text-xs capitalize">
 						{$categories[0].name}
-						<span class=" uppercase text-primary-500">{$collection?.name}</span>
+						<span class=" uppercase text-tertiary-500 dark:text-primary-500">{$collection?.name}</span>
 					</div>
 				</div>
 			{/if}
@@ -113,14 +113,14 @@
 		{#if $screenWidth !== 'desktop'}
 			{#if $shouldShowNextButton}
 				<!-- Next Button  -->
-				<button type="button" on:click={next} class="variant-filled-primary btn-icon md:btn">
+				<button type="button" on:click={next} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white" />
 					<span class="hidden md:block">{m.widget_megamenu_next()}</span>
 				</button>
 			{:else}
 				<!-- Save Content -->
 				<!-- disabled={!$collection?.permissions?.[userRole]?.write} -->
-				<button type="button" on:click={saveData} class="variant-filled-primary btn-icon md:btn">
+				<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 					<span class="hidden md:block">Save</span>
 				</button>

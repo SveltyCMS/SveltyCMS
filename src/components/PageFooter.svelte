@@ -9,7 +9,7 @@
 	};
 </script>
 
-<h2 class="text-center !text-sm font-bold uppercase text-primary-500">
+<h2 class="text-center !text-sm font-bold uppercase text-tertiary-500 dark:text-primary-500">
 	{$collection?.name} Info:
 </h2>
 
@@ -20,6 +20,6 @@
 	{/each}
 	<!-- Data -->
 	{#each Object.values(dates) as value}
-		<div class="text-primary-500">{value}</div>
+		<div class="text-tertiary-500 dark:text-primary-500">{value}</div>
 	{/each}
 </div>

@@ -9,19 +9,21 @@
 <div class="overflow-hidden">
 	<div class="mb-4 text-center">
 		{#if !expanded}
-			<p class="text-primary-500">Click to Select a widget</p>
+			<p class="text-tertiary-500 dark:text-primary-500">Click to Select a widget</p>
 		{/if}
 
-		<button on:click={() => (expanded = !expanded)} class="variant-ghost-primary btn" class:selected={expanded}>{selected || label}</button>
+		<button on:click={() => (expanded = !expanded)} class="variant-filled-tertiary btn dark:variant-ghost-primary" class:selected={expanded}
+			>{selected || label}</button
+		>
 	</div>
 
 	<!-- dropdown -->
 	{#if expanded}
-		<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
+		<div class="mb-3 border-b text-center text-tertiary-500 dark:text-primary-500">Choose your Widget</div>
 		<div class="flex flex-wrap items-center justify-center gap-2">
 			{#each items.filter((item) => item !== selected) as item}
 				<button
-					class=" variant-outline-warning btn relative hover:variant-filled-secondary"
+					class="variant-filled-warning btn relative hover:variant-filled-secondary dark:variant-outline-warning"
 					on:click={() => {
 						selected = item;
 						expanded = false;

@@ -207,7 +207,7 @@
 
 	{#if showUserList}
 		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
-			<h2 class="order-1 font-bold text-primary-500">{m.adminarea_userlist()}</h2>
+			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">{m.adminarea_userlist()}</h2>
 
 			<div class="order-3 sm:order-2">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
@@ -244,7 +244,7 @@
 		<!-- User Token invites -->
 
 		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
-			<h2 class="order-1 font-bold text-black dark:text-primary-500">{m.adminarea_listtoken()}</h2>
+			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">{m.adminarea_listtoken()}</h2>
 
 			<div class="order-3 sm:order-2">
 				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />

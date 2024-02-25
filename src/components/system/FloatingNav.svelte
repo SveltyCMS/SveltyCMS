@@ -77,7 +77,7 @@
 	}
 
 	$: buttonInfo = { ...navigation_info?.[getBasePath($page.url.pathname)], ...{ radius: buttonRadius } } || {
-		x: 50,
+		x: 200,
 		y: window.innerHeight / 2,
 		radius: buttonRadius
 	};

@@ -49,17 +49,17 @@
 </script>
 
 <div class="mb-2 flex items-center justify-between">
-	<PageTitle name="Image Editor" icon="" />
+	<PageTitle name="Image Editor" icon="bi:images" />
 
 	<!-- buttons -->
 	<div class="mb-2 flex items-center gap-2">
 		<!-- Save Content -->
 		{#if image}
-			<button type="button" on:click={handleSave} class="variant-filled-primary btn-icon md:hidden">
+			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
 				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 			</button>
 			<!-- button hack  -->
-			<button type="button" on:click={handleSave} class="variant-filled-primary btn hidden md:inline-flex">
+			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn hidden dark:variant-filled-primary md:inline-flex">
 				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 				<p class="hidden md:block">Save</p>
 			</button>

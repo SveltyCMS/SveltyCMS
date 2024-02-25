@@ -275,30 +275,38 @@
 <div class="align-center mb-2 mt-2 flex justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
 	{#if ($mode = 'edit')}
-		<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black">Save</button>
+		<button
+			type="button"
+			on:click={handleCollectionSave}
+			class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">Save</button
+		>
 	{/if}
 </div>
 
 <div class="wrapper">
-	<p class="mb-2 hidden text-center text-primary-500 sm:block">{m.collection_helptext()}</p>
+	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
 	<TabGroup>
 		<Tab bind:group={tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="ic:baseline-edit" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 0} class:text-primary-500={tabSet === 0}>{m.collection_edit()}</span>
+				<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<span class:active={tabSet === 0} class:text-tertiary-500={tabSet === 0} class:text-primary-500={tabSet === 0}>{m.collection_edit()}</span>
 			</div>
 		</Tab>
 		<Tab bind:group={tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:security-lock" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 1}>{m.collection_permission()}</span>
+				<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<span class:active={tabSet === 1} class:text-tertiary-500={tabSet === 1} class:dark:text-primary-500={tabSet === 1}
+					>{m.collection_permission()}</span
+				>
 			</div>
 		</Tab>
 		<Tab bind:group={tabSet} name="tab3" value={2}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-primary-500" />
-				<span class:active={tabSet === 1} class:text-primary-500={tabSet === 2}>{m.collection_widgetfields()}</span>
+				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<span class:active={tabSet === 1} class:text-tertiary-500={tabSet === 2} class:text-primary-500={tabSet === 2}
+					>{m.collection_widgetfields()}</span
+				>
 			</div>
 		</Tab>
 
@@ -312,7 +320,12 @@
 				<div class="mb-2 flex flex-col items-start justify-center gap-2">
 					<label for="name" class="flex-grow-1 relative mr-2 flex w-fit">
 						{m.collection_name()} <span class="mx-1 text-error-500">*</span>
-						<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-primary-500" /></label
+						<iconify-icon
+							icon="material-symbols:info"
+							use:popup={NameTooltip}
+							width="18"
+							class="ml-1 text-tertiary-500 dark:text-primary-500"
+						/></label
 					>
 
 					<!-- tooltip -->
@@ -334,20 +347,20 @@
 
 					{#if name}
 						<p class="mb-3 sm:mb-0">
-							{m.collection_DBname()} <span class="font-bold text-primary-500">{DBName}</span>
+							{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 						</p>
 					{/if}
 				</div>
 
 				<div class="flex flex-col gap-2 rounded-md border p-2">
-					<p class="mb-2 text-center font-bold text-primary-500">{m.collectionname_optional()}:</p>
+					<p class="mb-2 text-center font-bold text-tertiary-500 dark:text-primary-500">{m.collectionname_optional()}:</p>
 
 					<!-- TODO: Pass icon icon selected values -->
 					<!-- iconify icon chooser -->
 					<div class="w-full items-center sm:flex">
 						<label for="icon" class="flex-grow-1 relative mr-2 flex w-fit">
 							{m.collectionname_labelicon()}
-							<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-primary-500" />
+							<iconify-icon icon="material-symbols:info" use:popup={IconTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
 						</label>
 
 						<!-- tooltip -->
@@ -363,7 +376,7 @@
 					<div class="items-center sm:flex">
 						<label for="slug" class="flex-grow-1 relative mr-2 flex w-fit">
 							{m.collection_slug()}
-							<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-primary-500" />
+							<iconify-icon icon="material-symbols:info" use:popup={SlugTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
 						</label>
 
 						<!-- tooltip -->
@@ -379,7 +392,12 @@
 					<div class="items-center sm:flex">
 						<label for="description" class="flex-grow-1 relative mr-2 flex w-fit">
 							{m.collectionname_description()}
-							<iconify-icon icon="material-symbols:info" use:popup={DescriptionTooltip} width="18" class="ml-1 text-primary-500" />
+							<iconify-icon
+								icon="material-symbols:info"
+								use:popup={DescriptionTooltip}
+								width="18"
+								class="ml-1 text-tertiary-500 dark:text-primary-500"
+							/>
 						</label>
 
 						<!-- tooltip -->
@@ -402,7 +420,7 @@
 					<div class="items-center sm:flex">
 						<label for="status" class="flex-grow-1 relative mr-2 flex w-fit">
 							{m.collection_status()}
-							<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-primary-500" />
+							<iconify-icon icon="material-symbols:info" use:popup={StatusTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" />
 						</label>
 
 						<!-- tooltip -->
@@ -422,7 +440,9 @@
 				<!-- Buttons -->
 				<div class="flex justify-between">
 					<a href="/collection" class="variant-filled-secondary btn mt-2">{m.collection_cancel()}</a>
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-primary btn mt-2">{m.collection_next()}</button>
+					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary"
+						>{m.collection_next()}</button
+					>
 				</div>
 			{:else if tabSet === 1}
 				<!-- Permissions -->
@@ -432,7 +452,7 @@
 				<!-- Buttons -->
 				<div class="flex justify-between">
 					<button type="button" on:click={() => (tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
-					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-primary btn mt-2">Next</button>
+					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">Next</button>
 				</div>
 
 				<!-- Manage Fields -->
@@ -492,8 +512,10 @@
 					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
 						>{m.collection_widgetfield_previous()}</button
 					>
-					<button type="button" on:click={handleCollectionSave} class="variant-filled-primary btn mt-2 justify-end dark:text-black"
-						>{m.collection_widgetfield_save()}</button
+					<button
+						type="button"
+						on:click={handleCollectionSave}
+						class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.collection_widgetfield_save()}</button
 					>
 				</div>
 			{/if}

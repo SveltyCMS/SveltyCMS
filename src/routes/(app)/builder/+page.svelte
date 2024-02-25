@@ -86,12 +86,16 @@
 <!-- Page Title -->
 <div class="flex items-center justify-between">
 	{#if $mode == 'create' || $mode == 'edit'}
-		<PageTitle name={$mode == 'create' ? 'Create New ' : `Edit ${name} Category`} icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+		<PageTitle
+			name={$mode == 'create' ? 'Create New ' : `Edit ${name} Category`}
+			icon="material-symbols:ink-pen"
+			iconColor="text-tertiary-500 dark:text-primary-500"
+		/>
 		<button class="variant-ghost-secondary btn-icon mr-2 p-2" on:click={() => mode.set('view')}
 			><iconify-icon icon="material-symbols:close" width="24" /></button
 		>
 	{:else if $mode == 'view'}
-		<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-primary-500" />
+		<PageTitle name="Collection Builder" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
 	{/if}
 </div>
 
@@ -102,7 +106,7 @@
 
 			<section class="w-[280px] pl-1 pt-1">
 				<!-- Menu Selection -->
-				<p class="text-center text-xl text-primary-500">Category</p>
+				<p class="text-center text-xl text-tertiary-500 dark:text-primary-500">Category</p>
 				<Collections modeSet={'edit'} />
 
 				<!-- unAssigned Selection -->
@@ -121,7 +125,7 @@
 		<!-- Display collections -->
 		<div class=" flex w-full flex-col items-center">
 			<div class="flex justify-between gap-2">
-				<!-- <p class="text-center text-primary-500">Click on any existing Category to edit or Create A New</p> -->
+				<!-- <p class="text-center text-tertiary-500 dark:text-primary-500">Click on any existing Category to edit or Create A New</p> -->
 				<!-- add new Collection -->
 				{#if $mode == 'view'}
 					<button
@@ -137,7 +141,7 @@
 				{#if $mode != 'view'}
 					<div class="flex w-screen justify-center px-2">
 						<!-- Save Collection -->
-						<button on:click={save} class="variant-filled-primary btn">{m.builder_SaveCollection()}</button>
+						<button on:click={save} class="variant-filled-tertiary btn dark:variant-filled-primary">{m.builder_SaveCollection()}</button>
 					</div>
 				{/if}
 			</div>
@@ -147,44 +151,68 @@
 				<div class="mt-3 min-w-[300px] gap-2 rounded p-2">
 					<p class="text-center text-xs text-error-500">{m.builder_required()}</p>
 
-					<FloatingInput label="Name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
-					<p class="text-center text-xs text-primary-500">{m.builder_optional()}</p>
+					<FloatingInput
+						label="Name"
+						name="name"
+						icon="fluent:text-12-filled"
+						inputClass="text-tertiary-500 dark:text-primary-500"
+						bind:value={name}
+					/>
+					<p class="text-center text-xs text-tertiary-500 dark:text-primary-500">{m.builder_optional()}</p>
 					<!-- <div class="max-w-[300px]">
 					<IconifyPicker bind:iconselected={icon} />
 				</div> -->
-					<FloatingInput label="Icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} />
-					<FloatingInput label="Slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
+					<FloatingInput label="Icon" name="icon" icon="tdesign:file-icon" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={icon} />
+					<FloatingInput label="Slug" name="slug" icon="formkit:url" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={slug} />
 					<FloatingInput
 						label="description"
 						name="description"
 						icon="material-symbols:notes"
-						inputClass="text-primary-500"
+						inputClass="text-tertiary-500 dark:text-primary-500"
 						bind:value={description}
 					/>
-					<FloatingInput label="Status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
+					<FloatingInput
+						label="Status"
+						name="status"
+						icon="pajamas:status-health"
+						inputClass="text-tertiary-500 dark:text-primary-500"
+						bind:value={status}
+					/>
 					<WidgetBuilder {fields} bind:addField />
 				</div>
 			{:else if $mode == 'edit'}
 				<!-- edit collection fields -->
 				<div class="mt-3 space-y-2 p-2">
 					<p class="text-center text-xs text-error-500">{m.builder_required()}</p>
-					<FloatingInput label="name" name="name" icon="fluent:text-12-filled" inputClass="text-primary-500" bind:value={name} />
+					<FloatingInput
+						label="name"
+						name="name"
+						icon="fluent:text-12-filled"
+						inputClass="text-tertiary-500 dark:text-primary-500"
+						bind:value={name}
+					/>
 					<p class=" text-center text-xs">Optional</p>
 
-					<!-- <FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-primary-500" bind:value={icon} /> -->
+					<!-- <FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={icon} /> -->
 					<IconifyPicker bind:iconselected={icon} />
 
-					<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-primary-500" bind:value={slug} />
+					<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={slug} />
 
 					<FloatingInput
 						label="description"
 						name="description"
 						icon="material-symbols:notes"
-						inputClass="text-primary-500"
+						inputClass="text-tertiary-500 dark:text-primary-500"
 						bind:value={description}
 					/>
 
-					<FloatingInput label="status" name="status" icon="pajamas:status-health" inputClass="text-primary-500" bind:value={status} />
+					<FloatingInput
+						label="status"
+						name="status"
+						icon="pajamas:status-health"
+						inputClass="text-tertiary-500 dark:text-primary-500"
+						bind:value={status}
+					/>
 					<!-- <DropDown {items} bind:selected={status} /> -->
 
 					<WidgetBuilder fields={$collection.fields} bind:addField />

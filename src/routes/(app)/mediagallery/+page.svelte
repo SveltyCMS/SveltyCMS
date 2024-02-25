@@ -177,7 +177,7 @@
 </script>
 
 <div class="mb-2 flex items-center">
-	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-primary-500" />
+	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 </div>
 <div class="wrapper">
 	<div class="mb-2 flex items-center justify-between gap-4">

@@ -50,11 +50,11 @@
 
 <RangeSlider name="range-slider" class="m-2 mx-auto max-w-lg" bind:value={rotate} min={-180} max={180} step={1}>
 	<div class="flex items-center justify-between">
-		<div class="font-bold text-primary-500">Rotate</div>
+		<div class="font-bold text-tertiary-500 dark:text-primary-500">Rotate</div>
 		<button on:click={() => (rotate = 0)} class="btn-primary btn p-0.5 text-white" title="Reset">
-			<iconify-icon icon="material-symbols:rotate-left-rounded" width="24" class="text-primary-500" />{rotate}°
+			<iconify-icon icon="material-symbols:rotate-left-rounded" width="24" class="text-tertiary-500 dark:text-primary-500" />{rotate}°
 		</button>
 
-		<div class="text-xs text-primary-500">{rotate}° / 180°</div>
+		<div class="text-xs text-tertiary-500 dark:text-primary-500">{rotate}° / 180°</div>
 	</div>
 </RangeSlider>
