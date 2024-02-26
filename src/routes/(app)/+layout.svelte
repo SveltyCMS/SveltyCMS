@@ -32,6 +32,7 @@
 	import { onMount } from 'svelte';
 	import type { Schema } from '@collections/types';
 	import { getTextDirection } from '@src/utils/utils';
+	import { screenWidth, sidebarState } from '@stores/sidebarStore';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -39,12 +40,10 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@src/components/LeftSidebar.svelte';
 	import RightSidebar from '@src/components/RightSidebar.svelte';
-	import HeaderControls from '@components/HeaderControls.svelte';
+	import HeaderView from '@src/components/HeaderView.svelte';
+	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import PageFooter from '@src/components/PageFooter.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
-
-	// Use handleSidebarToggle as a reactive statement to automatically switch the correct sidebar
-	import { screenWidth, sidebarState } from '@stores/sidebarStore';
 
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
@@ -174,15 +173,13 @@
 		<slot />
 	{:else}
 		<!-- Body -->
-		<div class="flex min-h-screen flex-col">
+		<div class="flex h-screen min-h-dvh flex-col">
 			<!-- Header -->
-			<!-- {#if $sidebarState.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-blue-500">
-				Header
-				</header>
-			{/if} -->
+			{#if $sidebarState.header !== 'hidden'}
+				<header class="sticky top-0 z-10 bg-blue-500">Header</header>
+			{/if}
 
-			<div class="flex flex-1">
+			<div class="flex flex-1 overflow-hidden">
 				<!-- Sidebar Left -->
 				{#if $sidebarState.left !== 'hidden'}
 					<aside
@@ -195,16 +192,23 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="relative flex-1 overflow-auto">
+				<main class="realative flex-1 overflow-auto">
 					<!-- Page Header -->
 					{#if $sidebarState.pageheader !== 'hidden'}
-						<header class="sticky top-0 z-10">
-							<HeaderControls />
+						<header class="sticky top-0 z-10 w-full">
+							<!-- {#if $mode == 'view'} -->
+							<HeaderEdit />
+							<!-- {:else}
+								<HeaderView /> 
+							{/if} -->
 						</header>
 					{/if}
 
 					<!-- Router Slot -->
-					<div on:keydown={onKeyDown} class="{$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} ">
+					<div
+						on:keydown={onKeyDown}
+						class="relative overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop' ? 'mb-2' : 'mb-16'}"
+					>
 						{#key $page.url}
 							<Modal />
 							<Toast />
@@ -235,7 +239,7 @@
 					<!-- Page Footer -->
 					{#if $sidebarState.pagefooter !== 'hidden'}
 						<footer
-							class="absolute bottom-0 left-0 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="absolute bottom-0 z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>
@@ -244,18 +248,16 @@
 
 				<!-- Sidebar Right -->
 				{#if $sidebarState.right !== 'hidden'}
-					<aside class="border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
+					<aside class="h-full border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
 						<RightSidebar />
 					</aside>
 				{/if}
 			</div>
 
 			<!-- Footer -->
-			<!--{#if $sidebarState.footer !== 'hidden'}
-				<footer class="bg-blue-500">
-					 Footer Content 
-				</footer>
-			{/if}-->
+			{#if $sidebarState.footer !== 'hidden'}
+				<footer class="bg-blue-500">Footer</footer>
+			{/if}
 		</div>
 	{/if}
 {:catch error}

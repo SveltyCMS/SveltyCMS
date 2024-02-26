@@ -32,26 +32,26 @@
 			icon: 'solar:home-bold'
 		},
 		{
-			x: 0,
-			y: 0,
+			x: center.x,
+			y: center.y,
 			url: { external: false, path: `/collection` },
 			icon: 'icomoon-free:wrench'
 		},
 		{
-			x: 0,
-			y: 0,
+			x: center.x,
+			y: center.y,
 			url: { external: false, path: `/user` },
 			icon: 'radix-icons:avatar'
 		},
 		{
-			x: 0,
-			y: 0,
+			x: center.x,
+			y: center.y,
 			url: { external: true, path: `/api/graphql` },
 			icon: 'teenyicons:graphql-outline'
 		},
 		{
-			x: 0,
-			y: 0,
+			x: center.x,
+			y: center.y,
 			url: { external: true, path: `/config` },
 			icon: 'mynaui:config'
 		}
@@ -77,7 +77,7 @@
 	}
 
 	$: buttonInfo = { ...navigation_info?.[getBasePath($page.url.pathname)], ...{ radius: buttonRadius } } || {
-		x: 200,
+		x: 75,
 		y: window.innerHeight / 2,
 		radius: buttonRadius
 	};
@@ -93,7 +93,7 @@
 	// Calculate the coordinates of the endpoints
 	$: endpoints = endpoints.map((endpoint, index) => ({
 		...endpoint,
-		...(index === 0 ? {} : calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 40 * (index - 1)))
+		...(index === 0 ? {} : calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 50 * (index - 1)))
 	}));
 
 	// Show the routes when the component is visible
