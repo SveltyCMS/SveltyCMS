@@ -68,6 +68,7 @@ export const pkgBgColor = writable('variant-filled-primary');
 
 // loading indicator
 export const loadingProgress = writable(0);
+export const isLoading: Writable<boolean> = writable(false);
 
 //MegaMenu Save Layer Store & trigger
 export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }> = writable({ fn: () => {}, reset: () => {} });

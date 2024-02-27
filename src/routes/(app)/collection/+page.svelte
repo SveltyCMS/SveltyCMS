@@ -1,7 +1,6 @@
 <script lang="ts">
 	// Stores
-	import { categories, unAssigned } from '@stores/store';
-	import { globalSearchIndex } from '@utils/globalSearchIndex';
+	import { categories, mode, unAssigned } from '@stores/store';
 
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
@@ -17,7 +16,6 @@
 	import ModalCategory from './ModalCategory.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 	import { generateUniqueId } from '@utils/utils';
-	import { onMount } from 'svelte';
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
@@ -52,6 +50,7 @@
 	}
 
 	function handleAddCollectionClick() {
+		console.log('handleAddCollectionClick:');
 		// Navigate to the route where you handle creating new collections
 		goto('/collection/new');
 	}
@@ -96,6 +95,7 @@
 
 	//Saving changes to the config.ts
 	async function handleSaveClick() {
+		console.log('handleSaveClick called');
 		try {
 			// console.log('availableCollection:', availableCollection);
 
@@ -163,6 +163,8 @@
 			toastStore.trigger(t);
 		}
 	}
+
+	console.log('mode', $mode);
 </script>
 
 <div class="mb-3 flex items-center justify-between">

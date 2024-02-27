@@ -34,7 +34,7 @@
 	let fields = [];
 	let addField = false;
 	let navButton;
-	$mode = 'create';
+
 	$drawerExpanded = true;
 
 	collection.subscribe(() => {

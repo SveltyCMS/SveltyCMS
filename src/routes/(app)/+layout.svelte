@@ -25,7 +25,7 @@
 
 	// Stores
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, defaultContentLanguage, systemLanguage, mode } from '@stores/store';
+	import { collections, collection, collectionValue, contentLanguage, defaultContentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { page } from '$app/stores';
 	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
@@ -185,7 +185,7 @@
 					<aside
 						class="{$sidebarState.left === 'full'
 							? 'w-[220px]'
-							: 'w-fit'}  relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+							: 'w-fit'} relative h-full border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
 					</aside>
@@ -222,9 +222,13 @@
 								<!-- Show search component -->
 								<SearchComponent />
 							{/if}
+							{#if $isLoading == true}
+								<div class="flex h-screen items-center justify-center">
+									<Loading />
+								</div>
+							{/if}
 
 							<slot />
-
 							<!-- <div>mode : {$mode}</div>
 							<div>screenWidth : {$screenWidth}</div>
 							<div>sidebarState.left : {$sidebarState.left}</div>
@@ -239,7 +243,7 @@
 					<!-- Page Footer -->
 					{#if $sidebarState.pagefooter !== 'hidden'}
 						<footer
-							class="absolute bottom-0 z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="sticky bottom-0 z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>

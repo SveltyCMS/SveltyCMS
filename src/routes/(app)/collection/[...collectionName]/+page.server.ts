@@ -13,6 +13,8 @@ type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
 export async function load(event) {
+	console.log('call of src/routes/(app)/collection/[...collectionName]/+page.server.ts');
+
 	// Get session cookie value as string
 	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 	// Validate user using auth and session value

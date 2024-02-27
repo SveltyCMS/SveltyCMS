@@ -2,11 +2,13 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Stores
+	import { isLoading } from '@stores/store';
+
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 
 	let icons = []; // array of icon names
-	let loading = false; // loading state
 	let start = 0; // Declare a variable for the start index and initialize it to 0
 	let total = 0; // variable to store the total number of results
 	let selectedLibrary = 'ic'; // Default library is 'ic - Google Material Icons'
@@ -24,7 +26,7 @@
 		// Calculate start index based on current page number
 		start = page * 50; // Use page variable instead of start variable
 
-		loading = true;
+		$isLoading = true;
 		showDropdown = true;
 		try {
 			// Use search API query with prefix and limit parameters
@@ -43,7 +45,7 @@
 			// Display error message
 			console.error('An error occurred while fetching icons:', error);
 		}
-		loading = false;
+		$isLoading = false;
 	}
 
 	// Function to go to the next page of results

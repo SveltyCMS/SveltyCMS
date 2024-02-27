@@ -6,8 +6,6 @@
 	import { goto } from '$app/navigation';
 	import { dndzone } from 'svelte-dnd-action';
 
-	export let modeSet: typeof $mode = 'edit';
-
 	export let currentCategories: any;
 
 	//ParaglideJS
@@ -57,12 +55,12 @@
 	export let icon: string;
 	export let onDrop: any;
 
-	function handleDndConsiderCards(e) {
+	function handleDndConsiderCards(e: any) {
 		//console.warn('got', name);
 		items = e.detail.items;
 	}
 
-	function handleDndFinalizeCards(e) {
+	function handleDndFinalizeCards(e: any) {
 		//console.warn('drop', name);
 		onDrop(e.detail.items);
 	}
@@ -70,8 +68,12 @@
 	function handleCollectionClick(item: any) {
 		// Define the logic for handling the click on a collection
 		// mode.set(modeSet);
+		console.log('mode', $mode);
+		mode.set('edit');
 		// collection.set(item.collections);
-		// console.log(item.name);
+		console.log(item.name);
+		console.log(item.collections);
+		console.log('mode', $mode);
 		goto(`/collection/${item.name}`);
 	}
 </script>

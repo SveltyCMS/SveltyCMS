@@ -270,6 +270,8 @@
 		};
 		toastStore.trigger(t);
 	}
+
+	alert('Collection page');
 </script>
 
 <div class="align-center mb-2 mt-2 flex justify-between dark:text-white">

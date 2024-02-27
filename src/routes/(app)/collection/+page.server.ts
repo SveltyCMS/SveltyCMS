@@ -4,6 +4,7 @@ import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 // Load function that handles authentication and user validation
+
 export async function load(event) {
 	// Get session cookie value as string
 	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
