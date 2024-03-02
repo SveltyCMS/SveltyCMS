@@ -183,13 +183,16 @@
 			{#if $entryData == null}
 				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">No Data yet</div>
 			{:else}
-				<div class="mb-4 flex items-center gap-1">
-					<button class="btn">
-						API URL
-						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} />
-						:
+				<div class="mb-4 flex w-full items-center justify-start gap-1">
+					<!-- label -->
+					<p class="flex items-center">
+						<span class="mr-1">API URL:</span>
+						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-primary-500" />
+					</p>
+					<!-- Url -->
+					<button class="btn text-wrap text-left" on:click={() => window.open(apiUrl, '_blank')} title={apiUrl}>
+						<span class="code">{apiUrl}</span>
 					</button>
-					<code class="code text-wrap">{apiUrl}</code>
 				</div>
 
 				<CodeBlock

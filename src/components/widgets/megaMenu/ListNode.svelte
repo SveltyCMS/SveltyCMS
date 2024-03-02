@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount, tick } from 'svelte';
 	import type { CustomDragEvent } from './types';
 	import { currentChild } from '.';
 	import XIcon from '@src/components/system/icons/XIcon.svelte';
@@ -11,10 +12,16 @@
 
 	// Skeleton
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { sidebarState } from '@src/stores/sidebarStore';
 	const modalStore = getModalStore();
 
 	let expanded_list: boolean[] = [];
 	let ul: HTMLElement;
+	let fields_container: HTMLDivElement;
+
+	onMount(() => {
+		fields_container = document.getElementById('fields_container') as HTMLDivElement;
+	});
 
 	export let self: { [key: string]: any; children: any[] };
 	export let parent: { [key: string]: any; children: any[] } | null = null;
@@ -23,6 +30,7 @@
 	export let showFields = false;
 	export let maxDepth = 0;
 	export let expanded = false;
+	export let MENU_CONTAINER: HTMLUListElement;
 
 	export let refresh = () => {
 		self?.children && (self.children = self.children);
@@ -30,7 +38,7 @@
 
 	function setBorderHeight(node: HTMLElement | null | undefined) {
 		if (!node) return;
-		// if (!parent_border || !lastChild || !parent) return;
+
 		setTimeout(async () => {
 			let lastHeader = node?.lastChild?.firstChild as HTMLElement;
 			if (!lastHeader) return;
@@ -40,26 +48,26 @@
 	}
 
 	$: if (self?.children?.length) {
-		recalculateBorderHeight(ul);
+		recalculateBorderHeight();
+		ul;
 	}
-
 	$: if (showFields) {
 		$headerActionButton2 = XIcon;
 	}
 
-	function findFirstOuterElement(node: HTMLElement | null, element: string = 'UL') {
-		if (!node) return;
-		if (node.tagName == element) return node;
-		return findFirstOuterElement(node.parentElement, element);
+	function recalculateBorderHeight() {
+		MENU_CONTAINER &&
+			MENU_CONTAINER.querySelectorAll('ul').forEach((el) => {
+				setBorderHeight(el);
+			});
 	}
 
-	function recalculateBorderHeight(node: any) {
-		let child = findFirstOuterElement(node);
-
-		setBorderHeight(child);
-		if (!child?.classList.contains('MENU_CONTAINER') && child) {
-			recalculateBorderHeight(child?.parentElement);
-		}
+	function notifyChildren(node: HTMLElement) {
+		node.addEventListener('custom:notifyChildren', (e) => {
+			let details = (e as any).detail as { clone_isExpanded: boolean };
+			expanded_list.push(details.clone_isExpanded);
+			expanded_list = expanded_list;
+		});
 	}
 
 	function handleDelete() {
@@ -99,18 +107,30 @@
 
 	//DND action
 	function drag(node: HTMLElement) {
-		node.addEventListener('custom:drag', (e) => {
+		node.addEventListener('custom:drag', async (e) => {
 			let event = e as CustomDragEvent;
+			let clone_isExpanded = event.detail.expanded_list.splice(event.detail.clone_index, 1)[0];
 			if (event.detail.isParent) {
-				self.children[event.detail.closest_index].children.push(event.detail.dragged_item);
-				event.detail.expanded_list.splice(event.detail.clone_index, 1)[0];
+				let dragged_item = event.detail.children.splice(event.detail.clone_index, 1)[0];
+				self.children[event.detail.closest_index].children.push(dragged_item);
+				await tick();
+
+				node.firstChild?.dispatchEvent(
+					new CustomEvent('custom:notifyChildren', {
+						detail: {
+							clone_isExpanded
+						}
+					})
+				);
 			} else {
-				self?.children?.splice(event.detail.closest_index, 0, event.detail.dragged_item);
-				let clone_expanded = event.detail.expanded_list.splice(event.detail.clone_index, 1)[0];
-				expanded_list.splice(event.detail.closest_index, 0, clone_expanded);
+				let isSameParent = self.children.indexOf(event.detail.children[event.detail.clone_index]) !== -1;
+				let dragged_item = event.detail.children.splice(event.detail.clone_index, 1)[0];
+
+				self?.children?.splice(isSameParent ? event.detail.closest_index : event.detail.closest_index + 1, 0, dragged_item);
+				expanded_list.splice(isSameParent ? event.detail.closest_index : event.detail.closest_index + 1, 0, clone_isExpanded);
 				expanded_list = expanded_list;
-				event.detail.expanded_list = event.detail.expanded_list;
 			}
+			event.detail.refresh_expanded_list();
 			refresh();
 		});
 
@@ -142,22 +162,38 @@
 				clone.style.top = e.clientY + 'px';
 				clone.setPointerCapture(pointerID);
 				clone.onpointermove = (e) => {
+					if (e.clientY < fields_container.offsetTop || e.clientY > fields_container.offsetTop + fields_container.offsetHeight - 60) {
+						if (e.clientY < fields_container.offsetTop) {
+							fields_container.scrollBy(0, -5);
+						} else {
+							fields_container.scrollBy(0, 5);
+						}
+						let siblings = [...document.getElementsByClassName(`level-${level}`)].map((el) => {
+							let rect = el.getBoundingClientRect();
+							return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: false };
+						});
+						let parents = [...document.getElementsByClassName(`level-${level - 1}`)].map((el) => {
+							let rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
+							return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
+						});
+						targets = [...siblings, ...parents].filter((el) => el.el != clone);
+					}
 					clone.style.top = e.clientY + 'px';
 					clone.style.opacity = '1';
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 					let closest = targets[0];
 					if (closest.el == node) return;
 					targets.forEach((el) => {
-						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = '#80808045');
+						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = 'surface-400');
 					});
-					closest.el.firstChild && ((closest.el.firstChild as HTMLElement).style.borderColor = closest.isParent ? 'blue' : 'red');
+					closest.el.firstChild && ((closest.el.firstChild as HTMLElement).style.borderColor = closest.isParent ? 'red' : 'green');
 				};
 
 				clone.onpointerup = (e) => {
 					clone.releasePointerCapture(pointerID);
 					clone.remove();
 					targets.forEach((el) => {
-						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = '#80808045');
+						el.el.firstChild && ((el.el.firstChild as HTMLElement).style.borderColor = 'surface-400');
 					});
 
 					node.style.opacity = '1';
@@ -167,11 +203,17 @@
 					if (closest.el == node) return;
 					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
 					let clone_index = parseInt(clone.getAttribute('data-index') as string);
-					let dragged_item = self?.children.splice(clone_index, 1)[0];
-					console.log(closest_index);
+
 					closest.el.dispatchEvent(
 						new CustomEvent('custom:drag', {
-							detail: { closest_index: closest_index, clone_index, dragged_item, isParent: closest.isParent, expanded_list }
+							detail: {
+								closest_index: closest_index,
+								clone_index,
+								isParent: closest.isParent,
+								expanded_list,
+								children: self.children,
+								refresh_expanded_list: () => (expanded_list = expanded_list)
+							}
 						})
 					);
 				};
@@ -182,13 +224,14 @@
 
 <!-- label boxes -->
 <button
+	use:notifyChildren
 	on:click={(e) => {
 		if (expanded) {
-			recalculateBorderHeight(ul);
+			recalculateBorderHeight();
 		}
 		expanded = !expanded;
 	}}
-	class="header header-level-{level} relative mb-2 flex w-full min-w-[200px] cursor-default items-center justify-start gap-2 rounded border border-surface-300 px-1"
+	class="header header-level-{level} relative mb-2 flex w-full min-w-[200px] max-w-[300px] cursor-default items-center justify-start gap-2 rounded border border-surface-300 px-1"
 	class:!cursor-pointer={self?.children?.length > 0}
 	style="margin-left:{10 * (level > 0 ? 1 : 0)}px;
 	{window.screen.width <= 700
@@ -285,6 +328,7 @@
 		{#each self.children as child, index}
 			<li use:drag data-index={index} class={`level-${level} touch-none`}>
 				<svelte:self
+					{MENU_CONTAINER}
 					{refresh}
 					self={child}
 					level={level + 1}

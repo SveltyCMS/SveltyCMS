@@ -1,15 +1,15 @@
 <script lang="ts">
 	// Stores
-	import { collection, contentLanguage, headerActionButton } from '@src/stores/store';
+	import { collection, contentLanguage, headerActionButton2 } from '@src/stores/store';
 	import { drawerExpanded, mode } from '@src/stores/store';
 
 	// Components
-	import DeleteIcon from '@src/components/system/icons/DeleteIcon.svelte';
+	import XIcon from '@src/components/system/icons/XIcon.svelte';
 	import DropDown from '@src/components/system/dropDown/DropDown.svelte';
 	import MultiButton from '@src/components/system/buttons/MultiButton.svelte';
 
 	$: {
-		$headerActionButton = DeleteIcon;
+		$headerActionButton2 = XIcon;
 		$collection;
 	}
 </script>
@@ -29,10 +29,10 @@
 			<MultiButton />
 		{:else}
 			<button class="item-center flex justify-center" on:click={() => mode.set('view')}>
-				{#if typeof $headerActionButton != 'string'}
-					<svelte:component this={$headerActionButton} />
+				{#if typeof $headerActionButton2 != 'string'}
+					<svelte:component this={$headerActionButton2} />
 				{:else}
-					<iconify-icon width="22" class="p-[10px]" icon={$headerActionButton} />
+					<iconify-icon width="22" class="p-[10px]" icon={$headerActionButton2} />
 				{/if}
 			</button>
 		{/if}
