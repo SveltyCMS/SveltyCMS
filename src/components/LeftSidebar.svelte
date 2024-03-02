@@ -140,7 +140,7 @@
 	};
 </script>
 
-<div class="flex h-screen w-full flex-col justify-between">
+<div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full-->
 	{#if $sidebarState.left === 'full'}
 		<a href="/" class="t flex pt-2 !no-underline">
@@ -246,7 +246,7 @@
 					{/if}
 
 					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled-secondary overflow-auto p-2" data-popup="SwitchTheme">
+					<div class="card variant-filled-secondary overflow-auto py-2" data-popup="SwitchTheme">
 						{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
 						<div class="variant-filled-secondary arrow" />
 					</div>

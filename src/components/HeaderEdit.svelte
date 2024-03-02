@@ -12,7 +12,6 @@
 		shouldShowNextButton
 	} from '@stores/store';
 	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
-	import { page } from '$app/stores';
 
 	// const userRole = $page.data.user.role;
 	const userRole = 'admin';
@@ -50,11 +49,6 @@
 	function handleReload() {
 		mode.set('view');
 	}
-
-	// $: {
-	// 	$headerActionButton = DeleteIcon;
-	// 	$collection;
-	// }
 
 	export let showMore = false;
 	$: if ($mode === 'edit' || $mode === 'create') {
@@ -154,16 +148,17 @@
 			</div>
 		{/if}
 
+		<!-- TODO: fix button icon switch -->
 		<!-- Cancel/Reload -->
-		<!-- {#if $headerActionButton === 'DeleteIcon'} -->
-		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-			<iconify-icon icon="material-symbols:close" width="24" />
-		</button>
-		<!-- {:else}
+		{#if $headerActionButton}
+			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="material-symbols:close" width="24" />
+			</button>
+		{:else}
 			<button type="button" on:click={handleReload} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="fa:refresh" width="24" class="text-primary-500" />
-			</button> 
-		{/if}-->
+				<iconify-icon icon="fa:refresh" width="24" class="text-tertiary-500 dark:text-primary-500" />
+			</button>
+		{/if}
 	</div>
 </header>
 

@@ -54,7 +54,8 @@ export const translationStatusOpen = writable(false);
 //  ------------ Other ------------
 
 // Cancel/Reload HeaderButton
-export const headerActionButton: Writable<ConstructorOfATypedSvelteComponent | string> = writable();
+export const headerActionButton: Writable<boolean> = writable(true);
+export const headerActionButton2: Writable<ConstructorOfATypedSvelteComponent | string> = writable();
 export const drawerExpanded: Writable<boolean> = writable(true);
 
 // Permission store

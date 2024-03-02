@@ -26,9 +26,9 @@
 	const user = $page.data.user;
 
 	// Map the status to boolean
-	console.log('Status', $entryData?.status);
+	//console.log('Status', $entryData?.status);
 	let isPublished = $entryData?.status === 'published';
-	console.log('isPublished', isPublished);
+	//console.log('isPublished', isPublished);
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -82,7 +82,7 @@
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
 {#if ['edit', 'create'].includes($mode) || user.role == 'admin'}
-	<div class="flex h-screen w-full flex-col justify-between">
+	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white" />
@@ -143,11 +143,11 @@
 			</header>
 
 			<!-- Publish Options -->
-			<main class="mt-4 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
-				<p class="mt-2 w-full border-b text-center font-bold uppercase text-primary-500">Publish Options:</p>
+			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
+				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">Publish Options:</p>
 
 				<!--Authored by autocomplete -->
-				<div class="flex flex-col">
+				<div class="flexflex-col items-center justify-center">
 					<p class="">Authored by:</p>
 					<div class="relative z-50">
 						<!-- add use:popup directive to the element that triggers the popup -->
@@ -160,7 +160,7 @@
 							use:popup={popupSettingsUser}
 						/>
 						<!-- popup element should have a data-popup attribute that matches the target property in your popup settings -->
-						<div data-popup="popupAutocomplete">
+						<div data-popup="popupAutocomplete ">
 							<!-- ensure Autocomplete component is correctly set up -->
 							<Autocomplete bind:input={inputPopupUser} options={Userlist} on:selection={onPopupUserSelect} />
 						</div>
@@ -174,11 +174,11 @@
 
 			<footer class="mb-1 mt-2">
 				{#each Object.entries(dates) as [key, value]}
-					<div class="flex items-center gap-x-2 text-[12px]">
+					<div class="flex items-center justify-center gap-2 text-[12px]">
 						<!-- Labels -->
 						<div class="capitalize">{key}:</div>
 						<!-- Data -->
-						<div class="text-primary-500">{value}</div>
+						<div class="font-bold text-tertiary-500 dark:text-primary-500">{value}</div>
 					</div>
 				{/each}
 			</footer>

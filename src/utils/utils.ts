@@ -3,10 +3,12 @@ import axios from 'axios';
 import mongoose from 'mongoose';
 
 import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
+// import { publicConfig } from '@root/config/public';
 import { Blob } from 'buffer';
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
 import crypto from 'crypto';
+import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
@@ -15,7 +17,6 @@ import { contentLanguage, entryData, mode, collections, collection } from '@stor
 // lucia Auth
 import type { User, Auth } from 'lucia';
 import { UserSchema } from '@src/collections/Auth';
-import type { z } from 'zod';
 
 export const config = {
 	headers: {
@@ -27,9 +28,11 @@ export const config = {
 export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [key: string]: any }) => {
 	const guiFields = {};
 	for (const key in GuiSchema) {
-		// If the field parameter is an array, make a deep copy of it.
-		// Otherwise, just assign it directly.
-		guiFields[key] = Array.isArray(fieldParams[key]) ? deepCopy(fieldParams[key]) : fieldParams[key];
+		if (Array.isArray(fieldParams[key])) {
+			guiFields[key] = deepCopy(fieldParams[key]);
+		} else {
+			guiFields[key] = fieldParams[key];
+		}
 	}
 	return guiFields;
 };

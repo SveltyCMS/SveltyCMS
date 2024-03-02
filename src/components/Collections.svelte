@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Stores
-	import { mode, collection, categories } from '@stores/store';
+	import { mode, collection, categories, headerActionButton } from '@stores/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { page } from '$app/stores';
 

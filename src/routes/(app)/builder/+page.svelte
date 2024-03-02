@@ -6,16 +6,14 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
+	import Header from './Header.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-
 	import '@collections';
 	import Collections from './Collections.svelte';
 	import { categories, updateCollections } from '@src/collections';
-
 	import axios from 'axios';
 	import { obj2formData } from '@utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
-	import Header from './Header.svelte';
 	import { onDestroy } from 'svelte';
 
 	//ParaglideJS
@@ -35,6 +33,7 @@
 	let addField = false;
 	let navButton;
 
+	$mode = 'create';
 	$drawerExpanded = true;
 
 	collection.subscribe(() => {
@@ -50,6 +49,7 @@
 		icon = '';
 		fields = [];
 	}
+
 	onDestroy(async () => {
 		await updateCollections();
 	});
@@ -215,7 +215,7 @@
 					/>
 					<!-- <DropDown {items} bind:selected={status} /> -->
 
-					<WidgetBuilder fields={$collection.fields} bind:addField />
+					<WidgetBuilder bind:fields={$collection.fields} bind:addField />
 				</div>
 			{/if}
 		</div>

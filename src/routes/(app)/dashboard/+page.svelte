@@ -214,12 +214,11 @@
 	<PageTitle name="Dashboard for {PUBLIC_SITENAME}" icon="" />
 </div>
 
-	<div class="flex items-center justify-around gap-2 rounded-b">
-		<section class="rounded border p-4"><canvas id="cpuChart"></canvas></section>
-		<section class="rounded border p-4"><canvas id="diskChart"></canvas></section>
-		<section class="rounded border p-4"><canvas id="memoryChart"></canvas></section>
-	</div>
-
+<div class="flex items-center justify-around gap-2 rounded-b">
+	<section class="rounded border p-4"><canvas id="cpuChart"></canvas></section>
+	<section class="rounded border p-4"><canvas id="diskChart"></canvas></section>
+	<section class="rounded border p-4"><canvas id="memoryChart"></canvas></section>
+</div>
 
 {#if systemInfo != null}
 	<div class="card">

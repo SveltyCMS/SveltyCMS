@@ -4,14 +4,13 @@
 
 	// Components
 	import Fields from '@components/Fields.svelte';
+	import ListNode from './ListNode.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	import { currentChild, type FieldType } from '.';
 	import { extractData, getFieldName } from '@utils/utils';
-
-	import ListNode from './ListNode.svelte';
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
@@ -25,11 +24,6 @@
 	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
 	let fieldsData = {};
 	let saveMode = $mode;
-
-	// Create a writable store to hold the saveLayer function
-	saveLayerStore.set(saveLayer);
-	// Set the value of shouldTriggerSaveLayer based on your condition
-	shouldShowNextButton.set(true);
 
 	// MegaMenu Save Layer Next
 	async function saveLayer() {
@@ -51,17 +45,6 @@
 		shouldShowNextButton.set(false);
 		$saveFunction.reset();
 	}
-	function handleKeyDown(event: any) {
-		// console.log('handleKeyDown called');
-		if (event.key === 'Enter') {
-			// console.log('Enter key pressed');
-			let next = () => {};
-			saveLayerStore.subscribe((value) => {
-				next = value;
-				shouldShowNextButton.set(false);
-			});
-		}
-	}
 </script>
 
 {#if !_data}
@@ -75,7 +58,7 @@
 {#if !_data || showFields}
 	{#key depth}
 		{(fieldsData = {}) && ''}
-		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} on:keydown={handleKeyDown} />
+		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} />
 	{/key}
 	{(($saveFunction.fn = saveLayer), '')}
 {/if}
@@ -83,6 +66,6 @@
 <!-- Show children -->
 {#if _data}
 	<ul class:hidden={depth != 0} class="children MENU_CONTAINER">
-		<ListNode data={_data} self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+		<ListNode self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
 	</ul>
 {/if}

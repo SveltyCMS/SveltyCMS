@@ -164,7 +164,7 @@
 <!-- Wait for dynamic Collection import -->
 <!-- TODO: Optimize this as this is not needed for ever page -->
 {#await getCollections()}
-	<div class="flex h-screen items-center justify-center">
+	<div class="flex h-lvh items-center justify-center">
 		<Loading />
 	</div>
 {:then}
@@ -173,7 +173,7 @@
 		<slot />
 	{:else}
 		<!-- Body -->
-		<div class="flex h-screen min-h-dvh flex-col">
+		<div class="flex h-lvh flex-col">
 			<!-- Header -->
 			{#if $sidebarState.header !== 'hidden'}
 				<header class="sticky top-0 z-10 bg-blue-500">Header</header>
@@ -183,16 +183,16 @@
 				<!-- Sidebar Left -->
 				{#if $sidebarState.left !== 'hidden'}
 					<aside
-						class="{$sidebarState.left === 'full'
-							? 'w-[220px]'
-							: 'w-fit'} relative h-full border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+						class="max-h-dvh {$sidebarState.left === 'full'
+							? 'w-[220px] '
+							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
 						<LeftSidebar />
 					</aside>
 				{/if}
 
 				<!-- Content Area -->
-				<main class="realative flex-1 overflow-auto">
+				<main class="realative w-full flex-1 overflow-auto">
 					<!-- Page Header -->
 					{#if $sidebarState.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
@@ -252,7 +252,9 @@
 
 				<!-- Sidebar Right -->
 				{#if $sidebarState.right !== 'hidden'}
-					<aside class="h-full border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
+					<aside
+						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+					>
 						<RightSidebar />
 					</aside>
 				{/if}

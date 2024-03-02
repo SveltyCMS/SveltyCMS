@@ -13,7 +13,7 @@
 	{#each value as level, index}
 		<div class="m-3 border border-dashed border-white p-3 text-center">
 			<p>level {index + 1}</p>
-			<WidgetBuilder fields={level} />
+			<WidgetBuilder bind:fields={level} />
 		</div>
 	{/each}
 </div>

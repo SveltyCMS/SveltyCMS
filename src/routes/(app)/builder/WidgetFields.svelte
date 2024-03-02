@@ -12,6 +12,7 @@
 	export let fields: Array<any> = [];
 
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+	let container: HTMLDivElement;
 	let currentFieldKey: keyof typeof widgets | null = null;
 	let currentField: any;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
@@ -21,6 +22,57 @@
 	let destruct = (node: HTMLDivElement) => {
 		node.remove();
 	};
+
+	function drag(e: PointerEvent) {
+		let timeOut;
+		let node = e.currentTarget as HTMLDivElement;
+		let pointerID = e.pointerId;
+
+		let targets = [...container.getElementsByClassName('field')].map((el) => {
+			let rect = el.getBoundingClientRect();
+			return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
+		});
+		node.onpointerup = () => {
+			clearTimeout(timeOut);
+		};
+		node.onpointerleave = (e) => {
+			clearTimeout(timeOut);
+		};
+		timeOut = setTimeout(() => {
+			let clone = node.cloneNode(true) as HTMLElement;
+			container.appendChild(clone);
+			clone.setPointerCapture(pointerID);
+			node.style.opacity = '0.5';
+			clone.style.left = node.getBoundingClientRect().left + 'px';
+			clone.style.marginLeft = '0';
+			clone.style.position = 'fixed';
+			clone.style.top = e.clientY + 'px';
+			clone.style.width = node.getBoundingClientRect().width + 'px';
+			clone.onpointermove = (e) => {
+				clone.style.top = e.clientY + 'px';
+				targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+				let closest = targets[0];
+				if (closest.el == node) return;
+				targets.forEach((el) => {
+					(el.el as HTMLElement).style.removeProperty('border-color');
+				});
+				(closest.el as HTMLElement).style.borderColor = 'red';
+			};
+			clone.onpointerup = (e) => {
+				node.style.opacity = '1';
+				clone.releasePointerCapture(pointerID);
+				targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+				let closest = targets[0];
+				let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
+				let clone_index = parseInt(clone.getAttribute('data-index') as string);
+				let dragged_item = fields.splice(clone_index, 1)[0];
+				fields.splice(closest_index, 0, dragged_item);
+				fields = fields;
+				clone.remove();
+				closest.el.style.removeProperty('border-color');
+			};
+		}, 200);
+	}
 </script>
 
 <!-- list of widget names -->

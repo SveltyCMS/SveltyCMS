@@ -1,13 +1,13 @@
 <script lang="ts">
 	// Stores
-	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
+	import { sidebarState } from '@stores/sidebarStore';
 
 	// Components
+	import XIcon from '@src/components/system/icons/XIcon.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-
 	import { asAny } from '@utils/utils';
 
 	export let fields: Array<any> = [];
@@ -20,7 +20,8 @@
 	$: if (selected_widget) {
 		guiSchema = widgets[selected_widget]?.GuiSchema;
 	}
-	let field = { widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
+
+	let field = { label: '', widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>
 
 <div
@@ -37,6 +38,7 @@
 
 	{#if !selected_widget}
 		<div class="flex items-center justify-center">
+			<button class="mb-[20px] ml-auto mr-[40px]" on:click={() => (addField = false)}><XIcon /></button>
 			<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
 		</div>
 	{:else}
@@ -48,6 +50,7 @@
 					on:click={() => {
 						if (!selected_widget) return;
 						field.widget = { key: selected_widget, GuiFields: field.widget.GuiFields };
+						field.label = asAny(field.widget.GuiFields).label;
 						fields.push(field);
 						fields = fields;
 						addField = false;

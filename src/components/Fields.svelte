@@ -44,21 +44,23 @@
 	justify=" {$collection.revision === true ? 'justify-between' : 'justify-center '} items-center"
 	rounded="rounded-tl-container-token rounded-tr-container-token"
 	flex="flex-1 items-center"
-	active="border-b border-primary-500 variant-soft-secondary"
+	active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
 	hover="hover:variant-soft-secondary"
 >
 	<!-- Data -->
 	<Tab bind:group={tabSet} name="tab1" value={0}>
 		<div class="flex items-center gap-1">
-			<iconify-icon icon="mdi:pen" width="24" class="text-primary-500" />
+			<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			<p>Edit</p>
 		</div>
 	</Tab>
+	<!-- TODO: Hide revisoin/pi for new coolection -->
+	<!-- {#if !$collectionValue == null} -->
 	<!-- Revision -->
 	{#if $collection.revision === true}
 		<Tab bind:group={tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
-				<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-primary-500" />
+				<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500" />
 				<p>Ver. <span class="variant-outline-primary badge rounded-full">1</span></p>
 			</div>
 		</Tab>
@@ -66,10 +68,11 @@
 	<!-- Api Json -->
 	<Tab bind:group={tabSet} name="tab3" value={2}>
 		<div class="flex items-center gap-1">
-			<iconify-icon icon="ant-design:api-outlined" width="24" class="text-primary-500" />
+			<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			<p>API</p>
 		</div>
 	</Tab>
+	<!-- {/if} -->
 
 	<!-- Tab Panels --->
 	<svelte:fragment slot="panel">
@@ -146,7 +149,7 @@
 			<div class="flex justify-between dark:text-white">
 				<!-- Current version -->
 				<div class="text-center">
-					Current version
+					<p class="mb-4 sm:mb-0">Current version</p>
 					<CodeBlock
 						color="text-white dark:text-primary-500"
 						language="JSON"
@@ -162,15 +165,15 @@
 				></div>
 				<!-- Revision version -->
 				<div class="ml-2 text-left">
-					February 19th 2024, 4:00 PM
+					<p class="text-center text-tertiary-500">February 19th 2024, 4:00 PM</p>
 					<!-- <HighlightedText text={JSON.stringify($entryData, null, 2)} term="bg-red-100" /> -->
 					<CodeBlock
 						on:copy={handleRevert}
 						color="text-white dark:text-primary-500"
 						language="JSON"
 						lineNumbers={true}
-						text="text-xs text-left text-white dark:text-primary-500"
-						buttonLabel="Revert"
+						text="text-xs text-left text-white dark:text-tertiary-500"
+						buttonLabel=""
 						code={JSON.stringify($entryData, null, 2)}
 					/>
 				</div>

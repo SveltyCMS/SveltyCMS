@@ -17,6 +17,6 @@
 		<button class="variant-filled-tertiary btn mb-4 mt-1 dark:variant-filled-primary" on:click={() => (addField = true)}>
 			{m.WidgetBuilder_AddColectionField()}
 		</button>
-		<WidgetFields {fields} />
+		<WidgetFields bind:fields />
 	{/if}
 </div>
