@@ -1,6 +1,8 @@
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
+import Permissions from '@src/components/Permissions.svelte';
+import type { permissions } from '@src/collections/types';
 
 import { SIZES } from '@utils/utils';
 
@@ -17,6 +19,7 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+	permissions?: permissions;
 
 	// Widget Specific parameters
 	// path: (string & {}) | 'global' | 'unique';
@@ -29,11 +32,12 @@ export type Params = {
  */
 export const GuiSchema = {
 	label: { widget: Input, required: true },
-	db_fieldName: { widget: Input, required: true },
-	icon: { widget: IconifyPicker, required: false },
 	display: { widget: Input, required: true },
+	db_fieldName: { widget: Input, required: true },
 	// widget?: any;
 	//translated: { widget: Toggles, required: false },
+	icon: { widget: IconifyPicker, required: false },
+	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
 	path: { widget: Input, required: false },

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collection, collections, permissionStore } from '@stores/store';
+	import { mode, collection, collections, permissionStore, tabSet } from '@stores/store';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -13,7 +13,7 @@
 	import axios from 'axios';
 	import type { Schema } from '@collections/types';
 
-	import { onDestroy, onMount } from 'svelte';
+	import { onDestroy } from 'svelte';
 
 	onDestroy(async () => {
 		await updateCollections();
@@ -173,8 +173,6 @@
 				? `Create <span class="text-primary-500"> ${collectionName} </span> Collection`
 				: `Create <span class="text-primary-500"> new </span> Collection`;
 
-	let tabSet: number = 0;
-
 	function handleNameInput() {
 		if (name) {
 			// Update the URL
@@ -270,8 +268,6 @@
 		};
 		toastStore.trigger(t);
 	}
-
-	alert('Collection page');
 </script>
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
@@ -288,25 +284,25 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup>
-		<Tab bind:group={tabSet} name="tab1" value={0}>
+	<TabGroup bind:group={$tabSet}>
+		<Tab bind:group={$tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-				<span class:active={tabSet === 0} class:text-tertiary-500={tabSet === 0} class:text-primary-500={tabSet === 0}>{m.collection_edit()}</span>
+				<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.collection_edit()}</span>
 			</div>
 		</Tab>
-		<Tab bind:group={tabSet} name="tab2" value={1}>
+		<Tab bind:group={$tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
-				<span class:active={tabSet === 1} class:text-tertiary-500={tabSet === 1} class:dark:text-primary-500={tabSet === 1}
+				<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 1} class:dark:text-primary-500={$tabSet === 1}
 					>{m.collection_permission()}</span
 				>
 			</div>
 		</Tab>
-		<Tab bind:group={tabSet} name="tab3" value={2}>
+		<Tab bind:group={$tabSet} name="tab3" value={2}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
-				<span class:active={tabSet === 1} class:text-tertiary-500={tabSet === 2} class:text-primary-500={tabSet === 2}
+				<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 2} class:text-primary-500={$tabSet === 2}
 					>{m.collection_widgetfields()}</span
 				>
 			</div>
@@ -315,7 +311,7 @@
 		<!-- Tab Panels --->
 		<svelte:fragment slot="panel">
 			<!-- Edit -->
-			{#if tabSet === 0}
+			{#if $tabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 				<!-- Collection Name -->
@@ -371,7 +367,7 @@
 							<div class="variant-filled-secondary arrow" />
 						</div>
 
-						<IconifyPicker {searchQuery} {icon} {iconselected} />
+						<IconifyPicker bind:searchQuery bind:icon bind:iconselected />
 					</div>
 
 					<!-- Slug -->
@@ -442,23 +438,23 @@
 				<!-- Buttons -->
 				<div class="flex justify-between">
 					<a href="/collection" class="variant-filled-secondary btn mt-2">{m.collection_cancel()}</a>
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary"
+					<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary"
 						>{m.collection_next()}</button
 					>
 				</div>
-			{:else if tabSet === 1}
+			{:else if $tabSet === 1}
 				<!-- Permissions -->
-
 				<Permissions />
+				<!-- <Permissions bind:permissions /> -->
 
 				<!-- Buttons -->
 				<div class="flex justify-between">
-					<button type="button" on:click={() => (tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
-					<button type="button" on:click={() => (tabSet = 2)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">Next</button>
+					<button type="button" on:click={() => ($tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">Previous</button>
+					<button type="button" on:click={() => ($tabSet = 2)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">Next</button>
 				</div>
 
 				<!-- Manage Fields -->
-			{:else if tabSet === 2}
+			{:else if $tabSet === 2}
 				<div class="variant-outline-primary rounded-t-md p-2 text-center">
 					<p>
 						{m.collection_widgetfield_addrequired()} <span class="text-primary-500">{collectionName}</span> Collection inputs.
@@ -511,7 +507,7 @@
 				{/if} -->
 
 				<div class=" flex items-center justify-between">
-					<button type="button" on:click={() => (tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
+					<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
 						>{m.collection_widgetfield_previous()}</button
 					>
 					<button

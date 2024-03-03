@@ -34,7 +34,13 @@ const schema: Schema = {
 		}),
 		widgets.Text({
 			label: 'Text3',
-			translated: false
+			translated: false,
+			permissions: {
+				[roles.admin]: {
+					read: true,
+					write: true
+				}
+			}
 		})
 	]
 };

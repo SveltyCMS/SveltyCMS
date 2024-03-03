@@ -1,10 +1,9 @@
 <script lang="ts">
 	// Stores
-	import { collectionValue, contentLanguage, collection, entryData } from '@stores/store';
+	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
 
 	// Skeleton
-	import { TabGroup, Tab, TabAnchor, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
-	let tabSet: number = 0;
+	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
 
 	import { dev } from '$app/environment';
 	import { PUBLIC_SITENAME } from '$env/static/public';
@@ -48,36 +47,35 @@
 	hover="hover:variant-soft-secondary"
 >
 	<!-- Data -->
-	<Tab bind:group={tabSet} name="tab1" value={0}>
+	<Tab bind:group={$tabSet} name="tab1" value={0}>
 		<div class="flex items-center gap-1">
 			<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			<p>Edit</p>
 		</div>
 	</Tab>
-	<!-- TODO: Hide revisoin/pi for new coolection -->
-	<!-- {#if !$collectionValue == null} -->
+
 	<!-- Revision -->
 	{#if $collection.revision === true}
-		<Tab bind:group={tabSet} name="tab2" value={1}>
+		<Tab bind:group={$tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500" />
 				<p>Ver. <span class="variant-outline-primary badge rounded-full">1</span></p>
 			</div>
 		</Tab>
 	{/if}
-	<!-- Api Json -->
-	<Tab bind:group={tabSet} name="tab3" value={2}>
+
+	<!-- API Json -->
+	<Tab bind:group={$tabSet} name="tab3" value={2}>
 		<div class="flex items-center gap-1">
 			<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			<p>API</p>
 		</div>
 	</Tab>
-	<!-- {/if} -->
 
 	<!-- Tab Panels --->
 	<svelte:fragment slot="panel">
 		<!-- Data -->
-		{#if tabSet === 0}
+		{#if $tabSet === 0}
 			<div class="text-center text-xs text-error-500">* Required</div>
 
 			<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
@@ -134,7 +132,7 @@
 					{/if}
 				{/each}
 			</div>
-		{:else if tabSet === 1}
+		{:else if $tabSet === 1}
 			<!-- Revision -->
 			<div class="mb-2 flex items-center justify-between gap-2">
 				<p class="text-center text-primary-500">Compare Revision against:</p>
@@ -178,7 +176,7 @@
 					/>
 				</div>
 			</div>
-		{:else if tabSet === 2}
+		{:else if $tabSet === 2}
 			<!-- API Json -->
 			{#if $entryData == null}
 				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">No Data yet</div>

@@ -5,6 +5,8 @@ import { contentLanguage } from '@stores/store';
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
+import Permissions from '@src/components/Permissions.svelte';
+import type { permissions } from '@src/collections/types';
 
 /**
  * Defines Text widget Parameters
@@ -19,6 +21,7 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+	permissions?: permissions;
 
 	// Widget Specific parameters
 	placeholder?: string;
@@ -42,6 +45,7 @@ export const GuiSchema = {
 	// widget?: any;
 	translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
 	placeholder: { widget: Input, required: false },

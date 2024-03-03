@@ -53,6 +53,9 @@ export const translationStatusOpen = writable(false);
 
 //  ------------ Other ------------
 
+// Tab skeleton store
+export const tabSet: Writable<number> = writable(0);
+
 // Cancel/Reload HeaderButton
 export const headerActionButton: Writable<boolean> = writable(true);
 export const headerActionButton2: Writable<ConstructorOfATypedSvelteComponent | string> = writable();

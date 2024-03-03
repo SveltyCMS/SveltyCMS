@@ -13,6 +13,8 @@ vite.config.ts.timestamp-*
 .env
 .env.*
 !.env.example
+/config/private.ts
+/config/public.ts
 
 # SveltyCMS
 /tmp

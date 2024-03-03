@@ -2,6 +2,8 @@
 import Input from '@components/system/inputs/Input2.svelte';
 import GuiField from './GuiField.svelte';
 // import Toggles from '@components/system/inputs/Toggles.svelte';
+import Permissions from '@src/components/Permissions.svelte';
+import type { permissions } from '@src/collections/types';
 
 import { getFieldName } from '@utils/utils';
 
@@ -20,6 +22,7 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+	permissions?: permissions;
 
 	// Widget Specific parameters
 	relation: string;
@@ -32,6 +35,8 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	permissions: { widget: Permissions, required: false },
+
 	// Widget Specific parameters
 	relation: {
 		widget: GuiField,

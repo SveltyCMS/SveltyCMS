@@ -2,6 +2,8 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import { SIZES } from '@utils/utils';
+import Permissions from '@src/components/Permissions.svelte';
+import type { permissions } from '@src/collections/types';
 
 /**
  * Defines FileUpload widget Parameters
@@ -16,6 +18,7 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+	permissions?: permissions;
 
 	// Widget Specific parameters
 	required?: boolean;
@@ -32,6 +35,7 @@ export const GuiSchema = {
 	// widget?: any;
 	//translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
 	path: { widget: Input, required: false },

@@ -7,7 +7,7 @@
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
 
-	import { asAny } from '@utils/utils';
+	import { asAny, debounce } from '@src/utils/utils';
 
 	export let fields: Array<any> = [];
 
@@ -50,6 +50,9 @@
 			clone.style.position = 'fixed';
 			clone.style.top = e.clientY + 'px';
 			clone.style.width = node.getBoundingClientRect().width + 'px';
+			let cloneHeight = clone.offsetHeight + 10 + 'px';
+			let deb = debounce(50);
+			let old_closest: HTMLElement;
 			clone.onpointermove = (e) => {
 				if (e.clientY < container.offsetTop || e.clientY > container.offsetTop + container.offsetHeight - 60) {
 					if (e.clientY < container.offsetTop) {
@@ -57,21 +60,33 @@
 					} else {
 						container.scrollBy(0, 5);
 					}
+				}
+				clone.style.top = e.clientY + 'px';
+				deb(() => {
 					targets = [...container.getElementsByClassName('field')]
 						.map((el) => {
 							let rect = el.getBoundingClientRect();
 							return { el: el as HTMLElement, center: rect.top + rect.height / 2 };
 						})
 						.filter((el) => el.el != clone);
-				}
-				clone.style.top = e.clientY + 'px';
-				targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
-				let closest = targets[0];
-				if (closest.el == node) return;
-				targets.forEach((el) => {
-					(el.el as HTMLElement).style.removeProperty('border-color');
+					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
+					let closest = targets[0];
+					if (closest.el == node) return;
+					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
+					let clone_index = parseInt(clone.getAttribute('data-index') as string);
+
+					if (old_closest) {
+						old_closest.style.removeProperty('border-color');
+						old_closest.style.margin = '10px 0';
+					}
+					if (e.clientY > closest.center && clone_index - closest_index != 1) {
+						closest.el.style.marginBottom = cloneHeight;
+					} else if (e.clientY < closest.center && closest_index - clone_index != 1) {
+						closest.el.style.marginTop = cloneHeight;
+					}
+					(closest.el as HTMLElement).style.borderColor = 'red';
+					old_closest = closest.el;
 				});
-				(closest.el as HTMLElement).style.borderColor = 'red';
 			};
 			clone.onpointerup = (e) => {
 				node.style.opacity = '1';
@@ -81,10 +96,20 @@
 				let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
 				let clone_index = parseInt(clone.getAttribute('data-index') as string);
 				let dragged_item = fields.splice(clone_index, 1)[0];
+
+				if (clone_index < closest_index) {
+					closest_index--;
+				}
+				e.clientY > closest.center && closest_index++;
 				fields.splice(closest_index, 0, dragged_item);
 				fields = fields;
 				clone.remove();
-				closest.el.style.removeProperty('border-color');
+				setTimeout(() => {
+					targets.forEach((el) => {
+						(el.el as HTMLElement).style.removeProperty('border-color');
+						el.el.style.margin = '10px 0';
+					});
+				}, 50);
 			};
 		}, 200);
 	}
