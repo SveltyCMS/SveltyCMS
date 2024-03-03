@@ -150,6 +150,7 @@
 				clone.style.marginLeft = '0';
 				clone.style.position = 'fixed';
 				clone.style.top = e.clientY + 'px';
+				clone.style.width = node.offsetWidth + 'px';
 				clone.setPointerCapture(pointerID);
 				let cloneHeight = clone.offsetHeight + 10 + 'px';
 				let targets: any = [];
@@ -183,7 +184,7 @@
 						let closest = targets[0];
 
 						if (old_closest) {
-							old_closest.firstChild && ((old_closest.firstChild as HTMLElement).style.borderColor = 'surface-400');
+							old_closest.firstChild && ((old_closest.firstChild as HTMLElement).style.borderColor = '#80808045');
 							old_closest.style.padding = '0';
 						}
 

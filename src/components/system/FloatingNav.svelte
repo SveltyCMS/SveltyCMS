@@ -6,6 +6,8 @@
 	import { page } from '$app/stores';
 	import { tick } from 'svelte';
 	import { motion } from '@src/utils/utils';
+	import { mode } from '@src/stores/store';
+	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
 	let buttonRadius = 25; // home button size
@@ -257,6 +259,8 @@
 		<div
 			bind:this={circles[0]}
 			on:click={() => {
+				mode.set('view');
+				handleSidebarToggle();
 				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
 				showRoutes = false;
 			}}

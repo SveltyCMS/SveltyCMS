@@ -192,7 +192,7 @@
 				{/if}
 
 				<!-- Content Area -->
-				<main class="realative w-full flex-1 overflow-auto">
+				<main class="realative w-full flex-1 overflow-hidden">
 					<!-- Page Header -->
 					{#if $sidebarState.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
@@ -207,7 +207,9 @@
 					<!-- Router Slot -->
 					<div
 						on:keydown={onKeyDown}
-						class="relative overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop' ? 'mb-2' : 'mb-16'}"
+						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
+							? 'mb-2'
+							: 'mb-16'}"
 					>
 						{#key $page.url}
 							<Modal />
@@ -243,7 +245,7 @@
 					<!-- Page Footer -->
 					{#if $sidebarState.pagefooter !== 'hidden'}
 						<footer
-							class="sticky bottom-0 z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 						>
 							<PageFooter />
 						</footer>
