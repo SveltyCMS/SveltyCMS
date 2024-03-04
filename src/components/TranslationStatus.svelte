@@ -1,12 +1,8 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
 	// Stores
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
-
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-	//console.log('contentLanguage', contentLanguage);
-
-	// Manually parse the object from JSON string
-	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));
 
 	function handleChange(event) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -29,7 +25,7 @@
 		closeOpenStates();
 	}}
 >
-	{#each Object.keys(options) as value}
+	{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
 		<option {value}>{value.toUpperCase()}</option>
 	{/each}
 </select>
@@ -43,7 +39,7 @@
 		closeOpenStates();
 	}}
 >
-	{#each Object.entries(options) as [value, label]}
+	{#each Object.entries(publicEnv.DEFAULT_CONTENT_LANGUAGE) as [value, label]}
 		<option {value}>{label}</option>
 	{/each}
 </select>

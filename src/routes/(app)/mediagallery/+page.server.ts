@@ -1,4 +1,4 @@
-import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import fs from 'fs';
 import fsPromises from 'fs/promises';
 import path from 'path';
@@ -29,7 +29,7 @@ export async function load(event: any) {
 		redirect(302, `/login`);
 	}
 
-	const mediaDir = path.resolve(PUBLIC_MEDIA_FOLDER);
+	const mediaDir = path.resolve(publicEnv.MEDIA_FOLDER);
 	//Create the media folder if it doesn't exist
 	if (!fs.existsSync(mediaDir)) {
 		fs.mkdirSync(mediaDir);
@@ -63,13 +63,13 @@ export async function load(event: any) {
 
 	const mediaData = await Promise.all(
 		uniqueImageFiles.map(async (file) => {
-			const mediaPath = `${PUBLIC_MEDIA_FOLDER}/${file}`; // Get the full path to the image
+			const mediaPath = `${publicEnv.MEDIA_FOLDER}/${file}`; // Get the full path to the image
 			const mediaExt = path.extname(file).substring(1); // Get the extension
 			const mediaName = `${path.basename(file).slice(0, -65)}.${mediaExt}`; // Remove last 64 characters (hash) from the file name // Get the name without hash
 			const hash = path.basename(file).slice(-64).split('.')[0]; // Get the hash
 			const onlyPath = mediaPath.substring(mediaPath.lastIndexOf('/') + 1, mediaPath.lastIndexOf('.') - 64);
 
-			const thumbnail = `${PUBLIC_MEDIA_FOLDER}/${file}`;
+			const thumbnail = `${publicEnv.MEDIA_FOLDER}/${file}`;
 			const size = await getFileSize(mediaPath);
 			const hasPermission = hasFilePermission(user, file); // Check permission
 			// Check if this image has the same hash as a previously seen image
@@ -95,7 +95,7 @@ export async function load(event: any) {
 
 	const officeDocumentData = await Promise.all(
 		officeDocuments.map(async (file) => {
-			const filePath = path.join(PUBLIC_MEDIA_FOLDER, file);
+			const filePath = path.join(publicEnv.MEDIA_FOLDER, file);
 			const fileName = path.basename(file);
 			const fileExt = path.extname(file).toLowerCase();
 
@@ -150,7 +150,7 @@ async function getFilesRecursively(dir: string): Promise<string[]> {
 		if (dirent.isDirectory()) {
 			files = [...files, ...(await getFilesRecursively(res))];
 		} else {
-			files.push(path.relative(PUBLIC_MEDIA_FOLDER, res));
+			files.push(path.relative(publicEnv.MEDIA_FOLDER, res));
 		}
 	}
 	return files;

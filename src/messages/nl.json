@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Totaal",
 	"tanstacktable_row": "Rij",
 	"tanstacktable_rows": "Rijen",
-	"forgottenpassword_title": "Stel uw wachtwoord opnieuw in voor {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "Stel uw wachtwoord opnieuw in voor {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "Stel uw wachtwoord opnieuw in voor {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "Stel uw wachtwoord opnieuw in voor {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "Hallo {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Druk op de knop om uw gebruiker in te stellen met deze e-mail",
 	"usertoken_createuser": "Gebruiker aanmaken",
 	"usertoken_team": "Uw {PUBLIC_SITENAME} team",
-	"welcomeuser_title": "Welkom bij {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Welkom bij {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Welkom bij {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Welkom bij {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Beste {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Deze SEO-widget maakt het verzamelen van SEO-gegevens van gebruikers mogelijk voor doeleinden zoals zoekmachineoptimalisatie (SEO), sociale media en reclame.",
 	"widget_text_description": "Met deze Tekstwidget kunt u tekstgegevens van gebruikers verzamelen voor doeleinden zoals blogposts, opmerkingen en feedback.",
 	"Unassigned_Collections": "Niet-toegewezen collecties",
-	"collection_text_description": "Maak nieuwe categorieën of collecties aan en sleep deze naar wens",
-	"mediagallery_nomedia": "Geen mediabestanden beschikbaar.",
-	"Listnode_warning_body": "Als u deze categorie verwijdert, worden ook alle onderliggende categorieën verwijderd.<br> Weet je zeker dat je verder wilt gaan?",
-	"Listnode_confirm_body": "Weet u zeker dat u deze categorie wilt verwijderen?"
+	"collection_text_description": "Maak nieuwe categorieën of collecties aan en sleep deze naar wens"
 }

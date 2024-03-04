@@ -1,5 +1,9 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+	import { saveFormData } from '@utils/utils';
+
 	// Stores
+	import { get } from 'svelte/store';
 	import {
 		collection,
 		categories,
@@ -19,13 +23,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
-
-	import { saveFormData } from '@utils/utils';
-	import { get } from 'svelte/store';
-
-	// Manually parse the object from JSON string
-	let options = JSON.parse(PUBLIC_CONTENT_LANGUAGES.replace(/'/g, '"'));
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -130,7 +127,7 @@
 					bind:value={$contentLanguage}
 					on:change={handleChange}
 				>
-					{#each Object.entries(options) as [value, label]}
+					{#each Object.entries(publicEnv.DEFAULT_CONTENT_LANGUAGE) as [value, label]}
 						<option {value}>{label}</option>
 					{/each}
 				</select>
@@ -141,7 +138,7 @@
 			<!-- Select Content Language -->
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
-					{#each Object.keys(options) as value}
+					{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
 						<option {value}>{value.toUpperCase()}</option>
 					{/each}
 				</select>
@@ -232,7 +229,7 @@
 				bind:value={$contentLanguage}
 				on:change={handleChange}
 			>
-				{#each Object.keys(options) as value}
+				{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
 					<option {value}>{value.toUpperCase()}</option>
 				{/each}
 			</select>

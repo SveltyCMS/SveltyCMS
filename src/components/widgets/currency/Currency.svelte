@@ -1,8 +1,9 @@
 <script lang="ts">
 	import type { FieldType } from '.';
+	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { mode, entryData, contentLanguage, defaultContentLanguage } from '@stores/store';
+	import { mode, entryData, contentLanguage } from '@stores/store';
 
 	import { getFieldName } from '@utils/utils';
 
@@ -12,7 +13,7 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = defaultContentLanguage;
+	let _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let valid = true;
 
 	let numberInput: HTMLInputElement;

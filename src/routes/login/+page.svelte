@@ -1,31 +1,35 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
+	// Components
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
+	import Autocomplete from '@components/Autocomplete.svelte';
 	import SveltyCMSLogoFull from '@src/components/SveltyCMS_LogoFull.svelte';
 	import type { PageData } from './$types';
 
 	// Stores
-	import { systemLanguage, AVAILABLE_SYSTEMLANGUAGES } from '@stores/store';
+	import { systemLanguage } from '@stores/store';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+	import { languageTag } from '@src/paraglide/runtime';
+
+	let _languageTag = languageTag(); // Get the current language tag
+
+	function handleLocaleChange(event: any) {
+		$systemLanguage = event.target.value;
+	}
 
 	export let data: PageData;
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
 
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
-	import Autocomplete from '@components/Autocomplete.svelte';
-
-	let _languageTag = languageTag(); // Get the current language tag
-
 	// Seasons
 	let date = new Date();
 
-	function handleLocaleChange(event: any) {
-		$systemLanguage = event.target.value;
-	}
 	let inputlanguagevalue = '';
-	$: filteredLanguages = AVAILABLE_SYSTEMLANGUAGES.filter((value) => (value ? value.includes(inputlanguagevalue) : true));
+	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlanguagevalue) : true));
 
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
@@ -51,7 +55,7 @@
 			class=" absolute bottom-1/4 left-1/2 flex -translate-x-1/2 -translate-y-1/2 transform cursor-pointer items-center justify-center rounded-full dark:text-black"
 		>
 			<!-- Autocomplete input -->
-			{#if AVAILABLE_SYSTEMLANGUAGES.length > 5}
+			{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
 				<!-- <Autocomplete {options} placeholder={_languageTag} bind:value={inputlanguagevalue} /> -->
 				<input
 					id="languageAuto"
@@ -62,7 +66,6 @@
 					placeholder={_languageTag}
 					aria-label="Enter Language"
 					class="w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
-					on:input={() => ($systemLanguage = inputlanguagevalue.toLowerCase())}
 				/>
 
 				<datalist id="locales" class="w-1/2 divide-y divide-white uppercase">

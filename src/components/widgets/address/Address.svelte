@@ -1,13 +1,18 @@
 <script lang="ts">
-	import { PUBLIC_MAPBOX_API_TOKEN } from '$env/static/public';
-	import mapboxgl from 'mapbox-gl';
+	import { privateEnv } from '@root/config/private';
 
 	import * as z from 'zod';
 
-	// https://docs.mapbox.com/help/glossary/access-token/
-	mapboxgl.accessToken = PUBLIC_MAPBOX_API_TOKEN;
+	// Mapbox
+	import mapboxgl from 'mapbox-gl';
+	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
+	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
+	import 'mapbox-gl/dist/mapbox-gl.css';
+	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 
-	const key = Symbol();
+	// https://docs.mapbox.com/help/glossary/access-token/
+	mapboxgl.accessToken = privateEnv.PUBLIC_MAPBOX_API_TOKEN;
+	s;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -114,14 +119,6 @@
 		country: value.country
 	};
 
-	// Mapbox
-	// TODO hide improve Mapbox add Geolocation
-	import MapboxGeocoder from '@mapbox/mapbox-gl-geocoder';
-
-	import '@mapbox/mapbox-gl-geocoder/dist/mapbox-gl-geocoder.css';
-	import 'mapbox-gl/dist/mapbox-gl.css';
-
-	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 	const language = new MapboxLanguage();
 
 	const geocoder = new MapboxGeocoder({
@@ -212,7 +209,7 @@
 	})();
 </script>
 
-{#if PUBLIC_MAPBOX_API_TOKEN}
+{#if privateEnv.PUBLIC_MAPBOX_API_TOKEN}
 	<address class="w-full">
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"

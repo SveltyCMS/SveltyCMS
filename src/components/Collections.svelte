@@ -1,8 +1,10 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
 	// Stores
 	import { mode, collection, categories, headerActionButton } from '@stores/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { page } from '$app/stores';
+	import { get } from 'svelte/store';
 
 	// let user: User = $page.data.user;
 	// let user = $page.data.user;
@@ -19,8 +21,6 @@
 	import { Accordion, AccordionItem } from '@skeletonlabs/skeleton';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import { get } from 'svelte/store';
-	import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
 
 	const popupCollections: PopupSettings = {
 		event: 'hover',
@@ -232,7 +232,7 @@
 			}}
 		>
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
-			<p class="mr-auto text-center uppercase">{PUBLIC_MEDIA_FOLDER}</p></a
+			<p class="mr-auto text-center uppercase">{publicEnv.MEDIA_FOLDER}</p></a
 		>
 	{:else}
 		<!-- switchSideBar collapsed -->
@@ -245,7 +245,7 @@
 				}
 			}}
 		>
-			<p class="text-xs uppercase text-white">{PUBLIC_MEDIA_FOLDER}</p>
+			<p class="text-xs uppercase text-white">{publicEnv.MEDIA_FOLDER}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
 		</a>
 	{/if}

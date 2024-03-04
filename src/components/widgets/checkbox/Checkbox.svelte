@@ -1,6 +1,7 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	// Stores
-	import { mode, entryData, contentLanguage, defaultContentLanguage } from '@stores/store';
+	import { mode, entryData, contentLanguage } from '@stores/store';
 
 	import type { FieldType } from '.';
 
@@ -13,7 +14,7 @@
 	//console.log('value: ', value);
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	export const WidgetData = async () => _data;
 

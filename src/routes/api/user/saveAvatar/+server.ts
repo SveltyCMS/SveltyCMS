@@ -1,4 +1,4 @@
-import { PUBLIC_MEDIA_FOLDER, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
 import { auth } from '@api/db';
@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Read the uploaded file as a buffer
 		const buffer = Buffer.from(await avatar.arrayBuffer());
 
-		const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
+		const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT || 'original';
 
 		// Hash the file name using crypto
 		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
@@ -35,7 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const oldAvatarURL = user.avatar;
 		if (oldAvatarURL) {
 			const oldFileName = oldAvatarURL.substring(oldAvatarURL.lastIndexOf('/') + 1);
-			const oldFilePath = `${PUBLIC_MEDIA_FOLDER}/images/avatars/${oldFileName}`;
+			const oldFilePath = `${publicEnv.MEDIA_FOLDER}/images/avatars/${oldFileName}`;
 			if (fs.existsSync(oldFilePath)) {
 				fs.unlinkSync(oldFilePath); // Delete the old file if it exists
 			}
@@ -44,7 +44,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Construct the final filename
 		let fileName = `${sanitizedFileName}-${userID}${hash}.${outputFormat}`;
 
-		const outputPath = `${PUBLIC_MEDIA_FOLDER}/images/avatars`;
+		const outputPath = `${publicEnv.MEDIA_FOLDER}/images/avatars`;
 
 		if (!fs.existsSync(outputPath)) {
 			fs.mkdirSync(outputPath, { recursive: true });
@@ -72,7 +72,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			fs.writeFileSync(`${outputPath}/${fileName}`, optimizedBuffer);
 		}
 
-		url = `/${PUBLIC_MEDIA_FOLDER}/images/avatars/${fileName}`;
+		url = `/${publicEnv.MEDIA_FOLDER}/images/avatars/${fileName}`;
 	}
 
 	auth.updateUserAttributes(userID, {

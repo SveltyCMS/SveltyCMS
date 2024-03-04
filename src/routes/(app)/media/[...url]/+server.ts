@@ -1,7 +1,7 @@
 import type { RequestHandler } from './$types';
 import fs from 'fs';
 import mime from 'mime-types';
-import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import zlib from 'zlib';
 
 // TODO: add smarter Cache like lru-cache - A cache object that deletes the least-recently-used items.
@@ -13,7 +13,7 @@ export const GET: RequestHandler = async ({ params }) => {
 		let data = cache.get(params.url);
 		if (!data) {
 			// Read data from file and store in cache
-			data = await fs.promises.readFile(`./${PUBLIC_MEDIA_FOLDER}/${params.url}`);
+			data = await fs.promises.readFile(`./${publicEnv.MEDIA_FOLDER}/${params.url}`);
 			cache.set(params.url, data);
 		}
 		// Compress data using Brotli

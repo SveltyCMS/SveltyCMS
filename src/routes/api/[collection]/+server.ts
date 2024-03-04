@@ -6,7 +6,7 @@ import { getFieldName, parse, saveImages, validate } from '@src/utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import widgets from '@src/components/widgets';
 import type { Schema } from '@src/collections/types';
-import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 
 // Define the GET request handler.
 export const GET: RequestHandler = async ({ params, url, cookies }) => {
@@ -36,7 +36,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	const sort: { [key: string]: number } = JSON.parse(url.searchParams.get('sort') as string) || {};
 
 	// Get the content language from the URL parameters.
-	const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || PUBLIC_CONTENT_LANGUAGES;
+	const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	// Calculate the skip value.
 	const skip = (page - 1) * length;

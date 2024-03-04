@@ -1,7 +1,11 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
+	// Stores
 	import { page } from '$app/stores';
+
+	// Components
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -9,7 +13,7 @@
 	let speed = 50;
 	let size = 130;
 	let font = 0.8;
-	let text = PUBLIC_SITENAME;
+	let text = publicEnv.SITE_NAME;
 	let repeat = 3;
 	let separator = ' • ';
 

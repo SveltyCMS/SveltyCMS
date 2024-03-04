@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Укупно",
 	"tanstacktable_row": "Ред",
 	"tanstacktable_rows": "Редови",
-	"forgottenpassword_title": "Ресетујте лозинку за {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "Ресетујте лозинку за {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "Ресетујте лозинку за {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "Ресетујте лозинку за {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "Здраво {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Притисните дугме да бисте свом кориснику подесили ову е-пошту",
 	"usertoken_createuser": "Направи корисника",
 	"usertoken_team": "Ваш {PUBLIC_SITENAME} тим",
-	"welcomeuser_title": "Добро дошли у {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Добро дошли у {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Добро дошли у {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Добро дошли у {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Поштовани {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Овај СЕО виџет омогућава прикупљање података о СЕО корисника за сврхе као што су оптимизација претраживача (СЕО), друштвени медији и оглашавање.",
 	"widget_text_description": "Овај виџет за текст омогућава прикупљање текстуалних података корисника у сврхе као што су постови на блогу, коментари и повратне информације.",
 	"Unassigned_Collections": "Недодељене колекције",
-	"collection_text_description": "Креирајте нове категорије или колекције и превуците их и отпустите према вашим потребама",
-	"mediagallery_nomedia": "Нема доступних медијских датотека.",
-	"Listnode_warning_body": "Брисањем ове категорије избрисаће се и сва њена деца.<br> Да ли сте сигурни да желите да наставите?",
-	"Listnode_confirm_body": "Да ли сте сигурни да желите да избришете ову категорију?"
+	"collection_text_description": "Креирајте нове категорије или колекције и превуците их и отпустите према вашим потребама"
 }

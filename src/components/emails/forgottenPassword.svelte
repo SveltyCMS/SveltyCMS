@@ -1,9 +1,9 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import { dev } from '$app/environment';
-	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+		import { dev } from '$app/environment';
+	import { publicEnv } from '@root/config/public';
+	import { privateEnv } from '@root/config/private';
 
-	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
+	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
@@ -144,17 +144,17 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title> {m.forgottenpassword_title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.forgottenpassword_meta({ PUBLIC_SITENAME })} />
+		<title> {m.forgottenpassword_title({ publicEnv.SITE_NAME })}</title>
+		<meta name="description" content={m.forgottenpassword_meta({  publicEnv.SITE_NAME })} />
 	</Head>
-	<Preview preview={m.forgottenpassword_preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.forgottenpassword_preview({  publicEnv.SITE_NAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
 					<Img
 						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{PUBLIC_SITENAME} logo"
+						alt="{ publicEnv.SITE_NAME} logo"
 						width="150"
 						height="auto"
 						style={{ display: 'block', margin: '0 auto' }}
@@ -162,7 +162,7 @@
 				</Link>
 			</Section>
 			<Text style={paragraph}>{m.forgottenpassword_hello({ email })}</Text>
-			<Text style={paragraph}>{m.forgottenpassword_request({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.forgottenpassword_request({ publicEnv.SITE_NAME })}</Text>
 			<Section style={review}>
 				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
@@ -178,7 +178,7 @@
 				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.forgottenpassword_team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.forgottenpassword_team({ publicEnv.SITE_NAME })}</Text>
 		</Container>
 	</Section>
 </Html>

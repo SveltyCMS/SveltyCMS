@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Total",
 	"tanstacktable_row": "Linha",
 	"tanstacktable_rows": "Linhas",
-	"forgottenpassword_title": "Redefina sua senha para {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "Redefina sua senha para {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "Redefina sua senha para {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "Redefina sua senha para {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "Olá {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Por favor, pressione o botão para configurar seu usuário com este e-mail",
 	"usertoken_createuser": "Criar usuário",
 	"usertoken_team": "Sua equipe {PUBLIC_SITENAME}",
-	"welcomeuser_title": "Bem-vindo ao {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Bem-vindo ao {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Bem-vindo ao {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Bem-vindo ao {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Prezado {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Este widget de SEO permite a coleta de dados de SEO do usuário para fins como otimização de mecanismos de pesquisa (SEO), mídia social e publicidade.",
 	"widget_text_description": "Este widget de Texto permite a coleta de dados de texto do usuário para fins como postagens de blog, comentários e feedback.",
 	"Unassigned_Collections": "Coleções não atribuídas",
-	"collection_text_description": "Crie novas categorias ou coleções e arraste e solte-as de acordo com suas necessidades",
-	"mediagallery_nomedia": "Nenhum arquivo de mídia disponível.",
-	"Listnode_warning_body": "Excluir esta categoria também excluirá todos os seus filhos.<br> Tem certeza de que deseja prosseguir?",
-	"Listnode_confirm_body": "Tem certeza de que deseja excluir esta categoria?"
+	"collection_text_description": "Crie novas categorias ou coleções e arraste e solte-as de acordo com suas necessidades"
 }

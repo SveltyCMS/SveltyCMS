@@ -8,22 +8,21 @@ import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { onMount } from 'svelte';
+import { privateEnv } from '@root/config/private';
 
 // Global Search Index
 import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 // Redis
-import { PUBLIC_USE_REDIS } from '$env/static/public';
-import { REDIS_HOST, REDIS_PORT, REDIS_PASSWORD } from '$env/static/private';
 import { createClient } from 'redis';
 
 let redisClient: any = null;
 
-if (PUBLIC_USE_REDIS === 'true') {
+if (privateEnv.USE_REDIS === true) {
 	// Create Redis client
 	redisClient = createClient({
-		url: `redis://${REDIS_HOST}:${REDIS_PORT}`,
-		password: REDIS_PASSWORD
+		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
+		password: privateEnv.REDIS_PASSWORD
 	});
 
 	redisClient.on('error', (err: Error) => {
@@ -147,7 +146,7 @@ for (const collection of collections) {
 
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () => {
-		if (PUBLIC_USE_REDIS === 'true') {
+		if (privateEnv.USE_REDIS === true) {
 			// Try to fetch the result from Redis first
 			const cachedResult = await new Promise((resolve, reject) => {
 				redisClient.get(collection.name, (err, result) => {
@@ -165,7 +164,7 @@ for (const collection of collections) {
 		// If the result was not found in Redis, fetch it from the database
 		const dbResult = await mongoose.models[collection.name as string].find({ status: { $ne: 'unpublished' } }).lean();
 
-		if (PUBLIC_USE_REDIS === 'true') {
+		if (privateEnv.USE_REDIS === true) {
 			// Store the DB result in Redis for future requests
 			redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
 		}

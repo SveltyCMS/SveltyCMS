@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 
@@ -8,7 +9,6 @@
 	import { screenWidth, toggleSidebar, sidebarState, userPreferredState } from '@src/stores/sidebarStore';
 
 	// Components
-	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import Collections from '@components/Collections.svelte';
 
@@ -55,7 +55,7 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
-	import { AVAILABLE_SYSTEMLANGUAGES, avatarSrc, pkgBgColor, systemLanguage } from '@src/stores/store';
+	import { avatarSrc, pkgBgColor, systemLanguage } from '@src/stores/store';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
@@ -63,7 +63,7 @@
 		$systemLanguage = event.target.value;
 	}
 	let inputlangeuagevalue = '';
-	$: filteredLanguages = AVAILABLE_SYSTEMLANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
+	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
 
 	let handleClick: any;
 
@@ -145,7 +145,7 @@
 	{#if $sidebarState.left === 'full'}
 		<a href="/" class="t flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-8 rtl:ml-2 " />
-			<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{PUBLIC_SITENAME} </span>
+			<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{publicEnv.SITE_NAME} </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->

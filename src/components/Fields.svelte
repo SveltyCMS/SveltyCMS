@@ -1,15 +1,14 @@
 <script lang="ts">
+	import { dev } from '$app/environment';
+	import { publicEnv } from '@root/config/public';
+
+	import { asAny, getFieldName } from '@utils/utils';
+
 	// Stores
 	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
-
-	import { dev } from '$app/environment';
-	import { PUBLIC_SITENAME } from '$env/static/public';
-	import HighlightedText from './HighlightedText.svelte';
-
-	import { asAny, getFieldName } from '@utils/utils';
 
 	export let fields: typeof $collection.fields | undefined = undefined;
 	export let root = true; // if Fields is not part of any widget.
@@ -31,7 +30,7 @@
 
 	$: if ($entryData) {
 		const id = $entryData._id; // Assuming _id is the property containing the ID
-		apiUrl = `${dev ? 'http://localhost:5173' : PUBLIC_SITENAME}/api/${$collection.name}/${id}`;
+		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection.name}/${id}`;
 	}
 
 	function handleRevert(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {

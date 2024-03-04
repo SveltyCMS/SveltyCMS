@@ -1,7 +1,8 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
+
 	import { dev } from '$app/environment';
-	import { HOST_DEV, HOST_PROD } from '$env/static/private';
+	import { publicEnv } from '@root/config/public';
+	import { privateEnv } from '@root/config/private';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -113,19 +114,19 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title>{m.usertoken_title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.usertoken_meta({ PUBLIC_SITENAME })} />
+		<title>{m.usertoken_title({ publicEnv.SITE_NAME })}</title>
+		<meta name="description" content={m.usertoken_meta({ publicEnv.SITE_NAME })} />
 	</Head>
-	<Preview preview={m.usertoken_preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.usertoken_preview({ publicEnv.SITE_NAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{PUBLIC_SITENAME} logo" width="150" height="auto" />
+					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>{m.usertoken_accesstoken({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.usertoken_accesstoken({ publicEnv.SITE_NAME })}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{m.usertoken_email()}</Text>
@@ -146,7 +147,7 @@
 				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.usertoken_team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.usertoken_team({ publicEnv.SITE_NAME })}</Text>
 		</Container>
 	</Section>
 </Html>

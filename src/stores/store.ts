@@ -1,9 +1,10 @@
 import { writable, type Writable } from 'svelte/store';
-import { PUBLIC_CONTENT_LANGUAGES, PUBLIC_AVAILABLE_SYSTEMLANGUAGES } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import type { Schema } from '@collections/types';
 
 //paraglidejs
-import { sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+import * as m from '@src/paraglide/messages.js';
+import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
 // Categories
 export const categories: Writable<
@@ -36,17 +37,17 @@ export const saveEditedImage: Writable<boolean> = writable(false);
 export const selectedRows = writable([]);
 
 // ------------ Languages ------------
-// Create a writable store for contentLanguage with initial value of PUBLIC_CONTENT_LANGUAGES
-export const contentLanguage = writable(Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0]);
-export const defaultContentLanguage = Object.keys(JSON.parse(PUBLIC_CONTENT_LANGUAGES))[0];
+// Create a writable store for contentLanguage with initial value of PublicEnv.DEFAULT_CONTENT_LANGUAGE
+export const contentLanguage: Writable<string> = writable(publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
-// Create a writable store for systemLanguage
-export const systemLanguage = writable(globalThis?.localStorage?.getItem('systemLanguage') || sourceLanguageTag);
-
-//Filter systemLanguage via environment file
-export const AVAILABLE_SYSTEMLANGUAGES = PUBLIC_AVAILABLE_SYSTEMLANGUAGES
-	? (JSON.parse(PUBLIC_AVAILABLE_SYSTEMLANGUAGES) as string[])
-	: availableLanguageTags; // default value
+// Create a writable store for systemLanguage with initial value of PublicEnv.DEFAULT_SYSTEM_LANGUAGE
+export const systemLanguage: Writable<AvailableLanguageTag> = writable(publicEnv.DEFAULT_SYSTEM_LANGUAGE) as any;
+// Set the language tag
+export const messages: Writable<typeof m> = writable({ ...m });
+systemLanguage.subscribe((val) => {
+	setLanguageTag(val);
+	messages.set({ ...m });
+});
 
 // TranslationStatus.svelte
 export const translationStatusOpen = writable(false);

@@ -32,7 +32,7 @@
 	"tanstacktable_total": "کل",
 	"tanstacktable_row": "قطار",
 	"tanstacktable_rows": "قطاریں",
-	"forgottenpassword_title": "{PUBLIC_SITENAME} کے لیے اپنا پاس ورڈ دوبارہ ترتیب دیں",
+	"forgottenpassword_title": "{publicEnv.SITE_NAME} کے لیے اپنا پاس ورڈ دوبارہ ترتیب دیں",
 	"forgottenpassword_meta": "{PUBLIC_SITENAME} کے لیے اپنا پاس ورڈ دوبارہ ترتیب دیں",
 	"forgottenpassword_preview": "{PUBLIC_SITENAME} کے لیے اپنا پاس ورڈ دوبارہ ترتیب دیں",
 	"forgottenpassword_hello": "ہیلو {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "براہ کرم اس ای میل کے ساتھ اپنے صارف کو ترتیب دینے کے لیے بٹن کو دبائیں۔",
 	"usertoken_createuser": "صارف بنائیں",
 	"usertoken_team": "آپ کی {PUBLIC_SITENAME} ٹیم",
-	"welcomeuser_title": "{PUBLIC_SITENAME} میں خوش آمدید",
+	"welcomeuser_title": "{publicEnv.SITE_NAME} میں خوش آمدید",
 	"welcomeuser_meta": "{PUBLIC_SITENAME} میں خوش آمدید",
 	"welcomeuser_preview": "{PUBLIC_SITENAME} میں خوش آمدید",
 	"welcomeuser_username": "محترم {username} ،",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "یہ SEO ویجیٹ سرچ انجن آپٹیمائزیشن (SEO)، سوشل میڈیا اور اشتہارات جیسے مقاصد کے لیے صارف کے SEO ڈیٹا کو جمع کرنے کے قابل بناتا ہے۔",
 	"widget_text_description": "یہ ٹیکسٹ ویجیٹ بلاگ پوسٹس، تبصرے اور تاثرات جیسے مقاصد کے لیے صارف کے ٹیکسٹ ڈیٹا کو جمع کرنے کے قابل بناتا ہے۔",
 	"Unassigned_Collections": "غیر تفویض کردہ مجموعے۔",
-	"collection_text_description": "اپنی ضروریات کے مطابق نئے زمرے یا مجموعے بنائیں اور انہیں گھسیٹیں اور چھوڑیں۔",
-	"mediagallery_nomedia": "کوئی میڈیا فائلیں دستیاب نہیں ہیں۔",
-	"Listnode_warning_body": "اس زمرے کو حذف کرنے سے اس کے تمام بچے بھی حذف ہو جائیں گے۔<br> کیا آپ واقعی آگے بڑھنا چاہتے ہیں؟",
-	"Listnode_confirm_body": "کیا آپ واقعی اس زمرے کو حذف کرنا چاہتے ہیں؟"
+	"collection_text_description": "اپنی ضروریات کے مطابق نئے زمرے یا مجموعے بنائیں اور انہیں گھسیٹیں اور چھوڑیں۔"
 }

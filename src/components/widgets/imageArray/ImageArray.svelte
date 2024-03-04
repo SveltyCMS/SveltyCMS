@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
 	// Stores
 	import { loadingProgress, mode } from '@stores/store';
 
@@ -8,7 +10,6 @@
 
 	import { saveFormData, generateUniqueId } from '@utils/utils';
 	import type { FieldType } from '.';
-	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 
 	// Sveltekit
 	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
@@ -190,7 +191,7 @@
 								<!-- Optimized as  -->
 								<p class="text-lg font-semibold text-primary-500">
 									{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
-									{#if $loadingProgress != 100}Optimized as <span class="uppercase">{PUBLIC_MEDIA_OUTPUT_FORMAT}: </span>{/if}
+									{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT}: </span>{/if}
 								</p>
 								<!-- Image data  -->
 								<p>File size: <span class="text-primary-500">{(file.size / 1024).toFixed(2)} KB</span></p>

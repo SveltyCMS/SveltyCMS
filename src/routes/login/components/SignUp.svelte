@@ -4,12 +4,12 @@
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	// import { dev } from '$app/environment';
+	import { publicEnv } from '@root/config/public';
+	import { privateEnv } from '@root/config/private';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	let tabIndex = 1;
-
-	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
 
 	let activeOauth = false;
 
@@ -99,7 +99,7 @@
 				<CMSLogo className="w-12" fill="red" />
 
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
-					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
 					<div class="break-words lg:-mt-1">
 						{m.signup_signup()}
 						{#if !firstUserExists}
@@ -136,7 +136,7 @@
 				/>
 				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-				{#if PUBLIC_USE_GOOGLE_OAUTH}
+				{#if privateEnv.USE_GOOGLE_OAUTH}
 					<!-- Email field -->
 					<FloatingInput
 						id="emailsignUp"
@@ -221,7 +221,7 @@
 				{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
 				<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
 
-				{#if PUBLIC_USE_GOOGLE_OAUTH === 'false'}
+				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- email signin only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase"
 						>{m.signup_signup()}
@@ -230,7 +230,7 @@
 					</button>
 
 					<!-- email + oauth signin  -->
-				{:else if PUBLIC_USE_GOOGLE_OAUTH === 'true' && !activeOauth}
+				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
 							<span class="w-full text-black hover:text-white">{m.signup_signup()}</span>

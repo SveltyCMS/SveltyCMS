@@ -77,34 +77,34 @@ jobs:
           wait
         # run: bunx playwright test
         env:
-          DB_HOST: mongodb://localhost:27017/?authSource=admin
-          DB_NAME: SveltyCMS
-          DB_USER: admin
-          DB_PASSWORD: admin
-          PUBLIC_SITENAME: SveltyCMS
-          HOST_DEV: http://localhost:5173
-          HOST_PROD: http://localhost:4173
-          PUBLIC_AVAILABLE_SYSTEMLANGUAGES: ''
-          PUBLIC_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
-          PUBLIC_SEASONS: true
-          PUBLIC_PKG: '{ VERSION: pkg.version }'
-          PUBLIC_MEDIA_FOLDER: media
-          PUBLIC_MEDIASERVER_URL: ''
-          PUBLIC_MEDIA_OUTPUT_FORMAT: 'avif'
-          PUBLIC_IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
-          PUBLIC_USE_GOOGLE_OAUTH: 'false'
-          SECRET_GOOGLE_API_KEY: ''
-          SECRET_GOOGLE_CLIENT_ID: ''
-          SECRET_GOOGLE_CLIENT_SECERT: ''
-          SECRET_TWITCH_TOKEN: ''
-          SECRET_TIKTOK_TOKEN: ''
-          SMTP_HOST: ''
-          SMTP_PORT: ''
-          SMTP_PASSWORD: ''
-          SMTP_EMAIL: 'test@example.com'
-          PUBLIC_MAPBOX_API_TOKEN: ''
-          SECRET_MAPBOX_API_TOKEN: ''
-          VITE_OPEN_AI_KEY: ''
+          privateEnv.DB_HOST: mongodb://localhost:27017/?authSource=admin
+          privateEnv.DB_NAME: SveltyCMS
+          privateEnv.DB_USER: admin
+          privateEnv.DB_PASSWORD: admin
+          publicEnv.SITE_NAME: SveltyCMS
+          publicEnv.HOST_DEV: http://localhost:5173
+          publicEnv.HOST_PROD: http://localhost:4173
+          publicEnv.AVAILABLE_SYSTEM_LANGUAGES: ''
+          publicEnv.DEFAULT_CONTENT_LANGUAGES: '{ "en": "English", "de": "German" }'
+          publicEnv.SEASONS: true
+          publicEnv.PKG: '{ VERSION: pkg.version }'
+          publicEnv.MEDIA_FOLDER: media
+          publicEnv._MEDIASERVER_URL: ''
+          publicEnv.MEDIA_OUTPUT_FORMAT: 'avif'
+          publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'
+          privateEnv.USE_GOOGLE_OAUTH: 'false'
+          privateEnv.GOOGLE_API_KEY: ''
+          privateEnv.GOOGLE_CLIENT_ID: ''
+          privateEnv.GOOGLE_CLIENT_SECERT: ''
+          privateEnv.TWITCH_TOKEN: ''
+          privateEnv.TIKTOK_TOKEN: ''
+          privateEnv.SMTP_HOST: ''
+          privateEnv.SMTP_PORT: ''
+          privateEnv.SMTP_PASSWORD: ''
+          privateEnv.SMTP_EMAIL: 'test@example.com'
+          privateEnv.PUBLIC_MAPBOX_API_TOKEN: ''
+          privateEnv.SECRET_MAPBOX_API_TOKEN: ''
+          privateEnv.VITE_OPEN_AI_KEY: ''
           # Add more environment variables as needed...
 
       - uses: actions/upload-artifact@v3

@@ -32,7 +32,7 @@
 	"tanstacktable_total": "სულ",
 	"tanstacktable_row": "მწკრივი",
 	"tanstacktable_rows": "რიგები",
-	"forgottenpassword_title": "გადააყენეთ თქვენი პაროლი {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "გადააყენეთ თქვენი პაროლი {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "გადააყენეთ თქვენი პაროლი {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "გადააყენეთ თქვენი პაროლი {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "გამარჯობა {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "გთხოვთ, დააჭიროთ ღილაკს თქვენი მომხმარებლის ამ ელფოსტის დასაყენებლად",
 	"usertoken_createuser": "მომხმარებლის შექმნა",
 	"usertoken_team": "თქვენი {PUBLIC_SITENAME} გუნდი",
-	"welcomeuser_title": "მოგესალმებით {PUBLIC_SITENAME}",
+	"welcomeuser_title": "მოგესალმებით {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "მოგესალმებით {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "მოგესალმებით {PUBLIC_SITENAME}",
 	"welcomeuser_username": "ძვირფასო {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "ეს SEO ვიჯეტი საშუალებას აძლევს მომხმარებლის SEO მონაცემების შეგროვებას ისეთი მიზნებისთვის, როგორიცაა საძიებო სისტემის ოპტიმიზაცია (SEO), სოციალური მედია და რეკლამა.",
 	"widget_text_description": "ეს ტექსტური ვიჯეტი საშუალებას გაძლევთ შეაგროვოთ მომხმარებლის ტექსტის მონაცემები ისეთი მიზნებისთვის, როგორიცაა ბლოგის პოსტები, კომენტარები და გამოხმაურება.",
 	"Unassigned_Collections": "გამოუყენებელი კოლექციები",
-	"collection_text_description": "შექმენით ახალი კატეგორიები ან კოლექციები და გადაიტანეთ და ჩამოაგდეთ ისინი თქვენი საჭიროების მიხედვით",
-	"mediagallery_nomedia": "მედია ფაილები არ არის ხელმისაწვდომი.",
-	"Listnode_warning_body": "ამ კატეგორიის წაშლა ასევე წაშლის მის ყველა შვილს.<br> დარწმუნებული ხართ, რომ გსურთ გაგრძელება?",
-	"Listnode_confirm_body": "დარწმუნებული ხართ, რომ გსურთ ამ კატეგორიის წაშლა?"
+	"collection_text_description": "შექმენით ახალი კატეგორიები ან კოლექციები და გადაიტანეთ და ჩამოაგდეთ ისინი თქვენი საჭიროების მიხედვით"
 }

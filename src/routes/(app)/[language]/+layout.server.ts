@@ -6,7 +6,7 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 import { getCollections } from '@collections';
 
-import { PUBLIC_CONTENT_LANGUAGES } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 
 import { languageTag } from '@src/paraglide/runtime';
 
@@ -34,7 +34,7 @@ export async function load({ cookies, route, params }) {
 
 			// filters collection based on reading permissions and redirects to first left one
 			const _filtered = collections.filter((c) => c?.permissions?.[user.user.role]?.read != false);
-			redirect(302, `/${params.language || PUBLIC_CONTENT_LANGUAGES}/${_filtered[0].name}`);
+			redirect(302, `/${params.language || publicEnv.DEFAULT_LANGUAGE}/${_filtered[0].name}`);
 		}
 		if (collection?.permissions?.[user.user.role]?.read == false) {
 			error(404, {

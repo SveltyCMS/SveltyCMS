@@ -13,9 +13,10 @@
 	// If all of these checks have an impact of 3, then you should get a maximum score of 24 (8 checks * 3 points per check)
 
 	import type { FieldType } from '.';
+	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { contentLanguage, defaultContentLanguage } from '@stores/store';
+	import { contentLanguage } from '@stores/store';
 	import { mode, entryData } from '@stores/store';
 
 	//ParaglideJS
@@ -33,7 +34,7 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	// console.log(_data);
-	let _language = field?.translated ? $contentLanguage : defaultContentLanguage;
+	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	export const WidgetData = async () => _data;
 

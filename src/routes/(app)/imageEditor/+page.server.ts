@@ -1,6 +1,6 @@
 import fs from 'fs/promises';
 import path from 'path';
-import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import { validate } from '@utils/utils';
 import { auth } from '@api/db';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
@@ -18,7 +18,7 @@ export async function load(event: any) {
 
 	try {
 		const imageName = decodeURIComponent(event.params.file.join('/')); // Decode the URI component
-		const filePath = path.join(PUBLIC_MEDIA_FOLDER, imageName);
+		const filePath = path.join(publicEnv.MEDIA_FOLDER, imageName);
 		const fileStats = await fs.stat(filePath);
 
 		if (fileStats.isFile()) {

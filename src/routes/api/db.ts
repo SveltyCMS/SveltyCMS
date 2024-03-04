@@ -1,9 +1,10 @@
+import { dev } from '$app/environment';
+import { publicEnv } from '@root/config/public';
+import { privateEnv } from '@root/config/private';
+
 // Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
-
-import { dev } from '$app/environment';
-import { PUBLIC_SITENAME } from '$env/static/public';
 
 // Lucia v2
 import { lucia } from 'lucia';
@@ -15,34 +16,26 @@ import { google } from '@lucia-auth/oauth/providers';
 
 // mongoose
 import mongodb from 'mongoose';
-import {
-	DB_HOST,
-	DB_NAME,
-	DB_USER,
-	DB_PASSWORD,
-	DB_COMPRESSOR,
-	HOST_PROD,
-	HOST_DEV,
-	GOOGLE_CLIENT_ID,
-	GOOGLE_CLIENT_SECERT
-} from '$env/static/private';
+
 // import { Session } from 'inspector';
 
 // Turn off strict mode for query filters. Default in Mongodb 7
 mongodb.set('strictQuery', false);
 
-console.log('\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ' + DB_NAME + ' database ...\x1b[0m');
+console.log('\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ' + privateEnv.DB_NAME + ' database ...\x1b[0m');
 
 // Connect to MongoDB database using imported environment variables
 try {
-	await mongodb.connect(DB_HOST, {
+	await mongodb.connect(privateEnv.DB_HOST, {
 		authSource: 'admin',
-		user: DB_USER,
-		pass: DB_PASSWORD,
-		dbName: DB_NAME,
-		compressors: DB_COMPRESSOR
+		user: privateEnv.DB_USER,
+		pass: privateEnv.DB_PASSWORD,
+		dbName: privateEnv.DB_NAME,
+		compressors: privateEnv.DB_COMPRESSOR
 	});
-	console.log(`\x1b[32m====> Connection to ${DB_NAME} database successful!\x1b[0m\n====> Enjoying your \x1b[31m${PUBLIC_SITENAME}\x1b[0m`);
+	console.log(
+		`\x1b[32m====> Connection to ${privateEnv.DB_NAME} database successful!\x1b[0m\n====> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`
+	);
 } catch (error) {
 	console.error('\x1b[31mError connecting to database:\x1b[0m', error);
 	throw new Error('Error connecting to database');
@@ -150,11 +143,11 @@ const auth = lucia({
 // Google OAuth2 - optional authentication
 let googleAuth: any;
 
-if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECERT) {
+if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 	googleAuth = google(auth, {
-		clientId: GOOGLE_CLIENT_ID,
-		clientSecret: GOOGLE_CLIENT_SECERT,
-		redirectUri: `${dev ? HOST_DEV : HOST_PROD}/oauth`,
+		clientId: privateEnv.GOOGLE_CLIENT_ID,
+		clientSecret: privateEnv.GOOGLE_CLIENT_SECRET,
+		redirectUri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/oauth`,
 		scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
 		accessType: dev ? 'offline' : 'online'
 	});

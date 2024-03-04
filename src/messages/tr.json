@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Toplam",
 	"tanstacktable_row": "Sıra",
 	"tanstacktable_rows": "Satırlar",
-	"forgottenpassword_title": "{PUBLIC_SITENAME} şifrenizi sıfırlayın",
+	"forgottenpassword_title": "{publicEnv.SITE_NAME} şifrenizi sıfırlayın",
 	"forgottenpassword_meta": "{PUBLIC_SITENAME} şifrenizi sıfırlayın",
 	"forgottenpassword_preview": "{PUBLIC_SITENAME} şifrenizi sıfırlayın",
 	"forgottenpassword_hello": "Merhaba {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Kullanıcınızı bu e-postayla ayarlamak için lütfen düğmeye basın",
 	"usertoken_createuser": "Kullanıcı oluştur",
 	"usertoken_team": "{PUBLIC_SITENAME} Ekibiniz",
-	"welcomeuser_title": "{PUBLIC_SITENAME} sitesine hoş geldiniz",
+	"welcomeuser_title": "{publicEnv.SITE_NAME} sitesine hoş geldiniz",
 	"welcomeuser_meta": "{PUBLIC_SITENAME} sitesine hoş geldiniz",
 	"welcomeuser_preview": "{PUBLIC_SITENAME} sitesine hoş geldiniz",
 	"welcomeuser_username": "Sayın {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Bu SEO widget'ı, arama motoru optimizasyonu (SEO), sosyal medya ve reklamcılık gibi amaçlarla kullanıcı SEO verilerinin toplanmasını sağlar.",
 	"widget_text_description": "Bu Metin widget'ı, blog gönderileri, yorumlar ve geri bildirimler gibi amaçlarla kullanıcı metin verilerinin toplanmasını sağlar.",
 	"Unassigned_Collections": "Atanmamış Koleksiyonlar",
-	"collection_text_description": "İhtiyaçlarınıza göre yeni kategoriler veya koleksiyonlar oluşturun ve bunları sürükleyip bırakın",
-	"mediagallery_nomedia": "Medya dosyası yok.",
-	"Listnode_warning_body": "Bu kategorinin silinmesi aynı zamanda tüm alt öğelerinin de silinmesine neden olacaktır.<br> Devam etmek istediğinizden emin misiniz?",
-	"Listnode_confirm_body": "Bu kategoriyi silmek istediğinizden emin misiniz?"
+	"collection_text_description": "İhtiyaçlarınıza göre yeni kategoriler veya koleksiyonlar oluşturun ve bunları sürükleyip bırakın"
 }

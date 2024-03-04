@@ -2,7 +2,6 @@ import FileUpload from './FileUpload.svelte';
 
 import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-// import { defaultContentLanguage } from ''@stores/store'
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -21,7 +20,7 @@ const widget = (params: Params) => {
 			// Return the formatted doctype as Icon
 			if (data?.fileExtension) {
 				const fileExt = data.fileExtension;
-				let icon;
+				let icon: any;
 				if (fileExt === '.docx') {
 					icon = 'vscode-icons:file-type-word';
 				} else if (fileExt === '.xlsx') {

@@ -2,8 +2,8 @@ import fs from 'fs';
 import axios from 'axios';
 import mongoose from 'mongoose';
 
-import { PUBLIC_MEDIA_FOLDER, PUBLIC_IMAGE_SIZES, PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
-// import { publicConfig } from '@root/config/public';
+import { publicEnv } from '@root/config/public';
+
 import { Blob } from 'buffer';
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
@@ -97,7 +97,7 @@ export function sanitize(str: string) {
 }
 
 // Get the environment variables for image sizes
-const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves POSTS files to disk and returns file information
@@ -110,7 +110,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 	const _files: Array<any> = [];
 
 	// Get the environment variables for image sizes
-	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+	const env_sizes = publicEnv.IMAGE_SIZES;
 
 	// Define the available image sizes, including 'original' and 'thumbnail'
 	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
@@ -132,9 +132,9 @@ export async function saveImages(data: FormData, collectionName: string) {
 	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
 
 	// Create the necessary directories if they don't exist
-	if (!fs.existsSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}`)) {
+	if (!fs.existsSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}`)) {
 		for (const size in SIZES) {
-			fs.mkdirSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}`, {
+			fs.mkdirSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}`, {
 				recursive: true
 			});
 		}
@@ -156,10 +156,10 @@ export async function saveImages(data: FormData, collectionName: string) {
 				const hash = crypto.createHash('sha256').update(buffer).digest('hex');
 
 				// Construct the URL for the original file
-				const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}`;
+				const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}`;
 
 				// Determine the output format based on the environment variable or default to 'original'
-				const outputFormat = PUBLIC_MEDIA_OUTPUT_FORMAT || 'original';
+				const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT || 'original';
 
 				// Set the MIME type based on the output format
 				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
@@ -200,10 +200,10 @@ export async function saveImages(data: FormData, collectionName: string) {
 							.toBuffer();
 
 						// Write the thumbnail to the file system
-						fs.writeFileSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
+						fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
 
 						// Construct the URL for the thumbnail
-						const url = `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
+						const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
 
 						// Add the thumbnail data to the files object
 						files[fieldname as keyof typeof files][size] = {
@@ -228,14 +228,14 @@ export async function saveImages(data: FormData, collectionName: string) {
 
 					// Write the optimized original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
+						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
 						optimizedOriginalBuffer
 					);
 				} else {
 					optimizedOriginalBuffer = buffer;
 					// Write the original image to the file system
 					fs.writeFileSync(
-						`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${blob.type.split('/')[1]}`,
+						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${blob.type.split('/')[1]}`,
 						optimizedOriginalBuffer
 					);
 				}
@@ -243,7 +243,7 @@ export async function saveImages(data: FormData, collectionName: string) {
 				// Add the optimized original file data to the files object
 				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
 					name: `${sanitizedFileName}.${hash}.${outputFormat}`,
-					url: `/${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
+					url: `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
 					size: optimizedOriginalBuffer.byteLength,
 					type: mimeType,
 					lastModified: blob.lastModified
@@ -385,7 +385,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 
 // Function to delete image files associated with a content item
 export async function deleteImageFiles(collectionName: string, fileName: string) {
-	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+	const env_sizes = publicEnv.IMAGE_SIZES;
 	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 	const collection = get(collections).find((collection) => collection.name === collectionName);
@@ -394,11 +394,11 @@ export async function deleteImageFiles(collectionName: string, fileName: string)
 
 	try {
 		// Delete the original image file
-		fs.unlinkSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`);
+		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`);
 
 		// Delete resized image files
 		for (const size in SIZES) {
-			fs.unlinkSync(`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
+			fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
 		}
 
 		// console.log(`Deleted image files associated with ${fileName}`);
@@ -433,7 +433,7 @@ export async function deleteData(id: any, collectionName: any) {
 
 // Move image files to trash folder
 async function moveImageFilesToTrash(collectionName: string, fileName: string) {
-	const env_sizes = JSON.parse(PUBLIC_IMAGE_SIZES) as { [key: string]: number };
+	const env_sizes = publicEnv.IMAGE_SIZES;
 	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 	const collection = get(collections).find((collection) => collection.name === collectionName);
@@ -443,15 +443,15 @@ async function moveImageFilesToTrash(collectionName: string, fileName: string) {
 	try {
 		// Move the original image file to trash folder
 		fs.renameSync(
-			`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`,
-			`${PUBLIC_MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`
+			`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`,
+			`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`
 		);
 
 		// Move resized image files to trash folder
 		for (const size in SIZES) {
 			fs.renameSync(
-				`${PUBLIC_MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`,
-				`${PUBLIC_MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`
+				`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`,
+				`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`
 			);
 		}
 

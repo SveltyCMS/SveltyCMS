@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Całkowity",
 	"tanstacktable_row": "Wiersz",
 	"tanstacktable_rows": "Wydziwianie",
-	"forgottenpassword_title": "Zresetuj hasło do {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "Zresetuj hasło do {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "Zresetuj hasło do {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "Zresetuj hasło do {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "Witaj {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Naciśnij przycisk, aby skonfigurować użytkownika przy użyciu tego adresu e-mail",
 	"usertoken_createuser": "Stwórz użytkownika",
 	"usertoken_team": "Twój zespół {PUBLIC_SITENAME}",
-	"welcomeuser_title": "Witamy w {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Witamy w {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Witamy w {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Witamy w {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Drogi {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Ten widget SEO umożliwia zbieranie danych SEO użytkowników do celów takich jak optymalizacja wyszukiwarek (SEO), media społecznościowe i reklamy.",
 	"widget_text_description": "Ten widżet Tekst umożliwia zbieranie danych tekstowych użytkownika do celów takich jak wpisy na blogu, komentarze i opinie.",
 	"Unassigned_Collections": "Nieprzypisane kolekcje",
-	"collection_text_description": "Twórz nowe kategorie lub kolekcje, przeciągając je i upuszczając zgodnie ze swoimi potrzebami",
-	"mediagallery_nomedia": "Brak dostępnych plików multimedialnych.",
-	"Listnode_warning_body": "Usunięcie tej kategorii spowoduje również usunięcie wszystkich jej kategorii podrzędnych.<br> Na pewno chcesz kontynuować?",
-	"Listnode_confirm_body": "Czy na pewno chcesz usunąć tę kategorię?"
+	"collection_text_description": "Twórz nowe kategorie lub kolekcje, przeciągając je i upuszczając zgodnie ze swoimi potrzebami"
 }

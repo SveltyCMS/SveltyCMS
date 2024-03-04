@@ -1,14 +1,16 @@
 <script lang="ts">
 	import type { PageData } from '../$types';
+	import { publicEnv } from '@root/config/public';
+	import { privateEnv } from '@root/config/private';
 
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
+	// Components
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import { PUBLIC_SITENAME, PUBLIC_USE_GOOGLE_OAUTH } from '$env/static/public';
 	import CMSLogo from '@src/components/SveltyCMS_Logo.svelte';
 
 	// skeleton
@@ -319,7 +321,7 @@
 				<CMSLogo className="w-12" fill="red" />
 
 				<h1 class="text-3xl font-bold text-black lg:text-4xl">
-					<div class="text-xs text-surface-300">{PUBLIC_SITENAME}</div>
+					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
 					{#if !PWforgot && !PWreset}
 						<div class="lg:-mt-1">{m.signin_signin()}</div>
 					{:else if PWforgot && !PWreset}
@@ -376,7 +378,7 @@
 								{/if}
 							</button>
 
-							{#if PUBLIC_USE_GOOGLE_OAUTH == 'true'}
+							{#if privateEnv.USE_GOOGLE_OAUTH == true}
 								<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
 									<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
 										<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { publicEnv } from '@root/config/public';
 	import PageTitle from '@components/PageTitle.svelte';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
@@ -211,7 +211,7 @@
 </script>
 
 <div class="mb-2 flex items-center">
-	<PageTitle name="Dashboard for {PUBLIC_SITENAME}" icon="" />
+	<PageTitle name="Dashboard for {publicEnv.SITE_NAME}" icon="" />
 </div>
 
 <div class="flex items-center justify-around gap-2 rounded-b">

@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
 	import { dev } from '$app/environment';
+	import { publicEnv } from '@root/config/public';
 
 	import { page } from '$app/stores';
 	import type { User } from 'lucia';
@@ -10,8 +10,7 @@
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
-	import { HOST_DEV, HOST_PROD } from '$env/static/private';
-	export let tokenLink = dev ? HOST_DEV : HOST_PROD;
+		export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
@@ -47,20 +46,20 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title>{m.updatedpassword_title({ PUBLIC_SITENAME })}</title>
-		<meta name="description" content={m.updatedpassword_meta({ PUBLIC_SITENAME })} />
+		<title>{m.updatedpassword_title({ publicEnv.SITE_NAME })}</title>
+		<meta name="description" content={m.updatedpassword_meta({ publicEnv.SITE_NAME })} />
 	</Head>
-	<Preview preview={m.updatedpassword_preview({ PUBLIC_SITENAME })} />
+	<Preview preview={m.updatedpassword_preview({ publicEnv.SITE_NAME })} />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
-				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{PUBLIC_SITENAME} logo" width="150" height="auto" />
+				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 			</Link>
 			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
-			<Text style={paragraph}>{m.updatedpassword_change({ PUBLIC_SITENAME })}</Text>
+			<Text style={paragraph}>{m.updatedpassword_change({ publicEnv.SITE_NAME })}</Text>
 			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>{m.updatedpassword_team({ PUBLIC_SITENAME })}</Text>
+			<Text style={footer}>{m.updatedpassword_team({ publicEnv.SITE_NAME })}</Text>
 		</Container>
 	</Section>
 </Html>

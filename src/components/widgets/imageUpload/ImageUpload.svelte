@@ -1,4 +1,6 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import type { FieldType } from './';
@@ -9,8 +11,6 @@
 
 	// Skeleton
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
-
-	import { PUBLIC_MEDIA_OUTPUT_FORMAT } from '$env/static/public';
 
 	let _data: FileList;
 	let updated = false;
@@ -138,7 +138,7 @@
 
 						<p class="text-lg font-semibold text-primary-500">
 							{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
-							{#if $loadingProgress != 100}Optimized as <span class="uppercase">{PUBLIC_MEDIA_OUTPUT_FORMAT}: </span>{/if}
+							{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT}: </span>{/if}
 						</p>
 
 						<p>File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>

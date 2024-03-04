@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { PUBLIC_SITENAME } from '$env/static/public';
+	import { publicEnv } from '@root/config/public';
 	import { page } from '$app/stores';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -16,8 +16,8 @@
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
 	// SEO
-	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
-	const SeoDescription = `${PUBLIC_SITENAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
+	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
 
 <svelte:head>

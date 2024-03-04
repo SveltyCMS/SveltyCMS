@@ -5,6 +5,8 @@
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
 
+	import { publicEnv } from '@root/config/public';
+
 	//skeleton
 	import {
 		initializeStores,
@@ -25,7 +27,7 @@
 
 	// Stores
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, defaultContentLanguage, systemLanguage, isLoading } from '@stores/store';
+	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { page } from '$app/stores';
 	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
@@ -36,7 +38,6 @@
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { PUBLIC_SITENAME } from '$env/static/public';
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@src/components/LeftSidebar.svelte';
 	import RightSidebar from '@src/components/RightSidebar.svelte';
@@ -66,7 +67,7 @@
 
 		if (!ForwardBackward && initial != true) {
 			// If ForwardBackward is false and the current route is a collection route
-			goto(`/${$contentLanguage || defaultContentLanguage}/${$collection.name}`);
+			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${$collection.name}`);
 		}
 		initial = false;
 		// Reset ForwardBackward to false
@@ -131,8 +132,8 @@
 	});
 
 	// SEO
-	const SeoTitle = `${PUBLIC_SITENAME} - powered with sveltekit`;
-	const SeoDescription = `${PUBLIC_SITENAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
+	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
+	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
 
 <svelte:head>

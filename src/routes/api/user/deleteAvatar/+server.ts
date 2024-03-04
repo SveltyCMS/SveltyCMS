@@ -1,4 +1,4 @@
-import { PUBLIC_MEDIA_FOLDER } from '$env/static/public';
+import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
 import { auth } from '@api/db';
@@ -14,7 +14,7 @@ export const POST: RequestHandler = async ({ request }) => {
 	const oldAvatarURL = user.avatar;
 	if (oldAvatarURL) {
 		const oldFileName = oldAvatarURL.substring(oldAvatarURL.lastIndexOf('/') + 1);
-		const oldFilePath = `${PUBLIC_MEDIA_FOLDER}/images/avatars/${oldFileName}`;
+		const oldFilePath = `${publicEnv.MEDIA_FOLDER}/images/avatars/${oldFileName}`;
 		if (fs.existsSync(oldFilePath)) {
 			fs.unlinkSync(oldFilePath); // Delete the old file if it exists
 			success = true;

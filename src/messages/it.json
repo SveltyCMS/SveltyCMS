@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Totale",
 	"tanstacktable_row": "Riga",
 	"tanstacktable_rows": "Righe",
-	"forgottenpassword_title": "Reimposta la tua password per {PUBLIC_SITENAME}",
+	"forgottenpassword_title": "Reimposta la tua password per {publicEnv.SITE_NAME}",
 	"forgottenpassword_meta": "Reimposta la tua password per {PUBLIC_SITENAME}",
 	"forgottenpassword_preview": "Reimposta la tua password per {PUBLIC_SITENAME}",
 	"forgottenpassword_hello": "Ciao {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Premi il pulsante per configurare il tuo utente con questa email",
 	"usertoken_createuser": "Creare un utente",
 	"usertoken_team": "Il tuo team {PUBLIC_SITENAME}",
-	"welcomeuser_title": "Benvenuto in {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Benvenuto in {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Benvenuto in {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Benvenuto in {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Gentile {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Questo widget SEO consente la raccolta di dati SEO degli utenti per scopi quali l'ottimizzazione dei motori di ricerca (SEO), i social media e la pubblicità.",
 	"widget_text_description": "Questo widget di testo consente la raccolta di dati di testo dell'utente per scopi quali post di blog, commenti e feedback.",
 	"Unassigned_Collections": "Raccolte non assegnate",
-	"collection_text_description": "Crea nuove categorie o raccolte e trascinale e rilasciale in base alle tue esigenze",
-	"mediagallery_nomedia": "Nessun file multimediale disponibile.",
-	"Listnode_warning_body": "L'eliminazione di questa categoria eliminerà anche tutti i suoi figli.<br> Sei sicuro di voler procedere?",
-	"Listnode_confirm_body": "Sei sicuro di voler eliminare questa categoria?"
+	"collection_text_description": "Crea nuove categorie o raccolte e trascinale e rilasciale in base alle tue esigenze"
 }

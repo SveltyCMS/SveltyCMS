@@ -1,5 +1,6 @@
 <script lang="ts">
-	import { PUBLIC_SEASONS, PUBLIC_SITENAME } from '$env/static/public';
+	import { publicEnv } from '@root/config/public';
+
 	import { Confetti } from 'svelte-confetti';
 	import Logo from '@src/components/SveltyCMS_Logo.svelte';
 
@@ -23,7 +24,7 @@
 	<!--White Inner Background -->
 	<div class="absolute top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 		<!-- Seasons -->
-		{#if PUBLIC_SEASONS === 'true'}
+		{#if publicEnv.SEASONS === true}
 			<!-- TODO: Fix broken avif Edge image -->
 			{#if isDecember && !isNewYear}
 				<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
@@ -99,7 +100,7 @@
 			<Logo fill="black" className="w-8 h-8" />
 			<!-- PUBLIC SITENAME -->
 			<div class="text-3xl font-bold text-error-500">
-				{PUBLIC_SITENAME}
+				{publicEnv.SITE_NAME}
 			</div>
 			<!-- Slogan -->
 			<div class="-mt-[1px] text-[12px] font-bold text-black">

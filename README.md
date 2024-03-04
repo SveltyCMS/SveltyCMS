@@ -94,15 +94,39 @@ npm install   # installs all required package dependencies
 # npm run inlang    # build available system languages
 ```
 
-### Setup Environment File
+### Setup Environment Variables
 
-rename the `.env.example` to `.env` and add at least your Database Access to start:
+This project uses a public/private configuration to store sensitive information, such as API keys and database passwords.
 
-- Fill in your access data to connect to a [MongoDB or MongoDB Atlas database](https://www.mongodb.com)
-- Change the content database Languages to your required needs
-- Limit your system Languages to your required needs
-- Setup your Email `SMTP` & `HOST` to allow sending emails
-- Add your required API Tokens for the individual Widgets you need for your project
+To set up the project, you will need to create two files in the project root directory:
+
+The `config` folder contains two example configuration files that you can rename to get started. Typescript helps you with code completion.
+
+### Create `config/private.ts` and `config/public.ts`
+
+```bash
+mv config/private.example.ts config/private.ts
+mv config/public.example.ts config/public.ts
+```
+
+The `config/private.ts` contain sensitive information that you do not want to expose to the public. This includes things like: Database & Email configs, API keys, Secret tokens.
+
+```typescript
+import { createPrivateConfig } from './types';
+export const privateEnv = createPrivateConfig({
+
+	// private configuration settings
+}) => arg;
+```
+
+The `config/public.ts` contains configuration settings that are safe to share with the public, This includes things like: Site name, Language handling, Media configurations.
+
+```typescript
+import { createPublicConfig } from './types';
+export const publicEnv = createPrivateConfig({
+	// public configuration settings
+}) => arg;
+```
 
 ### Start the application for development or production
 

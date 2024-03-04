@@ -1,7 +1,5 @@
 import RichText from './RichText.svelte';
-
-// Stores
-import { defaultContentLanguage } from '@stores/store';
+import { publicEnv } from '@root/config/public';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -17,11 +15,11 @@ const widget = (params: Params) => {
 	let display: any;
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = async ({ data }) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[defaultContentLanguage] || m.widgets_nodata();
+			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {

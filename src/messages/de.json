@@ -32,7 +32,7 @@
 	"tanstacktable_total": "Gesamt",
 	"tanstacktable_row": "Reihe",
 	"tanstacktable_rows": "Reihen",
-	"forgottenpassword_title": "Setzen Sie Ihr Passwort für {PUBLIC_SITENAME} zurück",
+	"forgottenpassword_title": "Setzen Sie Ihr Passwort für {publicEnv.SITE_NAME} zurück",
 	"forgottenpassword_meta": "Setzen Sie Ihr Passwort für {PUBLIC_SITENAME} zurück",
 	"forgottenpassword_preview": "Setzen Sie Ihr Passwort für {PUBLIC_SITENAME} zurück",
 	"forgottenpassword_hello": "Hallo {email}",
@@ -61,7 +61,7 @@
 	"usertoken_button": "Bitte klicken Sie auf die Schaltfläche, um Ihren Benutzer mit dieser E-Mail einzurichten",
 	"usertoken_createuser": "Benutzer erstellen",
 	"usertoken_team": "Ihr {PUBLIC_SITENAME} Team",
-	"welcomeuser_title": "Willkommen bei {PUBLIC_SITENAME}",
+	"welcomeuser_title": "Willkommen bei {publicEnv.SITE_NAME}",
 	"welcomeuser_meta": "Willkommen bei {PUBLIC_SITENAME}",
 	"welcomeuser_preview": "Willkommen bei {PUBLIC_SITENAME}",
 	"welcomeuser_username": "Lieber {username} ,",
@@ -334,8 +334,5 @@
 	"widget_seo_description": "Dieses SEO-Widget ermöglicht die Erfassung von Benutzer-SEO-Daten für Zwecke wie Suchmaschinenoptimierung (SEO), soziale Medien und Werbung.",
 	"widget_text_description": "Dieses Text-Widget ermöglicht die Erfassung von Benutzertextdaten für Zwecke wie Blogbeiträge, Kommentare und Feedback.",
 	"Unassigned_Collections": "Nicht zugewiesene Sammlungen",
-	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop",
-	"mediagallery_nomedia": "Keine Mediendateien verfügbar.",
-	"Listnode_warning_body": "Durch das Löschen dieser Kategorie werden auch alle untergeordneten Kategorien gelöscht.<br> Sind Sie sicher, dass Sie fortfahren möchten?",
-	"Listnode_confirm_body": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?"
+	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop"
 }
