@@ -20,6 +20,8 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+
+	// Permissions
 	permissions?: permissions;
 
 	// Widget Specific parameters
@@ -40,6 +42,9 @@ export const GuiSchema = {
 	db_fieldName: { widget: Input, required: true },
 	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	width: { widget: Input, required: false },
+
+	// Permissions
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters

@@ -1,7 +1,6 @@
 // Components
 import Input from '@components/system/inputs/Input2.svelte';
 import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';
 
@@ -21,22 +20,13 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+
+	// Permissions
 	permissions?: permissions;
 
 	// Widget Specific parameters
 	menu: any[]; // Make sure this is always an array of arrays
 };
-
-export interface CustomDragEvent extends Event {
-	detail: {
-		closest_index: number;
-		clone_index: number;
-		children: any[];
-		isParent: boolean;
-		expanded_list: [boolean];
-		refresh_expanded_list: () => void;
-	};
-}
 
 /**
  * Defines MegaMenu GuiSchema
@@ -45,6 +35,9 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	width: { widget: Input, required: false },
+
+	// Permissions
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
@@ -91,3 +84,14 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	`
 	};
 };
+
+export interface CustomDragEvent extends Event {
+	detail: {
+		closest_index: number;
+		clone_index: number;
+		dragged_item: any;
+		isParent: boolean;
+		expanded_list: [boolean];
+		refresh_expanded_list: () => void;
+	};
+}

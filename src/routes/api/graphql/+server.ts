@@ -1,17 +1,13 @@
+import { privateEnv } from '@root/config/private';
+
 // Graphql Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
 import type { RequestEvent } from '@sveltejs/kit';
 import mongoose from 'mongoose';
-
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
-import { onMount } from 'svelte';
-import { privateEnv } from '@root/config/private';
-
-// Global Search Index
-import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 // Redis
 import { createClient } from 'redis';
@@ -29,35 +25,6 @@ if (privateEnv.USE_REDIS === true) {
 		console.log('Redis error: ', err);
 	});
 }
-
-// Define the page data
-const globalSearchData = {
-	title: 'GraphQL API',
-	description: 'Access the GraphQL API endpoint.',
-	keywords: ['graphql', 'api', 'endpoint', 'data'],
-	triggers: { 'Go to GraphQL API': { path: '/api/graphql', action: () => {} } }
-};
-
-// Function to check if a page entry already exists in the global search index
-const isPageEntryExists = (index: any, pageData: any) => {
-	return index.some((item: any) => {
-		return item.title === pageData.title; // Assuming title uniquely identifies a page
-	});
-};
-
-// Mount hook to add the GraphQL API page data to the global search index
-onMount(() => {
-	// Get the current value of the global search index
-	const currentIndex = globalSearchIndex;
-
-	// Check if the GraphQL API page data already exists in the index
-	const isDataExists = isPageEntryExists(currentIndex, globalSearchData);
-
-	// If the data doesn't exist, add it to the global search index
-	if (!isDataExists) {
-		globalSearchIndex.update((index) => [...index, globalSearchData]);
-	}
-});
 
 let typeDefs = /* GraphQL */ ``;
 const types = new Set();
@@ -92,7 +59,7 @@ for (const collection of collections) {
 				types.add(type);
 			}
 			if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
-				// for helper widgets which extract its fields and does not exist in db itself like image array
+				// for helper widgets which extract its fields and does not exist in db itself like imagearray
 				const _fields = field.fields;
 				for (const _field of _fields) {
 					collectionSchema += `${getFieldName(_field, true)}: ${
@@ -138,7 +105,7 @@ type Query {
 }
 `;
 
-// console.log(typeDefs);
+console.log(typeDefs);
 
 // Loop over each collection to define resolvers for querying data
 for (const collection of collections) {

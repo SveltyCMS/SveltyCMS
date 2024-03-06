@@ -12,7 +12,7 @@
 
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
-	import TanstackIcons from './TanstackIcons.svelte';
+	import TableIcons from '../icons/TableIcons.svelte';
 	import { asAny } from '@utils/utils';
 
 	//svelte-dnd-action
@@ -381,7 +381,7 @@
 			{#each $table.getHeaderGroups() as headerGroup}
 				<tr class="divide-x divide-surface-200 border-b border-surface-400 dark:divide-surface-400">
 					<th class="w-8 bg-white dark:bg-surface-900">
-						<TanstackIcons bind:checked={SelectAll} />
+						<TableIcons bind:checked={SelectAll} />
 					</th>
 					<!-- Tanstack Other Headers -->
 					{#each headerGroup.headers as header, index}
@@ -458,7 +458,7 @@
 				>
 					<!-- TickRows -->
 					<td class="">
-						<TanstackIcons
+						<TableIcons
 							bind:checked={$selectedMap[row.id]}
 							on:keydown
 							on:click={() => {

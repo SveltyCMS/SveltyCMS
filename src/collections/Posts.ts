@@ -46,14 +46,14 @@ const schema: Schema = {
 			required: true,
 			icon: 'material-symbols:image-outline',
 			path: 'images' //This save to image folder, and is not globally available
-		}),
-
-		widgets.FileUpload({
-			label: 'File',
-			required: true,
-			icon: 'mdi:file-document-outline',
-			path: 'global' //This save to image folder, and is not globally available
 		})
+
+		// widgets.FileUpload({
+		// 	label: 'File',
+		// 	required: true,
+		// 	icon: 'mdi:file-document-outline',
+		// 	path: 'global' //This save to image folder, and is not globally available
+		// })
 	]
 };
 export default schema;

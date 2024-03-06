@@ -5,7 +5,7 @@ import { publicEnv } from '@root/config/public';
 import * as m from '@src/paraglide/messages';
 
 import { getFieldName, getGuiFields } from '@src/utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
+import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 /**
  * Defines Text widget Parameters
@@ -22,6 +22,8 @@ const widget = (params: Params) => {
 			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
 		display.default = true;
+	} else {
+		display = params.display;
 	}
 
 	// Define the widget object

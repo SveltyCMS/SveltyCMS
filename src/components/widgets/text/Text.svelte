@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getCollections } from '@src/collections';
 
 	// Stores
 	import { contentLanguage, mode, entryData } from '@stores/store';
@@ -13,9 +14,12 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	export const WidgetData = async () => _data;
+	getCollections().then((collections) => {
+		console.log(collections);
+	});
 
 	// Reactive statement to update count
 	$: count = _data[_language]?.length ?? 0;

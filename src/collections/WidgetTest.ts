@@ -71,86 +71,86 @@ const schema: Schema = {
 			icon: 'material-symbols:mail-outline',
 			placeholder: 'Enter Email',
 			required: true
-		}),
+		})
 
-		widgets.RemoteVideo({
-			label: 'RemoteVideo',
-			db_fieldName: 'remotevideo',
-			icon: 'mdi:youtube',
-			placeholder: 'Enter RemoteVideo',
-			required: true
-		}),
+		// widgets.RemoteVideo({
+		// 	label: 'RemoteVideo',
+		// 	db_fieldName: 'remotevideo',
+		// 	icon: 'mdi:youtube',
+		// 	placeholder: 'Enter RemoteVideo',
+		// 	required: true
+		// }),
 
-		widgets.Date({
-			label: 'Date',
-			db_fieldName: 'date',
-			icon: 'bi:calendar3',
-			required: true
-		}),
+		// widgets.Date({
+		// 	label: 'Date',
+		// 	db_fieldName: 'date',
+		// 	icon: 'bi:calendar3',
+		// 	required: true
+		// }),
 
-		widgets.DateTime({
-			label: 'DateTime',
-			db_fieldName: 'datetime',
-			icon: 'bi:calendar3',
-			required: true
-		}),
+		// widgets.DateTime({
+		// 	label: 'DateTime',
+		// 	db_fieldName: 'datetime',
+		// 	icon: 'bi:calendar3',
+		// 	required: true
+		// }),
 
-		widgets.Number({
-			label: 'Number',
-			db_fieldName: 'number',
-			icon: 'carbon:character-whole-number',
-			placeholder: 'Enter Number',
-			required: true,
-			prefix: 'height',
-			suffix: 'mm'
-			// step: 0.01
-		}),
+		// widgets.Number({
+		// 	label: 'Number',
+		// 	db_fieldName: 'number',
+		// 	icon: 'carbon:character-whole-number',
+		// 	placeholder: 'Enter Number',
+		// 	required: true,
+		// 	prefix: 'height',
+		// 	suffix: 'mm'
+		// 	// step: 0.01
+		// }),
 
-		widgets.Currency({
-			label: 'Currency',
-			db_fieldName: 'currency',
-			currencyCode: 'Euro',
-			icon: 'carbon:character-whole-number',
-			placeholder: 'Enter Currency',
-			required: true,
-			prefix: '€',
-			suffix: 'Cent',
-			step: 0.01
-		}),
+		// widgets.Currency({
+		// 	label: 'Currency',
+		// 	db_fieldName: 'currency',
+		// 	currencyCode: 'Euro',
+		// 	icon: 'carbon:character-whole-number',
+		// 	placeholder: 'Enter Currency',
+		// 	required: true,
+		// 	prefix: '€',
+		// 	suffix: 'Cent',
+		// 	step: 0.01
+		// }),
 
-		widgets.PhoneNumber({
-			label: 'Phone Number',
-			db_fieldName: 'phonenumber',
-			icon: 'ph:phone',
-			placeholder: 'Enter Phone no',
-			required: true
-		}),
+		// widgets.PhoneNumber({
+		// 	label: 'Phone Number',
+		// 	db_fieldName: 'phonenumber',
+		// 	icon: 'ph:phone',
+		// 	placeholder: 'Enter Phone no',
+		// 	required: true
+		// }),
 
-		widgets.Radio({
-			label: 'Radio',
-			db_fieldName: 'radio',
-			icon: 'akar-icons:radio-fill',
-			color: 'pink',
-			required: true,
-			width: 4
-		}),
+		// widgets.Radio({
+		// 	label: 'Radio',
+		// 	db_fieldName: 'radio',
+		// 	icon: 'akar-icons:radio-fill',
+		// 	color: 'pink',
+		// 	required: true,
+		// 	width: 4
+		// }),
 
-		widgets.Checkbox({
-			label: 'Checkbox',
-			db_fieldName: 'checkbox',
-			icon: 'mdi:check-bold',
-			color: 'pink',
-			required: true,
-			width: 4
-		}),
+		// widgets.Checkbox({
+		// 	label: 'Checkbox',
+		// 	db_fieldName: 'checkbox',
+		// 	icon: 'mdi:check-bold',
+		// 	color: 'pink',
+		// 	required: true,
+		// 	width: 4
+		// }),
 
-		widgets.ColorPicker({
-			label: 'ColorPicker',
-			db_fieldName: 'colorpicker',
-			icon: 'pepicons:color-picker',
-			required: true,
-			width: 4
-		}),
+		// widgets.ColorPicker({
+		// 	label: 'ColorPicker',
+		// 	db_fieldName: 'colorpicker',
+		// 	icon: 'pepicons:color-picker',
+		// 	required: true,
+		// 	width: 4
+		// }),
 
 		// widgets.Rating({
 		// 	label: 'Rating',
@@ -168,12 +168,12 @@ const schema: Schema = {
 		// 	required: true
 		// }),
 
-		widgets.Seo({
-			label: 'Seo',
-			db_fieldName: 'seo',
-			icon: 'tabler:seo',
-			required: true
-		})
+		// widgets.Seo({
+		// 	label: 'Seo',
+		// 	db_fieldName: 'seo',
+		// 	icon: 'tabler:seo',
+		// 	required: true
+		// })
 	]
 };
 export default schema;

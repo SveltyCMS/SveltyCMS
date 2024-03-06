@@ -1,3 +1,4 @@
+// Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@components/system/inputs/Input2.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
@@ -19,6 +20,8 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+
+	// Permissions
 	permissions?: permissions;
 
 	// Widget Specific parameters
@@ -34,9 +37,11 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
-	// widget?: any;
 	//translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	width: { widget: Input, required: false },
+
+	// Permissions
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
@@ -63,13 +68,12 @@ const types = Object.keys(SIZES)
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
-	// console.log(typeName);
-
+	console.log(typeName);
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName,
 		graphql: /* GraphQL */ `
-		${types}
+        ${types}
 		type ${typeName} {
 			${Object.keys(SIZES)
 				.map((size) => `${size}: ${size}`)

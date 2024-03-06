@@ -3,9 +3,13 @@
 
 	// Stores
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
+	console.log('publicEnv.DEFAULT_CONTENT_LANGUAGE', publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	console.log('publicEnv.AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
+	console.log('$contentLanguage', $contentLanguage);
+	console.log('translationStatusOpen', $translationStatusOpen);
 
 	function handleChange(event) {
-		const selectedLanguage = event.target.value.toLowerCase();
+		const selectedLanguage = event.target.value.toUpperCase();
 		contentLanguage.set(selectedLanguage);
 	}
 
@@ -16,30 +20,16 @@
 </script>
 
 <!-- TODO: Show translation Status -->
-<!-- Mobile -->
+<!-- Language -->
 <select
-	class="variant-ghost-surface rounded border-surface-500 dark:text-white md:hidden"
+	class="variant-ghost-surface rounded border-surface-500 dark:text-white"
 	bind:value={$contentLanguage}
 	on:change={handleChange}
 	on:focus={() => {
 		closeOpenStates();
 	}}
 >
-	{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
+	{#each Object.keys(publicEnv.AVAILABLE_CONTENT_LANGUAGES) as value}
 		<option {value}>{value.toUpperCase()}</option>
-	{/each}
-</select>
-
-<!-- Desktop -->
-<select
-	class="variant-ghost-surface hidden rounded border-surface-500 dark:text-white md:block"
-	bind:value={$contentLanguage}
-	on:change={handleChange}
-	on:focus={() => {
-		closeOpenStates();
-	}}
->
-	{#each Object.entries(publicEnv.DEFAULT_CONTENT_LANGUAGE) as [value, label]}
-		<option {value}>{label}</option>
 	{/each}
 </select>

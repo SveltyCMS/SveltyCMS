@@ -1,7 +1,6 @@
 // Components
 import Input from '@components/system/inputs/Input2.svelte';
 import GuiField from './GuiField.svelte';
-// import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';
 
@@ -22,6 +21,8 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+
+	// Permissions
 	permissions?: permissions;
 
 	// Widget Specific parameters
@@ -35,6 +36,9 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	width: { widget: Input, required: false },
+
+	// Permissions
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
@@ -55,7 +59,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		graphql: '', // relation does not need its own graphql because it copies related collection type
 		resolver: {
 			[collection.name]: {
-				async [getFieldName(field)](parent) {
+				async [getFieldName(field)](parent: any) {
 					// console.log(getFieldName(field));
 					const res = await mongoose.models[field.relation].findById(parent[getFieldName(field)]).lean();
 

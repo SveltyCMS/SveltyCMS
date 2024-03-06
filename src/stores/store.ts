@@ -23,18 +23,27 @@ export const collection: Writable<Schema> = writable();
 export const currentCollection = writable(null);
 // collective data of collection
 export const collectionValue: any = writable({});
+// entry data of collection
 export const entryData: Writable<any> = writable({});
 // collective crud
 export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify'> = writable('view');
 // collective status
-export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
+// export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
+export const modifyEntry: Writable<(status: keyof typeof statusMap) => any> = writable(() => {});
+
+//entrylist statusMap
+export const statusMap = {
+	Delete: 'deleted',
+	Publish: 'published',
+	Unpublish: 'unpublished',
+	Schedule: 'scheduled',
+	Clone: 'cloned',
+	Test: 'testing'
+};
 
 // Store image data while editing
 export const file = writable<File | null>(null);
 export const saveEditedImage: Writable<boolean> = writable(false);
-
-// Create a writable store to hold the selected row data
-export const selectedRows = writable([]);
 
 // ------------ Languages ------------
 // Create a writable store for contentLanguage with initial value of PublicEnv.DEFAULT_CONTENT_LANGUAGE
@@ -49,10 +58,9 @@ systemLanguage.subscribe((val) => {
 	messages.set({ ...m });
 });
 
-// TranslationStatus.svelte
-export const translationStatusOpen = writable(false);
-
 //  ------------ Other ------------
+// TranslationStatus.svelte modal
+export const translationStatusOpen = writable(false);
 
 // Tab skeleton store
 export const tabSet: Writable<number> = writable(0);

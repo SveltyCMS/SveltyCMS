@@ -1,5 +1,4 @@
-// Stores
-import { contentLanguage } from '@stores/store';
+import { publicEnv } from '@root/config/public';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -21,6 +20,8 @@ export type Params = {
 	icon?: string;
 	helper?: string;
 	width?: number;
+
+	// Permissions
 	permissions?: permissions;
 
 	// Widget Specific parameters
@@ -36,16 +37,17 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
-	// widget?: any;
 	translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	width: { widget: Input, required: false },
+
+	// Permissions
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
 	color: { widget: Input, required: false },
 	required: { widget: Toggles, required: false },
-	readonly: { widget: Toggles, required: false },
-	width: { widget: Input, required: false }
+	readonly: { widget: Toggles, required: false }
 };
 
 /**
@@ -54,20 +56,14 @@ export const GuiSchema = {
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
-	// Initialize an empty string to hold the fields
-	let fields = '';
-	// Iterate over each language
-	for (const lang in contentLanguage) {
-		fields += `${lang}: String\n`;
-	}
 
 	// Return an object containing the type name and the GraphQL schema
 	return {
 		typeName,
 		graphql: /* GraphQL */ `
         type ${typeName} {
-            ${fields}
-        }
+			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
+		}
         `
 	};
 };

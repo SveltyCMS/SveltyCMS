@@ -17,8 +17,8 @@ export const publicEnv = createPublicConfig({
 	// The default language for the user interface.
 	DEFAULT_SYSTEM_LANGUAGE: 'en',
 
-	// The available languages for the user interface.
-	AVAILABLE_SYSTEM_LANGUAGES: ['en', 'de'],
+	// The available languages for the user interface. Many languages are supported.
+	AVAILABLE_SYSTEM_LANGUAGES: ['en', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'hi', 'ka', 'sr', 'tr', 'ur'],
 
 	// The sizes of images that the site will generate.
 	IMAGE_SIZES: { sm: 600, md: 900, lg: 1200 },

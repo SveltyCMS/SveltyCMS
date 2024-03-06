@@ -1,26 +1,31 @@
 <script lang="ts">
+	import axios from 'axios';
+	import { asAny, debounce, getFieldName } from '@src/utils/utils';
+
 	// Stores
-	import { contentLanguage, categories, collection, mode, entryData, modifyEntry } from '@stores/store';
-	import { handleSidebarToggle, toggleSidebar, sidebarState, screenWidth } from '@stores/sidebarStore';
+	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories } from '@src/stores/store';
+	import { get, writable } from 'svelte/store';
+	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import axios from 'axios';
-	import { get, writable } from 'svelte/store';
+	// Components
+
+	import TranslationStatus from './TranslationStatus.svelte';
+	import TableIcons from './system/icons/TableIcons.svelte';
+	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
+	import FloatingInput from './system/inputs/floatingInput.svelte';
+	import Loading from './Loading.svelte';
+
+	import EntryListMultiButton from './EntryList_MultiButton.svelte';
+	//svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
-	import TanstackIcons from './system/tanstack/TanstackIcons.svelte';
-
-	//svelte-dnd-action
 	import { dndzone } from 'svelte-dnd-action';
 
-	import Loading from './Loading.svelte';
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
-
-	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
-
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -29,46 +34,60 @@
 	// Retrieve density from local storage or set to 'normal' if it doesn't exist
 	let density = localStorage.getItem('density') || 'normal';
 
-	import { createSvelteTable, flexRender as flexRenderBugged, getCoreRowModel, getSortedRowModel } from '@tanstack/svelte-table';
-	import type { TableOptions } from '@tanstack/table-core/src/types';
-
-	import FloatingInput from './system/inputs/floatingInput.svelte';
-	import EntryListMultiButton from './EntryList_MultiButton.svelte';
-	import TranslationStatus from './TranslationStatus.svelte';
-	import { getFieldName } from '@utils/utils';
-
-	let data: { entryList: [any]; totalCount: number } | undefined;
-	let tableData: any = [];
+	let data: { entryList: [any]; pagesCount: number } | undefined;
+	let tableHeaders: Array<{ label: string; name: string }> = [];
+	let tableData: any[] = [];
+	let modifyMap: { [key: string]: boolean } = {};
 
 	//tick logic
 	let SelectAll = false;
 	let selectedMap = writable({});
 
-	let sorting: any = [];
-	let columnOrder: never[] = [];
-	let columnVisibility = {};
+	let filters: { [key: string]: string } = {}; // Set initial filters object
+	let rowsPerPage = 5; // Set initial rowsPerPage value
+	let currentPage = 1; // Set initial currentPage value
+	let waitFilter = debounce(300); // Debounce filter function for 300ms
+
+	// This function handles changes in the dropdown (assuming it has a class 'select')
+	function rowsPerPageHandler(event) {
+		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
+		refresh(); // Trigger data refresh with the new rowsPerPage
+	}
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
-
-	let refresh = async (fetch: boolean = true) => {
+	async function refresh(fetch = true) {
+		// Clear loading timer
 		loadingTimer && clearTimeout(loadingTimer);
 
+		// If the collection name is empty, return
 		if ($collection.name == '') return;
 
+		// If fetch is true, set isLoading to true
 		if (fetch) {
+			// Set loading to true
 			loadingTimer = setTimeout(() => {
 				isLoading = true;
 			}, 400);
 
-			data = (await axios.get(`/api/${$collection.name}?page=${1}&length=${50}`).then((data) => data.data)) as {
-				entryList: [any];
-				totalCount: number;
-			};
+			// Fetch data from API endpoint
+			data = (await axios
+				.get(
+					`/api/${$collection.name}?page=${currentPage}&length=${rowsPerPage}&filter=${JSON.stringify(filters)}&sort=${JSON.stringify(
+						sorting.isSorted
+							? {
+									[sorting.sortedBy]: sorting.isSorted
+								}
+							: {}
+					)}`
+				)
+				.then((data) => data.data)) as { entryList: [any]; pagesCount: number };
 
+			// Set loading to false
 			isLoading = false;
 			clearTimeout(loadingTimer);
 		}
 
+		// Update tableData and options
 		data &&
 			(tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
@@ -76,7 +95,6 @@
 					for (let field of $collection.fields) {
 						if ('callback' in field) {
 							field.callback({ data });
-							handleSidebarToggle();
 						}
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
@@ -91,159 +109,40 @@
 				})
 			));
 
-		const storedValue = localStorage.getItem(`TanstackConfiguration-${$collection.name}`);
-		const columns = storedValue ? JSON.parse(storedValue) : defaultColumns;
+		// Update tableHeaders
+		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 
-		options.update((options) => ({
-			...options,
-			data: tableData,
-			columns: columns.map((item) => {
-				return defaultColumns.find((col) => col.accessorKey == item.accessorKey);
-			})
-		}));
-
-		// READ CONFIG FROM LOCAL STORAGE AND APPLY THE VISIBILITY
-		if (localStorage.getItem(`TanstackConfiguration-${$collection.name}`)) {
-			JSON.parse(localStorage.getItem(`TanstackConfiguration-${$collection.name}`)).forEach((item: any) => {
-				getColumnByName(item.accessorKey)?.toggleVisibility(item.visible);
-			});
-		}
-	};
-
-	let filteredData = tableData;
-	// Create a reactive statement that updates the filteredData array whenever the searchValue changes
-	$: {
-		if (globalSearchValue) {
-			filteredData = tableData.filter((row) => {
-				// Check if any of the values in this row match the search value
-				return Object.values(row).some((value) => (value as string).toString().toLowerCase().includes(globalSearchValue.toLowerCase()));
-			});
-		} else {
-			filteredData = tableData;
-		}
+		// selectedMap = {};
+		SelectAll = false;
 	}
 
-	const setSorting = (updater: (arg0: any) => any) => {
-		if (updater instanceof Function) {
-			sorting = updater(sorting);
-		} else {
-			sorting = updater;
-		}
-		options.update((old) => ({
-			...old,
-			state: {
-				...old.state,
-				sorting
-			}
-		}));
-	};
-
-	const setColumnOrder = (updater: any) => {
-		if (updater instanceof Function) {
-			columnOrder = updater(columnOrder);
-		} else {
-			columnOrder = updater;
-		}
-		options.update((old) => ({
-			...old,
-			state: {
-				...old.state,
-				columnOrder
-			}
-		}));
-	};
-
-	const setColumnVisibility = (updater: any) => {
-		if (updater instanceof Function) {
-			columnVisibility = updater(columnVisibility);
-		} else {
-			columnVisibility = updater;
-		}
-		options.update((old) => ({
-			...old,
-			state: {
-				...old.state,
-				columnVisibility
-			}
-		}));
-	};
-
-	function setCurrentPage(page: number) {
-		options.update((old: any) => {
-			return {
-				...old,
-				state: {
-					...old.state,
-					pagination: {
-						...old.state?.pagination,
-						pageIndex: page
-					}
-				}
-			};
-		});
-	}
-
-	function setPageSize(e: Event) {
-		const target = e.target as HTMLInputElement;
-		options.update((old: any) => {
-			return {
-				...old,
-				state: {
-					...old.state,
-					pagination: {
-						...old.state?.pagination,
-						pageSize: parseInt(target.value)
-					}
-				}
-			};
-		});
-	}
-
-	function handleCurrPageInput(e: Event) {
-		const target = e.target as HTMLInputElement;
-		setCurrentPage(parseInt(target.value) - 1);
-	}
-
+	// Trigger refresh based on collection, filters, sorting, and currentPage
 	$: {
 		refresh();
 		$collection;
+		filters;
+		sorting;
+		currentPage;
 	}
+	// Trigger refresh when contentLanguage changes, but don't fetch data
 	$: {
 		refresh(false);
 		$contentLanguage;
+		// filters = {};
+	}
+	// Reset currentPage to 1 when the collection changes
+	$: {
+		currentPage = 1;
+		$collection;
 	}
 	$: process_selectAll(SelectAll);
 	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
 
-	const defaultColumns = $collection.fields.map((field) => ({
-		id: field.label,
-		accessorKey: field.label
-	}));
-
-	const storedValue = localStorage.getItem(`TanstackConfiguration-${$collection.name}`);
-	const columns = storedValue ? JSON.parse(storedValue) : defaultColumns;
-
-	const options = writable<TableOptions<any>>({
-		data: tableData,
-		columns: columns.map((item) => {
-			return defaultColumns.find((col) => col.accessorKey == item.accessorKey);
-		}),
-
-		state: {
-			sorting,
-			columnOrder
-		},
-		onSortingChange: setSorting,
-		getCoreRowModel: getCoreRowModel(),
-		getSortedRowModel: getSortedRowModel(),
-		onColumnOrderChange: setColumnOrder,
-		ColumnVisibilityChange: setColumnVisibility
-	});
-
-	var table = createSvelteTable(options);
-
-	//workaround for svelte-table bug
-	let flexRender = flexRenderBugged as (...args: Parameters<typeof flexRenderBugged>) => any;
+	// Sorting
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
+		sortedBy: '',
+		isSorted: 0
+	};
 
 	// Tick All
 	function process_selectAll(selectAll: boolean) {
@@ -259,229 +158,104 @@
 	}
 
 	// Tick Row - modify STATUS of an Entry
-	$modifyEntry = async (status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => {
+	$modifyEntry = async (status: keyof typeof statusMap) => {
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
-
 		// Loop over the selectedMap object
-		for (let item in selectedMap) {
+		for (let item in modifyMap) {
+			console.log(tableData[item]);
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
-
-		// If no items are ticked, exit the function
+		// Initialize a new FormData object
 		if (modifyList.length == 0) return;
-
 		// Initialize a new FormData object
 		let formData = new FormData();
-
-		// Define a map from input status to output status
-		let statusMap = {
-			delete: 'deleted',
-			publish: 'published',
-			unpublish: 'unpublished',
-			schedule: 'scheduled',
-			clone: 'cloned',
-			test: 'testing'
-		};
-
 		// Append the IDs of the items to be modified to formData
 		formData.append('ids', JSON.stringify(modifyList));
-
 		// Append the status to formData
 		formData.append('status', statusMap[status]);
-
 		// Use the status to determine which API endpoint to call and what HTTP method to use
 		switch (status) {
-			case 'delete':
+			case 'Delete':
 				// If the status is 'Delete', call the delete endpoint
 				await axios.delete(`/api/${$collection.name}`, { data: formData });
 				break;
-			case 'publish':
-			case 'unpublish':
-			case 'test':
-				// If the status is 'publish', 'unpublish', 'schedule', or 'clone', call the patch endpoint
+			case 'Publish':
+			case 'Unpublish':
+			case 'Test':
+				// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
-			case 'clone':
+			case 'Clone':
 				await axios.post(`/api/${$collection.name}/clone`, formData);
 				break;
-			case 'schedule':
+			case 'Schedule':
 				await axios.post(`/api/${$collection.name}/schedule`, formData);
 				break;
 		}
-
 		// Refresh the collection
 		refresh();
-
 		// Set the mode to 'view'
 		mode.set('view');
-		// console.log('EntryList.svelte', $mode);
 	};
-
-	const flipDurationMs = 100;
-
-	// Update items array to be an array of column objects
-	let items = $table.getAllLeafColumns().map((column, index) => ({
-		id: column.id,
-		name: column.id,
-		isVisible: column.getIsVisible() // Set initial visibility state based on column visibility
-	}));
-
-	// console.log('EntryList item', items);
-
-	function handleDndConsider(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
-		items = e.detail.items;
-	}
-
-	function handleDndFinalize(e: { detail: { items: { id: string; name: string; isVisible: boolean }[] } }) {
-		items = e.detail.items;
-
-		// Update column Order based on new order
-		const newOrder = {};
-		items.forEach((item) => {
-			newOrder[item.id] = item.isVisible;
-		});
-
-		items = items.map((item) => {
-			return {
-				...item,
-				getToggleVisibilityHandler() {
-					return () => {
-						const newVisibility = { ...$table.getState().columnVisibility };
-						newVisibility[item.id] = !newVisibility[item.id];
-						$table.setColumnVisibility(newVisibility);
-					};
-				}
-			};
-		});
-
-		$table.setColumnOrder(newOrder);
-
-		// console.log('table', $table.setColumnOrder);
-		// console.log('columnOrder2', columnOrder);
-
-		var remappedColumns = items.map((item) => {
-			return defaultColumns.find((col) => {
-				return col.accessorKey == item.id;
-			});
-		});
-		options.update((old) => {
-			return {
-				...old,
-				columns: remappedColumns
-			};
-		});
-		localStorage.setItem(
-			`TanstackConfiguration-${$collection.name}`,
-			JSON.stringify(
-				remappedColumns.map((item) => {
-					return {
-						...item,
-						visible: getColumnByName(item.accessorKey)?.getIsVisible()
-					};
-				})
-			)
-		);
-
-		table = createSvelteTable(options);
-	}
-
-	// Add toggle Order function to each column object
-	items = items.map((item) => {
-		return {
-			...item,
-			getToggleVisibilityHandler() {
-				return () => {
-					const newVisibility = { ...$table.getState().columnVisibility };
-					newVisibility[item.id] = !newVisibility[item.id];
-					$table.setColumnVisibility(newVisibility);
-				};
-			}
-		};
-	});
-	// console.log('columnOrder', columnOrder);
-	// console.log('items', items);
-
-	function getColumnByName(name) {
-		return $table.getAllLeafColumns().find((col) => {
-			return col.id == name;
-		});
-	}
-
-	// define status badge color
-	function getStatusClass(status) {
-		switch (status) {
-			case 'publish':
-				return 'gradient-tertiary';
-			case 'unpublish':
-				return 'gradient-yellow';
-			case 'schedule':
-				return 'gradient-pink';
-			default:
-				return 'gradient-error';
-		}
-	}
 </script>
 
-<!-- TanstackHeader -->
-<div class="mb-2 flex justify-between dark:text-white">
-	<!-- Row 1 for Mobile -->
-	<div class="flex items-center justify-between">
-		<!-- Hamburger -->
-		{#if $sidebarState.left === 'hidden'}
-			<button
-				type="button"
-				on:keydown
-				on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
-				class="variant-ghost-surface btn-icon mt-1"
-			>
-				<iconify-icon icon="mingcute:menu-fill" width="24" />
-			</button>
-		{/if}
-		<!-- Collection type with icon -->
-		<!-- TODO: Translate Collection Name -->
-		<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
-			{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
-					{$categories[0].name}
-				</div>{/if}
-			<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
-				{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
-				{#if $collection.name}
-					<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
-						{$collection.name}
-					</div>
-				{/if}
+<!--sTable -->
+{#if isLoading}
+	<Loading />
+{:else}
+	<!-- Header -->
+	<div class="mb-2 flex justify-between dark:text-white">
+		<!-- Row 1 for Mobile -->
+		<div class="flex items-center justify-between">
+			<!-- Hamburger -->
+			{#if $sidebarState.left === 'hidden'}
+				<button
+					type="button"
+					on:keydown
+					on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+					class="variant-ghost-surface btn-icon mt-1"
+				>
+					<iconify-icon icon="mingcute:menu-fill" width="24" />
+				</button>
+			{/if}
+			<!-- Collection type with icon -->
+			<!-- TODO: Translate Collection Name -->
+			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
+				{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+						{$categories[0].name}
+					</div>{/if}
+				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
+					{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
+					{#if $collection.name}
+						<div class="flex max-w-[65px] whitespace-normal leading-3 sm:mr-2 sm:max-w-none md:mt-0 md:leading-none xs:mt-1">
+							{$collection.name}
+						</div>
+					{/if}
+				</div>
 			</div>
 		</div>
+
+		<button type="button" on:keydown on:click={() => (searchShow = !searchShow)} class="variant-ghost-surface btn-icon sm:hidden">
+			<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
+		</button>
+		<div class="relative hidden items-center justify-center gap-2 sm:flex">
+			<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+			<TranslationStatus />
+		</div>
+		<!-- MultiButton -->
+		<EntryListMultiButton />
 	</div>
 
-	<button type="button" on:keydown on:click={() => (searchShow = !searchShow)} class="variant-ghost-surface btn-icon sm:hidden">
-		<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-	</button>
-
-	<div class="relative hidden items-center justify-center gap-2 sm:flex">
-		<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-		<TranslationStatus />
-	</div>
-
-	<!-- MultiButton -->
-	<EntryListMultiButton />
-</div>
-
-<!-- Row 2 for Mobile  / Center on desktop -->
-<!-- TODO:add  expand transition -->
-<div class="relative flex h-14 items-center justify-center gap-1 py-2 dark:bg-surface-800 sm:gap-2 {!searchShow ? 'hidden' : 'block'} sm:hidden">
-	<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-	<TranslationStatus />
-</div>
-
-{#if columnShow}
-	<!-- chip column order -->
-	<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-		<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
-		<!-- toggle all -->
-		<div class="flex w-full items-center justify-center">
+	<!-- Table -->
+	{#if tableData.length > 0}
+		{#if columnShow}
+			<!-- chip column order -->
+			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
+				<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
+				<!-- all -->
+				<!-- <div class="flex w-full items-center justify-center">
 			<label class="mr-3">
 				<input
 					checked={$table.getIsAllColumnsVisible()}
@@ -532,92 +306,114 @@
 					</button>
 				{/each}
 			</section>
-		</div>
-	</div>
-{/if}
+		</div> -->
+			</div>
+		{/if}
 
-<!-- Tanstack Table -->
-{#if isLoading}
-	<Loading />
-{:else}
-	<!-- Tanstack Table -->
-	<div class="table-container z-0">
-		<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
-			<!-- Tanstack Header -->
-			<thead class="text-dark dark:text-primary-500">
-				{#each $table.getHeaderGroups() as headerGroup}
+		<div class="table-container z-0 max-h-[calc(100vh-55px)] overflow-auto">
+			<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+				<!-- Table Header -->
+				<thead class="text-dark top-0 dark:text-primary-500">
+					{#if filterShow}
+						<tr class="divide-x divide-surface-400">
+							<!-- Full search -->
+							<th class="!pl-[30px]">
+								<!-- <iconify-icon icon="il:search" class="mt-[15px]" /> -->
+							</th>
+
+							<!-- Filter -->
+							{#each tableHeaders as header}
+								<th>
+									<div class="flex items-center justify-between">
+										<FloatingInput
+											type="text"
+											icon="material-symbols:search-rounded"
+											label="Filter ..."
+											name={header.name}
+											on:input={(e) => {
+												let value = asAny(e.target).value;
+												if (value) {
+													waitFilter(() => {
+														filters[header.name] = value;
+													});
+												} else {
+													delete filters[header.name];
+													filters = filters;
+												}
+											}}
+										/>
+									</div>
+								</th>
+							{/each}
+						</tr>
+					{/if}
+
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<!-- Tanstack Tickbox -->
-						<th class="!w-6">
-							<TanstackIcons bind:checked={SelectAll} />
+						<th class="!pl-[15px]">
+							<TableIcons bind:checked={SelectAll} />
 						</th>
+						{#each tableHeaders as header}
+							<th
+								on:click={() => {
+									//sort
+									sorting = {
+										sortedBy: header.name,
+										isSorted: (() => {
+											if (header.name !== sorting.sortedBy) {
+												return 1;
+											}
+											if (sorting.isSorted === 0) {
+												return 1;
+											} else if (sorting.isSorted === 1) {
+												return -1;
+											} else {
+												return 0;
+											}
+										})()
+									};
+								}}
+							>
+								<div class="flex items-center justify-center text-center">
+									{header.label}
 
-						<!-- Tanstack Other Headers -->
-						{#each headerGroup.headers as header}
-							<th class="">
-								{#if !header.isPlaceholder}
-									<button
-										class:cursor-pointer={header.column.getCanSort()}
-										class:select-none={header.column.getCanSort()}
-										on:keydown
-										on:click={header.column.getToggleSortingHandler()}
-									>
-										<svelte:component this={flexRender(header.column.columnDef.header, header.getContext())} />
-										{#if header.column.getIsSorted() === 'asc'}
-											<iconify-icon icon="material-symbols:arrow-upward-rounded" width="16" />
-										{:else if header.column.getIsSorted() === 'desc'}
-											<iconify-icon icon="material-symbols:arrow-downward-rounded" width="16" />
-										{/if}
-									</button>
-									{#if filterShow}
-										<div transition:slide|global>
-											<FloatingInput
-												type="text"
-												icon="material-symbols:search-rounded"
-												label="Filter ..."
-												on:input={(e) => {
-													// Update filter value for this column
-													header.column.setFilter(e.target.value);
-												}}
-											/>
-										</div>
-									{/if}
-								{/if}
+									<iconify-icon
+										icon="material-symbols:arrow-upward-rounded"
+										width="22"
+										class="origin-center duration-300 ease-in-out"
+										class:up={sorting.isSorted === 1}
+										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
+									/>
+								</div>
 							</th>
 						{/each}
 					</tr>
-				{/each}
-			</thead>
-
-			<tbody>
-				{#each $table.getRowModel().rows as row, index}
-					<tr
-						class={`${
-							data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
-						} divide-x divide-surface-400`}
-						on:keydown
-						on:click={() => {
-							entryData.set(data?.entryList[index]);
-							//console.log(data)
-							mode.set('edit');
-							handleSidebarToggle();
-						}}
-					>
-						<!-- TickRows -->
-						<td>
-							<TanstackIcons
-								bind:checked={selectedMap[index]}
-								on:keydown
-								on:click={() => {
-									selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
-									mode.set('edit');
-									handleSidebarToggle();
-								}}
-								class="ml-1"
-							/>
-						</td>
-
-						<!-- <td>
+				</thead>
+				<tbody>
+					{#each tableData as row, index}
+						<tr
+							class={`${
+								data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
+							} divide-x  divide-surface-400`}
+							on:click={() => {
+								entryData.set(data?.entryList[index]);
+								//console.log(data)
+								mode.set('edit');
+								handleSidebarToggle();
+							}}
+						>
+							<td class="!pl-[10px]">
+								<TableIcons
+									bind:checked={selectedMap[index]}
+									on:keydown
+									on:click={() => {
+										selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
+										mode.set('edit');
+										handleSidebarToggle();
+									}}
+									class="ml-1"
+								/>
+							</td>
+							<!-- <td>
 						<span class="badge rounded-full {getStatusClass(row.status)}">
 							{#if row.status === 'publish'}
 								<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -631,175 +427,99 @@
 						</span>
 					</td> -->
 
-						{#each row.getVisibleCells() as cell}
-							<td>
-								<!-- {cell.getValue()} -->
-								{@html cell.getValue()}
-							</td>
-						{/each}
-					</tr>
-				{/each}
-			</tbody>
-
-			<!-- <tfoot>
-			{#each $table.getFooterGroups() as footerGroup}
-				<tr>
-					{#each footerGroup.headers as header}
-						<th>
-							{#if !header.isPlaceholder}
-								<svelte:component this={flexRender(header.column.columnDef.footer, header.getContext())} />
-							{/if}
-						</th>
+							{#each tableHeaders as header}
+								<td class="text-center font-bold">
+									{@html row[header.label]}
+								</td>
+							{/each}
+						</tr>
 					{/each}
-				</tr>
-			{/each}
-		</tfoot> -->
-		</table>
+				</tbody>
+			</table>
 
-		<!-- Pagination Desktop -->
-		<div class="my-3 flex items-center justify-around text-surface-500">
-			<!-- show & count rows -->
-			<div class="hidden text-sm text-surface-500 dark:text-surface-400 md:block">
-				{m.entrylist_page()}
-				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-				{m.entrylist_of()}
-				<!-- TODO: Get actual pages -->
-				<!-- <span class="text-surface-700 dark:text-white">{$table.getState().pagination.pageCount}</span> -->
-				<span class="text-black dark:text-white"
-					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
-				>
-				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-				{m.entrylist_total()}
-
-				{#if $table.getPrePaginationRowModel().rows.length === 1}
-					{m.entrylist_row()})
-				{:else}
-					{m.entrylist_rows()})
-				{/if}
-			</div>
-
-			<!-- number of pages -->
-			{#if $table.getPrePaginationRowModel().rows.length > 10}
-				<!-- number of pages -->
-				<select
-					value={$table.getState().pagination.pageSize}
-					on:change={setPageSize}
-					class="select variant-ghost hidden max-w-[100px] rounded py-2 text-sm text-surface-500 dark:text-white sm:block"
-				>
-					{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
-						<option value={pageSize}>
-							{pageSize} Rows
-						</option>
-					{/each}
-				</select>
-			{/if}
-
-			<!-- next/previous pages -->
-			<div
-				class="variant-outline btn-group inline-flex text-surface-500 transition duration-150 ease-in-out dark:text-white [&>*+*]:border-surface-500"
-			>
-				<button
-					type="button"
-					class="w-6"
-					aria-label="Go to First Page"
-					on:keydown
-					on:click={() => setCurrentPage(0)}
-					class:is-disabled={!$table.getCanPreviousPage()}
-					disabled={!$table.getCanPreviousPage()}
-				>
-					<iconify-icon icon="material-symbols:first-page" width="24" />
-				</button>
-
-				<button
-					type="button"
-					class="w-6"
-					aria-label="Go to Previous Page"
-					on:keydown
-					on:click={() => setCurrentPage($table.getState().pagination.pageIndex - 1)}
-					class:is-disabled={!$table.getCanPreviousPage()}
-					disabled={!$table.getCanPreviousPage()}
-				>
-					<iconify-icon icon="material-symbols:chevron-left" width="24" />
-				</button>
-
-				<!-- input display -->
-				<div class="flex items-center justify-center px-2 text-sm">
-					<span class="pr-2"> {m.entrylist_page()} </span>
-
-					<input
-						type="number"
-						value={$table.getState().pagination.pageIndex + 1}
-						min={0}
-						max={$table.getPageCount() - 1}
-						on:change={handleCurrPageInput}
-						class="variant-ghost w-12 text-center"
-					/>
-					<span class="pl-2">
-						{' '}{m.entrylist_of()}{' '}
-						<span class="">{$table.getPageCount()}</span>
-					</span>
+			<!-- Pagination  -->
+			<div class="my-3 flex flex-col items-center justify-center text-primary-500 dark:text-surface-400 md:flex-row md:justify-around">
+				<div class="mb-2 md:mb-0">
+					<span class="text-sm">{m.entrylist_page()}</span> <span class="text-white dark:text-primary-500">{currentPage}</span>
+					<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-white dark:text-primary-500">{data?.pagesCount || 0}</span>
 				</div>
 
-				<button
-					type="button"
-					class="w-6"
-					aria-label="Go to Next Page"
-					on:keydown
-					on:click={() => setCurrentPage($table.getState().pagination.pageIndex + 1)}
-					class:is-disabled={!$table.getCanNextPage()}
-					disabled={!$table.getCanNextPage()}
-				>
-					<iconify-icon icon="material-symbols:chevron-right" width="24" />
-				</button>
+				<div class="variant-outline btn-group">
+					<!-- first page -->
+					<button
+						type="button"
+						class="btn-icon"
+						on:click={() => {
+							currentPage = 1;
+							refresh();
+						}}
+					>
+						<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
+					</button>
 
-				<button
-					type="button"
-					class="w-6"
-					aria-label="Go to Last Page"
-					on:keydown
-					on:click={() => setCurrentPage($table.getPageCount() - 1)}
-					class:is-disabled={!$table.getCanNextPage()}
-					disabled={!$table.getCanNextPage()}
-				>
-					<iconify-icon icon="material-symbols:last-page" width="24" />
-				</button>
+					<!-- Previous page -->
+					<button
+						type="button"
+						class="btn-icon"
+						on:click={() => {
+							currentPage = Math.max(1, currentPage - 1);
+							refresh();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
+					</button>
+
+					<!-- number of pages -->
+					<select value={rowsPerPage} on:change={rowsPerPageHandler} class="select text-white dark:text-primary-500">
+						{#each [5, 10, 25, 50, 100, 500] as pageSize}
+							<option value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+						{/each}
+					</select>
+
+					<!-- Next page -->
+					<button
+						type="button"
+						class="btn-icon"
+						on:click={() => {
+							currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
+							refresh();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === data?.pagesCount} />
+					</button>
+
+					<!-- Last page -->
+					<button
+						type="button"
+						class="btn-icon"
+						on:click={() => {
+							currentPage = data?.pagesCount || 0;
+							refresh();
+						}}
+					>
+						<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === data?.pagesCount} />
+					</button>
+				</div>
 			</div>
 		</div>
-
-		<!-- Pagination Mobile-->
-		<div class="flex flex-col items-center justify-center gap-2 md:hidden">
-			{#if $table.getPrePaginationRowModel().rows.length > 10}
-				<!-- number of pages -->
-				<select value={$table.getState().pagination.pageSize} on:change={setPageSize} class="select max-w-[100px] text-sm sm:hidden">
-					{#each [10, 25, 50, 100, 500].filter((pageSize) => pageSize <= $table.getPrePaginationRowModel().rows.length) as pageSize}
-						<option value={pageSize}>
-							{pageSize}
-							{m.entrylist_row()}
-						</option>
-					{/each}
-				</select>
-			{/if}
-
-			<!-- Pagination -->
-			<div class="text-sm text-gray-400">
-				<span class="text-black dark:text-white">{$table.getState().pagination.pageIndex + 1}</span>
-				{m.entrylist_of()}
-				<!-- TODO: Get actual page -->
-				<!-- <span class="text-surface-700 dark:text-white"
-				>{$table.getState().pagination.pageIndex + 1}</span
-			> -->
-				<span class="text-black dark:text-white"
-					>{Math.ceil($table.getPrePaginationRowModel().rows.length / $table.getState().pagination.pageSize)}</span
-				>
-				- (<span class="text-black dark:text-white">{$table.getPrePaginationRowModel().rows.length}</span>
-				{m.entrylist_total()}
-
-				{#if $table.getPrePaginationRowModel().rows.length === 1}
-					{m.entrylist_row()})
-				{:else}
-					{m.entrylist_rows()})
-				{/if}
-			</div>
+	{:else}
+		<!-- Display a message when no data is yet available -->
+		<div class="text-center">
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2 text-primary-500" />
+			<p class="text-lg text-primary-500">No {$collection.name} Data</p>
 		</div>
-	</div>
+	{/if}
 {/if}
+
+<style lang="postcss">
+	.up {
+		transform: rotate(-180deg);
+	}
+	div::-webkit-scrollbar-thumb {
+		border-radius: 50px;
+		background-color: #0eb4c4;
+	}
+	div::-webkit-scrollbar {
+		width: 10px;
+	}
+</style>

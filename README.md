@@ -105,8 +105,8 @@ The `config` folder contains two example configuration files that you can rename
 ### Create `config/private.ts` and `config/public.ts`
 
 ```bash
-mv config/private.example.ts config/private.ts
-mv config/public.example.ts config/public.ts
+mv config/example.private.ts config/private.ts
+mv config/example.public.ts config/public.ts
 ```
 
 The `config/private.ts` contain sensitive information that you do not want to expose to the public. This includes things like: Database & Email configs, API keys, Secret tokens.
