@@ -121,11 +121,16 @@
 			(tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					let obj: { [key: string]: any } = {};
+
 					for (let field of $collection.fields) {
 						if ('callback' in field) {
 							field.callback({ data });
 							handleSidebarToggle();
 						}
+
+						// Status
+						obj.status = entry.status ? entry.status : 'N/A';
+						//Collection fields
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
 							collection: $collection.name,
@@ -134,15 +139,21 @@
 							contentLanguage: $contentLanguage
 						});
 					}
+
+					// Add _id property
 					obj._id = entry._id;
+					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'N/A';
+
 					return obj;
 				})
 			));
 
-		// Update tableHeaders
-		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
+		if (tableData.length > 0) {
+			tableHeaders = Object.keys(tableData[0]).map((key) => ({ label: key, name: key }));
+		}
 
-		selectedMap = {};
+		//selectedMap = {};
 		SelectAll = false;
 	}
 
@@ -315,28 +326,28 @@
 					</label>
 
 					<section
-						use:dndzone={{ items: columnOrder, flipDurationMs }}
+						use:dndzone={{ items: tableHeaders, flipDurationMs }}
 						on:consider={handleDndConsider}
 						on:finalize={handleDndFinalize}
 						class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 					>
-						{#each columnOrder as columnName (columnName)}
+						{#each tableHeaders as header (header)}
 							<button
-								class="chip {columnVisibility[columnName]
+								class="chip {columnVisibility[header.name]
 									? 'variant-filled-secondary'
 									: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 								animate:flip={{ duration: flipDurationMs }}
 								on:click={() => {
-									columnVisibility[columnName] = !columnVisibility[columnName];
+									columnVisibility[header.name] = !columnVisibility[header.name];
 
 									// Save to local storage
 									localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
 								}}
 							>
-								{#if columnVisibility[columnName]}
+								{#if columnVisibility[header.name]}
 									<span><iconify-icon icon="fa:check" /></span>
 								{/if}
-								<span class="ml-2 capitalize">{columnName}</span>
+								<span class="ml-2 capitalize">{header.name}</span>
 							</button>
 						{/each}
 					</section>
@@ -345,7 +356,9 @@
 		{/if}
 
 		<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
-			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+			<table
+				class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
+			>
 				<!-- Table Header -->
 				<thead class="top-0 text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
@@ -382,8 +395,8 @@
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<th class="!pl-[15px]">
-							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} />
+						<th class="!pl-[28px]">
+							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
 						</th>
 						{#each tableHeaders as header}
 							<th
@@ -424,9 +437,7 @@
 				<tbody>
 					{#each tableData as row, index}
 						<tr
-							class={`${
-								data?.entryList[index]?.status == 'unpublished' ? '!bg-yellow-700' : data?.entryList[index]?.status == 'testing' ? 'bg-red-800' : ''
-							} divide-x  divide-surface-400`}
+							class="divide-x divide-surface-400"
 							on:click={() => {
 								entryData.set(data?.entryList[index]);
 								//console.log(data)
@@ -434,8 +445,9 @@
 								handleSidebarToggle();
 							}}
 						>
-							<td class="!pl-[10px]">
+							<td class="!pl-[25px]">
 								<TableIcons
+									status={data?.entryList[index]?.status}
 									on:change={() => {
 										selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
 										mode.set('edit');
@@ -444,6 +456,10 @@
 									class="ml-1"
 								/>
 							</td>
+
+							<!-- <td class="text-center">
+								{data?.entryList[index]?.status}
+							</td> -->
 
 							{#each tableHeaders as header}
 								<td class="text-center font-bold">

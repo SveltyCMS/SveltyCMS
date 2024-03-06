@@ -6,6 +6,7 @@
 	const dispatch = createEventDispatcher();
 
 	export let checked = false;
+	export let status;
 
 	function handleIconClick() {
 		checked = !checked;
@@ -14,9 +15,15 @@
 </script>
 
 <button
-	class="flex h-[26px] w-[26px] items-center justify-center rounded-md border-2 border-surface-800 dark:border-surface-400 {$$props.class}"
+	class="flex h-[26px] w-[26px] items-center justify-center rounded-md border-2 {$$props.class}"
 	on:keydown
 	on:click|stopPropagation={handleIconClick}
+	class:border-yellow-500={status === 'unpublished'}
+	class:border-primary-500={status === 'published'}
+	class:border-pink-500={status === 'scheduled'}
+	class:border-red-500={status === 'testing'}
+	class:border-surface-800={status === undefined}
+	class:dark:border-surface-400={!status}
 >
 	{#if checked && $storeListboxValue === 'delete'}
 		<!--Red Cross icon 3d-->
