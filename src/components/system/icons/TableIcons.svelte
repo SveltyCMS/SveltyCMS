@@ -10,11 +10,6 @@
 	function handleIconClick() {
 		checked = !checked;
 		dispatch('iconClick');
-
-		// Update storeListboxValue based on current value and desired behavior
-		if ($storeListboxValue === 'create') {
-			storeListboxValue.set('delete');
-		}
 	}
 </script>
 

@@ -1,8 +1,6 @@
 <script lang="ts">
-
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { privateEnv } from '@root/config/private';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -25,7 +23,7 @@
 	export let role: EmailProps['role'];
 	export let token: EmailProps['token'];
 	export let expiresInLabel: EmailProps['expiresInLabel'];
-	export let tokenLink = `${dev ? HOST_DEV : HOST_PROD}/login?regToken=${token}`;
+	export let tokenLink = `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login?regToken=${token}`;
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

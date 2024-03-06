@@ -27,7 +27,7 @@
 
 	// Stores
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading } from '@stores/store';
+	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading, mode } from '@stores/store';
 	import { page } from '$app/stores';
 	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
@@ -232,7 +232,8 @@
 							{/if}
 
 							<slot />
-							<!-- <div>mode : {$mode}</div>
+
+							<!--<div>mode : {$mode}</div>							
 							<div>screenWidth : {$screenWidth}</div>
 							<div>sidebarState.left : {$sidebarState.left}</div>
 							<div>sidebarState.right : {$sidebarState.right}</div>

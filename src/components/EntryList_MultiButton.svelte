@@ -1,8 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
-	import { handleSidebarToggle, toggleSidebar, screenWidth } from '@stores/sidebarStore';
-	import { get } from 'svelte/store';
+	import { handleSidebarToggle } from '@stores/sidebarStore';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -16,22 +15,49 @@
 	let iconValue: string;
 
 	function handleButtonClick() {
-		if ($storeListboxValue === 'create') {
-			mode.set('create');
-			handleSidebarToggle();
-		} else {
-			mode.set('view');
-			3;
-			console.log('storeListboxValue', $storeListboxValue);
-			$modifyEntry($storeListboxValue);
-			console.log('modifyEntry', $modifyEntry);
-			handleSidebarToggle();
+		switch ($storeListboxValue) {
+			case 'create':
+				mode.set('create');
+				handleSidebarToggle();
+				break;
+			case 'publish':
+				mode.set('view');
+				$modifyEntry('publish');
+				handleSidebarToggle();
+				break;
+			case 'unpublish':
+				mode.set('view');
+				$modifyEntry('unpublish');
+				handleSidebarToggle();
+				break;
+			case 'schedule':
+				mode.set('view');
+				$modifyEntry('schedule');
+				handleSidebarToggle();
+				break;
+			case 'clone':
+				mode.set('view');
+				$modifyEntry('clone');
+				handleSidebarToggle();
+				break;
+			case 'delete':
+				mode.set('view');
+				$modifyEntry('delete');
+				handleSidebarToggle();
+				break;
+			case 'test':
+				mode.set('view');
+				$modifyEntry('test');
+				handleSidebarToggle();
+				break;
+			default:
+				// Handle other actions here
+				break;
 		}
 
 		dispatch($storeListboxValue);
 		dropdownOpen = false;
 	}
-
 	// handleOptionClick for Button Dropdown
 	function handleOptionClick(value: string): void {
 		storeListboxValue.set(value as 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test');

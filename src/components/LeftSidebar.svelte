@@ -145,7 +145,7 @@
 	{#if $sidebarState.left === 'full'}
 		<a href="/" class="t flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-8 rtl:ml-2 " />
-			<span class="relative pl-1 text-2xl font-bold text-black dark:text-white">{publicEnv.SITE_NAME} </span>
+			<span class="text-token relative pl-1 text-2xl font-bold">{publicEnv.SITE_NAME} </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -163,7 +163,7 @@
 	<!-- Button to expand/collapse sidebar -->
 	<button
 		type="button"
-		class="absolute top-4 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
+		class="absolute top-2 z-20 flex items-center justify-center !rounded-full border-[3px] dark:border-black ltr:-right-3 rtl:-left-3"
 		on:click={() => {
 			toggleSidebar('left', $sidebarState.left === 'full' ? 'collapsed' : 'full');
 			userPreferredState.set($sidebarState.left === 'full' ? 'collapsed' : 'full');

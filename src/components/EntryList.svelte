@@ -11,21 +11,47 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-
 	import TranslationStatus from './TranslationStatus.svelte';
 	import TableIcons from './system/icons/TableIcons.svelte';
 	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
 	import FloatingInput from './system/inputs/floatingInput.svelte';
 	import Loading from './Loading.svelte';
-
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
+
 	//svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { slide } from 'svelte/transition';
 	import { dndzone } from 'svelte-dnd-action';
 
+	const flipDurationMs = 300;
+	let columnOrder: string[] = []; // This will hold the order of your columns
+	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
+
+	function handleDndConsider(data: { items: { id: string; isVisible: boolean }[] }) {
+		// No need to reassign the data object, directly access its items property
+		const items = data.items;
+
+		// You can potentially log or inspect the items here to understand the order before dropping
+		console.log('Items before dropping:', items);
+	}
+
+	function handleDndFinalize(data: { items: { id: string; isVisible: boolean }[] }) {
+		const clickedColumn = data.items[0].id; // Assuming the first item is the clicked/dragged column
+
+		// Update sorting for the clicked column (toggle sort or change field)
+		sorting[clickedColumn] = {
+			sortedBy: getFieldName($collection.fields.find((field) => field.label === clickedColumn)), // Get field name for clicked column
+			isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
+		};
+
+		// Refresh data with the updated sorting
+		refresh();
+	}
+
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
+
+	//Buttons
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -39,17 +65,20 @@
 	let tableData: any[] = [];
 	let modifyMap: { [key: string]: boolean } = {};
 
-	//tick logic
+	// Tick row logic
 	let SelectAll = false;
 	let selectedMap = writable({});
 
+	// Filter
 	let filters: { [key: string]: string } = {}; // Set initial filters object
-	let rowsPerPage = 5; // Set initial rowsPerPage value
-	let currentPage = 1; // Set initial currentPage value
 	let waitFilter = debounce(300); // Debounce filter function for 300ms
 
+	// Pagination
+	let rowsPerPage = 10; // Set initial rowsPerPage value
+	let currentPage = 1; // Set initial currentPage value
+
 	// This function handles changes in the dropdown (assuming it has a class 'select')
-	function rowsPerPageHandler(event) {
+	function rowsPerPageHandler(event: any) {
 		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
 		refresh(); // Trigger data refresh with the new rowsPerPage
 	}
@@ -95,6 +124,7 @@
 					for (let field of $collection.fields) {
 						if ('callback' in field) {
 							field.callback({ data });
+							handleSidebarToggle();
 						}
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
@@ -112,7 +142,7 @@
 		// Update tableHeaders
 		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 
-		// selectedMap = {};
+		selectedMap = {};
 		SelectAll = false;
 	}
 
@@ -128,23 +158,15 @@
 	$: {
 		refresh(false);
 		$contentLanguage;
-		// filters = {};
+		filters = {};
 	}
 	// Reset currentPage to 1 when the collection changes
 	$: {
 		currentPage = 1;
 		$collection;
 	}
-	$: process_selectAll(SelectAll);
-	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
 
-	// Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
-		sortedBy: '',
-		isSorted: 0
-	};
-
-	// Tick All
+	// Tick  All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			for (let item in tableData) {
@@ -157,8 +179,39 @@
 		}
 	}
 
+	//Update Tick All Rows
+	//$: process_selectAll(SelectAll);
+	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
+
+	// Columns Sorting
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
+		sortedBy: getFieldName($collection.fields[0]), // set the first column as default
+		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+	};
+
+	// Initialize columnOrder and columnVisibility
+	$: {
+		columnOrder = $collection.fields.map((field) => getFieldName(field));
+		columnVisibility = $collection.fields.reduce((acc, field) => {
+			acc[getFieldName(field)] = true;
+			return acc;
+		}, {});
+	}
+
+	// Store values in local storage
+	$: {
+		localStorage.setItem('density', density);
+		localStorage.setItem('sorting', JSON.stringify(sorting));
+		localStorage.setItem('currentPage', JSON.stringify(currentPage));
+		localStorage.setItem('rowsPerPage', JSON.stringify(rowsPerPage));
+		localStorage.setItem('filters', JSON.stringify(filters));
+		localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
+		localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+	}
+
 	// Tick Row - modify STATUS of an Entry
 	$modifyEntry = async (status: keyof typeof statusMap) => {
+		console.log('modifyEntry called', modifyEntry, statusMap[status]);
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 		// Loop over the selectedMap object
@@ -177,20 +230,20 @@
 		formData.append('status', statusMap[status]);
 		// Use the status to determine which API endpoint to call and what HTTP method to use
 		switch (status) {
-			case 'Delete':
+			case 'delete':
 				// If the status is 'Delete', call the delete endpoint
 				await axios.delete(`/api/${$collection.name}`, { data: formData });
 				break;
-			case 'Publish':
-			case 'Unpublish':
-			case 'Test':
+			case 'publish':
+			case 'unpublish':
+			case 'test':
 				// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
-			case 'Clone':
+			case 'clone':
 				await axios.post(`/api/${$collection.name}/clone`, formData);
 				break;
-			case 'Schedule':
+			case 'schedule':
 				await axios.post(`/api/${$collection.name}/schedule`, formData);
 				break;
 		}
@@ -251,74 +304,54 @@
 	<!-- Table -->
 	{#if tableData.length > 0}
 		{#if columnShow}
-			<!-- chip column order -->
+			<!-- column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 				<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
 				<!-- all -->
-				<!-- <div class="flex w-full items-center justify-center">
-			<label class="mr-3">
-				<input
-					checked={$table.getIsAllColumnsVisible()}
-					on:change={(e) => {
-						console.info($table.getToggleAllColumnsVisibilityHandler()(e));
-					}}
-					type="checkbox"
-				/>{' '}
-				{m.entrylist_all()}
-			</label>
-			<section
-				class="flex flex-wrap justify-center gap-1 rounded-md p-2"
-				use:dndzone={{ items: items, flipDurationMs }}
-				on:consider={handleDndConsider}
-				on:finalize={handleDndFinalize}
-			>
-				{#each items as item (item.id)}
-					<button
-						class="chip {$table
-							.getAllLeafColumns()
-							.find((col) => col.id == item.name)
-							?.getIsVisible() ?? false
-							? 'variant-filled-secondary'
-							: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
-						animate:flip={{ duration: flipDurationMs }}
-						on:click={() => {
-							getColumnByName(item.name)?.toggleVisibility();
-							localStorage.setItem(
-								`TanstackConfiguration-${$collection.name}`,
-								JSON.stringify(
-									items.map((item) => {
-										return {
-											accessorKey: item.id,
-											visible: getColumnByName(item.id)?.getIsVisible()
-										};
-									})
-								)
-							);
-						}}
+				<div class="my-2 flex w-full items-center justify-center gap-1">
+					<label class="mr-3">
+						<input type="checkbox" bind:checked={SelectAll} />
+						{m.entrylist_all()}
+					</label>
+
+					<section
+						use:dndzone={{ items: columnOrder, flipDurationMs }}
+						on:consider={handleDndConsider}
+						on:finalize={handleDndFinalize}
+						class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 					>
-						{#if $table
-							.getAllLeafColumns()
-							.find((col) => col.id == item.name)
-							?.getIsVisible() ?? false}
-							<span><iconify-icon icon="fa:check" /></span>
-						{/if}
-						<span class="ml-2 capitalize">{item.name}</span>
-					</button>
-				{/each}
-			</section>
-		</div> -->
+						{#each columnOrder as columnName (columnName)}
+							<button
+								class="chip {columnVisibility[columnName]
+									? 'variant-filled-secondary'
+									: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+								animate:flip={{ duration: flipDurationMs }}
+								on:click={() => {
+									columnVisibility[columnName] = !columnVisibility[columnName];
+
+									// Save to local storage
+									localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+								}}
+							>
+								{#if columnVisibility[columnName]}
+									<span><iconify-icon icon="fa:check" /></span>
+								{/if}
+								<span class="ml-2 capitalize">{columnName}</span>
+							</button>
+						{/each}
+					</section>
+				</div>
 			</div>
 		{/if}
 
-		<div class="table-container z-0 max-h-[calc(100vh-55px)] overflow-auto">
-			<table class="table table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
+		<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
+			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
-				<thead class="text-dark top-0 dark:text-primary-500">
+				<thead class="top-0 text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
 						<tr class="divide-x divide-surface-400">
-							<!-- Full search -->
-							<th class="!pl-[30px]">
-								<!-- <iconify-icon icon="il:search" class="mt-[15px]" /> -->
+							<th>
+								<!-- blank -->
 							</th>
 
 							<!-- Filter -->
@@ -350,12 +383,12 @@
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<th class="!pl-[15px]">
-							<TableIcons bind:checked={SelectAll} />
+							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} />
 						</th>
 						{#each tableHeaders as header}
 							<th
 								on:click={() => {
-									//sort
+									//sorting
 									sorting = {
 										sortedBy: header.name,
 										isSorted: (() => {
@@ -403,9 +436,7 @@
 						>
 							<td class="!pl-[10px]">
 								<TableIcons
-									bind:checked={selectedMap[index]}
-									on:keydown
-									on:click={() => {
+									on:change={() => {
 										selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
 										mode.set('edit');
 										handleSidebarToggle();
@@ -413,19 +444,6 @@
 									class="ml-1"
 								/>
 							</td>
-							<!-- <td>
-						<span class="badge rounded-full {getStatusClass(row.status)}">
-							{#if row.status === 'publish'}
-								<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
-							{:else if row.status === 'unpublish'}
-								<iconify-icon icon="bi:pause-circle" width="24" />
-							{:else if row.status === 'schedule'}
-								<iconify-icon icon="bi:clock" width="24" />
-							{:else if row.status === 'undefined'}
-								<iconify-icon icon="material-symbols:error" width="24" />
-							{/if}
-						</span>
-					</td> -->
 
 							{#each tableHeaders as header}
 								<td class="text-center font-bold">
@@ -438,17 +456,17 @@
 			</table>
 
 			<!-- Pagination  -->
-			<div class="my-3 flex flex-col items-center justify-center text-primary-500 dark:text-surface-400 md:flex-row md:justify-around">
+			<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
 				<div class="mb-2 md:mb-0">
-					<span class="text-sm">{m.entrylist_page()}</span> <span class="text-white dark:text-primary-500">{currentPage}</span>
-					<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-white dark:text-primary-500">{data?.pagesCount || 0}</span>
+					<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+					<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
 				</div>
 
 				<div class="variant-outline btn-group">
 					<!-- first page -->
 					<button
 						type="button"
-						class="btn-icon"
+						class="btn"
 						on:click={() => {
 							currentPage = 1;
 							refresh();
@@ -460,7 +478,7 @@
 					<!-- Previous page -->
 					<button
 						type="button"
-						class="btn-icon"
+						class="btn"
 						on:click={() => {
 							currentPage = Math.max(1, currentPage - 1);
 							refresh();
@@ -470,8 +488,12 @@
 					</button>
 
 					<!-- number of pages -->
-					<select value={rowsPerPage} on:change={rowsPerPageHandler} class="select text-white dark:text-primary-500">
-						{#each [5, 10, 25, 50, 100, 500] as pageSize}
+					<select
+						value={rowsPerPage}
+						on:change={rowsPerPageHandler}
+						class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+					>
+						{#each [10, 25, 50, 100, 500] as pageSize}
 							<option value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
 						{/each}
 					</select>
@@ -479,7 +501,7 @@
 					<!-- Next page -->
 					<button
 						type="button"
-						class="btn-icon"
+						class="btn"
 						on:click={() => {
 							currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
 							refresh();
@@ -491,7 +513,7 @@
 					<!-- Last page -->
 					<button
 						type="button"
-						class="btn-icon"
+						class="btn"
 						on:click={() => {
 							currentPage = data?.pagesCount || 0;
 							refresh();

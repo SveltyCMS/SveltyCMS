@@ -3,10 +3,10 @@
 
 	// Stores
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
-	console.log('publicEnv.DEFAULT_CONTENT_LANGUAGE', publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	console.log('publicEnv.AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
-	console.log('$contentLanguage', $contentLanguage);
-	console.log('translationStatusOpen', $translationStatusOpen);
+	// console.log('publicEnv.DEFAULT_CONTENT_LANGUAGE', publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	// console.log('publicEnv.AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
+	// console.log('$contentLanguage', $contentLanguage);
+	// console.log('translationStatusOpen', $translationStatusOpen);
 
 	function handleChange(event) {
 		const selectedLanguage = event.target.value.toUpperCase();

@@ -33,13 +33,16 @@ export const modifyEntry: Writable<(status: keyof typeof statusMap) => any> = wr
 
 //entrylist statusMap
 export const statusMap = {
-	Delete: 'deleted',
-	Publish: 'published',
-	Unpublish: 'unpublished',
-	Schedule: 'scheduled',
-	Clone: 'cloned',
-	Test: 'testing'
+	delete: 'deleted',
+	publish: 'published',
+	unpublish: 'unpublished',
+	schedule: 'scheduled',
+	clone: 'cloned',
+	test: 'testing'
 };
+
+// -------------- Store ListboxValue -----------------
+export const storeListboxValue: Writable<string> = writable('create');
 
 // Store image data while editing
 export const file = writable<File | null>(null);
@@ -87,7 +90,3 @@ export const isLoading: Writable<boolean> = writable(false);
 export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }> = writable({ fn: () => {}, reset: () => {} });
 export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
-
-// -------------- Store ListboxValue -----------------
-// export const storeListboxValue: Writable<string> = writable('create');
-export const storeListboxValue: Writable<'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test'> = writable('create');
