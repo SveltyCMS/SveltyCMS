@@ -3,6 +3,7 @@ import Input from '@components/system/inputs/Input2.svelte';
 import GuiField from './GuiField.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';
+import type { CollectionLabels } from '@src/collections/types';
 
 import { getFieldName } from '@utils/utils';
 
@@ -12,6 +13,7 @@ import mongoose from 'mongoose';
  * Defines Relation widget Parameters
  */
 export type Params = {
+	displayPath: any;
 	// default required parameters
 	label: string;
 	display?: DISPLAY;
@@ -26,7 +28,7 @@ export type Params = {
 	permissions?: permissions;
 
 	// Widget Specific parameters
-	relation: string;
+	relation: CollectionLabels;
 };
 
 /**

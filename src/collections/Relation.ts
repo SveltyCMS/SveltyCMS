@@ -18,9 +18,7 @@ const schema: Schema = {
 			label: 'Relation M2M to Posts',
 			db_fieldName: 'relationM2MPosts',
 			relation: 'Names',
-			display({ data, contentLanguage }) {
-				return data?.['First Name'][contentLanguage];
-			}
+			displayPath: 'Last Name'
 		})
 	]
 };

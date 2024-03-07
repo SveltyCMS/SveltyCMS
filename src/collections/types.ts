@@ -55,3 +55,5 @@ export interface Schema {
 	strict?: boolean;
 	revision?: boolean;
 }
+
+export type CollectionLabels = 'ImageArray' | 'Media' | 'Menu' | 'Post' | 'Products' | 'Posts1' | 'Posts2' | 'Names' | 'Relation' | 'WidgetTest';

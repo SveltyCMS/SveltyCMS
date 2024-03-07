@@ -5,7 +5,6 @@
 	import { contentLanguage, collection, entryData } from '@stores/store';
 
 	export let dropDownData: any[] = [];
-
 	export let selected: { display: any; _id: any } | undefined = undefined;
 	export let field: FieldType | undefined;
 	export let showDropDown = true;
@@ -14,7 +13,7 @@
 	let options: Array<{ display: any; _id: any }> = [];
 	let filtered = options;
 
-	//console.log(dropDownData);
+	console.log(dropDownData);
 
 	$: Promise.all(
 		dropDownData.map(async (item) => ({
@@ -36,24 +35,9 @@
 				selected = option;
 				showDropDown = false;
 			}}
-			class="item"
+			class="item text-token m-1 cursor-pointer border border-surface-400 bg-surface-400 p-1 text-center text-lg"
 		>
 			{@html option.display}
 		</button>
 	{/each}
 </div>
-
-<style lang="postcss">
-	.item {
-		cursor: pointer;
-		user-select: none;
-		margin: 5px;
-		font-size: 20px;
-		color: black;
-		padding: 5px;
-		border: 1px solid #8cccff;
-		border-radius: 12px;
-		background-color: #8cccff;
-		text-align: center;
-	}
-</style>

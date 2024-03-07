@@ -30,7 +30,7 @@ const widget = (params: Params) => {
 	display.default = true;
 
 	// Define the widget object
-	const widget: { type: typeof Relation; key: 'Relation'; GuiFields: ReturnType<typeof getGuiFields> } = {
+	const widget: { type: any; key: 'Relation'; GuiFields: ReturnType<typeof getGuiFields> } = {
 		type: Relation,
 		key: 'Relation',
 		GuiFields: getGuiFields(params, GuiSchema)
@@ -48,7 +48,8 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extra
-		relation: params.relation
+		relation: params.relation,
+		displayPath: params.displayPath
 	};
 
 	// Return the field and widget objects
@@ -91,9 +92,17 @@ widget.aggregations = {
 		const field = info.field as ReturnType<typeof widget>;
 		const relative_collection = (await getCollections()).find((c) => c.name == field.relation);
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		const widget = widgets[relative_field.widget.key];
-		const new_field = deepmerge(relative_field, { db_fieldName: 'relation.' + getFieldName(relative_field) }); //use db_fieldName since it overrides label.
-		return widget?.aggregations?.sorts({ field: new_field, sort: info.sort, contentLanguage: info.contentLanguage }) ?? [];
+
+		// Check if widget exists before accessing its properties
+		if (widgets[relative_field.widget.key]) {
+			const widget = widgets[relative_field.widget.key];
+			const new_field = deepmerge(relative_field, { db_fieldName: 'relation.' + getFieldName(relative_field) });
+			return widget?.aggregations?.sorts({ field: new_field, sort: info.sort, contentLanguage: info.contentLanguage }) ?? [];
+		} else {
+			// Handle the case where widget is undefined (e.g., log an error)
+			console.error('Widget for relation field is undefined');
+			return [];
+		}
 	}
 } as Aggregations;
 
