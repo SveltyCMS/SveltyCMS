@@ -30,11 +30,12 @@
 	let blurLeft = 10;
 	let blurRight = 10;
 	let blurBottom = 10;
-	let blurCenter = 10;
+	let blurCenter = 0;
 	let blurRotate = 0;
 
 	// Initialize the BLUR values with default values
 	let focalPoint = { x: 0, y: 0 };
+	let initialFocalPoint = { x: 0, y: 0 };
 
 	// Initialize the Rotate values with default values,
 	let rotate: number = 0;
@@ -54,6 +55,11 @@
 		CONT_WIDTH = imageView?.naturalWidth ?? 0;
 		CONT_HEIGHT = imageView?.naturalHeight ?? 0;
 		focalPoint = { x: CONT_WIDTH / 2, y: CONT_HEIGHT / 2 };
+	}
+
+	function resetFocalPoint() {
+		// Reset the focal point to its initial position
+		focalPoint = { ...initialFocalPoint };
 	}
 </script>
 
@@ -104,7 +110,7 @@
 
 		<button
 			on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}
-			class="btn-primary btn p-0.5 text-white"
+			class="btn-primary btn flex flex-col p-0.5 text-white"
 			title="Save Focal Point"
 		>
 			<iconify-icon
@@ -112,6 +118,7 @@
 				width="26"
 				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
 			/>
+			<div class="text-primary-500">{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</div>
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
@@ -131,6 +138,8 @@
 		Width: <span class="text-tertiary-500 dark:text-primary-500">{CONT_WIDTH}</span> x Height:
 		<span class="text-tertiary-500 dark:text-primary-500">{CONT_HEIGHT}</span>
 	</p>
+
+	<button on:click={resetFocalPoint}>Reset Focal Point</button>
 </div>
 
 {#if activeState !== 'rotate'}

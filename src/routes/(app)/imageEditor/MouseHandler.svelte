@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-
 	const dispatch = createEventDispatcher();
 
 	// Use export to define your props
@@ -10,6 +9,8 @@
 	export let BottomRight: number = 0;
 	export let Center: number = 0;
 	export let Rotate: number = 0;
+	export let CONT_WIDTH: number = 0;
+	export let CONT_HEIGHT: number = 0;
 
 	// Define an interface for the mouseHandlerProps
 	interface MouseHandlerProps {
@@ -31,11 +32,12 @@
 		BottomRight,
 		Center,
 		Rotate,
-		CONT_WIDTH: 0,
-		CONT_HEIGHT: 0
+		CONT_WIDTH,
+		CONT_HEIGHT
 	};
 
-	let element: HTMLElement | null; // The reference to the div element
+	// Declare the element variable
+	let element: HTMLElement | null = null; // The reference to the div element
 	let selectedCorner: string | null; // The selected corner for resizing
 	let moving: boolean = false; // Track if the mouse is moving
 	let down: boolean = false; // Track if the mouse is clicked down
@@ -43,40 +45,71 @@
 	let isMouseDown: boolean = true; // Set to true initially to avoid the initial check in handleMouseMove and handleTouchMove
 	const movementThreshold = 2; // Adjust the threshold value as needed
 
-	// Function to handle mouse move event
-	export function handleMouseMove(e: MouseEvent): void {
-		// Remove the condition
-		handleMove(e.clientX, e.clientY);
+	// Function to debounce a function call
+	function debounce(func: Function, delay: number) {
+		let timeoutId: number;
+		return function (this: any, ...args: any[]) {
+			const context = this;
+			clearTimeout(timeoutId);
+			timeoutId = window.setTimeout(() => {
+				func.apply(context, args);
+			}, delay);
+		};
 	}
+
+	// Function to handle mouse move event
+	export const handleMouseMove = debounce((e: MouseEvent) => {
+		console.log('handleMouseMove triggered');
+		try {
+			handleMove(e.clientX, e.clientY);
+		} catch (error) {
+			console.error('Error in handleMouseMove:', error);
+		}
+	}, 20); // Debounce the function to reduce frequency
 
 	// Function to handle touch move event
-	export function handleTouchMove(e: TouchEvent): void {
-		// Remove the condition
-		const touch = e.touches[0];
-		handleMove(touch.clientX, touch.clientY);
-	}
+	export const handleTouchMove = debounce((e: TouchEvent) => {
+		console.log('handleTouchMove triggered');
+		try {
+			const touch = e.touches[0];
+			handleMove(touch.clientX, touch.clientY);
+		} catch (error) {
+			console.error('Error in handleTouchMove:', error);
+		}
+	}, 20); // Debounce the function to reduce frequency
 
 	function handleMove(clientX: number, clientY: number): void {
-		if (!initialMousePosition || !element) return;
+		console.log('handleMove triggered');
+		console.log('Mouse coordinates:', clientX, clientY);
+
+		if (!initialMousePosition || !element) {
+			console.log('Initial mouse position or element not set');
+			return;
+		}
 
 		moving = true;
-		//console.log('Mouse move event triggered');
+		console.log('Mouse move event triggered');
 
 		// Get the size and position of the element
 		const { width, height, left, top } = element.getBoundingClientRect();
+		console.log('Element dimensions:', width, height, left, top);
 
 		// Calculate the deltas based on the mouse position and the element position
 		const deltaX = clientX - left;
 		const deltaY = clientY - top;
+		console.log('Mouse deltas:', deltaX, deltaY);
 
 		// Check if the mouse is moving the whole element or a corner
-		if (moving && !selectedCorner) {
+		if ((moving && !selectedCorner) || (moving && selectedCorner)) {
 			if (initialMousePosition) {
 				const distanceX = Math.abs(clientX - initialMousePosition.x);
 				const distanceY = Math.abs(clientY - initialMousePosition.y);
+				console.log('Distance moved:', distanceX, distanceY);
 
 				// Check if the mouse has moved beyond the threshold
 				if (distanceX >= movementThreshold || distanceY >= movementThreshold) {
+					console.log('Mouse moved beyond threshold');
+
 					// Dispatch the move event with the deltas
 					dispatch('move', { x: deltaX - TopLeft, y: deltaY - TopLeft });
 				}
@@ -113,6 +146,7 @@
 	}
 
 	export function handleKeyDown(event: KeyboardEvent): void {
+		console.log('handleKeyDown triggered');
 		if (event.key === 'ArrowUp') {
 			dispatch('move', { x: 0, y: -1 });
 		} else if (event.key === 'ArrowDown') {
@@ -126,6 +160,7 @@
 
 	// Function to handle mouse down event
 	export function handleMouseDown(e: MouseEvent): void {
+		console.log('handleMouseDown triggered');
 		// if (e.button !== 0) return;
 
 		handleDown(e);
@@ -137,6 +172,7 @@
 
 	// Function to handle touch start event
 	export function handleTouchStart(e: TouchEvent): void {
+		console.log('handleTouchStart triggered');
 		const touch = e.touches[0];
 		handleDown(touch);
 		isMouseDown = true;
@@ -145,29 +181,33 @@
 		initialMousePosition = null;
 	}
 
-	function handleDown(e: MouseEvent | Touch): void {
+	// Function to handle mouse down event
+	export function handleDown(e: MouseEvent | TouchEvent): void {
+		console.log('handleDown triggered');
 		down = true;
-		// console.log('Mouse down event triggered');
 
 		// Check if the event is a MouseEvent and preventDefault if it is
 		if (e instanceof MouseEvent) {
 			e.preventDefault();
+
+			// Retrieve the target element
+			const targetElement = e.target as HTMLElement;
+
+			// Check if the target element is a corner
+			if (targetElement.classList.contains('corner')) {
+				// Set the selected corner
+				selectedCorner = targetElement.getAttribute('data-corner');
+			} else {
+				// If the target element is not a corner, stop the event from propagating further up the DOM hierarchy
+				e.stopPropagation();
+			}
 		}
-
-		const touchOrMouseEvent = e instanceof Touch ? e : (e as MouseEvent);
-
-		const corner = touchOrMouseEvent.target instanceof HTMLElement ? touchOrMouseEvent.target.closest('.corner') : null;
-		if (corner) {
-			// Set the selected corner
-			selectedCorner = corner.getAttribute('data-corner');
-		}
-
-		// Stop the event from propagating further up the DOM hierarchy
-		// (e as Event).stopPropagation();
 	}
 
 	// Function to handle mouse up event
 	export function handleMouseUp(e: MouseEvent): void {
+		console.log('handleMouseUp triggered');
+
 		handleUpMouse(e);
 		isMouseDown = false;
 		// Reset the initial mouse position
@@ -176,7 +216,7 @@
 
 	// Function to handle touch end event
 	export function handleTouchEnd(e: TouchEvent): void {
-		// if (!isMouseDown) return;
+		console.log('handleTouchEnd triggered');
 
 		handleUpTouch(e);
 		isMouseDown = false;
@@ -185,32 +225,24 @@
 	}
 
 	function handleUpMouse(e: MouseEvent): void {
-		// if (!isMouseDown || !element) return;
+		console.log('handleUpMouse triggered');
 
 		down = false;
-		// console.log('Mouse up event triggered');
-
 		// Reset the selected corner
 		selectedCorner = null;
-
-		// Additional handling specific to MouseEvent if needed
 	}
 
-	// ...
-
 	function handleUpTouch(e: TouchEvent): void {
-		down = false;
-		// console.log('Touch end event triggered');
+		console.log('handleUpTouch triggered');
 
+		down = false;
 		// Reset the selected corner
 		selectedCorner = null;
-
-		// Additional handling specific to TouchEvent if needed
 	}
 </script>
 
 <div
-	class="my-component"
+	class="cursor-default border border-error-500 bg-white"
 	bind:this={element}
 	on:keydown={handleKeyDown}
 	on:mousedown={handleMouseDown}
@@ -226,12 +258,3 @@
 	<!-- Use slots to pass HTML content from the parent component -->
 	<slot {TopLeft} {TopRight} {BottomLeft} {BottomRight} {Center} {Rotate} />
 </div>
-
-<style lang="postcss">
-	.my-component {
-		/* Add some styles to the div element */
-		border: 2px solid var(--border-color);
-		background-color: var(--background-color);
-		cursor: var(--cursor);
-	}
-</style>
