@@ -442,7 +442,7 @@
 							class="divide-x divide-surface-400"
 							on:click={() => {
 								entryData.set(data?.entryList[index]);
-								//console.log(data)
+								console.log(data);
 								mode.set('edit');
 								handleSidebarToggle();
 							}}
@@ -457,10 +457,6 @@
 									}}
 								/>
 							</td>
-
-							<!-- <td class="text-center">
-								{data?.entryList[index]?.status}
-							</td> -->
 
 							{#each tableHeaders as header}
 								<td class="text-center font-bold">

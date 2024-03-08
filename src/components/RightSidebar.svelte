@@ -47,10 +47,7 @@
 	// Save data
 	async function saveData() {
 		await saveFormData({ data: $collectionValue });
-
-		// a function to undo the changes made by handleButtonClick
 		mode.set('view');
-		//console.log('RightSidebar.svelte', $mode);
 		handleSidebarToggle();
 	}
 	//console.log('collection', $collection);
@@ -81,7 +78,7 @@
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || user.role == 'admin'}
+{#if ['edit', 'create'].includes($mode) || $page.data.user.role == 'admin'}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">

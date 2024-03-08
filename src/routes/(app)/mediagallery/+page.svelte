@@ -1,13 +1,11 @@
 <script lang="ts">
 	import PageTitle from '@components/PageTitle.svelte';
-	import TanstackTable from '@components/system/tanstack/TanstackTable.svelte';
 	import { formatSize } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// TanstackFilter
-	import TanstackFilter from '@components/system/tanstack/TanstackFilter.svelte';
+	// Buttons
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
@@ -16,10 +14,9 @@
 
 	//Get message from +page.server.ts
 	export let errorMessage = '';
-	//console.log('error', errorMessage);
 
 	//skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
+	import { Avatar, filter } from '@skeletonlabs/skeleton';
 	import { flexRender } from '@tanstack/svelte-table';
 
 	// Define the view, gridSize, and tableSize variables with the appropriate types
@@ -164,8 +161,6 @@
 
 			if (response.ok) {
 				// Image was successfully deleted
-				// You might want to update the data array to reflect the deletion
-				// Example: setData(data.filter(item => item.thumbnail !== image.thumbnail));
 			} else {
 				// Handle error
 				console.error('Error deleting image:', response.statusText);
@@ -182,37 +177,33 @@
 <div class="wrapper">
 	<div class="mb-2 flex items-center justify-between gap-4">
 		<!-- Search -->
-		{#if view === 'table'}
-			<div class="flex items-center justify-between gap-2">
-				<TanstackFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
-			</div>
-		{:else}
-			<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
-				<!-- TODO: fix search -->
-				<input
-					type="text"
-					placeholder="Search..."
-					class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
-					bind:value={globalSearchValue}
-					on:blur={() => (searchShow = false)}
-					on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
-				/>
-				{#if globalSearchValue}
-					<button
-						on:click={() => {
+
+		<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
+			<!-- TODO: fix search -->
+			<input
+				type="text"
+				placeholder="Search..."
+				class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+				bind:value={globalSearchValue}
+				on:blur={() => (searchShow = false)}
+				on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
+			/>
+			{#if globalSearchValue}
+				<button
+					on:click={() => {
+						globalSearchValue = '';
+					}}
+					on:keydown={(event) => {
+						if (event.key === 'Enter' || event.key === ' ') {
 							globalSearchValue = '';
-						}}
-						on:keydown={(event) => {
-							if (event.key === 'Enter' || event.key === ' ') {
-								globalSearchValue = '';
-							}
-						}}
-						class="variant-filled-surface w-12"
-						><iconify-icon icon="ic:outline-search-off" width="24" />
-					</button>
-				{/if}
-			</div>
-		{/if}
+						}
+					}}
+					class="variant-filled-surface w-12"
+					><iconify-icon icon="ic:outline-search-off" width="24" />
+				</button>
+			{/if}
+		</div>
+
 		<div class="flex items-center justify-center gap-4">
 			<!-- Header block -->
 			<!-- Mobile -->
@@ -418,17 +409,43 @@
 				{/each}
 			</div>
 		{:else}
-			<!-- TanstackTable for table view -->
-			<TanstackTable
-				data={data.props.data}
-				columnFields={items}
-				tableData={data.props.data}
-				dataSourceName="MediaGallery"
-				bind:globalSearchValue
-				bind:filterShow
-				bind:columnShow
-				bind:density
-			/>
+			<!-- Table for table view -->
+			<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
+				<table
+					class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
+				>
+					<!-- Table Header -->
+					<thead class="top-0 text-tertiary-500 dark:text-primary-500">
+						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+							<th>Image</th>
+							<th>name</th>
+							<th>size</th>
+							<th>hash</th>
+							<th>path</th>
+						</tr>
+					</thead>
+					<tbody>
+						{#each filterData(globalSearchValue, data.props.data) as image}
+							<tr class="divide-x divide-surface-400">
+								<td
+									><img
+										class={`inline-block object-cover object-center ${
+											gridSize === 'small' ? 'h-16 w-16' : gridSize === 'medium' ? 'h-36 w-36' : 'h-80 w-80'
+										}`}
+										src={image.thumbnail}
+										alt={image.name}
+									/></td
+								>
+								<td>{image.name}</td>
+								<td>{formatSize(image.size)}</td>
+								<td>{image.hash}</td>
+								<td>{image.path}</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+				<!-- Pagination  -->
+			</div>
 		{/if}
 	{/if}
 </div>

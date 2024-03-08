@@ -2,17 +2,15 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { mode, collection, categories, headerActionButton } from '@stores/store';
+	import { mode, collection, categories, headerActionButton, shouldShowNextButton } from '@stores/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
 
 	// let user: User = $page.data.user;
 	// let user = $page.data.user;
 	const user = 'admin';
-	let createdBy = '';
 
 	export let modeSet: typeof $mode = 'view';
-	//console.log('Collections.svelte', $mode);
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -183,6 +181,7 @@
 										handleSidebarToggle();
 									} else {
 										mode.set(modeSet);
+										shouldShowNextButton.set(true);
 									}
 
 									collection.set({

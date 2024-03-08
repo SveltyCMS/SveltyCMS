@@ -30,10 +30,10 @@
 		// console.log('selectedLanguage', selectedLanguage);
 	}
 
-	// function to Save Data
+	// Save Data
 	async function saveData() {
 		await saveFormData({ data: $collectionValue });
-		mode.set('view' || 'edit');
+		mode.set('view');
 		handleSidebarToggle();
 	}
 

@@ -199,59 +199,61 @@
 	<!-- TODO: fix TypeScript, as Icon is already optional? -->
 	<PageTitle name={m.userpage_title()} icon="" />
 </div>
-<div class="wrapper mb-2">
-	<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
-		<!-- Avatar with user info -->
-		<div class="relative flex flex-col items-center justify-center gap-1">
-			<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
+<div class="max-h-[calc(100vh-55px)] overflow-auto">
+	<div class="wrapper mb-2">
+		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
+			<!-- Avatar with user info -->
+			<div class="relative flex flex-col items-center justify-center gap-1">
+				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
-			<!-- edit button -->
-			<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
-			<!--User ID -->
-			<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-				{m.userpage_userid()}<span class="ml-2">{id}</span>
+				<!-- edit button -->
+				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
+				<!--User ID -->
+				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
+					{m.userpage_userid()}<span class="ml-2">{id}</span>
+				</div>
+				<!-- Role -->
+				<div class="gradient-tertiary badge w-full max-w-xs text-white">
+					{m.userpage_role()}<span class="ml-2">{role}</span>
+				</div>
 			</div>
-			<!-- Role -->
-			<div class="gradient-tertiary badge w-full max-w-xs text-white">
-				{m.userpage_role()}<span class="ml-2">{role}</span>
-			</div>
-		</div>
 
-		<!-- user fields -->
-		<form>
-			<label
-				>{m.userpage_username()}
-				<input bind:value={username} name="username" type="text" disabled class="input" />
-			</label>
-			<label
-				>{m.userpage_email()}
-				<input bind:value={email} name="email" type="email" disabled class="input" />
-			</label>
-			<label
-				>{m.userpage_password()}
-				<input bind:value={password} name="password" type="password" disabled class="input" />
-			</label>
-			<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
-				<!-- Edit Modal Button -->
-				<button class="gradient-tertiary btn w-full max-w-sm text-white" on:click={modalUserForm}>
-					<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
-				</button>
-
-				<!-- Delete Modal Button -->
-				{#if !isFirstUser}
-					<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
-						<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-						{m.userpage_delete()}
+			<!-- user fields -->
+			<form>
+				<label
+					>{m.userpage_username()}
+					<input bind:value={username} name="username" type="text" disabled class="input" />
+				</label>
+				<label
+					>{m.userpage_email()}
+					<input bind:value={email} name="email" type="email" disabled class="input" />
+				</label>
+				<label
+					>{m.userpage_password()}
+					<input bind:value={password} name="password" type="password" disabled class="input" />
+				</label>
+				<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
+					<!-- Edit Modal Button -->
+					<button class="gradient-tertiary btn w-full max-w-sm text-white" on:click={modalUserForm}>
+						<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 					</button>
-				{/if}
-			</div>
-		</form>
-	</div>
-</div>
 
-<!-- admin area -->
-{#if user?.role == roles.admin}
-	<div class="wrapper2">
-		<AdminArea {data} />
+					<!-- Delete Modal Button -->
+					{#if !isFirstUser}
+						<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
+							<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
+							{m.userpage_delete()}
+						</button>
+					{/if}
+				</div>
+			</form>
+		</div>
 	</div>
-{/if}
+
+	<!-- admin area -->
+	{#if user?.role == roles.admin}
+		<div class="wrapper2">
+			<AdminArea {data} />
+		</div>
+	{/if}
+</div>
