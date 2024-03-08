@@ -36,7 +36,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	//update user role
 	if (role) {
-		if (role !== 'admin' && user?.role === 'admin') {
+		if (role !== 'admin') {
 			const AUTH_USER = mongoose.models['auth_user'];
 			const adminLength = (await AUTH_USER.find({ role: 'admin' })).length;
 			if (adminLength <= 1) return new Response(JSON.stringify('There must be at least one admin'), { status: 400 });

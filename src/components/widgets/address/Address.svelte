@@ -12,7 +12,6 @@
 
 	// https://docs.mapbox.com/help/glossary/access-token/
 	mapboxgl.accessToken = privateEnv.PUBLIC_MAPBOX_API_TOKEN;
-	s;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

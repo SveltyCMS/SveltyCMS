@@ -23,32 +23,32 @@
 			case 'publish':
 				mode.set('view');
 				$modifyEntry('publish');
-				handleSidebarToggle();
+
 				break;
 			case 'unpublish':
 				mode.set('view');
 				$modifyEntry('unpublish');
-				handleSidebarToggle();
+
 				break;
 			case 'schedule':
 				mode.set('view');
 				$modifyEntry('schedule');
-				handleSidebarToggle();
+
 				break;
 			case 'clone':
 				mode.set('view');
 				$modifyEntry('clone');
-				handleSidebarToggle();
+
 				break;
 			case 'delete':
 				mode.set('view');
 				$modifyEntry('delete');
-				handleSidebarToggle();
+
 				break;
 			case 'test':
 				mode.set('view');
 				$modifyEntry('test');
-				handleSidebarToggle();
+
 				break;
 			default:
 				// Handle other actions here

@@ -98,16 +98,17 @@
 		bind:BottomRight={blurRight}
 		bind:Center={blurCenter}
 		bind:Rotate={blurRotate}
-		CONT_WIDTH={CONT_WIDTH}
-		CONT_HEIGHT={CONT_HEIGHT}
+		{CONT_WIDTH}
+		{CONT_HEIGHT}
 		on:move={handleMove}
 		on:resize={handleResize}
 		on:rotate={handleRotate}
 	>
 		<div
 			class="absolute grid grid-cols-2 grid-rows-2"
-			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${blurBottom -
-				blurTop}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
+			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${
+				blurBottom - blurTop
+			}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
 		>
 			<!-- Use button elements -->
 			<div

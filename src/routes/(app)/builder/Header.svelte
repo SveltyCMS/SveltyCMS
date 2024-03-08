@@ -23,7 +23,7 @@
 			{$collection?.name}
 		</div>
 		<div class="relative h-full w-[50px]">
-			<DropDown class="absolute" items={['en', 'de']} bind:selected={$contentLanguage} />
+			<DropDown items={['en', 'de']} bind:selected={$contentLanguage} />
 		</div>
 		{#if !['edit', 'create'].includes($mode)}
 			<MultiButton />

@@ -169,7 +169,7 @@
 				<svelte:fragment slot="content">
 					<!-- filtered by User Role Permission -->
 
-					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user.role]?.read != false) as _collection, index}
+					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user]?.read != false) as _collection, index}
 						{#if $sidebarState.left === 'full'}
 							<!-- switchSideBar expanded -->
 							<div
@@ -185,7 +185,10 @@
 										mode.set(modeSet);
 									}
 
-									collection.set(_collection);
+									collection.set({
+										..._collection,
+										icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
+									});
 								}}
 							>
 								<iconify-icon icon={_collection.icon} width="24" class="px-2 py-1 text-error-600" />
@@ -206,7 +209,10 @@
 										mode.set(modeSet);
 									}
 
-									collection.set(_collection);
+									collection.set({
+										..._collection,
+										icon: _collection.icon || 'default-icon' // Provide a default icon value if icon is undefined
+									});
 								}}
 							>
 								<p class="text-xs capitalize">{_collection.name}</p>

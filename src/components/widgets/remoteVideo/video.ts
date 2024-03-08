@@ -1,4 +1,4 @@
-import { SECRET_GOOGLE_API_KEY, SECRET_TWITCH_TOKEN, SECRET_TIKTOK_TOKEN } from '$env/static/private';
+import { privateEnv } from '@root/config/private';
 
 const cache = new Map();
 
@@ -18,10 +18,10 @@ export async function youtube(id: string): Promise<YoutubeData> {
 		return cache.get(id)!;
 	}
 
-	const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${SECRET_GOOGLE_API_KEY}`);
+	const response = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet&id=${id}&key=${privateEnv.GOOGLE_API_KEY}`);
 	const data = await response.json();
 
-	const responseDuration = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${SECRET_GOOGLE_API_KEY}`);
+	const responseDuration = await fetch(`https://www.googleapis.com/youtube/v3/videos?id=${id}&part=contentDetails&key=${privateEnv.GOOGLE_API_KEY}`);
 	const dataDuration = await responseDuration.json();
 
 	if (!(data?.items.length || dataDuration?.items.length > 0)) {
@@ -139,7 +139,7 @@ export async function twitch(id: string) {
 	const response = await fetch(`https://api.twitch.tv/helix/videos?id=${id}`, {
 		headers: {
 			'Client-ID': 'vdsqv7peymxi12vb3pgut0lk4ca9oc',
-			Authorization: `Bearer ${SECRET_TWITCH_TOKEN}`
+			Authorization: `Bearer ${privateEnv.TWITCH_TOKEN}`
 		}
 	});
 	const data = await response.json();
@@ -191,10 +191,10 @@ export async function getTokensProvided() {
 		google: false,
 		twitch: false
 	};
-	if (SECRET_GOOGLE_API_KEY) {
+	if (privateEnv.GOOGLE_API_KEY) {
 		tokensProvided.google = true;
 	}
-	if (SECRET_TWITCH_TOKEN) {
+	if (privateEnv.TWITCH_TOKEN) {
 		tokensProvided.twitch = true;
 	}
 	return {

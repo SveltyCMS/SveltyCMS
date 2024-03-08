@@ -1,7 +1,6 @@
 <script lang="ts">
-		import { dev } from '$app/environment';
+	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { privateEnv } from '@root/config/private';
 
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
@@ -22,13 +21,7 @@
 	//TODO: send rest to domain?Token and delete used token
 	export let token: EmailProps['token'];
 	export let resetLink: EmailProps['resetLink'];
-	// export let resetLink = tokenLink + '/login?token=' + token + 'email=' + email;
-
 	export let expiresIn: EmailProps['expiresIn'];
-
-	// console.log('EmailProps Token: ', token);
-	// console.log('EmailProps resetLink', resetLink);
-	// console.log('EmailProps expiresIn', expiresIn);
 
 	//Readable ExpireIn time sec to year
 	let currentTime = new Date();
@@ -144,25 +137,25 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title> {m.forgottenpassword_title({ publicEnv.SITE_NAME })}</title>
-		<meta name="description" content={m.forgottenpassword_meta({  publicEnv.SITE_NAME })} />
+		<title>Reset your password for {publicEnv.SITE_NAME}</title>
+		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />
 	</Head>
-	<Preview preview={m.forgottenpassword_preview({  publicEnv.SITE_NAME })} />
+	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
 					<Img
 						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="{ publicEnv.SITE_NAME} logo"
+						alt="{publicEnv.SITE_NAME} logo"
 						width="150"
 						height="auto"
 						style={{ display: 'block', margin: '0 auto' }}
 					/>
 				</Link>
 			</Section>
-			<Text style={paragraph}>{m.forgottenpassword_hello({ email })}</Text>
-			<Text style={paragraph}>{m.forgottenpassword_request({ publicEnv.SITE_NAME })}</Text>
+			<Text style={paragraph}>Hello {email}</Text>
+			<Text style={paragraph}>You have requested to reset your Password to get access to {publicEnv.SITE_NAME}</Text>
 			<Section style={review}>
 				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
@@ -178,7 +171,7 @@
 				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.forgottenpassword_team({ publicEnv.SITE_NAME })}</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>

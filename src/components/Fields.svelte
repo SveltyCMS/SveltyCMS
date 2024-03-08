@@ -33,7 +33,7 @@
 		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection.name}/${id}`;
 	}
 
-	function handleRevert(event: MouseEvent & { currentTarget: EventTarget & HTMLButtonElement }) {
+	function handleRevert(event: MouseEvent) {
 		alert('Function not implemented.');
 	}
 </script>
@@ -166,7 +166,6 @@
 					<p class="text-center text-tertiary-500">February 19th 2024, 4:00 PM</p>
 					<!-- <HighlightedText text={JSON.stringify($entryData, null, 2)} term="bg-red-100" /> -->
 					<CodeBlock
-						on:copy={handleRevert}
 						color="text-white dark:text-primary-500"
 						language="JSON"
 						lineNumbers={true}

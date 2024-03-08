@@ -1,6 +1,7 @@
+import { privateEnv } from '@root/config/private';
+
 // svelty-email
 import { render } from 'svelty-email';
-import { SMTP_HOST, SMTP_PORT, SMTP_PASSWORD, SMTP_EMAIL } from '$env/static/private';
 
 // Templates used by svelty-email
 import userToken from '@components/emails/userToken.svelte';
@@ -49,16 +50,16 @@ async function sendMail(email: string, subject: string, message: string, templat
 	const transporter = nodemailer.createTransport({
 		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 		// @ts-ignore
-		host: SMTP_HOST,
-		port: SMTP_PORT,
+		host: privateEnv.SMTP_HOST,
+		port: privateEnv.SMTP_PORT,
 		secure: true,
 		//service: 'gmail',
 
 		// port: SMTP_PORT,
 		// secure: false, // true for 465, false for other ports
 		auth: {
-			user: SMTP_EMAIL,
-			pass: SMTP_PASSWORD
+			user: privateEnv.SMTP_EMAIL,
+			pass: privateEnv.SMTP_PASSWORD
 		}
 	});
 
@@ -71,7 +72,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 	});
 
 	const options = {
-		from: SMTP_EMAIL,
+		from: privateEnv.SMTP_EMAIL,
 		to: email,
 		subject,
 		text: message,

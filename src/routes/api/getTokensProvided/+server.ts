@@ -1,5 +1,5 @@
+import { privateEnv } from '@root/config/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { SECRET_GOOGLE_API_KEY, SECRET_TWITCH_TOKEN, SECRET_TIKTOK_TOKEN } from '$env/static/private';
 
 export const GET: RequestHandler = async () => {
 	// Initialize tokensProvided object
@@ -10,13 +10,13 @@ export const GET: RequestHandler = async () => {
 	};
 
 	// Check if API keys/tokens are provided and update tokensProvided object accordingly
-	if (SECRET_GOOGLE_API_KEY) {
+	if (privateEnv.GOOGLE_API_KEY) {
 		tokensProvided.google = true;
 	}
-	if (SECRET_TWITCH_TOKEN) {
+	if (privateEnv.TWITCH_TOKEN) {
 		tokensProvided.twitch = true;
 	}
-	if (SECRET_TIKTOK_TOKEN) {
+	if (privateEnv.TIKTOK_TOKEN) {
 		tokensProvided.tiktok = true;
 	}
 

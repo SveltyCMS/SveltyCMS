@@ -12,8 +12,7 @@ const config = {
 		adapter: adapter({
 			out: 'build', // default: true | The directory to build the server to
 			precompress: false, // default: false | Enables precompressing using gzip & brotli for assets & prerendered pages
-			envPrefix: '', // default: '' | If you need to change the name of the environment variables used to configure the deployment
-			polyfill: false // default: true | should be disabled when using Node 18.11 or greatere
+			envPrefix: '' // default: '' | If you need to change the name of the environment variables used to configure the deployment
 		}),
 		csrf: {
 			checkOrigin: false // default: true | Protection against cross-site request forgery (CSRF) attacks.

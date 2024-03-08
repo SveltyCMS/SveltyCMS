@@ -10,7 +10,7 @@
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
-		export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
@@ -46,20 +46,20 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title>{m.updatedpassword_title({ publicEnv.SITE_NAME })}</title>
-		<meta name="description" content={m.updatedpassword_meta({ publicEnv.SITE_NAME })} />
+		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
+		<meta name="description" content="Your password for {publicEnv.SITE_NAME} was changed" />
 	</Head>
-	<Preview preview={m.updatedpassword_preview({ publicEnv.SITE_NAME })} />
+	<Preview preview="Your password for {publicEnv.SITE_NAME} was changed" />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
 				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 			</Link>
 			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
-			<Text style={paragraph}>{m.updatedpassword_change({ publicEnv.SITE_NAME })}</Text>
+			<Text style={paragraph}>You have successfully changed your Password for {publicEnv.SITE_NAME}</Text>
 			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>{m.updatedpassword_team({ publicEnv.SITE_NAME })}</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>

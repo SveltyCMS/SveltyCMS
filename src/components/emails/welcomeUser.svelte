@@ -1,8 +1,6 @@
 <script lang="ts">
-	
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { privateEnv } from '@root/config/private';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -49,20 +47,20 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title>{m.welcomeuser_title({ publicEnv.SITE_NAME })}</title>
-		<meta name="description" content={m.welcomeuser_meta({ publicEnv.SITE_NAME })} />
+		<title>Welcome to {publicEnv.SITE_NAME} </title>
+		<meta name="description" content="Welcome to {publicEnv.SITE_NAME}" />
 	</Head>
 
-	<Preview preview={m.welcomeuser_preview({ publicEnv.SITE_NAME })} />
+	<Preview preview="Welcome to {publicEnv.SITE_NAME}" />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
 				<Link href={hostLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
+					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
 				</Link>
 			</Section>
 			<Text>{m.welcomeuser_username({ username })}</Text>
-			<Text>{m.welcomeuser_sitename({ publicEnv.SITE_NAME })}</Text>
+			<Text>"Welcome to {publicEnv.SITE_NAME} - a Sveltekit powered flexible Headless CMS"</Text>
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
 				{m.welcomeuser_discussion1()}
@@ -72,10 +70,10 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>{m.welcomeuser_button({ publicEnv.SITE_NAME })}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>"Go to {publicEnv.SITE_NAME}"</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.welcomeuser_team({ publicEnv.SITE_NAME })}</Text>
+			<Text style={footer}>"Your {publicEnv.SITE_NAME} team"</Text>
 		</Container>
 	</Section>
 </Html>

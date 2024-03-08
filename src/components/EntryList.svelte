@@ -129,7 +129,7 @@
 						}
 
 						// Status
-						obj.status = entry.status ? entry.status : 'N/A';
+						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 						//Collection fields
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
@@ -141,9 +141,9 @@
 					}
 
 					// Add _id property
-					obj._id = entry._id;
 					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A';
 					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'N/A';
+					obj._id = entry._id;
 
 					return obj;
 				})
@@ -151,6 +151,8 @@
 
 		if (tableData.length > 0) {
 			tableHeaders = Object.keys(tableData[0]).map((key) => ({ label: key, name: key }));
+		} else {
+			tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: field.label })); // Fallback to collection fields if no data
 		}
 
 		//selectedMap = {};
@@ -196,7 +198,7 @@
 
 	// Columns Sorting
 	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
-		sortedBy: getFieldName($collection.fields[0]), // set the first column as default
+		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
 		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 	};
 
@@ -395,7 +397,7 @@
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<th class="!pl-[28px]">
+						<th class="!pl-[25px]">
 							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
 						</th>
 						{#each tableHeaders as header}
@@ -453,7 +455,6 @@
 										mode.set('edit');
 										handleSidebarToggle();
 									}}
-									class="ml-1"
 								/>
 							</td>
 

@@ -112,10 +112,10 @@
 
 <Html lang={languageTag()}>
 	<Head>
-		<title>{m.usertoken_title({ publicEnv.SITE_NAME })}</title>
-		<meta name="description" content={m.usertoken_meta({ publicEnv.SITE_NAME })} />
+		<title>User Registration token for {publicEnv.SITE_NAME}</title>
+		<meta name="description" content="User Registration token for {publicEnv.SITE_NAME}" />
 	</Head>
-	<Preview preview={m.usertoken_preview({ publicEnv.SITE_NAME })} />
+	<Preview preview="User Registration token for {publicEnv.SITE_NAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
@@ -124,7 +124,7 @@
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>{m.usertoken_accesstoken({ publicEnv.SITE_NAME })}</Text>
+			<Text style={paragraph}>You have received an Access Token to create a new user for {publicEnv.SITE_NAME}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{m.usertoken_email()}</Text>
@@ -145,7 +145,7 @@
 				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>{m.usertoken_team({ publicEnv.SITE_NAME })}</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>

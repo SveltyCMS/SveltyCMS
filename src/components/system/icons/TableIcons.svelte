@@ -6,7 +6,7 @@
 	const dispatch = createEventDispatcher();
 
 	export let checked = false;
-	export let status;
+	export let status = 'undefined';
 
 	function handleIconClick() {
 		checked = !checked;
@@ -15,7 +15,7 @@
 </script>
 
 <button
-	class="flex h-[26px] w-[26px] items-center justify-center rounded-md border-2 {$$props.class}"
+	class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent"
 	on:keydown
 	on:click|stopPropagation={handleIconClick}
 	class:border-yellow-500={status === 'unpublished'}

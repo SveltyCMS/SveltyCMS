@@ -25,7 +25,6 @@
 		<!-- TODO: fix search -->
 		<input
 			type="text"
-			autofocus
 			placeholder="Search..."
 			bind:value={globalSearchValue}
 			on:keydown={(e) => e.key === 'Enter'}

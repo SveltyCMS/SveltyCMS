@@ -87,9 +87,9 @@
 				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={m.modalcategory_placeholder()} />
 			</label>
 
-			<label class="label" for="newCategoryIcon">
+			<label class="label">
 				{m.modalcategory_icon()}
-				<IconifyPicker bind:iconselected={formData.newCategoryIcon} id="newCategoryIcon" />
+				<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
 			</label>
 		</form>
 

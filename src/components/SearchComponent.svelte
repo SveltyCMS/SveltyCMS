@@ -77,19 +77,12 @@
 		}
 	}
 
-	function handleResultClick(result, triggerKey: any) {
+	function handleResultClick(result: any, triggerKey: string) {
 		const trigger = result.triggers[triggerKey];
-
-		// console.log('result:', result);
-		// console.log('triggerKey:', triggerKey);
-		// console.log('trigger:', trigger);
 
 		if (trigger && trigger.path && trigger.action && trigger.action.length > 0) {
 			const { path, action } = trigger;
 			const actions = action || [];
-
-			console.log('path:', path);
-			console.log('action:', action);
 
 			// Navigate to the appropriate page if it's not the current page
 			if (window.location.pathname !== path) {
@@ -171,7 +164,7 @@
 
 						<!-- Path for items with one trigger -->
 						{#if Object.entries(result.triggers).length === 1}
-							{#each Object.entries(result.triggers) as [triggerKey, trigger]}
+							{#each Object.entries(result.triggers) as trigger}
 								<span class="w-[50px] text-xs text-primary-500">
 									{trigger.path}
 								</span>

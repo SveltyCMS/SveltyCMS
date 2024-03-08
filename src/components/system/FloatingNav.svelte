@@ -226,6 +226,9 @@
 <!-- Start  Nav Button-->
 <div
 	bind:this={firstCircle}
+	aria-label="Open navigation"
+	role="button"
+	aria-expanded={showRoutes}
 	use:drag
 	class="circle flex touch-none items-center justify-center bg-tertiary-500"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
@@ -256,8 +259,10 @@
 		></div>
 
 		<!-- Other endpoint buttons -->
-		<div
+		<button
 			bind:this={circles[0]}
+			typeof="button"
+			aria-label="Home"
 			on:click={() => {
 				mode.set('view');
 				handleSidebarToggle();
@@ -268,11 +273,14 @@
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		>
 			<iconify-icon width="30" style="color:white" icon="solar:home-bold" />
-		</div>
+		</button>
 
 		{#each endpoints.slice(1, endpoints.length) as endpoint, index}
 			<div
 				bind:this={circles[index + 1]}
+				typeof="button"
+				role={endpoint.icon}
+				aria-label={endpoint.icon}
 				on:click={() => {
 					endpoint?.url?.external ? (location.href = endpoint?.url?.path || '/') : goto(endpoint?.url?.path || '/');
 					showRoutes = false;

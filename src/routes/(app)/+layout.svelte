@@ -217,7 +217,7 @@
 							<Toast />
 
 							{#if $screenWidth !== 'desktop'}
-								<FloatingNav />
+								<FloatingNav buttonInfo />
 							{/if}
 
 							<!-- TODO: Add Search Component -->

@@ -36,7 +36,7 @@ const schema: Schema = {
 			label: 'Text3',
 			translated: false,
 			permissions: {
-				[roles.admin]: {
+				[roles.developer]: {
 					read: true,
 					write: true
 				}

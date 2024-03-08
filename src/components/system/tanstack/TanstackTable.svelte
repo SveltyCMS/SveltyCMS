@@ -467,7 +467,6 @@
 								handleSidebarToggle();
 								console.log('$selectedMap[row.id]', $selectedMap[row.id]);
 							}}
-							class="ml-1"
 						/>
 					</td>
 

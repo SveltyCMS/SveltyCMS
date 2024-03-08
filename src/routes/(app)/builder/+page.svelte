@@ -1,4 +1,8 @@
 <script lang="ts">
+	import axios from 'axios';
+	import { onDestroy } from 'svelte';
+	import { obj2formData } from '@utils/utils';
+
 	// Stores
 	import { mode, collection, drawerExpanded, unAssigned } from '@stores/store';
 
@@ -7,14 +11,11 @@
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
 	import Header from './Header.svelte';
-	import DropDown from '@components/system/dropDown/DropDown.svelte';
+	import Drawer from '@src/components/system/drawer/Drawer.svelte';
 	import '@collections';
 	import Collections from './Collections.svelte';
 	import { categories, updateCollections } from '@src/collections';
-	import axios from 'axios';
-	import { obj2formData } from '@utils/utils';
 	import WidgetBuilder from './WidgetBuilder.svelte';
-	import { onDestroy } from 'svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -47,6 +48,9 @@
 	$: if ($mode == 'create') {
 		name = '';
 		icon = '';
+		slug = '';
+		description = '';
+		status = 'unpublish';
 		fields = [];
 	}
 
@@ -194,7 +198,7 @@
 					<p class=" text-center text-xs">Optional</p>
 
 					<!-- <FloatingInput label="icon" name="icon" icon="tdesign:file-icon" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={icon} /> -->
-					<IconifyPicker bind:iconselected={icon} />
+					<IconifyPicker bind:iconselected={icon} searchQuery={icon} />
 
 					<FloatingInput label="slug" name="slug" icon="formkit:url" inputClass="text-tertiary-500 dark:text-primary-500" bind:value={slug} />
 
