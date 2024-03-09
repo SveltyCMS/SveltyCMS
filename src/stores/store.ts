@@ -54,6 +54,7 @@ export const contentLanguage: Writable<string> = writable(publicEnv.DEFAULT_CONT
 
 // Create a writable store for systemLanguage with initial value of PublicEnv.DEFAULT_SYSTEM_LANGUAGE
 export const systemLanguage: Writable<AvailableLanguageTag> = writable(publicEnv.DEFAULT_SYSTEM_LANGUAGE) as any;
+
 // Set the language tag
 export const messages: Writable<typeof m> = writable({ ...m });
 systemLanguage.subscribe((val) => {

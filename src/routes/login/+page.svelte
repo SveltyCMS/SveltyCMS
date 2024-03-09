@@ -4,7 +4,6 @@
 	// Components
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
-	import Autocomplete from '@components/Autocomplete.svelte';
 	import SveltyCMSLogoFull from '@src/components/SveltyCMS_LogoFull.svelte';
 	import type { PageData } from './$types';
 
@@ -12,14 +11,13 @@
 	import { systemLanguage } from '@stores/store';
 
 	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
-	function handleLocaleChange(event: any) {
-		$systemLanguage = event.target.value;
-	}
+	$: console.log('$systemLanguage:', $systemLanguage);
+	console.log('_languageTag', _languageTag);
+	console.log('languageTag', languageTag());
 
 	export let data: PageData;
 	// @ts-expect-error reading from vite.config.js
@@ -29,6 +27,13 @@
 	let date = new Date();
 
 	let inputlanguagevalue = '';
+
+	function handleLanguageSelection(event) {
+		let selectedLanguage = event.target.value;
+		selectedLanguage = selectedLanguage.toLowerCase();
+		systemLanguage.set(selectedLanguage);
+	}
+
 	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlanguagevalue) : true));
 
 	let active: undefined | 0 | 1 = undefined;
@@ -56,20 +61,19 @@
 		>
 			<!-- Autocomplete input -->
 			{#if publicEnv.AVAILABLE_SYSTEM_LANGUAGES.length > 5}
-				<!-- <Autocomplete {options} placeholder={_languageTag} bind:value={inputlanguagevalue} /> -->
 				<input
 					id="languageAuto"
 					name="language"
 					type="text"
 					list="locales"
 					bind:value={inputlanguagevalue}
+					on:input={handleLanguageSelection}
 					placeholder={_languageTag}
 					aria-label="Enter Language"
 					class="w-1/2 rounded-full border-2 bg-[#242728] uppercase text-white placeholder:text-white focus:ring-2"
 				/>
-
 				<datalist id="locales" class="w-1/2 divide-y divide-white uppercase">
-					{#each filteredLanguages as locale}
+					{#each publicEnv.AVAILABLE_SYSTEM_LANGUAGES as locale}
 						<option class="uppercase text-error-500">{locale.toUpperCase()}</option>
 					{/each}
 				</datalist>
@@ -78,8 +82,7 @@
 				<select
 					id="languageSelect"
 					name="language"
-					bind:value={_languageTag}
-					on:change={handleLocaleChange}
+					bind:value={$systemLanguage}
 					aria-label="Select Language"
 					class="rounded-full border-2 border-white bg-[#242728] uppercase text-white focus:ring-2 focus:ring-blue-500 active:ring active:ring-blue-300"
 				>

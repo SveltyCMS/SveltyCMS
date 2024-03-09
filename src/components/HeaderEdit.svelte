@@ -23,6 +23,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import TranslationStatus from './TranslationStatus.svelte';
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -137,11 +138,7 @@
 
 			<!-- Select Content Language -->
 			<div class="hidden flex-col items-center justify-center md:flex">
-				<select class="variant-ghost-surface m-0 rounded text-white" bind:value={$contentLanguage} on:change={handleChange}>
-					{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
-						<option {value}>{value.toUpperCase()}</option>
-					{/each}
-				</select>
+				<TranslationStatus />
 			</div>
 		{/if}
 
@@ -224,15 +221,7 @@
 		<!-- Mobile -->
 		<!-- TODO: hide arrow for x mobile -->
 		<div class="flex flex-col items-center justify-center">
-			<select
-				class="variant-ghost-surface m-0 rounded text-white sm:appearance-none md:hidden md:appearance-auto"
-				bind:value={$contentLanguage}
-				on:change={handleChange}
-			>
-				{#each Object.keys(publicEnv.DEFAULT_CONTENT_LANGUAGE) as value}
-					<option {value}>{value.toUpperCase()}</option>
-				{/each}
-			</select>
+			<TranslationStatus />
 		</div>
 	</div>
 {/if}

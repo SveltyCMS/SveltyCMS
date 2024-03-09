@@ -3,7 +3,7 @@
 	import { asAny, debounce, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories } from '@src/stores/store';
+	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
 	import { get, writable } from 'svelte/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
 
@@ -129,6 +129,8 @@
 						}
 
 						// Status
+						// TODO: Add Localized status states
+						//obj.status = entry.status ? m.status_(obj.status) : 'N/A';
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 						//Collection fields
 						obj[field.label] = await field.display?.({
@@ -140,10 +142,10 @@
 						});
 					}
 
-					// Add _id property
-					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString() : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString() : 'N/A';
-					obj._id = entry._id;
+					// Add createdAt and updatedAt properties localized to the system language
+					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString($systemLanguage) : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString($systemLanguage) : 'N/A';
+					obj._id = entry._id; // Add _id property
 
 					return obj;
 				})

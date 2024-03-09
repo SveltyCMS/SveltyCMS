@@ -35,6 +35,8 @@
 			on:blur={() => {
 				showDropdown = false;
 			}}
+			aria-labelledby="placeholder"
+			aria-expanded={showDropdown}
 		/>
 		{#if showDropdown && filteredOptions.length > 0}
 			<div class="absolute top-full mt-2 max-h-60 w-full overflow-y-auto rounded-md border-2 border-gray-300 bg-white">

@@ -34,7 +34,7 @@ export async function load({ cookies, route, params }) {
 
 			// filters collection based on reading permissions and redirects to first left one
 			const _filtered = collections.filter((c) => c?.permissions?.[user.user.role]?.read != false);
-			redirect(302, `/${params.language || publicEnv.DEFAULT_LANGUAGE}/${_filtered[0].name}`);
+			redirect(302, `/${params.language || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
 		}
 		if (collection?.permissions?.[user.user.role]?.read == false) {
 			error(404, {

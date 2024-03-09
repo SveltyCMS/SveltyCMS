@@ -3,10 +3,6 @@
 
 	// Stores
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
-	// console.log('publicEnv.DEFAULT_CONTENT_LANGUAGE', publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	// console.log('publicEnv.AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
-	// console.log('$contentLanguage', $contentLanguage);
-	// console.log('translationStatusOpen', $translationStatusOpen);
 
 	function handleChange(event) {
 		const selectedLanguage = event.target.value.toUpperCase();
@@ -29,7 +25,7 @@
 		closeOpenStates();
 	}}
 >
-	{#each Object.keys(publicEnv.AVAILABLE_CONTENT_LANGUAGES) as value}
-		<option {value}>{value.toUpperCase()}</option>
+	{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang}
+		<option value={lang}>{lang.toUpperCase()}</option>
 	{/each}
 </select>
