@@ -136,66 +136,66 @@
 				/>
 				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-				{#if privateEnv.USE_GOOGLE_OAUTH}
-					<!-- Email field -->
-					<FloatingInput
-						id="emailsignUp"
-						name="email"
-						type="email"
-						tabindex={tabIndex++}
-						required
-						bind:value={$form.email}
-						label={m.signup_emailaddess()}
-						{...$constraints.email}
-						icon="mdi:email"
-						iconColor="white"
-						textColor="white"
-						inputClass="text-white"
-						autocomplete="on"
-					/>
-					{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
+				<!-- {#if privateEnv.USE_GOOGLE_OAUTH} -->
+				<!-- Email field -->
+				<FloatingInput
+					id="emailsignUp"
+					name="email"
+					type="email"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.email}
+					label={m.signup_emailaddess()}
+					{...$constraints.email}
+					icon="mdi:email"
+					iconColor="white"
+					textColor="white"
+					inputClass="text-white"
+					autocomplete="on"
+				/>
+				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
-					<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
-					<!-- Password field -->
-					<FloatingInput
-						id="passwordsignUp"
-						name="password"
-						type="password"
-						tabindex={tabIndex++}
-						required
-						bind:value={$form.password}
-						bind:showPassword
-						label={m.signup_password()}
-						{...$constraints.password}
-						icon="mdi:password"
-						iconColor="white"
-						textColor="white"
-						showPasswordBackgroundColor="dark"
-						inputClass="text-white"
-						autocomplete="on"
-					/>
-					{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
+				<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
+				<!-- Password field -->
+				<FloatingInput
+					id="passwordsignUp"
+					name="password"
+					type="password"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.password}
+					bind:showPassword
+					label={m.signup_password()}
+					{...$constraints.password}
+					icon="mdi:password"
+					iconColor="white"
+					textColor="white"
+					showPasswordBackgroundColor="dark"
+					inputClass="text-white"
+					autocomplete="on"
+				/>
+				{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
 
-					<!-- Password Confirm -->
-					<FloatingInput
-						id="confirm_passwordsignUp"
-						name="confirm_password"
-						type="password"
-						tabindex={tabIndex++}
-						required
-						bind:value={$form.confirm_password}
-						bind:showPassword
-						label={m.signup_confirmpassword()}
-						{...$constraints.confirm_password}
-						icon="mdi:password"
-						iconColor="white"
-						textColor="white"
-						showPasswordBackgroundColor="dark"
-						inputClass="text-white"
-						autocomplete="on"
-					/>
-					{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
-				{/if}
+				<!-- Password Confirm -->
+				<FloatingInput
+					id="confirm_passwordsignUp"
+					name="confirm_password"
+					type="password"
+					tabindex={tabIndex++}
+					required
+					bind:value={$form.confirm_password}
+					bind:showPassword
+					label={m.signup_confirmpassword()}
+					{...$constraints.confirm_password}
+					icon="mdi:password"
+					iconColor="white"
+					textColor="white"
+					showPasswordBackgroundColor="dark"
+					inputClass="text-white"
+					autocomplete="on"
+				/>
+				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
+				<!-- {/if} -->
 
 				{#if $form.token != null}
 					<!-- Registration Token -->
