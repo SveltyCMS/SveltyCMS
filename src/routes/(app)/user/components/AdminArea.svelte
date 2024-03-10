@@ -1,14 +1,17 @@
 <script lang="ts">
 	import type { PageData } from '../$types';
 	import axios from 'axios';
-	import { onMount } from 'svelte';
+	import { asAny, debounce } from '@src/utils/utils';
 	import { linear } from 'svelte/easing';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
+	import MultibuttonToken from './MultibuttonToken.svelte';
+	import TableIcons from '@src/components/system/icons/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
+	import Loading from '@src/components/Loading.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -19,9 +22,7 @@
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { writable } from 'svelte/store';
-	import Loading from '@src/components/Loading.svelte';
-	import TableIcons from '@src/components/system/icons/TableIcons.svelte';
-	import { mode } from '@src/stores/store';
+	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 
 	const modalStore = getModalStore();
 
@@ -56,21 +57,20 @@
 	let showUserList = false;
 	let showMoreUserList = false;
 	let showUsertoken = false;
-	let showMoreUserToken = false;
 
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
 
 	function toggleUserList() {
 		showUserList = !showUserList;
-		refreshTableData();
 		if (showUsertoken) showUsertoken = false;
+		refreshTableData();
 	}
 
 	function toggleUserToken() {
 		showUsertoken = !showUsertoken;
+		showUserList = false;
 		refreshTableData();
-		if (showUserList) showUserList = false;
 	}
 
 	// TableFilter
@@ -79,44 +79,90 @@
 	let filterShow = false;
 	let columnShow = false;
 	let density = 'normal';
+
 	export let selectedRows: any[] = [];
 
 	// Display User Columns
 	const tableHeadersUser = [
-		{ label: 'UserID', key: 'id' },
-		{ label: 'Blocked', key: 'blocked' },
-		{ label: 'Avatar', key: 'avatar' },
-		{ label: 'Email', key: 'email' },
-		{ label: 'Username', key: 'username' },
-		{ label: 'Role', key: 'role' },
-		{ label: 'Active Sessions', key: 'activeSessions' },
-		{ label: 'Last Access', key: 'lastAccess' },
-		{ label: 'Created At', key: 'createdAt' },
-		{ label: 'Updated At', key: 'updatedAt' }
+		{ label: m.adminarea_userid(), key: 'id' },
+		{ label: m.adminarea_blocked(), key: 'blocked' },
+		{ label: m.adminarea_avatar(), key: 'avatar' },
+		{ label: m.adminarea_email(), key: 'email' },
+		{ label: m.adminarea_username(), key: 'username' },
+		{ label: m.adminarea_role(), key: 'role' },
+		{ label: m.adminarea_activesession(), key: 'activeSessions' },
+		{ label: m.adminarea_lastaccess(), key: 'lastAccess' },
+		{ label: m.adminarea_createat(), key: 'createdAt' },
+		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	];
 
 	// Display User Token Columns
 	const tableHeaderToken = [
-		{ label: 'UserID', key: 'id' },
-		{ label: 'Blocked', key: 'blocked' },
-		{ label: 'Email', key: 'email' },
-		{ label: 'Role', key: 'role' },
-		{ label: 'Created At', key: 'createdAt' },
-		{ label: 'Updated At', key: 'updatedAt' }
+		{ label: m.adminarea_userid(), key: 'userID' },
+		{ label: m.adminarea_blocked(), key: 'blocked' },
+		{ label: m.adminarea_email(), key: 'email' },
+		{ label: m.adminarea_role(), key: 'role' },
+		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
+		{ label: m.adminarea_createat(), key: 'createdAt' },
+		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	];
-
-	type TableHeader = { label: string; key: string };
-	type UserData = Record<string, string>;
-
-	let userInfo: UserData[] = [];
-	let userToken: UserData[] = [];
 
 	// Define table data for both user list and tokens
 	let tableData: any[] = [];
 	let tableDataUserToken: any[] = [];
-	let filteredTableData: typeof userInfo = [];
-	let modifyMap: { [key: number]: boolean } = {};
-	let filters: { [key: string]: string } = {};
+
+	// Filter
+	let filters: { [key: string]: string } = {}; // Set initial filters object
+	let filteredTableData: any[] = [];
+	let waitFilter = debounce(300); // Debounce filter function for 300ms
+
+	// Pagination
+	let rowsPerPage = 10; // Set initial rowsPerPage value
+	let currentPage = 1; // Set initial currentPage value
+
+	//svelte-dnd-action
+	import { flip } from 'svelte/animate';
+	import { slide } from 'svelte/transition';
+	import { dndzone } from 'svelte-dnd-action';
+
+	const flipDurationMs = 300;
+	let columnOrder: string[] = []; // This will hold the order of your columns
+	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
+
+	function handleDndConsider(data: { items: { id: string; isVisible: boolean }[] }) {
+		// No need to reassign the data object, directly access its items property
+		const items = data.items;
+
+		// You can potentially log or inspect the items here to understand the order before dropping
+		console.log('Items before dropping:', items);
+	}
+
+	function handleDndFinalize(data: { items: { id: string; isVisible: boolean }[] }) {
+		const clickedColumn = data.items[0].id; // Assuming the first item is the clicked/dragged column
+
+		// Update sorting for the clicked column (toggle sort or change field)
+		sorting[clickedColumn] = {
+			sortedBy: tableHeadersUser.find((header) => header.label === clickedColumn)?.key || '', // Get field key for clicked column from tableHeadersUser
+			isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
+		};
+
+		// Update table data based on the new sorting
+		tableData.sort((a, b) => {
+			const sortFieldA = a[sorting.sortedBy];
+			const sortFieldB = b[sorting.sortedBy];
+
+			if (sorting.isSorted === 1) {
+				// Ascending order
+				return sortFieldA.localeCompare(sortFieldB);
+			} else {
+				// Descending order
+				return sortFieldB.localeCompare(sortFieldA);
+			}
+		});
+
+		// Refresh the table to display the sorted data
+		refreshTableData();
+	}
 
 	//Load Table data
 	async function refreshTableData() {
@@ -139,18 +185,20 @@
 					responseData = data.tokens;
 				}
 
-				console.log('responseData', responseData);
 				// Format the data for the table
 				tableData = responseData.map((item) => {
 					const formattedItem: any = {};
 					for (const header of showUserList ? tableHeadersUser : tableHeaderToken) {
-						const { label, key } = header;
-						formattedItem[label] = item[key] || 'NO DATA';
+						const { key } = header;
+						formattedItem[key] = item[key] || 'NO DATA';
 						if (key === 'createdAt' || key === 'updatedAt') {
-							formattedItem[label] = new Date(item[key]).toLocaleString();
+							formattedItem[key] = new Date(item[key]).toLocaleString();
+						}
+						if (key === 'expiresIn') {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
 						}
 					}
-					console.log('Formatted Item:', formattedItem);
+
 					return formattedItem;
 				});
 
@@ -189,10 +237,6 @@
 		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 	};
 
-	// Pagination
-	let rowsPerPage = 10; // Set initial rowsPerPage value
-	let currentPage = 1; // Set initial currentPage value
-
 	// This function handles changes in the dropdown (assuming it has a class 'select')
 	function rowsPerPageHandler(event: any) {
 		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
@@ -223,8 +267,8 @@
 		localStorage.setItem('currentPage', JSON.stringify(currentPage));
 		localStorage.setItem('rowsPerPage', JSON.stringify(rowsPerPage));
 		localStorage.setItem('filters', JSON.stringify(filters));
-		// localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
-		// localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+		localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
+		localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
 	}
 
 	// Define a reactive variable to hold the current action
@@ -284,16 +328,56 @@
 					<button type="button" class="btn-ghost btn mx-2 sm:hidden" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)}>
 						<span class="fa fa-filter mr-2"></span>
 					</button>
-					<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
+					{#if showUserList}
+						<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
+					{:else if showUsertoken}
+						<MultibuttonToken {selectedRows} on:crudAction={handleCRUDAction} />
+					{/if}
 				</div>
 			</div>
 		</div>
 
-		{#if showUserList && tableData.length > 0}
-			<!-- UserTable -->
+		{#if tableData.length > 0}
+			<!-- UserTable -->{#if columnShow}
+				<!-- column order -->
+				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
+					<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
+					<!-- all -->
+					<div class="my-2 flex w-full items-center justify-center gap-1">
+						<label class="mr-3">
+							<input type="checkbox" bind:checked={SelectAll} />
+							{m.entrylist_all()}
+						</label>
+
+						<section
+							use:dndzone={{ items: showUserList ? tableHeadersUser : tableHeaderToken, flipDurationMs }}
+							on:consider={handleDndConsider}
+							on:finalize={handleDndFinalize}
+							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
+						>
+							{#each showUserList ? tableHeadersUser : tableHeaderToken as header, index}
+								<button
+									class="chip {columnVisibility[header.key]
+										? 'variant-filled-secondary'
+										: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									on:click={() => {
+										columnVisibility[header.key] = !columnVisibility[header.key];
+										localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+									}}
+								>
+									{#if columnVisibility[header.key]}
+										<span><iconify-icon icon="fa:check" /></span>
+									{/if}
+									<span class="ml-2 capitalize">{header.key}</span>
+								</button>
+							{/each}
+						</section>
+					</div>
+				</div>
+			{/if}
 			<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
 				<table
-					class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
+					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
 				>
 					<!-- Table Header -->
 					<thead class="top-0 text-tertiary-500 dark:text-primary-500">
@@ -304,9 +388,32 @@
 								</th>
 
 								<!-- Filter -->
-								Filters
+								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
+									<th>
+										<div class="flex items-center justify-between">
+											<FloatingInput
+												type="text"
+												icon="material-symbols:search-rounded"
+												label="Filter ..."
+												name={header.key}
+												on:input={(e) => {
+													let value = asAny(e.target).value;
+													if (value) {
+														waitFilter(() => {
+															filters[header.key] = value;
+														});
+													} else {
+														delete filters[header.key];
+														filters = filters;
+													}
+												}}
+											/>
+										</div>
+									</th>
+								{/each}
 							</tr>
 						{/if}
+
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 							<th class="!pl-[25px]">
 								<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
@@ -350,18 +457,27 @@
 					</thead>
 					<tbody>
 						{#each filteredTableData as row, index}
-							<tr class="divide-x divide-surface-400" on:click={() => (modifyMap[index] = !modifyMap[index])}>
+							<tr
+								class="divide-x divide-surface-400"
+								on:click={() => {
+									handleCRUDAction(row);
+								}}
+							>
 								<td class="!pl-[25px]">
 									<!-- TODO: need to be linked to blocked status -->
 									<TableIcons />
 								</td>
+
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
-									<td class="text-center font-bold">
+									<td class="text-center">
 										{#if header.key === 'blocked'}
 											<!-- Convert the string value to a boolean before passing it to the Boolean component -->
 											<Boolean value={row[header.key] === 'true'} />
+										{:else if showUserList && header.key === 'avatar'}
+											<!--Use Avatar component-->
+											<Avatar src={row[header.key]} fallback="/Default_User.svg" width="w-8" />
 										{:else if header.key === 'role'}
-											<!-- Use the Role component to display the role -->
+											<!-- Use the Role component to display the roles -->
 											<Role value={row[header.key]} />
 										{:else}
 											{@html row[header.key]}

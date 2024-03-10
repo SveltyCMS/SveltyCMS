@@ -11,6 +11,9 @@
 		"https://cdn.jsdelivr.net/npm/@inlang/plugin-message-format@latest/dist/index.js",
 		"https://cdn.jsdelivr.net/npm/@inlang/plugin-m-function-matcher@latest/dist/index.js"
 	],
+	"messageLintRuleLevels": {
+		"messageLintRule.inlang.missingTranslation": "error"
+	},
 	"plugin.inlang.messageFormat": {
 		"pathPattern": "./src/messages/{languageTag}.json"
 	}

@@ -17,7 +17,6 @@
 
 	//skeleton
 	import { Avatar, filter } from '@skeletonlabs/skeleton';
-	import { flexRender } from '@tanstack/svelte-table';
 
 	// Define the view, gridSize, and tableSize variables with the appropriate types
 	let view: 'grid' | 'table' = 'grid';
@@ -97,60 +96,131 @@
 
 	//console.log('Data received in component:', data);
 
-	//TODO: fix tanstack office icons display
+	// Table
+	let tableData: any[] = [];
+	let filteredTableData: any[] = [];
+	let filters: { [key: string]: string } = {};
+
+	// Pagination
+	let rowsPerPage = 10; // Set initial rowsPerPage value
+	let currentPage = 1; // Set initial currentPage value
+
+	let isLoading = false;
+	let loadingTimer: any; // recommended time of around 200-300ms
+
+	// Display User Token Columns
+	const tableHeaders = [
+		{ label: m.mediagallery_image(), key: 'thumbnail' },
+		{ label: m.mediagallery_name(), key: 'name' },
+		{ label: m.mediagallery_size(), key: 'size' },
+		{ label: m.mediagallery_hash(), key: 'hash' },
+		{ label: m.mediagallery_path(), key: 'path' }
+	];
+
+	//Load Table data
+	async function refreshTableData() {
+		// Clear loading timer
+		loadingTimer && clearTimeout(loadingTimer);
+
+		try {
+			let responseData: any;
+
+			// Set loading to true
+			loadingTimer = setTimeout(() => {
+				isLoading = true;
+			}, 400);
+
+			// Load All available Users
+			responseData = data;
+
+			// Format the data for the table
+			tableData = responseData.map((item) => {
+				const formattedItem: any = {};
+				for (const header of tableHeaders) {
+					const { key } = header;
+					formattedItem[key] = item[key] || 'NO DATA';
+					if (key === 'createdAt' || key === 'updatedAt') {
+						formattedItem[key] = new Date(item[key]).toLocaleString();
+					}
+					if (key === 'expiresIn') {
+						formattedItem[key] = new Date(item[key]).toLocaleString();
+					}
+				}
+
+				return formattedItem;
+			});
+
+			// Reset filters
+			filters = {};
+
+			// Set loading to false
+			isLoading = false;
+			clearTimeout(loadingTimer);
+		} catch (error) {
+			console.error('Error fetching data:', error);
+		}
+	}
+	//Call refreshTableData initially to populate the table
+	refreshTableData();
+
+	// Columns Sorting
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
+		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+	};
 
 	// Column Definition
-	let items = [
-		{
-			header: 'Image',
-			accessorKey: 'image',
-			id: 'image',
-			cell: (info: any) => {
-				if (info.row.original.path.endsWith('.pdf')) {
-					// PDF icon
-					return '<iconify-icon icon="vscode-icons:file-type-pdf2" height="42" />';
-				} else if (info.row.original.path.endsWith('.xlsx') || info.row.original.path.endsWith('.xls')) {
-					// Excel icon
-					return '<iconify-icon icon="vscode-icons:file-type-excel" height="42" />';
-				} else if (info.row.original.path.endsWith('.docx') || info.row.original.path.endsWith('.doc')) {
-					// Word icon
-					return '<iconify-icon icon="vscode-icons:file-type-word" height="42" />';
-				} else {
-					// Default case
-					return flexRender(Avatar, {
-						src: info.row.original.thumbnail,
-						width: `${tableSize === 'small' ? 'w-6' : tableSize === 'medium' ? 'w-10' : 'w-14'}`
-					});
-				}
-			}
-		},
-		{
-			header: 'Name',
-			accessorKey: 'name',
-			id: 'name',
-			cell: (info: any) => info.row.original.name // Display the name without the hash
-		},
-		{
-			header: 'Size',
-			accessorKey: 'size',
-			id: 'size',
-			cell: (info: any) => {
-				return formatSize(info.row.original.size);
-			}
-		},
-		{
-			header: 'Hash',
-			accessorKey: 'hash',
-			id: 'hash',
-			cell: (info: any) => info.row.original.hash // Display the hash value
-		},
-		{
-			header: 'Path',
-			accessorKey: 'path',
-			id: 'path',
-			cell: (info: any) => `${info.row.original.path}-${info.row.original.name}` // Construct full path
-		}
-	];
+	// let items = [
+	// 	{
+	// 		header: 'Image',
+	// 		accessorKey: 'image',
+	// 		id: 'image',
+	// 		cell: (info: any) => {
+	// 			if (info.row.original.path.endsWith('.pdf')) {
+	// 				// PDF icon
+	// 				return '<iconify-icon icon="vscode-icons:file-type-pdf2" height="42" />';
+	// 			} else if (info.row.original.path.endsWith('.xlsx') || info.row.original.path.endsWith('.xls')) {
+	// 				// Excel icon
+	// 				return '<iconify-icon icon="vscode-icons:file-type-excel" height="42" />';
+	// 			} else if (info.row.original.path.endsWith('.docx') || info.row.original.path.endsWith('.doc')) {
+	// 				// Word icon
+	// 				return '<iconify-icon icon="vscode-icons:file-type-word" height="42" />';
+	// 			} else {
+	// 				// Default case
+	// 				return flexRender(Avatar, {
+	// 					src: info.row.original.thumbnail,
+	// 					width: `${tableSize === 'small' ? 'w-6' : tableSize === 'medium' ? 'w-10' : 'w-14'}`
+	// 				});
+	// 			}
+	// 		}
+	// 	},
+	// 	{
+	// 		header: 'Name',
+	// 		accessorKey: 'name',
+	// 		id: 'name',
+	// 		cell: (info: any) => info.row.original.name // Display the name without the hash
+	// 	},
+	// 	{
+	// 		header: 'Size',
+	// 		accessorKey: 'size',
+	// 		id: 'size',
+	// 		cell: (info: any) => {
+	// 			return formatSize(info.row.original.size);
+	// 		}
+	// 	},
+	// 	{
+	// 		header: 'Hash',
+	// 		accessorKey: 'hash',
+	// 		id: 'hash',
+	// 		cell: (info: any) => info.row.original.hash // Display the hash value
+	// 	},
+	// 	{
+	// 		header: 'Path',
+	// 		accessorKey: 'path',
+	// 		id: 'path',
+	// 		cell: (info: any) => `${info.row.original.path}-${info.row.original.name}` // Construct full path
+	// 	}
+	// ];
 
 	//Todo: Check if media is used in a collection before delete is possible
 	async function handleDeleteImage(image) {
@@ -417,11 +487,40 @@
 					<!-- Table Header -->
 					<thead class="top-0 text-tertiary-500 dark:text-primary-500">
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<th>Image</th>
-							<th>name</th>
-							<th>size</th>
-							<th>hash</th>
-							<th>path</th>
+							{#each tableHeaders as header}
+								<th
+									on:click={() => {
+										//sorting
+										sorting = {
+											sortedBy: header.key,
+											isSorted: (() => {
+												if (header.key !== sorting.sortedBy) {
+													return 1;
+												}
+												if (sorting.isSorted === 0) {
+													return 1;
+												} else if (sorting.isSorted === 1) {
+													return -1;
+												} else {
+													return 0;
+												}
+											})()
+										};
+									}}
+								>
+									<div class="flex items-center justify-center text-center">
+										{header.label}
+
+										<iconify-icon
+											icon="material-symbols:arrow-upward-rounded"
+											width="22"
+											class="origin-center duration-300 ease-in-out"
+											class:up={sorting.isSorted === 1}
+											class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
+										/>
+									</div></th
+								>
+							{/each}
 						</tr>
 					</thead>
 					<tbody>
@@ -445,6 +544,67 @@
 					</tbody>
 				</table>
 				<!-- Pagination  -->
+				<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
+					<div class="mb-2 md:mb-0">
+						<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+						<span class="text-sm"> {m.entrylist_of()} </span>
+						<span class="text-tertiary-500 dark:text-primary-500">{Math.ceil(tableData.length / rowsPerPage)}</span>
+					</div>
+
+					<div class="variant-outline btn-group">
+						<!-- First page -->
+						<button
+							type="button"
+							class="btn"
+							on:click={() => {
+								currentPage = 1;
+								refreshTableData();
+							}}
+						>
+							<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
+						</button>
+
+						<!-- Previous page -->
+						<button
+							type="button"
+							class="btn"
+							on:click={() => {
+								currentPage = Math.max(1, currentPage - 1);
+								refreshTableData();
+							}}
+						>
+							<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
+						</button>
+
+						<!-- Next page -->
+						<button
+							type="button"
+							class="btn"
+							on:click={() => {
+								currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
+								refreshTableData();
+							}}
+						>
+							<iconify-icon
+								icon="material-symbols:chevron-right"
+								width="24"
+								class:active={currentPage === Math.ceil(tableData.length / rowsPerPage)}
+							/>
+						</button>
+
+						<!-- Last page -->
+						<button
+							type="button"
+							class="btn"
+							on:click={() => {
+								currentPage = Math.ceil(tableData.length / rowsPerPage);
+								refreshTableData();
+							}}
+						>
+							<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
+						</button>
+					</div>
+				</div>
 			</div>
 		{/if}
 	{/if}
