@@ -11,12 +11,13 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import TranslationStatus from './TranslationStatus.svelte';
-	import TableIcons from './system/icons/TableIcons.svelte';
-	import TanstackFilter from './system/tanstack/TanstackFilter.svelte';
-	import FloatingInput from './system/inputs/floatingInput.svelte';
-	import Loading from './Loading.svelte';
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
+	import TranslationStatus from '@components/TranslationStatus.svelte';
+	import TableIcons from '@components/system/icons/TableIcons.svelte';
+	import TableFilter from '@components/system/table/TableFilter.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import Status from '@components/system/table/Status.svelte';
+	import Loading from './Loading.svelte';
 
 	//svelte-dnd-action
 	import { flip } from 'svelte/animate';
@@ -53,7 +54,7 @@
 
 	//Buttons
 	let globalSearchValue = '';
-	let searchShow = false;
+	let expand = false;
 	let filterShow = false;
 	let columnShow = false;
 
@@ -129,7 +130,7 @@
 						}
 
 						// Status
-						// TODO: Add Localized status states
+						// TODO: Add Localized status states , Pay attention to Status.svelte modifer
 						//obj.status = entry.status ? m.status_(obj.status) : 'N/A';
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 						//Collection fields
@@ -305,11 +306,19 @@
 			</div>
 		</div>
 
-		<button type="button" on:keydown on:click={() => (searchShow = !searchShow)} class="variant-ghost-surface btn-icon sm:hidden">
+		<!-- Expand/Collapse -->
+		<button type="button" on:keydown on:click={() => (expand = !expand)} class="variant-ghost-surface btn-icon mt-1 sm:hidden">
 			<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
 		</button>
-		<div class="relative hidden items-center justify-center gap-2 sm:flex">
-			<TanstackFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+
+		<!-- Content Language -->
+		<div class="mt-1 sm:hidden">
+			<TranslationStatus />
+		</div>
+
+		<!-- Table Filter -->
+		<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
+			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
 			<TranslationStatus />
 		</div>
 		<!-- MultiButton -->
@@ -318,6 +327,12 @@
 
 	<!-- Table -->
 	{#if tableData.length > 0}
+		{#if expand}
+			<div class="mb-2 flex items-center justify-center">
+				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+			</div>
+		{/if}
+
 		{#if columnShow}
 			<!-- column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
@@ -360,9 +375,7 @@
 		{/if}
 
 		<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
-			<table
-				class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
-			>
+			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
 				<thead class="top-0 text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
@@ -462,7 +475,12 @@
 
 							{#each tableHeaders as header}
 								<td class="text-center font-bold">
-									{@html row[header.label]}
+									{#if header.label === 'blocked'}
+										<!-- Use the Role component to display the role -->
+										<Status value={row[header.label]} />
+									{:else}
+										{@html row[header.label]}
+									{/if}
 								</td>
 							{/each}
 						</tr>

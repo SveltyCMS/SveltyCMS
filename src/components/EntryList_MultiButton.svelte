@@ -82,7 +82,7 @@
 </script>
 
 <!-- Multibutton group-->
-<div class="variant-filled-token rounded-0 btn-group z-10 mt-0.5 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
+<div class="variant-filled-token rounded-0 btn-group z-10 mt-1 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
 	<!-- left button -->
 	<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass}`} on:click|preventDefault={handleButtonClick}>
 		<span class="flex items-center rtl:rotate-180">

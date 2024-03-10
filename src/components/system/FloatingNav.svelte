@@ -8,6 +8,9 @@
 	import { motion } from '@src/utils/utils';
 	import { mode } from '@src/stores/store';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
+	import { getModalStore } from '@skeletonlabs/skeleton';
+
+	const modalStore = getModalStore();
 
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
 	let buttonRadius = 25; // home button size
@@ -265,6 +268,7 @@
 			aria-label="Home"
 			on:click={() => {
 				mode.set('view');
+				modalStore.clear();
 				handleSidebarToggle();
 				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
 				showRoutes = false;

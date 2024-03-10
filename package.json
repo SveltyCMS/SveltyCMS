@@ -101,7 +101,6 @@
 		"@lucia-auth/oauth": "^3.5.3",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
-		"@tanstack/svelte-table": "^8.13.2",
 		"@typescript-eslint/eslint-plugin": "^7.1.1",
 		"@typescript-eslint/parser": "^7.1.1",
 		"axios": "^1.6.7",
