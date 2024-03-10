@@ -24,11 +24,7 @@
 	let field = { label: '', widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>
 
-<div
-	class="fixed -top-16 left-0 flex h-screen flex-col overflow-auto bg-white dark:bg-surface-900 {$sidebarState.left === 'full'
-		? 'w-[220px]'
-		: 'w-full'}"
->
+<div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
 	<div class="mb-3 flex items-center justify-between text-surface-900 dark:text-white">
 		<PageTitle name="Add a Widget" icon="material-symbols:ink-pen" iconColor="text-tertiary-500 dark:text-primary-500" />
 		<button class="variant-ghost-secondary btn-icon mr-2" on:click={() => (addField = false)}
@@ -38,7 +34,6 @@
 
 	{#if !selected_widget}
 		<div class="flex items-center justify-center">
-			<button class="mb-[20px] ml-auto mr-[40px]" on:click={() => (addField = false)}><XIcon /></button>
 			<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
 		</div>
 	{:else}

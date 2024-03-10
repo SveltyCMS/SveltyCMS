@@ -11,6 +11,8 @@
 	// Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	let tabSet: number = 0;
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -39,23 +41,11 @@
 		};
 	}
 
-	// console.log('formData:', formData);
-
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
-	// console.log('guiSchema:', guiSchema);
-
-	// let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	// let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
-	// $: if ($modalStore[0]?.value.key) {
-	// 	guiSchema = widgets[$modalStore[0].value.key]?.GuiSchema;
-	// 	console.log('guiSchema:', guiSchema);
-	// } else {
-	// 	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
-	// 	console.log('guiSchema:', guiSchema);
-	// }
+	console.log('guiSchema:', guiSchema);
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
@@ -68,16 +58,13 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			// For example:
-			// console.log('Deleting widget:', formData);
-			// You can remove the widget from the UI or update data structures here
-			// Once deletion is complete, close the modal
+
 			modalStore.close();
 		}
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
+	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
@@ -92,21 +79,61 @@
 		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
 
 		<!-- Enable for debugging: -->
-
 		<form class="modal-form {cForm}">
-			{#if $modalStore[0].value}
-				<div class="mb-2 border-y text-center text-primary-500">
-					<div class="text-xl text-primary-500">
-						Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
+			<TabGroup>
+				<Tab bind:group={tabSet} name="tab1" value={0}>
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						<span>Default</span>
 					</div>
-					<div class="my-1 text-xs text-error-500">* Required</div>
-				</div>
-				<div class="options-table">
-					{#each Object.entries(guiSchema) as [property, value]}
-						<InputSwitch bind:value={formData[property]} widget={asAny(value).widget} key={property} />
-					{/each}
-				</div>
-			{/if}
+				</Tab>
+				<Tab bind:group={tabSet} name="tab2" value={1}>
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						<span>{m.collection_permission()}</span>
+					</div>
+				</Tab>
+				<Tab bind:group={tabSet} name="tab3" value={2}>
+					<div class="flex items-center gap-1">
+						<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						<span>Specific</span>
+					</div>
+				</Tab>
+
+				<!-- Tab Panels --->
+				<svelte:fragment slot="panel">
+					{#if tabSet === 0}
+						{#if $modalStore[0].value}
+							<!-- Default section -->
+
+							<div class="mb-2 border-y text-center text-primary-500">
+								<div class="text-xl text-primary-500">
+									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
+								</div>
+								<div class="my-1 text-xs text-error-500">* Required</div>
+							</div>
+							<div class="options-table">
+								<!-- Default section -->
+								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
+									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+								{/each}
+							</div>
+						{/if}
+					{:else if tabSet === 1}
+						<!-- Permissions section -->
+						{#each ['permissions'] as property}
+							<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+						{/each}
+					{:else if tabSet === 2}
+						<!-- Specific section -->
+						{#each Object.keys(guiSchema) as property}
+							{#if !['label', 'display', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
+								<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+							{/if}
+						{/each}
+					{/if}
+				</svelte:fragment>
+			</TabGroup>
 		</form>
 
 		<!-- prettier-ignore -->

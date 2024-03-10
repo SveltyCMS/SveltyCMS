@@ -4,8 +4,6 @@
 	export let addField = false;
 	export let fields = [];
 
-	//$: console.log('AddWidget:', fields);
-
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 </script>

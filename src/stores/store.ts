@@ -63,6 +63,20 @@ systemLanguage.subscribe((val) => {
 });
 
 //  ------------ Other ------------
+
+export const tableHeaders = [
+	'ID',
+	'blocked',
+	'avatar',
+	'email',
+	'username',
+	'role',
+	'activeSessions',
+	'lastAccess',
+	'createdAt',
+	'updatedAt'
+] as const;
+
 // TranslationStatus.svelte modal
 export const translationStatusOpen = writable(false);
 

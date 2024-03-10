@@ -12,13 +12,7 @@
 
 <div class="m-1 flex max-w-full items-center justify-between gap-2">
 	{#if label}
-		<label for="input" class={labelClass}>{label}</label>
+		<label for="input" class="w-32 flex-none {labelClass}">{label}</label>
 	{/if}
-	<input use:typeAction id="input" class="input {inputClass}" bind:value {placeholder} {...$$props} />
+	<input use:typeAction id="input" class="input grow {inputClass}" bind:value {placeholder} {...$$props} />
 </div>
-
-<style lang="postcss">
-	label {
-		margin-right: 10px;
-	}
-</style>

@@ -2,6 +2,8 @@
 	import axios from 'axios';
 	import { onDestroy } from 'svelte';
 	import { obj2formData } from '@utils/utils';
+	import '@collections';
+	import { categories, updateCollections } from '@src/collections';
 
 	// Stores
 	import { mode, collection, drawerExpanded, unAssigned } from '@stores/store';
@@ -10,12 +12,8 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import Header from './Header.svelte';
-	import Drawer from '@src/components/system/drawer/Drawer.svelte';
-	import '@collections';
-	import Collections from './Collections.svelte';
-	import { categories, updateCollections } from '@src/collections';
 	import WidgetBuilder from './WidgetBuilder.svelte';
+	import Collections from './Collections.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
