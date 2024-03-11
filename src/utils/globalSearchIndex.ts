@@ -76,12 +76,6 @@ export const globalSearchIndex = writable<SearchData[]>([
 		triggers: { 'Go to Collection Builders': { path: '/collection', action: [() => {}] } }
 	},
 	{
-		title: 'Builder',
-		description: 'Configure your collection.',
-		keywords: ['builder'],
-		triggers: { 'Go to Builders': { path: '/builder', action: [() => {}] } }
-	},
-	{
 		title: 'Media Gallery',
 		description: 'View and edit your media gallery.',
 		keywords: ['media', 'gallery', 'images', 'videos', 'documents'],

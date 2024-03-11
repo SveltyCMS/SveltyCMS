@@ -2,7 +2,7 @@
 	// Stores
 	import { categories, mode, unAssigned } from '@stores/store';
 
-	import Unassigned from './[...collectionName]/Unassigned.svelte';
+	// import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
 	import { goto } from '$app/navigation';
 
@@ -200,7 +200,7 @@
 			<!-- TODO:calculate the width according to number of columns -->
 			<!-- display unassigned collections -->
 
-			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
+			<!-- <Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} /> -->
 		</div>
 
 		<!-- display collections -->
