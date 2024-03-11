@@ -1,7 +1,11 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 	import widgets from '@components/widgets';
+<<<<<<< HEAD
 	import InputSwitch from '../../../../routes/(app)/builder/InputSwitch.svelte';
+=======
+	import InputSwitch from '@components/widgets/builder/InputSwitch.svelte';
+>>>>>>> parent of 4427f3f (Moved builder inside system)
 	import { asAny } from '@utils/utils';
 	export const addField: boolean = false;
 
