@@ -53,14 +53,6 @@
 			</p>
 		</a>
 
-		<!-- builder to be replaced -->
-		<a href="/builder" rel="external" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-error-600" />
-			<p class="uppercase">
-				{m.config_collectionbuilder()}
-			</p>
-		</a>
-
 		<!-- Graphql Api -->
 		<a href="/api/graphql" rel="external" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
 			<iconify-icon icon="teenyicons:graphql-solid" width="24" class="text-warning-600" />
