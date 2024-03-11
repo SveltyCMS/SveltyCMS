@@ -1,5 +1,5 @@
 <script lang="ts">
-	import WidgetBuilder from '@components/widgets/builder/WidgetBuilder.svelte';
+	import WidgetBuilder from '@src/components/system/builder/WidgetBuilder.svelte';
 
 	export let value: Array<Array<any>> = [];
 	//console.log(value);
