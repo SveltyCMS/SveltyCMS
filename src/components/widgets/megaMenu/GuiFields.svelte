@@ -1,9 +1,5 @@
 <script lang="ts">
-<<<<<<< HEAD
 	import WidgetBuilder from '@src/routes/(app)/builder/WidgetBuilder.svelte';
-=======
-	import WidgetBuilder from '@components/widgets/builder/WidgetBuilder.svelte';
->>>>>>> parent of 4427f3f (Moved builder inside system)
 
 	export let value: Array<Array<any>> = [];
 	//console.log(value);
