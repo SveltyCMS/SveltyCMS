@@ -70,12 +70,6 @@ export const globalSearchIndex = writable<SearchData[]>([
 		}
 	},
 	{
-		title: 'Collection Builder',
-		description: 'Configure your collection.',
-		keywords: ['configuration', 'settings', 'system', 'collection', 'category', 'builder'],
-		triggers: { 'Go to Collection Builders': { path: '/collection', action: [() => {}] } }
-	},
-	{
 		title: 'Media Gallery',
 		description: 'View and edit your media gallery.',
 		keywords: ['media', 'gallery', 'images', 'videos', 'documents'],

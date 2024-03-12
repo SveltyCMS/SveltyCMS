@@ -25,7 +25,7 @@
 	}
 </script>
 
-<div class="ml-1 rounded-sm border border-surface-300 hover:bg-surface-600 dark:border-surface-400">
+<div class="ml-1 rounded-sm border-2 border-tertiary-400">
 	<h2 class="mb-2 text-center font-bold dark:text-white">{m.Unassigned_Collections()}</h2>
 	<div
 		class="flex w-full flex-wrap overflow-x-auto p-2"

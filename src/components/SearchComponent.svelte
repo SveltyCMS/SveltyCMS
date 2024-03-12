@@ -150,7 +150,10 @@
 		<!-- Search results -->
 		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 bg-surface-active-token">
 			{#each searchResults as result (result.title)}
-				<button class="border-b text-white last:border-0 last:pb-2 hover:bg-surface-400" on:click={() => handleResultClick(result, triggerKey)}>
+				<button
+					class="border-b text-white last:border-0 last:pb-2 hover:bg-surface-400"
+					on:click={() => handleResultClick(result, Object.keys(result.triggers)[0])}
+				>
 					<div class="grid auto-cols-auto grid-flow-col text-left">
 						<!-- Highlighted title -->
 						<span class="whitespace-nowrap font-bold text-primary-500">

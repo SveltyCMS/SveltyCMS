@@ -33,7 +33,7 @@
 >
 	{#each columns as { id, name, icon, items }, idx (id)}
 		<div
-			class="w-full rounded-sm border border-surface-300 p-2 dark:border-surface-400 sm:w-1/2 md:float-left md:w-1/3 lg:w-1/4"
+			class="w-full rounded-sm border-2 border-surface-400 p-2 sm:w-1/2 md:float-left md:w-1/3 lg:w-1/4"
 			animate:flip={{ duration: flipDurationMs }}
 		>
 			<Column currentCategories={columns} {name} {icon} {items} onDrop={(newItems) => handleItemFinalize(idx, newItems)} />

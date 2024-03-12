@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 	import widgets from '@components/widgets';
-	import InputSwitch from '@components/widgets/builder/InputSwitch.svelte';
+	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 	import { asAny } from '@utils/utils';
 	export const addField: boolean = false;
 
