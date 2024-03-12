@@ -1,7 +1,9 @@
 <script lang="ts">
-	import { page } from '$app/stores';
-	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import { publicEnv } from '@root/config/public';
+	import { page } from '$app/stores';
+
+	// Components
+	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -42,7 +44,7 @@
 			</div>
 		</div>
 
-		<h1 class="text-5xl font-extrabold tracking-widest text-surface-400">
+		<h1 class="text-center text-4xl font-extrabold tracking-widest text-surface-400">
 			{#if $page.error}
 				{$page.error.message}
 			{/if}

@@ -183,9 +183,7 @@
 	<div class="mb-2 mt-auto bg-white dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900">
 		<div class="mx-1 mb-1 border-0 border-t border-surface-400" />
 
-		<div
-			class="{$sidebarState.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center overflow-hidden"
-		>
+		<div class="{$sidebarState.left === 'full' ? 'grid-cols-3 grid-rows-3' : 'grid-cols-2 grid-rows-2'} grid items-center justify-center">
 			<!-- Avatar with user settings -->
 			<div class={$sidebarState.left === 'full' ? 'order-1 row-span-2' : 'order-1'}>
 				<button
@@ -205,9 +203,10 @@
 						{/if}
 					</div>
 				</button>
-				<div class="card variant-filled-secondary p-4" data-popup="User">
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled p-2" data-popup="User">
 					{m.applayout_userprofile()}
-					<div class="variant-filled-secondary arrow" />
+					<div class="variant-filled arrow" />
 				</div>
 			</div>
 
@@ -225,14 +224,15 @@
 						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
 					{/each}
 				</select>
-				<div class="card variant-filled-secondary p-4" data-popup="SystemLanguage">
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
-					<div class="variant-filled-secondary arrow" />
+					<div class="variant-filled arrow" />
 				</div>
 			</div>
 
 			<!-- light/dark mode switch -->
-			<div class="{$sidebarState.left === 'full' ? 'order-2' : 'order-3'}  ">
+			<div class={$sidebarState.left === 'full' ? 'order-2' : 'order-3'}>
 				<button
 					use:popup={SwitchThemeTooltip}
 					on:click={toggleTheme}
@@ -244,13 +244,12 @@
 					{:else}
 						<iconify-icon icon="bi:moon-fill" width="22" />
 					{/if}
-
-					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled-secondary overflow-auto py-2" data-popup="SwitchTheme">
-						{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
-						<div class="variant-filled-secondary arrow" />
-					</div>
 				</button>
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled p-2" data-popup="SwitchTheme">
+					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
+					<div class="variant-filled arrow" />
+				</div>
 			</div>
 
 			<!-- Lucia Sign Out -->
@@ -258,10 +257,10 @@
 				<button use:popup={SignOutTooltip} on:click={signOut} type="submit" value="Sign out" class="btn-icon hover:bg-surface-500 hover:text-white">
 					<iconify-icon icon="uil:signout" width="26" />
 				</button>
-
-				<div class="card variant-filled-secondary z-10 p-2" data-popup="SignOutButton">
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
-					<div class="variant-filled-secondary arrow" />
+					<div class="variant-filled arrow" />
 				</div>
 			</div>
 
@@ -279,12 +278,12 @@
 					<a href="/config">
 						<iconify-icon icon="material-symbols:build-circle" width="32" />
 					</a>
-
-					<div class="card variant-filled-secondary z-10 p-2" data-popup="Config">
-						{m.applayout_systemconfiguration()}
-						<div class="variant-filled-secondary arrow" />
-					</div>
 				</button>
+				<!-- Popup Tooltip with the arrow element -->
+				<div class="card variant-filled p-2" data-popup="Config">
+					{m.applayout_systemconfiguration()}
+					<div class="variant-filled arrow" />
+				</div>
 			</div>
 
 			<!-- Github discussions -->
@@ -292,12 +291,12 @@
 				<a href="https://github.com/Rar9/SveltyCMS/discussions" target="blank">
 					<button use:popup={GithubTooltip} class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30" />
-
-						<div class="card variant-filled-secondary p-4" data-popup="Github">
-							{m.applayout_githubdiscussion()}
-							<div class="variant-filled-secondary arrow" />
-						</div>
 					</button>
+					<!-- Popup Tooltip with the arrow element -->
+					<div class="card variant-filled p-2" data-popup="Github">
+						{m.applayout_githubdiscussion()}
+						<div class="variant-filled arrow" />
+					</div>
 				</a>
 			</div>
 

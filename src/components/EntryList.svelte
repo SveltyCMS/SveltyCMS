@@ -436,8 +436,14 @@
 									};
 								}}
 							>
-								<div class="flex items-center justify-center text-center">
-									{header.label}
+								<div class="relative flex items-center justify-center text-center">
+									<!-- TODO: fix if content is translated -->
+									{#if data?.entryList[0]?.translated}
+										<iconify-icon icon="bi:translate" width="14" class="absolute right-0 top-0 text-sm text-white" />
+										{header.label}
+									{:else}
+										{header.label}
+									{/if}
 
 									<iconify-icon
 										icon="material-symbols:arrow-upward-rounded"

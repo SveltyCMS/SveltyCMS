@@ -276,7 +276,7 @@
 		<button
 			type="button"
 			on:click={handleCollectionSave}
-			class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">Save</button
+			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
 		>
 	{/if}
 </div>
@@ -487,24 +487,6 @@
 				<div class="mt-2 flex items-center justify-center gap-3">
 					<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 				</div>
-
-				<!-- {#if expanded}
-					<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
-					<div class="flex flex-wrap items-center justify-center gap-2">
-						{#each widget_keys as item}
-							<button
-								class=" variant-outline-warning btn relative hover:variant-filled-secondary"
-								on:click={() => {
-									selected = item;
-									expanded = false;
-									modalComponentForm(selected);
-								}}
-							>
-								<span class="text-surface-700 dark:text-white">{item}</span>
-							</button>
-						{/each}
-					</div>
-				{/if} -->
 
 				<div class=" flex items-center justify-between">
 					<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"

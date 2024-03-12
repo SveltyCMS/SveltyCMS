@@ -5,8 +5,9 @@
 	import { contentLanguage, translationStatusOpen } from '@stores/store';
 
 	function handleChange(event) {
-		const selectedLanguage = event.target.value.toUpperCase();
+		const selectedLanguage = event.target.value.toLowerCase();
 		contentLanguage.set(selectedLanguage);
+		translationStatusOpen.set(false);
 	}
 
 	// Define a function to close any open elements
