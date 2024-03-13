@@ -64,22 +64,22 @@
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 ';
+	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
 
 {#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
+	<div class={cBase}>
+		<header class={`${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
 
 		<!-- Enable for debugging: -->
-		<form class="modal-form {cForm}">
+		<form class={cForm}>
 			<TabGroup>
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
@@ -137,7 +137,7 @@
 		</form>
 
 		<!-- prettier-ignore -->
-		<footer class="modal-footer {parent.regionFooter} justify-between">
+		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
 			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">Delete</span>

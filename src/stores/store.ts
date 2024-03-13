@@ -62,6 +62,9 @@ systemLanguage.subscribe((val) => {
 	messages.set({ ...m });
 });
 
+// Content Translation Completion Status
+export const translationStatus = writable({});
+export const completionStatus = writable(0);
 //  ------------ Other ------------
 // TranslationStatus.svelte modal
 export const translationStatusOpen = writable(false);

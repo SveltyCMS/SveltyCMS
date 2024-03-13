@@ -69,14 +69,14 @@
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 ';
+	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 {#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
+	<div class=" {cBase}">
+		<header class={`${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>

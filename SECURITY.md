@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We only support the latest version of this project. 
+We only support the latest version of this project.
 Always upgrade to the most recent version before reporting a vulnerability.
 
 | Version | Supported          |

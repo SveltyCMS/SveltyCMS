@@ -26,7 +26,6 @@
 		// Calculate start index based on current page number
 		start = page * 50; // Use page variable instead of start variable
 
-		$isLoading = true;
 		showDropdown = true;
 		try {
 			// Use search API query with prefix and limit parameters
@@ -45,7 +44,6 @@
 			// Display error message
 			console.error('An error occurred while fetching icons:', error);
 		}
-		$isLoading = false;
 	}
 
 	// Function to go to the next page of results
@@ -75,18 +73,20 @@
 	async function getIconLibraries() {
 		try {
 			const response = await fetch('https://api.iconify.design/collections');
-			const data = await response.json();
-			iconLibraries = data;
-			// Add 'All' option to iconLibraries
-			iconLibraries['all'] = { name: 'All Icon Libraries', total: 'all' };
 
-			// Move the 'All' option to the beginning
-			let tempLibraries = { all: iconLibraries['all'], ...iconLibraries };
-			iconLibraries = tempLibraries;
+			if (!response.ok) {
+				console.error(`Failed to fetch icon libraries: ${response.status}`);
+				return;
+			}
+
+			const data = await response.json();
+
+			iconLibraries = data;
 
 			librariesLoaded = true;
+			console.log('Successfully fetched icon libraries'); // Optional success message
 		} catch (error) {
-			console.log(error);
+			console.error('Error fetching icon libraries:', error);
 		}
 	}
 

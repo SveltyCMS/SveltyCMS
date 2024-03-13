@@ -39,9 +39,9 @@
 	}
 
 	// Define a function to get the buttonMap based on a given role and permission
-	function getButtonMap(permission: 'create' | 'read' | 'write' | 'delete') {
-		return buttonMap[permission];
-	}
+	// function getButtonMap(permission: 'create' | 'read' | 'write' | 'delete') {
+	// 	return buttonMap[permission];
+	// }
 
 	// Dynamic buttonMap based on data from types.ts
 	const buttonMap = {
@@ -93,7 +93,7 @@
 		}
 	}
 
-	function togglePermission(role, permission) {
+	function togglePermission(role: any, permission: string) {
 		// Toggle the permission
 		role.permissions[permission] = !role.permissions[permission];
 
@@ -139,7 +139,7 @@
 		Object.keys(permissions).forEach((role) => {
 			truePermissions[role as Role] = {} as Permissions;
 			Object.keys(permissions[role]).forEach((permission) => {
-				if (permissions[role][permission]) {
+				if (permissions[role][permission as keyof Permissions]) {
 					truePermissions[role as Role][permission as keyof Permissions] = true;
 				}
 			});
@@ -227,7 +227,7 @@
 
 						<!-- Role Permissions -->
 						{#if role.permissions && typeof role.permissions === 'object'}
-							{#each Object.keys(role.permissions) as permission}
+							{#each Object.keys(buttonMap) as permission}
 								<td class="bg-white dark:bg-surface-900">
 									<button
 										class="btn w-full {role.permissions[permission] ? buttonMap[permission].enabled : buttonMap[permission].disabled}"

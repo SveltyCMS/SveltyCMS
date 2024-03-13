@@ -463,7 +463,7 @@
 							class="divide-x divide-surface-400"
 							on:click={() => {
 								entryData.set(data?.entryList[index]);
-								console.log(data);
+								// console.log(data);
 								mode.set('edit');
 								handleSidebarToggle();
 							}}
@@ -533,7 +533,7 @@
 						class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
 					>
 						{#each [10, 25, 50, 100, 500] as pageSize}
-							<option value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+							<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
 						{/each}
 					</select>
 

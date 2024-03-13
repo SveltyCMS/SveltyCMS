@@ -206,6 +206,7 @@
 					{/if}
 
 					<!-- Router Slot -->
+
 					<div
 						on:keydown={onKeyDown}
 						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
@@ -213,8 +214,8 @@
 							: 'mb-16'}"
 					>
 						{#key $page.url}
-							<Modal />
 							<Toast />
+							<Modal />
 
 							{#if $screenWidth !== 'desktop'}
 								<FloatingNav buttonInfo />
