@@ -148,10 +148,10 @@
 		</div>
 
 		<!-- Token validity  -->
-		<div class="flex flex-col gap-2 pb-6 sm:flex-row">
+		<div class="flex flex-col gap-1 pb-6 sm:flex-row sm:gap-2">
 			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
 			<div class="flex-auto">
-				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+				<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
 					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
 					{#each validityOptions as option}
 						<span
@@ -180,7 +180,7 @@
 			</div>
 		</div>
 
-		<footer class="modal-footer {parent.regionFooter}">
+		<footer class="flex items-center justify-between {parent.regionFooter}">
 			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaltokenuser_cancel()}</button>
 			<button type="submit" class="btn {parent.buttonPositive}">{m.modaltokenuser_send()}</button>
 		</footer>

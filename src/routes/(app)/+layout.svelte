@@ -177,7 +177,7 @@
 		<div class="flex h-lvh flex-col">
 			<!-- Header -->
 			{#if $sidebarState.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-blue-500">Header</header>
+				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">

@@ -195,20 +195,18 @@
 <!-- Multibutton group-->
 <div class="btn-group relative rounded-md text-white">
 	<!-- Action button  -->
-
 	<button
 		type="button"
 		on:click={() => {
 			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
-		class="{getButtonAndIconValues(listboxValue, 'edit').buttonClass} font-semibold uppercase hover:bg-primary-400"
+		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
 	>
-		<iconify-icon icon={getButtonAndIconValues(listboxValue, 'edit').iconValue} width="20" class="mr-2 text-white" />
+		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}
 	</button>
 
 	<span class="border border-white" />
-
 	<!-- Dropdown button -->
 	<button class="divide-x-2 rounded-r-sm bg-surface-500 hover:!bg-surface-800" use:popup={Combobox}>
 		<iconify-icon icon="mdi:chevron-down" width="20" class="text-white" />
