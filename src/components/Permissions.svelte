@@ -38,11 +38,6 @@
 		}
 	}
 
-	// Define a function to get the buttonMap based on a given role and permission
-	function getButtonMap(permission: 'create' | 'read' | 'write' | 'delete') {
-		return buttonMap[permission];
-	}
-
 	// Dynamic buttonMap based on data from types.ts
 	const buttonMap = {
 		create: {
@@ -248,8 +243,8 @@
 				{/each}
 			</tbody>
 		</table>
-		<div class="mt-4 text-center">
+		<!-- <div class="mt-4 text-center">
 			Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span>
-		</div>
+		</div> -->
 	</div>
 {/if}

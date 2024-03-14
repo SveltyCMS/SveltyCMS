@@ -1,7 +1,7 @@
 <script lang="ts">
 	import axios from 'axios';
 	import { page } from '$app/stores';
-	import { mode, collection, tabSet, permissionStore } from '@stores/store';
+	import { mode, currentCollection, tabSet, permissionStore } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
@@ -18,13 +18,13 @@
 	const collectionName = $page.params.collectionName;
 
 	//fields
-	let icon = $mode == 'edit' ? $collection.icon : '';
-	let slug = $mode == 'edit' ? $collection.slug : name;
-	let description = $mode == 'edit' ? $collection.description : '';
-	let status = $mode == 'edit' ? $collection.status : 'unpublished';
+	let icon = $mode == 'edit' ? $currentCollection.icon : '';
+	let slug = $mode == 'edit' ? $currentCollection.slug : name;
+	let description = $mode == 'edit' ? $currentCollection.description : '';
+	let status = $mode == 'edit' ? $currentCollection.status : 'unpublished';
 	let fields =
 		$mode == 'edit'
-			? $collection.fields.map((field, index) => {
+			? $currentCollection.fields.map((field, index) => {
 					return {
 						id: index + 1, // Add the id property first
 						...field // Copy all existing properties
@@ -110,14 +110,14 @@
 		let data =
 			$mode == 'edit'
 				? obj2formData({
-						originalName: $collection.name,
+						originalName: $currentCollection.name,
 						collectionName: name,
-						icon: $collection.icon,
-						status: $collection.status,
-						slug: $collection.slug,
-						description: $collection.description,
+						icon: $currentCollection.icon,
+						status: $currentCollection.status,
+						slug: $currentCollection.slug,
+						description: $currentCollection.description,
 						permissions: $permissionStore,
-						fields: $collection.fields
+						fields: $currentCollection.fields
 					})
 				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
 
@@ -163,9 +163,9 @@
 			<iconify-icon {icon} width="24" class="text-tertiary-500" />
 			<div class="font-bold dark:text-primary-500">{field.label}</div>
 			<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-			<div class=" ">{field.widget.key}</div>
+			<div class=" ">{field?.key}</div>
 
-			<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field.widget)}>
+			<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
 				<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 			</button>
 		</div>

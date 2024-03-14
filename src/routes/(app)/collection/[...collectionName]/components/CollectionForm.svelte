@@ -1,13 +1,30 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { mode, collection, tabSet } from '@stores/store';
+	import { mode, currentCollection, collections, permissionStore, tabSet } from '@stores/store';
 	import * as m from '@src/paraglide/messages';
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
+	import type { Schema } from '@src/collections/types';
+
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
+
+	let targetCollection: Schema;
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
+	//check if collection Name exists set mode edit or create
+	if ($collections.find((x) => x.name === collectionName)) {
+		mode.set('edit');
+		currentCollection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
+	} else {
+		mode.set('create');
+		targetCollection = {} as Schema;
+		targetCollection.name = collectionName;
+		currentCollection.set(targetCollection);
+		permissionStore.set({});
+	}
 
 	// Popup Tooltips
 	let NameTooltip: PopupSettings = {
@@ -38,11 +55,11 @@
 	// Skeleton
 
 	// Default widget data (tab1)
-	let name = $mode == 'edit' ? $collection.name : collectionName;
-	let icon = $mode == 'edit' ? $collection.icon : '';
-	let slug = $mode == 'edit' ? $collection.slug : name;
-	let description = $mode == 'edit' ? $collection.description : '';
-	let status = $mode == 'edit' ? $collection.status : 'unpublished';
+	let name = $mode == 'edit' ? $currentCollection.name : collectionName;
+	let icon = $mode == 'edit' ? $currentCollection.icon : '';
+	let slug = $mode == 'edit' ? $currentCollection.slug : name?.toLowerCase().replace(/\s+/g, '_');
+	let description = $mode == 'edit' ? $currentCollection.description : '';
+	let status = $mode == 'edit' ? $currentCollection.status : 'unpublished';
 
 	// Form fields
 	let DBName = '';
@@ -53,6 +70,17 @@
 
 	function handleNameInput() {
 		if (name) {
+			// Update the URL
+			window.history.replaceState({}, '', `/collection/${name}`);
+
+			// Update the page title
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${name} </span> Collection`);
+
+			// Update the linked slug input
+			slug = name.toLowerCase().replace(/\s+/g, '_');
+
+			// Call the `onSlugInput` function to update the slug variable
+			onSlugInput();
 		}
 	}
 
@@ -60,9 +88,27 @@
 		// Update the slug field whenever the name field is changed
 		if (name) {
 			slug = name.toLowerCase().replace(/\s+/g, '_');
+			return slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
+	}
+
+	$: {
+		// Update DBName  lowercase and replace Spaces
+		DBName = name ? name.toLowerCase().replace(/ /g, '_') : '';
+
+		// Automatically update slug when name changes
+		if (autoUpdateSlug) {
+			slug = collectionName.toLowerCase().replace(/\s+/g, '_');
+		}
+		if ($mode == 'edit') {
+			dispatch('updatePageTitle', `Edit <span class="text-primary-500">${collectionName} </span> Collection`);
+		} else if (collectionName) {
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${collectionName} </span> Collection`);
+		} else {
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
+		}
 	}
 </script>
 
