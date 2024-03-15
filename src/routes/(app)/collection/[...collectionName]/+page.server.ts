@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { redirect, type Actions } from '@sveltejs/kit';
 import { auth, getCollectionModels } from '@api/db';
 import { validate } from '@utils/utils';
@@ -8,6 +9,7 @@ import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
+import { POST } from '@src/routes/api/[collection]/+server.js';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -29,7 +31,9 @@ export async function load(event) {
 
 // Create or Update Collection
 export const actions: Actions = {
+	// Save Collection
 	saveCollection: async ({ request }) => {
+		console.log('saveCollection');
 		const formData = await request.formData();
 		// console.log(formData);
 		const fieldsData = formData.get('fields') as string;
@@ -44,45 +48,36 @@ export const actions: Actions = {
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields);
-
-		// Generate fields as formatted string
-		//console.log(fields);
+		// 	// Generate fields as formatted string
 
 		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
+		let content = `${imports}
+			import widgets from '@components/widgets';
+			import { roles } from './types';
+			import type { Schema } from './types';
+			const schema: Schema = {
+				// Collection Name coming from filename so not needed
 
-		let content = `
-	${imports}
-	import widgets from '@components/widgets';
-	import { roles } from './types';
-	import type { Schema } from './types';
-	const schema: Schema = {
-		// Collection Name coming from filename so not needed
+				// Optional & Icon, status, slug
+				// See for possible Icons https://icon-sets.iconify.design/
+				icon: '${collectionIcon}',
+				status: '${collectionStatus}',
+				description: '${collectionDescription}',
+				slug: '${collectionSlug}',
 
-		// Optional & Icon, status, slug
-		// See for possible Icons https://icon-sets.iconify.design/
-		icon: '${collectionIcon}',
-	    status: '${collectionStatus}',
-		description: '${collectionDescription}',
-	    slug: '${collectionSlug}',
+				// Collection Permissions by user Roles
+				permissions : ${permissionsData ? JSON.stringify(permissionsData, null, 2) : '{}'},
 
-		// Collection Permissions by user Roles
-		permissions: {
-			${permissionsData}
-		},
+				// Defined Fields that are used in your Collection
+				// Widget fields can be inspected for individual options
+				fields: ${fields.length ? JSON.stringify(fields, null, 2) : '[]'},
+			};
+			export default schema;`;
 
-		// Defined Fields that are used in your Collection
-		// Widget fields can be inspected for individual options
-		fields: [
-			${fields}
-		]
-	};
-	export default schema;
-	
-	`;
 		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
 
 		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-		console.log('content:', content);
+
 		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
 		if (originalName && originalName != collectionName) {
 			fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
@@ -100,7 +95,7 @@ export const actions: Actions = {
 		let config = `
 		export function createCategories(collections) {
 			return ${categories}
-	
+
 		}
 		`;
 		config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
@@ -125,12 +120,14 @@ async function goThrough(object: any): Promise<string> {
 
 				if (field[key]?.widget) {
 					const widget = widgets[field[key].widget.key];
-					for (const importKey in widget.GuiSchema) {
-						const widgetImport = widget.GuiSchema[importKey].imports;
-						if (widgetImport) {
-							for (const _import of widgetImport) {
-								const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
-								imports.add(_import.replace(`{${importKey}}`, replacement));
+					if (widget && widget.GuiSchema) {
+						for (const importKey in widget.GuiSchema) {
+							const widgetImport = widget.GuiSchema[importKey].imports;
+							if (widgetImport) {
+								for (const _import of widgetImport) {
+									const replacement = (field[key][importKey] || '').replace(/🗑️/g, '').trim();
+									imports.add(_import.replace(`{${importKey}}`, replacement));
+								}
 							}
 						}
 					}
