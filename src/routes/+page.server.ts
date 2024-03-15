@@ -1,3 +1,4 @@
+import { publicEnv } from '@root/config/public';
 import { getCollections } from '@collections';
 import { redirect, type Actions } from '@sveltejs/kit';
 
@@ -7,7 +8,7 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import { auth } from './api/db';
 
 // paraglidejs
-import { languageTag, setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
 	// Get the session cookie
@@ -20,8 +21,7 @@ export async function load({ cookies }) {
 	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.role]?.read != false);
 
 	// Redirect to the first collection in the collections array
-	redirect(302, `/${languageTag()}/${_filtered[0].name}`);
-	//throw redirect(302, `/dashboard`);
+	redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
 }
 
 export const actions = {

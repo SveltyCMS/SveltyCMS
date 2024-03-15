@@ -1,17 +1,18 @@
 <script lang="ts">
 	import type { PageData } from '../$types';
 	import axios from 'axios';
-	import { asAny, debounce } from '@src/utils/utils';
+	import { asAny, debounce } from '@utils/utils';
 	import { linear } from 'svelte/easing';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
 	import MultibuttonToken from './MultibuttonToken.svelte';
-	import TableIcons from '@src/components/system/icons/TableIcons.svelte';
+	import TableIcons from '@components/system/icons/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
-	import Loading from '@src/components/Loading.svelte';
+	import Loading from '@components/Loading.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -22,7 +23,6 @@
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import { writable } from 'svelte/store';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
 
 	const modalStore = getModalStore();
 
@@ -129,21 +129,18 @@
 	let columnOrder: string[] = []; // This will hold the order of your columns
 	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
 
-	function handleDndConsider(data: { items: { id: string; isVisible: boolean }[] }) {
-		// No need to reassign the data object, directly access its items property
-		const items = data.items;
-
-		// You can potentially log or inspect the items here to understand the order before dropping
+	function handleDndConsider(event: CustomEvent) {
+		const items = event.detail.items;
 		console.log('Items before dropping:', items);
 	}
 
-	function handleDndFinalize(data: { items: { id: string; isVisible: boolean }[] }) {
-		const clickedColumn = data.items[0].id; // Assuming the first item is the clicked/dragged column
+	function handleDndFinalize(event: CustomEvent) {
+		const clickedColumnId = event.detail.items[0].key; // Assuming the first item is the clicked/dragged column
 
 		// Update sorting for the clicked column (toggle sort or change field)
-		sorting[clickedColumn] = {
-			sortedBy: tableHeadersUser.find((header) => header.label === clickedColumn)?.key || '', // Get field key for clicked column from tableHeadersUser
-			isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
+		sorting[clickedColumnId] = {
+			sortedBy: tableHeadersUser.find((header) => header.label === clickedColumnId)?.key || '', // Get field key for clicked column from tableHeadersUser
+			isSorted: sorting[clickedColumnId]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
 		};
 
 		// Update table data based on the new sorting
@@ -284,7 +281,7 @@
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">
 		{m.adminarea_adminarea()}
 	</p>
-	<div class=" flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
+	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
 		<!-- Email Token -->
 		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
 			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />
@@ -310,7 +307,7 @@
 	{#if isLoading}
 		<Loading />
 	{:else if showUserList || showUsertoken}
-		<div class="my-4 flex flex-wrap items-center justify-center gap-1 sm:justify-between">
+		<div class="my-4 flex flex-wrap items-center justify-between gap-1">
 			<h2 class="order-1 font-bold text-tertiary-500 dark:text-primary-500">
 				{#if showUserList}
 					{m.adminarea_userlist()}
@@ -323,17 +320,13 @@
 				<TableFilter bind:globalSearchValue bind:searchShow bind:filterShow bind:columnShow bind:density />
 			</div>
 
-			<div class="order-2 flex items-center justify-between gap-3 sm:order-3">
-				<div class="sm:flex-row">
-					<button type="button" class="btn-ghost btn mx-2 sm:hidden" on:keydown on:click={() => (showMoreUserList = !showMoreUserList)}>
-						<span class="fa fa-filter mr-2"></span>
-					</button>
-					{#if showUserList}
-						<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
-					{:else if showUsertoken}
-						<MultibuttonToken {selectedRows} on:crudAction={handleCRUDAction} />
-					{/if}
-				</div>
+			<div class="order-2 flex items-center justify-center sm:order-3">
+				<!-- Content based on conditions -->
+				{#if showUserList}
+					<Multibutton {selectedRows} on:crudAction={handleCRUDAction} />
+				{:else if showUsertoken}
+					<MultibuttonToken {selectedRows} on:crudAction={handleCRUDAction} />
+				{/if}
 			</div>
 		</div>
 

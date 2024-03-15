@@ -40,7 +40,7 @@
 	let background: 'white' | '#242728' = 'white';
 </script>
 
-<div class={`flex min-h-screen w-full overflow-y-auto bg-[#242728] bg-${background}`}>
+<div class={`flex min-h-lvh w-full overflow-y-auto bg-[#242728] bg-${background}`}>
 	<SignIn
 		{active}
 		FormSchemaLogin={data.loginForm}

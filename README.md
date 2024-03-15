@@ -208,6 +208,10 @@ Please prefix changeset messages with `feat:`, `fix:`, or `chore:`.
 
 Thank you for helping us maintain a consistent and predictable release process! :heart:
 
+# Contributing
+
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/Rar9/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
+
 ## :moneybag: Sponsoring
 
 If you find our project useful and would like to support its development, you can become a sponsor! Your sponsorship will help us cover the costs of maintaining the project and allow us to dedicate more time to its development.

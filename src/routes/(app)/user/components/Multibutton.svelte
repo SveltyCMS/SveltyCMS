@@ -26,7 +26,7 @@
 
 	// modals
 	function modalUserForm(): void {
-		if (selectedRows.length === 0) return console.log('No user selected2');
+		if (selectedRows.length === 0) return; // Trigger the toast
 		// console.log(selectedRows[0].data);
 
 		const modalComponent: ModalComponent = {
@@ -195,14 +195,12 @@
 <!-- Multibutton group-->
 <div class="btn-group relative rounded-md text-white">
 	<!-- Action button  -->
-
 	<button
 		type="button"
 		on:click={() => {
-			const { buttonClass, iconValue } = getButtonAndIconValues(listboxValue, listboxValue);
-			// ...
+			getButtonAndIconValues(listboxValue, listboxValue);
 		}}
-		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} font-semibold uppercase hover:bg-primary-400"
+		class="{getButtonAndIconValues(listboxValue, listboxValue).buttonClass} w-full font-semibold uppercase hover:bg-primary-400"
 	>
 		<iconify-icon icon={getButtonAndIconValues(listboxValue, listboxValue).iconValue} width="20" class="mr-2 text-white" />
 		{listboxValue ?? 'create'}

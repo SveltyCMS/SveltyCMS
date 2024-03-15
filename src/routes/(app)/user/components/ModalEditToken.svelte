@@ -191,16 +191,15 @@
 			</div>
 		{/if}
 	</form>
-	<!-- prettier-ignore -->
-	<footer class="modal-footer {parent.regionFooter} justify-between">
 
+	<footer class="{parent.regionFooter} flex items-center justify-between">
 		<button type="button" on:click={deleteToken} class="variant-filled-error btn">
 			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaledit_tokendelete()}</span>
 		</button>
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={parent.onClose}>{m.modaledit_tokencancel()}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_tokensave()}</button>
-	</div>
-    </footer>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaledit_tokencancel()}</button>
+			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_tokensave()}</button>
+		</div>
+	</footer>
 </div>

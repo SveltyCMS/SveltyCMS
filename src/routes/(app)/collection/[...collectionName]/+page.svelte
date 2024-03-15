@@ -81,7 +81,7 @@
 		<button
 			type="button"
 			on:click={handleCollectionSave}
-			class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">Save</button
+			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
 		>
 	{/if}
 </div>
@@ -96,7 +96,6 @@
 			{:else if $tabSet === 1}
 				<CollectionPermission />
 			{:else if $tabSet === 2}
-				<p>Widget Fields</p>
 				<CollectionWidget />
 			{/if}
 		</svelte:fragment>

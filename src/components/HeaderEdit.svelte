@@ -2,8 +2,12 @@
 	import { publicEnv } from '@root/config/public';
 	import { saveFormData } from '@utils/utils';
 
+	// Components
+	import TranslationStatus from './TranslationStatus.svelte';
+
 	// Stores
 	import { get } from 'svelte/store';
+	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
 	import {
 		collection,
 		categories,
@@ -15,7 +19,6 @@
 		headerActionButton,
 		shouldShowNextButton
 	} from '@stores/store';
-	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
 
 	// const userRole = $page.data.user.role;
 	const userRole = 'admin';
@@ -23,7 +26,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import TranslationStatus from './TranslationStatus.svelte';
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -110,6 +112,10 @@
 					<span class="hidden md:block">{m.widget_megamenu_next()}</span>
 				</button>
 			{:else}
+				<!-- Mobile Content Language -->
+				<div class=" flex-col items-center justify-center md:flex">
+					<TranslationStatus />
+				</div>
 				<!-- Save Content -->
 				<!-- disabled={!$collection?.permissions?.[userRole]?.write} -->
 				<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
@@ -134,9 +140,7 @@
 				</select>
 			{/if}
 		{:else}
-			<!-- desktop -->
-
-			<!-- Select Content Language -->
+			<!-- Desktop Content Language -->
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
@@ -214,14 +218,5 @@
 				</button>
 			</div>
 		{/if}
-
-		<!-- TODO: Show translation Status -->
-
-		<!-- Select Content Language -->
-		<!-- Mobile -->
-		<!-- TODO: hide arrow for x mobile -->
-		<div class="flex flex-col items-center justify-center">
-			<TranslationStatus />
-		</div>
 	</div>
 {/if}

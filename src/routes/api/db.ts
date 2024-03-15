@@ -73,7 +73,8 @@ export async function getCollectionModels() {
 							createdAt: Number,
 							updatedAt: Number,
 							createdBy: String,
-							__v: [RevisionSchema] // versionKey
+							__v: [RevisionSchema], // versionKey
+							translationStatus: {}
 						},
 						{
 							typeKey: '$type',

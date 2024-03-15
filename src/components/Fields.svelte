@@ -1,11 +1,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-
 	import { asAny, getFieldName } from '@utils/utils';
-
-	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
@@ -17,14 +13,54 @@
 
 	$: if (root) $collectionValue = fieldsData;
 
-	// Debug output
-	// console.log('fields:', fields);
-	// console.log('root:', root);
-	// console.log('fieldsData:', fieldsData);
-	// console.log('customData:', customData);
-	// console.log('collection:', $collection);
-	// console.log('collectionValue:', collectionValue);
-	// console.log($entryData);
+	// Stores
+	import { collectionValue, contentLanguage, collection, entryData, tabSet, translationStatus, completionStatus } from '@stores/store';
+
+	console.log('translationStatus', $translationStatus);
+	console.log('completionStatus', $completionStatus);
+	console.log('entryData', $entryData);
+	console.log('fields', $collection.fields);
+	console.log('contentLanguage', $contentLanguage);
+	console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
+
+	// Reactive statement to calculate translation and completion content status
+	$: {
+		let totalFields = 0;
+		let translations = {};
+
+		if ($collection.fields) {
+			$collection.fields.forEach((field) => {
+				if (field.translated) {
+					totalFields++;
+					publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
+						if ($entryData[field.label] && $entryData[field.label][lang] && $entryData[field.label][lang].trim() !== '') {
+							// Increase translation count for the language
+							translations[lang] = (translations[lang] || 0) + 1;
+						}
+					});
+				}
+			});
+
+			// Calculate the translation status for each language
+			let translationStatusValue = {};
+			publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
+				// Calculate the translation status as the ratio of translated fields to total fields, capped at 100
+				let translationPercentage = translations[lang] ? Math.min((translations[lang] / totalFields) * 100, 100) : 0;
+				translationStatusValue[lang] = Math.round(translationPercentage);
+			});
+
+			// Update the store value with the translation status
+			translationStatus.set(translationStatusValue);
+
+			// Calculate completionStatus based on minimum translationStatus
+			let overallCompletionPercentage = Math.min(...Object.values($translationStatus));
+			$completionStatus = overallCompletionPercentage;
+		}
+	}
+
+	// Debugging logs
+	$: console.log('completionStatus', $completionStatus);
+	$: console.log('translationStatus', $translationStatus);
 
 	let apiUrl = '';
 

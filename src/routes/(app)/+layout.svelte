@@ -177,7 +177,7 @@
 		<div class="flex h-lvh flex-col">
 			<!-- Header -->
 			{#if $sidebarState.header !== 'hidden'}
-				<header class="sticky top-0 z-10 bg-blue-500">Header</header>
+				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
 
 			<div class="flex flex-1 overflow-hidden">
@@ -206,6 +206,7 @@
 					{/if}
 
 					<!-- Router Slot -->
+
 					<div
 						on:keydown={onKeyDown}
 						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
@@ -213,8 +214,8 @@
 							: 'mb-16'}"
 					>
 						{#key $page.url}
-							<Modal />
 							<Toast />
+							<Modal />
 
 							{#if $screenWidth !== 'desktop'}
 								<FloatingNav buttonInfo />

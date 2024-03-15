@@ -316,7 +316,7 @@
 	class:hover={active == undefined || active == 1}
 >
 	{#if active == 0}
-		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 0}>
+		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active != 0}>
 			<div class="mb-1 flex flex-row gap-2">
 				<CMSLogo className="w-12" fill="red" />
 

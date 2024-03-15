@@ -44,8 +44,8 @@
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
+	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4';
+	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	// Call tooltip
@@ -58,13 +58,13 @@
 </script>
 
 {#if $modalStore[0]}
-	<div class="modal-example-form {cBase}">
-		<header class={`text-center text-primary-500 ${cHeader}`}>
+	<div class=" {cBase}">
+		<header class={`${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
-		<form class="modal-form {cForm}">
+		<form class={cForm}>
 			<div class="mb-3 border-b text-center text-primary-500">Choose your Widget</div>
 			<input type="text" placeholder="Search ..." class="input mb-3 w-full" bind:value={searchTerm} />
 
@@ -103,7 +103,7 @@
 			</div>
 		</form>
 
-		<footer class="modal-footer flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
+		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			<div class="flex gap-2">
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modalcategory_cancel()}</button>
 				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modalcategory_save()}</button> -->
