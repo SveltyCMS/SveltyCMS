@@ -19,11 +19,7 @@
 	export let parent: SvelteComponent;
 
 	// Form Data
-	// console.log([$modalStore[0].value]);
-
-	// Form Data
 	let formData: any = {};
-
 	// Check if the selected widget has a key property.
 	if ($modalStore[0].value.key) {
 		// If the selected widget has a key property, then it is an existing widget.
@@ -44,8 +40,7 @@
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
-	guiSchema = widgets[$modalStore[0].value]?.GuiSchema;
-	console.log('guiSchema:', guiSchema);
+	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
@@ -67,6 +62,10 @@
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 ';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+
+	$: {
+		console.log('GUI Schema:', guiSchema);
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -115,20 +114,20 @@
 							<div class="options-table">
 								<!-- Default section -->
 								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
-									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
 								{/each}
 							</div>
 						{/if}
 					{:else if tabSet === 1}
 						<!-- Permissions section -->
 						{#each ['permissions'] as property}
-							<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+							<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property])?.widget} key={property} />
 						{/each}
 					{:else if tabSet === 2}
 						<!-- Specific section -->
 						{#each Object.keys(guiSchema) as property}
 							{#if !['label', 'display', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
-								<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]).widget} key={property} />
+								<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
 							{/if}
 						{/each}
 					{/if}

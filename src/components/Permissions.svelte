@@ -248,8 +248,8 @@
 				{/each}
 			</tbody>
 		</table>
-		<div class="mt-4 text-center">
+		<!-- <div class="mt-4 text-center">
 			Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span>
-		</div>
+		</div> -->
 	</div>
 {/if}
