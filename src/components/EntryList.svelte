@@ -13,7 +13,7 @@
 	// Components
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from '@components/TranslationStatus.svelte';
-	import TableIcons from '@components/system/icons/TableIcons.svelte';
+	import TableIcons from '@src/components/system/table/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import Status from '@components/system/table/Status.svelte';
@@ -158,7 +158,6 @@
 			tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: field.label })); // Fallback to collection fields if no data
 		}
 
-		//selectedMap = {};
 		SelectAll = false;
 	}
 
@@ -185,18 +184,23 @@
 	// Tick  All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
+			// Iterate only over visible entries
 			for (let item in tableData) {
 				selectedMap[item] = true;
 			}
 		} else {
+			// Clear all selections
 			for (let item in selectedMap) {
 				selectedMap[item] = false;
 			}
 		}
 	}
 
-	//Update Tick All Rows
+	// Update Tick All Rows
+	// TOOD: Fix SelectALL as $ will blank out site
 	//$: process_selectAll(SelectAll);
+
+	// Update Tick Single Row
 	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
 
 	// Columns Sorting
@@ -226,13 +230,13 @@
 	}
 
 	// Tick Row - modify STATUS of an Entry
-	$modifyEntry = async (status: keyof typeof statusMap) => {
+	async function modifyEntryAndRefresh(status: keyof typeof statusMap): Promise<void> {
 		console.log('modifyEntry called', modifyEntry, statusMap[status]);
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 		// Loop over the selectedMap object
 		for (let item in modifyMap) {
-			console.log(tableData[item]);
+			console.log('tableData[item]', tableData[item]);
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
@@ -265,12 +269,16 @@
 		}
 		// Refresh the collection
 		refresh();
+		console.log('refresh called');
 		// Set the mode to 'view'
 		mode.set('view');
-	};
+	}
+	console.log('$modifyEntry', $modifyEntry);
+	// Assign the modifyEntryAndRefresh function to $modifyEntry
+	$: $modifyEntry = modifyEntryAndRefresh;
 </script>
 
-<!--sTable -->
+<!--Table -->
 {#if isLoading}
 	<Loading />
 {:else}
@@ -374,10 +382,10 @@
 			</div>
 		{/if}
 
-		<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
+		<div class="table-container max-h-[calc(100dvh-55px)] overflow-auto">
 			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
-				<thead class="top-0 text-tertiary-500 dark:text-primary-500">
+				<thead class="sticky top-0 z-10 text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
 						<tr class="divide-x divide-surface-400">
 							<th>
@@ -413,7 +421,7 @@
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
 						<th class="!pl-[25px]">
-							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
+							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} iconStatus="all" />
 						</th>
 						{#each tableHeaders as header}
 							<th
@@ -463,17 +471,17 @@
 							class="divide-x divide-surface-400"
 							on:click={() => {
 								entryData.set(data?.entryList[index]);
-								// console.log(data);
+								console.log(data);
 								mode.set('edit');
 								handleSidebarToggle();
 							}}
 						>
 							<td class="!pl-[25px]">
 								<TableIcons
-									status={data?.entryList[index]?.status}
+									iconStatus={data?.entryList[index]?.status}
 									on:change={() => {
 										selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
-										mode.set('edit');
+
 										handleSidebarToggle();
 									}}
 								/>
@@ -493,74 +501,69 @@
 					{/each}
 				</tbody>
 			</table>
+		</div>
+		<!-- Pagination  -->
+		<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
+			<div class="mb-2 md:mb-0">
+				<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+				<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
+			</div>
 
-			<!-- Pagination  -->
-			<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
-				<div class="mb-2 md:mb-0">
-					<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-					<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
-				</div>
+			<div class="variant-outline btn-group">
+				<!-- first page -->
+				<button
+					type="button"
+					class="btn"
+					on:click={() => {
+						currentPage = 1;
+						refresh();
+					}}
+				>
+					<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
+				</button>
 
-				<div class="variant-outline btn-group">
-					<!-- first page -->
-					<button
-						type="button"
-						class="btn"
-						on:click={() => {
-							currentPage = 1;
-							refresh();
-						}}
-					>
-						<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
-					</button>
+				<!-- Previous page -->
+				<button
+					type="button"
+					class="btn"
+					on:click={() => {
+						currentPage = Math.max(1, currentPage - 1);
+						refresh();
+					}}
+				>
+					<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
+				</button>
 
-					<!-- Previous page -->
-					<button
-						type="button"
-						class="btn"
-						on:click={() => {
-							currentPage = Math.max(1, currentPage - 1);
-							refresh();
-						}}
-					>
-						<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
-					</button>
+				<!-- number of pages -->
+				<select value={rowsPerPage} on:change={rowsPerPageHandler} class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500">
+					{#each [10, 25, 50, 100, 500] as pageSize}
+						<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+					{/each}
+				</select>
 
-					<!-- number of pages -->
-					<select
-						value={rowsPerPage}
-						on:change={rowsPerPageHandler}
-						class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
-					>
-						{#each [10, 25, 50, 100, 500] as pageSize}
-							<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-						{/each}
-					</select>
+				<!-- Next page -->
+				<button
+					type="button"
+					class="btn"
+					on:click={() => {
+						currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
+						refresh();
+					}}
+				>
+					<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === data?.pagesCount} />
+				</button>
 
-					<!-- Next page -->
-					<button
-						type="button"
-						class="btn"
-						on:click={() => {
-							currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
-							refresh();
-						}}
-					>
-						<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === data?.pagesCount} />
-					</button>
-
-					<!-- Last page -->
-					<button
-						type="button"
-						class="btn"
-						on:click={() => {
-							currentPage = data?.pagesCount || 0;
-							refresh();
-						}}
-					>
-						<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === data?.pagesCount} />
-					</button>
-				</div>
+				<!-- Last page -->
+				<button
+					type="button"
+					class="btn"
+					on:click={() => {
+						currentPage = data?.pagesCount || 0;
+						refresh();
+					}}
+				>
+					<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === data?.pagesCount} />
+				</button>
 			</div>
 		</div>
 	{:else}

@@ -1,9 +1,5 @@
 <script lang="ts">
-	// Stores
-	import { sidebarState } from '@stores/sidebarStore';
-
 	// Components
-	import XIcon from '@src/components/system/icons/XIcon.svelte';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';

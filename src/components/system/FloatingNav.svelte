@@ -1,7 +1,6 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { fade } from 'svelte/transition';
-	import RoutesIcon from '@src/components/system/icons/RoutesIcon.svelte';
 	import { linear } from 'svelte/easing';
 	import { page } from '$app/stores';
 	import { tick } from 'svelte';
@@ -241,7 +240,7 @@
 		window.innerWidth) *
 		100}%;width:{buttonRadius * 2}px;height:{buttonRadius * 2}px"
 >
-	<RoutesIcon />
+	<iconify-icon icon="tdesign:map-route-planning" width="36" style="color:white" />
 </div>
 
 <!-- Show the routes when the component is visible -->

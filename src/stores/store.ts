@@ -28,10 +28,6 @@ export const entryData: Writable<any> = writable({});
 // collective crud
 export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify'> = writable('view');
 // collective status
-// export const modifyEntry: Writable<(status: 'delete' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'test') => any> = writable(() => {});
-export const modifyEntry: Writable<(status: keyof typeof statusMap) => any> = writable(() => {});
-
-//entrylist statusMap
 export const statusMap = {
 	delete: 'deleted',
 	publish: 'published',
@@ -40,6 +36,9 @@ export const statusMap = {
 	clone: 'cloned',
 	test: 'testing'
 };
+
+// Create an empty writable store for modifyEntry
+export const modifyEntry: Writable<(status: keyof typeof statusMap) => Promise<void>> = writable();
 
 // -------------- Store ListboxValue -----------------
 export const storeListboxValue: Writable<string> = writable('create');

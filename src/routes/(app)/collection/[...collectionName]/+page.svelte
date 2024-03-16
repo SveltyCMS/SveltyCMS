@@ -284,7 +284,7 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet}>
+	<TabGroup justify="justify-between" bind:group={$tabSet}>
 		<Tab bind:group={$tabSet} name="tab1" value={0}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
