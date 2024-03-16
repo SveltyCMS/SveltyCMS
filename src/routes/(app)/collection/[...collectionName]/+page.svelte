@@ -88,8 +88,10 @@
 
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
+
 	<TabGroup bind:group={$tabSet}>
 		<TopTabs />
+
 		<svelte:fragment slot="panel">
 			{#if $tabSet === 0}
 				<CollectionForm on:updatePageTitle={handlePageTitleUpdate} />

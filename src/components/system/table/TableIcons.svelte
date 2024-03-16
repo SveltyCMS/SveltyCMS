@@ -6,24 +6,34 @@
 	const dispatch = createEventDispatcher();
 
 	export let checked = false;
-	export let status = 'undefined';
+	export let iconStatus = 'undefined';
 
 	function handleIconClick() {
 		checked = !checked;
-		dispatch('iconClick');
+		// Dispatch the appropriate event based on the new checked state
+		dispatch(checked ? 'true' : 'false');
+	}
+
+	function handleKeydown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			handleIconClick();
+		}
 	}
 </script>
 
 <button
-	class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent"
-	on:keydown
+	on:keydown={handleKeydown}
 	on:click|stopPropagation={handleIconClick}
-	class:border-yellow-500={status === 'unpublished'}
-	class:border-primary-500={status === 'published'}
-	class:border-pink-500={status === 'scheduled'}
-	class:border-red-500={status === 'testing'}
-	class:border-surface-800={status === undefined}
-	class:dark:border-surface-400={!status}
+	aria-checked={checked ? 'true' : 'false'}
+	aria-labelledby={checked ? 'true' : 'false'}
+	role="checkbox"
+	class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent"
+	class:border-yellow-500={iconStatus === 'unpublished'}
+	class:border-primary-500={iconStatus === 'published'}
+	class:border-pink-500={iconStatus === 'scheduled'}
+	class:border-red-500={iconStatus === 'testing'}
+	class:border-surface-800={iconStatus === undefined}
+	class:dark:border-surface-400={!iconStatus}
 >
 	{#if checked && $storeListboxValue === 'delete'}
 		<!--Red Cross icon 3d-->

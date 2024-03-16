@@ -7,7 +7,7 @@
 	// Components
 	import Multibutton from './Multibutton.svelte';
 	import MultibuttonToken from './MultibuttonToken.svelte';
-	import TableIcons from '@components/system/icons/TableIcons.svelte';
+	import TableIcons from '@src/components/system/table/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';

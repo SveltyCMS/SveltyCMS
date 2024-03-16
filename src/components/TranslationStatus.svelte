@@ -41,7 +41,7 @@
 		min={0}
 		max={100}
 		rounded="none"
-		height="h-2"
+		height="h-1"
 		meter="bg-error-500"
 		track="bg-surface-300 dark:bg-surface-300 transition-all"
 	/>

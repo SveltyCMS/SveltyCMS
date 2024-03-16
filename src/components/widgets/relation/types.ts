@@ -1,5 +1,5 @@
 // Components
-import Input from '@components/system/inputs/Input2.svelte';
+import Input from '@src/components/system/inputs/Input.svelte';
 import GuiField from './GuiField.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';

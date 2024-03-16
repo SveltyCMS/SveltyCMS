@@ -1,6 +1,6 @@
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@components/system/inputs/Input2.svelte';
+import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';

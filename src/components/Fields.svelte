@@ -5,6 +5,7 @@
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+	$: $tabSet = 0;
 
 	export let fields: typeof $collection.fields | undefined = undefined;
 	export let root = true; // if Fields is not part of any widget.
@@ -15,13 +16,17 @@
 
 	// Stores
 	import { collectionValue, contentLanguage, collection, entryData, tabSet, translationStatus, completionStatus } from '@stores/store';
+	import { page } from '$app/stores';
+	import { roles } from '@src/collections/types';
 
-	console.log('translationStatus', $translationStatus);
-	console.log('completionStatus', $completionStatus);
-	console.log('entryData', $entryData);
-	console.log('fields', $collection.fields);
-	console.log('contentLanguage', $contentLanguage);
-	console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
+	const user = $page.data.user;
+
+	// console.log('translationStatus', $translationStatus);
+	// console.log('completionStatus', $completionStatus);
+	// console.log('entryData', $entryData);
+	// console.log('fields', $collection.fields);
+	// console.log('contentLanguage', $contentLanguage);
+	// console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
 
 	// Reactive statement to calculate translation and completion content status
 	$: {
@@ -72,6 +77,11 @@
 	function handleRevert(event: MouseEvent) {
 		alert('Function not implemented.');
 	}
+
+	function getTabHeaderVisibility() {
+		// Hide headers only when non-admin and no revision
+		return user?.role != roles.admin && !$collection.revision;
+	}
 </script>
 
 <TabGroup
@@ -80,6 +90,7 @@
 	flex="flex-1 items-center"
 	active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
 	hover="hover:variant-soft-secondary"
+	regionList={getTabHeaderVisibility() ? 'hidden' : ''}
 >
 	<!-- Data -->
 	<Tab bind:group={$tabSet} name="tab1" value={0}>
@@ -99,13 +110,15 @@
 		</Tab>
 	{/if}
 
-	<!-- API Json -->
-	<Tab bind:group={$tabSet} name="tab3" value={2}>
-		<div class="flex items-center gap-1">
-			<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
-			<p>API</p>
-		</div>
-	</Tab>
+	<!-- API JSon -->
+	{#if user?.role == roles.admin}
+		<Tab bind:group={$tabSet} name="tab3" value={2}>
+			<div class="flex items-center gap-1">
+				<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<p>API</p>
+			</div>
+		</Tab>
+	{/if}
 
 	<!-- Tab Panels --->
 	<svelte:fragment slot="panel">

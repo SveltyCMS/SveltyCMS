@@ -7,6 +7,7 @@ import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 // Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
+	console.log('params:', params, 'request:', request, 'cookies:', cookies);
 	// Get the session cookie.
 	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 
