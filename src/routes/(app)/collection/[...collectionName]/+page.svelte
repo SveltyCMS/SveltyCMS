@@ -6,10 +6,10 @@
 	import { TabGroup } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
 	import { getToastStore } from '@skeletonlabs/skeleton';
-	import TopTabs from './components/TopTabs.svelte';
-	import CollectionPermission from './components/CollectionPermission.svelte';
-	import CollectionWidget from './components/CollectionWidget.svelte';
-	import CollectionForm from './components/CollectionForm.svelte';
+	import TopTabs from './tabs/TopTabs.svelte';
+	import CollectionPermission from './tabs/CollectionPermission.svelte';
+	import CollectionWidget from './tabs/CollectionWidget.svelte';
+	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { obj2formData } from '@src/utils/utils';
 
