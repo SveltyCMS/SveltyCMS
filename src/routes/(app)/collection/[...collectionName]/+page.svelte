@@ -89,7 +89,15 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet}>
+	<TabGroup
+		bind:group={$tabSet}
+		justify="justify-center"
+		rounded="rounded-tl-container-token rounded-tr-container-token"
+		active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
+		hover="hover:variant-soft-secondary"
+		flex="flex-1 items-center justify-center md:justify-around lg:flex-initial"
+	>
+		<!-- Tabs -->
 		<TopTabs />
 
 		<svelte:fragment slot="panel">

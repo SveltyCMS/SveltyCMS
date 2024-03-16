@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { onMount } from 'svelte';
+	import { roles } from '@collections/types';
 
 	// Stores
 	import '@stores/store';
@@ -63,8 +63,6 @@
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import AdminArea from './components/AdminArea.svelte';
-
-	import { roles } from '@collections/types';
 
 	// let avatarSrc = writable(user?.avatar);
 	avatarSrc.set(user?.avatar);

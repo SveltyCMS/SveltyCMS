@@ -21,16 +21,17 @@
 
 	const user = $page.data.user;
 
-	// console.log('translationStatus', $translationStatus);
-	// console.log('completionStatus', $completionStatus);
-	// console.log('entryData', $entryData);
-	// console.log('fields', $collection.fields);
-	// console.log('contentLanguage', $contentLanguage);
-	// console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
+	console.log('entryData', $entryData);
+	console.log('fields', $collection.fields);
+	console.log('DEFAULT_CONTENT_LANGUAGES', publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
 
 	// Reactive statement to calculate translation and completion content status
 	$: {
-		let totalFields = 0;
+		console.log('$entryData', $entryData);
+
+		let totalFields: number = 0;
+		let completedFields: number = 0;
 		let translations = {};
 
 		if ($collection.fields) {
@@ -38,28 +39,51 @@
 				if (field.translated) {
 					totalFields++;
 					publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
-						if ($entryData[field.label] && $entryData[field.label][lang] && $entryData[field.label][lang].trim() !== '') {
+						if (
+							$entryData[field.label] &&
+							$entryData[field.label][lang] &&
+							$entryData[field.label][lang].trim() !== '' &&
+							$entryData[field.label][lang] !== null
+						) {
 							// Increase translation count for the language
 							translations[lang] = (translations[lang] || 0) + 1;
+							completedFields++;
 						}
 					});
+				} else {
+					// if no translation is available
+					totalFields++;
+					if (
+						$entryData[field.label] &&
+						((typeof $entryData[field.label] === 'string' && $entryData[field.label].trim() !== '') ||
+							(typeof $entryData[field.label] === 'object' && Object.keys($entryData[field.label]).length > 0))
+					) {
+						completedFields++;
+					}
 				}
 			});
 
 			// Calculate the translation status for each language
 			let translationStatusValue = {};
 			publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
-				// Calculate the translation status as the ratio of translated fields to total fields, capped at 100
+				// Calculate the translation status as the ratio of translated fields to total fields for the current language, capped at 100
 				let translationPercentage = translations[lang] ? Math.min((translations[lang] / totalFields) * 100, 100) : 0;
 				translationStatusValue[lang] = Math.round(translationPercentage);
 			});
 
-			// Update the store value with the translation status
-			translationStatus.set(translationStatusValue);
+			// If the default content language is not in the translationStatusValue object, set its value to 100
+			if (!translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE]) {
+				translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE] = 100;
+			}
 
-			// Calculate completionStatus based on minimum translationStatus
-			let overallCompletionPercentage = Math.min(...Object.values($translationStatus));
-			$completionStatus = overallCompletionPercentage;
+			// Update the store variable
+			translationStatus.set(totalFields > 0 ? translationStatusValue : { [publicEnv.DEFAULT_CONTENT_LANGUAGE]: 100 });
+
+			// Calculate completionStatus based on percentage of fields with values
+			let overallCompletionPercentage = (completedFields / totalFields) * 100;
+
+			// Update the store variable
+			completionStatus.set(overallCompletionPercentage);
 		}
 	}
 
@@ -85,7 +109,7 @@
 </script>
 
 <TabGroup
-	justify=" {$collection.revision === true ? 'justify-between' : 'justify-center '} items-center"
+	justify=" {$collection.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
 	rounded="rounded-tl-container-token rounded-tr-container-token"
 	flex="flex-1 items-center"
 	active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
