@@ -186,7 +186,7 @@
 			// Optionally override the button text
 			// TODO: fix light background and change Delete button to red
 			//backdropClasses: 'bg-white',
-			buttonTextCancel: m.usermodalconfirmcancel(),
+			buttonTextCancel: m.button_cancel(),
 			buttonTextConfirm: m.usermodalconfirmdeleteuser()
 		};
 		modalStore.trigger(d);
@@ -240,7 +240,7 @@
 					{#if !isFirstUser}
 						<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
 							<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-							{m.userpage_delete()}
+							{m.button_delete()}
 						</button>
 					{/if}
 				</div>

@@ -29,7 +29,8 @@ const config = {
 			'@utils': './src/utils/*',
 			'@stores': './src/stores/*',
 			'@static': 'static/',
-			'@root': './'
+			'@root': './',
+			$paraglide: './src/paraglide'
 		}
 	},
 

@@ -172,7 +172,7 @@
 
 	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-		{m.collection_save()}
+		{m.button_save()}
 	</button>
 </div>
 <div class="wrapper">

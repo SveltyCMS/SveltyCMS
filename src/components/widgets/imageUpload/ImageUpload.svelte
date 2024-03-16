@@ -110,9 +110,9 @@
 	>
 	<svelte:fragment slot="message">
 		{#if !_data}
-			<span class="font-bold text-primary-500">Upload a Image</span> or drag & drop
+			<span class="font-bold text-tertiary-500 dark:text-primary-500">Upload a Image</span> or drag & drop
 		{:else}
-			<span class="font-bold text-primary-500">Replace Image</span> or drag & drop
+			<span class="font-bold text-tertiary-500 dark:text-primary-500">Replace Image</span> or drag & drop
 		{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="meta">
@@ -124,30 +124,30 @@
 					<img src={URL.createObjectURL(_data[0])} alt="" class="mt-4 h-60 rounded-md border" />
 				</div>
 				<div class="mt-2 text-center md:text-left">
-					<p class="text-lg font-semibold text-primary-500">Uploaded File:</p>
-					<p>Uploaded File: <span class="text-primary-500">{_data[0].name}</span></p>
+					<p class="text-lg font-semibold text-tertiary-500 dark:text-primary-500">Uploaded File:</p>
+					<p>Uploaded File: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].name}</span></p>
 					<p>
-						File size: <span class="text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+						File size: <span class="text-tertiary-500 dark:text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
 					</p>
-					<p>MIME type: <span class="text-primary-500">{_data[0].type}</span></p>
+					<p>MIME type: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].type}</span></p>
 
 					<br />
 
 					{#if $loadingProgress != 100}
 						<ProgressBar label="Image Optimization" value={$loadingProgress} max={100} meter="bg-surface-900-50-token" />
 
-						<p class="text-lg font-semibold text-primary-500">
-							{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
+						<p class="text-lg font-semibold text-tertiary-500 dark:text-primary-500">
+							{#if optimizedFileName}Uploaded File: <span class="dark:text-primary-5000 text-tertiary-500">{optimizedFileName}</span>{/if}
 							{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT}: </span>{/if}
 						</p>
 
-						<p>File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
-						<p>MIME type: <span class="text-error-500">{optimizedMimeType || _data[0].type}</span></p>
-						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
+						<p>File size: <span class="text-tertiary-500 dark:text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
+						<p>MIME type: <span class="text-tertiary-500 dark:text-primary-500">{optimizedMimeType || _data[0].type}</span></p>
+						<p>Hash: <span class="text-tertiary-500 dark:text-primary-500">{hashValue}</span></p>
 					{:else if optimizedFileName}
 						<p>File Name: <span class="text-primary-500">{optimizedFileName}</span></p>
-						<p>File size: <span class="text-error-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
-						<p>MIME type: <span class="text-error-500">{optimizedMimeType}</span></p>
+						<p>File size: <span class="text-tertiary-500 dark:text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span></p>
+						<p>MIME type: <span class="text-tertiary-500 dark:text-primary-500">{optimizedMimeType}</span></p>
 						<p>Hash: <span class="text-error-500">{hashValue}</span></p>
 					{/if}
 				</div>

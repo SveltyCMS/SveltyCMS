@@ -20,7 +20,7 @@
 	<Tab bind:group={$tabSet} name="tab1" value={0}>
 		<div class="flex items-center gap-1">
 			<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-			<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.collection_edit()}</span>
+			<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.button_edit()}</span>
 		</div>
 	</Tab>
 	<!-- Permissions -->

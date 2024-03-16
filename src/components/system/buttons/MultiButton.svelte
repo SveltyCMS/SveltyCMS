@@ -61,7 +61,7 @@
 			{defaultButton}
 		</span>
 	</button>
-	<div
+	<button
 		on:click={() => (expanded = !expanded)}
 		class=" relative w-[50px] rounded-r-[10px] hover:active:scale-95"
 		class:cursor-pointer={activeArrow}
@@ -69,7 +69,7 @@
 		style="background-color: rgb(37, 36, 36);"
 	>
 		<div class="arrow" class:!border-red-800={!activeArrow} />
-	</div>
+	</button>
 	<div class="buttons overflow-hidden rounded-b-[10px]" class:expanded>
 		{#each Object.keys(buttons) as button}
 			{#if button != defaultButton && button != 'Create' && $mode == 'modify'}

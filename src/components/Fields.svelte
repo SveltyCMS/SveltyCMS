@@ -3,6 +3,9 @@
 	import { publicEnv } from '@root/config/public';
 	import { asAny, getFieldName } from '@utils/utils';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
 	$: $tabSet = 0;
@@ -120,7 +123,7 @@
 	<Tab bind:group={$tabSet} name="tab1" value={0}>
 		<div class="flex items-center gap-1">
 			<iconify-icon icon="mdi:pen" width="24" class="text-tertiary-500 dark:text-primary-500" />
-			<p>Edit</p>
+			<p>{m.fields_edit()}</p>
 		</div>
 	</Tab>
 
@@ -129,7 +132,7 @@
 		<Tab bind:group={$tabSet} name="tab2" value={1}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="pepicons-pop:countdown" width="24" class="text-tertiary-500 dark:text-primary-500" />
-				<p>Ver. <span class="variant-outline-primary badge rounded-full">1</span></p>
+				<p>Ver. <span class="variant-outline-tertiary badge rounded-full dark:variant-outline-primary">1</span></p>
 			</div>
 		</Tab>
 	{/if}
@@ -148,7 +151,7 @@
 	<svelte:fragment slot="panel">
 		<!-- Data -->
 		{#if $tabSet === 0}
-			<div class="mb-2 text-center text-xs text-error-500">* Required</div>
+			<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 			<div class="wrapper">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 					{#each fields || $collection.fields as field}
@@ -208,19 +211,19 @@
 		{:else if $tabSet === 1}
 			<!-- Revision -->
 			<div class="mb-2 flex items-center justify-between gap-2">
-				<p class="text-center text-primary-500">Compare Revision against:</p>
-				<button class="variant-ghost-primary btn" on:click={handleRevert}>Revert</button>
+				<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
+				<button class="variant-outline-tertiary btn dark:variant-ghost-primary" on:click={handleRevert}>{m.fields_revision_revert()}</button>
 			</div>
 			<!-- dropdown -->
 			<select class="select mb-2">
-				<option value="1">Most recent</option>
+				<option value="1">{m.fields_revision_most_recent()}</option>
 				<option value="2">February 19th 2024, 4:00 PM</option>
 			</select>
 
 			<div class="flex justify-between dark:text-white">
 				<!-- Current version -->
 				<div class="text-center">
-					<p class="mb-4 sm:mb-0">Current version</p>
+					<p class="mb-4 sm:mb-0">{m.fields_revision_current_version()}</p>
 					<CodeBlock
 						color="text-white dark:text-primary-500"
 						language="JSON"
@@ -251,17 +254,17 @@
 		{:else if $tabSet === 2}
 			<!-- API Json -->
 			{#if $entryData == null}
-				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">No Data yet</div>
+				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 			{:else}
 				<div class="wrapper mb-4 flex w-full items-center justify-start gap-1">
 					<!-- label -->
 					<p class="flex items-center">
 						<span class="mr-1">API URL:</span>
-						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-primary-500" />
+						<iconify-icon icon="ph:copy" use:clipboard={apiUrl} class="pb-6 text-tertiary-500 dark:text-primary-500" />
 					</p>
 					<!-- Url -->
 					<button class="btn text-wrap text-left" on:click={() => window.open(apiUrl, '_blank')} title={apiUrl}>
-						<span class="code">{apiUrl}</span>
+						<span class="text-wrap text-tertiary-500 dark:text-primary-500">{apiUrl}</span>
 					</button>
 				</div>
 

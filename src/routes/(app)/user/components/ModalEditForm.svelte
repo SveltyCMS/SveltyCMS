@@ -263,7 +263,7 @@
 		
 		{#if !isFirstUser}
 		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.userId == userId)}>
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaleditform_delete()}</span>
+			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 		</button>
 		{:else}
 			<div></div>
@@ -271,8 +271,8 @@
 		{/if}
 
 		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{m.modaleditform_cancel()}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaleditform_save()}</button>
+        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
+        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 	</div>
     </footer>
 </div>

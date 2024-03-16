@@ -177,12 +177,10 @@
 </div>
 
 <div class=" flex items-center justify-between">
-	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end"
-		>{m.collection_widgetfield_previous()}</button
-	>
+	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
 	<button
 		type="button"
 		on:click={handleCollectionSave}
-		class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.collection_widgetfield_save()}</button
+		class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button
 	>
 </div>

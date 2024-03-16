@@ -83,7 +83,7 @@
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
 				<iconify-icon icon="carbon:next-filled" width="24" class="font-extrabold text-white" />
-				{m.widget_megamenu_next()}
+				{m.button_next()}
 			</button>
 		{:else}
 			<header class="flex flex-col items-center justify-center gap-2">
@@ -145,7 +145,7 @@
 
 				<!--Authored by autocomplete -->
 				<div class="flexflex-col items-center justify-center">
-					<p class="">Authored by:</p>
+					<p class="">{m.sidebar_authoredby()}</p>
 					<div class="relative z-50">
 						<!-- add use:popup directive to the element that triggers the popup -->
 						<input
@@ -165,7 +165,7 @@
 				</div>
 
 				<!--Authored on -->
-				<p class="text-left">Schedule / Authored on:</p>
+				<p class="text-left">{m.sidebar_authoredon()}</p>
 				<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
 			</main>
 

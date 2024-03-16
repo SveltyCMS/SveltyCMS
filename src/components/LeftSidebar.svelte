@@ -117,10 +117,6 @@
 			} else if (githubMajor !== localMajor) {
 				$pkgBgColor = 'variant-filled-error';
 			}
-
-			// console.log(`Local version: ${pkg}`);
-			// console.log(`GitHub version: ${githubVersion}`);
-			// console.log(`pkgBgColor: ${$pkgBgColor}`);
 		})
 		.catch((error) => {
 			// Log the error to the console
@@ -204,7 +200,7 @@
 					</div>
 				</button>
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled p-2" data-popup="User">
+				<div class="card variant-filled z-10 p-2" data-popup="User">
 					{m.applayout_userprofile()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -225,7 +221,7 @@
 					{/each}
 				</select>
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled p-2" data-popup="SystemLanguage">
+				<div class="card variant-filled z-10 p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -246,7 +242,7 @@
 					{/if}
 				</button>
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled p-2" data-popup="SwitchTheme">
+				<div class="card variant-filled z-10 p-2" data-popup="SwitchTheme">
 					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
 					<div class="variant-filled arrow" />
 				</div>
@@ -258,7 +254,7 @@
 					<iconify-icon icon="uil:signout" width="26" />
 				</button>
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled p-2" data-popup="SignOutButton">
+				<div class="card variant-filled z-10 p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -280,7 +276,7 @@
 					</a>
 				</button>
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled p-2" data-popup="Config">
+				<div class="card variant-filled z-10 p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -293,7 +289,7 @@
 						<iconify-icon icon="grommet-icons:github" width="30" />
 					</button>
 					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled p-2" data-popup="Github">
+					<div class="card variant-filled z-10 p-2" data-popup="Github">
 						{m.applayout_githubdiscussion()}
 						<div class="variant-filled arrow" />
 					</div>

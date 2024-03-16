@@ -193,7 +193,7 @@
 	<footer class="modal-footer {parent.regionFooter} justify-between">
 		{#if $avatarSrc !== '/Default_User.svg'}
 			<button type="button" on:click={deleteAvatar} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaledit_avatardelete()}</span>
+				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 		{:else}
 			<div></div>
@@ -201,9 +201,9 @@
 		{/if}
 		<div class="flex justify-between gap-2">
 			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
-				{m.modaledit_avatarcancel()}
+				{m.button_cancel()}
 			</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_avatarsave()}</button>
+			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 		</div>
 	</footer>
 </div>
