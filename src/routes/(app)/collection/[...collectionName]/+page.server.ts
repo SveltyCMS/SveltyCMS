@@ -33,6 +33,7 @@ export async function load(event) {
 export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
+		console.log('saveCollection');
 		const formData = await request.formData();
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);

@@ -218,7 +218,7 @@
 		{#if listboxValue != 'edit'}
 			<ListBoxItem bind:group={listboxValue} name="medium" value="edit" active="variant-filled-primary" hover="gradient-primary-hover"
 				><svelte:fragment slot="lead"><iconify-icon icon="bi:pencil-fill" width="20" class="mr-1" /></svelte:fragment>
-				{m.multibuttonedit()}
+				{m.button_edit()}
 			</ListBoxItem>
 		{/if}
 
@@ -226,7 +226,7 @@
 			<ListBoxItem bind:group={listboxValue} name="medium" value="delete" active="variant-filled-error" hover="gradient-error-hover"
 				><svelte:fragment slot="lead"><iconify-icon icon="bi:trash3-fill" width="20" class="mr-1" /></svelte:fragment>
 
-				{m.multibuttondelete()}
+				{m.button_delete()}
 			</ListBoxItem>
 		{/if}
 	</ListBox>

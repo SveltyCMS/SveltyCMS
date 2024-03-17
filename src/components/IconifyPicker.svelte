@@ -164,7 +164,7 @@
 						on:keydown
 						on:click={prevPage}
 						class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
-						>{m.iconpicker_previous()}
+						>{m.button_previous()}
 					</button>
 
 					<div class="dark:text-white">
@@ -174,7 +174,7 @@
 						disabled={icons.length < 50}
 						on:keydown
 						on:click={nextPage}
-						class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.iconpicker_next()}</button
+						class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.button_next()}</button
 					>
 				</div>
 			{/if}

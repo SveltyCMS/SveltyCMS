@@ -105,8 +105,8 @@
 
 		<footer class="flex {existingCategory.name ? 'justify-between' : 'justify-end'} {parent.regionFooter}">
 			<div class="flex gap-2">
-				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modalcategory_cancel()}</button>
-				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modalcategory_save()}</button> -->
+				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<!-- <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button> -->
 			</div>
 		</footer>
 	</div>

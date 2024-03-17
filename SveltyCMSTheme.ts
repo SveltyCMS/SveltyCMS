@@ -10,7 +10,7 @@ export const SveltyCMSTheme: CustomThemeConfig = {
 		'--theme-font-color-dark': '255 255 255',
 		'--theme-rounded-base': '3px',
 		'--theme-rounded-container': '3px',
-		'--theme-border-base': '2px',
+		'--theme-border-base': '1px',
 		// =~= Theme On-X Colors =~=
 		'--on-primary': '255 255 255',
 		'--on-secondary': '255 255 255',

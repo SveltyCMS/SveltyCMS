@@ -149,7 +149,7 @@
 </script>
 
 <div class="dark mb-2 text-center sm:flex sm:flex-col">
-	<div>{m.collection_Permission_helper1()}</div>
+	<div>{m.collection_permission_helper1()}</div>
 	<div class="mt-2 flex items-center justify-center space-x-4 divide-x-2 divide-surface-400">
 		{#each Object.keys(buttonMap) as permission}
 			<span class="text-{buttonMap[permission].color}-500">

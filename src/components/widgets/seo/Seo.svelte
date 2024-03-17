@@ -14,6 +14,7 @@
 
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
@@ -21,8 +22,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	import { getFieldName } from '@utils/utils';
 
 	// Skeleton
 	import { ProgressRadial } from '@skeletonlabs/skeleton';
@@ -33,8 +32,8 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	// console.log(_data);
 	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
 
@@ -286,6 +285,32 @@
 
 		return suggestions;
 	}
+
+	// zod validation
+	import * as z from 'zod';
+
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional()
+
+		// Widget Specfic
+	});
+
+	function validateInput() {
+		try {
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data.value);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
+		}
+	}
 </script>
 
 <!-- TODO: Fix input Value -->
@@ -321,7 +346,7 @@
 	<input
 		id="title-input"
 		type="text"
-		class="input"
+		class="input text-black dark:text-primary-500"
 		placeholder={m.widget_seo_suggestionseotitle()}
 		required
 		bind:value={_data[_language].title}
@@ -366,12 +391,12 @@
 		cols="50"
 		bind:value={_data[_language].description}
 		on:input={handleDescriptionChange}
-		class="input"
+		class="input text-black dark:text-primary-500"
 	/>
 
 	<!-- Robots Meta Data -->
-	<label for="robots-meta-select" class="label">
-		<span>Robots Meta Data:</span>
+	<label for="robots-meta-select" class="label text-black dark:text-primary-500">
+		<span class="text-token">Robots Meta Data:</span>
 		<select class="select" id="robots-meta-select" bind:value={_data[_language].robotsMeta}>
 			<option value="index, follow">Index, Follow</option>
 			<option value="noindex, follow">Noindex, Follow</option>
@@ -488,6 +513,12 @@
 		</div>
 	</div>
 </div>
+
+<!-- Error Message -->
+{#if validationError !== null}
+	<p class="text-center text-sm text-error-500">{validationError}</p>
+{/if}
+
 <hr class="mt-1" />
 <ul class="mt-1 grid md:grid-cols-2">
 	{#each suggestions as suggestion}

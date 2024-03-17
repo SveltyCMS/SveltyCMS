@@ -109,7 +109,7 @@
 				<!-- Next Button  -->
 				<button type="button" on:click={next} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="carbon:next-filled" width="24" class="text-white" />
-					<span class="hidden md:block">{m.widget_megamenu_next()}</span>
+					<span class="hidden md:block">{m.button_next()}</span>
 				</button>
 			{:else}
 				<!-- Mobile Content Language -->

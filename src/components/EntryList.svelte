@@ -344,7 +344,7 @@
 		{#if columnShow}
 			<!-- column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-				<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
+				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
 				<!-- all -->
 				<div class="my-2 flex w-full items-center justify-center gap-1">
 					<label class="mr-3">
@@ -382,7 +382,7 @@
 			</div>
 		{/if}
 
-		<div class="table-container max-h-[calc(100dvh-55px)] overflow-auto">
+		<div class="table-container max-h-[calc(100dvh-60px)] overflow-auto">
 			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
 				<thead class="sticky top-0 z-10 text-tertiary-500 dark:text-primary-500">
@@ -399,7 +399,7 @@
 										<FloatingInput
 											type="text"
 											icon="material-symbols:search-rounded"
-											label="Filter ..."
+											label={m.entrylist_filter()}
 											name={header.name}
 											on:input={(e) => {
 												let value = asAny(e.target).value;
@@ -465,7 +465,7 @@
 						{/each}
 					</tr>
 				</thead>
-				<tbody>
+				<tbody class="">
 					{#each tableData as row, index}
 						<tr
 							class="divide-x divide-surface-400"

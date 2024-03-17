@@ -1,11 +1,10 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { mode, entryData } from '@stores/store';
-
-	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
@@ -14,6 +13,7 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
 
@@ -24,17 +24,25 @@
 	const Email = z.string().email().brand('Email');
 
 	// Customize the error messages for each rule
-	const validateSchema = Email.refine((value) => value.includes('@'), {
-		message: 'Please enter a valid email address',
-		path: ['email']
-	});
+	const validateSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		size: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional(),
 
-	let validationError: string | null = null;
+		// Widget Specific
+		email: Email.refine((value) => value.includes('@'), {
+			message: 'Please enter a valid email address',
+			path: ['email']
+		})
+	});
 
 	function validateInput() {
 		try {
 			// Change .parseAsync to .parse
-			validateSchema.parse(_data[_language]);
+			validateSchema.parse(_data.value);
 			validationError = '';
 		} catch (error: unknown) {
 			if (error instanceof z.ZodError) {
@@ -51,8 +59,10 @@
 	name={field?.db_fieldName}
 	id={field?.db_fieldName}
 	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
-	class="input"
+	class="input text-black dark:text-primary-500"
 />
+
+<!-- Error Message -->
 {#if validationError !== null}
 	<p class="text-center text-sm text-error-500">{validationError}</p>
 {/if}

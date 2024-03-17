@@ -181,8 +181,8 @@
 		</div>
 
 		<footer class="flex items-center justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaltokenuser_cancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">{m.modaltokenuser_send()}</button>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+			<button type="submit" class="btn {parent.buttonPositive}">{m.button_send()}</button>
 		</footer>
 	</form>
 </div>

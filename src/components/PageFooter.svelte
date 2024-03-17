@@ -13,7 +13,7 @@
 	{$collection?.name} Info:
 </h2>
 
-<div class="mb-1 grid grid-cols-2 items-center gap-x-2 text-[12px] leading-tight">
+<div class="grid grid-cols-2 items-center gap-x-2 pb-1 text-[12px] leading-tight">
 	<!-- Labels -->
 	{#each Object.keys(dates) as key}
 		<div class="capitalize">{key}:</div>

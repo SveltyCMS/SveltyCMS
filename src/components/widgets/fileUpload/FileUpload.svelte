@@ -105,8 +105,8 @@
 		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />{/if}</svelte:fragment
 	>
 	<svelte:fragment slot="message">
-		{#if !_data}<span class="font-bold text-primary-500">Upload a file</span> or drag & drop
-		{:else}<span class="font-bold text-primary-500">Replace {_data[0].name}</span> or drag & drop
+		{#if !_data}<span class="font-bold text-tertiary-500 dark:text-primary-500">Upload a file</span> or drag & drop
+		{:else}<span class="font-bold text-tertiary-500 dark:text-primary-500">Replace {_data[0].name}</span> or drag & drop
 		{/if}
 	</svelte:fragment>
 	<svelte:fragment slot="meta">
@@ -127,12 +127,12 @@
 				</div>
 
 				<div class="mt-2 text-center md:text-left">
-					<p class="text-lg font-semibold text-primary-500">Uploaded File:</p>
-					<p>Uploaded File: <span class="text-primary-500">{_data[0].name}</span></p>
+					<p class="text-lg font-semibold text-tertiary-500 dark:text-primary-500">Uploaded File:</p>
+					<p>Uploaded File: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].name}</span></p>
 					<p>
-						File size: <span class="text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
+						File size: <span class="text-tertiary-500 dark:text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
 					</p>
-					<p>MIME type: <span class="text-primary-500">{_data[0].type}</span></p>
+					<p>MIME type: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].type}</span></p>
 				</div>
 			</div>
 		{/if}

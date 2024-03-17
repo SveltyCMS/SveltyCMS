@@ -70,7 +70,7 @@
 		unpublish: [m.entrylist_multibutton_unpublish(), 'gradient-yellow', 'bi:pause-circle'],
 		schedule: [m.entrylist_multibutton_schedule(), 'gradient-pink', 'bi:clock'],
 		clone: [m.entrylist_multibutton_clone(), 'gradient-secondary', 'bi:clipboard-data-fill'],
-		delete: [m.entrylist_multibutton_delete(), 'gradient-error', 'bi:trash3-fill'],
+		delete: [m.button_delete(), 'gradient-error', 'bi:trash3-fill'],
 		test: [m.entrylist_multibutton_testing(), 'gradient-error', 'icon-park-outline:preview-open']
 	};
 

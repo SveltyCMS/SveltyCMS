@@ -1,13 +1,10 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { mode, entryData, contentLanguage } from '@stores/store';
-
-	import { getFieldName } from '@utils/utils';
-
-	import * as z from 'zod';
 
 	export let field: FieldType;
 
@@ -16,35 +13,40 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
 
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		required: field.required
-	};
+	// zod validation
+	import * as z from 'zod';
 
-	const dateSchema = z.object({
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
+		color: z.string().optional(),
+		size: z.string().optional(),
+		width: z.number().optional(),
 		required: z.boolean().optional()
+
+		// Widget Specfic
 	});
 
-	let validationError: string | null = null;
-
-	$: validationError = (() => {
+	function validateInput() {
 		try {
-			dateSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data[_language]);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
 		}
-	})();
+	}
 </script>
 
 <!-- TODO: Enhance Date entry -->
-<input type="date" bind:value={_data[_language]} class="input rounded-md" />
+<input type="date" bind:value={_data[_language]} class="input text-black dark:text-primary-500" />
 {#if validationError !== null}
 	<p class="text-error-500">{validationError}</p>
 {/if}

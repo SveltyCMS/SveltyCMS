@@ -20,7 +20,7 @@
 		</label>
 		<div class="mt-2 flex w-full justify-between gap-1 sm:gap-2">
 			<!-- Cancel Button -->
-			<button class="variant-filled btn">{m.oauth_cancel()}</button>
+			<button class="variant-filled btn">{m.button_cancel()}</button>
 
 			<!-- Submit Button -->
 			<button type="submit" class="variant-filled btn items-center">

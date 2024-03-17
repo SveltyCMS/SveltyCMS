@@ -194,12 +194,12 @@
 
 	<footer class="{parent.regionFooter} flex items-center justify-between">
 		<button type="button" on:click={deleteToken} class="variant-filled-error btn">
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.modaledit_tokendelete()}</span>
+			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 		</button>
 
 		<div class="flex justify-between gap-2">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.modaledit_tokencancel()}</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.modaledit_tokensave()}</button>
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 		</div>
 	</footer>
 </div>

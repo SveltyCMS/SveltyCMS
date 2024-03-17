@@ -1,11 +1,10 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { mode, entryData, contentLanguage } from '@stores/store';
-
-	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
@@ -14,7 +13,7 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	let valid = true;
+	let validationError: string | null = null;
 
 	let numberInput: HTMLInputElement;
 	let language = $contentLanguage;
@@ -68,6 +67,35 @@
 			return '!variant-ghost-surface';
 		}
 	};
+
+	// zod validation
+	import * as z from 'zod';
+
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		size: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional(),
+
+		// Widget Specfic
+		checked: z.boolean(),
+		label: z.string().min(1, 'Label cannot be empty')
+	});
+
+	function validateInput() {
+		try {
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data[_language]);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
+		}
+	}
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
@@ -87,7 +115,7 @@
 		minlength={field?.minlength}
 		maxlength={field?.maxlength}
 		step={field?.step}
-		class="input flex-1 rounded-none"
+		class="input text-black dark:text-primary-500"
 	/>
 
 	<!-- suffix -->
@@ -119,6 +147,7 @@
 	{/if}
 </div>
 
-{#if !valid}
-	<p class="text-error-500">Field is required.</p>
+<!-- Error Message -->
+{#if validationError !== null}
+	<p class="text-center text-sm text-error-500">{validationError}</p>
 {/if}

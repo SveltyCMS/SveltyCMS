@@ -1,10 +1,9 @@
 <script lang="ts">
 	import type { FieldType } from '.';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { mode, entryData } from '@stores/store';
-
-	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
@@ -12,7 +11,8 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let valid = true;
+	let validationError: string | null = null;
+
 	export const WidgetData = async () => _data;
 
 	export let myData: any = null;
@@ -39,47 +39,48 @@
 		}
 	};
 
+	// zod validation
 	import * as z from 'zod';
 
-	var widgetValueObject = {
-		db_fieldName: field.db_fieldName,
-		icon: field.icon,
-		placeholder: field.placeholder,
-		required: field.required
-	};
-
-	const videoSchema = z.object({
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
-		placeholder: z.string().optional(),
+		color: z.string().optional(),
+		width: z.number().optional(),
 		required: z.boolean().optional()
+
+		// Widget Specfic
 	});
 
-	// let validationError: string | null = null;
-
-	// $: validationError = (() => {
-	// 	try {
-	// 		videoSchema.parse(widgetValueObject);
-	// 		return null;
-	// 	} catch (error) {
-	// 		return (error as Error).message;
-	// 	}
-	// })();
+	function validateInput() {
+		try {
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data.value);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
+		}
+	}
 </script>
 
 <input
 	type="url"
 	bind:value
 	on:blur={handleSubmit}
+	on:input={validateInput}
 	name={field?.db_fieldName}
 	id={field?.db_fieldName}
 	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
 	required={field?.required}
-	class="input flex-1 rounded-none"
+	class="input text-black dark:text-primary-500"
 />
 
-{#if !valid}
-	<p class="text-error-500">Field is required.</p>
+<!-- Error Message -->
+{#if validationError !== null}
+	<p class="text-center text-sm text-error-500">{validationError}</p>
 {/if}
 
 {#if myData?.videoUrl}

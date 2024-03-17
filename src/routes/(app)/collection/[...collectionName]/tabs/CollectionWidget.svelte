@@ -184,5 +184,4 @@
 		type="button"
 		on:click={handleCollectionSave}
 		class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.collection_widgetfield_save()}</button
-	>
 </div>
