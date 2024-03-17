@@ -13,7 +13,7 @@
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { obj2formData } from '@src/utils/utils';
-  
+
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
