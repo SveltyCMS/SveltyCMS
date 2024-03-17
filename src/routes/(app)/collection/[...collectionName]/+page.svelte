@@ -1,5 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/stores';
 	import { permissionStore, tabSet } from '@stores/store';
 	import { mode, currentCollection } from '@stores/store';
@@ -12,6 +13,9 @@
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 	import { obj2formData } from '@src/utils/utils';
+
+	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 
 	const toastStore = getToastStore();
 	// Extract the collection name from the URL
@@ -73,31 +77,68 @@
 		};
 		toastStore.trigger(t);
 	}
+
+	function handleCollectionDelete() {
+		console.log('Delete collection:', $currentCollection.name);
+		// Define the confirmation modal
+		const confirmModal: ModalSettings = {
+			type: 'confirm',
+			title: 'Please Confirm',
+			body: 'Are you sure you wish to delete this collection?',
+			response: (r: boolean) => {
+				if (r) {
+					// Send the form data to the server
+					axios.post(`?/deleteCollections`, obj2formData({ collectionName: $currentCollection.name }), {
+						headers: {
+							'Content-Type': 'multipart/form-data'
+						}
+					});
+
+					// Trigger the toast
+					const t = {
+						message: 'Collection Deleted.',
+						// Provide any utility or variant background style:
+						background: 'variant-filled-error',
+						timeout: 3000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+					goto(`/collection`);
+				} else {
+					// User cancelled, do not delete
+					console.log('User cancelled deletion.');
+				}
+			}
+		};
+		// Trigger the confirmation modal
+		modalStore.trigger(confirmModal);
+		// Close the modal
+	}
 </script>
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
 	{#if ($mode = 'edit')}
-		<button
-			type="button"
-			on:click={handleCollectionSave}
-			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
-		>
+		<div>
+			<button
+				type="button"
+				on:click={handleCollectionDelete}
+				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black">Delete</button
+			>
+			<button
+				type="button"
+				on:click={handleCollectionSave}
+				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
+			>
+		</div>
 	{/if}
 </div>
 
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup
-		bind:group={$tabSet}
-		justify="justify-center"
-		rounded="rounded-tl-container-token rounded-tr-container-token"
-		active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
-		hover="hover:variant-soft-secondary"
-		flex="flex-1 items-center justify-center md:justify-around lg:flex-initial"
-	>
-		<!-- Tabs -->
+	<TabGroup bind:group={$tabSet}>
 		<TopTabs />
 
 		<svelte:fragment slot="panel">

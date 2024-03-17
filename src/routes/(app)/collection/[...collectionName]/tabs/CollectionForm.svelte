@@ -226,6 +226,7 @@
 </div>
 
 <!-- Buttons -->
+<!-- Buttons -->
 <div class="flex justify-between">
 	<a href="/collection" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
 	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
