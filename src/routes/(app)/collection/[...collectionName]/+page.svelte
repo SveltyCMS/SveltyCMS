@@ -57,8 +57,6 @@
 					})
 				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
 
-		// console.log(data);
-
 		// Send the form data to the server
 		axios.post(`?/saveCollections`, data, {
 			headers: {
@@ -138,7 +136,7 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet}>
+	<TabGroup bind:group={$tabSet} justify="justify-between lg:justify-start">
 		<TopTabs />
 
 		<svelte:fragment slot="panel">

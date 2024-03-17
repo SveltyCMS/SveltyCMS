@@ -59,8 +59,8 @@
 	}
 
 	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 ';
-	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
+	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
+	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	$: {
@@ -79,7 +79,7 @@
 
 		<!-- Enable for debugging: -->
 		<form class={cForm}>
-			<TabGroup>
+			<TabGroup justify="justify-between lg:justify-start">
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500" />
@@ -142,7 +142,7 @@
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 	
-		<div class="flex justify-between gap-2">
+		<div class="flex justify-between gap-4">
 			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
 			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 		</div>

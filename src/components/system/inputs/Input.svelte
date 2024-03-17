@@ -14,5 +14,5 @@
 	{#if label}
 		<label for="input" class="w-32 flex-none {labelClass}">{label}</label>
 	{/if}
-	<input use:typeAction id="input" class="input grow {inputClass}" bind:value {placeholder} {...$$props} />
+	<input use:typeAction id="input" class="input grow text-black dark:text-primary-500 {inputClass}" bind:value {placeholder} {...$$props} />
 </div>
