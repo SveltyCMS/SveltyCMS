@@ -1,20 +1,19 @@
 <script lang="ts">
+	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
+
 	// Stores
 	import { mode, entryData, contentLanguage } from '@stores/store';
-
-	import type { FieldType } from '.';
-
-	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
 	let fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
-	//console.log('value: ', value);
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
 
@@ -28,10 +27,12 @@
 		color: z.string().optional(),
 		size: z.string().optional(),
 		width: z.number().optional(),
-		required: z.boolean().optional()
-	});
+		required: z.boolean().optional(),
 
-	let validationError: string | null = null;
+		// Widget Specfic
+		checked: z.boolean(),
+		label: z.string().min(1, 'Label cannot be empty')
+	});
 
 	function validateInput() {
 		try {
@@ -46,20 +47,30 @@
 	}
 </script>
 
-<div class="mb-4 flex items-center">
+<div class="flex w-full items-center gap-2">
+	<!--Checkbox -->
 	<input
 		id="default-checkbox"
 		type="checkbox"
 		color={field.color}
 		bind:value={_data[_language]}
 		on:input={validateInput}
-		class="h-[${field.size}] w-[${field.size}] rounded border-surface-300 bg-surface-100 text-tertiary-600 focus:ring-2 focus:ring-tertiary-500 dark:border-surface-600 dark:bg-surface-700 dark:ring-offset-surface-800 dark:focus:ring-tertiary-600"
 		bind:checked={value}
+		class="h-[${field.size}] w-[${field.size}] mr-4 rounded"
 	/>
-	<label for="default-checkbox" class="ml-2 text-sm font-medium text-surface-900 dark:text-surface-300"
-		>{field.label ? field.label : field.db_fieldName}</label
-	>
-	{#if validationError !== null}
-		<p class="text-center text-sm text-error-500">{validationError}</p>
-	{/if}
+
+	<!-- Label  -->
+	<input
+		type="text"
+		id="label for radio"
+		on:input={validateInput}
+		placeholder="Define Label"
+		bind:value={_data[_language]}
+		class="input text-black dark:text-primary-500"
+	/>
 </div>
+
+<!-- Error Message -->
+{#if validationError !== null}
+	<p class="text-center text-sm text-error-500">{validationError}</p>
+{/if}

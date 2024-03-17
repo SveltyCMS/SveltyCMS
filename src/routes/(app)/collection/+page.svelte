@@ -168,7 +168,7 @@
 </script>
 
 <div class="mb-3 flex items-center justify-between">
-	<PageTitle name={m.collection_pagetitle()} icon="" />
+	<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" />
 
 	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
 		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />

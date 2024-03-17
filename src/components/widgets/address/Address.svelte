@@ -1,7 +1,13 @@
 <script lang="ts">
-	import { privateEnv } from '@root/config/private';
+	import type { FieldType } from '.';
+	import { privateEnv, publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
 
-	import * as z from 'zod';
+	// Stores
+	import { mode, entryData, contentLanguage } from '@stores/store';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Mapbox
 	import mapboxgl from 'mapbox-gl';
@@ -12,9 +18,6 @@
 
 	// https://docs.mapbox.com/help/glossary/access-token/
 	mapboxgl.accessToken = privateEnv.PUBLIC_MAPBOX_API_TOKEN;
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
@@ -108,6 +111,12 @@
 
 	export let widgetValue;
 
+	let _data = $mode == 'create' ? {} : value;
+	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let validationError: string | null = null;
+
+	export const WidgetData = async () => _data;
+
 	$: widgetValue = {
 		latitude: value.latitude,
 		longitude: value.longitude,
@@ -196,16 +205,32 @@
 		required: z.boolean().optional()
 	});
 
-	let validationError: string | null = null;
+	// zod validation
+	import * as z from 'zod';
 
-	$: validationError = (() => {
+	// Customize the error messages for each rule
+	const validateSchema = z.object({
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		size: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional()
+
+		// Widget Specfic
+	});
+
+	function validateInput() {
 		try {
-			addressSchema.parse(widgetValueObject);
-			return null;
-		} catch (error) {
-			return (error as Error).message;
+			// Change .parseAsync to .parse
+			validateSchema.parse(_data[_language]);
+			validationError = '';
+		} catch (error: unknown) {
+			if (error instanceof z.ZodError) {
+				validationError = error.errors[0].message;
+			}
 		}
-	})();
+	}
 </script>
 
 {#if privateEnv.PUBLIC_MAPBOX_API_TOKEN}
@@ -323,8 +348,9 @@
 			</div>
 		</form>
 	</address>
+	<!-- Error Message -->
 	{#if validationError !== null}
-		<p class="text-error-500">{validationError}</p>
+		<p class="text-center text-sm text-error-500">{validationError}</p>
 	{/if}
 {/if}
 <label for="city">Country Autocomplete</label>

@@ -24,15 +24,8 @@
 
 	const user = $page.data.user;
 
-	console.log('entryData', $entryData);
-	console.log('fields', $collection.fields);
-	console.log('DEFAULT_CONTENT_LANGUAGES', publicEnv.DEFAULT_CONTENT_LANGUAGE);
-	console.log('AVAILABLE_CONTENT_LANGUAGES', publicEnv.AVAILABLE_CONTENT_LANGUAGES);
-
 	// Reactive statement to calculate translation and completion content status
 	$: {
-		console.log('$entryData', $entryData);
-
 		let totalFields: number = 0;
 		let completedFields: number = 0;
 		let translations = {};
@@ -89,10 +82,6 @@
 			completionStatus.set(overallCompletionPercentage);
 		}
 	}
-
-	// Debugging logs
-	$: console.log('completionStatus', $completionStatus);
-	$: console.log('translationStatus', $translationStatus);
 
 	let apiUrl = '';
 

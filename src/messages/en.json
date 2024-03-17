@@ -328,5 +328,8 @@
 	"Unassigned_Collections": "Unassigned Collections",
 	"collection_text_description": "Create new categories or collections by and drag and drop these according to your needs",
 	"Listnode_warning_body": "Deleting this category will also delete all its children. <br>Are you sure you want to proceed?",
-	"Listnode_confirm_body": "Are you sure you want to delete this category?"
+	"Listnode_confirm_body": "Are you sure you want to delete this category?",
+	"colorPicker_label": "Color code:",
+	"colorPiker_nocolor": "No color selected",
+	"colorPicker_hex": "Hex value"
 }

@@ -2,7 +2,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { contentLanguage, translationStatusOpen, mode, translationStatus, completionStatus } from '@stores/store';
+	import { contentLanguage, translationStatusOpen, mode, translationStatus, completionStatus, collection } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -42,15 +42,15 @@
 
 <!-- TODO: Show translation Status -->
 
-{#if $mode == 'edit'}
+{#if $mode == 'edit' && $collection}
 	<!-- Language -->
 	<div class="relative inline-block text-left">
 		<div>
 			<button
-				class="variant-ghost-surface btn-sm !rounded-none !rounded-t border-surface-400 sm:btn"
+				class="variant-ghost-surface btn-sm w-16 !rounded-none !rounded-t border-surface-400 sm:btn"
 				id="options-menu"
 				aria-haspopup="true"
-				aria-expanded="true"
+				aria-expanded={isOpen}
 				on:click={toggleDropdown}
 			>
 				{$contentLanguage.toUpperCase()}
@@ -69,9 +69,9 @@
 				track="bg-surface-500 dark:bg-surface-400 transition-all"
 			/>
 		</div>
-
+		<!-- dropdown -->
 		{#if isOpen}
-			<div class="absolute right-0 mt-3 w-44 origin-top-right rounded bg-white shadow-2xl dark:bg-surface-500">
+			<div class="absolute right-0 mt-2 max-h-44 w-44 overflow-y-auto rounded border border-surface-400 bg-white shadow-2xl dark:bg-surface-500">
 				<div class="flex flex-col py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang}
 						<button on:click={() => handleChange({ target: { value: lang } })} class="mx-2 hover:bg-surface-100" role="menuitem">

@@ -13,7 +13,7 @@
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
 		<!-- Collection -->
 		<a href="/collection" class="variant-outline-tertiary btn w-full gap-2 overflow-hidden py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="mingcute:menu-fill" width="24" class="text-tertiary-600" />
+			<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-tertiary-600" />
 			<p class="overflow-hidden overflow-ellipsis uppercase">
 				{m.config_systembuilder()}
 			</p>

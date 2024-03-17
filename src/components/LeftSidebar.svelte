@@ -52,7 +52,7 @@
 		placement: 'right'
 	};
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@src/stores/store';
