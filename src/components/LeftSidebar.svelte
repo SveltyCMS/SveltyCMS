@@ -12,7 +12,7 @@
 	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
 	import Collections from '@components/Collections.svelte';
 
-	//skeleton
+	// Skeleton
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// Popup Tooltips

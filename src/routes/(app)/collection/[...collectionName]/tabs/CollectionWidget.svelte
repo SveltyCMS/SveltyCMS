@@ -54,8 +54,8 @@
 			body: 'Setup your widget and then press Save.',
 			value: selectedWidget, // Pass the selected widget	as the initial value
 			response: (r: any) => {
-				// console.log('response modalWidgetForm:', r);
-				// console.log('fields old:', fields);
+				console.log('response modalWidgetForm:', r);
+				console.log('fields old:', fields);
 
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
@@ -86,7 +86,7 @@
 					});
 				}
 
-				// console.log('fields new:', fields);
+				console.log('fields new:', fields);
 			}
 		};
 		modalStore.trigger(modal);
@@ -102,6 +102,7 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
+				// console.log('response modalSelectWidget:', r);
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ key: selectedWidget }); // Use selectedWidget directly

@@ -131,6 +131,7 @@
 
 		<!-- tooltip -->
 		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
+		<!-- Popup Tooltip with the arrow element -->
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
 			<div class="variant-filled arrow" />
@@ -233,9 +234,8 @@
 	</div>
 </div>
 
-<!-- Buttons -->
-<!-- Buttons -->
-<div class="flex justify-between">
+<!-- Buttons Cancel & Next-->
+<div class="mt-2 flex justify-between">
 	<a href="/collection" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
 	<button type="button" on:click={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
 </div>
