@@ -136,21 +136,22 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-	<input
-		type="text"
-		required
-		id="name"
-		bind:value={$currentCollection.name}
-		on:input={handleNameInput}
-		placeholder={m.collection_name_placeholder()}
-		class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
-	/>
+		<input
+			type="text"
+			required
+			id="name"
+			bind:value={$currentCollection.name}
+			on:input={handleNameInput}
+			placeholder={m.collection_name_placeholder()}
+			class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
+		/>
 
-	{#if $currentCollection && $currentCollection.name}
-		<p class="mb-3 sm:mb-0">
-			{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-		</p>
-	{/if}
+		{#if $currentCollection && $currentCollection.name}
+			<p class="mb-3 sm:mb-0">
+				{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+			</p>
+		{/if}
+	</div>
 </div>
 
 <div class="flex flex-col gap-3 rounded-md border p-2">
@@ -186,7 +187,6 @@
 		</div>
 
 		<input type="text" id="slug" bind:value={$currentCollection.slug} placeholder={m.collection_slug_input()} class="input w-full" />
-
 	</div>
 
 	<!-- Description -->
@@ -226,7 +226,6 @@
 		</div>
 
 		<select id="status" bind:value={$currentCollection.status} class="input text-black">
-
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}
