@@ -225,7 +225,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<select id="status" bind:value={$currentCollection.status} class="input w-full">
+		<select id="status" bind:value={$currentCollection.status} class="input text-black">
 
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
