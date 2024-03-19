@@ -132,6 +132,7 @@
 		<!-- tooltip -->
 		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
 			<!-- Popup Tooltip with the arrow element -->
+		<!-- Popup Tooltip with the arrow element -->
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
 			<div class="variant-filled arrow" />
