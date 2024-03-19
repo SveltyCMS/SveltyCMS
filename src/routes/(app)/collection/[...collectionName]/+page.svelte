@@ -24,10 +24,6 @@
 
 	// Default widget data (tab1)
 	let name = $mode == 'edit' ? ($currentCollection ? $currentCollection.name : collectionName) : collectionName;
-	let icon = '';
-	let slug = '';
-	let description = '';
-	let fields = [];
 
 	// Page title
 	let pageTitle =
@@ -42,7 +38,7 @@
 	}
 
 	// Function to save data by sending a POST request
-	function handleCollectionSave() {
+	async function handleCollectionSave() {
 		// Prepare form data
 		let data =
 			$mode == 'edit'
@@ -56,27 +52,35 @@
 						permissions: $permissionStore,
 						fields: $currentCollection.fields
 					})
-				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
-
-		// console.log(data);
+				: obj2formData({
+						collectionName: name,
+						icon: $currentCollection.icon,
+						status: $currentCollection.status,
+						slug: $currentCollection.slug,
+						description: $currentCollection.description,
+						permissions: $permissionStore,
+						fields: $currentCollection.fields
+					});
 
 		// Send the form data to the server
-		axios.post(`?/saveCollections`, data, {
+		let resp = await axios.post(`?/saveCollection`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
 			}
 		});
 
+		console.log('response:', resp);
+
 		// Trigger the toast
-		const t = {
-			message: "Collection Saved. You're all set to build your content.",
-			// Provide any utility or variant background style:
-			background: 'variant-filled-primary',
-			timeout: 3000,
-			// Add your custom classes here:
-			classes: 'border-1 !rounded-md'
-		};
-		toastStore.trigger(t);
+		// const t = {
+		// 	message: "Collection Saved. You're all set to build your content.",
+		// 	// Provide any utility or variant background style:
+		// 	background: 'variant-filled-primary',
+		// 	timeout: 3000,
+		// 	// Add your custom classes here:
+		// 	classes: 'border-1 !rounded-md'
+		// };
+		// toastStore.trigger(t);
 	}
 
 	function handleCollectionDelete() {
@@ -154,7 +158,7 @@
 			{:else if $tabSet === 1}
 				<CollectionPermission />
 			{:else if $tabSet === 2}
-				<CollectionWidget />
+				<CollectionWidget on:save={handleCollectionSave} />
 			{/if}
 		</svelte:fragment>
 	</TabGroup>

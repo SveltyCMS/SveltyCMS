@@ -12,11 +12,20 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { currentCollection } from '@src/stores/store';
 	let tabSet: number = 0;
 
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
+
+	//fields
+	let fields = $currentCollection.fields.map((field, index) => {
+		return {
+			id: index + 1, // Add the id property first
+			...field // Copy all existing properties
+		};
+	});
 
 	// Form Data
 	let formData: any = {};
@@ -59,7 +68,11 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-
+			let updatedFields = fields.filter((field: any) => field.id !== $modalStore[0].value.id);
+			currentCollection.update((c) => {
+				c.fields = updatedFields;
+				return c;
+			});
 			modalStore.close();
 		}
 	}
@@ -68,10 +81,6 @@
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 ';
 	const cHeader = 'text-2xl font-bold text-center text-tertiary-500 dark:text-primary-500 ';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	$: {
-		console.log('formData:', formData);
-	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -110,18 +119,15 @@
 					{#if tabSet === 0}
 						{#if $modalStore[0].value}
 							<!-- Default section -->
-							{console.log(' $modalStore[0].value', $modalStore[0].value)}
-
 							<div class="mb-2 border-y text-center text-primary-500">
 								<div class="text-xl text-primary-500">
-									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value}</span> Input Options
+									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
 								</div>
 								<div class="my-1 text-xs text-error-500">* Required</div>
 							</div>
 							<div class="options-table">
-								<!-- Default section -->
 								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
-									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
+									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[$modalStore[0].value.key]).widget} key={property} />
 								{/each}
 							</div>
 						{/if}

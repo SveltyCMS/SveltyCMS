@@ -10,6 +10,10 @@
 	import { obj2formData } from '@src/utils/utils';
 	import * as m from '@src/paraglide/messages';
 
+	// Event dispatcher
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
+
 	// Skeleton
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -18,22 +22,15 @@
 	const collectionName = $page.params.collectionName;
 
 	//fields
-	let icon = $mode == 'edit' ? $currentCollection.icon : '';
-	let slug = $mode == 'edit' ? $currentCollection.slug : name;
-	let description = $mode == 'edit' ? $currentCollection.description : '';
-	let status = $mode == 'edit' ? $currentCollection.status : 'unpublished';
-	let fields =
-		$mode == 'edit'
-			? $currentCollection.fields.map((field, index) => {
-					return {
-						id: index + 1, // Add the id property first
-						...field // Copy all existing properties
-					};
-				})
-			: [];
+	let fields = $currentCollection.fields.map((field, index) => {
+		return {
+			id: index + 1, // Add the id property first
+			...field // Copy all existing properties
+		};
+	});
 
 	// Collection headers
-	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
+	const headers = ['Id', 'Name', 'DBName', 'Widget', 'Actions'];
 
 	// svelte-dnd-action
 	const flipDurationMs = 300;
@@ -69,6 +66,10 @@
 						{ ...r }, // Update the existing widget
 						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
 					];
+					currentCollection.update((c) => {
+						c.fields = fields;
+						return c;
+					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					fields = [
@@ -78,6 +79,10 @@
 							...r
 						}
 					];
+					currentCollection.update((c) => {
+						c.fields = fields;
+						return c;
+					});
 				}
 
 				// console.log('fields new:', fields);
@@ -97,49 +102,26 @@
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
 				// console.log('response modalSelectWidget:', r);
+				if (!r) return;
 				const { selectedWidget } = r;
-				modalWidgetForm(selectedWidget); // Use selectedWidget directly
+				modalWidgetForm({ key: selectedWidget }); // Use selectedWidget directly
 			}
 		};
 		modalStore.trigger(modal);
 	}
 
 	// Function to save data by sending a POST request
-	function handleCollectionSave() {
-		// Prepare form data
-		let data =
-			$mode == 'edit'
-				? obj2formData({
-						originalName: $currentCollection.name,
-						collectionName: name,
-						icon: $currentCollection.icon,
-						status: $currentCollection.status,
-						slug: $currentCollection.slug,
-						description: $currentCollection.description,
-						permissions: $permissionStore,
-						fields: $currentCollection.fields
-					})
-				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
+	async function handleCollectionSave() {
+		dispatch('save');
+	}
 
-		// console.log(data);
-
-		// Send the form data to the server
-		axios.post(`?/saveCollection`, data, {
-			headers: {
-				'Content-Type': 'multipart/form-data'
-			}
+	$: {
+		fields = $currentCollection.fields.map((field, index) => {
+			return {
+				id: index + 1, // Add the id property first
+				...field // Copy all existing properties
+			};
 		});
-
-		// Trigger the toast
-		const t = {
-			message: "Collection Saved. You're all set to build your content.",
-			// Provide any utility or variant background style:
-			background: 'variant-filled-primary',
-			timeout: 3000,
-			// Add your custom classes here:
-			classes: 'border-1 !rounded-md'
-		};
-		toastStore.trigger(t);
 	}
 </script>
 
@@ -150,7 +132,7 @@
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>
-	<div style="height: 55vh !important;">
+	<div style="max-height: 55vh !important;">
 		<VerticalList items={fields} {headers} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 			{#each fields as field (field.id)}
 				<div
@@ -160,12 +142,12 @@
 						{field.id}
 					</div>
 					<!-- TODO: display the icon from guischema widget-->
-					<iconify-icon {icon} width="24" class="text-tertiary-500" />
+					<!-- <iconify-icon {icon} width="24" class="text-tertiary-500" /> -->
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class="hidden md:table-cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class="hidden md:table-cell">{field?.key}</div>
 
-					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm({ mode: 'edit', ...field })}>
+					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 					</button>
 				</div>

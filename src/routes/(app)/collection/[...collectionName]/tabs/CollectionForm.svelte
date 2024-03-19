@@ -16,6 +16,12 @@
 	if ($collections.find((x) => x.name === collectionName)) {
 		mode.set('edit');
 		currentCollection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
+	} else {
+		currentCollection.set({
+			...$currentCollection,
+			fields: $currentCollection.fields ? $currentCollection.fields : [],
+			name: collectionName
+		});
 	}
 
 	// Popup Tooltips
@@ -44,8 +50,7 @@
 		target: 'Status',
 		placement: 'right'
 	};
-	// Skeleton
-	console.log('currentCollection', $currentCollection);
+
 	// Form fields
 	let DBName = '';
 	let searchQuery = '';
