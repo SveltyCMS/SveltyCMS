@@ -157,8 +157,8 @@
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
 			<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
-		</div>
 
+		</div>
 		<div class=" flex items-center justify-between">
 			<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
 			<button

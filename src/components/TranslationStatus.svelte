@@ -71,11 +71,15 @@
 		</div>
 		<!-- dropdown -->
 		{#if isOpen}
-			<div class="absolute right-0 mt-2 max-h-44 w-44 overflow-y-auto rounded border border-surface-400 bg-white shadow-2xl dark:bg-surface-500">
-				<div class="flex flex-col py-1" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
+			<div class="absolute right-0 mt-2 max-h-56 w-44 overflow-y-auto rounded border border-surface-400 bg-white shadow-2xl dark:bg-surface-500">
+				<div class="flex flex-col py-2" role="menu" aria-orientation="vertical" aria-labelledby="options-menu">
 					{#each publicEnv.AVAILABLE_CONTENT_LANGUAGES as lang}
-						<button on:click={() => handleChange({ target: { value: lang } })} class="mx-2 hover:bg-surface-100" role="menuitem">
-							<div class="flex items-center justify-between gap-2">
+						<button
+							on:click={() => handleChange({ target: { value: lang } })}
+							class="mx-2 py-1 hover:bg-surface-50 hover:dark:text-black"
+							role="menuitem"
+						>
+							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
 								<span class="text-xs">{$translationStatus[lang]}%</span>
 							</div>

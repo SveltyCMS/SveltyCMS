@@ -199,8 +199,9 @@
 						{/if}
 					</div>
 				</button>
+
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-10 p-2" data-popup="User">
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="User">
 					{m.applayout_userprofile()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -220,8 +221,9 @@
 						<option value={locale} selected={locale === _languageTag}>{locale.toUpperCase()}</option>
 					{/each}
 				</select>
+
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-10 p-2" data-popup="SystemLanguage">
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SystemLanguage">
 					{m.applayout_systemlanguage()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -241,8 +243,9 @@
 						<iconify-icon icon="bi:moon-fill" width="22" />
 					{/if}
 				</button>
+
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-10 p-2" data-popup="SwitchTheme">
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SwitchTheme">
 					{m.applayout_switchmode({ $modeCurrent: !$modeCurrent ? 'Light' : 'Dark' })}
 					<div class="variant-filled arrow" />
 				</div>
@@ -253,8 +256,9 @@
 				<button use:popup={SignOutTooltip} on:click={signOut} type="submit" value="Sign out" class="btn-icon hover:bg-surface-500 hover:text-white">
 					<iconify-icon icon="uil:signout" width="26" />
 				</button>
+
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-10 p-2" data-popup="SignOutButton">
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="SignOutButton">
 					{m.applayout_signout()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -275,8 +279,9 @@
 						<iconify-icon icon="material-symbols:build-circle" width="32" />
 					</a>
 				</button>
+
 				<!-- Popup Tooltip with the arrow element -->
-				<div class="card variant-filled z-10 p-2" data-popup="Config">
+				<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Config">
 					{m.applayout_systemconfiguration()}
 					<div class="variant-filled arrow" />
 				</div>
@@ -288,8 +293,9 @@
 					<button use:popup={GithubTooltip} class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30" />
 					</button>
+
 					<!-- Popup Tooltip with the arrow element -->
-					<div class="card variant-filled z-10 p-2" data-popup="Github">
+					<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Github">
 						{m.applayout_githubdiscussion()}
 						<div class="variant-filled arrow" />
 					</div>

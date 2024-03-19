@@ -100,16 +100,16 @@
 <div class="flex w-full flex-col">
 	<!-- Display selected icon -->
 	{#if iconselected}
-		<div class="-mt-3 mb-1 flex items-center justify-around gap-2">
-			<div class="flex items-center gap-2 p-2">
-				<iconify-icon icon={iconselected} width="30" class="variant-ghost-primary btn-icon mt-1 py-2" />
+		<div class="-mt-3 mb-1 flex items-center justify-start gap-2">
+			<div class="flex items-center gap-3 p-2">
+				<iconify-icon icon={iconselected} width="30" class="py-2 text-tertiary-500" />
 				<p>
 					{m.iconpicker_name()}
 					<span class="text-primary-500">{iconselected}</span>
 				</p>
 			</div>
 			<button class="variant-ghost btn-icon" type="button" on:mouseup={removeIcon}>
-				<iconify-icon icon="icomoon-free:bin" width="24" class="" />
+				<iconify-icon icon="icomoon-free:bin" width="22" />
 			</button>
 		</div>
 	{/if}
@@ -119,8 +119,8 @@
 		type="text"
 		id="icon"
 		bind:value={searchQuery}
-		placeholder={m.iconpicker_placeholder()}
-		class="input w-full"
+		placeholder={iconselected ? `Replace Icon:    ${iconselected}` : m.iconpicker_placeholder()}
+		class="input w-full text-black dark:text-primary-500"
 		on:input={() => searchIcons(searchQuery, selectedLibrary)}
 		on:focus={showLibrariesAndDropdown}
 	/>

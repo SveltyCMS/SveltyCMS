@@ -125,6 +125,44 @@
 		// Set the initial tab
 		tabSet.set(0);
 	});
+  
+	function handleCollectionDelete() {
+		console.log('Delete collection:', $currentCollection.name);
+		// Define the confirmation modal
+		const confirmModal: ModalSettings = {
+			type: 'confirm',
+			title: 'Please Confirm',
+			body: 'Are you sure you wish to delete this collection?',
+			response: (r: boolean) => {
+				if (r) {
+					// Send the form data to the server
+					axios.post(`?/deleteCollections`, obj2formData({ collectionName: $currentCollection.name }), {
+						headers: {
+							'Content-Type': 'multipart/form-data'
+						}
+					});
+
+					// Trigger the toast
+					const t = {
+						message: 'Collection Deleted.',
+						// Provide any utility or variant background style:
+						background: 'variant-filled-error',
+						timeout: 3000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+					goto(`/collection`);
+				} else {
+					// User cancelled, do not delete
+					console.log('User cancelled deletion.');
+				}
+			}
+		};
+		// Trigger the confirmation modal
+		modalStore.trigger(confirmModal);
+		// Close the modal
+	}
 </script>
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
