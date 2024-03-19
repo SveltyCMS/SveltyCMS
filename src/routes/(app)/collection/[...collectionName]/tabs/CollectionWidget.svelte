@@ -12,6 +12,7 @@
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
 	import { icon } from '@src/collections/types';
+	import widget from '@src/components/widgets/checkbox';
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
@@ -137,14 +138,14 @@
 				<div
 					class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
 				>
-					<div class="variant-ghost-primary btn-icon">
+					<div class="variant-ghost-primary badge h-10 w-10 rounded-full">
 						{field.id}
 					</div>
-					<!-- TODO: display the icon from guischema widget-->
-					<iconify-icon {icon} width="24" class="text-tertiary-500" />
+
+					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
-					<div class="hidden md:table-cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class="hidden md:table-cell">{field?.key}</div>
+					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
+					<div class=" ">{field?.widget.key}</div>
 
 					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
