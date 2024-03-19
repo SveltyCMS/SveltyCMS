@@ -69,18 +69,18 @@
 			}
 		});
 
-		console.log('response:', resp);
-
-		// Trigger the toast
-		// const t = {
-		// 	message: "Collection Saved. You're all set to build your content.",
-		// 	// Provide any utility or variant background style:
-		// 	background: 'variant-filled-primary',
-		// 	timeout: 3000,
-		// 	// Add your custom classes here:
-		// 	classes: 'border-1 !rounded-md'
-		// };
-		// toastStore.trigger(t);
+		if (resp.data.status === 200) {
+			// Trigger the toast
+			const t = {
+				message: "Collection Saved. You're all set to build your content.",
+				// Provide any utility or variant background style:
+				background: 'variant-filled-primary',
+				timeout: 3000,
+				// Add your custom classes here:
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+		}
 	}
 
 	function handleCollectionDelete() {
@@ -187,7 +187,7 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet}>
+	<TabGroup bind:group={$tabSet} justify="justify-between lg:justify-start">
 		<TopTabs />
 
 		<svelte:fragment slot="panel">

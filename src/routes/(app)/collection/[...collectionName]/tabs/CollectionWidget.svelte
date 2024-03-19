@@ -1,13 +1,12 @@
 <script lang="ts">
 	import axios from 'axios';
 	import { page } from '$app/stores';
-	import { mode, currentCollection, tabSet, permissionStore } from '@stores/store';
+	import { mode, currentCollection, tabSet } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/ModalWidgetForm.svelte';
 	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
-	import { obj2formData } from '@src/utils/utils';
 	import * as m from '@src/paraglide/messages';
 
 	// Event dispatcher
@@ -101,7 +100,6 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
-				// console.log('response modalSelectWidget:', r);
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ key: selectedWidget }); // Use selectedWidget directly
