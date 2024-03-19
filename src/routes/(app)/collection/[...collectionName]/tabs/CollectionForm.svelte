@@ -18,8 +18,6 @@
 
 	const dispatch = createEventDispatcher();
 
-	let targetCollection: Schema;
-
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 	//check if collection Name exists set mode edit or create
@@ -27,11 +25,11 @@
 		mode.set('edit');
 		currentCollection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
 	} else {
-		mode.set('create');
-		targetCollection = {} as Schema;
-		targetCollection.name = collectionName;
-		currentCollection.set(targetCollection);
-		permissionStore.set({});
+		currentCollection.set({
+			...$currentCollection,
+			fields: $currentCollection.fields ? $currentCollection.fields : [],
+			name: collectionName
+		});
 	}
 
 	// Popup Tooltips
@@ -61,30 +59,23 @@
 		placement: 'right'
 	};
 
-	// Default widget data (tab1)
-	let name = $mode == 'edit' ? $currentCollection.name : collectionName;
-	let icon = $mode == 'edit' ? $currentCollection.icon : '';
-	let slug = $mode == 'edit' ? $currentCollection.slug : name?.toLowerCase().replace(/\s+/g, '_');
-	let description = $mode == 'edit' ? $currentCollection.description : '';
-	let status = $mode == 'edit' ? $currentCollection.status : 'unpublished';
-
 	// Form fields
 	let DBName = '';
 	let searchQuery = '';
-	let iconselected: any = icon || '';
+	let iconselected: any = $currentCollection ? $currentCollection.icon : '';
 	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 	let autoUpdateSlug = true;
 
 	function handleNameInput() {
-		if (name) {
+		if ($currentCollection.name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/collection/${name}`);
+			window.history.replaceState({}, '', `/collection/${$currentCollection.name}`);
 
 			// Update the page title
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${name} </span> Collection`);
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
 
 			// Update the linked slug input
-			slug = name.toLowerCase().replace(/\s+/g, '_');
+			$currentCollection.slug = $currentCollection.name.toLowerCase().replace(/\s+/g, '_');
 
 			// Call the `onSlugInput` function to update the slug variable
 			onSlugInput();
@@ -93,29 +84,37 @@
 
 	function onSlugInput() {
 		// Update the slug field whenever the name field is changed
-		if (name) {
-			slug = name.toLowerCase().replace(/\s+/g, '_');
-			return slug;
+		if ($currentCollection.name) {
+			currentCollection.set({
+				...$currentCollection,
+				slug: $currentCollection.name.toLowerCase().replace(/\s+/g, '_')
+			});
+			return $currentCollection.slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
 	}
 
 	$: {
-		// Update DBName  lowercase and replace Spaces
-		DBName = name ? name.toLowerCase().replace(/ /g, '_') : '';
+		if ($currentCollection) {
+			// Update DBName  lowercase and replace Spaces
+			DBName = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+			// Automatically update slug when name changes
+			if (autoUpdateSlug) {
+				$currentCollection.slug = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+			}
+			if ($mode == 'edit') {
+				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$currentCollection.name} </span> Collection`);
+			} else if ($currentCollection.name) {
+				dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
+			} else {
+				dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
+			}
+		}
+	}
 
-		// Automatically update slug when name changes
-		if (autoUpdateSlug) {
-			slug = collectionName.toLowerCase().replace(/\s+/g, '_');
-		}
-		if ($mode == 'edit') {
-			dispatch('updatePageTitle', `Edit <span class="text-primary-500">${collectionName} </span> Collection`);
-		} else if (collectionName) {
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${collectionName} </span> Collection`);
-		} else {
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
-		}
+	function handleNextClick() {
+		tabSet.set(1);
 	}
 </script>
 
@@ -123,37 +122,36 @@
 <div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 <!-- Collection Name -->
-<div class="flex flex-col gap-3 rounded-md p-2">
+<div class="flex flex-col gap-3 rounded-md">
 	<div class="w-full items-center sm:flex">
 		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
 			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" /></label
 		>
 
+		<!-- tooltip -->
+		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
 		<!-- Popup Tooltip with the arrow element -->
-		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
 			<div class="variant-filled arrow" />
 		</div>
 
-		<div class="w-full">
-			<input
-				type="text"
-				required
-				id="name"
-				bind:value={name}
-				on:input={handleNameInput}
-				placeholder={m.collection_name_placeholder()}
-				class="input text-black dark:text-primary-500"
-			/>
+		<input
+			type="text"
+			required
+			id="name"
+			bind:value={$currentCollection.name}
+			on:input={handleNameInput}
+			placeholder={m.collection_name_placeholder()}
+			class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
+		/>
 
-			{#if name}
-				<p class="my-3">
-					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-				</p>
-			{/if}
-		</div>
+		{#if $currentCollection && $currentCollection.name}
+			<p class="mb-3 sm:mb-0">
+				{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+			</p>
+		{/if}
 	</div>
 </div>
 
@@ -173,7 +171,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon bind:iconselected />
+		<IconifyPicker bind:searchQuery bind:icon={$currentCollection['icon']} bind:iconselected />
 	</div>
 
 	<!-- Slug -->
@@ -189,14 +187,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<input
-			type="text"
-			id="slug"
-			bind:value={slug}
-			placeholder={m.collection_slug_input()}
-			class="input text-black dark:text-primary-500"
-			on:input={onSlugInput}
-		/>
+		<input type="text" id="slug" bind:value={$currentCollection.slug} placeholder={m.collection_slug_input()} class="input w-full" />
 	</div>
 
 	<!-- Description -->
@@ -216,7 +207,7 @@
 			id="description"
 			rows="2"
 			cols="50"
-			bind:value={description}
+			bind:value={$currentCollection.description}
 			placeholder={m.collection_description_placeholder()}
 			class="input text-black dark:text-primary-500"
 		/>
@@ -235,7 +226,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<select id="status" bind:value={status} class="input text-black dark:text-primary-500">
+		<select id="status" bind:value={$currentCollection.status} class="input text-black">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}
@@ -246,5 +237,5 @@
 <!-- Buttons Cancel & Next-->
 <div class="mt-2 flex justify-between">
 	<a href="/collection" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
-	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
+	<button type="button" on:click={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
 </div>

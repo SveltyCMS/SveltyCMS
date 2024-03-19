@@ -35,6 +35,14 @@
 					name: role,
 					permissions: storedPermissions[role] || { create: false, read: false, write: false, delete: false }
 				}));
+		} else {
+			const storedPermissions = $permissionStore;
+			rolesArray = Object.values(roles)
+				.filter((role) => role !== 'admin')
+				.map((role) => ({
+					name: role,
+					permissions: storedPermissions[role] || { create: false, read: false, write: false, delete: false }
+				}));
 		}
 	}
 

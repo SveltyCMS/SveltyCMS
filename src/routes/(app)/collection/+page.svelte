@@ -3,7 +3,7 @@
 	import { generateUniqueId } from '@utils/utils';
 
 	// Stores
-	import { categories, mode, unAssigned } from '@stores/store';
+	import { categories, currentCollection, mode, unAssigned } from '@stores/store';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -52,7 +52,15 @@
 	}
 
 	function handleAddCollectionClick() {
-		console.log('handleAddCollectionClick:');
+		mode.set('create');
+		currentCollection.set({
+			name: 'new',
+			icon: '',
+			description: '',
+			status: 'unpublished',
+			slug: '',
+			fields: []
+		});
 		// Navigate to the route where you handle creating new collections
 		goto('/collection/new');
 	}
@@ -165,8 +173,6 @@
 			toastStore.trigger(t);
 		}
 	}
-
-	// console.log('mode', $mode);
 </script>
 
 <div class="mb-3 flex items-center justify-between">

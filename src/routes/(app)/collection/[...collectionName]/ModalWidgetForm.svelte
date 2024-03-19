@@ -12,13 +12,24 @@
 	// Skeleton Stores
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-
+  
+	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { currentCollection } from '@src/stores/store';
+  
 	let tabSet: number = 0;
 
 	export const addField: boolean = false;
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
+
+	//fields
+	let fields = $currentCollection.fields.map((field, index) => {
+		return {
+			id: index + 1, // Add the id property first
+			...field // Copy all existing properties
+		};
+	});
 
 	// Form Data
 	let formData: any = {};
@@ -45,8 +56,14 @@
 	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		if ($modalStore[0].response) $modalStore[0].response(formData);
+	async function onFormSubmit(): Promise<void> {
+		if ($modalStore[0].response) {
+			await $modalStore[0].response(formData);
+		}
+		modalStore.close();
+	}
+
+	function onCancel(): void {
 		modalStore.close();
 	}
 
@@ -55,7 +72,11 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-
+			let updatedFields = fields.filter((field: any) => field.id !== $modalStore[0].value.id);
+			currentCollection.update((c) => {
+				c.fields = updatedFields;
+				return c;
+			});
 			modalStore.close();
 		}
 	}
@@ -64,10 +85,6 @@
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	$: {
-		console.log('GUI Schema:', guiSchema);
-	}
 </script>
 
 {#if $modalStore[0]}
@@ -104,7 +121,6 @@
 					{#if tabSet === 0}
 						{#if $modalStore[0].value}
 							<!-- Default section -->
-
 							<div class="mb-2 border-y text-center text-primary-500">
 								<div class="text-xl text-primary-500">
 									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
@@ -112,9 +128,8 @@
 								<div class="my-1 text-xs text-error-500">* Required</div>
 							</div>
 							<div class="options-table">
-								<!-- Default section -->
 								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
-									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
+									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[$modalStore[0].value.key]).widget} key={property} />
 								{/each}
 							</div>
 						{/if}
@@ -140,6 +155,7 @@
 			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
+      
 			<!-- Cancel & Save Button -->
 			<div class="flex justify-between gap-4">
 				<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>

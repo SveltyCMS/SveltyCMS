@@ -20,7 +20,7 @@ export const collection: Writable<Schema> = writable();
 
 // ------------ Collections ------------
 // Collections stores
-export const currentCollection: Writable<Schema> = writable();
+export const currentCollection: Writable<Schema> = writable({});
 // collective data of collection
 export const collectionValue: any = writable({});
 // entry data of collection

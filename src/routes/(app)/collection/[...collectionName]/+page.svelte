@@ -19,7 +19,7 @@
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	import * as m from '@src/paraglide/messages';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-
+	import { onMount } from 'svelte';
 	const modalStore = getModalStore();
 
 	const toastStore = getToastStore();
@@ -28,10 +28,6 @@
 
 	// Default widget data (tab1)
 	let name = $mode == 'edit' ? ($currentCollection ? $currentCollection.name : collectionName) : collectionName;
-	let icon = '';
-	let slug = '';
-	let description = '';
-	let fields = [];
 
 	// Page title
 	let pageTitle =
@@ -46,7 +42,7 @@
 	}
 
 	// Function to save data by sending a POST request
-	function handleCollectionSave() {
+	async function handleCollectionSave() {
 		// Prepare form data
 		let data =
 			$mode == 'edit'
@@ -60,25 +56,35 @@
 						permissions: $permissionStore,
 						fields: $currentCollection.fields
 					})
-				: obj2formData({ fields, permissionStore, collectionName: name, icon, slug, description, status });
+				: obj2formData({
+						collectionName: name,
+						icon: $currentCollection.icon,
+						status: $currentCollection.status,
+						slug: $currentCollection.slug,
+						description: $currentCollection.description,
+						permissions: $permissionStore,
+						fields: $currentCollection.fields
+					});
 
 		// Send the form data to the server
-		axios.post(`?/saveCollections`, data, {
+		let resp = await axios.post(`?/saveCollection`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
 			}
 		});
 
-		// Trigger the toast
-		const t = {
-			message: "Collection Saved. You're all set to build your content.",
-			// Provide any utility or variant background style:
-			background: 'variant-filled-primary',
-			timeout: 3000,
-			// Add your custom classes here:
-			classes: 'border-1 !rounded-md'
-		};
-		toastStore.trigger(t);
+		if (resp.data.status === 200) {
+			// Trigger the toast
+			const t = {
+				message: "Collection Saved. You're all set to build your content.",
+				// Provide any utility or variant background style:
+				background: 'variant-filled-primary',
+				timeout: 3000,
+				// Add your custom classes here:
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
+		}
 	}
 
 	function handleCollectionDelete() {
@@ -118,21 +124,27 @@
 		modalStore.trigger(confirmModal);
 		// Close the modal
 	}
+
+	onMount(() => {
+		// Set the initial tab
+		tabSet.set(0);
+	});
 </script>
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
-	{#if ($mode = 'edit')}
+	{#if $mode == 'edit'}
 		<div>
 			<button
 				type="button"
 				on:click={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black">Delete</button
-			>
+				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				>Delete
+			</button>
 			<button
 				type="button"
 				on:click={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
+				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">Update</button
 			>
 		</div>
 	{/if}
@@ -150,7 +162,7 @@
 			{:else if $tabSet === 1}
 				<CollectionPermission />
 			{:else if $tabSet === 2}
-				<CollectionWidget />
+				<CollectionWidget on:save={handleCollectionSave} />
 			{/if}
 		</svelte:fragment>
 	</TabGroup>

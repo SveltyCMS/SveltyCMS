@@ -1,5 +1,4 @@
 <script lang="ts">
-	// Components
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';

@@ -9,7 +9,6 @@ import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
-import { POST } from '@src/routes/api/[collection]/+server.js';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -33,7 +32,6 @@ export async function load(event) {
 export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
-		console.log('saveCollection');
 		const formData = await request.formData();
 		const fieldsData = formData.get('fields') as string;
 		const originalName = JSON.parse(formData.get('originalName') as string);
@@ -46,7 +44,9 @@ export const actions: Actions = {
 		const permissionsData = JSON.parse(formData.get('permissions') as string);
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
+
 		const imports = await goThrough(fields);
+		console.log('imports', imports);
 		// 	// Generate fields as formatted string
 
 		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
@@ -78,14 +78,23 @@ export const actions: Actions = {
 		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 
 		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
-		if (originalName && originalName != collectionName) {
-			fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
+		try {
+			if (originalName && originalName != collectionName) {
+				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
+			}
+			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
+			await compile();
+			await updateCollections(true);
+			await getCollectionModels();
+			return {
+				status: 200
+			};
+		} catch (e) {
+			return {
+				status: 500,
+				error: e
+			};
 		}
-		fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
-		await compile();
-		await updateCollections(true);
-		await getCollectionModels();
-		return null;
 	},
 
 	saveConfig: async ({ request }) => {
