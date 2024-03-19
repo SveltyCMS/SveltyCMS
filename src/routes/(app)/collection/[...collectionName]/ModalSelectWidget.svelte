@@ -1,17 +1,18 @@
 <script lang="ts">
+	// Components
 	import widgets from '@components/widgets';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Skeleton Stores
+	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
 	export let existingCategory: any = { name: '', icon: '' };
-
-	// Stores
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
-
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Define the search term variable
 	let searchTerm: string = '';

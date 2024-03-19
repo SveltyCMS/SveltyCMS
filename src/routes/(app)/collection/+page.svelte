@@ -1,21 +1,23 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { generateUniqueId } from '@utils/utils';
+
 	// Stores
 	import { categories, mode, unAssigned } from '@stores/store';
 
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
-	import { goto } from '$app/navigation';
+	import ModalCategory from './ModalCategory.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
-	import ModalCategory from './ModalCategory.svelte';
-	import PageTitle from '@components/PageTitle.svelte';
-	import { generateUniqueId } from '@utils/utils';
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
@@ -164,7 +166,7 @@
 		}
 	}
 
-	console.log('mode', $mode);
+	// console.log('mode', $mode);
 </script>
 
 <div class="mb-3 flex items-center justify-between">

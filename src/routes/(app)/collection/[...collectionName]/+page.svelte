@@ -1,20 +1,25 @@
 <script lang="ts">
 	import axios from 'axios';
 	import { goto } from '$app/navigation';
+	import { obj2formData } from '@src/utils/utils';
+
+	// Stores
 	import { page } from '$app/stores';
-	import { permissionStore, tabSet } from '@stores/store';
-	import { mode, currentCollection } from '@stores/store';
-	import { TabGroup } from '@skeletonlabs/skeleton';
-	import * as m from '@src/paraglide/messages';
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { mode, currentCollection, permissionStore, tabSet } from '@stores/store';
+
+	// Components
 	import TopTabs from './tabs/TopTabs.svelte';
 	import CollectionPermission from './tabs/CollectionPermission.svelte';
 	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
-	import { obj2formData } from '@src/utils/utils';
 
+	// Skeleton
+	import { TabGroup } from '@skeletonlabs/skeleton';
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	import * as m from '@src/paraglide/messages';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+
 	const modalStore = getModalStore();
 
 	const toastStore = getToastStore();

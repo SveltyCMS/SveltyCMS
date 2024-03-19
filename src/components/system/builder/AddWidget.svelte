@@ -29,6 +29,7 @@
 	</div>
 
 	{#if !selected_widget}
+		test
 		<div class="flex items-center justify-center">
 			<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
 		</div>

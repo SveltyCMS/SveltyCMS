@@ -1,19 +1,21 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
+	import { asAny } from '@utils/utils';
+
+	// Components
 	import widgets from '@components/widgets';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
-	import { asAny } from '@utils/utils';
-	export const addField: boolean = false;
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
+	// Skeleton Stores
+	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+
 	let tabSet: number = 0;
 
+	export const addField: boolean = false;
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
@@ -68,8 +70,6 @@
 	}
 </script>
 
-<!-- @component This example creates a simple form modal. -->
-
 {#if $modalStore[0]}
 	<div class={cBase}>
 		<header class={`${cHeader}`}>
@@ -77,7 +77,7 @@
 		</header>
 		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
 
-		<!-- Enable for debugging: -->
+		<!-- Tabs Headers -->
 		<form class={cForm}>
 			<TabGroup justify="justify-between lg:justify-start">
 				<Tab bind:group={tabSet} name="tab1" value={0}>
@@ -135,18 +135,16 @@
 			</TabGroup>
 		</form>
 
-		<!-- prettier-ignore -->
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
 			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
-	
-		<div class="flex justify-between gap-4">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
-		</div>
-
+			<!-- Cancel & Save Button -->
+			<div class="flex justify-between gap-4">
+				<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+			</div>
 		</footer>
 	</div>
 {/if}

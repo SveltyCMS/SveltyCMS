@@ -60,7 +60,6 @@
 		target: 'Status',
 		placement: 'right'
 	};
-	// Skeleton
 
 	// Default widget data (tab1)
 	let name = $mode == 'edit' ? $currentCollection.name : collectionName;
@@ -131,11 +130,11 @@
 			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" /></label
 		>
 
-		<!-- tooltip -->
-		<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup="Name">
+		<!-- Popup Tooltip with the arrow element -->
+		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
-			<div class="variant-filled-secondary arrow" />
+			<div class="variant-filled arrow" />
 		</div>
 
 		<div class="w-full">
@@ -244,7 +243,7 @@
 	</div>
 </div>
 
-<!-- Buttons -->
+<!-- Buttons Cancel & Next-->
 <div class="mt-2 flex justify-between">
 	<a href="/collection" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
 	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>

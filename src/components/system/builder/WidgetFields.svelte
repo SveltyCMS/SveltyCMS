@@ -8,6 +8,7 @@
 	import InputSwitch from './InputSwitch.svelte';
 
 	import { asAny, debounce } from '@src/utils/utils';
+	import AddWidget from './AddWidget.svelte';
 
 	export let fields: Array<any> = [];
 
@@ -115,6 +116,34 @@
 	}
 </script>
 
+<div class="wrapper" bind:this={container}>
+	{#each fields as field, index}
+		<div
+			on:click={() => {
+				currentFieldKey = field.widget.key;
+				currentField = field;
+			}}
+			on:pointerdown|stopPropagation={drag}
+			class="field"
+			data-index={index}
+		>
+			<div class="h-full w-full p-[10px]">
+				<p>widget: {field.widget.key}</p>
+				<p>label: {field.label}</p>
+			</div>
+			<button
+				class="absolute right-[5px] top-[5px]"
+				on:click|stopPropagation={() => {
+					fields = [...fields.filter((f) => f !== field)];
+				}}><iconify-icon icon="tdesign:delete-1" width="24" height="24" /></button
+			>
+		</div>
+	{/each}
+</div>
+
+{#if currentField}
+	<AddWidget bind:fields bind:field={currentField} bind:addField={currentField} selected_widget={currentFieldKey} editField={true} />
+{/if}
 <!-- list of widget names -->
 <div class="user-select-none mx-5 max-h-full min-w-[min(500px,90vw)] overflow-auto rounded bg-surface-400 shadow-xl" bind:this={container}>
 	{#each fields as field}

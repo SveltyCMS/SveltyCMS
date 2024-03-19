@@ -44,10 +44,10 @@
 
 {#if $mode == 'edit' && $collection}
 	<!-- Language -->
-	<div class="relative inline-block text-left">
+	<div class="relative mt-1 inline-block text-left">
 		<div>
 			<button
-				class="variant-ghost-surface btn-sm w-16 !rounded-none !rounded-t border-surface-400 sm:btn"
+				class="border-sm:btn variant-ghost-surface btn-sm flex w-16 items-center gap-3 !rounded-none !rounded-t border border-b-0 border-surface-400 focus:ring-[1px] focus:ring-tertiary-600"
 				id="options-menu"
 				aria-haspopup="true"
 				aria-expanded={isOpen}
@@ -55,7 +55,7 @@
 			>
 				{$contentLanguage.toUpperCase()}
 
-				<iconify-icon icon="mingcute:down-fill"></iconify-icon>
+				<iconify-icon icon="mingcute:down-line" width="20" class="text-surface-500" />
 			</button>
 
 			<ProgressBar
@@ -66,7 +66,7 @@
 				rounded="none"
 				height="h-1"
 				meter={getColor($completionStatus)}
-				track="bg-surface-500 dark:bg-surface-400 transition-all"
+				track="bg-surface-500 dark:bg-surface-400 transition-all rounded-b"
 			/>
 		</div>
 		<!-- dropdown -->
