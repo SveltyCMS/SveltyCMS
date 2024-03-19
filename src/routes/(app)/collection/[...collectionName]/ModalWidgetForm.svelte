@@ -43,8 +43,14 @@
 	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		if ($modalStore[0].response) $modalStore[0].response(formData);
+	async function onFormSubmit(): Promise<void> {
+		if ($modalStore[0].response) {
+			await $modalStore[0].response(formData);
+		}
+		modalStore.close();
+	}
+
+	function onCancel(): void {
 		modalStore.close();
 	}
 
@@ -64,7 +70,7 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	$: {
-		console.log('GUI Schema:', guiSchema);
+		console.log('formData:', formData);
 	}
 </script>
 
@@ -104,10 +110,11 @@
 					{#if tabSet === 0}
 						{#if $modalStore[0].value}
 							<!-- Default section -->
+							{console.log(' $modalStore[0].value', $modalStore[0].value)}
 
 							<div class="mb-2 border-y text-center text-primary-500">
 								<div class="text-xl text-primary-500">
-									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
+									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value}</span> Input Options
 								</div>
 								<div class="my-1 text-xs text-error-500">* Required</div>
 							</div>
@@ -143,7 +150,7 @@
 			</button>
 	
 		<div class="flex justify-between gap-2">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
+			<button class="btn {parent.buttonNeutral}" on:click={onCancel}>{m.button_cancel()}</button>
 			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 		</div>
 

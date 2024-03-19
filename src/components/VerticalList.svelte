@@ -11,7 +11,7 @@
 	let gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
 </script>
 
-<div>
+<div class="h-full overflow-scroll">
 	<!-- Header -->
 	{#if headers.length > 0}
 		<div class={gridClass}>
@@ -21,12 +21,7 @@
 		</div>
 	{/if}
 
-	<section
-		use:dndzone={{ items: items, flipDurationMs }}
-		on:consider={handleDndConsider}
-		on:finalize={handleDndFinalize}
-		class="my-1 w-full overflow-scroll border border-surface-400 p-2"
-	>
+	<section use:dndzone={{ items: items, flipDurationMs }} on:consider={handleDndConsider} on:finalize={handleDndFinalize} class="my-1 w-full">
 		<!-- Data -->
 		<slot />
 	</section>

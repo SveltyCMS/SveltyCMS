@@ -51,6 +51,7 @@
 
 	function handleAddCollectionClick() {
 		console.log('handleAddCollectionClick:');
+		mode.set('create');
 		// Navigate to the route where you handle creating new collections
 		goto('/collection/new');
 	}
@@ -163,8 +164,6 @@
 			toastStore.trigger(t);
 		}
 	}
-
-	console.log('mode', $mode);
 </script>
 
 <div class="mb-3 flex items-center justify-between">

@@ -15,6 +15,7 @@
 	import { obj2formData } from '@src/utils/utils';
 
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 	const modalStore = getModalStore();
 
 	const toastStore = getToastStore();
@@ -115,21 +116,27 @@
 		modalStore.trigger(confirmModal);
 		// Close the modal
 	}
+
+	onMount(() => {
+		// Set the initial tab
+		tabSet.set(0);
+	});
 </script>
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
-	{#if ($mode = 'edit')}
+	{#if $mode == 'edit'}
 		<div>
 			<button
 				type="button"
 				on:click={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black">Delete</button
-			>
+				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+				>Delete
+			</button>
 			<button
 				type="button"
 				on:click={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-primary dark:text-black">Save</button
+				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">Update</button
 			>
 		</div>
 	{/if}
