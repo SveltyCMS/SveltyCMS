@@ -122,7 +122,7 @@
 <div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 <!-- Collection Name -->
-<div class="flex flex-col gap-3 rounded-md p-2">
+<div class="flex flex-col gap-3 rounded-md">
 	<div class="w-full items-center sm:flex">
 		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
@@ -130,10 +130,10 @@
 		>
 
 		<!-- tooltip -->
-		<div class="card variant-filled-secondary z-50 max-w-sm p-4" data-popup="Name">
+		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
-			<div class="variant-filled-secondary arrow" />
+			<div class="variant-filled arrow" />
 		</div>
 
 	<input
