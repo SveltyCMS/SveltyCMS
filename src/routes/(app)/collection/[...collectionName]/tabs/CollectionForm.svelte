@@ -10,20 +10,12 @@
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	let targetCollection: Schema;
-
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 	//check if collection Name exists set mode edit or create
 	if ($collections.find((x) => x.name === collectionName)) {
 		mode.set('edit');
 		currentCollection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
-	} else {
-		mode.set('create');
-		targetCollection = {} as Schema;
-		targetCollection.name = collectionName;
-		currentCollection.set(targetCollection);
-		permissionStore.set({});
 	}
 
 	// Popup Tooltips
@@ -53,31 +45,24 @@
 		placement: 'right'
 	};
 	// Skeleton
-
-	// Default widget data (tab1)
-	let name = $mode == 'edit' ? $currentCollection.name : collectionName;
-	let icon = $mode == 'edit' ? $currentCollection.icon : '';
-	let slug = $mode == 'edit' ? $currentCollection.slug : name?.toLowerCase().replace(/\s+/g, '_');
-	let description = $mode == 'edit' ? $currentCollection.description : '';
-	let status = $mode == 'edit' ? $currentCollection.status : 'unpublished';
-
+	console.log('currentCollection', $currentCollection);
 	// Form fields
 	let DBName = '';
 	let searchQuery = '';
-	let iconselected: any = icon || '';
+	let iconselected: any = $currentCollection ? $currentCollection.icon : '';
 	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 	let autoUpdateSlug = true;
 
 	function handleNameInput() {
-		if (name) {
+		if ($currentCollection.name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/collection/${name}`);
+			window.history.replaceState({}, '', `/collection/${$currentCollection.name}`);
 
 			// Update the page title
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${name} </span> Collection`);
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
 
 			// Update the linked slug input
-			slug = name.toLowerCase().replace(/\s+/g, '_');
+			$currentCollection.slug = $currentCollection.name.toLowerCase().replace(/\s+/g, '_');
 
 			// Call the `onSlugInput` function to update the slug variable
 			onSlugInput();
@@ -86,9 +71,12 @@
 
 	function onSlugInput() {
 		// Update the slug field whenever the name field is changed
-		if (name) {
-			slug = name.toLowerCase().replace(/\s+/g, '_');
-			return slug;
+		if ($currentCollection.name) {
+			currentCollection.set({
+				...$currentCollection,
+				slug: $currentCollection.name.toLowerCase().replace(/\s+/g, '_')
+			});
+			return $currentCollection.slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
@@ -96,19 +84,23 @@
 
 	$: {
 		// Update DBName  lowercase and replace Spaces
-		DBName = name ? name.toLowerCase().replace(/ /g, '_') : '';
+		DBName = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
 
 		// Automatically update slug when name changes
 		if (autoUpdateSlug) {
-			slug = collectionName.toLowerCase().replace(/\s+/g, '_');
+			$currentCollection.slug = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
 		}
 		if ($mode == 'edit') {
-			dispatch('updatePageTitle', `Edit <span class="text-primary-500">${collectionName} </span> Collection`);
-		} else if (collectionName) {
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${collectionName} </span> Collection`);
+			dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$currentCollection.name} </span> Collection`);
+		} else if ($currentCollection.name) {
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
 		} else {
 			dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
 		}
+	}
+
+	function handleNextClick() {
+		tabSet.set(1);
 	}
 </script>
 
@@ -132,13 +124,13 @@
 		type="text"
 		required
 		id="name"
-		bind:value={name}
+		bind:value={$currentCollection.name}
 		on:input={handleNameInput}
 		placeholder={m.collection_name_placeholder()}
-		class="input {name ? 'w-full md:w-1/2' : 'w-full'}"
+		class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
 	/>
 
-	{#if name}
+	{#if $currentCollection.name}
 		<p class="mb-3 sm:mb-0">
 			{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 		</p>
@@ -162,7 +154,7 @@
 			<div class="variant-filled-secondary arrow" />
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon bind:iconselected />
+		<IconifyPicker bind:searchQuery bind:icon={$currentCollection.icon} bind:iconselected />
 	</div>
 
 	<!-- Slug -->
@@ -178,7 +170,7 @@
 			<div class="variant-filled-secondary arrow" />
 		</div>
 
-		<input type="text" id="slug" bind:value={slug} placeholder={m.collection_slug_input()} class="input w-full" on:input={onSlugInput} />
+		<input type="text" id="slug" bind:value={$currentCollection.slug} placeholder={m.collection_slug_input()} class="input w-full" />
 	</div>
 
 	<!-- Description -->
@@ -198,7 +190,7 @@
 			id="description"
 			rows="2"
 			cols="50"
-			bind:value={description}
+			bind:value={$currentCollection.description}
 			placeholder={m.collection_description_placeholder()}
 			class="input w-full"
 		/>
@@ -217,7 +209,7 @@
 			<div class="variant-filled-secondary arrow" />
 		</div>
 
-		<select id="status" bind:value={status} class="input w-full">
+		<select id="status" bind:value={$currentCollection.status} class="input w-full">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}
@@ -229,5 +221,5 @@
 <!-- Buttons -->
 <div class="flex justify-between">
 	<a href="/collection" class="variant-filled-secondary btn mt-2">{m.button_cancel()}</a>
-	<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
+	<button type="button" on:click={handleNextClick} class="variant-filled-tertiary btn mt-2 dark:variant-filled-primary">{m.button_next()}</button>
 </div>

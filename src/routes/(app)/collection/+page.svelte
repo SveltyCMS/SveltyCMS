@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Stores
-	import { categories, mode, unAssigned } from '@stores/store';
+	import { categories, currentCollection, mode, unAssigned } from '@stores/store';
 
 	import Unassigned from './[...collectionName]/Unassigned.svelte';
 	import Board from './Board.svelte';
@@ -50,8 +50,15 @@
 	}
 
 	function handleAddCollectionClick() {
-		console.log('handleAddCollectionClick:');
 		mode.set('create');
+		currentCollection.set({
+			name: 'new',
+			icon: '',
+			description: '',
+			status: 'unpublished',
+			slug: '',
+			fields: []
+		});
 		// Navigate to the route where you handle creating new collections
 		goto('/collection/new');
 	}
