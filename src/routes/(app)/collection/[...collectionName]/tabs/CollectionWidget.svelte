@@ -11,6 +11,7 @@
 
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
+	import { icon } from '@src/collections/types';
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
@@ -29,7 +30,7 @@
 	});
 
 	// Collection headers
-	const headers = ['Id', 'Name', 'DBName', 'Widget', 'Actions'];
+	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
 
 	// svelte-dnd-action
 	const flipDurationMs = 300;
@@ -140,7 +141,7 @@
 						{field.id}
 					</div>
 					<!-- TODO: display the icon from guischema widget-->
-					<!-- <iconify-icon {icon} width="24" class="text-tertiary-500" /> -->
+					<iconify-icon {icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class="hidden md:table-cell">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
 					<div class="hidden md:table-cell">{field?.key}</div>
@@ -155,7 +156,6 @@
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
 			<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
-
 		</div>
 		<div class=" flex items-center justify-between">
 			<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
