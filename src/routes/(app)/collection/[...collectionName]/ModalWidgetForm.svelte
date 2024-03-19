@@ -12,8 +12,9 @@
 	// Skeleton Stores
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-  
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+
+	import { currentCollection } from '@src/stores/store';
+
 	import { currentCollection } from '@src/stores/store';
   
 	let tabSet: number = 0;
@@ -60,10 +61,6 @@
 		if ($modalStore[0].response) {
 			await $modalStore[0].response(formData);
 		}
-		modalStore.close();
-	}
-
-	function onCancel(): void {
 		modalStore.close();
 	}
 
@@ -129,7 +126,11 @@
 							</div>
 							<div class="options-table">
 								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
-									<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[$modalStore[0].value.key]).widget} key={property} />
+									<InputSwitch
+										bind:value={formData[property]}
+										widget={asAny(guiSchema[$modalStore[0].value.key].GuiSchema[property]?.widget)}
+										key={property}
+									/>
 								{/each}
 							</div>
 						{/if}
@@ -155,7 +156,7 @@
 			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
-      
+
 			<!-- Cancel & Save Button -->
 			<div class="flex justify-between gap-4">
 				<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
