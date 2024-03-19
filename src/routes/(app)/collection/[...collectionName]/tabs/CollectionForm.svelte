@@ -83,19 +83,20 @@
 	}
 
 	$: {
-		// Update DBName  lowercase and replace Spaces
-		DBName = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
-
-		// Automatically update slug when name changes
-		if (autoUpdateSlug) {
-			$currentCollection.slug = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
-		}
-		if ($mode == 'edit') {
-			dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$currentCollection.name} </span> Collection`);
-		} else if ($currentCollection.name) {
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
-		} else {
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
+		if ($currentCollection) {
+			// Update DBName  lowercase and replace Spaces
+			DBName = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+			// Automatically update slug when name changes
+			if (autoUpdateSlug) {
+				$currentCollection.slug = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+			}
+			if ($mode == 'edit') {
+				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$currentCollection.name} </span> Collection`);
+			} else if ($currentCollection.name) {
+				dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
+			} else {
+				dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
+			}
 		}
 	}
 
@@ -130,7 +131,7 @@
 		class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
 	/>
 
-	{#if $currentCollection.name}
+	{#if $currentCollection && $currentCollection.name}
 		<p class="mb-3 sm:mb-0">
 			{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 		</p>
@@ -154,7 +155,7 @@
 			<div class="variant-filled-secondary arrow" />
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon={$currentCollection.icon} bind:iconselected />
+		<IconifyPicker bind:searchQuery bind:icon={$currentCollection['icon']} bind:iconselected />
 	</div>
 
 	<!-- Slug -->
