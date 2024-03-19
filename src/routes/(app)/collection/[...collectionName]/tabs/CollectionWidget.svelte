@@ -54,6 +54,7 @@
 			body: 'Setup your widget and then press Save.',
 			value: selectedWidget, // Pass the selected widget	as the initial value
 			response: (r: any) => {
+				if (!r) return;
 				console.log('response modalWidgetForm:', r);
 				console.log('fields old:', fields);
 
@@ -146,7 +147,7 @@
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field?.widget.key}</div>
+					<div class=" ">{field?.key}</div>
 
 					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />

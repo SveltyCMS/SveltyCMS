@@ -131,7 +131,7 @@
 
 		<!-- tooltip -->
 		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
-		<!-- Popup Tooltip with the arrow element -->
+			<!-- Popup Tooltip with the arrow element -->
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
 			<div class="variant-filled arrow" />
@@ -226,7 +226,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<select id="status" bind:value={$currentCollection.status} class="input text-black">
+		<select id="status" bind:value={$currentCollection.status} class="input dark:text-white">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}
