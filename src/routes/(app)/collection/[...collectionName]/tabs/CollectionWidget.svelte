@@ -1,7 +1,6 @@
 <script lang="ts">
-	import axios from 'axios';
 	import { page } from '$app/stores';
-	import { mode, currentCollection, tabSet } from '@stores/store';
+	import { currentCollection, tabSet } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
@@ -11,12 +10,11 @@
 
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
-	import { icon } from '@src/collections/types';
-	import widget from '@src/components/widgets/checkbox';
+	import widgets from '@src/components/widgets';
+	import { getGuiFields } from '@src/utils/utils';
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
-	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
@@ -55,9 +53,6 @@
 			value: selectedWidget, // Pass the selected widget	as the initial value
 			response: (r: any) => {
 				if (!r) return;
-				console.log('response modalWidgetForm:', r);
-				console.log('fields old:', fields);
-
 				// Find the index of the existing widget based on its ID
 				const existingIndex = fields.findIndex((widget) => widget.id === r.id);
 
@@ -74,20 +69,16 @@
 					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
-					fields = [
-						...fields,
-						{
-							id: fields.length + 1,
-							...r
-						}
-					];
+					let newField = {
+						id: fields.length + 1,
+						...r
+					};
+					fields = [...fields, newField];
 					currentCollection.update((c) => {
 						c.fields = fields;
 						return c;
 					});
 				}
-
-				console.log('fields new:', fields);
 			}
 		};
 		modalStore.trigger(modal);
@@ -103,10 +94,9 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
-				console.log('response modalSelectWidget:', r);
 				if (!r) return;
 				const { selectedWidget } = r;
-				modalWidgetForm({ key: selectedWidget }); // Use selectedWidget directly
+				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
 			}
 		};
 		modalStore.trigger(modal);
@@ -114,6 +104,23 @@
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
+		fields = fields.map((field) => {
+			let GuiFields = getGuiFields({ key: field.widget.key }, widgets[field.widget.key].GuiSchema);
+			for (let [property, value] of Object.entries(field)) {
+				if (typeof value !== 'object' && property !== 'id') {
+					GuiFields[property] = field[property];
+				}
+			}
+			field.widget.GuiFields = GuiFields;
+			return field;
+		});
+
+		// Update the collection fields
+		currentCollection.update((c) => {
+			c.fields = fields;
+			return c;
+		});
+
 		dispatch('save');
 	}
 
@@ -147,8 +154,9 @@
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field?.key || field.widget?.key}</div>
-					<button type="button" class="variant-ghost-tertiary btn-icon ml-auto dark:variant-ghost-primary" on:click={() => modalWidgetForm(field)}>
+					<div class=" ">{field.widget?.key}</div>
+
+					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 					</button>
 				</div>

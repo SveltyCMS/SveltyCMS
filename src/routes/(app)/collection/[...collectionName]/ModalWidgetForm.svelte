@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { SvelteComponent } from 'svelte';
+	import { onMount, type SvelteComponent } from 'svelte';
 	import { asAny } from '@utils/utils';
 
 	// Components
@@ -33,20 +33,21 @@
 	// Form Data
 	let formData: any = {};
 	// Check if the selected widget has a key property.
-	if ($modalStore[0].value.key) {
-		// If the selected widget has a key property, then it is an existing widget.
-		// Use the $modalStore[0].value object as the formData.
-		formData = {
-			...$modalStore[0].value
-		};
-	} else {
-		// If the selected widget does not have a key property, then it is a new widget.
-		// Create a new formData object for the new widget.
-		formData = {
-			// ...widgets[$modalStore[0].value],
-			key: $modalStore[0].value,
-			GuiFields: { ...widgets[$modalStore[0].value]?.GuiSchema }
-		};
+	if ($modalStore.length) {
+		if ($modalStore[0].value.key) {
+			// If the selected widget has a key property, then it is an existing widget.
+			// Use the $modalStore[0].value object as the formData.
+			let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
+			formData = Object.assign({}, field, $modalStore[0].value);
+		} else {
+			// If the selected widget does not have a key property, then it is a new widget.
+			// Create a new formData object for the new widget.
+			formData = {
+				// ...widgets[$modalStore[0].value],
+				key: $modalStore[0].value.widget.key,
+				...$modalStore[0].value
+			};
+		}
 	}
 
 	// Get the keys of the widgets object
@@ -80,6 +81,25 @@
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
+
+	onMount(() => {
+		if ($modalStore.length) {
+			if ($modalStore[0].value.key) {
+				// If the selected widget has a key property, then it is an existing widget.
+				// Use the $modalStore[0].value object as the formData.
+				let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
+				formData = Object.assign({}, field, $modalStore[0].value);
+			} else {
+				// If the selected widget does not have a key property, then it is a new widget.
+				// Create a new formData object for the new widget.
+				formData = {
+					// ...widgets[$modalStore[0].value],
+					key: $modalStore[0].value.widget.key,
+					...$modalStore[0].value
+				};
+			}
+		}
+	});
 </script>
 
 {#if $modalStore[0]}
@@ -118,15 +138,16 @@
 							<!-- Default section -->
 							<div class="mb-2 border-y text-center text-primary-500">
 								<div class="text-xl text-primary-500">
-									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.key}</span> Input Options
+									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.key}</span> Input Options
 								</div>
 								<div class="my-1 text-xs text-error-500">* Required</div>
 							</div>
 							<div class="options-table">
-								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
+								{#each ['label', 'placeholder', 'db_fieldName', 'translated', 'icon', 'width'] as property}
 									<InputSwitch
 										bind:value={formData[property]}
-										widget={asAny(guiSchema[$modalStore[0].value.label].GuiSchema[property]?.widget)}
+										bind:iconselected={formData[property]}
+										widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
 										key={property}
 									/>
 								{/each}
@@ -135,13 +156,23 @@
 					{:else if tabSet === 1}
 						<!-- Permissions section -->
 						{#each ['permissions'] as property}
-							<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property])?.widget} key={property} />
+							<InputSwitch
+								bind:value={formData[property]}
+								bind:iconselected={formData[property]}
+								widget={asAny(guiSchema[property])?.widget}
+								key={property}
+							/>
 						{/each}
 					{:else if tabSet === 2}
 						<!-- Specific section -->
 						{#each Object.keys(guiSchema) as property}
 							{#if !['label', 'display', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
-								<InputSwitch bind:value={formData[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
+								<InputSwitch
+									bind:value={formData[property]}
+									bind:iconselected={formData[property]}
+									widget={asAny(guiSchema[property]?.widget)}
+									key={property}
+								/>
 							{/if}
 						{/each}
 					{/if}

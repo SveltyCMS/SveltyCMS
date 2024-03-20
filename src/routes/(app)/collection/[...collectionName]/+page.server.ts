@@ -44,12 +44,8 @@ export const actions: Actions = {
 		const permissionsData = JSON.parse(formData.get('permissions') as string);
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
-
 		const imports = await goThrough(fields);
-		console.log('imports', imports);
-		// 	// Generate fields as formatted string
-
-		// const fieldsString = fields.map((field) => `\t\twidgets.${field.widget.key}(${JSON.stringify(field, null, 2)})`).join(',\n');
+		// Generate fields as formatted string
 		let content = `${imports}
 			import widgets from '@components/widgets';
 			import { roles } from './types';
@@ -69,7 +65,7 @@ export const actions: Actions = {
 
 				// Defined Fields that are used in your Collection
 				// Widget fields can be inspected for individual options
-				fields: ${fields.length ? JSON.stringify(fields, null, 2) : '[]'},
+				fields: ${fields ? JSON.stringify(fields, null, 2) : '[]'}
 			};
 			export default schema;`;
 
@@ -118,7 +114,6 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const fieldsData = formData.get('fields') as string;
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
-		console.log('deleteCollections', collectionName);
 		fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
 		await compile();
 		await updateCollections(true);
@@ -142,6 +137,7 @@ async function goThrough(object: any): Promise<string> {
 
 				if (field[key]?.widget) {
 					const widget = widgets[field[key].widget.key];
+
 					if (widget && widget.GuiSchema) {
 						for (const importKey in widget.GuiSchema) {
 							const widgetImport = widget.GuiSchema[importKey].imports;
@@ -155,7 +151,7 @@ async function goThrough(object: any): Promise<string> {
 					}
 
 					field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
-						k === 'type' || k === 'key' ? undefined : typeof value === 'string' ? value.replace(/\s*🗑️\s*/g, '🗑️').trim() : value
+						typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 					)})🗑️`;
 				}
 			}
