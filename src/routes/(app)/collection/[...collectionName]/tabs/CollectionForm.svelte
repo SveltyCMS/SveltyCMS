@@ -65,7 +65,6 @@
 	// Form fields
 	let DBName = '';
 	let searchQuery = '';
-	let iconselected: any = $currentCollection ? $currentCollection.icon : '';
 	const statuses = ['published', 'unpublished', 'draft', 'schedule', 'cloned'];
 	let autoUpdateSlug = true;
 

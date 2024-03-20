@@ -5,4 +5,4 @@
 	export let iconselected: string;
 </script>
 
-<svelte:component this={widget} bind:iconselected label={key} theme="dark" />
+<svelte:component this={widget} bind:value bind:iconselected label={key} theme="dark" />
