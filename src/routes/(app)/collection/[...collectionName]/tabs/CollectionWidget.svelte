@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { currentCollection, tabSet } from '@stores/store';
+	import { collectionValue, tabSet } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
@@ -21,7 +21,7 @@
 	const collectionName = $page.params.collectionName;
 
 	//fields
-	let fields = $currentCollection.fields.map((field, index) => {
+	let fields = $collectionValue.fields.map((field, index) => {
 		return {
 			id: index + 1, // Add the id property first
 			...field // Copy all existing properties
@@ -63,7 +63,7 @@
 						{ ...r }, // Update the existing widget
 						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
 					];
-					currentCollection.update((c) => {
+					collectionValue.update((c) => {
 						c.fields = fields;
 						return c;
 					});
@@ -74,7 +74,7 @@
 						...r
 					};
 					fields = [...fields, newField];
-					currentCollection.update((c) => {
+					collectionValue.update((c) => {
 						c.fields = fields;
 						return c;
 					});
@@ -116,7 +116,7 @@
 		});
 
 		// Update the collection fields
-		currentCollection.update((c) => {
+		collectionValue.update((c) => {
 			c.fields = fields;
 			return c;
 		});
@@ -125,7 +125,7 @@
 	}
 
 	$: {
-		fields = $currentCollection.fields.map((field, index) => {
+		fields = $collectionValue.fields.map((field, index) => {
 			return {
 				id: index + 1, // Add the id property first
 				...field // Copy all existing properties

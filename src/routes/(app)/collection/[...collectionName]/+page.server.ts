@@ -1,14 +1,15 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { redirect, type Actions } from '@sveltejs/kit';
-import { auth, getCollectionModels } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 import type { WidgetType } from '@components/widgets';
 import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
+
+// Auth
+import { auth, getCollectionModels } from '@api/db';
+import { validate } from '@utils/utils';
+import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -112,7 +113,7 @@ export const actions: Actions = {
 
 	deleteCollections: async ({ request }) => {
 		const formData = await request.formData();
-		const fieldsData = formData.get('fields') as string;
+		// const fieldsData = formData.get('fields') as string;
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
 		fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
 		await compile();

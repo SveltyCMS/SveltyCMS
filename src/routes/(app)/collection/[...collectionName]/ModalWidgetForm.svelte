@@ -13,7 +13,7 @@
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	import { currentCollection } from '@src/stores/store';
+	import { collectionValue } from '@src/stores/store';
 
 	let tabSet: number = 0;
 
@@ -23,7 +23,7 @@
 	export let parent: SvelteComponent;
 
 	//fields
-	let fields = $currentCollection.fields.map((field, index) => {
+	let fields = $collectionValue.fields.map((field, index) => {
 		return {
 			id: index + 1, // Add the id property first
 			...field // Copy all existing properties
@@ -69,7 +69,7 @@
 		if (confirmDelete) {
 			// Perform deletion logic here
 			let updatedFields = fields.filter((field: any) => field.id !== $modalStore[0].value.id);
-			currentCollection.update((c) => {
+			collectionValue.update((c) => {
 				c.fields = updatedFields;
 				return c;
 			});

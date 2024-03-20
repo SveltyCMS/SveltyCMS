@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, currentCollection, collections, permissionStore, tabSet } from '@stores/store';
+	import { mode, collectionValue, collections, permissionStore, tabSet } from '@stores/store';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -24,12 +24,12 @@
 	if ($collections.find((x) => x.name === collectionName)) {
 		mode.set('edit');
 		let collection = $collections.find((x) => x.name === collectionName) as Schema;
-		currentCollection.set(collection); // current collection
+		collectionValue.set(collection); // current collection
 		permissionStore.set(collection.permissions ?? {});
 	} else {
-		currentCollection.set({
-			...$currentCollection,
-			fields: $currentCollection.fields ? $currentCollection.fields : [],
+		collectionValue.set({
+			...$collectionValue,
+			fields: $collectionValue.fields ? $collectionValue.fields : [],
 			name: collectionName
 		});
 		permissionStore.set({});
@@ -69,15 +69,15 @@
 	let autoUpdateSlug = true;
 
 	function handleNameInput() {
-		if ($currentCollection.name) {
+		if ($collectionValue.name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/collection/${$currentCollection.name}`);
+			window.history.replaceState({}, '', `/collection/${$collectionValue.name}`);
 
 			// Update the page title
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
+			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$collectionValue.name} </span> Collection`);
 
 			// Update the linked slug input
-			$currentCollection.slug = $currentCollection.name.toLowerCase().replace(/\s+/g, '_');
+			$collectionValue.slug = $collectionValue.name.toLowerCase().replace(/\s+/g, '_');
 
 			// Call the `onSlugInput` function to update the slug variable
 			onSlugInput();
@@ -86,29 +86,29 @@
 
 	function onSlugInput() {
 		// Update the slug field whenever the name field is changed
-		if ($currentCollection.name) {
-			currentCollection.set({
-				...$currentCollection,
-				slug: $currentCollection.name.toLowerCase().replace(/\s+/g, '_')
+		if ($collectionValue.name) {
+			collectionValue.set({
+				...$collectionValue,
+				slug: $collectionValue.name.toLowerCase().replace(/\s+/g, '_')
 			});
-			return $currentCollection.slug;
+			return $collectionValue.slug;
 		}
 		// Disable automatic slug updates
 		autoUpdateSlug = false;
 	}
 
 	$: {
-		if ($currentCollection) {
+		if ($collectionValue) {
 			// Update DBName  lowercase and replace Spaces
-			DBName = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+			DBName = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
-				$currentCollection.slug = $currentCollection.name ? $currentCollection.name.toLowerCase().replace(/ /g, '_') : '';
+				$collectionValue.slug = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			}
 			if ($mode == 'edit') {
-				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$currentCollection.name} </span> Collection`);
-			} else if ($currentCollection.name) {
-				dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$currentCollection.name} </span> Collection`);
+				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$collectionValue.name} </span> Collection`);
+			} else if ($collectionValue.name) {
+				dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$collectionValue.name} </span> Collection`);
 			} else {
 				dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
 			}
@@ -145,13 +145,13 @@
 					type="text"
 					required
 					id="name"
-					bind:value={$currentCollection.name}
+					bind:value={$collectionValue.name}
 					on:input={handleNameInput}
 					placeholder={m.collection_name_placeholder()}
 					class="input text-black dark:text-primary-500"
 				/>
 
-				{#if $currentCollection && $currentCollection.name}
+				{#if $collectionValue && $collectionValue.name}
 					<p class="mb-3 sm:mb-0">
 						{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
 					</p>
@@ -177,7 +177,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon={$currentCollection['icon']} bind:iconselected={$currentCollection['icon']} />
+		<IconifyPicker bind:searchQuery bind:icon={$collectionValue['icon']} bind:iconselected={$collectionValue['icon']} />
 	</div>
 
 	<!-- Slug -->
@@ -196,7 +196,7 @@
 		<input
 			type="text"
 			id="slug"
-			bind:value={$currentCollection.slug}
+			bind:value={$collectionValue.slug}
 			placeholder={m.collection_slug_input()}
 			class="input text-black dark:text-primary-500"
 		/>
@@ -219,7 +219,7 @@
 			id="description"
 			rows="2"
 			cols="50"
-			bind:value={$currentCollection.description}
+			bind:value={$collectionValue.description}
 			placeholder={m.collection_description_placeholder()}
 			class="input text-black dark:text-primary-500"
 		/>
@@ -238,7 +238,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<select id="status" bind:value={$currentCollection.status} class="input text-black dark:text-primary-500">
+		<select id="status" bind:value={$collectionValue.status} class="input text-black dark:text-primary-500">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}

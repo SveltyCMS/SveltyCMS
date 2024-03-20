@@ -2,11 +2,11 @@ import { writable, type Writable } from 'svelte/store';
 import { publicEnv } from '@root/config/public';
 import type { Schema } from '@collections/types';
 
-//paraglidejs
+// Paraglidejs
 import * as m from '@src/paraglide/messages.js';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
-// Categories
+//  Categories
 export const categories: Writable<
 	Array<{
 		name: string;
@@ -18,9 +18,7 @@ export const collections: Writable<Array<Schema>> = writable();
 export const unAssigned: Writable<Array<Schema>> = writable();
 export const collection: Writable<Schema> = writable();
 
-// ------------ Collections ------------
-// Collections stores
-export const currentCollection: Writable<Schema> = writable({});
+//  Collections
 // collective data of collection
 export const collectionValue: any = writable({});
 // entry data of collection
@@ -40,14 +38,14 @@ export const statusMap = {
 // Create an empty writable store for modifyEntry
 export const modifyEntry: Writable<(status: keyof typeof statusMap) => Promise<void>> = writable();
 
-// -------------- Store ListboxValue -----------------
+//  Store ListboxValue
 export const storeListboxValue: Writable<string> = writable('create');
 
 // Store image data while editing
 export const file = writable<File | null>(null);
 export const saveEditedImage: Writable<boolean> = writable(false);
 
-// ------------ Languages ------------
+// Languages
 // Create a writable store for contentLanguage with initial value of PublicEnv.DEFAULT_CONTENT_LANGUAGE
 export const contentLanguage: Writable<string> = writable(publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
@@ -64,7 +62,7 @@ systemLanguage.subscribe((val) => {
 // Content Translation Completion Status
 export const translationStatus = writable({});
 export const completionStatus = writable(0);
-//  ------------ Other ------------
+
 // TranslationStatus.svelte modal
 export const translationStatusOpen = writable(false);
 
@@ -89,7 +87,7 @@ export const pkgBgColor = writable('variant-filled-primary');
 export const loadingProgress = writable(0);
 export const isLoading: Writable<boolean> = writable(false);
 
-//MegaMenu Save Layer Store & trigger
+// MegaMenu Save Layer Store & trigger
 export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }> = writable({ fn: () => {}, reset: () => {} });
 export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);

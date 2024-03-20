@@ -1,11 +1,15 @@
 <script lang="ts">
 	import axios from 'axios';
+	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
 	import { obj2formData } from '@src/utils/utils';
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, currentCollection, permissionStore, tabSet } from '@stores/store';
+	import { mode, collectionValue, permissionStore, tabSet } from '@stores/store';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Components
 	import TopTabs from './tabs/TopTabs.svelte';
@@ -15,19 +19,17 @@
 	import PageTitle from '@src/components/PageTitle.svelte';
 
 	// Skeleton
-	import { TabGroup } from '@skeletonlabs/skeleton';
-	import { getToastStore } from '@skeletonlabs/skeleton';
-	import * as m from '@src/paraglide/messages';
+	import { TabGroup, getToastStore } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
-	import { onMount } from 'svelte';
-	const modalStore = getModalStore();
 
+	const modalStore = getModalStore();
 	const toastStore = getToastStore();
+
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 
 	// Default widget data (tab1)
-	let name = $mode == 'edit' ? ($currentCollection ? $currentCollection.name : collectionName) : collectionName;
+	let name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
 
 	// Page title
 	let pageTitle =
@@ -47,23 +49,23 @@
 		let data =
 			$mode == 'edit'
 				? obj2formData({
-						originalName: $currentCollection.name,
+						originalName: $collectionValue.name,
 						collectionName: name,
-						icon: $currentCollection.icon,
-						status: $currentCollection.status,
-						slug: $currentCollection.slug,
-						description: $currentCollection.description,
+						icon: $collectionValue.icon,
+						status: $collectionValue.status,
+						slug: $collectionValue.slug,
+						description: $collectionValue.description,
 						permissions: $permissionStore,
-						fields: $currentCollection.fields
+						fields: $collectionValue.fields
 					})
 				: obj2formData({
 						collectionName: name,
-						icon: $currentCollection.icon,
-						status: $currentCollection.status,
-						slug: $currentCollection.slug,
-						description: $currentCollection.description,
+						icon: $collectionValue.icon,
+						status: $collectionValue.status,
+						slug: $collectionValue.slug,
+						description: $collectionValue.description,
 						permissions: $permissionStore,
-						fields: $currentCollection.fields
+						fields: $collectionValue.fields
 					});
 
 		// Send the form data to the server
@@ -88,7 +90,7 @@
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', $currentCollection.name);
+		console.log('Delete collection:', $collectionValue.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -97,7 +99,7 @@
 			response: (r: boolean) => {
 				if (r) {
 					// Send the form data to the server
-					axios.post(`?/deleteCollections`, obj2formData({ collectionName: $currentCollection.name }), {
+					axios.post(`?/deleteCollections`, obj2formData({ collectionName: $collectionValue.name }), {
 						headers: {
 							'Content-Type': 'multipart/form-data'
 						}

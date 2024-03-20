@@ -55,7 +55,6 @@
 	}
 
 	let showUserList = false;
-	let showMoreUserList = false;
 	let showUsertoken = false;
 
 	let isLoading = false;
@@ -408,9 +407,7 @@
 						{/if}
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<th class="!pl-[25px]">
-								<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
-							</th>
+							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
 
 							{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 								<th
@@ -456,10 +453,7 @@
 									handleCRUDAction(row);
 								}}
 							>
-								<td class="!pl-[25px]">
-									<!-- TODO: need to be linked to blocked status -->
-									<TableIcons />
-								</td>
+								<TableIcons />
 
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">

@@ -3,7 +3,7 @@
 	import { generateUniqueId } from '@utils/utils';
 
 	// Stores
-	import { categories, currentCollection, mode, unAssigned } from '@stores/store';
+	import { categories, collectionValue, mode, unAssigned } from '@stores/store';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -53,7 +53,7 @@
 
 	function handleAddCollectionClick() {
 		mode.set('create');
-		currentCollection.set({
+		collectionValue.set({
 			name: 'new',
 			icon: '',
 			description: '',

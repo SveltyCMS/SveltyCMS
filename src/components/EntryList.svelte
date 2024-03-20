@@ -19,44 +19,24 @@
 	import Status from '@components/system/table/Status.svelte';
 	import Loading from './Loading.svelte';
 
+	// Skeleton
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
+
 	//svelte-dnd-action
 	import { flip } from 'svelte/animate';
-	import { slide } from 'svelte/transition';
 	import { dndzone } from 'svelte-dnd-action';
 
 	const flipDurationMs = 300;
 	let columnOrder: string[] = []; // This will hold the order of your columns
 	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
 
-	function handleDndConsider(event: CustomEvent<DndEvent<{ label: string; name: string; id: string }>> & { target: any }) {
-		const items = event.detail.items.map((item) => {
-			if (!item.id) {
-				item.id = generateUniqueId();
-			}
-			return item;
-		});
-		// You can potentially log or inspect the items here to understand the order before dropping
-		console.log('Items before dropping:', items);
+	function handleDndConsider(event: CustomEvent<DndEvent<{ label: string; name: string }>> & { target: any }) {
+		tableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<DndEvent<{ label: string; name: string; id: string }>> & { target: any }) {
-		const items = event.detail.items.map((item) => {
-			if (!item.id) {
-				item.id = generateUniqueId();
-			}
-			return item;
-		});
-
-		if (items.length > 0) {
-			const clickedColumn = items[0].id;
-
-			sorting[clickedColumn] = {
-				sortedBy: getFieldName($collection.fields.find((field) => field.label === clickedColumn)),
-				isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1
-			};
-
-			refresh();
-		}
+	function handleDndFinalize(event: CustomEvent<DndEvent<{ label: string; name: string }>> & { target: any }) {
+		tableHeaders = event.detail.items;
 	}
 
 	let isLoading = false;
@@ -75,13 +55,12 @@
 	let selectAllColumns = true;
 
 	let data: { entryList: [any]; pagesCount: number } | undefined;
-	let tableHeaders: Array<{ label: string; name: string; id: string }> = [];
+	let tableHeaders: Array<{ label: string; name: string }> = [];
 	let tableData: any[] = [];
-	let modifyMap: { [key: string]: boolean } = {};
 
 	// Tick row logic
 	let SelectAll = false;
-	let selectedMap = writable({});
+	let selectedMap: { [key: string]: boolean } = {};
 
 	// Filter
 	let filters: { [key: string]: string } = {}; // Set initial filters object
@@ -143,7 +122,7 @@
 						}
 
 						// Status
-						// TODO: Add Localized status states , Pay attention to Status.svelte modifer
+						// TODO: Add Localized status states, Pay attention to Status.svelte modifier
 						//obj.status = entry.status ? m.status_(obj.status) : 'N/A';
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
 						//Collection fields
@@ -165,13 +144,21 @@
 				})
 			));
 
-		if (tableData.length > 0) {
-			tableHeaders = Object.keys(tableData[0]).map((key) => ({ label: key, name: key, id: generateUniqueId() }));
-		} else {
-			tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: field.label, id: generateUniqueId() })); // Fallback to collection fields if no data
-		}
+		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
+		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
 
 		SelectAll = false;
+
+		// Initialize columnOrder and columnVisibility
+		columnOrder = tableHeaders.map((header) => header.name);
+		columnVisibility = tableHeaders.reduce((acc, header) => {
+			acc[header.name] = true;
+			return acc;
+		}, {});
+
+		if (currentPage > (data?.pagesCount || 0)) {
+			currentPage = data?.pagesCount || 1;
+		}
 	}
 
 	// Trigger refresh based on collection, filters, sorting, and currentPage
@@ -211,10 +198,10 @@
 
 	// Update Tick All Rows
 	// TOOD: Fix SelectALL as $ will blank out site
-	//$: process_selectAll(SelectAll);
+	$: process_selectAll(SelectAll);
 
 	// Update Tick Single Row
-	$: Object.values(selectedMap).includes(true) ? mode.set('delete') : mode.set('view');
+	$: Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 
 	// Columns Sorting
 	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
@@ -222,13 +209,8 @@
 		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 	};
 
-	// Initialize columnOrder and columnVisibility
 	$: {
-		columnOrder = $collection.fields.map((field) => getFieldName(field));
-		columnVisibility = $collection.fields.reduce((acc, field) => {
-			acc[getFieldName(field)] = true;
-			return acc;
-		}, {});
+		tableHeaders = tableHeaders.filter((header) => columnVisibility[header.name]);
 	}
 
 	// Store values in local storage
@@ -243,14 +225,11 @@
 	}
 
 	// Tick Row - modify STATUS of an Entry
-	async function modifyEntryAndRefresh(status: keyof typeof statusMap): Promise<void> {
-		//console.log('modifyEntry called', modifyEntry, statusMap[status]);
-
+	$modifyEntry = async (status: keyof typeof statusMap) => {
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 		// Loop over the selectedMap object
-		for (let item in modifyMap) {
-			//console.log('tableData[item]', tableData[item]);
+		for (let item in selectedMap) {
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
@@ -275,21 +254,27 @@
 				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
 				break;
 			case 'clone':
-				await axios.post(`/api/${$collection.name}/clone`, formData);
-				break;
+			// await axios.post(`/api/${$collection.name}/clone`, formData);
 			case 'schedule':
-				await axios.post(`/api/${$collection.name}/schedule`, formData);
+				// Trigger the toast
+				const t = {
+					message: 'Not yet implemented.',
+					// Provide any utility or variant background style:
+					background: 'variant-filled-error',
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
+				// await axios.post(`/api/${$collection.name}/schedule`, formData);
 				break;
 		}
 		// Refresh the collection
 		refresh();
-		console.log('refresh called');
+
 		// Set the mode to 'view'
 		mode.set('view');
-	}
-	console.log('$modifyEntry', $modifyEntry);
-	// Assign the modifyEntryAndRefresh function to $modifyEntry
-	$: $modifyEntry = modifyEntryAndRefresh;
+	};
 </script>
 
 <!--Table -->
@@ -359,7 +344,7 @@
 			<!-- column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
-				<!-- all -->
+				<!-- Select All Columns -->
 				<div class="my-2 flex w-full items-center justify-center gap-1">
 					<label class="mr-2">
 						<input
@@ -373,11 +358,16 @@
 							}}
 						/>
 						{m.entrylist_all()}
-						<!-- Replace with your translation for "Select/Deselect All" -->
 					</label>
 
 					<section
-						use:dndzone={{ items: tableHeaders, flipDurationMs }}
+						use:dndzone={{
+							items: tableHeaders.map((item) => {
+								item.id = generateUniqueId();
+								return item;
+							}),
+							flipDurationMs
+						}}
 						on:consider={handleDndConsider}
 						on:finalize={handleDndFinalize}
 						class="flex flex-wrap justify-center gap-1 rounded-md p-2"
@@ -444,9 +434,9 @@
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<th class="!pl-[25px]">
-							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} iconStatus="all" />
-						</th>
+						<!-- <th class="!pl-[25px]"> -->
+						<TableIcons bind:checked={SelectAll} iconStatus="all" />
+						<!-- </th> -->
 						{#each tableHeaders as header}
 							<th
 								on:click={() => {
@@ -491,33 +481,26 @@
 				</thead>
 				<tbody class="">
 					{#each tableData as row, index}
-						<tr
-							class="divide-x divide-surface-400"
-							on:click={() => {
-								entryData.set(data?.entryList[index]);
-								console.log(data);
-								mode.set('edit');
-								handleSidebarToggle();
-							}}
-						>
-							<td class="!pl-[25px]">
-								<TableIcons
-									iconStatus={data?.entryList[index]?.status}
-									on:change={() => {
-										selectedMap.update((map) => ({ ...map, [row.id]: !map[row.id] }));
-
-										handleSidebarToggle();
-									}}
-								/>
-							</td>
+						<tr class="divide-x divide-surface-400">
+							<!-- <td on:click class="bg-error-500 !pl-[25px]"> -->
+							<TableIcons iconStatus={data?.entryList[index]?.status} bind:checked={selectedMap[index]} />
+							<!-- </td> -->
 
 							{#each tableHeaders as header}
-								<td class="text-center font-bold">
-									{#if header.label === 'blocked'}
-										<!-- Use the Role component to display the role -->
-										<Status value={row[header.label]} />
+								<td
+									on:click={() => {
+										entryData.set(data?.entryList[index]);
+										console.log(data);
+										mode.set('edit');
+										handleSidebarToggle();
+									}}
+									class="text-center font-bold"
+								>
+									{#if header.name === 'status'}
+										<!-- Use the Status component to display the Status -->
+										<Status value={row[header.name]} />
 									{:else}
-										{@html row[header.label]}
+										{@html row[header.name]}
 									{/if}
 								</td>
 							{/each}

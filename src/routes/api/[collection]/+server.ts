@@ -43,6 +43,13 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 	// Create an array of aggregation pipelines.
 	const aggregations: any = [];
+	if (sort.status) {
+		aggregations.push({ $sort: { status: sort.status } });
+	} else if (sort.createdAt) {
+		aggregations.push({ $sort: { status: sort.createdAt } });
+	} else if (sort.updatedAt) {
+		aggregations.push({ $sort: { status: sort.updatedAt } });
+	}
 
 	// Loop through the collection schema fields.
 	for (const field of collection_schema.fields) {
