@@ -15,6 +15,7 @@
 	import type { Schema } from '@src/collections/types';
 
 	import { createEventDispatcher } from 'svelte';
+	import { getCollections } from '@src/collections';
 
 	const dispatch = createEventDispatcher();
 
@@ -22,10 +23,13 @@
 	const collectionName = $page.params.collectionName;
 	//check if collection Name exists set mode edit or create
 	if ($collections.find((x) => x.name === collectionName)) {
-		mode.set('edit');
-		let collection = $collections.find((x) => x.name === collectionName) as Schema;
-		currentCollection.set(collection); // current collection
-		permissionStore.set(collection.permissions ?? {});
+		// fetch the collection from the API
+		getCollections().then((data) => {
+			mode.set('edit');
+			let collection = data.find((x) => x.name === collectionName) as Schema;
+			currentCollection.set(collection); // current collection
+			permissionStore.set(collection.permissions ?? {});
+		});
 	} else {
 		currentCollection.set({
 			...$currentCollection,

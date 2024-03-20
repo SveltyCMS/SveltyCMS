@@ -44,6 +44,11 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		// Prepare form data
+		//delete key from fields
+		$currentCollection.fields.forEach((field: any) => {
+			delete field.key;
+		});
+
 		let data =
 			$mode == 'edit'
 				? obj2formData({
