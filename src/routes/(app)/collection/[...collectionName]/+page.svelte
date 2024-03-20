@@ -32,12 +32,12 @@
 	// Page title
 	let pageTitle =
 		$mode == 'edit'
-			? `Edit <span class="text-primary-500">${collectionName} </span> Collection`
+			? `Edit <span class="text-tertiary-500 dark:text-primary-500">${collectionName} </span> Collection`
 			: collectionName
-				? `Create <span class="text-primary-500"> ${collectionName} </span> Collection`
-				: `Create <span class="text-primary-500"> new </span> Collection`;
+				? `Create <span class="text-tertiary-500 dark:text-primary-500"> ${collectionName} </span> Collection`
+				: `Create <span class="text-tertiary-500 dark:text-primary-500"> new </span> Collection`;
 
-	function handlePageTitleUpdate(e) {
+	function handlePageTitleUpdate(e: any) {
 		pageTitle = e.detail;
 	}
 
@@ -133,22 +133,22 @@
 
 <div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
-	{#if $mode == 'edit'}
-		<div>
-			<button
-				type="button"
-				on:click={handleCollectionDelete}
-				class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
-				>Delete
-			</button>
-			<button
-				type="button"
-				on:click={handleCollectionSave}
-				class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">Update</button
-			>
-		</div>
-	{/if}
 </div>
+{#if $mode == 'edit'}
+	<div class="flex justify-end gap-3">
+		<button
+			type="button"
+			on:click={handleCollectionDelete}
+			class=" variant-filled-error btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-error dark:text-black"
+			>{m.button_delete()}
+		</button>
+		<button
+			type="button"
+			on:click={handleCollectionSave}
+			class="variant-filled-tertiary btn mb-3 mr-1 mt-1 justify-end dark:variant-filled-tertiary dark:text-black">{m.button_save()}</button
+		>
+	</div>
+{/if}
 
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>

@@ -8,10 +8,10 @@
 	export let handleDndConsider: (e: CustomEvent<DndEvent>) => void;
 	export let handleDndFinalize: (e: CustomEvent<DndEvent>) => void;
 
-	let gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
+	let gridClass = `grid grid-cols-${headers.length + 1} variant-ghost-tertiary dark:variant-ghost-primary w-full items-start justify-start p-1 py-2 pl-3 text-center font-semibold`;
 </script>
 
-<div class="h-full overflow-scroll">
+<div class="h-full overflow-y-auto">
 	<!-- Header -->
 	{#if headers.length > 0}
 		<div class={gridClass}>

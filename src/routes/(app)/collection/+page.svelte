@@ -195,12 +195,18 @@
 				class=" mb-3 ml-1 flex flex-col justify-around gap-1 rounded-sm border border-surface-300 py-2 dark:border-surface-400 sm:flex-row lg:justify-center lg:gap-8"
 			>
 				<!-- add new Category-->
-				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm rounded-md">
+				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded">
+					<iconify-icon icon="bi:collection" width="18" class="text-white" />
 					{m.collection_addcategory()}
 				</button>
 
 				<!-- add new Collection-->
-				<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm rounded-md">
+				<button
+					on:click={handleAddCollectionClick}
+					type="button"
+					class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded"
+				>
+					<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
 					{m.collection_addcollection()}
 				</button>
 			</div>

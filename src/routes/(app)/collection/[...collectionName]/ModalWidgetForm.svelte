@@ -15,8 +15,6 @@
 
 	import { currentCollection } from '@src/stores/store';
 
-	import { currentCollection } from '@src/stores/store';
-  
 	let tabSet: number = 0;
 
 	export const addField: boolean = false;

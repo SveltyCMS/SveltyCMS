@@ -1,14 +1,18 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
+	import { motion } from '@src/utils/utils';
+
 	import { fade } from 'svelte/transition';
 	import { linear } from 'svelte/easing';
-	import { page } from '$app/stores';
 	import { tick } from 'svelte';
-	import { motion } from '@src/utils/utils';
+
+	// Stores
+	import { page } from '$app/stores';
 	import { mode } from '@src/stores/store';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
-	import { getModalStore } from '@skeletonlabs/skeleton';
 
+	// Skeleton
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
@@ -20,9 +24,8 @@
 	let circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
 
+	// Endpoint definition with URL and icon only
 	let endpoints: {
-		x: number;
-		y: number;
 		url: {
 			external: boolean;
 			path: string;
@@ -30,32 +33,25 @@
 		icon: string;
 	}[] = [
 		{
-			x: center.x,
-			y: center.y,
+			// Home
 			url: { external: false, path: `/` },
 			icon: 'solar:home-bold'
 		},
 		{
-			x: center.x,
-			y: center.y,
-			url: { external: false, path: `/collection` },
-			icon: 'icomoon-free:wrench'
-		},
-		{
-			x: center.x,
-			y: center.y,
 			url: { external: false, path: `/user` },
 			icon: 'radix-icons:avatar'
 		},
 		{
-			x: center.x,
-			y: center.y,
+			url: { external: false, path: `/collection` },
+			icon: 'icomoon-free:wrench'
+		},
+
+		{
 			url: { external: true, path: `/api/graphql` },
 			icon: 'teenyicons:graphql-outline'
 		},
+
 		{
-			x: center.x,
-			y: center.y,
 			url: { external: true, path: `/config` },
 			icon: 'mynaui:config'
 		}
@@ -86,18 +82,18 @@
 		radius: buttonRadius
 	};
 
-	// Function to calculate the coordinates of the endpoint of a vector
-	function calculateSecondVector(startX, startY, x1, y1, distance, angle) {
-		let firstAngle = Math.atan2(y1 - startY, x1 - startX) * (180 / Math.PI);
-		let x2 = Math.round(Math.cos(((firstAngle - angle) * Math.PI) / 180) * distance + x1);
-		let y2 = Math.round(Math.sin(((firstAngle - angle) * Math.PI) / 180) * distance + y1);
-		return { x: x2, y: y2 };
+	// Function to calculate endpoint coordinates and angles
+	function calculateEndpoint(index: number, totalEndpoints: number, radius: number) {
+		const angle = ((Math.PI * 2) / totalEndpoints) * (index + 1.25); // Adjust angle for centering
+		const x = center.x + radius * Math.cos(angle);
+		const y = center.y + radius * Math.sin(angle);
+		return { x, y, angle };
 	}
 
-	// Calculate the coordinates of the endpoints
+	// Calculate endpoint positions and angles based on their index
 	$: endpoints = endpoints.map((endpoint, index) => ({
 		...endpoint,
-		...(index === 0 ? {} : calculateSecondVector(buttonInfo.x, buttonInfo.y, center.x, center.y, 140, 50 * (index - 1)))
+		...calculateEndpoint(index, endpoints.length, 140) // Adjust radius as needed
 	}));
 
 	// Show the routes when the component is visible
@@ -261,10 +257,11 @@
 		></div>
 
 		<!-- Other endpoint buttons -->
-		<button
+		<div
 			bind:this={circles[0]}
-			typeof="button"
+			role="button"
 			aria-label="Home"
+			tabindex="0"
 			on:click={() => {
 				mode.set('view');
 				modalStore.clear();
@@ -272,11 +269,21 @@
 				endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
 				showRoutes = false;
 			}}
+			on:keydown={(event) => {
+				if (event.key === 'Enter' || event.key === ' ') {
+					// Trigger the same action as on:click
+					mode.set('view');
+					modalStore.clear();
+					handleSidebarToggle();
+					endpoints[0]?.url?.external ? (location.href = endpoints[0]?.url?.path || '/') : goto(endpoints[0]?.url?.path || '/');
+					showRoutes = false;
+				}
+			}}
 			class="circle flex items-center justify-center bg-primary-500"
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		>
 			<iconify-icon width="30" style="color:white" icon="solar:home-bold" />
-		</button>
+		</div>
 
 		{#each endpoints.slice(1, endpoints.length) as endpoint, index}
 			<div
