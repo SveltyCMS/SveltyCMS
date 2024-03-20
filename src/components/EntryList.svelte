@@ -231,12 +231,13 @@
 
 	// Tick Row - modify STATUS of an Entry
 	async function modifyEntryAndRefresh(status: keyof typeof statusMap): Promise<void> {
-		console.log('modifyEntry called', modifyEntry, statusMap[status]);
+		//console.log('modifyEntry called', modifyEntry, statusMap[status]);
+
 		// Initialize an array to store the IDs of the items to be modified
 		let modifyList: Array<string> = [];
 		// Loop over the selectedMap object
 		for (let item in modifyMap) {
-			console.log('tableData[item]', tableData[item]);
+			//console.log('tableData[item]', tableData[item]);
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}

@@ -103,7 +103,7 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
-				// console.log('response modalSelectWidget:', r);
+				console.log('response modalSelectWidget:', r);
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ key: selectedWidget }); // Use selectedWidget directly
@@ -128,9 +128,9 @@
 </script>
 
 <div class="flex flex-col">
-	<div class="variant-outline-primary rounded-t-md p-2 text-center">
+	<div class="variant-outline-tertiary rounded-t-md p-2 text-center dark:variant-outline-primary">
 		<p>
-			{m.collection_widgetfield_addrequired()} <span class="text-primary-500">{collectionName}</span> Collection inputs.
+			{m.collection_widgetfield_addrequired()} <span class="text-tertiary-500 dark:text-primary-500">{collectionName}</span> Collection inputs.
 		</p>
 		<p class="mb-2">{m.collection_widgetfield_drag()}</p>
 	</div>
@@ -140,16 +140,15 @@
 				<div
 					class="border-blue variant-outline-surface my-2 grid w-full grid-cols-6 items-center rounded-md border p-1 text-left hover:variant-filled-surface dark:text-white"
 				>
-					<div class="variant-ghost-primary badge h-10 w-10 rounded-full">
+					<div class="variant-ghost-tertiary badge h-10 w-10 rounded-full dark:variant-ghost-primary">
 						{field.id}
 					</div>
 
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field?.key}</div>
-
-					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
+					<div class=" ">{field?.key || field.widget?.key}</div>
+					<button type="button" class="variant-ghost-tertiary btn-icon ml-auto dark:variant-ghost-primary" on:click={() => modalWidgetForm(field)}>
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 					</button>
 				</div>

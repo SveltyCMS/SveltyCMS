@@ -26,13 +26,6 @@
 	// Define the selected widget variable
 	let selected: WidgetType = null;
 
-	// Define the form data object
-	let formData: {
-		selectedWidget: WidgetType;
-	} = {
-		selectedWidget: selected ?? null
-	};
-
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
 		if ($modalStore[0].response) {

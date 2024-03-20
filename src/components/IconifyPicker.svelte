@@ -105,7 +105,7 @@
 				<iconify-icon icon={iconselected} width="30" class="py-2 text-tertiary-500" />
 				<p>
 					{m.iconpicker_name()}
-					<span class="text-primary-500">{iconselected}</span>
+					<span class="text-tertiary-500 dark:text-primary-500">{iconselected}</span>
 				</p>
 			</div>
 			<button class="variant-ghost btn-icon" type="button" on:mouseup={removeIcon}>

@@ -122,37 +122,37 @@
 <div class="mb-2 text-center text-xs text-error-500">* {m.collection_required()}</div>
 
 <!-- Collection Name -->
-<div class="flex flex-col gap-3 rounded-md">
+<div class="flex flex-col gap-3 rounded p-2">
 	<div class="w-full items-center sm:flex">
 		<label for="name" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collection_name()} <span class="mx-1 text-error-500">*</span>
 			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" /></label
 		>
 
-		<!-- tooltip -->
-		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
-			<!-- Popup Tooltip with the arrow element -->
 		<!-- Popup Tooltip with the arrow element -->
+		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
 			<p>{m.collection_name_tooltip1()}</p>
 			<p>{m.collection_name_tooltip2()}</p>
 			<div class="variant-filled arrow" />
 		</div>
 
-		<input
-			type="text"
-			required
-			id="name"
-			bind:value={$currentCollection.name}
-			on:input={handleNameInput}
-			placeholder={m.collection_name_placeholder()}
-			class="input {$currentCollection.name ? 'w-full md:w-1/2' : 'w-full'}"
-		/>
+		<div class="w-full">
+			<input
+				type="text"
+				required
+				id="name"
+				bind:value={$currentCollection.name}
+				on:input={handleNameInput}
+				placeholder={m.collection_name_placeholder()}
+				class="input text-black dark:text-primary-500"
+			/>
 
-		{#if $currentCollection && $currentCollection.name}
-			<p class="mb-3 sm:mb-0">
-				{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-			</p>
-		{/if}
+			{#if $currentCollection && $currentCollection.name}
+				<p class="mb-3 sm:mb-0">
+					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+				</p>
+			{/if}
+		</div>
 	</div>
 </div>
 
@@ -188,7 +188,13 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<input type="text" id="slug" bind:value={$currentCollection.slug} placeholder={m.collection_slug_input()} class="input w-full" />
+		<input
+			type="text"
+			id="slug"
+			bind:value={$currentCollection.slug}
+			placeholder={m.collection_slug_input()}
+			class="input text-black dark:text-primary-500"
+		/>
 	</div>
 
 	<!-- Description -->
@@ -227,7 +233,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<select id="status" bind:value={$currentCollection.status} class="input dark:text-white">
+		<select id="status" bind:value={$currentCollection.status} class="input text-black dark:text-primary-500">
 			{#each statuses as statusOption}
 				<option value={statusOption} class="">{statusOption}</option>
 			{/each}

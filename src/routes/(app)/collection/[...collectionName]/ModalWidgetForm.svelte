@@ -15,8 +15,6 @@
 
 	import { currentCollection } from '@src/stores/store';
 
-	import { currentCollection } from '@src/stores/store';
-  
 	let tabSet: number = 0;
 
 	export const addField: boolean = false;
@@ -128,7 +126,7 @@
 								{#each ['label', 'display', 'db_fieldName', 'translated', 'icon', 'width'] as property}
 									<InputSwitch
 										bind:value={formData[property]}
-										widget={asAny(guiSchema[$modalStore[0].value.key].GuiSchema[property]?.widget)}
+										widget={asAny(guiSchema[$modalStore[0].value.label].GuiSchema[property]?.widget)}
 										key={property}
 									/>
 								{/each}

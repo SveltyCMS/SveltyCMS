@@ -47,7 +47,7 @@
 	<div class="relative mt-1 inline-block text-left">
 		<div>
 			<button
-				class="border-sm:btn variant-ghost-surface btn-sm flex w-16 items-center gap-3 !rounded-none !rounded-t border border-b-0 border-surface-400 focus:ring-[1px] focus:ring-tertiary-600"
+				class="border-sm:btn variant-ghost-surface btn-sm flex w-16 items-center gap-3 !rounded-none !rounded-t border border-b-0 border-surface-400"
 				id="options-menu"
 				aria-haspopup="true"
 				aria-expanded={isOpen}

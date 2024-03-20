@@ -67,13 +67,8 @@
 
 	function handleCollectionClick(item: any) {
 		// Define the logic for handling the click on a collection
-		// mode.set(modeSet);
-		console.log('mode', $mode);
 		mode.set('edit');
 		// collection.set(item.collections);
-		console.log(item.name);
-		console.log(item.collections);
-		console.log('mode', $mode);
 		goto(`/collection/${item.name}`);
 	}
 </script>
