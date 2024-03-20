@@ -94,6 +94,7 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
+				console.log('response modalSelectWidget:', r);
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly

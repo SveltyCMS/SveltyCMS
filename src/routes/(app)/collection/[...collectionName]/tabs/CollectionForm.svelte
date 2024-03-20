@@ -135,29 +135,28 @@
 		<!-- tooltip -->
 		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
 			<!-- Popup Tooltip with the arrow element -->
-			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
-				<p>{m.collection_name_tooltip1()}</p>
-				<p>{m.collection_name_tooltip2()}</p>
-				<div class="variant-filled arrow" />
-			</div>
+		<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
+			<p>{m.collection_name_tooltip1()}</p>
+			<p>{m.collection_name_tooltip2()}</p>
+			<div class="variant-filled arrow" />
+		</div>
 
-			<div class="w-full">
-				<input
-					type="text"
-					required
-					id="name"
-					bind:value={$currentCollection.name}
-					on:input={handleNameInput}
-					placeholder={m.collection_name_placeholder()}
-					class="input text-black dark:text-primary-500"
-				/>
+		<div class="w-full">
+			<input
+				type="text"
+				required
+				id="name"
+				bind:value={$currentCollection.name}
+				on:input={handleNameInput}
+				placeholder={m.collection_name_placeholder()}
+				class="input text-black dark:text-primary-500"
+			/>
 
-				{#if $currentCollection && $currentCollection.name}
-					<p class="mb-3 sm:mb-0">
-						{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-					</p>
-				{/if}
-			</div>
+			{#if $currentCollection && $currentCollection.name}
+				<p class="mb-3 sm:mb-0">
+					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+				</p>
+			{/if}
 		</div>
 	</div>
 </div>

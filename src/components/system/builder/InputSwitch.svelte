@@ -3,6 +3,15 @@
 	export let widget: any;
 	export let key: string;
 	export let iconselected: string;
+
+	let localValue = value;
+
+	$: {
+		localValue = value;
+		if (key == 'display' && localValue?.default == true) {
+			localValue = '';
+		}
+	}
 </script>
 
-<svelte:component this={widget} bind:value bind:iconselected label={key} theme="dark" />
+<svelte:component this={widget} bind:value={localValue} bind:iconselected label={key} theme="dark" />
