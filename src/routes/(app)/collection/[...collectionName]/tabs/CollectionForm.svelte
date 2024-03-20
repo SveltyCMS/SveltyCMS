@@ -23,13 +23,16 @@
 	//check if collection Name exists set mode edit or create
 	if ($collections.find((x) => x.name === collectionName)) {
 		mode.set('edit');
-		currentCollection.set($collections.find((x) => x.name === collectionName) as Schema); // current collection
+		let collection = $collections.find((x) => x.name === collectionName) as Schema;
+		currentCollection.set(collection); // current collection
+		permissionStore.set(collection.permissions ?? {});
 	} else {
 		currentCollection.set({
 			...$currentCollection,
 			fields: $currentCollection.fields ? $currentCollection.fields : [],
 			name: collectionName
 		});
+		permissionStore.set({});
 	}
 
 	// Popup Tooltips
@@ -174,7 +177,7 @@
 			<div class="variant-filled arrow" />
 		</div>
 
-		<IconifyPicker bind:searchQuery bind:icon={$currentCollection['icon']} bind:iconselected />
+		<IconifyPicker bind:searchQuery bind:icon={$currentCollection['icon']} bind:iconselected={$currentCollection['icon']} />
 	</div>
 
 	<!-- Slug -->

@@ -2,6 +2,7 @@
 	export let value: any;
 	export let widget: any;
 	export let key: string;
+	export let iconselected: string;
 
 	let localValue = value;
 
@@ -13,4 +14,4 @@
 	}
 </script>
 
-<svelte:component this={widget} bind:value={localValue} label={key} theme="dark" />
+<svelte:component this={widget} bind:value={localValue} bind:iconselected label={key} theme="dark" />
