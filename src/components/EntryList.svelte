@@ -1,6 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
-	import { asAny, debounce, getFieldName } from '@src/utils/utils';
+	import { asAny, debounce, getFieldName, generateUniqueId } from '@src/utils/utils';
 
 	// Stores
 	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
@@ -28,25 +28,35 @@
 	let columnOrder: string[] = []; // This will hold the order of your columns
 	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
 
-	function handleDndConsider(data: { items: { id: string; isVisible: boolean }[] }) {
-		// No need to reassign the data object, directly access its items property
-		const items = data.items;
-
+	function handleDndConsider(event: CustomEvent<DndEvent<{ label: string; name: string; id: string }>> & { target: any }) {
+		const items = event.detail.items.map((item) => {
+			if (!item.id) {
+				item.id = generateUniqueId();
+			}
+			return item;
+		});
 		// You can potentially log or inspect the items here to understand the order before dropping
 		console.log('Items before dropping:', items);
 	}
 
-	function handleDndFinalize(data: { items: { id: string; isVisible: boolean }[] }) {
-		const clickedColumn = data.items[0].id; // Assuming the first item is the clicked/dragged column
+	function handleDndFinalize(event: CustomEvent<DndEvent<{ label: string; name: string; id: string }>> & { target: any }) {
+		const items = event.detail.items.map((item) => {
+			if (!item.id) {
+				item.id = generateUniqueId();
+			}
+			return item;
+		});
 
-		// Update sorting for the clicked column (toggle sort or change field)
-		sorting[clickedColumn] = {
-			sortedBy: getFieldName($collection.fields.find((field) => field.label === clickedColumn)), // Get field name for clicked column
-			isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
-		};
+		if (items.length > 0) {
+			const clickedColumn = items[0].id;
 
-		// Refresh data with the updated sorting
-		refresh();
+			sorting[clickedColumn] = {
+				sortedBy: getFieldName($collection.fields.find((field) => field.label === clickedColumn)),
+				isSorted: sorting[clickedColumn]?.isSorted === 1 ? -1 : 1
+			};
+
+			refresh();
+		}
 	}
 
 	let isLoading = false;
@@ -61,8 +71,11 @@
 	// Retrieve density from local storage or set to 'normal' if it doesn't exist
 	let density = localStorage.getItem('density') || 'normal';
 
+	// Initialize to true to show all columns by default
+	let selectAllColumns = true;
+
 	let data: { entryList: [any]; pagesCount: number } | undefined;
-	let tableHeaders: Array<{ label: string; name: string }> = [];
+	let tableHeaders: Array<{ label: string; name: string; id: string }> = [];
 	let tableData: any[] = [];
 	let modifyMap: { [key: string]: boolean } = {};
 
@@ -153,9 +166,9 @@
 			));
 
 		if (tableData.length > 0) {
-			tableHeaders = Object.keys(tableData[0]).map((key) => ({ label: key, name: key }));
+			tableHeaders = Object.keys(tableData[0]).map((key) => ({ label: key, name: key, id: generateUniqueId() }));
 		} else {
-			tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: field.label })); // Fallback to collection fields if no data
+			tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: field.label, id: generateUniqueId() })); // Fallback to collection fields if no data
 		}
 
 		SelectAll = false;
@@ -348,9 +361,19 @@
 				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
 				<!-- all -->
 				<div class="my-2 flex w-full items-center justify-center gap-1">
-					<label class="mr-3">
-						<input type="checkbox" bind:checked={SelectAll} />
+					<label class="mr-2">
+						<input
+							type="checkbox"
+							bind:checked={selectAllColumns}
+							on:change={() => {
+								// Toggle all column visibility states based on the selectAllColumns value
+								for (const header of tableHeaders) {
+									columnVisibility[header.name] = selectAllColumns;
+								}
+							}}
+						/>
 						{m.entrylist_all()}
+						<!-- Replace with your translation for "Select/Deselect All" -->
 					</label>
 
 					<section
