@@ -62,10 +62,6 @@
 
 	const flipDurationMs = 300;
 
-	let selectAllColumns = true; // Initialize to true to show all columns by default
-	let columnOrder: string[] = []; // This will hold the order of your columns
-	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
-
 	function handleDndConsider(event: any) {
 		displayTableHeaders = event.detail.items;
 	}
@@ -89,15 +85,9 @@
 		refreshTableData();
 	}
 
-	// Buttons
-	let globalSearchValue = '';
-	let searchShow = false;
-	let filterShow = false;
-	let columnShow = false;
-	// Retrieve density from local storage or set to 'normal' if it doesn't exist
-	let density: string = localStorage.getItem('density') || 'normal';
-
-	export let selectedRows: any[] = [];
+	// Define local stores for user and token data
+	let userTableData = [];
+	let tokenTableData = [];
 
 	// Display User Columns
 	const tableHeadersUser = [
@@ -124,31 +114,70 @@
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
 	];
 
+	// Buttons
+	let globalSearchValue = '';
+	let searchShow = false;
+	let filterShow = false;
+	let columnShow = false;
+
+	// Retrieve userPaginationSettings from local storage or set default values
+	let userPaginationSettings: any = localStorage.getItem('userPaginationSettings')
+		? JSON.parse(localStorage.getItem('userPaginationSettings') as string)
+		: {
+				density: 'normal',
+				sorting: { sortedBy: '', isSorted: 0 },
+				currentPage: 1,
+				rowsPerPage: 10,
+				filters: {},
+				displayTableHeaders: []
+			};
+
+	let density: string = userPaginationSettings.density || 'normal'; // Retrieve density from local storage or set to 'normal' if it doesn't exist
+	let selectAllColumns = true; // Initialize to true to show all columns by default
+
+	export let selectedRows: any[] = [];
+
 	// Define table data for both user list and tokens
+	let tableHeaders: Array<{ label: string; name: string }> = [];
 	let tableData: any[] = [];
 	let tableDataUserToken: any[] = [];
-	let displayTableHeaders = localStorage.getItem('displayTableHeaders') ? JSON.parse(localStorage.getItem('displayTableHeaders') as string) : [];
+
+	// Initialize displayTableHeaders with the values from entryListPaginationSettings or default to tableHeaders
+	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
+		userPaginationSettings.displayTableHeaders.length > 0
+			? userPaginationSettings.displayTableHeaders
+			: tableData.map((header) => ({ ...header, visible: true }));
 
 	// Tick row logic
 	let SelectAll = false;
 	let selectedMap = writable({});
 
 	// Filter
-	let filters: { [key: string]: string } = localStorage.getItem('filters') ? JSON.parse(localStorage.getItem('filters') as string) : {};
+	let filters: { [key: string]: string } = userPaginationSettings.filters || {};
 	let filteredTableData: any[] = [];
 	let waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
-	let currentPage: number = localStorage.getItem('currentPage') ? JSON.parse(localStorage.getItem('currentPage') as string) : 1; // Set initial currentPage value
-	let rowsPerPage: number = localStorage.getItem('rowsPerPage') ? JSON.parse(localStorage.getItem('rowsPerPage') as string) : 10; // Set initial rowsPerPage value
+	let pagesCount: number = userPaginationSettings.pagesCount || 1; // Initialize pagesCount
+	let currentPage: number = userPaginationSettings.currentPage || 1; // Set initial currentPage value
+	let rowsPerPage: number = userPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
+	let rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
 
-	// This function handles changes in the dropdown (assuming it has a class 'select')
-	function rowsPerPageHandler(event: any) {
-		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
-		refreshTableData(); // Trigger data refresh with the new rowsPerPage
+	// Declare isFirstPage and isLastPage variables
+	let isFirstPage: boolean;
+	let isLastPage: boolean;
+
+	// Define the rowsPerPageHandler function
+	function rowsPerPageHandler(event: Event) {
+		// Get the selected value from the event
+		const selectedValue = (event.target as HTMLSelectElement).value;
+		// Update the rows per page value
+		rowsPerPage = parseInt(selectedValue); // Assuming rowsPerPage is a number
+		// Optionally, you can call the refreshTableData function here if needed
+		refreshTableData();
 	}
 
-	//Load Table data
+	// Load Table data
 	async function refreshTableData() {
 		// Clear loading timer
 		loadingTimer && clearTimeout(loadingTimer);
@@ -169,25 +198,53 @@
 					responseData = data.tokens;
 				}
 
-				// Format the data for the table
+				// Format the data for the table based on which table is being shown
+				const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
+
 				tableData = responseData.map((item) => {
-					const formattedItem: any = {};
-					for (const header of showUserList ? tableHeadersUser : tableHeaderToken) {
+					const formattedItem = {};
+					for (const header of tableHeaders) {
 						const { key } = header;
 						formattedItem[key] = item[key] || 'NO DATA';
-						if (key === 'createdAt' || key === 'updatedAt') {
-							formattedItem[key] = new Date(item[key]).toLocaleString();
-						}
-						if (key === 'expiresIn') {
+						if (key === 'createdAt' || key === 'updatedAt' || key === 'expiresIn') {
 							formattedItem[key] = new Date(item[key]).toLocaleString();
 						}
 					}
-
 					return formattedItem;
 				});
 
 				// Reset filters
 				filters = {};
+
+				// Inside the refreshTableData function
+				if (userPaginationSettings.displayTableHeaders.length > 0) {
+					// Initialize displayTableHeaders with the values from entryListPaginationSettings
+					displayTableHeaders = userPaginationSettings.displayTableHeaders.map((header) => ({
+						...header,
+						id: generateUniqueId() // Add unique id for each header
+					}));
+				} else if (tableData.length > 0) {
+					// If userPaginationSettings.displayTableHeaders doesn't exist, initialize displayTableHeaders with the same values as tableHeaders
+					displayTableHeaders = tableData.map((header) => ({
+						...header,
+						visible: true, // Assuming all columns are initially visible
+						id: generateUniqueId() // Add unique id for each header
+					}));
+				}
+
+				SelectAll = false;
+
+				// Update pagesCount after fetching data
+				pagesCount = pagesCount || 1;
+
+				// Update isFirstPage and isLastPage based on currentPage and pagesCount
+				isFirstPage = currentPage === 1;
+				isLastPage = currentPage === pagesCount;
+
+				// Adjust currentPage to the last page if it exceeds the new total pages count after changing the rows per page.
+				if (currentPage > (pagesCount || 0)) {
+					currentPage = pagesCount || 1;
+				}
 
 				// Set loading to false
 				isLoading = false;
@@ -203,11 +260,19 @@
 	//Call refreshTableData initially to populate the table
 	refreshTableData();
 
+	// React to changes in density setting and update local storage
+	$: {
+		userPaginationSettings = { ...userPaginationSettings, filters, sorting, density, currentPage, rowsPerPage, displayTableHeaders }; //
+		localStorage.setItem('userPaginationSettings', JSON.stringify(userPaginationSettings)); // Update local storage
+		//console.log('Updated userPaginationSettings:', userPaginationSettings);
+	}
+
+	// Adjusted filtering logic to prevent strict filtering
 	$: {
 		filteredTableData = tableData.filter((item) => {
-			return Object.entries(item).every(([key, value]) => {
+			return Object.entries(item).some(([key, value]) => {
 				if (filters[key]) {
-					return (value as string).toString().toLowerCase().includes(filters[key]);
+					return (value as string).toString().toLowerCase().includes(filters[key].toLowerCase());
 				} else {
 					return true;
 				}
@@ -242,17 +307,7 @@
 	$: process_selectAll(SelectAll);
 
 	$: {
-		tableData = displayTableHeaders.filter((header) => columnVisibility[header.name]);
-	}
-
-	// Store values in local storage
-	$: {
-		localStorage.setItem('density', density);
-		localStorage.setItem('sorting', JSON.stringify(sorting));
-		localStorage.setItem('currentPage', JSON.stringify(currentPage));
-		localStorage.setItem('rowsPerPage', JSON.stringify(rowsPerPage));
-		localStorage.setItem('filters', JSON.stringify(filters));
-		localStorage.setItem('displayTableHeaders', JSON.stringify(displayTableHeaders));
+		tableHeaders = displayTableHeaders.filter((header) => header.visible);
 	}
 
 	// Define a reactive variable to hold the current action
@@ -318,7 +373,8 @@
 		</div>
 
 		{#if tableData.length > 0}
-			<!-- UserTable -->{#if columnShow}
+			<!-- UserTable -->
+			{#if columnShow}
 				<!-- Column order -->
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
@@ -327,42 +383,59 @@
 						<label class="mr-2">
 							<input
 								type="checkbox"
-								bind:checked={SelectAll}
+								bind:checked={selectAllColumns}
 								on:change={() => {
-									// Toggle all column visibility states based on the selectAllColumns value
-									for (const header of showUserList ? tableHeadersUser : tableHeaderToken) {
-										columnVisibility[header.key] = selectAllColumns;
-									}
+									// Check if all columns are currently visible
+									const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
+
+									// Toggle visibility of all columns based on the current state of selectAllColumns
+									displayTableHeaders = displayTableHeaders.map((header) => ({
+										...header,
+										visible: !allColumnsVisible
+									}));
+
+									// Update selectAllColumns based on the new visibility state of all columns
+									selectAllColumns = !allColumnsVisible;
 								}}
 							/>
 							{m.entrylist_all()}
 						</label>
 
 						<section
-							use:dndzone={{ items: showUserList ? tableHeadersUser : tableHeaderToken, flipDurationMs }}
+							use:dndzone={{
+								items: displayTableHeaders,
+								flipDurationMs
+							}}
 							on:consider={handleDndConsider}
 							on:finalize={handleDndFinalize}
 							class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 						>
-							{#each showUserList ? tableHeadersUser : tableHeaderToken as header, index}
+							{#each displayTableHeaders as header (header.id)}
 								<button
-									class="chip {columnVisibility[header.key]
-										? 'variant-filled-secondary'
-										: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									class="chip {header.visible ? 'variant-filled-secondary' : 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
+									animate:flip={{ duration: flipDurationMs }}
 									on:click={() => {
-										columnVisibility[header.key] = !columnVisibility[header.key];
+										// Toggle the visibility of the header
+										header.visible = !header.visible;
+
+										// Check if all columns are currently visible
+										const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
+
+										// Update selectAllColumns based on the visibility of all columns
+										selectAllColumns = allColumnsVisible;
 									}}
 								>
-									{#if columnVisibility[header.key]}
+									{#if header.visible}
 										<span><iconify-icon icon="fa:check" /></span>
 									{/if}
-									<span class="ml-2 capitalize">{header.key}</span>
+									<span class="ml-2 capitalize">{header.name}</span>
 								</button>
 							{/each}
 						</section>
 					</div>
 				</div>
 			{/if}
+
 			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table
 					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
@@ -372,7 +445,18 @@
 						{#if filterShow}
 							<tr class="divide-x divide-surface-400">
 								<th>
-									<!-- blank -->
+									<!-- Clear All Filters Button -->
+									{#if Object.keys(filters).length > 0}
+										<button
+											class="variant-outline btn-icon"
+											on:click={() => {
+												// Clear all filters
+												filters = {};
+											}}
+										>
+											<iconify-icon icon="material-symbols:close" width="24" />
+										</button>
+									{/if}
 								</th>
 
 								<!-- Filter -->
@@ -382,7 +466,7 @@
 											<FloatingInput
 												type="text"
 												icon="material-symbols:search-rounded"
-												label="Filter ..."
+												label={m.entrylist_filter()}
 												name={header.key}
 												on:input={(e) => {
 													let value = asAny(e.target).value;
@@ -441,6 +525,7 @@
 							{/each}
 						</tr>
 					</thead>
+
 					<tbody>
 						{#each filteredTableData as row, index}
 							<tr
@@ -450,6 +535,7 @@
 								}}
 							>
 								<TableIcons bind:checked={selectedMap[index]} />
+								<!-- <TableIcons iconStatus={data?.entryList[index]?.status} bind:checked={selectedMap[index]} /> -->
 
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">
@@ -476,7 +562,7 @@
 				<div class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 					<div class="mb-1 text-xs md:mb-0 md:text-sm">
 						<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-						<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
+						<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{pagesCount || 0}</span>
 					</div>
 
 					<div class="variant-outline btn-group">
@@ -484,6 +570,8 @@
 						<button
 							type="button"
 							class="btn"
+							disabled={isFirstPage}
+							aria-label="Go to first page"
 							on:click={() => {
 								currentPage = 1;
 								refreshTableData();
@@ -496,6 +584,8 @@
 						<button
 							type="button"
 							class="btn"
+							disabled={isFirstPage}
+							aria-label="Go to Previous page"
 							on:click={() => {
 								currentPage = Math.max(1, currentPage - 1);
 								refreshTableData();
@@ -504,21 +594,25 @@
 							<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
 						</button>
 
-						<!-- Number of pages -->
-						<select
-							value={rowsPerPage}
-							on:change={rowsPerPageHandler}
-							class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
-						>
-							{#each [10, 25, 50, 100, 500] as pageSize}
-								<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-							{/each}
-						</select>
+						<!-- Rows per page select dropdown -->
+						{#if rowsPerPage !== undefined}
+							<select
+								value={rowsPerPage}
+								on:change={rowsPerPageHandler}
+								class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+							>
+								{#each rowsPerPageOptions as pageSize}
+									<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+								{/each}
+							</select>
+						{/if}
 
 						<!-- Next page -->
 						<button
 							type="button"
 							class="btn"
+							disabled={isLastPage}
+							aria-label="Go to Next page"
 							on:click={() => {
 								currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
 								refreshTableData();
@@ -535,6 +629,8 @@
 						<button
 							type="button"
 							class="btn"
+							disabled={isLastPage}
+							aria-label="Go to Last page"
 							on:click={() => {
 								currentPage = Math.ceil(tableData.length / rowsPerPage);
 								refreshTableData();
