@@ -43,12 +43,11 @@
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		// Prepare form data
 		//delete key from fields
 		$currentCollection.fields.forEach((field: any) => {
 			delete field.key;
 		});
-
+		// Prepare form data
 		let data =
 			$mode == 'edit'
 				? obj2formData({
@@ -104,7 +103,6 @@
 	}
 
 	function handleCollectionDelete() {
-		console.log('Delete collection:', $currentCollection.name);
 		// Define the confirmation modal
 		const confirmModal: ModalSettings = {
 			type: 'confirm',
@@ -142,7 +140,6 @@
 	}
 
 	onMount(() => {
-		// Set the initial tab
 		tabSet.set(0);
 	});
 </script>

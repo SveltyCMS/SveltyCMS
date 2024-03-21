@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { currentCollection, tabSet } from '@stores/store';
+	import { currentCollection, tabSet, targetWidget } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
@@ -44,13 +44,18 @@
 
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
+		// console.log(selectedWidget);
+		if (selectedWidget.permissions === undefined) {
+			selectedWidget.permissions = {};
+		}
+		targetWidget.set(selectedWidget);
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
 			title: 'Define your Widget',
 			body: 'Setup your widget and then press Save.',
-			value: selectedWidget, // Pass the selected widget	as the initial value
+			value: selectedWidget, // Pass the selected widget as the initial value
 			response: (r: any) => {
 				if (!r) return;
 				// Find the index of the existing widget based on its ID
@@ -96,7 +101,9 @@
 			response: (r: any) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
+				let widget = { widget: { key: selectedWidget }, permissions: {} };
+				targetWidget.set(widget);
+				modalWidgetForm(widget); // Use selectedWidget directly
 			}
 		};
 		modalStore.trigger(modal);

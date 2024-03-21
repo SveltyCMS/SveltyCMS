@@ -17,7 +17,7 @@ export const categories: Writable<
 export const collections: Writable<Array<Schema>> = writable();
 export const unAssigned: Writable<Array<Schema>> = writable();
 export const collection: Writable<Schema> = writable();
-export const editingWidget: Writable<any> = writable({});
+export const targetWidget: Writable<any> = writable({});
 
 // ------------ Collections ------------
 // Collections stores
