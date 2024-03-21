@@ -16,6 +16,8 @@
 	"entrylist_rows": "Righe",
 	"entrylist_filter": "Filtra...",
 	"entrylist_dnd": "Trascina e rilascia colonne/Fai clic per nascondere",
+	"entrylist_title": "Conferma azione",
+	"entrylist_body": "Sei sicuro di voler {status} le voci selezionate?",
 	"fields_edit": "Modificare",
 	"fields_required": "* Necessario",
 	"fields_revision_compare": "Confronta la revisione con:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Creato:",
 	"sidebar_updated": "Aggiornato:",
 	"button_save": "Salva",
+	"button_confirm": "Confermare",
 	"button_delete": "Eliminare",
 	"button_cancel": "Annulla",
 	"button_previous": "Precedente",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Raccolte non assegnate",
 	"collection_text_description": "Crea nuove categorie o raccolte e trascinale e rilasciale in base alle tue esigenze",
 	"Listnode_warning_body": "L'eliminazione di questa categoria eliminerà anche tutti i suoi figli.<br> Sei sicuro di voler procedere?",
-	"Listnode_confirm_body": "Sei sicuro di voler eliminare questa categoria?"
+	"Listnode_confirm_body": "Sei sicuro di voler eliminare questa categoria?",
+	"colorPicker_label": "Codice colore:",
+	"colorPiker_nocolor": "Nessun colore selezionato",
+	"colorPicker_hex": "Valore esadecimale"
 }

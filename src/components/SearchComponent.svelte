@@ -2,12 +2,12 @@
 	import { goto } from '$app/navigation';
 	import { getEditDistance } from '@utils/utils';
 	import { onMount } from 'svelte';
+
+	// Compontent
 	import HighlightedText from './HighlightedText.svelte';
 
 	//Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
-
-	//console.log($globalSearchIndex);
 
 	// Define the searchResults array and searchQuery variable
 	let searchResults: any[] = [];
@@ -51,8 +51,6 @@
 				result.title.toUpperCase().includes(query.toUpperCase()) ||
 				result.keywords.some((keyword) => keyword.toUpperCase().includes(query.toUpperCase()))
 		);
-
-		// console.log('sortedResults', sortedResults); // Log the results array after sorting
 
 		// Filter results based on a distance threshold
 		const threshold = Math.floor(Math.max(query.length * 0.9)); // Adjusted threshold calculation

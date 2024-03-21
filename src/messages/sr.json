@@ -16,6 +16,8 @@
 	"entrylist_rows": "Редови",
 	"entrylist_filter": "Филтрирај...",
 	"entrylist_dnd": "Превуците и отпустите колоне / кликните да бисте сакрили",
+	"entrylist_title": "Потврдите акцију",
+	"entrylist_body": "Да ли сте сигурни да желите да {status} изабране уносе?",
 	"fields_edit": "Уредити",
 	"fields_required": "* Потребан",
 	"fields_revision_compare": "Упоредите ревизију са:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Направљено:",
 	"sidebar_updated": "Ажуриран:",
 	"button_save": "сачувати",
+	"button_confirm": "Потврди",
 	"button_delete": "Избриши",
 	"button_cancel": "Поништити, отказати",
 	"button_previous": "Претходна",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Недодељене колекције",
 	"collection_text_description": "Креирајте нове категорије или колекције и превуците их и отпустите према вашим потребама",
 	"Listnode_warning_body": "Брисањем ове категорије избрисаће се и сва њена деца.<br> Да ли сте сигурни да желите да наставите?",
-	"Listnode_confirm_body": "Да ли сте сигурни да желите да избришете ову категорију?"
+	"Listnode_confirm_body": "Да ли сте сигурни да желите да избришете ову категорију?",
+	"colorPicker_label": "Код боје:",
+	"colorPiker_nocolor": "Није изабрана боја",
+	"colorPicker_hex": "Хек вредност"
 }

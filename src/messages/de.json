@@ -16,6 +16,8 @@
 	"entrylist_rows": "Reihen",
 	"entrylist_filter": "Filtern ...",
 	"entrylist_dnd": "Spalten per Drag &amp; Drop / Zum Ausblenden anklicken",
+	"entrylist_title": "Aktion bestätigen",
+	"entrylist_body": "Sind Sie sicher, dass Sie die ausgewählten Einträge {status} möchten?",
 	"fields_edit": "Bearbeiten",
 	"fields_required": "* Erforderlich",
 	"fields_revision_compare": "Revision vergleichen mit:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Erstellt:",
 	"sidebar_updated": "Aktualisiert:",
 	"button_save": "Speichern",
+	"button_confirm": "Bestätigen",
 	"button_delete": "Löschen",
 	"button_cancel": "Stornieren",
 	"button_previous": "Vorherige",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Nicht zugewiesene Sammlungen",
 	"collection_text_description": "Erstellen Sie neue Kategorien oder Sammlungen und ziehen Sie diese entsprechend Ihren Anforderungen per Drag &amp; Drop",
 	"Listnode_warning_body": "Durch das Löschen dieser Kategorie werden auch alle untergeordneten Kategorien gelöscht.<br> Sind Sie sicher, dass Sie fortfahren möchten?",
-	"Listnode_confirm_body": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?"
+	"Listnode_confirm_body": "Sind Sie sicher, dass Sie diese Kategorie löschen möchten?",
+	"colorPicker_label": "Farbcode:",
+	"colorPiker_nocolor": "Keine Farbe ausgewählt",
+	"colorPicker_hex": "Hex-Wert"
 }

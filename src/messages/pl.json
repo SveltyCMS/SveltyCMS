@@ -16,6 +16,8 @@
 	"entrylist_rows": "Wydziwianie",
 	"entrylist_filter": "Filtruj...",
 	"entrylist_dnd": "Przeciągnij i upuść kolumny / Kliknij, aby ukryć",
+	"entrylist_title": "Potwierdź działanie",
+	"entrylist_body": "Czy na pewno chcesz {status} wybrane wpisy?",
 	"fields_edit": "Edytować",
 	"fields_required": "* Wymagany",
 	"fields_revision_compare": "Porównaj wersję z:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Utworzony:",
 	"sidebar_updated": "Zaktualizowano:",
 	"button_save": "Ratować",
+	"button_confirm": "Potwierdzać",
 	"button_delete": "Usuwać",
 	"button_cancel": "Anulować",
 	"button_previous": "Poprzedni",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Nieprzypisane kolekcje",
 	"collection_text_description": "Twórz nowe kategorie lub kolekcje, przeciągając je i upuszczając zgodnie ze swoimi potrzebami",
 	"Listnode_warning_body": "Usunięcie tej kategorii spowoduje również usunięcie wszystkich jej kategorii podrzędnych.<br> Na pewno chcesz kontynuować?",
-	"Listnode_confirm_body": "Czy na pewno chcesz usunąć tę kategorię?"
+	"Listnode_confirm_body": "Czy na pewno chcesz usunąć tę kategorię?",
+	"colorPicker_label": "Kod koloru:",
+	"colorPiker_nocolor": "Nie wybrano koloru",
+	"colorPicker_hex": "Wartość szesnastkowa"
 }

@@ -16,6 +16,8 @@
 	"entrylist_rows": "Lignes",
 	"entrylist_filter": "Filtrer...",
 	"entrylist_dnd": "Glisser-déposer les colonnes/Cliquer pour masquer",
+	"entrylist_title": "Confirmer l'action",
+	"entrylist_body": "Etes-vous sûr de vouloir {status} les entrées sélectionnées ?",
 	"fields_edit": "Modifier",
 	"fields_required": "* Requis",
 	"fields_revision_compare": "Comparez la révision avec :",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Créé:",
 	"sidebar_updated": "Mis à jour:",
 	"button_save": "Sauvegarder",
+	"button_confirm": "Confirmer",
 	"button_delete": "Supprimer",
 	"button_cancel": "Annuler",
 	"button_previous": "Précédent",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Collections non attribuées",
 	"collection_text_description": "Créez de nouvelles catégories ou collections et faites-les glisser et déposez-les selon vos besoins",
 	"Listnode_warning_body": "La suppression de cette catégorie supprimera également tous ses enfants.<br> Êtes-vous sur de vouloir continuer?",
-	"Listnode_confirm_body": "Êtes-vous sûr de vouloir supprimer cette catégorie ?"
+	"Listnode_confirm_body": "Êtes-vous sûr de vouloir supprimer cette catégorie ?",
+	"colorPicker_label": "Code couleur:",
+	"colorPiker_nocolor": "Aucune couleur sélectionnée",
+	"colorPicker_hex": "Valeur hexadécimale"
 }

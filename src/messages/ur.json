@@ -16,6 +16,8 @@
 	"entrylist_rows": "قطاریں",
 	"entrylist_filter": "فلٹر...",
 	"entrylist_dnd": "کالم گھسیٹیں اور چھوڑیں / چھپانے کے لیے کلک کریں۔",
+	"entrylist_title": "کارروائی کی تصدیق کریں۔",
+	"entrylist_body": "کیا آپ واقعی منتخب اندراجات کو {status} کرنا چاہتے ہیں؟",
 	"fields_edit": "ترمیم",
 	"fields_required": "*ضروری ہے۔",
 	"fields_revision_compare": "نظر ثانی کا موازنہ اس سے کریں:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "تخلیق کردہ:",
 	"sidebar_updated": "اپ ڈیٹ شدہ:",
 	"button_save": "محفوظ کریں۔",
+	"button_confirm": "تصدیق کریں۔",
 	"button_delete": "حذف کریں۔",
 	"button_cancel": "منسوخ کریں۔",
 	"button_previous": "پچھلا",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "غیر تفویض کردہ مجموعے۔",
 	"collection_text_description": "اپنی ضروریات کے مطابق نئے زمرے یا مجموعے بنائیں اور انہیں گھسیٹیں اور چھوڑیں۔",
 	"Listnode_warning_body": "اس زمرے کو حذف کرنے سے اس کے تمام بچے بھی حذف ہو جائیں گے۔<br> کیا آپ واقعی آگے بڑھنا چاہتے ہیں؟",
-	"Listnode_confirm_body": "کیا آپ واقعی اس زمرے کو حذف کرنا چاہتے ہیں؟"
+	"Listnode_confirm_body": "کیا آپ واقعی اس زمرے کو حذف کرنا چاہتے ہیں؟",
+	"colorPicker_label": "رنگ کا کوڈ:",
+	"colorPiker_nocolor": "کوئی رنگ منتخب نہیں کیا گیا۔",
+	"colorPicker_hex": "ہیکس ویلیو"
 }

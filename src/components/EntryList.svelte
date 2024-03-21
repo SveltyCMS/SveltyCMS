@@ -3,11 +3,11 @@
 	import { asAny, debounce, getFieldName, generateUniqueId } from '@src/utils/utils';
 
 	// Stores
+	import { get } from 'svelte/store';
 	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
-	import { get, writable } from 'svelte/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
@@ -20,42 +20,44 @@
 	import Loading from './Loading.svelte';
 
 	// Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
+	const modalStore = getModalStore();
 
-	//svelte-dnd-action
+	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 
 	const flipDurationMs = 300;
+
+	let selectAllColumns = true; // Initialize to true to show all columns by default
 	let columnOrder: string[] = []; // This will hold the order of your columns
 	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
 
-	function handleDndConsider(event: CustomEvent<DndEvent<{ label: string; name: string }>> & { target: any }) {
-		tableHeaders = event.detail.items;
+	function handleDndConsider(event: any) {
+		displayTableHeaders = event.detail.items;
 	}
 
-	function handleDndFinalize(event: CustomEvent<DndEvent<{ label: string; name: string }>> & { target: any }) {
-		tableHeaders = event.detail.items;
+	function handleDndFinalize(event: any) {
+		displayTableHeaders = event.detail.items;
 	}
 
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
 
-	//Buttons
+	// Buttons
 	let globalSearchValue = '';
 	let expand = false;
 	let filterShow = false;
 	let columnShow = false;
 
 	// Retrieve density from local storage or set to 'normal' if it doesn't exist
-	let density = localStorage.getItem('density') || 'normal';
-
-	// Initialize to true to show all columns by default
-	let selectAllColumns = true;
+	let density: string = localStorage.getItem('density') || 'normal';
 
 	let data: { entryList: [any]; pagesCount: number } | undefined;
 	let tableHeaders: Array<{ label: string; name: string }> = [];
+	let displayTableHeaders = localStorage.getItem('displayTableHeaders') ? JSON.parse(localStorage.getItem('displayTableHeaders') as string) : [];
 	let tableData: any[] = [];
 
 	// Tick row logic
@@ -63,12 +65,12 @@
 	let selectedMap: { [key: string]: boolean } = {};
 
 	// Filter
-	let filters: { [key: string]: string } = {}; // Set initial filters object
+	let filters: { [key: string]: string } = localStorage.getItem('filters') ? JSON.parse(localStorage.getItem('filters') as string) : {};
 	let waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
-	let rowsPerPage = 10; // Set initial rowsPerPage value
-	let currentPage = 1; // Set initial currentPage value
+	let currentPage: number = localStorage.getItem('currentPage') ? JSON.parse(localStorage.getItem('currentPage') as string) : 1; // Set initial currentPage value
+	let rowsPerPage: number = localStorage.getItem('rowsPerPage') ? JSON.parse(localStorage.getItem('rowsPerPage') as string) : 10; // Set initial rowsPerPage value
 
 	// This function handles changes in the dropdown (assuming it has a class 'select')
 	function rowsPerPageHandler(event: any) {
@@ -144,8 +146,12 @@
 				})
 			));
 
+		// For rending Table data
 		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
+
+		// Initialize displayTableHeaders with the same values as tableHeaders
+		displayTableHeaders = [...tableHeaders];
 
 		SelectAll = false;
 
@@ -197,20 +203,21 @@
 	}
 
 	// Update Tick All Rows
-	// TOOD: Fix SelectALL as $ will blank out site
 	$: process_selectAll(SelectAll);
 
 	// Update Tick Single Row
 	$: Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 
 	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
-		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
-		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
-	};
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
+		? JSON.parse(localStorage.getItem('sorting') as string)
+		: {
+				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+			};
 
 	$: {
-		tableHeaders = tableHeaders.filter((header) => columnVisibility[header.name]);
+		tableHeaders = displayTableHeaders.filter((header) => columnVisibility[header.name]);
 	}
 
 	// Store values in local storage
@@ -220,8 +227,7 @@
 		localStorage.setItem('currentPage', JSON.stringify(currentPage));
 		localStorage.setItem('rowsPerPage', JSON.stringify(rowsPerPage));
 		localStorage.setItem('filters', JSON.stringify(filters));
-		localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
-		localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+		localStorage.setItem('displayTableHeaders', JSON.stringify(displayTableHeaders));
 	}
 
 	// Tick Row - modify STATUS of an Entry
@@ -233,47 +239,73 @@
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
-		// Initialize a new FormData object
-		if (modifyList.length == 0) return;
-		// Initialize a new FormData object
-		let formData = new FormData();
-		// Append the IDs of the items to be modified to formData
-		formData.append('ids', JSON.stringify(modifyList));
-		// Append the status to formData
-		formData.append('status', statusMap[status]);
-		// Use the status to determine which API endpoint to call and what HTTP method to use
-		switch (status) {
-			case 'delete':
-				// If the status is 'Delete', call the delete endpoint
-				await axios.delete(`/api/${$collection.name}`, { data: formData });
-				break;
-			case 'publish':
-			case 'unpublish':
-			case 'test':
-				// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
-				await axios.patch(`/api/${$collection.name}/setStatus`, formData).then((res) => res.data);
-				break;
-			case 'clone':
-			// await axios.post(`/api/${$collection.name}/clone`, formData);
-			case 'schedule':
-				// Trigger the toast
-				const t = {
-					message: 'Not yet implemented.',
-					// Provide any utility or variant background style:
-					background: 'variant-filled-error',
-					timeout: 3000,
-					// Add your custom classes here:
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
-				// await axios.post(`/api/${$collection.name}/schedule`, formData);
-				break;
-		}
-		// Refresh the collection
-		refresh();
+		// If no rows are selected, return
+		if (modifyList.length === 0) return;
 
-		// Set the mode to 'view'
-		mode.set('view');
+		// Function to handle confirmation modal response
+		const handleConfirmation = async (confirm: boolean) => {
+			if (!confirm) return;
+
+			// Initialize a new FormData object
+			let formData = new FormData();
+			// Append the IDs of the items to be modified to formData
+			formData.append('ids', JSON.stringify(modifyList));
+			// Append the status to formData
+			formData.append('status', statusMap[status]);
+
+			try {
+				// Call the appropriate API endpoint based on the status
+				switch (status) {
+					case 'delete':
+						// If the status is 'Delete', call the delete endpoint
+						await axios.delete(`/api/${$collection.name}`, { data: formData });
+						break;
+					case 'publish':
+					case 'unpublish':
+					case 'test':
+						// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
+						await axios.patch(`/api/${$collection.name}/setStatus`, formData);
+						break;
+					case 'clone':
+					case 'schedule':
+						// Trigger a toast message indicating that the feature is not yet implemented
+						const toast = {
+							message: 'Feature not yet implemented.',
+							background: 'variant-filled-error',
+							timeout: 3000
+						};
+						toastStore.trigger(toast);
+						break;
+				}
+
+				// Refresh the collection
+				refresh();
+				// Set the mode to 'view'
+				mode.set('view');
+			} catch (error) {
+				console.error('Error:', error);
+				// Optionally handle error scenarios
+			}
+		};
+
+		// If more than one row is selected or the status is 'delete', show confirmation modal
+		if (modifyList.length > 1 || status === 'delete') {
+			const modalData: ModalSettings = {
+				type: 'confirm',
+				title: m.entrylist_title(),
+				body: m.entrylist_body({
+					status: `<span class="text-text-tertiary-500 dark:text-primary-500">${status.charAt(0).toUpperCase()}${status.slice(1)}</span>`
+				}),
+				buttonTextCancel: m.button_cancel(),
+				buttonTextConfirm: m.button_confirm(),
+				response: handleConfirmation
+			};
+
+			modalStore.trigger(modalData); // Trigger the confirmation modal
+		} else {
+			// If only one row is selected and status is not 'delete', directly proceed with modification
+			handleConfirmation(true);
+		}
 	};
 </script>
 
@@ -341,7 +373,7 @@
 		{/if}
 
 		{#if columnShow}
-			<!-- column order -->
+			<!-- Column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
 				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
 				<!-- Select All Columns -->
@@ -362,7 +394,7 @@
 
 					<section
 						use:dndzone={{
-							items: tableHeaders.map((item) => {
+							items: displayTableHeaders.map((item) => {
 								item.id = generateUniqueId();
 								return item;
 							}),
@@ -372,7 +404,7 @@
 						on:finalize={handleDndFinalize}
 						class="flex flex-wrap justify-center gap-1 rounded-md p-2"
 					>
-						{#each tableHeaders as header (header)}
+						{#each displayTableHeaders as header (header)}
 							<button
 								class="chip {columnVisibility[header.name]
 									? 'variant-filled-secondary'
@@ -380,9 +412,6 @@
 								animate:flip={{ duration: flipDurationMs }}
 								on:click={() => {
 									columnVisibility[header.name] = !columnVisibility[header.name];
-
-									// Save to local storage
-									localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
 								}}
 							>
 								{#if columnVisibility[header.name]}
@@ -396,10 +425,10 @@
 			</div>
 		{/if}
 
-		<div class="table-container max-h-[calc(100dvh-60px)] overflow-auto">
+		<div class="table-container max-h-[calc(100dvh-120px)] overflow-auto">
 			<table class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}">
 				<!-- Table Header -->
-				<thead class="sticky top-0 z-10 text-tertiary-500 dark:text-primary-500">
+				<thead class="text-tertiary-500 dark:text-primary-500">
 					{#if filterShow}
 						<tr class="divide-x divide-surface-400">
 							<th>
@@ -434,9 +463,8 @@
 					{/if}
 
 					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-						<!-- <th class="!pl-[25px]"> -->
 						<TableIcons bind:checked={SelectAll} iconStatus="all" />
-						<!-- </th> -->
+
 						{#each tableHeaders as header}
 							<th
 								on:click={() => {
@@ -479,12 +507,10 @@
 						{/each}
 					</tr>
 				</thead>
-				<tbody class="">
+				<tbody>
 					{#each tableData as row, index}
 						<tr class="divide-x divide-surface-400">
-							<!-- <td on:click class="bg-error-500 !pl-[25px]"> -->
 							<TableIcons iconStatus={data?.entryList[index]?.status} bind:checked={selectedMap[index]} />
-							<!-- </td> -->
 
 							{#each tableHeaders as header}
 								<td
@@ -509,15 +535,16 @@
 				</tbody>
 			</table>
 		</div>
+
 		<!-- Pagination  -->
-		<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
-			<div class="mb-2 md:mb-0">
-				<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-				<span class="text-sm"> {m.entrylist_of()} </span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
+		<div class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<div class="mb-1 text-xs md:mb-0 md:text-sm">
+				<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+				<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
 			</div>
 
 			<div class="variant-outline btn-group">
-				<!-- first page -->
+				<!-- First page -->
 				<button
 					type="button"
 					class="btn"
@@ -541,7 +568,7 @@
 					<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
 				</button>
 
-				<!-- number of pages -->
+				<!-- Number of pages -->
 				<select value={rowsPerPage} on:change={rowsPerPageHandler} class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500">
 					{#each [10, 25, 50, 100, 500] as pageSize}
 						<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
@@ -588,7 +615,7 @@
 	}
 	div::-webkit-scrollbar-thumb {
 		border-radius: 50px;
-		background-color: #0eb4c4;
+		background-color: #0ec423;
 	}
 	div::-webkit-scrollbar {
 		width: 10px;

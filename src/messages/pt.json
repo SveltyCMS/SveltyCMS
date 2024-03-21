@@ -16,6 +16,8 @@
 	"entrylist_rows": "Linhas",
 	"entrylist_filter": "Filtrar ...",
 	"entrylist_dnd": "Arraste e solte colunas / Clique para ocultar",
+	"entrylist_title": "Confirmar ação",
+	"entrylist_body": "Tem certeza de que deseja {status} as entradas selecionadas?",
 	"fields_edit": "Editar",
 	"fields_required": "* Obrigatório",
 	"fields_revision_compare": "Compare a revisão com:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Criada:",
 	"sidebar_updated": "Atualizada:",
 	"button_save": "Salvar",
+	"button_confirm": "confirme",
 	"button_delete": "Excluir",
 	"button_cancel": "Cancelar",
 	"button_previous": "Anterior",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Coleções não atribuídas",
 	"collection_text_description": "Crie novas categorias ou coleções e arraste e solte-as de acordo com suas necessidades",
 	"Listnode_warning_body": "Excluir esta categoria também excluirá todos os seus filhos.<br> Tem certeza de que deseja prosseguir?",
-	"Listnode_confirm_body": "Tem certeza de que deseja excluir esta categoria?"
+	"Listnode_confirm_body": "Tem certeza de que deseja excluir esta categoria?",
+	"colorPicker_label": "Código de cores:",
+	"colorPiker_nocolor": "Nenhuma cor selecionada",
+	"colorPicker_hex": "Valor hexadecimal"
 }

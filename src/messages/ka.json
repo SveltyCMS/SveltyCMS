@@ -16,6 +16,8 @@
 	"entrylist_rows": "რიგები",
 	"entrylist_filter": "ფილტრი...",
 	"entrylist_dnd": "გადაათრიეთ და ჩამოაგდეთ სვეტები / დააწკაპუნეთ დასამალად",
+	"entrylist_title": "დაადასტურეთ მოქმედება",
+	"entrylist_body": "დარწმუნებული ხართ, რომ გსურთ შერჩეული ჩანაწერების {status} ?",
 	"fields_edit": "რედაქტირება",
 	"fields_required": "* აუცილებელია",
 	"fields_revision_compare": "შეადარეთ რევიზია:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "შექმნილია:",
 	"sidebar_updated": "განახლებულია:",
 	"button_save": "Გადარჩენა",
+	"button_confirm": "დაადასტურეთ",
 	"button_delete": "წაშლა",
 	"button_cancel": "გაუქმება",
 	"button_previous": "წინა",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "გამოუყენებელი კოლექციები",
 	"collection_text_description": "შექმენით ახალი კატეგორიები ან კოლექციები და გადაიტანეთ და ჩამოაგდეთ ისინი თქვენი საჭიროების მიხედვით",
 	"Listnode_warning_body": "ამ კატეგორიის წაშლა ასევე წაშლის მის ყველა შვილს.<br> დარწმუნებული ხართ, რომ გსურთ გაგრძელება?",
-	"Listnode_confirm_body": "დარწმუნებული ხართ, რომ გსურთ ამ კატეგორიის წაშლა?"
+	"Listnode_confirm_body": "დარწმუნებული ხართ, რომ გსურთ ამ კატეგორიის წაშლა?",
+	"colorPicker_label": "Ფერის კოდი:",
+	"colorPiker_nocolor": "ფერი არ არის არჩეული",
+	"colorPicker_hex": "Hex მნიშვნელობა"
 }

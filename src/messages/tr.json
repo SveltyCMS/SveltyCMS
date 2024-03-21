@@ -16,6 +16,8 @@
 	"entrylist_rows": "Satırlar",
 	"entrylist_filter": "Filtrele...",
 	"entrylist_dnd": "Sütunları Sürükle ve Bırak / Gizlemek için tıklayın",
+	"entrylist_title": "Eylemi Onayla",
+	"entrylist_body": "Seçilen girişleri {status} yapmak istediğinizden emin misiniz?",
 	"fields_edit": "Düzenlemek",
 	"fields_required": "* Gerekli",
 	"fields_revision_compare": "Revizyonu aşağıdakilerle karşılaştırın:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Oluşturuldu:",
 	"sidebar_updated": "Güncellenmiş:",
 	"button_save": "Kaydetmek",
+	"button_confirm": "Onaylamak",
 	"button_delete": "Silmek",
 	"button_cancel": "İptal etmek",
 	"button_previous": "Öncesi",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Atanmamış Koleksiyonlar",
 	"collection_text_description": "İhtiyaçlarınıza göre yeni kategoriler veya koleksiyonlar oluşturun ve bunları sürükleyip bırakın",
 	"Listnode_warning_body": "Bu kategorinin silinmesi aynı zamanda tüm alt öğelerinin de silinmesine neden olacaktır.<br> Devam etmek istediğinizden emin misiniz?",
-	"Listnode_confirm_body": "Bu kategoriyi silmek istediğinizden emin misiniz?"
+	"Listnode_confirm_body": "Bu kategoriyi silmek istediğinizden emin misiniz?",
+	"colorPicker_label": "Renk kodu:",
+	"colorPiker_nocolor": "Renk seçilmedi",
+	"colorPicker_hex": "Onaltılık değer"
 }

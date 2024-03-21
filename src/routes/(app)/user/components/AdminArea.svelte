@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { PageData } from '../$types';
 	import axios from 'axios';
-	import { asAny, debounce } from '@utils/utils';
-	import { linear } from 'svelte/easing';
+	import type { PageData } from '../$types';
+	import { writable } from 'svelte/store';
+	import { asAny, debounce, getFieldName, generateUniqueId } from '@utils/utils';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
@@ -21,9 +21,8 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import { writable } from 'svelte/store';
-
+	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	export let data: PageData;
@@ -57,6 +56,24 @@
 	let showUserList = false;
 	let showUsertoken = false;
 
+	// Svelte-dnd-action
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
+
+	const flipDurationMs = 300;
+
+	let selectAllColumns = true; // Initialize to true to show all columns by default
+	let columnOrder: string[] = []; // This will hold the order of your columns
+	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
+
+	function handleDndConsider(event: any) {
+		displayTableHeaders = event.detail.items;
+	}
+
+	function handleDndFinalize(event: any) {
+		displayTableHeaders = event.detail.items;
+	}
+
 	let isLoading = false;
 	let loadingTimer: any; // recommended time of around 200-300ms
 
@@ -72,12 +89,13 @@
 		refreshTableData();
 	}
 
-	// TableFilter
+	// Buttons
 	let globalSearchValue = '';
 	let searchShow = false;
 	let filterShow = false;
 	let columnShow = false;
-	let density = 'normal';
+	// Retrieve density from local storage or set to 'normal' if it doesn't exist
+	let density: string = localStorage.getItem('density') || 'normal';
 
 	export let selectedRows: any[] = [];
 
@@ -109,55 +127,25 @@
 	// Define table data for both user list and tokens
 	let tableData: any[] = [];
 	let tableDataUserToken: any[] = [];
+	let displayTableHeaders = localStorage.getItem('displayTableHeaders') ? JSON.parse(localStorage.getItem('displayTableHeaders') as string) : [];
+
+	// Tick row logic
+	let SelectAll = false;
+	let selectedMap = writable({});
 
 	// Filter
-	let filters: { [key: string]: string } = {}; // Set initial filters object
+	let filters: { [key: string]: string } = localStorage.getItem('filters') ? JSON.parse(localStorage.getItem('filters') as string) : {};
 	let filteredTableData: any[] = [];
 	let waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
-	let rowsPerPage = 10; // Set initial rowsPerPage value
-	let currentPage = 1; // Set initial currentPage value
+	let currentPage: number = localStorage.getItem('currentPage') ? JSON.parse(localStorage.getItem('currentPage') as string) : 1; // Set initial currentPage value
+	let rowsPerPage: number = localStorage.getItem('rowsPerPage') ? JSON.parse(localStorage.getItem('rowsPerPage') as string) : 10; // Set initial rowsPerPage value
 
-	//svelte-dnd-action
-	import { flip } from 'svelte/animate';
-	import { slide } from 'svelte/transition';
-	import { dndzone } from 'svelte-dnd-action';
-
-	const flipDurationMs = 300;
-	let columnOrder: string[] = []; // This will hold the order of your columns
-	let columnVisibility: { [key: string]: boolean } = {}; // This will hold the visibility status of your columns
-
-	function handleDndConsider(event: CustomEvent) {
-		const items = event.detail.items;
-		console.log('Items before dropping:', items);
-	}
-
-	function handleDndFinalize(event: CustomEvent) {
-		const clickedColumnId = event.detail.items[0].key; // Assuming the first item is the clicked/dragged column
-
-		// Update sorting for the clicked column (toggle sort or change field)
-		sorting[clickedColumnId] = {
-			sortedBy: tableHeadersUser.find((header) => header.label === clickedColumnId)?.key || '', // Get field key for clicked column from tableHeadersUser
-			isSorted: sorting[clickedColumnId]?.isSorted === 1 ? -1 : 1 // Toggle sort direction
-		};
-
-		// Update table data based on the new sorting
-		tableData.sort((a, b) => {
-			const sortFieldA = a[sorting.sortedBy];
-			const sortFieldB = b[sorting.sortedBy];
-
-			if (sorting.isSorted === 1) {
-				// Ascending order
-				return sortFieldA.localeCompare(sortFieldB);
-			} else {
-				// Descending order
-				return sortFieldB.localeCompare(sortFieldA);
-			}
-		});
-
-		// Refresh the table to display the sorted data
-		refreshTableData();
+	// This function handles changes in the dropdown (assuming it has a class 'select')
+	function rowsPerPageHandler(event: any) {
+		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
+		refreshTableData(); // Trigger data refresh with the new rowsPerPage
 	}
 
 	//Load Table data
@@ -228,32 +216,33 @@
 	}
 
 	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
-		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
-		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
-	};
-
-	// This function handles changes in the dropdown (assuming it has a class 'select')
-	function rowsPerPageHandler(event: any) {
-		rowsPerPage = parseInt(event.target.value); // Update rowsPerPage with the selected value
-		refreshTableData(); // Trigger data refresh with the new rowsPerPage
-	}
-
-	// Tick row logic
-	let SelectAll = false;
-	let selectedMap = writable({});
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
+		? JSON.parse(localStorage.getItem('sorting') as string)
+		: {
+				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+			};
 
 	// Tick  All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
+			// Iterate only over visible entries
 			for (let item in tableData) {
 				selectedMap[item] = true;
 			}
 		} else {
+			// Clear all selections
 			for (let item in selectedMap) {
 				selectedMap[item] = false;
 			}
 		}
+	}
+
+	// Update Tick All Rows
+	$: process_selectAll(SelectAll);
+
+	$: {
+		tableData = displayTableHeaders.filter((header) => columnVisibility[header.name]);
 	}
 
 	// Store values in local storage
@@ -263,8 +252,7 @@
 		localStorage.setItem('currentPage', JSON.stringify(currentPage));
 		localStorage.setItem('rowsPerPage', JSON.stringify(rowsPerPage));
 		localStorage.setItem('filters', JSON.stringify(filters));
-		localStorage.setItem('columnOrder', JSON.stringify(columnOrder));
-		localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
+		localStorage.setItem('displayTableHeaders', JSON.stringify(displayTableHeaders));
 	}
 
 	// Define a reactive variable to hold the current action
@@ -331,13 +319,22 @@
 
 		{#if tableData.length > 0}
 			<!-- UserTable -->{#if columnShow}
-				<!-- column order -->
+				<!-- Column order -->
 				<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-					<div class="text-white dark:text-primary-500">Drag & Drop Columns / Click to hide</div>
-					<!-- all -->
+					<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
+					<!-- Select All Columns -->
 					<div class="my-2 flex w-full items-center justify-center gap-1">
-						<label class="mr-3">
-							<input type="checkbox" bind:checked={SelectAll} />
+						<label class="mr-2">
+							<input
+								type="checkbox"
+								bind:checked={SelectAll}
+								on:change={() => {
+									// Toggle all column visibility states based on the selectAllColumns value
+									for (const header of showUserList ? tableHeadersUser : tableHeaderToken) {
+										columnVisibility[header.key] = selectAllColumns;
+									}
+								}}
+							/>
 							{m.entrylist_all()}
 						</label>
 
@@ -354,7 +351,6 @@
 										: 'variant-ghost-secondary'} w-100 mr-2 flex items-center justify-center"
 									on:click={() => {
 										columnVisibility[header.key] = !columnVisibility[header.key];
-										localStorage.setItem('columnVisibility', JSON.stringify(columnVisibility));
 									}}
 								>
 									{#if columnVisibility[header.key]}
@@ -367,12 +363,12 @@
 					</div>
 				</div>
 			{/if}
-			<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
+			<div class="table-container max-h-[calc(100vh-120px)] overflow-auto">
 				<table
 					class="table table-interactive table-hover {density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
 				>
 					<!-- Table Header -->
-					<thead class="top-0 text-tertiary-500 dark:text-primary-500">
+					<thead class="text-tertiary-500 dark:text-primary-500">
 						{#if filterShow}
 							<tr class="divide-x divide-surface-400">
 								<th>
@@ -407,7 +403,7 @@
 						{/if}
 
 						<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
-							<TableIcons bind:checked={SelectAll} on:change={() => process_selectAll(SelectAll)} status="all" />
+							<TableIcons bind:checked={SelectAll} iconStatus="all" />
 
 							{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 								<th
@@ -453,7 +449,7 @@
 									handleCRUDAction(row);
 								}}
 							>
-								<TableIcons />
+								<TableIcons bind:checked={selectedMap[index]} />
 
 								{#each showUserList ? tableHeadersUser : tableHeaderToken as header}
 									<td class="text-center">
@@ -477,11 +473,10 @@
 				</table>
 
 				<!-- Pagination  -->
-				<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
-					<div class="mb-2 md:mb-0">
-						<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-						<span class="text-sm"> {m.entrylist_of()} </span>
-						<span class="text-tertiary-500 dark:text-primary-500">{Math.ceil(tableData.length / rowsPerPage)}</span>
+				<div class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+					<div class="mb-1 text-xs md:mb-0 md:text-sm">
+						<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+						<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
 					</div>
 
 					<div class="variant-outline btn-group">
@@ -508,6 +503,17 @@
 						>
 							<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
 						</button>
+
+						<!-- Number of pages -->
+						<select
+							value={rowsPerPage}
+							on:change={rowsPerPageHandler}
+							class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
+						>
+							{#each [10, 25, 50, 100, 500] as pageSize}
+								<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+							{/each}
+						</select>
 
 						<!-- Next page -->
 						<button
@@ -540,6 +546,7 @@
 				</div>
 			</div>
 		{:else}
+			<!-- Display a message when no data is yet available -->
 			<div class="variant-ghost-error btn text-center font-bold">
 				{#if showUserList}
 					{m.adminarea_nouser()}

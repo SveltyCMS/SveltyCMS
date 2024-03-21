@@ -207,8 +207,10 @@
 
 					<!-- Router Slot -->
 
+					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 					<div
 						on:keydown={onKeyDown}
+						role="main"
 						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
 							? 'mb-2'
 							: 'mb-16'}"
@@ -221,11 +223,11 @@
 								<FloatingNav buttonInfo />
 							{/if}
 
-							<!-- TODO: Add Search Component -->
+							<!-- Show globalSearchIndex  -->
 							{#if $isSearchVisible == true}
-								<!-- Show search component -->
 								<SearchComponent />
 							{/if}
+
 							{#if $isLoading == true}
 								<div class="flex h-screen items-center justify-center">
 									<Loading />
@@ -233,15 +235,6 @@
 							{/if}
 
 							<slot />
-
-							<!--<div>mode : {$mode}</div>							
-							<div>screenWidth : {$screenWidth}</div>
-							<div>sidebarState.left : {$sidebarState.left}</div>
-							<div>sidebarState.right : {$sidebarState.right}</div>
-							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
-							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
-							<div>sidebarState.header : {$sidebarState.header}</div>
-							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
 						{/key}
 					</div>
 

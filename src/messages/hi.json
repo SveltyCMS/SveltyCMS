@@ -16,6 +16,8 @@
 	"entrylist_rows": "पंक्तियों",
 	"entrylist_filter": "फ़िल्टर करें...",
 	"entrylist_dnd": "कॉलम खींचें और छोड़ें / छिपाने के लिए क्लिक करें",
+	"entrylist_title": "कार्रवाई की पुष्टि करें",
+	"entrylist_body": "क्या आप वाकई चयनित प्रविष्टियाँ {status} करना चाहते हैं?",
 	"fields_edit": "संपादन करना",
 	"fields_required": "* आवश्यक",
 	"fields_revision_compare": "इसके विरुद्ध संशोधन की तुलना करें:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "बनाया था:",
 	"sidebar_updated": "अद्यतन:",
 	"button_save": "बचाना",
+	"button_confirm": "पुष्टि करना",
 	"button_delete": "मिटाना",
 	"button_cancel": "रद्द करना",
 	"button_previous": "पहले का",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "अनिर्धारित संग्रह",
 	"collection_text_description": "नई श्रेणियां या संग्रह बनाएं और अपनी आवश्यकताओं के अनुसार इन्हें खींचें और छोड़ें",
 	"Listnode_warning_body": "इस श्रेणी को हटाने से इसके सभी बच्चे भी हट जाएंगे।<br> क्या आप सुनिश्चित रूप से आगे बढ़ना चाहते हैं?",
-	"Listnode_confirm_body": "क्या आप वाकई इस श्रेणी को हटाना चाहते हैं?"
+	"Listnode_confirm_body": "क्या आप वाकई इस श्रेणी को हटाना चाहते हैं?",
+	"colorPicker_label": "रंग कोड:",
+	"colorPiker_nocolor": "कोई रंग चयनित नहीं",
+	"colorPicker_hex": "हेक्स मान"
 }

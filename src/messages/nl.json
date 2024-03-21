@@ -16,6 +16,8 @@
 	"entrylist_rows": "Rijen",
 	"entrylist_filter": "Filteren...",
 	"entrylist_dnd": "Kolommen slepen en neerzetten / Klik om te verbergen",
+	"entrylist_title": "Bevestig actie",
+	"entrylist_body": "Weet u zeker dat u de geselecteerde vermeldingen wilt {status} ?",
 	"fields_edit": "Bewerking",
 	"fields_required": "* Vereist",
 	"fields_revision_compare": "Vergelijk revisie met:",
@@ -34,6 +36,7 @@
 	"sidebar_created": "Gemaakt:",
 	"sidebar_updated": "Bijgewerkt:",
 	"button_save": "Redden",
+	"button_confirm": "Bevestigen",
 	"button_delete": "Verwijderen",
 	"button_cancel": "Annuleren",
 	"button_previous": "Vorig",
@@ -328,5 +331,8 @@
 	"Unassigned_Collections": "Niet-toegewezen collecties",
 	"collection_text_description": "Maak nieuwe categorieën of collecties aan en sleep deze naar wens",
 	"Listnode_warning_body": "Als u deze categorie verwijdert, worden ook alle onderliggende categorieën verwijderd.<br> Weet je zeker dat je verder wilt gaan?",
-	"Listnode_confirm_body": "Weet u zeker dat u deze categorie wilt verwijderen?"
+	"Listnode_confirm_body": "Weet u zeker dat u deze categorie wilt verwijderen?",
+	"colorPicker_label": "Kleurcode:",
+	"colorPiker_nocolor": "Geen kleur geselecteerd",
+	"colorPicker_hex": "Hex-waarde"
 }
