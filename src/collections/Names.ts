@@ -6,32 +6,38 @@ const schema: Schema = {
 
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
-	icon: 'fluent:rename-28-filled',
+	icon: 'ic:sharp-contact-page',
 	status: 'unpublished',
+	description: 'Names',
+	slug: 'names',
 
 	// Collection Permissions by user Roles
 	permissions: {
-		[roles.user]: {
-			read: true
+		developer: {
+			create: true,
+			read: true,
+			write: false,
+			delete: false
+		},
+		editor: {
+			create: false,
+			read: true,
+			write: true,
+			delete: true
+		},
+		user: {
+			read: true,
+			delete: false,
+			create: true,
+			write: false
 		}
 	},
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.Text({
-			label: 'First Name',
-			translated: true,
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter First Name',
-			width: 2
-		}),
-		widgets.Text({
-			label: 'Last Name',
-			icon: 'ri:t-box-line',
-			placeholder: 'Enter Last Name',
-			width: 2
-		})
+		widgets.Text({ label: 'First Name', translated: true, icon: 'ri:t-box-line', width: 2, placeholder: 'Enter First Name' }),
+		widgets.Text({ label: 'Last Name', icon: 'ri:t-box-line', width: 2, placeholder: 'Enter Last Name' })
 	]
 };
 export default schema;

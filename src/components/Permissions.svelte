@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { roles } from '@collections/types';
-	import { mode, permissionStore } from '@src/stores/store';
+	import { mode } from '@stores/store';
+
+	import { createEventDispatcher } from 'svelte';
+
+	const dispatch = createEventDispatcher();
 
 	// Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
@@ -8,6 +12,8 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	export let permissions = {};
 
 	type Role = keyof typeof roles;
 
@@ -18,30 +24,16 @@
 		delete: boolean;
 	};
 	type RolesPermissions = Record<Role, Permissions>;
+	type RolesArray = { name: Role; permissions: Permissions }[];
+	let rolesArray: RolesArray[] = [];
 
-	let rolesArray: {
-		name: string;
-		permissions: Permissions;
-	}[];
-	rolesArray = [];
-
-	// Load rolesArray from permissionStore if mode is 'edit'
 	$: {
 		if ($mode === 'edit') {
-			const storedPermissions = $permissionStore;
 			rolesArray = Object.values(roles)
 				.filter((role) => role !== 'admin')
 				.map((role) => ({
 					name: role,
-					permissions: storedPermissions[role] || { create: false, read: false, write: false, delete: false }
-				}));
-		} else {
-			const storedPermissions = $permissionStore;
-			rolesArray = Object.values(roles)
-				.filter((role) => role !== 'admin')
-				.map((role) => ({
-					name: role,
-					permissions: storedPermissions[role] || { create: false, read: false, write: false, delete: false }
+					permissions: permissions[role] || { create: false, read: false, write: false, delete: false }
 				}));
 		}
 	}
@@ -104,9 +96,8 @@
 	function togglePermission(role: any, permission: string) {
 		// Toggle the permission
 		role.permissions[permission] = !role.permissions[permission];
-
 		// Update the permission store
-		permissionStore.update((storeValue) => ({ ...storeValue, [role.name]: { ...role.permissions } }));
+		dispatch('update', getMappedPermissions(rolesArray));
 
 		// Update the button map toggle based on the new permission state
 		buttonMap[permission].toggle = role.permissions[permission];
@@ -116,10 +107,9 @@
 	function removeRole(index: number) {
 		const roleName = rolesArray[index].name;
 		rolesArray = rolesArray.filter((_, i) => i !== index);
-		const updatedPermissions = { ...$permissionStore };
+		const updatedPermissions = { ...permissions };
 		delete updatedPermissions[roleName];
-
-		permissionStore.set(updatedPermissions);
+		dispatch('update', getMappedPermissions(rolesArray));
 	}
 
 	/// Function to toggle all permissions for a role
@@ -128,10 +118,19 @@
 		rolesArray.forEach((role) => {
 			role.permissions[permission] = enable;
 		});
-		permissionStore.set(rolesArray.reduce((acc, role) => ({ ...acc, [role.name]: { ...role.permissions } }), {}));
+		// rolesArray = rolesArray.reduce((acc, role) => ({ ...acc, [role.name]: { ...role.permissions } }), {});
+		dispatch('update', getMappedPermissions(rolesArray));
 
 		// Update the button map toggle based on the new permission state
 		Object.keys(buttonMap).forEach((key) => (buttonMap[key].toggle = enable));
+	}
+
+	function getMappedPermissions(rolesArray: RolesArray) {
+		const mappedPermissions: RolesPermissions = {} as RolesPermissions;
+		rolesArray.forEach((role) => {
+			mappedPermissions[role.name as Role] = role.permissions;
+		});
+		return mappedPermissions;
 	}
 
 	let searchQuery = '';
@@ -181,7 +180,7 @@
 	{/if}
 
 	<!-- Add Permission -->
-	{#if Object.keys(permissionStore).length > 0}
+	{#if Object.keys(permissions).length > 0}
 		<button
 			on:click={addPermission}
 			class="variant-filled-success btn w-full justify-center text-center dark:variant-filled-tertiary sm:w-auto sm:justify-end"
@@ -257,7 +256,7 @@
 			</tbody>
 		</table>
 		<!-- <div class="mt-4 text-center">
-			Permissions: <span class="text-primary-500">{JSON.stringify($permissionStore, null, 2)}</span>
+			Permissions: <span class="text-primary-500">{JSON.stringify(permissions, null, 2)}</span>
 		</div> -->
 	</div>
 {/if}

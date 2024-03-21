@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, currentCollection, collections, permissionStore, tabSet } from '@stores/store';
+	import { mode, currentCollection, collections, tabSet } from '@stores/store';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -28,7 +28,6 @@
 			mode.set('edit');
 			let collection = data.find((x) => x.name === collectionName) as Schema;
 			currentCollection.set(collection); // current collection
-			permissionStore.set(collection.permissions ?? {});
 		});
 	} else {
 		currentCollection.set({
@@ -36,7 +35,6 @@
 			fields: $currentCollection.fields ? $currentCollection.fields : [],
 			name: collectionName
 		});
-		permissionStore.set({});
 	}
 
 	// Popup Tooltips

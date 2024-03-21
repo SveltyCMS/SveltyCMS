@@ -5,7 +5,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, currentCollection, permissionStore, tabSet } from '@stores/store';
+	import { mode, currentCollection, tabSet } from '@stores/store';
 
 	// Components
 	import TopTabs from './tabs/TopTabs.svelte';
@@ -58,7 +58,7 @@
 						status: $currentCollection.status,
 						slug: $currentCollection.slug,
 						description: $currentCollection.description,
-						permissions: $permissionStore,
+						permissions: $currentCollection.permissions,
 						fields: $currentCollection.fields
 					})
 				: obj2formData({
@@ -67,9 +67,20 @@
 						status: $currentCollection.status,
 						slug: $currentCollection.slug,
 						description: $currentCollection.description,
-						permissions: $permissionStore,
+						permissions: $currentCollection.permissions,
 						fields: $currentCollection.fields
 					});
+
+		console.log({
+			originalName: $currentCollection.name,
+			collectionName: name,
+			icon: $currentCollection.icon,
+			status: $currentCollection.status,
+			slug: $currentCollection.slug,
+			description: $currentCollection.description,
+			permissions: $currentCollection.permissions,
+			fields: $currentCollection.fields
+		});
 
 		// Send the form data to the server
 		let resp = await axios.post(`?/saveCollection`, data, {
