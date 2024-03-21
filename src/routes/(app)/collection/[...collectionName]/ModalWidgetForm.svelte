@@ -13,7 +13,7 @@
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	import { currentCollection } from '@src/stores/store';
+	import { currentCollection, editingWidget } from '@src/stores/store';
 
 	let tabSet: number = 0;
 
@@ -23,30 +23,32 @@
 	export let parent: SvelteComponent;
 
 	//fields
-	let fields = $currentCollection.fields.map((field, index) => {
-		return {
-			id: index + 1, // Add the id property first
-			...field // Copy all existing properties
-		};
-	});
+	let fields = $currentCollection.fields
+		? $currentCollection.fields.map((field, index) => {
+				return {
+					id: index + 1, // Add the id property first
+					...field // Copy all existing properties
+				};
+			})
+		: [];
 
-	// Form Data
-	let formData: any = {};
-	// Check if the selected widget has a key property.
-	if ($modalStore.length) {
-		if ($modalStore[0].value.key) {
-			// If the selected widget has a key property, then it is an existing widget.
-			// Use the $modalStore[0].value object as the formData.
-			let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
-			formData = Object.assign({}, field, $modalStore[0].value);
-		} else {
-			// If the selected widget does not have a key property, then it is a new widget.
-			// Create a new formData object for the new widget.
-			formData = {
-				// ...widgets[$modalStore[0].value],
-				key: $modalStore[0].value.widget.key,
-				...$modalStore[0].value
-			};
+	function handleDataSetup() {
+		console.log('handleDataSetup', $modalStore);
+		if ($modalStore.length) {
+			if ($modalStore[0].value.key) {
+				// If the selected widget has a key property, then it is an existing widget.
+				// Use the $modalStore[0].value object as the formData.
+				let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
+				editingWidget.set(Object.assign({}, field, $modalStore[0].value));
+			} else {
+				// If the selected widget does not have a key property, then it is a new widget.
+				// Create a new formData object for the new widget.
+				editingWidget.set({
+					// ...widgets[$modalStore[0].value],
+					key: $modalStore[0].value.widget.key,
+					...$modalStore[0].value
+				});
+			}
 		}
 	}
 
@@ -58,7 +60,7 @@
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if ($modalStore[0].response) {
-			await $modalStore[0].response(formData);
+			await $modalStore[0].response($editingWidget);
 		}
 		modalStore.close();
 	}
@@ -82,24 +84,16 @@
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
+	// Check if the selected widget has a key property.
+	if ($modalStore.length) {
+		handleDataSetup();
+	}
+
 	onMount(() => {
-		if ($modalStore.length) {
-			if ($modalStore[0].value.key) {
-				// If the selected widget has a key property, then it is an existing widget.
-				// Use the $modalStore[0].value object as the formData.
-				let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
-				formData = Object.assign({}, field, $modalStore[0].value);
-			} else {
-				// If the selected widget does not have a key property, then it is a new widget.
-				// Create a new formData object for the new widget.
-				formData = {
-					// ...widgets[$modalStore[0].value],
-					key: $modalStore[0].value.widget.key,
-					...$modalStore[0].value
-				};
-			}
-		}
+		handleDataSetup();
 	});
+
+	$: tabSet, handleDataSetup();
 </script>
 
 {#if $modalStore[0]}
@@ -145,8 +139,8 @@
 							<div class="options-table">
 								{#each ['label', 'placeholder', 'db_fieldName', 'translated', 'icon', 'width'] as property}
 									<InputSwitch
-										bind:value={formData[property]}
-										bind:iconselected={formData[property]}
+										bind:value={$editingWidget[property]}
+										bind:iconselected={$editingWidget[property]}
 										widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
 										key={property}
 									/>
@@ -157,20 +151,20 @@
 						<!-- Permissions section -->
 						{#each ['permissions'] as property}
 							<InputSwitch
-								bind:value={formData[property]}
-								bind:iconselected={formData[property]}
-								widget={asAny(guiSchema[property])?.widget}
+								bind:value={$editingWidget[property]}
+								bind:iconselected={$editingWidget[property]}
+								widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
 								key={property}
 							/>
 						{/each}
 					{:else if tabSet === 2}
 						<!-- Specific section -->
-						{#each Object.keys(guiSchema) as property}
+						{#each Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema) as property}
 							{#if !['label', 'display', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
 								<InputSwitch
-									bind:value={formData[property]}
-									bind:iconselected={formData[property]}
-									widget={asAny(guiSchema[property]?.widget)}
+									bind:value={$editingWidget[property]}
+									bind:iconselected={$editingWidget[property]}
+									widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
 									key={property}
 								/>
 							{/if}
