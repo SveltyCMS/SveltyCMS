@@ -1,10 +1,8 @@
 <script lang="ts">
 	import { type SvelteComponent } from 'svelte';
-	import { asAny } from '@utils/utils';
 
 	// Components
 	import widgets from '@components/widgets';
-	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -14,6 +12,9 @@
 	const modalStore = getModalStore();
 
 	import { currentCollection, targetWidget } from '@src/stores/store';
+	import Default from './tabs/Default.svelte';
+	import Permission from './tabs/Permission.svelte';
+	import Specific from './tabs/Specific.svelte';
 
 	let tabSet: number = 0;
 	// Props
@@ -45,14 +46,6 @@
 			});
 			modalStore.close();
 		}
-	}
-
-	// Function to handle permission updates
-	function handlePermissionUpdate(event: CustomEvent) {
-		targetWidget.update((w) => {
-			w.permissions = event.detail;
-			return w;
-		});
 	}
 
 	// Base Classes
@@ -94,52 +87,16 @@
 				<svelte:fragment slot="panel">
 					{#if tabSet === 0}
 						{#if $modalStore[0].value}
-							<!-- Default section -->
-							<div class="mb-2 border-y text-center text-primary-500">
-								<div class="text-xl text-primary-500">
-									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.key}</span> Input Options
-								</div>
-								<div class="my-1 text-xs text-error-500">* Required</div>
-							</div>
 							<div class="options-table">
-								{#each ['label', 'placeholder', 'db_fieldName', 'translated', 'icon', 'width'] as property}
-									{#if property === 'icon'}
-										<InputSwitch
-											bind:iconselected={$targetWidget[property]}
-											widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-											key={property}
-										/>
-									{:else}
-										<InputSwitch
-											bind:value={$targetWidget[property]}
-											widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-											key={property}
-										/>
-									{/if}
-								{/each}
+								<Default {guiSchema} />
 							</div>
 						{/if}
 					{:else if tabSet === 1}
 						<!-- Permissions section -->
-						{#each ['permissions'] as property}
-							<InputSwitch
-								bind:permissions={$targetWidget[property]}
-								on:update={handlePermissionUpdate}
-								widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-								key={property}
-							/>
-						{/each}
+						<Permission {guiSchema} />
 					{:else if tabSet === 2}
 						<!-- Specific section -->
-						{#each Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema) as property}
-							{#if !['label', 'display', 'placeholder', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
-								<InputSwitch
-									bind:value={$targetWidget[property]}
-									widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-									key={property}
-								/>
-							{/if}
-						{/each}
+						<Specific {guiSchema} />
 					{/if}
 				</svelte:fragment>
 			</TabGroup>

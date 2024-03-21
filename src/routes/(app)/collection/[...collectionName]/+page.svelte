@@ -10,7 +10,7 @@
 	// Components
 	import TopTabs from './tabs/TopTabs.svelte';
 	import CollectionPermission from './tabs/CollectionPermission.svelte';
-	import CollectionWidget from './tabs/CollectionWidget.svelte';
+	import CollectionWidget from './tabs/CollectionWidget/Widget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 

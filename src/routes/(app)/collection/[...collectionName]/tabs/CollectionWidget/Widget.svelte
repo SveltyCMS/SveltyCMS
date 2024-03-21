@@ -2,9 +2,9 @@
 	import { page } from '$app/stores';
 	import { currentCollection, tabSet, targetWidget } from '@stores/store';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
-	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/ModalWidgetForm.svelte';
+	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
 	import * as m from '@src/paraglide/messages';
 
