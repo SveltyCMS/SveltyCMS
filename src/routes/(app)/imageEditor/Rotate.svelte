@@ -48,7 +48,7 @@
 	afterUpdate(handleRotate);
 </script>
 
-<RangeSlider name="range-slider" class="m-2 mx-auto max-w-lg" bind:value={rotate} min={-180} max={180} step={1}>
+<RangeSlider name="range-slider" class="m-2 mx-auto w-full max-w-lg" bind:value={rotate} min={-180} max={180} step={1}>
 	<div class="flex items-center justify-between">
 		<div class="font-bold text-tertiary-500 dark:text-primary-500">Rotate</div>
 		<button on:click={() => (rotate = 0)} class="btn-primary btn p-0.5 text-white" title="Reset">

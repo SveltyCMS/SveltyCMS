@@ -72,7 +72,7 @@
 	</div>
 </div>
 
-<input class="input my-4" type="file" accept="image/*" on:change={handleImageUpload} />
+<input class="input my-2" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
 	<div class="wrapper">

@@ -100,7 +100,7 @@
 		bind:this={iconRef}
 		icon="bi:plus-circle-fill"
 		width="30"
-		class="absolute cursor-move rounded-full border-2 border-surface-500"
+		class="absolute cursor-move rounded-full border-[3px] border-tertiary-500 bg-black text-white dark:border-primary-500 dark:bg-white dark:text-surface-500"
 		style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}
 	/>
 </button>

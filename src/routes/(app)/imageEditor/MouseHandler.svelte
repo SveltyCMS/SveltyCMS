@@ -65,7 +65,7 @@
 		} catch (error) {
 			console.error('Error in handleMouseMove:', error);
 		}
-	}, 20); // Debounce the function to reduce frequency
+	}, 10); // Debounce the function to reduce frequency
 
 	// Function to handle touch move event
 	export const handleTouchMove = debounce((e: TouchEvent) => {
@@ -76,7 +76,7 @@
 		} catch (error) {
 			console.error('Error in handleTouchMove:', error);
 		}
-	}, 20); // Debounce the function to reduce frequency
+	}, 10); // Debounce the function to reduce frequency
 
 	function handleMove(clientX: number, clientY: number): void {
 		console.log('handleMove triggered');
@@ -100,8 +100,7 @@
 		console.log('Mouse deltas:', deltaX, deltaY);
 
 		// Check if the mouse is moving the whole element or a corner
-		if (moving && !selectedCorner) {
-		// if ((moving && !selectedCorner) || (moving && selectedCorner)) {
+		if ((moving && !selectedCorner) || (moving && selectedCorner)) {
 			if (initialMousePosition) {
 				const distanceX = Math.abs(clientX - initialMousePosition.x);
 				const distanceY = Math.abs(clientY - initialMousePosition.y);

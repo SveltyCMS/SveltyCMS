@@ -21,13 +21,13 @@
 	afterUpdate(handleZoom);
 </script>
 
-<RangeSlider name="zoom-slider" class="m-2 mx-auto max-w-lg" bind:value={zoom} min={0.1} max={3} step={0.1}>
+<RangeSlider name="zoom-slider" class="m-2 mx-auto  w-full max-w-lg" bind:value={zoom} min={0.1} max={3} step={0.1}>
 	<div class="flex items-center justify-between">
-		<div class="font-bold text-primary-500">Zoom</div>
+		<div class="font-bold text-tertiary-500 dark:text-primary-500">Zoom</div>
 		<button on:click={() => (zoom = 1)} class="btn-primary btn p-0.5 text-white" title="Reset">
-			<iconify-icon icon="material-symbols:zoom-out-map" width="24" class="text-primary-500" />{zoom}
+			<iconify-icon icon="material-symbols:zoom-out-map" width="24" class="text-tertiary-500 dark:text-primary-500" />{zoom}
 		</button>
 
-		<div class="text-xs text-primary-500">{zoom} / 3</div>
+		<div class="text-xs text-tertiary-500 dark:text-primary-500">{zoom} / 3</div>
 	</div>
 </RangeSlider>

@@ -63,6 +63,20 @@
 	}
 </script>
 
+<!-- Image Info -->
+<div class="mb-1 flex items-center justify-between">
+	<p>
+		<span class="">Image:</span>
+		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
+	</p>
+	<p class="text-tertiary-500 dark:text-primary-500">{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</p>
+	<p>
+		Width: <span class="text-tertiary-500 dark:text-primary-500">{CONT_WIDTH}</span> x Height:
+		<span class="text-tertiary-500 dark:text-primary-500">{CONT_HEIGHT}</span>
+	</p>
+</div>
+
+<!-- Image Area -->
 <div class="h-[calc(100vh -20%)] relative flex min-h-[150px] max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-gray-200">
 	<!-- Use the use:bindImageView action to bind the image element -->
 	<img
@@ -74,6 +88,7 @@
 		on:load={() => handleImageLoad()}
 	/>
 
+	<!-- Image overlays -->
 	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]">
 		{#if activeState === 'cropping'}
 			<!-- Pass the image and the crop values to the Crop component  -->
@@ -93,61 +108,59 @@
 </div>
 
 <!-- Enable and Disable module functionality -->
-<div class="mt-1 flex flex-col items-center justify-between gap-2 px-2 md:flex-row">
-	<p class="order-first flex gap-2">
-		<span class="">Image:</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
-	</p>
+<div class="mt-1 flex items-center justify-between px-2">
+	<button on:click={resetFocalPoint} class="btn mr-6 flex flex-col items-center justify-center">
+		<iconify-icon icon="material-symbols-light:device-reset" width="38" class="text-tertiary-500" />
+		<p class="text-xs">Reset All</p>
+	</button>
 
-	<div class="btn-group order-last gap-2 md:order-2">
-		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')} title="Crop">
-			<iconify-icon icon="material-symbols:crop" width="26" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
+	<div class="mx-4 flex w-full items-center justify-between">
+		<!-- Crop -->
+		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')}>
+			<iconify-icon icon="material-symbols:crop" width="28" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
+			<p class="text-xs">Crop</p>
 		</button>
 
-		<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')} title="Blur">
-			<iconify-icon icon="ic:round-blur-circular" width="26" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
+		<!-- Blur -->
+		<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')}>
+			<iconify-icon icon="ic:round-blur-circular" width="28" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
+			<p class="text-xs">Blur</p>
 		</button>
 
-		<button
-			on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}
-			class="btn-primary btn flex flex-col p-0.5 text-white"
-			title="Save Focal Point"
-		>
+		<!-- Focal Point -->
+		<button on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}>
 			<iconify-icon
 				icon="material-symbols:center-focus-strong"
-				width="26"
+				width="28"
 				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
 			/>
-			<div class="text-primary-500">{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</div>
+			<p class="text-xs">Focal Point</p>
 		</button>
 
+		<!-- Rotate -->
 		<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
 			<iconify-icon
 				icon="material-symbols:rotate-left-rounded"
-				width="26"
+				width="28"
 				class={activeState === 'rotate' ? 'text-error-500' : 'text-surface-token'}
 			/>
+			<p class="text-xs">Rotate</p>
 		</button>
 
 		<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
-			<iconify-icon icon="material-symbols:zoom-out-map" width="26" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
+			<iconify-icon icon="material-symbols:zoom-out-map" width="28" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
+			<p class="text-xs">Zoom</p>
 		</button>
 	</div>
-
-	<p class="order-2 md:order-last">
-		Width: <span class="text-tertiary-500 dark:text-primary-500">{CONT_WIDTH}</span> x Height:
-		<span class="text-tertiary-500 dark:text-primary-500">{CONT_HEIGHT}</span>
-	</p>
-
-	<button on:click={resetFocalPoint}>Reset Focal Point</button>
 </div>
+<div class="flex items-center justify-between">
+	{#if activeState !== 'rotate'}
+		<!-- Zoom -->
+		<Zoom bind:zoom />
+	{/if}
 
-{#if activeState !== 'rotate'}
-	<!-- Zoom -->
-	<Zoom bind:zoom />
-{/if}
-
-{#if activeState === 'rotate'}
-	<!-- Pass rotate and rotateDetails to Rotate component -->
-	<Rotate bind:rotate bind:image />
-{/if}
+	{#if activeState === 'rotate'}
+		<!-- Rotate  -->
+		<Rotate bind:rotate bind:image />
+	{/if}
+</div>

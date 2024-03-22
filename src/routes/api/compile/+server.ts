@@ -1,5 +1,4 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import { getCollectionModels } from '@api/db';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
 
