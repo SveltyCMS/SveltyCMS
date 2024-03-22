@@ -18,7 +18,7 @@
 	}
 	export let email: EmailProps['email'];
 
-	//TODO: send rest to domain?Token and delete used token
+	//TODO: send rest to domain? Token and delete used token
 	export let token: EmailProps['token'];
 	export let resetLink: EmailProps['resetLink'];
 	export let expiresIn: EmailProps['expiresIn'];

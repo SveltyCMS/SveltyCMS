@@ -8,7 +8,7 @@
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	const user = $page.data.user;

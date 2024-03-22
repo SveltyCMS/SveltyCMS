@@ -2,6 +2,9 @@
 	import { onMount, type SvelteComponent } from 'svelte';
 	import { asAny } from '@utils/utils';
 
+	// Stores
+	import { collectionValue } from '@src/stores/store';
+
 	// Components
 	import widgets from '@components/widgets';
 	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
@@ -12,8 +15,6 @@
 	// Skeleton Stores
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-
-	import { collectionValue } from '@src/stores/store';
 
 	let tabSet: number = 0;
 
@@ -143,7 +144,7 @@
 								<div class="my-1 text-xs text-error-500">* Required</div>
 							</div>
 							<div class="options-table">
-								{#each ['label', 'placeholder', 'db_fieldName', 'translated', 'icon', 'width'] as property}
+								{#each ['label', 'placeholder', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
 									<InputSwitch
 										bind:value={formData[property]}
 										bind:iconselected={formData[property]}
@@ -166,7 +167,7 @@
 					{:else if tabSet === 2}
 						<!-- Specific section -->
 						{#each Object.keys(guiSchema) as property}
-							{#if !['label', 'display', 'db_fieldName', 'translated', 'icon', 'width', 'permissions'].includes(property)}
+							{#if !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(property)}
 								<InputSwitch
 									bind:value={formData[property]}
 									bind:iconselected={formData[property]}

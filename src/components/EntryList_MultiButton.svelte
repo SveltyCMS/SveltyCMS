@@ -94,7 +94,6 @@
 	<div class="border-l-[3px] border-white" />
 
 	<!-- dropdown button -->
-	<!-- TODO: fix hover and roundness -->
 	<button type="button" class="w-[42px] bg-surface-400 dark:bg-surface-600" on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}>
 		<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
 	</button>

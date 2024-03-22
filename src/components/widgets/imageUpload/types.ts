@@ -16,6 +16,7 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
+	required?: boolean;
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
@@ -27,7 +28,6 @@ export type Params = {
 	// Widget Specific parameters
 	// path: (string & {}) | 'global' | 'unique';
 	path: string | 'global' | 'unique';
-	required?: boolean;
 };
 
 /**
@@ -37,6 +37,7 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	required: { widget: Toggles, required: false },
 	//translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 	width: { widget: Input, required: false },
@@ -45,8 +46,7 @@ export const GuiSchema = {
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
-	path: { widget: Input, required: false },
-	required: { widget: Toggles, required: false }
+	path: { widget: Input, required: false }
 };
 
 const types = Object.keys(SIZES)

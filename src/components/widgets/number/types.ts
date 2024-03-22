@@ -16,7 +16,8 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	translated?: boolean;
+	required?: boolean;
+	// translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -33,7 +34,6 @@ export type Params = {
 	negative?: boolean;
 	prefix?: string;
 	suffix?: string;
-	required?: boolean;
 	readonly?: boolean;
 	currencyCode?: string;
 };
@@ -45,8 +45,10 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
-	translated: { widget: Toggles, required: false },
+	required: { widget: Toggles, required: false },
+	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	helper: { widget: Input, required: false },
 	width: { widget: Input, required: false },
 
 	// Permissions
@@ -61,7 +63,6 @@ export const GuiSchema = {
 	negative: { widget: Toggles, required: false },
 	prefix: { widget: Input, required: false },
 	suffix: { widget: Input, required: false },
-	required: { widget: Toggles, required: false },
 	readonly: { widget: Toggles, required: false },
 	currencyCode: { widget: Input, required: false }
 };

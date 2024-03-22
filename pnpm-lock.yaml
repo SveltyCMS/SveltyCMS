@@ -10,7 +10,7 @@ dependencies:
     version: 1.6.3
   '@lucia-auth/adapter-mongoose':
     specifier: ^3.0.1
-    version: 3.0.1(lucia@2.7.7)(mongoose@8.2.2)
+    version: 3.0.1(lucia@2.7.7)(mongoose@8.2.3)
   '@lucia-auth/oauth':
     specifier: ^3.5.3
     version: 3.5.3(lucia@2.7.7)
@@ -63,8 +63,8 @@ dependencies:
     specifier: ^2.30.1
     version: 2.30.1
   mongoose:
-    specifier: ^8.2.2
-    version: 8.2.2
+    specifier: ^8.2.3
+    version: 8.2.3
   node-os-utils:
     specifier: ^1.3.7
     version: 1.3.7
@@ -515,8 +515,8 @@ packages:
     resolution: {integrity: sha512-9TANp6GPoMtYzQdt54kfAyMmz1+osLlXdg2ENroU7zzrtflTLrrC/lgrIfaSe+Wu0b89GKccT7vxXA0MoAIO+Q==}
     dev: false
 
-  /@graphql-tools/executor@1.2.2(graphql@16.8.1):
-    resolution: {integrity: sha512-wZkyjndwlzi01HTU3PDveoucKA8qVO0hdKmJhjIGK/vRN/A4w5rDdeqRGcyXVss0clCAy3R6jpixCVu5pWs2Qg==}
+  /@graphql-tools/executor@1.2.3(graphql@16.8.1):
+    resolution: {integrity: sha512-aAS+TGjSq8BJuDq1RV/A/8E53Iu3KvaWpD8DPio0Qe/0YF26tdpK6EcmNSGrrjiZOwVIZ80wclZrFstHzCPm8A==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
@@ -1057,14 +1057,14 @@ packages:
       yjs: 13.6.2
     dev: false
 
-  /@lucia-auth/adapter-mongoose@3.0.1(lucia@2.7.7)(mongoose@8.2.2):
+  /@lucia-auth/adapter-mongoose@3.0.1(lucia@2.7.7)(mongoose@8.2.3):
     resolution: {integrity: sha512-l5UlZVYMUAtVpBwXsd14mE26QeSwcbAaWXLg1TXh394uytD5ednoAZhqFmQLUJufeDxhQ6FhRooJIXzCRupI8Q==}
     peerDependencies:
       lucia: ^2.0.0
       mongoose: 6.x - 8.x
     dependencies:
       lucia: 2.7.7
-      mongoose: 8.2.2
+      mongoose: 8.2.3
     dev: false
 
   /@lucia-auth/oauth@3.5.3(lucia@2.7.7):
@@ -2030,12 +2030,12 @@ packages:
     resolution: {integrity: sha512-TDYP3CpCrxwxpiNY0UMNf096H5Ihf67BK1iKGegQl5u9SlpEDYrvnV71gWBGJm+Xm31qOy8ATgma9rm8Pe7/5Q==}
     engines: {node: '>=16.0.0'}
     dependencies:
-      '@whatwg-node/node-fetch': 0.5.8
+      '@whatwg-node/node-fetch': 0.5.9
       urlpattern-polyfill: 10.0.0
     dev: false
 
-  /@whatwg-node/node-fetch@0.5.8:
-    resolution: {integrity: sha512-rB+2P3oi9fD4TcsijkflJAQqOh4yZrPgOV4fGaDgCdOqqwTicJvL2nnVbr3comW8bxEuypOcyE1AtBtkpip0Gw==}
+  /@whatwg-node/node-fetch@0.5.9:
+    resolution: {integrity: sha512-LvPUGIF0PqO9JGkXq2J871YRU4Ivsf5inq6DH7Hq1omip3beDXNuNQGwLxi7/UTZvp6QFKvk2X4lM+J4FDk6xg==}
     engines: {node: '>=16.0.0'}
     dependencies:
       '@kamilkisiela/fast-url-parser': 1.1.4
@@ -2045,8 +2045,8 @@ packages:
       tslib: 2.6.2
     dev: false
 
-  /@whatwg-node/server@0.9.29:
-    resolution: {integrity: sha512-YB0i658fBj/GmgdAEo/AzwMvWHFnGC+oxdBFuPnLgq6REiDLvWs/qIkppUDg8rABZXHsIxNt3HPrPcuqqpagBw==}
+  /@whatwg-node/server@0.9.30:
+    resolution: {integrity: sha512-SeL1vL0/uF2xBkpy/dW4sA3aS4IBQMPk097QQ15vW21EhO0ow3RqQu2FCRLCnU1Xgiu8SCpvt3iQUBx74o4ZjQ==}
     engines: {node: '>=16.0.0'}
     dependencies:
       '@whatwg-node/fetch': 0.9.17
@@ -2238,7 +2238,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.23.0
-      caniuse-lite: 1.0.30001599
+      caniuse-lite: 1.0.30001600
       fraction.js: 4.3.7
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -2310,8 +2310,8 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
     dependencies:
-      caniuse-lite: 1.0.30001599
-      electron-to-chromium: 1.4.713
+      caniuse-lite: 1.0.30001600
+      electron-to-chromium: 1.4.715
       node-releases: 2.0.14
       update-browserslist-db: 1.0.13(browserslist@4.23.0)
     dev: true
@@ -2398,8 +2398,8 @@ packages:
     engines: {node: '>=6'}
     dev: false
 
-  /caniuse-lite@1.0.30001599:
-    resolution: {integrity: sha512-LRAQHZ4yT1+f9LemSMeqdMpMxZcc4RMWdj4tiFe3G8tNkWK+E58g+/tzotb5cU6TbcVJLr4fySiAW7XmxQvZQA==}
+  /caniuse-lite@1.0.30001600:
+    resolution: {integrity: sha512-+2S9/2JFhYmYaDpZvo0lKkfvuKIglrx68MwOBqMGHhQsNkLjB5xtc/TGoEPs+MxjSyN/72qer2g97nzR641mOQ==}
     dev: true
 
   /chalk@2.4.2:
@@ -2946,8 +2946,8 @@ packages:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
     dev: false
 
-  /electron-to-chromium@1.4.713:
-    resolution: {integrity: sha512-vDarADhwntXiULEdmWd77g2dV6FrNGa8ecAC29MZ4TwPut2fvosD0/5sJd1qWNNe8HcJFAC+F5Lf9jW1NPtWmw==}
+  /electron-to-chromium@1.4.715:
+    resolution: {integrity: sha512-XzWNH4ZSa9BwVUQSDorPWAUQ5WGuYz7zJUNpNif40zFCiCl20t8zgylmreNmn26h5kiyw2lg7RfTmeMBsDklqg==}
     dev: true
 
   /emoji-regex@8.0.0:
@@ -3700,13 +3700,13 @@ packages:
       graphql: ^15.2.0 || ^16.0.0
     dependencies:
       '@envelop/core': 5.0.0
-      '@graphql-tools/executor': 1.2.2(graphql@16.8.1)
+      '@graphql-tools/executor': 1.2.3(graphql@16.8.1)
       '@graphql-tools/schema': 10.0.3(graphql@16.8.1)
       '@graphql-tools/utils': 10.1.2(graphql@16.8.1)
       '@graphql-yoga/logger': 2.0.0
       '@graphql-yoga/subscription': 5.0.0
       '@whatwg-node/fetch': 0.9.17
-      '@whatwg-node/server': 0.9.29
+      '@whatwg-node/server': 0.9.30
       dset: 3.1.3
       graphql: 16.8.1
       lru-cache: 10.2.0
@@ -4749,8 +4749,8 @@ packages:
       mongodb-connection-string-url: 3.0.0
     dev: false
 
-  /mongoose@8.2.2:
-    resolution: {integrity: sha512-6sMxe1d3k/dBjiOX4ExNTNOP0g1x0iq8eXyg+ttgIXM3HLnQ0IUyXRwVVAPFFY6O4/8uYN5dB0Ec72FrexbPpw==}
+  /mongoose@8.2.3:
+    resolution: {integrity: sha512-ZB8K8AgbVgLCcqjtmZMxaQBEztwEEZCtAIPMx2Q56Uo4WWKmwf5Nu/EEIFo8d/17P946X0z6xzxwIqCxUMKxrA==}
     engines: {node: '>=16.20.1'}
     dependencies:
       bson: 6.5.0

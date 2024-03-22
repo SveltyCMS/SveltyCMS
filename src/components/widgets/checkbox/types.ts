@@ -14,6 +14,7 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
+	required?: boolean;
 	translated?: boolean;
 	icon?: string;
 	helper?: string;
@@ -25,7 +26,6 @@ export type Params = {
 	// Widget Specific parameters
 	color?: string;
 	size?: number;
-	required?: boolean;
 };
 
 /**
@@ -35,6 +35,7 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	required: { widget: Toggles, required: false },
 	translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 	width: { widget: Input, required: false },
@@ -44,8 +45,7 @@ export const GuiSchema = {
 
 	// Widget Specific parameters
 	color: { widget: Input, required: false },
-	size: { widget: Input, required: false },
-	required: { widget: Toggles, required: false }
+	size: { widget: Input, required: false }
 };
 
 /**

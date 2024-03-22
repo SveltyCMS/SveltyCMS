@@ -1,10 +1,12 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import PageTitle from '@components/PageTitle.svelte';
 	import axios from 'axios';
 	import { onMount } from 'svelte';
-	import Chart from 'chart.js/auto';
 	import { formatUptime } from '@utils/utils';
+
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+	import Chart from 'chart.js/auto';
 
 	// Stores
 	import { isLoading } from '@stores/store';

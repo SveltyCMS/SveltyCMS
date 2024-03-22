@@ -153,16 +153,12 @@
 									<!-- Widget label -->
 									<div class="flex justify-between px-[5px] text-start">
 										<!-- db_fieldName or label  -->
-										<!-- TODO: Get translated Name -->
 										<p class="inline-block font-semibold capitalize">
 											{#if field.label}
 												{field.label}
 											{:else}
 												{field.db_fieldName}
 											{/if}
-											<!-- {#if field.required}
-										<span class="ml-1 pb-3 text-error-500">*</span>
-									{/if} -->
 										</p>
 
 										<div class="flex gap-2">

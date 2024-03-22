@@ -1,3 +1,4 @@
+// Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
@@ -16,7 +17,8 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	translated?: boolean;
+	required?: boolean;
+	// translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -26,7 +28,6 @@ export type Params = {
 
 	// Widget Specific parameters
 	fields: any;
-	required?: boolean;
 	uploader_label: string;
 	uploader_display?: DISPLAY;
 	uploader_db_fieldName?: string;
@@ -37,9 +38,11 @@ export type Params = {
  * Defines ImageArray GuiSchema
  */
 export const GuiSchema = {
+	// default required parameters
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	required: { widget: Toggles, required: false },
 	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 	width: { widget: Input, required: false },
@@ -49,8 +52,7 @@ export const GuiSchema = {
 
 	// Widget Specific parameters
 	uploader_path: { widget: Input, required: true },
-	uploader_label: { widget: Input, required: true },
-	required: { widget: Toggles, required: false }
+	uploader_label: { widget: Input, required: true }
 };
 
 /**

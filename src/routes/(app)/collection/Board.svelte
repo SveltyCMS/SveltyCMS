@@ -1,23 +1,26 @@
 <script lang="ts">
+	// Component
+	import Column from './Column.svelte';
+
+	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 
-	import Column from './Column.svelte';
 	const flipDurationMs = 300;
 
 	export let columns: any;
 	// will be called any time a card or a column gets dropped to update the parent data
 	export let onFinalUpdate: any;
 
-	function handleDndConsiderColumns(e) {
+	function handleDndConsiderColumns(e: any) {
 		columns = e.detail.items;
 	}
 
-	function handleDndFinalizeColumns(e) {
+	function handleDndFinalizeColumns(e: any) {
 		onFinalUpdate(e.detail.items);
 	}
 
-	function handleItemFinalize(columnIdx, newItems) {
+	function handleItemFinalize(columnIdx: any, newItems: any) {
 		//console.log('Item dropped in column', columnIdx);
 		columns[columnIdx].items = newItems;
 		//console.log('Updated Columns:', columns);

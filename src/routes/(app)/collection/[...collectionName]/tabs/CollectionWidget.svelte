@@ -1,26 +1,31 @@
 <script lang="ts">
+	// Stores
 	import { page } from '$app/stores';
 	import { collectionValue, tabSet } from '@stores/store';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { getGuiFields } from '@src/utils/utils';
+
+	// Components
+	import widgets from '@src/components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
-	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/ModalWidgetForm.svelte';
-	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
-	import widgets from '@src/components/widgets';
-	import { getGuiFields } from '@src/utils/utils';
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/ModalWidgetForm.svelte';
+	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 
-	//fields
+	// fields
 	let fields = $collectionValue.fields.map((field, index) => {
 		return {
 			id: index + 1, // Add the id property first

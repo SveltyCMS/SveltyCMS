@@ -119,6 +119,7 @@
 <div class="wrapper" bind:this={container}>
 	{#each fields as field, index}
 		<div
+			tabIndex="0"
 			on:click={() => {
 				currentFieldKey = field.widget.key;
 				currentField = field;

@@ -82,12 +82,12 @@
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 		<form class="modal-form {cForm}">
-			<label class="label">
+			<label class="label" for="category_name">
 				<span>{m.modalcategory_categoryname()}</span>
 				<input class="input" type="text" bind:value={formData.newCategoryName} placeholder={m.modalcategory_placeholder()} />
 			</label>
 
-			<label class="label">
+			<label class="label" for="icon-picker">
 				{m.modalcategory_icon()}
 				<IconifyPicker bind:iconselected={formData.newCategoryIcon} searchQuery={formData.newCategoryIcon} />
 			</label>

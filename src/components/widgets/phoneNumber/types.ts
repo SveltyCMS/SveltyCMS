@@ -16,7 +16,8 @@ export type Params = {
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	translated?: boolean;
+	required?: boolean;
+	// translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -31,7 +32,6 @@ export type Params = {
 	maxlength?: number;
 	pattern?: string;
 	size?: number;
-	required?: boolean;
 	readonly?: boolean;
 };
 
@@ -42,8 +42,10 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
-	translated: { widget: Toggles, required: false },
+	required: { widget: Toggles, required: false },
+	// translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
+	helper: { widget: Input, required: false },
 	width: { widget: Input, required: false },
 
 	// Permissions
@@ -56,7 +58,6 @@ export const GuiSchema = {
 	maxlength: { widget: Input, required: false },
 	pattern: { widget: Input, required: false },
 	size: { widget: Input, required: false },
-	required: { widget: Toggles, required: false },
 	readonly: { widget: Toggles, required: false }
 };
 

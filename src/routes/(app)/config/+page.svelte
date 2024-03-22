@@ -1,8 +1,9 @@
 <script lang="ts">
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
+	// Component
 	import PageTitle from '@components/PageTitle.svelte';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 </script>
 
 <div class="mb-2 flex items-center">

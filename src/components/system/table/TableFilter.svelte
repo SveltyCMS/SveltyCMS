@@ -22,7 +22,7 @@
 <!-- Expanding Search -->
 {#if searchShow}
 	<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
-		<!-- TODO: fix search -->
+		<!-- TODO: fix global search -->
 		<input
 			type="text"
 			placeholder="Search..."

@@ -1,21 +1,22 @@
 <script lang="ts">
-	import { flip } from 'svelte/animate';
-	import { dndzone } from 'svelte-dnd-action';
 	import { goto } from '$app/navigation';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Svelte DND-actions
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
 	const flipDurationMs = 200;
+
 	export let items: any;
 	export let onDrop: any;
 
-	function handleDndConsiderCards(e) {
+	function handleDndConsiderCards(e: any) {
 		items = e.detail.items;
 	}
 
-	function handleDndFinalizeCards(e) {
-		//console.log('Unassigned items:', e.detail.items); // <-- add this line
+	function handleDndFinalizeCards(e: any) {
 		onDrop(e.detail.items);
 	}
 

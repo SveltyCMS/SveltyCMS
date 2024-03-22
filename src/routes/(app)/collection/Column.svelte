@@ -1,21 +1,41 @@
 <script lang="ts">
 	// Stores
-	import { mode, categories, collection } from '@stores/store';
-
-	import { flip } from 'svelte/animate';
-	import { goto } from '$app/navigation';
-	import { dndzone } from 'svelte-dnd-action';
-
-	export let currentCategories: any;
+	import { mode, categories } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	//skeleton
+	// Svelte DND-actions
+	import { flip } from 'svelte/animate';
+	import { goto } from '$app/navigation';
+	import { dndzone } from 'svelte-dnd-action';
+
+	const flipDurationMs = 200;
+	function handleDndConsiderCards(e: any) {
+		//console.warn('got', name);
+		items = e.detail.items;
+	}
+
+	function handleDndFinalizeCards(e: any) {
+		//console.warn('drop', name);
+		onDrop(e.detail.items);
+	}
+
+	function handleCollectionClick(item: any) {
+		// Define the logic for handling the click on a collection
+		mode.set('edit');
+		// collection.set(item.collections);
+		goto(`/collection/${item.name}`);
+	}
+
+	export let currentCategories: any;
+
+	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	import ModalAddCategory from './ModalCategory.svelte';
 
+	// Modal
 	function editCategory(category: any): void {
 		const modalComponent: ModalComponent = {
 			ref: ModalAddCategory,
@@ -49,28 +69,10 @@
 		modalStore.trigger(d);
 	}
 
-	const flipDurationMs = 200;
 	export let name: string;
 	export let items: any;
 	export let icon: string;
 	export let onDrop: any;
-
-	function handleDndConsiderCards(e: any) {
-		//console.warn('got', name);
-		items = e.detail.items;
-	}
-
-	function handleDndFinalizeCards(e: any) {
-		//console.warn('drop', name);
-		onDrop(e.detail.items);
-	}
-
-	function handleCollectionClick(item: any) {
-		// Define the logic for handling the click on a collection
-		mode.set('edit');
-		// collection.set(item.collections);
-		goto(`/collection/${item.name}`);
-	}
 </script>
 
 <div class="relative h-full w-full overflow-hidden">

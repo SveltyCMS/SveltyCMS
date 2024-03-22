@@ -40,8 +40,6 @@
 	}
 </script>
 
-<!-- TODO: Show translation Status -->
-
 {#if $mode == 'edit' && $collection}
 	<!-- Language -->
 	<div class="relative mt-1 inline-block text-left">

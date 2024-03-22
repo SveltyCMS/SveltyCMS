@@ -78,7 +78,7 @@
 	};
 
 	// Lucia
-	const user = $page.data.user; //TODO update Username dynamically on change
+	const user = $page.data.user; // Username
 	avatarSrc.set(user?.avatar);
 
 	//signOut
@@ -207,7 +207,6 @@
 				</div>
 			</div>
 
-			<!-- TODO: Fix Tooltip overflow -->
 			<!-- System Language i18n Handling -->
 			<div class={$sidebarState.left === 'full' ? 'order-3 row-span-2  ' : 'order-2'} use:popup={SystemLanguageTooltip}>
 				<select

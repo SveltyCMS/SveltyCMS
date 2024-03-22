@@ -100,7 +100,8 @@
 		console.log('Mouse deltas:', deltaX, deltaY);
 
 		// Check if the mouse is moving the whole element or a corner
-		if ((moving && !selectedCorner) || (moving && selectedCorner)) {
+		if (moving && !selectedCorner) {
+		// if ((moving && !selectedCorner) || (moving && selectedCorner)) {
 			if (initialMousePosition) {
 				const distanceX = Math.abs(clientX - initialMousePosition.x);
 				const distanceY = Math.abs(clientY - initialMousePosition.y);

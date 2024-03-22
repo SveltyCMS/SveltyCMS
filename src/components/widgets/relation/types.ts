@@ -1,8 +1,11 @@
 // Components
+import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
-import GuiField from './GuiField.svelte';
+import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
 import type { permissions } from '@src/collections/types';
+import GuiField from './GuiField.svelte';
+
 import type { CollectionLabels } from '@src/collections/types';
 
 import { getFieldName } from '@utils/utils';
@@ -13,13 +16,13 @@ import mongoose from 'mongoose';
  * Defines Relation widget Parameters
  */
 export type Params = {
-	displayPath: any;
 	// default required parameters
 	label: string;
 	display?: DISPLAY;
 	db_fieldName?: string;
 	widget?: any;
-	translated?: boolean;
+	required?: boolean;
+	// translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -28,6 +31,7 @@ export type Params = {
 	permissions?: permissions;
 
 	// Widget Specific parameters
+	displayPath: any;
 	relation: CollectionLabels;
 };
 
@@ -38,6 +42,10 @@ export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
+	required: { widget: Toggles, required: false },
+	// translated: { widget: Toggles, required: false },
+	icon: { widget: IconifyPicker, required: false },
+	helper: { widget: Input, required: false },
 	width: { widget: Input, required: false },
 
 	// Permissions
