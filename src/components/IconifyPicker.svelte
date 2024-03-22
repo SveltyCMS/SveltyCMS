@@ -2,9 +2,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Stores
-	import { isLoading } from '@stores/store';
-
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 
@@ -17,7 +14,7 @@
 	let page = 0; // Initialize page counter
 	let showDropdown = false;
 
-	export const icon: string = '';
+	export let icon: string = '';
 	export let iconselected: string;
 	export let searchQuery: string;
 

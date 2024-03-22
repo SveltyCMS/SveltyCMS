@@ -564,7 +564,7 @@ export function formatUptime(uptime: number) {
 	return result.join(' ');
 }
 
-function removeExtension(fileName) {
+function removeExtension(fileName: any) {
 	const lastDotIndex = fileName.lastIndexOf('.');
 	if (lastDotIndex === -1) {
 		// If the file has no extension, return the original fileName
@@ -608,7 +608,13 @@ function deepCopy(obj: any) {
 
 export function debounce(delay?: number) {
 	let timer: any;
+	let first = true;
 	return (fn: () => void) => {
+		if (first) {
+			fn();
+			first = false;
+			return;
+		}
 		clearTimeout(timer);
 		timer = setTimeout(() => {
 			fn();
@@ -642,31 +648,45 @@ export function getTextDirection(lang: string): string {
 	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';
 }
 
-// Hoist animation function declaration
-function animation(current, d, end, cb, resolve) {
-	current -= d;
-
-	if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
-		cb(end);
-		resolve();
-	} else {
-		cb(current);
-		requestAnimationFrame(() => animation(current, d, end, cb, resolve));
-	}
-}
-
 // Motion function
-export function motion(start: any, end: any, duration: any, cb: any, useAnimation = true) {
+export function motion(start: number, end: number, duration: number, cb: (current: number) => void, useAnimation = true) {
 	const frequency = 16;
 	const d = (start - end) / (duration / frequency);
 
-	return new Promise((outerResolve) => {
-		const current = start;
+	if (d === 0) {
+		cb(end);
+		return;
+	}
+
+	let current = start;
+
+	return new Promise<void>((resolve) => {
+		function animation(current: number) {
+			current -= d;
+
+			if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
+				cb(end);
+				resolve();
+			} else {
+				cb(current);
+				requestAnimationFrame(() => animation(current));
+			}
+		}
 
 		if (useAnimation) {
-			requestAnimationFrame(() => animation(current, d, end, cb, outerResolve));
+			requestAnimationFrame(() => animation(current));
 		} else {
-			// interval implementation
+			const interval = setInterval(async () => {
+				current -= d;
+
+				if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
+					cb(end);
+					clearInterval(interval);
+					resolve();
+				} else {
+					cb(current);
+				}
+			}, frequency);
 		}
 	});
 }

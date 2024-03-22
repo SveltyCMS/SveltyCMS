@@ -47,7 +47,7 @@ export const color = {
 export interface Schema {
 	name?: string;
 	slug?: string;
-	icon: string;
+	icon?: string;
 	description?: string;
 	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
 	permissions?: permissions;

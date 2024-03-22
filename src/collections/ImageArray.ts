@@ -14,7 +14,7 @@ const schema: Schema = {
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [
-		widgets.ImageArray({
+		...widgets.ImageArray({
 			label: 'ImageArray',
 			uploader_path: 'images',
 			uploader_label: 'image',
@@ -33,7 +33,7 @@ const schema: Schema = {
 					required: true
 				})
 			]
-		})
+		}).fields
 	]
 };
 export default schema;

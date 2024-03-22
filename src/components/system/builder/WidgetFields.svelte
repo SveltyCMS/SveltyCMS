@@ -27,7 +27,7 @@
 	};
 
 	function drag(e: PointerEvent) {
-		let timeOut;
+		let timeOut: any;
 		let node = e.currentTarget as HTMLDivElement;
 		let pointerID = e.pointerId;
 
@@ -118,14 +118,13 @@
 
 <div class="wrapper" bind:this={container}>
 	{#each fields as field, index}
-		<div
-			tabIndex="0"
+		<button
 			on:click={() => {
 				currentFieldKey = field.widget.key;
 				currentField = field;
 			}}
 			on:pointerdown|stopPropagation={drag}
-			class="field"
+			class=" field btn"
 			data-index={index}
 		>
 			<div class="h-full w-full p-[10px]">
@@ -138,7 +137,7 @@
 					fields = [...fields.filter((f) => f !== field)];
 				}}><iconify-icon icon="tdesign:delete-1" width="24" height="24" /></button
 			>
-		</div>
+		</button>
 	{/each}
 </div>
 

@@ -1,14 +1,18 @@
 <script lang="ts">
-	import DropDown from '@components/system/dropDown/DropDown.svelte';
+	import { asAny } from '@utils/utils';
+
+	// Components
 	import widgets from '@components/widgets';
+	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import InputSwitch from './InputSwitch.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { asAny } from '@utils/utils';
+	import { icon } from '@src/collections/types';
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;
+	export let editField: Boolean = false;
+	export let selected_widget: keyof typeof widgets | null = null;
 
-	let selected_widget: keyof typeof widgets | null = null;
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 
@@ -16,7 +20,7 @@
 		guiSchema = widgets[selected_widget]?.GuiSchema;
 	}
 
-	let field = { label: '', widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
+	export let field = { label: '', widget: { key: selected_widget as unknown as keyof typeof widgets, GuiFields: {} } };
 </script>
 
 <div class="fixed -top-16 left-0 flex h-screen w-full flex-col overflow-auto bg-white dark:bg-surface-900">
@@ -27,9 +31,9 @@
 		>
 	</div>
 
-	{#if !selected_widget}
-		test
+	{#if !selected_widget && !editField}
 		<div class="flex items-center justify-center">
+			<button class="mb-[20px] ml-auto mr-[40px]" on:click={() => (addField = false)}>X</button>
 			<DropDown items={widget_keys} bind:selected={selected_widget} label="Select Widget" />
 		</div>
 	{:else}

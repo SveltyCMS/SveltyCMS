@@ -105,11 +105,7 @@
 
 	//Saving changes to the config.ts
 	async function handleSaveClick() {
-		console.log('handleSaveClick called');
 		try {
-			// console.log('availableCollection:', availableCollection);
-
-			// Make a POST request to the /api/updateConfig endpoint with the new data
 			const response = await fetch('/api/updateConfig', {
 				method: 'POST',
 				headers: {
@@ -118,60 +114,33 @@
 				body: JSON.stringify(availableCollection)
 			});
 
-			// Check if the update was successful
-			if (response.ok) {
-				// Check the status of the response
-				if (response.status === 304) {
-					// If the status is 304, it means that the new content is the same as the existing content, and no save was done
-					// console.log('Config file has not changed');
+			const responseText = await response.text();
 
-					// Trigger a toast indicating that the config file has not changed
-					const t = {
-						message: 'Config file has not changed',
-						background: 'variant-variant-filled-tertiary',
-						timeout: 3000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
-				} else {
-					// If the status is not 304, it means that the update was successful
-					// console.log('Config file updated successfully');
-
-					// Trigger a success toast
-					const t = {
-						message: 'Config file updated successfully',
-						background: 'variant-filled-primary',
-						timeout: 3000,
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
-				}
+			if (response.status === 200) {
+				showToast('Config file updated successfully', 'success');
+			} else if (response.status === 304) {
+				showToast(responseText, 'info'); // Display the server response message
 			} else {
-				console.error('Error updating config file');
-				const errorDetails = await response.text();
-				console.error('Server response:', errorDetails);
-
-				// Trigger an error toast
-				const t = {
-					message: 'Error updating config file',
-					background: 'variant-filled-error',
-					timeout: 3000,
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
+				showToast(`Error updating config file: ${responseText}`, 'error');
 			}
 		} catch (error) {
-			console.error('Error updating config file:', error);
-
-			// Trigger an error toast
-			const t = {
-				message: 'Error updating config file',
-				background: 'variant-filled-error',
-				timeout: 3000,
-				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
+			showToast('Network error occurred while updating config file', 'error');
 		}
+	}
+
+	// Show corresponding Toast messages
+	function showToast(message, type) {
+		const backgrounds = {
+			success: 'variant-filled-primary',
+			info: 'variant-variant-filled-tertiary',
+			error: 'variant-filled-error'
+		};
+		toastStore.trigger({
+			message: message,
+			background: backgrounds[type],
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		});
 	}
 </script>
 
