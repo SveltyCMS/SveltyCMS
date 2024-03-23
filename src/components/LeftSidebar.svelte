@@ -9,7 +9,7 @@
 	import { screenWidth, toggleSidebar, sidebarState, userPreferredState } from '@src/stores/sidebarStore';
 
 	// Components
-	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import Collections from '@components/Collections.svelte';
 
 	// Skeleton

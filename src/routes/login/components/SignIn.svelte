@@ -11,7 +11,7 @@
 	// Components
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import CMSLogo from '@src/components/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
 	// skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
@@ -318,7 +318,7 @@
 	{#if active == 0}
 		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active != 0}>
 			<div class="mb-1 flex flex-row gap-2">
-				<CMSLogo className="w-12" fill="red" />
+				<SveltyCMSLogo className="w-12" fill="red" />
 
 				<h1 class="text-3xl font-bold text-black lg:text-4xl">
 					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>

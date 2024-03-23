@@ -2,7 +2,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	import { Confetti } from 'svelte-confetti';
-	import Logo from '@src/components/SveltyCMS_Logo.svelte';
+	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

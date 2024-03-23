@@ -42,7 +42,7 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		translated: params.translated,
+		// translated: params.translated,
 		icon: params.icon,
 		width: params.width,
 		helper: params.helper,

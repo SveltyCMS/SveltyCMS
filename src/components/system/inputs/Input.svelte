@@ -5,6 +5,7 @@
 	export let inputClass = '';
 	export let placeholder = '';
 	export let value = '';
+
 	function typeAction(node: HTMLInputElement) {
 		node.type = type;
 	}

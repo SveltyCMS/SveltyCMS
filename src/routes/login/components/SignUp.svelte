@@ -13,7 +13,7 @@
 
 	let activeOauth = false;
 
-	import CMSLogo from '@src/components/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -96,7 +96,7 @@
 	{#if active == 1}
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
 			<div class="mb-4 flex flex-row gap-2">
-				<CMSLogo className="w-12" fill="red" />
+				<SveltyCMSLogo className="w-12" fill="red" />
 
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
 					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>

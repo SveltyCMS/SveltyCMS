@@ -1,5 +1,5 @@
 <script lang="ts">
-	import SveltyCMSLogoFull from '@src/components/SveltyCMS_LogoFull.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import type { PageData } from './$types';
 
 	//ParaglideJS

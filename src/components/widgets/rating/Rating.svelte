@@ -1,6 +1,5 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@utils/utils';
 
 	// Stores

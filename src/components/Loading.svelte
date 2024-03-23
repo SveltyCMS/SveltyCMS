@@ -1,5 +1,5 @@
 <script lang="ts">
-	import Logo from '@components/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -12,7 +12,7 @@
 	<div class="absolute h-[210px] w-[210px] rounded-full border-[4px] border-surface-400 border-x-transparent" id="loader4" />
 	<div class="absolute flex flex-col items-center justify-center rounded-full bg-transparent p-6 uppercase text-black dark:text-white">
 		<div>{m.loading_pleasewait()}</div>
-		<div><Logo className="w-10 p-1" fill="red" /></div>
+		<div><SveltyCMSLogo className="w-10 p-1" fill="red" /></div>
 		<div>{m.loading_loading()}</div>
 	</div>
 </div>
@@ -46,11 +46,4 @@
 			transform: rotateZ(0deg);
 		}
 	}
-	/*#text {*/
-	/*	color: white;*/
-	/*	font-family: Arial;*/
-	/*	font-size: 20px;*/
-	/*	position: relative;*/
-	/*	top: -857px;*/
-	/*}*/
 </style>

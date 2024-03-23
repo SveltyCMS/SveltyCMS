@@ -12,7 +12,7 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	let _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = null;
 
 	let endDateValue: any;

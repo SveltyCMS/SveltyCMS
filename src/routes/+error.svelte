@@ -5,7 +5,7 @@
 	import { page } from '$app/stores';
 
 	// Components
-	import SveltyCMSLogo from '@components/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
