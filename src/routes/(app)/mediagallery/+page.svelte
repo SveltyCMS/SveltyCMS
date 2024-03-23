@@ -169,59 +169,6 @@
 		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 	};
 
-	// Column Definition
-	// let items = [
-	// 	{
-	// 		header: 'Image',
-	// 		accessorKey: 'image',
-	// 		id: 'image',
-	// 		cell: (info: any) => {
-	// 			if (info.row.original.path.endsWith('.pdf')) {
-	// 				// PDF icon
-	// 				return '<iconify-icon icon="vscode-icons:file-type-pdf2" height="42" />';
-	// 			} else if (info.row.original.path.endsWith('.xlsx') || info.row.original.path.endsWith('.xls')) {
-	// 				// Excel icon
-	// 				return '<iconify-icon icon="vscode-icons:file-type-excel" height="42" />';
-	// 			} else if (info.row.original.path.endsWith('.docx') || info.row.original.path.endsWith('.doc')) {
-	// 				// Word icon
-	// 				return '<iconify-icon icon="vscode-icons:file-type-word" height="42" />';
-	// 			} else {
-	// 				// Default case
-	// 				return flexRender(Avatar, {
-	// 					src: info.row.original.thumbnail,
-	// 					width: `${tableSize === 'small' ? 'w-6' : tableSize === 'medium' ? 'w-10' : 'w-14'}`
-	// 				});
-	// 			}
-	// 		}
-	// 	},
-	// 	{
-	// 		header: 'Name',
-	// 		accessorKey: 'name',
-	// 		id: 'name',
-	// 		cell: (info: any) => info.row.original.name // Display the name without the hash
-	// 	},
-	// 	{
-	// 		header: 'Size',
-	// 		accessorKey: 'size',
-	// 		id: 'size',
-	// 		cell: (info: any) => {
-	// 			return formatSize(info.row.original.size);
-	// 		}
-	// 	},
-	// 	{
-	// 		header: 'Hash',
-	// 		accessorKey: 'hash',
-	// 		id: 'hash',
-	// 		cell: (info: any) => info.row.original.hash // Display the hash value
-	// 	},
-	// 	{
-	// 		header: 'Path',
-	// 		accessorKey: 'path',
-	// 		id: 'path',
-	// 		cell: (info: any) => `${info.row.original.path}-${info.row.original.name}` // Construct full path
-	// 	}
-	// ];
-
 	//Todo: Check if media is used in a collection before delete is possible
 	async function handleDeleteImage(image) {
 		try {

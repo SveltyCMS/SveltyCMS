@@ -21,7 +21,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	if (username.length > 24) return new Response(JSON.stringify('username must be at most 24 characters'), { status: 400 });
 	username = username.trim();
 
-	const user = await auth.getUser(userID);
+	// const user = await auth.getUser(userID);
 	const key = await auth.getKey('email', email).catch(() => null);
 
 	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;

@@ -96,7 +96,6 @@
 	export let FormSchemaForgot: PageData['forgotForm'];
 	const {
 		form: forgotForm,
-		constraints: forgotConstraints,
 		allErrors: forgotAllErrors,
 		errors: forgotErrors,
 		enhance: forgotEnhance,
@@ -200,7 +199,6 @@
 	export let FormSchemaReset: PageData['resetForm'];
 	const {
 		form: resetForm,
-		constraints: resetConstraints,
 		allErrors: resetAllErrors,
 		errors: resetErrors,
 		enhance: resetEnhance,

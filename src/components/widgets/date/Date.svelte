@@ -4,7 +4,7 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, contentLanguage } from '@stores/store';
+	import { mode, entryData } from '@stores/store';
 
 	export let field: FieldType;
 

@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collectionValue, collections, permissionStore, tabSet } from '@stores/store';
+	import { mode, collectionValue, collections, tabSet } from '@stores/store';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
@@ -15,6 +15,7 @@
 	import type { Schema } from '@src/collections/types';
 
 	import { createEventDispatcher } from 'svelte';
+	import { getCollections } from '@src/collections';
 
 	const dispatch = createEventDispatcher();
 
@@ -22,17 +23,18 @@
 	const collectionName = $page.params.collectionName;
 	//check if collection Name exists set mode edit or create
 	if ($collections.find((x) => x.name === collectionName)) {
-		mode.set('edit');
-		let collection = $collections.find((x) => x.name === collectionName) as Schema;
-		collectionValue.set(collection); // current collection
-		permissionStore.set(collection.permissions ?? {});
+		// fetch the collection from the API
+		getCollections().then((data) => {
+			mode.set('edit');
+			let collection = data.find((x) => x.name === collectionName) as Schema;
+			collectionValue.set(collection); // current collection
+		});
 	} else {
 		collectionValue.set({
 			...$collectionValue,
 			fields: $collectionValue.fields ? $collectionValue.fields : [],
 			name: collectionName
 		});
-		permissionStore.set({});
 	}
 
 	// Popup Tooltips

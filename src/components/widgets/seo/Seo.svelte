@@ -300,17 +300,17 @@
 		// Widget Specfic
 	});
 
-	function validateInput() {
-		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
-			}
-		}
-	}
+	// function validateInput() {
+	// 	try {
+	// 		// Change .parseAsync to .parse
+	// 		validateSchema.parse(_data.value);
+	// 		validationError = '';
+	// 	} catch (error: unknown) {
+	// 		if (error instanceof z.ZodError) {
+	// 			validationError = error.errors[0].message;
+	// 		}
+	// 	}
+	// }
 </script>
 
 <!-- TODO: Fix input Value -->

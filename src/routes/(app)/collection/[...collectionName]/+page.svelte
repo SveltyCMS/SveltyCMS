@@ -6,7 +6,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collectionValue, permissionStore, tabSet } from '@stores/store';
+	import { mode, collectionValue, tabSet } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -45,6 +45,11 @@
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
+		// Delete key from fields
+		$collectionValue.fields.forEach((field: any) => {
+			delete field.key;
+		});
+
 		// Prepare form data
 		let data =
 			$mode == 'edit'
@@ -55,7 +60,7 @@
 						status: $collectionValue.status,
 						slug: $collectionValue.slug,
 						description: $collectionValue.description,
-						permissions: $permissionStore,
+						permissions: $collectionValue.permissions,
 						fields: $collectionValue.fields
 					})
 				: obj2formData({
@@ -64,9 +69,20 @@
 						status: $collectionValue.status,
 						slug: $collectionValue.slug,
 						description: $collectionValue.description,
-						permissions: $permissionStore,
+						permissions: $collectionValue.permissions,
 						fields: $collectionValue.fields
 					});
+
+		// console.log({
+		// 	originalName: $collectionValue.name,
+		// 	collectionName: name,
+		// 	icon: $collectionValue.icon,
+		// 	status: $collectionValue.status,
+		// 	slug: $collectionValue.slug,
+		// 	description: $collectionValue.description,
+		// 	permissions: $collectionValue.permissions,
+		// 	fields: $collectionValue.fields
+		// });
 
 		// Send the form data to the server
 		let resp = await axios.post(`?/saveCollection`, data, {

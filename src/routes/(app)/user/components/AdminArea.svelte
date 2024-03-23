@@ -44,8 +44,7 @@
 			component: modalComponent,
 
 			// Pass arbitrary data to the component
-			response: (r) => {
-				//console.log('Modal response:', r);
+			response: () => {
 				return;
 			}
 		};

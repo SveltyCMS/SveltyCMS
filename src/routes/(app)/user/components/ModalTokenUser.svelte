@@ -35,7 +35,7 @@
 
 	let response: any;
 
-	const { form, constraints, allErrors, errors, enhance } = superForm(addUserForm, {
+	const { form, allErrors, errors, enhance } = superForm(addUserForm, {
 		id: 'addUser',
 		validators: addUserTokenSchema,
 		defaultValidator: 'clear',
@@ -75,7 +75,7 @@
 	/// Calculate expiration time in seconds based on expiresIn value
 	let expiresIn = '2 hrs'; // Set the default validity
 	let expiresInLabel = '';
-	let expirationTime;
+	let expirationTime: any;
 
 	// Define the validity options and their corresponding seconds
 	const validityOptions = [

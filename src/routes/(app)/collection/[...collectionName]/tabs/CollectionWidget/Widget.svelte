@@ -1,31 +1,26 @@
 <script lang="ts">
-	// Stores
 	import { page } from '$app/stores';
-	import { collectionValue, tabSet } from '@stores/store';
-	import { getGuiFields } from '@src/utils/utils';
-
-	// Components
-	import widgets from '@src/components/widgets';
+	import { collectionValue, tabSet, targetWidget } from '@stores/store';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	import VerticalList from '@components/VerticalList.svelte';
-
-	// ParaglideJS
+	import ModalWidgetForm from './ModalWidgetForm.svelte';
+	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
 	import * as m from '@src/paraglide/messages';
 
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
+	import widgets from '@src/components/widgets';
+	import { getGuiFields } from '@src/utils/utils';
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte';
-	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 
-	// fields
+	//fields
 	let fields = $collectionValue.fields.map((field, index) => {
 		return {
 			id: index + 1, // Add the id property first
@@ -49,13 +44,18 @@
 
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
+		// console.log(selectedWidget);
+		if (selectedWidget.permissions === undefined) {
+			selectedWidget.permissions = {};
+		}
+		targetWidget.set(selectedWidget);
 		const c: ModalComponent = { ref: ModalWidgetForm };
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
 			title: 'Define your Widget',
 			body: 'Setup your widget and then press Save.',
-			value: selectedWidget, // Pass the selected widget	as the initial value
+			value: selectedWidget, // Pass the selected widget as the initial value
 			response: (r: any) => {
 				if (!r) return;
 				// Find the index of the existing widget based on its ID
@@ -101,7 +101,9 @@
 			response: (r: any) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
+				let widget = { widget: { key: selectedWidget }, permissions: {} };
+				targetWidget.set(widget);
+				modalWidgetForm(widget); // Use selectedWidget directly
 			}
 		};
 		modalStore.trigger(modal);

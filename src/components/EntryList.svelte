@@ -191,6 +191,9 @@
 			}));
 		}
 
+		// Reset displayTableHeaders before modifications
+		//displayTableHeaders = initialCollectionState.slice() as { label: string; name: string; id: string; visible: boolean }[];
+
 		SelectAll = false;
 
 		// Update pagesCount after fetching data
@@ -414,26 +417,34 @@
 				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
 				<!-- Select All Columns -->
 				<div class="my-2 flex w-full items-center justify-center gap-1">
-					<label class="mr-2">
-						<input
-							type="checkbox"
-							bind:checked={selectAllColumns}
-							on:change={() => {
-								// Check if all columns are currently visible
-								const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
+					<div class="flex- items-center justify-between">
+						<label class="mr-2">
+							<input
+								type="checkbox"
+								bind:checked={selectAllColumns}
+								on:change={() => {
+									// Check if all columns are currently visible
+									const allColumnsVisible = displayTableHeaders.every((header) => header.visible);
 
-								// Toggle visibility of all columns based on the current state of selectAllColumns
-								displayTableHeaders = displayTableHeaders.map((header) => ({
-									...header,
-									visible: !allColumnsVisible
-								}));
+									// Toggle visibility of all columns based on the current state of selectAllColumns
+									displayTableHeaders = displayTableHeaders.map((header) => ({
+										...header,
+										visible: !allColumnsVisible
+									}));
 
-								// Update selectAllColumns based on the new visibility state of all columns
-								selectAllColumns = !allColumnsVisible;
-							}}
-						/>
-						{m.entrylist_all()}
-					</label>
+									// Update selectAllColumns based on the new visibility state of all columns
+									selectAllColumns = !allColumnsVisible;
+								}}
+							/>
+							{m.entrylist_all()}
+						</label>
+
+						<!-- Clear local storage and reload tableHeader -->
+						<button class="btn">
+							<iconify-icon icon="material-symbols-light:device-reset" width="30" class="text-tertiary-500" />
+							Reset
+						</button>
+					</div>
 
 					<section
 						use:dndzone={{

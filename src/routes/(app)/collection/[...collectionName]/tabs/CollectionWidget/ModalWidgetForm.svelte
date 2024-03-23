@@ -1,13 +1,11 @@
 <script lang="ts">
-	import { onMount, type SvelteComponent } from 'svelte';
-	import { asAny } from '@utils/utils';
-
-	// Stores
-	import { collectionValue } from '@src/stores/store';
+	import { type SvelteComponent } from 'svelte';
 
 	// Components
 	import widgets from '@components/widgets';
-	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
+	import Default from './tabs/Default.svelte';
+	import Permission from './tabs/Permission.svelte';
+	import Specific from './tabs/Specific.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -15,41 +13,12 @@
 	// Skeleton Stores
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	import { collectionValue, targetWidget } from '@src/stores/store';
 
 	let tabSet: number = 0;
-
-	export const addField: boolean = false;
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
-
-	//fields
-	let fields = $collectionValue.fields.map((field, index) => {
-		return {
-			id: index + 1, // Add the id property first
-			...field // Copy all existing properties
-		};
-	});
-
-	// Form Data
-	let formData: any = {};
-	// Check if the selected widget has a key property.
-	if ($modalStore.length) {
-		if ($modalStore[0].value.key) {
-			// If the selected widget has a key property, then it is an existing widget.
-			// Use the $modalStore[0].value object as the formData.
-			let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
-			formData = Object.assign({}, field, $modalStore[0].value);
-		} else {
-			// If the selected widget does not have a key property, then it is a new widget.
-			// Create a new formData object for the new widget.
-			formData = {
-				// ...widgets[$modalStore[0].value],
-				key: $modalStore[0].value.widget.key,
-				...$modalStore[0].value
-			};
-		}
-	}
 
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
@@ -59,7 +28,7 @@
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if ($modalStore[0].response) {
-			await $modalStore[0].response(formData);
+			await $modalStore[0].response($targetWidget);
 		}
 		modalStore.close();
 	}
@@ -69,7 +38,7 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			let updatedFields = fields.filter((field: any) => field.id !== $modalStore[0].value.id);
+			let updatedFields = $collectionValue.fields.filter((field: any) => field.id !== $modalStore[0].value.id);
 			collectionValue.update((c) => {
 				c.fields = updatedFields;
 				return c;
@@ -82,25 +51,6 @@
 	const cBase = 'card p-4 w-screen h-screen shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	onMount(() => {
-		if ($modalStore.length) {
-			if ($modalStore[0].value.key) {
-				// If the selected widget has a key property, then it is an existing widget.
-				// Use the $modalStore[0].value object as the formData.
-				let field = fields.find((field: any) => field.id === $modalStore[0].value.id) ?? {};
-				formData = Object.assign({}, field, $modalStore[0].value);
-			} else {
-				// If the selected widget does not have a key property, then it is a new widget.
-				// Create a new formData object for the new widget.
-				formData = {
-					// ...widgets[$modalStore[0].value],
-					key: $modalStore[0].value.widget.key,
-					...$modalStore[0].value
-				};
-			}
-		}
-	});
 </script>
 
 {#if $modalStore[0]}
@@ -136,46 +86,16 @@
 				<svelte:fragment slot="panel">
 					{#if tabSet === 0}
 						{#if $modalStore[0].value}
-							<!-- Default section -->
-							<div class="mb-2 border-y text-center text-primary-500">
-								<div class="text-xl text-primary-500">
-									Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.key}</span> Input Options
-								</div>
-								<div class="my-1 text-xs text-error-500">* Required</div>
-							</div>
 							<div class="options-table">
-								{#each ['label', 'placeholder', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
-									<InputSwitch
-										bind:value={formData[property]}
-										bind:iconselected={formData[property]}
-										widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-										key={property}
-									/>
-								{/each}
+								<Default {guiSchema} />
 							</div>
 						{/if}
 					{:else if tabSet === 1}
 						<!-- Permissions section -->
-						{#each ['permissions'] as property}
-							<InputSwitch
-								bind:value={formData[property]}
-								bind:iconselected={formData[property]}
-								widget={asAny(guiSchema[property])?.widget}
-								key={property}
-							/>
-						{/each}
+						<Permission {guiSchema} />
 					{:else if tabSet === 2}
 						<!-- Specific section -->
-						{#each Object.keys(guiSchema) as property}
-							{#if !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(property)}
-								<InputSwitch
-									bind:value={formData[property]}
-									bind:iconselected={formData[property]}
-									widget={asAny(guiSchema[property]?.widget)}
-									key={property}
-								/>
-							{/if}
-						{/each}
+						<Specific {guiSchema} />
 					{/if}
 				</svelte:fragment>
 			</TabGroup>

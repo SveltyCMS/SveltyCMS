@@ -15,17 +15,6 @@
 
 	let _languageTag = languageTag(); // Get the current language tag
 
-	$: console.log('$systemLanguage:', $systemLanguage);
-	console.log('_languageTag', _languageTag);
-	console.log('languageTag', languageTag());
-
-	export let data: PageData;
-	// @ts-expect-error reading from vite.config.js
-	const pkg = __VERSION__;
-
-	// Seasons
-	let date = new Date();
-
 	let inputlanguagevalue = '';
 
 	function handleLanguageSelection(event) {
@@ -36,8 +25,14 @@
 
 	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlanguagevalue) : true));
 
+	// Access package version from environment variable
+	// @ts-expect-error reading from vite.config.js
+	const pkg = __VERSION__;
+
 	let active: undefined | 0 | 1 = undefined;
 	let background: 'white' | '#242728' = 'white';
+
+	export let data: PageData;
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-[#242728] bg-${background}`}>

@@ -49,7 +49,7 @@
 	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
 	let ForwardBackward: boolean = false;
 
-	globalThis.onpopstate = async () => {
+	window.onpopstate = async () => {
 		// Set up an event listener for the popstate event
 		ForwardBackward = true; // Set ForwardBackward to true to indicate that the user is navigating using the browser's forward or backward buttons
 

@@ -16,14 +16,14 @@
 	// Set the value of the collection store to the collection object from the collections array that has a name property that matches the current page's collection parameter
 	collection.set($collections.find((x) => x.name === $page.params.collection) as Schema); // current collection
 
-	globalThis.onpopstate = async () => {
+	window.onpopstate = async () => {
 		ForwardBackward = true;
 		collection.set($collections.find((x) => x.name === $page.params.collection) as Schema);
 	};
 
 	// Subscribe to changes in the collection store and do redirects
 	// TODO; fix redirect due to reload?
-	let unsubscribe = collection.subscribe((_) => {
+	let unsubscribe = collection.subscribe(() => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
 			// alert('ForwardBackward');
@@ -36,7 +36,7 @@
 		unsubscribe();
 	});
 
-	contentLanguage.subscribe((_) => {
+	contentLanguage.subscribe(() => {
 		if (!ForwardBackward) {
 			goto(`/${$contentLanguage}/${$collection.name}`);
 		}

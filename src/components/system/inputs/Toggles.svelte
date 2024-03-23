@@ -1,13 +1,20 @@
 <script lang="ts">
 	import { generateUniqueId } from '@utils/utils';
+	import { createEventDispatcher } from 'svelte';
 
-	export let value: boolean = false;
+	const dispatch = createEventDispatcher();
+
+	export let value: boolean;
 	export let label: string = '';
 	export let icon: any = null;
 	export let labelColor: string = 'text-primary-500'; // Default label color
 
 	let random = generateUniqueId();
 	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
+
+	function updateToggle(event) {
+		dispatch('toggle', event.target.checked);
+	}
 </script>
 
 <label for="toggleSwitch{random}" class={`text-dark flex cursor-pointer select-none items-center text-white`}>
@@ -21,7 +28,8 @@
 	</label>
 
 	<div class="relative">
-		<input name={label} type="checkbox" id="toggleSwitch{random}" class="peer sr-only" on:click={() => (value = !value)} />
+		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" on:click={updateToggle} />
+
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
 			<!-- <span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
