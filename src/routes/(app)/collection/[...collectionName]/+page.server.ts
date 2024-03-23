@@ -44,7 +44,7 @@ export const actions: Actions = {
 		const permissionsData = JSON.parse(formData.get('permissions') as string);
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
-		const imports = await goThrough(fields);
+		const imports = await goThrough(fields, fieldsData);
 		// Generate fields as formatted string
 		let content = `${imports}
 			import widgets from '@components/widgets';
@@ -65,7 +65,7 @@ export const actions: Actions = {
 
 				// Defined Fields that are used in your Collection
 				// Widget fields can be inspected for individual options
-				fields: ${fields ? JSON.stringify(fields, null, 2) : '[]'}
+				fields: ${JSON.stringify(fields)}
 			};
 			export default schema;`;
 
@@ -125,19 +125,17 @@ export const actions: Actions = {
 };
 
 // Recursively goes through an collection fields.
-async function goThrough(object: any): Promise<string> {
+async function goThrough(object: any, fields): Promise<string> {
 	const widgets = (await import('@components/widgets')).default;
 	const imports = new Set<string>();
 
 	//Asynchronously processes a field recursively.
-	async function processField(field: any) {
+	async function processField(field: any, fields?: any) {
 		if (field instanceof Object) {
 			for (const key in field) {
-				await processField(field[key]);
-
+				await processField(field[key], fields);
 				if (field[key]?.widget) {
 					const widget = widgets[field[key].widget.key];
-
 					if (widget && widget.GuiSchema) {
 						for (const importKey in widget.GuiSchema) {
 							const widgetImport = widget.GuiSchema[importKey].imports;
@@ -149,16 +147,23 @@ async function goThrough(object: any): Promise<string> {
 							}
 						}
 					}
-
 					field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
-						typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
+						typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️')).trim() : value
 					)})🗑️`;
+					//check if permission is in fields[key]
+					if ('permissions' in JSON.parse(fields)[key]) {
+						const parsedFields = JSON.parse(fields);
+						const subWidget = field[key].split('}');
+						const permissionStr = `,"permissions":${JSON.stringify(parsedFields[key].permissions)}}`;
+						const newWidget = subWidget[0] + permissionStr + subWidget[1];
+						field[key] = newWidget;
+					}
 				}
 			}
 		}
 	}
 
-	await processField(object);
+	await processField(object, fields);
 
 	return Array.from(imports).join('\n');
 }

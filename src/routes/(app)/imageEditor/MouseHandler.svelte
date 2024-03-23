@@ -248,8 +248,8 @@
 	on:mousedown={handleMouseDown}
 	on:mouseup={handleMouseUp}
 	on:mousemove={handleMouseMove}
-	on:touchstart={handleTouchStart}
-	on:touchend={handleTouchEnd}
+	on:touchstart|passive={handleTouchStart}
+	on:touchend|passive={handleTouchEnd}
 	on:touchmove={handleTouchMove}
 	role="presentation"
 	aria-grabbed={down}
