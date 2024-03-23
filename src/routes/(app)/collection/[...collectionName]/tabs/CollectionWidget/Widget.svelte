@@ -1,20 +1,27 @@
 <script lang="ts">
+	import { getGuiFields } from '@src/utils/utils';
+
+	// Stores
 	import { page } from '$app/stores';
 	import { collectionValue, tabSet, targetWidget } from '@stores/store';
-	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import { getModalStore } from '@skeletonlabs/skeleton';
+
+	// Componets
+	import widgets from '@src/components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Event dispatcher
 	import { createEventDispatcher } from 'svelte';
-	import widgets from '@src/components/widgets';
-	import { getGuiFields } from '@src/utils/utils';
+
 	const dispatch = createEventDispatcher();
 
 	// Skeleton
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL

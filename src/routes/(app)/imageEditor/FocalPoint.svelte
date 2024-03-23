@@ -89,8 +89,8 @@
 	on:mousemove={handleMouseMove}
 	on:mouseup={handleMouseUp}
 	on:mouseleave={handleMouseUp}
-	on:touchstart={handleTouchStart}
-	on:touchmove={handleTouchMove}
+	on:touchstart|passive={handleTouchStart}
+	on:touchmove|passive={handleTouchMove}
 	on:touchend={handleTouchEnd}
 	on:touchcancel={handleTouchEnd}
 	on:keydown={handleKeyDown}

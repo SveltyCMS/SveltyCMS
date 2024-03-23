@@ -12,6 +12,8 @@
 	import { targetWidget } from '@src/stores/store';
 
 	// Props
+	export let tabSet;
+
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
@@ -25,7 +27,7 @@
 	}
 </script>
 
-{#if $modalStore[0]}
+{#if $modalStore[0] && tabSet === 0}
 	<!-- Default section -->
 	<div class="mb-2 border-y text-center text-primary-500">
 		<div class="text-xl text-primary-500">

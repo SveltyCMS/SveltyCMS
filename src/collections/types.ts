@@ -51,7 +51,7 @@ export interface Schema {
 	description?: string;
 	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
 	permissions?: permissions;
-	fields?: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
+	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 	strict?: boolean;
 	revision?: boolean;
 }

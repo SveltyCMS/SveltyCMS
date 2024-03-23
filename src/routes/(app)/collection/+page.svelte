@@ -114,13 +114,14 @@
 				body: JSON.stringify(availableCollection)
 			});
 
-			const responseText = await response.text();
-
 			if (response.status === 200) {
+				const responseText = await response.text();
 				showToast('Config file updated successfully', 'success');
 			} else if (response.status === 304) {
-				showToast(responseText, 'info'); // Display the server response message
+				// Provide a custom message for 304 status
+				showToast('No changes detected, config file not updated', 'info');
 			} else {
+				const responseText = await response.text();
 				showToast(`Error updating config file: ${responseText}`, 'error');
 			}
 		} catch (error) {
@@ -132,7 +133,7 @@
 	function showToast(message, type) {
 		const backgrounds = {
 			success: 'variant-filled-primary',
-			info: 'variant-variant-filled-tertiary',
+			info: 'variant-filled-tertiary',
 			error: 'variant-filled-error'
 		};
 		toastStore.trigger({

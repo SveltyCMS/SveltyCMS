@@ -2,7 +2,6 @@
 	// Stores
 	import { mode, saveEditedImage } from '@stores/store';
 	import { page } from '$app/stores';
-	import { globalSearchIndex } from '@utils/globalSearchIndex';
 
 	import { onMount } from 'svelte';
 
@@ -76,6 +75,7 @@
 
 {#if image}
 	<div class="wrapper">
+		<!-- <div class="wrapper max-h-[calc(100vh-200px)] bg-emerald-400"> -->
 		<!-- old Image Editor -->
 		<!-- <Cropper bind:image /> -->
 

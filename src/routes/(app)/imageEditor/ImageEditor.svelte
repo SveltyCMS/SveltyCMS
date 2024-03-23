@@ -55,6 +55,13 @@
 		CONT_WIDTH = imageView?.naturalWidth ?? 0;
 		CONT_HEIGHT = imageView?.naturalHeight ?? 0;
 		focalPoint = { x: CONT_WIDTH / 2, y: CONT_HEIGHT / 2 };
+
+		// Set initial crop values to center the crop area
+		cropTop = CONT_HEIGHT / 4;
+		cropLeft = CONT_WIDTH / 4;
+		cropRight = (CONT_WIDTH * 3) / 4;
+		cropBottom = (CONT_HEIGHT * 3) / 4;
+		cropCenter = 0;
 	}
 
 	function resetFocalPoint() {
@@ -66,7 +73,7 @@
 <!-- Image Info -->
 <div class="mb-1 flex items-center justify-between">
 	<p>
-		<span class="">Image:</span>
+		<span class="hidden lg:inline-block">Image:</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
 	</p>
 	<p class="text-tertiary-500 dark:text-primary-500">{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</p>
@@ -92,6 +99,7 @@
 	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]">
 		{#if activeState === 'cropping'}
 			<!-- Pass the image and the crop values to the Crop component  -->
+
 			<Crop bind:cropTop bind:cropLeft bind:cropRight bind:cropBottom bind:cropCenter bind:cropShape {CONT_WIDTH} {CONT_HEIGHT} />
 		{/if}
 

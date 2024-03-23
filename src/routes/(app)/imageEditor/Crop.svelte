@@ -2,29 +2,35 @@
 	import MouseHandler from './MouseHandler.svelte';
 	import { onMount } from 'svelte';
 
-	// Define your props for the Blur.svelte component that considers the image dimensions
-	export let blurTop: number = 100;
-	export let blurLeft: number = 100;
-	export let blurRight: number = 300;
-	export let blurBottom: number = 300;
-	export let blurCenter: number = 0;
-	export let blurRotate: number = 0;
+	// Define your props for the Crop.svelte component
+	export let cropTop: number = 100;
+	export let cropLeft: number = 100;
+	export let cropRight: number = 300;
+	export let cropBottom: number = 300;
+	export let cropCenter: number = 0;
+	export let cropRotate: number = 0;
+	export let cropShape: 'rect' | 'round' = 'rect';
 
 	// Define ImageSize for Overlay
 	export let CONT_WIDTH: number;
 	export let CONT_HEIGHT: number;
 
-	onMount(async () => {
-		// Initialize your blur area here
-		// You might use the `sharp` library to apply the blur effect from +page.server.ts
-		// // Create a sharp instance with the image to be blurred
+	// Initialize your crop area here
+	onMount(() => {
+		// You might use the `sharp` library to crop the image from +page.server.ts
+		// // Create a sharp instance with the image to be cropped
 		// const image = sharp('path/to/image.jpg');
-		// // Define the blur radius
-		const blurRadius = 5;
-		// // Apply the blur effect
-		// image.blur(blurRadius);
-		// // Output the blurred image to a file
-		// image.toFile('path/to/blurred_image.jpg');
+		// // Define the crop area
+		// const cropArea = {
+		//   left: cropLeft,
+		//   top: cropTop,
+		//   width: cropRight - cropLeft,
+		//   height: cropBottom - cropTop,
+		// };
+		// // Apply the crop effect
+		// image.extract(cropArea);
+		// // Output the cropped image to a file
+		// image.toFile('path/to/cropped_image.jpg');
 	});
 
 	function handleMove(event: { detail: { x: number; y: number } }) {
@@ -32,32 +38,32 @@
 		const offsetTop = event.detail.y - CONT_HEIGHT / 2;
 		const offsetX = event.detail.x - CONT_WIDTH / 2;
 
-		// Update blur top and left based on the offset
-		blurTop = blurCenter + offsetTop;
-		blurLeft = blurCenter + offsetX;
+		// Update crop top and left based on the offset
+		cropTop = cropCenter + offsetTop;
+		cropLeft = cropCenter + offsetX;
 	}
 
 	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
 		switch (event.detail.corner) {
 			case 'TopLeft':
-				blurTop += event.detail.y;
-				blurLeft += event.detail.x;
+				cropTop += event.detail.y;
+				cropLeft += event.detail.x;
 				break;
 			case 'TopRight':
-				blurTop += event.detail.y;
-				blurRight -= event.detail.x;
+				cropTop += event.detail.y;
+				cropRight -= event.detail.x;
 				break;
 			case 'BottomLeft':
-				blurBottom -= event.detail.y;
-				blurLeft += event.detail.x;
+				cropBottom -= event.detail.y;
+				cropLeft += event.detail.x;
 				break;
 			case 'BottomRight':
-				blurBottom -= event.detail.y;
-				blurRight -= event.detail.x;
+				cropBottom -= event.detail.y;
+				cropRight -= event.detail.x;
 				break;
 			case 'Center':
-				blurCenter += event.detail.x;
-				blurCenter += event.detail.y;
+				cropCenter += event.detail.x;
+				cropCenter += event.detail.y;
 				break;
 			default:
 				break;
@@ -65,39 +71,30 @@
 	}
 
 	function handleRotate(event: { detail: { x: number; y: number } }) {
-		blurRotate += event.detail.x;
+		cropRotate += event.detail.x;
 	}
 
-	function handleDelete() {
-		// Reset the blur area
-		blurTop = 0;
-		blurLeft = 0;
-		blurRight = 0;
-		blurBottom = 0;
-		blurCenter = 0;
-		blurRotate = 0;
-	}
-
-	function handleAdd() {
-		// Add a new blur area with default values
-		blurTop = 100;
-		blurLeft = 100;
-		blurRight = 300;
-		blurBottom = 300;
-		blurCenter = 0;
-		blurRotate = 0;
+	function handleReset() {
+		// Reset the crop area
+		cropTop = 100;
+		cropLeft = 100;
+		cropRight = 300;
+		cropBottom = 300;
+		cropCenter = 0;
+		cropRotate = 0;
 	}
 </script>
 
 <div class="relative" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-	<!-- Wrap the blur area element inside the MouseHandler component tag -->
+	<!-- Wrap the crop area element inside the MouseHandler component tag -->
 	<MouseHandler
-		bind:TopLeft={blurLeft}
-		bind:TopRight={blurRight}
-		bind:BottomLeft={blurLeft}
-		bind:BottomRight={blurRight}
-		bind:Center={blurCenter}
-		bind:Rotate={blurRotate}
+		bind:TopLeft={cropLeft}
+		bind:TopRight={cropRight}
+		bind:BottomLeft={cropLeft}
+		bind:BottomRight={cropRight}
+		bind:Center={cropCenter}
+		bind:Rotate={cropRotate}
+		bind:cropShape
 		{CONT_WIDTH}
 		{CONT_HEIGHT}
 		on:move={handleMove}
@@ -106,22 +103,17 @@
 	>
 		<div
 			class="absolute grid grid-cols-2 grid-rows-2"
-			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${
-				blurBottom - blurTop
-			}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
+			style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${
+				cropBottom - cropTop
+			}px; transform: translate(-50%, -50%) rotate(${cropRotate}deg); border-radius: 5px;`}
 		>
-			<!-- Use button elements -->
+			<!-- Use a button element -->
 			<div
 				class="variant-filled-surface btn-group absolute -top-14 left-0 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full"
 			>
-				<!-- Add Blur -->
-				<button type="button" on:click={handleAdd} class="">
-					<iconify-icon icon="clarity:clone-solid" width="14" />
-				</button>
-
-				<!-- Delete Blur -->
-				<button type="button" on:click={handleDelete} class="">
-					<iconify-icon icon="icomoon-free:bin" width="12" />
+				<!-- Reset Crop -->
+				<button type="button" on:click={handleReset} class="">
+					<iconify-icon icon="ic:round-restart-alt" width="14" />
 				</button>
 			</div>
 			<!-- Add additional corners and lines to create a 3x3 grid -->

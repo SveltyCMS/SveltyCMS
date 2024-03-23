@@ -3,9 +3,9 @@
 
 	// Components
 	import widgets from '@components/widgets';
-	import Default from './tabs/Default.svelte';
-	import Permission from './tabs/Permission.svelte';
-	import Specific from './tabs/Specific.svelte';
+	import Default from './tabsFields/Default.svelte';
+	import Permission from './tabsFields/Permission.svelte';
+	import Specific from './tabsFields/Specific.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -16,6 +16,7 @@
 	import { collectionValue, targetWidget } from '@src/stores/store';
 
 	let tabSet: number = 0;
+
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
@@ -24,6 +25,12 @@
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
+
+	// All options of the widget
+	let options = Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema);
+	let specificOptions = options.filter(
+		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'].includes(option)
+	);
 
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
@@ -63,40 +70,35 @@
 		<!-- Tabs Headers -->
 		<form class={cForm}>
 			<TabGroup justify="justify-between lg:justify-start">
+				<!-- Default -->
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500" />
 						<span>Default</span>
 					</div>
 				</Tab>
+
+				<!-- Permissions -->
 				<Tab bind:group={tabSet} name="tab2" value={1}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
 						<span>{m.collection_permission()}</span>
 					</div>
 				</Tab>
-				<Tab bind:group={tabSet} name="tab3" value={2}>
-					<div class="flex items-center gap-1">
-						<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />
-						<span>Specific</span>
-					</div>
-				</Tab>
+
+				<!-- Specific -->
+				{#if specificOptions.length > 0}
+					<Tab bind:group={tabSet} name="tab3" value={2}>
+						<div class="flex items-center gap-1">
+							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />
+							<span>Specific</span>
+						</div>
+					</Tab>
+				{/if}
 
 				<!-- Tab Panels --->
 				<svelte:fragment slot="panel">
-					{#if tabSet === 0}
-						{#if $modalStore[0].value}
-							<div class="options-table">
-								<Default {guiSchema} />
-							</div>
-						{/if}
-					{:else if tabSet === 1}
-						<!-- Permissions section -->
-						<Permission {guiSchema} />
-					{:else if tabSet === 2}
-						<!-- Specific section -->
-						<Specific {guiSchema} />
-					{/if}
+					<svelte:component this={tabSet === 0 ? Default : tabSet === 1 ? Permission : Specific} bind:guiSchema bind:tabSet />
 				</svelte:fragment>
 			</TabGroup>
 		</form>

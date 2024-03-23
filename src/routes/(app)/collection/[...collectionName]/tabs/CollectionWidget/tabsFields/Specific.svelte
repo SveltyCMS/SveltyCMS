@@ -12,26 +12,29 @@
 	import { targetWidget } from '@src/stores/store';
 
 	// Props
+	export let tabSet;
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 
 	// Function to handle permission updates
-	function handlePermissionUpdate(event: CustomEvent) {
+	function handleToggle(event: CustomEvent, property: string) {
 		targetWidget.update((w) => {
-			w.permissions = event.detail;
+			w[property] = event.detail;
 			return w;
 		});
 	}
 </script>
 
-{#if $modalStore[0]}
-	{#each ['permissions'] as property}
-		<InputSwitch
-			bind:permissions={$targetWidget[property]}
-			on:update={handlePermissionUpdate}
-			widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-			key={property}
-		/>
+{#if $modalStore[0] && tabSet === 2}
+	{#each Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema) as property}
+		{#if !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'].includes(property)}
+			<InputSwitch
+				bind:value={$targetWidget[property]}
+				on:toggle={(e) => handleToggle(e, property)}
+				widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
+				key={property}
+			/>
+		{/if}
 	{/each}
 {/if}
