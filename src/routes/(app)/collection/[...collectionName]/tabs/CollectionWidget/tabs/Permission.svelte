@@ -1,15 +1,13 @@
 <script lang="ts">
-	import { asAny } from '@utils/utils';
-
 	// Components
 	import widgets from '@components/widgets';
-	import InputSwitch from '@components/system/builder/InputSwitch.svelte';
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	import { targetWidget } from '@src/stores/store';
+	import Permissions from '@src/components/Permissions.svelte';
 
 	// Props
 	export let tabSet;
@@ -28,11 +26,6 @@
 
 {#if $modalStore[0] && tabSet === 1}
 	{#each ['permissions'] as property}
-		<InputSwitch
-			bind:permissions={$targetWidget.permissions}
-			on:update={handlePermissionUpdate}
-			widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
-			key={property}
-		/>
+		<Permissions permissions={$targetWidget[property]} on:update={handlePermissionUpdate} />
 	{/each}
 {/if}
