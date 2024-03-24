@@ -1,5 +1,4 @@
 import widgets from '@components/widgets';
-import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
@@ -27,7 +26,7 @@ const schema: Schema = {
 	fields: [
 		widgets.MegaMenu({
 			label: 'Menu',
-			menu: [
+			fields: [
 				//level 1
 				[
 					widgets.Text({

@@ -1,11 +1,11 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@utils/utils';
+	import { createEventDispatcher } from 'svelte';
 
 	// Stores
 	import { contentLanguage, mode, entryData } from '@stores/store';
-
-	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
@@ -13,7 +13,11 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
+	const dispatch = createEventDispatcher();
+
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	$: dispatch('change', _data);
+
 	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;

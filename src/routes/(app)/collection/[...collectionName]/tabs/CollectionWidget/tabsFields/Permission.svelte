@@ -10,7 +10,7 @@
 	import { targetWidget } from '@src/stores/store';
 
 	// Props
-	export let tabSet;
+	export let tabSet: number;
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];

@@ -39,10 +39,10 @@ const widget = (params: Params) => {
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
-	for (const level of params.menu) {
+	for (const level of params.fields) {
 		level.unshift(Text({ label: 'Header', translated: true }));
 	}
-	params.menu.unshift([Text({ label: 'Header', translated: true })]);
+	params.fields.unshift([Text({ label: 'Header', translated: true })]);
 
 	const callback = ({ data }) => {
 		entryData.set(data?.entryList[0]);
@@ -62,7 +62,7 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// extras
-		menu: params.menu,
+		fields: params.fields,
 		callback
 	};
 

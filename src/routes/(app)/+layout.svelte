@@ -235,6 +235,15 @@
 							{/if}
 
 							<slot />
+
+							<!--<div>mode : {$mode}</div>							
+							<div>screenWidth : {$screenWidth}</div>
+							<div>sidebarState.left : {$sidebarState.left}</div>
+							<div>sidebarState.right : {$sidebarState.right}</div>
+							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
+							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
+							<div>sidebarState.header : {$sidebarState.header}</div>
+							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
 						{/key}
 					</div>
 

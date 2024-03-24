@@ -50,10 +50,12 @@
 	let filterShow = false;
 	let columnShow = false;
 
-	// Retrieve entryListPaginationSettings from local storage or set default values
-	let entryListPaginationSettings: any = localStorage.getItem('entryListPaginationSettings')
-		? JSON.parse(localStorage.getItem('entryListPaginationSettings') as string)
+	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
+	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection.name}`;
+	let entryListPaginationSettings: any = localStorage.getItem(entryListPaginationSettingsKey)
+		? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 		: {
+				collectionName: $collection.name,
 				density: 'normal',
 				sorting: { sortedBy: '', isSorted: 0 },
 				currentPage: 1,
@@ -175,24 +177,20 @@
 		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
 
-		// Inside the refreshTableData function
+		// Update displayTableHeaders based on entryListPaginationSettings
 		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
-			// Initialize displayTableHeaders with the values from entryListPaginationSettings
 			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header) => ({
 				...header,
-				id: generateUniqueId() // Add unique id for each header
+				id: generateUniqueId() // Add unique id for each header (optional)
 			}));
 		} else if (tableHeaders.length > 0) {
-			// If entryListPaginationSettings.displayTableHeaders doesn't exist, initialize displayTableHeaders with the same values as tableHeaders
+			// If no saved settings, use tableHeaders with initial visibility
 			displayTableHeaders = tableHeaders.map((header) => ({
 				...header,
 				visible: true, // Assuming all columns are initially visible
-				id: generateUniqueId() // Add unique id for each header
+				id: generateUniqueId() // Add unique id for each header (optional)
 			}));
 		}
-
-		// Reset displayTableHeaders before modifications
-		//displayTableHeaders = initialCollectionState.slice() as { label: string; name: string; id: string; visible: boolean }[];
 
 		SelectAll = false;
 
@@ -209,11 +207,24 @@
 		}
 	}
 
-	// React to changes in density setting and update local storage
+	// React to changes in density setting and update local storage for each collection
 	$: {
-		entryListPaginationSettings = { ...entryListPaginationSettings, filters, sorting, density, currentPage, rowsPerPage, displayTableHeaders }; //
-		localStorage.setItem('entryListPaginationSettings', JSON.stringify(entryListPaginationSettings)); // Update local storage
-		//console.log('Updated entryListPaginationSettings:', entryListPaginationSettings);
+		entryListPaginationSettings = {
+			...entryListPaginationSettings,
+			collectionName: $collection.name,
+			filters,
+			sorting,
+			density,
+			currentPage,
+			rowsPerPage,
+			displayTableHeaders
+		};
+		localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
+		//console.log('Updated entryListPaginationSettingsKey:', entryListPaginationSettings);
+	}
+
+	$: {
+		tableHeaders = displayTableHeaders.filter((header) => header.visible);
 	}
 
 	// Trigger refreshTableData based on collection, filters, sorting, and currentPage
@@ -264,10 +275,6 @@
 				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
 				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 			};
-
-	$: {
-		tableHeaders = displayTableHeaders.filter((header) => header.visible);
-	}
 
 	// Tick Row - modify STATUS of an Entry
 	$modifyEntry = async (status: keyof typeof statusMap) => {
@@ -440,7 +447,33 @@
 						</label>
 
 						<!-- Clear local storage and reload tableHeader -->
-						<button class="btn">
+						<button
+							class="btn"
+							on:click={() => {
+								// Remove the entryListPaginationSettings from local storage
+								localStorage.removeItem(entryListPaginationSettingsKey);
+
+								// Reset the entryListPaginationSettings to the default state
+								entryListPaginationSettings = {
+									collectionName: $collection.name,
+									density: 'normal',
+									sorting: { sortedBy: '', isSorted: 0 },
+									currentPage: 1,
+									rowsPerPage: 10,
+									filters: {},
+									displayTableHeaders: []
+								};
+
+								// Reset displayTableHeaders to an empty array
+								displayTableHeaders = [];
+
+								// Reset selectAllColumns to true
+								selectAllColumns = true;
+
+								// Refresh the table data
+								refreshTableData();
+							}}
+						>
 							<iconify-icon icon="material-symbols-light:device-reset" width="30" class="text-tertiary-500" />
 							Reset
 						</button>
@@ -605,7 +638,7 @@
 		</div>
 
 		<!-- Pagination  -->
-		<div class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+		<div class="sticky bottom-0 left-0 right-0 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 			<!-- <TablePagination {currentPage} {pagesCount} {rowsPerPage} {refreshTableData} /> -->
 
 			<div class="mb-1 text-xs md:mb-0 md:text-sm">

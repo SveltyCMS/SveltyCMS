@@ -59,7 +59,7 @@
 {#if !_data || showFields}
 	{#key depth}
 		{(fieldsData = {}) && ''}
-		<Fields fields={field.menu[depth]} root={false} bind:fieldsData customData={$currentChild} />
+		<Fields fields={field.fields[depth]} root={false} bind:fieldsData customData={$currentChild} />
 	{/key}
 	{(($saveFunction.fn = saveLayer), '')}
 {/if}
@@ -68,6 +68,6 @@
 {#if _data}
 	<ul bind:this={MENU_CONTAINER} class:hidden={depth != 0} class="children MENU_CONTAINER">
 		<div class="w-screen"></div>
-		<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.menu.length} />
+		<ListNode {MENU_CONTAINER} self={_data} bind:depth bind:showFields maxDepth={field.fields.length} />
 	</ul>
 {/if}

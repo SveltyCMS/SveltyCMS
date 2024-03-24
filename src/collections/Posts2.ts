@@ -34,7 +34,6 @@ const schema: Schema = {
 		}),
 		widgets.Text({
 			label: 'Text3',
-			translated: false,
 			permissions: {
 				[roles.developer]: {
 					read: true,

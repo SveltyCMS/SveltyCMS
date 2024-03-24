@@ -1,5 +1,8 @@
 <script lang="ts">
 	import { roles } from '@collections/types';
+	import { icon, color } from '@collections/types';
+
+	import type { permissions } from '@collections/types';
 	import { mode } from '@stores/store';
 
 	import { createEventDispatcher } from 'svelte';
@@ -26,7 +29,11 @@
 	type RolesPermissions = Record<Role, Permissions>;
 	type RolesArray = { name: Role; permissions: Permissions }[];
 
-	let rolesArray: RolesArray[] = [];
+	let rolesArray: {
+		name: string;
+		permissions: Permissions;
+	}[];
+	rolesArray = [];
 
 	$: {
 		if ($mode === 'edit') {
@@ -39,42 +46,17 @@
 		}
 	}
 
-	// Define a function to get the buttonMap based on a given role and permission
-	// function getButtonMap(permission: 'create' | 'read' | 'write' | 'delete') {
-	// 	return buttonMap[permission];
-	// }
-
 	// Dynamic buttonMap based on data from types.ts
-	const buttonMap = {
-		create: {
-			disabled: 'variant-outline-primary',
-			enabled: 'variant-filled-primary',
-			icon: 'bi:plus-circle-fill',
-			color: 'primary',
+	const buttonMap = Object.entries(icon).reduce((acc, [permission, iconName]) => {
+		acc[permission] = {
+			disabled: `variant-outline-${color[permission]}`,
+			enabled: `variant-filled-${color[permission]}`,
+			icon: iconName,
+			color: color[permission],
 			toggle: false
-		},
-		read: {
-			disabled: 'variant-outline-tertiary',
-			enabled: 'variant-filled-tertiary',
-			icon: 'bi:eye-fill',
-			color: 'tertiary',
-			toggle: false
-		},
-		write: {
-			disabled: 'variant-outline-warning',
-			enabled: 'variant-filled-warning',
-			icon: 'bi:pencil-fill',
-			color: 'warning',
-			toggle: false
-		},
-		delete: {
-			disabled: 'variant-outline-error',
-			enabled: 'variant-filled-error',
-			icon: 'bi:trash-fill',
-			color: 'error',
-			toggle: false
-		}
-	};
+		};
+		return acc;
+	}, {});
 
 	// Define a function to add a new role with default permissions
 	function addPermission() {
@@ -181,7 +163,7 @@
 	{/if}
 
 	<!-- Add Permission -->
-	{#if Object.keys(permissions).length > 0}
+	{#if Object.keys(permissions).length > 0 || rolesArray.length === 0}
 		<button
 			on:click={addPermission}
 			class="variant-filled-success btn w-full justify-center text-center dark:variant-filled-tertiary sm:w-auto sm:justify-end"

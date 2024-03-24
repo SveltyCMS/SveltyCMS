@@ -26,6 +26,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import LanguageSelector from './LanguageSelector.svelte';
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -144,6 +145,9 @@
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
+			<!-- <div class="relative mr-2 h-full w-[80px]">
+				<LanguageSelector />
+			</div> -->
 		{/if}
 
 		<!-- TODO: fix button icon switch -->

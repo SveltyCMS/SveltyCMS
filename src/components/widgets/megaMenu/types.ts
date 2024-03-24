@@ -28,7 +28,7 @@ export type Params = {
 	permissions?: permissions;
 
 	// Widget Specific parameters
-	menu: any[]; // Make sure this is always an array of arrays
+	fields: any[]; // Make sure this is always an array of arrays
 };
 
 /**
@@ -48,7 +48,7 @@ export const GuiSchema = {
 	permissions: { widget: Permissions, required: false },
 
 	// Widget Specific parameters
-	menu: { widget: GuiFields, required: true }
+	fields: { widget: GuiFields, required: true }
 };
 
 /**

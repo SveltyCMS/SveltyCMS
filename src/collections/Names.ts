@@ -1,5 +1,4 @@
 import widgets from '@components/widgets';
-import { roles } from './types';
 import type { Schema } from './types';
 const schema: Schema = {
 	// Collection Name coming from filename so not needed
@@ -11,7 +10,7 @@ const schema: Schema = {
 
 	// Collection Permissions by user Roles
 	permissions: {
-		[roles.user]: {
+		user: {
 			read: true
 		}
 	},

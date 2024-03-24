@@ -1,5 +1,4 @@
 import widgets from '@components/widgets';
-// import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
@@ -18,8 +17,19 @@ const schema: Schema = {
 	permissions: {
 		user: {
 			read: true
+		},
+		editor: {
+			create: true,
+			read: true
+		},
+		developer: {
+			create: true,
+			read: true,
+			write: true,
+			delete: true
 		}
 	},
+
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [

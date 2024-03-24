@@ -32,8 +32,12 @@
 
 		if ($collection.fields) {
 			$collection.fields.forEach((field) => {
-				if (field.translated) {
-					totalFields++;
+				// Check if 'translated' property exists before accessing it
+				const hasTranslatedProperty = 'translated' in field;
+
+				totalFields++;
+
+				if (hasTranslatedProperty && field.translated) {
 					publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
 						if (
 							$entryData[field.label] &&
@@ -47,8 +51,7 @@
 						}
 					});
 				} else {
-					// if no translation is available
-					totalFields++;
+					// Handle fields without 'translated' property
 					if (
 						$entryData[field.label] &&
 						((typeof $entryData[field.label] === 'string' && $entryData[field.label].trim() !== '') ||
@@ -59,26 +62,25 @@
 				}
 			});
 
-			// Calculate the translation status for each language
+			// Calculate translation status for each language
 			let translationStatusValue = {};
 			publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
-				// Calculate the translation status as the ratio of translated fields to total fields for the current language, capped at 100
 				let translationPercentage = translations[lang] ? Math.min((translations[lang] / totalFields) * 100, 100) : 0;
 				translationStatusValue[lang] = Math.round(translationPercentage);
 			});
 
-			// If the default content language is not in the translationStatusValue object, set its value to 100
+			// Ensure default content language has a value
 			if (!translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE]) {
 				translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE] = 100;
 			}
 
-			// Update the store variable
+			// Update translation status store
 			translationStatus.set(totalFields > 0 ? translationStatusValue : { [publicEnv.DEFAULT_CONTENT_LANGUAGE]: 100 });
 
-			// Calculate completionStatus based on percentage of fields with values
+			// Calculate completion percentage
 			let overallCompletionPercentage = (completedFields / totalFields) * 100;
 
-			// Update the store variable
+			// Update completion status store
 			completionStatus.set(overallCompletionPercentage);
 		}
 	}
@@ -182,6 +184,9 @@
 									<!-- Widget Input -->
 									<svelte:component
 										this={asAny(field.widget.type)}
+										on:change={() => {
+											fieldsData = fieldsData;
+										}}
 										field={asAny(field)}
 										bind:WidgetData={fieldsData[getFieldName(field)]}
 										value={customData[getFieldName(field)]}

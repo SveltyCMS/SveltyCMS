@@ -51,7 +51,6 @@ export const actions: Actions = {
 		// Generate fields as formatted string
 		let content = `${imports}
 			import widgets from '@components/widgets';
-			import { roles } from './types';
 			import type { Schema } from './types';
 			const schema: Schema = {
 				// Collection Name coming from filename so not needed
