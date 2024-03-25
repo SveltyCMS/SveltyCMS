@@ -25,65 +25,74 @@
 	const user = $page.data.user;
 
 	// Reactive statement to calculate translation and completion content status
-	$: {
-		let totalFields: number = 0;
-		let completedFields: number = 0;
-		let translations = {};
+	// $: {
+	// 	let totalTranslatableFields = 0;
+	// 	let completedFields = 0;
+	// 	let translations = {};
 
-		if ($collection.fields) {
-			$collection.fields.forEach((field) => {
-				// Check if 'translated' property exists before accessing it
-				const hasTranslatedProperty = 'translated' in field;
+	// 	// Function to recursively count translatable fields and completed fields
+	// 	function processFields(fieldsArray) {
+	// 		fieldsArray.forEach((field) => {
+	// 			if (Array.isArray(field)) {
+	// 				// If the field is an array, it's a nested structure, so process it recursively
+	// 				processFields(field);
+	// 			} else {
+	// 				// Check if 'translated' property exists before accessing it
+	// 				const hasTranslatedProperty = 'translated' in field;
 
-				totalFields++;
+	// 				if (hasTranslatedProperty && field.translated) {
+	// 					totalTranslatableFields++;
+	// 					publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
+	// 						if (
+	// 							$entryData[field.label] &&
+	// 							$entryData[field.label][lang] &&
+	// 							$entryData[field.label][lang].trim() !== '' &&
+	// 							$entryData[field.label][lang] !== null
+	// 						) {
+	// 							// Increase translation count for the language
+	// 							translations[lang] = (translations[lang] || 0) + 1;
+	// 						}
+	// 					});
+	// 				} else {
+	// 					// Handle fields without 'translated' property
+	// 					if (
+	// 						$entryData[field.label] &&
+	// 						((typeof $entryData[field.label] === 'string' && $entryData[field.label].trim() !== '') ||
+	// 							(typeof $entryData[field.label] === 'object' && Object.keys($entryData[field.label]).length > 0))
+	// 					) {
+	// 						completedFields++;
+	// 					}
+	// 				}
+	// 			}
+	// 		});
+	// 	}
 
-				if (hasTranslatedProperty && field.translated) {
-					publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
-						if (
-							$entryData[field.label] &&
-							$entryData[field.label][lang] &&
-							$entryData[field.label][lang].trim() !== '' &&
-							$entryData[field.label][lang] !== null
-						) {
-							// Increase translation count for the language
-							translations[lang] = (translations[lang] || 0) + 1;
-							completedFields++;
-						}
-					});
-				} else {
-					// Handle fields without 'translated' property
-					if (
-						$entryData[field.label] &&
-						((typeof $entryData[field.label] === 'string' && $entryData[field.label].trim() !== '') ||
-							(typeof $entryData[field.label] === 'object' && Object.keys($entryData[field.label]).length > 0))
-					) {
-						completedFields++;
-					}
-				}
-			});
+	// 	// Start processing fields from the top level
+	// 	processFields($collection.fields);
 
-			// Calculate translation status for each language
-			let translationStatusValue = {};
-			publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
-				let translationPercentage = translations[lang] ? Math.min((translations[lang] / totalFields) * 100, 100) : 0;
-				translationStatusValue[lang] = Math.round(translationPercentage);
-			});
+	// 	// Calculate translation status for each language
+	// 	let translationStatusValue = {};
+	// 	publicEnv.AVAILABLE_CONTENT_LANGUAGES.forEach((lang) => {
+	// 		let translationPercentage = translations[lang] ? Math.min((translations[lang] / totalTranslatableFields) * 100, 100) : 0;
+	// 		translationStatusValue[lang] = Math.round(translationPercentage);
+	// 	});
 
-			// Ensure default content language has a value
-			if (!translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE]) {
-				translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE] = 100;
-			}
+	// 	// Ensure default content language has a value
+	// 	if (!translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE]) {
+	// 		translationStatusValue[publicEnv.DEFAULT_CONTENT_LANGUAGE] = 100;
+	// 	}
 
-			// Update translation status store
-			translationStatus.set(totalFields > 0 ? translationStatusValue : { [publicEnv.DEFAULT_CONTENT_LANGUAGE]: 100 });
+	// 	// Update translation status store
+	// 	translationStatus.set(totalTranslatableFields > 0 ? translationStatusValue : { [publicEnv.DEFAULT_CONTENT_LANGUAGE]: 100 });
 
-			// Calculate completion percentage
-			let overallCompletionPercentage = (completedFields / totalFields) * 100;
+	// 	// Calculate completion percentage
+	// 	let overallCompletionPercentage = (completedFields / totalTranslatableFields) * 100;
 
-			// Update completion status store
-			completionStatus.set(overallCompletionPercentage);
-		}
-	}
+	// 	// Update completion status store
+	// 	completionStatus.set(Math.round(overallCompletionPercentage));
+	// }
+
+	// $: console.log($collectionValue);
 
 	let apiUrl = '';
 

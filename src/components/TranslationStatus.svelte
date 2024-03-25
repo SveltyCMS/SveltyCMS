@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+	import { getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { contentLanguage, translationStatusOpen, mode, translationStatus, completionStatus, collection } from '@stores/store';
+	import { collectionValue, contentLanguage, translationStatusOpen, mode, collection } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -38,6 +39,66 @@
 			return 'bg-error-500';
 		}
 	}
+
+	let translations = {};
+	let completionStatus = 0;
+
+	async function checkTranslations() {
+		translations = {};
+
+		let totalTranslated = 0;
+		let totalEntries = 0;
+
+		for (let key in $collectionValue) {
+			let data = await $collectionValue[key]();
+			// Check if data is not null and contains the language key
+			if (data && typeof data === 'object') {
+				for (let lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+					let field = $collection.fields.find((x) => getFieldName(x) == key);
+					if (!field || ('translated' in field && !field.translated)) continue;
+					if (!translations[lang]) translations[lang] = { total: 0, translated: 0 };
+					// Check if the language key exists in data
+					if (data[lang] === undefined) {
+						translations[lang].total++;
+					} else {
+						translations[lang].translated++;
+						translations[lang].total++;
+					}
+					totalTranslated += translations[lang].translated;
+					totalEntries += translations[lang].total;
+				}
+			}
+		}
+
+		if (totalEntries > 0) {
+			completionStatus = Math.round((totalTranslated / totalEntries) * 100);
+		} else {
+			completionStatus = 0; // Handle division by zero if no entries are found
+		}
+	}
+	$: {
+		checkTranslations();
+		$collectionValue;
+	}
+
+	// Reactive statement to recalculate when $collectionValue changes
+	$: if ($collectionValue) {
+		checkTranslations();
+	}
+
+	// Reactive statement to calculate the completion percentage for each language
+	$: {
+		for (let lang in translations) {
+			if (translations[lang].total > 0) {
+				translations[lang].completion = Math.round((translations[lang].translated / translations[lang].total) * 100);
+			} else {
+				translations[lang].completion = 0;
+			}
+		}
+	}
+
+	// $: console.log(translations);
+	// $: console.log(`Overall completion status: ${completionStatus}%`);
 </script>
 
 {#if $mode == 'edit' && $collection}
@@ -57,16 +118,17 @@
 			</button>
 
 			<ProgressBar
-				value={$completionStatus}
+				value={completionStatus}
 				labelledby="Completion Status"
 				min={0}
 				max={100}
 				rounded="none"
 				height="h-1"
-				meter={getColor($completionStatus)}
+				meter={getColor(completionStatus)}
 				track="bg-surface-500 dark:bg-surface-400 transition-all rounded-b"
 			/>
 		</div>
+
 		<!-- dropdown -->
 		{#if isOpen}
 			<div class="absolute right-0 mt-2 max-h-56 w-44 overflow-y-auto rounded border border-surface-400 bg-white shadow-2xl dark:bg-surface-500">
@@ -79,31 +141,37 @@
 						>
 							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
-								<span class="text-xs">{$translationStatus[lang]}%</span>
+								<span class="text-xs">
+									{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
+										{Math.round((translations[lang].translated / translations[lang].total) * 100)}%
+									{/if}
+								</span>
 							</div>
 
-							<ProgressBar
-								value={$translationStatus[lang]}
-								labelledby={lang.toUpperCase()}
-								min={0}
-								max={100}
-								rounded="none"
-								height="h-1"
-								meter={getColor($translationStatus[lang])}
-								track="bg-surface-300 dark:bg-surface-300 transition-all"
-							/>
+							{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
+								<ProgressBar
+									value={Math.round((translations[lang].translated / translations[lang].total) * 100)}
+									labelledby={lang.toUpperCase()}
+									min={0}
+									max={100}
+									rounded="none"
+									height="h-1"
+									meter={getColor(Math.round((translations[lang].translated / translations[lang].total) * 100))}
+									track="bg-surface-300 dark:bg-surface-300 transition-all"
+								/>
+							{/if}
 						</button>
 					{/each}
 					<div class="px-2 py-2 text-center text-sm text-black dark:text-primary-500" role="menuitem">
-						{m.translationsstatus_completed()}{$completionStatus}%
+						{m.translationsstatus_completed()}{completionStatus}%
 
 						<ProgressBar
-							value={$completionStatus}
+							value={completionStatus}
 							min={0}
 							max={100}
 							rounded="none"
 							height="h-1"
-							meter={getColor($completionStatus)}
+							meter={getColor(completionStatus)}
 							track="bg-surface-300 dark:bg-surface-300 transition-all"
 						/>
 					</div>

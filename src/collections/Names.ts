@@ -27,6 +27,7 @@ const schema: Schema = {
 		}),
 		widgets.Text({
 			label: 'Last Name',
+			translated: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Last Name',
 			width: 2

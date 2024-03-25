@@ -617,7 +617,7 @@
 								<td
 									on:click={() => {
 										entryData.set(data?.entryList[index]);
-										console.log(data);
+										// console.log(data);
 										mode.set('edit');
 										handleSidebarToggle();
 									}}
