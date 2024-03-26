@@ -3,7 +3,7 @@
 	import { getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { collectionValue, contentLanguage, translationStatusOpen, mode, collection } from '@stores/store';
+	import { collectionValue, contentLanguage, translationStatusOpen, translationProgress, mode, collection } from '@stores/store';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -39,6 +39,13 @@
 			return 'bg-error-500';
 		}
 	}
+
+	mode.subscribe(() => {
+		if ($mode != 'view') $translationProgress = { show: true };
+		else {
+			$translationProgress = { show: false };
+		}
+	});
 
 	let translations = {};
 	let completionStatus = 0;
@@ -79,11 +86,6 @@
 	$: {
 		checkTranslations();
 		$collectionValue;
-	}
-
-	// Reactive statement to recalculate when $collectionValue changes
-	$: if ($collectionValue) {
-		checkTranslations();
 	}
 
 	// Reactive statement to calculate the completion percentage for each language

@@ -12,7 +12,7 @@ import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
-import { contentLanguage, entryData, mode, collections, collection } from '@stores/store';
+import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
 
 // lucia Auth
 import type { User, Auth } from 'lucia';
@@ -732,4 +732,16 @@ export function getEditDistance(a: string, b: string): number | undefined {
 	const normalizedDistance = matrix[b.length][a.length] / maxDistance;
 
 	return normalizedDistance;
+}
+
+export function updateTranslationProgress(data, field) {
+	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	const $translationProgress = get(translationProgress);
+	for (const lang of languages) {
+		!$translationProgress[lang] && ($translationProgress[lang] = { total: new Set(), translated: new Set() });
+		if (field?.translated) $translationProgress[lang].total.add(field);
+		if (data[lang]) $translationProgress[lang].translated.add(field);
+		else $translationProgress[lang].translated.delete(field);
+	}
+	translationProgress.set($translationProgress);
 }

@@ -1,6 +1,6 @@
 <script lang="ts">
 	// Stores
-	import { entryData, mode, saveFunction, saveLayerStore, shouldShowNextButton } from '@stores/store';
+	import { entryData, mode, saveFunction, translationProgress, shouldShowNextButton } from '@stores/store';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
@@ -14,7 +14,8 @@
 
 	export let field: FieldType;
 	let fieldName = getFieldName(field);
-	// console.log(field);
+
+	$translationProgress.show = false;
 
 	export let value = $entryData[fieldName];
 	export const WidgetData = async () => _data;

@@ -6,7 +6,7 @@
 	import { debounce } from '@src/utils/utils';
 
 	// Stores
-	import { mode, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { translationProgress, mode, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -305,6 +305,7 @@
 					depth = level + 1;
 					showFields = true;
 					mode.set('create');
+					$translationProgress.show = true;
 					shouldShowNextButton.set(true);
 				}}
 				class="btn-icon dark:text-primary-500"
@@ -320,6 +321,7 @@
 				$mode = 'edit';
 				depth = level;
 				showFields = true;
+				$translationProgress.show = true;
 				shouldShowNextButton.set(true);
 			}}
 			class="btn-icon dark:text-primary-500"
