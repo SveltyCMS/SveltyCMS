@@ -55,11 +55,11 @@ export const GuiSchema = {
  * Define MegaMenu GraphqlSchema function
  */
 export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
-	const menu = field.menu;
+	const fields = field.fields;
 	const typeName = `${collection.name}_${getFieldName(field, true)}`;
 	const types = new Set();
 	let levelCount = 0;
-	for (const level of menu) {
+	for (const level of fields) {
 		const children: Array<any> = [];
 		for (const _field of level) {
 			types.add(widgets[_field.widget.key].GraphqlSchema({ label: `${getFieldName(_field, true)}_Level${levelCount}`, collection }).graphql);
@@ -68,7 +68,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 			}
 		}
 		if (levelCount > 0) {
-			if (menu.length - levelCount > 1) {
+			if (fields.length - levelCount > 1) {
 				children.push(`children:[${collection.name}_${getFieldName(field, true)}_Level${levelCount + 1}] `);
 			}
 			types.add(`

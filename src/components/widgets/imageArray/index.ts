@@ -37,7 +37,7 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof ImageArray; key: 'ImageArray'; GuiFields: ReturnType<typeof getGuiFields> } = {
+	const widget = {
 		type: ImageArray,
 		key: 'ImageArray' as const,
 		GuiFields: getGuiFields(params, GuiSchema)
@@ -73,7 +73,7 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'bi:images';
 widget.Description = m.widget_ImageArray_description();
 

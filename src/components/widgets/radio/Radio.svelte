@@ -1,7 +1,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName } from '@utils/utils';
+	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
 	import { mode, entryData, contentLanguage } from '@stores/store';
@@ -12,7 +12,10 @@
 	export let value = $entryData[fieldName] || {};
 
 	let _data = $mode == 'create' ? {} : value;
-	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
+	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	$: updateTranslationProgress(_data, field);
+
 	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;

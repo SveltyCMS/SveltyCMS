@@ -14,6 +14,7 @@
 
 	let _data = $mode == 'create' ? {} : value;
 	let _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
 	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
