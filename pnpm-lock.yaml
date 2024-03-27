@@ -95,8 +95,8 @@ devDependencies:
     specifier: ^3.1.6
     version: 3.1.6(svelte@4.2.12)
   '@inlang/paraglide-js':
-    specifier: ^1.3.4
-    version: 1.3.4
+    specifier: ^1.3.5
+    version: 1.3.5
   '@playwright/test':
     specifier: ^1.42.1
     version: 1.42.1
@@ -122,8 +122,8 @@ devDependencies:
     specifier: ^0.5.7
     version: 0.5.7(tailwindcss@3.4.1)
   '@tailwindcss/typography':
-    specifier: ^0.5.10
-    version: 0.5.10(tailwindcss@3.4.1)
+    specifier: ^0.5.11
+    version: 0.5.11(tailwindcss@3.4.1)
   '@types/mime-types':
     specifier: ^2.1.4
     version: 2.1.4
@@ -822,8 +822,8 @@ packages:
       guess-json-indent: 2.0.0
     dev: true
 
-  /@inlang/paraglide-js@1.3.4:
-    resolution: {integrity: sha512-f37eF6HRGQI9dXo5oi/Zl4jg6dUSadVi6rDcz2YFSVHFflphyhtKXA6tzSmtvOOlnqxJ5Q4qxaInGHbt6hoXmQ==}
+  /@inlang/paraglide-js@1.3.5:
+    resolution: {integrity: sha512-winGxqvQhOoPURtqoC3KpeNs/m7cqdONKkYonEA42XGllnMieWql93Zb7SeXH+nqQ01PQbYQxR1usc13OmMXCw==}
     hasBin: true
     dependencies:
       '@inlang/detect-json-formatting': 1.0.0
@@ -1781,8 +1781,8 @@ packages:
       tailwindcss: 3.4.1
     dev: true
 
-  /@tailwindcss/typography@0.5.10(tailwindcss@3.4.1):
-    resolution: {integrity: sha512-Pe8BuPJQJd3FfRnm6H0ulKIGoMEQS+Vq01R6M5aCrFB/ccR/shT+0kXLjouGC1gFLm9hopTFN+DMP0pfwRWzPw==}
+  /@tailwindcss/typography@0.5.11(tailwindcss@3.4.1):
+    resolution: {integrity: sha512-ahOULqBQGCdSqL3vMNjH1R5cU2gxTh059fJIKF2enHXE8c/s3yKGDSKZ1+4poCr7BZRREJS8n5cCFmwsW4Ok3A==}
     peerDependencies:
       tailwindcss: '>=3.0.0 || insiders'
     dependencies:

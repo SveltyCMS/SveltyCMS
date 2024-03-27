@@ -230,9 +230,10 @@
 					>{m.userpage_password()}
 					<input bind:value={password} name="password" type="password" disabled class="input" />
 				</label>
+
 				<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 					<!-- Edit Modal Button -->
-					<button class="gradient-tertiary btn w-full max-w-sm text-white" on:click={modalUserForm}>
+					<button class="gradient-tertiary btn w-full max-w-sm text-white {!isFirstUser ? '' : 'mx-auto md:mx-0'}" on:click={modalUserForm}>
 						<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 					</button>
 

@@ -41,5 +41,11 @@
 			<iconify-icon icon="bi:images" width="24" class="text-error-600" />
 			<p class="uppercase">Dashboard</p>
 		</a>
+
+		<!-- Market Place -->
+		<a href="https://www.sveltyCMS.com" class="variant-ghost-primary btn w-full gap-2 py-6">
+			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
+			<p class="uppercase">Marketplace</p>
+		</a>
 	</div>
 </div>

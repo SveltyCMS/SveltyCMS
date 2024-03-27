@@ -8,7 +8,7 @@
 
 <!-- Display different badges for different statuses -->
 <div
-	class="grid w-full max-w-full grid-cols-1 items-center justify-start text-left sm:grid-cols-2 {value === 'Published'
+	class="grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden text-left sm:grid-cols-2 {value === 'Published'
 		? 'gradient-primary badge rounded'
 		: value === 'Unpublished'
 			? 'gradient-yellow badge rounded'
@@ -21,7 +21,7 @@
 						: 'badge rounded  text-center'} "
 >
 	{#if value == 'Published'}
-		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class="mx-auto" />
+		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class=" mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_publish()}</p>
 	{:else if value == 'Unpublished'}
 		<iconify-icon icon="bi:pause-circle" width="20" class="mx-auto" />

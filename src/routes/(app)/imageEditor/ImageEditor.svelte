@@ -90,7 +90,7 @@
 		use:bindImageView
 		src={image ? URL.createObjectURL(image) : ''}
 		alt=""
-		class="relative mx-auto w-auto border border-white"
+		class="relative mx-auto w-auto"
 		style={`transform: rotate(${rotate}deg) scale(${zoom});   object-fit: contain;`}
 		on:load={() => handleImageLoad()}
 	/>
