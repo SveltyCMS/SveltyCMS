@@ -18,7 +18,7 @@
 	$: if (root) $collectionValue = fieldsData;
 
 	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet, translationStatus, completionStatus } from '@stores/store';
+	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
 	import { page } from '$app/stores';
 	import { roles } from '@src/collections/types';
 

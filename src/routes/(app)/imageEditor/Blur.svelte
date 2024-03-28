@@ -22,7 +22,7 @@
 		// // Create a sharp instance with the image to be blurred
 		// const image = sharp('path/to/image.jpg');
 		// // Define the blur radius
-		const blurRadius = 5;
+		// const blurRadius = 5;
 		// // Apply the blur effect
 		// image.blur(blurRadius);
 		// // Output the blurred image to a file

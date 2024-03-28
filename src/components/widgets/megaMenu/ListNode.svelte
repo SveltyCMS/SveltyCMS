@@ -133,7 +133,7 @@
 		});
 
 		node.onpointerdown = (e) => {
-			e.stopPropagation();
+			e.stopPropagation(); // Prevent default behavior
 			let node = e.currentTarget as HTMLElement;
 			let pointerID = e.pointerId;
 
@@ -254,7 +254,7 @@
 <!-- label boxes -->
 <button
 	use:notifyChildren
-	on:click={(e) => {
+	on:click={() => {
 		if (expanded) {
 			recalculateBorderHeight();
 		}

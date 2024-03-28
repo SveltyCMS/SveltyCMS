@@ -8,15 +8,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	//skeleton
-	import {
-		initializeStores,
-		Modal,
-		Toast,
-		setModeUserPrefers,
-		setModeCurrent,
-		setInitialClassState,
-		getModeOsPrefers // TODO: get the current value of the store
-	} from '@skeletonlabs/skeleton';
+	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
 
 	//required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
@@ -27,7 +19,7 @@
 
 	// Stores
 	import { isSearchVisible } from '@utils/globalSearchIndex';
-	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading, mode } from '@stores/store';
+	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading } from '@stores/store';
 	import { page } from '$app/stores';
 	import { getCollections } from '@collections';
 	import { goto } from '$app/navigation';
@@ -41,7 +33,6 @@
 	import SearchComponent from '@components/SearchComponent.svelte';
 	import LeftSidebar from '@src/components/LeftSidebar.svelte';
 	import RightSidebar from '@src/components/RightSidebar.svelte';
-	import HeaderView from '@src/components/HeaderView.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
 	import PageFooter from '@src/components/PageFooter.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
@@ -198,11 +189,7 @@
 					<!-- Page Header -->
 					{#if $sidebarState.pageheader !== 'hidden'}
 						<header class="sticky top-0 z-10 w-full">
-							<!-- {#if $mode == 'view'} -->
 							<HeaderEdit />
-							<!-- {:else}
-								<HeaderView /> 
-							{/if} -->
 						</header>
 					{/if}
 

@@ -1,7 +1,6 @@
 <!-- Zoom.svelte -->
 <script lang="ts">
 	import { RangeSlider } from '@skeletonlabs/skeleton';
-	import MouseHandler from './MouseHandler.svelte';
 
 	export let zoom: number = 1;
 

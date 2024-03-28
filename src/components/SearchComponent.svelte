@@ -78,7 +78,7 @@
 	function handleResultClick(result: any, triggerKey: string) {
 		const trigger = result.triggers[triggerKey];
 
-		if (trigger && trigger.path && trigger.action && trigger.action.length > 0) {
+		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger && trigger.action?.length > 0) {
 			const { path, action } = trigger;
 			const actions = action || [];
 

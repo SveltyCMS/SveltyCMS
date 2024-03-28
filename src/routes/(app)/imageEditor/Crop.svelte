@@ -104,16 +104,14 @@
 <svelte:window on:mousemove={debouncedHandleMouseMove} on:mouseup={handleMouseUp} on:keydown={handleKeyDown} />
 
 <div class="relative overflow-hidden" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-	<!-- Blurred Background excluding crop area -->
-	<div class="backdrop-blur-sm" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
-		<div
-			class="absolute !backdrop-blur-0"
-			style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${cropBottom - cropTop}px;`}
-		></div>
-	</div>
+	<!-- Blurred Background -->
+	<div class="backdrop-blur-sm" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}></div>
 
 	<!-- Crop Area -->
-	<div class="absolute" style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${cropBottom - cropTop}px;`}>
+	<div
+		class="absolute overflow-hidden"
+		style={`top: ${cropTop}px; left: ${cropLeft}px; width: ${cropRight - cropLeft}px; height: ${cropBottom - cropTop}px;`}
+	>
 		<!-- reset button -->
 		<div class="variant-filled-surface btn-group absolute -top-5 left-1/2 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full">
 			<button type="button" on:click={handleReset} class="">

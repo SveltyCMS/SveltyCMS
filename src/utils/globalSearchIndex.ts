@@ -33,6 +33,18 @@ export const globalSearchIndex = writable<SearchData[]>([
 		triggers: { 'Go to Home Page': { path: '/', action: [() => {}] } }
 	},
 	{
+		title: 'Marketplace',
+		description: 'SveltCMS Widget Marketplace.',
+		keywords: ['widget', 'marketplace'],
+		triggers: { 'Go to Marketplace': { path: 'https://www.sveltycms.com', action: [() => {}] } }
+	},
+	{
+		title: 'GraphQL Yoga',
+		description: 'GraphQL Explorer',
+		keywords: ['graphQL', 'Explorer', 'Yoga'],
+		triggers: { 'Go to GraphQL Explorer': { path: '/api/graphql', action: [() => {}] } }
+	},
+	{
 		title: 'User Profile',
 		description: 'View and edit your user profile.',
 		keywords: ['user', 'avatar', 'profile', 'settings', 'account', 'password', 'delete'],

@@ -44,7 +44,7 @@
 							items: []
 						}
 					];
-					// console.log('response:', r);
+					console.log('response:', r);
 				}
 			}
 		};
@@ -94,13 +94,11 @@
 	// Update the Assigned collection(s) where the item was dropped
 	function handleBoardUpdated(newColumnsData: any) {
 		availableCollection = newColumnsData;
-		//console.log('handleBoardUpdated:', availableCollection);
 	}
 
 	// Update the Unassigned collection where the item was dropped
 	function handleUnassignedUpdated(newItems: any) {
 		UnassignedCollections = newItems;
-		//console.log('handleUnassignedUpdated:', UnassignedCollections);
 	}
 
 	//Saving changes to the config.ts
@@ -115,7 +113,6 @@
 			});
 
 			if (response.status === 200) {
-				const responseText = await response.text();
 				showToast('Config file updated successfully', 'success');
 			} else if (response.status === 304) {
 				// Provide a custom message for 304 status

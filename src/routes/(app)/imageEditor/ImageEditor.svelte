@@ -68,6 +68,29 @@
 		// Reset the focal point to its initial position
 		focalPoint = { ...initialFocalPoint };
 	}
+
+	// Dragging functionality
+	let startX: number;
+	let startY: number;
+	let dragging: boolean = false;
+
+	function handleDragStart(event: MouseEvent) {
+		dragging = true;
+		startX = event.clientX;
+		startY = event.clientY;
+	}
+
+	function handleDragging(event: MouseEvent) {
+		if (!dragging || !imageView) return; // Add null check for imageView
+		const offsetX = event.clientX - startX;
+		const offsetY = event.clientY - startY;
+		imageView.style.left = `${offsetX}px`;
+		imageView.style.top = `${offsetY}px`;
+	}
+
+	function handleDragEnd(event: MouseEvent) {
+		dragging = false;
+	}
 </script>
 
 <!-- Image Info -->
@@ -86,14 +109,22 @@
 <!-- Image Area -->
 <div class="h-[calc(100vh -20%)] relative flex min-h-[150px] max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-gray-200">
 	<!-- Use the use:bindImageView action to bind the image element -->
-	<img
-		use:bindImageView
-		src={image ? URL.createObjectURL(image) : ''}
-		alt=""
-		class="relative mx-auto w-auto"
-		style={`transform: rotate(${rotate}deg) scale(${zoom});   object-fit: contain;`}
-		on:load={() => handleImageLoad()}
-	/>
+	<div
+		role="button"
+		tabindex=""
+		on:mousedown|stopPropagation={(e) => handleDragStart(e)}
+		on:mousemove|stopPropagation={(e) => handleDragging(e)}
+		on:mouseup|stopPropagation={(e) => handleDragEnd(e)}
+	>
+		<img
+			use:bindImageView
+			src={image ? URL.createObjectURL(image) : ''}
+			alt=""
+			class="relative mx-auto w-auto cursor-move"
+			style={`transform: rotate(${rotate}deg) scale(${zoom}); object-fit: contain;`}
+			on:load={() => handleImageLoad()}
+		/>
+	</div>
 
 	<!-- Image overlays -->
 	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]">
