@@ -51,7 +51,6 @@
 
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
-		// console.log(selectedWidget);
 		if (selectedWidget.permissions === undefined) {
 			selectedWidget.permissions = {};
 		}

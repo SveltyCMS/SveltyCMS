@@ -12,8 +12,6 @@
 	import { targetWidget } from '@src/stores/store';
 
 	// Props
-	export let tabSet;
-
 	// Get the keys of the widgets object
 	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
@@ -27,7 +25,7 @@
 	}
 </script>
 
-{#if $modalStore[0] && tabSet === 0}
+{#if $modalStore[0]}
 	<!-- Default section -->
 	<div class="mb-2 border-y text-center text-primary-500">
 		<div class="text-xl text-primary-500">
@@ -36,14 +34,14 @@
 		<div class="my-1 text-xs text-error-500">* Required</div>
 	</div>
 	<div class="options-table">
-		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
+		{#each ['label', 'placeholder', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
 			{#if property === 'icon'}
 				<InputSwitch
 					bind:iconselected={$targetWidget[property]}
 					widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
 					key={property}
 				/>
-			{:else if property === 'translated'}
+			{:else if property === 'translated' || property === 'required'}
 				<InputSwitch
 					bind:value={$targetWidget[property]}
 					widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}

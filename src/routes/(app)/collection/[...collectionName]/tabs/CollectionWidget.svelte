@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { collectionValue, tabSet } from '@stores/store';
+	import { collectionValue, tabSet, targetWidget } from '@stores/store';
 	import { getGuiFields } from '@src/utils/utils';
 
 	// Components
@@ -50,6 +50,7 @@
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
 		const c: ModalComponent = { ref: ModalWidgetForm };
+		targetWidget.set(selectedWidget);
 		const modal: ModalSettings = {
 			type: 'component',
 			component: c,
@@ -102,6 +103,7 @@
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
+				targetWidget.set({ widget: { key: selectedWidget } });
 			}
 		};
 		modalStore.trigger(modal);
