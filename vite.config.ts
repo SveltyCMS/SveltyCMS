@@ -45,6 +45,7 @@ const config = {
 	server: { fs: { allow: ['static', '.'] } },
 
 	define: {
+		SUPERFORMS_LEGACY: true,
 		__VERSION__: JSON.stringify(pkg.version)
 	},
 

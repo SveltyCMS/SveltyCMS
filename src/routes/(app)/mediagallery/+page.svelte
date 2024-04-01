@@ -131,7 +131,7 @@
 			}, 400);
 
 			// Load All available Users
-			responseData = data;
+			responseData = data.props.data;
 
 			// Format the data for the table
 			tableData = responseData.map((item) => {

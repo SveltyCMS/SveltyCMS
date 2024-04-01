@@ -1,11 +1,13 @@
 <script lang="ts">
-	import type { PageData } from '../$types';
-	import { roles } from '@src/collections/types';
-	import { superForm } from 'sveltekit-superforms/client';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-	// import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
+	import type { PageData } from '../$types';
+	// import { dev } from '$app/environment';
+
+	import { roles } from '@src/collections/types';
+
+	import { superForm } from 'sveltekit-superforms/client';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';

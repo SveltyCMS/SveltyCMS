@@ -4,11 +4,11 @@
 	import '@stores/store';
 	import { invalidateAll } from '$app/navigation';
 
-	//superforms
+	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-
+	import { zod } from 'sveltekit-superforms/adapters';
 	import { addUserTokenSchema } from '@utils/formSchemas';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	export let addUserForm: PageData['addUserForm'];
 
@@ -37,8 +37,7 @@
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm, {
 		id: 'addUser',
-		validators: addUserTokenSchema,
-		defaultValidator: 'clear',
+		validators: zod(addUserTokenSchema),
 		applyAction: true,
 		taintedMessage: '',
 		dataType: 'json',
@@ -47,27 +46,25 @@
 			// Trigger the toast
 			const t = {
 				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Send',
-				// Provide any utility or variant background style:
 				background: 'gradient-tertiary',
 				timeout: 3000,
-				// Add your custom classes here:
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
 
-			// console.log($allErrors.length);
-			if ($allErrors.length > 0) cancel();
+			if ($allErrors.length > 0) cancel(); // Use allErrors directly
 		},
 
 		onResult: async ({ result, cancel }) => {
 			cancel();
 			if (result.type == 'success') {
 				response = result.data?.message;
-				modalStore.close();
+				modalStore.close(); // Use modalStore directly
 				await invalidateAll();
 			}
 		}
 	});
+	$: console.log($form);
 
 	// define default role
 	let roleSelected = Object.values(roles)[1];

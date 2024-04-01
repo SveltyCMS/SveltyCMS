@@ -6,7 +6,8 @@ import { validate } from '@utils/utils';
 import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
 
 //superforms
-import { superValidate } from 'sveltekit-superforms/server';
+import { superValidate } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { redirect, type Actions } from '@sveltejs/kit';
 import { createToken } from '@utils/tokens';
@@ -41,8 +42,8 @@ export async function load(event) {
 	user.user.authMethod = userKey['_id'].split(':')[0];
 
 	// Superforms Validate addUserForm / change Password
-	const addUserForm = await superValidate(event, addUserTokenSchema);
-	const changePasswordForm = await superValidate(event, changePasswordSchema);
+	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
+	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
 	// If user is authenticated, return the data for the page.
 	return {
@@ -59,7 +60,7 @@ export async function load(event) {
 export const actions: Actions = {
 	addUser: async (event) => {
 		// Validate addUserForm data
-		const addUserForm = await superValidate(event, addUserTokenSchema);
+		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 
 		const email = addUserForm.data.email;
 		const role = addUserForm.data.role;
@@ -157,7 +158,7 @@ export const actions: Actions = {
 		// Validate the form data.
 		//console.log('changePassword');
 
-		const changePasswordForm = await superValidate(event, changePasswordSchema);
+		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 		const password = changePasswordForm.data.password;
 		const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
 		const user = await validate(auth, session);
@@ -239,9 +240,6 @@ async function getTokens() {
 		tokenOBJ.role = user?.role;
 		userToken.push(tokenOBJ);
 	}
-	// console.log(userToken);
-
-	// console.log(userToken);
 
 	return userToken;
 }

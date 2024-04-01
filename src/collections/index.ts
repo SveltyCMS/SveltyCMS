@@ -13,7 +13,7 @@ let unsubscribe: Unsubscriber | undefined;
 
 // Define getCollections function to return a promise that resolves with the value of the collections store
 export async function getCollections() {
-	// console.log('getting collections');
+	//console.log('getting collections');
 	await initWidgets();
 	return new Promise<any>((resolve) => {
 		unsubscribe = collections.subscribe((collections) => {

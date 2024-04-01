@@ -3,7 +3,8 @@ import type { PageServerLoad } from './$types';
 
 import mongoose from 'mongoose';
 
-import { superValidate, message } from 'sveltekit-superforms/server';
+import { superValidate, message } from 'sveltekit-superforms';
+import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { auth, googleAuth } from '@api/db';
 import { consumeToken, createToken } from '@utils/tokens';
@@ -15,19 +16,19 @@ export const load: PageServerLoad = async (event) => {
 	// Different schemas, so no id required.
 
 	// SignIn
-	const loginForm = await superValidate(event, loginFormSchema);
+	const loginForm = await superValidate(event, zod(loginFormSchema));
 	//console.log('loginForm', loginForm); // log loginForm data
-	const forgotForm = await superValidate(event, forgotFormSchema);
+	const forgotForm = await superValidate(event, zod(forgotFormSchema));
 	//console.log('forgotForm', forgotForm); // log forgotForm data
-	const resetForm = await superValidate(event, resetFormSchema);
+	const resetForm = await superValidate(event, zod(resetFormSchema));
 	//console.log('resetForm', resetForm); // log resetForm data
 
 	//let recoverForm = await superValidate(event, recoverSchema);
 
 	// SignUp FirstUser
-	const withoutToken = await superValidate(event, signUpFormSchema.innerType().omit({ token: true }));
+	const withoutToken = await superValidate(event, zod(signUpFormSchema.innerType().omit({ token: true })));
 	// SignUp Other Users
-	const withToken = await superValidate(event, signUpFormSchema);
+	const withToken = await superValidate(event, zod(signUpFormSchema));
 
 	// check if first user exist
 	const signUpForm: typeof withToken = (await mongoose.models['auth_key'].countDocuments()) === 0 ? (withoutToken as any) : withToken;
@@ -50,7 +51,7 @@ export const load: PageServerLoad = async (event) => {
 export const actions: Actions = {
 	//Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
-		const signInForm = await superValidate(event, loginFormSchema);
+		const signInForm = await superValidate(event, zod(loginFormSchema));
 		//console.log('signInForm', signInForm);
 
 		// Validate with Lucia
@@ -74,7 +75,7 @@ export const actions: Actions = {
 
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
-		const pwforgottenForm = await superValidate(event, forgotFormSchema);
+		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
 		//console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate with Lucia
@@ -142,7 +143,7 @@ export const actions: Actions = {
 	resetPW: async (event) => {
 		// console.log('resetPW');
 
-		const pwresetForm = await superValidate(event, resetFormSchema);
+		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 		//console.log('pwresetForm', pwresetForm);
 
 		// Validate with Lucia
@@ -169,7 +170,7 @@ export const actions: Actions = {
 
 	//Function for handling the sign-up form submission and user creation
 	signUp: async (event) => {
-		const signUpForm = await superValidate(event, signUpFormSchema);
+		const signUpForm = await superValidate(event, zod(signUpFormSchema));
 		//console.log('signUpForm', signUpForm);
 
 		// Validate with Lucia
@@ -235,7 +236,7 @@ export const actions: Actions = {
 	OAuth: async (event) => {
 		//console.log('enter OAuth');
 
-		const signUpOAuthForm = await superValidate(event, signUpOAuthFormSchema);
+		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
 		// const username = signUpOAuthForm.data.username;
 		// const token = signUpOAuthForm.data.token;
 		const lang = signUpOAuthForm.data.lang;

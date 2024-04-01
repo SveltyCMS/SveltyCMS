@@ -184,7 +184,6 @@
 				{/if}
 
 				<!-- Content Area -->
-
 				<main class="realative w-full flex-1 overflow-hidden">
 					<!-- Page Header -->
 					{#if $sidebarState.pageheader !== 'hidden'}

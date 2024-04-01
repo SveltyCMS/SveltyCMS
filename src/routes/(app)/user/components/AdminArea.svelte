@@ -84,10 +84,6 @@
 		refreshTableData();
 	}
 
-	// Define local stores for user and token data
-	let userTableData = [];
-	let tokenTableData = [];
-
 	// Display User Columns
 	const tableHeadersUser = [
 		{ label: m.adminarea_userid(), key: 'id' },
