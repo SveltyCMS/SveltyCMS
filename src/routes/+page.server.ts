@@ -12,11 +12,15 @@ import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/p
 export async function load({ cookies }) {
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	console.log('Session ID:', session_id);
 
 	// Validate the user's session
 	const user = await auth.validateSession(session_id);
+	console.log('user: ', user);
 
-	if (!user) throw redirect(302, `/login`);
+	if (!user) {
+		redirect(302, `/login`);
+	}
 
 	// Get the collections and filter based on reading permissions
 	const _filtered = (await getCollections()).filter((c) => user && c?.permissions?.[user.role]?.read != false);

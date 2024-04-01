@@ -157,33 +157,47 @@ export class Auth {
 	}
 
 	async validateSession(session_id: string): Promise<User | null> {
+		console.log('Validating session:', session_id);
+
 		// Aggregate the Session collection to join with the User collection
-		const resp = (
-			await this.Session.aggregate([
-				{
-					$match: {
-						id: session_id
-					}
-				},
-				{
-					$lookup: {
-						from: this.User.collection.name,
-						localField: 'user_id',
-						foreignField: 'id',
-						as: 'user'
-					}
-				},
-				{
-					$unwind: '$user'
+		const aggregationResult = await this.Session.aggregate([
+			{
+				$match: {
+					id: new mongoose.Types.ObjectId(session_id)
 				}
-			])
-		)?.[0];
+			},
+			{
+				$lookup: {
+					from: this.User.collection.name,
+					localField: 'user_id',
+					foreignField: 'id',
+					as: 'user'
+				}
+			},
+			{
+				$unwind: '$user'
+			}
+		]);
+
+		console.log('Aggregation query result:', aggregationResult);
+
+		const resp = aggregationResult?.[0];
+
+		console.log('Aggregation query response:', resp);
 
 		// If no session was found, return null
-		if (!resp) return null;
+		if (!resp) {
+			console.log('No session found for the provided session ID.');
+			return null;
+		}
 
 		// Delete the _id field from the user object
-		resp.user._id && delete resp.user._id;
+		if (resp.user._id) {
+			console.log('Removing _id field from the user object:', resp.user._id);
+			delete resp.user._id;
+		}
+
+		console.log('Validated user:', resp.user);
 
 		// Return the user object
 		return resp.user;

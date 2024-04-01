@@ -14,7 +14,7 @@ export async function load({ cookies, route, params }) {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	const user = await auth.validateSession(session_id);
 	const collection = collections.find((c: any) => c.name == params.collection);
-
+	console.log('user: ', user);
 	// Redirect to user page
 	if (user?.lastAuthMethod === 'token') {
 		redirect(302, `/user`);

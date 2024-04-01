@@ -18,14 +18,16 @@ export async function load(event) {
 
 	// Validate the user's session.
 	const user = await auth.validateSession(session_id);
-
-	// If the user is not logged in, redirect them to the login page.
-	if (!user) redirect(302, `/login`);
-
 	const isFirstUser = (await auth.getUserCount()) != 0;
 
 	// If the user is not logged in, redirect them to the login page.
-	if (user) redirect(302, `/login`);
+	if (user) {
+		return {
+			user
+		};
+	} else {
+		redirect(302, `/login`);
+	}
 
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, zod(addUserTokenSchema));

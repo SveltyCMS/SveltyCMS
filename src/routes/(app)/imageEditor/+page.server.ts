@@ -12,9 +12,9 @@ export async function load(event: any) {
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 	// Validate the user's session
 	const user = await auth.validateSession(session_id);
-
+	console.log('user: ', user);
 	// If validation fails, redirect the user to the login page
-	if (user) {
+	if (!user) {
 		redirect(302, `/login`);
 	}
 

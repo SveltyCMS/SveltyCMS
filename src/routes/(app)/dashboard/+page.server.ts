@@ -10,7 +10,7 @@ export async function load(event: any) {
 	// Validate the user's session
 	const user = await auth.validateSession(session_id);
 	// If validation fails, redirect the user to the login page
-	if (user) {
+	if (!user) {
 		redirect(302, `/login`);
 	}
 
