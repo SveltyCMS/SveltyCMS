@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Auth
 	import { roles, icon, color } from '@src/auth/types';
+	import type { Roles, permissions as Permissions } from '@src/auth/types';
 
 	// Stores
 	import { mode } from '@stores/store';
@@ -32,13 +33,10 @@
 	type RolesPermissions = Record<Role, Permissions>;
 
 	// Define the RolesArray type using the Roles type imported from types.ts
-	type RolesArray = { name: Role; permissions: Permissions }[];
+	type RolesArray = { name: Roles; permissions: Permissions }[];
 
 	// Initialize rolesArray
-	let rolesArray: {
-		name: string;
-		permissions: Permissions;
-	}[];
+	let rolesArray: RolesArray = [];
 
 	$: {
 		if ($mode === 'edit') {

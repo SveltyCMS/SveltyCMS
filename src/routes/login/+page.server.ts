@@ -8,7 +8,7 @@ import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
-import { consumeToken } from '@src/auth/tokens';
+import { consumeToken, createToken } from '@src/auth/tokens';
 
 // load and validate login and sign up forms
 export const load = async (event) => {
@@ -148,13 +148,13 @@ export const actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
-		//console.log('pwforgottenForm', pwforgottenForm);
+		console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate
 		// if (!pwforgottenForm.valid) return fail(400, { pwforgottenForm });
 
 		let resp: { status: boolean; message?: string } = { status: false };
-		const lang = pwforgottenForm.data.lang;
+		// const lang = pwforgottenForm.data.lang;
 		const email = pwforgottenForm.data.email.toLocaleLowerCase();
 		const checkMail = await forgotPWCheck(email);
 
@@ -174,7 +174,7 @@ export const actions = {
 			const token = checkMail.token;
 			const expiresIn = checkMail.expiresIn;
 
-			// send welcome email
+			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
 				headers: {
@@ -188,8 +188,8 @@ export const actions = {
 					props: {
 						email: email,
 						token: token,
-						expiresIn: expiresIn,
-						lang: lang
+						expiresIn: expiresIn
+						// lang: lang
 					}
 				})
 			});
@@ -269,7 +269,7 @@ async function signIn(
 }
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	console.log('FirstUsersignUp called', username, email, password);
+	console.log('FirstUsersignUp called');
 
 	const user = await auth.createUser({
 		password,
@@ -313,7 +313,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
-	console.log('finishRegistration called', username, email, password, token);
+	console.log('finishRegistration called', username, email, token);
 	const user = await auth.checkUser({
 		email,
 		id: ''
@@ -353,7 +353,9 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 
 		// The email address does not exist
 		if (!user) return { success: false, message: 'User does not exist' };
-		// const token = await createToken(user.id, 'resetPassword', expiresIn);
+
+		// Create a new token
+		const token = await auth.createToken(user.id, expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -373,8 +375,8 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			return { status: false, message: 'Invalid token' };
 		}
 
-		// Validate the token
-		const validate = await consumeToken(User, user.id, 'resetPassword');
+		// Consume the token
+		const validate = await auth.consumeToken(token, user.id);
 
 		if (validate.status) {
 			// Check token expiration

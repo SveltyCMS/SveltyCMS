@@ -16,9 +16,11 @@ module.exports = {
 	},
 	globals: {
 		NodeJS: true,
-		svelte: true
+		svelte: true,
+		globalThis: 'readonly'
 	},
 	rules: {
+		'prefer-const': 'error',
 		'@typescript-eslint/no-explicit-any': 'off'
 	},
 	overrides: [

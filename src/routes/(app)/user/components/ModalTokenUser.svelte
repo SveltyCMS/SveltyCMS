@@ -10,6 +10,7 @@
 
 	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
+	import { zod } from 'sveltekit-superforms/adapters';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -38,8 +39,7 @@
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm, {
 		id: 'addUser',
-		validators: addUserTokenSchema,
-		defaultValidator: 'clear',
+		validators: zod(addUserTokenSchema),
 		applyAction: true,
 		taintedMessage: '',
 		dataType: 'json',

@@ -1,10 +1,15 @@
 import { Schema, type InferSchemaType, Model as M } from 'mongoose';
 
-// Define Available Roles
-export const roles = ['admin', 'developer', 'editor', 'user'] as const;
+// Define Available Roles with Icons
+export const roles = {
+	admin: 'admin',
+	developer: 'developer',
+	editor: 'editor',
+	user: 'user'
+} as const;
 
 // Define the type for roles
-export type Roles = (typeof roles)[number];
+export type Roles = keyof typeof roles;
 
 // Define a user Role permission that can be overwritten
 export type permissions = {

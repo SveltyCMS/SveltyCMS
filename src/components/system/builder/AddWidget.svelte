@@ -6,7 +6,6 @@
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
 	import InputSwitch from './InputSwitch.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
-	import { icon } from '@src/collections/types';
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;

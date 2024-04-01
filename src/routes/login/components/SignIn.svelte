@@ -77,7 +77,7 @@
 					message: m.signin_signinsuccess(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 3000,
+					timeout: 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
@@ -137,7 +137,7 @@
 					message: errorMessages,
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
@@ -167,7 +167,7 @@
 						message: m.signin_forgottontoast(),
 						// Provide any utility or variant background style:
 						background: 'variant-filled-primary',
-						timeout: 3000,
+						timeout: 4000,
 						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
 					};
@@ -224,7 +224,7 @@
 				const t = {
 					message: errorMessages,
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 4000,
 					classes: 'border-1 !rounded-md'
 				};
 				toastStore.trigger(t);
@@ -234,7 +234,7 @@
 					message: m.signin_restpasswordtoast(),
 					// Provide any utility or variant background style:
 					background: 'variant-filled-primary',
-					timeout: 2000,
+					timeout: 4000,
 					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
 				};
@@ -306,7 +306,7 @@
 
 			<!-- Sign In -->
 			{#if !PWforgot && !PWreset}
-				<!--<SuperDebug data={$form} />-->
+				<!-- <SuperDebug data={$form} display={dev} /> -->
 				<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active != 0}>
 					<!-- Email field -->
 					<FloatingInput
@@ -376,7 +376,7 @@
 
 			<!-- Forgotten Password -->
 			{#if PWforgot && !PWreset}
-				<!-- <SuperDebug data={$forgotForm} /> -->
+				<!-- <SuperDebug data={$forgotForm} display={dev} /> -->
 				<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
 					<div class="mb-2 text-center text-sm text-black">
 						<p class="mb-2 text-xs text-tertiary-500">{m.signin_forgottenpasswordtext()}</p>
@@ -418,7 +418,6 @@
 						{/if}
 
 						<!-- Back button  -->
-						<!-- TODO: Add Superforms reset -->
 						<button
 							type="button"
 							class="variant-filled-surface btn-icon"
@@ -503,7 +502,7 @@
 					{/if}
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
-					<input type="hidden" name="lang" bind:value={$resetForm.lang} hidden />
+					<!-- <input type="hidden" name="lang" bind:value={$resetForm.lang} hidden /> -->
 
 					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 						{m.signin_savenewpassword()}

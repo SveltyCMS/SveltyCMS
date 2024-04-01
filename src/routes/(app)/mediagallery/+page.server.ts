@@ -10,16 +10,16 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 
 // Only display if user is allowed to access
-function hasFilePermission(user: User): boolean {
+function hasFilePermission(user: User, file: string): boolean {
 	// allow admin role
 	if (user.role === 'admin') {
 		return true;
 	}
 
-	// Allow User that created
-	// if (role === 'member' && file.startsWith(username)) {
-	// 	return true;
-	// }
+	// Allow User that created content to access
+	if (user.role === 'developer' && user.username && file.startsWith(user.username)) {
+		return true;
+	}
 
 	// No permission
 	return false;
@@ -32,8 +32,9 @@ export async function load(event: any) {
 	const user = await auth.validateSession(session_id);
 
 	// If validation fails, redirect the user to the login page
-	if (user) {
+	if (!user) {
 		redirect(302, `/login`);
+		return;
 	}
 
 	const mediaDir = path.resolve(publicEnv.MEDIA_FOLDER);
@@ -114,7 +115,7 @@ export async function load(event: any) {
 			} else if (fileExt === '.pptx') {
 				thumbnail = 'vscode-icons:file-type-powerpoint';
 			} else if (fileExt === '.pdf') {
-				// TODO: replace with first page pdfthumbail
+				// TODO: replace with first page pdf thumbail
 				// You could use a PDF library to generate a thumbnail for PDF files
 				thumbnail = 'vscode-icons:file-type-pdf2';
 			} else if (fileExt === '.svg') {
