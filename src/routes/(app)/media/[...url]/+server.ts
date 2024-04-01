@@ -1,7 +1,7 @@
+import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from './$types';
 import fs from 'fs';
 import mime from 'mime-types';
-import { publicEnv } from '@root/config/public';
 import zlib from 'zlib';
 
 // TODO: add smarter Cache like lru-cache - A cache object that deletes the least-recently-used items.

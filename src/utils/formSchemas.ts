@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-//ParaglideJS
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 // SignIn Schema ------------------------------------
@@ -63,7 +63,7 @@ export const signUpFormSchema = z
 
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
 
-		lang: z.string(), // used for svelty-email
+		// lang: z.string(), // used for svelty-email
 		token: z.string().min(16) //registration user token
 	})
 	.refine((data) => data.password === data.confirm_password, {
@@ -116,4 +116,9 @@ export const changePasswordSchema = z
 // Widget Email Schema ------------------------------------
 export const widgetEmailSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
+});
+
+export const addUserSchema = z.object({
+	email: z.string().email(),
+	role: z.string()
 });

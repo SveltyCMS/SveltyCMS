@@ -1,9 +1,11 @@
 import { redirect } from '@sveltejs/kit';
-import { auth, googleAuth } from '@api/db';
 import type { Actions, PageServerLoad } from './$types';
 import mongoose from 'mongoose';
-import type { User } from 'lucia';
-import { consumeToken } from '@utils/tokens';
+
+// Auth
+import { auth, googleAuth } from '@api/db';
+import type { User } from '@src/auth/types';
+import { consumeToken } from '@src/auth/tokens';
 
 let OAuth: any = null;
 

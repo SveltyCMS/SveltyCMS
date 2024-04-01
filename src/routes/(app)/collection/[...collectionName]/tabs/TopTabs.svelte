@@ -1,8 +1,6 @@
 <script lang="ts">
-	import { roles } from '@collections/types';
-
-	// Skeleton
-	import { Tab } from '@skeletonlabs/skeleton';
+	// Auth
+	const user = $page.data.user;
 
 	// Stores
 	import { page } from '$app/stores';
@@ -11,11 +9,12 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	const user = $page.data.user;
+	// Skeleton
+	import { Tab } from '@skeletonlabs/skeleton';
 </script>
 
 <!-- User Permissions -->
-{#if user?.role == roles.admin || user?.role == roles.developer}
+{#if user.roles === 'admin' || user.roles === 'developer'}
 	<!-- Edit -->
 	<Tab bind:group={$tabSet} name="tab1" value={0}>
 		<div class="flex items-center gap-1">

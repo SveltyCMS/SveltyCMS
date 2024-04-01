@@ -45,6 +45,9 @@ const widget = (params: Params) => {
 		width: params.width,
 		helper: params.helper,
 
+		// permissions
+		permissions: params.permissions,
+
 		//extra
 		placeholder: params.placeholder,
 		readonly: params.readonly

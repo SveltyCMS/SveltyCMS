@@ -1,55 +1,54 @@
 <script lang="ts">
-	import type { PageData } from '../$types';
-	import { roles } from '@src/collections/types';
-	import { superForm } from 'sveltekit-superforms/client';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-	// import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
+	import { dev } from '$app/environment';
+	import { page } from '$app/stores';
+	import type { PageData } from '../$types';
 
+	// Superforms
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import { superForm } from 'sveltekit-superforms/client';
+	import { signUpFormSchema } from '@utils/formSchemas';
+	import { zod } from 'sveltekit-superforms/adapters';
+
+	// Components
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	let tabIndex = 1;
-
-	let activeOauth = false;
-
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	import { signUpFormSchema } from '@utils/formSchemas';
 
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
+	let tabIndex = 1;
+	let activeOauth = false;
 	let response: any;
-	let firstUserExists = FormSchemaSignUp.data.token != null;
+	let pageData = $page.data as PageData;
+	let firstUserExists = pageData.firstUserExists;
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
-
+		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'clear',
 		applyAction: true,
 		taintedMessage: '',
+		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
+			// Log the SignUp form data before submission
+			console.log('SignUp form data:', $form);
+
 			// handle login form submission
-			// console.log('Submitting form with data:', $form);
-			// console.log('Form errors:', $allErrors);
 			if ($allErrors.length > 0) cancel();
 		},
 
 		onResult: ({ result, cancel }) => {
-			// console.log('Form result:', result);
-			// console.log('Error', $errors)
-
 			if (result.type == 'redirect') return;
 			cancel();
 
@@ -63,9 +62,6 @@
 		}
 	});
 
-	// $: console.log('Form data:', $form);
-	// $: console.log('Form errors:', $errors);
-
 	let params = new URL(window.location.href).searchParams;
 
 	if (params.has('regToken')) {
@@ -76,9 +72,6 @@
 	}
 
 	let formElement: HTMLFormElement;
-
-	// TODO: Replace Role with the one assigned by token
-	let UserRole = roles.user;
 
 	let showPassword = false;
 </script>
@@ -106,9 +99,7 @@
 							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
 						{:else}
 							<!-- TODO: Grab User Role from Token  -->
-							<span class="text-2xl capitalize text-primary-500 sm:text-3xl"
-								>{#if UserRole}: {UserRole}{:else}: New User{/if}</span
-							>
+							<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
 						{/if}
 					</div>
 				</h1>
@@ -136,7 +127,6 @@
 				/>
 				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-				<!-- {#if privateEnv.USE_GOOGLE_OAUTH} -->
 				<!-- Email field -->
 				<FloatingInput
 					id="emailsignUp"
@@ -155,7 +145,6 @@
 				/>
 				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
-				<!-- TODO Check PW & Check to show hide PW together and have matching PW -->
 				<!-- Password field -->
 				<FloatingInput
 					id="passwordsignUp"
@@ -194,10 +183,11 @@
 					inputClass="text-white"
 					autocomplete="on"
 				/>
-				{#if $errors.confirm_password}<span class="text-xs text-error-500">{$errors.confirm_password}</span>{/if}
-				<!-- {/if} -->
+				{#if $errors.confirm_password}
+					<span class="text-xs text-error-500">{$errors.confirm_password}</span>
+				{/if}
 
-				{#if $form.token != null}
+				{#if firstUserExists == true}
 					<!-- Registration Token -->
 					<FloatingInput
 						id="tokensignUp"
@@ -215,21 +205,24 @@
 						inputClass="text-white"
 						autocomplete="off"
 					/>
-					{#if $errors.token}<span class="text-xs text-error-500">{$errors.token}</span>{/if}
+					{#if $errors.token}
+						<span class="text-xs text-error-500">{$errors.token}</span>
+					{/if}
 				{/if}
 
-				{#if response}<span class="text-xs text-error-500">{response}</span>{/if}
-				<!-- <input type="hidden" name="lang" value={$systemLanguage} /> -->
+				{#if response}
+					<span class="text-xs text-error-500">{response} </span>
+				{/if}
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
-					<!-- email signin only -->
+					<!-- Email signin only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase"
 						>{m.signup_signup()}
 						<!-- Loading indicators -->
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 
-					<!-- email + oauth signin  -->
+					<!-- Email + oauth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
@@ -244,14 +237,6 @@
 							</button>
 						</form>
 					</div>
-				{:else}
-					<!-- TODO: not really used -->
-					<form method="post" action="?/OAuth" class="flex w-full">
-						<button type="submit" class="items center variant-filled my-2 flex flex-1 justify-center gap-2 p-3">
-							<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-							<p>{m.signup_signupwithgoogle()}</p>
-						</button>
-					</form>
 				{/if}
 			</form>
 		</div>

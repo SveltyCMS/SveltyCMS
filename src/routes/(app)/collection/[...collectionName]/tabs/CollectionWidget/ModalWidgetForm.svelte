@@ -29,7 +29,7 @@
 	// All options of the widget
 	let options = Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema);
 	let specificOptions = options.filter(
-		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'].includes(option)
+		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);
 
 	// We've created a custom submit function to pass the response and close the modal.
@@ -87,7 +87,7 @@
 				</Tab>
 
 				<!-- Specific -->
-				{#if specificOptions.length > 0}
+				{#if specificOptions && specificOptions.length > 0}
 					<Tab bind:group={tabSet} name="tab3" value={2}>
 						<div class="flex items-center gap-1">
 							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />

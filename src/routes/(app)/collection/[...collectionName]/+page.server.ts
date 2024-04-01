@@ -4,27 +4,28 @@ import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
 
-import { redirect, type Actions } from '@sveltejs/kit';
+import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { WidgetType } from '@components/widgets';
 
 // Auth
 import { auth, getCollectionModels } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
 export async function load(event) {
 	// Get session cookie value as string
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 	// Validate user using auth and session value
-	const user = await validate(auth, session);
+	const user = await auth.validateSession(session_id);
 	// If user status is 200, return user object
-	if (user.status == 200) {
-		return {
-			user: user.user
-		};
+	if (user) {
+		if (user.role != 'admin') {
+			throw error(404, {
+				message: "You don't have any access to this page"
+			});
+		}
 	} else {
 		redirect(302, `/login`);
 	}
@@ -44,6 +45,7 @@ export const actions: Actions = {
 		const collectionStatus = JSON.parse(formData.get('status') as string);
 		// Permissions
 		const permissionsData = JSON.parse(formData.get('permissions') as string);
+		permissionsData ? removeFalseValues(permissionsData) : {};
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields, fieldsData);
@@ -160,7 +162,8 @@ async function goThrough(object: any, fields): Promise<string> {
 					if ('permissions' in JSON.parse(fields)[key]) {
 						const parsedFields = JSON.parse(fields);
 						const subWidget = field[key].split('}');
-						const permissionStr = `,"permissions":${JSON.stringify(parsedFields[key].permissions)}}`;
+						const permissions = removeFalseValues(parsedFields[key].permissions);
+						const permissionStr = `,"permissions":${JSON.stringify(permissions)}}`;
 						const newWidget = subWidget[0] + permissionStr + subWidget[1];
 						field[key] = newWidget;
 					}
@@ -172,4 +175,15 @@ async function goThrough(object: any, fields): Promise<string> {
 	await processField(object, fields);
 
 	return Array.from(imports).join('\n');
+}
+
+function removeFalseValues(obj) {
+	Object.keys(obj).forEach((key) => {
+		if (obj[key] && typeof obj[key] === 'object') {
+			removeFalseValues(obj[key]);
+		} else if (obj[key] === false) {
+			delete obj[key];
+		}
+	});
+	return obj;
 }

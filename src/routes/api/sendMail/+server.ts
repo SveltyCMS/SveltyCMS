@@ -1,6 +1,6 @@
 import { privateEnv } from '@root/config/private';
 
-// svelty-email
+// Svelty-email
 import { render } from 'svelty-email';
 
 // Templates used by svelty-email
@@ -14,7 +14,7 @@ import nodemailer from 'nodemailer';
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
 
-// paraglide
+// Paraglide
 import { languageTag } from '@src/paraglide/runtime';
 
 interface EmailProps {

@@ -43,7 +43,10 @@ const widget = (params: Params) => {
 		required: params.required,
 		icon: params.icon,
 		width: params.width,
-		helper: params.helper
+		helper: params.helper,
+
+		// permissions
+		permissions: params.permissions
 
 		// extras
 	};

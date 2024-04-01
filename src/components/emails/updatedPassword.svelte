@@ -2,11 +2,14 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
+	// Stores
 	import { page } from '$app/stores';
-	import type { User } from 'lucia';
 
+	// Auth
+	import type { User } from '@src/auth/types';
 	const username: User = $page.data.user.username;
 
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 

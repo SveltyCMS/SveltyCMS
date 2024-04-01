@@ -1,5 +1,4 @@
 import widgets from '@components/widgets';
-import { roles } from './types';
 import type { Schema } from './types';
 
 const schema: Schema = {
@@ -11,14 +10,14 @@ const schema: Schema = {
 
 	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
-		[roles.user]: {
+		user: {
 			read: true
 		},
-		[roles.developer]: {
+		developer: {
 			read: true,
 			write: true
 		},
-		[roles.editor]: {
+		editor: {
 			read: true
 		}
 	},
@@ -35,7 +34,7 @@ const schema: Schema = {
 		widgets.Text({
 			label: 'Text3',
 			permissions: {
-				[roles.developer]: {
+				developer: {
 					read: true,
 					write: true
 				}

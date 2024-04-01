@@ -1,24 +1,31 @@
 import { publicEnv } from '@root/config/public';
 import { getCollections } from '@collections';
-import { redirect, type Actions } from '@sveltejs/kit';
+import { redirect, type Actions, error } from '@sveltejs/kit';
 
-// lucia
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { auth } from './api/db';
+// Auth
+import { auth } from '@src/routes/api/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
 	// Get the session cookie
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session
-	const user = await validate(auth, session);
+	const user = await auth.validateSession(session_id);
+
+	if (!user) throw redirect(302, `/login`);
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c: any) => c?.permissions?.[user.role]?.read != false);
+	const _filtered = (await getCollections()).filter((c) => user && c?.permissions?.[user.role]?.read != false);
+
+	if (_filtered.length == 0) {
+		throw error(404, {
+			message: "You don't have  access to any collection"
+		});
+	}
 
 	// Redirect to the first collection in the collections array
 	redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);

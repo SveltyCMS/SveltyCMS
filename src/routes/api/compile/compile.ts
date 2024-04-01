@@ -68,11 +68,6 @@ export async function compile({
 
 				// write the content to the file
 				fs.writeFileSync(jsFilePath, code);
-
-				// const endTime = Date.now();
-				// const compileTime = (endTime - startTime) / 1000; // Calculate duration in seconds
-
-				// console.log(`Compiled ${file} in ${compileTime.toFixed(3)} seconds`); // Log compile time
 			} catch (error) {
 				console.error(`Error compiling ${file}: ${error}`);
 				// Handle the error appropriately

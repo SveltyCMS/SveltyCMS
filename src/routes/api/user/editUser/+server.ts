@@ -1,8 +1,9 @@
 import type { RequestHandler } from './$types';
-import { auth } from '@api/db';
 import mongoose from 'mongoose';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import { validate } from '@utils/utils';
+
+// Auth
+import { auth } from '@api/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Define a POST request handler function
 export const POST: RequestHandler = async ({ request, cookies }) => {
@@ -24,10 +25,10 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	// const user = await auth.getUser(userID);
 	const key = await auth.getKey('email', email).catch(() => null);
 
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session.
-	const currentUser = await validate(auth, session);
+	const currentUser = await auth.validateSession(session_id);
 
 	if (key && password) {
 		auth.invalidateAllUserSessions(userID);

@@ -3,7 +3,9 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
-import type { permissions } from '@src/collections/types';
+
+// Auth
+import type { permissions } from '@src/auth/types';
 
 /**
  * Defines Checkbox widget Parameters

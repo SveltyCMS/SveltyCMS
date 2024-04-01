@@ -1,5 +1,5 @@
 <script lang="ts">
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	export let show = true;

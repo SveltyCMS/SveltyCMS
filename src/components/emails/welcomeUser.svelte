@@ -2,7 +2,7 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
@@ -12,7 +12,7 @@
 
 	export let hostLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
-	// svelty-email
+	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';

@@ -17,12 +17,14 @@ const widget = (params: Params) => {
 		display = async ({ data }) => {
 			// console.log(data);
 
-			// Return the formatted data as 200px thumbnail
-			if (data?.thumbnail.url) {
-				return `<img class='max-w-[200px]  max-h-[150px] inline-block' src="${data?.thumbnail.url}" />`;
-			} else {
-				return m.widgets_nodata();
+			// Return the formatted data
+			let url = data?.thumbnail?.url;
+
+			if (data instanceof FileList) {
+				url = URL.createObjectURL(data[0]);
 			}
+
+			return `<img class='max-w-[200px] inline-block' src="${url}" />`;
 		};
 		display.default = true;
 	}
@@ -45,6 +47,9 @@ const widget = (params: Params) => {
 		icon: params.icon,
 		width: params.width,
 		helper: params.helper,
+
+		// permissions
+		permissions: params.permissions,
 
 		// extras
 		path: params.path || 'unique'

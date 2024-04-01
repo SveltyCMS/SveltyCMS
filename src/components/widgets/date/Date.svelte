@@ -46,7 +46,8 @@
 </script>
 
 <!-- TODO: Enhance Date entry -->
-<input type="date" bind:value={_data[_language]} class="input text-black dark:text-primary-500" />
+<input type="date" bind:value={_data[_language]} on:input={validateInput} class="input text-black dark:text-primary-500" />
+
 {#if validationError !== null}
 	<p class="text-error-500">{validationError}</p>
 {/if}

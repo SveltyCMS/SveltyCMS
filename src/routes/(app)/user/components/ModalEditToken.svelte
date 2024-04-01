@@ -1,7 +1,11 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { roles } from '@collections/types';
 	import { invalidateAll } from '$app/navigation';
+
+	// Auth
+	import { roles } from '@src/auth/types';
+	import { consumeToken } from '@src/auth/tokens';
+	const user = $page.data.user;
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -11,11 +15,9 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Lucia
-	const user = $page.data.user;
 	export let token: string;
 	export let email: string;
 	export let role: string;
@@ -164,7 +166,7 @@
 		</div>
 
 		<!-- admin area -->
-		{#if user?.role == roles.admin}
+		{#if user?.roles == 'admin'}
 			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaledit_tokenuserrole()}</div>
 				<div class="flex-auto">

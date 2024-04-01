@@ -1,11 +1,11 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+	import type { PageData } from './$types';
 
 	// Components
 	import SignIn from './components/SignIn.svelte';
 	import SignUp from './components/SignUp.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import type { PageData } from './$types';
 
 	// Stores
 	import { systemLanguage } from '@stores/store';
@@ -46,6 +46,7 @@
 	/>
 
 	<SignUp bind:active FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
+
 	{#if active == undefined}
 		<!-- CSS Logo -->
 		<SveltyCMSLogoFull />

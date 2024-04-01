@@ -209,7 +209,7 @@
 
 				{#if !file.collapsed && !collapsedAll}
 					<!-- TODO: Use normal Input no FileDropzone -->
-					<Fields root={false} fields={field.fields} bind:fieldsData={_fieldsValue[index]} {file} />
+					<Fields root={false} fields={field.fields} bind:fieldsData={_fieldsValue[index]} value={file} />
 				{/if}
 			</div>
 		{/each}

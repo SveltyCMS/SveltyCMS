@@ -1,6 +1,10 @@
 <script lang="ts">
 	import type { PageData } from './$types';
-	import { roles } from '@collections/types';
+	import { invalidateAll } from '$app/navigation';
+
+	// Auth
+	const user = $page.data.user;
+	const { isFirstUser } = $page.data;
 
 	// Stores
 	import '@stores/store';
@@ -44,13 +48,8 @@
 
 	export let data: PageData;
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Lucia
-	import { invalidateAll } from '$app/navigation';
-	const user = $page.data.user;
-	const { isFirstUser } = $page.data;
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -250,7 +249,7 @@
 	</div>
 
 	<!-- admin area -->
-	{#if user?.role == roles.admin}
+	{#if user?.roles === 'admin'}
 		<div class="wrapper2">
 			<AdminArea {data} />
 		</div>

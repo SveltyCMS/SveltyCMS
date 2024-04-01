@@ -60,6 +60,9 @@ const widget = (params: Params) => {
 		width: params.width,
 		helper: params.helper,
 
+		// permissions
+		permissions: params.permissions,
+
 		// extras
 		path: params.path
 	};

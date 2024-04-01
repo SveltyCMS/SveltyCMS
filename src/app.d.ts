@@ -4,13 +4,6 @@
 
 import type { PipelineStage } from 'mongoose';
 declare global {
-	/// <reference types="lucia" />
-	declare namespace Lucia {
-		type Auth = import('@api/db.ts').Auth;
-		type DatabaseUserAttributes = {};
-		type DatabaseSessionAttributes = {};
-	}
-
 	/// <reference path="./types/**/*.d.ts" />
 	declare type Item = import('svelte-dnd-action').Item;
 	declare type DndEvent<ItemType = Item> = import('svelte-dnd-action').DndEvent<ItemType>;
@@ -47,15 +40,17 @@ declare global {
 
 	/**
 	 * Defines the Aggregations type, which represents an object with optional methods for performing transformations, filters, and sorts on data.
-	 * The transformations method takes a field and content language, and returns a promise of an array of pipeline stages.
 	 * The filters method takes a field, content language, and filter, and returns a promise of an array of pipeline stages.
 	 * The sorts method takes a field, content language, and sort value, and returns a promise of an array of pipeline stages.
 	 */
 	type Aggregations = {
-		transformations?: ({ field, contentLanguage }: { field: any; contentLanguage: string }) => Promise<PipelineStage[]>;
 		filters?: ({ field, contentLanguage, filter }: { field: any; contentLanguage: string; filter: string }) => Promise<PipelineStage[]>;
 		sorts?: ({ field, contentLanguage, sort }: { field: any; contentLanguage: string; sort: number }) => Promise<PipelineStage[]>;
 	};
+	interface File {
+		path?: string;
+		buffer?: Uint8Array;
+	}
 }
 
 // THIS IS IMPORTANT!!!

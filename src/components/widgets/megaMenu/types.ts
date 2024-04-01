@@ -3,10 +3,13 @@ import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permissions from '@src/components/Permissions.svelte';
-import type { permissions } from '@src/collections/types';
+
+// Auth
+import type { permissions } from '@src/auth/types';
 import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
 
-import widgets from '..';
+import widgets, { type WidgetType } from '..';
+type Fields = ReturnType<WidgetType[keyof WidgetType]>[][];
 import { getFieldName } from '@utils/utils';
 
 /**
@@ -28,7 +31,7 @@ export type Params = {
 	permissions?: permissions;
 
 	// Widget Specific parameters
-	fields: any[]; // Make sure this is always an array of arrays
+	fields: Fields; // Make sure this is always an array of arrays
 };
 
 /**

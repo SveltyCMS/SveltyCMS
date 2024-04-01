@@ -1,5 +1,7 @@
-import type { Auth } from 'lucia';
 import crypto from 'crypto';
+
+// Auth
+import type { Auth } from '@src/auth';
 
 // Token class definition
 export class Token {

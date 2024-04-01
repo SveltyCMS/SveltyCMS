@@ -53,7 +53,6 @@ const fetchDiskInfo = async () => {
 const fetchMemoryInfo = async () => {
 	try {
 		const memoryInfo = await mem.info();
-		//console.log('Memory Info:', memoryInfo);
 		return memoryInfo;
 	} catch (error) {
 		console.error('Error fetching memory info:', error);
@@ -86,7 +85,6 @@ const getSystemInfo = async () => {
 export async function GET() {
 	try {
 		const systemInfo = await getSystemInfo();
-		//console.log('System Info:', systemInfo);
 
 		return new Response(JSON.stringify(systemInfo), {
 			status: 200,

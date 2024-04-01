@@ -109,8 +109,6 @@ console.log(typeDefs);
 
 // Loop over each collection to define resolvers for querying data
 for (const collection of collections) {
-	// console.log('collection.name:', collection.name);
-
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () => {
 		if (privateEnv.USE_REDIS === true) {

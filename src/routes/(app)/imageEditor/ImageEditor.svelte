@@ -111,7 +111,7 @@
 	<!-- Use the use:bindImageView action to bind the image element -->
 	<div
 		role="button"
-		tabindex=""
+		tabindex="0"
 		on:mousedown|stopPropagation={(e) => handleDragStart(e)}
 		on:mousemove|stopPropagation={(e) => handleDragging(e)}
 		on:mouseup|stopPropagation={(e) => handleDragEnd(e)}

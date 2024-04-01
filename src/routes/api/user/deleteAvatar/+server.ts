@@ -1,6 +1,8 @@
 import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
+
+// Auth
 import { auth } from '@api/db';
 
 export const POST: RequestHandler = async ({ request }) => {

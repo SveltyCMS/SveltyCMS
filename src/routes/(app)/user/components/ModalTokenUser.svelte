@@ -4,16 +4,17 @@
 	import '@stores/store';
 	import { invalidateAll } from '$app/navigation';
 
-	//superforms
+	// Auth
+	import { roles } from '@src/auth/types';
+	import { addUserTokenSchema } from '@utils/formSchemas';
+
+	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
-	import { addUserTokenSchema } from '@utils/formSchemas';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	export let addUserForm: PageData['addUserForm'];
-
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import { roles } from '@collections/types';
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -25,7 +26,7 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Base Classes

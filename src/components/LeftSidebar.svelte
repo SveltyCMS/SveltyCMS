@@ -3,6 +3,10 @@
 	import { goto } from '$app/navigation';
 	import axios from 'axios';
 
+	// Auth
+	const user = $page.data.user;
+	avatarSrc.set(user?.avatar);
+
 	// Stores
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
@@ -67,7 +71,7 @@
 
 	let handleClick: any;
 
-	// update the handleClick function when the systemLanguage store value changes
+	// Update the handleClick function when the systemLanguage store value changes
 	$: handleClick = () => {
 		if (!$page.url.href.includes('user')) {
 			goto(`/user`);
@@ -77,11 +81,7 @@
 		}
 	};
 
-	// Lucia
-	const user = $page.data.user; // Username
-	avatarSrc.set(user?.avatar);
-
-	//signOut
+	// SignOut
 	async function signOut() {
 		let resp = (
 			await axios.post(
@@ -250,7 +250,7 @@
 				</div>
 			</div>
 
-			<!-- Lucia Sign Out -->
+			<!-- Sign Out -->
 			<div class={$sidebarState.left === 'full' ? 'order-4' : 'order-4'}>
 				<button use:popup={SignOutTooltip} on:click={signOut} type="submit" value="Sign out" class="btn-icon hover:bg-surface-500 hover:text-white">
 					<iconify-icon icon="uil:signout" width="26" />

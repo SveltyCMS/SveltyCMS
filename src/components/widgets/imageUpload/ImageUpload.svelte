@@ -12,13 +12,18 @@
 	// Skeleton
 	import { FileDropzone, ProgressBar } from '@skeletonlabs/skeleton';
 
-	let _data: FileList;
+	let _data: File;
 	let updated = false;
 
 	export let field: FieldType;
-	export const WidgetData = async () => (updated ? _data : null);
-	export let file: File | undefined = undefined; // pass file directly from imageArray
-	//console.log('file', file);
+	export const WidgetData = async () => {
+		_data.path = field.path;
+		let arrayBuffer = await _data.arrayBuffer();
+		_data.buffer = new Uint8Array(arrayBuffer);
+		return updated ? _data : null;
+	};
+	export let value: File | { [key: string]: any } = $entryData[getFieldName(field)]; // pass file directly from imageArray
+	console.log(value);
 
 	let fieldName = getFieldName(field);
 	let optimizedFileName: string | undefined = undefined;
@@ -42,7 +47,7 @@
 			// console.log('handleFileSelection:', 'Function called');
 
 			updated = true;
-			_data = files;
+			_data = (event.target as HTMLInputElement).files?.[0] as File;
 
 			// All files processed, set loading progress to 100%
 			loadingProgress.set(100);
@@ -51,10 +56,11 @@
 		// Check if the input has files selected
 		if (node.files) {
 			handleFileSelection(node.files);
-		} else if (file instanceof File) {
+		} else if (value instanceof File) {
 			const fileList = new DataTransfer();
-			fileList.items.add(file);
-			_data = fileList.files;
+			fileList.items.add(value);
+			node.files = fileList.files;
+			_data = node.files[0];
 			updated = true;
 
 			//TODO: Image Preview not working for edit anymore
@@ -84,7 +90,7 @@
 				type: headers['content-type'] || thumbnail.mimetype || 'application/octet-stream'
 			});
 			fileList.items.add(file);
-			_data = fileList.files;
+			_data = fileList.files[0];
 			updated = true;
 
 			// Set optimizedMimeType to the fetched image's MIME type

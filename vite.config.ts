@@ -45,7 +45,8 @@ const config = {
 	server: { fs: { allow: ['static', '.'] } },
 
 	define: {
-		__VERSION__: JSON.stringify(pkg.version)
+		__VERSION__: JSON.stringify(pkg.version),
+		SUPERFORMS_LEGACY: true
 	},
 
 	output: { preloadStrategy: 'preload-mjs' }

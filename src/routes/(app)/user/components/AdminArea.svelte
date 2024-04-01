@@ -2,7 +2,7 @@
 	import axios from 'axios';
 	import type { PageData } from '../$types';
 	import { writable } from 'svelte/store';
-	import { asAny, debounce, getFieldName, generateUniqueId } from '@utils/utils';
+	import { asAny, debounce, generateUniqueId } from '@utils/utils';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
@@ -21,8 +21,7 @@
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
+	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	export let data: PageData;

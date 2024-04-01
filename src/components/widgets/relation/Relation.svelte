@@ -7,7 +7,7 @@
 	import Fields from '@components/Fields.svelte';
 
 	import type { FieldType } from '.';
-	import { extractData, find, findById, getFieldName, saveFormData } from '@utils/utils';
+	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
 
 	export let field: FieldType | undefined;
 	let fieldName = getFieldName(field);
@@ -27,7 +27,6 @@
 		if (!field) return;
 		if (entryMode == 'create') {
 			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'create' }))[0]?._id;
-			// console.log(relation_id);
 		} else if (entryMode == 'choose') {
 			relation_id = selected?._id;
 		} else if (entryMode == 'edit') {
@@ -51,12 +50,17 @@
 			if (entryMode == 'edit' || entryMode == 'create') {
 				data = await extractData(fieldsData);
 			} else if (entryMode == 'choose') {
-				data = $entryData[getFieldName(field)];
+				if (typeof value == 'string') {
+					data = await findById(value, relationCollection?.name as string);
+				} else {
+					data = value;
+				}
 			}
 			!relation_entry && (relation_entry = data);
 		} else {
 			data = await extractData(fieldsData);
 		}
+
 		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
 	})(expanded);
 

@@ -1,5 +1,7 @@
 import mongoose from 'mongoose';
 import type { RequestHandler } from './$types';
+
+// Auth
 import { auth } from '@api/db';
 
 export const POST: RequestHandler = async ({ request }) => {

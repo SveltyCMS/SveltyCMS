@@ -55,6 +55,9 @@ const widget = (params: Params) => {
 		width: params.width,
 		helper: params.helper,
 
+		// permissions
+		permissions: params.permissions,
+
 		// extra fields
 		upload: true,
 		fields: params.fields,

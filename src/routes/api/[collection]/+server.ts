@@ -1,27 +1,33 @@
 // Import the necessary modules.
 import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { auth, getCollectionModels } from '@src/routes/api/db';
-import { getFieldName, parse, saveImages, validate } from '@src/utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
-import widgets from '@src/components/widgets';
+import { getCollectionModels } from '@src/routes/api/db';
+import { getFieldName, saveImages } from '@src/utils/utils';
 import type { Schema } from '@src/collections/types';
 import { publicEnv } from '@root/config/public';
+
+// Components
+import widgets from '@src/components/widgets';
+
+// Auth
+import { auth } from '@src/routes/api/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import type { User } from '@src/auth/types';
 
 // Define the GET request handler.
 export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	// Get the session cookie.
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await validate(auth, session);
+	const user = (await auth.validateSession(session_id)) as User;
 
 	// Get the collection schema.
 	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
 
 	// Check if the user has read access to the collection.
-	const has_read_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.user.role]?.read ?? true;
-	if (user.status != 200 || !has_read_access) {
+	const has_read_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.read ?? true;
+	if (!user || !has_read_access) {
 		return new Response('', { status: 403 });
 	}
 
@@ -66,27 +72,18 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			const _sort = sort[fieldName];
 
 			// If the widget has transformation aggregations, add them to the aggregations array.
-			if (widget.aggregations.transformations) {
-				const _aggregations = await widget.aggregations.transformations({ field, contentLanguage: contentLanguage });
-				aggregations.push(..._aggregations);
-			}
-
-			// If the widget has filter aggregations, add them to the aggregations array.
 			if (widget.aggregations.filters && _filter) {
 				const _aggregations = await widget.aggregations.filters({ field, contentLanguage: contentLanguage, filter: _filter });
 				aggregations.push(..._aggregations);
 			}
 
-			// If the widget has sort aggregations, add them to the aggregations array.
+			// If the widget has filter aggregations, add them to the aggregations array.
 			if (widget.aggregations.sorts && _sort) {
 				const _aggregations = await widget.aggregations.sorts({ field, contentLanguage: contentLanguage, sort: _sort });
 				aggregations.push(..._aggregations);
 			}
 		}
 	}
-
-	// Log the aggregations.
-	// console.log(aggregations);
 
 	// Aggregate the collection.
 	const entryListWithCount = await collection.aggregate([
@@ -99,7 +96,29 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	]);
 
 	// Get the entry list and total count from the aggregation results.
-	const entryList = entryListWithCount[0].entries;
+	let entryList = entryListWithCount[0].entries;
+
+	for (const field of collection_schema.fields) {
+		const widget = widgets[field.widget.key];
+		const fieldName = getFieldName(field);
+
+		if (field?.permissions?.[user.role]?.read == false) {
+			// if we cant read there is nothing to clean.
+			entryList = entryList.map((entry: any) => {
+				delete entry[fieldName];
+				return entry;
+			});
+		} else if ('modifyRequest' in widget) {
+			// widget can modify own portion of entryList;
+			entryList = await Promise.all(
+				entryList.map(async (entry: any) => {
+					entry[fieldName] = await widget.modifyRequest({ field, data: entry[fieldName], user, type: 'GET' });
+					return entry;
+				})
+			);
+		}
+	}
+
 	const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
 
 	// Calculate the number of pages.
@@ -117,14 +136,17 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 // Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the session cookie.
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await validate(auth, session);
+	const user = await auth.validateSession(session_id);
 
 	// Check if the user has write access to the collection.
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.user.role]?.write ?? true;
-	if (user.status != 200 || !has_write_access) {
+	if (!user) {
+		return new Response('', { status: 403 });
+	}
+	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
+	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
 
@@ -136,10 +158,18 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	const data = await request.formData();
 
 	// Parse the form data.
-	let formData: any = {};
+	const formData: any = {};
 	for (const key of data.keys()) {
 		try {
-			formData[key] = JSON.parse(data.get(key) as string);
+			formData[key] = JSON.parse(data.get(key) as string, (key, value) => {
+				if (value?.instanceOf == 'File') {
+					//@ts-expect-error
+					const file = new File([new Uint8Array(Object.values(value.buffer))], value.name, { type: value.type, lastModified: value.lastModified });
+					file.path = value.path;
+					return file;
+				}
+				return value;
+			});
 		} catch (e) {
 			formData[key] = data.get(key) as string;
 		}
@@ -148,27 +178,27 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the _id of the entry.
 	const _id = data.get('_id');
 
-	// Parse the form data.
-	formData = parse(formData);
-
 	// Save the images.
-	const files = await saveImages(data, params.collection);
+	await saveImages(formData, params.collection);
 
 	// Update the entry.
-	return new Response(JSON.stringify(await collection.updateOne({ _id }, { ...formData, ...files }, { upsert: true })));
+	return new Response(JSON.stringify(await collection.updateOne({ _id }, formData, { upsert: true })));
 };
 
 // Define the POST request handler.
 export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the session cookie.
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await validate(auth, session);
+	const user = await auth.validateSession(session_id);
 
 	// Check if the user has write access to the collection.
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.user.role]?.write ?? true;
-	if (user.status != 200 || !has_write_access) {
+	if (!user) {
+		return new Response('', { status: 403 });
+	}
+	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
+	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
 
@@ -183,7 +213,15 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	const body: any = {};
 	for (const key of data.keys()) {
 		try {
-			body[key] = JSON.parse(data.get(key) as string);
+			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
+				if (value?.instanceOf == 'File') {
+					//@ts-ignore
+					const file = new File([new Uint8Array(Object.values(value.buffer))], value.name, { type: value.type, lastModified: value.lastModified });
+					file.path = value.path;
+					return file;
+				}
+				return value;
+			});
 		} catch (e) {
 			body[key] = data.get(key) as string;
 		}
@@ -193,26 +231,29 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	body['status'] = 'published';
 
 	// Check if the collection exists.
-	if (!collection) return new Response('collection not found!!');
+	if (!collection) return new Response('Collection not found!!');
 
 	// Save the images.
-	const files = await saveImages(data, params.collection);
+	await saveImages(body, params.collection);
 
 	// Insert the entry.
-	return new Response(JSON.stringify(await collection.insertMany({ ...body, ...files })));
+	return new Response(JSON.stringify(await collection.insertMany(body)));
 };
 
 // Define the DELETE request handler.
 export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the session cookie.
-	const session = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await validate(auth, session);
+	const user = await auth.validateSession(session_id);
 
 	// Check if the user has write access to the collection.
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.user.role]?.write ?? true;
-	if (user.status != 200 || !has_write_access) {
+	if (!user) {
+		return new Response('', { status: 403 });
+	}
+	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
+	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
 
@@ -226,6 +267,7 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the ids of the entries to delete.
 	let ids = data.get('ids') as string;
 	ids = JSON.parse(ids);
+	// console.log(ids);
 
 	// Delete the entries.
 	return new Response(

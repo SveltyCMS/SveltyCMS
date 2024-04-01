@@ -3,6 +3,13 @@
 	import { publicEnv } from '@root/config/public';
 	import { asAny, getFieldName } from '@utils/utils';
 
+	// Auth
+	const user = $page.data.user;
+
+	// Stores
+	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
+	import { page } from '$app/stores';
+
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -17,13 +24,6 @@
 
 	$: if (root) $collectionValue = fieldsData;
 
-	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
-	import { page } from '$app/stores';
-	import { roles } from '@src/collections/types';
-
-	const user = $page.data.user;
-
 	let apiUrl = '';
 
 	$: if ($entryData) {
@@ -37,7 +37,7 @@
 
 	function getTabHeaderVisibility() {
 		// Hide headers only when non-admin and no revision
-		return user?.role != roles.admin && !$collection.revision;
+		return user.roles != 'admin' && !$collection.revision;
 	}
 </script>
 
@@ -67,8 +67,8 @@
 		</Tab>
 	{/if}
 
-	<!-- API JSon -->
-	{#if user?.role == roles.admin}
+	<!-- API JSON -->
+	{#if user.roles == 'admin'}
 		<Tab bind:group={$tabSet} name="tab3" value={2}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
@@ -84,7 +84,7 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 			<div class="wrapper">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-					{#each fields || $collection.fields as field}
+					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user.role].read !== false) as field, index}
 						{#if field.widget}
 							{#key $collection}
 								<div
@@ -125,6 +125,7 @@
 										this={asAny(field.widget.type)}
 										field={asAny(field)}
 										bind:WidgetData={fieldsData[getFieldName(field)]}
+										disabled={field?.permissions?.[user.role].write == false}
 										value={customData[getFieldName(field)]}
 										{...$$props}
 									/>

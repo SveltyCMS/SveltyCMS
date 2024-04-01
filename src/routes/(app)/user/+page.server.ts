@@ -1,54 +1,39 @@
-import mongoose from 'mongoose';
+import { redirect, type Actions, fail } from '@sveltejs/kit';
 
-//lucia
+// Auth
 import { auth } from '@api/db';
-import { validate } from '@utils/utils';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import { roles } from '@src/auth/types.js';
+import { createToken } from '@src/auth/tokens';
 
-//superforms
+// Superforms
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
-import { redirect, type Actions } from '@sveltejs/kit';
-import { createToken } from '@utils/tokens';
-// import { passwordToken } from '@utils/passwordToken';
+import { zod } from 'sveltekit-superforms/adapters';
 
 // Load function to check if user is authenticated
 export async function load(event) {
-	// tanstack
-	const allUsers = await getAllUsers();
-	const tokens = await getTokens();
-
 	// Get session data from cookies
-	const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session.
-	const user = await validate(auth, session);
-	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) redirect(302, `/login`);
-	const isFirstUser = allUsers[0].id == user.user.id;
+	const user = await auth.validateSession(session_id);
 
-	const AUTH_KEY = mongoose.models['auth_key'];
-	// find user using id
-	const userKey = await AUTH_KEY.findOne({ user_id: user.user.id });
-	user.user.authMethod = userKey['_id'].split(':')[0];
 	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) redirect(302, `/login`);
+	if (!user) redirect(302, `/login`);
 
-	user.user.authMethod = userKey['_id'].split(':')[0];
+	const isFirstUser = (await auth.getUserCount()) != 0;
+
 	// If the user is not logged in, redirect them to the login page.
-	if (user.status != 200) redirect(302, `/login`);
-
-	user.user.authMethod = userKey['_id'].split(':')[0];
+	if (user) redirect(302, `/login`);
 
 	// Superforms Validate addUserForm / change Password
-	const addUserForm = await superValidate(event, addUserTokenSchema);
-	const changePasswordForm = await superValidate(event, changePasswordSchema);
+	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
+	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
 	// If user is authenticated, return the data for the page.
 	return {
-		allUsers,
-		tokens,
-		user: user.user,
+		user: user,
 		addUserForm,
 		changePasswordForm,
 		isFirstUser
@@ -57,51 +42,55 @@ export async function load(event) {
 
 // This action adds a new user to the system.
 export const actions: Actions = {
-	addUser: async (event) => {
+	addUser: async ({ request }) => {
 		// Validate addUserForm data
-		const addUserForm = await superValidate(event, addUserTokenSchema);
+		const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
 		const email = addUserForm.data.email;
 		const role = addUserForm.data.role;
 		const expiresIn = addUserForm.data.expiresIn;
 
-		// Check if the email address is already registered.
-		const key = await auth.getKey('email', email).catch(() => null);
+		// if (!form.success) return fail(400, { message: 'invalid form members' });
 
-		if (key) {
+		// if (!user || user.role != 'admin') {
+		// 	return fail(400, { message: 'You dont have permission to add user' });
+		// }
+
+		// Check if the email address is already registered.
+		if (
+			await auth.checkUser({
+				email,
+				id: ''
+			})
+		) {
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
 
 		// Create new user with provided email and role
-		const user = await auth.createUser({
-			key: {
-				providerId: 'email',
-				providerUserId: email,
-				password: null
-			},
-			attributes: {
-				email: email,
-				username: null,
-				role: role,
-				blocked: false
-			}
+		const newUser = await auth.createUser({
+			password,
+			email,
+			username,
+			role: roles,
+			lastAuthMethod: 'password',
+			is_registered: true,
+			blocked: false,
+			expiresAt: new Date(),
+			resetToken: string,
+			avatar: string,
+			firstname: string,
+			lastname: string
 		});
 
 		if (!user) {
-			return { form: addUserForm, message: 'unknown error' };
+			return { form: addUserForm, message: 'Unknown error' };
 		}
 
 		// Create a new session for the user
-		const session = await auth.createSession({
-			userId: user.userId,
-			attributes: {
-				created_at: new Date(),
-				idle_expires: 2000
-			} // expects `Lucia.DatabaseSessionAttributes`
-		});
+		const session = await auth.createSession({ user_id: user.id });
 
 		if (!session) {
-			return { form: addUserForm, message: 'Failed to create session' };
+			return { form: addUserForm, message: 'Failed to create Session' };
 		}
 
 		// Calculate expiration time in seconds based on expiresIn value
@@ -127,7 +116,7 @@ export const actions: Actions = {
 
 		// Issue password token for new user
 		const token = await createToken(user.id, 'register', expirationTime * 1000);
-		// console.log(token);
+		console.log(token);
 
 		// Send the token to the user via email.
 		await event.fetch('/api/sendMail', {
@@ -153,95 +142,57 @@ export const actions: Actions = {
 	},
 
 	// This action changes the password for the current user.
-	changePassword: async (event) => {
+	changePassword: async ({ request, cookies }) => {
 		// Validate the form data.
-		//console.log('changePassword');
-
-		const changePasswordForm = await superValidate(event, changePasswordSchema);
+		const changePasswordForm = await superValidate(request, zod(changePasswordSchema));
 		const password = changePasswordForm.data.password;
-		const session = event.cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-		const user = await validate(auth, session);
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		const user = await auth.validateSession(session_id);
+		const data = await request.formData();
 
 		// The user's session is invalid.
-		if (user.status != 200) {
+		if (!user) {
 			return { form: changePasswordForm, message: 'User does not exist or session expired' };
 		}
 
-		// Get the user's key.
-		const key = (await auth.getAllUserKeys(user.user.id)).find((key) => key.passwordDefined == true);
-		if (!key) return { form: changePasswordForm, message: 'User does not exist or session expired' };
-
-		// Update the user's key password.
-		await auth.updateKeyPassword('email', key.providerUserId, password);
-
 		// Update the user's authentication method.
-		const authMethod = 'password';
-		await auth.updateUserAttributes(key.userId, { authMethod });
+		await auth.updateUserAttributes(user, { password: password, lastAuthMethod: 'password' });
 
 		// Return the form data.
 		return { form: changePasswordForm };
+	},
+
+	deleteUser: async (event) => {
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+		const user = await auth.validateSession(session_id);
+		if (!user || user.role != 'admin') {
+			return fail(403);
+		}
+		const data = await event.request.formData();
+		const ids = data.getAll('id');
+		for (const id of ids) {
+			auth.deleteUser(id as string);
+		}
+	},
+
+	editUser: async (event) => {
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+		const user = await auth.validateSession(session_id);
+		if (!user || user.role != 'admin') {
+			return fail(403);
+		}
+		const data = await event.request.formData();
+		const infos = data.getAll('info');
+
+		for (const info_json of infos) {
+			const info = JSON.parse(info_json as string) as { id: string; field: 'email' | 'role' | 'name'; value: string };
+
+			const user = await auth.checkUser({ id: info.id });
+			console.log(user);
+			user &&
+				auth.updateUserAttributes(user, {
+					[info.field]: info.value
+				});
+		}
 	}
 };
-
-// Get all user Data for admin pages
-async function getAllUsers() {
-	const AUTH_KEY = mongoose.models['auth_key'];
-	const AUTH_SESSION = mongoose.models['auth_session'];
-	const AUTH_User = mongoose.models['auth_user'];
-	const keys = await AUTH_KEY.find({});
-	const users = [] as any;
-
-	for (const key of keys) {
-		const user = await auth.getUser(key['user_id']);
-		if (user && (user as any).username == null) continue;
-
-		if (user && (user as any).username == null) continue;
-
-		user.email = (await AUTH_User.findOne({ _id: key['user_id'] })).email;
-		let lastAccess = await AUTH_SESSION.findOne({ user_id: key['user_id'] }).sort({
-			active_expires: -1
-		});
-		if (lastAccess) {
-			lastAccess = lastAccess.toObject();
-			delete lastAccess._id; // remove the _id property
-			delete lastAccess.user_id; // remove the user_id property
-			delete lastAccess.__v; // remove the __v property
-		}
-
-		user.lastAccess = lastAccess;
-		user.activeSessions = await AUTH_SESSION.countDocuments({
-			user_id: key['user_id'],
-			active_expires: { $gt: Date.now() }
-		});
-
-		delete user.authMethod; // remove the authMethod property
-		users.push(user);
-	}
-
-	//console.log(users);
-	return users;
-}
-
-// Get all send Email Registration Tokens
-async function getTokens() {
-	const AUTH_User = mongoose.models['auth_user'];
-	const AUTH_KEY = mongoose.models['auth_tokens'];
-	// const tokens = await AUTH_KEY.find({ primary_key: false });
-	const tokens = await AUTH_KEY.find({ type: 'register' });
-	const userToken = [] as any;
-	for (const token of tokens) {
-		const tokenOBJ = token.toObject();
-		delete tokenOBJ._id; // remove the _id property
-		delete tokenOBJ.__v; // remove the __v property
-		delete tokenOBJ.type; // remove the type property
-		const user = await AUTH_User.findOne({ _id: token['userID'] });
-		tokenOBJ.email = user?.email;
-		tokenOBJ.role = user?.role;
-		userToken.push(tokenOBJ);
-	}
-	// console.log(userToken);
-
-	// console.log(userToken);
-
-	return userToken;
-}

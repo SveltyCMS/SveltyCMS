@@ -1,8 +1,8 @@
 <script lang="ts">
-	import { roles } from '@collections/types';
-	import { icon, color } from '@collections/types';
+	// Auth
+	import { roles, icon, color } from '@src/auth/types';
 
-	import type { permissions } from '@collections/types';
+	// Stores
 	import { mode } from '@stores/store';
 
 	import { createEventDispatcher } from 'svelte';
@@ -17,8 +17,10 @@
 
 	export let permissions = {};
 
-	// Define type aliases for clarity
+	// Importing the Roles type from types.ts
 	type Role = keyof typeof roles;
+
+	// Define the Permissions type
 	type Permissions = {
 		create: boolean;
 		read: boolean;
@@ -26,14 +28,17 @@
 		delete: boolean;
 	};
 
+	// Define the Permissions types
 	type RolesPermissions = Record<Role, Permissions>;
+
+	// Define the RolesArray type using the Roles type imported from types.ts
 	type RolesArray = { name: Role; permissions: Permissions }[];
 
+	// Initialize rolesArray
 	let rolesArray: {
 		name: string;
 		permissions: Permissions;
 	}[];
-	rolesArray = [];
 
 	$: {
 		if ($mode === 'edit') {

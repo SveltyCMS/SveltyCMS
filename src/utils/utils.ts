@@ -3,8 +3,6 @@ import axios from 'axios';
 import mongoose from 'mongoose';
 
 import { publicEnv } from '@root/config/public';
-
-import { Blob } from 'buffer';
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
 import crypto from 'crypto';
@@ -14,9 +12,8 @@ import type { z } from 'zod';
 import { get } from 'svelte/store';
 import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
 
-// lucia Auth
-import type { User, Auth } from 'lucia';
-import { UserSchema } from '@src/collections/Auth';
+// Auth
+import { UserSchema } from '@src/auth/types';
 
 export const config = {
 	headers: {
@@ -65,6 +62,7 @@ export const obj2formData = (obj: any) => {
 
 // Converts data to FormData object
 export const col2formData = async (getData: { [Key: string]: () => any }) => {
+	// used to save data
 	const formData = new FormData();
 	const data = {};
 	for (const key in getData) {
@@ -73,13 +71,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 		data[key] = value;
 	}
 	for (const key in data) {
-		if (data[key] instanceof FileList) {
-			for (const _key in data[key]) {
-				// for multiple files
-				//console.log(data[key]);
-				formData.append(key, data[key][_key]);
-			}
-		} else if (typeof data[key] === 'object') {
+		if (typeof data[key] === 'object') {
 			formData.append(key, JSON.stringify(data[key]));
 		} else {
 			formData.append(key, data[key]);
@@ -102,6 +94,7 @@ export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves POSTS files to disk and returns file information
 // TODO: add optimization progress status
+
 export async function saveImages(data: FormData, collectionName: string) {
 	if (browser) return;
 
@@ -491,19 +484,6 @@ export async function extractData(fieldsData: any) {
 	return temp;
 }
 
-// Validates a user session.
-export async function validate(auth: Auth, sessionID: string | null) {
-	// If the session ID is null, return a 404 status with an empty user object.
-	if (!sessionID) {
-		return { user: {} as User, status: 404 };
-	}
-	const resp = await auth.validateSession(sessionID).catch(() => null);
-
-	if (!resp) return { user: {} as User, status: 404 };
-
-	return { user: resp.user as unknown as User, status: 200 };
-}
-
 /**
  * Formats a file size in bytes to the appropriate unit (bytes, kilobytes, megabytes, or gigabytes).
  * @param sizeInBytes - The size of the file in bytes.
@@ -734,14 +714,37 @@ export function getEditDistance(a: string, b: string): number | undefined {
 	return normalizedDistance;
 }
 
+// checks if the translation progress for a given language exist
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	const $translationProgress = get(translationProgress);
 	for (const lang of languages) {
 		!$translationProgress[lang] && ($translationProgress[lang] = { total: new Set(), translated: new Set() });
 		if (field?.translated) $translationProgress[lang].total.add(field);
-		if (data[lang]) $translationProgress[lang].translated.add(field);
+		if (field?.translated && data[lang]) $translationProgress[lang].translated.add(field);
 		else $translationProgress[lang].translated.delete(field);
 	}
 	translationProgress.set($translationProgress);
 }
+
+export type FileJSON = {
+	instanceOf: 'File';
+	lastModified: number;
+	name: string;
+	size: number;
+	type: string;
+	buffer: Uint8Array;
+};
+globalThis.File &&
+	//@ts-ignore
+	(File.prototype.toJSON = function () {
+		return {
+			instanceOf: 'File',
+			lastModified: this.lastModified,
+			name: this.name,
+			size: this.size,
+			type: this.type,
+			buffer: this.buffer as Uint8Array,
+			path: this.path
+		};
+	});

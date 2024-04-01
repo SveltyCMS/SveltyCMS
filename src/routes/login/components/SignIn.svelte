@@ -3,9 +3,10 @@
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
 
-	import { superForm } from 'sveltekit-superforms/client';
+	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-
+	import { superForm } from 'sveltekit-superforms/client';
+	import { zod } from 'sveltekit-superforms/adapters';
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
 	// Components
@@ -13,11 +14,11 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
-	// skeleton
+	// Skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	let showPassword = false;
@@ -30,7 +31,7 @@
 	export let PWforgot: boolean = false;
 	export let PWreset: boolean = false;
 
-	// redirect from email to restore password page
+	// Redirect from email to restore password page
 	let current_url = window.location.href;
 
 	if (current_url.search('token') > -1) {
@@ -46,21 +47,19 @@
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		id: 'login',
-		validators: loginFormSchema,
+		validators: zod(loginFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
 		applyAction: true,
 		taintedMessage: '',
+		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
 			// Submit email as lowercase only
 			$form.email = $form.email.toLowerCase();
-
-			//console.log('onSubmit:', form);
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
@@ -102,21 +101,19 @@
 		delayed: forgotDelayed
 	} = superForm(FormSchemaForgot, {
 		id: 'forgot',
-		validators: forgotFormSchema,
+		validators: zod(forgotFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
 		applyAction: true,
 		taintedMessage: '',
+		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
 			// Submit email as lowercase only
 			$forgotForm.email = $forgotForm.email.toLowerCase();
-
-			//console.log('onSubmit:', forgotForm);
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
@@ -127,13 +124,8 @@
 		},
 
 		onResult: ({ result, cancel }) => {
-			//console.log('onResult:', result); // log the result object
-			//console.log('onResult Type:', result.type); // log the error messages type
-
 			// handle forgot form result
 			if (result.type === 'error') {
-				//console.log('onResult error:', allErrors); // log the error messages
-
 				// Transform the array of error messages into a single string
 				let errorMessages = '';
 				forgotAllErrors.subscribe((errors) => {
@@ -160,9 +152,7 @@
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
 				} else {
-					//console.log('onResult success'); // log success message
-
-					// update variables to display reset form page
+					// Update variables to display reset form page
 					PWreset = true;
 
 					//registration_token
@@ -170,7 +160,6 @@
 						registration_token = result.data.token;
 						//registration_expiresIn = result.data.expires_in;
 						hide_email = result.data.email;
-						//console.log(hide_email);
 					}
 
 					// Trigger the Forgotton toast
@@ -187,7 +176,6 @@
 				}
 			}
 
-			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element
@@ -205,32 +193,27 @@
 		delayed: resetDelayed
 	} = superForm(FormSchemaReset, {
 		id: 'reset',
-		validators: resetFormSchema,
+		validators: zod(resetFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
 		applyAction: true,
 		taintedMessage: '',
+		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
-			//console.log('onResult error:', forgotAllErrors); // log the error messages
 		},
 
 		onResult: ({ result, cancel }) => {
-			//console.log('onResult:', result); // log the result object
-
 			// update variables to display login page
 			PWreset = false;
 			PWforgot = false;
 
 			if (result.type === 'error') {
-				//console.log('onResult error:', allErrors); // log the error messages
-
 				// Extract and format error messages
 				let errorMessages = '';
 				allErrors.subscribe((errors) => {
@@ -246,11 +229,6 @@
 				};
 				toastStore.trigger(t);
 			} else if (result.type === 'success') {
-				//console.log('onResult success'); // log success message
-
-				// update variables to display reset form
-				// PWreset = true;
-
 				// Trigger the Reset toast
 				const t = {
 					message: m.signin_restpasswordtoast(),
@@ -262,11 +240,6 @@
 				};
 				toastStore.trigger(t);
 			} else if (result.type === 'redirect') {
-				//console.log('onResult redirect'); // log redirect message
-
-				// update variables to display reset form
-				// PWreset = true;
-
 				// Trigger the toast
 				const t = {
 					message: m.signin_restpasswordtoast(),
@@ -280,7 +253,6 @@
 				return;
 			}
 
-			//console.log('onResult cancel'); // log cancel message
 			cancel();
 
 			// add wiggle animation to form element (only if result type is not "success" or "redirect")
@@ -445,7 +417,7 @@
 							<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
 						{/if}
 
-						<!-- back button  -->
+						<!-- Back button  -->
 						<!-- TODO: Add Superforms reset -->
 						<button
 							type="button"

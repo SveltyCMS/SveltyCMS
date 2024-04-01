@@ -1,7 +1,9 @@
 import type { Cookies } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
+
+// Auth
 import { auth } from '@api/db';
-import { DEFAULT_SESSION_COOKIE_NAME } from 'lucia';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Define a POST request handler function
 export const POST: RequestHandler = async ({ request, cookies }) => {
@@ -19,9 +21,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 // Define an asynchronous function to sign out a user
 async function signOut(cookies: Cookies) {
 	try {
-		const sessionID = cookies.get(DEFAULT_SESSION_COOKIE_NAME) as string;
-		await auth.invalidateSession(sessionID);
-		cookies.delete(DEFAULT_SESSION_COOKIE_NAME, { path: '/' });
+		const sessionID = cookies.get(SESSION_COOKIE_NAME) as string;
+		await auth.destroySession(sessionID);
+		cookies.delete(SESSION_COOKIE_NAME, { path: '/login' });
 		return new Response(JSON.stringify({ status: 200 }));
 	} catch (e) {
 		return new Response(JSON.stringify({ status: 404 }));

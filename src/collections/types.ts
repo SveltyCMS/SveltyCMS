@@ -1,47 +1,7 @@
 import type widgets from '@components/widgets';
 
-// Define Available Roles with Icons
-export const roles = {
-	admin: 'admin',
-	developer: 'developer',
-	editor: 'editor',
-	user: 'user'
-} as const;
-
-// Define a user Role permission that can be overwritten
-export type permissions = {
-	[K in keyof typeof roles]?: {
-		create?: boolean; // This permission allows users to create new content.
-		read?: boolean; // This permission allows users to view the content. They can't make any changes to it.
-		write?: boolean; // This permission allows users to create new content and make changes to existing content.
-		delete?: boolean; // This permission allows users to remove content from the system
-
-		// Admin can do everything
-	} & (K extends typeof roles.admin
-		? {
-				create: true;
-				read: true;
-				write: true;
-				delete: true;
-			}
-		: {});
-};
-
-// Icons permission
-export const icon = {
-	create: 'bi:plus-circle-fill',
-	read: 'bi:eye-fill',
-	write: 'bi:pencil-fill',
-	delete: 'bi:trash-fill'
-} as const;
-
-// Colors permission
-export const color = {
-	create: 'primary',
-	read: 'tertiary',
-	write: 'warning',
-	delete: 'error'
-} as const;
+// Auth
+import type { permissions } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
@@ -55,5 +15,20 @@ export interface Schema {
 	strict?: boolean;
 	revision?: boolean;
 }
+
+export const sanitizePermissions = (permissions: any) => {
+	const res = Object.keys(permissions).reduce((acc, r) => {
+		acc[r] = Object.keys(permissions[r]).reduce((acc, p) => {
+			if (permissions[r][p] == false) {
+				acc[p] = false;
+			}
+			return acc;
+		}, {});
+		if (Object.keys(acc[r]).length == 0) delete acc[r];
+		return acc;
+	}, {});
+	if (Object.keys(res).length == 0) return undefined;
+	return res;
+};
 
 export type CollectionLabels = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Post' | 'Posts2' | 'Products' | 'Relation' | 'WidgetTest';

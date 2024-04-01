@@ -1,8 +1,8 @@
 <script lang="ts">
 	import { page } from '$app/stores';
-	import { roles } from '@collections/types';
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import { invalidateAll } from '$app/navigation';
+
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -13,13 +13,15 @@
 
 	const modalStore = getModalStore();
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Lucia
+	// Auth
+	import { roles } from '@src/auth/types';
 	const user = $page.data.user;
 	const { isFirstUser } = $page.data;
-	export let isGivenData: boolean = false; // to check if data is given or not
+
+	export let isGivenData: boolean = false;
 	export let username: string | null = null;
 	export let email: string | null = null;
 	export let role: string | null = null;
@@ -108,7 +110,7 @@
 		</div>
 
 		<!-- admin area -->
-		{#if isGivenData ? role : user?.role == roles.admin}
+		{#if isGivenData ? role : user?.roles === 'admin'}
 			<!-- Email field -->
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -233,7 +235,7 @@
 
 		<!-- admin area -->
 		<!-- TODO:  Self or last first user cannot change role -->
-		{#if user?.role == roles.admin}
+		{#if user?.roles === 'admin'}
 			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaleditform_userrole()}</div>
 				<div class="flex-auto">

@@ -92,3 +92,5 @@ export const isLoading: Writable<boolean> = writable(false);
 export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }> = writable({ fn: () => {}, reset: () => {} });
 export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
+
+export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;

@@ -5,7 +5,6 @@
 	import { contentLanguage, translationProgress, mode } from '@src/stores/store';
 
 	let languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
-
 	$contentLanguage = languages[0];
 
 	export let label: string = '';
@@ -30,7 +29,7 @@
 		<div class="items bg-surface-500" class:itemsView={!$translationProgress.show}>
 			{#each languages as lang}
 				{#if $translationProgress.show}
-					<div
+					<button
 						class="item flex items-center py-2"
 						on:click={() => {
 							$contentLanguage = lang;
@@ -47,9 +46,9 @@
 							></div>
 						</div>
 						<p>{(($translationProgress[lang]?.translated.size ?? 1) * 100) / $translationProgress[lang]?.total.size ?? 100}%</p>
-					</div>
+					</button>
 				{:else}
-					<p
+					<button
 						class="item"
 						on:click={() => {
 							$contentLanguage = lang;
@@ -57,7 +56,7 @@
 						}}
 					>
 						{lang.toUpperCase()}
-					</p>
+					</button>
 				{/if}
 			{/each}
 		</div>

@@ -2,11 +2,11 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
-	// svelty-email
+	// Svelty-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
 
 	interface EmailProps {
