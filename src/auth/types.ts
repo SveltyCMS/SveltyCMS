@@ -86,6 +86,7 @@ export const sessionSchema = {
 		required: true // This field is required
 	},
 	user_id: String, // The ID of the user who owns the session
+	//device_id: String, // The ID of the device that owns the session
 	expires: Number // When the session expires
 };
 
@@ -118,7 +119,7 @@ export type Cookie = {
 		path: string; // The path of the cookie
 		httpOnly: true; // Whether the cookie is HTTP only
 		expires: Date; // When the cookie expires
-		secure: true; // Whether the cookie is secure
+		secure: boolean; // Whether the cookie is secure
 	};
 };
 

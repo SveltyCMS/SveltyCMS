@@ -6,7 +6,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@src/stores/store';
 
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
@@ -24,7 +24,7 @@
 	export let resetLink: EmailProps['resetLink'];
 	export let expiresIn: EmailProps['expiresIn'];
 
-	//Readable ExpireIn time sec to year
+	// Readable ExpireIn time sec to year
 	let currentTime = new Date();
 	let expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
 	let expirationTime = expiresInNumber ? new Date(currentTime.getTime() + expiresInNumber * 1000) : new Date(); // Convert expiresIn to milliseconds
@@ -136,7 +136,7 @@
 	};
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>Reset your password for {publicEnv.SITE_NAME}</title>
 		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />

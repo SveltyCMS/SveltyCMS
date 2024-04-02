@@ -6,7 +6,7 @@
 	import type { PageData } from '../$types';
 
 	// Superforms
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
 	import { zod } from 'sveltekit-superforms/adapters';

@@ -405,7 +405,7 @@
 						</span>
 					{/if}
 
-					<input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden />
+					<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
 
 					<div class="mt-4 flex items-center justify-between">
 						<button type="submit" class="variant-filled-surface btn">
@@ -502,8 +502,6 @@
 					{/if}
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
-					<!-- <input type="hidden" name="lang" bind:value={$resetForm.lang} hidden /> -->
-
 					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 						{m.signin_savenewpassword()}
 						<!-- Loading indicators -->

@@ -1,10 +1,10 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+	import { systemLanguage } from '@src/stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
 
 	export let username: string = '';
 
@@ -45,7 +45,7 @@
 	};
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>Welcome to {publicEnv.SITE_NAME} </title>
 		<meta name="description" content="Welcome to {publicEnv.SITE_NAME}" />
@@ -60,7 +60,7 @@
 				</Link>
 			</Section>
 			<Text>{m.welcomeuser_username({ username })}</Text>
-			<Text>"Welcome to {publicEnv.SITE_NAME} - a Sveltekit powered flexible Headless CMS"</Text>
+			<Text>Welcome to {publicEnv.SITE_NAME} - a Sveltekit powered flexible Headless CMS</Text>
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
 				{m.welcomeuser_discussion1()}
@@ -70,10 +70,10 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>"Go to {publicEnv.SITE_NAME}"</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>Go to {publicEnv.SITE_NAME}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>"Your {publicEnv.SITE_NAME} team"</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} team</Text>
 		</Container>
 	</Section>
 </Html>

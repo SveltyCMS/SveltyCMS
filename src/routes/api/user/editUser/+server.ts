@@ -23,14 +23,17 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	username = username.trim();
 
 	// const user = await auth.getUser(userID);
-	const key = await auth.getKey('email', email).catch(() => null);
+	const user = await auth.checkUser({
+		email,
+		id: ''
+	});
 
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session.
 	const currentUser = await auth.validateSession(session_id);
 
-	if (key && password) {
+	if (user && password) {
 		auth.invalidateAllUserSessions(userID);
 		auth.updateKeyPassword('email', key.providerUserId, password);
 	}

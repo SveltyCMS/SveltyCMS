@@ -67,7 +67,7 @@ export class Auth {
 		await this.User.deleteOne({ id });
 	}
 
-	// Session Valid for 1 Hr
+	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
 		try {
 			// Calculate expiration timestamp
@@ -89,6 +89,24 @@ export class Auth {
 			console.error(error);
 			throw new Error('Error creating session');
 		}
+	}
+
+	createSessionCookie(session: Session): Cookie {
+		// Create a cookie object tht expires in 1 year
+		const cookie: Cookie = {
+			name: SESSION_COOKIE_NAME,
+			value: session.id,
+			attributes: {
+				sameSite: 'lax',
+				path: '/',
+				httpOnly: true,
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // expires in 1 year
+				secure: false
+			}
+		};
+
+		// Return the cookie object
+		return cookie;
 	}
 
 	async checkUser(fields: { email: string; id: string }): Promise<User | null> {
@@ -114,24 +132,7 @@ export class Auth {
 		await this.Session.deleteOne({ id: session_id });
 	}
 
-	createSessionCookie(session: Session): Cookie {
-		// Create a cookie object tht expires in 1 year
-		const cookie: Cookie = {
-			name: SESSION_COOKIE_NAME,
-			value: session.id,
-			attributes: {
-				sameSite: 'lax',
-				path: '/',
-				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-				secure: true
-			}
-		};
-
-		// Return the cookie object
-		return cookie;
-	}
-
+	// Login
 	async login(email: string, password: string): Promise<User | null> {
 		// Find the user document
 		const user = await this.User.findOne({ email });
@@ -151,9 +152,9 @@ export class Auth {
 		return null;
 	}
 
+	// LogOut
 	async logOut(session_id: string) {
-		// Delete the session document
-		await this.Session.deleteOne({ id: session_id });
+		await this.Session.deleteOne({ id: session_id }); // Delete the session document
 	}
 
 	async validateSession(session_id: string): Promise<User | null> {
@@ -163,7 +164,7 @@ export class Auth {
 		const aggregationResult = await this.Session.aggregate([
 			{
 				$match: {
-					id: new mongoose.Types.ObjectId(session_id)
+					id: session_id
 				}
 			},
 			{
@@ -179,15 +180,21 @@ export class Auth {
 			}
 		]);
 
-		console.log('Aggregation query result:', aggregationResult);
-
 		const resp = aggregationResult?.[0];
 
 		console.log('Aggregation query response:', resp);
 
+		// Check if resp is defined before trying to access its device_id property
+		if (resp) {
+			console.log('Device ID:', resp.device_id);
+		} else {
+			console.log('resp is undefined');
+			return null;
+		}
+
 		// If no session was found, return null
-		if (!resp) {
-			console.log('No session found for the provided session ID.');
+		if (!resp || !resp.device_id) {
+			console.log('Invalid session: device_id is missing');
 			return null;
 		}
 
@@ -203,17 +210,18 @@ export class Auth {
 		return resp.user;
 	}
 
+	// Create a token
 	async createToken(user_id: string, expires = 60 * 60 * 1000) {
-		// Create a token
 		return await createToken(this.Token, user_id, expires);
 	}
 
+	// Validate the token
 	async validateToken(token: string, user_id: string) {
-		// Validate the token
 		return await validateToken(this.Token, token, user_id);
 	}
 
-	async consumeToken(token, user_id) {
+	// Consume the token
+	async consumeToken(token: string, user_id: string) {
 		// Consume the token
 		return await consumeToken(this.Token, token, user_id);
 	}

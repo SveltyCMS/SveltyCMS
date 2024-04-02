@@ -4,7 +4,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
+	import { systemLanguage } from '@src/stores/store';
 
 	// Svelty-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
@@ -110,7 +110,7 @@
 	};
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>User Registration token for {publicEnv.SITE_NAME}</title>
 		<meta name="description" content="User Registration token for {publicEnv.SITE_NAME}" />

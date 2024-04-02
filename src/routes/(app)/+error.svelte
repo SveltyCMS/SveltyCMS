@@ -1,11 +1,13 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+
+	// Stores
 	import { page } from '$app/stores';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	let speed = 50;
@@ -31,11 +33,11 @@
 		</div>
 
 		<div class="relative">
-			<!-- error class -->
+			<!-- Error class -->
 			<h1 class="relative !text-9xl font-extrabold tracking-widest text-white">
 				{$page.status}
 			</h1>
-			<!-- error url  -->
+			<!-- Error url  -->
 			<div
 				class="absolute left-1/2 top-1/2 mx-auto -translate-x-1/2 -translate-y-1/2 rotate-12 transform rounded-md bg-error-600/80 px-2 text-center text-sm font-bold text-white"
 			>

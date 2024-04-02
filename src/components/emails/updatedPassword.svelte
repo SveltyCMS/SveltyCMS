@@ -11,12 +11,12 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { languageTag } from '@src/paraglide/runtime';
 
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
+	import { systemLanguage } from '@src/stores/store';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -47,7 +47,7 @@
 	};
 </script>
 
-<Html lang={languageTag()}>
+<Html lang={$systemLanguage}>
 	<Head>
 		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
 		<meta name="description" content="Your password for {publicEnv.SITE_NAME} was changed" />

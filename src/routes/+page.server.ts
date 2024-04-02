@@ -18,7 +18,7 @@ export async function load({ cookies }) {
 	const user = await auth.validateSession(session_id);
 	console.log('user: ', user);
 
-	if (!user) {
+	if (user === null || !user) {
 		redirect(302, `/login`);
 	}
 

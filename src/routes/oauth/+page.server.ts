@@ -189,6 +189,7 @@ export const actions: Actions = {
 				attributes: {}
 			});
 			const sessionCookie = auth.createSessionCookie(session);
+
 			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 
 			result.data = { user };

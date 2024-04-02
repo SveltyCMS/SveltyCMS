@@ -87,8 +87,8 @@ export const actions = {
 				},
 				body: JSON.stringify({
 					email: email,
-					subject: 'New {username} registration',
-					message: 'New {username} registration',
+					subject: `New ${username} registration`,
+					message: `New ${username} registration`,
 					templateName: 'welcomeUser',
 					// lang: lang,
 					props: {
@@ -108,11 +108,11 @@ export const actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		const lang = signUpOAuthForm.data.lang;
+		// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+		// const lang = signUpOAuthForm.data.lang;
 		const [url, state] = await googleAuth.getAuthorizationUrl();
 
-		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state, lang }), {
+		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
 			path: '/', // redirect
 			httpOnly: true, // only readable in the server
 			maxAge: 60 * 60 // a reasonable expiration date 1 hour
@@ -253,7 +253,7 @@ async function signIn(
 			email,
 			id: ''
 		});
-		if (!user) return { status: false, message: 'user does not exist' };
+		if (!user) return { status: false, message: 'User does not exist' };
 
 		const result = await auth.consumeToken(token, user.id);
 		if (result.status) {

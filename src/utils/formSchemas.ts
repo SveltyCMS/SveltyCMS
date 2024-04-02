@@ -37,8 +37,8 @@ export const resetFormSchema = z
 			}),
 		//token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1),
 		token: z.string(),
-		// lang: z.string(), // used for svelty-email
 		email: z.string()
+		//lang: z.string(), // used for svelty-email
 	})
 	.refine((data: SignInResetFormData) => data.password === data.confirm_password, m.formSchemas_Passwordmatch());
 
@@ -62,8 +62,6 @@ export const signUpFormSchema = z
 			.trim(),
 
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
-
-		// lang: z.string(), // used for svelty-email
 		token: z.string().min(16) //registration user token
 	})
 	.refine((data) => data.password === data.confirm_password, {
