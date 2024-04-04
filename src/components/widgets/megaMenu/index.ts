@@ -1,10 +1,7 @@
 // MegaMenu - allows multilevel menus for navigation
 import MegaMenu from './MegaMenu.svelte';
 import Text from '../text';
-import widgets from '..';
-
-// Auth
-import type { User } from '@src/auth/types';
+import widgets, { type ModifyRequestParams } from '..';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
@@ -82,17 +79,21 @@ widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
 // Cleans the children of a megamenu by removing any fields that the user does not have permission to read.
-widget.modifyRequest = async ({ field, data, user }: { field: ReturnType<typeof widget>; data: { [key: string]: any }; user: User }) => {
+widget.modifyRequest = async ({ collection, field, data, user, type }: ModifyRequestParams<typeof widget>) => {
+	if (type !== 'GET') {
+		return data;
+	}
 	const cleanChildren = async (children, level = 1) => {
 		for (const index in children) {
 			for (const _field of field.fields[level]) {
-				if (_field?.permissions?.[user.role].read == false) {
+				if (_field?.permissions?.[user.role]?.read == false) {
 					delete children[index][getFieldName(_field)];
 				} else {
 					const widget = widgets[_field.widget.key];
 					if ('modifyRequest' in widget) {
 						children[index][getFieldName(_field)] = await widget.modifyRequest({
-							field: _field,
+							collection,
+							field: _field as ReturnType<typeof widget>,
 							data: children[index][getFieldName(_field)],
 							user,
 							type: 'GET'
@@ -109,7 +110,6 @@ widget.modifyRequest = async ({ field, data, user }: { field: ReturnType<typeof 
 
 	return data;
 };
-
 // Widget icon and helper text
 widget.Icon = 'lucide:menu-square';
 widget.Description = m.widget_megaMenu_description();

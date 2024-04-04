@@ -11,23 +11,29 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 
+
 // Load function to check if user is authenticated
 export async function load(event) {
+	const allUsers = await getAllUsers();
+	const tokens = await getTokens();
+
 	// Get session data from cookies
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session.
 	const user = await auth.validateSession(session_id);
-	const isFirstUser = (await auth.getUserCount()) != 0;
-
 	// If the user is not logged in, redirect them to the login page.
-	if (user) {
-		return {
-			user
-		};
-	} else {
-		redirect(302, `/login`);
-	}
+	if (user) redirect(302, `/login`);
+
+	const isFirstUser = (await auth.getUserCount()) == 0;
+
+	const AUTH_KEY = mongoose.models['auth_key'];
+	// find user using id
+	const userKey = await AUTH_KEY.findOne({ user_id: user.id });
+	user.authMethod = userKey['_id'].split(':')[0];
+	// If the user is not logged in, redirect them to the login page.
+	if (user) redirect(302, `/login`);
+
 
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
@@ -39,6 +45,7 @@ export async function load(event) {
 		addUserForm,
 		changePasswordForm,
 		isFirstUser
+		device_id
 	};
 }
 
@@ -52,24 +59,18 @@ export const actions: Actions = {
 		const role = addUserForm.data.role;
 		const expiresIn = addUserForm.data.expiresIn;
 
-		// if (!form.success) return fail(400, { message: 'invalid form members' });
-
-		// if (!user || user.role != 'admin') {
-		// 	return fail(400, { message: 'You dont have permission to add user' });
-		// }
-
 		// Check if the email address is already registered.
 		if (
 			await auth.checkUser({
 				email,
-				id: ''
+				
 			})
 		) {
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
 
 		// Create new user with provided email and role
-		const newUser = await auth.createUser({
+		const user = await auth.createUser({
 			password,
 			email,
 			username,
@@ -79,17 +80,18 @@ export const actions: Actions = {
 			blocked: false,
 			expiresAt: new Date(),
 			resetToken: string,
-			avatar: string,
-			firstname: string,
-			lastname: string
+			avatar: string
+			// firstname: string,
+			// lastname: string
 		});
 
 		if (!user) {
 			return { form: addUserForm, message: 'Unknown error' };
 		}
-
-		// Create a new session for the user
-		const session = await auth.createSession({ user_id: user.id });
+		const user = await auth.login(email, password);
+		
+		// Create session with user_id and uuid
+		let session = await auth.createSession({ user_id: user.id, device_id });
 
 		if (!session) {
 			return { form: addUserForm, message: 'Failed to create Session' };
@@ -189,7 +191,7 @@ export const actions: Actions = {
 		for (const info_json of infos) {
 			const info = JSON.parse(info_json as string) as { id: string; field: 'email' | 'role' | 'name'; value: string };
 
-			const user = await auth.checkUser({ id: info.id });
+			const user = await auth.checkUser({ email });
 			console.log(user);
 			user &&
 				auth.updateUserAttributes(user, {

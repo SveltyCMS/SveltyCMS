@@ -22,11 +22,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	if (username.length > 24) return new Response(JSON.stringify('username must be at most 24 characters'), { status: 400 });
 	username = username.trim();
 
-	// const user = await auth.getUser(userID);
-	const user = await auth.checkUser({
-		email,
-		id: ''
-	});
+	const user = await auth.checkUser({ email });
 
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
@@ -57,6 +53,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		// make another session
 		const session = await auth.createSession({
 			userId: userID,
+			uuid,
 			attributes: {}
 		});
 		const sessionCookie = auth.createSessionCookie(session);

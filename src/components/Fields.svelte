@@ -84,7 +84,7 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 			<div class="wrapper">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user?.role].read !== false) as field, index}
+					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user.role]?.read !== false) as field, index}
 						{#if field.widget}
 							{#key $collection}
 								<div
@@ -125,7 +125,7 @@
 										this={asAny(field.widget.type)}
 										field={asAny(field)}
 										bind:WidgetData={fieldsData[getFieldName(field)]}
-										disabled={field?.permissions?.[user?.role].write == false}
+										disabled={field?.permissions?.[user.role]?.write == false && false}
 										value={customData[getFieldName(field)]}
 										{...$$props}
 									/>

@@ -735,6 +735,7 @@ export type FileJSON = {
 	type: string;
 	buffer: Uint8Array;
 };
+
 globalThis.File &&
 	//@ts-ignore
 	(File.prototype.toJSON = function () {

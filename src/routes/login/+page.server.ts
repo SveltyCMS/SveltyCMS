@@ -1,3 +1,4 @@
+import { publicEnv } from '@root/config/public.js';
 import { type Cookies, redirect } from '@sveltejs/kit';
 
 // Auth
@@ -7,7 +8,7 @@ import { auth, googleAuth } from '@api/db';
 import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
 import { consumeToken, createToken } from '@src/auth/tokens';
 
 // load and validate login and sign up forms
@@ -56,12 +57,11 @@ export const actions = {
 		const email = signUpForm.data.email.toLowerCase();
 		const password = signUpForm.data.password;
 		const token = signUpForm.data.token;
+		const device_id = signUpForm.data.device_id; // Get the device_id from the request body
 		//const lang = signUpForm.data.lang;
 
-		const user = await auth.checkUser({
-			email,
-			id: ''
-		});
+		const user = await auth.checkUser({ email });
+
 		let resp: { status: boolean; message?: string } = { status: false };
 		const isFirst = (await auth.getUserCount()) == 0;
 
@@ -70,10 +70,10 @@ export const actions = {
 			return { form: signUpFormSchema, message: 'This email is already registered' };
 		} else if (isFirst) {
 			// No account exists signUp for admin
-			resp = await FirstUsersignUp(username, email, password, event.cookies);
+			resp = await FirstUsersignUp(username, email, password, device_id, event.cookies);
 		} else if (user && user.is_registered == false) {
 			// Unfinished account exists
-			resp = await finishRegistration(username, email, password, token, event.cookies);
+			resp = await finishRegistration(username, email, password, token, device_id, event.cookies);
 		} else if (!user && !isFirst) {
 			resp = { status: false, message: 'This user was not defined by admin' };
 		}
@@ -87,8 +87,8 @@ export const actions = {
 				},
 				body: JSON.stringify({
 					email: email,
-					subject: `New ${username} registration`,
-					message: `New ${username} registration`,
+					subject: `New registration for ${username}`,
+					message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 					templateName: 'welcomeUser',
 					// lang: lang,
 					props: {
@@ -131,8 +131,9 @@ export const actions = {
 		const email = signInForm.data.email.toLocaleLowerCase();
 		const password = signInForm.data.password;
 		const isToken = signInForm.data.isToken;
+		const device_id = signInForm.data.device_id; // Get the device_id from the request body
 
-		const resp = await signIn(email, password, isToken, event.cookies);
+		const resp = await signIn(email, password, isToken, device_id, event.cookies);
 
 		if (resp && resp.status) {
 			// Return message if form is submitted successfully
@@ -236,42 +237,49 @@ async function signIn(
 	email: string,
 	password: string,
 	isToken: boolean,
+	device_id: string,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	console.log('signIn called');
-	if (!isToken) {
-		const user = await auth.login(email, password);
-		if (!user) return { status: false, message: 'Invalid Credentials' };
-		const session = await auth.createSession({ user_id: user.id });
-		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-		await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
-		return { status: true };
-	} else {
-		const token = password;
-		const user = await auth.checkUser({
-			email,
-			id: ''
-		});
-		if (!user) return { status: false, message: 'User does not exist' };
+	try {
+		console.log('signIn called');
+		if (!isToken) {
+			const user = await auth.login(email, password);
+			if (!user) return { status: false, message: 'Invalid Credentials' };
 
-		const result = await auth.consumeToken(token, user.id);
-		if (result.status) {
-			const session = await auth.createSession({ user_id: user.id });
+			// Create session with user_id and device_id
+			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
+			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
 			return { status: true };
 		} else {
-			return result;
+			const token = password;
+			const user = await auth.checkUser({ email });
+			if (!user) return { status: false, message: 'User does not exist' };
+
+			const result = await auth.consumeToken(token, user.id);
+			if (result.status) {
+				// Create session with user_id and device_id
+				const session = await auth.createSession({ user_id: user.id, device_id: device_id });
+				const sessionCookie = auth.createSessionCookie(session);
+				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+				await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
+				return { status: true };
+			} else {
+				return result;
+			}
 		}
+	} catch (error) {
+		console.error('Error during sign-in:', error);
+		return { status: false, message: 'An error occurred during sign-in' };
 	}
 }
 
-async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	console.log('FirstUsersignUp called');
+async function FirstUsersignUp(username: string, email: string, password: string, device_id: string, cookies: Cookies) {
+	console.log('FirstUsersignUp called', username, email, password, device_id, cookies);
 
 	const user = await auth.createUser({
+		_id: '', // Placeholder value
 		password,
 		email,
 		username,
@@ -291,13 +299,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		return { status: false, message: 'User does not exist' };
 	}
 
-	// Create a session object with user_id
-	const sessionData = {
-		user_id: user.id // Make sure user.id is valid
-	};
-
-	// Create the session using the auth object
-	const session = await auth.createSession(sessionData);
+	// Create session with user_id and device_id
+	const session = await auth.createSession({ user_id: user.id, device_id });
 
 	if (!session) {
 		console.error('Session creation failed');
@@ -312,19 +315,21 @@ async function FirstUsersignUp(username: string, email: string, password: string
 }
 
 // Function create a new OTHER USER account and creating a session.
-async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
+async function finishRegistration(username: string, email: string, password: string, token: string, device_id: string, cookies: Cookies) {
 	console.log('finishRegistration called', username, email, token);
-	const user = await auth.checkUser({
-		email,
-		id: ''
-	});
+
+	const user = await auth.checkUser({ email });
+
 	if (!user) return { status: false, message: 'User does not exist' };
 
 	const result = await auth.consumeToken(token, user.id);
 
 	if (result.status) {
 		await auth.updateUserAttributes(user, { username, password, lastAuthMethod: 'password', is_registered: true });
-		const session = await auth.createSession({ user_id: user.id });
+
+		// Create session with user_id and device_id
+		const session = await auth.createSession({ user_id: user.id, device_id });
+
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -346,10 +351,7 @@ interface ForgotPWCheckResult {
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
 		const expiresIn = 2 * 60 * 60 * 1000; // expiration in 2 hours
-		const user = await auth.checkUser({
-			email,
-			id: ''
-		});
+		const user = await auth.checkUser({ email });
 
 		// The email address does not exist
 		if (!user) return { success: false, message: 'User does not exist' };
@@ -367,10 +369,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	try {
 		// Obtain the key using auth.getKey based on your authentication system
-		const user = await auth.checkUser({
-			email,
-			id: ''
-		});
+		const user = await auth.checkUser({ email });
 		if (!user) {
 			return { status: false, message: 'Invalid token' };
 		}

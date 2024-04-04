@@ -3,7 +3,7 @@ import Relation from './Relation.svelte';
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { getCollections } from '@src/collections';
-import widgets from '@src/components/widgets';
+import widgets, { type ModifyRequestParams } from '@src/components/widgets';
 import deepmerge from 'deepmerge';
 
 // Auth
@@ -67,7 +67,7 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-widget.modifyRequest = async ({ field, data }: { field: ReturnType<typeof widget>; data: { [key: string]: any }; user: User }) => {
+widget.modifyRequest = async ({ field, data, user }: ModifyRequestParams<typeof widget>) => {
 	const { getCollectionModels } = await import('@src/routes/api/db');
 	const relative_collection = (await getCollectionModels())[field.relation];
 

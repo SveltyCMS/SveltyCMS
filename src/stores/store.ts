@@ -6,6 +6,9 @@ import type { Schema } from '@collections/types';
 import * as m from '@src/paraglide/messages.js';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
+// Auth
+export const device_id = writable(null);
+
 //  Categories
 export const categories: Writable<
 	Array<{

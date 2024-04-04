@@ -22,11 +22,16 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	// Validate the session.
 	const user = (await auth.validateSession(session_id)) as User;
 
+	if (!user) {
+		return new Response('', { status: 403 });
+	}
+
 	// Get the collection schema.
 	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
 
 	// Check if the user has read access to the collection.
-	const has_read_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.read ?? true;
+	const has_read_access = collection_schema?.permissions?.[user.role]?.read != false;
+
 	if (!user || !has_read_access) {
 		return new Response('', { status: 403 });
 	}
@@ -112,7 +117,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			// widget can modify own portion of entryList;
 			entryList = await Promise.all(
 				entryList.map(async (entry: any) => {
-					entry[fieldName] = await widget.modifyRequest({ field, data: entry[fieldName], user, type: 'GET' });
+					entry[fieldName] = await widget.modifyRequest({ collection, field, data: entry[fieldName], user, type: 'GET' });
 					return entry;
 				})
 			);
@@ -145,7 +150,9 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	if (!user) {
 		return new Response('', { status: 403 });
 	}
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
+	const collection_schema = (await getCollections()).find((c) => c.name == params.collection) as Schema;
+	const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
+
 	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
@@ -158,12 +165,12 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	const data = await request.formData();
 
 	// Parse the form data.
-	const formData: any = {};
+	const body: any = {};
 	for (const key of data.keys()) {
 		try {
-			formData[key] = JSON.parse(data.get(key) as string, (key, value) => {
+			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
 				if (value?.instanceOf == 'File') {
-					//@ts-expect-error
+					//@ts-ignore
 					const file = new File([new Uint8Array(Object.values(value.buffer))], value.name, { type: value.type, lastModified: value.lastModified });
 					file.path = value.path;
 					return file;
@@ -171,18 +178,32 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 				return value;
 			});
 		} catch (e) {
-			formData[key] = data.get(key) as string;
+			body[key] = data.get(key) as string;
 		}
 	}
 
 	// Get the _id of the entry.
 	const _id = data.get('_id');
 
+	for (const field of collection_schema.fields) {
+		const widget = widgets[field.widget.key];
+		const fieldName = getFieldName(field);
+
+		if (field?.permissions?.[user.role]?.write == false) {
+			// if we cant write there is nothing to modify.
+			delete body[fieldName];
+		} else if ('modifyRequest' in widget) {
+			// widget can modify own portion of body;
+			body[fieldName]['_id'] = _id;
+			body[fieldName] = await widget.modifyRequest({ collection, field, data: body[fieldName], user, type: 'PATCH' });
+		}
+	}
+
 	// Save the images.
-	await saveImages(formData, params.collection);
+	await saveImages(body, params.collection);
 
 	// Update the entry.
-	return new Response(JSON.stringify(await collection.updateOne({ _id }, formData, { upsert: true })));
+	return new Response(JSON.stringify(await collection.updateOne({ _id }, body, { upsert: true })));
 };
 
 // Define the POST request handler.

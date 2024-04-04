@@ -1,4 +1,4 @@
-import type { User } from '@src/auth/types';
+import type { Model, User } from '@src/auth/types';
 
 // import Address from './address';
 import Checkbox from './checkbox';
@@ -84,19 +84,17 @@ const widgets = {
 
 type K = ReturnType<(typeof widgets)[keyof typeof widgets]>['widget']['key'];
 
+export type ModifyRequestParams<T extends (...args: any) => any> = {
+	collection: Model;
+	field: ReturnType<T>;
+	data: { [key: string]: any };
+	user: User;
+	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
+};
+
 export type WidgetType = {
 	[key in K]: (typeof widgets)[key] & {
-		modifyRequest: ({
-			field,
-			data,
-			user,
-			type
-		}: {
-			field: any;
-			data: { [key: string]: any };
-			user: User;
-			type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
-		}) => Promise<{}>;
+		modifyRequest: (args: ModifyRequestParams<(typeof widgets)[keyof typeof widgets]>) => Promise<{}>;
 	};
 };
 

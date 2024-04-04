@@ -14,8 +14,12 @@ export async function load({ cookies }) {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	console.log('Session ID:', session_id);
 
+	// Get the device_id from the cookies
+	const device_id = cookies.get('device_id') as string;
+	console.log('device_id:', device_id);
+
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(session_id, device_id);
 	console.log('user: ', user);
 
 	if (user === null || !user) {
@@ -23,7 +27,7 @@ export async function load({ cookies }) {
 	}
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c) => user && c?.permissions?.[user.role]?.read != false);
+	const _filtered = (await getCollections()).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
 
 	if (_filtered.length == 0) {
 		throw error(404, {

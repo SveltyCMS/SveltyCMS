@@ -7,7 +7,8 @@ import * as m from '@src/paraglide/messages';
 export const loginFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() }),
 	password: z.string({ required_error: m.formSchemas_PasswordisRequired() }).min(4),
-	isToken: z.boolean()
+	isToken: z.boolean(),
+	device_id: z.string()
 });
 
 // SignIn Forgotten Password ------------------------------------
@@ -62,24 +63,13 @@ export const signUpFormSchema = z
 			.trim(),
 
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
-		token: z.string().min(16) //registration user token
+		token: z.string().min(16), //registration user token
+		device_id: z.string()
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),
 		path: ['confirm_password'] // Set error on confirm_password field
 	});
-
-// Google Oauth token ------------------------------------
-export const signUpOAuthFormSchema = z.object({
-	// username: z
-	// 	.string({ required_error: get(LL).LOGIN_ZOD_Username_string() })
-	// 	.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: get(LL).LOGIN_ZOD_Username_regex() })
-	// 	.min(2, { message: get(LL).LOGIN_ZOD_Username_min() })
-	// 	.max(24, { message: get(LL).LOGIN_ZOD_Username_max() })
-	// 	.trim(),
-	// token: z.string().min(16),
-	// lang: z.string() // used for svelty-email
-});
 
 // Validate New User Token ------------------------------------
 export const addUserTokenSchema = z.object({

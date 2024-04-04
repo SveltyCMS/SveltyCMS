@@ -1,7 +1,7 @@
 import argon2 from 'argon2';
-import mongoose from 'mongoose';
 import { consumeToken, createToken, validateToken } from './tokens';
 import type { Cookie, User, UserParams, Session, Model } from './types';
+import mongoose from 'mongoose';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -18,34 +18,25 @@ export class Auth {
 	}
 
 	async createUser({ email, password, username, role, lastAuthMethod, is_registered }: Omit<User, UserParams>) {
-		try {
-			// Generate a unique ID for the user
-			const userId = new mongoose.Types.ObjectId();
+		// Hash the password
+		let hashed_password: string | undefined = undefined;
+		// Hash the password with argon2
+		if (password) hashed_password = await argon2.hash(password);
 
-			// Hash the password
-			let hashed_password: string | undefined = undefined;
-			// Hash the password with argon2
-			if (password) hashed_password = await argon2.hash(password);
+		// Create the user document
+		const user = (
+			await this.User.insertMany({
+				email,
+				password: hashed_password,
+				username,
+				role,
+				lastAuthMethod,
+				is_registered
+			})
+		)?.[0];
 
-			// Create the user document
-			const user = (
-				await this.User.insertMany({
-					_id: userId,
-					email,
-					password: hashed_password,
-					username,
-					role,
-					lastAuthMethod,
-					is_registered
-				})
-			)?.[0];
-
-			// Return the user object
-			return user as User;
-		} catch (err) {
-			console.error(err);
-			throw new Error('Error creating User');
-		}
+		// Return the user object
+		return user as User;
 	}
 
 	async updateUserAttributes(user: User, attributes: Partial<User>) {
@@ -62,29 +53,28 @@ export class Auth {
 		await this.User.updateOne({ id: user.id }, { $set: updateObject });
 	}
 
+	// Delete the user document
 	async deleteUser(id: string) {
-		// Delete the user document
 		await this.User.deleteOne({ id });
 	}
 
 	// Session Valid for 1 Hr, and only one session per device
-	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
+	async createSession({ user_id, device_id, expires = 60 * 60 * 1000 }: { user_id: string; device_id: string; expires?: number }) {
 		try {
+			// Generate a unique ID for the user from mongoose
+			const id = new mongoose.Types.ObjectId();
 			// Calculate expiration timestamp
 			const expiration = Date.now() + expires;
 
-			// Create an ObjectId for _id
-			const sessionObjectId = new mongoose.Types.ObjectId();
-
 			// Create the session with both _id and id fields
 			const session = await this.Session.create({
-				_id: sessionObjectId,
-				id: sessionObjectId.toString(), // Set id field as a string
+				id,
 				user_id,
+				device_id,
 				expires: expiration
 			});
 
-			return session;
+			return session as typeof session & { id: string };
 		} catch (error) {
 			console.error(error);
 			throw new Error('Error creating session');
@@ -108,6 +98,8 @@ export class Auth {
 		// Return the cookie object
 		return cookie;
 	}
+
+	async checkUser(fields: { email?: string; id?: string }): Promise<User | null>;
 
 	async checkUser(fields: { email: string; id: string }): Promise<User | null> {
 		// Find the user document
@@ -137,15 +129,11 @@ export class Auth {
 		// Find the user document
 		const user = await this.User.findOne({ email });
 
-		// Check if user exists
-		if (user) {
-			// Verify password using argon2
-			const isPasswordValid = await argon2.verify(user.password, password);
-			if (isPasswordValid) {
-				// Delete the _id field from the user object
-				delete user._id;
-				return user;
-			}
+		// Check if user exists and password matches
+		if (user && (await argon2.verify(user.password, password))) {
+			// Delete the _id field before returning
+			delete user._id;
+			return { ...user };
 		}
 
 		// User not found or password mismatch
@@ -161,56 +149,38 @@ export class Auth {
 		console.log('Validating session:', session_id);
 
 		// Aggregate the Session collection to join with the User collection
-		const aggregationResult = await this.Session.aggregate([
-			{
-				$match: {
-					id: session_id
+		const resp = (
+			await this.Session.aggregate([
+				{
+					$match: {
+						id: session_id
+					}
+				},
+				{
+					$lookup: {
+						from: this.User.collection.name,
+						localField: 'user_id',
+						foreignField: 'id',
+						as: 'user'
+					}
+				},
+				{
+					$unwind: '$user'
 				}
-			},
-			{
-				$lookup: {
-					from: this.User.collection.name,
-					localField: 'user_id',
-					foreignField: 'id',
-					as: 'user'
-				}
-			},
-			{
-				$unwind: '$user'
-			}
-		]);
-
-		const resp = aggregationResult?.[0];
+			])
+		)?.[0];
 
 		console.log('Aggregation query response:', resp);
 
-		// Check if resp is defined before trying to access its device_id property
-		if (resp) {
-			console.log('Device ID:', resp.device_id);
-		} else {
-			console.log('resp is undefined');
-			return null;
-		}
-
-		// If no session was found, return null
-		if (!resp || !resp.device_id) {
-			console.log('Invalid session: device_id is missing');
-			return null;
-		}
-
-		// Delete the _id field from the user object
-		if (resp.user._id) {
-			console.log('Removing _id field from the user object:', resp.user._id);
-			delete resp.user._id;
-		}
-
-		console.log('Validated user:', resp.user);
+		if (!resp) return null;
+		resp.user._id && delete resp.user._id;
 
 		// Return the user object
+		console.log('Validated user:', resp.user);
 		return resp.user;
 	}
 
-	// Create a token
+	// Create a token, default expires in 30 days
 	async createToken(user_id: string, expires = 60 * 60 * 1000) {
 		return await createToken(this.Token, user_id, expires);
 	}

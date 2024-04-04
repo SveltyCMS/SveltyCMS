@@ -1,6 +1,9 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 
+	// Stores
+	import { device_id } from '@stores/store';
+
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';

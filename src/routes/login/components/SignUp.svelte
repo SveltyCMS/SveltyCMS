@@ -1,12 +1,15 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
-	import { dev } from '$app/environment';
-	import { page } from '$app/stores';
+
 	import type { PageData } from '../$types';
 
+	// Stores
+	import { page } from '$app/stores';
+	import { device_id } from '@stores/store';
+
 	// Superforms
-	import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
 	import { zod } from 'sveltekit-superforms/adapters';
@@ -15,6 +18,7 @@
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -87,6 +91,9 @@
 	class:hover={active == undefined || active == 0}
 >
 	{#if active == 1}
+		<!-- CSS Logo -->
+		<div class="hidden lg:block"><SveltyCMSLogoFull /></div>
+
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
 			<div class="mb-4 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-12" fill="red" />
@@ -222,7 +229,7 @@
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
 
-					<!-- Email + oauth signin  -->
+					<!-- Email + Oauth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
@@ -238,6 +245,8 @@
 						</form>
 					</div>
 				{/if}
+
+				<input type="hidden" name="device_id" value={device_id} />
 			</form>
 		</div>
 	{/if}

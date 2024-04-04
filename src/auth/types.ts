@@ -86,8 +86,11 @@ export const sessionSchema = {
 		required: true // This field is required
 	},
 	user_id: String, // The ID of the user who owns the session
-	//device_id: String, // The ID of the device that owns the session
-	expires: Number // When the session expires
+	device_id: String, // The ID of the device that owns the session
+	expires: {
+		type: Number, // When the session expires
+		required: true // This field is required
+	}
 };
 
 // Create Mongoose schemas for the User, Token, and Session
@@ -100,12 +103,12 @@ type Modify<T, R> = Omit<T, keyof R> & R;
 export type User = Modify<
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
-		_id?: string;
 		id: 'string';
 		role: Roles;
 		lastAuthMethod: 'password' | 'token';
 	}
 >;
+
 export type UserParams = ['id', 'createdAt', 'updatedAt'][number];
 export type Token = InferSchemaType<typeof mongooseTokenSchema>;
 export type Session = InferSchemaType<typeof mongooseSessionSchema>;

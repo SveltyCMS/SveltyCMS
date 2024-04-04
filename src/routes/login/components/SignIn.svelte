@@ -3,6 +3,9 @@
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
 
+	// Stores
+	import { device_id } from '@stores/store';
+
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
@@ -13,6 +16,7 @@
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 
 	// Skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
@@ -286,6 +290,9 @@
 	class:hover={active == undefined || active == 1}
 >
 	{#if active == 0}
+		<!-- CSS Logo -->
+		<div class="hidden lg:block"><SveltyCMSLogoFull /></div>
+
 		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active != 0}>
 			<div class="mb-1 flex flex-row gap-2">
 				<SveltyCMSLogo className="w-12" fill="red" />
@@ -302,7 +309,7 @@
 				</h1>
 			</div>
 
-			<div class="-mt-2 text-right text-xs text-error-500">{m.signin_required()}</div>
+			<div class="-mt-2 text-right text-xs text-error-500">* {m.signin_required()}</div>
 
 			<!-- Sign In -->
 			{#if !PWforgot && !PWreset}
@@ -406,6 +413,7 @@
 					{/if}
 
 					<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
+					<input type="hidden" name="device_id" value={device_id} />
 
 					<div class="mt-4 flex items-center justify-between">
 						<button type="submit" class="variant-filled-surface btn">
@@ -502,6 +510,8 @@
 					{/if}
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
+					<input type="hidden" name="device_id" value={device_id} />
+
 					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 						{m.signin_savenewpassword()}
 						<!-- Loading indicators -->
