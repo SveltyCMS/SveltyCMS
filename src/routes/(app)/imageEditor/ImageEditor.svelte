@@ -35,7 +35,7 @@
 
 	// Initialize the BLUR values with default values
 	let focalPoint = { x: 0, y: 0 };
-	let initialFocalPoint = { x: 0, y: 0 };
+	const initialFocalPoint = { x: 0, y: 0 };
 
 	// Initialize the Rotate values with default values,
 	let rotate: number = 0;

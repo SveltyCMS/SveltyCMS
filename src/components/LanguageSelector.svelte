@@ -4,7 +4,7 @@
 	//Store
 	import { contentLanguage, translationProgress, mode } from '@src/stores/store';
 
-	let languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
+	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	$contentLanguage = languages[0];
 
 	export let label: string = '';

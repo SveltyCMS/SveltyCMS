@@ -9,10 +9,10 @@
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;
-	export let editField: Boolean = false;
+	export let editField: boolean = false;
 	export let selected_widget: keyof typeof widgets | null = null;
 
-	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 
 	$: if (selected_widget) {

@@ -79,17 +79,17 @@
 
 	// Tick row logic
 	let SelectAll = false;
-	let selectedMap: { [key: string]: boolean } = {};
+	const selectedMap: { [key: string]: boolean } = {};
 
 	// Filter
 	let filters: { [key: string]: string } = entryListPaginationSettings.filters || {};
-	let waitFilter = debounce(300); // Debounce filter function for 300ms
+	const waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
 	let pagesCount: number = entryListPaginationSettings.pagesCount || 1; // Initialize pagesCount
 	let currentPage: number = entryListPaginationSettings.currentPage || 1; // Set initial currentPage value
 	let rowsPerPage: number = entryListPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
-	let rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
+	const rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
 
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
@@ -142,9 +142,9 @@
 		data &&
 			(tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
-					let obj: { [key: string]: any } = {};
+					const obj: { [key: string]: any } = {};
 
-					for (let field of $collection.fields) {
+					for (const field of $collection.fields) {
 						if ('callback' in field) {
 							field.callback({ data });
 							handleSidebarToggle();
@@ -251,12 +251,12 @@
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries
-			for (let item in tableData) {
+			for (const item in tableData) {
 				selectedMap[item] = true;
 			}
 		} else {
 			// Clear all selections
-			for (let item in selectedMap) {
+			for (const item in selectedMap) {
 				selectedMap[item] = false;
 			}
 		}
@@ -279,9 +279,9 @@
 	// Tick Row - modify STATUS of an Entry
 	$modifyEntry = async (status: keyof typeof statusMap) => {
 		// Initialize an array to store the IDs of the items to be modified
-		let modifyList: Array<string> = [];
+		const modifyList: Array<string> = [];
 		// Loop over the selectedMap object
-		for (let item in selectedMap) {
+		for (const item in selectedMap) {
 			// If the item is ticked, add its ID to the modifyList
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
@@ -293,7 +293,7 @@
 			if (!confirm) return;
 
 			// Initialize a new FormData object
-			let formData = new FormData();
+			const formData = new FormData();
 			// Append the IDs of the items to be modified to formData
 			formData.append('ids', JSON.stringify(modifyList));
 			// Append the status to formData
@@ -545,7 +545,7 @@
 											label={m.entrylist_filter()}
 											name={header.name}
 											on:input={(e) => {
-												let value = asAny(e.target).value;
+												const value = asAny(e.target).value;
 												if (value) {
 													waitFilter(() => {
 														filters[header.name] = value;

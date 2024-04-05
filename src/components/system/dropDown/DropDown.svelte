@@ -5,7 +5,7 @@
 	export let selected = items[0];
 	export let label: string = '';
 	export const modifier = (input) => input;
-	export const icon: String | undefined = undefined;
+	export const icon: string | undefined = undefined;
 
 	let expanded = false;
 </script>

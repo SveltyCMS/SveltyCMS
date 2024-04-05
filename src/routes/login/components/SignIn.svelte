@@ -36,13 +36,13 @@
 	export let PWreset: boolean = false;
 
 	// Redirect from email to restore password page
-	let current_url = window.location.href;
+	const current_url = window.location.href;
 
 	if (current_url.search('token') > -1) {
 		PWforgot = true;
 		PWreset = true;
-		let start = current_url.indexOf('=') + 1;
-		let end = current_url.indexOf('email');
+		const start = current_url.indexOf('=') + 1;
+		const end = current_url.indexOf('email');
 		registration_token = current_url.slice(start, end);
 
 		hide_email = current_url.slice(end + 6, current_url.length);

@@ -16,12 +16,12 @@
 	const modalStore = getModalStore();
 
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
-	let buttonRadius = 25; // home button size
+	const buttonRadius = 25; // home button size
 	let showRoutes = false;
 	let center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 	let firstLine: SVGLineElement;
 	let firstCircle: HTMLDivElement;
-	let circles: HTMLDivElement[] = [];
+	const circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
 
 	// Endpoint definition with URL and icon only
@@ -68,8 +68,8 @@
 	};
 
 	function getBasePath(pathname: string) {
-		let params = Object.values($page.params);
-		let replaced = params.reduce((acc, param) => {
+		const params = Object.values($page.params);
+		const replaced = params.reduce((acc, param) => {
 			acc = acc.replace(param, '');
 			return acc;
 		}, pathname);
@@ -102,8 +102,8 @@
 		let timeout: ReturnType<typeof setTimeout>;
 		node.onpointerdown = (e) => {
 			timeout = setTimeout(() => {
-				let x = e.offsetX - node.offsetWidth / 2;
-				let y = e.offsetY - node.offsetHeight / 2;
+				const x = e.offsetX - node.offsetWidth / 2;
+				const y = e.offsetY - node.offsetHeight / 2;
 				buttonInfo = { ...buttonInfo, x: e.clientX - x, y: e.clientY - y };
 				node.setPointerCapture(e.pointerId);
 				node.onpointermove = (e) => {
@@ -123,7 +123,7 @@
 			node.onpointermove = null;
 			node.releasePointerCapture(e.pointerId);
 
-			let distance = [
+			const distance = [
 				buttonInfo.x, //left
 				window.innerWidth - buttonInfo.x, //right
 				buttonInfo.y, //top
@@ -183,8 +183,8 @@
 	// Set the dash of the line
 	function setDash(node: SVGElement) {
 		let first = true;
-		for (let lineElement of node.children) {
-			let el = lineElement as SVGLineElement;
+		for (const lineElement of node.children) {
+			const el = lineElement as SVGLineElement;
 			el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
 			setTimeout(() => {
 				el.style.transition = first ? 'stroke-dashoffset 0.2s ' : 'stroke-dashoffset 0.2s 0.2s';
@@ -198,13 +198,13 @@
 	function reverse() {
 		if (!svg) return;
 		let first = true;
-		for (let lineElement of svg.children) {
-			let el = lineElement as SVGLineElement;
+		for (const lineElement of svg.children) {
+			const el = lineElement as SVGLineElement;
 			el.style.transition = first ? 'stroke-dashoffset 0.2s 0.2s' : 'stroke-dashoffset 0.2s ';
 			el.style.strokeDashoffset = el.style.strokeDasharray = el.getTotalLength().toString();
 			first = false;
 		}
-		for (let circle of circles) {
+		for (const circle of circles) {
 			circle.style.display = 'none';
 		}
 	}

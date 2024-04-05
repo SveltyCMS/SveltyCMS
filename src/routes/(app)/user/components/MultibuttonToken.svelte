@@ -20,7 +20,7 @@
 	let listboxValue: string = 'edit';
 	export let selectedRows;
 
-	let Combobox: PopupSettings = {
+	const Combobox: PopupSettings = {
 		event: 'click',
 		target: 'Combobox',
 		placement: 'bottom-end',

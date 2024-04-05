@@ -4,7 +4,7 @@
 
 	export let value: string;
 
-	let classes = `${
+	const classes = `${
 		value === roles[0]
 			? 'badge gradient-primary'
 			: value === roles[1]

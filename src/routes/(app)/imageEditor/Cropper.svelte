@@ -16,7 +16,7 @@
 
 	// Initializing variables
 	let currentIndex = 0;
-	let blurCoords: { pageX: number; pageY: number } = { pageX: 0, pageY: 0 };
+	const blurCoords: { pageX: number; pageY: number } = { pageX: 0, pageY: 0 };
 
 	export let SCALE = 1;
 	let TR_X = 0;
@@ -178,9 +178,9 @@
 	}
 
 	function cropImage() {
-		let actual_width = WHOLE_WIDTH - crop_left.value - crop_right.value;
-		let actual_height = WHOLE_HEIGHT - crop_top.value - crop_bottom.value;
-		let scaleX = WHOLE_WIDTH / actual_width;
+		const actual_width = WHOLE_WIDTH - crop_left.value - crop_right.value;
+		const actual_height = WHOLE_HEIGHT - crop_top.value - crop_bottom.value;
+		const scaleX = WHOLE_WIDTH / actual_width;
 		WHOLE_HEIGHT = (400 * actual_height) / actual_width;
 		TR_X = -crop_left.value * scaleX;
 		TR_Y = -crop_top.value * scaleX;

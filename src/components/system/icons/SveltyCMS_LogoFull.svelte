@@ -8,7 +8,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Seasons
-	let date = new Date();
+	const date = new Date();
 	export let isDecember = date.getMonth() === 11;
 	export let isHalloween = date.getMonth() === 9 && date.getDate() === 31;
 	export let isNewYear = date.getMonth() === 0 && date.getDate() === 1;

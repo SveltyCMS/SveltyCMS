@@ -17,11 +17,7 @@
 	export const WidgetData = async () => (updated ? _data : null);
 	export const file: File | undefined = undefined; // pass file directly from imageArray
 
-	let fieldName = getFieldName(field);
-	let optimizedFileName: string | undefined = undefined;
-	let optimizedFileSize: number | undefined = undefined;
-	let optimizedMimeType: string | undefined = undefined;
-	let hashValue: string | undefined; // Explicitly define the type
+	const fieldName = getFieldName(field);
 
 	let thumbnail: string = '';
 

@@ -21,7 +21,7 @@
 	type WidgetType = keyof typeof widgets | null;
 
 	// Get the keys of the widgets object
-	let widget_keys = Object.keys(widgets) as WidgetType[];
+	const widget_keys = Object.keys(widgets) as WidgetType[];
 
 	// Define the selected widget variable
 	let selected: WidgetType = null;

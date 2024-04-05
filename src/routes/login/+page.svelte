@@ -13,7 +13,7 @@
 	//ParaglideJS
 	import { languageTag } from '@src/paraglide/runtime';
 
-	let _languageTag = languageTag(); // Get the current language tag
+	const _languageTag = languageTag(); // Get the current language tag
 
 	let inputlanguagevalue = '';
 

@@ -39,7 +39,7 @@
 
 	let showPassword = false;
 
-	let errorStatus = {
+	const errorStatus = {
 		username: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		password: { status: false, msg: '' },

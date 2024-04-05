@@ -8,10 +8,10 @@
 
 	export let field: FieldType;
 
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	let _data = $mode == 'create' ? {} : value;
+	const _data = $mode == 'create' ? {} : value;
 
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 

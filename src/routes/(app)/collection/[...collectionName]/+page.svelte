@@ -29,7 +29,7 @@
 	const collectionName = $page.params.collectionName;
 
 	// Default widget data (tab1)
-	let name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
+	const name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
 
 	// Page title
 	let pageTitle =
@@ -51,7 +51,7 @@
 		});
 
 		// Prepare form data
-		let data =
+		const data =
 			$mode == 'edit'
 				? obj2formData({
 						originalName: $collectionValue.name,
@@ -85,7 +85,7 @@
 		// });
 
 		// Send the form data to the server
-		let resp = await axios.post(`?/saveCollection`, data, {
+		const resp = await axios.post(`?/saveCollection`, data, {
 			headers: {
 				'Content-Type': 'multipart/form-data'
 			}

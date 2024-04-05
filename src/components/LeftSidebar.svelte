@@ -20,37 +20,37 @@
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// Popup Tooltips
-	let UserTooltip: PopupSettings = {
+	const UserTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'User',
 		placement: 'right'
 	};
 
-	let GithubTooltip: PopupSettings = {
+	const GithubTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Github',
 		placement: 'right'
 	};
 
-	let SwitchThemeTooltip: PopupSettings = {
+	const SwitchThemeTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SwitchTheme',
 		placement: 'right'
 	};
 
-	let SignOutTooltip: PopupSettings = {
+	const SignOutTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SignOutButton',
 		placement: 'right'
 	};
 
-	let ConfigTooltip: PopupSettings = {
+	const ConfigTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Config',
 		placement: 'right'
 	};
 
-	let SystemLanguageTooltip: PopupSettings = {
+	const SystemLanguageTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SystemLanguage',
 		placement: 'right'
@@ -66,7 +66,7 @@
 	function handleLocaleChange(event: any) {
 		$systemLanguage = event.target.value;
 	}
-	let inputlangeuagevalue = '';
+	const inputlangeuagevalue = '';
 	$: filteredLanguages = publicEnv.AVAILABLE_SYSTEM_LANGUAGES.filter((value) => (value ? value.includes(inputlangeuagevalue) : true));
 
 	let handleClick: any;
@@ -83,7 +83,7 @@
 
 	// SignOut
 	async function signOut() {
-		let resp = (
+		const resp = (
 			await axios.post(
 				`/api/auth`,
 				{ authType: 'signOut' },
@@ -128,8 +128,8 @@
 		});
 
 	const toggleTheme = () => {
-		let currentMode = get(modeCurrent); // get the current value of the store
-		let newMode = !currentMode; // toggle the mode
+		const currentMode = get(modeCurrent); // get the current value of the store
+		const newMode = !currentMode; // toggle the mode
 		setModeUserPrefers(newMode);
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');

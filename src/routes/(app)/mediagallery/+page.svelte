@@ -8,9 +8,9 @@
 	// Buttons
 	let globalSearchValue = '';
 	let searchShow = false;
-	let filterShow = false;
-	let columnShow = false;
-	let density = 'normal';
+	const filterShow = false;
+	const columnShow = false;
+	const density = 'normal';
 
 	//Get message from +page.server.ts
 	export let errorMessage = '';
@@ -24,9 +24,9 @@
 	let tableSize: 'small' | 'medium' | 'large' = 'small';
 
 	// Get the user's preferred view, grid size, and table size from local storage or a cookie
-	let userPreference = getUserPreferenceFromLocalStorageOrCookie();
+	const userPreference = getUserPreferenceFromLocalStorageOrCookie();
 	if (userPreference) {
-		let [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
+		const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
 		view = preferredView as 'grid' | 'table';
 		gridSize = preferredGridSize as 'small' | 'medium' | 'large';
 		tableSize = preferredTableSize as 'small' | 'medium' | 'large';
@@ -35,7 +35,7 @@
 	// Define a function to store the user's preferred view, grid size, and table size
 	function storeUserPreference(view: 'grid' | 'table', gridSize: 'small' | 'medium' | 'large', tableSize: 'small' | 'medium' | 'large') {
 		// Store the view, grid size, and table size for the current user in local storage or a cookie
-		let userPreference = `${view}/${gridSize}/${tableSize}`;
+		const userPreference = `${view}/${gridSize}/${tableSize}`;
 		localStorage.setItem('GalleryUserPreference', userPreference);
 	}
 
@@ -68,7 +68,7 @@
 		}
 
 		// Store the new sizes for the current user
-		let userPreference = `${view}/${gridSize}/${tableSize}`;
+		const userPreference = `${view}/${gridSize}/${tableSize}`;
 		localStorage.setItem('GalleryUserPreference', userPreference);
 	}
 
@@ -98,11 +98,11 @@
 
 	// Table
 	let tableData: any[] = [];
-	let filteredTableData: any[] = [];
+	const filteredTableData: any[] = [];
 	let filters: { [key: string]: string } = {};
 
 	// Pagination
-	let rowsPerPage = 10; // Set initial rowsPerPage value
+	const rowsPerPage = 10; // Set initial rowsPerPage value
 	let currentPage = 1; // Set initial currentPage value
 
 	let isLoading = false;
@@ -429,7 +429,11 @@
 			<!-- Table for table view -->
 			<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
 				<table
-					class="table table-interactive table-hover ta{density === 'compact' ? 'table-compact' : density === 'normal' ? '' : 'table-comfortable'}"
+					class="table table-interactive table-hover ta{density === 'normal' || density === 'compact'
+						? density === 'normal'
+							? ''
+							: 'table-compact'
+						: 'table-comfortable'}"
 				>
 					<!-- Table Header -->
 					<thead class="top-0 text-tertiary-500 dark:text-primary-500">

@@ -31,7 +31,7 @@
 		role: role
 	};
 
-	let errorStatus = {
+	const errorStatus = {
 		userId: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		token: { status: false, msg: '' }

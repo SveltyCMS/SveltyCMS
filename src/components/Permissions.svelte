@@ -127,18 +127,18 @@
 		filteredRolesArray = rolesArray.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
 	}
 
-	function getTruePermissions(permissions: RolesPermissions): RolesPermissions {
-		const truePermissions: RolesPermissions = {} as RolesPermissions;
-		Object.keys(permissions).forEach((role) => {
-			truePermissions[role as Role] = {} as Permissions;
-			Object.keys(permissions[role]).forEach((permission) => {
-				if (permissions[role][permission as keyof Permissions]) {
-					truePermissions[role as Role][permission as keyof Permissions] = true;
-				}
-			});
-		});
-		return truePermissions;
-	}
+	// function getTruePermissions(permissions: RolesPermissions): RolesPermissions {
+	// 	const truePermissions: RolesPermissions = {} as RolesPermissions;
+	// 	Object.keys(permissions).forEach((role) => {
+	// 		truePermissions[role as Role] = {} as Permissions;
+	// 		Object.keys(permissions[role]).forEach((permission) => {
+	// 			if (permissions[role][permission as keyof Permissions]) {
+	// 				truePermissions[role as Role][permission as keyof Permissions] = true;
+	// 			}
+	// 		});
+	// 	});
+	// 	return truePermissions;
+	// }
 </script>
 
 <div class="dark mb-2 text-center sm:flex sm:flex-col">

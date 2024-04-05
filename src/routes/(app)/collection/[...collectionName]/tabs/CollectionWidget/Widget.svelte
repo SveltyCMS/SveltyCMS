@@ -81,7 +81,7 @@
 					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
-					let newField = {
+					const newField = {
 						id: fields.length + 1,
 						...r
 					};
@@ -108,7 +108,7 @@
 			response: (r: any) => {
 				if (!r) return;
 				const { selectedWidget } = r;
-				let widget = { widget: { key: selectedWidget }, permissions: {} };
+				const widget = { widget: { key: selectedWidget }, permissions: {} };
 				targetWidget.set(widget);
 				modalWidgetForm(widget); // Use selectedWidget directly
 			}
@@ -119,8 +119,8 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			let GuiFields = getGuiFields({ key: field.widget.key }, widgets[field.widget.key].GuiSchema);
-			for (let [property, value] of Object.entries(field)) {
+			const GuiFields = getGuiFields({ key: field.widget.key }, widgets[field.widget.key].GuiSchema);
+			for (const [property, value] of Object.entries(field)) {
 				if (typeof value !== 'object' && property !== 'id') {
 					GuiFields[property] = field[property];
 				}

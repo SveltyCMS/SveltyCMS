@@ -27,8 +27,7 @@
 	import type { AutocompleteOption } from '@skeletonlabs/skeleton';
 
 	let inputPopupDemo = '';
-	let maxVisibleOptions = 8;
-	let popupSettings: PopupSettings = {
+	const popupSettings: PopupSettings = {
 		event: 'focus-click',
 		target: 'popupAutocomplete',
 		placement: 'bottom'
@@ -37,7 +36,7 @@
 	interface CountryOption extends AutocompleteOption {
 		alpha2?: string;
 	}
-	let countryOptions: CountryOption[] = countries.map((country) => ({
+	const countryOptions: CountryOption[] = countries.map((country) => ({
 		label: country.en,
 		value: country.id,
 		...country
@@ -57,7 +56,7 @@
 		inputPopupDemo = event.detail.label;
 	}
 
-	let CountryCombobox: PopupSettings = {
+	const CountryCombobox: PopupSettings = {
 		event: 'click',
 		target: 'CountryCombobox',
 		placement: 'bottom',
@@ -71,14 +70,14 @@
 	import countries from './countries.json';
 	import '/node_modules/flag-icons/css/flag-icons.min.css';
 
-	let selectedCountry = '';
+	const selectedCountry = '';
 
 	// Initialize a filtered array of countries that will be displayed in the dropdown menu
 	let filteredCountries = countries;
 
 	function searchCountry(event: any) {
 		// Get the search query from the input field
-		let query = event.target.value.toLowerCase();
+		const query = event.target.value.toLowerCase();
 
 		// Filter the countries array based on the search query
 		filteredCountries = countries.filter((country) =>
@@ -111,7 +110,7 @@
 
 	export let widgetValue;
 
-	let _data = $mode == 'create' ? {} : value;
+	const _data = $mode == 'create' ? {} : value;
 
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	$: updateTranslationProgress(_data, field);

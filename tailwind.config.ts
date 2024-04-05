@@ -1,5 +1,7 @@
 import { join } from 'path';
 import type { Config } from 'tailwindcss';
+
+// Import Tailwind plugins
 import forms from '@tailwindcss/forms';
 import typography from '@tailwindcss/typography';
 

@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { auth, googleAuth } from '@api/db';
 import type { User } from '@src/auth/types';
 import { consumeToken } from '@src/auth/tokens';
+import { device_id } from '@src/stores/store';
 
 let OAuth: any = null;
 
@@ -77,15 +78,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		if (!needSignIn) {
 			if (!user) throw new Error('User not found.');
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
-			// Generate a UUID for the user
-		
-			const session = await auth.createSession({
-				user_id: user.id,
-				device_id: device_id
-				expires: 60 * 60 * 1000
-			});
+
+			// Create session with user_id and device_id
+			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
 
 			const sessionCookie = auth.createSessionCookie(session);
+
 			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
 		}
 		result.data = { needSignIn };
@@ -174,8 +172,8 @@ export const actions: Actions = {
 					},
 					body: JSON.stringify({
 						email: googleUser.email,
-						subject: `New ${googleUser.name} registration`,
-						message: `New ${googleUser.name} registration`,
+						subject: `New registration ${googleUser.name} `,
+						message: `New registration ${googleUser.name} `,
 						templateName: 'welcomeUser',
 						lang: lang,
 						props: {
@@ -186,14 +184,8 @@ export const actions: Actions = {
 				});
 			}
 
-			// Generate a UUID for the user
-			const uuid = generateUniqueId();
-			// Create session with user_id and uuid
-			const session = await auth.createSession({
-				user_id: user.id,
-				uuid: uuid,
-				expires: Date.now() + 60 * 60 * 1000
-			});
+			// Create session with user_id and device_id
+			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
 
 			const sessionCookie = auth.createSessionCookie(session);
 

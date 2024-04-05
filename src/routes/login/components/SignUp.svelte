@@ -27,9 +27,9 @@
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
 	let tabIndex = 1;
-	let activeOauth = false;
+	const activeOauth = false;
 	let response: any;
-	let pageData = $page.data as PageData;
+	const pageData = $page.data as PageData;
 	let firstUserExists = pageData.firstUserExists;
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
@@ -66,7 +66,7 @@
 		}
 	});
 
-	let params = new URL(window.location.href).searchParams;
+	const params = new URL(window.location.href).searchParams;
 
 	if (params.has('regToken')) {
 		active = 1;

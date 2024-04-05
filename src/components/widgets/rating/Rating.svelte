@@ -17,10 +17,10 @@
 	export let iconHalf = 'material-symbols:star-half';
 	export let iconFull = 'material-symbols:star';
 
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	let _data = $mode == 'create' ? {} : value;
+	const _data = $mode == 'create' ? {} : value;
 	let validationError: string | null = null;
 
 	function iconClick(event: CustomEvent<{ index: number }>): void {

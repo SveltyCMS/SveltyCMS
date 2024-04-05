@@ -7,10 +7,10 @@
 
 	export let field: FieldType;
 
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	let _data = $mode == 'create' ? {} : value;
+	const _data = $mode == 'create' ? {} : value;
 	let validationError: string | null = null;
 
 	export const WidgetData = async () => _data;

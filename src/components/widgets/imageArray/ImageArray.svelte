@@ -17,11 +17,11 @@
 	export let field: FieldType;
 
 	let files: any = [];
-	let _fieldsValue: any = [];
+	const _fieldsValue: any = [];
 	let name: any;
-	let optimizedFileName: string | undefined = undefined;
+	const optimizedFileName: string | undefined = undefined;
 	//let optimizedFileSize: number | undefined = undefined;
-	let optimizedMimeType: string | undefined = undefined;
+	const optimizedMimeType: string | undefined = undefined;
 	let hashValue: string | undefined; // Explicitly define the type
 	let selectedFiles: string[] = []; // Array to store selected file names
 	let collapsedAll = false;
@@ -35,7 +35,7 @@
 	export const WidgetData = async () => {
 		//console.log('files:', files);
 		for (let i = 0; i < files.length; i++) {
-			let fieldsData = _fieldsValue[i];
+			const fieldsData = _fieldsValue[i];
 
 			// Generate UUID for each file
 			fieldsData.id = generateUniqueId();
@@ -45,7 +45,7 @@
 		}
 		if (!files.length) {
 			// If no files are currently being chosen, which means we are editing, we should update.
-			let fieldsData = _fieldsValue;
+			const fieldsData = _fieldsValue;
 			await saveFormData({ data: fieldsData });
 		}
 	};
@@ -57,7 +57,7 @@
 		files = newFiles;
 	}
 
-	let items = [
+	const items = [
 		{ id: 1, collectionName: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
 		{ id: 2, collectionName: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
 		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },

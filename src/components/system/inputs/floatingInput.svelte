@@ -73,7 +73,6 @@ This FloatingInput component has the following properties:
 		if (label === undefined) {
 			return '';
 		}
-		const normalizedLabel = label.toLowerCase().replace(/\s+/g, '');
 		// Add checks for other types of labels here
 		return '';
 	}

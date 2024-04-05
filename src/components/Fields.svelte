@@ -84,7 +84,7 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 			<div class="wrapper">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user.role]?.read !== false) as field, index}
+					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user.role]?.read !== false) as field}
 						{#if field.widget}
 							{#key $collection}
 								<div

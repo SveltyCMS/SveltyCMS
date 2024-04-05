@@ -13,7 +13,7 @@
 	import { extractData, getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 
 	$translationProgress.show = false;
 
@@ -25,15 +25,15 @@
 	let depth = 0;
 	let _data: { [key: string]: any; children: any[] } = $mode == 'create' ? null : value;
 	let fieldsData = {};
-	let saveMode = $mode;
+	const saveMode = $mode;
 
 	// MegaMenu Save Layer Next
 	async function saveLayer() {
 		if (!_data) {
 			_data = { ...(await extractData(fieldsData)), children: [] };
 		} else if ($mode == 'edit') {
-			let _data = await extractData(fieldsData);
-			for (let key in _data) {
+			const _data = await extractData(fieldsData);
+			for (const key in _data) {
 				$currentChild[key] = _data[key];
 			}
 		} else if ($mode == 'create' && $currentChild.children) {

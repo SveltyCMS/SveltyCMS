@@ -53,7 +53,7 @@
 	//console.log('collection', $collection);
 
 	// TODO: Schedule
-	let date = new Date();
+	const date = new Date();
 	let schedule = '';
 
 	// TODO: user autocomplete
@@ -65,7 +65,7 @@
 
 	let inputPopupUser: string = '';
 
-	let popupSettingsUser: PopupSettings = {
+	const popupSettingsUser: PopupSettings = {
 		event: 'focus-click',
 		target: 'popupAutocomplete',
 		placement: 'right'

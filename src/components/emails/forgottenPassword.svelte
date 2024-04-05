@@ -25,34 +25,34 @@
 	export let expiresIn: EmailProps['expiresIn'];
 
 	// Readable ExpireIn time sec to year
-	let currentTime = new Date();
-	let expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
-	let expirationTime = expiresInNumber ? new Date(currentTime.getTime() + expiresInNumber * 1000) : new Date(); // Convert expiresIn to milliseconds
+	const currentTime = new Date();
+	const expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
+	const expirationTime = expiresInNumber ? new Date(currentTime.getTime() + expiresInNumber * 1000) : new Date(); // Convert expiresIn to milliseconds
 
-	let timeDiff = expirationTime.getTime() - currentTime.getTime();
-	let secondsDiff = Math.floor(timeDiff / 1000);
-	let minutesDiff = Math.floor(secondsDiff / 60);
-	let hoursDiff = Math.floor(minutesDiff / 60);
-	let daysDiff = Math.floor(hoursDiff / 24);
-	let weeksDiff = Math.floor(daysDiff / 7);
-	let monthsDiff = Math.floor(weeksDiff / 4); // Assuming a month is 4 weeks
-	let yearsDiff = Math.floor(monthsDiff / 12); // Assuming a year is 12 months
+	const timeDiff = expirationTime.getTime() - currentTime.getTime();
+	const secondsDiff = Math.floor(timeDiff / 1000);
+	const minutesDiff = Math.floor(secondsDiff / 60);
+	const hoursDiff = Math.floor(minutesDiff / 60);
+	const daysDiff = Math.floor(hoursDiff / 24);
+	const weeksDiff = Math.floor(daysDiff / 7);
+	const monthsDiff = Math.floor(weeksDiff / 4); // Assuming a month is 4 weeks
+	const yearsDiff = Math.floor(monthsDiff / 12); // Assuming a year is 12 months
 
-	let remainingSeconds = secondsDiff % 60;
-	let remainingMinutes = minutesDiff % 60;
-	let remainingHours = hoursDiff % 24;
-	let remainingDays = daysDiff % 7;
-	let remainingWeeks = weeksDiff % 4; // Assuming a month is 4 weeks
+	const remainingSeconds = secondsDiff % 60;
+	const remainingMinutes = minutesDiff % 60;
+	const remainingHours = hoursDiff % 24;
+	const remainingDays = daysDiff % 7;
+	const remainingWeeks = weeksDiff % 4; // Assuming a month is 4 weeks
 
-	let yearsText = yearsDiff > 0 ? `${yearsDiff} year${yearsDiff > 1 ? 's' : ''}` : '';
-	let monthsText = monthsDiff > 0 ? `${monthsDiff} month${monthsDiff > 1 ? 's' : ''}` : '';
-	let weeksText = remainingWeeks > 0 ? `${remainingWeeks} week${remainingWeeks > 1 ? 's' : ''}` : '';
-	let daysText = remainingDays > 0 ? `${remainingDays} day${remainingDays > 1 ? 's' : ''}` : '';
-	let hoursText = remainingHours > 0 ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}` : '';
-	let minutesText = remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}` : '';
-	let secondsText = remainingSeconds > 0 ? `${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''}` : '';
+	const yearsText = yearsDiff > 0 ? `${yearsDiff} year${yearsDiff > 1 ? 's' : ''}` : '';
+	const monthsText = monthsDiff > 0 ? `${monthsDiff} month${monthsDiff > 1 ? 's' : ''}` : '';
+	const weeksText = remainingWeeks > 0 ? `${remainingWeeks} week${remainingWeeks > 1 ? 's' : ''}` : '';
+	const daysText = remainingDays > 0 ? `${remainingDays} day${remainingDays > 1 ? 's' : ''}` : '';
+	const hoursText = remainingHours > 0 ? `${remainingHours} hour${remainingHours > 1 ? 's' : ''}` : '';
+	const minutesText = remainingMinutes > 0 ? `${remainingMinutes} minute${remainingMinutes > 1 ? 's' : ''}` : '';
+	const secondsText = remainingSeconds > 0 ? `${remainingSeconds} second${remainingSeconds > 1 ? 's' : ''}` : '';
 
-	let readable_expiresIn = `${yearsText} ${monthsText} ${weeksText} ${daysText} ${hoursText} ${minutesText} ${secondsText}`.trim();
+	const readable_expiresIn = `${yearsText} ${monthsText} ${weeksText} ${daysText} ${hoursText} ${minutesText} ${secondsText}`.trim();
 
 	// console.log('readable_expires_at', readable_expiresIn);
 

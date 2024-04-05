@@ -23,7 +23,7 @@
 
 	// Subscribe to changes in the collection store and do redirects
 	// TODO; fix redirect due to reload?
-	let unsubscribe = collection.subscribe(() => {
+	const unsubscribe = collection.subscribe(() => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
 			// alert('ForwardBackward');

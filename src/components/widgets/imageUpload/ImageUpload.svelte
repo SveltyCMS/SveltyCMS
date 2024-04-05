@@ -18,16 +18,15 @@
 	export let field: FieldType;
 	export const WidgetData = async () => {
 		_data.path = field.path;
-		let arrayBuffer = await _data.arrayBuffer();
+		const arrayBuffer = await _data.arrayBuffer();
 		_data.buffer = new Uint8Array(arrayBuffer);
 		return updated ? _data : null;
 	};
 	export let value: File | { [key: string]: any } = $entryData[getFieldName(field)]; // pass file directly from imageArray
 	console.log(value);
 
-	let fieldName = getFieldName(field);
-	let optimizedFileName: string | undefined = undefined;
-	let optimizedFileSize: number | undefined = undefined;
+	const fieldName = getFieldName(field);
+	const optimizedFileName: string | undefined = undefined;
 	let optimizedMimeType: string | undefined = undefined;
 	let hashValue: string | undefined; // Explicitly define the type
 

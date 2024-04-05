@@ -66,9 +66,9 @@
 	// let avatarSrc = writable(user?.avatar);
 	avatarSrc.set(user?.avatar);
 
-	let id = user?.id;
+	const id = user?.id;
 	let username = user?.username;
-	let role = user?.role;
+	const role = user?.role;
 	let email = user?.email;
 
 	// TODO  Get hashed password

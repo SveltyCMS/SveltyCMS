@@ -84,8 +84,8 @@
 	}
 
 	// Define local stores for user and token data
-	let userTableData = [];
-	let tokenTableData = [];
+	const userTableData = [];
+	const tokenTableData = [];
 
 	// Display User Columns
 	const tableHeadersUser = [
@@ -138,7 +138,7 @@
 	// Define table data for both user list and tokens
 	let tableHeaders: Array<{ label: string; name: string }> = [];
 	let tableData: any[] = [];
-	let tableDataUserToken: any[] = [];
+	const tableDataUserToken: any[] = [];
 
 	// Initialize displayTableHeaders with the values from entryListPaginationSettings or default to tableHeaders
 	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
@@ -148,18 +148,18 @@
 
 	// Tick row logic
 	let SelectAll = false;
-	let selectedMap = writable({});
+	const selectedMap = writable({});
 
 	// Filter
 	let filters: { [key: string]: string } = userPaginationSettings.filters || {};
 	let filteredTableData: any[] = [];
-	let waitFilter = debounce(300); // Debounce filter function for 300ms
+	const waitFilter = debounce(300); // Debounce filter function for 300ms
 
 	// Pagination
 	let pagesCount: number = userPaginationSettings.pagesCount || 1; // Initialize pagesCount
 	let currentPage: number = userPaginationSettings.currentPage || 1; // Set initial currentPage value
 	let rowsPerPage: number = userPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
-	let rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
+	const rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
 
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
@@ -290,12 +290,12 @@
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries
-			for (let item in tableData) {
+			for (const item in tableData) {
 				selectedMap[item] = true;
 			}
 		} else {
 			// Clear all selections
-			for (let item in selectedMap) {
+			for (const item in selectedMap) {
 				selectedMap[item] = false;
 			}
 		}
@@ -467,7 +467,7 @@
 												label={m.entrylist_filter()}
 												name={header.key}
 												on:input={(e) => {
-													let value = asAny(e.target).value;
+													const value = asAny(e.target).value;
 													if (value) {
 														waitFilter(() => {
 															filters[header.key] = value;

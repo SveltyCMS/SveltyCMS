@@ -28,15 +28,15 @@
 
 	export let field: FieldType;
 
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	let _data = $mode == 'create' ? {} : value;
+	const _data = $mode == 'create' ? {} : value;
 
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	$: updateTranslationProgress(_data, field);
 
-	let validationError: string | null = null;
+	const validationError: string | null = null;
 
 	export const WidgetData = async () => _data;
 
@@ -106,7 +106,7 @@
 	let suggestions = analyze(title, description);
 
 	function analyze(title: string, description: string) {
-		let scores = {
+		const scores = {
 			title_score: 0,
 			description_score: 0,
 			sentences_score: 0,
@@ -117,7 +117,7 @@
 			description_CTA_score: 0
 		};
 
-		let suggestions: any = [];
+		const suggestions: any = [];
 
 		// Check if the title is more than 50 characters
 		if (title.length > 50) {
@@ -293,15 +293,15 @@
 	import * as z from 'zod';
 
 	// Customize the error messages for each rule
-	const validateSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
+	// const validateSchema = z.object({
+	// 	db_fieldName: z.string(),
+	// 	icon: z.string().optional(),
+	// 	color: z.string().optional(),
+	// 	width: z.number().optional(),
+	// 	required: z.boolean().optional()
 
-		// Widget Specfic
-	});
+	// 	// Widget Specfic
+	// });
 </script>
 
 <!-- TODO: Fix input Value -->

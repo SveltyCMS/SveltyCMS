@@ -56,12 +56,12 @@
 		let totalTranslated = 0;
 		let totalEntries = 0;
 
-		for (let key in $collectionValue) {
-			let data = await $collectionValue[key]();
+		for (const key in $collectionValue) {
+			const data = await $collectionValue[key]();
 			// Check if data is not null and contains the language key
 			if (data && typeof data === 'object') {
-				for (let lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-					let field = $collection.fields.find((x) => getFieldName(x) == key);
+				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+					const field = $collection.fields.find((x) => getFieldName(x) == key);
 					if (!field || ('translated' in field && !field.translated)) continue;
 					if (!translations[lang]) translations[lang] = { total: 0, translated: 0 };
 					// Check if the language key exists in data
@@ -90,7 +90,7 @@
 
 	// Reactive statement to calculate the completion percentage for each language
 	$: {
-		for (let lang in translations) {
+		for (const lang in translations) {
 			if (translations[lang].total > 0) {
 				translations[lang].completion = Math.round((translations[lang].translated / translations[lang].total) * 100);
 			} else {

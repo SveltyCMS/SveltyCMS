@@ -10,7 +10,8 @@ import { createToken } from '@src/auth/tokens';
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
-
+import { device_id } from '@src/stores/store';
+import mongoose from 'mongoose';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -34,7 +35,6 @@ export async function load(event) {
 	// If the user is not logged in, redirect them to the login page.
 	if (user) redirect(302, `/login`);
 
-
 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
@@ -44,7 +44,7 @@ export async function load(event) {
 		user: user,
 		addUserForm,
 		changePasswordForm,
-		isFirstUser
+		isFirstUser,
 		device_id
 	};
 }
@@ -60,12 +60,7 @@ export const actions: Actions = {
 		const expiresIn = addUserForm.data.expiresIn;
 
 		// Check if the email address is already registered.
-		if (
-			await auth.checkUser({
-				email,
-				
-			})
-		) {
+		if (await auth.checkUser({ email })) {
 			return { form: addUserForm, message: 'This email is already registered' };
 		}
 
@@ -89,9 +84,9 @@ export const actions: Actions = {
 			return { form: addUserForm, message: 'Unknown error' };
 		}
 		const user = await auth.login(email, password);
-		
+
 		// Create session with user_id and uuid
-		let session = await auth.createSession({ user_id: user.id, device_id });
+		const session = await auth.createSession({ user_id: user.id, device_id });
 
 		if (!session) {
 			return { form: addUserForm, message: 'Failed to create Session' };

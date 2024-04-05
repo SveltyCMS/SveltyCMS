@@ -26,7 +26,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import LanguageSelector from './LanguageSelector.svelte';
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();

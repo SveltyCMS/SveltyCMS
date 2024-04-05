@@ -22,13 +22,13 @@
 	export let parent: SvelteComponent;
 
 	// Get the keys of the widgets object
-	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
 
 	// All options of the widget
-	let options = Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema);
-	let specificOptions = options.filter(
+	const options = Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema);
+	const specificOptions = options.filter(
 		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);
 
@@ -45,7 +45,7 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			let updatedFields = $collectionValue.fields.filter((field: any) => field.id !== $modalStore[0].value.id);
+			const updatedFields = $collectionValue.fields.filter((field: any) => field.id !== $modalStore[0].value.id);
 			collectionValue.update((c) => {
 				c.fields = updatedFields;
 				return c;

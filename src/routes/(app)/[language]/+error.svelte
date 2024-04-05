@@ -10,12 +10,12 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	let speed = 50;
-	let size = 130;
-	let font = 0.8;
-	let text = publicEnv.SITE_NAME;
-	let repeat = 3;
-	let separator = ' • ';
+	const speed = 50;
+	const size = 130;
+	const font = 0.8;
+	const text = publicEnv.SITE_NAME;
+	const repeat = 3;
+	const separator = ' • ';
 
 	let array: any = [];
 	$: array = [...Array(repeat)].map(() => [...text].concat([...separator])).flat();

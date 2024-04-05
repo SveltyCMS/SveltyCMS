@@ -13,7 +13,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Form Data
-	let formData = {
+	const formData = {
 		newCategoryName: existingCategory.name,
 		newCategoryIcon: existingCategory.icon
 	};

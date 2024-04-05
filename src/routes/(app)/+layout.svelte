@@ -107,7 +107,7 @@
 		// Check for saved theme preference in localStorage
 		const savedTheme = localStorage.getItem('theme');
 		if (savedTheme) {
-			let newMode = savedTheme === 'light';
+			const newMode = savedTheme === 'light';
 			setModeUserPrefers(newMode);
 			setModeCurrent(newMode);
 		}

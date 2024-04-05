@@ -12,7 +12,7 @@
 	import { targetWidget } from '@src/stores/store';
 
 	// Get the keys of the widgets object
-	let widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
+	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
 	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
 
 	// Function to handle permission updates

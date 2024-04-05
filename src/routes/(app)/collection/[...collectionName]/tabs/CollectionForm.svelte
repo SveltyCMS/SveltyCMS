@@ -26,7 +26,7 @@
 		// fetch the collection from the API
 		getCollections().then((data) => {
 			mode.set('edit');
-			let collection = data.find((x) => x.name === collectionName) as Schema;
+			const collection = data.find((x) => x.name === collectionName) as Schema;
 			collectionValue.set(collection); // current collection
 		});
 	} else {
@@ -38,27 +38,27 @@
 	}
 
 	// Popup Tooltips
-	let NameTooltip: PopupSettings = {
+	const NameTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Name',
 		placement: 'right'
 	};
-	let IconTooltip: PopupSettings = {
+	const IconTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Icon',
 		placement: 'right'
 	};
-	let SlugTooltip: PopupSettings = {
+	const SlugTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Slug',
 		placement: 'right'
 	};
-	let DescriptionTooltip: PopupSettings = {
+	const DescriptionTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Description',
 		placement: 'right'
 	};
-	let StatusTooltip: PopupSettings = {
+	const StatusTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Status',
 		placement: 'right'

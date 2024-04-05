@@ -40,9 +40,9 @@
 		if (!node) return;
 
 		setTimeout(async () => {
-			let lastHeader = node?.lastChild?.firstChild as HTMLElement;
+			const lastHeader = node?.lastChild?.firstChild as HTMLElement;
 			if (!lastHeader) return;
-			let border = node?.querySelector('.border') as HTMLElement;
+			const border = node?.querySelector('.border') as HTMLElement;
 			border && (border.style.height = lastHeader.offsetTop + lastHeader.offsetHeight / 2 + 'px');
 		}, 0);
 	}
@@ -64,7 +64,7 @@
 
 	function notifyChildren(node: HTMLElement) {
 		node.addEventListener('custom:notifyChildren', (e) => {
-			let details = (e as any).detail as { clone_isExpanded: boolean };
+			const details = (e as any).detail as { clone_isExpanded: boolean };
 			expanded_list.push(details.clone_isExpanded);
 			expanded_list = expanded_list;
 		});
@@ -108,8 +108,8 @@
 	//DND action
 	function drag(node: HTMLElement) {
 		node.addEventListener('custom:drag', async (e) => {
-			let event = e as CustomDragEvent;
-			let clone_isExpanded = event.detail.expanded_list.splice(event.detail.clone_index, 1)[0];
+			const event = e as CustomDragEvent;
+			const clone_isExpanded = event.detail.expanded_list.splice(event.detail.clone_index, 1)[0];
 			if (event.detail.isParent) {
 				self.children[event.detail.closest_index].children.push(event.detail.dragged_item);
 				await tick();
@@ -134,17 +134,17 @@
 
 		node.onpointerdown = (e) => {
 			e.stopPropagation(); // Prevent default behavior
-			let node = e.currentTarget as HTMLElement;
-			let pointerID = e.pointerId;
+			const node = e.currentTarget as HTMLElement;
+			const pointerID = e.pointerId;
 
 			node.onpointerleave = node.onpointerup = (e) => {
 				clearTimeout(timeout);
 			};
 
-			let timeout = setTimeout(() => {
+			const timeout = setTimeout(() => {
 				node.style.opacity = '0.5';
 
-				let clone = node.cloneNode(true) as HTMLElement;
+				const clone = node.cloneNode(true) as HTMLElement;
 				MENU_CONTAINER.appendChild(clone);
 				clone.style.left = node.getBoundingClientRect().left + 'px';
 				clone.style.marginLeft = '0';
@@ -152,9 +152,9 @@
 				clone.style.top = e.clientY + 'px';
 				clone.style.width = node.offsetWidth + 'px';
 				clone.setPointerCapture(pointerID);
-				let cloneHeight = clone.offsetHeight + 10 + 'px';
+				const cloneHeight = clone.offsetHeight + 10 + 'px';
 				let targets: any = [];
-				let deb = debounce(3);
+				const deb = debounce(3);
 				let old_closest: HTMLElement;
 				clone.onpointermove = (e) => {
 					if (e.clientY < fields_container.offsetTop || e.clientY > fields_container.offsetTop + fields_container.offsetHeight - 60) {
@@ -167,21 +167,21 @@
 					clone.style.top = e.clientY + 'px';
 					clone.style.opacity = '1';
 					deb(() => {
-						let siblings = [...document.getElementsByClassName(`level-${level}`)]
+						const siblings = [...document.getElementsByClassName(`level-${level}`)]
 							.map((el) => {
-								let rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
+								const rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
 								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: false };
 							})
 							.filter((el) => el.el != clone);
-						let parents = [...document.getElementsByClassName(`level-${level - 1}`)]
+						const parents = [...document.getElementsByClassName(`level-${level - 1}`)]
 							.filter((el) => parseInt(el.getAttribute('data-children') as string) == 0)
 							.map((el) => {
-								let rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
+								const rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
 								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
 							});
 						targets = [...siblings, ...parents];
 						targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
-						let closest = targets[0];
+						const closest = targets[0];
 
 						if (old_closest) {
 							old_closest.firstChild && ((old_closest.firstChild as HTMLElement).style.borderColor = '#80808045');
@@ -189,8 +189,8 @@
 						}
 
 						if (closest.el == node) return;
-						let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-						let clone_index = parseInt(clone.getAttribute('data-index') as string);
+						const closest_index = parseInt(closest.el.getAttribute('data-index') as string);
+						const clone_index = parseInt(clone.getAttribute('data-index') as string);
 
 						if (e.clientY > closest.center && clone_index - closest_index != 1 && !closest.isParent) {
 							closest.el.style.paddingBottom = cloneHeight;
@@ -219,13 +219,13 @@
 
 					node.style.opacity = '1';
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
-					let closest = targets[0];
+					const closest = targets[0];
 
 					if (closest.el == node) return;
 
 					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-					let clone_index = parseInt(clone.getAttribute('data-index') as string);
-					let dragged_item = self.children.splice(clone_index, 1)[0];
+					const clone_index = parseInt(clone.getAttribute('data-index') as string);
+					const dragged_item = self.children.splice(clone_index, 1)[0];
 					if (clone_index < closest_index && !closest.isParent) {
 						closest_index--;
 					}
