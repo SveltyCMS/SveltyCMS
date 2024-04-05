@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { generateUniqueId } from '@utils/utils';
 	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();
@@ -9,7 +8,7 @@
 	export let icon: any = null;
 	export let labelColor: string = 'text-primary-500'; // Default label color
 
-	const random = generateUniqueId();
+	const random = crypto.randomUUID();
 	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
 
 	function updateToggle(event) {

@@ -122,6 +122,26 @@
 		};
 	});
 
+	// Check for existing device_id in localStorage
+	import { device_id } from '@stores/store';
+	let existingDeviceId: string | null = localStorage.getItem('device_id');
+
+	// Validate and update the device_id store
+	if (existingDeviceId) {
+		const storedDeviceId = $device_id;
+
+		// Check if the stored device_id matches the one in localStorage
+		if (storedDeviceId !== existingDeviceId) {
+			// Update the device_id store with the value from localStorage
+			device_id.set(existingDeviceId);
+		}
+	} else {
+		// Generate a new UUID if device_id is not in localStorage
+		existingDeviceId = crypto.randomUUID();
+		localStorage.setItem('device_id', existingDeviceId);
+		device_id.set(existingDeviceId);
+	}
+
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;

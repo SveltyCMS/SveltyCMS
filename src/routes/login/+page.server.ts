@@ -237,7 +237,7 @@ async function signIn(
 	email: string,
 	password: string,
 	isToken: boolean,
-	device_id: string,
+	device_id: string | undefined, // Update the type of device_id
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
 	try {

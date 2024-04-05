@@ -92,7 +92,7 @@
 >
 	{#if active == 1}
 		<!-- CSS Logo -->
-		<div class="hidden lg:block"><SveltyCMSLogoFull /></div>
+		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
 			<div class="mb-4 flex flex-row gap-2">
@@ -246,7 +246,7 @@
 					</div>
 				{/if}
 
-				<input type="hidden" name="device_id" value={device_id} />
+				<input type="hidden" name="device_id" value={$device_id} />
 			</form>
 		</div>
 	{/if}

@@ -611,18 +611,6 @@ export function validateZod<T>(schema: z.Schema<T>, value?: T): null | { [P in k
 	}
 }
 
-// This function generates a unique ID.
-export function generateUniqueId() {
-	// Get the current timestamp and convert it to a base-36 string.
-	const timestamp = new Date().getTime().toString(36);
-
-	// Generate a random number, convert it to a base-36 string, and take the first 9 characters.
-	const random = Math.random().toString(36).substr(2, 9);
-
-	// Concatenate the timestamp and random strings to form the unique ID.
-	return timestamp + random;
-}
-
 export function getTextDirection(lang: string): string {
 	const rtlLanguages = ['ar', 'he', 'fa', 'ur', 'dv', 'ha', 'khw', 'ks', 'ku', 'ps', 'syr', 'ug', 'yi']; // Add more RTL languages if needed
 	return rtlLanguages.includes(lang) ? 'rtl' : 'ltr';

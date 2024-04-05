@@ -291,7 +291,7 @@
 >
 	{#if active == 0}
 		<!-- CSS Logo -->
-		<div class="hidden lg:block"><SveltyCMSLogoFull /></div>
+		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full overflow-y-auto p-4 lg:w-1/2" class:hide={active != 0}>
 			<div class="mb-1 flex flex-row gap-2">
@@ -413,7 +413,7 @@
 					{/if}
 
 					<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
-					<input type="hidden" name="device_id" value={device_id} />
+					<input type="hidden" name="device_id" value={$device_id} />
 
 					<div class="mt-4 flex items-center justify-between">
 						<button type="submit" class="variant-filled-surface btn">
@@ -510,7 +510,7 @@
 					{/if}
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
-					<input type="hidden" name="device_id" value={device_id} />
+					<input type="hidden" name="device_id" value={$device_id} />
 
 					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 						{m.signin_savenewpassword()}

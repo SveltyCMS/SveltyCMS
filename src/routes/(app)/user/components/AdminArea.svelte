@@ -2,7 +2,7 @@
 	import axios from 'axios';
 	import type { PageData } from '../$types';
 	import { writable } from 'svelte/store';
-	import { asAny, debounce, generateUniqueId } from '@utils/utils';
+	import { asAny, debounce } from '@utils/utils';
 
 	// Components
 	import Multibutton from './Multibutton.svelte';
@@ -219,14 +219,14 @@
 					// Initialize displayTableHeaders with the values from entryListPaginationSettings
 					displayTableHeaders = userPaginationSettings.displayTableHeaders.map((header) => ({
 						...header,
-						id: generateUniqueId() // Add unique id for each header
+						id: crypto.randomUUID() // Add unique id for each header
 					}));
 				} else if (tableData.length > 0) {
 					// If userPaginationSettings.displayTableHeaders doesn't exist, initialize displayTableHeaders with the same values as tableHeaders
 					displayTableHeaders = tableData.map((header) => ({
 						...header,
 						visible: true, // Assuming all columns are initially visible
-						id: generateUniqueId() // Add unique id for each header
+						id: crypto.randomUUID() // Add unique id for each header
 					}));
 				}
 

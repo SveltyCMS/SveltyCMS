@@ -8,15 +8,12 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+import { device_id } from '@src/stores/store';
 
 export async function load({ cookies }) {
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	console.log('Session ID:', session_id);
-
-	// Get the device_id from the cookies
-	const device_id = cookies.get('device_id') as string;
-	console.log('device_id:', device_id);
 
 	// Validate the user's session
 	const user = await auth.validateSession(session_id, device_id);

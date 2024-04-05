@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { generateUniqueId } from '@utils/utils';
 
 	// Stores
 	import { categories, collectionValue, mode, unAssigned } from '@stores/store';
@@ -67,11 +66,11 @@
 
 	// Define the structure of an unassigned collection
 	$: UnassignedCollections = $unAssigned.map((collection) => ({
-		id: generateUniqueId(),
+		id: crypto.randomUUID(),
 		name: collection.name,
 		icon: collection.icon,
 		items: $unAssigned.map((collection: any) => ({
-			id: generateUniqueId(),
+			id: crypto.randomUUID(),
 			name: collection.name,
 			icon: collection.icon,
 			collections: collection
@@ -80,11 +79,11 @@
 
 	// Define the structure of an Assigned collection
 	$: availableCollection = $categories.map((category) => ({
-		id: generateUniqueId(),
+		id: crypto.randomUUID(),
 		name: category.name,
 		icon: category.icon,
 		items: category.collections.map((collection: any) => ({
-			id: generateUniqueId(),
+			id: crypto.randomUUID(),
 			name: collection.name,
 			icon: collection.icon,
 			collections: collection

@@ -1,6 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
-	import { asAny, debounce, getFieldName, generateUniqueId } from '@src/utils/utils';
+	import { asAny, debounce, getFieldName } from '@src/utils/utils';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -181,14 +181,14 @@
 		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
 			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header) => ({
 				...header,
-				id: generateUniqueId() // Add unique id for each header (optional)
+				id: crypto.randomUUID() // Add unique id for each header (optional)
 			}));
 		} else if (tableHeaders.length > 0) {
 			// If no saved settings, use tableHeaders with initial visibility
 			displayTableHeaders = tableHeaders.map((header) => ({
 				...header,
 				visible: true, // Assuming all columns are initially visible
-				id: generateUniqueId() // Add unique id for each header (optional)
+				id: crypto.randomUUID() // Add unique id for each header (optional)
 			}));
 		}
 

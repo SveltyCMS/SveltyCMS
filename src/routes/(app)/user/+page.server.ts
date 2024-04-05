@@ -11,43 +11,54 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 import { device_id } from '@src/stores/store';
-import mongoose from 'mongoose';
 
 // Load function to check if user is authenticated
 export async function load(event) {
-	const allUsers = await getAllUsers();
-	const tokens = await getTokens();
-
-	// Get session data from cookies
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-
-	// Validate the user's session.
 	const user = await auth.validateSession(session_id);
-	// If the user is not logged in, redirect them to the login page.
-	if (user) redirect(302, `/login`);
-
-	const isFirstUser = (await auth.getUserCount()) == 0;
-
-	const AUTH_KEY = mongoose.models['auth_key'];
-	// find user using id
-	const userKey = await AUTH_KEY.findOne({ user_id: user.id });
-	user.authMethod = userKey['_id'].split(':')[0];
-	// If the user is not logged in, redirect them to the login page.
-	if (user) redirect(302, `/login`);
-
-	// Superforms Validate addUserForm / change Password
-	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
-	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
-
-	// If user is authenticated, return the data for the page.
-	return {
-		user: user,
-		addUserForm,
-		changePasswordForm,
-		isFirstUser,
-		device_id
-	};
+	if (!user) {
+		redirect(302, `/login`);
+		return {
+			user
+		};
+	} else {
+		return { user };
+	}
 }
+// export async function load(event) {
+// 	const allUsers = await getAllUsers();
+// 	const tokens = await getTokens();
+
+// 	// Get session data from cookies
+// 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+
+// 	// Validate the user's session.
+// 	const user = await auth.validateSession(session_id);
+// 	// If the user is not logged in, redirect them to the login page.
+// 	if (user) redirect(302, `/login`);
+
+// 	const isFirstUser = (await auth.getUserCount()) == 0;
+
+// 	const AUTH_KEY = mongoose.models['auth_key'];
+// 	// find user using id
+// 	const userKey = await AUTH_KEY.findOne({ user_id: user.id });
+// 	user.authMethod = userKey['_id'].split(':')[0];
+// 	// If the user is not logged in, redirect them to the login page.
+// 	if (user) redirect(302, `/login`);
+
+// 	// Superforms Validate addUserForm / change Password
+// 	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
+// 	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
+
+// 	// If user is authenticated, return the data for the page.
+// 	return {
+// 		user: user,
+// 		addUserForm,
+// 		changePasswordForm,
+// 		isFirstUser,
+// 		device_id
+// 	};
+// }
 
 // This action adds a new user to the system.
 export const actions: Actions = {
@@ -66,6 +77,7 @@ export const actions: Actions = {
 
 		// Create new user with provided email and role
 		const user = await auth.createUser({
+			id,
 			password,
 			email,
 			username,
@@ -83,7 +95,7 @@ export const actions: Actions = {
 		if (!user) {
 			return { form: addUserForm, message: 'Unknown error' };
 		}
-		const user = await auth.login(email, password);
+		// const user = await auth.login(email, password);
 
 		// Create session with user_id and uuid
 		const session = await auth.createSession({ user_id: user.id, device_id });

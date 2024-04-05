@@ -8,7 +8,7 @@
 	import Fields from '@components/Fields.svelte';
 	import VerticalList from '@src/components/VerticalList.svelte';
 
-	import { saveFormData, generateUniqueId } from '@utils/utils';
+	// import { saveFormDatas } from '@utils/utils';
 	import type { FieldType } from '.';
 
 	// Sveltekit
@@ -38,7 +38,7 @@
 			const fieldsData = _fieldsValue[i];
 
 			// Generate UUID for each file
-			fieldsData.id = generateUniqueId();
+			fieldsData.id = crypto.randomUUID();
 
 			//console.log('fieldsData:', fieldsData);
 			await saveFormData(fieldsData);

@@ -2,6 +2,7 @@ import argon2 from 'argon2';
 import { consumeToken, createToken, validateToken } from './tokens';
 import type { Cookie, User, UserParams, Session, Model } from './types';
 import mongoose from 'mongoose';
+import { device_id } from '@src/stores/store';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -18,14 +19,19 @@ export class Auth {
 	}
 
 	async createUser({ email, password, username, role, lastAuthMethod, is_registered }: Omit<User, UserParams>) {
+		// Generate a unique ID for the user
+		const id = new mongoose.Types.ObjectId();
+
 		// Hash the password
 		let hashed_password: string | undefined = undefined;
-		// Hash the password with argon2
-		if (password) hashed_password = await argon2.hash(password);
+		if (password) {
+			hashed_password = await argon2.hash(password);
+		}
 
 		// Create the user document
 		const user = (
 			await this.User.insertMany({
+				_id: id, // Set the unique ID
 				email,
 				password: hashed_password,
 				username,
@@ -59,10 +65,11 @@ export class Auth {
 	}
 
 	// Session Valid for 1 Hr, and only one session per device
-	async createSession({ user_id, device_id, expires = 60 * 60 * 1000 }: { user_id: string; device_id: string; expires?: number }) {
+	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
 		try {
 			// Generate a unique ID for the user from mongoose
 			const id = new mongoose.Types.ObjectId();
+
 			// Calculate expiration timestamp
 			const expiration = Date.now() + expires;
 
@@ -70,7 +77,7 @@ export class Auth {
 			const session = await this.Session.create({
 				id,
 				user_id,
-				device_id,
+				device_id: device_id.toString(), // Convert device_id to string
 				expires: expiration
 			});
 
@@ -145,9 +152,8 @@ export class Auth {
 		await this.Session.deleteOne({ id: session_id }); // Delete the session document
 	}
 
+	// Validate User session
 	async validateSession(session_id: string): Promise<User | null> {
-		console.log('Validating session:', session_id);
-
 		// Aggregate the Session collection to join with the User collection
 		const resp = (
 			await this.Session.aggregate([
@@ -170,13 +176,12 @@ export class Auth {
 			])
 		)?.[0];
 
-		console.log('Aggregation query response:', resp);
+		// console.log('Aggregation query response:', resp);
 
 		if (!resp) return null;
 		resp.user._id && delete resp.user._id;
 
 		// Return the user object
-		console.log('Validated user:', resp.user);
 		return resp.user;
 	}
 
