@@ -12,11 +12,11 @@ import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/p
 export async function load({ cookies }) {
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-	// console.log('Session ID:', session_id);
+	console.log('Session ID:', session_id);
 
 	// Validate the user's session
 	const user = await auth.validateSession(session_id);
-	// console.log('user: ', user);
+	console.log('user: ', user);
 
 	if (user === null || !user) {
 		redirect(302, `/login`);

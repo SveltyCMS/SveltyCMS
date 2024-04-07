@@ -56,6 +56,7 @@ export const color = {
 // Define the schema for a User
 export const UserSchema = {
 	//_id comes from Mongoose
+	_id: { type: String, required: true }, // The _id field is required and of type Strin
 	email: { type: String, required: true }, // The email associated email
 	password: String, // The password of the user
 	role: String, // The role of the user
@@ -73,6 +74,7 @@ export const UserSchema = {
 // Define the schema for a Session
 export const sessionSchema = {
 	//_id comes from Mongoose
+	_id: { type: String, required: true }, // The _id field is required and of type String
 	user_id: String, // The ID of the user who owns the session
 	expires: { type: Number, required: true } // When the session expires
 };
@@ -85,8 +87,8 @@ export const TokenSchema = {
 };
 
 // Create Mongoose schemas for the User, Token, and Session
-export const mongooseUserSchema = new Schema(UserSchema, { timestamps: true, id: true });
-export const mongooseSessionSchema = new Schema(sessionSchema, { id: true });
+export const mongooseUserSchema = new Schema(UserSchema, { timestamps: true });
+export const mongooseSessionSchema = new Schema(sessionSchema);
 export const mongooseTokenSchema = new Schema(TokenSchema, { timestamps: true });
 
 // Utility type to modify an existing type (T) by adding/overriding properties (R)
@@ -98,14 +100,14 @@ export type User = Modify<
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
 		// Override properties from the schema
-		id: 'string';
+		_id: string; // Override the _id property to be a string
 		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
 		lastAuthMethod: 'password' | 'token';
 	}
 >;
 
-export type UserParams = ['id', 'createdAt', 'updatedAt'][number];
-export type Session = InferSchemaType<typeof mongooseSessionSchema> & { id: string };
+export type UserParams = ['createdAt', 'updatedAt'][number];
+export type Session = InferSchemaType<typeof mongooseSessionSchema>;
 export type Token = InferSchemaType<typeof mongooseTokenSchema>;
 
 // Define the type for a Cookie
