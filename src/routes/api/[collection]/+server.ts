@@ -183,7 +183,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	}
 
 	// Get the _id of the entry.
-	const _id = data.get('_id');
+	const _id = data.get('_id') as string;
 
 	for (const field of collection_schema.fields) {
 		const widget = widgets[field.widget.key];
@@ -194,8 +194,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			delete body[fieldName];
 		} else if ('modifyRequest' in widget) {
 			// widget can modify own portion of body;
-			body[fieldName]['_id'] = _id;
-			body[fieldName] = await widget.modifyRequest({ collection, field, data: body[fieldName], user, type: 'PATCH' });
+			body[fieldName] = await widget.modifyRequest({ collection, field, data: body[fieldName], user, type: 'PATCH', id: _id });
 		}
 	}
 

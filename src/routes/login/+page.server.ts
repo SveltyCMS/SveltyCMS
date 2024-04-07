@@ -9,7 +9,6 @@ import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
-import { consumeToken, createToken } from '@src/auth/tokens';
 
 // load and validate login and sign up forms
 export const load = async (event) => {
@@ -48,37 +47,35 @@ export const load = async (event) => {
 export const actions = {
 	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
+		console.log('action signUp');
+		const isFirst = (await auth.getUserCount()) == 0;
 		const signUpForm = await superValidate(event, zod(signUpFormSchema));
 
 		// Validate
-		// if (!signUpForm.valid) return fail(400, { signUpForm });
-
 		const username = signUpForm.data.username;
 		const email = signUpForm.data.email.toLowerCase();
 		const password = signUpForm.data.password;
 		const token = signUpForm.data.token;
-		const device_id = signUpForm.data.device_id; // Get the device_id from the request body
-		//const lang = signUpForm.data.lang;
 
 		const user = await auth.checkUser({ email });
 
 		let resp: { status: boolean; message?: string } = { status: false };
-		const isFirst = (await auth.getUserCount()) == 0;
 
 		if (user && user.is_registered) {
 			// Finished account exists
 			return { form: signUpFormSchema, message: 'This email is already registered' };
 		} else if (isFirst) {
 			// No account exists signUp for admin
-			resp = await FirstUsersignUp(username, email, password, device_id, event.cookies);
+			resp = await FirstUsersignUp(username, email, password, event.cookies);
 		} else if (user && user.is_registered == false) {
 			// Unfinished account exists
-			resp = await finishRegistration(username, email, password, token, device_id, event.cookies);
+			resp = await finishRegistration(username, email, password, token, event.cookies);
 		} else if (!user && !isFirst) {
 			resp = { status: false, message: 'This user was not defined by admin' };
 		}
 
 		if (resp.status) {
+			console.log('resp', resp);
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -90,7 +87,7 @@ export const actions = {
 					subject: `New registration for ${username}`,
 					message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 					templateName: 'welcomeUser',
-					// lang: lang,
+
 					props: {
 						username: username,
 						email: email
@@ -131,9 +128,8 @@ export const actions = {
 		const email = signInForm.data.email.toLocaleLowerCase();
 		const password = signInForm.data.password;
 		const isToken = signInForm.data.isToken;
-		const device_id = signInForm.data.device_id; // Get the device_id from the request body
 
-		const resp = await signIn(email, password, isToken, device_id, event.cookies);
+		const resp = await signIn(email, password, isToken, event.cookies);
 
 		if (resp && resp.status) {
 			// Return message if form is submitted successfully
@@ -237,20 +233,21 @@ async function signIn(
 	email: string,
 	password: string,
 	isToken: boolean,
-	device_id: string | undefined, // Update the type of device_id
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
 	try {
-		console.log('signIn called');
+		console.log('signIn called', email, password, isToken);
 		if (!isToken) {
 			const user = await auth.login(email, password);
 			if (!user) return { status: false, message: 'Invalid Credentials' };
 
-			// Create session with user_id and device_id
-			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
+			// Create User Session
+			const session = await auth.createSession({ user_id: user.id });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
+
+			console.log('session', session);
 			return { status: true };
 		} else {
 			const token = password;
@@ -259,8 +256,8 @@ async function signIn(
 
 			const result = await auth.consumeToken(token, user.id);
 			if (result.status) {
-				// Create session with user_id and device_id
-				const session = await auth.createSession({ user_id: user.id, device_id: device_id });
+				// Create User Session
+				const session = await auth.createSession({ user_id: user.id });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 				await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
@@ -275,11 +272,10 @@ async function signIn(
 	}
 }
 
-async function FirstUsersignUp(username: string, email: string, password: string, device_id: string, cookies: Cookies) {
-	console.log('FirstUsersignUp called', username, email, password, device_id, cookies);
+async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
+	// console.log('FirstUsersignUp called', username, email, password, cookies);
 
 	const user = await auth.createUser({
-		_id: '', // Placeholder value
 		password,
 		email,
 		username,
@@ -290,8 +286,6 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		expiresAt: new Date(),
 		resetToken: '',
 		avatar: ''
-		// firstname: string,
-		// lastname: string
 	});
 
 	if (!user) {
@@ -299,13 +293,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		return { status: false, message: 'User does not exist' };
 	}
 
-	// Create session with user_id and device_id
-	const session = await auth.createSession({ user_id: user.id, device_id });
-
-	if (!session) {
-		console.error('Session creation failed');
-		return { status: false, message: 'Session creation failed' };
-	}
+	// Create User Session
+	const session = await auth.createSession({ user_id: user.id });
 
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
@@ -315,8 +304,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 }
 
 // Function create a new OTHER USER account and creating a session.
-async function finishRegistration(username: string, email: string, password: string, token: string, device_id: string, cookies: Cookies) {
-	console.log('finishRegistration called', username, email, token);
+async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
+	// console.log('finishRegistration called', username, email, token);
 
 	const user = await auth.checkUser({ email });
 
@@ -327,8 +316,8 @@ async function finishRegistration(username: string, email: string, password: str
 	if (result.status) {
 		await auth.updateUserAttributes(user, { username, password, lastAuthMethod: 'password', is_registered: true });
 
-		// Create session with user_id and device_id
-		const session = await auth.createSession({ user_id: user.id, device_id });
+		// Create User Session
+		const session = await auth.createSession({ user_id: user.id });
 
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie

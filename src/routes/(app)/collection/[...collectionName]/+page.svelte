@@ -73,17 +73,6 @@
 						fields: $collectionValue.fields
 					});
 
-		// console.log({
-		// 	originalName: $collectionValue.name,
-		// 	collectionName: name,
-		// 	icon: $collectionValue.icon,
-		// 	status: $collectionValue.status,
-		// 	slug: $collectionValue.slug,
-		// 	description: $collectionValue.description,
-		// 	permissions: $collectionValue.permissions,
-		// 	fields: $collectionValue.fields
-		// });
-
 		// Send the form data to the server
 		const resp = await axios.post(`?/saveCollection`, data, {
 			headers: {

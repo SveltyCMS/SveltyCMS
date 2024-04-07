@@ -10,8 +10,8 @@ const schema: Schema = {
 
 	// Collection Permissions by user Roles
 	permissions: {
-		user: {
-			read: true
+		developer: {
+			read: false
 		}
 	},
 

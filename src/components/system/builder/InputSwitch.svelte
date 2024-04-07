@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { sanitizePermissions } from '@src/collections/types';
+	import { sanitizePermissions } from '@src/auth/types';
 
 	export let value: any = null;
 	export let widget: any;

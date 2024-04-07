@@ -6,7 +6,6 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { device_id } from '@stores/store';
 
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
@@ -45,9 +44,6 @@
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			// Log the SignUp form data before submission
-			console.log('SignUp form data:', $form);
-
 			// handle login form submission
 			if ($allErrors.length > 0) cancel();
 		},
@@ -245,8 +241,6 @@
 						</form>
 					</div>
 				{/if}
-
-				<input type="hidden" name="device_id" value={$device_id} />
 			</form>
 		</div>
 	{/if}

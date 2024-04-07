@@ -475,7 +475,7 @@ async function deleteOldTrashFiles() {
 	});
 }
 
-export async function extractData(fieldsData: any) {
+export async function extractData(fieldsData: any): Promise<{ [key: string]: any }> {
 	// extracts data from fieldsData because FieldsData is async
 	const temp = {};
 	for (const key in fieldsData) {

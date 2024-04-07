@@ -17,9 +17,11 @@
 
 	export let field: FieldType;
 	export const WidgetData = async () => {
-		_data.path = field.path;
-		const arrayBuffer = await _data.arrayBuffer();
-		_data.buffer = new Uint8Array(arrayBuffer);
+		if (_data) {
+			_data.path = field.path;
+			let arrayBuffer = await _data.arrayBuffer();
+			_data.buffer = new Uint8Array(arrayBuffer);
+		}
 		return updated ? _data : null;
 	};
 	export let value: File | { [key: string]: any } = $entryData[getFieldName(field)]; // pass file directly from imageArray

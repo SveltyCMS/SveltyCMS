@@ -29,15 +29,18 @@
 
 	// MegaMenu Save Layer Next
 	async function saveLayer() {
+		let _fieldsData = await extractData(fieldsData);
+		if (!_fieldsData._id) {
+			_fieldsData._id = crypto.randomUUID();
+		}
 		if (!_data) {
-			_data = { ...(await extractData(fieldsData)), children: [] };
+			_data = { ..._fieldsData, children: [] };
 		} else if ($mode == 'edit') {
-			const _data = await extractData(fieldsData);
-			for (const key in _data) {
-				$currentChild[key] = _data[key];
+			for (let key in _fieldsData) {
+				$currentChild[key] = _fieldsData[key];
 			}
 		} else if ($mode == 'create' && $currentChild.children) {
-			$currentChild.children.push({ ...(await extractData(fieldsData)), children: [] });
+			$currentChild.children.push({ ..._fieldsData, children: [] });
 		}
 		_data = _data;
 		// console.log(_data);

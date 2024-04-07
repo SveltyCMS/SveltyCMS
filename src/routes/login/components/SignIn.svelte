@@ -3,9 +3,6 @@
 	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
 
-	// Stores
-	import { device_id } from '@stores/store';
-
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
@@ -413,7 +410,6 @@
 					{/if}
 
 					<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
-					<input type="hidden" name="device_id" value={$device_id} />
 
 					<div class="mt-4 flex items-center justify-between">
 						<button type="submit" class="variant-filled-surface btn">
@@ -510,7 +506,6 @@
 					{/if}
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
-					<input type="hidden" name="device_id" value={$device_id} />
 
 					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
 						{m.signin_savenewpassword()}

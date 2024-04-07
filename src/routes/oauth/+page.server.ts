@@ -6,7 +6,6 @@ import mongoose from 'mongoose';
 import { auth, googleAuth } from '@api/db';
 import type { User } from '@src/auth/types';
 import { consumeToken } from '@src/auth/tokens';
-import { device_id } from '@src/stores/store';
 
 let OAuth: any = null;
 
@@ -79,8 +78,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			if (!user) throw new Error('User not found.');
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
 
-			// Create session with user_id and device_id
-			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
+			// Create USer Session
+			const session = await auth.createSession({ user_id: user.id });
 
 			const sessionCookie = auth.createSessionCookie(session);
 
@@ -184,8 +183,8 @@ export const actions: Actions = {
 				});
 			}
 
-			// Create session with user_id and device_id
-			const session = await auth.createSession({ user_id: user.id, device_id: device_id });
+			// Create User Session
+			const session = await auth.createSession({ user_id: user.id });
 
 			const sessionCookie = auth.createSessionCookie(session);
 

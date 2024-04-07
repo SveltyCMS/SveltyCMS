@@ -10,7 +10,6 @@ import { createToken } from '@src/auth/tokens';
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
-import { device_id } from '@src/stores/store';
 
 // Load function to check if user is authenticated
 export async function load(event) {
@@ -56,7 +55,7 @@ export async function load(event) {
 // 		addUserForm,
 // 		changePasswordForm,
 // 		isFirstUser,
-// 		device_id
+//
 // 	};
 // }
 
@@ -98,7 +97,7 @@ export const actions: Actions = {
 		// const user = await auth.login(email, password);
 
 		// Create session with user_id and uuid
-		const session = await auth.createSession({ user_id: user.id, device_id });
+		const session = await auth.createSession({ user_id: user.id });
 
 		if (!session) {
 			return { form: addUserForm, message: 'Failed to create Session' };
@@ -130,7 +129,7 @@ export const actions: Actions = {
 		console.log(token);
 
 		// Send the token to the user via email.
-		await event.fetch('/api/sendMail', {
+		await r.fetch('/api/sendMail', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'

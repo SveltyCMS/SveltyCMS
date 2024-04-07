@@ -2,8 +2,6 @@ import argon2 from 'argon2';
 import { consumeToken, createToken, validateToken } from './tokens';
 import type { Cookie, User, UserParams, Session, Model } from './types';
 import mongoose from 'mongoose';
-import { device_id } from '@src/stores/store';
-
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
 export class Auth {
@@ -19,9 +17,6 @@ export class Auth {
 	}
 
 	async createUser({ email, password, username, role, lastAuthMethod, is_registered }: Omit<User, UserParams>) {
-		// Generate a unique ID for the user
-		const id = new mongoose.Types.ObjectId();
-
 		// Hash the password
 		let hashed_password: string | undefined = undefined;
 		if (password) {
@@ -31,7 +26,7 @@ export class Auth {
 		// Create the user document
 		const user = (
 			await this.User.insertMany({
-				_id: id, // Set the unique ID
+				//_id comes from Mongoose
 				email,
 				password: hashed_password,
 				username,
@@ -41,6 +36,8 @@ export class Auth {
 			})
 		)?.[0];
 
+		// User is now registered
+		user._id && delete user._id;
 		// Return the user object
 		return user as User;
 	}
@@ -51,48 +48,37 @@ export class Auth {
 			// Hash the password with argon2
 			attributes.password = await argon2.hash(attributes.password);
 		}
-
-		// Update the user document (excluding password if unchanged)
-		const updateObject = { ...attributes };
-		delete updateObject.password; // Remove password from update if not modified
-
-		await this.User.updateOne({ id: user.id }, { $set: updateObject });
+		// Update the user attributes
+		await this.User.updateOne({ _id: user.id }, { $set: attributes });
 	}
 
-	// Delete the user document
+	// Delete the user from the database
 	async deleteUser(id: string) {
-		await this.User.deleteOne({ id });
+		await this.User.deleteOne({ _id: id });
 	}
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
-		try {
-			// Generate a unique ID for the user from mongoose
-			const id = new mongoose.Types.ObjectId();
+		console.log('createSession called', user_id, expires);
 
-			// Calculate expiration timestamp
-			const expiration = Date.now() + expires;
-
-			// Create the session with both _id and id fields
-			const session = await this.Session.create({
-				id,
+		// Create the session with both _id and id fields
+		const session = (
+			await this.Session.create({
+				//_id comes from Mongoose
 				user_id,
-				device_id: device_id.toString(), // Convert device_id to string
-				expires: expiration
-			});
+				expires: Date.now() + expires //Calculate expiration timestamp
+			})
+		)?.[0];
 
-			return session as typeof session & { id: string };
-		} catch (error) {
-			console.error(error);
-			throw new Error('Error creating session');
-		}
+		// Return the session object
+		return session as Session;
 	}
 
 	createSessionCookie(session: Session): Cookie {
 		// Create a cookie object tht expires in 1 year
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
-			value: session.id,
+			value: session.id as string,
 			attributes: {
 				sameSite: 'lax',
 				path: '/',
@@ -126,9 +112,9 @@ export class Auth {
 		return await this.User.find({});
 	}
 
+	// Delete the User Session
 	async destroySession(session_id: string) {
-		// Delete the session document
-		await this.Session.deleteOne({ id: session_id });
+		await this.Session.deleteOne({ _id: session_id });
 	}
 
 	// Login
@@ -149,24 +135,26 @@ export class Auth {
 
 	// LogOut
 	async logOut(session_id: string) {
-		await this.Session.deleteOne({ id: session_id }); // Delete the session document
+		await this.Session.deleteOne({ _id: session_id }); // Delete this session
 	}
 
 	// Validate User session
 	async validateSession(session_id: string): Promise<User | null> {
 		// Aggregate the Session collection to join with the User collection
+
 		const resp = (
 			await this.Session.aggregate([
 				{
 					$match: {
-						id: session_id
+						_id: new mongoose.Types.ObjectId(session_id)
 					}
 				},
+				{ $addFields: { userID: { $toObjectId: '$user_id' } } },
 				{
 					$lookup: {
 						from: this.User.collection.name,
-						localField: 'user_id',
-						foreignField: 'id',
+						localField: 'userID',
+						foreignField: '_id',
 						as: 'user'
 					}
 				},

@@ -7,8 +7,7 @@ import * as m from '@src/paraglide/messages';
 export const loginFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() }),
 	password: z.string({ required_error: m.formSchemas_PasswordisRequired() }).min(4),
-	isToken: z.boolean(),
-	device_id: z.string()
+	isToken: z.boolean()
 });
 
 // SignIn Forgotten Password ------------------------------------
@@ -63,8 +62,7 @@ export const signUpFormSchema = z
 			.trim(),
 
 		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
-		token: z.string().min(16), //registration user token
-		device_id: z.string()
+		token: z.string().min(16) //registration user token
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),
