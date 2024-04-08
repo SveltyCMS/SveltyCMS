@@ -132,6 +132,11 @@ export class Auth {
 		const users = await this.User.find({});
 		return users;
 	}
+	// Get All Tokens
+	async getAllTokens(): Promise<any[]> {
+		const token = await this.Token.find({}); // Return all tokens from the Token collection
+		return token;
+	}
 
 	// Delete the User Session
 	async destroySession(session_id: string) {

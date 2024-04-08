@@ -190,10 +190,11 @@
 
 				if (showUserList) {
 					// Load All available Users
-					responseData = data.allUsers;
+					// responseData = data.allUsers;
+					responseData = await axios.get('/api/getUsers').then((data) => data.data);
 				} else {
 					// Load all Send Registration Tokens
-					responseData = data.tokens;
+					responseData = await axios.get('/api/getTokens').then((data) => data.data);
 				}
 
 				// Format the data for the table based on which table is being shown
