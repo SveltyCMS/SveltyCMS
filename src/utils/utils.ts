@@ -338,16 +338,16 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 	formData.append('status', $collection.status || 'unpublished');
 
 	switch ($mode) {
-		// Create a new document
+		// Create a new Collection
 		case 'create':
 			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);
-		// Edit an existing document
+		// Edit an existing Collection
 		case 'edit':
 			formData.append('_id', id || $entryData._id);
 			formData.append('updatedAt', new Date().getTime().toString());
 
 			if ($collection.revision) {
-				// Create a new revision of the document
+				// Create a new revision of the Collection
 				const newRevision = {
 					...$entryData,
 					_id: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the new revision

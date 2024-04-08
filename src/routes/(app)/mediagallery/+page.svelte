@@ -131,24 +131,30 @@
 			}, 400);
 
 			// Load All available Users
-			responseData = data;
+			responseData = data.props.data;
 
-			// Format the data for the table
-			tableData = responseData.map((item) => {
-				const formattedItem: any = {};
-				for (const header of tableHeaders) {
-					const { key } = header;
-					formattedItem[key] = item[key] || 'NO DATA';
-					if (key === 'createdAt' || key === 'updatedAt') {
-						formattedItem[key] = new Date(item[key]).toLocaleString();
+			// Check if responseData is an array before mapping
+			if (Array.isArray(responseData)) {
+				// Format the data for the table
+				tableData = responseData.map((item) => {
+					const formattedItem: any = {};
+					for (const header of tableHeaders) {
+						const { key } = header;
+						formattedItem[key] = item[key] || 'NO DATA';
+						if (key === 'createdAt' || key === 'updatedAt') {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
+						}
+						if (key === 'expiresIn') {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
+						}
 					}
-					if (key === 'expiresIn') {
-						formattedItem[key] = new Date(item[key]).toLocaleString();
-					}
-				}
 
-				return formattedItem;
-			});
+					return formattedItem;
+				});
+			} else {
+				// Handle the case when no data is present
+				tableData = [];
+			}
 
 			// Reset filters
 			filters = {};

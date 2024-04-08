@@ -69,8 +69,15 @@ export class Auth {
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
+		console.log('createSession called', user_id, expires);
+
 		// Generate a unique ID for the user from mongoose
 		const id = new mongoose.Types.ObjectId();
+
+		// Check if user_id is provided
+		if (!user_id) {
+			throw new Error('User ID is required to create a session.');
+		}
 
 		// Create the User session
 		const session = await this.Session.create({
@@ -84,6 +91,7 @@ export class Auth {
 	}
 
 	createSessionCookie(session: Session): Cookie {
+		console.log('createSessionCookie called', session);
 		// Create a cookie object tht expires in 1 year
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
@@ -101,13 +109,16 @@ export class Auth {
 		return cookie;
 	}
 
-	async checkUser(fields: { email?: string; id?: string }): Promise<User | null>;
+	async checkUser(fields: { email?: string; _id?: string }): Promise<User | null>;
 
-	async checkUser(fields: { email: string; id: string }): Promise<User | null> {
+	async checkUser(fields: { email: string; _id: string }): Promise<User | null> {
+		console.log('checkUser called', fields);
 		// Find the user document
 		const user = await this.User.findOne(fields);
 
 		// Return the user object or null if not found
+
+		console.log('checkUser ', user);
 		return user;
 	}
 
@@ -129,11 +140,13 @@ export class Auth {
 
 	// Login
 	async login(email: string, password: string): Promise<User | null> {
+		console.log('login called', email, password);
 		// Find the user document
 		const user = await this.User.findOne({ email });
+		console.log('user', user);
 
 		// Check if user exists and password matches
-		if (user && (await argon2.verify(user.password, password, argon2Attributes))) {
+		if (user && (await argon2.verify(user.password, password))) {
 			// Delete the _id field before returning
 			delete user._id;
 			return { ...user };
@@ -177,12 +190,12 @@ export class Auth {
 
 		// Check if the user record exists
 		if (!resp || !resp.user) {
-			console.error('User record not found for user_id:', resp?.user?._id);
+			console.error('User record not found for session_id:', session_id);
 			return null;
 		}
 
 		if (!resp) return null;
-		resp.user._id && delete resp.user._id;
+		//resp.user._id && delete resp.user._id;
 		// Return the user object
 		return resp.user;
 	}

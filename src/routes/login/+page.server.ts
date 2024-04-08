@@ -235,11 +235,10 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	//console.log('signIn called', email, password, isToken, cookies);
+	console.log('signIn called', email, password, isToken, cookies);
 
 	if (!isToken) {
 		const user = await auth.login(email, password);
-
 		if (!user) {
 			return { status: false, message: 'User does not exist' };
 		}
