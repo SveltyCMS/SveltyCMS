@@ -69,8 +69,6 @@ export class Auth {
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
-		//console.log('createSession called', user_id, expires);
-
 		// Generate a unique ID for the user from mongoose
 		const id = new mongoose.Types.ObjectId();
 
@@ -80,8 +78,6 @@ export class Auth {
 			user_id,
 			expires: Date.now() + expires //Calculate expiration timestamp
 		});
-
-		// console.log('Created session:', session);
 
 		// Return the session object
 		return session as Session;
@@ -152,68 +148,44 @@ export class Auth {
 		await this.Session.deleteOne({ _id: session_id }); // Delete this session
 	}
 
-	// Validate User session
 	async validateSession(session_id: string): Promise<User | null> {
-		// console.log('validateSession called', session_id);
+		//console.log('validateSession called', session_id);
 
-		// Convert string to ObjectId
-		const session_id_object = new mongoose.Types.ObjectId(session_id);
+		const resp = (
+			await this.Session.aggregate([
+				{
+					$match: {
+						_id: session_id
+					}
+				},
 
-		// Retrieve the session data based on session_id
-		const session = await this.Session.findOne({ _id: session_id_object });
+				{
+					$lookup: {
+						from: this.User.collection.name,
+						localField: 'user_id',
+						foreignField: '_id',
+						as: 'user'
+					}
+				},
+				{
+					$unwind: '$user'
+				}
+			])
+		)?.[0];
 
-		// Retrieve the corresponding user record based on user_id
-		const user = await this.User.findOne({ _id: session.user_id });
+		//console.log('resp', resp);
 
 		// Check if the user record exists
-		if (!user) {
-			console.error('User record not found for user_id:', session.user_id);
+		if (!resp || !resp.user) {
+			console.error('User record not found for user_id:', resp?.user?._id);
 			return null;
 		}
 
-		// Delete the _id field before returning
-		delete user._id;
-
+		if (!resp) return null;
+		resp.user._id && delete resp.user._id;
 		// Return the user object
-		return user;
+		return resp.user;
 	}
-
-	// async validateSession(session_id: string): Promise<User | null> {
-	// 	console.log('validateSession called', session_id);
-	// 	const resp = (
-	// 		await this.Session.aggregate([
-	// 			{
-	// 				$match: {
-	// 					_id: new mongoose.Types.ObjectId(session_id)
-	// 				}
-	// 			},
-
-	// 			{
-	// 				$lookup: {
-	// 					from: this.User.collection.name,
-	// 					localField: 'user_id',
-	// 					foreignField: '_id',
-	// 					as: 'user'
-	// 				}
-	// 			},
-	// 			{
-	// 				$unwind: '$user'
-	// 			}
-	// 		])
-	// 	)?.[0];
-
-	// 	console.log('resp', resp);
-	// 	// Check if the user record exists
-	// 	if (!resp || !resp.user) {
-	// 		console.error('User record not found for user_id:', resp?.user?._id);
-	// 		return null;
-	// 	}
-
-	// 	if (!resp) return null;
-	// 	resp.user._id && delete resp.user._id;
-	// 	// Return the user object
-	// 	return resp.user;
-	// }
 
 	// Create a token, default expires in 30 days
 	async createToken(user_id: string, expires = 60 * 60 * 1000) {

@@ -52,8 +52,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	if (currentUser.user.id == userID) {
 		// make another session
 		const session = await auth.createSession({
-			userId: userID,
-			uuid,
+			user_id: userID,
 			attributes: {}
 		});
 		const sessionCookie = auth.createSessionCookie(session);

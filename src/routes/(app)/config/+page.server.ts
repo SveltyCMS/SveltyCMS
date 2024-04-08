@@ -18,12 +18,12 @@ export async function load(event: any) {
 	}
 
 	// Serialize the user data manually
-	const serializedUser = JSON.stringify(user);
+	// const serializedUser = JSON.stringify(user);
 
 	// Return the serialized user data
 	return {
 		props: {
-			user: serializedUser
+			user: user
 		}
 	};
 }

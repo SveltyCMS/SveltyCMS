@@ -235,40 +235,42 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	try {
-		console.log('signIn called', email, password, isToken);
-		if (!isToken) {
-			const user = await auth.login(email, password);
-			if (!user) return { status: false, message: 'Invalid Credentials' };
+	//console.log('signIn called', email, password, isToken, cookies);
 
+	if (!isToken) {
+		const user = await auth.login(email, password);
+
+		if (!user) {
+			return { status: false, message: 'User does not exist' };
+		}
+
+		// Create User Session
+		const session = await auth.createSession({ user_id: user._id });
+		const sessionCookie = auth.createSessionCookie(session);
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
+
+		return { status: true };
+	} else {
+		// User is registered, and credentials are provided as a token
+		const token = password;
+		const user = await auth.checkUser({ email });
+
+		if (!user) {
+			return { status: false, message: 'User does not exist' };
+		}
+
+		const result = await auth.consumeToken(token, user._id);
+		if (result.status) {
 			// Create User Session
-			const session = await auth.createSession({ user_id: user.id });
+			const session = await auth.createSession({ user_id: user._id });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
-
-			console.log('session', session);
+			await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
 			return { status: true };
 		} else {
-			const token = password;
-			const user = await auth.checkUser({ email });
-			if (!user) return { status: false, message: 'User does not exist' };
-
-			const result = await auth.consumeToken(token, user.id);
-			if (result.status) {
-				// Create User Session
-				const session = await auth.createSession({ user_id: user.id });
-				const sessionCookie = auth.createSessionCookie(session);
-				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
-				return { status: true };
-			} else {
-				return result;
-			}
+			return result;
 		}
-	} catch (error) {
-		console.error('Error during sign-in:', error);
-		return { status: false, message: 'An error occurred during sign-in' };
 	}
 }
 
@@ -276,6 +278,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	// console.log('FirstUsersignUp called', username, email, password, cookies);
 
 	const user = await auth.createUser({
+		_id: '',
 		password,
 		email,
 		username,
@@ -294,7 +297,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	// Create User Session
-	const session = await auth.createSession({ user_id: user.id });
+	const session = await auth.createSession({ user_id: user._id });
 
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
@@ -311,14 +314,13 @@ async function finishRegistration(username: string, email: string, password: str
 
 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const result = await auth.consumeToken(token, user.id);
+	const result = await auth.consumeToken(token, user._id);
 
 	if (result.status) {
 		await auth.updateUserAttributes(user, { username, password, lastAuthMethod: 'password', is_registered: true });
 
 		// Create User Session
-		const session = await auth.createSession({ user_id: user.id });
-
+		const session = await auth.createSession({ user_id: user._id });
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -346,7 +348,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const token = await auth.createToken(user.id, expiresIn);
+		const token = await auth.createToken(user._id, expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -364,7 +366,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		}
 
 		// Consume the token
-		const validate = await auth.consumeToken(token, user.id);
+		const validate = await auth.consumeToken(token, user._id);
 
 		if (validate.status) {
 			// Check token expiration

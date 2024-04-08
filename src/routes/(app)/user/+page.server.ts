@@ -40,7 +40,7 @@ export async function load(event) {
 
 // 	const AUTH_KEY = mongoose.models['auth_key'];
 // 	// find user using id
-// 	const userKey = await AUTH_KEY.findOne({ user_id: user.id });
+// 	const userKey = await AUTH_KEY.findOne({ user_id: user._id });
 // 	user.authMethod = userKey['_id'].split(':')[0];
 // 	// If the user is not logged in, redirect them to the login page.
 // 	if (user) redirect(302, `/login`);
@@ -97,7 +97,7 @@ export const actions: Actions = {
 		// const user = await auth.login(email, password);
 
 		// Create session with user_id and uuid
-		const session = await auth.createSession({ user_id: user.id });
+		const session = await auth.createSession({ user_id: user._id });
 
 		if (!session) {
 			return { form: addUserForm, message: 'Failed to create Session' };
@@ -125,7 +125,7 @@ export const actions: Actions = {
 		}
 
 		// Issue password token for new user
-		const token = await createToken(user.id, 'register', expirationTime * 1000);
+		const token = await createToken(user._id, 'register', expirationTime * 1000);
 		console.log(token);
 
 		// Send the token to the user via email.
