@@ -9,9 +9,20 @@ import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // load and validate login and sign up forms
 export const load = async (event) => {
+	// Check for session first
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+	const user = session_id ? await auth.validateSession(session_id) : null;
+
+	// If there's a valid user session, you might want to redirect or adjust your logic
+	if (user) {
+		// For example, redirect to the home page or handle accordingly
+		throw redirect(302, '/');
+	}
+
 	const firstUserExists = (await auth.getUserCount()) != 0;
 
 	// Different schemas, so no id required.
@@ -235,10 +246,11 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	console.log('signIn called', email, password, isToken, cookies);
+	// console.log('signIn called', email, password, isToken, cookies);
 
 	if (!isToken) {
 		const user = await auth.login(email, password);
+
 		if (!user) {
 			return { status: false, message: 'User does not exist' };
 		}
@@ -297,7 +309,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 	// Create User Session
 	const session = await auth.createSession({ user_id: user._id });
-
+	console.log('+page.server FirstUsersignUp createSession', session);
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);

@@ -69,8 +69,6 @@ export class Auth {
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
-		console.log('createSession called', user_id, expires);
-
 		// Generate a unique ID for the user from mongoose
 		const id = new mongoose.Types.ObjectId();
 
@@ -91,7 +89,6 @@ export class Auth {
 	}
 
 	createSessionCookie(session: Session): Cookie {
-		console.log('createSessionCookie called', session);
 		// Create a cookie object tht expires in 1 year
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
@@ -112,13 +109,10 @@ export class Auth {
 	async checkUser(fields: { email?: string; _id?: string }): Promise<User | null>;
 
 	async checkUser(fields: { email: string; _id: string }): Promise<User | null> {
-		console.log('checkUser called', fields);
 		// Find the user document
 		const user = await this.User.findOne(fields);
 
 		// Return the user object or null if not found
-
-		console.log('checkUser ', user);
 		return user;
 	}
 
@@ -145,20 +139,26 @@ export class Auth {
 
 	// Login
 	async login(email: string, password: string): Promise<User | null> {
-		console.log('login called', email, password);
-		// Find the user document
-		const user = await this.User.findOne({ email });
-		console.log('user', user);
+		try {
+			// Find the user document
+			const user = await this.User.findOne({ email });
 
-		// Check if user exists and password matches
-		if (user && (await argon2.verify(user.password, password))) {
-			// Delete the _id field before returning
-			delete user._id;
-			return { ...user };
+			// Check if user exists
+			if (!user) {
+				return null; // User not found
+			}
+
+			// Verify password
+			const passwordMatch = await argon2.verify(user.password, password);
+			if (passwordMatch) {
+				return user; // Password matches, return user object
+			} else {
+				return null; // Password does not match
+			}
+		} catch (error) {
+			console.error('Error during login:', error);
+			return null; // Return null in case of any error
 		}
-
-		// User not found or password mismatch
-		return null;
 	}
 
 	// LogOut
@@ -190,8 +190,6 @@ export class Auth {
 				}
 			])
 		)?.[0];
-
-		//console.log('resp', resp);
 
 		// Check if the user record exists
 		if (!resp || !resp.user) {

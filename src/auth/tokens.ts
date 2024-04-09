@@ -3,13 +3,7 @@ import crypto from 'crypto';
 
 // Function to check if the current time is within the token expiration time
 function isWithinExpiration(expiresInMs: number) {
-	// Get the current time in milliseconds using Date.now()
-	const currentTime = Date.now();
-
-	// Check if the current time has passed the expiration time
-	if (currentTime > expiresInMs) {
-		return false; // Token is expired
-	}
+	return Date.now() <= expiresInMs; // always returns a boolean
 }
 
 // Function to create a new token
