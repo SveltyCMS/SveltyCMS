@@ -92,7 +92,7 @@ export class Auth {
 		// Create a cookie object tht expires in 1 year
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
-			value: session._id,
+			value: session._id.toString(), // Convert ObjectId to string
 			attributes: {
 				sameSite: 'lax',
 				path: '/',
@@ -106,9 +106,9 @@ export class Auth {
 		return cookie;
 	}
 
-	async checkUser(fields: { email?: string; _id?: string }): Promise<User | null>;
+	async checkUser(fields: { email?: string; _id?: mongoose.Types.ObjectId }): Promise<User | null>;
 
-	async checkUser(fields: { email: string; _id: string }): Promise<User | null> {
+	async checkUser(fields: { email: string; _id: mongoose.Types.ObjectId }): Promise<User | null> {
 		// Find the user document
 		const user = await this.User.findOne(fields);
 
@@ -133,7 +133,7 @@ export class Auth {
 	}
 
 	// Delete the User Session
-	async destroySession(session_id: string) {
+	async destroySession(session_id: mongoose.Types.ObjectId) {
 		await this.Session.deleteOne({ _id: session_id });
 	}
 
@@ -162,7 +162,7 @@ export class Auth {
 	}
 
 	// LogOut
-	async logOut(session_id: string) {
+	async logOut(session_id: mongoose.Types.ObjectId) {
 		await this.Session.deleteOne({ _id: session_id }); // Delete this session
 	}
 
@@ -193,28 +193,42 @@ export class Auth {
 
 		// Check if the user record exists
 		if (!resp || !resp.user) {
-			console.error('User record not found for session_id:', session_id);
+			console.error('User is not Signed in for session :', session_id);
 			return null;
 		}
-
+		// If no Result, return null
 		if (!resp) return null;
-		//resp.user._id && delete resp.user._id;
+
 		// Return the user object
 		return resp.user;
 	}
 
-	// Create a token, default expires in 30 days
-	async createToken(user_id: string, expires = 60 * 60 * 1000) {
-		return await createToken(this.Token, user_id, expires);
+	// Create a token, default expires in 1 hr
+	async createToken(user_id: mongoose.Types.ObjectId, expires = 60 * 60 * 1000) {
+		console.log('user_id', user_id);
+		// Generate a unique ID for the token from mongoose
+		const _id = new mongoose.Types.ObjectId();
+
+		// Look up the user record
+		const user = await this.User.findById(user_id);
+
+		if (!user) {
+			throw new Error('User not found');
+		}
+
+		// Get the email from the user record
+		const email = user.email;
+
+		return await createToken(_id, this.Token, user._id, email, expires);
 	}
 
 	// Validate the token
-	async validateToken(token: string, user_id: string) {
+	async validateToken(token: string, user_id: mongoose.Types.ObjectId) {
 		return await validateToken(this.Token, token, user_id);
 	}
 
 	// Consume the token
-	async consumeToken(token: string, user_id: string) {
+	async consumeToken(token: string, user_id: mongoose.Types.ObjectId) {
 		// Consume the token
 		return await consumeToken(this.Token, token, user_id);
 	}

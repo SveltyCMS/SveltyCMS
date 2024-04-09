@@ -1,4 +1,5 @@
 import { Schema, type InferSchemaType, Model as M } from 'mongoose';
+import mongoose from 'mongoose';
 
 // Define Available Roles
 export const roles = ['admin', 'developer', 'editor', 'user'] as const;
@@ -55,8 +56,7 @@ export const color = {
 
 // Define the schema for a User
 export const UserSchema = {
-	//_id comes from Mongoose
-	_id: { type: String, required: true }, // The _id field is required and of type Strin
+	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
 	email: { type: String, required: true }, // The email associated email
 	password: String, // The password of the user
 	role: String, // The role of the user
@@ -73,16 +73,17 @@ export const UserSchema = {
 
 // Define the schema for a Session
 export const sessionSchema = {
-	//_id comes from Mongoose
-	_id: { type: String, required: true }, // The _id field is required and of type String
-	user_id: String, // The ID of the user who owns the session
+	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
+	user_id: { type: mongoose.Types.ObjectId, required: true }, // The ID of the user who owns the session
 	expires: { type: Number, required: true } // When the session expires
 };
 
 // Define the schema for a Token
 export const TokenSchema = {
+	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
 	token: String, // The token string
-	userID: String, // The ID of the user who owns the token
+	user_id: { type: mongoose.Types.ObjectId, required: true }, // The ID of the user who owns the token
+	email: String, // The email associated with the token
 	expiresIn: Number // When the token expires
 };
 
@@ -100,7 +101,7 @@ export type User = Modify<
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
 		// Override properties from the schema
-		_id: string; // Override the _id property to be a string
+		_id: mongoose.Types.ObjectId; // Override the _id property to be a string
 		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
 		lastAuthMethod: 'password' | 'token';
 	}

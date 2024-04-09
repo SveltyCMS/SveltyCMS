@@ -106,7 +106,6 @@
 		{ label: m.adminarea_userid(), key: 'userID' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.adminarea_email(), key: 'email' },
-		{ label: m.adminarea_role(), key: 'role' },
 		{ label: m.adminarea_expiresin(), key: 'expiresIn' },
 		{ label: m.adminarea_createat(), key: 'createdAt' },
 		{ label: m.adminarea_updatedat(), key: 'updatedAt' }
@@ -556,88 +555,85 @@
 						{/each}
 					</tbody>
 				</table>
+			</div>
+			<!-- Pagination  -->
+			<div
+				class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center bg-white px-2 dark:bg-surface-700 md:flex-row md:justify-between md:p-4"
+			>
+				<div class="mb-1 text-xs md:mb-0 md:text-sm">
+					<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+					<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{pagesCount || 0}</span>
+				</div>
 
-				<!-- Pagination  -->
-				<div class="sticky bottom-0 left-0 right-0 z-10 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-					<div class="mb-1 text-xs md:mb-0 md:text-sm">
-						<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-						<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{pagesCount || 0}</span>
-					</div>
+				<div class="variant-outline btn-group">
+					<!-- First page -->
+					<button
+						type="button"
+						class="btn"
+						disabled={isFirstPage}
+						aria-label="Go to first page"
+						on:click={() => {
+							currentPage = 1;
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
+					</button>
 
-					<div class="variant-outline btn-group">
-						<!-- First page -->
-						<button
-							type="button"
-							class="btn"
-							disabled={isFirstPage}
-							aria-label="Go to first page"
-							on:click={() => {
-								currentPage = 1;
-								refreshTableData();
-							}}
+					<!-- Previous page -->
+					<button
+						type="button"
+						class="btn"
+						disabled={isFirstPage}
+						aria-label="Go to Previous page"
+						on:click={() => {
+							currentPage = Math.max(1, currentPage - 1);
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
+					</button>
+
+					<!-- Rows per page select dropdown -->
+					{#if rowsPerPage !== undefined}
+						<select
+							value={rowsPerPage}
+							on:change={rowsPerPageHandler}
+							class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
 						>
-							<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
-						</button>
+							{#each rowsPerPageOptions as pageSize}
+								<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
+							{/each}
+						</select>
+					{/if}
 
-						<!-- Previous page -->
-						<button
-							type="button"
-							class="btn"
-							disabled={isFirstPage}
-							aria-label="Go to Previous page"
-							on:click={() => {
-								currentPage = Math.max(1, currentPage - 1);
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
-						</button>
+					<!-- Next page -->
+					<button
+						type="button"
+						class="btn"
+						disabled={isLastPage}
+						aria-label="Go to Next page"
+						on:click={() => {
+							currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
+					</button>
 
-						<!-- Rows per page select dropdown -->
-						{#if rowsPerPage !== undefined}
-							<select
-								value={rowsPerPage}
-								on:change={rowsPerPageHandler}
-								class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
-							>
-								{#each rowsPerPageOptions as pageSize}
-									<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-								{/each}
-							</select>
-						{/if}
-
-						<!-- Next page -->
-						<button
-							type="button"
-							class="btn"
-							disabled={isLastPage}
-							aria-label="Go to Next page"
-							on:click={() => {
-								currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
-								refreshTableData();
-							}}
-						>
-							<iconify-icon
-								icon="material-symbols:chevron-right"
-								width="24"
-								class:active={currentPage === Math.ceil(tableData.length / rowsPerPage)}
-							/>
-						</button>
-
-						<!-- Last page -->
-						<button
-							type="button"
-							class="btn"
-							disabled={isLastPage}
-							aria-label="Go to Last page"
-							on:click={() => {
-								currentPage = Math.ceil(tableData.length / rowsPerPage);
-								refreshTableData();
-							}}
-						>
-							<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
-						</button>
-					</div>
+					<!-- Last page -->
+					<button
+						type="button"
+						class="btn"
+						disabled={isLastPage}
+						aria-label="Go to Last page"
+						on:click={() => {
+							currentPage = Math.ceil(tableData.length / rowsPerPage);
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
+					</button>
 				</div>
 			</div>
 		{:else}

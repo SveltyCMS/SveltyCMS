@@ -544,6 +544,22 @@ export function formatUptime(uptime: number) {
 	return result.join(' ');
 }
 
+// Export function for ReadableExpireIn
+export function ReadableExpireIn(expiresIn: string) {
+	const expiresInNumber = parseInt(expiresIn, 10); // Assuming expiresIn is a string representation of a number
+	const expirationTime = expiresInNumber ? new Date(Date.now() + expiresInNumber) : new Date(); // Calculate expiration time
+
+	const daysDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60 * 24)); // Convert milliseconds to days
+	const hoursDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60 * 60)) % 24; // Convert remaining milliseconds to hours
+	const minutesDiff = Math.floor((expirationTime.getTime() - Date.now()) / (1000 * 60)) % 60; // Convert remaining milliseconds to minutes
+
+	const daysText = daysDiff > 0 ? `${daysDiff} day${daysDiff > 1 ? 's' : ''}` : '';
+	const hoursText = hoursDiff > 0 ? `${hoursDiff} hour${hoursDiff > 1 ? 's' : ''}` : '';
+	const minutesText = minutesDiff > 0 ? `${minutesDiff} minute${minutesDiff > 1 ? 's' : ''}` : '';
+
+	return `${daysText} ${hoursText} ${minutesText}`.trim();
+}
+
 function removeExtension(fileName: any) {
 	const lastDotIndex = fileName.lastIndexOf('.');
 	if (lastDotIndex === -1) {

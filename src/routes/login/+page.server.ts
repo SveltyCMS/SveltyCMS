@@ -159,12 +159,10 @@ export const actions = {
 		console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate
-		// if (!pwforgottenForm.valid) return fail(400, { pwforgottenForm });
-
 		let resp: { status: boolean; message?: string } = { status: false };
-		// const lang = pwforgottenForm.data.lang;
 		const email = pwforgottenForm.data.email.toLocaleLowerCase();
 		const checkMail = await forgotPWCheck(email);
+		// const lang = pwforgottenForm.data.lang;
 
 		if (email && checkMail.success) {
 			// Email format is valid and email exists in DB
@@ -180,8 +178,9 @@ export const actions = {
 		if (resp.status) {
 			// Get the token from the checkMail result
 			const token = checkMail.token;
+			console.log('token', token);
 			const expiresIn = checkMail.expiresIn;
-
+			console.log('expiresIn', expiresIn);
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -201,6 +200,7 @@ export const actions = {
 					}
 				})
 			});
+
 			// Return message if form is submitted successfully
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
 			return { form: pwforgottenForm, token: token, email: email };
@@ -213,7 +213,6 @@ export const actions = {
 	// Function for handling the RESET
 	resetPW: async (event) => {
 		// console.log('resetPW');
-
 		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 
 		// Validate
@@ -225,10 +224,10 @@ export const actions = {
 		//const lang = pwresetForm.data.lang;
 
 		// Define expiresIn
-		const expiresIn = 2 * 60 * 60; // expiration in 2 hours
+		const expiresIn = 1 * 60 * 60; // expiration in 1 hours
 
 		const resp = await resetPWCheck(password, token, email, expiresIn);
-
+		console.log('resetPW resp', resp);
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
@@ -352,7 +351,7 @@ interface ForgotPWCheckResult {
 
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
-		const expiresIn = 2 * 60 * 60 * 1000; // expiration in 2 hours
+		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hours
 		const user = await auth.checkUser({ email });
 
 		// The email address does not exist
