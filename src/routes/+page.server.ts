@@ -1,6 +1,7 @@
 import { publicEnv } from '@root/config/public';
 import { getCollections } from '@collections';
 import { redirect, type Actions, error } from '@sveltejs/kit';
+import mongoose from 'mongoose';
 
 // Auth
 import { auth } from '@src/routes/api/db';
@@ -15,7 +16,8 @@ export async function load({ cookies }) {
 	console.log('Session ID:', session_id);
 
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 	console.log('user: ', user);
 
 	if (user === null || !user) {

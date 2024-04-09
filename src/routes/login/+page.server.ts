@@ -3,19 +3,20 @@ import { type Cookies, redirect } from '@sveltejs/kit';
 
 // Auth
 import { auth, googleAuth } from '@api/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 // Superforms
 import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // load and validate login and sign up forms
 export const load = async (event) => {
 	// Check for session first
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-	const user = session_id ? await auth.validateSession(session_id) : null;
+	const user = session_id ? await auth.validateSession(new mongoose.Types.ObjectId(session_id)) : null;
 
 	// If there's a valid user session, you might want to redirect or adjust your logic
 	if (user) {
@@ -286,19 +287,16 @@ async function signIn(
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	// console.log('FirstUsersignUp called', username, email, password, cookies);
+	const _id = new mongoose.Types.ObjectId();
 
 	const user = await auth.createUser({
-		_id: '',
+		_id,
 		password,
 		email,
 		username,
 		role: 'admin',
 		lastAuthMethod: 'password',
-		is_registered: true,
-		blocked: false,
-		expiresAt: new Date(),
-		resetToken: '',
-		avatar: ''
+		is_registered: true
 	});
 
 	if (!user) {

@@ -1,5 +1,4 @@
-import { Schema, type InferSchemaType, Model as M } from 'mongoose';
-import mongoose from 'mongoose';
+import mongoose, { Schema, type InferSchemaType, Model as M } from 'mongoose';
 
 // Define Available Roles
 export const roles = ['admin', 'developer', 'editor', 'user'] as const;
@@ -72,7 +71,7 @@ export const UserSchema = {
 };
 
 // Define the schema for a Session
-export const sessionSchema = {
+export const SessionSchema = {
 	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
 	user_id: { type: mongoose.Types.ObjectId, required: true }, // The ID of the user who owns the session
 	expires: { type: Number, required: true } // When the session expires
@@ -89,7 +88,7 @@ export const TokenSchema = {
 
 // Create Mongoose schemas for the User, Token, and Session
 export const mongooseUserSchema = new Schema(UserSchema, { timestamps: true });
-export const mongooseSessionSchema = new Schema(sessionSchema);
+export const mongooseSessionSchema = new Schema(SessionSchema);
 export const mongooseTokenSchema = new Schema(TokenSchema, { timestamps: true });
 
 // Utility type to modify an existing type (T) by adding/overriding properties (R)
@@ -107,7 +106,12 @@ export type User = Modify<
 	}
 >;
 
-export type UserParams = ['createdAt', 'updatedAt'][number];
+/// Define the type of UserParams , Session, and Token
+export type UserParams = {
+	_id: mongoose.Types.ObjectId; // The ID of the user as objectId
+	createdAt: Date; // The date the user was created as ISO string
+	updatedAt: Date; // The date the user was last updated as ISO string
+};
 export type Session = InferSchemaType<typeof mongooseSessionSchema>;
 export type Token = InferSchemaType<typeof mongooseTokenSchema>;
 

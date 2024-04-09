@@ -86,8 +86,8 @@ devDependencies:
     specifier: ^3.1.6
     version: 3.1.6(svelte@4.2.12)
   '@inlang/paraglide-js':
-    specifier: ^1.4.0
-    version: 1.4.0
+    specifier: ^1.5.0
+    version: 1.5.0
   '@playwright/test':
     specifier: ^1.43.0
     version: 1.43.0
@@ -844,8 +844,8 @@ packages:
       guess-json-indent: 2.0.0
     dev: true
 
-  /@inlang/paraglide-js@1.4.0:
-    resolution: {integrity: sha512-nC+vxpDIG7so3Io99nJRvOMoX7hv+xQ3t0mktFg5juomd0T55lIVGWnWBGLOcj1yAwdmsvnTdwcqfG8lKtPetA==}
+  /@inlang/paraglide-js@1.5.0:
+    resolution: {integrity: sha512-UdeJRzNNuJGPDU4nmNcIh1eNjkJKslmmqGxDmitQT4XFWMgNO1s1kvolVaaO25zEBeiKUDWo/kMp44RsqWeOmg==}
     hasBin: true
     dependencies:
       '@inlang/detect-json-formatting': 1.0.0
