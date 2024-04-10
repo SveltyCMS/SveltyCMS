@@ -6,8 +6,11 @@
 
 	import { roles } from '@src/collections/types';
 
+	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import { zod } from 'sveltekit-superforms/adapters';
+	import { signUpFormSchema } from '@utils/formSchemas';
 
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
@@ -20,8 +23,6 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import { signUpFormSchema } from '@utils/formSchemas';
-
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
@@ -30,14 +31,12 @@
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
-		validators: (firstUserExists ? signUpFormSchema : signUpFormSchema.innerType().omit({ token: true })) as typeof signUpFormSchema,
-
+		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'clear',
 		applyAction: true,
 		taintedMessage: '',
 

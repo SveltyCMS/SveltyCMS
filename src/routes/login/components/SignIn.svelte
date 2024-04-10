@@ -5,6 +5,7 @@
 
 	import { superForm } from 'sveltekit-superforms/client';
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import { zod } from 'sveltekit-superforms/adapters';
 
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
@@ -46,13 +47,13 @@
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		id: 'login',
-		validators: loginFormSchema,
+		validators: zod(loginFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
+
 		applyAction: true,
 		taintedMessage: '',
 
@@ -102,13 +103,12 @@
 		delayed: forgotDelayed
 	} = superForm(FormSchemaForgot, {
 		id: 'forgot',
-		validators: forgotFormSchema,
+		validators: zod(forgotFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
 		applyAction: true,
 		taintedMessage: '',
 
@@ -205,13 +205,12 @@
 		delayed: resetDelayed
 	} = superForm(FormSchemaReset, {
 		id: 'reset',
-		validators: resetFormSchema,
+		validators: zod(resetFormSchema),
 		// Clear form on success.
 		resetForm: true,
 		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
 		// other options
-		defaultValidator: 'keep',
 		applyAction: true,
 		taintedMessage: '',
 
