@@ -13,12 +13,18 @@ export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	const user = await auth.validateSession(session_id);
-	const collection = collections.find((c: any) => c.name == params.collection);
+
+	// Redirect to login if no valid User session
+	if (!user || user === null) {
+		redirect(302, `/login`);
+	}
 
 	// Redirect to user page if lastAuthMethod token
 	if (user?.lastAuthMethod === 'token') {
 		redirect(302, `/user`);
 	}
+
+	const collection = collections.find((c: any) => c.name == params.collection);
 
 	//  Check if language and collection both set in url
 	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
@@ -54,7 +60,5 @@ export async function load({ cookies, route, params }) {
 		return {
 			user: user
 		};
-	} else {
-		redirect(302, `/login`);
 	}
 }
