@@ -94,25 +94,16 @@ export const mongooseTokenSchema = new Schema(TokenSchema, { timestamps: true })
 // Utility type to modify an existing type (T) by adding/overriding properties (R)
 type Modify<T, R> = Omit<T, keyof R> & R;
 
-// User type definition with specific properties
+// Define types for Session, Token, and User based on their respective schemas
 export type User = Modify<
 	// Infer the type of the mongooseUserSchema property (likely a Mongoose schema)
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
-		// Override properties from the schema
-		_id: 'string'; // Override the _id property to be a string
+		// Override properties from the schema for type safetys
 		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
 		lastAuthMethod: 'password' | 'token';
 	}
 >;
-
-/// Define the type of UserParams , Session, and Token
-// export type UserParams = {
-// 	_id: string; // The ID of the user as string
-// 	createdAt: Date; // The date the user was created as ISO string
-// 	updatedAt: Date; // The date the user was last updated as ISO string
-// };
-export type UserParams = ['_id', 'createdAt', 'updatedAt'][number];
 export type Session = InferSchemaType<typeof mongooseSessionSchema>;
 export type Token = InferSchemaType<typeof mongooseTokenSchema>;
 

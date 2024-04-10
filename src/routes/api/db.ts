@@ -69,8 +69,8 @@ export async function getCollectionModels() {
 					// Create a new mongoose schema using the collection's fields and timestamps
 					const schema_object = new mongoose.Schema(
 						{
-							createdAt: Number,
-							updatedAt: Number,
+							createdAt: Date,
+							updatedAt: Date,
 							createdBy: String,
 							__v: [RevisionSchema], // versionKey
 							translationStatus: {}

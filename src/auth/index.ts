@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import { consumeToken, createToken, validateToken } from './tokens';
-import type { Cookie, User, Session, Model, UserParams } from './types';
+import type { Cookie, User, Session, Model } from './types';
 import mongoose from 'mongoose';
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -37,23 +37,19 @@ export class Auth {
 			hashed_password = await argon2.hash(password, argon2Attributes);
 		}
 
-		// Create the User
-		const user = (
-			await this.User.insertMany({
-				_id: id, // Use the generated ID from mongoose as string
-				email,
-				password: hashed_password,
-				username,
-				role,
-				lastAuthMethod,
-				is_registered
-			})
-		)?.[0];
+		// Create the User (no need to include createdAt/updatedAt)
+		const user = await this.User.create({
+			_id: id, // Use the generated ID from mongoose as string
+			email,
+			password: hashed_password,
+			username,
+			role,
+			lastAuthMethod,
+			is_registered
+		});
 
-		user._id && delete user._id;
-
-		// Return the user object
-		return user as User;
+		// No need to delete _id here if you're returning the full user object
+		return user;
 	}
 
 	async updateUserAttributes(user: User, attributes: Partial<User>) {
@@ -73,10 +69,8 @@ export class Auth {
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
-		console.log('createSession called', user_id, expires);
-
 		// Generate a unique ID for the user from mongoose as string
-		const id = new mongoose.Types.ObjectId();
+		const id = new mongoose.Types.ObjectId().toString();
 
 		// Check if user_id is provided
 		if (!user_id) {
@@ -84,21 +78,16 @@ export class Auth {
 		}
 
 		// Create the User session
-		// const session = await this.Session.create({
-		// 	//_id: id, // Use the generated ID from mongoose as string
-		// 	user_id, // Pass the user_id directly
-		// 	expires: Date.now() + expires //Calculate expiration timestamp
-		// });
-
 		const session = (
 			await this.Session.insertMany({
-				_id: id,
-				user_id,
-				expires: Date.now() + expires
+				_id: id, // Use the generated ID from mongoose as string
+				user_id, // Pass the user_id directly
+				expires: Date.now() + expires //Calculate expiration timestamp
 			})
 		)?.[0];
 
-		// Return the session object
+		// Return the User Session object
+
 		return session as Session;
 	}
 
@@ -187,12 +176,12 @@ export class Auth {
 			await this.Session.aggregate([
 				{
 					$match: {
-						// _id: session_id // Use the session_id string directly
-						_id: new mongoose.Types.ObjectId(session_id)
+						_id: session_id //get session_id
 					}
 				},
 				{ $addFields: { userID: { $toObjectId: '$user_id' } } },
 				{
+					// Match user_id to user._id
 					$lookup: {
 						from: this.User.collection.name,
 						localField: 'user_id',
@@ -201,7 +190,7 @@ export class Auth {
 					}
 				},
 				{
-					$unwind: '$user'
+					$unwind: '$user' // Unwind the 'user' field
 				}
 			])
 		)?.[0];
@@ -213,7 +202,7 @@ export class Auth {
 		}
 		// If no Result, return null
 		if (!resp) return null;
-		resp.user._id && delete resp.user._id;
+		//resp.user._id && delete resp.user._id;
 		// Return the user object
 		return resp.user;
 	}
