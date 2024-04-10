@@ -1,25 +1,20 @@
 import { publicEnv } from '@root/config/public';
 import { getCollections } from '@collections';
 import { redirect, type Actions, error } from '@sveltejs/kit';
-import mongoose from 'mongoose';
 
 // Auth
 import { auth } from '@src/routes/api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// paraglidejs
+// Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-	console.log('Session ID:', session_id);
 
 	// Validate the user's session
-	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
-
-	console.log('user: ', user);
-
+	const user = await auth.validateSession(session_id);
 	if (user === null || !user) {
 		redirect(302, `/login`);
 	}
@@ -41,10 +36,8 @@ export const actions = {
 	default: async ({ cookies, request }) => {
 		const data = await request.formData();
 		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
-		// console.log(theme);
 
 		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
-		// console.log(systemlanguage);
 
 		// Check if the provided system language is available, if not, default to source language
 		if (!availableLanguageTags.includes(sourceLanguageTag)) {
@@ -61,8 +54,6 @@ export const actions = {
 		// Store the system language and theme color in local storage
 		localStorage.setItem('systemlanguage', systemlanguage);
 		localStorage.setItem('theme', theme);
-
-		// Here you would also update these preferences on the server for the current user
 
 		redirect(303, '/');
 	}

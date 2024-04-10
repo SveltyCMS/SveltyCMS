@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import { consumeToken, createToken, validateToken } from './tokens';
-import type { Cookie, User, Session, Model } from './types';
+import type { Cookie, User, Session, Model, UserParams } from './types';
 import mongoose from 'mongoose';
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -25,9 +25,11 @@ export class Auth {
 		this.Session = Session;
 	}
 
-	//async createUser({ email, password, username, role, lastAuthMethod, is_registered }: Omit<User, UserParams>) {
 	async createUser(userData: Partial<User>) {
-		const { _id, email, password, username, role, lastAuthMethod, is_registered } = userData;
+		const { email, password, username, role, lastAuthMethod, is_registered } = userData;
+
+		// Generate a unique ID for the user from mongoose as string
+		const id = new mongoose.Types.ObjectId();
 
 		// Hash the password
 		let hashed_password: string | undefined = undefined;
@@ -38,7 +40,7 @@ export class Auth {
 		// Create the User
 		const user = (
 			await this.User.insertMany({
-				_id, // Use the _id value from the userData object
+				_id: id, // Use the generated ID from mongoose as string
 				email,
 				password: hashed_password,
 				username,
@@ -47,6 +49,8 @@ export class Auth {
 				is_registered
 			})
 		)?.[0];
+
+		user._id && delete user._id;
 
 		// Return the user object
 		return user as User;
@@ -68,49 +72,39 @@ export class Auth {
 	}
 
 	// Session Valid for 1 Hr, and only one session per device
-	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: mongoose.Types.ObjectId; expires?: number }) {
-		// Generate a unique ID for the user from mongoose
+	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
+		console.log('createSession called', user_id, expires);
+
+		// Generate a unique ID for the user from mongoose as string
 		const id = new mongoose.Types.ObjectId();
 
 		// Check if user_id is provided
 		if (!user_id) {
 			throw new Error('User ID is required to create a session.');
 		}
-		// Get the _id value from the User object
-		const userIdObjectId = user_id._id; // Assuming user_id is an instance of User
 
 		// Create the User session
-		const session = await this.Session.create({
-			_id: id, // Use the generated ID from mongoose as ObjectID
-			user_id: userIdObjectId, // Pass the _id value of the User object
-			expires: Date.now() + expires //Calculate expiration timestamp
-		});
+		// const session = await this.Session.create({
+		// 	//_id: id, // Use the generated ID from mongoose as string
+		// 	user_id, // Pass the user_id directly
+		// 	expires: Date.now() + expires //Calculate expiration timestamp
+		// });
+
+		const session = (
+			await this.Session.insertMany({
+				_id: id,
+				user_id,
+				expires: Date.now() + expires
+			})
+		)?.[0];
 
 		// Return the session object
 		return session as Session;
 	}
 
-	createSessionCookie(session: Session): Cookie {
-		// Create a cookie object tht expires in 1 year
-		const cookie: Cookie = {
-			name: SESSION_COOKIE_NAME,
-			value: session._id.toString(), // Convert ObjectId to string
-			attributes: {
-				sameSite: 'lax',
-				path: '/',
-				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // expires in 1 year
-				secure: false
-			}
-		};
+	async checkUser(fields: { _id?: string; email?: string }): Promise<User | null>;
 
-		// Return the cookie object
-		return cookie;
-	}
-
-	async checkUser(fields: { _id?: mongoose.Types.ObjectId; email?: string }): Promise<User | null>;
-
-	async checkUser(fields: { _id: mongoose.Types.ObjectId; email: string }): Promise<User | null> {
+	async checkUser(fields: { _id: string; email: string }): Promise<User | null> {
 		// Find the user document
 		const user = await this.User.findOne(fields);
 
@@ -135,8 +129,26 @@ export class Auth {
 	}
 
 	// Delete the User Session
-	async destroySession(session_id: mongoose.Types.ObjectId) {
+	async destroySession(session_id: string) {
 		await this.Session.deleteOne({ _id: session_id });
+	}
+
+	createSessionCookie(session: Session): Cookie {
+		// Create a cookie object tht expires in 1 year
+		const cookie: Cookie = {
+			name: SESSION_COOKIE_NAME,
+			value: session._id as string,
+			attributes: {
+				sameSite: 'lax',
+				path: '/',
+				httpOnly: true,
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // expires in 1 year
+				secure: false
+			}
+		};
+
+		// Return the cookie object
+		return cookie;
 	}
 
 	// Login
@@ -163,22 +175,23 @@ export class Auth {
 		}
 	}
 
-	// LogOut
-	async logOut(session_id: mongoose.Types.ObjectId) {
+	// Log Out
+	async logOut(session_id: string) {
 		await this.Session.deleteOne({ _id: session_id }); // Delete this session
 	}
 
-	async validateSession(session_id: mongoose.Types.ObjectId): Promise<User | null> {
+	async validateSession(session_id: string): Promise<User | null> {
 		//console.log('validateSession called', session_id);
 
 		const resp = (
 			await this.Session.aggregate([
 				{
 					$match: {
+						// _id: session_id // Use the session_id string directly
 						_id: new mongoose.Types.ObjectId(session_id)
 					}
 				},
-
+				{ $addFields: { userID: { $toObjectId: '$user_id' } } },
 				{
 					$lookup: {
 						from: this.User.collection.name,
@@ -200,16 +213,15 @@ export class Auth {
 		}
 		// If no Result, return null
 		if (!resp) return null;
-
+		resp.user._id && delete resp.user._id;
 		// Return the user object
 		return resp.user;
 	}
 
 	// Create a token, default expires in 1 hr
-	async createToken(user_id: mongoose.Types.ObjectId, expires = 60 * 60 * 1000) {
-		console.log('user_id', user_id);
-		// Generate a unique ID for the token from mongoose
-		const id = new mongoose.Types.ObjectId();
+	async createToken(user_id: string, expires = 60 * 60 * 1000) {
+		// Generate a unique ID for the user from mongoose as string
+		const _id = new mongoose.Types.ObjectId().toString();
 
 		// Look up the user record
 		const user = await this.User.findById(user_id);
@@ -221,22 +233,32 @@ export class Auth {
 		// Get the email from the user record
 		const email = user.email;
 
-		// Return the created token
-		return await createToken(id, this.Token, user._id, email, expires);
+		// Create the token
+		// const createToken = await this.Token.create({
+		// 	_id: id, // Use the generated ID from mongoose as string
+		// 	user_id: user_id, // Pass the user_id directly
+		// 	email: email,
+		// 	expires: Date.now() + expires //Calculate expiration timestamp
+		// });
+
+		// // Return the created token
+
+		// return createToken;
+		return await createToken(_id, this.Token, user._id.toString(), email, expires);
 	}
 
 	// Validate the token
-	async validateToken(token: string, user_id: mongoose.Types.ObjectId) {
-		return await validateToken(this.Token, token, user_id);
+	async validateToken(token: string, user_id: string) {
+		return await validateToken(this.Token, token, user_id.toString());
 	}
 
 	// Consume the token
-	async consumeToken(token: string, user_id: mongoose.Types.ObjectId) {
+	async consumeToken(token: string, user_id: string) {
 		// Consume the token
-		return await consumeToken(this.Token, token, user_id);
+		return await consumeToken(this.Token, token, user_id.toString());
 	}
 
-	async invalidateAllUserSessions(user_id: mongoose.Types.ObjectId) {
+	async invalidateAllUserSessions(user_id: string) {
 		// Get all sessions for the given user ID
 		const sessions = await this.Session.find({ user_id });
 
@@ -244,7 +266,7 @@ export class Auth {
 		await Promise.all(sessions.map((session) => this.Session.deleteOne({ _id: session._id })));
 	}
 
-	async updateKeyPassword(providerId: mongoose.Types.ObjectId, providerUserId: mongoose.Types.ObjectId, newPassword: string) {
+	async updateKeyPassword(providerId: string, providerUserId: string, newPassword: string) {
 		// Get the key document for the given provider ID and provider user ID
 		const user = await this.User.findOne({ providerId, providerUserId });
 

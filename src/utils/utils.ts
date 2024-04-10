@@ -350,7 +350,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 				// Create a new revision of the Collection
 				const newRevision = {
 					...$entryData,
-					_id: new mongoose.Types.ObjectId(), // Generate a new ObjectId for the new revision
+					_id: new mongoose.Types.ObjectId().toString, // Generate a new ObjectId for the new revision
 					__v: [
 						{
 							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array

@@ -1,4 +1,4 @@
-import mongoose, { Schema, type InferSchemaType, Model as M } from 'mongoose';
+import { Schema, type InferSchemaType, Model as M } from 'mongoose';
 
 // Define Available Roles
 export const roles = ['admin', 'developer', 'editor', 'user'] as const;
@@ -55,7 +55,7 @@ export const color = {
 
 // Define the schema for a User
 export const UserSchema = {
-	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
+	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
 	email: { type: String, required: true }, // The email associated email
 	password: String, // The password of the user
 	role: String, // The role of the user
@@ -72,18 +72,18 @@ export const UserSchema = {
 
 // Define the schema for a Session
 export const SessionSchema = {
-	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
-	user_id: { type: mongoose.Types.ObjectId, required: true }, // The ID of the user who owns the session
-	expires: { type: Number, required: true } // When the session expires
+	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
+	user_id: String, // The ID of the user who owns the session
+	expires: Number // When the session expires
 };
 
 // Define the schema for a Token
 export const TokenSchema = {
-	_id: { type: mongoose.Types.ObjectId, required: true }, // The _id field is required and of type ObjectId
+	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
 	token: String, // The token string
-	user_id: { type: mongoose.Types.ObjectId, required: true }, // The ID of the user who owns the token
+	user_id: String, // The ID of the user who owns the token
 	email: String, // The email associated with the token
-	expiresIn: Number // When the token expires
+	expires: Number // When the token expires
 };
 
 // Create Mongoose schemas for the User, Token, and Session
@@ -100,18 +100,19 @@ export type User = Modify<
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
 		// Override properties from the schema
-		_id: mongoose.Types.ObjectId; // Override the _id property to be a string
+		_id: 'string'; // Override the _id property to be a string
 		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
 		lastAuthMethod: 'password' | 'token';
 	}
 >;
 
 /// Define the type of UserParams , Session, and Token
-export type UserParams = {
-	_id: mongoose.Types.ObjectId; // The ID of the user as objectId
-	createdAt: Date; // The date the user was created as ISO string
-	updatedAt: Date; // The date the user was last updated as ISO string
-};
+// export type UserParams = {
+// 	_id: string; // The ID of the user as string
+// 	createdAt: Date; // The date the user was created as ISO string
+// 	updatedAt: Date; // The date the user was last updated as ISO string
+// };
+export type UserParams = ['_id', 'createdAt', 'updatedAt'][number];
 export type Session = InferSchemaType<typeof mongooseSessionSchema>;
 export type Token = InferSchemaType<typeof mongooseTokenSchema>;
 

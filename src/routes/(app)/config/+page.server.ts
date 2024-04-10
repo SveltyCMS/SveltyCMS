@@ -18,9 +18,9 @@ export async function load(event: any) {
 	}
 
 	// Serialize the user data manually
-	// const serializedUser = JSON.stringify(user);
+	//const serializedUser = JSON.stringify(user);
 
-	// Return the serialized user data
+	// Return user data
 	return {
 		props: {
 			user: user

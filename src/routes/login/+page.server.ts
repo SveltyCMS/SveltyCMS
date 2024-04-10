@@ -16,7 +16,7 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } 
 export const load = async (event) => {
 	// Check for session first
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-	const user = session_id ? await auth.validateSession(new mongoose.Types.ObjectId(session_id)) : null;
+	const user = session_id ? await auth.validateSession(session_id) : null;
 
 	// If there's a valid user session, you might want to redirect or adjust your logic
 	if (user) {
@@ -287,10 +287,9 @@ async function signIn(
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	// console.log('FirstUsersignUp called', username, email, password, cookies);
-	const _id = new mongoose.Types.ObjectId();
 
 	const user = await auth.createUser({
-		_id,
+		_id: '',
 		password,
 		email,
 		username,
@@ -306,7 +305,6 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 	// Create User Session
 	const session = await auth.createSession({ user_id: user._id });
-	console.log('+page.server FirstUsersignUp createSession', session);
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
