@@ -28,9 +28,6 @@ export class Auth {
 	async createUser(userData: Partial<User>) {
 		const { email, password, username, role, lastAuthMethod, is_registered } = userData;
 
-		// Generate a unique ID for the user from mongoose as string
-		const id = new mongoose.Types.ObjectId();
-
 		// Hash the password
 		let hashed_password: string | undefined = undefined;
 		if (password) {
@@ -39,7 +36,6 @@ export class Auth {
 
 		// Create the User (no need to include createdAt/updatedAt)
 		const user = await this.User.create({
-			_id: id, // Use the generated ID from mongoose as string
 			email,
 			password: hashed_password,
 			username,
@@ -48,7 +44,8 @@ export class Auth {
 			is_registered
 		});
 
-		// No need to delete _id here if you're returning the full user object
+		// returning the full user object
+		user._id && delete user._id;
 		return user;
 	}
 
@@ -69,26 +66,24 @@ export class Auth {
 
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }) {
-		// Generate a unique ID for the user from mongoose as string
-		const id = new mongoose.Types.ObjectId().toString();
-
 		// Check if user_id is provided
 		if (!user_id) {
 			throw new Error('User ID is required to create a session.');
 		}
 
+		// Generate a unique ID for the user from mongoose as string
+		const id = new mongoose.Types.ObjectId(user_id);
+
 		// Create the User session
 		const session = (
 			await this.Session.insertMany({
-				_id: id, // Use the generated ID from mongoose as string
-				user_id, // Pass the user_id directly
+				user_id: id, // Pass the ObjectId
 				expires: Date.now() + expires //Calculate expiration timestamp
 			})
 		)?.[0];
 
 		// Return the User Session object
-
-		return session as Session;
+		return session;
 	}
 
 	async checkUser(fields: { _id?: string; email?: string }): Promise<User | null>;
@@ -124,6 +119,8 @@ export class Auth {
 
 	createSessionCookie(session: Session): Cookie {
 		// Create a cookie object tht expires in 1 year
+
+		//TODO.fix session._id types
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
 			value: session._id as string,
@@ -142,25 +139,21 @@ export class Auth {
 
 	// Login
 	async login(email: string, password: string): Promise<User | null> {
-		try {
-			// Find the user document
-			const user = await this.User.findOne({ email });
+		// Find the user document
+		const user = await this.User.findOne({ email });
 
-			// Check if user exists
-			if (!user) {
-				return null; // User not found
-			}
+		// Check if user exists
+		if (!user) {
+			return null; // User not found
+		}
 
-			// Verify password
-			const passwordMatch = await argon2.verify(user.password, password);
-			if (passwordMatch) {
-				return user; // Password matches, return user object
-			} else {
-				return null; // Password does not match
-			}
-		} catch (error) {
-			console.error('Error during login:', error);
-			return null; // Return null in case of any error
+		// Verify password
+		const passwordMatch = await argon2.verify(user.password, password);
+		if (passwordMatch) {
+			user && delete user._id;
+			return user; // Password matches, return user object
+		} else {
+			return null; // Password does not match
 		}
 	}
 
@@ -176,10 +169,10 @@ export class Auth {
 			await this.Session.aggregate([
 				{
 					$match: {
-						_id: session_id //get session_id
+						_id: new mongoose.Types.ObjectId(session_id) // Use the ObjectId constructor
 					}
 				},
-				{ $addFields: { userID: { $toObjectId: '$user_id' } } },
+				{ $addFields: { user_id: { $toObjectId: '$user_id' } } },
 				{
 					// Match user_id to user._id
 					$lookup: {
@@ -197,21 +190,18 @@ export class Auth {
 
 		// Check if the user record exists
 		if (!resp || !resp.user) {
-			console.error('User is not Signed in for session :', session_id);
+			console.error('User is not Signed in for session :', session_id.toString());
 			return null;
 		}
 		// If no Result, return null
 		if (!resp) return null;
-		//resp.user._id && delete resp.user._id;
+		resp.user._id && delete resp.user._id;
 		// Return the user object
 		return resp.user;
 	}
 
 	// Create a token, default expires in 1 hr
 	async createToken(user_id: string, expires = 60 * 60 * 1000) {
-		// Generate a unique ID for the user from mongoose as string
-		const _id = new mongoose.Types.ObjectId().toString();
-
 		// Look up the user record
 		const user = await this.User.findById(user_id);
 
@@ -220,31 +210,21 @@ export class Auth {
 		}
 
 		// Get the email from the user record
-		const email = user.email;
-
-		// Create the token
-		// const createToken = await this.Token.create({
-		// 	_id: id, // Use the generated ID from mongoose as string
-		// 	user_id: user_id, // Pass the user_id directly
-		// 	email: email,
-		// 	expires: Date.now() + expires //Calculate expiration timestamp
-		// });
-
-		// // Return the created token
+		const email = user.email; // // Return the created token
 
 		// return createToken;
-		return await createToken(_id, this.Token, user._id.toString(), email, expires);
+		return await createToken(this.Token, user._id, email, expires);
 	}
 
 	// Validate the token
 	async validateToken(token: string, user_id: string) {
-		return await validateToken(this.Token, token, user_id.toString());
+		return await validateToken(this.Token, token, user_id);
 	}
 
 	// Consume the token
 	async consumeToken(token: string, user_id: string) {
 		// Consume the token
-		return await consumeToken(this.Token, token, user_id.toString());
+		return await consumeToken(this.Token, token, user_id);
 	}
 
 	async invalidateAllUserSessions(user_id: string) {
@@ -255,19 +235,19 @@ export class Auth {
 		await Promise.all(sessions.map((session) => this.Session.deleteOne({ _id: session._id })));
 	}
 
-	async updateKeyPassword(providerId: string, providerUserId: string, newPassword: string) {
-		// Get the key document for the given provider ID and provider user ID
-		const user = await this.User.findOne({ providerId, providerUserId });
+	async updateUserPassword(email: string, newPassword: string) {
+		// Get the user document based on the email
+		const user = await this.User.findOne({ email });
 
-		// If no key was found, return an error
+		// If no User was found, return an error
 		if (!user) {
-			return { status: false, message: 'Key not found' };
+			return { status: false, message: 'User not found' };
 		}
 
-		// Update the password for the key
-		user.password = newPassword;
+		// Update the password for the user
+		user.password = await argon2.hash(newPassword, argon2Attributes);
 
-		// Save the updated key document
+		// Save the updated user
 		await user.save();
 
 		// Return a success message

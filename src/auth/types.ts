@@ -55,7 +55,6 @@ export const color = {
 
 // Define the schema for a User
 export const UserSchema = {
-	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
 	email: { type: String, required: true }, // The email associated email
 	password: String, // The password of the user
 	role: String, // The role of the user
@@ -72,14 +71,12 @@ export const UserSchema = {
 
 // Define the schema for a Session
 export const SessionSchema = {
-	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
 	user_id: String, // The ID of the user who owns the session
 	expires: Number // When the session expires
 };
 
 // Define the schema for a Token
 export const TokenSchema = {
-	_id: { type: String, required: true, unique: true }, // The _id field is required and of type ObjectId
 	token: String, // The token string
 	user_id: String, // The ID of the user who owns the token
 	email: String, // The email associated with the token
@@ -99,13 +96,24 @@ export type User = Modify<
 	// Infer the type of the mongooseUserSchema property (likely a Mongoose schema)
 	InferSchemaType<typeof mongooseUserSchema>,
 	{
-		// Override properties from the schema for type safetys
+		_id: 'string';
 		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
 		lastAuthMethod: 'password' | 'token';
 	}
 >;
-export type Session = InferSchemaType<typeof mongooseSessionSchema>;
-export type Token = InferSchemaType<typeof mongooseTokenSchema>;
+export type Session = Modify<
+	InferSchemaType<typeof mongooseSessionSchema>,
+	{
+		_id: 'string';
+	}
+>;
+
+export type Token = Modify<
+	InferSchemaType<typeof mongooseTokenSchema>,
+	{
+		_id: 'string';
+	}
+>;
 
 // Define the type for a Cookie
 export type Cookie = {

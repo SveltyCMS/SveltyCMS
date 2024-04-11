@@ -7,13 +7,13 @@ function isWithinExpiration(expiresInMs: number) {
 }
 
 // Function to create a new token
-export async function createToken(_id, Token: Model, user_id: string, email: string, expires: number) {
+export async function createToken(Token: Model, user_id: string, email: string, expires: number) {
 	// Generate a random 16-byte token string using crypto.randomBytes
 	const token = crypto.randomBytes(16).toString('hex'); // Generate a random token
 	const expiresIn = Date.now() + expires; // Calculate the expiration time in milliseconds
 
 	// Insert the new token into the database
-	await Token.insertMany({ _id, token, user_id, email, expiresIn });
+	await Token.insertMany({ token, user_id, email, expiresIn });
 
 	return token; // Return the created token
 }

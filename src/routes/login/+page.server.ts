@@ -59,7 +59,7 @@ export const load = async (event) => {
 export const actions = {
 	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
-		console.log('action signUp');
+		// console.log('action signUp');
 		const isFirst = (await auth.getUserCount()) == 0;
 		const signUpForm = await superValidate(event, zod(signUpFormSchema));
 
@@ -157,7 +157,7 @@ export const actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
-		console.log('pwforgottenForm', pwforgottenForm);
+		//console.log('pwforgottenForm', pwforgottenForm);
 
 		// Validate
 		let resp: { status: boolean; message?: string } = { status: false };
@@ -179,9 +179,9 @@ export const actions = {
 		if (resp.status) {
 			// Get the token from the checkMail result
 			const token = checkMail.token;
-			console.log('token', token);
+			//console.log('token', token);
 			const expiresIn = checkMail.expiresIn;
-			console.log('expiresIn', expiresIn);
+
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -217,7 +217,7 @@ export const actions = {
 		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 
 		// Validate
-		if (!pwresetForm.valid) return fail(400, { pwresetForm });
+		//if (!pwresetForm.valid) return fail(400, { pwresetForm });
 
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
@@ -365,33 +365,36 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	try {
-		// Obtain the key using auth.getKey based on your authentication system
+		// Obtain the user using auth.checkUser based on the email
 		const user = await auth.checkUser({ email });
 		if (!user) {
 			return { status: false, message: 'Invalid token' };
 		}
 
 		// Consume the token
-		const validate = await auth.consumeToken(token, user._id);
-
+		const validate = await auth.consumeToken(token, user._id.toString());
 		if (validate.status) {
 			// Check token expiration
 			const currentTime = Date.now();
 			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
-
 			if (currentTime >= tokenExpiryTime) {
 				return { status: false, message: 'Token has expired' };
 			}
 
 			// Token is valid and not expired, proceed with password update
-			// auth.invalidateAllUserSessions(user._id);
-			auth.updateKeyPassword('email', email, password);
-			return { status: true };
+			auth.invalidateAllUserSessions(user._id.toString()); // Invalidate all user sessions
+			const updateResult = await auth.updateUserPassword(email, password); // Pass the email and password
+
+			if (updateResult.status) {
+				return { status: true };
+			} else {
+				return { status: false, message: updateResult.message };
+			}
 		} else {
-			return { status: false, message: 'An error occurred during password update' };
+			return { status: false, message: validate.message };
 		}
 	} catch (e) {
 		console.error('Password reset failed:', e);
-		return { status: false, message: 'invalid token' };
+		return { status: false, message: 'An error occurred' };
 	}
 }
