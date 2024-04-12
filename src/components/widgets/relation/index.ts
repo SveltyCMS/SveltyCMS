@@ -6,9 +6,6 @@ import { getCollections } from '@src/collections';
 import widgets, { type ModifyRequestParams } from '@src/components/widgets';
 import deepmerge from 'deepmerge';
 
-// Auth
-import type { User } from '@src/auth/types';
-
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
@@ -67,7 +64,10 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-widget.modifyRequest = async ({ field, data, user }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ field, data, type }: ModifyRequestParams<typeof widget>) => {
+	if (type !== 'GET') {
+		return data;
+	}
 	const { getCollectionModels } = await import('@src/routes/api/db');
 	const relative_collection = (await getCollectionModels())[field.relation];
 

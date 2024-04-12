@@ -6,6 +6,9 @@
 	import { linear } from 'svelte/easing';
 	import { tick } from 'svelte';
 
+	// Auth
+	import type { User } from '@src/auth/types';
+
 	// Stores
 	import { page } from '$app/stores';
 	import { mode } from '@src/stores/store';
@@ -23,6 +26,7 @@
 	let firstCircle: HTMLDivElement;
 	const circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
+	let user: User = $page.data.user;
 
 	// Endpoint definition with URL and icon only
 	let endpoints: {
@@ -55,7 +59,11 @@
 			url: { external: true, path: `/config` },
 			icon: 'mynaui:config'
 		}
-	];
+	].filter((endpoint) => {
+		if (user?.role === 'admin') return true;
+		else if (endpoint.url.path === '/collection') return false;
+		else return true;
+	});
 
 	export let buttonInfo: any;
 

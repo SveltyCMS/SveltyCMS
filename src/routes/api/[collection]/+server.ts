@@ -19,7 +19,8 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = (await auth.validateSession(session_id)) as User;
+	const user_id = url.searchParams.get('user_id');
+	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
 
 	if (!user) {
 		return new Response('', { status: 403 });
@@ -140,11 +141,14 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 // Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
+	const data = await request.formData();
+
 	// Get the session cookie.
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await auth.validateSession(session_id);
+	const user_id = data.get('user_id') as string;
+	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -162,9 +166,6 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the collection model.
 	const collections = await getCollectionModels();
 	const collection = collections[params.collection];
-
-	// Get the form data.
-	const data = await request.formData();
 
 	// Parse the form data.
 	const body: any = {};
@@ -209,11 +210,15 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 
 // Define the POST request handler.
 export const POST: RequestHandler = async ({ params, request, cookies }) => {
+	// Get the form data.
+	const data = await request.formData();
+
 	// Get the session cookie.
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await auth.validateSession(session_id);
+	const user_id = data.get('user_id') as string;
+	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -231,9 +236,6 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the collection model.
 	const collections = await getCollectionModels();
 	const collection = collections[params.collection];
-
-	// Get the form data.
-	const data = await request.formData();
 
 	// Parse the form data.
 	const body: any = {};
@@ -281,11 +283,15 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 // Define the DELETE request handler.
 export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
+	// Get the form data.
+	const data = await request.formData();
+
 	// Get the session cookie.
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await auth.validateSession(session_id);
+	const user_id = data.get('user_id') as string;
+	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -302,9 +308,6 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the collection model.
 	const collections = await getCollectionModels();
 	const collection = collections[params.collection];
-
-	// Get the form data.
-	const data = await request.formData();
 
 	// Get the ids of the entries to delete.
 	let ids = data.get('ids') as string;

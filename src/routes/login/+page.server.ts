@@ -1,6 +1,5 @@
 import { publicEnv } from '@root/config/public.js';
 import { type Cookies, redirect } from '@sveltejs/kit';
-import { redirect } from '@sveltejs/kit';
 
 // Auth
 import { auth, googleAuth } from '@api/db';

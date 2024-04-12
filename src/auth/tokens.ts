@@ -14,7 +14,6 @@ export async function createToken(Token: Model, user_id: string, email: string, 
 	// Generate a random 16-byte token string using crypto.randomBytes
 	const token = crypto.randomBytes(16).toString('hex'); // Generate a random token
 	const expiresIn = new Date(Date.now() + expires); // Convert milliseconds to Date
-	console.log('createToken expiresIn:', expiresIn);
 	// Insert the new token into the database
 	await Token.insertMany({ token, user_id, email, expiresIn });
 	// Return the created token

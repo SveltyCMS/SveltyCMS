@@ -28,6 +28,8 @@ export const defaultPermissions = roles.reduce((acc, role) => {
 				case 'admin':
 				case 'developer':
 					return { ...acc, [permission]: true };
+				case 'editor':
+					return { ...acc, [permission]: true };
 				case 'user':
 					return { ...acc, [permission]: true, write: false };
 				default:
@@ -134,8 +136,8 @@ export const sanitizePermissions = (permissions) => {
 	const res = Object.keys(permissions).reduce((acc, r) => {
 		acc[r] = Object.keys(permissions[r]).reduce((acc, p) => {
 			// Include permission only if it's denied (false)
-			if (permissions[r][p] == false) {
-				acc[p] = false;
+			if (permissions[r][p] != defaultPermissions[r][p]) {
+				acc[p] = permissions[r][p];
 			}
 			return acc;
 		}, {});

@@ -37,15 +37,18 @@
 
 	if (current_url.includes('/login') && current_url.search('token') > -1) {
 		// Set flags and extract token/email for password reset flow
+
 		PWforgot = true;
 		PWreset = true;
 		const start = current_url.indexOf('=') + 1;
-		const end = current_url.indexOf('email');
+		const end = current_url.indexOf('&');
 		registration_token = current_url.slice(start, end);
 
-		hide_email = current_url.slice(end + 6, current_url.length);
+		const emailStart = current_url.indexOf('email=') + 6;
+		hide_email = current_url.slice(emailStart, current_url.length);
 	}
 
+	// Login Form
 	export let FormSchemaLogin: PageData['loginForm'];
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
 		id: 'login',
@@ -63,16 +66,16 @@
 			// Submit email as lowercase only
 			$form.email = $form.email.toLowerCase();
 
-			// Trigger the Forgotton toast
-			const t = {
-				message: m.form_wrong(),
-				// Provide any utility or variant background style:
-				background: 'variant-filled-error',
-				timeout: 4000,
-				// Add your custom classes here:
-				classes: 'border-1 !rounded-md'
-			};
-			toastStore.trigger(t);
+			// Trigger the login error toast
+			// const t = {
+			// 	message: m.form_wrong(),
+			// 	// Provide any utility or variant background style:
+			// 	background: 'variant-filled-error',
+			// 	timeout: 4000,
+			// 	// Add your custom classes here:
+			// 	classes: 'border-1 !rounded-md'
+			// };
+			// toastStore.trigger(t);
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
@@ -105,6 +108,7 @@
 		}
 	});
 
+	// Forgot Form
 	export let FormSchemaForgot: PageData['forgotForm'];
 	const {
 		form: forgotForm,
@@ -165,15 +169,26 @@
 					formElement.classList.add('wiggle');
 					setTimeout(() => formElement.classList.remove('wiggle'), 300);
 					return;
-				} else {
+				} else if (result.data !== undefined) {
 					// Update variables to display reset form page
 					PWreset = true;
 
-					//registration_token
-					if (result.data !== undefined) {
-						registration_token = result.data.token;
-						hide_email = result.data.email;
-					}
+					// // Update the $resetForm object directly
+					// $resetForm = {
+					// 	...$resetForm,
+					// 	email: result.data.email,
+					// 	token: result.data.token
+					// };
+
+					// // Update the $forgotForm object directly
+					// $forgotForm = {
+					// 	...$forgotForm,
+					// 	email: result.data.email
+					// };
+
+					// Update the registration_token and hide_email variables
+					registration_token = result.data.token;
+					hide_email = result.data.email;
 
 					// Trigger the Forgotten toast
 					const t = {
@@ -197,6 +212,7 @@
 		}
 	});
 
+	// Reset Form
 	export let FormSchemaReset: PageData['resetForm'];
 	const {
 		form: resetForm,
@@ -232,15 +248,6 @@
 				allErrors.subscribe((errors) => {
 					errorMessages = errors.map((error) => error.messages.join(', ')).join('; ');
 				});
-
-				// Trigger the toast
-				const t = {
-					message: errorMessages,
-					background: 'variant-filled-primary',
-					timeout: 4000,
-					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
 			} else if (result.type === 'success') {
 				// Trigger the Reset toast
 				const t = {
@@ -274,9 +281,7 @@
 		}
 	});
 
-	let formElement: HTMLFormElement;
-
-	// reactive statement when systemLanguage changes
+	let formElement: HTMLFormElement; // reactive statement when systemLanguage changes
 	$: $forgotForm = { ...$forgotForm };
 
 	$resetForm = {
@@ -519,13 +524,27 @@
 
 					<input type="email" name="email" bind:value={$resetForm.email} hidden />
 
-					<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
-						{m.signin_savenewpassword()}
-						<!-- Loading indicators -->
-						{#if $resetDelayed}
-							<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
-						{/if}
-					</button>
+					<div class="mt-4 flex items-center justify-between">
+						<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
+							{m.signin_savenewpassword()}
+							<!-- Loading indicators -->
+							{#if $resetDelayed}
+								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+							{/if}
+						</button>
+
+						<!-- Back button  -->
+						<button
+							type="button"
+							class="variant-filled-surface btn-icon"
+							on:click={() => {
+								PWforgot = false;
+								PWreset = false;
+							}}
+						>
+							<iconify-icon icon="mdi:arrow-left-circle" width="38" />
+						</button>
+					</div>
 				</form>
 			{/if}
 		</div>

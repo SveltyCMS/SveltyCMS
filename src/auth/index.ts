@@ -200,6 +200,11 @@ export class Auth {
 		return resp.user;
 	}
 
+	// Get User by ID
+	async get_user_by_id(user_id: string): Promise<User | null> {
+		return this.User.findOne({ _id: user_id });
+	}
+
 	// Create a token, default expires in 1 hr
 	async createToken(user_id: string, expires = 60 * 60 * 1000) {
 		// Look up the user record
