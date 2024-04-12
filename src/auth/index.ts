@@ -78,7 +78,7 @@ export class Auth {
 		const session = (
 			await this.Session.insertMany({
 				user_id: id, // Pass the ObjectId
-				expires: Date.now() + expires //Calculate expiration timestamp
+				expires: Date.now() + expires // Calculate expiration timestamp as a Date object
 			})
 		)?.[0];
 

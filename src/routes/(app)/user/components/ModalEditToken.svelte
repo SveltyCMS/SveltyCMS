@@ -129,7 +129,7 @@
 				for="email"
 				class="absolute left-5 top-3 -z-10 origin-[0] -translate-y-6 scale-75 transform text-sm duration-300 peer-placeholder-shown:translate-y-0 peer-placeholder-shown:scale-100 peer-focus:left-0 peer-focus:-translate-y-6 peer-focus:scale-75 peer-focus:text-tertiary-600 dark:text-surface-400 peer-focus:dark:text-tertiary-500"
 			>
-				{m.modaledit_tokenemailaddress()}<span class="ml-2 text-error-500">*</span>
+				{m.form_emailaddress()}<span class="ml-2 text-error-500">*</span>
 			</label>
 			{#if errorStatus.email.status}
 				<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -168,7 +168,7 @@
 		<!-- admin area -->
 		{#if user?.roles == 'admin'}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaledit_tokenuserrole()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}

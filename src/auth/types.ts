@@ -56,13 +56,13 @@ export const color = {
 // Define the schema for a User
 export const UserSchema = {
 	email: { type: String, required: true }, // The email associated email
-	password: String, // The password of the user
-	role: String, // The role of the user
+	password: { type: String, required: true }, // The password of the user
+	role: { type: String, required: true }, // The role of the user
 	username: String, // The username of the user
 	lastAuthMethod: String, // The last method the user used to authenticate
 	lastActiveAt: Date, // The last time the user was active
-	is_registered: Boolean, // Whether the user has completed registration
 	expiresAt: Date, // When the reset token expires
+	is_registered: Boolean, // Whether the user has completed registration
 	blocked: Boolean, // Whether the user is blocked
 	avatar: String, // The URL of the user's avatar
 	resetRequestedAt: String, // The last time the user requested a password reset
@@ -71,16 +71,16 @@ export const UserSchema = {
 
 // Define the schema for a Session
 export const SessionSchema = {
-	user_id: String, // The ID of the user who owns the session
-	expires: Number // When the session expires
+	user_id: { type: String, required: true }, // The ID of the user who owns the session
+	expires: { type: Date, required: true } // When the session expires
 };
 
 // Define the schema for a Token
 export const TokenSchema = {
-	token: String, // The token string
-	user_id: String, // The ID of the user who owns the token
+	token: { type: String, required: true }, // The token string
+	user_id: { type: String, required: true }, // The ID of the user who owns the token
 	email: String, // The email associated with the token
-	expires: Number // When the token expires
+	expires: Date // When the token expires
 };
 
 // Create Mongoose schemas for the User, Token, and Session

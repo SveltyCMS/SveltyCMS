@@ -78,11 +78,9 @@ export async function getCollectionModels() {
 						{
 							typeKey: '$type',
 							strict: false,
-							timestamps: { currentTime: () => Date.now() }
+							timestamps: true // Use the default Mongoose timestamp
 						}
 					);
-
-					// Add the revision field to the schema
 
 					// Add the mongoose model for the collection to the collectionsModels object
 					if (!collection.name) return;

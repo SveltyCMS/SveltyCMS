@@ -35,7 +35,8 @@
 	// Redirect from email to restore password page
 	const current_url = window.location.href;
 
-	if (current_url.search('token') > -1) {
+	if (current_url.includes('/login') && current_url.search('token') > -1) {
+		// Set flags and extract token/email for password reset flow
 		PWforgot = true;
 		PWreset = true;
 		const start = current_url.indexOf('=') + 1;
@@ -61,6 +62,17 @@
 		onSubmit: ({ cancel }) => {
 			// Submit email as lowercase only
 			$form.email = $form.email.toLowerCase();
+
+			// Trigger the Forgotton toast
+			const t = {
+				message: m.form_wrong(),
+				// Provide any utility or variant background style:
+				background: 'variant-filled-error',
+				timeout: 4000,
+				// Add your custom classes here:
+				classes: 'border-1 !rounded-md'
+			};
+			toastStore.trigger(t);
 
 			// handle login form submission
 			if ($allErrors.length > 0) {
@@ -119,6 +131,7 @@
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
+
 				formElement.classList.add('wiggle');
 				setTimeout(() => formElement.classList.remove('wiggle'), 300);
 			}
@@ -159,11 +172,10 @@
 					//registration_token
 					if (result.data !== undefined) {
 						registration_token = result.data.token;
-						//registration_expiresIn = result.data.expires_in;
 						hide_email = result.data.email;
 					}
 
-					// Trigger the Forgotton toast
+					// Trigger the Forgotten toast
 					const t = {
 						message: m.signin_forgottontoast(),
 						// Provide any utility or variant background style:
@@ -267,7 +279,7 @@
 	// reactive statement when systemLanguage changes
 	$: $forgotForm = { ...$forgotForm };
 
-	$: $resetForm = {
+	$resetForm = {
 		...$resetForm,
 		email: hide_email,
 		token: registration_token
@@ -297,16 +309,16 @@
 				<h1 class="text-3xl font-bold text-black lg:text-4xl">
 					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
 					{#if !PWforgot && !PWreset}
-						<div class="lg:-mt-1">{m.signin_signin()}</div>
+						<div class="lg:-mt-1">{m.form_signin()}</div>
 					{:else if PWforgot && !PWreset}
 						<div class="text-2xl lg:-mt-1 lg:text-4xl">{m.signin_forgottenpassword()}</div>
 					{:else if PWforgot && PWreset}
-						<div class="lg:-mt-1">{m.signin_resetpassword()}</div>
+						<div class="lg:-mt-1">{m.form_resetpassword()}</div>
 					{/if}
 				</h1>
 			</div>
 
-			<div class="-mt-2 text-right text-xs text-error-500">* {m.signin_required()}</div>
+			<div class="-mt-2 text-right text-xs text-error-500">{m.form_required()}</div>
 
 			<!-- Sign In -->
 			{#if !PWforgot && !PWreset}
@@ -318,7 +330,7 @@
 						name="email"
 						type="email"
 						bind:value={$form.email}
-						label={m.signin_emailaddress()}
+						label={m.form_emailaddress()}
 						{...$constraints.email}
 						icon="mdi:email"
 						iconColor="black"
@@ -334,7 +346,7 @@
 						bind:value={$form.password}
 						{...$constraints.password}
 						bind:showPassword
-						label={m.signin_password()}
+						label={m.form_password()}
 						icon="mdi:lock"
 						iconColor="black"
 						textColor="black"
@@ -345,7 +357,7 @@
 						<!-- Row 1 -->
 						<div class="flex w-full justify-between gap-2 sm:w-auto">
 							<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
-								{m.signin_signin()}
+								{m.form_signin()}
 								<!-- Loading indicators -->
 								{#if $delayed}
 									<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
@@ -392,7 +404,7 @@
 						type="email"
 						bind:value={$forgotForm.email}
 						required
-						label={m.signin_emailaddress()}
+						label={m.form_emailaddress()}
 						icon="mdi:email"
 						iconColor="black"
 						textColor="black"
@@ -413,7 +425,7 @@
 
 					<div class="mt-4 flex items-center justify-between">
 						<button type="submit" class="variant-filled-surface btn">
-							{m.signin_sentresetmail()}
+							{m.form_resetpassword()}
 						</button>
 
 						<!-- Loading indicators -->
@@ -448,7 +460,7 @@
 						type="password"
 						bind:value={$resetForm.password}
 						bind:showPassword
-						label={m.signin_password()}
+						label={m.form_password()}
 						icon="mdi:lock"
 						iconColor="black"
 						textColor="black"
@@ -467,7 +479,7 @@
 						type="password"
 						bind:value={$resetForm.confirm_password}
 						bind:showPassword
-						label={m.signin_confirmpassword()}
+						label={m.form_confirmpassword()}
 						icon="mdi:lock"
 						iconColor="black"
 						textColor="black"

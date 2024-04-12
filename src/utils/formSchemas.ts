@@ -13,6 +13,7 @@ export const loginFormSchema = z.object({
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
+	// resetLink: z.string()
 	// lang: z.string() // used for svelty-email
 });
 
@@ -35,9 +36,8 @@ export const resetFormSchema = z
 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
 				message: m.formSchemas_PasswordMessage()
 			}),
-		//token: z.string({ required_error: get(LL).LOGIN_ZOD_Token_string() }).min(1),
 		token: z.string(),
-		email: z.string()
+		email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
 		//lang: z.string(), // used for svelty-email
 	})
 	.refine((data: SignInResetFormData) => data.password === data.confirm_password, m.formSchemas_Passwordmatch());

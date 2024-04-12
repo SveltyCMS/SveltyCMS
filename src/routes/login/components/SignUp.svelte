@@ -97,7 +97,7 @@
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
 					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
 					<div class="break-words lg:-mt-1">
-						{m.signup_signup()}
+						{m.form_signup()}
 						{#if !firstUserExists}
 							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
 						{:else}
@@ -108,7 +108,7 @@
 				</h1>
 			</div>
 
-			<div class="-mt-2 text-right text-xs text-error-500">{m.signup_required()}</div>
+			<div class="-mt-2 text-right text-xs text-error-500">{m.form_required()}</div>
 
 			<!-- <SuperDebug data={$form} display={dev} /> -->
 			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
@@ -120,7 +120,7 @@
 					tabindex={tabIndex++}
 					required
 					bind:value={$form.username}
-					label={m.signup_username()}
+					label={m.form_username()}
 					{...$constraints.username}
 					icon="mdi:user-circle"
 					iconColor="white"
@@ -138,7 +138,7 @@
 					tabindex={tabIndex++}
 					required
 					bind:value={$form.email}
-					label={m.signup_emailaddess()}
+					label={m.form_emailaddress()}
 					{...$constraints.email}
 					icon="mdi:email"
 					iconColor="white"
@@ -157,7 +157,7 @@
 					required
 					bind:value={$form.password}
 					bind:showPassword
-					label={m.signup_password()}
+					label={m.form_password()}
 					{...$constraints.password}
 					icon="mdi:password"
 					iconColor="white"
@@ -177,7 +177,7 @@
 					required
 					bind:value={$form.confirm_password}
 					bind:showPassword
-					label={m.signup_confirmpassword()}
+					label={m.form_confirmpassword()}
 					{...$constraints.confirm_password}
 					icon="mdi:password"
 					iconColor="white"
@@ -220,7 +220,7 @@
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase"
-						>{m.signup_signup()}
+						>{m.form_signup()}
 						<!-- Loading indicators -->
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
@@ -229,7 +229,7 @@
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
-							<span class="w-full text-black hover:text-white">{m.signup_signup()}</span>
+							<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
 							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>

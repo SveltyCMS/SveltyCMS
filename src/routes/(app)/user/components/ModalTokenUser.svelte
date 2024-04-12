@@ -106,7 +106,7 @@
 		<!-- Email field -->
 		<div class="group relative mb-6 w-full">
 			<FloatingInput
-				label={m.modaltokenuser_email_address()}
+				label={m.form_emailaddress()}
 				icon="mdi:email"
 				name="email"
 				type="email"
@@ -124,7 +124,7 @@
 
 		<!-- User Role  -->
 		<div class="flex flex-col gap-2 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_userrole()}</div>
+			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 			<div class="flex-auto">
 				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 					{#each Object.values(roles) as r}

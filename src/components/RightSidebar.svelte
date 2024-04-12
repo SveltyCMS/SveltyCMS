@@ -3,6 +3,10 @@
 	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData } from '@stores/store';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { page } from '$app/stores';
+	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
+
+	// Auth
+	import type { User } from '@src/auth/types';
 
 	// Skeleton
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
@@ -14,16 +18,13 @@
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
-
 	let next = () => {};
 	saveLayerStore.subscribe((value) => {
 		next = value;
 		shouldShowNextButton.set(false);
 	});
 
-	//const user = 'admin';
-	const user = $page.data.user;
+	const user: User = $page.data.user;
 
 	// Map the status to boolean
 	//console.log('Status', $entryData?.status);

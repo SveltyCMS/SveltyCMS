@@ -1,16 +1,17 @@
 import { publicEnv } from '@root/config/public.js';
 import { type Cookies, redirect } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
 // Auth
 import { auth, googleAuth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import mongoose from 'mongoose';
 
 // Superforms
 import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
 import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { dev } from '$app/environment';
 
 // load and validate login and sign up forms
 export const load = async (event) => {
@@ -23,6 +24,16 @@ export const load = async (event) => {
 		// For example, redirect to the home page or handle accordingly
 		throw redirect(302, '/');
 	}
+
+	// Check if the URL has the token and email parameters
+	// const url = new URL(event.request.url);
+	// const token = url.searchParams.get('token');
+	// const email = url.searchParams.get('email');
+
+	// let resetData = null;
+	// if (token && email) {
+	// 	resetData = { token, email };
+	// }
 
 	const firstUserExists = (await auth.getUserCount()) != 0;
 
@@ -41,16 +52,18 @@ export const load = async (event) => {
 	// Check if first user exist
 	const signUpForm: typeof withToken = (await auth.getUserCount()) != 0 ? (withoutToken as any) : withToken;
 
-	// Always return all Forms in load and form actions.
+	// Always return Data & all Forms in load and form actions.
 	return {
-		firstUserExists,
+		//resetData, // Check if the URL has the token and email parameters
 
-		// SignIn
+		firstUserExists, // Check if first user exist
+
+		// SignIn Page
 		loginForm,
 		forgotForm,
 		resetForm,
 
-		// SignUp
+		// SignUp Page
 		signUpForm
 	};
 };
@@ -179,8 +192,10 @@ export const actions = {
 		if (resp.status) {
 			// Get the token from the checkMail result
 			const token = checkMail.token;
-			//console.log('token', token);
 			const expiresIn = checkMail.expiresIn;
+			// Define token resetLink
+			const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
+			const resetLink = `${baseUrl}/login?token=${token}&email=${email}`;
 
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
@@ -196,7 +211,8 @@ export const actions = {
 					props: {
 						email: email,
 						token: token,
-						expiresIn: expiresIn
+						expiresIn: expiresIn,
+						resetLink: resetLink
 						// lang: lang
 					}
 				})
@@ -217,8 +233,6 @@ export const actions = {
 		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 
 		// Validate
-		//if (!pwresetForm.valid) return fail(400, { pwresetForm });
-
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
 		const email = pwresetForm.data.email;
@@ -289,7 +303,6 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	// console.log('FirstUsersignUp called', username, email, password, cookies);
 
 	const user = await auth.createUser({
-		_id: '',
 		password,
 		email,
 		username,
@@ -345,6 +358,7 @@ interface ForgotPWCheckResult {
 	expiresIn?: number;
 }
 
+// Function for handling the Forgotten Password
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
 		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hours
@@ -363,6 +377,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	}
 }
 
+// Function for handling the RESET Password
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	try {
 		// Obtain the user using auth.checkUser based on the email

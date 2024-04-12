@@ -23,7 +23,7 @@
 				/>
 			</svg>
 		</div>
-		<p class="text-center font-semibold uppercase !text-black">{m.signin_iconsignin()}</p>
+		<p class="text-center font-semibold uppercase !text-black">{m.form_signin()}</p>
 	</div>
 </div>
 

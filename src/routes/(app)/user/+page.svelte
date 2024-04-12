@@ -212,22 +212,22 @@
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.userpage_role()}<span class="ml-2">{role}</span>
+					{m.form_role()}:<span class="ml-2">{role}</span>
 				</div>
 			</div>
 
 			<!-- user fields -->
 			<form>
 				<label
-					>{m.userpage_username()}
+					>{m.form_username()}:
 					<input bind:value={username} name="username" type="text" disabled class="input" />
 				</label>
 				<label
-					>{m.userpage_email()}
+					>{m.form_email()}:
 					<input bind:value={email} name="email" type="email" disabled class="input" />
 				</label>
 				<label
-					>{m.userpage_password()}
+					>{m.form_password()}:
 					<input bind:value={password} name="password" type="password" disabled class="input" />
 				</label>
 

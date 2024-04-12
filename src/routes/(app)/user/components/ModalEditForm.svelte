@@ -96,7 +96,7 @@
 			<FloatingInput
 				type="text"
 				name="username"
-				label={m.modaleditform_username()}
+				label={m.form_username()}
 				bind:value={formData.username}
 				on:keydown={() => (errorStatus.username.status = false)}
 				required
@@ -117,7 +117,7 @@
 				<FloatingInput
 					type="email"
 					name="email"
-					label={m.modaleditform_emailaddress()}
+					label={m.form_emailaddress()}
 					bind:value={formData.email}
 					on:keydown={() => (errorStatus.email.status = false)}
 					required
@@ -200,7 +200,7 @@
 						type="text"
 						name="confirm_password"
 						id="confirm_password"
-						label={m.modaleditform_confirmpassword()}
+						label={m.form_confirmpassword()}
 						bind:value={formData.confirmPassword}
 						on:keydown={() => (errorStatus.confirm.status = false)}
 						required
@@ -210,7 +210,7 @@
 						type="password"
 						name="confirm_password"
 						id="confirm_password"
-						label={m.modaleditform_confirmpassword()}
+						label={m.form_confirmpassword()}
 						bind:value={formData.confirmPassword}
 						on:keydown={() => (errorStatus.confirm.status = false)}
 						required
@@ -237,7 +237,7 @@
 		<!-- TODO:  Self or last first user cannot change role -->
 		{#if user?.roles === 'admin'}
 			<div class="flex flex-col gap-2 sm:flex-row">
-				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaleditform_userrole()}</div>
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
 						{#each Object.values(roles) as r}
