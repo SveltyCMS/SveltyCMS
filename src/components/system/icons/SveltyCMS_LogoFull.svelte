@@ -1,20 +1,15 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
-	import { Confetti } from 'svelte-confetti';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import Seasons from './Seasons.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Seasons
-	const date = new Date();
-	export let isDecember = date.getMonth() === 11;
-	export let isHalloween = date.getMonth() === 9 && date.getDate() === 31;
-	export let isNewYear = date.getMonth() === 0 && date.getDate() === 1;
 </script>
 
 <!-- CSS Logo -->
+
 <a
 	href="https://github.com/Rar9/SveltyCMS"
 	target="_blank"
@@ -24,29 +19,9 @@
 	<!--White Inner Background -->
 	<div class="absolute top-[-150px] h-[170px] w-[170px] justify-center rounded-full bg-white">
 		<!-- Seasons -->
-		{#if publicEnv.SEASONS === true}
-			{#if isDecember && !isNewYear}
-				<img src="/seasons/SantaHat.avif" alt="Santa hat" class="absolute -right-5 -top-5 h-20 w-20" />
-			{/if}
+		<Seasons />
 
-			{#if isHalloween}
-				<img src="/seasons/Halloween.avif" alt="Spider" class="absolute -bottom-[170px] left-0" />
-			{/if}
-
-			{#if isNewYear && !isDecember}
-				<div class="absolute left-1/2 top-[-50px] justify-center">
-					<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[0, 50]} colorRange={[0, 120]} />
-					<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[550, 550]} colorRange={[120, 240]} />
-					<Confetti noGravity x={[-1, 1]} y={[-1, 1]} delay={[1000, 1050]} colorRange={[240, 360]} />
-				</div>
-				<p class="absolute left-[-40px] top-[-50px] justify-center whitespace-nowrap text-2xl font-bold text-error-500">
-					{m.login_new_year()}
-					{new Date().getFullYear()}
-				</p>
-			{/if}
-		{/if}
-
-		<!-- red circle -->
+		<!-- Red circle -->
 		<svg width="160" height="160" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="80"
@@ -70,7 +45,7 @@
 				class="fill-none stroke-error-500"
 			/>
 		</svg>
-		<!-- black circle -->
+		<!-- Black circle -->
 		<svg width="170" height="170" class="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 transform">
 			<circle
 				cx="85"

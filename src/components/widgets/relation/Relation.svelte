@@ -9,7 +9,7 @@
 	import type { FieldType } from '.';
 	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
 
-	export let field: FieldType | undefined;
+	export let field: FieldType;
 	const fieldName = getFieldName(field);
 	export const value = $entryData[fieldName];
 	export let expanded = false;
@@ -60,6 +60,8 @@
 		} else {
 			data = await extractData(fieldsData);
 		}
+
+		data = data[field.displayPath] ? data : value;
 
 		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
 	})(expanded);

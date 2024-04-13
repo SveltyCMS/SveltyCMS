@@ -35,7 +35,7 @@ export const createPrivateConfig = (arg: {
 
 	// Mapbox config  - See https://docs.mapbox.com/
 	USE_MAPBOX: boolean; // Enable Mapbox. Set to `true` to enable
-	PUBLIC_MAPBOX_API_TOKEN?: string; // Public Mapbox API Token
+	MAPBOX_API_TOKEN?: string; // Public Mapbox API Token
 	SECRET_MAPBOX_API_TOKEN?: string; // Secret Mapbox API Token
 
 	// Google API for map & youtube - See https://developers.google.com/maps/documentation/javascript/get-api-key
@@ -92,6 +92,7 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag>(arg:
 
 	// Seasons Icons for login page. Set to `true` to enable
 	SEASONS?: boolean;
+	SEASON_REGION?: string;
 
 	// Github VERSION synchronization to display updated
 	PKG_VERSION?: string;

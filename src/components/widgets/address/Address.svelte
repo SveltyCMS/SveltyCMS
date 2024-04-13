@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { privateEnv, publicEnv } from '@root/config/public';
+	import { privateEnv } from '@root/config/private';
+	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
@@ -17,7 +18,7 @@
 	import MapboxLanguage from '@mapbox/mapbox-gl-language';
 
 	// https://docs.mapbox.com/help/glossary/access-token/
-	mapboxgl.accessToken = privateEnv.PUBLIC_MAPBOX_API_TOKEN;
+	mapboxgl.accessToken = privateEnv.MAPBOX_API_TOKEN;
 
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
@@ -235,7 +236,7 @@
 	}
 </script>
 
-{#if privateEnv.PUBLIC_MAPBOX_API_TOKEN}
+{#if privateEnv.MAPBOX_API_TOKEN}
 	<address class="w-full">
 		<div class=" mb-1 flex justify-between gap-2">
 			<button class="variant-filled-primary btn btn-base rounded-md text-white"

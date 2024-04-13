@@ -3,7 +3,7 @@
 	import { collectionValue, tabSet } from '@stores/store';
 
 	// Components
-	import Permissions from '@src/components/Permissions.svelte';
+	import Permission from '@src/components/Permission.svelte';
 
 	async function handlePermissionUpdate(event) {
 		collectionValue.update((collection) => {
@@ -14,7 +14,7 @@
 </script>
 
 <!-- Permissions -->
-<Permissions permissions={$collectionValue.permissions} on:update={handlePermissionUpdate} />
+<Permission permissions={$collectionValue.permissions} on:update={handlePermissionUpdate} />
 
 <!-- Buttons Previous/Next-->
 <div class="flex justify-between">

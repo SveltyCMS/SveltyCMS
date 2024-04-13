@@ -2,10 +2,10 @@
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import Permissions from '@src/components/Permissions.svelte';
+import Permission from '@src/components/Permission.svelte';
 
 // Auth
-import type { permissions } from '@src/auth/types';
+import type { Permissions } from '@src/auth/types';
 import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
 
 import widgets, { type WidgetType } from '..';
@@ -28,7 +28,7 @@ export type Params = {
 	width?: number;
 
 	// Permissions
-	permissions?: permissions;
+	permissions?: Permissions;
 
 	// Widget Specific parameters
 	fields: Fields; // Make sure this is always an array of arrays
@@ -48,7 +48,7 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: Permissions, required: false },
+	permissions: { widget: Permission, required: false },
 
 	// Widget Specific parameters
 	fields: { widget: GuiFields, required: true }

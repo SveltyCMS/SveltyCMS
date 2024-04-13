@@ -2,7 +2,7 @@ import { createPrivateConfig } from './types';
 
 /**
  * The PRIVAT configuration for the application,
- * if changes are made please rebuild/restart you instance
+ * if changes are made please rebuild/restart your instance
  */
 export const privateEnv = createPrivateConfig({
 	// Define the database connection
@@ -16,18 +16,33 @@ export const privateEnv = createPrivateConfig({
 	// Enable MongoDB network compression (optional should not be changed once set): Choose 'none', 'snappy', 'zlib', 'zstd'. See mongodb Network Compression
 	DB_COMPRESSOR: 'none',
 
-	// Define the SMTP server
-	SMTP_HOST: ' ',
+	// Define the SMTP server for email sending
+	SMTP_HOST: '',
 	SMTP_PORT: 465,
-	SMTP_EMAIL: ' ',
-	SMTP_PASSWORD: ' ',
+	SMTP_EMAIL: '',
+	SMTP_PASSWORD: '',
 
-	// Enable Redis for caching (optional). Set to `true` to enable
-	USE_REDIS: false,
+	// Enable Redis Caching (optional - Not yet implemented).
+	USE_REDIS: false, // Set to `true` to enable
+	REDIS_HOST: 'localhost', // The hostname or IP address of your Redis server.
+	REDIS_PORT: 6379, // The port number of your Redis server.
+	REDIS_PASSWORD: '', // The password for your Redis server (if any).
 
-	// Enable Google OAuth (optional). Set to `true` to enable
-	USE_GOOGLE_OAUTH: false,
+	// Enable Google OAuth (optional - Not yet implemented).
+	USE_GOOGLE_OAUTH: false, // Set to `true` to enable
+	GOOGLE_CLIENT_ID: '', // Google Client ID
+	GOOGLE_CLIENT_SECRET: '', // Google Client Secret
 
-	//Mapbox (optional). Set to `true` to enable
-	USE_MAPBOX: false
+	// Google API for map & youtube (optional).
+	GOOGLE_API_KEY: '', // Google API Key
+
+	// Mapbox (optional).
+	USE_MAPBOX: false, // Set to `true` to enable,
+	MAPBOX_API_TOKEN: '', // Mapbox API Token
+
+	// TIKTOK_TOKEN (optional)
+	TIKTOK_TOKEN: '',
+
+	// OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
+	VITE_OPEN_AI_KEY: ''
 });
