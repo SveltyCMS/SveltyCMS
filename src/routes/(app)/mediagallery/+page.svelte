@@ -194,9 +194,10 @@
 	}
 </script>
 
-<div class="mb-2 flex items-center">
+<div class="flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 </div>
+
 <div class="wrapper">
 	<div class="mb-2 flex items-center justify-between gap-4">
 		<!-- Search -->
@@ -325,7 +326,7 @@
 						}}
 					>
 						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
-						<br />Grid
+						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
 					</button>
 					<button
 						class="px-2"
@@ -342,7 +343,7 @@
 						}}
 					>
 						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`} />
-						<br />Table
+						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
 					</button>
 				</div>
 			</div>
@@ -354,16 +355,17 @@
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
 							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" />
-							<br />Small
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
 							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" />
-							<br />Medium
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-view" height="40" /><br />Large
+							<iconify-icon icon="material-symbols:grid-view" height="40" />
+							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>
 					{/if}
 				</div>

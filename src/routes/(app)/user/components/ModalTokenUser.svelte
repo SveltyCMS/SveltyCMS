@@ -92,98 +92,99 @@
 </script>
 
 <!-- @component This example creates a simple form modal. -->
+{#if $modalStore[0]}
+	<div class="modal-example-form {cBase}">
+		<header class={`text-center dark:text-primary-500 ${cHeader}`}>
+			{$modalStore[0]?.title ?? '(title missing)'}
+		</header>
+		<article class="text-center text-sm">
+			{$modalStore[0]?.body ?? '(body missing)'}
+		</article>
 
-<div class="modal-example-form {cBase}">
-	<header class={`text-center dark:text-primary-500 ${cHeader}`}>
-		{$modalStore[0]?.title ?? '(title missing)'}
-	</header>
-	<article class="text-center text-sm">
-		{$modalStore[0]?.body ?? '(body missing)'}
-	</article>
+		<!-- <SuperDebug data={$form} /> -->
+		<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
+			<!-- Email field -->
+			<div class="group relative mb-6 w-full">
+				<FloatingInput
+					label={m.form_emailaddress()}
+					icon="mdi:email"
+					name="email"
+					type="email"
+					inputClass="border-primary-500"
+					bind:value={$form.email}
+					required
+				/>
 
-	<!-- <SuperDebug data={$form} /> -->
-	<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
-		<!-- Email field -->
-		<div class="group relative mb-6 w-full">
-			<FloatingInput
-				label={m.form_emailaddress()}
-				icon="mdi:email"
-				name="email"
-				type="email"
-				inputClass="border-primary-500"
-				bind:value={$form.email}
-				required
-			/>
-
-			{#if $errors.email}
-				<div class="absolute left-0 top-11 text-xs text-error-500">
-					{$errors.email}
-				</div>
-			{/if}
-		</div>
-
-		<!-- User Role  -->
-		<div class="flex flex-col gap-2 sm:flex-row">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
-			<div class="flex-auto">
-				<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-					{#each Object.values(roles) as r}
-						<span
-							class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-							on:click={() => {
-								// filterRole(r);
-								roleSelected = r;
-							}}
-							on:keypress
-							role="button"
-							tabindex="0"
-						>
-							{#if roleSelected === r}
-								<span><iconify-icon icon="fa:check" /></span>
-							{/if}
-							<span class="capitalize">{r}</span>
-						</span>
-					{/each}
-				</div>
-			</div>
-		</div>
-
-		<!-- Token validity  -->
-		<div class="flex flex-col gap-1 pb-6 sm:flex-row sm:gap-2">
-			<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
-			<div class="flex-auto">
-				<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
-					<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
-					{#each validityOptions as option}
-						<span
-							class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-							on:click={() => {
-								expiresIn = option.value;
-								expirationTime = option.seconds;
-								expiresInLabel = option.label;
-							}}
-							on:keypress
-							role="button"
-							tabindex="0"
-						>
-							{#if expiresIn === option.value}
-								<span><iconify-icon icon="fa:check" /></span>
-							{/if}
-							<span class="capitalize">{option.label}</span>
-						</span>
-					{/each}
-				</div>
-				{#if $errors.expiresIn}
-					<div class="mt-1 text-xs text-error-500">
-						{$errors.expiresIn}
+				{#if $errors.email}
+					<div class="absolute left-0 top-11 text-xs text-error-500">
+						{$errors.email}
 					</div>
 				{/if}
 			</div>
-		</div>
 
-		<footer class="flex items-center justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-			<button type="submit" class="btn {parent.buttonPositive}">{m.button_send()}</button>
-		</footer>
-	</form>
-</div>
+			<!-- User Role  -->
+			<div class="flex flex-col gap-2 sm:flex-row">
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
+				<div class="flex-auto">
+					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
+						{#each Object.values(roles) as r}
+							<span
+								class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+								on:click={() => {
+									// filterRole(r);
+									roleSelected = r;
+								}}
+								on:keypress
+								role="button"
+								tabindex="0"
+							>
+								{#if roleSelected === r}
+									<span><iconify-icon icon="fa:check" /></span>
+								{/if}
+								<span class="capitalize">{r}</span>
+							</span>
+						{/each}
+					</div>
+				</div>
+			</div>
+
+			<!-- Token validity  -->
+			<div class="flex flex-col gap-1 pb-6 sm:flex-row sm:gap-2">
+				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
+				<div class="flex-auto">
+					<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
+						<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
+						{#each validityOptions as option}
+							<span
+								class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+								on:click={() => {
+									expiresIn = option.value;
+									expirationTime = option.seconds;
+									expiresInLabel = option.label;
+								}}
+								on:keypress
+								role="button"
+								tabindex="0"
+							>
+								{#if expiresIn === option.value}
+									<span><iconify-icon icon="fa:check" /></span>
+								{/if}
+								<span class="capitalize">{option.label}</span>
+							</span>
+						{/each}
+					</div>
+					{#if $errors.expiresIn}
+						<div class="mt-1 text-xs text-error-500">
+							{$errors.expiresIn}
+						</div>
+					{/if}
+				</div>
+			</div>
+
+			<footer class="flex items-center justify-between {parent.regionFooter}">
+				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button type="submit" class="btn {parent.buttonPositive}">{m.button_send()}</button>
+			</footer>
+		</form>
+	</div>
+{/if}

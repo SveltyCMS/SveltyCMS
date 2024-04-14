@@ -47,7 +47,7 @@
 	}
 </script>
 
-<div class="mb-2 flex items-center justify-between">
+<div class="flex items-center justify-between">
 	<PageTitle name="Image Editor" icon="bi:images" />
 
 	<!-- buttons -->
@@ -74,7 +74,7 @@
 <input class="input my-2" type="file" accept="image/*" on:change={handleImageUpload} />
 
 {#if image}
-	<div class="wrapper">
+	<div class="wrapper mb-2">
 		<!-- <div class="wrapper max-h-[calc(100vh-200px)] bg-emerald-400"> -->
 		<!-- old Image Editor -->
 		<!-- <Cropper bind:image /> -->

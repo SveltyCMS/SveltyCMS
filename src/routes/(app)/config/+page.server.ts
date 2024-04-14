@@ -17,9 +17,6 @@ export async function load(event: any) {
 		redirect(302, `/login`);
 	}
 
-	// Serialize the user data manually
-	//const serializedUser = JSON.stringify(user);
-
 	// Return user data
 	return {
 		props: {

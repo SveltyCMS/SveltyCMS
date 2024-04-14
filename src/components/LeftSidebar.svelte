@@ -10,7 +10,8 @@
 	// Stores
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
-	import { screenWidth, toggleSidebar, sidebarState, userPreferredState } from '@src/stores/sidebarStore';
+	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
+	import { screenWidth, toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -59,7 +60,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
-	import { avatarSrc, pkgBgColor, systemLanguage } from '@src/stores/store';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
@@ -74,6 +74,8 @@
 	// Update the handleClick function when the systemLanguage store value changes
 	$: handleClick = () => {
 		if (!$page.url.href.includes('user')) {
+			mode.set('view');
+			handleSidebarToggle();
 			goto(`/user`);
 		}
 		if (get(screenWidth) === 'mobile') {
@@ -269,6 +271,8 @@
 					class="btn-icon pt-1.5 hover:bg-surface-500 hover:text-white"
 					use:popup={ConfigTooltip}
 					on:click={() => {
+						mode.set('view');
+						handleSidebarToggle();
 						if (get(screenWidth) === 'mobile') {
 							toggleSidebar('left', 'hidden');
 						}

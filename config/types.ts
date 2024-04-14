@@ -54,7 +54,7 @@ export const createPrivateConfig = (arg: {
 /**
  * The PUBLIC configuration for the application,
  */
-export const createPublicConfig = <const C, S extends AvailableLanguageTag>(arg: {
+export const createPublicConfig = <const C, S extends AvailableLanguageTag, const V extends { [key: string]: number }>(arg: {
 	// Define you hostname where you site is running
 	HOST_DEV: string; // Hostname for development eg. http://localhost:5173
 	HOST_PROD: string; // Hostname for production eg. 'mywebsite.com'
@@ -85,7 +85,7 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag>(arg:
 	MEDIASERVER_URL?: string;
 
 	// The sizes of images that the site will generate. eg. { sm: 600, md: 900, lg: 1200 }
-	IMAGE_SIZES: { [key: string]: number };
+	IMAGE_SIZES: V;
 
 	//Define body size limit for your Uploads eg. 100mb
 	BODY_SIZE_LIMIT?: number;

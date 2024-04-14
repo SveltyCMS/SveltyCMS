@@ -28,7 +28,7 @@ export const collectionValue: any = writable({});
 // entry data of collection
 export const entryData: Writable<any> = writable({});
 // collective crud
-export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify'> = writable('view');
+export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media'> = writable('view');
 // collective status
 export const statusMap = {
 	delete: 'deleted',

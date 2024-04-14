@@ -6,46 +6,49 @@
 	import * as m from '@src/paraglide/messages';
 </script>
 
-<div class="mb-2 flex items-center">
+<div class="flex items-center justify-between">
 	<PageTitle name={m.config_pagetitle()} icon="" />
 </div>
-<div class="wrapper">
-	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
-	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
-		<!-- Collection -->
-		<a href="/collection" class="variant-outline-tertiary btn w-full gap-2 overflow-hidden py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-tertiary-600" />
-			<p class="overflow-hidden overflow-ellipsis uppercase">
-				{m.config_systembuilder()}
-			</p>
-		</a>
 
-		<!-- Graphql Api -->
-		<a href="/api/graphql" rel="external" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="teenyicons:graphql-solid" width="24" class="text-warning-600" />
-			<p class="uppercase">
-				{m.config_graphql()}
-			</p>
-		</a>
+<div class="max-h-[calc(100vh-55px)] overflow-auto">
+	<div class="wrapper mb-2">
+		<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
+		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
+			<!-- Collection -->
+			<a href="/collection" class="variant-outline-tertiary btn w-full gap-2 overflow-hidden py-6 dark:variant-outline-secondary">
+				<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-tertiary-600" />
+				<p class="overflow-hidden overflow-ellipsis uppercase">
+					{m.config_systembuilder()}
+				</p>
+			</a>
 
-		<!-- Editor -->
-		<a href="/imageEditor" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
-			<p class="uppercase">
-				{m.config_imageeditor()}
-			</p>
-		</a>
+			<!-- Graphql Api -->
+			<a href="/api/graphql" rel="external" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+				<iconify-icon icon="teenyicons:graphql-solid" width="24" class="text-warning-600" />
+				<p class="uppercase">
+					{m.config_graphql()}
+				</p>
+			</a>
 
-		<!-- Dashboard -->
-		<a href="/dashboard" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
-			<iconify-icon icon="bi:images" width="24" class="text-error-600" />
-			<p class="uppercase">Dashboard</p>
-		</a>
+			<!-- Editor -->
+			<a href="/imageEditor" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+				<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
+				<p class="uppercase">
+					{m.config_imageeditor()}
+				</p>
+			</a>
 
-		<!-- Market Place -->
-		<a href="https://www.sveltyCMS.com" class="variant-ghost-primary btn w-full gap-2 py-6">
-			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
-			<p class="uppercase">Marketplace</p>
-		</a>
+			<!-- Dashboard -->
+			<a href="/dashboard" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+				<iconify-icon icon="bi:images" width="24" class="text-error-600" />
+				<p class="uppercase">Dashboard</p>
+			</a>
+
+			<!-- Market Place -->
+			<a href="https://www.sveltyCMS.com" class="variant-ghost-primary btn w-full gap-2 py-6">
+				<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
+				<p class="uppercase">Marketplace</p>
+			</a>
+		</div>
 	</div>
 </div>

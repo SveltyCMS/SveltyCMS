@@ -76,10 +76,9 @@ export const actions: Actions = {
 
 		// Create new user with provided email and role
 		const user = await auth.createUser({
-			id,
+			username,
 			password,
 			email,
-			username,
 			role: roles,
 			lastAuthMethod: 'password',
 			is_registered: true,
@@ -87,8 +86,6 @@ export const actions: Actions = {
 			expiresAt: new Date(),
 			resetToken: string,
 			avatar: string
-			// firstname: string,
-			// lastname: string
 		});
 
 		if (!user) {
@@ -125,7 +122,7 @@ export const actions: Actions = {
 		}
 
 		// Issue password token for new user
-		const token = await createToken(user._id, 'register', expirationTime * 1000);
+		const token = await createToken(user._id, 'register', email, expirationTime * 1000);
 		console.log(token);
 
 		// Send the token to the user via email.

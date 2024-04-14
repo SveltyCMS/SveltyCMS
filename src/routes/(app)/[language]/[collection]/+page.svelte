@@ -6,6 +6,7 @@
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
+	import Media from '@src/components/Media.svelte';
 
 	import { goto } from '$app/navigation';
 	import { onDestroy } from 'svelte';
@@ -50,5 +51,7 @@
 		<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 			<Fields />
 		</div>
+	{:else if $mode == 'media'}
+		<Media />
 	{/if}
 </div>

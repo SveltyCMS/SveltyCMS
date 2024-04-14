@@ -100,6 +100,11 @@
 											{:else}
 												{field.db_fieldName}
 											{/if}
+
+											<!-- TODO: fix required -->
+											{#if field.required == true}
+												<span class="text-error-500">*</span>
+											{/if}
 										</p>
 
 										<div class="flex gap-2">

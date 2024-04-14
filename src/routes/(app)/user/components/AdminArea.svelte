@@ -20,9 +20,10 @@
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
 	import ModalTokenUser from './ModalTokenUser.svelte';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { getModalStore } from '@skeletonlabs/skeleton';
+
 	const modalStore = getModalStore();
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	export let data: PageData;
 

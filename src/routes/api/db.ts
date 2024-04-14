@@ -103,6 +103,20 @@ export async function getCollectionModels() {
 !mongoose.models['auth_users'] && mongoose.model('auth_users', mongooseUserSchema);
 !mongoose.models['auth_sessions'] && mongoose.model('auth_sessions', mongooseSessionSchema);
 
+// Set up image collections if they don't already exist
+!mongoose.models['image_files'] &&
+	mongoose.model(
+		'image_files',
+		new mongoose.Schema(
+			{},
+			{
+				typeKey: '$type',
+				strict: false,
+				timestamps: true
+			}
+		)
+	);
+
 // Set up authentication and export auth object
 const auth = new Auth({
 	User: mongoose.models['auth_users'],

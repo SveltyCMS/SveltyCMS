@@ -11,7 +11,7 @@
 	export let Rotate: number = 0;
 	export let CONT_WIDTH: number = 0;
 	export let CONT_HEIGHT: number = 0;
-	export let cropShape: 'rect' | 'round' = 'rect';
+	export const cropShape: 'rect' | 'round' = 'rect';
 
 	// Define an interface for the mouseHandlerProps
 	interface MouseHandlerProps {

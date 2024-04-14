@@ -65,11 +65,29 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	// used to save data
 	const formData = new FormData();
 	const data = {};
+	const parseFiles = (object: any) => {
+		for (const key in object) {
+			if (!(object[key] instanceof File) && typeof object[key] == 'object') {
+				parseFiles(object[key]);
+				continue;
+			} else if (!(object[key] instanceof File)) {
+				continue;
+			}
+			// object[key] is file here
+			const uuid = crypto.randomUUID();
+			formData.append(uuid, object[key]);
+			object[key] = { instanceof: 'File', id: uuid, path: object[key].path };
+		}
+	};
+
 	for (const key in getData) {
 		const value = await getData[key]();
 		if (!value) continue;
 		data[key] = value;
 	}
+
+	parseFiles(data);
+
 	for (const key in data) {
 		if (typeof data[key] === 'object') {
 			formData.append(key, JSON.stringify(data[key]));
@@ -730,26 +748,3 @@ export function updateTranslationProgress(data, field) {
 	}
 	translationProgress.set($translationProgress);
 }
-
-export type FileJSON = {
-	instanceOf: 'File';
-	lastModified: number;
-	name: string;
-	size: number;
-	type: string;
-	buffer: Uint8Array;
-};
-
-globalThis.File &&
-	//@ts-ignore
-	(File.prototype.toJSON = function () {
-		return {
-			instanceOf: 'File',
-			lastModified: this.lastModified,
-			name: this.name,
-			size: this.size,
-			type: this.type,
-			buffer: this.buffer as Uint8Array,
-			path: this.path
-		};
-	});

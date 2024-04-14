@@ -141,7 +141,7 @@
 	}
 </script>
 
-<div class="mb-3 flex items-center justify-between">
+<div class="flex items-center justify-between">
 	<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" />
 
 	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
@@ -149,17 +149,17 @@
 		{m.button_save()}
 	</button>
 </div>
-<div class="wrapper">
-	{#if !availableCollection}
-		<p class="my-2 text-center">{m.collection_first()}</p>
-	{:else}
-		<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
-		<!-- TODO: add sticky top sticky top-0 z-50 -->
-		<div class="sticky top-0">
+
+<div class="max-h-[calc(100vh-55px)] overflow-auto">
+	<div class="wrapper mb-2">
+		{#if !availableCollection}
+			<p class="my-2 text-center">{m.collection_first()}</p>
+		{:else}
+			<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
+			<!-- TODO: add sticky top sticky top-0 z-50 -->
+
 			<!-- Category/Collection buttons -->
-			<div
-				class=" mb-3 ml-1 flex flex-col justify-around gap-1 rounded-sm border border-surface-300 py-2 dark:border-surface-400 sm:flex-row lg:justify-center lg:gap-8"
-			>
+			<div class=" mb-3 ml-1 flex flex-col justify-around gap-1 rounded-sm py-2 dark:border-surface-400 sm:flex-row lg:justify-center lg:gap-8">
 				<!-- add new Category-->
 				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded">
 					<iconify-icon icon="bi:collection" width="18" class="text-white" />
@@ -181,9 +181,9 @@
 			<!-- display unassigned collections -->
 
 			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
-		</div>
 
-		<!-- display collections -->
-		<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
-	{/if}
+			<!-- display collections -->
+			<Board columns={availableCollection} onFinalUpdate={handleBoardUpdated} />
+		{/if}
+	</div>
 </div>

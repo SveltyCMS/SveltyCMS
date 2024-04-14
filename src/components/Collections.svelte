@@ -202,6 +202,7 @@
 										handleSidebarToggle();
 									} else {
 										mode.set(modeSet);
+										handleSidebarToggle();
 									}
 
 									collection.set({
@@ -243,6 +244,7 @@
 			class="btn mt-2 flex flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
 				mode.set('view');
+				handleSidebarToggle();
 				if (get(screenWidth) === 'mobile') {
 					toggleSidebar('left', 'hidden');
 				}

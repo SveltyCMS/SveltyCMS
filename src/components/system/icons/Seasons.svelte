@@ -55,10 +55,10 @@
 	{/if}
 
 	{#if isEaster}
-		<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] left-3 -rotate-[16deg] text-tertiary-500" />
-		<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[28px] right-[1em] rotate-12 text-yellow-500" />
-		<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[34px] left-10 -rotate-12 text-green-500" />
-		<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[62px] right-9 rotate-6 text-red-500" />
+		<iconify-icon icon="mdi:egg-easter" width="40" class="absolute -top-[18px] left-3 -rotate-[25deg] text-tertiary-500" />
+		<iconify-icon icon="game-icons:easter-egg" width="40" class="absolute -top-[27px] right-[1em] rotate-12 text-yellow-500" />
+		<iconify-icon icon="game-icons:high-grass" width="40" class="absolute -top-[35px] left-10 -rotate-[14deg] text-green-500" />
+		<iconify-icon icon="mdi:easter" width="70" class="absolute -top-[61px] right-9 rotate-6 text-red-500" />
 	{/if}
 
 	{#if isHalloween}

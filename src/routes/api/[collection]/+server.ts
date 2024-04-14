@@ -172,11 +172,10 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	for (const key of data.keys()) {
 		try {
 			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
-				if (value?.instanceOf == 'File') {
-					//@ts-ignore
-					const file = new File([new Uint8Array(Object.values(value.buffer))], value.name, { type: value.type, lastModified: value.lastModified });
+				if (value?.instanceof == 'File') {
+					const file = data.get(value.id) as File;
 					file.path = value.path;
-					return file;
+					data.delete(value.id);
 				}
 				return value;
 			});
@@ -242,10 +241,10 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	for (const key of data.keys()) {
 		try {
 			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
-				if (value?.instanceOf == 'File') {
-					//@ts-ignore
-					const file = new File([new Uint8Array(Object.values(value.buffer))], value.name, { type: value.type, lastModified: value.lastModified });
+				if (value?.instanceof == 'File') {
+					const file = data.get(value.id) as File;
 					file.path = value.path;
+					data.delete(value.id);
 					return file;
 				}
 				return value;

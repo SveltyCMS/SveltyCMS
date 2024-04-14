@@ -94,7 +94,7 @@
 </script>
 
 <!-- Image Info -->
-<div class="mb-1 flex items-center justify-between">
+<div class="flex items-center justify-between">
 	<p>
 		<span class="hidden lg:inline-block">Image:</span>
 		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
@@ -148,50 +148,46 @@
 
 <!-- Enable and Disable module functionality -->
 <div class="mt-1 flex items-center justify-between px-2">
-	<button on:click={resetFocalPoint} class="btn mr-6 flex flex-col items-center justify-center">
+	<!-- Reset -->
+	<button on:click={resetFocalPoint} class="">
 		<iconify-icon icon="material-symbols-light:device-reset" width="38" class="text-tertiary-500" />
 		<p class="text-xs">Reset All</p>
 	</button>
 
-	<div class="mx-4 flex w-full items-center justify-between">
-		<!-- Crop -->
-		<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')}>
-			<iconify-icon icon="material-symbols:crop" width="28" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
-			<p class="text-xs">Crop</p>
-		</button>
+	<!-- Crop -->
+	<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')}>
+		<iconify-icon icon="material-symbols:crop" width="28" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
+		<p class="text-xs">Crop</p>
+	</button>
 
-		<!-- Blur -->
-		<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')}>
-			<iconify-icon icon="ic:round-blur-circular" width="28" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
-			<p class="text-xs">Blur</p>
-		</button>
+	<!-- Blur -->
+	<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')}>
+		<iconify-icon icon="ic:round-blur-circular" width="28" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
+		<p class="text-xs">Blur</p>
+	</button>
 
-		<!-- Focal Point -->
-		<button on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}>
-			<iconify-icon
-				icon="material-symbols:center-focus-strong"
-				width="28"
-				class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
-			/>
-			<p class="text-xs">Focal Point</p>
-		</button>
+	<!-- Focal Point -->
+	<button on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}>
+		<iconify-icon
+			icon="material-symbols:center-focus-strong"
+			width="28"
+			class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
+		/>
+		<p class="text-xs">Focal Point</p>
+	</button>
 
-		<!-- Rotate -->
-		<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
-			<iconify-icon
-				icon="material-symbols:rotate-left-rounded"
-				width="28"
-				class={activeState === 'rotate' ? 'text-error-500' : 'text-surface-token'}
-			/>
-			<p class="text-xs">Rotate</p>
-		</button>
+	<!-- Rotate -->
+	<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
+		<iconify-icon icon="material-symbols:rotate-left-rounded" width="28" class={activeState === 'rotate' ? 'text-error-500' : 'text-surface-token'} />
+		<p class="text-xs">Rotate</p>
+	</button>
 
-		<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
-			<iconify-icon icon="material-symbols:zoom-out-map" width="28" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
-			<p class="text-xs">Zoom</p>
-		</button>
-	</div>
+	<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
+		<iconify-icon icon="material-symbols:zoom-out-map" width="28" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
+		<p class="text-xs">Zoom</p>
+	</button>
 </div>
+
 <div class="flex items-center justify-between">
 	{#if activeState !== 'rotate'}
 		<!-- Zoom -->

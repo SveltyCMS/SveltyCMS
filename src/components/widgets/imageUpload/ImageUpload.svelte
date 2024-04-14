@@ -1,7 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
-	import { onMount } from 'svelte';
-	import type { FieldType } from './';
+	import type { FieldType } from '.';
 	import { asAny, convertTimestampToDateString, getFieldName } from '@src/utils/utils';
 
 	// Stores
@@ -13,6 +12,7 @@
 	let _data: File | undefined;
 	let updated = false;
 	let input: HTMLInputElement;
+
 	let isFlipped = false; // State variable to track flip button
 	let isEditor = false; // State variable to track flip button
 
@@ -20,13 +20,12 @@
 	export const WidgetData = async () => {
 		if (_data) {
 			_data.path = field.path;
-			let arrayBuffer = await _data.arrayBuffer();
-			_data.buffer = new Uint8Array(arrayBuffer);
 		}
+
+		console.log(_data);
 		return updated ? _data : null;
 	};
 	export let value: File | { [key: string]: any } = $entryData[getFieldName(field)]; // pass file directly from imageArray
-	console.log(value);
 
 	const fieldName = getFieldName(field);
 

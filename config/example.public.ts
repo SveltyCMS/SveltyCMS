@@ -21,7 +21,7 @@ export const publicEnv = createPublicConfig({
 	AVAILABLE_SYSTEM_LANGUAGES: ['en', 'de', 'es', 'fr', 'it', 'nl', 'pl', 'pt', 'hi', 'ka', 'sr', 'tr', 'ur', 'ne'],
 
 	// The sizes of images that the site will generate. (default: 'sm: 600, md: 900, lg: 1200')
-	IMAGE_SIZES: { sm: 600, md: 900, lg: 1200 },
+	IMAGE_SIZES: { sm: 600, md: 900, lg: 1200 } as const,
 
 	// The folder where the site's media files will be stored. (default: 'mediaFiles')
 	MEDIA_FOLDER: 'mediaFiles',
