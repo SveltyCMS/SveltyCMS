@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 	// Validate the session.
 	const user_id = url.searchParams.get('user_id');
-	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
 
 	if (!user) {
 		return new Response('', { status: 403 });
@@ -216,8 +216,9 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
+
 	const user_id = data.get('user_id') as string;
-	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -226,8 +227,9 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 	// Check if the user has write access to the collection.
 	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
+	console.log(collection_schema);
 	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
-
+	console.log(has_write_access);
 	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
@@ -290,7 +292,7 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 
 	// Validate the session.
 	const user_id = data.get('user_id') as string;
-	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {

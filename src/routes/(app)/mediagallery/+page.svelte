@@ -1,6 +1,6 @@
 <script lang="ts">
 	import PageTitle from '@components/PageTitle.svelte';
-	import { formatSize } from '@utils/utils';
+	import { formatBytes } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -426,7 +426,7 @@
 						>
 							<div class="line-clamp-2 font-semibold dark:text-primary-500">{image.name}</div>
 							<!-- <div class="line-clamp-1">{image.path}</div> -->
-							<div class="line-clamp-1 text-tertiary-500">{formatSize(image.size)}</div>
+							<div class="line-clamp-1 text-tertiary-500">{formatBytes(image.size)}</div>
 							<div class="line-clamp-1">{image.hash}</div>
 							<!-- <div class="">{image.thumbnail}</div> -->
 						</footer>
@@ -495,7 +495,7 @@
 									/></td
 								>
 								<td>{image.name}</td>
-								<td>{formatSize(image.size)}</td>
+								<td>{formatBytes(image.size)}</td>
 								<td>{image.hash}</td>
 								<td>{image.path}</td>
 							</tr>

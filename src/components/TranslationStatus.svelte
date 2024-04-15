@@ -85,6 +85,7 @@
 	}
 	$: {
 		checkTranslations();
+		$translationProgress;
 		$collectionValue;
 	}
 

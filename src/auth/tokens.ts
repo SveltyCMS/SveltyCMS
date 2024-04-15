@@ -1,4 +1,4 @@
-import type { Date } from 'mongoose';
+import mongoose from 'mongoose';
 import type { Model } from './types';
 import crypto from 'crypto';
 
@@ -10,18 +10,19 @@ function isWithinExpiration(expiresInMs: number) {
 }
 
 // Function to create a new token
-export async function createToken(Token: Model, user_id: string, email: string, expires: number) {
+export async function createToken(Token: Model, user_id: mongoose.Types.ObjectId, email: string, expires: number) {
 	// Generate a random 16-byte token string using crypto.randomBytes
 	const token = crypto.randomBytes(16).toString('hex'); // Generate a random token
 	const expiresIn = new Date(Date.now() + expires); // Convert milliseconds to Date
+	const id = new mongoose.Types.ObjectId(user_id);
 	// Insert the new token into the database
-	await Token.insertMany({ token, user_id, email, expiresIn });
+	await Token.insertMany({ token, user_id: id, email, expiresIn });
 	// Return the created token
 	return token;
 }
 
 // Function to validate a token
-export async function validateToken(Token: Model, token: string, user_id: string) {
+export async function validateToken(Token: Model, token: string, user_id: mongoose.Types.ObjectId) {
 	console.log('Validating token:', token, 'for user:', user_id); // Log token and user ID
 
 	const result = await Token.findOne({ user_id, token }); // Find the token in the database
@@ -43,15 +44,13 @@ export async function validateToken(Token: Model, token: string, user_id: string
 }
 
 // Function to consume a token
-export async function consumeToken(Token: Model, token: string, user_id: string) {
+export async function consumeToken(Token: Model, token: string, user_id: mongoose.Types.ObjectId) {
 	console.log('Consuming token:', token, 'for user:', user_id); // Log token and user ID
-
+	const id = new mongoose.Types.ObjectId(user_id);
 	const result = await Token.findOne({ user_id, token }); // Find the token in the database
 
 	if (result) {
-		console.log('Token found:', result); // Log the found token document
-
-		await Token.deleteOne({ user_id, token }); // Delete the token
+		await Token.deleteOne({ user_id: id, token }); // Delete the token
 
 		if (isWithinExpiration(result.expiresIn)) {
 			console.log('Token consumed successfully.');

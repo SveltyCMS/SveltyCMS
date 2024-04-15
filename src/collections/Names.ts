@@ -30,7 +30,8 @@ const schema: Schema = {
 			translated: true,
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Last Name',
-			width: 2
+			width: 2,
+			required: true
 		})
 	]
 };

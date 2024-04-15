@@ -1,11 +1,12 @@
 import fs from 'fs';
 import axios from 'axios';
+import Path from 'path';
 import mongoose from 'mongoose';
 
 import { publicEnv } from '@root/config/public';
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
-import crypto from 'crypto';
+import _crypto from 'crypto';
 import type { z } from 'zod';
 
 // Stores
@@ -110,163 +111,124 @@ export function sanitize(str: string) {
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
-// Saves POSTS files to disk and returns file information
-// TODO: add optimization progress status
+// In-memory cache for processed images
+const cache = new Map();
 
-export async function saveImages(data: FormData, collectionName: string) {
+// Saves image to disk and returns file information
+export async function saveImages(data: { [key: string]: any }, collectionName: string) {
 	if (browser) return;
-
 	const sharp = (await import('sharp')).default;
-	const files: any = {};
-	const _files: Array<any> = [];
+	const files: any[] = [];
 
-	// Get the environment variables for image sizes
-	const env_sizes = publicEnv.IMAGE_SIZES;
+	const parseFiles = async (data: any) => {
+		for (const fieldname in data) {
+			if (!(data[fieldname] instanceof File) && typeof data[fieldname] == 'object') {
+				await parseFiles(data[fieldname]);
+				continue;
+			} else if (!(data[fieldname] instanceof File)) {
+				continue;
+			}
 
-	// Define the available image sizes, including 'original' and 'thumbnail'
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+			const blob = data[fieldname] as any;
+			const cacheKey = `${collectionName}:${blob.path}:${blob.name}`;
+			const cachedResult = cache.get(cacheKey);
+			if (cachedResult) {
+				files.push(cachedResult);
+				continue;
+			}
 
-	// Find the collection object by name
-	const collection = get(collections).find((collection) => collection.name === collectionName);
+			const arrayBuffer = await blob.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+			const path = blob.path;
+			const name = removeExtension(blob.name);
 
-	// Iterate over the form data and extract the files
-	for (const [fieldname, fieldData] of data.entries()) {
-		if (fieldData instanceof Blob) {
-			_files.push({ blob: fieldData, fieldname });
-		}
-	}
+			// Original image
+			let url: any;
+			if (path == 'global') {
+				url = `images/original/${hash}-${blob.name}`;
+			} else if (path == 'unique') {
+				url = `images/${collectionName}/original/${hash}-${blob.name}`;
+			} else {
+				url = `images/${path}/original/${hash}-${blob.name}`;
+			}
 
-	// Check if there are any files to process
-	if (_files.length === 0) return null;
+			const info = await sharp(buffer).metadata();
+			const result = {
+				original: {
+					name: `${hash}-${blob.name}`,
+					hash: hash,
+					url,
+					size: blob.size,
+					type: blob.type,
+					width: info.width,
+					height: info.height,
+					createdAt: new Date(),
+					lastModified: blob.lastModified as Date
+				}
+			};
 
-	// Get the path to the collection's media folder
-	const path = _findFieldByTitle(collection, _files[0].fieldname).path;
+			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+			}
+			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
 
-	// Create the necessary directories if they don't exist
-	if (!fs.existsSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}`)) {
-		for (const size in SIZES) {
-			fs.mkdirSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}`, {
-				recursive: true
-			});
-		}
-	}
-
-	// Process each file asynchronously
-	await Promise.allSettled(
-		_files.map(async (file) => {
-			try {
-				// Extract the file's name, sanitized name, and blob
-				const { blob, fieldname } = file;
-				const name = removeExtension(blob.name);
-				const sanitizedFileName = sanitize(name);
-
-				// Create a buffer from the file's array buffer
-				const buffer = Buffer.from(await blob.arrayBuffer());
-
-				// Generate a SHA-256 hash of the file
-				const hash = crypto.createHash('sha256').update(buffer).digest('hex');
-
-				// Construct the URL for the original file
-				const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}`;
-
-				// Determine the output format based on the environment variable or default to 'original'
-				const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT || 'original';
-
-				// Set the MIME type based on the output format
-				const mimeType = outputFormat === 'webp' ? 'image/webp' : outputFormat === 'avif' ? 'image/avif' : blob.type;
-
-				// Add the original file data to the files object
-				files[fieldname as keyof typeof files] = {
-					original: {
-						name: `${sanitizedFileName}`,
-						url,
-						size: blob.size,
-						hash: hash,
-						type: mimeType,
-						lastModified: blob.lastModified
-					}
-				};
-
-				// Process the file for different sizes
-				await Promise.all(
-					Object.keys(SIZES).map(async (size) => {
-						// Skip the 'original' size
-						if (size == 'original') return;
-
-						// Construct the full file name
-						const fullName =
-							outputFormat === 'original' ? `${sanitizedFileName}${hash}.${blob.type.split('/')[1]}` : `${sanitizedFileName}${hash}.${outputFormat}`;
-
-						// Create a buffer from the file's array buffer
-						const arrayBuffer = await blob.arrayBuffer();
-
-						// Resize and convert the image using sharp
-						const thumbnailBuffer = await sharp(Buffer.from(arrayBuffer))
-							.rotate()
+			const resizedImages = await Promise.all(
+				Object.keys(SIZES)
+					.filter((size) => size !== 'original')
+					.map(async (size) => {
+						const fullName = `${hash}-${name}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+						const resizedImage = await sharp(buffer)
+							.rotate() // Rotate image according to EXIF data
 							.resize({ width: SIZES[size] })
-							.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-								quality: size === 'original' ? 100 : outputFormat === 'webp' ? 80 : 50,
-								progressive: true
+							.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
+								quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
 							})
-							.toBuffer();
+							.toBuffer({ resolveWithObject: true });
 
-						// Write the thumbnail to the file system
-						fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`, thumbnailBuffer);
+						let url: any;
+						if (path == 'global') {
+							url = `images/${size}/${fullName}`;
+						} else if (path == 'unique') {
+							url = `images/${collectionName}/${size}/${fullName}`;
+						} else {
+							url = `images/${path}/${size}/${fullName}`;
+						}
 
-						// Construct the URL for the thumbnail
-						const url = `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fullName}`;
+						if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+							fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+						}
 
-						// Add the thumbnail data to the files object
-						files[fieldname as keyof typeof files][size] = {
-							name: fullName,
-							url,
-							size: blob.size,
-							type: mimeType,
-							lastModified: blob.lastModified
+						// Resized images according to size definition
+						fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
+						return {
+							size,
+							data: {
+								name: fullName,
+								hash: hash,
+								url: '/media/' + url,
+								type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
+								size: resizedImage.info.size,
+								width: resizedImage.info.width,
+								height: resizedImage.info.height,
+								createdAt: new Date(),
+								lastModified: blob.lastModified as Date
+							}
 						};
 					})
-				);
+			);
 
-				// Optimize the original image if the output format is not 'original'
-				let optimizedOriginalBuffer: Buffer;
-				if (outputFormat !== 'original') {
-					optimizedOriginalBuffer = await sharp(buffer)
-						.rotate()
-						.toFormat(outputFormat === 'webp' ? 'webp' : 'avif', {
-							quality: outputFormat === 'webp' ? 80 : 50
-						})
-						.toBuffer();
+			resizedImages.forEach((resizedImage) => {
+				result[resizedImage.size] = resizedImage.data;
+			});
 
-					// Write the optimized original image to the file system
-					fs.writeFileSync(
-						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
-						optimizedOriginalBuffer
-					);
-				} else {
-					optimizedOriginalBuffer = buffer;
-					// Write the original image to the file system
-					fs.writeFileSync(
-						`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${blob.type.split('/')[1]}`,
-						optimizedOriginalBuffer
-					);
-				}
+			cache.set(cacheKey, result);
+			files.push(result);
+		}
+	};
 
-				// Add the optimized original file data to the files object
-				files[fieldname as keyof typeof files]['optimizedOriginal'] = {
-					name: `${sanitizedFileName}.${hash}.${outputFormat}`,
-					url: `/${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${sanitizedFileName}${hash}.${outputFormat}`,
-					size: optimizedOriginalBuffer.byteLength,
-					type: mimeType,
-					lastModified: blob.lastModified
-				};
-			} catch (error) {
-				console.error(`Error processing file: ${error}`);
-				// Handle the error appropriately, you can choose to log it, throw it, or take other actions
-			}
-		})
-	);
-
-	return files;
+	await parseFiles(data);
+	mongoose.models['media_images'].insertMany(files);
 }
 
 // finds field title that matches the fieldname and returns that field
@@ -508,16 +470,20 @@ export async function extractData(fieldsData: any): Promise<{ [key: string]: any
  * @param sizeInBytes - The size of the file in bytes.
  * @returns The formatted file size as a string.
  */
-export function formatSize(sizeInBytes: any) {
-	if (sizeInBytes < 1024) {
-		return `${sizeInBytes} bytes`;
-	} else if (sizeInBytes < 1024 * 1024) {
-		return `${(sizeInBytes / 1024).toFixed(2)} KB`;
-	} else if (sizeInBytes < 1024 * 1024 * 1024) {
-		return `${(sizeInBytes / (1024 * 1024)).toFixed(2)} MB`;
-	} else {
-		return `${(sizeInBytes / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+export function formatBytes(bytes: number) {
+	if (bytes < 0) {
+		throw new Error('Input size cannot be negative');
 	}
+
+	const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];
+	let power = 0;
+
+	while (bytes >= 1024 && power < units.length - 1) {
+		bytes /= 1024;
+		power++;
+	}
+
+	return `${bytes.toFixed(2)} ${units[power]}`;
 }
 
 // Function to convert Unix timestamp to readable date string

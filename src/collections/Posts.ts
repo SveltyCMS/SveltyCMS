@@ -15,18 +15,18 @@ const schema: Schema = {
 	// Collection Permissions by user Roles
 	// Admin has all permissions by default
 	permissions: {
-		user: {
-			read: true
-		},
-		editor: {
-			create: true,
-			read: true
-		},
 		developer: {
 			create: true,
 			read: true,
 			write: true,
 			delete: true
+		},
+		editor: {
+			create: true,
+			read: true
+		},
+		user: {
+			read: true
 		}
 	},
 

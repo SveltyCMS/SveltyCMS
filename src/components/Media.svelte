@@ -1,29 +1,19 @@
 <script lang="ts">
 	import type { ImageFiles } from '@src/utils/types';
-	import { SIZES } from '@src/utils/utils';
+	import { SIZES, formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
+
+	export let onselect: any = () => {};
 
 	let files: ImageFiles[] = [];
 
 	axios.get('/media/getAll').then((res) => (files = res.data));
-
-	function formatBytes(bytes) {
-		if (bytes >= 1073741824) {
-			return (bytes / 1073741824).toFixed(2) + ' GB';
-		} else if (bytes >= 1048576) {
-			return (bytes / 1048576).toFixed(2) + ' MB';
-		} else if (bytes >= 1024) {
-			return (bytes / 1024).toFixed(2) + ' KB';
-		} else {
-			return bytes + ' bytes';
-		}
-	}
 </script>
 
 <div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
 	{#each files as file}
-		<div class="card flex w-[100%] flex-col md:w-[30%]">
-			<img src={file.thumbnail.url} class="mx-auto mb-2 max-h-[250px]" />
+		<button on:click={() => onselect(file)} class="card flex w-[100%] flex-col md:w-[30%]">
+			<img src={file.thumbnail.url} alt="" class="mx-auto mb-2 max-h-[250px]" />
 
 			<table class="mt-auto">
 				<tbody>
@@ -42,7 +32,7 @@
 					{/each}
 				</tbody>
 			</table>
-		</div>
+		</button>
 	{/each}
 </div>
 

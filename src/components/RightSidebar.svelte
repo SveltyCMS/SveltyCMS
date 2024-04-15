@@ -17,6 +17,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { languageTag } from '@src/paraglide/runtime';
 
 	let next = () => {};
 	saveLayerStore.subscribe((value) => {
@@ -79,7 +80,7 @@
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write}
+{#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write == false}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
@@ -92,7 +93,7 @@
 				<button
 					type="button"
 					on:click={saveData}
-					disabled={$collection?.permissions?.[user.role]?.write}
+					disabled={$collection?.permissions?.[user.role]?.write == false}
 					class="variant-filled-primary btn w-full gap-2"
 				>
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
@@ -170,16 +171,22 @@
 				<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
 			</main>
 
-			<footer class="mb-1 mt-2">
-				{#each Object.entries(dates) as [key, value]}
-					<div class="flex items-center justify-center gap-2 text-[12px]">
-						<!-- Labels -->
-						<div class="capitalize">{key}:</div>
-						<!-- Data -->
-						<div class="font-bold text-tertiary-500 dark:text-primary-500">{value}</div>
-					</div>
-				{/each}
-			</footer>
+			{#if $mode == 'create'}
+				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
+					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+				</p>
+			{:else}
+				<footer class="mb-1 mt-2">
+					{#each Object.entries(dates) as [key, value]}
+						<div class="flex items-center justify-center gap-2 text-[12px]">
+							<!-- Labels -->
+							<div class="capitalize">{key}:</div>
+							<!-- Data -->
+							<div class="font-bold text-tertiary-500 dark:text-primary-500">{value}</div>
+						</div>
+					{/each}
+				</footer>
+			{/if}
 		{/if}
 	</div>
 {/if}

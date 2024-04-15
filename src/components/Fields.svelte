@@ -154,7 +154,7 @@
 
 			<div class="flex justify-between dark:text-white">
 				<!-- Current version -->
-				<div class="text-center">
+				<div class="w-full text-center">
 					<p class="mb-4 sm:mb-0">{m.fields_revision_current_version()}</p>
 					<CodeBlock
 						color="text-white dark:text-primary-500"
@@ -167,10 +167,10 @@
 					/>
 				</div>
 				<div
-					class=" min-h-[1em] w-px self-stretch bg-gradient-to-tr from-transparent via-neutral-500 to-transparent opacity-20 dark:opacity-100"
+					class="ml-1 min-h-[1em] w-px self-stretch bg-gradient-to-tr from-transparent via-neutral-500 to-transparent opacity-20 dark:opacity-100"
 				></div>
 				<!-- Revision version -->
-				<div class="ml-2 text-left">
+				<div class="ml-1 w-full text-left">
 					<p class="text-center text-tertiary-500">February 19th 2024, 4:00 PM</p>
 					<!-- <HighlightedText text={JSON.stringify($entryData, null, 2)} term="bg-red-100" /> -->
 					<CodeBlock

@@ -3,7 +3,7 @@ import { redirect, type Actions, fail } from '@sveltejs/kit';
 // Auth
 import { auth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { roles } from '@src/auth/types.js';
+import type { Roles } from '@src/auth/types';
 import { createToken } from '@src/auth/tokens';
 
 // Superforms
@@ -61,44 +61,20 @@ export async function load(event) {
 
 // This action adds a new user to the system.
 export const actions: Actions = {
-	addUser: async ({ request }) => {
+	addUser: async ({ request, cookies }) => {
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		const user = await auth.validateSession(session_id);
 		// Validate addUserForm data
 		const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
+		// If the user is not logged in, redirect them to the login page.
+		if (!user || user.role != 'admin') {
+			return fail(400, { message: 'you dont have permission to add user' });
+		}
+
 		const email = addUserForm.data.email;
-		const role = addUserForm.data.role;
+		const role = addUserForm.data.role as Roles;
 		const expiresIn = addUserForm.data.expiresIn;
-
-		// Check if the email address is already registered.
-		if (await auth.checkUser({ email })) {
-			return { form: addUserForm, message: 'This email is already registered' };
-		}
-
-		// Create new user with provided email and role
-		const user = await auth.createUser({
-			username,
-			password,
-			email,
-			role: roles,
-			lastAuthMethod: 'password',
-			is_registered: true,
-			blocked: false,
-			expiresAt: new Date(),
-			resetToken: string,
-			avatar: string
-		});
-
-		if (!user) {
-			return { form: addUserForm, message: 'Unknown error' };
-		}
-		// const user = await auth.login(email, password);
-
-		// Create session with user_id and uuid
-		const session = await auth.createSession({ user_id: user._id });
-
-		if (!session) {
-			return { form: addUserForm, message: 'Failed to create Session' };
-		}
 
 		// Calculate expiration time in seconds based on expiresIn value
 		let expirationTime: number;
@@ -120,13 +96,25 @@ export const actions: Actions = {
 				// Handle invalid expiresIn value
 				return { form: addUserForm, message: 'Invalid value for token validity' };
 		}
+		if (await auth.checkUser({ email })) {
+			return fail(400, { message: 'user already exists' });
+		}
+
+		const newUser = await auth.createUser({
+			email,
+			role,
+			lastAuthMethod: 'password',
+			is_registered: false
+		});
+
+		if (!newUser) return fail(400, { message: 'unknown error' });
 
 		// Issue password token for new user
-		const token = await createToken(user._id, 'register', email, expirationTime * 1000);
-		console.log(token);
+		const token = await createToken(newUser._id, 'register', email, expirationTime * 1000);
+		console.log(token); // send token to user via email
 
 		// Send the token to the user via email.
-		await r.fetch('/api/sendMail', {
+		await fetch('/api/sendMail', {
 			method: 'POST',
 			headers: {
 				'Content-Type': 'application/json'
@@ -155,7 +143,6 @@ export const actions: Actions = {
 		const password = changePasswordForm.data.password;
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 		const user = await auth.validateSession(session_id);
-		const data = await request.formData();
 
 		// The user's session is invalid.
 		if (!user) {
@@ -194,7 +181,7 @@ export const actions: Actions = {
 		for (const info_json of infos) {
 			const info = JSON.parse(info_json as string) as { id: string; field: 'email' | 'role' | 'name'; value: string };
 
-			const user = await auth.checkUser({ email });
+			const user = await auth.checkUser({ _id: info.id });
 			console.log(user);
 			user &&
 				auth.updateUserAttributes(user, {

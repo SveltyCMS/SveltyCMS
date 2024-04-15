@@ -177,6 +177,7 @@
 										handleSidebarToggle();
 									} else {
 										mode.set(modeSet);
+										handleSidebarToggle();
 										shouldShowNextButton.set(true);
 									}
 

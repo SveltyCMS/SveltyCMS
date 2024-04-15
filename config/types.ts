@@ -54,6 +54,12 @@ export const createPrivateConfig = (arg: {
 /**
  * The PUBLIC configuration for the application,
  */
+
+type MediaOutputFormatQuality = {
+	format: 'original' | 'jpg' | 'webp' | 'avif';
+	quality: number;
+};
+
 export const createPublicConfig = <const C, S extends AvailableLanguageTag, const V extends { [key: string]: number }>(arg: {
 	// Define you hostname where you site is running
 	HOST_DEV: string; // Hostname for development eg. http://localhost:5173
@@ -79,7 +85,8 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	 * 'original' saves the file in its original format.
 	 * 'webp' and 'avif' save the file in an optimized format using the respective codec.
 	 */
-	MEDIA_OUTPUT_FORMAT: string;
+
+	MEDIA_OUTPUT_FORMAT_QUALITY: MediaOutputFormatQuality;
 
 	// Media Server URL
 	MEDIASERVER_URL?: string;

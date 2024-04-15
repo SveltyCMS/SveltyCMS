@@ -26,8 +26,11 @@ export const publicEnv = createPublicConfig({
 	// The folder where the site's media files will be stored. (default: 'mediaFiles')
 	MEDIA_FOLDER: 'mediaFiles',
 
-	// Format in where media files are saved on the server. (default: 'original')
-	MEDIA_OUTPUT_FORMAT: 'original', // 'avif', 'webp', or 'original'
+	// Media Format & Quality how image are saved on the server.
+	MEDIA_OUTPUT_FORMAT_QUALITY: {
+		format: 'original', // 'original' or 'avif', 'jpp', 'webp' (default: original)
+		quality: 80 // quality between 0 and 100 (default: 80)
+	} as const,
 
 	// Defines body size limit (default: 100mb)
 	BODY_SIZE_LIMIT: 104857600,

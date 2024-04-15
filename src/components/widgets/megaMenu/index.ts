@@ -58,6 +58,7 @@ const widget = (params: Params) => {
 		label: params.label,
 		db_fieldName: params.db_fieldName,
 		translated: params.translated,
+		required: params.required,
 		icon: params.icon,
 		width: params.width,
 		helper: params.helper,

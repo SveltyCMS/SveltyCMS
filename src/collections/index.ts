@@ -6,6 +6,8 @@ import { categories, collections, unAssigned } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 import { initWidgets } from '@components/widgets';
 import type { Schema } from './types';
+import deepmerge from 'deepmerge';
+import { defaultPermissions } from '@src/auth/types';
 
 let imports: { [Key: string]: Schema } = {};
 let rnd = Math.random();
@@ -123,6 +125,12 @@ async function getImports(recompile: boolean = false) {
 			}
 		}
 	}
+
+	for (const key in imports) {
+		const collection = imports[key];
+		collection.permissions = deepmerge(defaultPermissions, collection.permissions || {});
+	}
+
 	//console.log(imports);
 	return imports;
 }
