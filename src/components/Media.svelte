@@ -1,44 +1,61 @@
 <script lang="ts">
 	import type { ImageFiles } from '@src/utils/types';
-	import { SIZES, formatBytes } from '@src/utils/utils';
+	import { SIZES } from '@src/utils/utils';
 	import axios from 'axios';
-
 	export let onselect: any = () => {};
-
 	let files: ImageFiles[] = [];
-
 	axios.get('/media/getAll').then((res) => (files = res.data));
+	function formatBytes(bytes) {
+		if (bytes >= 1073741824) {
+			return (bytes / 1073741824).toFixed(2) + ' GB';
+		} else if (bytes >= 1048576) {
+			return (bytes / 1048576).toFixed(2) + ' MB';
+		} else if (bytes >= 1024) {
+			return (bytes / 1024).toFixed(2) + ' KB';
+		} else {
+			return bytes + ' bytes';
+		}
+	}
+	let showInfo = Array.from({ length: files.length }, () => false);
 </script>
 
 <div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
-	{#each files as file}
-		<button on:click={() => onselect(file)} class="card flex w-[100%] flex-col md:w-[30%]">
-			<img src={file.thumbnail.url} alt="" class="mx-auto mb-2 max-h-[250px]" />
-
-			<table class="mt-auto">
-				<tbody>
-					{#each Object.keys(SIZES) as size}
-						<tr>
-							<td class="!pl-[10px]">
-								{size}
-							</td>
-							<td>
-								{file[size].width}x{file[size].height}
-							</td>
-							<td>
-								{formatBytes(file[size].size)}
-							</td>
-						</tr>
-					{/each}
-				</tbody>
-			</table>
-		</button>
+	{#each files as file, index}
+		<div on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]">
+			<div class="absolute flex w-full items-center bg-[#2c3844]">
+				<button class="ml-[2px] mt-[2px] block w-[30px]" on:click={() => (showInfo[index] = !showInfo[index])}>
+					<iconify-icon icon="raphael:info" width="25" class="text-[#00d3d0]"></iconify-icon>
+				</button>
+				<p class="mx-auto pr-[30px] text-white">{file.thumbnail.name}</p>
+			</div>
+			{#if !showInfo[index]}
+				<img src={file.thumbnail.url} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
+			{:else}
+				<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
+					<tbody>
+						{#each Object.keys(SIZES) as size}
+							<tr>
+								<td class="!pl-[10px]">
+									{size}
+								</td>
+								<td>
+									{file[size].width}x{file[size].height}
+								</td>
+								<td>
+									{formatBytes(file[size].size)}
+								</td>
+							</tr>
+						{/each}
+					</tbody>
+				</table>
+			{/if}
+		</div>
 	{/each}
 </div>
 
 <style>
 	.card {
-		height: 450px;
+		height: 250px;
 		margin: 10px;
 		border-radius: 10px;
 		overflow: hidden;

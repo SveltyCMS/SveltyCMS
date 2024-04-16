@@ -1,6 +1,6 @@
 import type { SIZES } from './utils';
 
-export type ImageFiles = Record<
+export type ImageFiles = { hash: string } & Record<
 	keyof typeof SIZES,
 	{
 		name: string;

@@ -110,16 +110,11 @@ export function sanitize(str: string) {
 // Get the environment variables for image sizes
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-// In-memory cache for processed images
-const cache = new Map();
-
 // Saves image to disk and returns file information
 export async function saveImages(data: { [key: string]: any }, collectionName: string) {
 	if (browser) return;
 	const sharp = (await import('sharp')).default;
-	const files: any[] = [];
-
+	const fields: { file: any; replace: (id: string) => void }[] = [];
 	const parseFiles = async (data: any) => {
 		for (const fieldname in data) {
 			if (!(data[fieldname] instanceof File) && typeof data[fieldname] == 'object') {
@@ -130,31 +125,30 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			}
 
 			const blob = data[fieldname] as any;
-			const cacheKey = `${collectionName}:${blob.path}:${blob.name}`;
-			const cachedResult = cache.get(cacheKey);
-			if (cachedResult) {
-				files.push(cachedResult);
-				continue;
-			}
-
 			const arrayBuffer = await blob.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
 			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+			const existing_file = await mongoose.models['image_files'].findOne({ hash: hash });
+			if (existing_file) {
+				data[fieldname] = existing_file;
+				continue;
+			}
 			const path = blob.path;
-			const name = removeExtension(blob.name);
+			const { name, ext } = removeExtension(blob.name);
 
 			// Original image
+
 			let url: any;
 			if (path == 'global') {
-				url = `images/original/${hash}-${blob.name}`;
+				url = `images/original/${hash}.${ext}`;
 			} else if (path == 'unique') {
-				url = `images/${collectionName}/original/${hash}-${blob.name}`;
+				url = `images/${collectionName}/original/${hash}.${ext}`;
 			} else {
-				url = `images/${path}/original/${hash}-${blob.name}`;
+				url = `images/${path}/original/${hash}.${ext}`;
 			}
-
 			const info = await sharp(buffer).metadata();
-			const result = {
+			data[fieldname] = {
+				hash,
 				original: {
 					name: `${hash}-${blob.name}`,
 					hash: hash,
@@ -171,64 +165,59 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
 				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
 			}
+
 			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
-
-			const resizedImages = await Promise.all(
-				Object.keys(SIZES)
-					.filter((size) => size !== 'original')
-					.map(async (size) => {
-						const fullName = `${hash}-${name}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
-						const resizedImage = await sharp(buffer)
-							.rotate() // Rotate image according to EXIF data
-							.resize({ width: SIZES[size] })
-							.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
-								quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
-							})
-							.toBuffer({ resolveWithObject: true });
-
-						let url: any;
-						if (path == 'global') {
-							url = `images/${size}/${fullName}`;
-						} else if (path == 'unique') {
-							url = `images/${collectionName}/${size}/${fullName}`;
-						} else {
-							url = `images/${path}/${size}/${fullName}`;
-						}
-
-						if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-							fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
-						}
-
-						// Resized images according to size definition
-						fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
-						return {
-							size,
-							data: {
-								name: fullName,
-								hash: hash,
-								url: '/media/' + url,
-								type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-								size: resizedImage.info.size,
-								width: resizedImage.info.width,
-								height: resizedImage.info.height,
-								createdAt: new Date(),
-								lastModified: blob.lastModified as Date
-							}
-						};
+			for (const size in SIZES) {
+				if (size == 'original') continue;
+				const fullName = `${hash}-${name}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+				const resizedImage = await sharp(buffer)
+					.rotate() // Rotate image according to EXIF data
+					.resize({ width: SIZES[size] })
+					.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
+						quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
 					})
-			);
+					.toBuffer({ resolveWithObject: true });
+				let url;
 
-			resizedImages.forEach((resizedImage) => {
-				result[resizedImage.size] = resizedImage.data;
+				if (path == 'global') {
+					url = `images/${size}/${fullName}`;
+				} else if (path == 'unique') {
+					url = `images/${collectionName}/${size}/${fullName}`;
+				} else {
+					url = `images/${path}/${size}/${fullName}`;
+				}
+				if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+					fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+				}
+				//sized images
+				fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
+				data[fieldname][size] = {
+					name: `${name}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
+					hash: hash,
+					url: '/media/' + url,
+					type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
+					size: resizedImage.info.size,
+					width: resizedImage.info.width,
+					height: resizedImage.info.height,
+					createdAt: new Date(),
+					lastModified: blob.lastModified as Date
+				};
+			}
+			fields.push({
+				file: data[fieldname],
+				replace: (id) => {
+					data[fieldname] = id;
+				}
 			});
-
-			cache.set(cacheKey, result);
-			files.push(result);
 		}
 	};
 
 	await parseFiles(data);
-	mongoose.models['media_images'].insertMany(files);
+	const res = await mongoose.models['media_images'].insertMany(fields.map((v) => v.file));
+	for (const index in res) {
+		const id = res[index]._id;
+		fields[index].replace(id);
+	}
 }
 
 // finds field title that matches the fieldname and returns that field
@@ -548,9 +537,9 @@ function removeExtension(fileName: any) {
 	const lastDotIndex = fileName.lastIndexOf('.');
 	if (lastDotIndex === -1) {
 		// If the file has no extension, return the original fileName
-		return fileName;
+		return { name: fileName, ext: '' };
 	}
-	return fileName.slice(0, lastDotIndex);
+	return { name: fileName.slice(0, lastDotIndex), ext: fileName.slice(lastDotIndex + 1) };
 }
 
 export const asAny = (value: any) => value;

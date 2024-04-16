@@ -48,20 +48,25 @@
 		icon: z.string().optional(),
 		color: z.string().optional(),
 		width: z.number().optional(),
-		required: z.boolean().optional()
+		required: z.boolean().optional(),
 
 		// Widget Specfic
+		minlength: z.number().optional(),
+		maxlength: z.number().optional()
 	});
 
 	function validateInput() {
-		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
+		if (_data[_language] !== '') {
+			try {
+				validateSchema.parse(_data);
+				validationError = '';
+			} catch (error: unknown) {
+				if (error instanceof z.ZodError) {
+					validationError = error.errors[0].message;
+				}
 			}
+		} else {
+			validationError = ''; // Clear error if empty string
 		}
 	}
 </script>
@@ -74,7 +79,7 @@
 	<input
 		type="text"
 		bind:value={_data[_language]}
-		on:input={validateInput}
+		on:blur={validateInput}
 		name={field?.db_fieldName}
 		id={field?.db_fieldName}
 		placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}

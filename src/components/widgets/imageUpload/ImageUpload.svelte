@@ -71,7 +71,15 @@
 			updated = true;
 			editing = true;
 			let image = new Image();
-			image.src = '/media/' + (value as any).original.url || URL.createObjectURL(_data as File);
+			if (_data) {
+				if (_data instanceof File) {
+					image.src = URL.createObjectURL(_data as File);
+				} else {
+					image.src = '/media/' + _data.original.url;
+				}
+			} else {
+				image.src = '/media/' + (value as ImageFiles).original.url;
+			}
 			if (image.naturalHeight == 0) {
 				await new Promise((resolve) => {
 					image.onload = resolve;
@@ -147,86 +155,75 @@
 <input use:setFile bind:this={input} accept="image/*,image/webp,image/avif,image/svg+xml" name={fieldName} type="file" hidden />
 
 {#if _data}
-	<div class:editor={editing} class="flex w-[500px] max-w-full flex-col border-2 border-dashed border-gray-300">
-		<div class="flex h-[50px] w-full items-center bg-[#242734]">
-			{#if editing}
-				<iconify-icon on:click={() => edit.saveEdit()} width="26" class="cursor-pointer px-2" style="color:#05ff05" icon="ic:sharp-save-as"
-				></iconify-icon>
-				<button on:click={() => (editing = false)} class="ml-auto mr-2 cursor-pointer">
-					<XIcon />
-				</button>
-			{:else}
-				<iconify-icon on:click={() => edit.startEdit()} class=" cursor-pointer px-2 text-white" icon="flat-color-icons:edit-image" width="24" />
-				<iconify-icon
-					on:click={() => (_data = undefined)}
-					class="ml-auto cursor-pointer px-2 text-white"
-					icon="streamline:arrow-reload-horizontal-1-solid"
-					width="24"
-				/>
-			{/if}
-		</div>
-		{#if editing}
-			<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
-		{:else}
-			<img src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url} alt="" />
-		{/if}
-	</div>
-	<!-- {#if _data}
 	<div
 		class:editor={editing}
 		class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 	>
+		<!-- Image Header -->
 		<div class="mx-2 flex items-center justify-between gap-2">
 			<p class="text-left">Name: <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
 
 			<p class="text-left">
 				Size: <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
 			</p>
+
+			{#if editing}
+				<iconify-icon on:click={() => edit.saveEdit()} width="26" class="cursor-pointer px-2" style="color:#05ff05" icon="ic:sharp-save-as" />
+				<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
+					<iconify-icon icon="material-symbols:close" width="24" />
+				</button>
+			{/if}
 		</div>
-		<div class="m-2 grid min-h-[200px] grid-cols-12 gap-2">
-			{#if _data && !isFlipped}
-				{#if editing}
-					<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
-				{:else}
+
+		{#if !editing}
+			<!-- Image Body -->
+			<div class="m-2 grid min-h-[200px] grid-cols-12 gap-2">
+				{#if !isFlipped}
 					<img
 						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url}
 						alt=""
 						class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
 					/>
+				{:else}
+					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
+						<p class="">Type:</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
+						<p class="">Path:</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
+						<p class="">Uploaded:</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+						<p class="">Last Modified:</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+					</div>
 				{/if}
-			{:else}
-				<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
-					<p class="">Type:</p>
-					<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
-					<p class="">Path:</p>
-					<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
-					<p class="">Uploaded:</p>
-					<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
-					<p class="">Last Modified:</p>
-					<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
-				</div>
-			{/if}
+				<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
+					<!-- Buttons -->
+					{#if !editing}
+						<!-- Flip -->
+						<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
+							<iconify-icon
+								icon="uiw:reload"
+								width="24"
+								class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
+							/>
+						</button>
 
-			<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
-			 Flip 
-				<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
-					<iconify-icon
-						icon="uiw:reload"
-						width="24"
-						class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
-					/>
-				</button>
-				  Edit  
-				<button on:click={() => (isEditor = !isEditor)} class="variant-ghost btn-icon">
-					<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-				</button>
-				  Delete 
-				<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
-					<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
-				</button>
+						<!-- Edit -->
+						<button on:click={() => edit.startEdit()} class="variant-ghost btn-icon">
+							<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
+						</button>
+
+						<!-- Delete -->
+						<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
+							<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
+						</button>
+					{/if}
+				</div>
 			</div>
-		</div>
-	</div> -->
+		{:else}
+			<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
+		{/if}
+	</div>
 {:else}
 	<div
 		on:drop|preventDefault={(e) => {
@@ -259,3 +256,28 @@
 		</div>
 	</div>
 {/if}
+
+<style lang="postcss">
+	.editor {
+		overflow: auto;
+		position: fixed;
+		z-index: 999999999;
+		top: 0;
+		left: 0;
+		width: calc(100vw - 2px);
+		height: 100vh;
+		background-color: #242734;
+		animation: fadeIn 0.2s forwards;
+	}
+	@keyframes fadeIn {
+		0% {
+			opacity: 0;
+		}
+		100% {
+			opacity: 1;
+		}
+	}
+	:global(.editor canvas) {
+		background-color: white !important;
+	}
+</style>

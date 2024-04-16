@@ -2,6 +2,8 @@ import ImageUpload from './ImageUpload.svelte';
 
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
+import type { ModifyRequestParams } from '..';
+import mongoose from 'mongoose';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -64,6 +66,20 @@ const widget = (params: Params) => {
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget modifyRequest
+widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>) => {
+	if (type !== 'GET') {
+		if (data._id) {
+			data = new mongoose.Types.ObjectId(data._id);
+		}
+		return data;
+	}
+
+	const media_collection = mongoose.models['image_files'];
+
+	return await media_collection.findById(data);
+};
 
 // widget icon and helper text
 widget.Icon = 'material-symbols:image-outline';
