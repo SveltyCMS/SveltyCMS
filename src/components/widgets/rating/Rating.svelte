@@ -56,9 +56,9 @@
 
 <!-- Ratings -->
 <Ratings bind:value={_data.value} on:input={validateInput} max={maxRating} interactive on:icon={iconClick}>
-	<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color} /></svelte:fragment>
-	<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color} /></svelte:fragment>
-	<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color} /></svelte:fragment>
+	<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon></svelte:fragment>
+	<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color}></iconify-icon></svelte:fragment>
+	<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color}></iconify-icon></svelte:fragment>
 </Ratings>
 
 <!-- Error Message -->

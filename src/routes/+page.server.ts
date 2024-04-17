@@ -5,6 +5,7 @@ import { redirect, type Actions, error } from '@sveltejs/kit';
 // Auth
 import { auth } from '@src/routes/api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
@@ -14,17 +15,15 @@ export async function load({ cookies }) {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
-	if (user === null || !user) {
-		redirect(302, `/login`);
-	}
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+	if (!user) throw redirect(302, `/login`);
 
 	// Get the collections and filter based on reading permissions
 	const _filtered = (await getCollections()).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
 
 	if (_filtered.length == 0) {
 		throw error(404, {
-			message: "You don't have  access to any collection"
+			message: "You don't have access to any collection"
 		});
 	}
 

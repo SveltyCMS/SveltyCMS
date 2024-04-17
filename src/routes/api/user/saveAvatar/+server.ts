@@ -16,7 +16,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Read the uploaded file as a buffer
 		const buffer = Buffer.from(await avatar.arrayBuffer());
 
-		const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT || 'original';
+		const outputFormat = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format || 'original';
 
 		// Hash the file name using crypto
 		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);

@@ -10,6 +10,7 @@ import type { WidgetType } from '@components/widgets';
 // Auth
 import { auth, getCollectionModels } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
@@ -20,7 +21,8 @@ export async function load(event) {
 	// console.log('Session ID:', session_id);
 
 	// Validate user using auth and session value
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 	// If user status is 200, return user object
 	if (user) {
 		if (user.role != 'admin') {

@@ -5,6 +5,7 @@ import { getCollectionModels } from '@src/routes/api/db';
 // Auth
 import { auth } from '@src/routes/api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 // Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
@@ -12,7 +13,8 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 	if (!user) {
 		return new Response('', { status: 403 });
 	}

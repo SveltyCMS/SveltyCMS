@@ -8,6 +8,7 @@ import { redirect } from '@sveltejs/kit';
 import { auth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
+import mongoose from 'mongoose';
 
 // Only display if user is allowed to access
 function hasFilePermission(user: User, file: string): boolean {
@@ -29,7 +30,7 @@ export async function load(event: any) {
 	// Secure this page with session cookie
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
 	// If validation fails, redirect the user to the login page
 	if (!user) {

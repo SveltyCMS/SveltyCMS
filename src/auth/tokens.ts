@@ -10,7 +10,7 @@ function isWithinExpiration(expiresInMs: number) {
 }
 
 // Function to create a new token
-export async function createToken(Token: Model, user_id: mongoose.Types.ObjectId, email: string, expires: number) {
+export async function createNewToken(Token: Model, user_id: mongoose.Types.ObjectId, email: string, expires: number) {
 	// Generate a random 16-byte token string using crypto.randomBytes
 	const token = crypto.randomBytes(16).toString('hex'); // Generate a random token
 	const expiresIn = new Date(Date.now() + expires); // Convert milliseconds to Date

@@ -4,24 +4,38 @@ import { redirect, type Actions, fail } from '@sveltejs/kit';
 import { auth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { Roles } from '@src/auth/types';
-import { createToken } from '@src/auth/tokens';
+import { createNewToken } from '@src/auth/tokens';
+import mongoose from 'mongoose';
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
+import { Model } from 'mongoose';
 
 // Load function to check if user is authenticated
 export async function load(event) {
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+	const isFirstUser = (await auth.getUserCount()) == 0;
+
+	// 	// Superforms Validate addUserForm / change Password
+	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
+	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
+
 	if (!user) {
 		redirect(302, `/login`);
 		return {
 			user
 		};
 	} else {
-		return { user };
+		return {
+			user: user,
+			addUserForm,
+			changePasswordForm,
+			isFirstUser
+		};
 	}
 }
 // export async function load(event) {
@@ -32,7 +46,8 @@ export async function load(event) {
 // 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
 // 	// Validate the user's session.
-// 	const user = await auth.validateSession(session_id);
+// 	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 // 	// If the user is not logged in, redirect them to the login page.
 // 	if (user) redirect(302, `/login`);
 
@@ -63,7 +78,8 @@ export async function load(event) {
 export const actions: Actions = {
 	addUser: async ({ request, cookies }) => {
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-		const user = await auth.validateSession(session_id);
+		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 		// Validate addUserForm data
 		const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
@@ -110,7 +126,7 @@ export const actions: Actions = {
 		if (!newUser) return fail(400, { message: 'unknown error' });
 
 		// Issue password token for new user
-		const token = await createToken(newUser._id, 'register', email, expirationTime * 1000);
+		const token = await createNewToken(this.Token, newUser._id, email, expirationTime * 1000);
 		console.log(token); // send token to user via email
 
 		// Send the token to the user via email.
@@ -142,7 +158,7 @@ export const actions: Actions = {
 		const changePasswordForm = await superValidate(request, zod(changePasswordSchema));
 		const password = changePasswordForm.data.password;
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-		const user = await auth.validateSession(session_id);
+		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
 		// The user's session is invalid.
 		if (!user) {
@@ -158,7 +174,8 @@ export const actions: Actions = {
 
 	deleteUser: async (event) => {
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-		const user = await auth.validateSession(session_id);
+		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 		if (!user || user.role != 'admin') {
 			return fail(403);
 		}
@@ -171,7 +188,8 @@ export const actions: Actions = {
 
 	editUser: async (event) => {
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-		const user = await auth.validateSession(session_id);
+		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 		if (!user || user.role != 'admin') {
 			return fail(403);
 		}

@@ -6,12 +6,14 @@ import { redirect } from '@sveltejs/kit';
 // Auth
 import { auth } from '@src/routes/api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 export async function load(event: any) {
 	// Secure this page with session cookie
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
 	console.log('user: ', user);
 	// If validation fails, redirect the user to the login page
 	if (!user) {

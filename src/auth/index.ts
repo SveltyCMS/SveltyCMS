@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import { consumeToken, createToken, validateToken } from './tokens';
+import { consumeToken, createNewToken, validateToken } from './tokens';
 import type { Cookie, User, Session, Model } from './types';
 import mongoose from 'mongoose';
 export const SESSION_COOKIE_NAME = 'auth_sessions';
@@ -66,12 +66,15 @@ export class Auth {
 	// Session Valid for 1 Hr, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: mongoose.Types.ObjectId; expires?: number }) {
 		// Create the User session
-		const session = (
-			await this.Session.insertMany({
-				user_id: user_id, // Pass the ObjectId
-				expires: Date.now() + expires // Calculate expiration timestamp as a Date object
-			})
-		)?.[0];
+		const sessionData = {
+			user_id: user_id, // Pass the ObjectId
+			expires: Date.now() + expires // Calculate expiration timestamp as a Date object
+		};
+
+		await this.Session.insertMany(sessionData);
+
+		// Find the session we just created
+		const session = await this.Session.findOne(sessionData);
 
 		// Return the User Session object
 		return session;
@@ -112,7 +115,7 @@ export class Auth {
 	createSessionCookie(session: Session): Cookie {
 		const cookie: Cookie = {
 			name: SESSION_COOKIE_NAME,
-			value: session.id as string,
+			value: session.id,
 			attributes: {
 				sameSite: 'lax',
 				path: '/',
@@ -204,7 +207,7 @@ export class Auth {
 		const email = user.email; // // Return the created token
 
 		// return createToken;
-		return await createToken(this.Token, user._id, email, expires);
+		return await createNewToken(this.Token, user._id, email, expires);
 	}
 
 	// Validate the token

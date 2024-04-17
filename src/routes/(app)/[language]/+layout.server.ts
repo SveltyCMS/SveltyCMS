@@ -5,6 +5,7 @@ import { getCollections } from '@collections';
 // Auth
 import { auth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import mongoose from 'mongoose';
 
 // Paraglide JS
 import { contentLanguage } from '@src/stores/store';
@@ -12,12 +13,10 @@ import { contentLanguage } from '@src/stores/store';
 export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
 	// Redirect to login if no valid User session
-	if (!user || user === null) {
-		redirect(302, `/login`);
-	}
+	if (!user) throw redirect(302, `/login`);
 
 	// Redirect to user page if lastAuthMethod token
 	if (user?.lastAuthMethod === 'token') {

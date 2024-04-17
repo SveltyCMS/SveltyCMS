@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+	import { saveFormData } from '@src/utils/utils';
+	import type { FieldType } from '.';
 
 	// Stores
 	import { loadingProgress, mode } from '@stores/store';
@@ -7,9 +9,6 @@
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import VerticalList from '@src/components/VerticalList.svelte';
-
-	// import { saveFormDatas } from '@utils/utils';
-	import type { FieldType } from '.';
 
 	// Sveltekit
 	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
@@ -191,7 +190,7 @@
 								<!-- Optimized as  -->
 								<p class="text-lg font-semibold text-primary-500">
 									{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
-									{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT}: </span>{/if}
+									{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}: </span>{/if}
 								</p>
 								<!-- Image data  -->
 								<p>File size: <span class="text-primary-500">{(file.size / 1024).toFixed(2)} KB</span></p>
@@ -224,7 +223,7 @@
 {:else}
 	<!-- initial file upload Dropzone -->
 	<FileDropzone {name} bind:files accept="image/*" type="file" multiple on:change={onDropzoneChangeHandler}>
-		<svelte:fragment slot="lead"><iconify-icon icon="fa6-solid:file-arrow-up" width="45" /></svelte:fragment>
+		<svelte:fragment slot="lead"><iconify-icon icon="fa6-solid:file-arrow-up" width="45"></iconify-icon></svelte:fragment>
 		<svelte:fragment slot="message"
 			><span class="font-bold">Upload <span class="text-primary-500">Multiple </span>files</span> or drag & drop</svelte:fragment
 		>

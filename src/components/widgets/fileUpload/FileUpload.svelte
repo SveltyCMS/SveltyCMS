@@ -98,7 +98,7 @@
 	slotMeta="opacity-100"
 >
 	<svelte:fragment slot="lead"
-		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />{/if}</svelte:fragment
+		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45"></iconify-icon>{/if}</svelte:fragment
 	>
 	<svelte:fragment slot="message">
 		{#if !_data}<span class="font-bold text-tertiary-500 dark:text-primary-500">Upload a file</span> or drag & drop
