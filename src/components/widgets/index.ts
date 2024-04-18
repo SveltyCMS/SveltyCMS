@@ -88,7 +88,7 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 	collection: Model;
 	id?: string;
 	field: ReturnType<T>;
-	data: { [key: string]: any };
+	data: { get: () => any; update: (newData) => void };
 	user: User;
 	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
 };

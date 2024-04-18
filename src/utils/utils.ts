@@ -130,7 +130,7 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 			const existing_file = await mongoose.models['image_files'].findOne({ hash: hash });
 			if (existing_file) {
-				data[fieldname] = existing_file;
+				data[fieldname] = existing_file._id;
 				continue;
 			}
 			const path = blob.path;
@@ -214,6 +214,7 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 
 	await parseFiles(data);
 	const res = await mongoose.models['media_images'].insertMany(fields.map((v) => v.file));
+	// console.log(fields);
 	for (const index in res) {
 		const id = res[index]._id;
 		fields[index].replace(id);
@@ -703,3 +704,33 @@ export function updateTranslationProgress(data, field) {
 	}
 	translationProgress.set($translationProgress);
 }
+
+export const get_elements_by_id = {
+	//this function is used to get elements by id together at the end to minimize calls to database.
+	store: {},
+	add(collection, id, callback) {
+		if (!collection || !id) return;
+		if (!this.store[collection]) {
+			this.store[collection] = {};
+		}
+		if (!this.store[collection][id]) {
+			this.store[collection][id] = [callback];
+		} else {
+			this.store[collection][id].push(callback);
+		}
+	},
+	async getAll() {
+		const store = this.store;
+		this.store = {};
+		for (const collection in store) {
+			const ids = Object.keys(store[collection]);
+			const data = await mongoose.models[collection].find({ _id: { $in: ids } });
+
+			for (const doc in data) {
+				for (const callback of store[collection][data[doc]._id.toString()]) {
+					callback(data[doc]);
+				}
+			}
+		}
+	}
+};

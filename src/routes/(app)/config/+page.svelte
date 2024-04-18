@@ -10,7 +10,7 @@
 	<PageTitle name={m.config_pagetitle()} icon="" />
 </div>
 
-<div class="max-h-[calc(100vh-55px)] overflow-auto">
+<div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
 		<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">

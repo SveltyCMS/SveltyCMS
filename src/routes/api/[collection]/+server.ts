@@ -1,7 +1,7 @@
 // Import the necessary modules.
 import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { getFieldName, saveImages } from '@src/utils/utils';
+import { getFieldName, saveImages, get_elements_by_id } from '@src/utils/utils';
 import type { Schema } from '@src/collections/types';
 import { publicEnv } from '@root/config/public';
 
@@ -117,12 +117,22 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			// widget can modify own portion of entryList;
 			entryList = await Promise.all(
 				entryList.map(async (entry: any) => {
-					entry[fieldName] = await widget.modifyRequest({ collection, field, data: entry[fieldName], user, type: 'GET' });
+					const data = {
+						get() {
+							return entry[fieldName];
+						},
+						update(newData) {
+							entry[fieldName] = newData;
+						}
+					};
+					await widget.modifyRequest({ collection, field, data, user, type: 'GET' });
 					return entry;
 				})
 			);
 		}
 	}
+
+	await get_elements_by_id.getAll(); //get all collected ids together and modify request.
 
 	// Calculate the total count.
 	const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
@@ -196,7 +206,16 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			delete body[fieldName];
 		} else if ('modifyRequest' in widget) {
 			// widget can modify own portion of body;
-			body[fieldName] = await widget.modifyRequest({ collection, field, data: body[fieldName], user, type: 'PATCH', id: _id });
+			const data = {
+				get() {
+					return body[fieldName];
+				},
+				update(newData) {
+					body[fieldName] = newData;
+				}
+			};
+			await widget.modifyRequest({ collection, field, data, user, type: 'PATCH', id: _id });
+			console.log(body);
 		}
 	}
 
@@ -271,8 +290,15 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 			delete body[fieldName];
 		} else if ('modifyRequest' in widget) {
 			// widget can modify own portion of body;
-
-			body[fieldName] = await widget.modifyRequest({ collection, field, data: body[fieldName], user, type: 'POST' });
+			const data = {
+				get() {
+					return body[fieldName];
+				},
+				update(newData) {
+					body[fieldName] = newData;
+				}
+			};
+			await widget.modifyRequest({ collection, field, data, user, type: 'POST' });
 		}
 	}
 	// Save the images.

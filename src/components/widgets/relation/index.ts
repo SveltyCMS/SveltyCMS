@@ -65,14 +65,37 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-widget.modifyRequest = async ({ field, data, type }: ModifyRequestParams<typeof widget>) => {
-	if (type !== 'GET') {
-		return data;
+// widget modifyRequest
+widget.modifyRequest = async ({ field, data, user, type }: ModifyRequestParams<typeof widget>) => {
+	const _data = data.get();
+	if (type !== 'GET' || !_data) {
+		return;
 	}
 	const { getCollectionModels } = await import('@src/routes/api/db');
 	const relative_collection = (await getCollectionModels())[field.relation];
-
-	return await relative_collection.findById(data);
+	const relative_collection_schema = (await getCollections()).find((c) => c.name == field.relation) as Schema;
+	const response = (await relative_collection.findById(_data)) as any;
+	const result = {};
+	for (const key in relative_collection_schema.fields) {
+		const _field = relative_collection_schema.fields[key];
+		const widget = widgets[_field.widget.key];
+		const data = {
+			get() {
+				return response[getFieldName(_field)];
+			},
+			update(newData) {
+				result[getFieldName(_field)] = newData;
+			}
+		};
+		await widget.modifyRequest({
+			collection: relative_collection,
+			field: _field as ReturnType<typeof widget>,
+			data,
+			user,
+			type
+		});
+	}
+	data.update(result);
 };
 
 // widget icon and helper text

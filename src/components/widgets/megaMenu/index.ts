@@ -81,6 +81,7 @@ widget.GraphqlSchema = GraphqlSchema;
 
 // Cleans the children of a megamenu by removing any fields that the user does not have permission to read.
 widget.modifyRequest = async ({ collection, field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
+	const _data = data.get();
 	let old_data: Array<any>;
 	const process_OldData = (children, level = 1, result = []) => {
 		for (const index in children) {
@@ -114,10 +115,18 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 					// if menu as other nested widgets inside which has its own modifyRequest method...
 					const widget = widgets[_field.widget.key];
 					if ('modifyRequest' in widget) {
-						children[index][getFieldName(_field)] = await widget.modifyRequest({
+						let data = {
+							get() {
+								return children[index][getFieldName(_field)];
+							},
+							update(newData) {
+								children[index][getFieldName(_field)] = newData;
+							}
+						};
+						await widget.modifyRequest({
 							collection,
 							field: _field as ReturnType<typeof widget>,
-							data: children[index][getFieldName(_field)],
+							data,
 							user,
 							type,
 							id
@@ -125,13 +134,14 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 					}
 				}
 			}
+
 			children[index].children.length > 0 && field.fields[level + 1]?.length > 0 && (await cleanChildren(children[index].children, level + 1));
 		}
 	};
 
-	await cleanChildren(data.children);
+	await cleanChildren(_data.children);
 
-	return data;
+	return _data;
 };
 // Widget icon and helper text
 widget.Icon = 'lucide:menu-square';

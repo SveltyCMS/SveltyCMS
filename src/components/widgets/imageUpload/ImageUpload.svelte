@@ -68,10 +68,9 @@
 		group: {} as Group,
 		transformers: [] as Transformer[],
 		async startEdit() {
-			updated = true;
 			editing = true;
 			let image = new Image();
-			if (_data) {
+			if (_data && updated) {
 				if (_data instanceof File) {
 					image.src = URL.createObjectURL(_data as File);
 				} else {
@@ -86,40 +85,72 @@
 				});
 			}
 			let Konva = (await import('konva')).default;
-			let scale = {
-				x: (window.innerWidth - 50) / 1.5 / image.naturalWidth,
-				y: (window.innerHeight - 80) / 1.5 / image.naturalHeight
-			};
+			let scale = Math.min((window.innerWidth - 50) / 1.5 / image.naturalWidth, (window.innerHeight - 80) / 1.5 / image.naturalHeight);
+
 			this.stage = new Konva.Stage({
 				container: 'canvas',
 				width: window.innerWidth - 50,
 				height: window.innerHeight - 80,
-				scale
+				scale: {
+					x: scale,
+					y: scale
+				}
 			});
 
 			let layer = new Konva.Layer();
 			this.stage.add(layer);
+
 			let imageObj = new Konva.Image({
 				image: image,
-				x: (this.stage.width() / 2) * (1 / scale.x) - image.naturalWidth / 2,
-				y: (this.stage.height() / 2) * (1 / scale.y) - image.naturalHeight / 2,
+				x: (this.stage.width() / 2) * (1 / scale) - image.naturalWidth / 2,
+				y: (this.stage.height() / 2) * (1 / scale) - image.naturalHeight / 2,
 				draggable: true
 			});
 			this.group = new Konva.Group();
 			this.group.add(imageObj);
-			layer.add(this.group);
-			let tr = new Konva.Transformer({
-				node: imageObj,
-				rotateAnchorOffset: 20
+			let blurRect = new Konva.Image({
+				image,
+				width: 300,
+				height: 100,
+				pixelSize: 50,
+				draggable: true
 			});
-			this.transformers.push(tr);
-			layer.add(tr);
+
+			blurRect.filters([Konva.Filters.Pixelate]);
+			blurRect.on('dragmove', (e) => {
+				blurRect.scale({ x: 1, y: 1 });
+				blurRect.crop({ x: -(imageObj.x() - blurRect.x()), y: -(imageObj.y() - blurRect.y()), width: blurRect.width(), height: blurRect.height() });
+				blurRect.cache();
+			});
+			blurRect.on('transform', () => {
+				blurRect.setAttrs({
+					width: blurRect.width() * blurRect.scaleX(),
+					height: blurRect.height() * blurRect.scaleY(),
+					scaleX: 1,
+					scaleY: 1
+				});
+				blurRect.crop({ x: -(imageObj.x() - blurRect.x()), y: -(imageObj.y() - blurRect.y()), width: blurRect.width(), height: blurRect.height() });
+				blurRect.cache();
+			});
+			this.transformers = [
+				new Konva.Transformer({
+					nodes: [imageObj],
+					rotateAnchorOffset: 20
+				}),
+				new Konva.Transformer({
+					nodes: [blurRect],
+					rotateAnchorOffset: 20,
+
+					rotateEnabled: false
+				})
+			];
+			this.group.add(blurRect);
+			layer.add(this.group, ...this.transformers);
 		},
 		async saveEdit() {
 			this.transformers.forEach((t) => {
 				t.destroy();
 			});
-
 			this.stage.scale({ x: 1, y: 1 });
 			_data = await new Promise((resolve) => {
 				this.group.toBlob({
@@ -140,8 +171,8 @@
 					}
 				});
 			});
-			console.log(_data);
 			editing = false;
+			updated = true;
 		}
 	};
 
@@ -172,6 +203,7 @@
 				<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
 					<iconify-icon icon="material-symbols:close" width="24" />
 				</button>
+				<Media bind:onselect={mediaOnSelect} />
 			{/if}
 		</div>
 

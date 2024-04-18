@@ -150,7 +150,7 @@
 	</button>
 </div>
 
-<div class="max-h-[calc(100vh-55px)] overflow-auto">
+<div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">
 		{#if !availableCollection}
 			<p class="my-2 text-center">{m.collection_first()}</p>

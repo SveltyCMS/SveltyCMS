@@ -62,6 +62,7 @@
 		}
 
 		data = data[field.displayPath] ? data : value;
+		data = $mode == 'create' ? {} : data;
 
 		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
 	})(expanded);
