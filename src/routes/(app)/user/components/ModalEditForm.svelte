@@ -1,4 +1,5 @@
 <script lang="ts">
+	import axios from 'axios';
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 
@@ -19,7 +20,7 @@
 	// Auth
 	import { roles } from '@src/auth/types';
 	const user = $page.data.user;
-	const { isFirstUser } = $page.data;
+	let isFirstUser = $page.data.isFirstUser;
 
 	export let isGivenData: boolean = false;
 	export let username: string | null = null;
@@ -29,7 +30,7 @@
 
 	// Form Data
 	const formData = {
-		userId: isGivenData ? userId : user?.userId,
+		userId: isGivenData ? userId : user?.id,
 		username: isGivenData ? username : user?.username,
 		email: isGivenData ? email : user?.email,
 		password: '',
@@ -51,7 +52,7 @@
 		// console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
-		if ((isGivenData && userId != user?.userId) || (formData.password !== null && formData.password === formData.confirmPassword)) {
+		if ((isGivenData && userId != user?.id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
 			modalStore.close();
 		} else {
 			console.log('error');
@@ -65,17 +66,31 @@
 
 	let formElement: HTMLFormElement;
 
-	const deleteUser = async () => {
-		const res = await fetch('/api/user/deleteUsers', {
-			method: 'POST',
-			headers: { 'Content-Type': 'application/json' },
-			body: JSON.stringify([{ userId: userId, role: role }])
-		});
+	// const deleteUser = async () => {
+	// 	const res = await fetch('/api/user/deleteUsers', {
+	// 		method: 'POST',
+	// 		headers: { 'Content-Type': 'application/json' },
+	// 		body: JSON.stringify([{ userId: user.id, role: role }])
+	// 	});
+
+	// 	if (res.status === 200) {
+	// 		await invalidateAll();
+	// 	}
+	// };
+
+	async function deleteUser() {
+		const res = await axios.post(
+			'/?/deleteUser',
+			new FormData({
+				id: user.id
+			})
+		);
 
 		if (res.status === 200) {
 			await invalidateAll();
+			modalStore.close(); // Close modal after successful deletion
 		}
-	};
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -100,7 +115,7 @@
 					bind:value={formData.username}
 					on:keydown={() => (errorStatus.username.status = false)}
 					required
-					disabled={isGivenData && userId != user?.userId}
+					disabled={isGivenData && userId != user?.user.id}
 				/>
 				{#if !errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -150,7 +165,7 @@
 					{/if}
 				</div>
 			{/if}
-			{#if (user?.userId == userId || !isGivenData) && user?.authMethod == 'email'}
+			{#if (user.id == userId || !isGivenData) && user?.authMethod == 'email'}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -235,7 +250,7 @@
 
 			<!-- admin area -->
 			<!-- TODO:  Self or last first user cannot change role -->
-			{#if user?.roles === 'admin'}
+			{#if user.role === 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 					<div class="flex-auto">
@@ -264,12 +279,9 @@
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 		
 		{#if !isFirstUser}
-		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.userId == userId)}>
+		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.user.id == userId)}>
 			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 		</button>
-		{:else}
-			<div></div>
-			<!-- Empty div when using the default avatar -->
 		{/if}
 
 		<div class="flex justify-between gap-2">

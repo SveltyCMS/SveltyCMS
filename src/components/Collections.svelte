@@ -238,6 +238,16 @@
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
 			<p class="mr-auto text-center uppercase">{publicEnv.MEDIA_FOLDER}</p>
 		</a>
+
+		<button
+			on:click={() => {
+				mode.set('media');
+				if (get(screenWidth) === 'mobile') {
+					toggleSidebar('left', 'hidden');
+				}
+			}}
+			class="btn mt-2 w-full bg-surface-500 p-2 uppercase text-white">New {publicEnv.MEDIA_FOLDER}</button
+		>
 	{:else}
 		<!-- switchSideBar collapsed -->
 		<a
@@ -254,5 +264,15 @@
 			<p class="text-xs uppercase text-white">{publicEnv.MEDIA_FOLDER}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
 		</a>
+
+		<button
+			on:click={() => {
+				mode.set('media');
+				if (get(screenWidth) === 'mobile') {
+					toggleSidebar('left', 'hidden');
+				}
+			}}
+			class="btn mt-2 w-full bg-surface-500 p-2 text-xs uppercase text-white">New {publicEnv.MEDIA_FOLDER}</button
+		>
 	{/if}
 </div>

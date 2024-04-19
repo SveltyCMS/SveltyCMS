@@ -94,7 +94,7 @@ export const handleSidebarToggle = () => {
 	const width = get(screenWidth);
 	// Mobile
 	if (width === ScreenWidth.Mobile) {
-		if (get(mode) === 'view') {
+		if (get(mode) === 'view' || get(mode) === 'media') {
 			toggleSidebar('left', 'hidden');
 			toggleSidebar('right', 'hidden');
 			toggleSidebar('pageheader', 'hidden');
@@ -111,7 +111,7 @@ export const handleSidebarToggle = () => {
 		}
 		// Tablet
 	} else if (width === ScreenWidth.Tablet) {
-		if (get(mode) === 'view') {
+		if (get(mode) === 'view' || get(mode) === 'media') {
 			toggleSidebar('left', 'collapsed');
 			toggleSidebar('right', 'hidden');
 			toggleSidebar('pageheader', 'hidden');
@@ -128,7 +128,7 @@ export const handleSidebarToggle = () => {
 		}
 		// Desktop
 	} else if (width === ScreenWidth.Desktop) {
-		if (get(mode) === 'view') {
+		if (get(mode) === 'view' || get(mode) === 'media') {
 			toggleSidebar('left', 'full');
 			toggleSidebar('right', 'hidden');
 			toggleSidebar('pageheader', 'hidden');

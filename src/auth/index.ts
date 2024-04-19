@@ -90,20 +90,26 @@ export class Auth {
 		return user;
 	}
 
-	// Get User by ID
+	// Get User Count
 	async getUserCount(): Promise<number> {
-		return await this.User.countDocuments();
+		return await this.User.countDocuments(); // Return all users from the User collection
+	}
+
+	// Get User by ID
+	async getUserById(id: string): Promise<User | null> {
+		const user = await this.User.findOne({ _id: id }); // Find the user document
+		return user; // Return the user object or null if not found
 	}
 
 	// Get All Users
 	async getAllUsers(): Promise<User[]> {
-		const users = await this.User.find({});
-		return users;
+		const users = await this.User.find({}); // Return all users from the User collection
+		return users; // Return the user object or null if not found
 	}
 	// Get All Tokens
 	async getAllTokens(): Promise<any[]> {
 		const token = await this.Token.find({}); // Return all tokens from the Token collection
-		return token;
+		return token; // Return the token object or null if not found
 	}
 
 	// Delete the User Session

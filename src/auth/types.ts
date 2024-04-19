@@ -57,16 +57,19 @@ export const color = {
 
 // Define the schema for a User
 export const UserSchema = {
+	// Can be changed by /user
 	email: { type: String, required: true }, // The email associated email
 	password: { type: String, required: true }, // The password of the user
 	role: { type: String, required: true }, // The role of the user
 	username: String, // The username of the user
+	avatar: String, // The URL of the user's avatar
+
+	// Cannot be changed by /user
 	lastAuthMethod: String, // The last method the user used to authenticate
 	lastActiveAt: Date, // The last time the user was active
 	expiresAt: Date, // When the reset token expires
 	is_registered: Boolean, // Whether the user has completed registration
 	blocked: Boolean, // Whether the user is blocked
-	avatar: String, // The URL of the user's avatar
 	resetRequestedAt: String, // The last time the user requested a password reset
 	resetToken: String // The token for resetting the user's password
 };

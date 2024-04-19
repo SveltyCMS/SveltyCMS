@@ -128,7 +128,7 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			const arrayBuffer = await blob.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
 			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-			const existing_file = await mongoose.models['image_files'].findOne({ hash: hash });
+			const existing_file = await mongoose.models['media_images'].findOne({ hash: hash });
 			if (existing_file) {
 				data[fieldname] = existing_file._id;
 				continue;
@@ -706,7 +706,7 @@ export function updateTranslationProgress(data, field) {
 }
 
 export const get_elements_by_id = {
-	//this function is used to get elements by id together at the end to minimize calls to database.
+	// This function is used to get elements by id together at the end to minimize calls to database.
 	store: {},
 	add(collection, id, callback) {
 		if (!collection || !id) return;

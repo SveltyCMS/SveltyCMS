@@ -4,7 +4,10 @@
 
 	// Auth
 	const user = $page.data.user;
-	const { isFirstUser } = $page.data;
+
+	let isFirstUser = $page.data.isFirstUser;
+	console.log('isFirstUser:', isFirstUser);
+	console.log('isFirstUser == 0:', isFirstUser == 0);
 
 	// Stores
 	import '@stores/store';
@@ -66,17 +69,12 @@
 	// let avatarSrc = writable(user?.avatar);
 	avatarSrc.set(user?.avatar);
 
-	const id = user?.id;
-	let username = user?.username;
-	const role = user?.role;
-	let email = user?.email;
-
 	// TODO  Get hashed password
 	let password = 'hash-password';
 
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
-		console.log('Triggered - modalUserForm');
+		// console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
@@ -95,6 +93,8 @@
 			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
+					console.log('Response:', r);
+
 					const res = await fetch('/api/user/editUser', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
@@ -123,7 +123,7 @@
 
 	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
-		console.log('Triggered - modalEditAvatar');
+		// console.log('Triggered - modalEditAvatar');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
@@ -141,7 +141,9 @@
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
 			// Pass arbitrary data to the component
+
 			response: (r: { dataURL: string }) => {
+				console.log('ModalEditAvatar response:', r);
 				if (r) {
 					avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
 
@@ -207,11 +209,11 @@
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!--User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_userid()}<span class="ml-2">{id}</span>
+					{m.userpage_userid()}<span class="ml-2">{user.id}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.form_role()}:<span class="ml-2">{role}</span>
+					{m.form_role()}:<span class="ml-2">{user.role}</span>
 				</div>
 			</div>
 
@@ -219,11 +221,11 @@
 			<form>
 				<label
 					>{m.form_username()}:
-					<input bind:value={username} name="username" type="text" disabled class="input" />
+					<input bind:value={user.username} name="username" type="text" disabled class="input" />
 				</label>
 				<label
 					>{m.form_email()}:
-					<input bind:value={email} name="email" type="email" disabled class="input" />
+					<input bind:value={user.email} name="email" type="email" disabled class="input" />
 				</label>
 				<label
 					>{m.form_password()}:

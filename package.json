@@ -93,7 +93,7 @@
 		"typescript": "^5.4.5",
 		"vite": "^5.2.9",
 		"vite-plugin-tailwind-purgecss": "^0.3.1",
-		"zod": "^3.22.4"
+		"zod": "^3.22.5"
 	},
 	"type": "module",
 	"dependencies": {
@@ -121,6 +121,6 @@
 		"serve-static": "^1.15.0",
 		"svelte-lexical": "^0.4.0",
 		"svelty-email": "^0.0.10",
-		"tailwind-merge": "^2.2.2"
+		"tailwind-merge": "^2.3.0"
 	}
 }
