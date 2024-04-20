@@ -3,12 +3,22 @@
 	import { SIZES, formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	// Skeleton
+	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// Components
 	import PageTitle from './PageTitle.svelte';
 	import { publicEnv } from '@root/config/public';
+
+	// Popup Tooltips
+	const FileTooltip: PopupSettings = {
+		event: 'click',
+		target: 'FileInfo',
+		placement: 'bottom'
+	};
 
 	export let onselect: any = () => {};
 	let files: ImageFiles[] = [];
@@ -98,21 +108,100 @@
 			console.error('Error deleting image:', error);
 		}
 	}
+
+	// Table
+	let tableData: ImageFiles[] = [];
+	const filteredTableData: ImageFiles[] = [];
+	let filters: { [key: string]: string } = {};
+
+	// Pagination
+	const rowsPerPage = 10; // Set initial rowsPerPage value
+	let currentPage = 1; // Set initial currentPage value
+
+	let isLoading = false;
+	let loadingTimer: any; // recommended time of around 200-300ms
+
+	// Display User Token Columns
+	const tableHeaders = [
+		{ label: m.mediagallery_image(), key: 'thumbnail' },
+		{ label: m.mediagallery_name(), key: 'name' },
+		{ label: m.mediagallery_size(), key: 'size' },
+		{ label: m.mediagallery_hash(), key: 'hash' },
+		{ label: m.mediagallery_path(), key: 'path' }
+	];
+
+	//Load Table data
+	async function refreshTableData() {
+		// Clear loading timer
+		loadingTimer && clearTimeout(loadingTimer);
+
+		try {
+			let responseData: any;
+
+			// Set loading to true
+			loadingTimer = setTimeout(() => {
+				isLoading = true;
+			}, 400);
+
+			// Load All available Users
+			// responseData = data.props.data;
+
+			// Check if responseData is an array before mapping
+			if (Array.isArray(responseData)) {
+				// Format the data for the table
+				tableData = responseData.map((item) => {
+					const formattedItem: any = {};
+					for (const header of tableHeaders) {
+						const { key } = header;
+						formattedItem[key] = item[key] || 'NO DATA';
+						if (key === 'createdAt' || key === 'updatedAt') {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
+						}
+						if (key === 'expiresIn') {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
+						}
+					}
+
+					return formattedItem;
+				});
+			} else {
+				// Handle the case when no data is present
+				tableData = [];
+			}
+
+			// Reset filters
+			filters = {};
+
+			// Set loading to false
+			isLoading = false;
+			clearTimeout(loadingTimer);
+		} catch (error) {
+			console.error('Error fetching data:', error);
+		}
+	}
+	//Call refreshTableData initially to populate the table
+	refreshTableData();
+
+	// Columns Sorting
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = {
+		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+	};
 </script>
 
 <div class="flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 </div>
 
-<div class=" wrapper">
+<div class=" wrapper overflow-auto">
 	<div class="mb-2 flex items-center justify-between gap-4">
-		<!-- search/display -->
+		<!-- Search/display -->
 		<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
 			<!-- Search -->
 			<input
 				type="text"
 				placeholder="Search..."
-				class="input h-12 w-64 outline-none transition-all duration-500 ease-in-out"
+				class="input"
 				bind:value={globalSearchValue}
 				on:blur={() => (searchShow = false)}
 				on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
@@ -280,51 +369,26 @@
 
 	<!-- Grid display -->
 	{#if view === 'grid'}
-		<div class="flex max-h-[calc(100%-65px)] flex-wrap items-center gap-4 overflow-auto">
+		<div class="flex flex-wrap items-center gap-4 overflow-auto">
 			{#each filteredFiles as file, index}
-				<!-- Card -->
 				<div
-					on:click={() => onselect(file)}
-					on:keydown
-					on:keydown={(e) => {
-						if (e.key === 'Enter' || e.key === ' ') {
-							onselect(file);
-						}
-					}}
+					on:mouseenter={() => (showInfo[index] = true)}
+					on:mouseleave={() => (showInfo[index] = false)}
 					role="button"
 					tabindex="0"
-					class="group card relative bg-transparent"
+					class="card border border-surface-300 dark:border-surface-500"
 				>
-					<!-- <div on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]"> -->
-					<div class="absolute flex w-full items-center bg-surface-500">
-						<!-- info flip -->
-						<button class="btn-icon" on:click={() => (showInfo[index] = !showInfo[index])}>
+					<header class="m-2 flex w-auto items-center justify-between">
+						<!-- Info Icon -->
+						<button class="btn-icon" use:popup={FileTooltip}>
 							<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</button>
 
-						<p class={` object-cover object-center ${gridSize === 'small' ? 'hidden' : 'mx-auto inline-block  pr-[30px]  '}`}>
-							{file.thumbnail.name}
-						</p>
-					</div>
-
-					{#if !showInfo[index]}
-						<img
-							src={file.thumbnail.url}
-							alt={file.thumbnail.name}
-							class={`inline-block object-cover object-center ${
-								gridSize === 'small' ? 'h-32 w-32' : gridSize === 'medium' ? 'h-44 w-44' : 'h-80 w-80'
-							}`}
-						/>
-					{:else}
-						<!-- file details -->
-						<div class="table-container mt-[40px]">
-							<table class="table-hover table-auto">
-								<thead
-									class={`text-tertiary-500 dark:text-primary-500 ${
-										gridSize === 'small' ? 'text-xs' : gridSize === 'medium' ? 'text-sm' : 'text-base'
-									}`}
-								>
-									<tr class="border-b-2 border-surface-400 text-center">
+						<!-- Popup Tooltip with the arrow element to show FileInfo -->
+						<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
+							<table class="table-hover w-full table-auto">
+								<thead class={`text-tertiary-500  ${gridSize === 'small' ? 'text-xs' : gridSize === 'medium' ? 'text-sm' : 'text-base'}`}>
+									<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
 										<th class="text-left">Format</th>
 										<th class="">Pixel</th>
 										<th class="">Size</th>
@@ -333,14 +397,14 @@
 								<tbody>
 									{#each orderedSizes as size}
 										<tr
-											class={`border-b border-surface-400  last:border-b-0 ${
+											class={`divide-x divide-surface-400 border-b border-surface-400  last:border-b-0 ${
 												gridSize === 'small' ? 'text-xs' : gridSize === 'medium' ? 'text-sm' : 'text-base'
 											}`}
 										>
-											<td class="text-tertiary-500 dark:text-primary-500">
+											<td class="font-bold text-tertiary-500">
 												{size}
 											</td>
-											<td class="text-right">
+											<td class="pr-1 text-right">
 												{file[size].width}x{file[size].height}
 											</td>
 											<td class="text-right">
@@ -349,13 +413,165 @@
 										</tr>
 									{/each}
 								</tbody>
+								<div class="variant-filled arrow" />
 							</table>
 						</div>
-					{/if}
+						{#if showInfo[index]}
+							<!-- Edit button -->
+							<button class="btn-icon">
+								<iconify-icon icon="mdi:pen" width="25" class="data:text-primary-500 text-tertiary-500" />
+							</button>
+
+							<!-- Delete button -->
+							<button class="btn-icon" on:click={() => handleDeleteImage(file)}>
+								<!-- Delete Icon -->
+								<iconify-icon icon="icomoon-free:bin" width="25" class="text-error-500" />
+							</button>
+						{/if}
+					</header>
+
+					<section class="p-2">
+						<!-- Media File -->
+						<img
+							src={file.thumbnail.url}
+							alt={file.thumbnail.name}
+							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-32 w-auto' : gridSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+						/>
+					</section>
+
+					<footer class={`-mt-1 mb-3 text-center ${gridSize === 'small' ? 'text-xs' : 'text-base'}`}>
+						{file.thumbnail.name}
+					</footer>
 				</div>
 			{/each}
 		</div>
 	{:else}
-		Table
+		<!-- Table for table view -->
+		<div class="table-container max-h-[calc(100vh-55px)] overflow-auto">
+			<table
+				class="table table-interactive table-hover ta{density === 'normal' || density === 'compact'
+					? density === 'normal'
+						? ''
+						: 'table-compact'
+					: 'table-comfortable'}"
+			>
+				<!-- Table Header -->
+				<thead class="top-0 text-tertiary-500 dark:text-primary-500">
+					<tr class="divide-x divide-surface-400 border-b border-black dark:border-white">
+						{#each tableHeaders as header}
+							<th
+								on:click={() => {
+									//sorting
+									sorting = {
+										sortedBy: header.key,
+										isSorted: (() => {
+											if (header.key !== sorting.sortedBy) {
+												return 1;
+											}
+											if (sorting.isSorted === 0) {
+												return 1;
+											} else if (sorting.isSorted === 1) {
+												return -1;
+											} else {
+												return 0;
+											}
+										})()
+									};
+								}}
+							>
+								<div class="flex items-center justify-center text-center">
+									{header.label}
+
+									<iconify-icon
+										icon="material-symbols:arrow-upward-rounded"
+										width="22"
+										class="origin-center duration-300 ease-in-out"
+										class:up={sorting.isSorted === 1}
+										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
+									/>
+								</div></th
+							>
+						{/each}
+					</tr>
+				</thead>
+				<tbody>
+					{#each filteredFiles as file}
+						<tr class="divide-x divide-surface-400">
+							<td
+								><!-- Media File -->
+								<img
+									src={file.thumbnail.url}
+									alt={file.thumbnail.name}
+									class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-32 w-auto' : gridSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+								/>
+							</td>
+							<td>{file.thumbnail.name}</td>
+							<!-- <td>{formatBytes(file.size)}</td> -->
+							<td>{file.hash}</td>
+							<!-- <td>{file.path}</td> -->
+						</tr>
+					{/each}
+				</tbody>
+			</table>
+
+			<!-- Pagination  -->
+			<div class="text-token my-3 flex flex-col items-center justify-center md:flex-row md:justify-around">
+				<div class="mb-2 md:mb-0">
+					<span class="text-sm">{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
+					<span class="text-sm"> {m.entrylist_of()} </span>
+					<span class="text-tertiary-500 dark:text-primary-500">{Math.ceil(tableData.length / rowsPerPage)}</span>
+				</div>
+
+				<div class="variant-outline btn-group">
+					<!-- First page -->
+					<button
+						type="button"
+						class="btn"
+						on:click={() => {
+							currentPage = 1;
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
+					</button>
+
+					<!-- Previous page -->
+					<button
+						type="button"
+						class="btn"
+						on:click={() => {
+							currentPage = Math.max(1, currentPage - 1);
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
+					</button>
+
+					<!-- Next page -->
+					<button
+						type="button"
+						class="btn"
+						on:click={() => {
+							currentPage = Math.min(currentPage + 1, Math.ceil(tableData.length / rowsPerPage));
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
+					</button>
+
+					<!-- Last page -->
+					<button
+						type="button"
+						class="btn"
+						on:click={() => {
+							currentPage = Math.ceil(tableData.length / rowsPerPage);
+							refreshTableData();
+						}}
+					>
+						<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === Math.ceil(tableData.length / rowsPerPage)} />
+					</button>
+				</div>
+			</div>
+		</div>
 	{/if}
 </div>

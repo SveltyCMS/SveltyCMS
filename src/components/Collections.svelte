@@ -225,11 +225,10 @@
 	<!-- Gallery -->
 	{#if $sidebarState.left === 'full'}
 		<!-- switchSideBar expanded -->
-		<a
-			href="/mediagallery"
-			class="btn mt-1 flex flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
+		<button
+			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			on:click={() => {
-				mode.set('view');
+				mode.set('media');
 				if (get(screenWidth) === 'mobile') {
 					toggleSidebar('left', 'hidden');
 				}
@@ -237,24 +236,13 @@
 		>
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
 			<p class="mr-auto text-center uppercase">{publicEnv.MEDIA_FOLDER}</p>
-		</a>
-
-		<button
-			on:click={() => {
-				mode.set('media');
-				if (get(screenWidth) === 'mobile') {
-					toggleSidebar('left', 'hidden');
-				}
-			}}
-			class="btn mt-2 w-full bg-surface-500 p-2 uppercase text-white">New {publicEnv.MEDIA_FOLDER}</button
-		>
+		</button>
 	{:else}
 		<!-- switchSideBar collapsed -->
-		<a
-			href="/mediagallery"
-			class="btn mt-2 flex flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
+		<button
+			class="btn mt-2 flex w-full flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
-				mode.set('view');
+				mode.set('media');
 				handleSidebarToggle();
 				if (get(screenWidth) === 'mobile') {
 					toggleSidebar('left', 'hidden');
@@ -263,16 +251,6 @@
 		>
 			<p class="text-xs uppercase text-white">{publicEnv.MEDIA_FOLDER}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
-		</a>
-
-		<button
-			on:click={() => {
-				mode.set('media');
-				if (get(screenWidth) === 'mobile') {
-					toggleSidebar('left', 'hidden');
-				}
-			}}
-			class="btn mt-2 w-full bg-surface-500 p-2 text-xs uppercase text-white">New {publicEnv.MEDIA_FOLDER}</button
-		>
+		</button>
 	{/if}
 </div>
