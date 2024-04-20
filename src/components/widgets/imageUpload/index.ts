@@ -67,21 +67,23 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget modifyRequest
+// Widget modifyRequest
 widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
 	if (type !== 'GET') {
 		if (_data._id) {
 			console.log(_data);
 			data.update(new mongoose.Types.ObjectId(_data._id));
+		} else {
+			console.error('No _id found in _data:', _data);
 		}
 		return;
 	}
 	// here _data is just id of the image
-	get_elements_by_id.add('image_files', _data, (newData) => data.update(newData));
+	get_elements_by_id.add('media_images', _data, (newData) => data.update(newData));
 };
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'material-symbols:image-outline';
 widget.Description = m.widget_ImageUpload_description();
 

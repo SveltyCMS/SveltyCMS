@@ -146,7 +146,7 @@
 				<p class="text-center text-tertiary-500 dark:text-primary-500">{m.fields_revision_compare()}</p>
 				<button class="variant-outline-tertiary btn dark:variant-ghost-primary" on:click={handleRevert}>{m.fields_revision_revert()}</button>
 			</div>
-			<!-- dropdown -->
+			<!-- Dropdown -->
 			<select class="select mb-2">
 				<option value="1">{m.fields_revision_most_recent()}</option>
 				<option value="2">February 19th 2024, 4:00 PM</option>

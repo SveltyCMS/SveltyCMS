@@ -1,7 +1,7 @@
 // Import the necessary modules.
 import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { getFieldName, saveImages, get_elements_by_id } from '@src/utils/utils';
+import { getFieldName, saveImages, saveFiles, get_elements_by_id } from '@src/utils/utils';
 import type { Schema } from '@src/collections/types';
 import { publicEnv } from '@root/config/public';
 
@@ -12,6 +12,7 @@ import widgets from '@src/components/widgets';
 import { auth, getCollectionModels } from '@src/routes/api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
+import mongoose from 'mongoose';
 
 // Define the GET request handler.
 export const GET: RequestHandler = async ({ params, url, cookies }) => {
@@ -20,7 +21,9 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 	// Validate the session.
 	const user_id = url.searchParams.get('user_id');
-	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id
+		? ((await auth.checkUser({ _id: user_id })) as User)
+		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
 	if (!user) {
 		return new Response('', { status: 403 });
@@ -149,7 +152,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	);
 };
 
-// Define the PATCH request handler.
+// Define the PATCH request handler.a
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	const data = await request.formData();
 
@@ -158,7 +161,10 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 
 	// Validate the session.
 	const user_id = data.get('user_id') as string;
-	const user = user_id ? ((await auth.get_user_by_id(user_id)) as User) : ((await auth.validateSession(session_id)) as User);
+
+	const user = user_id
+		? ((await auth.checkUser({ _id: user_id })) as User)
+		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -197,6 +203,11 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	// Get the _id of the entry.
 	const _id = data.get('_id') as string;
 
+	// Console log the schema of the _id field
+	console.log('Schema of _id:', collection.schema.paths['_id'].instance);
+	// Console log the schema of the user_id field
+	console.log('Schema of user_id:', collection.schema.paths['user_id'].instance);
+
 	for (const field of collection_schema.fields) {
 		const widget = widgets[field.widget.key];
 		const fieldName = getFieldName(field);
@@ -215,12 +226,13 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 				}
 			};
 			await widget.modifyRequest({ collection, field, data, user, type: 'PATCH', id: _id });
-			console.log(body);
+			//console.log(body);
 		}
 	}
 
 	// Save the images.
 	await saveImages(body, params.collection);
+	await saveFiles(body, params.collection);
 
 	// Update the entry.
 	return new Response(JSON.stringify(await collection.updateOne({ _id }, body, { upsert: true })));
@@ -235,9 +247,10 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Validate the session.
-
 	const user_id = data.get('user_id') as string;
-	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id
+		? ((await auth.checkUser({ _id: user_id })) as User)
+		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {
@@ -246,9 +259,9 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 	// Check if the user has write access to the collection.
 	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
-	console.log(collection_schema);
+	//console.log(collection_schema);
 	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
-	console.log(has_write_access);
+	//console.log(has_write_access);
 	if (!has_write_access) {
 		return new Response('', { status: 403 });
 	}
@@ -318,7 +331,9 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 
 	// Validate the session.
 	const user_id = data.get('user_id') as string;
-	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
+	const user = user_id
+		? ((await auth.checkUser({ _id: user_id })) as User)
+		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
 	// Check if the user has write access to the collection.
 	if (!user) {

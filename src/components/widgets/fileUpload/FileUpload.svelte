@@ -5,132 +5,88 @@
 	// Stores
 	import { entryData, mode, loadingProgress } from '@stores/store';
 
-	import { getFieldName } from '@utils/utils';
+	import { asAny, getFieldName } from '@utils/utils';
 
-	// Skeleton
-	import { FileDropzone } from '@skeletonlabs/skeleton';
+	// Components
+	import Media from '@src/components/Media.svelte';
 
-	let _data: FileList;
+	let _data: File | undefined;
 	let updated = false;
+	let input: HTMLInputElement;
 
 	export let field: FieldType;
-	export const WidgetData = async () => (updated ? _data : null);
-	export const file: File | undefined = undefined; // pass file directly from imageArray
+	export const WidgetData = async () => {
+		if (_data && _data instanceof File) {
+			_data.path = field.path;
+		}
+
+		return updated ? _data : null;
+	};
+
+	export let value: File = $entryData[getFieldName(field)]; // pass file directly from imageArray
 
 	const fieldName = getFieldName(field);
 
-	let thumbnail: string = '';
-
-	async function setFile(event: Event) {
-		const node = event.target as HTMLInputElement;
-
-		// Reset loading progress
-		loadingProgress.set(0);
-
-		if (!node.files || node.files.length === 0) {
-			//console.log('setFile:', 'No files selected');
-			return;
-		}
-
-		const file = node.files[0];
-		const fileExt = file.name.slice(file.name.lastIndexOf('.'));
-
-		if (fileExt === '.docx') {
-			thumbnail = 'vscode-icons:file-type-word';
-		} else if (fileExt === '.xlsx') {
-			thumbnail = 'vscode-icons:file-type-excel';
-		} else if (fileExt === '.pptx') {
-			thumbnail = 'vscode-icons:file-type-powerpoint';
-		} else if (fileExt === '.pdf') {
-			thumbnail = 'vscode-icons:file-type-pdf2';
-		}
-
-		// Display the selected thumbnail
-		//console.log('Thumbnail:', thumbnail);
-
-		// Handle file selection
-		const handleFileSelection = async (files: FileList) => {
-			// console.log('handleFileSelection:', 'Function called');
-
+	function setFile(node: HTMLInputElement) {
+		node.onchange = (e) => {
+			if ((e.target as HTMLInputElement).files?.length == 0) return;
 			updated = true;
-			_data = files;
-
-			// All files processed, set loading progress to 100%
-			loadingProgress.set(100);
+			_data = (e.target as HTMLInputElement).files?.[0] as File;
 		};
 
-		// Check if the input has files selected
-		if (node.files) {
-			handleFileSelection(node.files);
-		} else if (file instanceof File) {
-			const fileList = new DataTransfer();
-			fileList.items.add(file);
-			_data = fileList.files;
+		if (value instanceof File) {
+			let fileList = new DataTransfer();
+			fileList.items.add(value);
+			node.files = fileList.files;
+			_data = node.files[0];
 			updated = true;
-
-			//TODO: File Preview not working for edit anymore
-		} else if ($mode === 'edit') {
-			axios.get($entryData[fieldName].thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
-				const fileList = new DataTransfer();
-
-				// Return file list
-				const file = new File([data], $entryData[fieldName].thumbnail.name, {
-					type: $entryData[fieldName].mimetype
-				});
-				fileList.items.add(file);
-				_data = fileList.files;
-				updated = true;
-				node.dispatchEvent(new Event('change')); // manually dispatch change event
-			});
 		}
-
-		// All files processed, set loading progress to 100%
-		loadingProgress.set(100);
 	}
 </script>
 
-<FileDropzone
-	bind:files={_data}
-	name={fieldName}
-	accept=".pdf, .txt, application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document, application/vnd.ms-excel, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-powerpoint, application/vnd.openxmlformats-officedocument.presentationml.presentation"
-	multiple
-	on:change={setFile}
-	slotMeta="opacity-100"
->
-	<svelte:fragment slot="lead"
-		>{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="45"></iconify-icon>{/if}</svelte:fragment
+<input use:setFile bind:this={input} accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.ppt,.pptx" name={fieldName} type="file" hidden />
+
+{#if _data}
+	<div class="mx-2 flex items-center justify-between gap-2">
+		<p class="text-left">Name: <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
+		<p class="text-left">
+			Size: <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
+		</p>
+
+		<!-- Delete -->
+		<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
+			<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
+		</button>
+	</div>
+{:else}
+	<div
+		on:drop|preventDefault={(e) => {
+			updated = true;
+			_data = e?.dataTransfer?.files[0];
+		}}
+		on:dragover|preventDefault={(e) => {
+			asAny(e.target).style.borderColor = '#6bdfff';
+		}}
+		on:dragleave|preventDefault={(e) => {
+			asAny(e.target).style.removeProperty('border-color');
+		}}
+		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+		role="cell"
+		tabindex="0"
 	>
-	<svelte:fragment slot="message">
-		{#if !_data}<span class="font-bold text-tertiary-500 dark:text-primary-500">Upload a file</span> or drag & drop
-		{:else}<span class="font-bold text-tertiary-500 dark:text-primary-500">Replace {_data[0].name}</span> or drag & drop
-		{/if}
-	</svelte:fragment>
-	<svelte:fragment slot="meta">
-		{#if !_data}
-			<p class="mt-1 text-sm opacity-75">TXT, PDF, and office formats allowed.</p>
-		{/if}
+		<div class="grid grid-cols-6 items-center p-4">
+			{#if !_data}<iconify-icon icon="icon-park-outline:upload-logs" width="50" />{/if}
 
-		<!-- File info-->
-		{#if _data}
-			<div class="flex flex-col items-center !opacity-100 md:flex-row">
-				<div class="flex justify-center md:mr-4">
-					<!-- Display file icon instead of an image -->
-					{#if thumbnail}
-						<iconify-icon icon={thumbnail} width="45" />
-					{:else}
-						<iconify-icon icon="fa6-solid:file-arrow-up" width="45" />
-					{/if}
-				</div>
+			<div class="col-span-5">
+				{#if !_data}
+					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">File Upload </span> or Drag & Drop</p>
+				{:else}
+					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Replace File</span> or Drag & Drop</p>
+				{/if}
+				<p class="text-sm opacity-75">TXT, PDF, and office formats allowed.</p>
 
-				<div class="mt-2 text-center md:text-left">
-					<p class="text-lg font-semibold text-tertiary-500 dark:text-primary-500">Uploaded File:</p>
-					<p>Uploaded File: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].name}</span></p>
-					<p>
-						File size: <span class="text-tertiary-500 dark:text-primary-500">{(_data[0].size / 1024).toFixed(2)} KB</span>
-					</p>
-					<p>MIME type: <span class="text-tertiary-500 dark:text-primary-500">{_data[0].type}</span></p>
-				</div>
+				<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Browse</button>
 			</div>
-		{/if}
-	</svelte:fragment>
-</FileDropzone>
+		</div>
+	</div>
+{/if}

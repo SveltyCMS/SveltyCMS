@@ -1,5 +1,7 @@
+// Auth
 import type { Model, User } from '@src/auth/types';
 
+// Widgets
 // import Address from './address';
 import Checkbox from './checkbox';
 import Currency from './currency';
@@ -26,60 +28,33 @@ import RemoteVideo from './remoteVideo';
 import Seo from './seo';
 import Text from './text';
 
+// Define the widget object
 const widgets = {
-	// Address flexible Address fields
-	// Address,
-	// Checkbox - boolean true / false checkbox
-	Checkbox,
-	// Color Picker - choice of color
-	ColorPicker,
-	// Currency - define input with a currency string and suffix
-	Currency,
-	// Date - date field that saves a timestamp
-	Date,
-	// Date - date / time field that saves a timestamp
-	DateTime,
-	// DateRange - date with start / Finish timestamps
-	DateRange,
-	// Email - validates the entry is a properly formatted email
-	Email,
-	// Group - nest fields within an object with condition & tabs
-	// Group,
-	// FileUpload - allows File uploading
-	FileUpload,
-	// ImageUpload - allows image upload with editor
-	ImageUpload,
-	// ImageArray - allows multiple image upload with editor
-	ImageArray,
-	// Image Editor - Crop / Blur / Rotation and Save upload to Webp
-	// ImageEditor,
-	// ImageEditorPage,
-	// MegaMenu - Flexible Menu with possible hierarchy
-	MegaMenu,
-	// Number - field that enforces that its value be a number
-	Number,
-	// PhoneNumber - Field checking for phone/Fax numbers
-	PhoneNumber,
-	// Radio - radio button group, allowing only one value to be selected
-	Radio,
-	// Relation - assign relationships to other collections
-	Rating,
-	// Rating - Visual representation of a numeric range.
-	Relation, // :Relation,
-	// RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
-	RemoteVideo,
-	// Rich Text - fully extensible Lexical Rich Text editor
-	// RichText,
-	// SelectList - dropdown / pick list style value selector
-	// SelectList,
-	// Seo - Basic Seo Title /Description with preview
-	Seo,
-	// Text - simple text input
-	Text
-	// Textarea - allows a bit larger of a text editor
-	// Textarea,
-	// Url - Link to internal / External hyperlinks
-	// Url
+	// Address, // Address flexible Address fields
+	Checkbox, // Checkbox - boolean true / false checkbox
+	ColorPicker, // Color Picker - choice of color
+	Currency, // Currency - define input with a currency string and suffix
+	Date, // Date - date field that saves a timestamp
+	DateTime, // Date - date / time field that saves a timestamp
+	DateRange, // DateRange - date with start / Finish timestamps
+	Email, // Email - validates the entry is a properly formatted email
+	// Group, // Group - nest fields within an object with condition & tabs
+	FileUpload, // FileUpload - allows File uploading
+	ImageUpload, // ImageUpload - allows image upload with editor
+	ImageArray, // ImageArray - allows multiple image upload with editor
+	MegaMenu, // MegaMenu - Flexible Menu with possible hierarchy
+	Number, // Number - field that enforces that its value be a number
+	PhoneNumber, // PhoneNumber - Field checking for phone/Fax numbers
+	Radio, // Radio - radio button group, allowing only one value to be selected
+	Rating, // Relation - assign relationships to other collections
+	Relation, // Rating - Visual representation of a numeric range.
+	RemoteVideo, // RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
+	// RichText, // Rich Text - fully extensible Lexical Rich Text editor
+	// SelectList, // SelectList - dropdown / pick list style value selector
+	Seo, // Seo - Basic Seo Title /Description with preview
+	Text // Text - A Simple text input
+	// Textarea, // Textarea - allows a bit larger of a text editor
+	// Url // Url - Link to internal / External hyperlinks
 };
 
 type K = ReturnType<(typeof widgets)[keyof typeof widgets]>['widget']['key'];

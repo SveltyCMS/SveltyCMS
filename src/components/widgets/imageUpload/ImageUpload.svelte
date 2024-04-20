@@ -14,7 +14,6 @@
 
 	// Components
 	import Media from '@src/components/Media.svelte';
-	import XIcon from '@src/components/system/icons/XIcon.svelte';
 
 	let _data: File | ImageFiles | undefined;
 	let updated = false;
@@ -22,7 +21,6 @@
 	let showMedia = false;
 
 	let isFlipped = false; // State variable to track flip button
-	let isEditor = false; // State variable to track flip button
 
 	export let field: FieldType;
 	export const WidgetData = async () => {
@@ -277,9 +275,9 @@
 
 			<div class="col-span-5">
 				{#if !_data}
-					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Upload Image</span> or Drag & Drop</p>
+					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Image Upload</span> or Drag & Drop</p>
 				{:else}
-					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">ReplaceImage</span> or Drag & Drop</p>
+					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Replace Image</span> or Drag & Drop</p>
 				{/if}
 				<p class="text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
 

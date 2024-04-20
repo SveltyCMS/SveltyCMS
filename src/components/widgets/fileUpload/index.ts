@@ -1,7 +1,9 @@
 import FileUpload from './FileUpload.svelte';
 
-import { getFieldName, getGuiFields } from '@utils/utils';
+import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
+import type { ModifyRequestParams } from '..';
+import mongoose from 'mongoose';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -54,7 +56,7 @@ const widget = (params: Params) => {
 		display,
 		label: params.label,
 		db_fieldName: params.db_fieldName,
-		// translated: params.translated,
+		translated: params.translated,
 		required: params.required,
 		icon: params.icon,
 		width: params.width,
@@ -64,7 +66,7 @@ const widget = (params: Params) => {
 		permissions: params.permissions,
 
 		// extras
-		path: params.path
+		path: params.path || 'unique'
 	};
 
 	// Return the field and widget objects
@@ -75,7 +77,23 @@ const widget = (params: Params) => {
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget modifyRequest
+widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>) => {
+	const _data = data.get();
+	if (type !== 'GET') {
+		if (_data._id) {
+			console.log(_data);
+			data.update(new mongoose.Types.ObjectId(_data._id));
+		} else {
+			console.error('No _id found in _data:', _data);
+		}
+		return;
+	}
+	// here _data is just id of the image
+	get_elements_by_id.add('media_files', _data, (newData) => data.update(newData));
+};
+
+// Widget icon and helper text
 widget.Icon = 'mdi:file-upload';
 widget.Description = m.widget_fileUpload_description();
 
@@ -83,12 +101,13 @@ widget.Description = m.widget_fileUpload_description();
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		return [{ $match: { [`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+
+		return [{ $match: { [`${getFieldName(field)}.original.name`]: { $regex: info.filter, $options: 'i' } } }];
 	},
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const fieldName = getFieldName(field);
-		return [{ $sort: { [`${fieldName}.${info.contentLanguage}`]: info.sort } }];
+		return [{ $sort: { [`${fieldName}.original.name`]: info.sort } }];
 	}
 } as Aggregations;
 

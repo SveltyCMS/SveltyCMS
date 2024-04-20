@@ -6,6 +6,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
+import { generateCollectionTypes } from './src/utils/collectionTypes';
 
 //github Version package.json check
 //const file = fileURLToPath(new URL('package.json', import.meta.url));
@@ -29,6 +30,12 @@ const config = {
 	plugins: [
 		{
 			name: 'vite:server',
+
+			configureServer(server) {
+				server.watcher.on('add', generateCollectionTypes);
+				server.watcher.on('unlink', generateCollectionTypes);
+			},
+
 			config() {
 				return {
 					define: {

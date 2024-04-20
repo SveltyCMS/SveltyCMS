@@ -137,7 +137,6 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			const { name, ext } = removeExtension(blob.name);
 
 			// Original image
-
 			let url: any;
 			if (path == 'global') {
 				url = `images/original/${hash}.${ext}`;
@@ -221,6 +220,88 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 	}
 }
 
+// TODO: Add PDF/Doc Thumbnail
+// Save files and returns file information
+export async function saveFiles(data: { [key: string]: any }, collectionName: string) {
+	if (browser) return;
+	const fields: { file: any; replace: (id: string) => void }[] = [];
+	const parseFiles = async (data: any) => {
+		for (const fieldname in data) {
+			if (!(data[fieldname] instanceof File) && typeof data[fieldname] == 'object') {
+				await parseFiles(data[fieldname]);
+				continue;
+			} else if (!(data[fieldname] instanceof File)) {
+				continue;
+			}
+
+			const blob = data[fieldname] as any;
+			const arrayBuffer = await blob.arrayBuffer();
+			const buffer = Buffer.from(arrayBuffer);
+			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+			const existing_file = await mongoose.models['media_files'].findOne({ hash: hash });
+			if (existing_file) {
+				data[fieldname] = existing_file._id;
+				continue;
+			}
+			const path = blob.path;
+			const { ext } = removeExtension(blob.name);
+
+			// Original file
+			let url: any;
+			if (path == 'global') {
+				url = `files/original/${hash}.${ext}`;
+			} else if (path == 'unique') {
+				url = `files/${collectionName}/original/${hash}.${ext}`;
+			} else {
+				url = `files/${path}/original/${hash}.${ext}`;
+			}
+			data[fieldname] = {
+				hash,
+				original: {
+					name: `${hash}-${blob.name}`,
+					hash: hash,
+					url,
+					size: blob.size,
+					type: blob.type,
+					createdAt: new Date(),
+					lastModified: blob.lastModified as Date
+				}
+			};
+
+			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+			}
+
+			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
+
+			// Check the file type
+			if (blob.type.startsWith('image/')) {
+				// The file is an image
+				// You can add image-specific processing here
+			} else if (
+				['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(blob.type)
+			) {
+				// The file is a PDF or Word document
+				// You can add document-specific processing here
+			}
+
+			fields.push({
+				file: data[fieldname],
+				replace: (id) => {
+					data[fieldname] = id;
+				}
+			});
+		}
+	};
+
+	await parseFiles(data);
+	const res = await mongoose.models['media_files'].insertMany(fields.map((v) => v.file));
+	for (const index in res) {
+		const id = res[index]._id;
+		fields[index].replace(id);
+	}
+}
+
 // finds field title that matches the fieldname and returns that field
 function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
 	for (const field of schema.fields) {
@@ -293,7 +374,6 @@ export function getFieldName(field: any, sanitize = false) {
 }
 
 //Save Collections data to database
-
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
 	console.log('saveFormData was called');
 	const $mode = _mode || get(mode);

@@ -19,7 +19,7 @@ export type Params = {
 	db_fieldName?: string;
 	widget?: any;
 	required?: boolean;
-	// translated?: boolean;
+	translated?: boolean;
 	icon?: string;
 	helper?: string;
 	width?: number;
@@ -28,7 +28,7 @@ export type Params = {
 	permissions?: Permissions;
 
 	// Widget Specific parameters
-	path: (string & Record<string, never>) | 'global' | 'unique';
+	path: string | 'global' | 'unique';
 };
 
 /**
@@ -39,7 +39,7 @@ export const GuiSchema = {
 	display: { widget: Input, required: true },
 	db_fieldName: { widget: Input, required: true },
 	required: { widget: Toggles, required: false },
-	// translated: { widget: Toggles, required: false },
+	translated: { widget: Toggles, required: false },
 	icon: { widget: IconifyPicker, required: false },
 	helper: { widget: Input, required: false },
 	width: { widget: Input, required: false },
