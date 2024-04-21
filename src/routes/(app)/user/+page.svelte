@@ -1,13 +1,15 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import axios from 'axios';
 	import { invalidateAll } from '$app/navigation';
 
-	// Auth
-	const user = $page.data.user;
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
+	// Auth
+	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 	let isFirstUser = $page.data.isFirstUser;
-	console.log('isFirstUser:', isFirstUser);
-	console.log('isFirstUser == 0:', isFirstUser == 0);
 
 	// Stores
 	import '@stores/store';
@@ -15,19 +17,23 @@
 	import { avatarSrc } from '@stores/store';
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+	import AdminArea from './components/AdminArea.svelte';
+
 	function executeActions() {
-		console.log('executeActions called');
+		//console.log('executeActions called');
 		// Get the current value of the triggerActionStore
 		const actions = $triggerActionStore;
 
 		// Execute the actions
 		if (actions.length === 1) {
 			// Only one action present, directly execute it
-			console.log('single action', actions[0]);
+			//console.log('single action', actions[0]);
 			actions[0];
 		} else {
 			// Multiple actions present, iterate and execute each one sequentially
-			console.log('multiple actions');
+			//console.log('multiple actions');
 			for (const action of actions) {
 				console.log(action);
 				action;
@@ -42,17 +48,12 @@
 	document.addEventListener('DOMContentLoaded', () => {
 		// Execute actions on mount if triggerActionStore has data
 		if ($triggerActionStore.length > 0) {
-			console.log('$triggerActionStore called:', $triggerActionStore);
+			//console.log('$triggerActionStore called:', $triggerActionStore);
 			executeActions();
 		}
 	});
 
-	import PageTitle from '@components/PageTitle.svelte';
-
 	export let data: PageData;
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -60,16 +61,14 @@
 	import ModalEditForm from './components/ModalEditForm.svelte';
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import AdminArea from './components/AdminArea.svelte';
+	avatarSrc.set(user?.avatar || '/Default_User.svg');
 
-	// let avatarSrc = writable(user?.avatar);
-	avatarSrc.set(user?.avatar);
-
-	// TODO  Get hashed password
+	// define password as 'hash-password'
 	let password = 'hash-password';
 
 	// Modal Trigger - User Form
@@ -95,11 +94,11 @@
 				if (r) {
 					console.log('Response:', r);
 
-					const res = await fetch('/api/user/editUser', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({ ...r, id })
-					});
+					// Prepare the data
+					const data = { ...r, userId: user.id };
+
+					// Make the POST request using axios
+					const res = await axios.post('?/editUser', data);
 
 					// Trigger the toast
 					const t = {
@@ -205,9 +204,9 @@
 			<div class="relative flex flex-col items-center justify-center gap-1">
 				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
 
-				<!-- edit button -->
+				<!-- Edit button -->
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
-				<!--User ID -->
+				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
 					{m.userpage_userid()}<span class="ml-2">{user.id}</span>
 				</div>
@@ -217,7 +216,7 @@
 				</div>
 			</div>
 
-			<!-- user fields -->
+			<!-- User fields -->
 			<form>
 				<label
 					>{m.form_username()}:
@@ -234,12 +233,12 @@
 
 				<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
 					<!-- Edit Modal Button -->
-					<button on:click={modalUserForm} class="gradient-tertiary btn w-full max-w-sm text-white {!isFirstUser ? '' : 'mx-auto md:mx-0'}">
+					<button on:click={modalUserForm} class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}">
 						<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 					</button>
 
-					<!-- Delete Modal Button -->
-					{#if !isFirstUser}
+					<!-- Delete Modal Button (reverse logic for isFirstUser)-->
+					{#if isFirstUser}
 						<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
 							<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
 							{m.button_delete()}
@@ -250,7 +249,7 @@
 		</div>
 	</div>
 
-	<!-- admin area -->
+	<!-- Admin area -->
 	{#if user.role === 'admin'}
 		<div class="wrapper2">
 			<AdminArea {data} />

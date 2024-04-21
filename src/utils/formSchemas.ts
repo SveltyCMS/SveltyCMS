@@ -13,7 +13,6 @@ export const loginFormSchema = z.object({
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
-	// resetLink: z.string()
 	// lang: z.string() // used for svelty-email
 });
 

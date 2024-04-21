@@ -1,10 +1,13 @@
 import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import fs from 'fs';
-import { auth } from '@api/db';
+
 import { sanitize } from '@utils/utils';
 import sharp from 'sharp';
 import crypto from 'crypto';
+
+// Auth
+import { auth } from '@api/db';
 
 export const POST: RequestHandler = async ({ request }) => {
 	const data = await request.formData();
@@ -30,7 +33,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const sanitizedFileName = sanitize(originalFileName);
 
 		// Get the current avatar URL
-		const user = await auth.getUser(userID);
+		const user = await auth.getUserById(userID);
 
 		const oldAvatarURL = user.avatar;
 		if (oldAvatarURL) {

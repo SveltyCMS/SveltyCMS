@@ -14,356 +14,378 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';
 
-// Define the GET request handler.
+// Define the GET request handler.// Define the GET request handler.
 export const GET: RequestHandler = async ({ params, url, cookies }) => {
-	// Get the session cookie.
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	try {
+		// Get the session cookie.
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	// Validate the session.
-	const user_id = url.searchParams.get('user_id');
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User)
-		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
+		// Validate the session asynchronously.
+		const user_id = url.searchParams.get('user_id');
+		const user = user_id
+			? ((await auth.checkUser({ _id: user_id })) as User)
+			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
-	if (!user) {
-		return new Response('', { status: 403 });
-	}
-
-	// Get the collection schema.
-	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
-
-	// Check if the user has read access to the collection.
-	const has_read_access = collection_schema?.permissions?.[user.role]?.read != false;
-
-	if (!has_read_access) {
-		return new Response('', { status: 403 });
-	}
-
-	// Get the collection model.
-	const collections = await getCollectionModels();
-	const collection = collections[params.collection];
-
-	// Get the page number, length, filter, and sort from the URL parameters.
-	const page = parseInt(url.searchParams.get('page') as string) || 1;
-	const length = parseInt(url.searchParams.get('length') as string) || Infinity;
-	const filter: { [key: string]: string } = JSON.parse(url.searchParams.get('filter') as string) || {};
-	const sort: { [key: string]: number } = JSON.parse(url.searchParams.get('sort') as string) || {};
-
-	// Get the content language from the URL parameters.
-	const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
-
-	// Calculate the skip value.
-	const skip = (page - 1) * length;
-
-	// Create an array of aggregation pipelines.
-	const aggregations: any = [];
-	if (sort.status) {
-		aggregations.push({ $sort: { status: sort.status } });
-	} else if (sort.createdAt) {
-		aggregations.push({ $sort: { status: sort.createdAt } });
-	} else if (sort.updatedAt) {
-		aggregations.push({ $sort: { status: sort.updatedAt } });
-	}
-
-	// Loop through the collection schema fields.
-	for (const field of collection_schema.fields) {
-		// Get the widget for the field.
-		const widget = widgets[field.widget.key];
-
-		// Get the field name.
-		const fieldName = getFieldName(field);
-
-		// If the widget has aggregations, add them to the aggregations array.
-		if ('aggregations' in widget) {
-			// Get the filter and sort for the field.
-			const _filter = filter[fieldName];
-			const _sort = sort[fieldName];
-
-			// If the widget has transformation aggregations, add them to the aggregations array.
-			if (widget.aggregations.filters && _filter) {
-				const _aggregations = await widget.aggregations.filters({ field, contentLanguage: contentLanguage, filter: _filter });
-				aggregations.push(..._aggregations);
-			}
-
-			// If the widget has filter aggregations, add them to the aggregations array.
-			if (widget.aggregations.sorts && _sort) {
-				const _aggregations = await widget.aggregations.sorts({ field, contentLanguage: contentLanguage, sort: _sort });
-				aggregations.push(..._aggregations);
-			}
+		// Check if the user has write access to the collection.
+		if (!user) {
+			return new Response('', { status: 403 });
 		}
-	}
 
-	// Aggregate the collection.
-	const entryListWithCount = await collection.aggregate([
-		{
-			$facet: {
-				entries: [...aggregations, { $skip: skip }, { $limit: length }],
-				totalCount: [...aggregations, { $count: 'total' }]
-			}
+		// Get the collection schema asynchronously.
+		const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
+
+		// Check if the user has read access to the collection.
+		const has_read_access = collection_schema?.permissions?.[user.role]?.read != false;
+
+		if (!has_read_access) {
+			return new Response('', { status: 403 });
 		}
-	]);
 
-	// Get the entry list and total count from the aggregation results.
-	let entryList = entryListWithCount[0].entries;
+		// Get the collection model asynchronously.
+		const collections = await getCollectionModels();
+		const collection = collections[params.collection];
 
-	for (const field of collection_schema.fields) {
-		const widget = widgets[field.widget.key];
-		const fieldName = getFieldName(field);
+		// Get the page number, length, filter, and sort from the URL parameters asynchronously.
+		const page = parseInt(url.searchParams.get('page') as string) || 1;
+		const length = parseInt(url.searchParams.get('length') as string) || Infinity;
+		const filter: { [key: string]: string } = JSON.parse(url.searchParams.get('filter') as string) || {};
+		const sort: { [key: string]: number } = JSON.parse(url.searchParams.get('sort') as string) || {};
+		// Get the content language from the URL parameters.
+		const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+		// Calculate the skip value.
+		const skip = (page - 1) * length;
 
-		if (field?.permissions?.[user.role]?.read == false) {
-			// if we cant read there is nothing to clean.
-			entryList = entryList.map((entry: any) => {
-				delete entry[fieldName];
+		// Create an array of aggregation pipelines asynchronously.
+		const aggregations: any = [];
+		if (sort.status) {
+			aggregations.push({ $sort: { status: sort.status } });
+		} else if (sort.createdAt) {
+			aggregations.push({ $sort: { status: sort.createdAt } });
+		} else if (sort.updatedAt) {
+			aggregations.push({ $sort: { status: sort.updatedAt } });
+		}
+
+		// Loop through the collection schema fields asynchronously.
+		await Promise.all(
+			collection_schema.fields.map(async (field: any) => {
+				const widget = widgets[field.widget.key];
+				// Get the field name.
+				const fieldName = getFieldName(field);
+
+				// If the widget has aggregations, add them to the aggregations array.
+				if ('aggregations' in widget) {
+					// Get the filter and sort for the field.
+					const _filter = filter[fieldName];
+					const _sort = sort[fieldName];
+
+					// If the widget has transformation aggregations, add them to the aggregations array.
+					if (widget.aggregations.filters && _filter) {
+						const _aggregations = await widget.aggregations.filters({ field, contentLanguage, filter: _filter });
+						aggregations.push(..._aggregations);
+					}
+
+					// If the widget has filter aggregations, add them to the aggregations array.
+					if (widget.aggregations.sorts && _sort) {
+						const _aggregations = await widget.aggregations.sorts({ field, contentLanguage, sort: _sort });
+						aggregations.push(..._aggregations);
+					}
+				}
+			})
+		);
+
+		// Aggregate the collection asynchronously.
+		const entryListWithCount = await collection.aggregate([
+			{
+				$facet: {
+					entries: [...aggregations, { $skip: skip }, { $limit: length }],
+					totalCount: [...aggregations, { $count: 'total' }]
+				}
+			}
+		]);
+
+		// Get the entry list and total count asynchronously.
+		let entryList = entryListWithCount[0].entries;
+
+		// Modify entry list asynchronously.
+		entryList = await Promise.all(
+			entryList.map(async (entry: any) => {
+				for (const field of collection_schema.fields) {
+					const widget = widgets[field.widget.key];
+					const fieldName = getFieldName(field);
+
+					if (field?.permissions?.[user.role]?.read == false) {
+						delete entry[fieldName];
+					} else if ('modifyRequest' in widget) {
+						const data = {
+							get() {
+								return entry[fieldName];
+							},
+							update(newData: any) {
+								entry[fieldName] = newData;
+							}
+						};
+						await widget.modifyRequest({ collection, field, data, user, type: 'GET' });
+					}
+				}
 				return entry;
-			});
-		} else if ('modifyRequest' in widget) {
-			// widget can modify own portion of entryList;
-			entryList = await Promise.all(
-				entryList.map(async (entry: any) => {
-					const data = {
-						get() {
-							return entry[fieldName];
-						},
-						update(newData) {
-							entry[fieldName] = newData;
-						}
-					};
-					await widget.modifyRequest({ collection, field, data, user, type: 'GET' });
-					return entry;
-				})
-			);
-		}
+			})
+		);
+
+		// Fetch elements by ID asynchronously.
+		await get_elements_by_id.getAll();
+
+		// Calculate total count and pages count.
+		const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
+		// Calculate the number of pages.
+		const pagesCount = Math.ceil(totalCount / length);
+
+		// Return the entry list and pages count as a JSON response.
+		return new Response(
+			JSON.stringify({
+				entryList,
+				pagesCount
+			})
+		);
+	} catch (error) {
+		console.error('Error handling GET request:', error);
+		return new Response('Internal Server Error', { status: 500 });
 	}
-
-	await get_elements_by_id.getAll(); //get all collected ids together and modify request.
-
-	// Calculate the total count.
-	const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
-
-	// Calculate the number of pages.
-	const pagesCount = Math.ceil(totalCount / length);
-
-	// Return the entry list and pages count as a JSON response.
-	return new Response(
-		JSON.stringify({
-			entryList,
-			pagesCount
-		})
-	);
 };
 
-// Define the PATCH request handler.a
+// Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
-	const data = await request.formData();
+	try {
+		const formData = await request.formData();
 
-	// Get the session cookie.
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		// Get the session cookie.
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	// Validate the session.
-	const user_id = data.get('user_id') as string;
+		// Validate the session asynchronously.
+		const user_id = formData.get('user_id') as string;
+		const user = user_id
+			? ((await auth.checkUser({ _id: user_id })) as User)
+			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User)
-		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
-
-	// Check if the user has write access to the collection.
-	if (!user) {
-		return new Response('', { status: 403 });
-	}
-
-	// Check if the user has write access to the collection.
-	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
-	const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
-
-	if (!has_write_access) {
-		return new Response('', { status: 403 });
-	}
-
-	// Get the collection model.
-	const collections = await getCollectionModels();
-	const collection = collections[params.collection];
-
-	// Parse the form data.
-	const body: any = {};
-	for (const key of data.keys()) {
-		try {
-			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
-				if (value?.instanceof == 'File') {
-					const file = data.get(value.id) as File;
-					file.path = value.path;
-					data.delete(value.id);
-				}
-				return value;
-			});
-		} catch (e) {
-			body[key] = data.get(key) as string;
+		// Check if the user has write access to the collection.
+		if (!user) {
+			return new Response('', { status: 403 });
 		}
-	}
 
-	// Get the _id of the entry.
-	const _id = data.get('_id') as string;
+		// Check if the user has write access to the collection.
+		const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
+		const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
 
-	// Console log the schema of the _id field
-	console.log('Schema of _id:', collection.schema.paths['_id'].instance);
-	// Console log the schema of the user_id field
-	console.log('Schema of user_id:', collection.schema.paths['user_id'].instance);
-
-	for (const field of collection_schema.fields) {
-		const widget = widgets[field.widget.key];
-		const fieldName = getFieldName(field);
-
-		if (field?.permissions?.[user.role]?.write == false) {
-			// if we cant write there is nothing to modify.
-			delete body[fieldName];
-		} else if ('modifyRequest' in widget) {
-			// widget can modify own portion of body;
-			const data = {
-				get() {
-					return body[fieldName];
-				},
-				update(newData) {
-					body[fieldName] = newData;
-				}
-			};
-			await widget.modifyRequest({ collection, field, data, user, type: 'PATCH', id: _id });
-			//console.log(body);
+		if (!has_write_access) {
+			return new Response('', { status: 403 });
 		}
+
+		// Get the collection model asynchronously.
+		const collections = await getCollectionModels();
+		const collection = collections[params.collection];
+
+		// Parse the form data asynchronously.
+		const body: any = {};
+		for (const key of formData.keys()) {
+			try {
+				body[key] = JSON.parse(formData.get(key) as string, (key, value) => {
+					if (value?.instanceof == 'File') {
+						const file = formData.get(value.id) as File;
+						file.path = value.path;
+						formData.delete(value.id);
+					}
+					return value;
+				});
+			} catch (e) {
+				body[key] = formData.get(key) as string;
+			}
+		}
+
+		// Get the _id of the entry.
+		const _id = formData.get('_id') as string;
+
+		for (const field of collection_schema.fields) {
+			const widget = widgets[field.widget.key];
+			const fieldName = getFieldName(field);
+
+			if (field?.permissions?.[user.role]?.write == false) {
+				// if we can't write there is nothing to modify.
+				delete body[fieldName];
+			} else if ('modifyRequest' in widget) {
+				// widget can modify its own portion of body;
+				const fieldData = {
+					get() {
+						return body[fieldName];
+					},
+					update(newData) {
+						body[fieldName] = newData;
+					}
+				};
+				await widget.modifyRequest({ collection, field, data: fieldData, user, type: 'PATCH', id: _id });
+			}
+		}
+
+		// Save the images asynchronously.
+		await saveImages(body, params.collection);
+		await saveFiles(body, params.collection);
+
+		// Update the entry asynchronously.
+		const response = await collection.updateOne({ _id }, body, { upsert: true });
+
+		// Return the response as a JSON string.
+		return new Response(JSON.stringify(response));
+	} catch (error) {
+		console.error('Error handling PATCH request:', error);
+		return new Response('Internal Server Error', { status: 500 });
 	}
-
-	// Save the images.
-	await saveImages(body, params.collection);
-	await saveFiles(body, params.collection);
-
-	// Update the entry.
-	return new Response(JSON.stringify(await collection.updateOne({ _id }, body, { upsert: true })));
 };
 
 // Define the POST request handler.
 export const POST: RequestHandler = async ({ params, request, cookies }) => {
-	// Get the form data.
-	const data = await request.formData();
+	try {
+		// Get the form data.
+		const data = await request.formData();
 
-	// Get the session cookie.
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		// Get the session cookie.
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	// Validate the session.
-	const user_id = data.get('user_id') as string;
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User)
-		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
+		// Validate the session asynchronously.
+		const user_id = data.get('user_id') as string;
+		const user = user_id
+			? ((await auth.checkUser({ _id: user_id })) as User)
+			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
-	// Check if the user has write access to the collection.
-	if (!user) {
-		return new Response('', { status: 403 });
-	}
-
-	// Check if the user has write access to the collection.
-	const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
-	//console.log(collection_schema);
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
-	//console.log(has_write_access);
-	if (!has_write_access) {
-		return new Response('', { status: 403 });
-	}
-
-	// Get the collection model.
-	const collections = await getCollectionModels();
-	const collection = collections[params.collection];
-
-	// Parse the form data.
-	const body: any = {};
-	for (const key of data.keys()) {
-		try {
-			body[key] = JSON.parse(data.get(key) as string, (key, value) => {
-				if (value?.instanceof == 'File') {
-					const file = data.get(value.id) as File;
-					file.path = value.path;
-					data.delete(value.id);
-					return file;
-				}
-				return value;
-			});
-		} catch (e) {
-			body[key] = data.get(key) as string;
+		// Check if the user has write access to the collection.
+		if (!user) {
+			return new Response('', { status: 403 });
 		}
-	}
 
-	// Set the status to published.
-	body['status'] = 'published';
+		// Get the collection schema asynchronously.
+		const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
 
-	// Check if the collection exists.
-	if (!collection) return new Response('Collection not found!!');
+		// Check if the user has write access to the collection.
+		const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
 
-	for (const field of collection_schema.fields) {
-		const widget = widgets[field.widget.key];
-		const fieldName = getFieldName(field);
-
-		if (field?.permissions?.[user.role]?.write == false) {
-			// if we cant read there is nothing to modify.
-			delete body[fieldName];
-		} else if ('modifyRequest' in widget) {
-			// widget can modify own portion of body;
-			const data = {
-				get() {
-					return body[fieldName];
-				},
-				update(newData) {
-					body[fieldName] = newData;
-				}
-			};
-			await widget.modifyRequest({ collection, field, data, user, type: 'POST' });
+		if (!has_write_access) {
+			return new Response('', { status: 403 });
 		}
-	}
-	// Save the images.
-	await saveImages(body, params.collection);
 
-	// Insert the entry.
-	return new Response(JSON.stringify(await collection.insertMany(body)));
+		// Get the collection model asynchronously.
+		const collections = await getCollectionModels();
+		const collection = collections[params.collection];
+
+		// Parse the form data.
+		const body: any = {};
+		for (const key of data.keys()) {
+			try {
+				body[key] = JSON.parse(data.get(key) as string, (key, value) => {
+					if (value?.instanceof == 'File') {
+						const file = data.get(value.id) as File;
+						file.path = value.path;
+						data.delete(value.id);
+						return file;
+					}
+					return value;
+				});
+			} catch (e) {
+				body[key] = data.get(key) as string;
+			}
+		}
+
+		// Set the status to published.
+		body['status'] = 'published';
+
+		// Check if the collection exists.
+		if (!collection) {
+			return new Response('Collection not found!!');
+		}
+
+		// Loop through the collection schema fields asynchronously.
+		await Promise.all(
+			collection_schema.fields.map(async (field: any) => {
+				const widget = widgets[field.widget.key];
+				const fieldName = getFieldName(field);
+
+				if (field?.permissions?.[user.role]?.write === false) {
+					// If we can't write, there is nothing to modify.
+					delete body[fieldName];
+				} else if ('modifyRequest' in widget) {
+					// Widget can modify its own portion of the body.
+					const data = {
+						get() {
+							return body[fieldName];
+						},
+						update(newData) {
+							body[fieldName] = newData;
+						}
+					};
+					await widget.modifyRequest({ collection, field, data, user, type: 'POST' });
+				}
+			})
+		);
+
+		// Save the images asynchronously.
+		await saveImages(body, params.collection);
+
+		// Insert the entry asynchronously.
+		const insertedEntry = await collection.insertMany(body);
+
+		// Return the inserted entry as a JSON response.
+		return new Response(JSON.stringify(insertedEntry));
+	} catch (error) {
+		console.error('Error handling POST request:', error);
+		return new Response('Internal Server Error', { status: 500 });
+	}
 };
 
 // Define the DELETE request handler.
 export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
-	// Get the form data.
-	const data = await request.formData();
+	try {
+		// Get the form data.
+		const data = await request.formData();
 
-	// Get the session cookie.
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+		// Get the session cookie.
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	// Validate the session.
-	const user_id = data.get('user_id') as string;
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User)
-		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
+		// Validate the session asynchronously.
+		const user_id = data.get('user_id') as string;
+		const user = user_id
+			? ((await auth.checkUser({ _id: user_id })) as User)
+			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
-	// Check if the user has write access to the collection.
-	if (!user) {
-		return new Response('', { status: 403 });
+		// Check if the user has write access to the collection.
+		if (!user) {
+			return new Response('', { status: 403 });
+		}
+
+		// Get the collection schema asynchronously.
+		const collection_schema = (await getCollections()).find((c: any) => c.name == params.collection) as Schema;
+
+		// Check if the user has write access to the collection.
+		const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
+
+		if (!has_write_access) {
+			return new Response('', { status: 403 });
+		}
+
+		// Get the collection model asynchronously.
+		const collections = await getCollectionModels();
+		const collection = collections[params.collection];
+
+		// Get the ids of the entries to delete.
+		let ids = data.get('ids') as string;
+		ids = JSON.parse(ids);
+
+		// Delete the entries asynchronously.
+		const deletionResult = await collection.deleteMany({
+			_id: {
+				$in: ids
+			}
+		});
+
+		// Return the deletion result as a JSON response.
+		return new Response(JSON.stringify(deletionResult));
+	} catch (error) {
+		console.error('Error handling DELETE request:', error);
+		return new Response('Internal Server Error', { status: 500 });
 	}
-
-	// Check if the user has write access to the collection.
-	const has_write_access = (await getCollections()).find((c: any) => c.name == params.collection)?.permissions?.[user.role]?.write;
-
-	if (!has_write_access) {
-		return new Response('', { status: 403 });
-	}
-
-	// Get the collection model.
-	const collections = await getCollectionModels();
-	const collection = collections[params.collection];
-
-	// Get the ids of the entries to delete.
-	let ids = data.get('ids') as string;
-	ids = JSON.parse(ids);
-	// console.log(ids);
-
-	// Delete the entries.
-	return new Response(
-		JSON.stringify(
-			await collection.deleteMany({
-				_id: {
-					$in: ids
-				}
-			})
-		)
-	);
 };

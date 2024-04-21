@@ -18,8 +18,10 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import { roles } from '@src/auth/types';
-	const user = $page.data.user;
+	import { roles, type User } from '@src/auth/types';
+	const user: User = $page.data.user;
+	console.log('User:', user);
+
 	let isFirstUser = $page.data.isFirstUser;
 
 	export let isGivenData: boolean = false;
@@ -66,25 +68,11 @@
 
 	let formElement: HTMLFormElement;
 
-	// const deleteUser = async () => {
-	// 	const res = await fetch('/api/user/deleteUsers', {
-	// 		method: 'POST',
-	// 		headers: { 'Content-Type': 'application/json' },
-	// 		body: JSON.stringify([{ userId: user.id, role: role }])
-	// 	});
-
-	// 	if (res.status === 200) {
-	// 		await invalidateAll();
-	// 	}
-	// };
-
 	async function deleteUser() {
-		const res = await axios.post(
-			'/?/deleteUser',
-			new FormData({
-				id: user.id
-			})
-		);
+		const formData = new FormData(formElement); // create a FormData object from the formElement
+		formData.append('id', user.id); // add the id property to the FormData object
+
+		const res = await axios.post('/?/deleteUser', formData);
 
 		if (res.status === 200) {
 			await invalidateAll();
@@ -115,7 +103,7 @@
 					bind:value={formData.username}
 					on:keydown={() => (errorStatus.username.status = false)}
 					required
-					disabled={isGivenData && userId != user?.user.id}
+					disabled={isGivenData && userId != user?.id}
 				/>
 				{#if !errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -125,7 +113,7 @@
 			</div>
 
 			<!-- admin area -->
-			{#if isGivenData ? role : user?.roles === 'admin'}
+			{#if isGivenData ? role : user?.role === 'admin'}
 				<!-- Email field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:email" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -165,7 +153,7 @@
 					{/if}
 				</div>
 			{/if}
-			{#if (user.id == userId || !isGivenData) && user?.authMethod == 'email'}
+			{#if (user.id == userId || !isGivenData) && user?.lastAuthMethod == 'token'}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -275,19 +263,21 @@
 				</div>
 			{/if}
 		</form>
-		<!-- prettier-ignore -->
-		<footer class="modal-footer {parent.regionFooter} justify-between">
-		
-		{#if !isFirstUser}
-		<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={isFirstUser && (!isGivenData || user?.user.id == userId)}>
-			<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
-		</button>
-		{/if}
 
-		<div class="flex justify-between gap-2">
-        <button class="btn variant-outline-secondary" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
-        <button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
-	</div>
-    </footer>
+		<footer class="modal-footer {parent.regionFooter} justify-between">
+			{#if isFirstUser}
+				<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={!isFirstUser && (!isGivenData || user.id == userId)}>
+					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
+				</button>
+			{:else}
+				<div></div>
+				<!-- Empty div when isFirstUser -->
+			{/if}
+
+			<div class="flex justify-between gap-2">
+				<button class="variant-outline-secondary btn" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
+				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+			</div>
+		</footer>
 	</div>
 {/if}

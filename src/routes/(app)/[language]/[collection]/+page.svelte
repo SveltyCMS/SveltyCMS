@@ -6,7 +6,7 @@
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
-	import Media from '@src/components/Media.svelte';
+	import Media from '@src/components/MediaGallery.svelte';
 
 	import { goto } from '$app/navigation';
 	import { onDestroy } from 'svelte';

@@ -3,9 +3,9 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Auth
-	import { roles } from '@src/auth/types';
+	import type { User, roles } from '@src/auth/types';
 	import { consumeToken } from '@src/auth/tokens';
-	const user = $page.data.user;
+	const user: User = $page.data.user;
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -165,12 +165,12 @@
 			</div>
 
 			<!-- admin area -->
-			{#if user?.roles == 'admin'}
+			{#if user.role == 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#each Object.values(roles) as r}
+							{#each Object.values(role) as r}
 								<span
 									class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 									on:click={() => {

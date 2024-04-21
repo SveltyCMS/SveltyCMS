@@ -435,7 +435,7 @@
 						<img
 							src={file.thumbnail.url}
 							alt={file.thumbnail.name}
-							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-32 w-auto' : gridSize === 'medium' ? 'h-48 w-44' : 'h-80 w-80'}`}
+							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-28 w-28' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
 						/>
 					</section>
 

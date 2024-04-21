@@ -15,7 +15,6 @@
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
-	$: $tabSet = 0;
 
 	export let fields: typeof $collection.fields | undefined = undefined;
 	export let root = true; // if Fields is not part of any widget.

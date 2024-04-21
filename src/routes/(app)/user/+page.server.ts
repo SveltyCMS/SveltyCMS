@@ -17,10 +17,8 @@ export async function load(event) {
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
-	const isFirstUser = (await auth.getUserCount()) == 0;
-	console.log('User Count:', await auth.getUserCount()); // Log retrieved user count
-
-	// 	// Superforms Validate addUserForm / change Password
+	// check if only one user is in the database
+	const isFirstUser = (await auth.getUserCount()) == 0; // 	// Superforms Validate addUserForm / change Password
 	const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 	const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
@@ -91,7 +89,7 @@ export const actions: Actions = {
 		if (!newUser) return fail(400, { message: 'unknown error' });
 
 		// Issue password token for new user
-		const token = await createNewToken(this.Token, newUser._id, email, expirationTime * 1000);
+		const token = await createNewToken(newUser, newUser._id, email, expirationTime * 1000);
 		console.log(token); // send token to user via email
 
 		// Send the token to the user via email.
@@ -168,10 +166,19 @@ export const actions: Actions = {
 			const info = JSON.parse(info_json as string) as { id: string; field: 'email' | 'role' | 'name' | 'avatar'; value: string };
 			const user = await auth.checkUser({ _id: info.id });
 			console.log(user);
-			user &&
-				auth.updateUserAttributes(user, {
-					[info.field]: info.value
-				});
+			if (user) {
+				if (info.field === 'avatar') {
+					// Update the user's avatar
+					auth.updateUserAttributes(user, {
+						avatar: info.value
+					});
+				} else {
+					// Update the user's other attributes
+					auth.updateUserAttributes(user, {
+						[info.field]: info.value
+					});
+				}
+			}
 		}
 	}
 };

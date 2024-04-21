@@ -2,13 +2,14 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
+	import { page } from '$app/stores';
 	import { mode, collection, categories, headerActionButton, shouldShowNextButton } from '@stores/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
 
-	// let user: User = $page.data.user;
-	// let user = $page.data.user;
-	const user = 'admin';
+	// Auth
+	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 
 	export let modeSet: typeof $mode = 'view';
 
@@ -163,7 +164,7 @@
 				<svelte:fragment slot="content">
 					<!-- filtered by User Role Permission -->
 
-					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user]?.read != false) as _collection, index}
+					{#each category.collections.filter((c) => modeSet == 'edit' || c?.permissions?.[user.role]?.read != false) as _collection, index}
 						{#if $sidebarState.left === 'full'}
 							<!-- switchSideBar expanded -->
 							<div

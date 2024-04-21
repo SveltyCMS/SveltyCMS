@@ -18,7 +18,6 @@ type fields = ReturnType<WidgetType[keyof WidgetType]>;
 export async function load(event) {
 	// Get session cookie value as string
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-	// console.log('Session ID:', session_id);
 
 	// Validate user using auth and session value
 	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
@@ -33,6 +32,12 @@ export async function load(event) {
 	} else {
 		redirect(302, `/login`);
 	}
+	// Return user data
+	return {
+		props: {
+			user: user
+		}
+	};
 }
 
 // Create or Update Collection

@@ -13,7 +13,7 @@
 	import { entryData, mode, loadingProgress } from '@stores/store';
 
 	// Components
-	import Media from '@src/components/Media.svelte';
+	import Media from '@src/components/MediaGallery.svelte';
 
 	let _data: File | ImageFiles | undefined;
 	let updated = false;

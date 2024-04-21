@@ -7,6 +7,7 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 
 	// Skeleton
 	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
@@ -24,8 +25,6 @@
 		next = value;
 		shouldShowNextButton.set(false);
 	});
-
-	const user: User = $page.data.user;
 
 	// Map the status to boolean
 	//console.log('Status', $entryData?.status);

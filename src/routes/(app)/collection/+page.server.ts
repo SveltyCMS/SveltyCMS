@@ -22,4 +22,10 @@ export async function load(event) {
 	} else {
 		redirect(302, `/login`);
 	}
+	// Return user data
+	return {
+		props: {
+			user: user
+		}
+	};
 }

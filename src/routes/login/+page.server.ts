@@ -196,7 +196,7 @@ export const actions = {
 			// Define token resetLink
 			const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 			const resetLink = `${baseUrl}/login?token=${token}&email=${email}`;
-
+			//console.log('resetLink', resetLink);
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',

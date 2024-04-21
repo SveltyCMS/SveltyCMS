@@ -97,3 +97,50 @@ export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
 
 export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
+
+// Widget store
+
+// Define the interface for validation errors
+interface ValidationErrors {
+	[fieldName: string]: string | null;
+}
+
+// Create a writable store for validation errors
+export const validationStore = (() => {
+	const { subscribe, update } = writable<ValidationErrors>({});
+
+	const setError = (fieldName: string, errorMessage: string | null) => {
+		update((errors) => ({ ...errors, [fieldName]: errorMessage }));
+	};
+
+	const clearError = (fieldName: string) => {
+		update((errors) => {
+			const { [fieldName]: _, ...rest } = errors;
+			return rest;
+		});
+	};
+
+	const getError = (fieldName: string) => {
+		let error: string | null = null;
+		subscribe((errors) => {
+			error = errors[fieldName] || null;
+		})();
+		return error;
+	};
+
+	const hasError = (fieldName: string) => {
+		let hasError = false;
+		subscribe((errors) => {
+			hasError = !!errors[fieldName];
+		})();
+		return hasError;
+	};
+
+	return {
+		subscribe,
+		setError,
+		clearError,
+		getError,
+		hasError
+	};
+})();

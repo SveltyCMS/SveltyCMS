@@ -174,17 +174,11 @@
 					PWreset = true;
 
 					// // Update the $resetForm object directly
-					// $resetForm = {
-					// 	...$resetForm,
-					// 	email: result.data.email,
-					// 	token: result.data.token
-					// };
-
-					// // Update the $forgotForm object directly
-					// $forgotForm = {
-					// 	...$forgotForm,
-					// 	email: result.data.email
-					// };
+					$resetForm = {
+						...$resetForm,
+						email: result.data.email,
+						token: result.data.token
+					};
 
 					// Update the registration_token and hide_email variables
 					registration_token = result.data.token;
@@ -282,6 +276,7 @@
 	});
 
 	let formElement: HTMLFormElement; // reactive statement when systemLanguage changes
+
 	$: $forgotForm = { ...$forgotForm };
 
 	$resetForm = {

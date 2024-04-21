@@ -295,10 +295,13 @@ export async function saveFiles(data: { [key: string]: any }, collectionName: st
 	};
 
 	await parseFiles(data);
-	const res = await mongoose.models['media_files'].insertMany(fields.map((v) => v.file));
-	for (const index in res) {
-		const id = res[index]._id;
-		fields[index].replace(id);
+	// console.log('Fields:', fields);
+	if (fields.length > 0) {
+		const res = await mongoose.models['media_files'].insertMany(fields.map((v) => v.file));
+		for (const index in res) {
+			const id = res[index]._id;
+			fields[index].replace(id);
+		}
 	}
 }
 
@@ -375,7 +378,7 @@ export function getFieldName(field: any, sanitize = false) {
 
 //Save Collections data to database
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
-	console.log('saveFormData was called');
+	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);
@@ -430,7 +433,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 // Function to delete image files associated with a content item
 export async function deleteImageFiles(collectionName: string, fileName: string) {
 	const env_sizes = publicEnv.IMAGE_SIZES;
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+	const SIZES = { ...env_sizes, original: 0, thumbnail: 320 } as const;
 
 	const collection = get(collections).find((collection) => collection.name === collectionName);
 

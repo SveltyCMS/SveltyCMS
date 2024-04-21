@@ -82,8 +82,8 @@ export const SessionSchema = {
 
 // Define the schema for a Token
 export const TokenSchema = {
-	token: { type: String, required: true }, // The token string
 	user_id: { type: mongoose.Schema.Types.ObjectId, required: true }, // The ID of the user who owns the token
+	token: { type: String, required: true }, // The token string
 	email: String, // The email associated with the token
 	expires: { type: Date, required: true } // When the token expires
 };

@@ -1,7 +1,10 @@
 <script lang="ts">
 	import axios from 'axios';
 	import { page } from '$app/stores';
-	const user = $page.data.user;
+
+	// Auth
+	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

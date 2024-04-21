@@ -4,7 +4,7 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { contentLanguage, mode, entryData } from '@stores/store';
+	import { contentLanguage, mode, entryData, validationStore } from '@stores/store';
 
 	export let field: FieldType;
 
@@ -50,7 +50,7 @@
 		width: z.number().optional(),
 		required: z.boolean().optional(),
 
-		// Widget Specfic
+		// Widget Specific
 		minlength: z.number().optional(),
 		maxlength: z.number().optional()
 	});
@@ -58,15 +58,28 @@
 	function validateInput() {
 		if (_data[_language] !== '') {
 			try {
-				validateSchema.parse(_data);
-				validationError = '';
+				const { minlength, maxlength } = field; // Access schema properties
+				validateSchema.parse(_data); // Validate against schema
+
+				if (minlength && _data[_language].length < minlength) {
+					validationError = `Minimum length is ${minlength}`;
+					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
+				} else if (maxlength && _data[_language].length > maxlength) {
+					validationError = `Maximum length is ${maxlength}`;
+					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
+				} else {
+					validationError = null;
+					validationStore.clearError(fieldName); // Clear error from validationStore if no validation issues
+				}
 			} catch (error: unknown) {
 				if (error instanceof z.ZodError) {
 					validationError = error.errors[0].message;
+					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
 				}
 			}
 		} else {
 			validationError = ''; // Clear error if empty string
+			validationStore.clearError(fieldName); // Clear error from validationStore if no validation issues
 		}
 	}
 </script>

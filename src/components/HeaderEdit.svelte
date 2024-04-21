@@ -7,6 +7,7 @@
 
 	// Stores
 	import { get } from 'svelte/store';
+	import { page } from '$app/stores';
 	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
 	import {
 		collection,
@@ -20,9 +21,9 @@
 		shouldShowNextButton
 	} from '@stores/store';
 
-	// const userRole = $page.data.user.role;
-	const userRole = 'admin';
-	//console.log($page.data.user.role);
+	// Auth
+	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -180,7 +181,7 @@
 					<button
 						type="button"
 						on:click={() => $modifyEntry('publish')}
-						disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
+						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 					>
 						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
@@ -191,7 +192,7 @@
 					<button
 						type="button"
 						on:click={() => $modifyEntry('unpublish')}
-						disabled={!$collection?.permissions?.[userRole]?.write}
+						disabled={!$collection?.permissions?.[user.role]?.write}
 						class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 					>
 						<iconify-icon icon="bi:pause-circle" width="24" />
@@ -203,7 +204,7 @@
 				<button
 					type="button"
 					on:click={() => $modifyEntry('schedule')}
-					disabled={!$collection?.permissions?.[userRole]?.write}
+					disabled={!$collection?.permissions?.[user.role]?.write}
 					class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
 				>
 					<iconify-icon icon="bi:clock" width="24" />
@@ -214,7 +215,7 @@
 				<button
 					type="button"
 					on:click={() => $modifyEntry('clone')}
-					disabled={!($collection?.permissions?.[userRole]?.write && $collection?.permissions?.[userRole]?.create)}
+					disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 				>
 					<iconify-icon icon="bi:clipboard-data-fill" width="24" />
