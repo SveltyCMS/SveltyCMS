@@ -50,6 +50,10 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		const length = parseInt(url.searchParams.get('length') as string) || Infinity;
 		const filter: { [key: string]: string } = JSON.parse(url.searchParams.get('filter') as string) || {};
 		const sort: { [key: string]: number } = JSON.parse(url.searchParams.get('sort') as string) || {};
+
+		// Get full Global Search URL.
+		const search = url.searchParams.get('search') || '';
+
 		// Get the content language from the URL parameters.
 		const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 		// Calculate the skip value.
@@ -57,6 +61,17 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 		// Create an array of aggregation pipelines asynchronously.
 		const aggregations: any = [];
+
+		// Modify the aggregation pipeline based on the search query.
+		if (search) {
+			aggregations.push({
+				$match: {
+					$or: collection_schema.fields.map((field) => ({
+						[getFieldName(field)]: { $regex: search, $options: 'i' }
+					}))
+				}
+			});
+		}
 		if (sort.status) {
 			aggregations.push({ $sort: { status: sort.status } });
 		} else if (sort.createdAt) {
@@ -273,6 +288,12 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		const collections = await getCollectionModels();
 		const collection = collections[params.collection];
 
+		// Check if the collection exists.
+		if (!collection) {
+			console.error(`Collection "${params.collection}" not found!`);
+			return new Response('Collection not found!', { status: 404 });
+		}
+
 		// Parse the form data.
 		const body: any = {};
 		for (const key of data.keys()) {
@@ -293,11 +314,6 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Set the status to published.
 		body['status'] = 'published';
-
-		// Check if the collection exists.
-		if (!collection) {
-			return new Response('Collection not found!!');
-		}
 
 		// Loop through the collection schema fields asynchronously.
 		await Promise.all(

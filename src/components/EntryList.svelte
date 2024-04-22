@@ -89,7 +89,7 @@
 	let pagesCount: number = entryListPaginationSettings.pagesCount || 1; // Initialize pagesCount
 	let currentPage: number = entryListPaginationSettings.currentPage || 1; // Set initial currentPage value
 	let rowsPerPage: number = entryListPaginationSettings.rowsPerPage || 10; // Set initial rowsPerPage value
-	const rowsPerPageOptions = [10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
+	const rowsPerPageOptions = [5, 10, 25, 50, 100, 500]; // Set initial rowsPerPage value options
 
 	// Declare isFirstPage and isLastPage variables
 	let isFirstPage: boolean;
@@ -107,6 +107,7 @@
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
+		console.log('refreshTableData called');
 		// Clear loading timer
 		loadingTimer && clearTimeout(loadingTimer);
 
@@ -129,7 +130,7 @@
 									[sorting.sortedBy]: sorting.isSorted
 								}
 							: {}
-					)}`
+					)}&search=${globalSearchValue}`
 				)
 				.then((data) => data.data)) as { entryList: [any]; pagesCount: number };
 
@@ -220,7 +221,6 @@
 			displayTableHeaders
 		};
 		localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
-		//console.log('Updated entryListPaginationSettingsKey:', entryListPaginationSettings);
 	}
 
 	$: {
@@ -379,7 +379,8 @@
 			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
 				{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
 						{$categories[0].name}
-					</div>{/if}
+					</div>
+				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
 					{#if $collection.icon}<span> <iconify-icon icon={$collection.icon} width="24" class="mr-1 text-error-500 sm:mr-2" /></span>{/if}
 					{#if $collection.name}
@@ -421,7 +422,9 @@
 		{#if columnShow}
 			<!-- Column order -->
 			<div class="rounded-b-0 flex flex-col justify-center rounded-t-md border-b bg-surface-300 text-center dark:bg-surface-700">
-				<div class="text-white dark:text-primary-500">{m.entrylist_dnd()}</div>
+				<div class="text-white dark:text-primary-500">
+					{m.entrylist_dnd()}
+				</div>
 				<!-- Select All Columns -->
 				<div class="my-2 flex w-full items-center justify-center gap-1">
 					<div class="flex- items-center justify-between">
@@ -637,8 +640,13 @@
 			</table>
 		</div>
 
-		<!-- Pagination  -->
-		<div class="sticky bottom-0 left-0 right-0 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+		<!-- Pagination not updating -->
+		<!-- <div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+			<TablePagination {currentPage} {pagesCount} {rowsPerPage} {rowsPerPageOptions} {refreshTableData} />
+		</div> -->
+
+		<!-- Pagination   working -->
+		<div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
 			<!-- <TablePagination {currentPage} {pagesCount} {rowsPerPage} {refreshTableData} /> -->
 
 			<div class="mb-1 text-xs md:mb-0 md:text-sm">
@@ -722,7 +730,9 @@
 		<!-- Display a message when no data is yet available -->
 		<div class="text-center">
 			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2 text-primary-500" />
-			<p class="text-lg text-primary-500">No {$collection.name} Data</p>
+			<p class="text-lg text-primary-500">
+				No {$collection.name} Data
+			</p>
 		</div>
 	{/if}
 {/if}

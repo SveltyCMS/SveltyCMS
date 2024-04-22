@@ -26,19 +26,21 @@
 		<input
 			type="text"
 			placeholder="Search..."
+			autofocus
 			bind:value={globalSearchValue}
 			on:keydown={(e) => e.key === 'Enter'}
-			on:focus={() => (searchShow = false)}
 			class="input outline-none transition-all duration-500 ease-in-out"
 		/>
 		{#if globalSearchValue}
 			<button
 				on:click={() => {
 					globalSearchValue = '';
+					searchShow = false;
 				}}
 				on:keydown={(event) => {
 					if (event.key === 'Enter' || event.key === ' ') {
 						globalSearchValue = '';
+						searchShow = false;
 					}
 				}}
 				class="variant-filled-surface w-12"

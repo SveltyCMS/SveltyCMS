@@ -30,7 +30,9 @@
 		} else if (entryMode == 'choose') {
 			relation_id = selected?._id;
 		} else if (entryMode == 'edit') {
-			relation_id = (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'edit', id: relation_entry._id }))[0]?._id;
+			relation_id = relation_entry
+				? (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'edit', id: relation_entry._id }))[0]?._id
+				: '';
 		}
 		return relation_id;
 	};

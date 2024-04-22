@@ -378,7 +378,7 @@ export function getFieldName(field: any, sanitize = false) {
 
 //Save Collections data to database
 export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
-	//console.log('saveFormData was called');
+	console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);

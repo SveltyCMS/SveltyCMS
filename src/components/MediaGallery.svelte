@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
 	import type { ImageFiles } from '@src/utils/types';
 	import { SIZES, formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
@@ -6,18 +7,17 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton
-	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
-
 	// Components
 	import PageTitle from './PageTitle.svelte';
-	import { publicEnv } from '@root/config/public';
+
+	// Skeleton
+	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
 	// Popup Tooltips
 	const FileTooltip: PopupSettings = {
 		event: 'click',
 		target: 'FileInfo',
-		placement: 'bottom'
+		placement: 'right'
 	};
 
 	export let onselect: any = () => {};
@@ -194,7 +194,7 @@
 </div>
 
 <div class=" wrapper overflow-auto">
-	<div class="mb-2 flex items-center justify-between gap-4">
+	<div class="mb-2 flex items-center justify-between gap-2 md:gap-4">
 		<!-- Search/display -->
 		<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
 			<!-- Search -->
@@ -244,7 +244,9 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">{m.mediagallery_display()}</p>
+								<p class="text-center text-xs">
+									{m.mediagallery_display()}
+								</p>
 								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`} />
 								<p class="text-xs">Table</p>
 							</button>
@@ -263,14 +265,20 @@
 									}
 								}}
 							>
-								<p class="text-center text-xs">{m.mediagallery_display()}</p>
+								<p class="text-center text-xs">
+									{m.mediagallery_display()}
+								</p>
 								<iconify-icon icon="material-symbols:list-alt-outline" height="44" style={`color: text-black dark:text-white`} />
 
 								<!-- TODO: Center mobile labels -->
 								{#if view === 'table'}
-									<p class="text-center text-xs">{m.mediagallery_grid()}</p>
+									<p class="text-center text-xs">
+										{m.mediagallery_grid()}
+									</p>
 								{:else}
-									<p class="text-center text-xs">{m.mediagallery_table()}</p>
+									<p class="text-center text-xs">
+										{m.mediagallery_table()}
+									</p>
 								{/if}
 							</button>
 						{/if}
@@ -279,22 +287,30 @@
 
 				<!-- switch between small, medium, and large images -->
 				<div class="flex flex-col items-center">
-					<p class="text-xs">{m.mediagallery_size()}</p>
+					<p class="text-xs">
+						{m.mediagallery_size()}
+					</p>
 					<div class="divide-surface-00 flex divide-x">
 						{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" style={`color:text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_small()}</p>
+								<p class="text-xs">
+									{m.mediagallery_small()}
+								</p>
 							</button>
 						{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:grid-on-sharp" height="40" style={`color: text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_medium()}</p>
+								<p class="text-xs">
+									{m.mediagallery_medium()}
+								</p>
 							</button>
 						{:else}
 							<button type="button" class="px-1" on:click={handleClick}>
 								<iconify-icon icon="material-symbols:grid-view" height="40" style={`color: text-black dark:text-white`} />
-								<p class="text-xs">{m.mediagallery_large()}</p>
+								<p class="text-xs">
+									{m.mediagallery_large()}
+								</p>
 							</button>
 						{/if}
 					</div>
@@ -381,13 +397,13 @@
 					<header class="m-2 flex w-auto items-center justify-between">
 						<!-- Info Icon -->
 						<button class="btn-icon" use:popup={FileTooltip}>
-							<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 						</button>
 
 						<!-- Popup Tooltip with the arrow element to show FileInfo -->
 						<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
 							<table class="table-hover w-full table-auto">
-								<thead class={`text-tertiary-500  ${gridSize === 'small' ? 'text-xs' : gridSize === 'medium' ? 'text-sm' : 'text-base'}`}>
+								<thead class="text-tertiary-500">
 									<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
 										<th class="text-left">Format</th>
 										<th class="">Pixel</th>
@@ -396,11 +412,7 @@
 								</thead>
 								<tbody>
 									{#each orderedSizes as size}
-										<tr
-											class={`divide-x divide-surface-400 border-b border-surface-400  last:border-b-0 ${
-												gridSize === 'small' ? 'text-xs' : gridSize === 'medium' ? 'text-sm' : 'text-base'
-											}`}
-										>
+										<tr class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0">
 											<td class="font-bold text-tertiary-500">
 												{size}
 											</td>
@@ -416,18 +428,18 @@
 								<div class="variant-filled arrow" />
 							</table>
 						</div>
-						{#if showInfo[index]}
-							<!-- Edit button -->
-							<button class="btn-icon">
-								<iconify-icon icon="mdi:pen" width="25" class="data:text-primary-500 text-tertiary-500" />
-							</button>
+						<!--{#if showInfo[index]}-->
+						<!-- Edit button -->
+						<button class="btn-icon">
+							<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500" />
+						</button>
 
-							<!-- Delete button -->
-							<button class="btn-icon" on:click={() => handleDeleteImage(file)}>
-								<!-- Delete Icon -->
-								<iconify-icon icon="icomoon-free:bin" width="25" class="text-error-500" />
-							</button>
-						{/if}
+						<!-- Delete button -->
+						<button class="btn-icon" on:click={() => handleDeleteImage(file)}>
+							<!-- Delete Icon -->
+							<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500" />
+						</button>
+						<!--{/if}-->
 					</header>
 
 					<section class="p-2">
@@ -435,7 +447,7 @@
 						<img
 							src={file.thumbnail.url}
 							alt={file.thumbnail.name}
-							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-28 w-28' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
+							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
 						/>
 					</section>
 
@@ -489,8 +501,8 @@
 										class:up={sorting.isSorted === 1}
 										class:invisible={sorting.isSorted == 0 || sorting.sortedBy != header.label}
 									/>
-								</div></th
-							>
+								</div>
+							</th>
 						{/each}
 					</tr>
 				</thead>
