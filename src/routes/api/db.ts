@@ -107,6 +107,7 @@ export async function getCollectionModels() {
 !mongoose.models['media_images'] && mongoose.model('media_images', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 !mongoose.models['media_documents'] &&
 	mongoose.model('media_documents', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
+!mongoose.models['media_audio'] && mongoose.model('media_audio', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 !mongoose.models['media_videos'] && mongoose.model('media_videos', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 !mongoose.models['media_remote'] && mongoose.model('media_remote', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 

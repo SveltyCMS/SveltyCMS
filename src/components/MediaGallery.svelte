@@ -143,9 +143,6 @@
 				isLoading = true;
 			}, 400);
 
-			// Load All available Users
-			// responseData = data.props.data;
-
 			// Check if responseData is an array before mapping
 			if (Array.isArray(responseData)) {
 				// Format the data for the table
@@ -164,6 +161,8 @@
 
 					return formattedItem;
 				});
+
+				console.log(tableData);
 			} else {
 				// Handle the case when no data is present
 				tableData = [];

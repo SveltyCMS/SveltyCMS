@@ -8,7 +8,7 @@
 	import { asAny, getFieldName } from '@utils/utils';
 
 	// Components
-	import Media from '@src/components/MediaGallery.svelte';
+	import Media from '@src/components/Media.svelte';
 
 	let _data: File | undefined;
 	let updated = false;
