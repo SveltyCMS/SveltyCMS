@@ -13,6 +13,7 @@
 		 */
 		"isolatedModules": true, // use an isolated module
 		"resolveJsonModule": true, // resolve .json files
+		"verbatimModuleSyntax": true, // treat .json files as modules
 
 		/**
 		 * To have warnings / errors of the Svelte compiler at the
@@ -37,7 +38,14 @@
 		"types": ["@sveltejs/kit"], //	add types
 		//"types": ["bun-types"],
 		"noImplicitAny": false,
-		"outDir": "../build"
+		"outDir": "../build",
+		"baseUrl": ".",
+		"paths": {
+			"@src": ["src/"],
+			"@src/*": ["src/*"],
+			"@static/*": ["static/*"],
+			"@root/*": ["./*"]
+		}
 	},
 
 	/**

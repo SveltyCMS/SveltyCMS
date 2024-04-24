@@ -75,6 +75,7 @@ export const addUserTokenSchema = z.object({
 		.email({ message: m.formSchemas_Emailvalid() })
 		.transform((value) => value.toLowerCase()), // Convert email to lowercase before validation
 	role: z.string(),
+	password: z.string(),
 	expiresIn: z.string(),
 	expiresInLabel: z.string()
 });

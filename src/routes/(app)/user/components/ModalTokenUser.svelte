@@ -37,7 +37,17 @@
 
 	let response: any;
 
-	const { form, allErrors, errors, enhance } = superForm(addUserForm, {
+	if (!addUserForm) {
+		addUserForm = {
+			email: '',
+			role: '',
+			password: '',
+			expiresIn: '',
+			expiresInLabel: ''
+		};
+	}
+
+	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
 		id: 'addUser',
 		validators: zod(addUserTokenSchema),
 		applyAction: true,

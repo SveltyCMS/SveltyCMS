@@ -24,9 +24,6 @@ export async function load(event) {
 
 	if (!user) {
 		redirect(302, `/login`);
-		return {
-			user
-		};
 	} else {
 		return {
 			user: user,

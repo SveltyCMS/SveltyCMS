@@ -138,12 +138,13 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 
 			// Original image
 			let url: any;
+			const sanitizedBlobName = sanitize(blob.name);
 			if (path == 'global') {
-				url = `images/original/${hash}.${ext}`;
+				url = `images/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else if (path == 'unique') {
-				url = `images/${collectionName}/original/${hash}.${ext}`;
+				url = `images/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else {
-				url = `images/${path}/original/${hash}.${ext}`;
+				url = `images/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			}
 			const info = await sharp(buffer).metadata();
 			data[fieldname] = {
@@ -168,7 +169,7 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
 			for (const size in SIZES) {
 				if (size == 'original') continue;
-				const fullName = `${hash}-${name}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+				const fullName = `${hash}-${sanitizedBlobName}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
 				const resizedImage = await sharp(buffer)
 					.rotate() // Rotate image according to EXIF data
 					.resize({ width: SIZES[size] })
