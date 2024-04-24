@@ -27,7 +27,11 @@
 	let globalSearchValue = ''; // Initialize your search value
 
 	// Reactive statement to filter files
-	$: filteredFiles = files.filter((file) => file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()));
+	$: filteredFiles = files.filter(
+		(file) =>
+			file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType)
+	);
+	// $: filteredFiles = files.filter((file) => file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()));
 
 	let showInfo = Array.from({ length: files.length }, () => false);
 	// Define orderedSizes
@@ -186,39 +190,59 @@
 		sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
 		isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 	};
+
+	// Define media types
+	const mediaTypes = ['All', 'Image', 'Video', 'Document', 'Audio'];
+	// Reactive variable for selected media type
+	let selectedMediaType = 'All';
 </script>
 
 <div class="flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 </div>
 
-<div class=" wrapper overflow-auto">
+<div class="wrapper overflow-auto">
 	<div class="mb-2 flex items-center justify-between gap-2 md:gap-4">
 		<!-- Search/display -->
-		<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
-			<!-- Search -->
-			<input
-				type="text"
-				placeholder="Search..."
-				class="input"
-				bind:value={globalSearchValue}
-				on:blur={() => (searchShow = false)}
-				on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
-			/>
-			{#if globalSearchValue}
-				<button
-					on:click={() => {
-						globalSearchValue = '';
-					}}
-					on:keydown={(event) => {
-						if (event.key === 'Enter' || event.key === ' ') {
+		<div class="mb-8 flex w-full flex-col justify-center gap-1">
+			<label for="media-type">Search</label>
+			<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
+				<!-- Search -->
+				<input
+					type="text"
+					placeholder="Search..."
+					class="input"
+					bind:value={globalSearchValue}
+					on:blur={() => (searchShow = false)}
+					on:keydown={(e) => e.key === 'Enter' && (searchShow = false)}
+				/>
+				{#if globalSearchValue}
+					<button
+						on:click={() => {
 							globalSearchValue = '';
-						}
-					}}
-					class="variant-filled-surface w-12"
-					><iconify-icon icon="ic:outline-search-off" width="24" />
-				</button>
-			{/if}
+						}}
+						on:keydown={(event) => {
+							if (event.key === 'Enter' || event.key === ' ') {
+								globalSearchValue = '';
+							}
+						}}
+						class="variant-filled-surface w-12"
+						><iconify-icon icon="ic:outline-search-off" width="24" />
+					</button>
+				{/if}
+			</div>
+		</div>
+
+		<!-- Additional Media Type Filter -->
+		<div class="mb-8 flex flex-col justify-center gap-1">
+			<label for="media-type">Media Types</label>
+			<div class="input-group">
+				<select bind:value={selectedMediaType} class="">
+					{#each mediaTypes as type}
+						<option value={type}>{type}</option>
+					{/each}
+				</select>
+			</div>
 		</div>
 
 		<div class="flex items-center justify-center gap-4">
@@ -284,7 +308,7 @@
 					</div>
 				</div>
 
-				<!-- switch between small, medium, and large images -->
+				<!-- Switch between small, medium, and large images -->
 				<div class="flex flex-col items-center">
 					<p class="text-xs">
 						{m.mediagallery_size()}
@@ -357,7 +381,7 @@
 				</div>
 			</div>
 
-			<!-- switch between small, medium, and large images -->
+			<!-- Switch between small, medium, and large images -->
 			<div class="hidden flex-col items-center sm:flex">
 				Size
 				<div class="flex divide-x divide-gray-500">

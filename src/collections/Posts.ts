@@ -35,10 +35,10 @@ const schema: Schema = {
 	fields: [
 		widgets.Email({
 			label: 'Email',
-			icon: 'material-symbols:mail'
-			// display: async (data, field, entry, contentLanguage) => {
-			// 	return data[contentLanguage];
-			// },
+			icon: 'material-symbols:mail',
+			display: async ({ data, contentLanguage }) => {
+				return data[contentLanguage];
+			}
 		}),
 
 		widgets.Text({
@@ -56,14 +56,14 @@ const schema: Schema = {
 			required: true,
 			icon: 'material-symbols:image-outline',
 			path: 'images' //This save to image folder, and is not globally available
-		}),
-
-		widgets.FileUpload({
-			label: 'File',
-			required: true,
-			icon: 'mdi:file-document-outline',
-			path: 'global' //This save to image folder, and is not globally available
 		})
+
+		// widgets.FileUpload({
+		// 	label: 'File',
+		// 	required: true,
+		// 	icon: 'mdi:file-document-outline',
+		// 	path: 'global' //This save to image folder, and is not globally available
+		// })
 	]
 };
 export default schema;

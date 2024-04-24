@@ -4,6 +4,9 @@
 	import { asAny, convertTimestampToDateString, getFieldName } from '@src/utils/utils';
 	import type { ImageFiles } from '@src/utils/types';
 
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
 	// Konva
 	import type { Image as KonvaImage } from 'konva/lib/shapes/Image';
 	import type { Transformer } from 'konva/lib/shapes/Transformer';
@@ -221,6 +224,56 @@
 		showMedia = false;
 		_data = data;
 	};
+
+	// Skeleton
+	import ModalImageEditor from './ModalImageEditor.svelte';
+	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
+	const modalStore = getModalStore();
+
+	// Modal Trigger - Edit Avatar
+	function modalImageEditor(): void {
+		// console.log('Triggered - modalImageEditorr');
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ModalImageEditor,
+			props: { _data },
+
+			// Add your props as key/value pairs
+			// props: { background: 'bg-pink-500' },
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: m.usermodaluser_settingtitle(),
+			body: m.usermodaluser_settingbody(),
+			component: modalComponent,
+			// Pass arbitrary data to the component
+
+			response: (r: { dataURL: string }) => {
+				console.log('ModalImageEditor response:', r);
+				if (r) {
+					// avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
+
+					// Trigger the toast
+					const t = {
+						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
+
+						// Provide any utility or variant background style:
+						background: 'gradient-primary',
+						timeout: 3000,
+						// Add your custom classes here:
+						classes: 'border-1 !rounded-md'
+					};
+					toastStore.trigger(t);
+				}
+			}
+		};
+		modalStore.trigger(d);
+	}
 </script>
 
 <input use:setFile bind:this={input} accept="image/*,image/webp,image/avif,image/svg+xml" name={fieldName} type="file" hidden />
@@ -278,6 +331,11 @@
 								width="24"
 								class={isFlipped ? ' rotate-90 text-yellow-500 transition-transform duration-300' : 'text-white  transition-transform duration-300'}
 							/>
+						</button>
+
+						<!-- Modal ImageEditor -->
+						<button on:click={modalImageEditor} class="variant-ghost btn-icon">
+							M<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
 						</button>
 
 						<!-- Edit -->

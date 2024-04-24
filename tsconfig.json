@@ -3,7 +3,7 @@
 
 	"compilerOptions": {
 		"moduleResolution": "bundler", // which module resolution strategy to use
-		"target": "ESNext", // which level of JS support to target
+		// "target": "ESNext", // which level of JS support to target
 		"module": "ESNext", // which module system to use
 
 		/**
@@ -36,16 +36,8 @@
 		"noErrorTruncation": true, // do not truncate error messages
 
 		"types": ["@sveltejs/kit"], //	add types
-		//"types": ["bun-types"],
 		"noImplicitAny": false,
-		"outDir": "../build",
-		"baseUrl": ".",
-		"paths": {
-			"@src": ["src/"],
-			"@src/*": ["src/*"],
-			"@static/*": ["static/*"],
-			"@root/*": ["./*"]
-		}
+		"outDir": "../build"
 	},
 
 	/**

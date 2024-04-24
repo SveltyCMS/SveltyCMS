@@ -13,15 +13,14 @@
 	/** Exposes parent props to this component. */
 	export let parent: any;
 
-	// skeleton
+	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
+	import { Avatar } from '@skeletonlabs/skeleton';
+	import { FileDropzone } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// skeleton
-	import { Avatar } from '@skeletonlabs/skeleton';
-	import { FileDropzone } from '@skeletonlabs/skeleton';
 	let files: FileList;
 
 	export let avatarSrc: any;
