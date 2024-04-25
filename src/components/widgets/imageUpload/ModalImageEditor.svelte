@@ -19,7 +19,7 @@
 	// Notes: Use `w-screen h-screen` to fit the visible canvas size.
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
-	import type { ImageFiles } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/types';
 
 	// Components
 	import Media from '@src/components/Media.svelte';
@@ -50,7 +50,7 @@
 					this.image.src = '/media/' + _data.original.url;
 				}
 			} else {
-				this.image.src = '/media/' + (value as ImageFiles).original.url;
+				this.image.src = '/media/' + (value as MediaImage).original.url;
 			}
 			if (this.image.naturalHeight == 0) {
 				await new Promise((resolve) => {

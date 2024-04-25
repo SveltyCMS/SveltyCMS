@@ -50,7 +50,8 @@
 
 <div class="flex w-full items-center gap-2">
 	<!-- Color picker -->
-	<input type="color" bind:value={_data.value} class="input" />
+	<!-- TODO: improve thinner border -->
+	<input type="color" bind:value={_data.value} class="h-11 w-11 rounded border-0" />
 
 	<!-- Hex Value -->
 	<input

@@ -10,7 +10,7 @@
 	// Components
 	import Media from '@src/components/Media.svelte';
 
-	let _data: File | undefined;
+	let _data: File | MediaFiles | undefined;
 	let updated = false;
 	let input: HTMLInputElement;
 
@@ -42,6 +42,13 @@
 			updated = true;
 		}
 	}
+
+	// Select Media Image
+	let mediaOnSelect = (data: MediaFiles) => {
+		updated = true;
+		showMedia = false;
+		_data = data;
+	};
 </script>
 
 <input use:setFile bind:this={input} accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.ppt,.pptx" name={fieldName} type="file" hidden />

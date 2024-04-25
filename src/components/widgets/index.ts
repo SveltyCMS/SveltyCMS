@@ -1,3 +1,4 @@
+import type mongoose from 'mongoose';
 // Auth
 import type { Model, User } from '@src/auth/types';
 
@@ -61,7 +62,7 @@ type K = ReturnType<(typeof widgets)[keyof typeof widgets]>['widget']['key'];
 
 export type ModifyRequestParams<T extends (...args: any) => any> = {
 	collection: Model;
-	id?: string;
+	id?: mongoose.Types.ObjectId;
 	field: ReturnType<T>;
 	data: { get: () => any; update: (newData) => void };
 	user: User;

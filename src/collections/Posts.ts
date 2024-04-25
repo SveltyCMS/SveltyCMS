@@ -55,14 +55,14 @@ const schema: Schema = {
 			label: 'Image',
 			required: true,
 			icon: 'material-symbols:image-outline',
-			path: 'images' //This save to image folder, and is not globally available
+			path: 'images' //This save to images folder, and is not globally available
 		})
 
 		// widgets.FileUpload({
 		// 	label: 'File',
 		// 	required: true,
 		// 	icon: 'mdi:file-document-outline',
-		// 	path: 'global' //This save to image folder, and is not globally available
+		// 	path: 'files' //This save to image folder, and is not globally available
 		// })
 	]
 };

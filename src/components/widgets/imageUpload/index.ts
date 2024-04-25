@@ -70,12 +70,21 @@ widget.GraphqlSchema = GraphqlSchema;
 // Widget modifyRequest
 widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
+
 	if (type !== 'GET') {
-		if (_data._id) {
-			console.log(_data);
-			data.update(new mongoose.Types.ObjectId(_data._id));
+		if (_data instanceof File) {
+			// Handle the case when _data is a File object
+			// You can do additional processing here if needed
+			data.update(_data);
+		} else if (_data && _data._id) {
+			// Handle the case when _data has an _id property
+			if (_data._id instanceof mongoose.Types.ObjectId) {
+				data.update(_data._id);
+			} else {
+				data.update(mongoose.Types.ObjectId.createFromHexString(_data._id));
+			}
 		} else {
-			console.error('No _id found in _data:', _data);
+			console.error('Invalid data:', _data);
 		}
 		return;
 	}

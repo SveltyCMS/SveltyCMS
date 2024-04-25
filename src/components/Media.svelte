@@ -1,11 +1,11 @@
 <script lang="ts">
-	import type { ImageFiles } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/types';
 	import { SIZES, formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
 
 	export let onselect: any = () => {};
 
-	let files: ImageFiles[] = [];
+	let files: MediaImage[] = [];
 
 	axios.get('/media/getAll').then((res) => (files = res.data));
 

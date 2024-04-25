@@ -57,10 +57,10 @@ export async function load(event: any) {
 	}
 
 	const imageExtensions = ['.jpeg', '.jpg', '.png', '.webp', '.avif', '.tiff', '.svg'];
-	const uniqueImageFiles = Array.from(new Set(files.filter((file) => imageExtensions.includes(path.extname(file).toLowerCase()))));
+	const uniqueMediaImage = Array.from(new Set(files.filter((file) => imageExtensions.includes(path.extname(file).toLowerCase()))));
 
 	// If there are no image files, return an empty array
-	if (uniqueImageFiles.length === 0) {
+	if (uniqueMediaImage.length === 0) {
 		return {
 			props: {
 				data: []
@@ -71,7 +71,7 @@ export async function load(event: any) {
 	const thumbnailImages = new Map(); // Store thumbnails by hash
 
 	const mediaData = await Promise.all(
-		uniqueImageFiles.map(async (file) => {
+		uniqueMediaImage.map(async (file) => {
 			const mediaPath = `${publicEnv.MEDIA_FOLDER}/${file}`; // Get the full path to the image
 			const mediaExt = path.extname(file).substring(1); // Get the extension
 			const mediaName = `${path.basename(file).slice(0, -65)}.${mediaExt}`; // Remove last 64 characters (hash) from the file name // Get the name without hash

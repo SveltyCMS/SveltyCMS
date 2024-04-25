@@ -2,7 +2,7 @@
 	import axios from 'axios';
 	import type { FieldType } from '.';
 	import { asAny, convertTimestampToDateString, getFieldName } from '@src/utils/utils';
-	import type { ImageFiles } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/types';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -20,7 +20,7 @@
 	// Components
 	import Media from '@src/components/Media.svelte';
 
-	let _data: File | ImageFiles | undefined;
+	let _data: File | MediaImage | undefined;
 	let updated = false;
 	let input: HTMLInputElement;
 	let showMedia = false;
@@ -35,7 +35,7 @@
 
 		return updated ? _data : null;
 	};
-	export let value: File | ImageFiles = $entryData[getFieldName(field)]; // pass file directly from imageArray
+	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
 
 	const fieldName = getFieldName(field);
 
@@ -83,7 +83,7 @@
 					this.image.src = '/media/' + _data.original.url;
 				}
 			} else {
-				this.image.src = '/media/' + (value as ImageFiles).original.url;
+				this.image.src = '/media/' + (value as MediaImage).original.url;
 			}
 			if (this.image.naturalHeight == 0) {
 				await new Promise((resolve) => {
@@ -219,7 +219,8 @@
 		}
 	};
 
-	let mediaOnSelect = (data: ImageFiles) => {
+	// Select Media Image
+	let mediaOnSelect = (data: MediaImage) => {
 		updated = true;
 		showMedia = false;
 		_data = data;
@@ -381,9 +382,27 @@
 				{/if}
 				<p class="text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
 
-				<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Browse</button>
+				<div class="flex w-full justify-center gap-2">
+					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Browse New</button>
+					<button on:click={() => (showMedia = true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Select Media Image</button>
+				</div>
 			</div>
 		</div>
+	</div>
+{/if}
+
+{#if showMedia}
+	<div
+		class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
+	>
+		<!-- header -->
+		<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
+			<p class="ml-auto font-bold text-black dark:text-primary-500">Select Image</p>
+			<button on:click={() => (showMedia = false)} class="variant-ghost-secondary btn-icon ml-auto">
+				<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500" />
+			</button>
+		</div>
+		<Media bind:onselect={mediaOnSelect} />
 	</div>
 {/if}
 

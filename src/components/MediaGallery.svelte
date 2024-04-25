@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import type { ImageFiles } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/types';
 	import { SIZES, formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
 
@@ -21,7 +21,7 @@
 	};
 
 	export let onselect: any = () => {};
-	let files: ImageFiles[] = [];
+	let files: MediaImage[] = [];
 	axios.get('/media/getAll').then((res) => (files = res.data));
 
 	let globalSearchValue = ''; // Initialize your search value
@@ -114,8 +114,8 @@
 	}
 
 	// Table
-	let tableData: ImageFiles[] = [];
-	const filteredTableData: ImageFiles[] = [];
+	let tableData: MediaImage[] = [];
+	const filteredTableData: MediaImage[] = [];
 	let filters: { [key: string]: string } = {};
 
 	// Pagination
@@ -192,7 +192,7 @@
 	};
 
 	// Define media types
-	const mediaTypes = ['All', 'Image', 'Video', 'Document', 'Audio'];
+	const mediaTypes = ['All', 'Image', 'Document', 'Audio', 'Video', 'RemoteVideo'];
 	// Reactive variable for selected media type
 	let selectedMediaType = 'All';
 </script>

@@ -8,7 +8,6 @@ export function createCategories(collections: any) {return [
     collections: [
       collections.Names,
       collections.Posts,
-      collections.Posts2,
       collections.Media,
       collections.ImageArray,
       collections.Relation,
@@ -21,6 +20,7 @@ export function createCategories(collections: any) {return [
     collections: [
       collections.Menu,
       collections.Products,
+      collections.Posts2,
     ]
   },
 ]};

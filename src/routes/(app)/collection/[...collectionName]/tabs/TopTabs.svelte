@@ -15,7 +15,7 @@
 </script>
 
 <!-- User Permissions -->
-{#if user.role === 'admin'}
+{#if $page.data.user && $page.data.user.role === 'admin'}
 	<!-- Edit -->
 	<Tab bind:group={$tabSet} name="default" value={0}>
 		<div class="flex items-center gap-1">

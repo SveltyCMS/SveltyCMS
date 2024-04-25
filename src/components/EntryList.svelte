@@ -107,7 +107,7 @@
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
-		console.log('refreshTableData called');
+		//console.log('refreshTableData called');
 		// Clear loading timer
 		loadingTimer && clearTimeout(loadingTimer);
 

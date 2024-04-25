@@ -44,7 +44,7 @@
 				.filter((role) => role !== 'admin')
 				.map((role) => ({
 					name: role,
-					permissions: permissions[role] || { create: false, read: false, write: false, delete: false }
+					permissions: permissions[role] || { create: true, read: true, write: true, delete: true } // All permissions set to true initially
 				}));
 		}
 	}

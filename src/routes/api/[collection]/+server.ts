@@ -241,7 +241,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Save the images asynchronously.
 		await saveImages(body, params.collection);
-		await saveFiles(body, params.collection);
+		//await saveFiles(body, params.collection);
 
 		// Update the entry asynchronously.
 		const response = await collection.updateOne({ _id }, body, { upsert: true });
@@ -259,12 +259,12 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 	try {
 		// Get the form data.
 		const data = await request.formData();
-
 		// Get the session cookie.
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 		// Validate the session asynchronously.
 		const user_id = data.get('user_id') as string;
+
 		const user = user_id
 			? ((await auth.checkUser({ _id: user_id })) as User)
 			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
@@ -290,7 +290,6 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Check if the collection exists.
 		if (!collection) {
-			console.error(`Collection "${params.collection}" not found!`);
 			return new Response('Collection not found!', { status: 404 });
 		}
 
@@ -341,6 +340,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Save the images asynchronously.
 		await saveImages(body, params.collection);
+		//await saveFiles(body, params.collection);
 
 		// Insert the entry asynchronously.
 		const insertedEntry = await collection.insertMany(body);

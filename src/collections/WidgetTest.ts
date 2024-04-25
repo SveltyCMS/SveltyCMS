@@ -27,10 +27,8 @@ const schema: Schema = {
 
 		widgets.Text({
 			db_fieldName: 'middlename',
-			// label: get(LL).COLLECTION_TEST_Middle(),
 			label: 'Middle',
 			icon: 'ri:t-box-line',
-			// placeholder: get(LL).COLLECTION_TEST_Middle_placeholder(),
 			placeholder: 'Enter Middle Name',
 			readonly: true,
 			width: 3
@@ -38,19 +36,15 @@ const schema: Schema = {
 
 		widgets.Text({
 			db_fieldName: 'lastname',
-			// label: get(LL).COLLECTION_TEST_Last(),
 			label: 'Last',
 			icon: 'ri:t-box-line',
-			// placeholder: get(LL).COLLECTION_TEST_Last_placeholder(),
 			placeholder: 'Enter Last Name',
 			width: 3,
-			translated: true,
-			disabled: true
+			translated: true
 		}),
 
 		widgets.Text({
 			db_fieldName: 'Full_Text_option',
-			// label: get(LL).COLLECTION_TEST_Full_Text_Option(),
 			label: 'Full Text option',
 			icon: 'carbon:character-whole-number',
 			prefix: 'pre',
@@ -58,7 +52,6 @@ const schema: Schema = {
 			count: 10,
 			minlength: 2,
 			maxlength: 15,
-			// placeholder: get(LL).COLLECTION_TEST_Full_Text_Option_Placeholder(),
 			placeholder: 'Enter Full Text',
 			translated: true,
 			required: true
@@ -158,7 +151,7 @@ const schema: Schema = {
 			maxRating: 7,
 			color: 'pink',
 			width: 4
-		}),
+		})
 
 		// widgets.RichText({
 		// 	label: 'RichText',
@@ -167,12 +160,12 @@ const schema: Schema = {
 		// 	required: true
 		// }),
 
-		widgets.Seo({
-			label: 'Seo',
-			db_fieldName: 'seo',
-			icon: 'tabler:seo',
-			required: true
-		})
+		// widgets.Seo({
+		// 	label: 'Seo',
+		// 	db_fieldName: 'seo',
+		// 	icon: 'tabler:seo',
+		// 	required: true
+		// })
 	]
 };
 export default schema;
