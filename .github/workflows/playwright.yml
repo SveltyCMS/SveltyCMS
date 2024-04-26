@@ -89,7 +89,7 @@ jobs:
           publicEnv.SEASONS: true
           publicEnv.PKG: '{ VERSION: pkg.version }'
           publicEnv.MEDIA_FOLDER: media
-          publicEnv._MEDIASERVER_URL: ''
+          publicEnv.MEDIASERVER_URL: ''
           publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format: 'avif'
           publicEnv.MEDIA_OUTPUT_FORMAT_QUALIT.quality: '80'
           publicEnv.IMAGE_SIZES: '{ "sm": 600, "md": 900, "lg": 1200 }'

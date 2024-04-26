@@ -61,7 +61,6 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		// Original image URL construction
 		const url = `${path}/${hash}-${sanitizedBlobName}.${format}`;
 
-		console.log(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format, publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality);
 		// Rotate and resize image
 		const { data: resizedBuffer, info } = await sharp(buffer)
 			.rotate() // Rotate image according to EXIF data
@@ -93,7 +92,7 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		};
 		const savedImage = await mongoose.models['media_images'].create(imageData);
 
-		return `${publicEnv.MEDIA_FOLDER}/${savedImage.original.url}`; // Return the saved file URL
+		return `${publicEnv.MEDIASERVER_URL}/${publicEnv.MEDIA_FOLDER}/${savedImage.original.url}`; // Return the saved file URL
 	} catch (error) {
 		throw new Error('Failed to save avatar image');
 	}
@@ -370,10 +369,13 @@ export const actions: Actions = {
 				return { success: true }; // No avatar to delete
 			}
 
+			// Construct the path to the avatar file based on the new file management logic
 			const avatarFilePath = Path.join(publicEnv.MEDIA_FOLDER, avatarPath);
 
 			try {
+				// Delete the avatar file
 				await fs.promises.unlink(avatarFilePath);
+				// Update the user's avatar attribute to empty string
 				await auth.updateUserAttributes(user, { avatar: '' });
 				return { success: true };
 			} catch (error) {

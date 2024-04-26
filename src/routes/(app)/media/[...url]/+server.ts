@@ -3,19 +3,27 @@ import type { RequestHandler } from './$types';
 import fs from 'fs';
 import mime from 'mime-types';
 import zlib from 'zlib';
+import path from 'path'; // Import path module to construct file paths
+
+// Construct the base URL for serving media files
+const mediaBaseUrl = publicEnv.MEDIASERVER_URL || ''; // Use publicEnv.MEDIASERVER_URL if available, otherwise default to an empty string
 
 // TODO: add smarter Cache like lru-cache - A cache object that deletes the least-recently-used items.
 const cache = new Map<string, Buffer>();
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
+		// Construct the full URL for the media file
+		const fileUrl = path.join(mediaBaseUrl, publicEnv.MEDIA_FOLDER, params.url);
+
 		// Check if data is in cache
 		let data = cache.get(params.url);
 		if (!data) {
 			// Read data from file and store in cache
-			data = await fs.promises.readFile(`./${publicEnv.MEDIA_FOLDER}/${params.url}`);
+			data = await fs.promises.readFile(fileUrl);
 			cache.set(params.url, data);
 		}
+
 		// Compress data using Brotli
 		const compressedData = zlib.brotliCompressSync(data);
 		return new Response(compressedData, {

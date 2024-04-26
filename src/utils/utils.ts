@@ -141,14 +141,14 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 
 			// Original image URL construction
 			let url: string;
-
 			if (path == 'global') {
-				url = `original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else if (path == 'unique') {
-				url = `${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else {
-				url = `${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			}
+
 			const info = await sharp(buffer).metadata();
 			data[fieldname] = {
 				hash,
@@ -180,19 +180,21 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 						quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
 					})
 					.toBuffer({ resolveWithObject: true });
-				let url: string;
 
+				// Save resized image URL construction
+				let url: string;
 				if (path == 'global') {
-					url = `${size}/${fullName}`;
+					url = `${publicEnv.MEDIASERVER_URL}/${size}/${fullName}`;
 				} else if (path == 'unique') {
-					url = `${collectionName}/${size}/${fullName}`;
+					url = `${publicEnv.MEDIASERVER_URL}/${collectionName}/${size}/${fullName}`;
 				} else {
-					url = `${path}/${size}/${fullName}`;
+					url = `${publicEnv.MEDIASERVER_URL}/${path}/${size}/${fullName}`;
 				}
+
 				if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
 					fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
 				}
-				//sized images
+				// Sized images
 				fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
 				data[fieldname][size] = {
 					name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
@@ -254,11 +256,11 @@ export async function saveFiles(data: { [key: string]: any }, collectionName: st
 			// Original file URL construction
 			let url: string;
 			if (path == 'global') {
-				url = `files/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/files/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else if (path == 'unique') {
-				url = `files/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/files/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else {
-				url = `files/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${publicEnv.MEDIASERVER_URL}/files/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			}
 			data[fieldname] = {
 				hash,
@@ -421,7 +423,6 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
 	}
 }
-
 // Function to delete image files associated with a content item
 export async function deleteMediaImage(collectionName: string, fileName: string) {
 	const env_sizes = publicEnv.IMAGE_SIZES;
@@ -432,12 +433,12 @@ export async function deleteMediaImage(collectionName: string, fileName: string)
 	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
 
 	try {
-		// Delete the original image file
-		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`);
+		// Delete the original image file from the trash folder
+		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`);
 
-		// Delete resized image files
+		// Delete resized image files from the trash folder
 		for (const size in SIZES) {
-			fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`);
+			fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`);
 		}
 
 		// console.log(`Deleted image files associated with ${fileName}`);
@@ -510,14 +511,14 @@ async function deleteOldTrashFiles() {
 	const thirty_days_ago = new Date(current_date.getTime() - 30 * 24 * 60 * 60 * 1000);
 
 	// Find all trash files that were created before the 30-day mark
-	const old_trash_files = fs.readdirSync('/path/to/trash').filter((file) => {
-		const stats = fs.statSync(`/path/to/trash/${file}`);
+	const old_trash_files = fs.readdirSync(`${publicEnv.MEDIA_FOLDER}/trash`).filter((file) => {
+		const stats = fs.statSync(`${publicEnv.MEDIA_FOLDER}/trash/${file}`);
 		return stats.ctime < thirty_days_ago;
 	});
 
 	// Delete the old trash files
 	old_trash_files.forEach((file) => {
-		fs.unlinkSync(`/path/to/trash/${file}`);
+		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${file}`);
 	});
 }
 

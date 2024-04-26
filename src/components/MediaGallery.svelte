@@ -20,7 +20,7 @@
 		placement: 'right'
 	};
 
-	export let onselect: any = () => {};
+	export const onselect: any = () => {};
 	let files: MediaImage[] = [];
 	axios.get('/media/getAll').then((res) => (files = res.data));
 

@@ -54,6 +54,10 @@ export const publicEnv = createPublicConfig({
 		quality: 80 // quality between 0 and 100 (default: 80)
 	} as const,
 
+	// The URL of the media server (default: '' = localhost)
+	// Example External Storage -  MEDIASERVER_URL: 'https://my-server.com/'
+	MEDIASERVER_URL: '',
+
 	// Defines body size limit (default: 100mb)
 	BODY_SIZE_LIMIT: 104857600,
 
