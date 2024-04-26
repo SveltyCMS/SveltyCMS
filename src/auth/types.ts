@@ -62,7 +62,7 @@ export const UserSchema = {
 	password: { type: String, required: true }, // The password of the user
 	role: { type: String, required: true }, // The role of the user
 	username: String, // The username of the user
-	avatar: String, // The URL of the user's avatar
+	avatar: String, // The URL of the user's avatar media_image
 
 	// Cannot be changed by /user
 	lastAuthMethod: String, // The last method the user used to authenticate

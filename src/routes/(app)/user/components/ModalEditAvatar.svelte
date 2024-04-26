@@ -116,7 +116,14 @@
 	// Function to delete the user's avatar
 	async function deleteAvatar() {
 		try {
-			const response = await axios.post('?/deleteAvatar', { userID: user.id });
+			const formData = new FormData();
+			formData.append('userID', user.id);
+
+			const response = await axios.post('?/deleteAvatar', formData, {
+				headers: {
+					'content-type': 'multipart/form-data'
+				}
+			});
 
 			if (response.status === 200) {
 				// Clear the _avatarSrc variable and update the avatarSrc store

@@ -51,7 +51,14 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		const existingFile = await mongoose.models['media_images'].findOne({ hash });
 
 		if (existingFile) {
-			return existingFile._id.toString(); // Return the existing file ID as a string
+			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`; // Default to local path
+
+			// If MEDIASERVER_URL is set, prepend it to the file path
+			if (publicEnv.MEDIASERVER_URL) {
+				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			}
+
+			return fileUrl; // Return the existing file URL
 		}
 
 		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // Extract name without extension
@@ -62,8 +69,9 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		// Original image URL construction
 		const url = `${path}/${hash}-${sanitizedBlobName}.${format}`;
 
-		let resizedBuffer;
-		let info;
+		let resizedBuffer: Buffer;
+		let info: any;
+
 		if (format === 'svg') {
 			resizedBuffer = buffer;
 			info = { width: null, height: null }; // You might want to get SVG dimensions here
@@ -83,10 +91,12 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		// Compare the sizes of the original and resized buffers, and choose the smaller one
 		const finalBuffer = buffer.byteLength < resizedBuffer.byteLength ? buffer : resizedBuffer;
 
+		// Create the folder if it doesn't exist
 		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
 			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
 		}
 
+		// Write the resized image to disk
 		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, finalBuffer);
 
 		// Save the image data to the database
@@ -103,9 +113,10 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 				lastModified: new Date(file.lastModified)
 			}
 		};
+
 		const savedImage = await mongoose.models['media_images'].create(imageData);
 
-		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${savedImage.original.url}`; // Default to local path
+		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${savedImage.thumbnail.url}`; // Default to local path
 
 		// If MEDIASERVER_URL is set, prepend it to the file path
 		if (publicEnv.MEDIASERVER_URL) {
@@ -114,6 +125,7 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 
 		return fileUrl; // Return the saved image URL
 	} catch (error) {
+		console.error('Error in saveAvatarImage:', error);
 		throw new Error('Failed to save avatar image');
 	}
 }
@@ -250,6 +262,7 @@ export const actions: Actions = {
 
 	// This action edits a user in the system.
 	editUser: async (event) => {
+		console.log('editUser called', event);
 		try {
 			const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
@@ -395,8 +408,13 @@ export const actions: Actions = {
 			try {
 				// Delete the avatar file
 				await fs.promises.unlink(avatarFilePath);
+
+				// Delete the avatar data from the media_images collection
+				await mongoose.models['media_images'].deleteOne({ 'thumbnail.url': avatarPath });
+
 				// Update the user's avatar attribute to empty string
 				await auth.updateUserAttributes(user, { avatar: '' });
+
 				return { success: true };
 			} catch (error) {
 				console.error(error);

@@ -208,7 +208,7 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 				fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
 				data[fieldname][size] = {
 					name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-					url: '/media/' + url,
+					url,
 					type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
 					size: resizedImage.info.size,
 					width: resizedImage.info.width,
