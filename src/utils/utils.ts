@@ -609,7 +609,7 @@ export function ReadableExpireIn(expiresIn: string) {
 	return `${daysText} ${hoursText} ${minutesText}`.trim();
 }
 
-function removeExtension(fileName: any) {
+export function removeExtension(fileName: any) {
 	const lastDotIndex = fileName.lastIndexOf('.');
 	if (lastDotIndex === -1) {
 		// If the file has no extension, return the original fileName

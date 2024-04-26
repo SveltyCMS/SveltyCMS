@@ -92,7 +92,7 @@
 			formData.append('userID', user.id);
 		}
 		const response = await axios.post(
-			'/api/user/saveAvatar',
+			'?/saveAvatar',
 
 			formData,
 
@@ -116,7 +116,7 @@
 	// Function to delete the user's avatar
 	async function deleteAvatar() {
 		try {
-			const response = await axios.post('/api/user/deleteAvatar', { userID: user.id });
+			const response = await axios.post('?/deleteAvatar', { userID: user.id });
 
 			if (response.status === 200) {
 				// Clear the _avatarSrc variable and update the avatarSrc store
@@ -188,7 +188,7 @@
 				</FileDropzone>
 			</div>
 			{#if !files}
-				<small class="block text-center opacity-75">{m.modaledit_avatarfilesize()}</small>
+				<small class="block text-center text-tertiary-500 opacity-75 dark:text-primary-500">{m.modaledit_avatarfilesize()}</small>
 			{/if}
 		</form>
 

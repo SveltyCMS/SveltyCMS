@@ -72,7 +72,7 @@
 		const formData = new FormData(formElement); // create a FormData object from the formElement
 		formData.append('id', user.id); // add the id property to the FormData object
 
-		const res = await axios.post('/?/deleteUser', formData);
+		const res = await axios.post('?/deleteUser', formData);
 
 		if (res.status === 200) {
 			await invalidateAll();

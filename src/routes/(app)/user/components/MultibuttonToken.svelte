@@ -66,7 +66,7 @@
 			// Pass abitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('/api/user/editToken', {
+					const res = await fetch('?/editToken', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ ...r })
@@ -124,8 +124,8 @@
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
-				const endpoint = action === 'delete' ? 'deleteTokens' : '';
-				const res = await fetch(`/api/user/${endpoint}`, {
+				const endpoint = action === 'delete' ? 'deleteToken' : '';
+				const res = await fetch(`?/${endpoint}`, {
 					method: 'POST',
 					headers: { 'Content-Type': 'application/json' },
 					body: JSON.stringify(selectedRows.map((row: any) => row.data))
