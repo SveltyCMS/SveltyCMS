@@ -142,11 +142,16 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 			// Original image URL construction
 			let url: string;
 			if (path == 'global') {
-				url = `${publicEnv.MEDIASERVER_URL}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else if (path == 'unique') {
-				url = `${publicEnv.MEDIASERVER_URL}/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else {
-				url = `${publicEnv.MEDIASERVER_URL}/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			}
+
+			// Prepend MEDIASERVER_URL if it's set
+			if (publicEnv.MEDIASERVER_URL) {
+				url = `${publicEnv.MEDIASERVER_URL}/files/${url}`;
 			}
 
 			const info = await sharp(buffer).metadata();
@@ -184,11 +189,16 @@ export async function saveImages(data: { [key: string]: any }, collectionName: s
 				// Save resized image URL construction
 				let url: string;
 				if (path == 'global') {
-					url = `${publicEnv.MEDIASERVER_URL}/${size}/${fullName}`;
+					url = `${size}/${fullName}`;
 				} else if (path == 'unique') {
-					url = `${publicEnv.MEDIASERVER_URL}/${collectionName}/${size}/${fullName}`;
+					url = `${collectionName}/${size}/${fullName}`;
 				} else {
-					url = `${publicEnv.MEDIASERVER_URL}/${path}/${size}/${fullName}`;
+					url = `${path}/${size}/${fullName}`;
+				}
+
+				// Prepend MEDIASERVER_URL if it's set
+				if (publicEnv.MEDIASERVER_URL) {
+					url = `${publicEnv.MEDIASERVER_URL}/${url}`;
 				}
 
 				if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
@@ -256,12 +266,18 @@ export async function saveFiles(data: { [key: string]: any }, collectionName: st
 			// Original file URL construction
 			let url: string;
 			if (path == 'global') {
-				url = `${publicEnv.MEDIASERVER_URL}/files/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `files/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else if (path == 'unique') {
-				url = `${publicEnv.MEDIASERVER_URL}/files/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `files/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			} else {
-				url = `${publicEnv.MEDIASERVER_URL}/files/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `files/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 			}
+
+			// Prepend MEDIASERVER_URL if it's set
+			if (publicEnv.MEDIASERVER_URL) {
+				url = `${publicEnv.MEDIASERVER_URL}/${url}`;
+			}
+
 			data[fieldname] = {
 				hash,
 				original: {

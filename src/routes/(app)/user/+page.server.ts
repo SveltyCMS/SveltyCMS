@@ -92,7 +92,14 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 		};
 		const savedImage = await mongoose.models['media_images'].create(imageData);
 
-		return `${publicEnv.MEDIASERVER_URL}/${publicEnv.MEDIA_FOLDER}/${savedImage.original.url}`; // Return the saved file URL
+		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${savedImage.original.url}`; // Default to local path
+
+		// If MEDIASERVER_URL is set, prepend it to the file path
+		if (publicEnv.MEDIASERVER_URL) {
+			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+		}
+
+		return fileUrl; // Return the saved image URL
 	} catch (error) {
 		throw new Error('Failed to save avatar image');
 	}
