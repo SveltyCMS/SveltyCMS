@@ -5,16 +5,18 @@ import mime from 'mime-types';
 import zlib from 'zlib';
 import path from 'path'; // Import path module to construct file paths
 
-// Construct the base URL for serving media files
-const mediaBaseUrl = publicEnv.MEDIASERVER_URL || ''; // Use publicEnv.MEDIASERVER_URL if available, otherwise default to an empty string
-
 // TODO: add smarter Cache like lru-cache - A cache object that deletes the least-recently-used items.
 const cache = new Map<string, Buffer>();
 
 export const GET: RequestHandler = async ({ params }) => {
 	try {
-		// Construct the full URL for the media file
-		const fileUrl = path.join(mediaBaseUrl, publicEnv.MEDIA_FOLDER, params.url);
+		// Construct the file path
+		let fileUrl = path.join(publicEnv.MEDIA_FOLDER, params.url);
+
+		// If MEDIASERVER_URL is set, prepend it to the file path
+		if (publicEnv.MEDIASERVER_URL) {
+			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+		}
 
 		// Check if data is in cache
 		let data = cache.get(params.url);

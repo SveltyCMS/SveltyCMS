@@ -56,25 +56,38 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 
 		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // Extract name without extension
 		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
-		const format = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
+		const format =
+			ext === '.svg' ? 'svg' : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
 
 		// Original image URL construction
 		const url = `${path}/${hash}-${sanitizedBlobName}.${format}`;
 
-		// Rotate and resize image
-		const { data: resizedBuffer, info } = await sharp(buffer)
-			.rotate() // Rotate image according to EXIF data
-			.resize({ width: 300 }) // Resize the image to a width of 300 pixels
-			.toFormat(format as keyof import('sharp').FormatEnum, {
-				quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality // Set the quality of the output image
-			})
-			.toBuffer({ resolveWithObject: true });
+		let resizedBuffer;
+		let info;
+		if (format === 'svg') {
+			resizedBuffer = buffer;
+			info = { width: null, height: null }; // You might want to get SVG dimensions here
+		} else {
+			// Rotate and resize image
+			const result = await sharp(buffer)
+				.rotate() // Rotate image according to EXIF data
+				.resize({ width: 300 }) // Resize the image to a width of 300 pixels
+				.toFormat(format as keyof import('sharp').FormatEnum, {
+					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality // Set the quality of the output image
+				})
+				.toBuffer({ resolveWithObject: true });
+			resizedBuffer = result.data;
+			info = result.info;
+		}
+
+		// Compare the sizes of the original and resized buffers, and choose the smaller one
+		const finalBuffer = buffer.byteLength < resizedBuffer.byteLength ? buffer : resizedBuffer;
 
 		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
 			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
 		}
 
-		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedBuffer);
+		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, finalBuffer);
 
 		// Save the image data to the database
 		const imageData = {
