@@ -50,7 +50,7 @@ export const publicEnv = createPublicConfig({
 
 	// Media Format & Quality how image are saved on the server.
 	MEDIA_OUTPUT_FORMAT_QUALITY: {
-		format: 'original', // 'original' or 'avif', 'jpp', 'webp' (default: original)
+		format: 'original', // 'original' or 'avif', 'webp' (default: original)
 		quality: 80 // quality between 0 and 100 (default: 80)
 	} as const,
 

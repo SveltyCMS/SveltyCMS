@@ -133,31 +133,31 @@
 			<iconify-icon icon="material-symbols:info" use:popup={NameTooltip} width="18" class="ml-1 text-tertiary-500 dark:text-primary-500" /></label
 		>
 
-		<!-- tooltip -->
+		<div class="w-full">
+			<input
+				type="text"
+				required
+				id="name"
+				bind:value={$collectionValue.name}
+				on:input={handleNameInput}
+				placeholder={m.collection_name_placeholder()}
+				class="input text-black dark:text-primary-500"
+			/>
+
+			{#if $collectionValue && $collectionValue.name}
+				<p class="mb-3 sm:mb-0">
+					{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
+				</p>
+			{/if}
+		</div>
+
+		<!-- Tooltip -->
 		<div class="card variant-filled z-50 max-w-sm" data-popup="Name">
 			<!-- Popup Tooltip with the arrow element -->
 			<div class="card variant-filled z-50 max-w-sm p-2" data-popup="Name">
 				<p>{m.collection_name_tooltip1()}</p>
 				<p>{m.collection_name_tooltip2()}</p>
 				<div class="variant-filled arrow" />
-			</div>
-
-			<div class="w-full">
-				<input
-					type="text"
-					required
-					id="name"
-					bind:value={$collectionValue.name}
-					on:input={handleNameInput}
-					placeholder={m.collection_name_placeholder()}
-					class="input text-black dark:text-primary-500"
-				/>
-
-				{#if $collectionValue && $collectionValue.name}
-					<p class="mb-3 sm:mb-0">
-						{m.collection_DBname()} <span class="font-bold text-tertiary-500 dark:text-primary-500">{DBName}</span>
-					</p>
-				{/if}
 			</div>
 		</div>
 	</div>
@@ -166,7 +166,7 @@
 <div class="flex flex-col gap-3 rounded-md border p-2">
 	<p class="text-token mb-2 text-center font-bold">{m.collectionname_optional()}:</p>
 
-	<!-- iconify icon chooser -->
+	<!-- Iconify icon chooser -->
 	<div class="w-full items-center sm:flex">
 		<label for="icon" class="flex-grow-1 relative mr-2 flex w-36">
 			{m.collectionname_labelicon()}
