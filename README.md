@@ -231,6 +231,7 @@ To all our contributors without this would never have been possible
 
 If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others
 
+
 <p align="center">
 <img width="100%" alt="SveltyCMS Builder" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
 <img width="100%" alt="SveltyCMS User" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
