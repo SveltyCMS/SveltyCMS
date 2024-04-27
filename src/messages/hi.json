@@ -329,5 +329,17 @@
 	"form_resetpassword": "पासवर्ड रीसेट",
 	"form_confirmpassword": "पासवर्ड की पुष्टि कीजिये",
 	"form_userrole": "उपयोगकर्ता भूमिका",
-	"form_wrong": "उपयोगकर्ता/पासवर्ड गलत हैं"
+	"form_wrong": "उपयोगकर्ता/पासवर्ड गलत हैं",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tमीडिया छवि चुनें<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "नया ब्राउज़ करें",
+	"widget_ImageUpload_SelectImage": "छवि चुने",
+	"widget_ImageUpload_Upload": "छवि अपलोड करें",
+	"widget_ImageUpload_Replace": "छवि बदलें",
+	"widget_ImageUpload_Drag": "या खींचें और छोड़ें",
+	"widget_ImageUpload_LastModified": "अंतिम बार संशोधित:",
+	"widget_ImageUpload_Uploaded": "अपलोड किया गया:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "प्रकार:",
+	"widget_ImageUpload_Name": "नाम:",
+	"widget_ImageUpload_Size": "आकार:"
 }

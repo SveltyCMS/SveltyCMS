@@ -330,5 +330,17 @@
 	"form_confirmpassword": "Потврди лозинку",
 	"form_userrole": "Улога корисника",
 	"form_wrong": "Корисник/лозинка су погрешни",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tИзаберите Слика медија<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Бровсе Нев",
+	"widget_ImageUpload_SelectImage": "Изаберите Слика",
+	"widget_ImageUpload_Upload": "Имаге Уплоад",
+	"widget_ImageUpload_Replace": "Замените слику",
+	"widget_ImageUpload_Drag": "или Драг &amp; Дроп",
+	"widget_ImageUpload_LastModified": "Последња измена:",
+	"widget_ImageUpload_Uploaded": "Отпремљено:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Тип:",
+	"widget_ImageUpload_Name": "име:",
+	"widget_ImageUpload_Size": "Величина:",
 	"userpage_email": "Емаил:"
 }

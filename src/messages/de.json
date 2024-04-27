@@ -329,5 +329,17 @@
 	"form_resetpassword": "Passwort zurücksetzen",
 	"form_confirmpassword": "Bestätige das Passwort",
 	"form_userrole": "Benutzer-Rolle",
-	"form_wrong": "Benutzername/Passwort sind falsch"
+	"form_wrong": "Benutzername/Passwort sind falsch",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tMedienbild auswählen<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Durchsuchen Neu",
+	"widget_ImageUpload_SelectImage": "Bild auswählen",
+	"widget_ImageUpload_Upload": "Bild-Upload",
+	"widget_ImageUpload_Replace": "Bild ersetzen",
+	"widget_ImageUpload_Drag": "oder Drag &amp; Drop",
+	"widget_ImageUpload_LastModified": "Zuletzt bearbeitet:",
+	"widget_ImageUpload_Uploaded": "Hochgeladen:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Typ:",
+	"widget_ImageUpload_Name": "Name:",
+	"widget_ImageUpload_Size": "Größe:"
 }

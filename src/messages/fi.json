@@ -329,5 +329,17 @@
 	"form_resetpassword": "Nollaa salasana",
 	"form_confirmpassword": "Vahvista salasana",
 	"form_userrole": "Käyttäjän rooli",
-	"form_wrong": "Käyttäjä/salasana ovat väärät"
+	"form_wrong": "Käyttäjä/salasana ovat väärät",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tValitse Mediakuva<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Selaa Uusi",
+	"widget_ImageUpload_SelectImage": "Valitse Kuva",
+	"widget_ImageUpload_Upload": "Kuvan lataus",
+	"widget_ImageUpload_Replace": "Vaihda kuva",
+	"widget_ImageUpload_Drag": "tai Vedä ja pudota",
+	"widget_ImageUpload_LastModified": "Viimeksi muokattu:",
+	"widget_ImageUpload_Uploaded": "Ladattu:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Tyyppi:",
+	"widget_ImageUpload_Name": "Nimi:",
+	"widget_ImageUpload_Size": "Koko:"
 }

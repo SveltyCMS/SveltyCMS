@@ -329,5 +329,17 @@
 	"form_resetpassword": "Şifreyi yenile",
 	"form_confirmpassword": "Şifreyi Onayla",
 	"form_userrole": "Kullanıcı rolü",
-	"form_wrong": "Kullanıcı/Şifre Yanlış"
+	"form_wrong": "Kullanıcı/Şifre Yanlış",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tMedya Görüntüsünü Seçin<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Yeniye Göz At",
+	"widget_ImageUpload_SelectImage": "Fotoğraf seç",
+	"widget_ImageUpload_Upload": "Resim Yükleme",
+	"widget_ImageUpload_Replace": "Resmi Değiştir",
+	"widget_ImageUpload_Drag": "veya Sürükle ve Bırak",
+	"widget_ImageUpload_LastModified": "Son düzenleme:",
+	"widget_ImageUpload_Uploaded": "Yüklendi:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Tip:",
+	"widget_ImageUpload_Name": "İsim:",
+	"widget_ImageUpload_Size": "Boyut:"
 }

@@ -330,5 +330,17 @@
 	"form_confirmpassword": "bevestig wachtwoord",
 	"form_userrole": "Gebruikersrol",
 	"form_wrong": "Gebruiker/wachtwoord zijn verkeerd",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tSelecteer Mediaafbeelding<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Blader door Nieuw",
+	"widget_ImageUpload_SelectImage": "Selecteer afbeelding",
+	"widget_ImageUpload_Upload": "Afbeelding uploaden",
+	"widget_ImageUpload_Replace": "Afbeelding vervangen",
+	"widget_ImageUpload_Drag": "of slepen en neerzetten",
+	"widget_ImageUpload_LastModified": "Laatst gewijzigd:",
+	"widget_ImageUpload_Uploaded": "Geüpload:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Type:",
+	"widget_ImageUpload_Name": "Naam:",
+	"widget_ImageUpload_Size": "Maat:",
 	"modaleditform_emailaddress": "E-mailadres"
 }

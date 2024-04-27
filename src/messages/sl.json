@@ -329,5 +329,17 @@
 	"form_resetpassword": "Ponastavitev gesla",
 	"form_confirmpassword": "potrdi geslo",
 	"form_userrole": "Uporabniška vloga",
-	"form_wrong": "Uporabnik/geslo sta napačna"
+	"form_wrong": "Uporabnik/geslo sta napačna",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tIzberite Medijska slika<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Prebrskaj Novo",
+	"widget_ImageUpload_SelectImage": "Izberite Slika",
+	"widget_ImageUpload_Upload": "Nalaganje slike",
+	"widget_ImageUpload_Replace": "Zamenjaj sliko",
+	"widget_ImageUpload_Drag": "ali Povleci in spusti",
+	"widget_ImageUpload_LastModified": "Zadnja sprememba:",
+	"widget_ImageUpload_Uploaded": "Naloženo:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Tip:",
+	"widget_ImageUpload_Name": "ime:",
+	"widget_ImageUpload_Size": "Velikost:"
 }

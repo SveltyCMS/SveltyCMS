@@ -330,5 +330,17 @@
 	"form_confirmpassword": "confirmar Contraseña",
 	"form_userrole": "Rol del usuario",
 	"form_wrong": "Usuario/Contraseña son incorrectos",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tSeleccionar imagen multimedia<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Explorar nuevo",
+	"widget_ImageUpload_SelectImage": "Seleccionar imagen",
+	"widget_ImageUpload_Upload": "Subir imagen",
+	"widget_ImageUpload_Replace": "Reemplazar imagen",
+	"widget_ImageUpload_Drag": "o arrastrar y soltar",
+	"widget_ImageUpload_LastModified": "Última modificación:",
+	"widget_ImageUpload_Uploaded": "Subido:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Tipo:",
+	"widget_ImageUpload_Name": "Nombre:",
+	"widget_ImageUpload_Size": "Tamaño:",
 	"signup_password": "Contraseña"
 }

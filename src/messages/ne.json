@@ -330,6 +330,18 @@
 	"form_confirmpassword": "पासवर्ड सुनिश्चित गर्नुहोस",
 	"form_userrole": "प्रयोगकर्ता भूमिका",
 	"form_wrong": "प्रयोगकर्ता/पासवर्ड गलत छन्",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tमिडिया छवि चयन गर्नुहोस्<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "नयाँ ब्राउज गर्नुहोस्",
+	"widget_ImageUpload_SelectImage": "छवि चयन गर्नुहोस्",
+	"widget_ImageUpload_Upload": "छवि अपलोड",
+	"widget_ImageUpload_Replace": "छवि बदल्नुहोस्",
+	"widget_ImageUpload_Drag": "वा तान्नुहोस् र छोड्नुहोस्",
+	"widget_ImageUpload_LastModified": "पछिल्लो पटक परिमार्जित:",
+	"widget_ImageUpload_Uploaded": "अपलोड गरिएको:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "प्रकार:",
+	"widget_ImageUpload_Name": "नाम:",
+	"widget_ImageUpload_Size": "आकार:",
 	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
 	"modaltokenuser_email_address": "इ - मेल ठेगाना"
 }

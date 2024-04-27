@@ -329,5 +329,17 @@
 	"form_resetpassword": "Redefinir senha",
 	"form_confirmpassword": "Confirme sua senha",
 	"form_userrole": "Papel do usuário",
-	"form_wrong": "Usuário/senha estão errados"
+	"form_wrong": "Usuário/senha estão errados",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tSelecione imagem de mídia<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Navegar em novo",
+	"widget_ImageUpload_SelectImage": "Selecione a imagem",
+	"widget_ImageUpload_Upload": "Carregamento de imagem",
+	"widget_ImageUpload_Replace": "Substituir imagem",
+	"widget_ImageUpload_Drag": "ou arrastar e soltar",
+	"widget_ImageUpload_LastModified": "Última modificação:",
+	"widget_ImageUpload_Uploaded": "Carregado:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Tipo:",
+	"widget_ImageUpload_Name": "Nome:",
+	"widget_ImageUpload_Size": "Tamanho:"
 }

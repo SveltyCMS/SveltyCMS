@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import type { MediaImage } from '@src/utils/types';
-	import { SIZES, formatBytes } from '@src/utils/utils';
+	import { formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
 
 	// ParaglideJS
@@ -11,7 +11,8 @@
 	import PageTitle from './PageTitle.svelte';
 
 	// Skeleton
-	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
+	import { getToastStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 
 	// Popup Tooltips
 	const FileTooltip: PopupSettings = {
@@ -31,7 +32,6 @@
 		(file) =>
 			file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType)
 	);
-	// $: filteredFiles = files.filter((file) => file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()));
 
 	let showInfo = Array.from({ length: files.length }, () => false);
 	// Define orderedSizes
@@ -104,7 +104,28 @@
 
 			if (response.ok) {
 				// Image was successfully deleted
+
+				// Trigger the toast
+				const t = {
+					message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> Image deleted successfully.',
+					// Provide any utility or variant background style:
+					background: 'gradient-tertiary',
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 			} else {
+				// Trigger the toast
+				const t = {
+					message: '<iconify-icon icon="material-symbols:error" color="white" width="26" class="mr-1"></iconify-icon> Image was not deleted.',
+					// Provide any utility or variant background style:
+					background: 'gradient-error',
+					timeout: 3000,
+					// Add your custom classes here:
+					classes: 'border-1 !rounded-md'
+				};
+				toastStore.trigger(t);
 				// Handle error
 				console.error('Error deleting image:', response.statusText);
 			}
@@ -409,76 +430,97 @@
 	<!-- Grid display -->
 	{#if view === 'grid'}
 		<div class="flex flex-wrap items-center gap-4 overflow-auto">
-			{#each filteredFiles as file, index}
-				<div
-					on:mouseenter={() => (showInfo[index] = true)}
-					on:mouseleave={() => (showInfo[index] = false)}
-					role="button"
-					tabindex="0"
-					class="card border border-surface-300 dark:border-surface-500"
-				>
-					<header class="m-2 flex w-auto items-center justify-between">
-						<!-- Info Icon -->
-						<button class="btn-icon" use:popup={FileTooltip}>
-							<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
-						</button>
-
-						<!-- Popup Tooltip with the arrow element to show FileInfo -->
-						<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
-							<table class="table-hover w-full table-auto">
-								<thead class="text-tertiary-500">
-									<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
-										<th class="text-left">Format</th>
-										<th class="">Pixel</th>
-										<th class="">Size</th>
-									</tr>
-								</thead>
-								<tbody>
-									{#each orderedSizes as size}
-										<tr class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0">
-											<td class="font-bold text-tertiary-500">
-												{size}
-											</td>
-											<td class="pr-1 text-right">
-												{file[size].width}x{file[size].height}
-											</td>
-											<td class="text-right">
-												{formatBytes(file[size].size)}
-											</td>
-										</tr>
-									{/each}
-								</tbody>
-								<div class="variant-filled arrow" />
-							</table>
-						</div>
-						<!--{#if showInfo[index]}-->
-						<!-- Edit button -->
-						<button class="btn-icon">
-							<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500" />
-						</button>
-
-						<!-- Delete button -->
-						<button class="btn-icon" on:click={() => handleDeleteImage(file)}>
-							<!-- Delete Icon -->
-							<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500" />
-						</button>
-						<!--{/if}-->
-					</header>
-
-					<section class="p-2">
-						<!-- Media File -->
-						<img
-							src={file.thumbnail.url}
-							alt={file.thumbnail.name}
-							class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
-						/>
-					</section>
-
-					<footer class={`-mt-1 mb-3 text-center ${gridSize === 'small' ? 'text-xs' : 'text-base'}`}>
-						{file.thumbnail.name}
-					</footer>
+			{#if filteredFiles.length === 0}
+				<!-- Display a message when no media is found -->
+				<div class="mx-auto text-center text-tertiary-500 dark:text-primary-500">
+					<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2" />
+					<p class="text-lg">{m.mediagallery_nomedia()}</p>
 				</div>
-			{/each}
+			{:else}
+				{#each filteredFiles as file, index}
+					<div
+						on:mouseenter={() => (showInfo[index] = true)}
+						on:mouseleave={() => (showInfo[index] = false)}
+						role="button"
+						tabindex="0"
+						class="card border border-surface-300 dark:border-surface-500"
+					>
+						<header class="m-2 flex w-auto items-center justify-between">
+							<!-- Info Icon -->
+							<button class="btn-icon" use:popup={FileTooltip}>
+								<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
+							</button>
+
+							<!-- Popup Tooltip with the arrow element to show FileInfo -->
+							<div class="card variant-filled z-50 min-w-[250px] p-2" data-popup="FileInfo">
+								<table class="table-hover w-full table-auto">
+									<thead class="text-tertiary-500">
+										<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
+											<th class="text-left">Format</th>
+											<th class="">Pixel</th>
+											<th class="">Size</th>
+										</tr>
+									</thead>
+									<tbody>
+										{#each orderedSizes as size}
+											{#if file[size]}
+												<!-- Check if file[size] is defined -->
+												<tr class="divide-x divide-surface-400 border-b border-surface-400 last:border-b-0">
+													<td class="font-bold text-tertiary-500">
+														{size}
+													</td>
+													<td class="pr-1 text-right">
+														{#if file[size].width && file[size].height}
+															<!-- Check if width and height are defined -->
+															{file[size].width}x{file[size].height}
+														{:else}
+															N/A <!-- Display N/A if width or height is not defined -->
+														{/if}
+													</td>
+													<td class="text-right">
+														{#if file[size].size}
+															<!-- Check if size is defined -->
+															{formatBytes(file[size].size)}
+														{:else}
+															N/A <!-- Display N/A if size is not defined -->
+														{/if}
+													</td>
+												</tr>
+											{/if}
+										{/each}
+									</tbody>
+									<div class="variant-filled arrow" />
+								</table>
+							</div>
+							<!--{#if showInfo[index]}-->
+							<!-- Edit button -->
+							<button class="btn-icon">
+								<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500" />
+							</button>
+
+							<!-- Delete button -->
+							<button class="btn-icon" on:click={() => handleDeleteImage(file)}>
+								<!-- Delete Icon -->
+								<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500" />
+							</button>
+							<!--{/if}-->
+						</header>
+
+						<section class="p-2">
+							<!-- Media File -->
+							<img
+								src={file.thumbnail.url}
+								alt={file.thumbnail.name}
+								class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
+							/>
+						</section>
+
+						<footer class={`-mt-1 mb-3 text-center ${gridSize === 'small' ? 'text-xs' : 'text-base'}`}>
+							{file.thumbnail.name}
+						</footer>
+					</div>
+				{/each}
+			{/if}
 		</div>
 	{:else}
 		<!-- Table for table view -->

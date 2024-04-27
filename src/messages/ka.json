@@ -329,5 +329,17 @@
 	"form_resetpassword": "პაროლის აღდგენა",
 	"form_confirmpassword": "Პაროლის დადასტურება",
 	"form_userrole": "მომხმარებლის როლი",
-	"form_wrong": "მომხმარებელი/პაროლი არასწორია"
+	"form_wrong": "მომხმარებელი/პაროლი არასწორია",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tაირჩიეთ მედია სურათი<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "ახალის დათვალიერება",
+	"widget_ImageUpload_SelectImage": "აირჩიეთ სურათი",
+	"widget_ImageUpload_Upload": "სურათის ატვირთვა",
+	"widget_ImageUpload_Replace": "სურათის შეცვლა",
+	"widget_ImageUpload_Drag": "ან გადაათრიეთ და ჩამოაგდეთ",
+	"widget_ImageUpload_LastModified": "ბოლო ცვლილება:",
+	"widget_ImageUpload_Uploaded": "ატვირთულია:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "ტიპი:",
+	"widget_ImageUpload_Name": "სახელი:",
+	"widget_ImageUpload_Size": "ზომა:"
 }

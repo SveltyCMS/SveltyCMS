@@ -329,5 +329,17 @@
 	"form_resetpassword": "Återställ lösenord",
 	"form_confirmpassword": "Bekräfta lösenord",
 	"form_userrole": "Användarroll",
-	"form_wrong": "Användaren/lösenordet är fel"
+	"form_wrong": "Användaren/lösenordet är fel",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tVälj Mediabild<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Bläddra Nytt",
+	"widget_ImageUpload_SelectImage": "Välj Bild",
+	"widget_ImageUpload_Upload": "Bilduppladdning",
+	"widget_ImageUpload_Replace": "Byt ut bild",
+	"widget_ImageUpload_Drag": "eller Dra och släpp",
+	"widget_ImageUpload_LastModified": "Senast ändrad:",
+	"widget_ImageUpload_Uploaded": "Uppladdat:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Typ:",
+	"widget_ImageUpload_Name": "Namn:",
+	"widget_ImageUpload_Size": "Storlek:"
 }

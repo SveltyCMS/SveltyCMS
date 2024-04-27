@@ -329,5 +329,17 @@
 	"form_resetpassword": "Nulstille kodeord",
 	"form_confirmpassword": "Bekræft kodeord",
 	"form_userrole": "Brugerrolle",
-	"form_wrong": "Bruger/adgangskode er forkert"
+	"form_wrong": "Bruger/adgangskode er forkert",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tVælg Mediebillede<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Gennemse Ny",
+	"widget_ImageUpload_SelectImage": "Vælg Billede",
+	"widget_ImageUpload_Upload": "Billed upload",
+	"widget_ImageUpload_Replace": "Udskift billede",
+	"widget_ImageUpload_Drag": "eller Træk og slip",
+	"widget_ImageUpload_LastModified": "Sidst ændret:",
+	"widget_ImageUpload_Uploaded": "Uploadet:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Type:",
+	"widget_ImageUpload_Name": "Navn:",
+	"widget_ImageUpload_Size": "Størrelse:"
 }

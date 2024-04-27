@@ -329,5 +329,17 @@
 	"form_resetpassword": "重设密码",
 	"form_confirmpassword": "确认密码",
 	"form_userrole": "用户角色",
-	"form_wrong": "用户名/密码错误"
+	"form_wrong": "用户名/密码错误",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\t选择媒体图像<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "浏览新内容",
+	"widget_ImageUpload_SelectImage": "选择图像",
+	"widget_ImageUpload_Upload": "图片上传",
+	"widget_ImageUpload_Replace": "替换图像",
+	"widget_ImageUpload_Drag": "或拖放",
+	"widget_ImageUpload_LastModified": "上一次更改：",
+	"widget_ImageUpload_Uploaded": "已上传：",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "类型：",
+	"widget_ImageUpload_Name": "姓名：",
+	"widget_ImageUpload_Size": "尺寸："
 }

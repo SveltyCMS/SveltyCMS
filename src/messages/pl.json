@@ -329,5 +329,17 @@
 	"form_resetpassword": "Zresetuj hasło",
 	"form_confirmpassword": "Potwierdź hasło",
 	"form_userrole": "Rola użytkownika",
-	"form_wrong": "Użytkownik/hasło są nieprawidłowe"
+	"form_wrong": "Użytkownik/hasło są nieprawidłowe",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tWybierz Obraz multimedialny<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Przeglądaj nowe",
+	"widget_ImageUpload_SelectImage": "Wybierz obraz",
+	"widget_ImageUpload_Upload": "Przesyłanie obrazu",
+	"widget_ImageUpload_Replace": "Zamień obraz",
+	"widget_ImageUpload_Drag": "lub Przeciągnij i upuść",
+	"widget_ImageUpload_LastModified": "Ostatnio zmodyfikowany:",
+	"widget_ImageUpload_Uploaded": "Załadowany:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Typ:",
+	"widget_ImageUpload_Name": "Nazwa:",
+	"widget_ImageUpload_Size": "Rozmiar:"
 }

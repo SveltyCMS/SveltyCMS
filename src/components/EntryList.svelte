@@ -728,9 +728,9 @@
 		</div>
 	{:else}
 		<!-- Display a message when no data is yet available -->
-		<div class="text-center">
-			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2 text-primary-500" />
-			<p class="text-lg text-primary-500">
+		<div class="text-center text-tertiary-500 dark:text-primary-500">
+			<iconify-icon icon="bi:exclamation-circle-fill" height="44" class="mb-2" />
+			<p class="text-lg">
 				No {$collection.name} Data
 			</p>
 		</div>

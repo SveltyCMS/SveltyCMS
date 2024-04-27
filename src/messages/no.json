@@ -329,5 +329,17 @@
 	"form_resetpassword": "Tilbakestille passord",
 	"form_confirmpassword": "bekreft passord",
 	"form_userrole": "Brukerrolle",
-	"form_wrong": "Bruker/passord er feil"
+	"form_wrong": "Bruker/passord er feil",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tVelg Mediebilde<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "Bla gjennom Ny",
+	"widget_ImageUpload_SelectImage": "Velg Bilde",
+	"widget_ImageUpload_Upload": "Bildeopplasting",
+	"widget_ImageUpload_Replace": "Bytt ut bilde",
+	"widget_ImageUpload_Drag": "eller Dra og slipp",
+	"widget_ImageUpload_LastModified": "Sist endret:",
+	"widget_ImageUpload_Uploaded": "Lastet opp:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "Type:",
+	"widget_ImageUpload_Name": "Navn:",
+	"widget_ImageUpload_Size": "Størrelse:"
 }

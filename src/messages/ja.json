@@ -329,5 +329,17 @@
 	"form_resetpassword": "パスワードを再設定する",
 	"form_confirmpassword": "パスワードを認証する",
 	"form_userrole": "ユーザーロール",
-	"form_wrong": "ユーザー名/パスワードが間違っています"
+	"form_wrong": "ユーザー名/パスワードが間違っています",
+	"widget_ImageUpload_SelectMedia": "\t\t\t\t\t\t\tメディア画像を選択<inlang-LineFeed>",
+	"widget_ImageUpload_BrowseNew": "新着を閲覧",
+	"widget_ImageUpload_SelectImage": "画像を選択",
+	"widget_ImageUpload_Upload": "画像アップロード",
+	"widget_ImageUpload_Replace": "画像を置き換える",
+	"widget_ImageUpload_Drag": "またはドラッグ＆ドロップ",
+	"widget_ImageUpload_LastModified": "最終更新日：",
+	"widget_ImageUpload_Uploaded": "アップロード:",
+	"widget_ImageUpload_Path": "",
+	"widget_ImageUpload_Type": "タイプ：",
+	"widget_ImageUpload_Name": "名前：",
+	"widget_ImageUpload_Size": "サイズ："
 }

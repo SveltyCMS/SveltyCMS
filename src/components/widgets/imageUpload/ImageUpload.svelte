@@ -286,10 +286,10 @@
 	>
 		<!-- Image Header -->
 		<div class="mx-2 flex items-center justify-between gap-2">
-			<p class="text-left">Name: <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
+			<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
 
 			<p class="text-left">
-				Size: <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
+				{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
 			</p>
 
 			{#if editing}
@@ -312,13 +312,13 @@
 					/>
 				{:else}
 					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
-						<p class="">Type:</p>
+						<p class="">{m.widget_ImageUpload_Type()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
-						<p class="">Path:</p>
+						<p class="">{m.widget_ImageUpload_Path()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
-						<p class="">Uploaded:</p>
+						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
-						<p class="">Last Modified:</p>
+						<p class="">{m.widget_ImageUpload_LastModified()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
 					</div>
 				{/if}
@@ -376,15 +376,27 @@
 
 			<div class="col-span-5">
 				{#if !_data}
-					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Image Upload</span> or Drag & Drop</p>
+					<p class="font-bold">
+						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Upload()}</span>
+						{m.widget_ImageUpload_Drag()}
+					</p>
 				{:else}
-					<p class="font-bold"><span class="text-tertiary-500 dark:text-primary-500">Replace Image</span> or Drag & Drop</p>
+					<p class="font-bold">
+						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Replace()}</span>
+						{m.widget_ImageUpload_Drag()}
+					</p>
 				{/if}
 				<p class="text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
 
 				<div class="flex w-full justify-center gap-2">
-					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Browse New</button>
-					<button on:click={() => (showMedia = true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">Select Media Image</button>
+					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+						>{m.widget_ImageUpload_BrowseNew()}</button
+					>
+					{#if showMedia}
+						<button on:click={() => (showMedia = true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
+							{m.widget_ImageUpload_SelectMedia()}
+						</button>
+					{/if}
 				</div>
 			</div>
 		</div>
@@ -397,7 +409,7 @@
 	>
 		<!-- header -->
 		<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-			<p class="ml-auto font-bold text-black dark:text-primary-500">Select Image</p>
+			<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
 			<button on:click={() => (showMedia = false)} class="variant-ghost-secondary btn-icon ml-auto">
 				<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			</button>
