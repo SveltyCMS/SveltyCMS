@@ -62,7 +62,7 @@
 						{m.widget_ImageUpload_Drag()}
 					</p>
 				{/if}
-				<p class="text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
+				<p class="text-sm opacity-75">{m.widget_ImageUpload_Allowed()}.</p>
 
 				<div class="flex w-full justify-center gap-2">
 					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"

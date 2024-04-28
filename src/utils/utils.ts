@@ -9,6 +9,8 @@ import { browser } from '$app/environment';
 import _crypto from 'crypto';
 import type { z } from 'zod';
 
+// pdf.js
+
 // Stores
 import { get } from 'svelte/store';
 import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
@@ -107,6 +109,35 @@ export function sanitize(str: string) {
 	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 }
 
+// Utility to hash file content
+function hashFileContent(buffer: Buffer): string {
+	return _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+}
+
+// Utility to sanitize and prepare file names
+function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
+	const ext = Path.extname(fileName).toLowerCase();
+	const fileNameWithoutExt = sanitize(Path.basename(fileName, ext));
+	return { fileNameWithoutExt, ext };
+}
+
+export async function saveMedia(type, file, collectionName) {
+	switch (type) {
+		case 'image':
+			return await saveImage(file, collectionName);
+		case 'document':
+			return await saveDocument(file, collectionName);
+		case 'audio':
+			return await saveAudio(file, collectionName);
+		case 'video':
+			return await saveVideo(file, collectionName);
+		case 'remote':
+			return await saveRemoteMedia(file, collectionName);
+		default:
+			throw new Error(`Unsupported media type: ${type}`);
+	}
+}
+
 // Get the environment variables for image sizes
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
@@ -147,6 +178,7 @@ export async function saveImage(file: File, collectionName: string) {
 		}
 
 		const info = await sharp(buffer).metadata();
+		// Construct default file information
 		fileInfo = {
 			hash,
 			original: {
@@ -222,9 +254,8 @@ export async function saveImage(file: File, collectionName: string) {
 	}
 }
 
-// TODO: Add PDF/Doc Thumbnails
 // Save files and returns file information
-export async function saveFiles(data: { [key: string]: any }, collectionName: string) {
+export async function saveDocument(file: File, collectionName: string) {
 	if (browser) return;
 	const fields: { file: any; replace: (id: string) => void }[] = [];
 	const parseFiles = async (data: any) => {
@@ -240,7 +271,7 @@ export async function saveFiles(data: { [key: string]: any }, collectionName: st
 			const arrayBuffer = await blob.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
 			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-			const existing_file = await mongoose.models['media_files'].findOne({ hash: hash });
+			const existing_file = await mongoose.models['media_documents'].findOne({ hash: hash });
 			if (existing_file) {
 				data[fieldname] = existing_file._id.toString(); // ObjectID to string
 				continue;
@@ -291,13 +322,118 @@ export async function saveFiles(data: { [key: string]: any }, collectionName: st
 		}
 	};
 
-	await parseFiles(data);
+	await parseFiles(file);
 
-	const res = await mongoose.models['media_files'].insertMany(fields.map((v) => v.file));
+	const res = await mongoose.models['media_documents'].insertMany(fields.map((v) => v.file));
 
 	for (const index in res) {
 		const id = res[index]._id;
 		fields[index].replace(id); // `id` is an ObjectId
+	}
+}
+
+// Implement the saveVideo function to handle video files
+export async function saveVideo(file: File, collectionName: string) {
+	try {
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const hash = hashFileContent(buffer);
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const iconName = 'video-icon.svg'; // Assuming an icon file is stored locally or remotely
+
+		const fileInfo = {
+			name: `${hash}-${fileNameWithoutExt}.${ext}`,
+			type: file.type,
+			size: file.size,
+			icon: iconName, // URL to the icon
+			createdAt: new Date(),
+			lastModified: new Date(file.lastModified)
+		};
+
+		// Store the file in the appropriate location
+		const filePath = `${publicEnv.MEDIA_FOLDER}/${collectionName}/video/${fileInfo.name}`;
+		if (!fs.existsSync(Path.dirname(filePath))) {
+			fs.mkdirSync(Path.dirname(filePath), { recursive: true });
+		}
+		fs.writeFileSync(filePath, buffer);
+
+		// Save fileInfo to database
+		const res = await mongoose.models['media_videos'].insertMany([fileInfo]);
+		return new mongoose.Types.ObjectId(res[0]._id);
+	} catch (error) {
+		console.error('Error saving video:', error);
+		throw error;
+	}
+}
+
+// Implement the saveAudio function to handle audio files
+export async function saveAudio(file: File, collectionName: string) {
+	try {
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const hash = hashFileContent(buffer);
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const iconName = 'audio-icon.svg'; // Assuming an icon file is stored locally or remotely
+
+		const fileInfo = {
+			name: `${hash}-${fileNameWithoutExt}.${ext}`,
+			type: file.type,
+			size: file.size,
+			icon: iconName, // URL to the icon
+			createdAt: new Date(),
+			lastModified: new Date(file.lastModified)
+		};
+
+		// Store the file in the appropriate location
+		const filePath = `${publicEnv.MEDIA_FOLDER}/${collectionName}/audio/${fileInfo.name}`;
+		if (!fs.existsSync(Path.dirname(filePath))) {
+			fs.mkdirSync(Path.dirname(filePath), { recursive: true });
+		}
+		fs.writeFileSync(filePath, buffer);
+
+		// Save fileInfo to database
+		const res = await mongoose.models['media_audios'].insertMany([fileInfo]);
+		return new mongoose.Types.ObjectId(res[0]._id);
+	} catch (error) {
+		console.error('Error saving audio:', error);
+		throw error;
+	}
+}
+
+// Implement the saveRemoteMedia function to handle remote video files
+export async function saveRemoteMedia(fileUrl: string, collectionName: string): Promise<mongoose.Types.ObjectId> {
+	try {
+		const response = await fetch(fileUrl);
+		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+		const buffer = Buffer.from(await response.arrayBuffer());
+		const hash = hashFileContent(buffer);
+		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName'); // Safeguard default name
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
+
+		// Construct file URL or path where the file will be stored
+		const url = `path_or_url_where_files_are_stored/${hash}-${fileNameWithoutExt}.${ext}`;
+
+		const fileInfo = {
+			name: `${hash}-${fileNameWithoutExt}.${ext}`,
+			url,
+			hash,
+			createdAt: new Date()
+		};
+
+		// Save fileInfo to database using the collectionName
+		const MediaModel = mongoose.model(
+			collectionName,
+			new mongoose.Schema({
+				name: String,
+				url: String,
+				hash: String,
+				createdAt: Date
+			})
+		);
+
+		const res = await MediaModel.create(fileInfo);
+		return new mongoose.Types.ObjectId(res._id);
+	} catch (error) {
+		console.error('Error saving remote media:', error);
+		throw error;
 	}
 }
 

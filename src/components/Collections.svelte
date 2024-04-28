@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+	import { goto, pushState } from '$app/navigation';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -230,13 +231,16 @@
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			on:click={() => {
 				mode.set('media');
+				// Navigate to the media gallery route
+				goto('/mediagallery');
+				// Optionally, close the sidebar if it's on mobile
 				if (get(screenWidth) === 'mobile') {
 					toggleSidebar('left', 'hidden');
 				}
 			}}
 		>
 			<iconify-icon icon="bi:images" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
-			<p class="mr-auto text-center uppercase">{publicEnv.MEDIA_FOLDER}</p>
+			<p class="mr-auto text-center uppercase">{m.Collections_MediaGallery()}</p>
 		</button>
 	{:else}
 		<!-- switchSideBar collapsed -->
@@ -244,13 +248,16 @@
 			class="btn mt-2 flex w-full flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
 				mode.set('media');
+				// Navigate to the media gallery route
+				goto('/mediagallery');
+				// Optionally, close the sidebar if it's on mobile
 				handleSidebarToggle();
 				if (get(screenWidth) === 'mobile') {
 					toggleSidebar('left', 'hidden');
 				}
 			}}
 		>
-			<p class="text-xs uppercase text-white">{publicEnv.MEDIA_FOLDER}</p>
+			<p class="text-xs uppercase text-white">{m.Collections_MediaGallery()}</p>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-500" />
 		</button>
 	{/if}

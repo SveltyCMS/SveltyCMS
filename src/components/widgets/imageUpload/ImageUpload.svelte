@@ -1,7 +1,7 @@
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';
-	import { getFieldName } from '@src/utils/utils';
+	import { convertTimestampToDateString, getFieldName } from '@src/utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -259,31 +259,86 @@
 		class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 	>
 		<!-- Image Header -->
-		<div class="mx-2 flex items-center justify-between gap-2">
-			<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
+		<div class="mx-2 flex flex-col gap-2">
+			<div class="flex items-center justify-between gap-2">
+				<p class="text-left">{m.widget_ImageUpload_Name()} <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
 
-			<p class="text-left">
-				{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
-			</p>
+				<p class="text-left">
+					{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
+				</p>
+				{#if editing}
+					<!-- Save -->
+					<button on:click={() => edit.saveEdit()} class="variant-ghost-surface btn">
+						<iconify-icon width="26" icon="ic:sharp-save-as" style="color:#05ff05" class="" />
+					</button>
+
+					<!-- Close -->
+					<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
+						<iconify-icon icon="material-symbols:close" width="24" />
+					</button>
+				{/if}
+			</div>
+
+			{#if editing}
+				<div class="flex items-center justify-between">
+					<!-- Konva -->
+
+					<!-- Blur -->
+					<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn flex flex-col text-sm"
+						><iconify-icon icon="material-symbols:blur-on" width="24"></iconify-icon>
+						Blur
+					</button>
+
+					<!-- Crop -->
+					<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn flex flex-col text-sm"
+						><iconify-icon icon="material-symbols:crop" width="24"></iconify-icon>
+						Crop
+					</button>
+
+					<!-- Focalpoint -->
+					<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn flex flex-col text-sm"
+						><iconify-icon icon="ic:baseline-plus" width="24"></iconify-icon>
+						Focalpoint
+					</button>
+
+					<!-- Rotate -->
+					<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn flex flex-col text-sm"
+						><iconify-icon icon="carbon:rotate" width="24"></iconify-icon>
+						Rotate
+					</button>
+
+					<!-- Zoom -->
+					<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn flex flex-col text-sm"
+						><iconify-icon icon="material-symbols:resize" width="24"></iconify-icon>
+						Zoom
+					</button>
+				</div>
+			{/if}
 		</div>
 		{#if editing}
 			<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
-		{:else if editing}
-			<!-- Konva -->
-			<!-- Edit -->
-			<button on:click={() => edit.saveEdit()} class="variant-ghost-surface btn">
-				<iconify-icon width="26" icon="ic:sharp-save-as" style="color:#05ff05" class="cursor-pointer px-2" />
-			</button>
-			<!-- Blur -->
-			<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn">Blur</button>
-			<!-- Close -->
-			<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
-				<iconify-icon icon="material-symbols:close" width="24" />
-			</button>
 		{:else}
 			<!-- Preview -->
 			<div class="flex items-center justify-between">
-				<img src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url} alt="" />
+				<!-- <img src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url} alt="" /> -->
+				{#if !isFlipped}
+					<img
+						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url}
+						alt=""
+						class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
+					/>
+				{:else}
+					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
+						<p class="">{m.widget_ImageUpload_Type()}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
+						<p class="">{m.widget_ImageUpload_Path()}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
+						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+						<p class="">{m.widget_ImageUpload_LastModified()}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+					</div>
+				{/if}
 
 				<!-- Buttons -->
 				<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
@@ -299,7 +354,7 @@
 
 						<!-- Modal ImageEditor -->
 						<button on:click={modalImageEditor} class="variant-ghost btn-icon">
-							<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
+							M<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
 						</button>
 
 						<!-- Edit -->

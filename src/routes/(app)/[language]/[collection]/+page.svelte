@@ -1,4 +1,8 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
+	import { onDestroy } from 'svelte';
+	import type { Schema } from '@collections/types';
+
 	// Stores
 	import { page } from '$app/stores';
 	import { collectionValue, mode, collections, collection, contentLanguage } from '@stores/store';
@@ -6,11 +10,7 @@
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
-	import Media from '@src/components/MediaGallery.svelte';
-
-	import { goto } from '$app/navigation';
-	import { onDestroy } from 'svelte';
-	import type { Schema } from '@collections/types';
+	import MediaGallery from '@src/routes/(app)/mediagallery/MediaGallery.svelte';
 
 	let ForwardBackward: boolean = false; // if using browser history
 
@@ -52,6 +52,6 @@
 			<Fields />
 		</div>
 	{:else if $mode == 'media'}
-		<Media />
+		<MediaGallery />
 	{/if}
 </div>

@@ -3,12 +3,13 @@
 	import type { MediaImage } from '@src/utils/types';
 	import { formatBytes } from '@src/utils/utils';
 	import axios from 'axios';
+	import { goto } from '$app/navigation';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import PageTitle from './PageTitle.svelte';
+	import PageTitle from '../../../components/PageTitle.svelte';
 
 	// Skeleton
 	import { getToastStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
@@ -25,7 +26,22 @@
 	let files: MediaImage[] = [];
 
 	// Get all media files
-	axios.get('/media/getAll').then((res) => (files = res.data));
+	axios
+		.get('/media/getAll')
+		.then((res) => {
+			if (Array.isArray(res.data)) {
+				files = res.data.map((file) => ({
+					...file.file,
+					type: file.type // Ensure this matches your server response
+				}));
+			} else {
+				files = [];
+			}
+		})
+		.catch((error) => {
+			console.error('Error fetching media files:', error);
+			files = [];
+		});
 
 	let globalSearchValue = ''; // Initialize your search value
 
@@ -222,9 +238,9 @@
 
 <div class="flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-	<button class="variant-filled-primary btn gap-2" disabled>
+	<button class="variant-filled-primary btn gap-2" on:click={() => goto('/mediagallery/uploadMedia')}>
 		<iconify-icon icon="carbon:add-filled" width="24" />
-		Add Media
+		{m.MediaGallery_Add()}
 	</button>
 </div>
 
@@ -232,12 +248,12 @@
 	<div class="mb-2 flex items-center justify-between gap-2 md:gap-4">
 		<!-- Search/display -->
 		<div class="mb-8 flex w-full flex-col justify-center gap-1">
-			<label for="media-type">Search</label>
+			<label for="media-type">{m.MediaGallery_Search()}</label>
 			<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
 				<!-- Search -->
 				<input
 					type="text"
-					placeholder="Search..."
+					placeholder={m.collections_search()}
 					class="input"
 					bind:value={globalSearchValue}
 					on:blur={() => (searchShow = false)}
@@ -262,7 +278,7 @@
 
 		<!-- Additional Media Type Filter -->
 		<div class="mb-8 flex flex-col justify-center gap-1">
-			<label for="media-type">Media Types</label>
+			<label for="media-type">{m.MediaGallery_Type()}</label>
 			<div class="input-group">
 				<select bind:value={selectedMediaType} class="">
 					{#each mediaTypes as type}
@@ -298,7 +314,7 @@
 									{m.mediagallery_display()}
 								</p>
 								<iconify-icon icon="material-symbols:grid-view-rounded" height="42" style={`color: text-black dark:text-white`} />
-								<p class="text-xs">Table</p>
+								<p class="text-xs">{m.mediagallery_table()}</p>
 							</button>
 						{:else}
 							<button
@@ -369,7 +385,7 @@
 			<!-- Desktop -->
 			<!-- Display Grid / Table -->
 			<div class="hidden flex-col items-center sm:flex">
-				Display
+				{m.mediagallery_display()}
 				<div class="flex divide-x divide-gray-500">
 					<button
 						class="px-2"
@@ -386,7 +402,7 @@
 						}}
 					>
 						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
-						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
+						<br /> <span class="text-tertiary-500 dark:text-primary-500">{m.mediagallery_grid()}</span>
 					</button>
 					<button
 						class="px-2"
@@ -403,29 +419,29 @@
 						}}
 					>
 						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`} />
-						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
+						<br /><span class="text-tertiary-500 dark:text-primary-500">{m.mediagallery_table()}</span>
 					</button>
 				</div>
 			</div>
 
 			<!-- Switch between small, medium, and large images -->
 			<div class="hidden flex-col items-center sm:flex">
-				Size
+				{m.mediagallery_size()}
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
 							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" />
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">{m.mediagallery_small()}</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
 							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" />
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">{m.mediagallery_medium()}</span>
 						</button>
 					{:else}
 						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
 							<iconify-icon icon="material-symbols:grid-view" height="40" />
-							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
+							<br /><span class="text-tertiary-500 dark:text-primary-500">{m.mediagallery_large()}</span>
 						</button>
 					{/if}
 				</div>
@@ -462,9 +478,9 @@
 								<table class="table-hover w-full table-auto">
 									<thead class="text-tertiary-500">
 										<tr class="divide-x divide-surface-400 border-b-2 border-surface-400 text-center">
-											<th class="text-left">Format</th>
-											<th class="">Pixel</th>
-											<th class="">Size</th>
+											<th class="text-left">{m.mediagallery_Format()}</th>
+											<th class="">{m.mediagallery_Pixel()}</th>
+											<th class="">{m.mediagallery_size()}</th>
 										</tr>
 									</thead>
 									<tbody>

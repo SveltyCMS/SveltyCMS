@@ -90,6 +90,14 @@ export const globalSearchIndex = writable<SearchData[]>([
 		}
 	},
 	{
+		title: 'Add Media',
+		description: 'Add new media to gallery.',
+		keywords: ['add', 'media', 'gallery', 'images', 'videos', 'documents'],
+		triggers: {
+			'Go to Add Media ': { path: '/mediagallery/uploadMedia', action: [() => {}] }
+		}
+	},
+	{
 		title: 'Image Editor',
 		description: 'Edit and manage images with the image editor.',
 		keywords: ['image', 'editor', 'edit', 'photos', 'media'],
