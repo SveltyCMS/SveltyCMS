@@ -268,6 +268,13 @@
 	// Update Tick Single Row
 	$: Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 
+	// Reset entryData when mode changes
+	mode.subscribe(() => {
+		if ($mode == 'view') {
+			entryData.set({});
+		}
+	});
+
 	// Columns Sorting
 	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
 		? JSON.parse(localStorage.getItem('sorting') as string)

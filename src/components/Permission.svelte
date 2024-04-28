@@ -52,8 +52,8 @@
 	// Dynamic buttonMap based on data from types.ts
 	const buttonMap = Object.entries(icon).reduce((acc, [permission, iconName]) => {
 		acc[permission] = {
-			disabled: `variant-outline-${color[permission]}`,
-			enabled: `variant-filled-${color[permission]}`,
+			disabled: color.disabled[permission],
+			enabled: color.enabled[permission],
 			icon: iconName,
 			color: color[permission],
 			toggle: false

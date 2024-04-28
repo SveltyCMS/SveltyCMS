@@ -1,7 +1,7 @@
 // Import the necessary modules.
 import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { getFieldName, saveImages, saveFiles, get_elements_by_id } from '@src/utils/utils';
+import { getFieldName, get_elements_by_id } from '@src/utils/utils';
 import type { Schema } from '@src/collections/types';
 import { publicEnv } from '@root/config/public';
 
@@ -239,10 +239,6 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			}
 		}
 
-		// Save the images asynchronously.
-		await saveImages(body, params.collection);
-		//await saveFiles(body, params.collection);
-
 		// Update the entry asynchronously.
 		const response = await collection.updateOne({ _id }, body, { upsert: true });
 
@@ -337,10 +333,6 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 				}
 			})
 		);
-
-		// Save the images asynchronously.
-		await saveImages(body, params.collection);
-		//await saveFiles(body, params.collection);
 
 		// Insert the entry asynchronously.
 		const insertedEntry = await collection.insertMany(body);

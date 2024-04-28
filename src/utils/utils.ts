@@ -110,129 +110,115 @@ export function sanitize(str: string) {
 // Get the environment variables for image sizes
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+
 // Saves image to disk and returns file information
-export async function saveImages(data: { [key: string]: any }, collectionName: string) {
-	if (browser) return;
-	const sharp = (await import('sharp')).default;
-	const fields: { file: any; replace: (id: string) => void }[] = [];
-	const parseFiles = async (data: any) => {
-		for (const fieldname in data) {
-			if (!(data[fieldname] instanceof File) && typeof data[fieldname] == 'object') {
-				await parseFiles(data[fieldname]);
-				continue;
-			} else if (!(data[fieldname] instanceof File)) {
-				continue;
+export async function saveImage(file: File, collectionName: string) {
+	try {
+		if (browser) return;
+		const sharp = (await import('sharp')).default;
+
+		let fileInfo = {};
+
+		const arrayBuffer = await file.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+		const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+		const existing_file = await mongoose.models['media_images'].findOne({ hash: hash });
+		const path = file.path; // 'global' | 'unique' | 'collection'
+		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // / Extract name without extension
+		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
+
+		if (existing_file) {
+			return new mongoose.Types.ObjectId(existing_file._id);
+		}
+
+		// Original image URL construction
+		let url: string;
+		if (path == 'global') {
+			url = `original/${hash}-${sanitizedBlobName}.${ext}`;
+		} else if (path == 'unique') {
+			url = `${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+		} else {
+			url = `${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+		}
+
+		// Prepend MEDIASERVER_URL if it's set
+		if (publicEnv.MEDIASERVER_URL) {
+			url = `${publicEnv.MEDIASERVER_URL}/files/${url}`;
+		}
+
+		const info = await sharp(buffer).metadata();
+		fileInfo = {
+			hash,
+			original: {
+				name: `${hash}-${file.name}`,
+				url,
+				type: file.type,
+				size: file.size,
+				width: info.width,
+				height: info.height,
+				createdAt: new Date(),
+				lastModified: new Date(file.lastModified)
 			}
+		};
 
-			const blob = data[fieldname] as File;
-			const arrayBuffer = await blob.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
-			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-			const existing_file = await mongoose.models['media_images'].findOne({ hash: hash });
+		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+		}
 
-			if (existing_file) {
-				data[fieldname] = existing_file._id.toString; // ObjectID to string
-				continue;
-			}
+		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
 
-			const path = blob.path; // 'global' | 'unique' | 'collection'
-			const { name: fileNameWithoutExt, ext } = removeExtension(blob.name); // / Extract name without extension
-			const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
+		for (const size in SIZES) {
+			if (size == 'original') continue;
 
-			// Original image URL construction
+			const fullName = `${hash}-${sanitizedBlobName}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
+			const resizedImage = await sharp(buffer)
+				.rotate() // Rotate image according to EXIF data
+				.resize({ width: SIZES[size] })
+				.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
+					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
+				})
+				.toBuffer({ resolveWithObject: true });
+
+			// Save resized image URL construction
 			let url: string;
 			if (path == 'global') {
-				url = `original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${size}/${fullName}`;
 			} else if (path == 'unique') {
-				url = `${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${collectionName}/${size}/${fullName}`;
 			} else {
-				url = `${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+				url = `${path}/${size}/${fullName}`;
 			}
 
 			// Prepend MEDIASERVER_URL if it's set
 			if (publicEnv.MEDIASERVER_URL) {
-				url = `${publicEnv.MEDIASERVER_URL}/files/${url}`;
+				url = `${publicEnv.MEDIASERVER_URL}/${url}`;
 			}
-
-			const info = await sharp(buffer).metadata();
-			data[fieldname] = {
-				hash,
-				original: {
-					name: `${hash}-${blob.name}`,
-					url,
-					type: blob.type,
-					size: blob.size,
-					width: info.width,
-					height: info.height,
-					createdAt: new Date(),
-					lastModified: new Date(blob.lastModified)
-				}
-			};
 
 			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
 				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
 			}
 
-			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
-			for (const size in SIZES) {
-				if (size == 'original') continue;
-
-				const fullName = `${hash}-${sanitizedBlobName}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
-				const resizedImage = await sharp(buffer)
-					.rotate() // Rotate image according to EXIF data
-					.resize({ width: SIZES[size] })
-					.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
-						quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
-					})
-					.toBuffer({ resolveWithObject: true });
-
-				// Save resized image URL construction
-				let url: string;
-				if (path == 'global') {
-					url = `${size}/${fullName}`;
-				} else if (path == 'unique') {
-					url = `${collectionName}/${size}/${fullName}`;
-				} else {
-					url = `${path}/${size}/${fullName}`;
-				}
-
-				// Prepend MEDIASERVER_URL if it's set
-				if (publicEnv.MEDIASERVER_URL) {
-					url = `${publicEnv.MEDIASERVER_URL}/${url}`;
-				}
-
-				if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-					fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
-				}
-				// Sized images
-				fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
-				data[fieldname][size] = {
-					name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-					url,
-					type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-					size: resizedImage.info.size,
-					width: resizedImage.info.width,
-					height: resizedImage.info.height,
-					createdAt: new Date(),
-					lastModified: new Date(blob.lastModified)
-				};
-			}
-			fields.push({
-				file: data[fieldname],
-				replace: (id) => {
-					data[fieldname] = id; // `id` is an ObjectId
-				}
-			});
+			// Resized images are saved as SIZES
+			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
+			fileInfo[size] = {
+				name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
+				url,
+				type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
+				size: resizedImage.info.size,
+				width: resizedImage.info.width,
+				height: resizedImage.info.height,
+				createdAt: new Date(),
+				lastModified: new Date(file.lastModified)
+			};
 		}
-	};
 
-	await parseFiles(data);
+		const res = await mongoose.models['media_images'].insertMany(fileInfo);
 
-	const res = await mongoose.models['media_images'].insertMany(fields.map((v) => v.file));
-
-	for (const index in res) {
-		const id = res[index]._id;
-		fields[index].replace(id); // `id` is an ObjectId
+		return new mongoose.Types.ObjectId(res[0]._id);
+	} catch (error) {
+		console.error('Error saving image:', error);
+		// Handle error appropriately, e.g., return null or throw an error
+		throw error;
 	}
 }
 

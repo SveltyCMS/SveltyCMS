@@ -97,7 +97,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@floating-ui/dom": "^1.6.3",
+		"@floating-ui/dom": "^1.6.4",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@typescript-eslint/eslint-plugin": "^7.7.1",

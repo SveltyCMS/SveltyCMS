@@ -23,6 +23,8 @@
 
 	export const onselect: any = () => {};
 	let files: MediaImage[] = [];
+
+	// Get all media files
 	axios.get('/media/getAll').then((res) => (files = res.data));
 
 	let globalSearchValue = ''; // Initialize your search value
@@ -220,6 +222,10 @@
 
 <div class="flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
+	<button class="variant-filled-primary btn gap-2" disabled>
+		<iconify-icon icon="carbon:add-filled" width="24" />
+		Add Media
+	</button>
 </div>
 
 <div class="wrapper overflow-auto">

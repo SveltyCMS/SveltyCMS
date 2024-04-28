@@ -49,10 +49,18 @@ export const icon = {
 
 // Colors permission
 export const color = {
-	create: 'primary',
-	read: 'tertiary',
-	write: 'warning',
-	delete: 'error'
+	disabled: {
+		create: 'variant-outline-primary',
+		read: 'variant-outline-tertiary',
+		write: 'variant-outline-warning',
+		delete: 'variant-outline-error'
+	},
+	enabled: {
+		create: 'variant-filled-primary',
+		read: 'variant-filled-tertiary',
+		write: 'variant-filled-warning',
+		delete: 'variant-filled-error'
+	}
 } as const;
 
 // Define the schema for a User

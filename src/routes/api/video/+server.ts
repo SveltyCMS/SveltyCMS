@@ -10,7 +10,7 @@ function getYouTubeVideoId(url: string) {
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-	// console.log('POST function called');
+	console.log('POST function called', request);
 
 	try {
 		const data = await request.formData();
@@ -27,7 +27,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		};
 
 		// Use the URL class to parse the URL
-		const parsedUrl = new URL(url);
+		const parsedUrl = new URL(decodeURIComponent(url)); // Decode the URL
 		// Get the hostname from the URL
 		const hostname = parsedUrl.hostname;
 
@@ -43,6 +43,7 @@ export const POST: RequestHandler = async ({ request }) => {
 				}
 			} else {
 				videoData = await videoServices[hostname](url);
+				console.log('Video Data:', videoData);
 			}
 			return json(videoData);
 			// console.log('json:', json);

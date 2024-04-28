@@ -8,7 +8,7 @@
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $entryData[fieldName] || '';
 
 	const _data = $mode == 'create' ? {} : value;
 	let validationError: string | null = null;
@@ -18,12 +18,12 @@
 	export let myData: any = null;
 	$: myData;
 
-	const handleSubmit = async (event: Event) => {
-		// console.log('handleSubmit called');
+	async function handleSubmit() {
+		if (!value.trim()) return; // Don't fetch data if input is empty
 
 		try {
 			const formData = new FormData();
-			formData.append('url', encodeURIComponent(value.trim())); // Encode and trim the URL
+			formData.append('url', value.trim()); // Pass the URL without encoding
 			const response = await fetch('/api/video', {
 				method: 'POST',
 				body: formData
@@ -34,10 +34,12 @@
 			// console.log('API Data:', data);
 
 			myData = data;
+
+			console.log('Video Data:', myData);
 		} catch (error) {
 			console.error('Error:', error);
 		}
-	};
+	}
 
 	// zod validation
 	import * as z from 'zod';
@@ -69,11 +71,11 @@
 <input
 	type="url"
 	bind:value
-	on:blur={handleSubmit}
+	on:change={handleSubmit}
 	on:input={validateInput}
 	name={field?.db_fieldName}
 	id={field?.db_fieldName}
-	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+	placeholder={field?.placeholder || field?.db_fieldName}
 	required={field?.required}
 	class="input text-black dark:text-primary-500"
 />

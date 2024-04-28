@@ -50,6 +50,7 @@ export const GuiSchema = {
 	path: { widget: Input, required: false }
 };
 
+// Create a type name by combining the collection name and label
 const types = Object.keys(SIZES)
 	.map(
 		(size) =>

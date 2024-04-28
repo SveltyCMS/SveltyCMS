@@ -1,8 +1,7 @@
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';
-	import { asAny, convertTimestampToDateString, getFieldName } from '@src/utils/utils';
-	import type { MediaImage } from '@src/utils/types';
+	import { getFieldName } from '@src/utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -15,55 +14,40 @@
 	import type { Group } from 'konva/lib/Group';
 
 	// Stores
-	import { entryData, mode, loadingProgress } from '@stores/store';
+	import { entryData, mode } from '@stores/store';
 
 	// Components
-	import Media from '@src/components/Media.svelte';
-
-	let _data: File | MediaImage | undefined;
-	let updated = false;
-	let input: HTMLInputElement;
-	let showMedia = false;
+	import type { MediaImage } from '@src/utils/types';
+	import FileInput from '@src/components/system/inputs/FileInput.svelte';
 
 	let isFlipped = false; // State variable to track flip button
 
 	export let field: FieldType;
+	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
+
+	let _data: File | MediaImage | undefined = value;
+	$: updated = _data !== value;
+
 	export const WidgetData = async () => {
-		if (_data && _data instanceof File) {
-			_data.path = field.path;
+		if (_data) {
+			if (_data instanceof File) {
+				_data.path = field.path;
+			}
+			$mode == 'edit' && (_data.oldID = (value as MediaImage)._id);
 		}
 
 		return updated ? _data : null;
 	};
-	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
 
-	const fieldName = getFieldName(field);
-
-	function setFile(node: HTMLInputElement) {
-		node.onchange = (e) => {
-			if ((e.target as HTMLInputElement).files?.length == 0) return;
-			updated = true;
-			_data = (e.target as HTMLInputElement).files?.[0] as File;
-		};
-
-		if (value instanceof File) {
-			let fileList = new DataTransfer();
-			fileList.items.add(value);
-			node.files = fileList.files;
-			_data = node.files[0];
-			updated = true;
-		} else if ($mode === 'edit' && value?.thumbnail) {
-			axios.get(value.thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
-				if (value instanceof File) return;
-				let fileList = new DataTransfer();
-				let file = new File([data], value.thumbnail.name, {
-					type: value.thumbnail.type
-				});
-				fileList.items.add(file);
-				node.files = fileList.files;
-				_data = node.files[0];
+	if ($mode == 'edit') {
+		axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
+			if (value instanceof File) return;
+			let file = new File([data], value.thumbnail.name, {
+				type: value.thumbnail.type
 			});
-		}
+
+			_data = file;
+		});
 	}
 	let editing = false;
 	let edit = {
@@ -92,6 +76,7 @@
 			}
 			let Konva = (await import('konva')).default;
 			let scale = Math.min((window.innerWidth - 50) / 1.5 / this.image.naturalWidth, (window.innerHeight - 80) / 1.5 / this.image.naturalHeight);
+
 			this.stage = new Konva.Stage({
 				container: 'canvas',
 				width: window.innerWidth - 50,
@@ -113,6 +98,7 @@
 			});
 			this.group = new Konva.Group();
 			this.group.add(this.imageObj);
+
 			this.transformers = [
 				new Konva.Transformer({
 					nodes: [this.imageObj],
@@ -147,7 +133,6 @@
 				});
 			});
 			editing = false;
-			updated = true;
 		},
 		async addBlur() {
 			let Konva = (await import('konva')).default;
@@ -158,9 +143,7 @@
 			range.max = '30';
 			range.value = '15';
 			range.style.position = 'absolute';
-			range.onpointerdown = (e) => {
-				e.stopPropagation();
-			};
+
 			range.onchange = () => {
 				blurRect.pixelSize(Number(range.value));
 			};
@@ -203,9 +186,9 @@
 					height: blurRect.height()
 				});
 				blurRect.cache();
+				updateRangePos();
 			});
 
-			this.stage.content.appendChild(range);
 			canvas.parentElement?.parentElement?.appendChild(range);
 			updateRangePos();
 			let tr = new Konva.Transformer({
@@ -217,13 +200,6 @@
 			this.layer.add(tr);
 			this.group.add(blurRect);
 		}
-	};
-
-	// Select Media Image
-	let mediaOnSelect = (data: MediaImage) => {
-		updated = true;
-		showMedia = false;
-		_data = data;
 	};
 
 	// Skeleton
@@ -277,8 +253,6 @@
 	}
 </script>
 
-<input use:setFile bind:this={input} accept="image/*,image/webp,image/avif,image/svg+xml" name={fieldName} type="file" hidden />
-
 {#if _data}
 	<div
 		class:editor={editing}
@@ -291,39 +265,28 @@
 			<p class="text-left">
 				{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
 			</p>
-
-			{#if editing}
-				<iconify-icon on:click={() => edit.saveEdit()} width="26" class="cursor-pointer px-2" style="color:#05ff05" icon="ic:sharp-save-as" />
-				<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
-					<iconify-icon icon="material-symbols:close" width="24" />
-				</button>
-				<Media bind:onselect={mediaOnSelect} />
-			{/if}
 		</div>
+		{#if editing}
+			<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
+		{:else if editing}
+			<!-- Konva -->
+			<!-- Edit -->
+			<button on:click={() => edit.saveEdit()} class="variant-ghost-surface btn">
+				<iconify-icon width="26" icon="ic:sharp-save-as" style="color:#05ff05" class="cursor-pointer px-2" />
+			</button>
+			<!-- Blur -->
+			<button on:click={() => edit.addBlur()} class="variant-ghost-surface btn">Blur</button>
+			<!-- Close -->
+			<button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
+				<iconify-icon icon="material-symbols:close" width="24" />
+			</button>
+		{:else}
+			<!-- Preview -->
+			<div class="flex items-center justify-between">
+				<img src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url} alt="" />
 
-		{#if !editing}
-			<!-- Image Body -->
-			<div class="m-2 grid min-h-[200px] grid-cols-12 gap-2">
-				{#if !isFlipped}
-					<img
-						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url}
-						alt=""
-						class="col-span-11 m-auto max-h-[200px] max-w-[500px] rounded"
-					/>
-				{:else}
-					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
-						<p class="">{m.widget_ImageUpload_Type()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
-						<p class="">{m.widget_ImageUpload_Path()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
-						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
-						<p class="">{m.widget_ImageUpload_LastModified()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
-					</div>
-				{/if}
+				<!-- Buttons -->
 				<div class="col-span-1 flex flex-col items-end justify-between gap-2 p-2">
-					<!-- Buttons -->
 					{#if !editing}
 						<!-- Flip -->
 						<button on:click={() => (isFlipped = !isFlipped)} class="variant-ghost btn-icon">
@@ -336,7 +299,7 @@
 
 						<!-- Modal ImageEditor -->
 						<button on:click={modalImageEditor} class="variant-ghost btn-icon">
-							M<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
+							<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
 						</button>
 
 						<!-- Edit -->
@@ -351,74 +314,21 @@
 					{/if}
 				</div>
 			</div>
-		{:else}
-			<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
 		{/if}
 	</div>
 {:else}
-	<div
-		on:drop|preventDefault={(e) => {
-			updated = true;
-			_data = e?.dataTransfer?.files[0];
-		}}
-		on:dragover|preventDefault={(e) => {
-			asAny(e.target).style.borderColor = '#6bdfff';
-		}}
-		on:dragleave|preventDefault={(e) => {
-			asAny(e.target).style.removeProperty('border-color');
-		}}
-		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
-		role="cell"
-		tabindex="0"
-	>
-		<div class="grid grid-cols-6 items-center p-4">
-			{#if !_data}<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />{/if}
+	<!-- File Input -->
 
-			<div class="col-span-5">
-				{#if !_data}
-					<p class="font-bold">
-						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Upload()}</span>
-						{m.widget_ImageUpload_Drag()}
-					</p>
-				{:else}
-					<p class="font-bold">
-						<span class="text-tertiary-500 dark:text-primary-500">{m.widget_ImageUpload_Replace()}</span>
-						{m.widget_ImageUpload_Drag()}
-					</p>
-				{/if}
-				<p class="text-sm opacity-75">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</p>
-
-				<div class="flex w-full justify-center gap-2">
-					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
-						>{m.widget_ImageUpload_BrowseNew()}</button
-					>
-					{#if showMedia}
-						<button on:click={() => (showMedia = true)} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary">
-							{m.widget_ImageUpload_SelectMedia()}
-						</button>
-					{/if}
-				</div>
-			</div>
-		</div>
-	</div>
-{/if}
-
-{#if showMedia}
-	<div
-		class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
-	>
-		<!-- header -->
-		<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-			<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-			<button on:click={() => (showMedia = false)} class="variant-ghost-secondary btn-icon ml-auto">
-				<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500" />
-			</button>
-		</div>
-		<Media bind:onselect={mediaOnSelect} />
-	</div>
+	<FileInput bind:value={_data} />
 {/if}
 
 <style lang="postcss">
+	img {
+		max-width: 600px;
+		max-height: 200px;
+		margin: auto;
+		margin-top: 10px;
+	}
 	.editor {
 		overflow: auto;
 		position: fixed;
