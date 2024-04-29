@@ -12,6 +12,19 @@ import { SIZES } from '@utils/utils';
 /**
  * Defines ImageUpload widget Parameters
  */
+
+enum WATERMARK_POSITION {
+	'top-left' = 'top-left',
+	'top-center' = 'top-center',
+	'top-right' = 'top-right',
+	'center-left' = 'center-left',
+	'center' = 'center',
+	'center-right' = 'center-right',
+	'bottom-left' = 'bottom-left',
+	'bottom-center' = 'bottom-center',
+	'bottom-right' = 'bottom-right'
+}
+
 export type Params = {
 	// default required parameters
 	label: string;
@@ -29,6 +42,16 @@ export type Params = {
 
 	// Widget Specific parameters
 	path: string | 'global' | 'unique';
+	type?: string | 'image' | 'audio' | 'video' | 'document' | 'remotevideo';
+	multiupload?: boolean;
+	watermark?: {
+		url: string; // URL of the watermark image
+		position?: WATERMARK_POSITION; // Optional position (defaults to center)
+		opacity?: number; // Opacity between 0 and 1 (defaults to 1)
+		scale?: number; // Scale watermark size as a percentage (defaults to 100)
+		offsetX?: number; // Offset watermark position in pixels (horizontal)
+		offsetY?: number; // Offset watermark position in pixels (vertical)
+	};
 };
 
 /**
@@ -47,7 +70,9 @@ export const GuiSchema = {
 	permissions: { widget: Permission, required: false },
 
 	// Widget Specific parameters
-	path: { widget: Input, required: false }
+	path: { widget: Input, required: false },
+	multiupload: { widget: Input, required: true },
+	watermark: { widget: Input, required: true }
 };
 
 // Create a type name by combining the collection name and label

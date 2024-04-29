@@ -9,6 +9,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	export let value: File | MediaImage | undefined = undefined;
+	export let multiple = false;
 	export let show = false;
 
 	let ev = createEventDispatcher();
@@ -77,7 +78,8 @@
 			</div>
 		</div>
 
-		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden on:change={onChange} />
+		<!-- File Input -->
+		<input bind:this={input} type="file" accept="image/*,image/webp,image/avif,image/svg+xml" hidden {multiple} on:change={onChange} />
 	</div>
 
 	<!-- Show existing Media Images -->

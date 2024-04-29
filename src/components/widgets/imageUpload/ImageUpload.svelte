@@ -26,6 +26,7 @@
 	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
 
 	let _data: File | MediaImage | undefined = value;
+	let multiple = false; // TODO: add Multiple Uploads
 	$: updated = _data !== value;
 
 	export const WidgetData = async () => {
@@ -373,8 +374,7 @@
 	</div>
 {:else}
 	<!-- File Input -->
-
-	<FileInput bind:value={_data} />
+	<FileInput bind:value={_data} bind:multiple={field.multiupload} />
 {/if}
 
 <style lang="postcss">

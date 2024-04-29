@@ -16,7 +16,7 @@
 	export let iconSize: PageTitleProps['iconSize'] = '30';
 </script>
 
-<div class="mb-3 flex items-center">
+<div class="flex items-center">
 	<!-- Hamburger -->
 	{#if $sidebarState.left === 'hidden'}
 		<button

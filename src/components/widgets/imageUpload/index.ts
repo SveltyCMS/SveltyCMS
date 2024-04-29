@@ -57,7 +57,9 @@ const widget = (params: Params) => {
 		permissions: params.permissions,
 
 		// extras
-		path: params.path || 'unique'
+		path: params.path || 'unique',
+		multiupload: params.multiupload,
+		watermark: params.watermark
 	};
 
 	// Return the field and widget objects
