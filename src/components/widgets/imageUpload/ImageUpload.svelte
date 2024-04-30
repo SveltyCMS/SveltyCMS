@@ -34,7 +34,6 @@
 			if (_data instanceof File) {
 				_data.path = field.path;
 			}
-			$mode == 'edit' && (_data.oldID = (value as MediaImage)._id);
 		}
 
 		return updated ? _data : null;
@@ -330,14 +329,15 @@
 					/>
 				{:else}
 					<div class="col-span-11 ml-2 grid grid-cols-2 gap-1 text-left">
-						<p class="">{m.widget_ImageUpload_Type()}</p>
+						Media Data soon....
+						<!-- <p class="">{m.widget_ImageUpload_Type()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.type}</p>
 						<p class="">{m.widget_ImageUpload_Path()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{_data.path}</p>
 						<p class="">{m.widget_ImageUpload_Uploaded()}</p>
 						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
 						<p class="">{m.widget_ImageUpload_LastModified()}</p>
-						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p>
+						<p class="font-bold text-tertiary-500 dark:text-primary-500">{convertTimestampToDateString(_data.lastModified)}</p> -->
 					</div>
 				{/if}
 

@@ -8,6 +8,7 @@ import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
 import _crypto from 'crypto';
 import type { z } from 'zod';
+import type { MediaImage } from './types';
 
 // pdf.js
 
@@ -77,7 +78,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 				continue;
 			}
 			// object[key] is file here
-			const uuid = crypto.randomUUID();
+			const uuid = createRandomID().toString();
 			formData.append(uuid, object[key]);
 			object[key] = { instanceof: 'File', id: uuid, path: object[key].path };
 		}
@@ -143,9 +144,9 @@ const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves image to disk and returns file information
-export async function saveImage(file: File, collectionName: string) {
+export async function saveImage(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
 	try {
-		if (browser) return;
+		if (browser) return {} as any;
 		const sharp = (await import('sharp')).default;
 
 		let fileInfo = {};
@@ -154,12 +155,12 @@ export async function saveImage(file: File, collectionName: string) {
 		const buffer = Buffer.from(arrayBuffer);
 		const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
 		const existing_file = await mongoose.models['media_images'].findOne({ hash: hash });
-		const path = file.path; // 'global' | 'unique' | 'collection'
+		const path = file.path || 'global'; // 'global' | 'unique' | 'collection'
 		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // / Extract name without extension
 		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
 
 		if (existing_file) {
-			return new mongoose.Types.ObjectId(existing_file._id);
+			return { id: new mongoose.Types.ObjectId(existing_file._id), fileInfo: existing_file };
 		}
 
 		// Original image URL construction
@@ -246,7 +247,7 @@ export async function saveImage(file: File, collectionName: string) {
 
 		const res = await mongoose.models['media_images'].insertMany(fileInfo);
 
-		return new mongoose.Types.ObjectId(res[0]._id);
+		return { id: new mongoose.Types.ObjectId(res[0]._id), fileInfo: fileInfo as MediaImage };
 	} catch (error) {
 		console.error('Error saving image:', error);
 		// Handle error appropriately, e.g., return null or throw an error
@@ -947,4 +948,8 @@ export const get_elements_by_id = {
 			}
 		}
 	}
+};
+
+export const createRandomID = (id?: string) => {
+	return id ? new mongoose.Types.ObjectId(id) : new mongoose.Types.ObjectId();
 };

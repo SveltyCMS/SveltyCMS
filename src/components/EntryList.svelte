@@ -238,8 +238,8 @@
 	// Trigger refreshTableData when contentLanguage changes, but don't fetch data
 	$: {
 		refreshTableData(false);
-		$contentLanguage;
 		filters = {};
+		$contentLanguage;
 	}
 	// Reset currentPage to 1 when the collection changes
 	$: {

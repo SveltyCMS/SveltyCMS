@@ -30,9 +30,7 @@
 	// MegaMenu Save Layer Next
 	async function saveLayer() {
 		let _fieldsData = await extractData(fieldsData);
-		if (!_fieldsData._id) {
-			_fieldsData._id = crypto.randomUUID();
-		}
+
 		if (!_data) {
 			_data = { ..._fieldsData, children: [] };
 		} else if ($mode == 'edit') {
@@ -43,7 +41,6 @@
 			$currentChild.children.push({ ..._fieldsData, children: [] });
 		}
 		_data = _data;
-		// console.log(_data);
 		showFields = false;
 		mode.set(saveMode);
 		depth = 0;

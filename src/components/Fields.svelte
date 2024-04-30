@@ -187,7 +187,7 @@
 			{#if $entryData == null}
 				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 			{:else}
-				<div class="wrapper mb-4 flex w-full items-center justify-start gap-1">
+				<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
 					<!-- label -->
 					<p class="flex items-center">
 						<span class="mr-1">API URL:</span>

@@ -10,7 +10,7 @@
 
 	export let value: File | MediaImage | undefined = undefined;
 	export let multiple = false;
-	export let show = false;
+	export let show = true;
 
 	let ev = createEventDispatcher();
 	let input: HTMLInputElement;

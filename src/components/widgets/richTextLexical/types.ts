@@ -28,12 +28,13 @@ export type Params = {
 	permissions?: Permissions;
 
 	// Widget Specific parameters
+	placeholder?: string;
+	readonly?: boolean;
 };
 
 /**
  * Defines RichText GuiSchema
  */
-
 export const GuiSchema = {
 	label: { widget: Input, required: true },
 	display: { widget: Input, required: true },
@@ -45,9 +46,10 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: Permission, required: false }
+	permissions: { widget: Permission, required: false },
 
 	// Widget Specific parameters
+	placeholder: { widget: Input, required: false }
 };
 
 /**
@@ -61,9 +63,9 @@ export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	return {
 		typeName,
 		graphql: /* GraphQL */ `
-		type ${typeName} {
+        type ${typeName} {
 			${publicEnv.AVAILABLE_CONTENT_LANGUAGES.map((contentLanguage) => `${contentLanguage}: String`).join('\n')}
 		}
-	`
+        `
 	};
 };

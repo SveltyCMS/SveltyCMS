@@ -1,0 +1,25 @@
+.RichText h1 {
+	font-size: 24px;
+}
+.RichText h2 {
+	font-size: 18px;
+}
+
+.RichText h3 {
+	font-size: 16px;
+}
+
+.RichText h4 {
+	font-size: 14px;
+}
+
+.RichText a {
+	color: #00d3d0;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.RichText img {
+	cursor: pointer;
+	display: inline-block;
+}

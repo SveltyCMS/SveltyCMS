@@ -24,7 +24,7 @@ import Radio from './radio';
 import Rating from './rating';
 import Relation from './relation';
 import RemoteVideo from './remoteVideo';
-//import RichText from './richText';
+import RichText from './richText';
 // import SelectList from './selectList';
 import Seo from './seo';
 import Text from './text';
@@ -50,7 +50,7 @@ const widgets = {
 	Rating, // Relation - assign relationships to other collections
 	Relation, // Rating - Visual representation of a numeric range.
 	RemoteVideo, // RemoteVideo - for youtube/vimeo(/Twitch/ticktock), grabbing Title/Duration,Dimension,User
-	// RichText, // Rich Text - fully extensible Lexical Rich Text editor
+	RichText, // Rich Text - fully extensible Lexical Rich Text editor
 	// SelectList, // SelectList - dropdown / pick list style value selector
 	Seo, // Seo - Basic Seo Title /Description with preview
 	Text // Text - A Simple text input

@@ -55,7 +55,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		const search = url.searchParams.get('search') || '';
 
 		// Get the content language from the URL parameters.
-		const contentLanguage = JSON.parse(url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+		const contentLanguage = (url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 		// Calculate the skip value.
 		const skip = (page - 1) * length;
 

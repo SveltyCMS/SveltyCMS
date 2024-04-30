@@ -1,13 +1,11 @@
 import RichText from './RichText.svelte';
 import { publicEnv } from '@root/config/public';
-import mongoose from 'mongoose';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-import { getFieldName, getGuiFields, saveImage } from '@src/utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-import type { ModifyRequestParams } from '..';
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 /**
  * Defines RichText widget Parameters
@@ -17,11 +15,11 @@ const widget = (params: Params) => {
 	let display: any;
 
 	if (!params.display) {
-		display = async ({ data, contentLanguage }) => {
+		display = async ({ data }) => {
 			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
 			// Return the data for the default content language or a message indicating no data entry
-			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
+			return data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
 		display.default = true;
 	} else {
@@ -48,42 +46,24 @@ const widget = (params: Params) => {
 		helper: params.helper,
 
 		// permissions
-		permissions: params.permissions
+		permissions: params.permissions,
 
 		//extra
+		placeholder: params.placeholder,
+		readonly: params.readonly
 	};
 
 	// Return the field and widget objects
 	return { ...field, widget };
 };
 
-widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParams<typeof widget>) => {
-	switch (type) {
-		case 'POST':
-		case 'PATCH':
-			let images = data.get().images;
-			let _data = data.get().data;
-
-			for (const img_id in images) {
-				const { fileInfo, id: _id } = await saveImage(images[img_id], collection.name);
-				for (const lang in _data.content) {
-					_data.content[lang] = _data.content[lang].replace(img_id, fileInfo.original.url);
-				}
-				type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: img_id } }));
-				await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
-			}
-			data.update(_data);
-			break;
-		case 'DELETE':
-			console.log(id);
-			await mongoose.models['media_images'].updateMany({ used_by: id }, { $pull: { used_by: id } });
-			break;
-	}
-};
-
 // Assign GuiSchema and GraphqlSchema to the widget function
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// widget icon and helper text
+widget.Icon = 'fuent-mdl2:text-box';
+widget.Description = m.widget_richtText_description();
 
 // Widget Aggregations:
 widget.aggregations = {

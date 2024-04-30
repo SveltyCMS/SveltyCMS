@@ -151,14 +151,14 @@ const schema: Schema = {
 			maxRating: 7,
 			color: 'pink',
 			width: 4
-		})
+		}),
 
-		// widgets.RichText({
-		// 	label: 'RichText',
-		// 	db_fieldName: 'RichText',
-		// 	icon: 'ri:t-box-line',
-		// 	required: true
-		// }),
+		widgets.RichText({
+			label: 'RichText',
+			db_fieldName: 'RichText',
+			icon: 'ri:t-box-line',
+			required: true
+		})
 
 		// widgets.Seo({
 		// 	label: 'Seo',
