@@ -242,7 +242,7 @@
 	};
 </script>
 
-<div class="mb-2 flex items-center">
+<div class="my-2 flex items-center">
 	<PageTitle name="Dashboard for {publicEnv.SITE_NAME}" icon="" />
 </div>
 

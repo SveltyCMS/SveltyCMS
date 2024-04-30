@@ -44,6 +44,8 @@ export type Params = {
 	path: string | 'global' | 'unique';
 	type?: string | 'image' | 'audio' | 'video' | 'document' | 'remotevideo';
 	multiupload?: boolean;
+	sizelimit?: number;
+	extensions?: string;
 	watermark?: {
 		url: string; // URL of the watermark image
 		position?: WATERMARK_POSITION; // Optional position (defaults to center)

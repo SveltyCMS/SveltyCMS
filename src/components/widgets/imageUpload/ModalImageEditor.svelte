@@ -20,9 +20,12 @@
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
 	import type { MediaImage } from '@src/utils/types';
+	import { mode } from '@src/stores/store';
+	import axios from 'axios';
 
 	// Components
 	import Media from '@src/components/Media.svelte';
+	import PageTitle from '@src/components/PageTitle.svelte';
 
 	// Konva
 	import type { Image as KonvaImage } from 'konva/lib/shapes/Image';
@@ -30,7 +33,17 @@
 	import type { Layer } from 'konva/lib/Layer';
 	import type { Stage } from 'konva/lib/Stage';
 	import type { Group } from 'konva/lib/Group';
-	import PageTitle from '@src/components/PageTitle.svelte';
+
+	if ($mode == 'edit') {
+		axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
+			if (value instanceof File) return;
+			let file = new File([data], value.thumbnail.name, {
+				type: value.thumbnail.type
+			});
+
+			_data = file;
+		});
+	}
 
 	let editing = false;
 	let edit = {
@@ -59,6 +72,7 @@
 			}
 			let Konva = (await import('konva')).default;
 			let scale = Math.min((window.innerWidth - 50) / 1.5 / this.image.naturalWidth, (window.innerHeight - 80) / 1.5 / this.image.naturalHeight);
+
 			this.stage = new Konva.Stage({
 				container: 'canvas',
 				width: window.innerWidth - 50,
@@ -80,6 +94,7 @@
 			});
 			this.group = new Konva.Group();
 			this.group.add(this.imageObj);
+
 			this.transformers = [
 				new Konva.Transformer({
 					nodes: [this.imageObj],
@@ -114,7 +129,6 @@
 				});
 			});
 			editing = false;
-			updated = true;
 		},
 		async addBlur() {
 			let Konva = (await import('konva')).default;
@@ -125,9 +139,7 @@
 			range.max = '30';
 			range.value = '15';
 			range.style.position = 'absolute';
-			range.onpointerdown = (e) => {
-				e.stopPropagation();
-			};
+
 			range.onchange = () => {
 				blurRect.pixelSize(Number(range.value));
 			};
@@ -170,9 +182,9 @@
 					height: blurRect.height()
 				});
 				blurRect.cache();
+				updateRangePos();
 			});
 
-			this.stage.content.appendChild(range);
 			canvas.parentElement?.parentElement?.appendChild(range);
 			updateRangePos();
 			let tr = new Konva.Transformer({
@@ -188,21 +200,67 @@
 </script>
 
 {#if $modalStore[0]}
-	<div class="modal-example-fullscreen {cBase}">
-		<div class="flex flex-col items-center space-y-4">
-			<div class="flex items-center justify-between">
-				<PageTitle name="Image Editor" icon="" />
+	<div class="relative {cBase}">
+		<!-- Header -->
+		<div class="absolute left-0 top-0 flex w-full items-center justify-between p-2">
+			<PageTitle name="Image Editor" icon="bi:image" />
 
+			<div class="flex items-center gap-4">
 				<!-- Save -->
-				<iconify-icon on:click={() => edit.saveEdit()} width="26" class="cursor-pointer px-2" style="color:#05ff05" icon="ic:sharp-save-as" />
+				<button class="variant-ghost btn-icon" on:click={() => edit.saveEdit()}>
+					<iconify-icon icon="ic:sharp-save-as" width="28" class="text-tertiary-500 dark:text-primary-500" />
+				</button>
 
 				<!-- Cancel / Close Modal -->
-				<button class="variant-filled btn-icon" on:click={parent.onClose}><iconify-icon icon="material-symbols:close" width="24" /></button>
-			</div>
+				<button class="variant-ghost btn-icon" on:click={parent.onClose}>
+					<iconify-icon icon="material-symbols:close" width="24" />
+				</button>
 
-			<div class="w-full">
-				<Media bind:onselect={mediaOnSelect} />
+				<!-- Close -->
+				<!-- <button on:click={() => (editing = false)} class="variant-ghost-surface btn-icon">
+					<iconify-icon icon="material-symbols:close" width="24" />
+				</button> -->
 			</div>
+		</div>
+
+		<!-- Editor -->
+		<div class="flex h-full max-h-[calc(90vh-65px)] w-full flex-col items-center space-y-4 overflow-auto rounded-md border-2 border-surface-500">
+			{#if !editing}
+				<div class="variant-ghost-surface btn-group w-full justify-center rounded-t-md">
+					<!-- Crop -->
+					<button on:click={() => edit.addBlur()} class="flex flex-col">
+						<iconify-icon icon="material-symbols:crop" width="24"></iconify-icon>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">Crop</p>
+					</button>
+
+					<!-- Blur -->
+					<button on:click={() => edit.addBlur()} class="flex flex-col">
+						<iconify-icon icon="material-symbols:blur-on" width="24"></iconify-icon>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">Blur</p>
+					</button>
+
+					<!-- Focalpoint-->
+					<button on:click={() => edit.addBlur()} class="flex flex-col">
+						<iconify-icon icon="bi:plus-circle-fill" width="24"></iconify-icon>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">Focal</p>
+					</button>
+
+					<!-- Rotate  -->
+					<button on:click={() => edit.addBlur()} class="flex flex-col text-sm"
+						><iconify-icon icon="carbon:rotate" width="24"></iconify-icon>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">Rotate</p>
+					</button>
+
+					<!-- Zoom -->
+					<button on:click={() => edit.addBlur()} class="flex flex-col text-sm"
+						><iconify-icon icon="material-symbols:zoom-out-map" width="24"></iconify-icon>
+						<p class="text-sm text-tertiary-500 dark:text-primary-500">Zoom</p>
+					</button>
+				</div>
+				<!-- Konva -->
+				<div id="canvas" class="flex items-center justify-center border-2 border-dashed border-black"></div>
+			{/if}
+			<Media bind:onselect={mediaOnSelect} />
 		</div>
 	</div>
 {/if}

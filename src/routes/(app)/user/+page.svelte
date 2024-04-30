@@ -193,7 +193,7 @@
 	}
 </script>
 
-<div class="flex items-center justify-between">
+<div class="my-2 flex items-center justify-between">
 	<PageTitle name={m.userpage_title()} icon="" />
 </div>
 

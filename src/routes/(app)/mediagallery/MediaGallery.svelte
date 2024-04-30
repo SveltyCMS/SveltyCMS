@@ -9,7 +9,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import PageTitle from '../../../components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
 	import { getToastStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
@@ -232,11 +232,12 @@
 
 	// Define media types
 	const mediaTypes = ['All', 'Image', 'Document', 'Audio', 'Video', 'RemoteVideo'];
+
 	// Reactive variable for selected media type
 	let selectedMediaType = 'All';
 </script>
 
-<div class="flex items-center justify-between">
+<div class="my-2 flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
 	<button class="variant-filled-primary btn gap-2" on:click={() => goto('/mediagallery/uploadMedia')}>
 		<iconify-icon icon="carbon:add-filled" width="24" />
@@ -246,10 +247,10 @@
 
 <div class="wrapper overflow-auto">
 	<div class="mb-2 flex items-center justify-between gap-2 md:gap-4">
-		<!-- Search/display -->
+		<!-- Header -->
 		<div class="mb-8 flex w-full flex-col justify-center gap-1">
 			<label for="media-type">{m.MediaGallery_Search()}</label>
-			<div class="input-group input-group-divider grid grid-cols-[auto_1fr_auto]">
+			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 				<!-- Search -->
 				<input
 					type="text"
@@ -286,6 +287,14 @@
 					{/each}
 				</select>
 			</div>
+		</div>
+
+		<!-- Sort by -->
+		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
+			<label for="media-type">Sort</label>
+			<button class="variant-ghost-surface btn">
+				<iconify-icon icon="flowbite:sort-outline" width="24" />
+			</button>
 		</div>
 
 		<div class="flex items-center justify-center gap-4">

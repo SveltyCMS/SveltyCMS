@@ -1,9 +1,10 @@
 <script lang="ts">
 	import { asAny } from '@src/utils/utils';
-	import Media from '@src/components/Media.svelte';
 	import type { MediaImage } from '@src/utils/types';
-	import { twMerge } from 'tailwind-merge';
 	import { createEventDispatcher } from 'svelte';
+
+	// Component
+	import Media from '@src/components/Media.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -30,7 +31,8 @@
 	};
 </script>
 
-{#if !show}
+{#if show}
+	<!-- Upload Dropzone -->
 	<div
 		on:drop|preventDefault={(e) => {
 			value = e?.dataTransfer?.files[0];
@@ -41,10 +43,7 @@
 		on:dragleave|preventDefault={(e) => {
 			asAny(e.target).style.removeProperty('border-color');
 		}}
-		class={twMerge(
-			'mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
-			$$props.class
-		)}
+		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 		role="cell"
 		tabindex="0"
 	>
@@ -65,6 +64,18 @@
 				{/if}
 				<p class="text-sm opacity-75">{m.widget_ImageUpload_Allowed()}.</p>
 
+				<!-- TODO: Change according to type -->
+
+				<!-- {#if types == 'image'}
+					<p class="text-sm opacity-75">only image allowed</p>
+				{:else if types == 'video'}
+					<p class="text-sm opacity-75">only video allowed,</p>
+				{:else if types == 'audio'}
+					<p class="text-sm opacity-75">only audio allowed,</p>
+				{:else if types == 'document'}
+					<p class="text-sm opacity-75">only document allowed</p>
+				{/if} -->
+
 				<div class="flex w-full justify-center gap-2">
 					<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
 						>{m.widget_ImageUpload_BrowseNew()}</button
@@ -75,6 +86,8 @@
 					</button>
 					<!-- {/if} -->
 				</div>
+				<!-- File Size Limit -->
+				<!-- <p class="mt- 2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: {sizelimit}</p> -->
 			</div>
 		</div>
 

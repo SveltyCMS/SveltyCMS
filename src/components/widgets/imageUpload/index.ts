@@ -1,4 +1,5 @@
 import ImageUpload from './ImageUpload.svelte';
+import type { MediaImage } from '@src/utils/types';
 
 import { getFieldName, getGuiFields, get_elements_by_id, saveImage } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
@@ -7,7 +8,6 @@ import mongoose from 'mongoose';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-import type { MediaImage } from '@src/utils/types';
 
 /**
  * Defines ImageUpload widget Parameters
@@ -59,7 +59,16 @@ const widget = (params: Params) => {
 		// extras
 		path: params.path || 'unique',
 		multiupload: params.multiupload,
-		watermark: params.watermark
+		sizelimit: params.sizelimit,
+		extensions: params.extensions,
+		watermark: {
+			url: params.watermark?.url,
+			position: params.watermark?.position,
+			opacity: params.watermark?.opacity,
+			scale: params.watermark?.scale,
+			offsetX: params.watermark?.offsetX,
+			offsetY: params.watermark?.offsetY
+		}
 	};
 
 	// Return the field and widget objects
@@ -73,8 +82,8 @@ widget.GraphqlSchema = GraphqlSchema;
 // Widget modifyRequest
 widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get() as File | MediaImage;
-	// _id == new image id;
-	// id == current document id;
+	let _id: any; // Declare the variable outside the switch
+
 	switch (type) {
 		case 'GET':
 			// here _data is just id of the image
@@ -82,7 +91,6 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 			break;
 		case 'POST':
 		case 'PATCH':
-			let _id: any;
 			if (_data instanceof File) {
 				_id = (await saveImage(_data, collection.name)).id;
 				data.update(_id);
