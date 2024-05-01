@@ -65,6 +65,9 @@ export const publicEnv = createPublicConfig({
 	HOST_DEV: 'http://localhost:5173',
 	HOST_PROD: 'https://yourdomain.de',
 
+	// Overwrite the default Password strength (default 8)
+	PASSWORD_STRENGTH: 8,
+
 	// Seasons/Events for login page (default: false)
 	SEASONS: false, // Set to true to enable seasonal decorations
 	SEASON_REGION: 'Europe' // Currently only 'Europe' is supported

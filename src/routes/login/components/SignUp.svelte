@@ -21,6 +21,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import PasswordStrength from '@src/components/PasswordStrength.svelte';
 
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
@@ -216,6 +217,8 @@
 				{#if response}
 					<span class="text-xs text-error-500">{response} </span>
 				{/if}
+
+				<PasswordStrength password={$form.password} />
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->

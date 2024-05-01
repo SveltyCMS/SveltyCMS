@@ -12,10 +12,6 @@ import GuiField from './GuiField.svelte';
 
 import { getFieldName } from '@utils/utils';
 
-import type widgets from '@src/components/widgets';
-type k = Exclude<keyof typeof widgets, 'Relation'>;
-type w = ReturnType<(typeof widgets)[k]>['label'];
-
 /**
  * Defines Relation widget Parameters
  */

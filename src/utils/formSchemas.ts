@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { publicEnv } from '@root/config/public';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

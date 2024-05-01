@@ -68,6 +68,9 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	// The name of the site that this CMS should get.
 	SITE_NAME: string; // Site Name
 
+	// Password Strength ( default 8)
+	PASSWORD_STRENGTH?: number | 8;
+
 	// Content Language
 	DEFAULT_CONTENT_LANGUAGE: C; // Default Content Language
 	AVAILABLE_CONTENT_LANGUAGES: C[]; // Available Content Languages

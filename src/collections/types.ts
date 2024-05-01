@@ -15,6 +15,5 @@ export interface Schema {
 	strict?: boolean;
 	revision?: boolean;
 }
-
-
-export type CollectionLabels = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Posts2'|'Products'|'Relation'|'WidgetTest';
+export type CollectionContent = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Posts2' | 'Products' | 'Relation' | 'WidgetTest';
+export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Posts2'|'Products'|'Relation'|'WidgetTest';
