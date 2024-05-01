@@ -1,5 +1,7 @@
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import { paraglide } from '@inlang/paraglide-js-adapter-vite';
 
 // Gets package.json version info on app start
 // https://kit.svelte.dev/faq#read-package-json
@@ -14,7 +16,7 @@ const json = readFileSync('package.json', 'utf8');
 const pkg = JSON.parse(json);
 
 // Dynamic collection updater
-import type vite from 'vite';
+// import type vite from 'vite';
 import Path from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -26,7 +28,7 @@ const collectionsFolderTS = '/' + __dirname.replace(parsed.root, '').replaceAll(
 
 compile({ collectionsFolderJS, collectionsFolderTS });
 
-const config = {
+export default defineConfig({
 	plugins: [
 		{
 			name: 'vite:server',
@@ -36,7 +38,7 @@ const config = {
 				server.watcher.on('unlink', generateCollectionTypes);
 			},
 
-			config() {
+			async config() {
 				return {
 					define: {
 						'import.meta.env.collectionsFolderJS': JSON.stringify(collectionsFolderJS),
@@ -46,17 +48,19 @@ const config = {
 			}
 		},
 		sveltekit(),
-		purgeCss()
+		purgeCss(),
+		paraglide({
+			project: './project.inlang', // Path to your inlang project
+			outdir: './src/paraglide' // Where you want the generated files to be placed
+		})
 	],
 
-	server: { fs: { allow: ['static', '.'] } },
+	server: {
+		fs: { allow: ['static', '.'] }
+	},
 
 	define: {
 		__VERSION__: JSON.stringify(pkg.version),
 		SUPERFORMS_LEGACY: true
-	},
-
-	output: { preloadStrategy: 'preload-mjs' }
-} as vite.UserConfig;
-
-export default config;
+	}
+});

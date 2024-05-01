@@ -1,10 +1,7 @@
 import fs from 'fs';
 
 // This function generates TypeScript types for collections in a SvelteKit CMS project.
-export function generateCollectionTypes(path: string) {
-	// Log the path to the console
-	console.log(path);
-
+export async function generateCollectionTypes(path: string) {
 	// If the path is not part of the src/collections directory, return and do nothing
 	if (!/src[/\\]collections/.test(path)) {
 		return;

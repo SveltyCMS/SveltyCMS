@@ -35,14 +35,15 @@
 	import type { Group } from 'konva/lib/Group';
 
 	if ($mode == 'edit') {
-		axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
-			if (value instanceof File) return;
-			let file = new File([data], value.thumbnail.name, {
-				type: value.thumbnail.type
-			});
+		(value as MediaImage)?.thumbnail?.url &&
+			axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
+				if (value instanceof File) return;
+				let file = new File([data], value.thumbnail.name, {
+					type: value.thumbnail.type
+				});
 
-			_data = file;
-		});
+				_data = file;
+			});
 	}
 
 	let editing = false;

@@ -35,7 +35,11 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof ImageUpload; key: 'ImageUpload'; GuiFields: ReturnType<typeof getGuiFields> } = {
+	const widget: {
+		type: typeof ImageUpload;
+		key: 'ImageUpload';
+		GuiFields: ReturnType<typeof getGuiFields>;
+	} = {
 		type: ImageUpload,
 		key: 'ImageUpload',
 		GuiFields: getGuiFields(params, GuiSchema)
@@ -87,6 +91,7 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 	switch (type) {
 		case 'GET':
 			// here _data is just id of the image
+			data.update(null);
 			get_elements_by_id.add('media_images', _data, (newData) => data.update(newData));
 			break;
 		case 'POST':
@@ -117,7 +122,11 @@ widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
 
-		return [{ $match: { [`${getFieldName(field)}.original.name`]: { $regex: info.filter, $options: 'i' } } }];
+		return [
+			{
+				$match: { [`${getFieldName(field)}.original.name`]: { $regex: info.filter, $options: 'i' } }
+			}
+		];
 	},
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

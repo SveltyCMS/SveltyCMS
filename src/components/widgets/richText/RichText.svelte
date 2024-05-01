@@ -236,12 +236,11 @@
 		}
 	];
 
-	let fontSize = {
-		value: 0,
-		default: 0
-	};
-
-	$: editor && (fontSize.value = editor.getAttributes('textStyle').fontSize || fontSize.default);
+	let fontSize = 16;
+	$: editor &&
+		(fontSize =
+			editor.getAttributes('textStyle').fontSize ||
+			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement as HTMLElement).fontSize.replace('px', ''));
 
 	let show = (
 		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'underline' | 'strike' | 'link' | 'fontSize'
@@ -320,19 +319,19 @@
 				<!-- Size -->
 				<button
 					on:click={() => {
-						fontSize.value--;
-						editor.chain().focus().setFontSize(fontSize.value).run();
+						fontSize--;
+						editor.chain().focus().setFontSize(fontSize).run();
 					}}
 				>
 					<iconify-icon icon="bi:dash-lg" width="22" />
 				</button>
 
-				<input type="text" class="input w-[30px] text-center outline-none" bind:value={fontSize.value} />
+				<input type="text" class="w-[30px] text-center outline-none" bind:value={fontSize} />
 
 				<button
 					on:click={() => {
-						fontSize.value++;
-						editor.chain().focus().setFontSize(fontSize.value).run();
+						fontSize++;
+						editor.chain().focus().setFontSize(fontSize).run();
 					}}
 				>
 					<iconify-icon icon="bi:plus-lg" width="22" />

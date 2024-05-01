@@ -2,6 +2,7 @@ import Relation from './Relation.svelte';
 
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
+import type { CollectionLabels, Schema } from '@src/collections/types';
 import { getCollections } from '@src/collections';
 import widgets, { type ModifyRequestParams } from '@src/components/widgets';
 import deepmerge from 'deepmerge';
@@ -12,7 +13,7 @@ import * as m from '@src/paraglide/messages';
 /**
  * Defines Relation widget Parameters
  */
-const widget = (params: Params) => {
+const widget = <K extends T, T extends CollectionLabels>(params: Params<K, T>) => {
 	// Define the display function
 	const display = async ({ data, collection, field, entry, contentLanguage }) => {
 		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
@@ -66,7 +67,7 @@ widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
 // widget modifyRequest
-widget.modifyRequest = async ({ field, data, user, type }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
 	if (type !== 'GET' || !_data) {
 		return;
@@ -92,7 +93,8 @@ widget.modifyRequest = async ({ field, data, user, type }: ModifyRequestParams<t
 			field: _field as ReturnType<typeof widget>,
 			data,
 			user,
-			type
+			type,
+			id
 		});
 	}
 	data.update(result);

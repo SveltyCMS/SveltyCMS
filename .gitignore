@@ -10,16 +10,13 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # secrets
-.env
-.env.*
-!.env.example
+
 /config/private.ts
 /config/public.ts
 
 # SveltyCMS
 /tmp
 trash/
-media/
 mediaFiles/
 collections/
 
