@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { publicEnv } from '@root/config/public';
+const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -28,14 +29,12 @@ export const resetFormSchema = z
 	.object({
 		password: z
 			.string({ required_error: m.formSchemas_PasswordisRequired() })
-			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage()
-			}),
-		confirm_password: z
-			.string({ required_error: m.formSchemas_ConfimPassword() })
-			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage()
-			}),
+			.min(MIN_PASSWORD_LENGTH)
+			.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
+				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
+			})
+			.trim(),
+		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(MIN_PASSWORD_LENGTH).trim(),
 		token: z.string(),
 		email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
 		//lang: z.string(), // used for svelty-email
@@ -56,7 +55,7 @@ export const signUpFormSchema = z
 		password: z
 			.string({ required_error: m.formSchemas_PasswordisRequired() })
 			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage()
+				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
 			})
 			.min(8)
 			.trim(),
@@ -86,14 +85,12 @@ export const changePasswordSchema = z
 	.object({
 		password: z
 			.string({ required_error: m.formSchemas_PasswordisRequired() })
-			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage()
-			}),
-		confirm_password: z
-			.string({ required_error: m.formSchemas_ConfimPassword() })
-			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage()
+			.min(MIN_PASSWORD_LENGTH)
+			.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
+				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
 			})
+			.trim(),
+		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(MIN_PASSWORD_LENGTH).trim()
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),

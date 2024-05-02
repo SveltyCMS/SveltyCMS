@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "E-post krävs",
 	"formSchemas_Emailvalid": "E-post måste vara en giltig e-post",
 	"formSchemas_PasswordisRequired": "lösenord krävs",
-	"formSchemas_PasswordMessage": "Lösenordet måste vara minst 8 tecken och innehålla minst en bokstav, en siffra och ett specialtecken",
+	"formSchemas_PasswordMessage": "Lösenordet måste vara minst {passwordStrength} tecken och innehålla minst en bokstav, en siffra och ett specialtecken",
 	"formSchemas_Passwordmatch": "Lösenord &amp; Bekräfta lösenord måste matcha",
 	"formSchemas_ConfimPassword": "Bekräfta lösenord krävs",
 	"formSchemas_usernameRequired": "Användarnamn krävs",

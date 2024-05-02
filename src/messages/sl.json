@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "E-pošta je obvezna",
 	"formSchemas_Emailvalid": "E-pošta mora biti veljavna",
 	"formSchemas_PasswordisRequired": "zahtevano je geslo",
-	"formSchemas_PasswordMessage": "Geslo mora biti dolgo vsaj 8 znakov in mora vsebovati vsaj eno črko, eno številko in en poseben znak",
+	"formSchemas_PasswordMessage": "Geslo mora biti dolgo vsaj {passwordStrength} znakov in mora vsebovati vsaj eno črko, eno številko in en poseben znak",
 	"formSchemas_Passwordmatch": "Geslo in geslo za potrditev se morata ujemati",
 	"formSchemas_ConfimPassword": "Potrebno je potrditi geslo",
 	"formSchemas_usernameRequired": "Zahtevano je uporabniško ime",

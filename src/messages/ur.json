@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "ای میل درکار ہے۔",
 	"formSchemas_Emailvalid": "ای میل ایک درست ای میل ہونی چاہیے۔",
 	"formSchemas_PasswordisRequired": "پاس ورڈ درکار ہے۔",
-	"formSchemas_PasswordMessage": "پاس ورڈ کم از کم 8 حروف کا ہونا چاہیے اور اس میں کم از کم ایک حرف، ایک عدد اور ایک خاص حرف ہونا چاہیے",
+	"formSchemas_PasswordMessage": "پاس ورڈ کم از کم {passwordStrength} حروف کا ہونا چاہیے اور اس میں کم از کم ایک حرف، ایک عدد اور ایک خاص حرف ہونا چاہیے",
 	"formSchemas_Passwordmatch": "پاس ورڈ اور تصدیقی پاس ورڈ مماثل ہونا ضروری ہے۔",
 	"formSchemas_ConfimPassword": "تصدیق کریں پاس ورڈ درکار ہے۔",
 	"formSchemas_usernameRequired": "صارف نام درکار ہے۔",

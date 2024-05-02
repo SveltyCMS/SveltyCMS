@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "O e-mail é obrigatório",
 	"formSchemas_Emailvalid": "O e-mail deve ser um e-mail válido",
 	"formSchemas_PasswordisRequired": "Senha requerida",
-	"formSchemas_PasswordMessage": "A senha deve ter no mínimo 8 caracteres e conter pelo menos uma letra, um número e um caractere especial",
+	"formSchemas_PasswordMessage": "A senha deve ter no mínimo {passwordStrength} caracteres e conter pelo menos uma letra, um número e um caractere especial",
 	"formSchemas_Passwordmatch": "A senha e a confirmação da senha devem corresponder",
 	"formSchemas_ConfimPassword": "Confirmar senha é obrigatório",
 	"formSchemas_usernameRequired": "Nome de usuário é requerido",

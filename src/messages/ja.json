@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "メールアドレスは必須です",
 	"formSchemas_Emailvalid": "メールアドレスは有効なものでなければなりません",
 	"formSchemas_PasswordisRequired": "パスワードが必要",
-	"formSchemas_PasswordMessage": "パスワードは最低8文字で、少なくとも1つの文字、1つの数字、1つの特殊文字を含める必要があります。",
+	"formSchemas_PasswordMessage": "パスワードは最低{passwordStrength}文字で、少なくとも1つの文字、1つの数字、1つの特殊文字を含める必要があります。",
 	"formSchemas_Passwordmatch": "パスワードとパスワードの確認は一致する必要があります",
 	"formSchemas_ConfimPassword": "パスワードの確認が必要です",
 	"formSchemas_usernameRequired": "ユーザー名は必須です",

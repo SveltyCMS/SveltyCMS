@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "Емаил је обавезан",
 	"formSchemas_Emailvalid": "Имејл мора да буде важећи имејл",
 	"formSchemas_PasswordisRequired": "Потребна је шифра",
-	"formSchemas_PasswordMessage": "Лозинка мора да има најмање 8 знакова и да садржи најмање једно слово, један број и један специјални знак",
+	"formSchemas_PasswordMessage": "Лозинка мора да има најмање {passwordStrength} знакова и да садржи најмање једно слово, један број и један специјални знак",
 	"formSchemas_Passwordmatch": "Лозинка и лозинка за потврду морају се подударати",
 	"formSchemas_ConfimPassword": "Потврдите лозинку",
 	"formSchemas_usernameRequired": "Корисничко име је обавезно",

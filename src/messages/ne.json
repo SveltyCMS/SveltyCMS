@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "इमेल आवश्यक छ",
 	"formSchemas_Emailvalid": "इमेल मान्य इमेल हुनुपर्छ",
 	"formSchemas_PasswordisRequired": "पासवर्ड आवश्यक छ",
-	"formSchemas_PasswordMessage": "पासवर्ड कम्तिमा 8 वर्णको हुनु पर्छ र कम्तिमा एक अक्षर, एक नम्बर, र एक विशेष क्यारेक्टर हुनु पर्छ",
+	"formSchemas_PasswordMessage": "पासवर्ड कम्तिमा {passwordStrength} वर्णको हुनु पर्छ र कम्तिमा एक अक्षर, एक नम्बर, र एक विशेष क्यारेक्टर हुनु पर्छ",
 	"formSchemas_Passwordmatch": "पासवर्ड र कन्फर्म पासवर्ड मिल्नुपर्छ",
 	"formSchemas_ConfimPassword": "पुष्टि पासवर्ड आवश्यक छ",
 	"formSchemas_usernameRequired": "प्रयोगकर्ता नाम आवश्यक छ",

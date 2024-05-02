@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "需要电子邮箱",
 	"formSchemas_Emailvalid": "电子邮件必须是有效的电子邮件",
 	"formSchemas_PasswordisRequired": "密码是必需的",
-	"formSchemas_PasswordMessage": "密码必须至少包含 8 个字符，且至少包含一个字母、一个数字和一个特殊字符",
+	"formSchemas_PasswordMessage": "密码必须至少包含 {passwordStrength} 个字符，且至少包含一个字母、一个数字和一个特殊字符",
 	"formSchemas_Passwordmatch": "密码和确认密码必须匹配",
 	"formSchemas_ConfimPassword": "需要确认密码",
 	"formSchemas_usernameRequired": "用户名是必填项",

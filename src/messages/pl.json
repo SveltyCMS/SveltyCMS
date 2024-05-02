@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "email jest wymagany",
 	"formSchemas_Emailvalid": "Adres e-mail musi być prawidłowym adresem e-mail",
 	"formSchemas_PasswordisRequired": "Wymagane jest hasło",
-	"formSchemas_PasswordMessage": "Hasło musi składać się z co najmniej 8 znaków i zawierać co najmniej jedną literę, jedną cyfrę i jeden znak specjalny",
+	"formSchemas_PasswordMessage": "Hasło musi składać się z co najmniej {passwordStrength} znaków i zawierać co najmniej jedną literę, jedną cyfrę i jeden znak specjalny",
 	"formSchemas_Passwordmatch": "Hasło i Potwierdź hasło muszą być zgodne",
 	"formSchemas_ConfimPassword": "Potwierdź, że wymagane jest hasło",
 	"formSchemas_usernameRequired": "Wymagana jest nazwa użytkownika",

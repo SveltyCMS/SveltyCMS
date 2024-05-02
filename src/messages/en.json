@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "Email is required",
 	"formSchemas_Emailvalid": "Email must be a valid email",
 	"formSchemas_PasswordisRequired": "Password is required",
-	"formSchemas_PasswordMessage": "Password must be a minimum of 8 characters & contain at least one letter, one number, and one special character",
+	"formSchemas_PasswordMessage": "Password must be a minimum of {passwordStrength} characters & contain at least one letter, one number, and one special character",
 	"formSchemas_Passwordmatch": "Password & Confirm password must match",
 	"formSchemas_ConfimPassword": "Confirm Password is required",
 	"formSchemas_usernameRequired": "Username is required",

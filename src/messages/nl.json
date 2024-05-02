@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "E-mail is vereist",
 	"formSchemas_Emailvalid": "E-mail moet een geldig e-mailadres zijn",
 	"formSchemas_PasswordisRequired": "Een wachtwoord is verplicht",
-	"formSchemas_PasswordMessage": "Het wachtwoord moet minimaal 8 tekens lang zijn en minimaal één letter, één cijfer en één speciaal teken bevatten",
+	"formSchemas_PasswordMessage": "Het wachtwoord moet minimaal {passwordStrength} tekens lang zijn en minimaal één letter, één cijfer en één speciaal teken bevatten",
 	"formSchemas_Passwordmatch": "Wachtwoord en wachtwoord bevestigen moeten overeenkomen",
 	"formSchemas_ConfimPassword": "Bevestig wachtwoord is vereist",
 	"formSchemas_usernameRequired": "Gebruikersnaam is verplicht",

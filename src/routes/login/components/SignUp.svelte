@@ -18,10 +18,10 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import PasswordStrength from '@src/components/PasswordStrength.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import PasswordStrength from '@src/components/PasswordStrength.svelte';
 
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
@@ -218,7 +218,7 @@
 					<span class="text-xs text-error-500">{response} </span>
 				{/if}
 
-				<PasswordStrength password={$form.password} />
+				<!-- <PasswordStrength password={$form.password} />  -->
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->

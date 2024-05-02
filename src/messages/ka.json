@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "საჭიროა ელ.ფოსტა",
 	"formSchemas_Emailvalid": "ელფოსტა უნდა იყოს მოქმედი ელფოსტა",
 	"formSchemas_PasswordisRequired": "საჭიროა პაროლი",
-	"formSchemas_PasswordMessage": "პაროლი უნდა შედგებოდეს მინიმუმ 8 სიმბოლოსგან და შეიცავდეს მინიმუმ ერთ ასოს, ერთ რიცხვს და ერთ სპეციალურ სიმბოლოს",
+	"formSchemas_PasswordMessage": "პაროლი უნდა შედგებოდეს მინიმუმ {passwordStrength} სიმბოლოსგან და შეიცავდეს მინიმუმ ერთ ასოს, ერთ რიცხვს და ერთ სპეციალურ სიმბოლოს",
 	"formSchemas_Passwordmatch": "პაროლი და დადასტურება პაროლი უნდა ემთხვეოდეს",
 	"formSchemas_ConfimPassword": "საჭიროა პაროლის დადასტურება",
 	"formSchemas_usernameRequired": "მომხმარებლის სახელი აუცილებელია",

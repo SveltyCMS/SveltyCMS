@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "Sähköposti vaaditaan",
 	"formSchemas_Emailvalid": "Sähköpostin on oltava kelvollinen sähköpostiosoite",
 	"formSchemas_PasswordisRequired": "salasana tarvitaan",
-	"formSchemas_PasswordMessage": "Salasanassa on oltava vähintään 8 merkkiä ja vähintään yksi kirjain, yksi numero ja yksi erikoismerkki",
+	"formSchemas_PasswordMessage": "Salasanassa on oltava vähintään {passwordStrength} merkkiä ja vähintään yksi kirjain, yksi numero ja yksi erikoismerkki",
 	"formSchemas_Passwordmatch": "Salasanan ja Vahvista salasanan on oltava samat",
 	"formSchemas_ConfimPassword": "Vahvista salasana vaaditaan",
 	"formSchemas_usernameRequired": "Käyttäjätunnus vaaditaan",

@@ -1,15 +1,21 @@
 <script lang="ts">
+	import { publicEnv } from '@root/config/public';
+	import { signUpFormSchema } from '@src/utils/formSchemas';
+
 	export let password: string = '';
 
-	let MIN_LENGTH = 7;
-	let YELLOW_LENGTH = MIN_LENGTH + 3;
+	const { password: passwordSchema } = signUpFormSchema.shape();
+	const constraints = passwordSchema?._def.checks || [];
+
+	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
+	let YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 	let GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 	function calculateScore(password: string) {
 		let score = 0;
 
 		// Check password length
-		if (password.length >= MIN_LENGTH && password.length < YELLOW_LENGTH) score = password.length - MIN_LENGTH;
+		if (password.length >= MIN_PASSWORD_LENGTH && password.length < YELLOW_LENGTH) score = password.length - MIN_PASSWORD_LENGTH;
 		else if (password.length >= YELLOW_LENGTH && password.length < GREEN_LENGTH) score = password.length - YELLOW_LENGTH;
 		else if (password.length >= GREEN_LENGTH) score = password.length - GREEN_LENGTH;
 
@@ -18,12 +24,27 @@
 
 	function getFeedback(score: number) {
 		const messages = {
-			0: 'Weak password. Include more character types.',
-			1: 'Moderate password. Consider increasing length.',
-			2: 'Strong password!'
+			0: getPasswordFeedback('weak', constraints),
+			1: getPasswordFeedback('moderate', constraints),
+			2: getPasswordFeedback('strong', constraints)
 		};
 
-		return messages[score] || 'Unknown strength';
+		return messages[Math.min(score, 2)] || 'Unknown strength';
+	}
+
+	function getPasswordFeedback(
+		strength: 'weak' | 'moderate' | 'strong',
+		constraints: Array<{ code?: import('zod').ZodIssueCode; message?: string }>
+	) {
+		const messages = {
+			weak: 'Your password is too weak. Please include at least one uppercase letter, one lowercase letter, one number, and one special character.',
+			moderate: 'Your password is moderately strong. Consider including more character types for a stronger password.',
+			strong: 'Your password is strong!'
+		};
+
+		const constraintMessages = constraints.map((constraint) => constraint.message);
+
+		return `${messages[strength]} ${constraintMessages.join(' ')}`;
 	}
 
 	function getColor(score: number) {

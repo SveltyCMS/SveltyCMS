@@ -245,7 +245,7 @@
 	"formSchemas_EmailisRequired": "E-mail er påkrævet",
 	"formSchemas_Emailvalid": "E-mail skal være en gyldig e-mail",
 	"formSchemas_PasswordisRequired": "adgangskode er påkrævet",
-	"formSchemas_PasswordMessage": "Adgangskoden skal være på minimum 8 tegn og indeholde mindst ét bogstav, ét tal og ét specialtegn",
+	"formSchemas_PasswordMessage": "Adgangskoden skal være på minimum {passwordStrength} tegn og indeholde mindst ét bogstav, ét tal og ét specialtegn",
 	"formSchemas_Passwordmatch": "Adgangskode &amp; Bekræft adgangskode skal matche",
 	"formSchemas_ConfimPassword": "Bekræft adgangskode er påkrævet",
 	"formSchemas_usernameRequired": "Brugernavn er påkrævet",
