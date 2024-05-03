@@ -60,7 +60,8 @@
 		filteredCategories = categories.reduce((acc: any, category: any) => {
 			// Filter collections in current category by name
 			const filteredCollections = category.collections.filter((collection: any) => {
-				return collection.name.toLowerCase().includes(search.toLowerCase());
+				// Check if collection and collection.name are not undefined before accessing the name property
+				return collection && collection.name && collection.name.toLowerCase().includes(search.toLowerCase());
 			});
 
 			// Add new category object to accumulator with filtered collections and open property set to true if search is not empty

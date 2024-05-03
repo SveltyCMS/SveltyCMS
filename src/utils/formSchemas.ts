@@ -1,17 +1,52 @@
 import { z } from 'zod';
 import { publicEnv } from '@root/config/public';
+
 const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 
+// Define re-usable Schemas
+const username = z
+	.string({ required_error: m.formSchemas_usernameRequired() })
+	.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: m.formSchemas_usernameregex() })
+	.min(2, { message: m.formSchemas_username_min() })
+	.max(24, { message: m.formSchemas_username_max() })
+	.trim();
+
+const email = z
+	.string({ required_error: m.formSchemas_EmailisRequired() })
+	.email({ message: m.formSchemas_Emailvalid() })
+	.transform((value) => value.toLowerCase()); // Convert email to lowercase before validation
+
+const password = z
+	.string({ required_error: m.formSchemas_PasswordisRequired() })
+	.min(MIN_PASSWORD_LENGTH)
+	.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
+		message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
+	})
+	.trim();
+
+const confirm_password = z
+	.string({ required_error: m.formSchemas_PasswordisRequired() })
+	.min(MIN_PASSWORD_LENGTH)
+	.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
+		message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
+	})
+	.trim();
+
+const role = z.string();
+
+const token = z.string().min(16); //registration user token
+
+// Actual Form Schemas------------------------------------
+
 // SignIn Schema ------------------------------------
 export const loginFormSchema = z.object({
-	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() }),
-	password: z.string({ required_error: m.formSchemas_PasswordisRequired() }).min(4),
+	email,
+	password,
 	isToken: z.boolean()
 });
-
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
@@ -27,16 +62,10 @@ interface SignInResetFormData {
 }
 export const resetFormSchema = z
 	.object({
-		password: z
-			.string({ required_error: m.formSchemas_PasswordisRequired() })
-			.min(MIN_PASSWORD_LENGTH)
-			.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
-				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
-			})
-			.trim(),
-		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(MIN_PASSWORD_LENGTH).trim(),
-		token: z.string(),
-		email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
+		password,
+		confirm_password,
+		token,
+		email
 		//lang: z.string(), // used for svelty-email
 	})
 	.refine((data: SignInResetFormData) => data.password === data.confirm_password, m.formSchemas_Passwordmatch());
@@ -44,24 +73,11 @@ export const resetFormSchema = z
 // Sign Up User ------------------------------------
 export const signUpFormSchema = z
 	.object({
-		username: z
-			.string({ required_error: m.formSchemas_usernameRequired() })
-			.regex(/^[a-zA-Z0-9@$!%*#]+$/, { message: m.formSchemas_usernameregex() })
-			.min(2, { message: m.formSchemas_username_min() })
-			.max(24, { message: m.formSchemas_username_max() })
-			.trim(),
-		email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() }).trim(),
-
-		password: z
-			.string({ required_error: m.formSchemas_PasswordisRequired() })
-			.regex(/^(?=.*[A-Za-z])(?=.*\d)(?=.*[@$!%*#?&])[A-Za-z\d@$!%*#?&]{8,}$/, {
-				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
-			})
-			.min(8)
-			.trim(),
-
-		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(8).trim(),
-		token: z.string().min(16) //registration user token
+		username,
+		email,
+		password,
+		confirm_password,
+		token
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),
@@ -70,11 +86,8 @@ export const signUpFormSchema = z
 
 // Validate New User Token ------------------------------------
 export const addUserTokenSchema = z.object({
-	email: z
-		.string({ required_error: m.formSchemas_EmailisRequired() })
-		.email({ message: m.formSchemas_Emailvalid() })
-		.transform((value) => value.toLowerCase()), // Convert email to lowercase before validation
-	role: z.string(),
+	email,
+	role,
 	password: z.string(),
 	expiresIn: z.string(),
 	expiresInLabel: z.string()
@@ -83,14 +96,8 @@ export const addUserTokenSchema = z.object({
 // Change Password ------------------------------------
 export const changePasswordSchema = z
 	.object({
-		password: z
-			.string({ required_error: m.formSchemas_PasswordisRequired() })
-			.min(MIN_PASSWORD_LENGTH)
-			.regex(new RegExp(`^(?=.*[A-Za-z])(?=.*\\d)(?=.*[@$!%*#?&])[A-Za-z\\d@$!%*#?&]{${MIN_PASSWORD_LENGTH},}$`), {
-				message: m.formSchemas_PasswordMessage({ passwordStrength: MIN_PASSWORD_LENGTH })
-			})
-			.trim(),
-		confirm_password: z.string({ required_error: m.formSchemas_ConfimPassword() }).min(MIN_PASSWORD_LENGTH).trim()
+		password,
+		confirm_password
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),
@@ -99,10 +106,11 @@ export const changePasswordSchema = z
 
 // Widget Email Schema ------------------------------------
 export const widgetEmailSchema = z.object({
-	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
+	email
 });
 
+// Add User Schema ------------------------------------
 export const addUserSchema = z.object({
-	email: z.string().email(),
-	role: z.string()
+	email,
+	role
 });

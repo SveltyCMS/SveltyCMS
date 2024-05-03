@@ -54,7 +54,7 @@
 	],
 	"devDependencies": {
 		"@iconify/svelte": "^4.0.1",
-		"@inlang/paraglide-js": "^1.7.2",
+		"@inlang/paraglide-js": "^1.7.3",
 		"@inlang/paraglide-js-adapter-vite": "^1.2.40",
 		"@playwright/test": "^1.43.1",
 		"@semantic-release/git": "^10.0.1",
@@ -68,7 +68,7 @@
 		"@types/mime-types": "^2.1.4",
 		"@types/node": "^20.12.8",
 		"@types/node-os-utils": "^1.3.4",
-		"@types/nodemailer": "^6.4.14",
+		"@types/nodemailer": "^6.4.15",
 		"autoprefixer": "^10.4.19",
 		"eslint": "^8.57.0",
 		"eslint-config-prettier": "^9.1.0",
@@ -83,17 +83,17 @@
 		"sharp": "^0.33.3",
 		"svelte": "^4.2.15",
 		"svelte-awesome-color-picker": "^3.0.6",
-		"svelte-check": "^3.7.0",
+		"svelte-check": "^3.7.1",
 		"svelte-confetti": "^1.4.0",
 		"svelte-dnd-action": "^0.9.43",
-		"sveltekit-superforms": "^2.12.6",
+		"sveltekit-superforms": "^2.13.0",
 		"tailwindcss": "^3.4.3",
 		"ts-morph": "^22.0.0",
 		"tslib": "^2.6.2",
 		"typescript": "^5.4.5",
 		"vite": "^5.2.11",
 		"vite-plugin-tailwind-purgecss": "^0.3.3",
-		"zod": "^3.23.5"
+		"zod": "^3.23.6"
 	},
 	"type": "module",
 	"dependencies": {

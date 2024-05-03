@@ -20,13 +20,32 @@
 	let input: HTMLInputElement;
 	let showMedia = false;
 
+	let dropZone: HTMLDivElement;
+
 	function handleFileDrop(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+
 		const droppedFiles = e.dataTransfer?.files;
 		if (droppedFiles) {
 			for (const file of droppedFiles) {
 				files = [...files, file];
 			}
 		}
+
+		dropZone.style.removeProperty('border-color');
+	}
+
+	function handleDragOver(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dropZone.style.borderColor = '#6bdfff';
+	}
+
+	function handleDragLeave(e: DragEvent) {
+		e.preventDefault();
+		e.stopPropagation();
+		dropZone.style.removeProperty('border-color');
 	}
 
 	function generateThumbnail(file: File) {
@@ -75,13 +94,21 @@
 <div class="wrapper">
 	<TabGroup>
 		<Tab bind:group={tabSet} name="local" value={0}>
-			<svelte:fragment slot="lead"><iconify-icon icon="material-symbols:database" width="28"></iconify-icon></svelte:fragment>
-			<span class="text-tertiary-500 dark:text-primary-500">Local Upload</span>
+			<svelte:fragment slot="lead">
+				<div class="flex items-center justify-between gap-2">
+					<iconify-icon icon="material-symbols:database" width="28"></iconify-icon>
+					<p class="text-tertiary-500 dark:text-primary-500">Local Upload</p>
+				</div>
+			</svelte:fragment>
 		</Tab>
 
 		<Tab bind:group={tabSet} name="remote" value={1}>
-			<svelte:fragment slot="lead"><iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon></svelte:fragment>
-			<span class="text-tertiary-500 dark:text-primary-500">Remote Upload</span>
+			<svelte:fragment slot="lead">
+				<div class="flex items-center justify-between gap-2">
+					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
+					<p class="text-tertiary-500 dark:text-primary-500">Remote Uploa</p>
+				</div>
+			</svelte:fragment>
 		</Tab>
 
 		<!-- Tab Panels --->
@@ -90,15 +117,10 @@
 				{#if show}
 					<!-- Upload Dropzone -->
 					<div
-						on:drop|preventDefault={(e) => {
-							value = e?.dataTransfer?.files[0];
-						}}
-						on:dragover|preventDefault={(e) => {
-							asAny(e.target).style.borderColor = '#6bdfff';
-						}}
-						on:dragleave|preventDefault={(e) => {
-							asAny(e.target).style.removeProperty('border-color');
-						}}
+						bind:this={dropZone}
+						on:drop={handleFileDrop}
+						on:dragover={handleDragOver}
+						on:dragleave={handleDragLeave}
 						class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 						role="cell"
 						tabindex="0"
@@ -169,7 +191,7 @@
 					{/if}
 				{/if}
 			{:else if tabSet === 1}
-				<textarea bind:value={files} placeholder="Paste URL here ..." rows="6" class=" textarea w-full" />
+				<textarea bind:value={files} placeholder="Paste Remote URL here ..." rows="6" class="textarea w-full" />
 			{/if}
 		</svelte:fragment>
 	</TabGroup>
