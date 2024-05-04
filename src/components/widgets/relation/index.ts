@@ -1,9 +1,8 @@
-import Relation from './Relation.svelte';
+const WIDGET_NAME = 'Relation' as const;
 
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { CollectionContent, CollectionNames, Schema } from '@src/collections/types';
-
 import { getCollections } from '@src/collections';
 import widgets, { type ModifyRequestParams } from '@src/components/widgets';
 import deepmerge from 'deepmerge';
@@ -33,9 +32,8 @@ const widget = <K extends CollectionContent[T], T extends CollectionNames & keyo
 	display.default = true;
 
 	// Define the widget object
-	const widget: { type: any; key: 'Relation'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Relation,
-		key: 'Relation',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -63,11 +61,16 @@ const widget = <K extends CollectionContent[T], T extends CollectionNames & keyo
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget modifyRequest
+// Widget icon and helper text
+widget.Icon = 'fluent-mdl2:relationship';
+widget.Description = m.widget_relation_description();
+
+// Widget modifyRequest
 widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
 	if (type !== 'GET' || !_data) {
@@ -80,7 +83,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	const result = {};
 	for (const key in relative_collection_schema.fields) {
 		const _field = relative_collection_schema.fields[key];
-		const widget = widgets[_field.widget.key];
+		const widget = widgets[_field.widget.Name];
 		const data = {
 			get() {
 				return response[getFieldName(_field)];
@@ -101,17 +104,13 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	data.update(result);
 };
 
-// widget icon and helper text
-widget.Icon = 'fluent-mdl2:relationship';
-widget.Description = m.widget_relation_description();
-
 // Widget Aggregations:
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
 		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		const widget = widgets[relative_field.widget.key];
+		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {
 			db_fieldName: 'relation.' + getFieldName(relative_field)
 		}); //use db_fieldName since it overrides label.
@@ -127,7 +126,7 @@ widget.aggregations = {
 		const field = info.field as ReturnType<typeof widget>;
 		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
-		const widget = widgets[relative_field.widget.key];
+		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {
 			db_fieldName: 'relation.' + getFieldName(relative_field)
 		}); //use db_fieldName since it overrides label.

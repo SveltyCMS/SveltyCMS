@@ -1,4 +1,5 @@
-import Rating from './Rating.svelte';
+const WIDGET_NAME = 'Rating' as const;
+
 import { publicEnv } from '@root/config/public';
 
 //ParaglideJS
@@ -27,9 +28,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof Rating; key: 'Rating'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Rating,
-		key: 'Rating',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -55,11 +55,12 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'material-symbols:star-outline';
 widget.Description = m.widget_rating_description();
 

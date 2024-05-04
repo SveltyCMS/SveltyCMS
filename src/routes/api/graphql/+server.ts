@@ -49,7 +49,7 @@ for (const collection of collections) {
 	`;
 
 	for (const field of collection.fields) {
-		const schema = widgets[field.widget.key].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
+		const schema = widgets[field.widget.Name].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
 		if (schema.resolver) {
 			resolvers = deepmerge(resolvers, schema.resolver);
 		}
@@ -63,7 +63,7 @@ for (const collection of collections) {
 				const _fields = field.fields;
 				for (const _field of _fields) {
 					collectionSchema += `${getFieldName(_field, true)}: ${
-						widgets[_field.widget.key].GraphqlSchema?.({
+						widgets[_field.widget.Name].GraphqlSchema?.({
 							field: _field,
 							label: getFieldName(_field, true),
 							collection

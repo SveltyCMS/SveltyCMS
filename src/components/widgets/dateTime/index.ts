@@ -1,11 +1,11 @@
-import DateTime from './DateTime.svelte';
+const WIDGET_NAME = 'DateTime' as const;
+
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 /**
  * Defines DateTime widget Parameters
@@ -27,9 +27,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof DateTime; key: 'DateTime'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: DateTime,
-		key: 'DateTime',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -55,11 +54,12 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'formkit:datetime';
 widget.Description = m.widget_DateTime_description();
 

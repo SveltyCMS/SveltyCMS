@@ -1,4 +1,4 @@
-import FileUpload from './FileUpload.svelte';
+const WIDGET_NAME = 'FileUpload' as const;
 
 import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
@@ -44,9 +44,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof FileUpload; key: 'FileUpload'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: FileUpload,
-		key: 'FileUpload',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -73,9 +72,14 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// Widget icon and helper text
+widget.Icon = 'mdi:file-upload';
+widget.Description = m.widget_fileUpload_description();
 
 // Widget modifyRequest
 widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>) => {
@@ -92,10 +96,6 @@ widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>
 	// here _data is just id of the image
 	get_elements_by_id.add('media_files', _data, (newData) => data.update(newData));
 };
-
-// Widget icon and helper text
-widget.Icon = 'mdi:file-upload';
-widget.Description = m.widget_fileUpload_description();
 
 // Widget Aggregations:
 widget.aggregations = {

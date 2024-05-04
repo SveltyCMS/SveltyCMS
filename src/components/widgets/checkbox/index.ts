@@ -1,12 +1,11 @@
-import Checkbox from './Checkbox.svelte';
+const WIDGET_NAME = 'Checkbox' as const;
 
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 // Define the widget function
 const widget = (params: Params) => {
@@ -26,9 +25,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof Checkbox; key: 'Checkbox'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Checkbox,
-		key: 'Checkbox',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -56,11 +54,12 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'tabler:checkbox';
 widget.Description = m.widget_checkbox_description();
 

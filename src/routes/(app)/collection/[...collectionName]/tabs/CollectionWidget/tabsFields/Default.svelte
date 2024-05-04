@@ -28,7 +28,7 @@
 	<!-- Default section -->
 	<div class="mb-2 border-y text-center text-primary-500">
 		<div class="text-xl text-primary-500">
-			Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.key}</span> Input Options
+			Widget <span class="font-bold text-black dark:text-white">{$modalStore[0].value.widget.Name}</span> Input Options
 		</div>
 		<div class="my-1 text-xs text-error-500">* Required</div>
 	</div>
@@ -37,20 +37,20 @@
 			{#if property === 'icon'}
 				<InputSwitch
 					bind:iconselected={$targetWidget[property]}
-					widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
+					widget={asAny(guiSchema[$modalStore[0].value.widget.Name].GuiSchema[property]?.widget)}
 					key={property}
 				/>
 			{:else if property === 'translated' || property === 'required'}
 				<InputSwitch
 					bind:value={$targetWidget[property]}
-					widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
+					widget={asAny(guiSchema[$modalStore[0].value.widget.Name].GuiSchema[property]?.widget)}
 					key={property}
 					on:toggle={(e) => handleToggle(e, property)}
 				/>
 			{:else}
 				<InputSwitch
 					bind:value={$targetWidget[property]}
-					widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
+					widget={asAny(guiSchema[$modalStore[0].value.widget.Name].GuiSchema[property]?.widget)}
 					key={property}
 				/>
 			{/if}

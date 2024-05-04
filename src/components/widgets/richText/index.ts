@@ -1,13 +1,13 @@
-import RichText from './RichText.svelte';
+const WIDGET_NAME = 'RichText' as const;
+
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields, saveImage } from '@src/utils/utils';
+import { GuiSchema, GraphqlSchema, type Params } from './types';
 import mongoose from 'mongoose';
+import type { ModifyRequestParams } from '..';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-
-import { getFieldName, getGuiFields, saveImage } from '@src/utils/utils';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
-import type { ModifyRequestParams } from '..';
 
 /**
  * Defines RichText widget Parameters
@@ -29,9 +29,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof RichText; key: 'RichText'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: RichText,
-		key: 'RichText',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -64,12 +63,12 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 			let images = data.get().images;
 			let _data = data.get().data;
 
-			for (const img_id in images) {
-				const { fileInfo, id: _id } = await saveImage(images[img_id], collection.name);
+			for (const id in images) {
+				const { fileInfo, id: _id } = await saveImage(images[id], collection.name);
 				for (const lang in _data.content) {
-					_data.content[lang] = _data.content[lang].replace(img_id, fileInfo.original.url);
+					_data.content[lang] = _data.content[lang].replace(id, fileInfo.original.url);
 				}
-				type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: img_id } }));
+				type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } }));
 				await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
 			}
 			data.update(_data);
@@ -81,15 +80,29 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 	}
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// Widget icon and helper text
+widget.Icon = 'icon-park-outline:text';
+widget.Description = m.widget_text_description();
 
 // Widget Aggregations:
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		return [{ $match: { [`${getFieldName(field)}.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+		return [
+			{
+				$match: {
+					[`${getFieldName(field)}.header.${info.contentLanguage}`]: {
+						$regex: info.filter,
+						$options: 'i'
+					}
+				}
+			}
+		];
 	},
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

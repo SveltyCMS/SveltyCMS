@@ -1,5 +1,5 @@
-// ImageArray - allows multiple image upload with editor
-import ImageArray from './ImageArray.svelte';
+const WIDGET_NAME = 'ImageArray' as const;
+
 import ImageUpload from '../imageUpload';
 
 import { getFieldName, getGuiFields } from '@utils/utils';
@@ -38,8 +38,7 @@ const widget = (params: Params) => {
 
 	// Define the widget object
 	const widget = {
-		type: ImageArray,
-		key: 'ImageArray' as const,
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -72,7 +71,8 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 

@@ -1,19 +1,19 @@
-// MegaMenu - allows multilevel menus for navigation
-import MegaMenu from './MegaMenu.svelte';
+const WIDGET_NAME = 'MegaMenu' as const;
 import Text from '../text';
+
+import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
+
 import widgets, { type ModifyRequestParams } from '..';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
 import { entryData, mode, headerActionButton2 } from '@src/stores/store';
 
-import { getFieldName, getGuiFields } from '@src/utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
-
-export const currentChild: Writable<any> = writable({});
-
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+export const currentChild: Writable<any> = writable({});
 
 /**
  * Defines MegaMenu widget Parameters
@@ -33,18 +33,20 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof MegaMenu; key: 'MegaMenu'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: MegaMenu,
-		key: 'MegaMenu',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
+	// Add the header
 	for (const level of params.fields) {
 		level.unshift(Text({ label: 'Header', translated: true }));
 	}
 
+	// Add the header
 	params.fields.unshift([Text({ label: 'Header', translated: true })]);
 
+	// Define the callback
 	const callback = ({ data }) => {
 		entryData.set(data?.entryList[0]);
 		mode.set('edit');
@@ -75,9 +77,14 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// Widget icon and helper text
+widget.Icon = 'lucide:menu-square';
+widget.Description = m.widget_megaMenu_description();
 
 // Cleans the children of a megamenu by removing any fields that the user does not have permission to read.
 widget.modifyRequest = async ({ collection, field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
@@ -113,9 +120,9 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 					delete children[index][getFieldName(_field)];
 				} else {
 					// if menu as other nested widgets inside which has its own modifyRequest method...
-					const widget = widgets[_field.widget.key];
+					const widget = widgets[_field.widget.Name];
 					if ('modifyRequest' in widget) {
-						let data = {
+						const data = {
 							get() {
 								return children[index][getFieldName(_field)];
 							},
@@ -143,16 +150,22 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 
 	return _data;
 };
-// Widget icon and helper text
-widget.Icon = 'lucide:menu-square';
-widget.Description = m.widget_megaMenu_description();
 
 // Widget Aggregations:
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
 
-		return [{ $match: { [`${getFieldName(field)}.Header.${info.contentLanguage}`]: { $regex: info.filter, $options: 'i' } } }];
+		return [
+			{
+				$match: {
+					[`${getFieldName(field)}.Header.${info.contentLanguage}`]: {
+						$regex: info.filter,
+						$options: 'i'
+					}
+				}
+			}
+		];
 	},
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

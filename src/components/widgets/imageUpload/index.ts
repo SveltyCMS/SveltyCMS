@@ -1,9 +1,10 @@
-import ImageUpload from './ImageUpload.svelte';
+const WIDGET_NAME = 'ImageUpload' as const;
+
 import type { MediaImage } from '@src/utils/types';
 
 import { getFieldName, getGuiFields, get_elements_by_id, saveImage } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
-import type { ModifyRequestParams } from '..';
+import { type ModifyRequestParams } from '..';
 import mongoose from 'mongoose';
 
 //ParaglideJS
@@ -35,13 +36,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: {
-		type: typeof ImageUpload;
-		key: 'ImageUpload';
-		GuiFields: ReturnType<typeof getGuiFields>;
-	} = {
-		type: ImageUpload,
-		key: 'ImageUpload',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -79,9 +75,14 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+
+// Widget icon and helper text
+widget.Icon = 'material-symbols:image-outline';
+widget.Description = m.widget_ImageUpload_description();
 
 // Widget modifyRequest
 widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParams<typeof widget>) => {
@@ -104,7 +105,7 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 				_id = new mongoose.Types.ObjectId(_data._id);
 				data.update(_id);
 			}
-			type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } }));
+			type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: _id } }));
 			await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
 			break;
 		case 'DELETE':
@@ -113,18 +114,18 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 	}
 };
 
-// Widget icon and helper text
-widget.Icon = 'material-symbols:image-outline';
-widget.Description = m.widget_ImageUpload_description();
-
 // Widget Aggregations:
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-
 		return [
 			{
-				$match: { [`${getFieldName(field)}.original.name`]: { $regex: info.filter, $options: 'i' } }
+				$match: {
+					[`${getFieldName(field)}.header.${info.contentLanguage}`]: {
+						$regex: info.filter,
+						$options: 'i'
+					}
+				}
 			}
 		];
 	},

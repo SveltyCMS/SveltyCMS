@@ -25,12 +25,12 @@
 </script>
 
 {#if $modalStore[0]}
-	{#each Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema) as property}
+	{#each Object.keys(guiSchema[$modalStore[0].value.widget.Name].GuiSchema) as property}
 		{#if !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(property)}
 			<InputSwitch
 				bind:value={$targetWidget[property]}
 				on:toggle={(e) => handleToggle(e, property)}
-				widget={asAny(guiSchema[$modalStore[0].value.widget.key].GuiSchema[property]?.widget)}
+				widget={asAny(guiSchema[$modalStore[0].value.widget.Name].GuiSchema[property]?.widget)}
 				key={property}
 			/>
 		{/if}

@@ -112,7 +112,7 @@
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
 		fields = fields.map((field) => {
-			const GuiFields = getGuiFields({ key: field.widget.key }, widgets[field.widget.key].GuiSchema);
+			const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
 			for (const [property, value] of Object.entries(field)) {
 				if (typeof value !== 'object' && property !== 'id') {
 					GuiFields[property] = field[property];

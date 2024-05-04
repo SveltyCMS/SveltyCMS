@@ -1,11 +1,11 @@
-import Radio from './Radio.svelte';
+const WIDGET_NAME = 'Radio' as const;
+
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 /**
  * Defines Radio widget Parameters
@@ -27,9 +27,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof Radio; key: 'Radio'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Radio,
-		key: 'Radio',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -57,11 +56,12 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'ci:radio-fill';
 widget.Description = m.widget_radio_description();
 

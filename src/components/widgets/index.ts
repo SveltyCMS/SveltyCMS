@@ -58,7 +58,7 @@ const widgets = {
 	// Url // Url - Link to internal / External hyperlinks
 };
 
-type K = ReturnType<(typeof widgets)[keyof typeof widgets]>['widget']['key'];
+type K = (typeof widgets)[keyof typeof widgets]['Name'];
 
 export type ModifyRequestParams<T extends (...args: any) => any> = {
 	collection: Model;
@@ -68,7 +68,6 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 	user: User;
 	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
 };
-
 export type WidgetType = {
 	[key in K]: (typeof widgets)[key] & {
 		modifyRequest: (args: ModifyRequestParams<(typeof widgets)[keyof typeof widgets]>) => Promise<{}>;
@@ -77,3 +76,12 @@ export type WidgetType = {
 
 export const initWidgets = () => (globalThis.widgets = widgets);
 export default widgets as WidgetType;
+
+export const widgetContext = Object.keys(widgets).map((key) => {
+	const name = widgets[key].Name as K;
+	return {
+		[name]: {
+			run() {}
+		}
+	};
+});

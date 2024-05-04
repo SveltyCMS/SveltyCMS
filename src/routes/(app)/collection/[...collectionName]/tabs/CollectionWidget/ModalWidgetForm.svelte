@@ -27,7 +27,7 @@
 	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
 
 	// All options of the widget
-	const options = Object.keys(guiSchema[$modalStore[0].value.widget.key].GuiSchema);
+	const options = Object.keys(guiSchema[$modalStore[0].value.widget.Name].GuiSchema);
 	const specificOptions = options.filter(
 		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);

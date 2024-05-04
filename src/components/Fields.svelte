@@ -88,7 +88,7 @@
 							{#key $collection}
 								<div
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"
-									style={'min-width:min(300px,100%);' + (field?.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
+									style={'min-width:min(300px,100%);' + (field.width ? `width:calc(${Math.floor(100 / field?.width)}% - 0.5rem)` : '')}
 								>
 									<!-- Widget label -->
 									<div class="flex justify-between px-[5px] text-start">
@@ -125,14 +125,15 @@
 									</div>
 
 									<!-- Widget Input -->
-									<svelte:component
-										this={asAny(field.widget.type)}
-										field={asAny(field)}
-										bind:WidgetData={fieldsData[getFieldName(field)]}
-										disabled={field?.permissions?.[user.role]?.write == false && false}
-										value={customData[getFieldName(field)]}
-										{...$$props}
-									/>
+									{#await import(`@src/components/widgets/${field.widget.Name}/${field.widget.Name}.svelte`) then widget}
+										<svelte:component
+											this={widget.default}
+											field={asAny(field)}
+											bind:WidgetData={fieldsData[getFieldName(field)]}
+											value={customData[getFieldName(field)]}
+											{...$$props}
+										/>
+									{/await}
 								</div>
 							{/key}
 						{/if}

@@ -32,7 +32,8 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		}
 
 		// Get the collection schema asynchronously.
-		const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
+		const collection_schema = (await getCollections()).find((c) => c.name == params.collection) as Schema;
+		// const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
 
 		// Check if the user has read access to the collection.
 		const has_read_access = collection_schema?.permissions?.[user.role]?.read != false;
@@ -56,6 +57,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 		// Get the content language from the URL parameters.
 		const contentLanguage = (url.searchParams.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
 		// Calculate the skip value.
 		const skip = (page - 1) * length;
 
@@ -83,7 +85,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		// Loop through the collection schema fields asynchronously.
 		await Promise.all(
 			collection_schema.fields.map(async (field: any) => {
-				const widget = widgets[field.widget.key];
+				const widget = widgets[field.widget.Name];
 				// Get the field name.
 				const fieldName = getFieldName(field);
 
@@ -125,7 +127,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		entryList = await Promise.all(
 			entryList.map(async (entry: any) => {
 				for (const field of collection_schema.fields) {
-					const widget = widgets[field.widget.key];
+					const widget = widgets[field.widget.Name];
 					const fieldName = getFieldName(field);
 
 					if (field?.permissions?.[user.role]?.read == false) {
@@ -219,7 +221,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 		const _id = formData.get('_id') as string;
 
 		for (const field of collection_schema.fields) {
-			const widget = widgets[field.widget.key];
+			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
 			if (field?.permissions?.[user.role]?.write == false) {
@@ -313,7 +315,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		// Loop through the collection schema fields asynchronously.
 		await Promise.all(
 			collection_schema.fields.map(async (field: any) => {
-				const widget = widgets[field.widget.key];
+				const widget = widgets[field.widget.Name];
 				const fieldName = getFieldName(field);
 
 				if (field?.permissions?.[user.role]?.write === false) {

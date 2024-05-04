@@ -120,7 +120,7 @@
 	{#each fields as field, index}
 		<button
 			on:click={() => {
-				currentFieldKey = field.widget.key;
+				currentFieldKey = field.widget.Name;
 				currentField = field;
 			}}
 			on:pointerdown|stopPropagation={drag}
@@ -128,7 +128,7 @@
 			data-index={index}
 		>
 			<div class="h-full w-full p-[10px]">
-				<p>widget: {field.widget.key}</p>
+				<p>widget: {field.widget.Name}</p>
 				<p>label: {field.label}</p>
 			</div>
 			<button
@@ -149,14 +149,14 @@
 	{#each fields as field}
 		<button
 			on:click={() => {
-				currentFieldKey = field.widget.key;
+				currentFieldKey = field.widget.Name;
 				currentField = field;
 			}}
 			on:pointerdown|stopPropagation={drag}
 			class="variant-ghost-tertiary btn w-full overflow-hidden hover:bg-error-500"
 		>
 			<div class="h-full w-full p-[10px]">
-				<p>widget: {field.widget.key}</p>
+				<p>widget: {field.widget.Name}</p>
 				<p>label: {field.label}</p>
 			</div>
 
@@ -169,7 +169,7 @@
 		</button>
 
 		<div use:destruct>
-			{#each Object.entries(widgets[field.widget.key].GuiSchema) as [property, value]}
+			{#each Object.entries(widgets[field.widget.Name].GuiSchema) as [property, value]}
 				<InputSwitch bind:value={field.widget.GuiFields[property]} widget={asAny(value).widget} key={property} />
 			{/each}
 		</div>

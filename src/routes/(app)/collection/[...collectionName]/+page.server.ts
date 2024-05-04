@@ -149,7 +149,7 @@ async function goThrough(object: any, fields): Promise<string> {
 				await processField(field[key], fields);
 
 				if (field[key]?.widget) {
-					const widget = widgets[field[key].widget.key];
+					const widget = widgets[field[key].widget.Name];
 
 					if (widget && widget.GuiSchema) {
 						for (const importKey in widget.GuiSchema) {
@@ -163,7 +163,7 @@ async function goThrough(object: any, fields): Promise<string> {
 						}
 					}
 
-					field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+					field[key] = `🗑️widgets.${field[key].widget.Name}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
 						typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 					)})🗑️`;
 

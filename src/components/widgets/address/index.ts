@@ -1,12 +1,12 @@
-// Components
-import Address from './Address.svelte';
+const WIDGET_NAME = 'Address' as const;
+
+import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
-import { publicEnv } from '@root/config/public';
 /**
  * Defines the Address widget Parameters
  */
@@ -27,9 +27,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof Address; key: 'Address'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Address,
-		key: 'Address',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -55,11 +54,12 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-// Assign GuiSchema and GraphqlSchema to the widget function
+// Assign Name, GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'mdi:home-map-marker';
 widget.Description = m.widget_address_description();
 

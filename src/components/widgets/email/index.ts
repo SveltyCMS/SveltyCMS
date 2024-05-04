@@ -1,11 +1,11 @@
-import Email from './Email.svelte';
+const WIDGET_NAME = 'Email' as const;
+
 import { publicEnv } from '@root/config/public';
+import { getFieldName, getGuiFields } from '@utils/utils';
+import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
-
-import { getFieldName, getGuiFields } from '@utils/utils';
-import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 /**
  * Defines Email widget Parameters
@@ -27,9 +27,8 @@ const widget = (params: Params) => {
 	}
 
 	// Define the widget object
-	const widget: { type: typeof Email; key: 'Email'; GuiFields: ReturnType<typeof getGuiFields> } = {
-		type: Email,
-		key: 'Email',
+	const widget = {
+		Name: WIDGET_NAME,
 		GuiFields: getGuiFields(params, GuiSchema)
 	};
 
@@ -57,6 +56,7 @@ const widget = (params: Params) => {
 };
 
 // Assign GuiSchema and GraphqlSchema to the widget function
+widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
 
