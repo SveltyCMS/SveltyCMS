@@ -124,8 +124,8 @@ importers:
         version: 2.3.0
     devDependencies:
       '@iconify/svelte':
-        specifier: ^4.0.1
-        version: 4.0.1(svelte@4.2.15)
+        specifier: ^4.0.2
+        version: 4.0.2(svelte@4.2.15)
       '@inlang/paraglide-js':
         specifier: ^1.7.3
         version: 1.7.3
@@ -523,8 +523,8 @@ packages:
   '@humanwhocodes/object-schema@2.0.3':
     resolution: {integrity: sha512-93zYdMES/c1D69yZiKDBj0V24vqNzB/koF26KPaagAfd3P/4gUlh3Dys5ogAK+Exi9QyzlD8x/08Zt7wIKcDcA==}
 
-  '@iconify/svelte@4.0.1':
-    resolution: {integrity: sha512-rF6WUdYhoEaKT4D6qTsZFMD1g+NJZWOH2S+9zMTo5rWa8/NXPnB9uviuHOlGm3v+Cp/M1qTOOJsGdXXUTYHq+Q==}
+  '@iconify/svelte@4.0.2':
+    resolution: {integrity: sha512-6BSrU85FzGfhQD3bTXpnkCCvBAglEt8T9QednVnXAYm4C+d3464y+pYMzhQNJm5mPId2cuiw+2wXlDflXllHDw==}
     peerDependencies:
       svelte: '>4.0.0'
 
@@ -2319,8 +2319,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.4.755:
-    resolution: {integrity: sha512-9nop+3jZxSHIxe1EzEUcjDXzK+3qOv3fY5w0sE88nIZUntbv1aXWmoxGWlklX5XSO4txCpLssWkUSh8RQPovBg==}
+  electron-to-chromium@1.4.756:
+    resolution: {integrity: sha512-RJKZ9+vEBMeiPAvKNWyZjuYyUqMndcP1f335oHqn3BEQbs2NFtVrnK5+6Xg5wSM9TknNNpWghGDUCKGYF+xWXw==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -2839,8 +2839,8 @@ packages:
     resolution: {integrity: sha512-kyCuEOWjJqZuDbRHzL8V93NzQhwIB71oFWSyzVo+KPZI+pnQPPxucdkrOZvkLRnrf5URsQM+IJ09Dw29cRALIA==}
     engines: {node: '>=10'}
 
-  hosted-git-info@7.0.1:
-    resolution: {integrity: sha512-+K84LB1DYwMHoHSgaOY/Jfhw3ucPmSET5v98Ke/HdNSw4a0UktWzyW1mjhjpuxxTqOOsfWT/7iVshHmVZ4IpOA==}
+  hosted-git-info@7.0.2:
+    resolution: {integrity: sha512-puUZAUKT5m8Zzvs72XWy3HtvVbTWljRE66cP60bxJzAqf2DgICo7lYTY2IHUmLnNpjYvw5bvmoHvPc0QO2a62w==}
     engines: {node: ^16.14.0 || >=18.0.0}
 
   html-to-text@9.0.5:
@@ -3488,8 +3488,8 @@ packages:
     resolution: {integrity: sha512-3FnjYuehv9k6ovOEbyOswadCDPX1piCfhV8ncmYtHOjuPwylVWsghTLo7rabjC3Rx5xD4HDx8Wm1xnMF7S5qFQ==}
     engines: {node: '>=8'}
 
-  minipass@7.0.4:
-    resolution: {integrity: sha512-jYofLM5Dam9279rdkWzqHozUo4ybjdZmCsDHePy5V/PbBcVMiSZR97gmAy45aqi8CK1lG2ECd356FU86avfwUQ==}
+  minipass@7.1.0:
+    resolution: {integrity: sha512-oGZRv2OT1lO2UF1zUcwdTb3wqUwI0kBGTgt/T7OdSj6M6N5m3o5uPf0AIW6lVxGGoiWUR7e2AwTE+xiwK8WQig==}
     engines: {node: '>=16 || 14 >=14.17'}
 
   minizlib@2.1.2:
@@ -3642,8 +3642,8 @@ packages:
     engines: {node: '>=6'}
     hasBin: true
 
-  nopt@7.2.0:
-    resolution: {integrity: sha512-CVDtwCdhYIvnAzFoJ6NJ6dX3oga9/HyciQDnG1vQDjSLMeKLJ4A93ZqYKDrgYSr1FBY5/hMYC+2VCi24pgpkGA==}
+  nopt@7.2.1:
+    resolution: {integrity: sha512-taM24ViiimT/XntxbPyJQzCG+p4EKOpgD3mxFwW38mGjVUrfERQOeY4EDHjdnptttfHuHQXFx+lTP08Q+mLa/w==}
     engines: {node: ^14.17.0 || ^16.13.0 || >=18.0.0}
     hasBin: true
 
@@ -3654,8 +3654,8 @@ packages:
     resolution: {integrity: sha512-p2W1sgqij3zMMyRC067Dg16bfzVH+w7hyegmpIvZ4JNjqtGOVAIvLmjBx3yP7YTe9vKJgkoNOPjwQGogDoMXFA==}
     engines: {node: '>=10'}
 
-  normalize-package-data@6.0.0:
-    resolution: {integrity: sha512-UL7ELRVxYBHBgYEtZCXjxuD5vPxnmvMGq0jp/dGPKKrN7tfsBh2IY7TlJ15WWwdjRWD3RJbnsygUurTK3xkPkg==}
+  normalize-package-data@6.0.1:
+    resolution: {integrity: sha512-6rvCfeRW+OEZagAB4lMLSNuTNYZWLVtKccK79VSTf//yTY5VOCgcpH80O+bZK8Neps7pUnd5G+QlMg1yV/2iZQ==}
     engines: {node: ^16.14.0 || >=18.0.0}
 
   normalize-path@3.0.0:
@@ -4998,8 +4998,8 @@ packages:
   unplugin@1.5.1:
     resolution: {integrity: sha512-0QkvG13z6RD+1L1FoibQqnvTwVBXvS4XSPwAyinVgoOCl2jAgwzdUKmEj05o4Lt8xwQI85Hb6mSyYkcAGwZPew==}
 
-  update-browserslist-db@1.0.14:
-    resolution: {integrity: sha512-JixKH8GR2pWYshIPUg/NujK3JO7JiqEEUiNArE86NQyrgUuZeTlZQN3xuS/yiV5Kb48ev9K6RqNkaJjXsdg7Jw==}
+  update-browserslist-db@1.0.15:
+    resolution: {integrity: sha512-K9HWH62x3/EalU1U6sjSZiylm9C8tgq2mSvshZpqc7QE69RaA2qjhkW2HlNA0tFpEbtyFz7HTqbSdN4MSwUodA==}
     hasBin: true
     peerDependencies:
       browserslist: '>= 4.21.0'
@@ -5445,7 +5445,7 @@ snapshots:
 
   '@humanwhocodes/object-schema@2.0.3': {}
 
-  '@iconify/svelte@4.0.1(svelte@4.2.15)':
+  '@iconify/svelte@4.0.2(svelte@4.2.15)':
     dependencies:
       '@iconify/types': 2.0.0
       svelte: 4.2.15
@@ -6980,9 +6980,9 @@ snapshots:
   browserslist@4.23.0:
     dependencies:
       caniuse-lite: 1.0.30001615
-      electron-to-chromium: 1.4.755
+      electron-to-chromium: 1.4.756
       node-releases: 2.0.14
-      update-browserslist-db: 1.0.14(browserslist@4.23.0)
+      update-browserslist-db: 1.0.15(browserslist@4.23.0)
 
   bson@6.7.0: {}
 
@@ -7431,7 +7431,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.4.755: {}
+  electron-to-chromium@1.4.756: {}
 
   emoji-regex@8.0.0: {}
 
@@ -7942,7 +7942,7 @@ snapshots:
       foreground-child: 3.1.1
       jackspeak: 2.3.6
       minimatch: 9.0.4
-      minipass: 7.0.4
+      minipass: 7.1.0
       path-scurry: 1.10.2
 
   glob@7.2.3:
@@ -8084,7 +8084,7 @@ snapshots:
     dependencies:
       lru-cache: 6.0.0
 
-  hosted-git-info@7.0.1:
+  hosted-git-info@7.0.2:
     dependencies:
       lru-cache: 10.2.2
 
@@ -8351,7 +8351,7 @@ snapshots:
       editorconfig: 1.0.4
       glob: 10.3.12
       js-cookie: 3.0.5
-      nopt: 7.2.0
+      nopt: 7.2.1
 
   js-cookie@3.0.5: {}
 
@@ -8743,7 +8743,7 @@ snapshots:
   minipass@5.0.0:
     optional: true
 
-  minipass@7.0.4: {}
+  minipass@7.1.0: {}
 
   minizlib@2.1.2:
     dependencies:
@@ -8864,7 +8864,7 @@ snapshots:
       abbrev: 1.1.1
     optional: true
 
-  nopt@7.2.0:
+  nopt@7.2.1:
     dependencies:
       abbrev: 2.0.0
 
@@ -8882,9 +8882,9 @@ snapshots:
       semver: 7.6.0
       validate-npm-package-license: 3.0.4
 
-  normalize-package-data@6.0.0:
+  normalize-package-data@6.0.1:
     dependencies:
-      hosted-git-info: 7.0.1
+      hosted-git-info: 7.0.2
       is-core-module: 2.13.1
       semver: 7.6.0
       validate-npm-package-license: 3.0.4
@@ -9079,7 +9079,7 @@ snapshots:
   path-scurry@1.10.2:
     dependencies:
       lru-cache: 10.2.2
-      minipass: 7.0.4
+      minipass: 7.1.0
 
   path-type@4.0.0: {}
 
@@ -9415,7 +9415,7 @@ snapshots:
   read-pkg@9.0.1:
     dependencies:
       '@types/normalize-package-data': 2.4.4
-      normalize-package-data: 6.0.0
+      normalize-package-data: 6.0.1
       parse-json: 8.1.0
       type-fest: 4.18.1
       unicorn-magic: 0.1.0
@@ -9581,7 +9581,7 @@ snapshots:
       get-stream: 6.0.1
       git-log-parser: 1.2.0
       hook-std: 3.0.0
-      hosted-git-info: 7.0.1
+      hosted-git-info: 7.0.2
       import-from-esm: 1.3.4
       lodash-es: 4.17.21
       marked: 12.0.2
@@ -10309,7 +10309,7 @@ snapshots:
       webpack-sources: 3.2.3
       webpack-virtual-modules: 0.6.1
 
-  update-browserslist-db@1.0.14(browserslist@4.23.0):
+  update-browserslist-db@1.0.15(browserslist@4.23.0):
     dependencies:
       browserslist: 4.23.0
       escalade: 3.1.2

@@ -53,7 +53,7 @@
 		"mongodb"
 	],
 	"devDependencies": {
-		"@iconify/svelte": "^4.0.1",
+		"@iconify/svelte": "^4.0.2",
 		"@inlang/paraglide-js": "^1.7.3",
 		"@inlang/paraglide-js-adapter-vite": "^1.2.40",
 		"@playwright/test": "^1.43.1",
