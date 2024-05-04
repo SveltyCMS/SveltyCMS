@@ -69,7 +69,7 @@
 
 	// https://stefangabos.github.io/world_countries/
 	import countries from './countries.json';
-	import '/node_modules/flag-icons/css/flag-icons.min.css';
+	// import '/node_modules/flag-icons/css/flag-icons.min.css';
 
 	const selectedCountry = '';
 
