@@ -24,7 +24,7 @@
 {:else}
 	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
 		{#each files as file, index}
-			<div on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]">
+			<button on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]">
 				<div class="absolute flex w-full items-center bg-[#2c3844]">
 					<button class="ml-[2px] mt-[2px] block w-[30px]" on:click={() => (showInfo[index] = !showInfo[index])}>
 						<iconify-icon icon="raphael:info" width="25" class="text-[#00d3d0]"></iconify-icon>
@@ -32,7 +32,7 @@
 					<p class="mx-auto pr-[30px] text-white">{file.thumbnail.name}</p>
 				</div>
 				{#if !showInfo[index]}
-					<img src={file.thumbnail.url} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
+					<img src={file.thumbnail.url} alt={file.thumbnail.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
 						<tbody>
@@ -52,7 +52,7 @@
 						</tbody>
 					</table>
 				{/if}
-			</div>
+			</button>
 		{/each}
 	</div>
 {/if}

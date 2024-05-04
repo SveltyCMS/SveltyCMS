@@ -26,6 +26,7 @@
 		<input
 			type="text"
 			placeholder="Search..."
+			aria-label="Search for items in the table"
 			autofocus
 			bind:value={globalSearchValue}
 			on:keydown={(e) => e.key === 'Enter'}

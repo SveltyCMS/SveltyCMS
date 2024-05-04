@@ -24,8 +24,8 @@ export async function compile({
 	// Loop through each file
 	for (const file of files) {
 		try {
-			const tsFilePath = `${collectionsFolderTS}/${file}`;
-			const jsFilePath = `${collectionsFolderJS}/${file.trim().replace(/\.ts$/g, '.js')}`;
+			const tsFilePath = `${collectionsFolderTS.replace(/\/$/, '')}/${file}`;
+			const jsFilePath = `${collectionsFolderJS.replace(/\/$/, '')}/${file.trim().replace(/\.ts$/g, '.js')}`;
 
 			// Check if JS file exists and if TS file has been modified since last compile
 			let recompile = false;

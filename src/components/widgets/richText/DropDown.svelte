@@ -14,7 +14,7 @@
 	$: selected = items.filter((item) => item.active())[0];
 </script>
 
-<div class="wrapper" class:hidden={!show} on:click={() => (expanded = !expanded)}>
+<button class="wrapper" class:hidden={!show} on:click={() => (expanded = !expanded)}>
 	<button class="selected arrow" class:arrow_up={expanded}>
 		<iconify-icon icon={icon || selected?.icon} width="20"></iconify-icon>
 
@@ -41,7 +41,7 @@
 			</button>
 		{/each}
 	</button>
-</div>
+</button>
 
 <style lang="postcss">
 	.selected {
