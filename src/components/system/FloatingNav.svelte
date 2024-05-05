@@ -35,6 +35,7 @@
 			path: string;
 		};
 		icon: string;
+		color?: string;
 	}[] = [
 		{
 			// Home
@@ -42,23 +43,45 @@
 			icon: 'solar:home-bold'
 		},
 		{
+			// User
 			url: { external: false, path: `/user` },
-			icon: 'radix-icons:avatar'
+			icon: 'radix-icons:avatar',
+			color: 'bg-orange-500'
 		},
 		{
+			// Collection builder
 			url: { external: false, path: `/collection` },
 			icon: 'icomoon-free:wrench'
 		},
-
 		{
-			url: { external: true, path: `/api/graphql` },
-			icon: 'teenyicons:graphql-outline'
+			// Image Editor
+			url: { external: false, path: `/imageEditor` },
+			icon: 'tdesign:image-edit'
 		},
-
 		{
-			url: { external: true, path: `/config` },
-			icon: 'mynaui:config'
+			// Graphql Yoga Explorer
+			url: { external: true, path: `/api/graphql` },
+			icon: 'teenyicons:graphql-outline',
+			color: 'bg-pink-500'
+		},
+		{
+			// Marketplace
+			url: { external: true, path: `https://www.sveltycms.com` },
+			icon: 'icon-park-outline:shopping-bag',
+			color: 'bg-primary-700'
+		},
+		{
+			// System Configuration
+			url: { external: false, path: `/config` },
+			icon: 'mynaui:config',
+			color: 'bg-surface-400'
 		}
+		// {
+		// 	// GlobalSearch
+		// 	url: { external: false, path: ``}, //this needs to change to alt+s
+		// 	icon: 'material-symbols:search-rounded',
+		// 	color: 'bg-error-500'
+		// }
 	].filter((endpoint) => {
 		if (user?.role === 'admin') return true;
 		else if (endpoint.url.path === '/collection') return false;
@@ -67,8 +90,10 @@
 
 	export let buttonInfo: any;
 
+	// Adjust button position on window resize
 	window.onresize = async () => {
-		center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+		buttonInfo.x = window.innerWidth - buttonRadius * 3;
+		buttonInfo.y = window.innerHeight - buttonRadius * 3;
 		firstLine && firstLine.setAttribute('x1', firstCircle.offsetLeft.toString());
 		firstLine && firstLine.setAttribute('y1', firstCircle.offsetTop.toString());
 		await tick();
@@ -84,9 +109,10 @@
 		return params.length > 0 ? replaced : pathname;
 	}
 
-	$: buttonInfo = { ...navigation_info?.[getBasePath($page.url.pathname)], ...{ radius: buttonRadius } } || {
-		x: 75,
-		y: window.innerHeight / 2,
+	// Set default button position to bottom-right of the screen
+	$: buttonInfo = {
+		x: window.innerWidth - buttonRadius * 3, // right corner, adjusted inward by button's diameter
+		y: window.innerHeight - buttonRadius * 3, // bottom corner, adjusted inward
 		radius: buttonRadius
 	};
 
@@ -227,9 +253,19 @@
 			css: (t) => ``
 		};
 	}
+
+	function isRightToLeft() {
+		return document.documentElement.dir === 'rtl';
+	}
+
+	// Function to handle key presses
+	// function handleKeyPress(event: KeyboardEvent) {
+	// 	if (event.altKey && event.key === 's') {
+	// 	}
+	//}
 </script>
 
-<!-- Start  Nav Button-->
+<!-- Start Nav Button-->
 <div
 	bind:this={firstCircle}
 	aria-label="Open navigation"
@@ -238,7 +274,7 @@
 	use:drag
 	class="circle flex touch-none items-center justify-center bg-tertiary-500"
 	style="top:{(Math.min(buttonInfo.y, window.innerHeight - buttonRadius) / window.innerHeight) * 100}%;left:{(Math.min(
-		buttonInfo.x,
+		isRightToLeft() ? buttonRadius : buttonInfo.x, // Change left position based on RTL
 		window.innerWidth - buttonRadius
 	) /
 		window.innerWidth) *
@@ -287,10 +323,10 @@
 					showRoutes = false;
 				}
 			}}
-			class="circle flex items-center justify-center bg-primary-500"
+			class="circle flex items-center justify-center border-2 bg-gray-600"
 			style="top:{center.y}px;left:{center.x}px;visibility:hidden; animation: showEndPoints 0.2s 0.2s forwards"
 		>
-			<iconify-icon width="30" style="color:white" icon="solar:home-bold" />
+			<iconify-icon width="32" style="color:white" icon="solar:home-bold" />
 		</div>
 
 		{#each endpoints.slice(1, endpoints.length) as endpoint, index}
@@ -303,11 +339,11 @@
 					endpoint?.url?.external ? (location.href = endpoint?.url?.path || '/') : goto(endpoint?.url?.path || '/');
 					showRoutes = false;
 				}}
-				class="circle flex items-center justify-center bg-tertiary-500 opacity-0"
+				class="circle flex items-center justify-center {endpoint.color || 'bg-tertiary-500'}"
 				style="top:{endpoint.y}px;left:{endpoint.x}px;animation: showEndPoints 0.2s 0.4s forwards"
 			>
 				<!-- Icon for the button -->
-				<iconify-icon width="30" style="color:white" icon={endpoint.icon} />
+				<iconify-icon width="32" style="color:white" icon={endpoint.icon} />
 			</div>
 		{/each}
 	</button>

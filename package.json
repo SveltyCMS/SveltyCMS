@@ -97,7 +97,7 @@
 	},
 	"type": "module",
 	"dependencies": {
-		"@floating-ui/dom": "^1.6.4",
+		"@floating-ui/dom": "^1.6.5",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tiptap/core": "^2.3.1",
