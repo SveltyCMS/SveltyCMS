@@ -1,6 +1,6 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { convertTimestampToDateString, getFieldName } from '@src/utils/utils';
+	import { convertTimestampToDateString, getFieldName, add_meta_data } from '@src/utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

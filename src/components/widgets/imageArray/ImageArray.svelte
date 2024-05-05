@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { saveFormData } from '@src/utils/utils';
+	import { saveFormData, getFieldName } from '@src/utils/utils';
 	import type { FieldType } from '.';
 
 	// Stores
@@ -26,7 +26,7 @@
 	let collapsedAll = false;
 
 	if (field.db_fieldName) {
-		name = field.db_fieldName;
+		name = getFieldName(field);
 	} else {
 		name = 'defaultName';
 	}
@@ -35,6 +35,10 @@
 		//console.log('files:', files);
 		for (let i = 0; i < files.length; i++) {
 			const fieldsData = _fieldsValue[i];
+
+			for (let key in fieldsData) {
+				console.log(await fieldsData[key]());
+			}
 
 			// Generate UUID for each file
 			fieldsData.id = crypto.randomUUID();

@@ -14,7 +14,7 @@ import type { MediaImage } from './types';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
+import { translationProgress, contentLanguage, entryData, mode, collections, collection, collectionValue } from '@stores/store';
 
 // Auth
 import { UserSchema } from '@src/auth/types';
@@ -520,6 +520,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 		throw new Error('ID is required for edit mode.');
 	}
 	if (!formData) return;
+	if (data._meta_data) formData.append('_meta_data', JSON.stringify(data._meta_data));
 
 	// Define status for each collection
 	formData.append('status', $collection.status || 'unpublished');
@@ -953,3 +954,19 @@ export const get_elements_by_id = {
 export const createRandomID = (id?: string) => {
 	return id ? new mongoose.Types.ObjectId(id) : new mongoose.Types.ObjectId();
 };
+
+export function add_meta_data(key: 'media_images_remove', data) {
+	collectionValue.update((value) => {
+		if (!value._meta_data) value._meta_data = {};
+		switch (key) {
+			case 'media_images_remove':
+				if (!value?._meta_data?.media_images) value._meta_data.media_images = { removed: [] };
+				value._meta_data.media_images.removed.push(data);
+				break;
+		}
+		return {
+			...value,
+			...data
+		};
+	});
+}

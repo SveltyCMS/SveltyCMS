@@ -6,6 +6,9 @@ import { getFieldName, getGuiFields } from '@utils/utils';
 import type { Params as ImageUpload_Params } from '../imageUpload/types';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
+import type { ModifyRequestParams } from '..';
+import widgets from '..';
+
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
 
@@ -69,6 +72,25 @@ const widget = (params: Params) => {
 
 	// Return the field and widget objects
 	return { ...field, widget };
+};
+
+widget.modifyRequest = async ({ field, data, user, type, id, collection, meta_data }: ModifyRequestParams<typeof widget>) => {
+	const _data = data.get();
+	console.log('data:', _data);
+	return;
+	for (const _field of field.fields) {
+		const widget = widgets[_field.widget.Name];
+		if ('modifyRequest' in widget) {
+			await widget.modifyRequest({
+				collection,
+				field: _field as ReturnType<typeof widget>,
+				data: _data[getFieldName(_field)],
+				user,
+				type,
+				id
+			});
+		}
+	}
 };
 
 // Assign Name, GuiSchema and GraphqlSchema to the widget function

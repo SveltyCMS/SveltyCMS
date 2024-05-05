@@ -71,6 +71,7 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 	data: { get: () => any; update: (newData) => void };
 	user: User;
 	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
+	meta_data?: { [key: string]: any };
 };
 
 // Define the widget type

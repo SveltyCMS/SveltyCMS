@@ -141,7 +141,15 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 								entry[fieldName] = newData;
 							}
 						};
-						await widget.modifyRequest({ collection, field, data, user, type: 'GET' });
+						await widget.modifyRequest({
+							collection,
+							field,
+							data,
+							user,
+							type: 'GET',
+							id: entry._id,
+							meta_data: entry.meta_data
+						});
 					}
 				}
 				return entry;
