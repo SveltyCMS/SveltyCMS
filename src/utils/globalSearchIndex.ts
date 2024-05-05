@@ -1,7 +1,7 @@
 // Create a Global Search Index
 import { writable } from 'svelte/store';
 
-// globalSearchIndex
+// GlobalSearchIndex
 let modalEditAvatar: any;
 let modalUserForm: any;
 let showUserList: any;
@@ -116,5 +116,11 @@ export const globalSearchIndex = writable<SearchData[]>([
 		description: 'Configure the system settings.',
 		keywords: ['configuration', 'settings', 'system'],
 		triggers: { 'Go to Configuration': { path: '/config', action: [() => {}] } }
+	},
+	{
+		title: 'System Builder',
+		description: 'Build and customize your collections.',
+		keywords: ['builder', 'collection', 'configuration', 'settings', 'system', 'permissions'],
+		triggers: { 'Go to System Builder': { path: '/collection', action: [() => {}] } }
 	}
 ]);

@@ -3,10 +3,10 @@ import type { Model } from './types';
 import crypto from 'crypto';
 
 // Function to check if the current time is within the token expiration time
-function isWithinExpiration(expiresInMs: number) {
+function isWithinExpiration(expiresAt: Date) {
 	const currentTime = Date.now();
-	if (currentTime > expiresInMs) return false;
-	return true;
+	const bufferTime = 5 * 60 * 1000; // 5 minutes buffer
+	return currentTime < expiresAt.getTime() - bufferTime;
 }
 
 // Function to create a new token

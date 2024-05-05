@@ -1,5 +1,6 @@
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import { dev } from '$app/environment';
 
 // Stores
 import { collections } from '@stores/store';
@@ -10,6 +11,7 @@ import { Auth } from '@src/auth';
 import { mongooseSessionSchema, mongooseTokenSchema, mongooseUserSchema } from '@src/auth/types';
 
 // OAuth
+import { google } from 'googleapis';
 
 // mongoose
 import mongoose from 'mongoose';
@@ -119,16 +121,22 @@ const auth = new Auth({
 });
 
 // Google OAuth2 - optional authentication
-let googleAuth: any;
+let googleAuth: any = null;
 
 if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
-	// googleAuth = google(auth, {
-	// 	clientId: privateEnv.GOOGLE_CLIENT_ID,
-	// 	clientSecret: privateEnv.GOOGLE_CLIENT_SECRET,
-	// 	redirectUri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/oauth`,
-	// 	scope: ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'],
-	// 	accessType: dev ? 'offline' : 'online'
-	// });
+	const oauth2Client = new google.auth.OAuth2(
+		privateEnv.GOOGLE_CLIENT_ID,
+		privateEnv.GOOGLE_CLIENT_SECRET,
+		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/oauth`
+	);
+
+	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+
+	oauth2Client.setCredentials({
+		scope: scopes.join(' ')
+	});
+
+	googleAuth = oauth2Client;
 } else {
 	console.warn('Google client ID and secret not provided. Google OAuth will not be available.');
 }

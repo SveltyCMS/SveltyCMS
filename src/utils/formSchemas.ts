@@ -47,6 +47,7 @@ export const loginFormSchema = z.object({
 	password,
 	isToken: z.boolean()
 });
+
 // SignIn Forgotten Password ------------------------------------
 export const forgotFormSchema = z.object({
 	email: z.string({ required_error: m.formSchemas_EmailisRequired() }).email({ message: m.formSchemas_Emailvalid() })
@@ -83,6 +84,13 @@ export const signUpFormSchema = z
 		message: m.formSchemas_Passwordmatch(),
 		path: ['confirm_password'] // Set error on confirm_password field
 	});
+
+// Google Oauth token ------------------------------------
+export const signUpOAuthFormSchema = z.object({
+	// username
+	// token
+	lang: z.string()
+});
 
 // Validate New User Token ------------------------------------
 export const addUserTokenSchema = z.object({

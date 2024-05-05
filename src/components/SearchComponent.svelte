@@ -78,7 +78,7 @@
 	function handleResultClick(result: any, triggerKey: string) {
 		const trigger = result.triggers[triggerKey];
 
-		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger && trigger.action?.length > 0) {
+		if (typeof trigger === 'object' && trigger !== null && 'path' in trigger && 'action' in trigger) {
 			const { path, action } = trigger;
 			const actions = action || [];
 
@@ -93,7 +93,8 @@
 			// Close the search component
 			isSearchVisible.set(false);
 		} else {
-			console.error('Error: trigger, trigger.path, or trigger.action is undefined');
+			console.log('Action is undefined, navigating to path:', trigger.path); // Informative message
+			goto(trigger.path); // Navigate to the path
 		}
 	}
 
@@ -146,7 +147,7 @@
 		/>
 
 		<!-- Search results -->
-		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 bg-surface-active-token">
+		<ul class="mt-1 grid w-full max-w-xl overflow-auto rounded px-2 py-1 leading-loose bg-surface-active-token">
 			{#each searchResults as result (result.title)}
 				<button
 					class="border-b text-white last:border-0 last:pb-2 hover:bg-surface-400"
@@ -164,6 +165,7 @@
 						</span>
 
 						<!-- Path for items with one trigger -->
+
 						{#if Object.entries(result.triggers).length === 1}
 							{#each Object.entries(result.triggers) as trigger}
 								<span class="w-[50px] text-xs text-primary-500">

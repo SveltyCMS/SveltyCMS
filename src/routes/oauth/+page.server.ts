@@ -1,11 +1,10 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import mongoose from 'mongoose';
 
 // Auth
 import { auth, googleAuth } from '@api/db';
 import type { User } from '@src/auth/types';
-import { consumeToken } from '@src/auth/tokens';
+import mongoose from 'mongoose';
 
 let OAuth: any = null;
 
@@ -40,15 +39,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 			const username = googleUser.name ?? '';
 
-			const isFirst = (await mongoose.models['auth_key'].countDocuments()) == 0;
+			const isFirst = (await auth.getUserCount()) != 0;
+
 			if (isFirst) {
 				const user = await createUser({
-					attributes: {
-						email: googleUser.email,
-						username,
-						role: 'admin',
-						blocked: false
-					}
+					email: googleUser.email,
+					username,
+					role: 'admin',
+					blocked: false
 				});
 
 				await fetch('/api/sendMail', {
@@ -78,12 +76,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			if (!user) throw new Error('User not found.');
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
 
-			// Create USer Session
-			const session = await auth.createSession({ user_id: user._id });
-
+			// Create User Session
+			const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(user.id) });
 			const sessionCookie = auth.createSessionCookie(session);
-
-			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
 		}
 		result.data = { needSignIn };
 	} catch (e) {
@@ -98,7 +95,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 export const actions: Actions = {
 	// default action
-	default: async ({ request, url, fetch, cookies }) => {
+	default: async ({ request, url, cookies }) => {
 		const data = await request.formData();
 		const token = data.get('token');
 
@@ -108,7 +105,8 @@ export const actions: Actions = {
 			message: '',
 			data: {}
 		};
-		if (!token || typeof token != 'string') {
+
+		if (!token || typeof token !== 'string') {
 			result.errors.push('Token not found');
 			result.success = false;
 			return result;
@@ -118,79 +116,82 @@ export const actions: Actions = {
 		const state = url.searchParams.get('state');
 		const { stateCookie, lang } = JSON.parse(cookies.get('google_oauth_state') ?? '{}');
 
-		if (!code || !state || !stateCookie || state != stateCookie) redirect(302, '/login');
-
+		if (!code || !state || !stateCookie || state !== stateCookie) {
+			redirect(302, '/login');
+		}
 		try {
 			const { getExistingUser, googleUser, createUser } = OAuth;
 
-			const getUser = async (): Promise<[User | null, boolean]> => {
-				const existingUser = await getExistingUser();
-				if (existingUser) return [existingUser, false];
+			// Get existing user if available
+			const existingUser = await getExistingUser();
 
-				/// Probably will never happen but just to be sure.
-				if (!googleUser.email) {
-					throw new Error('Google did not return an email address.');
-				}
-
-				const userkey = await auth.useKey('email', googleUser.email, null).catch(() => null);
-				if (!userkey) throw new Error('User not found.');
-				// TODO: change it to consumeToken
-				const validate = await consumeToken(token, userkey.userId, 'register');
-				if (!validate.status) {
-					result.errors.push(validate.message);
-					result.success = false;
-					return [null, false];
-				}
-				const prevUser = await auth.getUser(userkey.userId).catch(() => null);
-				if (!prevUser) throw new Error('User not found.');
-
-				// remove key & user
-				await auth.deleteKey(userkey.providerId, userkey.providerUserId);
-				await auth.deleteUser(prevUser.userId);
-
-				const user = await createUser({
-					attributes: {
-						email: googleUser.email,
-						username: googleUser.name ?? '',
-						role: (prevUser as any).role,
-						blocked: false
+			// If the user doesn't exist, create a new one
+			if (!existingUser) {
+				const sendWelcomeEmail = async (email: string, username: string) => {
+					try {
+						await fetch('/api/sendMail', {
+							method: 'POST',
+							headers: {
+								'Content-Type': 'application/json'
+							},
+							body: JSON.stringify({
+								email,
+								subject: `New registration ${username}`,
+								message: `New registration ${username}`,
+								templateName: 'welcomeUser',
+								lang,
+								props: {
+									username,
+									email
+								}
+							})
+						});
+					} catch (error) {
+						console.error('Error sending welcome email:', error);
+						throw new Error('Failed to send welcome email');
 					}
+				};
+
+				// Check if it's the first user
+				const isFirst = (await auth.getUserCount()) === 0;
+
+				// Create User
+				const user = await createUser({
+					email: googleUser.email,
+					username: googleUser.name ?? '',
+					role: isFirst ? 'admin' : 'user',
+					lastAuthMethod: 'password',
+					is_registered: true,
+					blocked: false
 				});
 
-				return [user, true];
-			};
+				// Send welcome email
+				await sendWelcomeEmail(googleUser.email, googleUser.name);
 
-			const [user, needSignIn] = await getUser();
+				// Create User Session
+				const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(user.id) });
+				const sessionCookie = auth.createSessionCookie(session);
+				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+				await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
 
-			if (!user) throw new Error('User not found.');
-			if (needSignIn) {
-				await fetch('/api/sendMail', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
-						email: googleUser.email,
-						subject: `New registration ${googleUser.name} `,
-						message: `New registration ${googleUser.name} `,
-						templateName: 'welcomeUser',
-						lang: lang,
-						props: {
-							username: googleUser.name,
-							email: googleUser.email
-						}
-					})
-				});
+				result.data = { user };
+			} else {
+				// User already exists, consume token
+				const validate = await auth.consumeToken(token, existingUser._id); // Consume the token
+
+				if (validate) {
+					// Create User Session
+					const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(existingUser.id) });
+					const sessionCookie = auth.createSessionCookie(session);
+					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+					await auth.updateUserAttributes(existingUser, { lastAuthMethod: 'password' });
+
+					result.data = { user: existingUser };
+				} else {
+					result.errors.push('Invalid token');
+					result.success = false;
+				}
 			}
-
-			// Create User Session
-			const session = await auth.createSession({ user_id: user._id });
-
-			const sessionCookie = auth.createSessionCookie(session);
-
-			cookies.set(sessionCookie.name, sessionCookie.value, { path: '/' });
-
-			result.data = { user };
 		} catch (e) {
 			console.error('error:', e);
 			redirect(302, '/login');

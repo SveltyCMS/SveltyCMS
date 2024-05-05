@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 import { fail } from '@sveltejs/kit';
 import { message, superValidate } from 'sveltekit-superforms';
 import { zod } from 'sveltekit-superforms/adapters';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { dev } from '$app/environment';
 
 // load and validate login and sign up forms
@@ -130,8 +130,8 @@ export const actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		// const lang = signUpOAuthForm.data.lang;
+		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+		const lang = signUpOAuthForm.data.lang;
 		const [url, state] = await googleAuth.getAuthorizationUrl();
 
 		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
