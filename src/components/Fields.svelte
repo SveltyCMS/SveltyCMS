@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { asAny, getFieldName } from '@utils/utils';
+	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
 	const user = $page.data.user;
@@ -22,6 +22,8 @@
 	export let customData = {};
 
 	$: if (root) $collectionValue = fieldsData;
+
+	const modules = import.meta.glob('@src/components/widgets/*/*.svelte');
 
 	let apiUrl = '';
 
@@ -125,9 +127,9 @@
 									</div>
 
 									<!-- Widget Input -->
-									{#await import(`@src/components/widgets/${field.widget.Name}/${field.widget.Name}.svelte`) then widget}
+									{#await modules[`/src/components/widgets/${pascalToCamelCase(field.widget.Name)}/${field.widget.Name}.svelte`]() then widget}
 										<svelte:component
-											this={widget.default}
+											this={asAny(widget).default}
 											field={asAny(field)}
 											bind:WidgetData={fieldsData[getFieldName(field)]}
 											value={customData[getFieldName(field)]}

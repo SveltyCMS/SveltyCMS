@@ -970,3 +970,7 @@ export function add_meta_data(key: 'media_images_remove', data) {
 		};
 	});
 }
+
+export const pascalToCamelCase = (str: string) => {
+	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
+}
