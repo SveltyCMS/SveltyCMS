@@ -188,9 +188,9 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 				type: file.type,
 				size: file.size,
 				width: info.width,
-				height: info.height,
-				createdAt: new Date(),
-				lastModified: new Date(file.lastModified)
+				height: info.height
+				// createdAt: new Date(),
+				// lastModified: new Date(file.lastModified)
 			}
 		};
 
@@ -239,9 +239,9 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 				type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
 				size: resizedImage.info.size,
 				width: resizedImage.info.width,
-				height: resizedImage.info.height,
-				createdAt: new Date(),
-				lastModified: new Date(file.lastModified)
+				height: resizedImage.info.height
+				// createdAt: new Date(),
+				// lastModified: new Date(file.lastModified)
 			};
 		}
 
@@ -302,9 +302,9 @@ export async function saveDocument(file: File, collectionName: string) {
 					name: `${hash}-${blob.name}`,
 					url,
 					type: blob.type,
-					size: blob.size,
-					createdAt: new Date(),
-					lastModified: new Date(blob.lastModified)
+					size: blob.size
+					// createdAt: new Date(),
+					// lastModified: new Date(blob.lastModified)
 				}
 			};
 
@@ -345,9 +345,9 @@ export async function saveVideo(file: File, collectionName: string) {
 			name: `${hash}-${fileNameWithoutExt}.${ext}`,
 			type: file.type,
 			size: file.size,
-			icon: iconName, // URL to the icon
-			createdAt: new Date(),
-			lastModified: new Date(file.lastModified)
+			icon: iconName // URL to the icon
+			// createdAt: new Date(),
+			// lastModified: new Date(file.lastModified)
 		};
 
 		// Store the file in the appropriate location
@@ -378,9 +378,9 @@ export async function saveAudio(file: File, collectionName: string) {
 			name: `${hash}-${fileNameWithoutExt}.${ext}`,
 			type: file.type,
 			size: file.size,
-			icon: iconName, // URL to the icon
-			createdAt: new Date(),
-			lastModified: new Date(file.lastModified)
+			icon: iconName // URL to the icon
+			// createdAt: new Date(),
+			// lastModified: new Date(file.lastModified)
 		};
 
 		// Store the file in the appropriate location
@@ -425,8 +425,8 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string): 
 			new mongoose.Schema({
 				name: String,
 				url: String,
-				hash: String,
-				createdAt: Date
+				hash: String
+				// createdAt: Date
 			})
 		);
 
@@ -973,4 +973,4 @@ export function add_meta_data(key: 'media_images_remove', data) {
 
 export const pascalToCamelCase = (str: string) => {
 	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
-}
+};

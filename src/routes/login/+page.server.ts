@@ -25,16 +25,7 @@ export const load = async (event) => {
 		throw redirect(302, '/');
 	}
 
-	// Check if the URL has the token and email parameters
-	// const url = new URL(event.request.url);
-	// const token = url.searchParams.get('token');
-	// const email = url.searchParams.get('email');
-
-	// let resetData = null;
-	// if (token && email) {
-	// 	resetData = { token, email };
-	// }
-
+	// Check if first user exist
 	const firstUserExists = (await auth.getUserCount()) != 0;
 
 	// Different schemas, so no id required.
@@ -130,17 +121,24 @@ export const actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
+		console.log('OAuth call');
 		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+		console.log('signUpOAuthForm', signUpOAuthForm);
 		const lang = signUpOAuthForm.data.lang;
-		const [url, state] = await googleAuth.getAuthorizationUrl();
+		console.log('lang', lang);
 
-		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
-			path: '/', // redirect
-			httpOnly: true, // only readable in the server
-			maxAge: 60 * 60 // a reasonable expiration date 1 hour
-		});
-
-		redirect(302, url);
+		try {
+			const [url, state] = await googleAuth.getAuthorizationUrl(`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`);
+			// Set cookies
+			event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
+				path: '/', // redirect
+				httpOnly: true, // only readable in the server
+				maxAge: 60 * 60 // a reasonable expiration date 1 hour
+			});
+			redirect(302, url);
+		} catch (error) {
+			console.error('Error during OAuth callback:', error);
+		}
 	},
 
 	//Function for handling the SignIn form submission and user authentication

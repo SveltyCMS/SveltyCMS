@@ -108,9 +108,9 @@ async function saveAvatarImage(file: File, path: 'avatars' | string) {
 				type: `image/${format}`,
 				size: file.size,
 				width: info.width,
-				height: info.height,
-				createdAt: new Date(),
-				lastModified: new Date(file.lastModified)
+				height: info.height
+				// createdAt: new Date(),
+				// lastModified: new Date(file.lastModified)
 			}
 		};
 

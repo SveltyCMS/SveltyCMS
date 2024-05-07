@@ -127,7 +127,7 @@ if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 	const oauth2Client = new google.auth.OAuth2(
 		privateEnv.GOOGLE_CLIENT_ID,
 		privateEnv.GOOGLE_CLIENT_SECRET,
-		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/oauth`
+		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 	);
 
 	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];

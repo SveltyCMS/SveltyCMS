@@ -236,7 +236,7 @@
 							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
-						<form method="post" action="?/OAuth" class="w-fit">
+						<form method="post" action="?/OAuth" class="w-1/4">
 							<button type="submit" class="btn w-full">
 								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
 								<span class="">OAuth</span>

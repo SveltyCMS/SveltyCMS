@@ -6,6 +6,8 @@
 	// Auth
 	const user = $page.data.user;
 	avatarSrc.set(user?.avatar);
+	console.log(user);
+	console.log(avatarSrc);
 
 	// Stores
 	import { page } from '$app/stores';
