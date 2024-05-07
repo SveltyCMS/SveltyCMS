@@ -1,12 +1,12 @@
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { convertTimestampToDateString, getFieldName, add_meta_data } from '@src/utils/utils';
+	import { convertTimestampToDateString, getFieldName, meta_data } from '@src/utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { entryData } from '@stores/store';
+	import { entryData, mode } from '@stores/store';
 
 	// Components
 	import type { MediaImage } from '@src/utils/types';
@@ -28,7 +28,13 @@
 			}
 		}
 
-		return updated ? _data : null;
+		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && $mode == 'edit') {
+			//send replaced media's id so we can remove it from media_images usage
+			meta_data.add('media_images_remove', [value._id.toString()]);
+		}
+
+		//if not updated value is not changed and is MediaImage type so send back only id
+		return updated || $mode == 'create' ? _data : { _id: (value as MediaImage)?._id };
 	};
 
 	// Skeleton

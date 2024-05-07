@@ -1,6 +1,6 @@
 <script lang="ts">
 	import axios from 'axios';
-	import { asAny, debounce, getFieldName } from '@src/utils/utils';
+	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -270,6 +270,7 @@
 
 	// Reset entryData when mode changes
 	mode.subscribe(() => {
+		meta_data.clear();
 		if ($mode == 'view') {
 			entryData.set({});
 		}

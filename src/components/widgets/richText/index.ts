@@ -56,19 +56,42 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyRequestParams<typeof widget>) => {
 	switch (type) {
 		case 'POST':
 		case 'PATCH':
 			let images = data.get().images;
 			let _data = data.get().data;
+			let _id;
 
-			for (const id in images) {
-				const { fileInfo, id: _id } = await saveImage(images[id], collection.name);
-				for (const lang in _data.content) {
-					_data.content[lang] = _data.content[lang].replace(id, fileInfo.original.url);
+			for (const id of (_data.content['en'] as string).matchAll(/media_image="(.+?)"/gms)) {
+				// Images from richtext content itself
+				images[id[1]] = new mongoose.Types.ObjectId(id[1]);
+			}
+
+			for (const img_id in images) {
+				if (images[img_id] instanceof File) {
+					// Locally selected new images
+					const res = await saveImage(images[img_id], collection.name);
+					const fileInfo = res.fileInfo;
+					_id = res.id;
+					for (const lang in _data.content) {
+						_data.content[lang] = _data.content[lang].replace(`src="${img_id}"`, `src="${fileInfo.original.url}" media_image="${_id}"`);
+					}
+				} else {
+					// Selected from Media images
+					_id = new mongoose.Types.ObjectId(images[img_id]);
 				}
-				type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } }));
+				if (meta_data?.media_images?.removed && _id) {
+					const removed = meta_data?.media_images?.removed as string[];
+					let index = removed.indexOf(_id.toString());
+
+					while (index != -1) {
+						removed.splice(index, 1);
+						index = removed.indexOf(_id.toString());
+					}
+				}
+
 				await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
 			}
 			data.update(_data);

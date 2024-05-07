@@ -1,10 +1,9 @@
 import ImageExtension from '@tiptap/extension-image';
-
 declare module '@tiptap/core' {
 	interface Commands<ReturnType> {
 		imageResize: {
 			setImageFloat: (size: 'left' | 'right' | 'unset') => ReturnType;
-			setImage: (options: { src: string; alt?: string; title?: string; id: string }) => ReturnType;
+			setImage: (options: { src: string; alt?: string; title?: string; id?: string; media_image?: string }) => ReturnType;
 		};
 	}
 }
@@ -13,7 +12,8 @@ const ImageResize = ImageExtension.extend({
 	addOptions() {
 		return {
 			...this.parent?.(),
-			id: null
+			id: null,
+			media_image: null
 		};
 	},
 	addCommands() {
@@ -30,6 +30,10 @@ const ImageResize = ImageExtension.extend({
 			id: {
 				default: null
 			},
+			media_image: {
+				default: null,
+				parseHTML: (element) => (element.firstChild as HTMLElement).getAttribute('media_image')
+			},
 			src: {
 				default: null,
 				parseHTML: (element) => (element.firstChild as HTMLElement).getAttribute('src')
@@ -43,11 +47,11 @@ const ImageResize = ImageExtension.extend({
 				parseHTML: (element) => (element as HTMLElement).style.float
 			},
 			w: {
-				default: '600',
+				default: '200px',
 				parseHTML: (element) => (element as HTMLElement).style.width
 			},
 			h: {
-				default: '600',
+				default: null,
 				parseHTML: (element) => (element as HTMLElement).style.height
 			},
 			marginLeft: {
@@ -76,7 +80,14 @@ const ImageResize = ImageExtension.extend({
 			{
 				style: `text-align: ${HTMLAttributes.textAlign};float: ${HTMLAttributes.float};width: ${HTMLAttributes.w};height: ${HTMLAttributes.h}; margin-left: ${HTMLAttributes.marginLeft}`
 			},
-			['img', { src: HTMLAttributes.id || HTMLAttributes.src, style: 'width: 100%; height: 100%; cursor:pointer' }]
+			[
+				'img',
+				{
+					media_image: HTMLAttributes.media_image,
+					src: HTMLAttributes.id || HTMLAttributes.src,
+					style: 'width: 100%; height: 100%; cursor:pointer'
+				}
+			]
 		];
 	},
 	parseHTML() {
@@ -95,10 +106,13 @@ const ImageResize = ImageExtension.extend({
 		return ({ editor, HTMLAttributes, node }) => {
 			const { src, alt } = HTMLAttributes;
 			const nodeAttrs = node.attrs as any;
+			nodeAttrs._ = null;
 
 			const container = document.createElement('div');
 			const resizer = document.createElement('div');
 			const img = document.createElement('img');
+			container.style.textAlign = nodeAttrs.textAlign;
+
 			Object.assign(resizer.style, {
 				overflow: 'hidden',
 				resize: 'both',
@@ -107,8 +121,7 @@ const ImageResize = ImageExtension.extend({
 				width: nodeAttrs.w,
 				height: nodeAttrs.h,
 				marginLeft: nodeAttrs.marginLeft,
-				float: nodeAttrs.float,
-				textAlign: nodeAttrs.textAlign
+				float: nodeAttrs.float
 			});
 
 			resizer.appendChild(img);
@@ -123,6 +136,7 @@ const ImageResize = ImageExtension.extend({
 				nodeAttrs.w = resizer.offsetWidth + 'px';
 				nodeAttrs.h = resizer.offsetHeight + 'px';
 			});
+
 			resizeObserver.observe(resizer);
 
 			container.appendChild(resizer);

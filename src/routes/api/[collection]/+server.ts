@@ -180,13 +180,13 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 // Define the PATCH request handler.
 export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 	try {
-		const formData = await request.formData();
+		const data = await request.formData();
 
 		// Get the session cookie.
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 		// Validate the session asynchronously.
-		const user_id = formData.get('user_id') as string;
+		const user_id = data.get('user_id') as string;
 		const user = user_id
 			? ((await auth.checkUser({ _id: user_id })) as User)
 			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
@@ -210,34 +210,34 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Parse the form data asynchronously.
 		const body: any = {};
-		for (const key of formData.keys()) {
+
+		for (const key of data.keys()) {
 			try {
-				body[key] = JSON.parse(formData.get(key) as string, (key, value) => {
+				body[key] = JSON.parse(data.get(key) as string, (key, value) => {
 					if (value?.instanceof == 'File') {
-						const file = formData.get(value.id) as File;
+						const file = data.get(value.id) as File;
 						file.path = value.path;
-						formData.delete(value.id);
+
+						data.delete(value.id);
+						return file;
 					}
 					return value;
 				});
 			} catch (e) {
-				body[key] = formData.get(key) as string;
+				body[key] = data.get(key) as string;
 			}
 		}
 
 		// Get the _id of the entry.
-		const _id = formData.get('_id') as string;
+		const _id = data.get('_id') as string;
 
 		for (const field of collection_schema.fields) {
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			if (field?.permissions?.[user.role]?.write == false) {
-				// if we can't write there is nothing to modify.
-				delete body[fieldName];
-			} else if ('modifyRequest' in widget) {
-				// widget can modify its own portion of body;
-				const fieldData = {
+			if ('modifyRequest' in widget) {
+				// widget can modify own portion of body;
+				const data = {
 					get() {
 						return body[fieldName];
 					},
@@ -245,11 +245,27 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 						body[fieldName] = newData;
 					}
 				};
-				await widget.modifyRequest({ collection, field, data: fieldData, user, type: 'PATCH', id: _id });
+				await widget.modifyRequest({
+					collection,
+					field,
+					data,
+					user,
+					type: 'PATCH',
+					id: new mongoose.Types.ObjectId(_id),
+					meta_data: body._meta_data
+				});
 			}
 		}
 
+		if (body?._meta_data?.media_images?.removed) {
+			await mongoose.models['media_images'].updateMany(
+				{ _id: { $in: body?._meta_data?.media_images?.removed } },
+				{ $pull: { used_by: new mongoose.Types.ObjectId(_id) } }
+			);
+		}
+
 		// Update the entry asynchronously.
+		console.log(body?._meta_data?.media_images?.removed);
 		const response = await collection.updateOne({ _id }, body, { upsert: true });
 
 		// Return the response as a JSON string.
@@ -320,6 +336,9 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		// Set the status to published.
 		body['status'] = 'published';
 
+		if (!collection) return new Response('collection not found!!');
+		body._id = new mongoose.Types.ObjectId();
+
 		// Loop through the collection schema fields asynchronously.
 		await Promise.all(
 			collection_schema.fields.map(async (field: any) => {
@@ -339,7 +358,15 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 							body[fieldName] = newData;
 						}
 					};
-					await widget.modifyRequest({ collection, field, data, user, type: 'POST' });
+					await widget.modifyRequest({
+						collection,
+						field,
+						data,
+						user,
+						type: 'POST',
+						id: body._id,
+						meta_data: body._meta_data
+					});
 				}
 			})
 		);

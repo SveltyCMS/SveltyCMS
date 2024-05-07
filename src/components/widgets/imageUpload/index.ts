@@ -2,7 +2,7 @@ const WIDGET_NAME = 'ImageUpload' as const;
 
 import type { MediaImage } from '@src/utils/types';
 
-import { getFieldName, getGuiFields, get_elements_by_id, saveImage } from '@src/utils/utils';
+import { getFieldName, getGuiFields, get_elements_by_id, meta_data, saveImage } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
 import mongoose from 'mongoose';
@@ -100,12 +100,19 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 			if (_data instanceof File) {
 				_id = (await saveImage(_data, collection.name)).id;
 				data.update(_id);
-			} else {
-				//chosen image from media_images
+			} else if (_data?._id) {
+				//chosen image from _media_images
 				_id = new mongoose.Types.ObjectId(_data._id);
 				data.update(_id);
 			}
-			type === 'PATCH' && (await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: _id } }));
+			if (meta_data?.media_images?.removed && _id) {
+				const removed = meta_data?.media_images?.removed as string[];
+				let index = removed.indexOf(_id.toString());
+				while (index != -1) {
+					removed.splice(index, 1);
+					index = removed.indexOf(_id.toString());
+				}
+			}
 			await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
 			break;
 		case 'DELETE':

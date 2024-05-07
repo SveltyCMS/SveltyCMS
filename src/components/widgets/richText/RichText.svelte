@@ -3,7 +3,7 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
-	import { createRandomID, debounce, getFieldName, updateTranslationProgress } from '@src/utils/utils';
+	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@src/utils/utils';
 
 	// Stores
 	import { entryData, mode, contentLanguage } from '@src/stores/store';
@@ -85,9 +85,9 @@
 
 			content: Object.keys(_data.content).length > 0 ? _data.content[_language] : value.content[_language] || '',
 
-			onTransaction: ({}) => {
+			onTransaction: ({ transaction }) => {
 				// force re-render so `editor.isActive` works as expected
-
+				handleImageDeletes(transaction);
 				editor = editor;
 				deb(() => {
 					let content = editor.getHTML();
@@ -96,8 +96,29 @@
 				});
 			}
 		});
-		fontSize.default = parseInt(getComputedStyle(editor.view.dom).fontSize.replace('px', ''));
 	});
+
+	function handleImageDeletes(transaction) {
+		const getImageIds = (fragment) => {
+			let srcs = new Set();
+			fragment.forEach((node) => {
+				if (node.type.name === 'image') {
+					srcs.add(node.attrs.media_image);
+				}
+			});
+			return srcs;
+		};
+
+		let currentIds = getImageIds(transaction.doc.content);
+		let previousIds = getImageIds(transaction.before.content);
+
+		// Determine which images were deleted
+		let deletedImageIds = [...previousIds].filter((id) => !currentIds.has(id)) as string[];
+
+		if (deletedImageIds.length > 0) {
+			meta_data.add('media_images_remove', deletedImageIds);
+		}
+	}
 
 	onDestroy(() => {
 		if (editor) {
@@ -240,7 +261,7 @@
 	$: editor &&
 		(fontSize =
 			editor.getAttributes('textStyle').fontSize ||
-			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement as HTMLElement).fontSize.replace('px', ''));
+			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement || (element as HTMLElement)).fontSize.replace('px', ''));
 
 	let show = (
 		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'underline' | 'strike' | 'link' | 'fontSize'
@@ -378,7 +399,7 @@
 			<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" />
 			<!-- <FileInput
 				bind:show={showImageDialog}
-				class="absolute top-0 z-10 bg-white"
+				class="absolute bg-white top-0 z-10"
 				on:change={(e) => {
 					let data = e.detail;
 					let url;
@@ -388,8 +409,9 @@
 						images[image_id] = data;
 						editor.chain().focus().setImage({ src: url, id: image_id }).run();
 					} else {
-						url = data.thumbnail.url;
-						editor.chain().focus().setImage({ src: url }).run();
+						url = data.original.url;
+
+						editor.chain().focus().setImage({ src: url, media_image: data._id }).run();
 					}
 				}}
 			/> -->

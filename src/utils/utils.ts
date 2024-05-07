@@ -520,7 +520,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 		throw new Error('ID is required for edit mode.');
 	}
 	if (!formData) return;
-	if (data._meta_data) formData.append('_meta_data', JSON.stringify(data._meta_data));
+	if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
 
 	// Define status for each collection
 	formData.append('status', $collection.status || 'unpublished');
@@ -955,21 +955,33 @@ export const createRandomID = (id?: string) => {
 	return id ? new mongoose.Types.ObjectId(id) : new mongoose.Types.ObjectId();
 };
 
-export function add_meta_data(key: 'media_images_remove', data) {
-	collectionValue.update((value) => {
-		if (!value._meta_data) value._meta_data = {};
+export const meta_data: {
+	meta_data: { [key: string]: any };
+	add: (key: 'media_images_remove', data: string[]) => void;
+	clear: () => void;
+	get: () => { [key: string]: any };
+	is_empty: () => boolean;
+	media_images?: { removed: string[] }; // Define the media_images property as optional
+} = {
+	meta_data: {},
+	add(key, data) {
 		switch (key) {
 			case 'media_images_remove':
-				if (!value?._meta_data?.media_images) value._meta_data.media_images = { removed: [] };
-				value._meta_data.media_images.removed.push(data);
+				if (!this.meta_data?.media_images) this.meta_data.media_images = { removed: [] };
+				this.meta_data.media_images.removed.push(...data);
 				break;
 		}
-		return {
-			...value,
-			...data
-		};
-	});
-}
+	},
+	get() {
+		return this.meta_data;
+	},
+	clear() {
+		this.meta_data = {};
+	},
+	is_empty() {
+		return Object.keys(this.meta_data).length === 0;
+	}
+};
 
 export const pascalToCamelCase = (str: string) => {
 	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
