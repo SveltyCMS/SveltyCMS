@@ -27,7 +27,6 @@
 			type="text"
 			placeholder="Search..."
 			aria-label="Search for items in the table"
-			autofocus
 			bind:value={globalSearchValue}
 			on:keydown={(e) => e.key === 'Enter'}
 			class="input outline-none transition-all duration-500 ease-in-out"
@@ -80,7 +79,6 @@
 	</button>
 
 	<!-- Column Order & Visibility -->
-	<!-- Column Order/ Sort-->
 	<button
 		type="button"
 		on:click={() => {
@@ -94,7 +92,6 @@
 		class="variant-ghost-surface btn-icon"
 	>
 		<iconify-icon icon="fluent:column-triple-edit-24-regular" width="24" />
-		<!--  Column  -->
 	</button>
 
 	<!-- Spacing/Density  -->

@@ -1,9 +1,11 @@
+/**
+ * Do not Edit as the file will be overwritten by Cli Installer !!!
+ *
+ * The PRIVAT configuration for the application,
+ */
+
 import { createPrivateConfig } from './types';
 
-/**
- * The PRIVAT configuration for the application,
- * if changes are made please rebuild/restart your instance
- */
 export const privateEnv = createPrivateConfig({
 	// Define the database connection
 	DB_HOST: 'mongodb://localhost:27017/',

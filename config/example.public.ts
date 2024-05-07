@@ -1,9 +1,12 @@
+/**
+ * Do not Edit as the file will be overwritten by Cli Installer !!!
+ * Rather use 'npm installer' to start the installer
+ *
+ * The PUBLIC configuration for the application,
+ */
+
 import { createPublicConfig } from './types';
 
-/**
- * The PUBLIC configuration for the application,
- * if changes are made please rebuild/restart your instance
- */
 export const publicEnv = createPublicConfig({
 	// The name of the site that this CMS should get.  (default: 'SveltyCMS')
 	SITE_NAME: 'SveltyCMS',
