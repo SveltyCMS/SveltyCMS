@@ -89,9 +89,6 @@ We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://
 
 ```bash
 npm install   # installs all required package dependencies
-
-# If Post Install script is disabled, then also run the following
-# npm run inlang    # build available system languages
 ```
 
 ### Setup Environment Variables
@@ -111,22 +108,7 @@ mv config/example.public.ts config/public.ts
 
 The `config/private.ts` contain sensitive information that you do not want to expose to the public. This includes things like: Database & Email configs, API keys, Secret tokens.
 
-```typescript
-import { createPrivateConfig } from './types';
-export const privateEnv = createPrivateConfig({
-
-	// private configuration settings
-}) => arg;
-```
-
 The `config/public.ts` contains configuration settings that are safe to share with the public, This includes things like: Site name, Language handling, Media configurations.
-
-```typescript
-import { createPublicConfig } from './types';
-export const publicEnv = createPrivateConfig({
-	// public configuration settings
-}) => arg;
-```
 
 ### Start the application for development or production
 
