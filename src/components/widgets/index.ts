@@ -83,6 +83,7 @@ export type WidgetType = {
 
 // Expose the widgets
 export const initWidgets = () => (globalThis.widgets = widgets);
+initWidgets();
 export default widgets as WidgetType;
 
 // Expose the widget context
