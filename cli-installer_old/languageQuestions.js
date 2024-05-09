@@ -1,3 +1,6 @@
+import inquirer from 'inquirer';
+import { confirmAction } from './confirmAction.js';
+
 const languageOptions = [
 	{ name: 'English', value: 'en' },
 	{ name: 'Danish', value: 'da' },
@@ -22,33 +25,57 @@ const languageOptions = [
 	{ name: 'Chinese', value: 'zh' }
 ];
 
-export const languageQuestions = [
+const languageQuestions = [
 	{
 		type: 'list',
 		name: 'DEFAULT_CONTENT_LANGUAGE',
 		message: 'Choose the default content language:',
-		choices: languageOptions.map((option) => option.value),
+		choices: languageOptions.map((option) => ({
+			name: option.name,
+			value: option.value
+		})),
 		default: 'en'
 	},
 	{
 		type: 'checkbox',
 		name: 'AVAILABLE_CONTENT_LANGUAGES',
 		message: 'Select the available content languages:',
-		choices: languageOptions.map((option) => option.value),
+		choices: languageOptions.map((option) => ({
+			name: option.name,
+			value: option.value
+		})),
 		default: ['en', 'de']
 	},
 	{
 		type: 'list',
 		name: 'DEFAULT_SYSTEM_LANGUAGE',
 		message: 'Choose the default system language:',
-		choices: languageOptions.map((option) => option.value),
+		choices: languageOptions.map((option) => ({
+			name: option.name,
+			value: option.value
+		})),
 		default: 'en'
 	},
 	{
 		type: 'checkbox',
 		name: 'AVAILABLE_SYSTEM_LANGUAGES',
 		message: 'Select the available system languages:',
-		choices: languageOptions.map((option) => option.value),
+		choices: languageOptions.map((option) => ({
+			name: option.name,
+			value: option.value
+		})),
 		default: ['en', 'de']
 	}
 ];
+
+export async function promptLanguageSetup() {
+	const answers = await inquirer.prompt(languageQuestions);
+	const action = await confirmAction('Review your language configuration:');
+
+	if (action === 'cancel') {
+		console.log('Language configuration canceled.');
+		return null;
+	}
+
+	return answers;
+}

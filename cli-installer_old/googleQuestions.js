@@ -1,4 +1,7 @@
-export const googleQuestions = [
+import inquirer from 'inquirer';
+import { confirmAction } from './confirmAction.js';
+
+const googleQuestions = [
 	{
 		type: 'input',
 		name: 'GOOGLE_API_KEY',
@@ -23,3 +26,15 @@ export const googleQuestions = [
 		when: (answers) => answers.USE_GOOGLE_OAUTH
 	}
 ];
+
+export async function promptGoogleSetup() {
+	const answers = await inquirer.prompt(googleQuestions);
+	const action = await confirmAction('Review your Google API configuration:');
+
+	if (action === 'cancel') {
+		console.log('Google API configuration canceled.');
+		return null;
+	}
+
+	return answers;
+}

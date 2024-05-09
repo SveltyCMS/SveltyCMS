@@ -1,4 +1,7 @@
-export const redisQuestions = [
+import inquirer from 'inquirer';
+import { confirmAction } from './confirmAction.js';
+
+const redisQuestions = [
 	{
 		type: 'confirm',
 		name: 'USE_REDIS',
@@ -28,3 +31,15 @@ export const redisQuestions = [
 		mask: '*'
 	}
 ];
+
+export async function promptRedisSetup() {
+	const answers = await inquirer.prompt(redisQuestions);
+
+	const action = await confirmAction('Review your Redis configuration:');
+	if (action === 'cancel') {
+		console.log('Redis configuration canceled.');
+		return null;
+	}
+
+	return answers;
+}

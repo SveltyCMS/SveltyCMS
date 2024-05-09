@@ -91,28 +91,21 @@ We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://
 npm install   # installs all required package dependencies
 ```
 
-### Setup Environment Variables and define Database
+### Setup via CLI Installer
 
 This project uses a public/private configuration to store sensitive information, such as API keys and database passwords.
 
-To set up the project, you will need to create two files in the project root directory:
-
-The `config` folder contains two example configuration files that you can rename to get started. Typescript helps you with code completion.
-
-### Create your `config/private.ts` and `config/public.ts` from our example
+To set up the SvelteCMC project, you just need to start the CLI Installer. Minium requirements are a Database and Email to get started :
 
 ```bash
-mv config/example.private.ts config/private.ts
-mv config/example.public.ts config/public.ts
+npm run installer
 ```
 
-The `config/private.ts` contain sensitive information that you do not want to expose to the public. This includes things like: Database & Email configs, API keys, Secret tokens.
+### Start the application for development or production once CLI Installer was run.
 
-The `config/public.ts` contains configuration settings that are safe to share with the public, This includes things like: Site name, Language handling, Media configurations.
+See our `package.json` for more information like development, build, preview, format, lint & testing.
 
-### Start the application for development or production
-
-See our `package.json` for more information like development, build, preview, format, lint & testing. Here the most used commands:
+Here the most used commands:
 
 ```bash
 npm run dev       # run development on localhost:5173

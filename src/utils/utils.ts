@@ -166,11 +166,11 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 		// Original image URL construction
 		let url: string;
 		if (path == 'global') {
-			url = `original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `${publicEnv.MEDIA_FOLDER}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		} else if (path == 'unique') {
-			url = `${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `${publicEnv.MEDIA_FOLDER}/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		} else {
-			url = `${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `${publicEnv.MEDIA_FOLDER}/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		}
 
 		// Prepend MEDIASERVER_URL if it's set
