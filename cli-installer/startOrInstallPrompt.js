@@ -4,17 +4,16 @@ import fs from 'fs';
 import path from 'path';
 import { Title } from './cli-installer.js';
 
-// Function to dynamically import the configuration files
 async function importConfig(filePath) {
 	if (fs.existsSync(filePath)) {
 		try {
 			const configModule = await import(filePath);
-			return configModule.default;
+			return configModule.default || configModule;
 		} catch (error) {
-			console.error(pc.red(`Error importing configuration file: ${error.message}`));
+			console.error(`Error importing configuration file: ${error.message}`);
 		}
 	} else {
-		console.log(pc.yellow(`Configuration file not found: ${filePath}`));
+		console.log(`Configuration file not found: ${filePath}`);
 	}
 	return {};
 }
@@ -38,22 +37,18 @@ export const startOrInstallPrompt = async () => {
 	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
 	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
 
-	// Initialize configuration data objects
-	let privateConfigData = {};
-	let publicConfigData = {};
-
 	// Check if the required files exist
-	const privateExists = fs.existsSync(privateConfigPath);
-	const publicExists = fs.existsSync(publicConfigPath);
+	let privateExists = fs.existsSync(privateConfigPath);
+	let publicExists = fs.existsSync(publicConfigPath);
 
-	// Create backups and import configuration files only if they exist
+	// Create backups and read configuration files only if they exist
 	if (privateExists) {
 		createBackup(privateConfigPath);
-		privateConfigData = await importConfig(privateConfigPath);
+		privateExists = await importConfig(privateConfigPath);
 	}
 	if (publicExists) {
 		createBackup(publicConfigPath);
-		publicConfigData = await importConfig(publicConfigPath);
+		publicExists = await importConfig(publicConfigPath);
 	}
 
 	// Determine the message and options based on the existence of configuration files
@@ -76,8 +71,5 @@ export const startOrInstallPrompt = async () => {
 		];
 	}
 
-	return select({
-		message,
-		options
-	});
+	return select({ message, options });
 };

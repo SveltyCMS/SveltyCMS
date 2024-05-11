@@ -1623,8 +1623,8 @@ packages:
   '@types/semver@7.5.8':
     resolution: {integrity: sha512-I8EUhyrgfLrcTkzV3TSsGyl1tSuPrEDzr0yd5m90UgNxQkyDXULk3b6MlQqTCpZpNtWe1K0hzclnZkTcLBe2UQ==}
 
-  '@types/validator@13.11.9':
-    resolution: {integrity: sha512-FCTsikRozryfayPuiI46QzH3fnrOoctTjvOYZkho9BTFLCOZ2rgZJHMOVgCOfttjPJcgOx52EpkY0CMfy87MIw==}
+  '@types/validator@13.11.10':
+    resolution: {integrity: sha512-e2PNXoXLr6Z+dbfx5zSh9TRlXJrELycxiaXznp4S5+D2M3b9bqJEitNHA5923jhnB2zzFiZHa2f0SI1HoIahpg==}
 
   '@types/webidl-conversions@7.0.3':
     resolution: {integrity: sha512-CiJJvcRtIgzadHCYXw7dqEnMNRjhGZlYK05Mj9OyktqV8uVT8fD2BFOB7S1uwBE3Kj2Z+4UyPmFw/Ixgw/LAlA==}
@@ -6853,7 +6853,7 @@ snapshots:
 
   '@types/semver@7.5.8': {}
 
-  '@types/validator@13.11.9':
+  '@types/validator@13.11.10':
     optional: true
 
   '@types/webidl-conversions@7.0.3': {}
@@ -6956,7 +6956,7 @@ snapshots:
   '@vinejs/vine@1.8.0':
     dependencies:
       '@poppinss/macroable': 1.0.2
-      '@types/validator': 13.11.9
+      '@types/validator': 13.11.10
       '@vinejs/compiler': 2.5.0
       camelcase: 8.0.0
       dayjs: 1.11.11

@@ -10,7 +10,10 @@
 
 	let files: MediaImage[] = [];
 
-	axios.get('/media/getAll').then((res) => (files = res.data));
+	async function refresh() {
+		await axios.get('/media/getAll').then((res) => (files = res.data));
+	}
+	refresh();
 
 	let showInfo = Array.from({ length: files.length }, () => false);
 </script>
@@ -26,7 +29,7 @@
 		{#each files as file, index}
 			<button on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]">
 				<div class="absolute flex w-full items-center bg-[#2c3844]">
-					<button class="ml-[2px] mt-[2px] block w-[30px]" on:click={() => (showInfo[index] = !showInfo[index])}>
+					<button class="ml-[2px] mt-[2px] block w-[30px]" on:click|stopPropagation={() => (showInfo[index] = !showInfo[index])}>
 						<iconify-icon icon="raphael:info" width="25" class="text-[#00d3d0]"></iconify-icon>
 					</button>
 					<p class="mx-auto pr-[30px] text-white">{file.thumbnail.name}</p>

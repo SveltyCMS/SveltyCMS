@@ -12,7 +12,7 @@
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
 	let tabSet: number = 0;
 
-	export let value: File | MediaImage | undefined = undefined;
+	export const value: File | MediaImage | undefined = undefined;
 	export let multiple = false;
 	export let show = true;
 
@@ -25,11 +25,13 @@
 	function handleFileDrop(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
+		console.log('Files dropped');
 
 		const droppedFiles = e.dataTransfer?.files;
 		if (droppedFiles) {
 			for (const file of droppedFiles) {
 				files = [...files, file];
+				console.log('Added file:', file.name);
 			}
 		}
 
@@ -39,12 +41,14 @@
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
+		console.log('Dragging over dropzone');
 		dropZone.style.borderColor = '#6bdfff';
 	}
 
 	function handleDragLeave(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
+		console.log('Dragging left dropzone');
 		dropZone.style.removeProperty('border-color');
 	}
 
@@ -76,8 +80,10 @@
 
 	function onChange() {
 		if (input.files) {
+			console.log('Files selected from input');
 			for (const file of input.files) {
 				files = [...files, file];
+				console.log('Added file:', file.name);
 			}
 		}
 	}
@@ -124,6 +130,7 @@
 						class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 						role="cell"
 						tabindex="0"
+						aria-dropeffect="none"
 					>
 						<div class="grid grid-cols-6 items-center p-4">
 							<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />

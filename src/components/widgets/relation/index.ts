@@ -84,9 +84,10 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	for (const key in relative_collection_schema.fields) {
 		const _field = relative_collection_schema.fields[key];
 		const widget = widgets[_field.widget.Name];
+		result[getFieldName(_field)] = response?.[getFieldName(_field)];
 		const data = {
 			get() {
-				return response[getFieldName(_field)];
+				return response?.[getFieldName(_field)];
 			},
 			update(newData) {
 				result[getFieldName(_field)] = newData;
