@@ -42,7 +42,7 @@ async function main() {
 			cancelOperation();
 		}
 	} else if (projectStart === 'exit') {
-		outro('Thank you for using SveltyCMS CLI installer.');
+		outro('Thank you for using SveltyCMS CLI Installer.');
 		process.exit(0);
 	} else {
 		console.log('Invalid choice.');

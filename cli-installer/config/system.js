@@ -26,7 +26,8 @@ export async function configureSystem() {
 
 	const HOST_PROD = await select({
 		message: 'Enter the Domain name for production:',
-		placeholder: 'https://yourdomain.de',
+		placeholder: 'https://yourdomain.com',
+		initialValue: 'https://sveltycms.com',
 		validate(value) {
 			if (value.length === 0) return `Domain name is required!`;
 		}
@@ -35,6 +36,7 @@ export async function configureSystem() {
 	const PASSWORD_STRENGTH = await select({
 		message: 'Enter the password strength (default: 8):',
 		placeholder: '8',
+		initialValue: '8',
 		validate(value) {
 			const strength = parseInt(value);
 			if (isNaN(strength) || strength < 4) {
@@ -47,6 +49,7 @@ export async function configureSystem() {
 	const BODY_SIZE_LIMIT = await select({
 		message: 'Enter the body size limit (default: 100mb):',
 		placeholder: '100mb',
+		initialValue: '100mb',
 		validate(value) {
 			const regex = /^(\d+)(mb|kb|gb|b)$/i;
 			if (!regex.test(value)) {
@@ -65,10 +68,9 @@ export async function configureSystem() {
 	if (SEASONS) {
 		SEASONS_REGION = await select({
 			message: 'Pick a Region type.',
-			options: [
-				{ value: 'Europe', label: 'Europe', hint: 'Default' }
-				// Add more options here if needed
-			]
+			placeholder: 'Europe',
+			initialValue: 'Europe',
+			options: [{ value: 'Europe', label: 'Europe', hint: 'Default' }]
 		});
 	}
 
@@ -80,7 +82,7 @@ export async function configureSystem() {
 			`PASSWORD_STRENGTH: ${PASSWORD_STRENGTH}\n` +
 			`BODY_SIZE_LIMIT: ${BODY_SIZE_LIMIT}\n` +
 			`SEASONS: ${SEASONS}\n` +
-			`SEASONS_REGION: ${SEASONS_REGION ? SEASONS_REGION : 'Not enabled'}`, // Handle case where SEASONS_REGION is undefined
+			`SEASONS_REGION: ${SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled'}`,
 		pc.green('Review your System configuration:')
 	);
 

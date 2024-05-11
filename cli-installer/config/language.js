@@ -35,13 +35,12 @@ export async function configureLanguage() {
 	const options = languageOptions.map((option) => ({
 		value: option.value,
 		label: `${option.label}`,
-		hint: `${option.label} (${option.value})`
+		hint: `${option.value}`
 	}));
 
 	const answers = {
 		DEFAULT_CONTENT_LANGUAGE: await select({
 			message: 'Choose the default content language. Default is English:',
-			maxItems: 5,
 			options: options,
 			required: true,
 			cursorAt: ['en'],
@@ -50,7 +49,6 @@ export async function configureLanguage() {
 
 		AVAILABLE_CONTENT_LANGUAGES: await multiselect({
 			message: 'Select the available content languages. Default is English/German:',
-			maxItems: 5,
 			options: options,
 			required: true,
 			cursorAt: ['en'],
@@ -59,7 +57,6 @@ export async function configureLanguage() {
 
 		DEFAULT_SYSTEM_LANGUAGE: await select({
 			message: 'Choose the default system language. Default is English:',
-			maxItems: 5,
 			options: options,
 			required: true,
 			cursorAt: ['en'],
@@ -68,7 +65,6 @@ export async function configureLanguage() {
 
 		AVAILABLE_SYSTEM_LANGUAGES: await multiselect({
 			message: 'Select the available system languages. Default is English/German:',
-			maxitems: 5,
 			options: options,
 			required: true,
 			cursorAt: ['en'],

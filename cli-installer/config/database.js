@@ -1,4 +1,4 @@
-import { text, confirm, select, isCancel, cancel, note } from '@clack/prompts';
+import { text, confirm, select, note } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 import mongoose from 'mongoose';
@@ -17,14 +17,26 @@ async function testDatabaseConnection(connectionString) {
 	}
 }
 
-export async function configureDatabase() {
+// Function to extract database connection details from connection string
+function parseConnectionString(connectionString) {
+	const parsed = new URL(connectionString);
+	return {
+		DB_HOST: parsed.host,
+		DB_NAME: parsed.pathname.slice(1),
+		DB_USER: parsed.username,
+		DB_PASSWORD: parsed.password,
+		DB_COMPRESSOR: 'none' // Default compressor, can be extracted if provided in the connection string
+	};
+}
+
+export async function configureDatabase(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
 	// Configure SvelteCMS
 	const projectDatabase = await select({
 		message: 'Choose your database option:',
-		initialValue: 'atlas',
+		initialValue: privateConfigData.SMTP_PROVIDER || 'atlas',
 		options: [
 			{ value: 'atlas', label: 'Use MongoDB Atlas', hint: 'Recommended for Production' },
 			{ value: 'docker', label: 'Use Docker MongoDB', hint: 'Recommended for Development' },
@@ -92,6 +104,9 @@ export async function configureDatabase() {
 		return ConnectionString;
 	}
 
+	// Parse connection string
+	const parsedConfig = parseConnectionString(connectionString);
+
 	// Test database connection
 	const isConnectionSuccessful = await testDatabaseConnection(connectionString);
 
@@ -100,4 +115,25 @@ export async function configureDatabase() {
 		console.error('Database connection test failed. Please check your connection string and try again.');
 		process.exit(1); // Exit the process
 	}
+	// Summary note before saving
+	note(
+		`Connection String: ${connectionString}` +
+			`\nDB_HOST: ${pc.green(parsedConfig.DB_HOST)}` +
+			`\nDB_NAME: ${pc.green(parsedConfig.DB_NAME)}` +
+			`\nDB_USER: ${pc.green(parsedConfig.DB_USER)}` +
+			`\nDB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}` +
+			`\nDB_COMPRESSOR: ${pc.green(parsedConfig.DB_COMPRESSOR)}`,
+		pc.green('Review your Database configuration:')
+	);
+	const confirmSave = await confirm({
+		message: 'Do you want to save the configuration?',
+		initial: true
+	});
+
+	if (!confirmSave) {
+		console.log('Configuration not saved.');
+		process.exit(0); // Exit the process
+	}
+
+	return parsedConfig;
 }

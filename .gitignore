@@ -10,9 +10,10 @@ vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
 # secrets
-
 /config/private.ts
 /config/public.ts
+/config/private.backup.ts
+/config/public.backup.ts
 
 # SveltyCMS
 /tmp

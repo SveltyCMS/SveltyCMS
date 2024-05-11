@@ -1,7 +1,9 @@
-import { isCancel, select } from '@clack/prompts';
+import { isCancel, select, note } from '@clack/prompts';
 import pc from 'picocolors';
 
 import { Title, cancelOperation } from './cli-installer.js';
+import { createOrUpdateConfigFile } from './createOrUpdateConfigFile.js';
+
 import { configureDatabase } from './config/database.js';
 import { configureEmail } from './config/email.js';
 import { configureLanguage } from './config/language.js';
@@ -38,30 +40,65 @@ export const configurationPrompt = async () => {
 		cancelOperation();
 	}
 
+	// Initialize an object to store all the configuration data
+	const configData = {};
+
 	// Switch based on user selection
 	switch (projectConfigure) {
 		case 'Database':
-			return await configureDatabase();
+			configData.database = await configureDatabase();
+			break;
 		case 'Email':
-			return await configureEmail();
+			configData.email = await configureEmail();
+			break;
 		case 'Language':
-			return await configureLanguage();
+			configData.language = await configureLanguage();
+			break;
 		case 'System':
-			return await configureSystem();
+			configData.system = await configureSystem();
+			break;
 		case 'Media':
-			return await configureMedia();
+			configData.media = await configureMedia();
+			break;
 		case 'Google':
-			return await configureGoogle();
+			configData.media = await configureGoogle();
+			break;
 		case 'Redis':
-			return await configureRedis();
+			configData.media = await configureRedis();
+			break;
 		case 'Mapbox':
-			return await configureMapbox();
+			configData.media = await configureMapbox();
+			break;
 		case 'Tiktok':
-			return await configureTiktok(); // Corrected function call
+			configData.media = await configureTiktok();
+			break;
 		case 'OpenAI':
-			return await configureOpenAI(); // Assuming there's a configureOpenAI function
+			configData.media = await configureOpenAI();
+			break;
 		default:
 			console.error('Unexpected selection:', projectConfigure);
 			return null;
+	}
+
+	// Display a summary note before saving
+	const summaryNote = Object.entries(configData)
+		.map(([key, value]) => `${key}:\n${JSON.stringify(value, null, 2)}`)
+		.join('\n\n');
+
+	note(`${summaryNote}`, pc.green('Review your configuration:'));
+
+	const confirmSave = await select({
+		message: 'Do you want to save the configuration?',
+		options: [
+			{ value: 'yes', label: 'Yes' },
+			{ value: 'no', label: 'No' }
+		]
+	});
+
+	if (confirmSave === 'yes') {
+		// Call the createOrUpdateConfigFile function with the collected data
+		await createOrUpdateConfigFile(configData);
+	} else {
+		console.log('Configuration not saved.');
 	}
 };

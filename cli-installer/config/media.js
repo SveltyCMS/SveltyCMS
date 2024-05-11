@@ -57,10 +57,10 @@ export async function configureMedia() {
 
 	// Summary
 	note(
-		`IMAGE_SIZES: ${IMAGE_SIZES}\n` +
+		`IMAGE_SIZES: ${IMAGE_SIZES || ''}\n` +
 			`MEDIA_FOLDER: ${MEDIA_FOLDER}\n` +
 			`MEDIA_OUTPUT_FORMAT_QUALITY: ${JSON.stringify(MEDIA_OUTPUT_FORMAT_QUALITY)}\n` +
-			`MEDIASERVER_URL: ${MEDIASERVER_URL}`,
+			`MEDIASERVER_URL: ${MEDIASERVER_URL || ''}`,
 		pc.green('Review your Media configuration:')
 	);
 
