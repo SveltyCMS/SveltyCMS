@@ -1,21 +1,27 @@
 <script lang="ts">
 	import type { MediaImage } from '@src/utils/types';
-	import { SIZES, formatBytes } from '@src/utils/utils';
+	import { SIZES, formatBytes, debounce } from '@src/utils/utils';
 	import axios from 'axios';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let onselect: any = () => {};
-
 	let files: MediaImage[] = [];
+	let search = '';
+	let searchDeb = debounce(500);
+	let showInfo = Array.from({ length: files.length }, () => false);
+
+	export let onselect: any = () => {};
 
 	async function refresh() {
 		await axios.get('/media/getAll').then((res) => (files = res.data));
 	}
 	refresh();
 
-	let showInfo = Array.from({ length: files.length }, () => false);
+	$: {
+		searchDeb(() => refresh());
+		search;
+	}
 </script>
 
 {#if files.length === 0}
@@ -25,12 +31,16 @@
 		<p class="text-lg">{m.mediagallery_nomedia()}</p>
 	</div>
 {:else}
+	<div class="header flex items-center gap-2">
+		<label for="search" class=" ext-tertiary-500 font-bold dark:text-primary-500">Media</label>
+		<input type="text" bind:value={search} placeholder="Search" class="input" />
+	</div>
 	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
 		{#each files as file, index}
 			<button on:click={() => onselect(file)} class="card relative flex w-[100%] flex-col md:w-[30%]">
-				<div class="absolute flex w-full items-center bg-[#2c3844]">
+				<div class="absolute flex w-full items-center bg-surface-700">
 					<button class="ml-[2px] mt-[2px] block w-[30px]" on:click|stopPropagation={() => (showInfo[index] = !showInfo[index])}>
-						<iconify-icon icon="raphael:info" width="25" class="text-[#00d3d0]"></iconify-icon>
+						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
 					</button>
 					<p class="mx-auto pr-[30px] text-white">{file.thumbnail.name}</p>
 				</div>
@@ -38,7 +48,7 @@
 					<img src={file.thumbnail.url} alt={file.thumbnail.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
-						<tbody>
+						<tbody class="table-compact">
 							{#each Object.keys(SIZES) as size}
 								<tr>
 									<td class="!pl-[10px]">
@@ -59,33 +69,3 @@
 		{/each}
 	</div>
 {/if}
-
-<style>
-	.card {
-		height: 250px;
-		margin: 10px;
-		border-radius: 10px;
-		overflow: hidden;
-		box-shadow: 5px 4px 15px rgb(0 0 0 / 62%);
-		cursor: pointer;
-		overflow: auto;
-	}
-	.card::-webkit-scrollbar-thumb {
-		border-radius: 50px;
-		background-color: #0eb4c4;
-	}
-	.card::-webkit-scrollbar {
-		width: 10px;
-	}
-	td {
-		padding: 10px;
-	}
-	tbody {
-		background-color: #202832;
-		color: white;
-	}
-	tbody tr:nth-child(2n + 1) {
-		padding: 5px 0;
-		background-color: #2c3844;
-	}
-</style>

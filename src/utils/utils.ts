@@ -166,11 +166,11 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 		// Original image URL construction
 		let url: string;
 		if (path == 'global') {
-			url = `${publicEnv.MEDIA_FOLDER}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `/original/${hash}-${sanitizedBlobName}.${ext}`;
 		} else if (path == 'unique') {
-			url = `${publicEnv.MEDIA_FOLDER}/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		} else {
-			url = `${publicEnv.MEDIA_FOLDER}/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
+			url = `/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		}
 
 		// Prepend MEDIASERVER_URL if it's set
@@ -793,7 +793,7 @@ function deepCopy(obj: any) {
 }
 
 export function debounce(delay?: number) {
-	let timer: any;
+	let timer: NodeJS.Timeout | undefined;
 	let first = true;
 	return (fn: () => void) => {
 		if (first) {
@@ -823,46 +823,39 @@ export function getTextDirection(lang: string): string {
 }
 
 // Motion function
-export function motion(start: number, end: number, duration: number, cb: (current: number) => void, useAnimation = true) {
-	const frequency = 16;
-	const d = (start - end) / (duration / frequency);
+export async function motion(start: number[], end: number[], duration: number, cb: (current: number[]) => void) {
+	{
+		const current = [...start];
+		let elapsed = 0;
+		let time = Date.now();
+		let has_passed = false;
+		setTimeout(() => {
+			has_passed = true;
+		}, duration);
+		return new Promise<void>((resolve) => {
+			function animation(current: number[]) {
+				elapsed = Date.now() - time;
+				// console.log(elapsed);
+				const ds = start.map((s, i) => (s - end[i]) / (duration / elapsed));
 
-	if (d === 0) {
-		cb(end);
-		return;
-	}
+				time = Date.now();
+				for (const index in ds) {
+					current[index] -= ds[index];
+				}
 
-	let current = start;
-
-	return new Promise<void>((resolve) => {
-		function animation(current: number) {
-			current -= d;
-
-			if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
-				cb(end);
-				resolve();
-			} else {
-				cb(current);
-				requestAnimationFrame(() => animation(current));
-			}
-		}
-
-		if (useAnimation) {
-			requestAnimationFrame(() => animation(current));
-		} else {
-			const interval = setInterval(async () => {
-				current -= d;
-
-				if ((d < 0 && current >= end) || (d > 0 && current <= end)) {
+				if (has_passed) {
 					cb(end);
-					clearInterval(interval);
 					resolve();
+					return;
 				} else {
 					cb(current);
+					requestAnimationFrame(() => animation(current));
 				}
-			}, frequency);
-		}
-	});
+			}
+
+			requestAnimationFrame(() => animation(current));
+		});
+	}
 }
 
 // Function to calculate Levenshtein distance with fine-tuned parameters
@@ -985,4 +978,8 @@ export const meta_data: {
 
 export const pascalToCamelCase = (str: string) => {
 	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
+};
+
+RegExp.escape = (string) => {
+	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };

@@ -11,6 +11,9 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Media collections
 import { MediaImages, MediaDocuments, MediaAudio, MediaVideos, MediaRemote } from '@api/db';
 
+// Utils
+import { sanitize, saveMedia } from '@src/utils/utils';
+
 export async function load(event: RequestEvent) {
 	// Secure this page with session cookie
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
@@ -39,32 +42,29 @@ export const actions: Actions = {
 			const buffer = fs.readFileSync(filepath);
 
 			// Determine the appropriate collection based on the file type
-			let collection;
+			let collectionName;
 			if (type.startsWith('image/')) {
-				collection = MediaImages;
+				collectionName = 'media_images';
 			} else if (type.startsWith('application/pdf') || type.endsWith('.pdf')) {
-				collection = MediaDocuments;
+				collectionName = 'media_documents';
 			} else if (type.startsWith('audio/')) {
-				collection = MediaAudio;
+				collectionName = 'media_audio';
 			} else if (type.startsWith('video/')) {
-				collection = MediaVideos;
+				collectionName = 'media_videos';
 			} else {
-				collection = MediaRemote;
+				collectionName = 'media_remote';
 			}
 
+			// Save the file using the saveMedia function from utils.ts
+			const { id, fileInfo } = await saveMedia(type, file, collectionName);
+
 			// Save the file to the appropriate collection
+			const collection = mongoose.models[collectionName];
 			const newMedia = new collection({
-				name,
-				type,
-				size,
-				data: buffer,
+				...fileInfo,
 				user: user._id
 			});
 			await newMedia.save();
-
-			// Save the uploaded file to the 'mediaFiles' folder
-			const savePath = path.join(process.cwd(), 'mediaFiles', name);
-			fs.writeFileSync(savePath, buffer);
 		}
 
 		return { success: true };

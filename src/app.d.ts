@@ -22,6 +22,7 @@ declare global {
 	}
 	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
 
+	// Defines the Result type, which represents an object with an errors, success, message, and data properties.
 	type Result = {
 		errors: string[];
 		success: boolean;
@@ -29,6 +30,7 @@ declare global {
 		data: any;
 	};
 
+	// Defines the DISPLAY type, which represents a function that takes an object with data, collection, field, entry, and contentLanguage properties and returns a promise of any.
 	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
 
 	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
@@ -47,8 +49,14 @@ declare global {
 		filters?: ({ field, contentLanguage, filter }: { field: any; contentLanguage: string; filter: string }) => Promise<PipelineStage[]>;
 		sorts?: ({ field, contentLanguage, sort }: { field: any; contentLanguage: string; sort: number }) => Promise<PipelineStage[]>;
 	};
+
+	// Defines the File type, which represents an object with an optional path property.
 	interface File {
 		path?: string;
+	}
+
+	interface RegExpConstructor {
+		escape(str: string): string;
 	}
 }
 

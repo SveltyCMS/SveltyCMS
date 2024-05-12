@@ -1,6 +1,7 @@
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';
+	import type { MediaFiles } from '@src/utils/types';
 
 	// Stores
 	import { entryData, mode, loadingProgress } from '@stores/store';
