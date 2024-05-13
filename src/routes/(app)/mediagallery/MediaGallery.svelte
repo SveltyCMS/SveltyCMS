@@ -246,7 +246,7 @@
 </div>
 
 <div class="wrapper overflow-auto">
-	<div class="mb-2 flex items-center justify-between gap-2 md:gap-4">
+	<div class="mb-2 flex items-center justify-between gap-1 md:gap-3">
 		<!-- Header -->
 		<div class="mb-8 flex w-full flex-col justify-center gap-1">
 			<label for="media-type">{m.MediaGallery_Search()}</label>
@@ -277,7 +277,7 @@
 			</div>
 		</div>
 
-		<!-- Additional Media Type Filter -->
+		<!-- Media Type Filter -->
 		<div class="mb-8 flex flex-col justify-center gap-1">
 			<label for="media-type">{m.MediaGallery_Type()}</label>
 			<div class="input-group">
@@ -297,6 +297,7 @@
 			</button>
 		</div>
 
+		<!-- Display types  -->
 		<div class="flex items-center justify-center gap-4">
 			<!-- Header block -->
 			<!-- Mobile -->

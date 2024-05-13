@@ -4,11 +4,47 @@ import fs from 'fs';
 import path from 'path';
 import { Title } from './cli-installer.js';
 
+import ts from 'typescript';
+
+// Helper function to transpile TypeScript code to JavaScript
+function transpileToJS(tsCode, compilerOptions) {
+	const result = ts.transpileModule(tsCode, {
+		...compilerOptions,
+		module: ts.ModuleKind.CommonJS
+	});
+
+	// Check for compilation errors
+	if (result.diagnostics && result.diagnostics.length > 0) {
+		const errors = result.diagnostics.map((diagnostic) => diagnostic.messageText).join('\n');
+		throw new Error(`TypeScript compilation errors:\n${errors}`);
+	}
+
+	return result.outputText;
+}
+
 async function importConfig(filePath) {
 	if (fs.existsSync(filePath)) {
 		try {
-			const configModule = await import(filePath);
-			return configModule.default || configModule;
+			const tsCode = fs.readFileSync(filePath, 'utf-8');
+			const compilerOptions = {
+				target: ts.ScriptTarget.ESNext, // Compile to ESNext
+				module: ts.ModuleKind.CommonJS
+			};
+			const jsCode = transpileToJS(tsCode, compilerOptions);
+			// Set up a mock require function for CommonJS compatibility
+			const requireMock = (module) => {
+				if (module === 'fs') {
+					return fs;
+				} else if (module === 'path') {
+					return path;
+				}
+				// Add more modules as needed
+				throw new Error(`Cannot find module '${module}'`);
+			};
+			const moduleExports = {};
+			const moduleWrapper = new Function('exports', 'require', jsCode);
+			moduleWrapper(moduleExports, requireMock);
+			return moduleExports.default || moduleExports;
 		} catch (error) {
 			console.error(`Error importing configuration file: ${error.message}`);
 		}
@@ -54,7 +90,6 @@ export const startOrInstallPrompt = async () => {
 	// Determine the message and options based on the existence of configuration files
 	let message;
 	let options;
-
 	// Only add the 'Start' option if both files exist
 	if (privateExists && publicExists) {
 		message = pc.green('Configuration found. What would you like to do?');

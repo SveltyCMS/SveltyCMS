@@ -58,6 +58,7 @@
 		dispatch($storeListboxValue);
 		dropdownOpen = false;
 	}
+
 	// handleOptionClick for Button Dropdown
 	function handleOptionClick(value: string): void {
 		storeListboxValue.set(value as 'create' | 'publish' | 'unpublish' | 'schedule' | 'clone' | 'delete' | 'test');
@@ -83,17 +84,18 @@
 
 <!-- Multibutton group-->
 <div class="variant-filled-token rounded-0 btn-group z-20 mt-1 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
-	<!-- left button -->
+	<!-- Left button -->
 	<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass}`} on:click|preventDefault={handleButtonClick}>
 		<span class="flex items-center rtl:rotate-180">
 			<iconify-icon icon={iconValue} width="24" class="text-white" />
 			<span class="ml-2 hidden md:block rtl:mr-2">{actionname}</span>
 		</span>
 	</button>
-	<!-- white line -->
+
+	<!-- White line -->
 	<div class="border-l-[3px] border-white" />
 
-	<!-- dropdown button -->
+	<!-- Dropdown button -->
 	<button type="button" class="w-[42px] bg-surface-400 dark:bg-surface-600" on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}>
 		<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
 	</button>
