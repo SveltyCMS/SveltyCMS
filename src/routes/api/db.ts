@@ -130,12 +130,6 @@ if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 	);
 
-	const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-
-	oauth2Client.setCredentials({
-		scope: scopes.join(' ')
-	});
-
 	googleAuth = oauth2Client;
 } else {
 	console.warn('Google client ID and secret not provided. Google OAuth will not be available.');
