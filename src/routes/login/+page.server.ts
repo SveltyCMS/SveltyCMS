@@ -127,17 +127,13 @@ export const actions = {
 		const lang = signUpOAuthForm.data.lang;
 		console.log('lang', lang);
 
-		try {
-			const [url, state] = await googleAuth.getAuthorizationUrl(`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`);
-			// Set cookies
-			event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
-				path: '/', // redirect
-				httpOnly: true, // only readable in the server
-				maxAge: 60 * 60 // a reasonable expiration date 1 hour
-			});
-			redirect(302, url);
-		} catch (error) {
-			console.error('Error during OAuth callback:', error);
+		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+		
+		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
+		if (!redirectUrl) {
+			console.error('Error during OAuth callback: Redirect url not generated');
+		} else {
+			redirect(307, redirectUrl);
 		}
 	},
 

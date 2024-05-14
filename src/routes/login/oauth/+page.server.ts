@@ -3,15 +3,18 @@ import type { Actions, PageServerLoad } from './$types';
 
 // Auth
 import { auth, googleAuth } from '@api/db';
+import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';
+import { systemLanguage } from '@stores/store';
+import { get } from 'svelte/store'
 
 let OAuth: any = null;
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
-	const state = url.searchParams.get('state');
-	const { stateCookie, lang } = JSON.parse(cookies.get('google_oauth_state') ?? '{}');
+	console.log('code: ', code);
+	
 
 	const result: Result = {
 		errors: [],
@@ -22,15 +25,18 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	};
 
-	if (!code || !state || !stateCookie || state != stateCookie) redirect(302, '/login');
+	if (!code) redirect(302, '/login');
 
 	try {
-		OAuth = await googleAuth.validateCallback(code);
-		const { getExistingUser, googleUser, createUser } = OAuth;
+		const {tokens} = await googleAuth.getToken(code)
+		googleAuth.setCredentials(tokens);
+		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+
+		const { data: googleUser } = await oauth2.userinfo.get();
+		console.log('googleUser: ', googleUser);
 
 		const getUser = async (): Promise<[User | null, boolean]> => {
-			const existingUser = await getExistingUser();
-
+			const existingUser = await auth.checkUser({ email: googleUser.email });
 			if (existingUser) return [existingUser, false];
 
 			/// Probably will never happen but just to be sure.
@@ -39,10 +45,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 			const username = googleUser.name ?? '';
 
-			const isFirst = (await auth.getUserCount()) != 0;
+			const isFirst = (await auth.getUserCount()) === 0;
 
 			if (isFirst) {
-				const user = await createUser({
+				const user = await auth.createUser({
 					email: googleUser.email,
 					username,
 					role: 'admin',
@@ -59,7 +65,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 						subject: `New registration ${googleUser.name}`,
 						message: `New registration ${googleUser.name}`,
 						templateName: 'welcomeUser',
-						lang: lang,
+						lang: get(systemLanguage),
 						props: {
 							username: googleUser.name,
 							email: googleUser.email
@@ -72,6 +78,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		};
 
 		const [user, needSignIn] = await getUser();
+
 		if (!needSignIn) {
 			if (!user) throw new Error('User not found.');
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
@@ -113,17 +120,22 @@ export const actions: Actions = {
 		}
 
 		const code = url.searchParams.get('code');
-		const state = url.searchParams.get('state');
-		const { stateCookie, lang } = JSON.parse(cookies.get('google_oauth_state') ?? '{}');
+		console.log('code: ', code);
 
-		if (!code || !state || !stateCookie || state !== stateCookie) {
+		if (!code) {
 			redirect(302, '/login');
 		}
 		try {
-			const { getExistingUser, googleUser, createUser } = OAuth;
+			const {tokens} = await googleAuth.getToken(code)
+			googleAuth.setCredentials(tokens);
+			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+
+			const { data: googleUser } = await oauth2.userinfo.get();
+			console.log('googleUser: ', googleUser);
+
 
 			// Get existing user if available
-			const existingUser = await getExistingUser();
+			const existingUser = await auth.checkUser({ email: googleUser.email });
 
 			// If the user doesn't exist, create a new one
 			if (!existingUser) {
@@ -139,7 +151,7 @@ export const actions: Actions = {
 								subject: `New registration ${username}`,
 								message: `New registration ${username}`,
 								templateName: 'welcomeUser',
-								lang,
+								lang: get(systemLanguage),
 								props: {
 									username,
 									email
@@ -156,7 +168,7 @@ export const actions: Actions = {
 				const isFirst = (await auth.getUserCount()) === 0;
 
 				// Create User
-				const user = await createUser({
+				const user = await auth.createUser({
 					email: googleUser.email,
 					username: googleUser.name ?? '',
 					role: isFirst ? 'admin' : 'user',

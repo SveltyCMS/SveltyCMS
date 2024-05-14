@@ -67,7 +67,7 @@ export const color = {
 export const UserSchema = {
 	// Can be changed by /user
 	email: { type: String, required: true }, // The email associated email
-	password: { type: String, required: true }, // The password of the user
+	password: { type: String }, // The password of the user
 	role: { type: String, required: true }, // The role of the user
 	username: String, // The username of the user
 	avatar: String, // The URL of the user's avatar media_image
