@@ -1,24 +1,47 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { asAny } from '@src/utils/utils';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
+	import ModalUploadMedia from './ModalUploadMedia.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, Modal, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent, ModalStore } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 	let tabSet: number = 0;
+
+	// Modal Upload preview
+	function modalAddMedia(): void {
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ModalUploadMedia,
+			// Provide default slot content as a template literal
+			slot: '<p>add Media</p>',
+			props: { mediaType: 'image', sectionName: 'Gallery', files }
+		};
+		const d: ModalSettings = {
+			type: 'component',
+			title: 'Uploaded Media',
+			body: 'Check your uploaded Media and press Save.',
+			component: modalComponent,
+			response: (r: any) => {
+				if (r) {
+					console.log('response:', r);
+				}
+			}
+		};
+		modalStore.trigger(d);
+	}
 
 	export const value: File | MediaImage | undefined = undefined;
 	export let multiple = false;
-	export let show = true;
 
 	let files: File[] = [];
 	let input: HTMLInputElement;
-	let showMedia = false;
 
 	let dropZone: HTMLDivElement;
 
@@ -36,13 +59,14 @@
 		}
 
 		dropZone.style.removeProperty('border-color');
+		modalAddMedia(); // Trigger the modal after files are dropped
 	}
 
 	function handleDragOver(e: DragEvent) {
 		e.preventDefault();
 		e.stopPropagation();
 		console.log('Dragging over dropzone');
-		dropZone.style.borderColor = '#6bdfff';
+		dropZone.style.borderColor = '#5fd317';
 	}
 
 	function handleDragLeave(e: DragEvent) {
@@ -52,39 +76,15 @@
 		dropZone.style.removeProperty('border-color');
 	}
 
-	function generateThumbnail(file: File) {
-		let thumbnailUrl: string | null = null;
-
-		if (file.type.startsWith('image/')) {
-			thumbnailUrl = URL.createObjectURL(file);
-		} else if (file.type === 'application/pdf') {
-			// You can use a third-party library like pdf.js to render PDF thumbnails
-			thumbnailUrl = '/path/to/pdf-thumbnail.png';
-		} else {
-			// Display an icon based on file type
-			thumbnailUrl = `/path/to/file-type-icon.png`;
-		}
-
-		return thumbnailUrl;
-	}
-
-	function handleEdit(file: File) {
-		// Handle the edit action here
-		console.log('Edited file:', file);
-	}
-
-	function handleDelete(file: File) {
-		// Handle the delete action here
-		files = files.filter((f) => f !== file);
-	}
-
 	function onChange() {
 		if (input.files) {
 			console.log('Files selected from input');
-			for (const file of input.files) {
+			for (let i = 0; i < input.files.length; i++) {
+				const file = input.files[i];
 				files = [...files, file];
 				console.log('Added file:', file.name);
 			}
+			modalAddMedia(); // Trigger the modal after files are selected
 		}
 	}
 </script>
@@ -120,83 +120,39 @@
 		<!-- Tab Panels --->
 		<svelte:fragment slot="panel">
 			{#if tabSet === 0}
-				{#if show}
-					<!-- Upload Dropzone -->
-					<div
-						bind:this={dropZone}
-						on:drop={handleFileDrop}
-						on:dragover={handleDragOver}
-						on:dragleave={handleDragLeave}
-						class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
-						role="cell"
-						tabindex="0"
-						aria-dropeffect="none"
-					>
-						<div class="grid grid-cols-6 items-center p-4">
-							<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />
+				<div
+					bind:this={dropZone}
+					on:drop={handleFileDrop}
+					on:dragover={handleDragOver}
+					on:dragleave={handleDragLeave}
+					class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
+					role="cell"
+					tabindex="0"
+					aria-dropeffect="none"
+				>
+					<div class="grid grid-cols-6 items-center p-4">
+						<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />
 
-							<div class="col-span-5 space-y-4 text-center">
-								<p class="font-bold">
-									<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
-									{m.widget_ImageUpload_Drag()}
-								</p>
+						<div class="col-span-5 space-y-4 text-center">
+							<p class="font-bold">
+								<span class="text-tertiary-500 dark:text-primary-500">Media Upload</span>
+								{m.widget_ImageUpload_Drag()}
+							</p>
 
-								<p class="text-sm opacity-75">multiple files allowed</p>
+							<p class="text-sm opacity-75">multiple files allowed</p>
 
-								<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
-									>{m.widget_ImageUpload_BrowseNew()}</button
-								>
+							<button on:click={() => input.click()} class="variant-filled-tertiary btn mt-3 dark:variant-filled-primary"
+								>{m.widget_ImageUpload_BrowseNew()}</button
+							>
 
-								<!-- File Size Limit -->
-								<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
-							</div>
+							<!-- File Size Limit -->
+							<p class="mt-2 text-sm text-tertiary-500 dark:text-primary-500">Max File Size: XX MB</p>
 						</div>
-
-						<!-- File Input -->
-						<input bind:this={input} type="file" hidden {multiple} on:change={onChange} />
 					</div>
 
-					<!-- Show existing Media Images -->
-					{#if showMedia}
-						<div
-							class="bg-surface-100-800-token fixed left-[50%] top-[50%] z-[999999999] flex h-[90%] w-[95%] translate-x-[-50%] translate-y-[-50%] flex-col rounded border-[1px] border-surface-400 p-2"
-						>
-							<div class="bg-surface-100-800-token flex items-center justify-between border-b p-2">
-								<p class="ml-auto font-bold text-black dark:text-primary-500">{m.widget_ImageUpload_SelectImage()}</p>
-								<button on:click={() => (showMedia = false)} class="variant-ghost-secondary btn-icon ml-auto">
-									<iconify-icon icon="material-symbols:close" width="24" class="text-tertiary-500 dark:text-primary-500" />
-								</button>
-							</div>
-							<!-- show all media as card with delete button and edit button -->
-							<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-								{#each files as file}
-									<div class="card">
-										<div class="thumbnail">
-											{#if generateThumbnail(file)}
-												<img src={generateThumbnail(file)} alt={file.name} />
-											{:else}
-												<p>Loading thumbnail...</p>
-											{/if}
-										</div>
-										<div class="file-info">
-											<p class="file-name">{file.name}</p>
-											<p class="file-size">{(file.size / 1024).toFixed(2)} KB</p>
-											<p class="file-type">{file.type}</p>
-										</div>
-										<div class="actions">
-											<button on:click={() => handleEdit(file)}>
-												<iconify-icon icon="material-symbols:edit" />
-											</button>
-											<button on:click={() => handleDelete(file)}>
-												<iconify-icon icon="material-symbols:delete" />
-											</button>
-										</div>
-									</div>
-								{/each}
-							</div>
-						</div>
-					{/if}
-				{/if}
+					<!-- File Input -->
+					<input bind:this={input} type="file" hidden multiple on:change={onChange} />
+				</div>
 			{:else if tabSet === 1}
 				<textarea bind:value={files} placeholder="Paste Remote URL here ..." rows="6" class="textarea w-full" />
 			{/if}
