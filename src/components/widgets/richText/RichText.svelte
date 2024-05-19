@@ -12,6 +12,7 @@
 	import DropDown from './DropDown.svelte';
 	import ColorSelector from './ColorSelector.svelte';
 	import ImageResize from './ImageResize';
+	import ImageDescription from './ImageDescription.svelte';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
 
 	// Skeleton
@@ -43,8 +44,10 @@
 	let editor: Editor;
 	let showImageDialog = false;
 	let images = {};
+	let active_dropDown = '';
 
 	export let value = $entryData[fieldName] || { content: {}, header: {} };
+	console.log($entryData);
 
 	let _data = $mode == 'create' ? { content: {}, header: {} } : value;
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
@@ -87,6 +90,7 @@
 
 			onTransaction: ({ transaction }) => {
 				// force re-render so `editor.isActive` works as expected
+				active_dropDown = '';
 				handleImageDeletes(transaction);
 				editor = editor;
 				deb(() => {
@@ -95,6 +99,9 @@
 					_data.content[_language] = content;
 				});
 			}
+		});
+		tick().then(() => {
+			editor.commands.focus('start');
 		});
 	});
 
@@ -126,6 +133,7 @@
 		}
 	});
 
+	// tiptap settings
 	let textTypes: ComponentProps<ListBox>['items'];
 	let fonts: ComponentProps<ListBox>['items'];
 	let alignText: ComponentProps<ListBox>['items'];
@@ -180,7 +188,6 @@
 			active: () => editor.isActive('textStyle', { fontFamily: 'Tahoma' }),
 			onClick: () => editor.chain().focus().setFontFamily('Tahoma').run()
 		},
-
 		{
 			name: 'Times New Roman',
 			active: () => editor.isActive('textStyle', { fontFamily: 'Times New Roman' }),
@@ -264,17 +271,16 @@
 			window.getComputedStyle(window.getSelection()?.focusNode?.parentElement || (element as HTMLElement)).fontSize.replace('px', ''));
 
 	let show = (
-		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'underline' | 'strike' | 'link' | 'fontSize'
+		button: 'textType' | 'font' | 'align' | 'insert' | 'float' | 'color' | 'bold' | 'italic' | 'strike' | 'link' | 'fontSize' | 'description'
 	) => {
-		if (['textType', 'font', 'insert', 'color', 'bold', 'italic', 'underline', 'strike', 'link', 'fontSize'].includes(button)) {
-			return !editor?.isActive('image');
+		if (editor?.isActive('image')) {
+			return ['float', 'align', 'description'].includes(button);
 		}
-		if (['float'].includes(button)) {
-			return editor?.isActive('image');
+		if (['description', 'float'].includes(button)) {
+			return false;
 		}
 		return true;
 	};
-
 	$: {
 		show = show;
 		editor;
@@ -327,10 +333,14 @@
 				</ListBox>
 			</div> -->
 
-			<DropDown show={show('textType')} items={textTypes} label="Text" />
-			<DropDown show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" />
-
+			<!-- TextType -->
+			<DropDown show={show('textType')} items={textTypes} label="Text" bind:active={active_dropDown} key="textType" />
+			<!-- Font -->
+			<DropDown key="font" show={show('font')} items={fonts} icon="gravity-ui:text" label="Font" bind:active={active_dropDown} />
+			<!-- Color -->
 			<ColorSelector
+				key="color"
+				bind:active={active_dropDown}
 				show={show('color')}
 				color={editor.getAttributes('textStyle').color || '#000000'}
 				on:change={(e) => editor.chain().focus().setColor(e.detail).run()}
@@ -371,13 +381,13 @@
 				</button>
 
 				<!-- Underline -->
-				<button
+				<!-- <button
 					class:hidden={!show('underline')}
 					on:click={() => editor.chain().focus().toggleStrike().run()}
 					class:active={editor.isActive('underline')}
 				>
 					<iconify-icon icon="bi:type-underline" width="22" />
-				</button>
+				</button> -->
 
 				<!-- Strikethrough -->
 				<button class:hidden={!show('strike')} on:click={() => editor.chain().focus().toggleStrike().run()} class:active={editor.isActive('strike')}>
@@ -394,12 +404,27 @@
 				</button>
 			</button>
 
-			<DropDown show={show('align')} items={alignText} label="Align" />
-			<DropDown show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" />
-			<DropDown show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" />
-			<!-- <FileInput
+			<!-- Align -->
+			<DropDown key="align" show={show('align')} items={alignText} label="Align" bind:active={active_dropDown} />
+			<!-- Insert -->
+			<DropDown key="insert" show={show('insert')} items={inserts} icon="typcn:plus" label="Insert" bind:active={active_dropDown} />
+			<!-- Float -->
+			<DropDown key="float" show={show('float')} items={floats} icon="grommet-icons:text-wrap" label="Text Wrap" bind:active={active_dropDown} />
+
+			<!-- Image -->
+			<ImageDescription
+				bind:active={active_dropDown}
+				key="description"
+				show={show('description')}
+				value={editor.getAttributes('image').description}
+				on:submit={(e) => {
+					editor.chain().focus().setImageDescription(e.detail).run();
+				}}
+			/>
+
+			<FileInput
 				bind:show={showImageDialog}
-				class="absolute bg-white top-0 z-10"
+				class="absolute top-0 z-10 bg-white"
 				on:change={(e) => {
 					let data = e.detail;
 					let url;
@@ -411,14 +436,14 @@
 					} else {
 						url = data.original.url;
 
-						editor.chain().focus().setImage({ src: url, media_image: data._id }).run();
+						editor.chain().focus().setImage({ src: url, storage_image: data._id }).run();
 					}
 				}}
-			/> -->
+			/>
 		</div>
 	{/if}
 
-	<!-- Text Area -->
+	<!-- Text Area  -->
 	<div
 		on:pointerdown|self={() => editor.commands.focus('end')}
 		bind:this={element}
@@ -431,6 +456,11 @@
 
 	button.active {
 		color: rgb(0, 255, 123);
+	}
+	.buttons::before,
+	.buttons::after {
+		content: '';
+		margin: auto;
 	}
 	:global(.tiptap) {
 		outline: none;

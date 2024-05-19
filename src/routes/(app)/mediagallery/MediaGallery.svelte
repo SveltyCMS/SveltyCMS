@@ -231,7 +231,14 @@
 	};
 
 	// Define media types
-	const mediaTypes = ['All', 'Image', 'Document', 'Audio', 'Video', 'RemoteVideo'];
+	const mediaTypes = [
+		{ value: 'All', icon: '' },
+		{ value: 'Image', icon: 'mdi:image' },
+		{ value: 'Document', icon: 'mdi:file-document' },
+		{ value: 'Audio', icon: 'mdi:speaker' },
+		{ value: 'Video', icon: 'mdi:movie' },
+		{ value: 'RemoteVideo', icon: 'mdi:video-remote' }
+	];
 
 	// Reactive variable for selected media type
 	let selectedMediaType = 'All';
@@ -239,10 +246,16 @@
 
 <div class="my-2 flex items-center justify-between">
 	<PageTitle name={m.mediagallery_pagetitle()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-	<button class="variant-filled-primary btn gap-2" on:click={() => goto('/mediagallery/uploadMedia')}>
-		<iconify-icon icon="carbon:add-filled" width="24" />
-		{m.MediaGallery_Add()}
-	</button>
+	<div class="gap-2">
+		<button disabled class="variant-filled-tertiary btn gap-2" on:click={() => goto('/mediagallery/uploadMedia')}>
+			<iconify-icon icon="mdi:folder-add-outline" width="24" />
+			Add folder
+		</button>
+		<button class="variant-filled-primary btn gap-2" on:click={() => goto('/mediagallery/uploadMedia')}>
+			<iconify-icon icon="carbon:add-filled" width="24" />
+			{m.MediaGallery_Add()}
+		</button>
+	</div>
 </div>
 
 <div class="wrapper overflow-auto">
@@ -283,7 +296,12 @@
 			<div class="input-group">
 				<select bind:value={selectedMediaType} class="">
 					{#each mediaTypes as type}
-						<option value={type}>{type}</option>
+						<option value={type.value}>
+							<p class="flex items-center justify-between gap-2">
+								<iconify-icon icon={type.icon} width="24" class="mr-2 text-primary-500" />
+								<span class="uppercase">{type.value}</span>
+							</p>
+						</option>
 					{/each}
 				</select>
 			</div>

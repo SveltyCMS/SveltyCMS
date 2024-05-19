@@ -6,21 +6,36 @@
 
 	export let color = '';
 	export let show = false;
+	export let key = '';
+	export let active = '';
 
 	let expanded = false;
 	let dispatch = createEventDispatcher();
+	let header: HTMLDivElement;
 
+	$: key != active && (expanded = false);
 	$: dispatch('change', color);
+
+	function setPosition(node: HTMLDivElement) {
+		let parent = header.parentElement as HTMLElement;
+		let left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
+		if (left_pos + node.offsetWidth > parent.offsetWidth) {
+			node.style.right = '0';
+		} else {
+			node.style.left = left_pos < 0 ? '0' : left_pos + 'px';
+		}
+	}
 </script>
 
-<div class="wrapper" class:hidden={!show}>
+<div class="wrapper" class:hidden={!show} bind:this={header}>
 	<button class="selected arrow" class:arrow_up={expanded} on:click={() => (expanded = !expanded)}>
 		<iconify-icon icon="fluent-mdl2:color-solid" width="20"></iconify-icon>
 	</button>
-
-	<div class="pallette" class:!hidden={!expanded}>
-		<ColorPicker bind:hex={color} components={ChromeVariant} sliderDirection="horizontal" isDialog={false} />
-	</div>
+	{#if expanded}
+		<div class="pallette" use:setPosition>
+			<ColorPicker bind:hex={color} components={ChromeVariant} sliderDirection="horizontal" isDialog={false} />
+		</div>
+	{/if}
 </div>
 
 <style lang="postcss">
@@ -42,10 +57,10 @@
 		border-radius: 4px;
 	}
 	.pallette {
-		position: absolute;
-		left: 0;
+		position: fixed;
+
 		top: 100%;
-		min-width: 100%;
+
 		padding: 10px;
 		margin-top: 10px;
 		cursor: pointer;

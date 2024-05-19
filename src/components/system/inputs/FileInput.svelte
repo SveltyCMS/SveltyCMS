@@ -2,6 +2,7 @@
 	import { asAny } from '@src/utils/utils';
 	import type { MediaImage } from '@src/utils/types';
 	import { createEventDispatcher } from 'svelte';
+	import { twMerge } from 'tailwind-merge';
 
 	// Component
 	import Media from '@src/components/Media.svelte';
@@ -43,9 +44,12 @@
 		on:dragleave|preventDefault={(e) => {
 			asAny(e.target).style.removeProperty('border-color');
 		}}
-		class="mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700"
 		role="cell"
 		tabindex="0"
+		class={twMerge(
+			'mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
+			$$props.class
+		)}
 	>
 		<div class="grid grid-cols-6 items-center p-4">
 			<iconify-icon icon="fa6-solid:file-arrow-up" width="40" />

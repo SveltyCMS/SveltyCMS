@@ -1,20 +1,42 @@
 <script lang="ts">
-	let expanded = false;
-
 	export let icon = '';
 	export let label = '';
 	export let show = false;
+	export let active = '';
+	export let key: string;
 	export let items: {
 		name: string;
 		icon?: string;
 		onClick: () => void;
 		active: () => boolean;
 	}[] = [];
-
+	$: key != active && (expanded = false);
 	$: selected = items.filter((item) => item.active())[0];
+
+	let expanded = false;
+	let header: HTMLDivElement;
+
+	function setPosition(node: HTMLDivElement) {
+		let parent = header.parentElement as HTMLElement;
+		node.style.minWidth = header.offsetWidth + 'px';
+		let left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
+		if (left_pos + node.offsetWidth > parent.offsetWidth) {
+			node.style.right = '0';
+		} else {
+			node.style.left = left_pos < 0 ? '0' : left_pos + 'px';
+		}
+	}
 </script>
 
-<button class="wrapper" class:hidden={!show} on:click={() => (expanded = !expanded)}>
+<button
+	class="wrapper"
+	bind:this={header}
+	class:hidden={!show}
+	on:click={() => {
+		expanded = !expanded;
+		active = key;
+	}}
+>
 	<button class="selected arrow" class:arrow_up={expanded}>
 		<iconify-icon icon={icon || selected?.icon} width="20"></iconify-icon>
 
@@ -22,25 +44,24 @@
 	</button>
 
 	<!-- Dropdown menu -->
-	<button
-		class="absolute left-0 top-full flex w-full cursor-pointer flex-col items-center divide-y text-nowrap rounded border-[1px] bg-white dark:bg-surface-500"
-		class:!hidden={!expanded}
-	>
-		<!-- DropDown list -->
-		{#each items as item}
-			<button
-				class="variant-filled-surface btn w-full gap-1"
-				on:click|stopPropagation={() => {
-					item.onClick();
-					expanded = false;
-				}}
-				class:active={item.active}
-			>
-				<iconify-icon icon={item.icon} width="20"></iconify-icon>
-				{item.name}
-			</button>
-		{/each}
-	</button>
+	{#if expanded}
+		<div class="items" use:setPosition>
+			<!-- DropDown list -->
+			{#each items as item}
+				<button
+					class="flex items-center gap-[5px]"
+					on:click|stopPropagation={() => {
+						item.onClick();
+						expanded = false;
+					}}
+					class:active={item.active}
+				>
+					<iconify-icon icon={item.icon} width="20"></iconify-icon>
+					{item.name}
+				</button>
+			{/each}
+		</div>
+	{/if}
 </button>
 
 <style lang="postcss">

@@ -18,31 +18,54 @@
 		File: null
 	};
 
+	// Generate thumbnail URL or icon based on file type
 	function generateThumbnail(file: File): string {
 		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-
-		let thumbnail = '';
-		if (file.type.startsWith('image/')) {
-			// For image files, display thumbnail
-			thumbnail = URL.createObjectURL(file);
-		} else if (fileExt === '.pdf') {
-			// For PDF files, use a PDF icon
-			thumbnail = 'vscode-icons:file-type-pdf2';
-		} else if (fileExt === '.doc' || fileExt === '.docx') {
-			// For Microsoft Word document files, use a Word icon
-			thumbnail = 'vscode-icons:file-type-word';
-		} else if (file.type.startsWith('audio/')) {
-			// For audio files, use a play button icon
-			thumbnail = 'fa-solid:play-circle';
-		} else if (file.type.startsWith('video/')) {
-			// For video files, use a video icon
-			thumbnail = 'fa-solid:video';
-		} else {
-			// For other file types, use a generic file icon
-			thumbnail = 'vscode-icons:file';
+		switch (true) {
+			case file.type.startsWith('image/'):
+				return URL.createObjectURL(file); // Show actual image as thumbnail
+			case file.type.startsWith('video/'):
+				return 'fa-solid:video';
+			case file.type.startsWith('audio/'):
+				return 'fa-solid:play-circle';
+			case fileExt === '.pdf':
+				return 'vscode-icons:file-type-pdf2';
+			case fileExt === '.doc' || fileExt === '.docx' || fileExt === '.docm':
+				return 'vscode-icons:file-type-word';
+			case fileExt === '.ppt' || fileExt === '.pptx':
+				return 'vscode-icons:file-type-powerpoint';
+			case fileExt === '.xls' || fileExt === '.xlsx':
+				return 'vscode-icons:file-type-excel';
+			case fileExt === '.txt':
+				return 'fa-solid:file-lines';
+			case fileExt === '.zip' || fileExt === '.rar':
+				return 'fa-solid:file-zipper';
+			default:
+				return 'vscode-icons:file';
 		}
+	}
 
-		return thumbnail;
+	function formatMimeType(mimeType: string): string {
+		if (typeof mimeType === 'undefined') {
+			return 'Unknown Type';
+		}
+		const typeMapping: { [key: string]: string } = {
+			'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+			'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+			'application/pdf': 'PDF',
+			'application/vnd.ms-powerpoint': 'PowerPoint',
+			'application/vnd.ms-excel': 'Excel',
+			'text/plain': 'Text',
+			'application/zip': 'Archive'
+			// Add more mappings as needed
+		};
+		return typeMapping[mimeType] || mimeType.split('/').pop().toUpperCase();
+	}
+
+	// Specific function to generate icons for types badge
+	function getTypeIcon(file: File): string {
+		if (file.type.startsWith('image/')) return 'carbon:image';
+		return generateThumbnail(file);
 	}
 
 	function handleEdit(file: File) {
@@ -91,7 +114,7 @@
 						</div>
 
 						<!-- Media preview -->
-						<div class="card-header flex h-48 flex-col items-center justify-center">
+						<div class="card-header flex h-32 flex-col items-center justify-center">
 							{#if generateThumbnail(file)}
 								{#if file.type.startsWith('image/')}
 									<img src={generateThumbnail(file)} alt={file.name} class="max-h-full max-w-full" />
@@ -110,14 +133,17 @@
 						</div>
 
 						<!-- Media name -->
-						<div class="label mt-2 flex h-16 items-center justify-center bg-gray-100 p-2 dark:bg-surface-600">
+						<div class="label mt-1 flex h-16 items-center justify-center bg-gray-100 p-2 dark:bg-surface-600">
 							<p class="overflow-hidden overflow-ellipsis whitespace-normal text-center text-tertiary-500 dark:text-primary-500">{file.name}</p>
 						</div>
 
 						<!-- Media Type & Size -->
 						<div class="flex flex-grow items-center justify-between p-1 dark:bg-surface-700">
-							<p class="variant-ghost-secondary badge gap-2"><iconify-icon icon={generateThumbnail(file)} width="20" height="20" /> {file.type}</p>
-							<p class="variant-ghost-tertiary badge">{(file.size / 1024).toFixed(2)} KB</p>
+							<div class="flex items-center gap-1">
+								<iconify-icon icon={generateThumbnail(file)} width="16" height="16" />
+								<span>{formatMimeType(file.type)}</span>
+							</div>
+							<span class="variant-ghost-tertiary badge">{(file.size / 1024).toFixed(2)} KB</span>
 						</div>
 					</div>
 				{/each}
