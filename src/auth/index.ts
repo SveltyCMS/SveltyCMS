@@ -188,14 +188,13 @@ export class Auth {
 
 		// Check if the user record exists
 		if (!resp || !resp.user) {
-			console.error('User is not Signed in for session :', session_id);
+			console.error('User is not signed in for session:', session_id);
 			return null;
 		}
 
-		// If no Result, return null
-		if (!resp) return null;
+		// Return the user object
 		resp.user.id = resp.user._id.toString();
-		resp.user._id && delete resp.user._id;
+		delete resp.user._id;
 		// Return the user object
 		return resp.user;
 	}

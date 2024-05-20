@@ -1,70 +1,85 @@
-import fs from 'fs';
-import path from 'path';
 import mongoose from 'mongoose';
 import { redirect } from '@sveltejs/kit';
-import type { Actions, RequestEvent } from './$types';
-
-// Auth
+import type { Actions, PageServerLoad } from './$types';
 import { auth } from '@api/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/utils';
 
-// Media collections
-import { MediaImages, MediaDocuments, MediaAudio, MediaVideos, MediaRemote } from '@api/db';
+// Define a function to get a mongoose model by name
+const getModel = (name: string) =>
+	mongoose.models[name] || mongoose.model(name, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 
-// Utils
-import { sanitize, saveMedia } from '@src/utils/utils';
+export const load: PageServerLoad = async (event) => {
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+	if (!session_id) throw redirect(302, `/login`);
 
-export async function load(event: RequestEvent) {
-	// Secure this page with session cookie
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-	// Validate the user's session
 	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
-	// If validation fails, redirect the user to the login page
-	if (!user) {
-		redirect(302, `/login`);
-	}
-	// Return user data
-	return { props: { user: user } };
-}
+	if (!user) throw redirect(302, `/login`);
+
+	const MediaImages = getModel('media_images');
+	const MediaDocuments = getModel('media_documents');
+	const MediaAudio = getModel('media_audio');
+	const MediaVideos = getModel('media_videos');
+	const MediaRemote = getModel('media_remote');
+
+	const images = await MediaImages.find().lean().exec();
+	const documents = await MediaDocuments.find().lean().exec();
+	const audio = await MediaAudio.find().lean().exec();
+	const videos = await MediaVideos.find().lean().exec();
+	const remote = await MediaRemote.find().lean().exec();
+
+	const media = [
+		...images.map((item) => ({ ...item, type: 'image' })),
+		...documents.map((item) => ({ ...item, type: 'document' })),
+		...audio.map((item) => ({ ...item, type: 'audio' })),
+		...videos.map((item) => ({ ...item, type: 'video' })),
+		...remote.map((item) => ({ ...item, type: 'remote' }))
+	];
+
+	return { user, media };
+};
 
 export const actions: Actions = {
-	default: async (event: RequestEvent) => {
-		const user = await auth.validateSession(new mongoose.Types.ObjectId(event.cookies.get(SESSION_COOKIE_NAME)));
+	default: async (event) => {
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+		if (!session_id) throw redirect(302, `/login`);
 
-		if (!user) {
-			redirect(302, `/login`);
-		}
+		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+		if (!user) throw redirect(302, `/login`);
 
-		const files = await event.request.formData();
+		const formData = await event.request.formData();
 
-		for (const file of files.values()) {
-			const { name, type, size, filepath } = file;
-			const buffer = fs.readFileSync(filepath);
+		for (const file of formData.values()) {
+			if (file instanceof File) {
+				let collectionName;
+				let saveFunction;
 
-			// Determine the appropriate collection based on the file type
-			let collectionName;
-			if (type.startsWith('image/')) {
-				collectionName = 'media_images';
-			} else if (type.startsWith('application/pdf') || type.endsWith('.pdf')) {
-				collectionName = 'media_documents';
-			} else if (type.startsWith('audio/')) {
-				collectionName = 'media_audio';
-			} else if (type.startsWith('video/')) {
-				collectionName = 'media_videos';
-			} else {
-				collectionName = 'media_remote';
+				if (file.type.startsWith('image/')) {
+					collectionName = 'media_images';
+					saveFunction = saveImage;
+				} else if (file.type === 'application/pdf' || file.name.endsWith('.pdf')) {
+					collectionName = 'media_documents';
+					saveFunction = saveDocument;
+				} else if (file.type.startsWith('audio/')) {
+					collectionName = 'media_audio';
+					saveFunction = saveAudio;
+				} else if (file.type.startsWith('video/')) {
+					collectionName = 'media_videos';
+					saveFunction = saveVideo;
+				} else {
+					collectionName = 'media_remote';
+					saveFunction = saveRemoteMedia;
+				}
+
+				const { id, fileInfo } = await saveFunction(file, collectionName);
+
+				const collection = getModel(collectionName);
+				const newMedia = new collection({
+					...fileInfo,
+					user: user.id
+				});
+				await newMedia.save();
 			}
-
-			// Save the file using the saveMedia function from utils.ts
-			const { id, fileInfo } = await saveMedia(type, file, collectionName);
-
-			// Save the file to the appropriate collection
-			const collection = mongoose.models[collectionName];
-			const newMedia = new collection({
-				...fileInfo,
-				user: user._id
-			});
-			await newMedia.save();
 		}
 
 		return { success: true };
