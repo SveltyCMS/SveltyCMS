@@ -56,7 +56,8 @@ export async function getCollectionModels() {
 			// If collections are defined
 			if (collections) {
 				// Iterate over each collection
-				for (const collection of collections) {
+				collections.forEach((collection) => {
+					if (!collection.name) return;
 					// Create a detailed revisions schema
 					const RevisionSchema = new mongoose.Schema(
 						{
@@ -85,11 +86,8 @@ export async function getCollectionModels() {
 					);
 
 					// Add the mongoose model for the collection to the collectionsModels object
-					if (!collection.name) return;
-					collectionsModels[collection.name] = mongoose.models[collection.name]
-						? mongoose.model(collection.name)
-						: mongoose.model(collection.name, schema_object);
-				}
+					collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schema_object);
+				});
 
 				// Unsubscribe from the collections store and resolve the Promise with the collectionsModels object
 				unsubscribe && unsubscribe();
@@ -106,12 +104,13 @@ export async function getCollectionModels() {
 !mongoose.models['auth_sessions'] && mongoose.model('auth_sessions', mongooseSessionSchema);
 
 // Set up Media collections if they don't already exist
-!mongoose.models['media_images'] && mongoose.model('media_images', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-!mongoose.models['media_documents'] &&
-	mongoose.model('media_documents', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-!mongoose.models['media_audio'] && mongoose.model('media_audio', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-!mongoose.models['media_videos'] && mongoose.model('media_videos', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-!mongoose.models['media_remote'] && mongoose.model('media_remote', new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
+const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+
+mediaSchemas.forEach((schemaName) => {
+	if (!mongoose.models[schemaName]) {
+		mongoose.model(schemaName, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
+	}
+});
 
 // Set up authentication and export auth object
 const auth = new Auth({

@@ -50,6 +50,7 @@ const widget = (params: Params) => {
 		permissions: params.permissions
 
 		//extra
+		// media_folder: params.media_folder
 	};
 
 	// Return the field and widget objects
@@ -73,6 +74,8 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyR
 				if (images[img_id] instanceof File) {
 					// Locally selected new images
 					const res = await saveImage(images[img_id], collection.name);
+					// const res = await saveImage(media[media_id], field.media_folder);
+
 					const fileInfo = res.fileInfo;
 					_id = res.id;
 					for (const lang in _data.content) {

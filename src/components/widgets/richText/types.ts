@@ -28,6 +28,7 @@ export type Params = {
 	permissions?: Permissions;
 
 	// Widget Specific parameters
+	// media_folder: (typeof publicEnv.FOLDERS)[number];
 };
 
 /**

@@ -35,10 +35,14 @@ let resolvers: { [key: string]: any } = {
 };
 
 const collectionSchemas: string[] = [];
+
+console.log('Getting collections...');
 const collections = await getCollections();
+console.log(`Found ${collections.length} collections`);
 
 // Loop over each collection to define typeDefs and resolvers
 for (const collection of collections) {
+	console.log(`Processing collection: ${collection.name}`);
 	resolvers[collection.name as string] = {};
 	// Default same for all Content
 	let collectionSchema = `
@@ -49,10 +53,13 @@ for (const collection of collections) {
 	`;
 
 	for (const field of collection.fields) {
+		console.log(`Processing field: ${getFieldName(field, true)}`);
 		const schema = widgets[field.widget.Name].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
+
 		if (schema.resolver) {
 			resolvers = deepmerge(resolvers, schema.resolver);
 		}
+
 		if (schema) {
 			const _types = schema.graphql.split(/(?=type.*?{)/);
 			for (const type of _types) {
@@ -97,6 +104,7 @@ for (const collection of collections) {
 	collectionSchemas.push(collectionSchema + '}\n');
 }
 
+// Add typeDefs and resolvers to typeDefs
 typeDefs += Array.from(types).join('\n');
 typeDefs += collectionSchemas.join('\n');
 typeDefs += `
@@ -105,10 +113,12 @@ type Query {
 }
 `;
 
+console.log('TypeDefs:');
 console.log(typeDefs);
 
 // Loop over each collection to define resolvers for querying data
 for (const collection of collections) {
+	console.log(`Adding resolver for ${collection.name}...`);
 	// Add a resolver function for collections
 	resolvers.Query[collection.name as string] = async () => {
 		if (privateEnv.USE_REDIS === true) {
@@ -139,8 +149,7 @@ for (const collection of collections) {
 	};
 }
 
-// console.log('resolvers.Query:', resolvers.Query);
-
+console.log('Creating Yoga app...');
 const yogaApp = createYoga<RequestEvent>({
 	// Import schema and resolvers
 	schema: createSchema({
@@ -153,4 +162,5 @@ const yogaApp = createYoga<RequestEvent>({
 	fetchAPI: globalThis
 });
 
+console.log('Exporting Yoga app...');
 export { yogaApp as GET, yogaApp as POST };

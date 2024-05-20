@@ -62,43 +62,60 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	const typeName = `${collection.name}_${getFieldName(field, true)}`;
 	const types = new Set();
 	let levelCount = 0;
+
+	console.log('Generating GraphQL schema for MegaMenu:', field.label);
+
 	for (const level of fields) {
 		const children: Array<any> = [];
+		console.log(`Processing level ${levelCount}...`);
+
 		for (const _field of level) {
-			types.add(
-				widgets[_field.widget.Name].GraphqlSchema({
-					label: `${getFieldName(_field, true)}_Level${levelCount}`,
-					collection
-				}).graphql
-			);
-			if (levelCount > 0) {
-				children.push(`${getFieldName(_field, true)}:${collection.name}_${getFieldName(_field, true)}_Level${levelCount} `);
+			console.log(`Processing field: ${getFieldName(_field, true)}`);
+
+			try {
+				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({ label: `${getFieldName(_field, true)}_Level${levelCount}`, collection });
+				if (fieldSchema) {
+					types.add(fieldSchema.graphql);
+					if (levelCount > 0) {
+						children.push(`${getFieldName(_field, true)}:${fieldSchema.typeName}`);
+					}
+				} else {
+					console.warn(`No GraphQL schema found for field: ${getFieldName(_field, true)}`);
+				}
+			} catch (error) {
+				console.error(`Error generating GraphQL schema for field ${getFieldName(_field, true)}:`, error);
 			}
 		}
 
 		if (levelCount > 0) {
 			if (fields.length - levelCount > 1) {
-				children.push(`children:[${collection.name}_${getFieldName(field, true)}_Level${levelCount + 1}] `);
+				children.push(`children:[${collection.name}_${getFieldName(field, true)}_Level${levelCount + 1}]`);
 			}
-			types.add(`
-			type ${collection.name}_${getFieldName(field, true)}_Level${levelCount} {
-				${Array.from(children).join('\n')}
+			try {
+				types.add(` type ${collection.name}_${getFieldName(field, true)}_Level${levelCount} { ${Array.from(children).join('\n')} } `);
+			} catch (error) {
+				console.error(`Error generating GraphQL type for level ${levelCount}:`, error);
 			}
-			`);
 		}
 		levelCount++;
 	}
+
 	// Return an object containing the type name and the GraphQL schema
-	return {
-		typeName,
-		graphql: /* GraphQL */ `
+
+	try {
+		const graphql = /* GraphQL */ `
 		${Array.from(types).join('\n')}
 		type ${typeName} {
-			Header: ${collection.name}_Header_Level0
-			children: [${collection.name}_${getFieldName(field, true)}_Level1]
+		  Header: ${collection.name}_Header_Level0
+		  children: [${collection.name}_${getFieldName(field, true)}_Level1]
 		}
-	`
-	};
+	  `;
+		console.log('Generated GraphQL schema:', graphql);
+		return { typeName, graphql };
+	} catch (error) {
+		console.error('Error generating GraphQL schema:', error);
+		return { typeName, graphql: '' };
+	}
 };
 
 export interface CustomDragEvent extends Event {

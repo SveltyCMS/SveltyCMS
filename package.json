@@ -120,7 +120,7 @@
 		"@typescript-eslint/eslint-plugin": "^7.9.0",
 		"@typescript-eslint/parser": "^7.9.0",
 		"argon2": "^0.40.1",
-		"axios": "^1.6.8",
+		"axios": "^1.7.1",
 		"buffer": "^6.0.3",
 		"chart.js": "^4.4.3",
 		"deepmerge": "^4.3.1",

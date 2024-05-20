@@ -53,16 +53,24 @@ export const GuiSchema = {
  * Define Email GraphqlSchema function
  */
 export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
+	console.log('Generating GraphQL schema for Email widget...');
+	console.log('Label:', label);
+	console.log('Collection:', collection.name);
+
 	// Create a type name by combining the collection name and label
 	const typeName = `${collection.name}_${label}`;
+	console.log('TypeName:', typeName);
 
 	// Return an object containing the type name and the GraphQL schema
-	return {
+	const schema = {
 		typeName,
 		graphql: /* GraphQL */ `
 		type ${typeName} {
-			en: String
+		  en: String
 		}
-        `
+	  `
 	};
+
+	console.log('Generated GraphQL schema:', schema.graphql);
+	return schema;
 };
