@@ -73,7 +73,10 @@ export async function configureEmail(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`SMTP_HOST: ${SMTP_HOST}\n` + `SMTP_PORT: ${SMTP_PORT}\n` + `SMTP_EMAIL: ${SMTP_EMAIL}\n` + `SMTP_PASSWORD: ${SMTP_PASSWORD}`,
+		`SMTP_HOST: ${pc.green(SMTP_HOST)}\n` +
+			`SMTP_PORT: ${pc.green(SMTP_PORT)}\n` +
+			`SMTP_EMAIL:${pc.green(SMTP_EMAIL)}\n` +
+			`SMTP_PASSWORD: ${pc.green(SMTP_PASSWORD)}`,
 		pc.green('Review your Email configuration:')
 	);
 

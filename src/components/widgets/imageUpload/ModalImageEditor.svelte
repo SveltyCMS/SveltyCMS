@@ -130,6 +130,7 @@
 					}
 				});
 			});
+			if ('_id' in value) meta_data.add('media_images_remove', [value._id]);
 			editing = false;
 		},
 		async addBlur() {
