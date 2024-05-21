@@ -1,9 +1,11 @@
 import mongoose from 'mongoose';
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { auth } from '@api/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/utils';
+
+// Auth
+import { auth } from '@api/databases/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Define a function to get a mongoose model by name
 const getModel = (name: string) =>

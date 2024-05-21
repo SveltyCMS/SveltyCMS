@@ -9,7 +9,7 @@ import { publicEnv } from '@root/config/public';
 import widgets from '@src/components/widgets';
 
 // Auth
-import { auth, getCollectionModels } from '@src/routes/api/db';
+import { auth, getCollectionModels } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';

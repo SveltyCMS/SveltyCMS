@@ -15,6 +15,9 @@ export async function createOrUpdateConfigFile(configData) {
         import { createPrivateConfig } from './types';
 
         export const privateEnv = createPrivateConfig({
+            // Define the database type (Default: 'mongodb')
+            DB_TYPE: '${configData.system?.DB_TYPE || 'mongodb'}',
+
             // Define the database connection
             DB_HOST: '${configData.system?.DB_HOST || ''}',
             DB_NAME: '${configData.system?.DB_NAME || ''}',
@@ -22,9 +25,6 @@ export async function createOrUpdateConfigFile(configData) {
             // Define the database username & password if required
             DB_USER: '${configData.system?.DB_USER || ''}',
             DB_PASSWORD: '${configData.system?.DB_PASSWORD || ''}',
-
-            // Enable MongoDB network compression (optional should not be changed once set): Choose 'none', 'snappy', 'zlib', 'zstd'. See mongodb Network Compression
-            DB_COMPRESSOR: '${configData.system?.DB_COMPRESSOR || ''}',
 
             // Define the SMTP server for email sending
             SMTP_HOST: '${configData.email?.SMTP_HOST || ''}',

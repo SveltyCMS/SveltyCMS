@@ -138,6 +138,7 @@
 		"pdfjs-dist": "^4.2.67",
 		"picocolors": "^1.0.1",
 		"redis": "^4.6.14",
+		"sequelize": "^6.37.3",
 		"serve-static": "^1.15.0",
 		"svelte-lexical": "^0.4.0",
 		"svelty-email": "^0.0.10",

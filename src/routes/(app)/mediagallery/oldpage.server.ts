@@ -5,7 +5,7 @@ import path from 'path';
 import { redirect } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@api/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';

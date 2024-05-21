@@ -1,9 +1,9 @@
 import { getCollections } from '@src/collections';
 import type { RequestHandler } from './$types';
-import { getCollectionModels } from '@src/routes/api/db';
+import { getCollectionModels } from '@api/databases/db';
 
 // Auth
-import { auth } from '@src/routes/api/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
 

@@ -7,6 +7,9 @@
 import { createPrivateConfig } from './types';
 
 export const privateEnv = createPrivateConfig({
+	// Define the database type (Default: 'mongodb')
+	DB_TYPE: 'mongodb',
+
 	// Define the database connection
 	DB_HOST: 'mongodb://localhost:27017/',
 	DB_NAME: 'SvelteCMS',
@@ -14,9 +17,6 @@ export const privateEnv = createPrivateConfig({
 	// Define the database username & password if required
 	DB_USER: 'admin',
 	DB_PASSWORD: 'admin',
-
-	// Enable MongoDB network compression (optional should not be changed once set): Choose 'none', 'snappy', 'zlib', 'zstd'. See mongodb Network Compression
-	DB_COMPRESSOR: 'none',
 
 	// Define the SMTP server for email sending
 	SMTP_HOST: '',

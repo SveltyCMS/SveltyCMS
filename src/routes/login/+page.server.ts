@@ -2,7 +2,7 @@ import { publicEnv } from '@root/config/public.js';
 import { type Cookies, redirect } from '@sveltejs/kit';
 
 // Auth
-import { auth, googleAuth } from '@api/db';
+import { auth, googleAuth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
 
@@ -128,7 +128,7 @@ export const actions = {
 		console.log('lang', lang);
 
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-		
+
 		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
 		if (!redirectUrl) {
 			console.error('Error during OAuth callback: Redirect url not generated');

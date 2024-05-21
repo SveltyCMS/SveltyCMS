@@ -3,7 +3,7 @@ import { getCollections } from '@collections';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@src/routes/api/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
 

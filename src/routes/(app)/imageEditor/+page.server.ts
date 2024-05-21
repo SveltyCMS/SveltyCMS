@@ -4,7 +4,7 @@ import { publicEnv } from '@root/config/public';
 import { redirect } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@src/routes/api/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
 

@@ -4,6 +4,9 @@ import type { AvailableLanguageTag } from '../src/paraglide/runtime';
  * The PRIVAT configuration for the application,
  */
 export const createPrivateConfig = (arg: {
+	// Define the database type (Default: 'mongodb')
+	DB_TYPE: 'mongodb' | 'mariadb';
+
 	/**
 	 * Define the database connection:
 	 * Use local a Database via "MongoDB Compass" or "Docker MongoDB"
@@ -13,7 +16,6 @@ export const createPrivateConfig = (arg: {
 	DB_NAME: string; // Database Name
 	DB_USER: string; // Database User
 	DB_PASSWORD: string; // Database Password
-	DB_COMPRESSOR?: string; // See https://docs.mongodb.com/manual/reference/network-compression/
 
 	// SMTP config - See https://nodemailer.com
 	SMTP_HOST?: string; // SMTP Host

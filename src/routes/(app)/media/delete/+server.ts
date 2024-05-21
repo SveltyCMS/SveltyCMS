@@ -1,4 +1,4 @@
-import { auth } from '@src/routes/api/db';
+import { auth } from '@api/databases/db';
 import type { RequestHandler } from './$types';
 
 import mongoose from 'mongoose';

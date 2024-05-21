@@ -1,8 +1,9 @@
-import type { RequestHandler } from './$types';
-import { auth } from '@src/routes/api/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
+import type { RequestHandler } from './$types';
 
+// Auth
+import { auth } from '@api/databases/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Get the session cookie

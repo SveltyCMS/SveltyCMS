@@ -2,7 +2,7 @@ import type { Cookies } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 
 // Auth
-import { auth } from '@api/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Define a POST request handler function

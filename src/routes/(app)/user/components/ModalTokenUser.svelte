@@ -1,24 +1,22 @@
 <script lang="ts">
-	export let data: PageData;
 	import type { PageData } from '../$types';
-	import '@stores/store';
 	import { invalidateAll } from '$app/navigation';
+	import '@stores/store';
 
 	// Auth
 	import { roles } from '@src/auth/types';
 	import { addUserTokenSchema } from '@utils/formSchemas';
 
-	// Superforms
-	import { superForm } from 'sveltekit-superforms/client';
-	import { zod } from 'sveltekit-superforms/adapters';
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
+	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	export let addUserForm: PageData['addUserForm'];
+	export let data: PageData;
 
-	// Props
-	/** Exposes parent props to this component. */
+	// Exposes parent props to this component.
 	export let parent: any;
 
 	// Skelton & Stores
@@ -26,9 +24,6 @@
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
-
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
 
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
@@ -46,6 +41,11 @@
 			expiresInLabel: ''
 		};
 	}
+
+	// Superforms
+	import { superForm } from 'sveltekit-superforms/client';
+	import { zod } from 'sveltekit-superforms/adapters';
+	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
 		id: 'addUser',
