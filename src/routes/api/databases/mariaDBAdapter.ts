@@ -1,107 +1,136 @@
 import { privateEnv } from '@root/config/private';
-import { Sequelize, DataTypes, Model, type ModelStatic } from 'sequelize';
+import mariadb from 'mariadb';
 import type { databaseAdapter } from './databaseAdapter';
 
 export class MariaDBAdapter implements databaseAdapter {
-	private sequelize: Sequelize;
+	private pool: mariadb.Pool;
 
 	constructor() {
-		this.sequelize = new Sequelize(privateEnv.DB_NAME, privateEnv.DB_USER, privateEnv.DB_PASSWORD, {
+		this.pool = mariadb.createPool({
 			host: privateEnv.DB_HOST,
-			dialect: 'mariadb'
+			user: privateEnv.DB_USER,
+			password: privateEnv.DB_PASSWORD,
+			database: privateEnv.DB_NAME,
+			connectionLimit: 5
 		});
 	}
 
-	// Connect to MariaDB database
 	async connect(): Promise<void> {
 		try {
-			await this.sequelize.authenticate();
+			const connection = await this.pool.getConnection();
 			console.log(`\x1b[32m====> Connection to ${privateEnv.DB_NAME} database successful!\x1b[0m`);
+			connection.release();
 		} catch (error) {
 			console.error('\x1b[31mError connecting to database:\x1b[0m', error);
 			throw new Error('Error connecting to database');
 		}
 	}
 
-	// Set up collections in the database using imported schemas
 	async getCollectionModels(): Promise<any> {
-		const collectionsModels: { [key: string]: ModelStatic<Model> } = {};
+		const collectionsModels: { [key: string]: any } = {};
 
-		// Simulating collections subscription
-		const collections = [{ name: 'exampleCollection', fields: { field1: DataTypes.STRING, field2: DataTypes.INTEGER } }];
+		const collections = [{ name: 'exampleCollection', fields: { field1: 'VARCHAR(255)', field2: 'INT' } }];
 
-		collections.forEach((collection) => {
-			if (!collection.name) return;
+		for (const collection of collections) {
+			if (!collection.name) continue;
 
-			collectionsModels[collection.name] = this.sequelize.define(
-				collection.name,
-				{
-					...collection.fields,
-					createdAt: {
-						type: DataTypes.DATE,
-						defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-					},
-					updatedAt: {
-						type: DataTypes.DATE,
-						defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
-					},
-					createdBy: {
-						type: DataTypes.STRING
-					},
-					__v: {
-						type: DataTypes.JSON,
-						defaultValue: []
-					},
-					translationStatus: {
-						type: DataTypes.JSON
-					}
-				},
-				{
-					timestamps: true
-				}
-			);
-		});
+			const createTableQuery = `
+                CREATE TABLE IF NOT EXISTS ${collection.name} (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    field1 VARCHAR(255),
+                    field2 INT,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    createdBy VARCHAR(255),
+                    __v JSON,
+                    translationStatus JSON
+                )
+            `;
+
+			await this.pool.query(createTableQuery);
+			collectionsModels[collection.name] = collection;
+		}
 
 		return collectionsModels;
 	}
 
-	// Set up authentication collections if they don't already exist
-	setupAuthModels(): void {
-		const authUserModel = this.sequelize.define('auth_users', {
-			// Define your schema here
-		});
+	async setupAuthModels(): Promise<void> {
+		const createUsersTable = `
+            CREATE TABLE IF NOT EXISTS auth_users (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                email VARCHAR(255) NOT NULL,
+                password VARCHAR(255) NOT NULL,
+                role VARCHAR(255) NOT NULL,
+                username VARCHAR(255),
+                avatar VARCHAR(255),
+                lastAuthMethod VARCHAR(255),
+                lastActiveAt TIMESTAMP,
+                expiresAt TIMESTAMP,
+                is_registered BOOLEAN,
+                blocked BOOLEAN,
+                resetRequestedAt TIMESTAMP,
+                resetToken VARCHAR(255),
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `;
 
-		const authTokenModel = this.sequelize.define('auth_tokens', {
-			// Define your schema here
-		});
+		const createTokensTable = `
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                token VARCHAR(255) NOT NULL,
+                email VARCHAR(255),
+                expires TIMESTAMP NOT NULL,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `;
 
-		const authSessionModel = this.sequelize.define('auth_sessions', {
-			// Define your schema here
-		});
+		const createSessionsTable = `
+            CREATE TABLE IF NOT EXISTS auth_sessions (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                user_id INT NOT NULL,
+                expires TIMESTAMP NOT NULL,
+                createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `;
 
-		// Ensure models are created in the database
-		authUserModel.sync();
-		authTokenModel.sync();
-		authSessionModel.sync();
+		await this.pool.query(createUsersTable);
+		await this.pool.query(createTokensTable);
+		await this.pool.query(createSessionsTable);
 	}
 
-	// Set up Media collections if they don't already exist
-	setupMediaModels(): void {
+	async setupMediaModels(): Promise<void> {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 
-		mediaSchemas.forEach((schemaName) => {
-			const mediaModel = this.sequelize.define(
-				schemaName,
-				{
-					// Define your schema here
-				},
-				{
-					timestamps: true
-				}
-			);
+		for (const schemaName of mediaSchemas) {
+			const createTableQuery = `
+                CREATE TABLE IF NOT EXISTS ${schemaName} (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                    createdBy VARCHAR(255),
+                    __v JSON,
+                    translationStatus JSON
+                )
+            `;
 
-			// Ensure models are created in the database
-			mediaModel.sync();
-		});
+			await this.pool.query(createTableQuery);
+		}
+	}
+
+	async getAuthModel(name: string): Promise<any> {
+		const query = `
+            SELECT * FROM ${name}
+        `;
+		try {
+			const rows = await this.pool.query(query);
+			return rows;
+		} catch (error) {
+			console.error(`\x1b[31mError retrieving ${name} model:\x1b[0m`, error);
+			throw new Error(`Error retrieving ${name} model`);
+		}
 	}
 }

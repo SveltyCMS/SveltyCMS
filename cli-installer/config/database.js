@@ -1,15 +1,16 @@
 import { text, confirm, select, note } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
-import mongoose from 'mongoose';
-import { Sequelize } from 'sequelize';
+import path from 'path';
+import fs from 'fs';
 
 // Function to test MongoDB connection
 async function testMongoDBConnection(connectionString) {
+	const mongoose = await import('mongoose');
 	try {
-		await mongoose.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
+		await mongoose.default.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
 		console.log('MongoDB connection successful!');
-		await mongoose.connection.db.admin().ping();
+		await mongoose.default.connection.db.admin().ping();
 		console.log('MongoDB ping successful!');
 		return true;
 	} catch (error) {
@@ -20,11 +21,11 @@ async function testMongoDBConnection(connectionString) {
 
 // Function to test MariaDB connection
 async function testMariaDBConnection(connectionString) {
+	const mariadb = await import('mariadb');
 	try {
-		const sequelize = new Sequelize(connectionString);
-		await sequelize.authenticate();
+		const connection = await mariadb.createConnection(connectionString);
 		console.log('MariaDB connection successful!');
-		await sequelize.close();
+		await connection.end();
 		return true;
 	} catch (error) {
 		console.error('MariaDB connection failed:', error);
@@ -62,8 +63,8 @@ export async function configureDatabase(privateConfigData = {}) {
 		message: 'Choose your database option:',
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
 		options: [
-			{ value: 'mongodb', label: 'MongoDB', hint: 'Supports MongoDB Atlas, Docker, and Local' },
-			{ value: 'mariadb', label: 'MariaDB', hint: 'NOT YET SUPPORTED - Supports Docker and Local' }
+			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' },
+			{ value: 'mariadb', label: 'MariaDB', hint: 'Supports Docker and Local' }
 		],
 		required: true
 	});
@@ -73,7 +74,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	if (projectDatabase === 'mongodb') {
 		const mongoOption = await select({
 			message: 'Choose your MongoDB option:',
-			initialValue: privateConfigData.SMTP_PROVIDER || 'atlas',
+			initialValue: privateConfigData.DB_PROVIDER || 'atlas',
 			options: [
 				{ value: 'atlas', label: 'Use MongoDB Atlas', hint: 'Recommended for Production' },
 				{ value: 'docker', label: 'Use Docker MongoDB', hint: 'Recommended for Development' },
@@ -139,7 +140,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	} else if (projectDatabase === 'mariadb') {
 		const mariadbOption = await select({
 			message: 'Choose your MariaDB option:',
-			initialValue: privateConfigData.DB_TYPE || 'docker',
+			initialValue: privateConfigData.DB_PROVIDER || 'docker',
 			options: [
 				{ value: 'docker', label: 'Use Docker MariaDB', hint: 'Recommended for Development' },
 				{ value: 'local', label: 'Use Local MariaDB', hint: 'Recommended for Development' }
@@ -196,6 +197,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	// Summary note before saving
 	note(
 		`Connection String: ${connectionString}` +
+			`\nDB_TYPE: ${pc.green(projectDatabase)}` +
 			`\nDB_HOST: ${pc.green(parsedConfig.DB_HOST)}` +
 			`\nDB_NAME: ${pc.green(parsedConfig.DB_NAME)}` +
 			`\nDB_USER: ${pc.green(parsedConfig.DB_USER)}` +
