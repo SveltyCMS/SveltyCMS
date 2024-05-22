@@ -32,6 +32,9 @@ export async function configureLanguage() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Language Configuration:'));
+
 	const options = languageOptions.map((option) => ({
 		value: option.value,
 		label: `${option.label}`,

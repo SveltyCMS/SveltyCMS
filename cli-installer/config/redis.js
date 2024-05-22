@@ -6,6 +6,9 @@ export async function configureRedis() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Redis Configuration:'));
+
 	// Enable Redis Caching (optional - Not yet implemented)
 	const USE_REDIS = await confirm({
 		message: 'Enable Redis Caching?',

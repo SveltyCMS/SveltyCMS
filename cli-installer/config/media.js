@@ -6,6 +6,9 @@ export async function configureMedia() {
 	// SvelteCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Media Configuration:'));
+
 	// Media configuration
 	const IMAGE_SIZES = await text({
 		message: "Enter the image sizes in format 'size: value', separated by commas (e.g., sm: 600, md: 900, lg: 1200), or leave blank:",

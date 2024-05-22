@@ -1,6 +1,7 @@
 import { select, cancel } from '@clack/prompts';
 import { spawnSync } from 'child_process';
 import { Title } from './cli-installer.js';
+import pc from 'picocolors';
 
 // Detect installed package managers
 async function checkPackageManagers() {
@@ -64,7 +65,8 @@ export async function startProcess() {
 			return { value: manager, label: manager, hint };
 		});
 
-		console.log('Start SveltyCMS');
+		// Configuration Title
+		console.log(pc.blue('◆  Start SveltyCMS'));
 
 		// Select package manager
 		const selectedManager = await select({

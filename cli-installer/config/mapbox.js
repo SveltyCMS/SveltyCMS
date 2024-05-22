@@ -6,6 +6,9 @@ export async function configureMapbox() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Mapbox Configuration:'));
+
 	// Mapbox configuration
 	const USE_MAPBOX = await confirm({
 		message: 'Enable Mapbox integration?',

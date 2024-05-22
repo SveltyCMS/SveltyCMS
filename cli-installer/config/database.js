@@ -58,6 +58,9 @@ export async function configureDatabase(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Database Configuration:'));
+
 	// Configure SvelteCMS
 	const projectDatabase = await select({
 		message: 'Choose your database option:',

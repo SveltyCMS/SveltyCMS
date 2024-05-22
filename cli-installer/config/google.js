@@ -6,6 +6,9 @@ export async function configureGoogle() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Google Configuration:'));
+
 	// Collect Google API Key
 	const GOOGLE_API_KEY = await select({
 		message: 'Enter the Google API key (leave blank if not required):',

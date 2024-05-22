@@ -18,6 +18,9 @@ export async function configureEmail(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  Email Configuration:'));
+
 	const SMTP_PROVIDER = await select({
 		message: 'Select your SMTP provider or choose Custom for custom settings:',
 		placeholder: 'Gmail',

@@ -6,6 +6,9 @@ export async function configureTiktok() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  TikTok Configuration:'));
+
 	// TikTok configuration
 	const USE_TIKTOK = await confirm({
 		message: 'Enable TikTok integration?',

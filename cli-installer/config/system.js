@@ -6,6 +6,9 @@ export async function configureSystem() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  System Configuration:'));
+
 	const SITE_NAME = await text({
 		message: 'Enter the site name:',
 		placeholder: 'SveltyCMS',

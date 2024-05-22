@@ -1,4 +1,4 @@
-import { isCancel, select, confirm, intro, note, outro } from '@clack/prompts';
+import { isCancel, select, confirm, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';
 import path from 'path';
@@ -17,7 +17,6 @@ import { configureRedis } from './config/redis.js';
 import { configureMapbox } from './config/mapbox.js';
 import { configureTiktok } from './config/tiktok.js';
 import { configureOpenAI } from './config/openai.js';
-import { clear } from 'console';
 
 // Helper function to transpile TypeScript code to JavaScript
 function transpileToJS(tsCode, compilerOptions) {
@@ -75,13 +74,13 @@ function createBackup() {
 		const backupPath = path.join(process.cwd(), 'config', `${path.basename(filePath, '.ts')}.backup.ts`);
 		try {
 			fs.copyFileSync(filePath, backupPath);
-			return `Backup created at ${backupPath}`;
+			return `Backup created at /config/${path.basename(backupPath)}`;
 		} catch (error) {
 			return `Failed to create backup: ${error.message}`;
 		}
 	};
 
-	let backupMessages = [];
+	const backupMessages = [];
 	if (fs.existsSync(privateConfigPath)) {
 		backupMessages.push(createBackupForFile(privateConfigPath));
 	}

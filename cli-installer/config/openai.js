@@ -6,6 +6,9 @@ export async function configureOpenAI() {
 	// SveltyCMS Title
 	Title();
 
+	// Configuration Title
+	console.log(pc.blue('◆  OpenAI Configuration:'));
+
 	// OpenAI configuration
 	const USE_OPENAI = await confirm({
 		message: 'Enable OpenAI integration?',
