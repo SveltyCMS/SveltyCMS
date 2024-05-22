@@ -18,6 +18,9 @@ import { configureMapbox } from './config/mapbox.js';
 import { configureTiktok } from './config/tiktok.js';
 import { configureOpenAI } from './config/openai.js';
 
+let publicConfig = { };
+let privateConfig = { };
+
 // Helper function to transpile TypeScript code to JavaScript
 function transpileToJS(tsCode, compilerOptions) {
 	const result = ts.transpileModule(tsCode, {
@@ -34,28 +37,37 @@ function transpileToJS(tsCode, compilerOptions) {
 	return result.outputText;
 }
 
+function importTSModule(filePath) {
+	const compilerOptions = {
+		target: ts.ScriptTarget.ESNext, // Compile to ESNext
+		module: ts.ModuleKind.CommonJS
+	};
+	const tsCode = fs.readFileSync(filePath, 'utf-8');
+	return transpileToJS(tsCode, compilerOptions)
+}
+
 async function importConfig(filePath) {
 	if (fs.existsSync(filePath)) {
 		try {
-			const tsCode = fs.readFileSync(filePath, 'utf-8');
-			const compilerOptions = {
-				target: ts.ScriptTarget.ESNext, // Compile to ESNext
-				module: ts.ModuleKind.CommonJS
-			};
-			const jsCode = transpileToJS(tsCode, compilerOptions);
+			let jsCode = importTSModule(filePath);
+			jsCode = jsCode.replaceAll('require(', 'await require(');
+			
 			// Set up a mock require function for CommonJS compatibility
-			const requireMock = (module) => {
-				if (module === 'fs') {
-					return fs;
-				} else if (module === 'path') {
-					return path;
-				}
+			const requireMock = async (module) => {
 				// Add more modules as needed
-				throw new Error(`Cannot find module '${module}'`);
+				const typesModule = await importSingleTs(path.join(process.cwd(), 'config', 'types.ts'));
+				const registeredModules = {
+					'fs': fs,
+					'path': path,
+					'./types': typesModule,
+				}
+				return registeredModules[module] || (() => { throw new Error(`Cannot find module '${module}'`); })();
 			};
+
+			const AsyncFunction = Object.getPrototypeOf(async function(){}).constructor;
 			const moduleExports = {};
-			const moduleWrapper = new Function('exports', 'require', jsCode);
-			moduleWrapper(moduleExports, requireMock);
+			const moduleWrapper = new AsyncFunction('exports', 'require', jsCode);
+			await moduleWrapper(moduleExports, requireMock);
 			return moduleExports.default || moduleExports;
 		} catch (error) {
 			console.error(`Error importing configuration file: ${error.message}`);
@@ -100,7 +112,10 @@ export const configurationPrompt = async () => {
 	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
 	let backupMessages = [];
 
-	if (fs.existsSync(privateConfigPath) || fs.existsSync(publicConfigPath)) {
+	const privateExists = fs.existsSync(privateConfigPath);
+	const publicExists = fs.existsSync(publicConfigPath);
+
+	if (privateExists || publicExists) {
 		backupMessages = createBackup();
 		note(backupMessages.map((message) => pc.blue(message)).join('\n'), pc.green('Configuration found, backup created:'));
 	} else {
@@ -108,7 +123,16 @@ export const configurationPrompt = async () => {
 	}
 
 	// Initialize an object to store all the configuration data
-	const configData = {};
+	let configData = {};
+	if (privateExists) {
+		privateConfig = (await importConfig(privateConfigPath)).privateEnv;
+		configData = { ...configData, ...privateConfig };
+	}
+	if (publicExists) {
+		publicConfig = (await importConfig(publicConfigPath)).publicEnv;
+		configData = {  ...configData, ...privateConfig };
+	}
+
 
 	let projectConfigure;
 	const exitConfirmed = false;
