@@ -108,7 +108,7 @@ export const configurationPrompt = async () => {
 	}
 
 	// Initialize an object to store all the configuration data
-	const configData = {};
+	let configData = {};
 
 	let projectConfigure;
 	const exitConfirmed = false;
@@ -144,7 +144,8 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.database = result;
+
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Email': {
@@ -153,7 +154,8 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.email = result;
+
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Language': {
@@ -162,7 +164,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.language = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'System': {
@@ -171,7 +173,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.system = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Media': {
@@ -180,7 +182,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.media = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Google': {
@@ -189,7 +191,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.google = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Redis': {
@@ -198,7 +200,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.redis = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Mapbox': {
@@ -207,7 +209,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.mapbox = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Tiktok': {
@@ -216,7 +218,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.tiktok = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'OpenAI': {
@@ -225,7 +227,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.openai = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Exit': {
