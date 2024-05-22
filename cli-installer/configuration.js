@@ -1,5 +1,8 @@
-import { isCancel, select, confirm } from '@clack/prompts';
+import { isCancel, select, confirm, intro, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
+import fs from 'fs';
+import path from 'path';
+import ts from 'typescript';
 
 import { Title, cancelOperation } from './cli-installer.js';
 import { createOrUpdateConfigFile } from './createOrUpdateConfigFile.js';
@@ -14,32 +17,118 @@ import { configureRedis } from './config/redis.js';
 import { configureMapbox } from './config/mapbox.js';
 import { configureTiktok } from './config/tiktok.js';
 import { configureOpenAI } from './config/openai.js';
+import { clear } from 'console';
+
+// Helper function to transpile TypeScript code to JavaScript
+function transpileToJS(tsCode, compilerOptions) {
+	const result = ts.transpileModule(tsCode, {
+		...compilerOptions,
+		module: ts.ModuleKind.CommonJS
+	});
+
+	// Check for compilation errors
+	if (result.diagnostics && result.diagnostics.length > 0) {
+		const errors = result.diagnostics.map((diagnostic) => diagnostic.messageText).join('\n');
+		throw new Error(`TypeScript compilation errors:\n${errors}`);
+	}
+
+	return result.outputText;
+}
+
+async function importConfig(filePath) {
+	if (fs.existsSync(filePath)) {
+		try {
+			const tsCode = fs.readFileSync(filePath, 'utf-8');
+			const compilerOptions = {
+				target: ts.ScriptTarget.ESNext, // Compile to ESNext
+				module: ts.ModuleKind.CommonJS
+			};
+			const jsCode = transpileToJS(tsCode, compilerOptions);
+			// Set up a mock require function for CommonJS compatibility
+			const requireMock = (module) => {
+				if (module === 'fs') {
+					return fs;
+				} else if (module === 'path') {
+					return path;
+				}
+				// Add more modules as needed
+				throw new Error(`Cannot find module '${module}'`);
+			};
+			const moduleExports = {};
+			const moduleWrapper = new Function('exports', 'require', jsCode);
+			moduleWrapper(moduleExports, requireMock);
+			return moduleExports.default || moduleExports;
+		} catch (error) {
+			console.error(`Error importing configuration file: ${error.message}`);
+		}
+	} else {
+		console.log(`Configuration file not found: ${filePath}`);
+	}
+	return {};
+}
+
+function createBackup() {
+	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
+
+	const createBackupForFile = (filePath) => {
+		const backupPath = path.join(process.cwd(), 'config', `${path.basename(filePath, '.ts')}.backup.ts`);
+		try {
+			fs.copyFileSync(filePath, backupPath);
+			return `Backup created at ${backupPath}`;
+		} catch (error) {
+			return `Failed to create backup: ${error.message}`;
+		}
+	};
+
+	let backupMessages = [];
+	if (fs.existsSync(privateConfigPath)) {
+		backupMessages.push(createBackupForFile(privateConfigPath));
+	}
+	if (fs.existsSync(publicConfigPath)) {
+		backupMessages.push(createBackupForFile(publicConfigPath));
+	}
+
+	return backupMessages;
+}
 
 export const configurationPrompt = async () => {
 	// SveltyCMS Title
 	Title();
 
+	// Perform the backup process
+	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
+	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
+	let backupMessages = [];
+
+	if (fs.existsSync(privateConfigPath) || fs.existsSync(publicConfigPath)) {
+		backupMessages = createBackup();
+		note(backupMessages.map((message) => pc.blue(message)).join('\n'), pc.green('Configuration found, backup created:'));
+	} else {
+		note(pc.green('No existing configuration found. Default configuration loaded. Please complete the required setup.'), pc.green('Fresh Install:'));
+	}
+
 	// Initialize an object to store all the configuration data
 	const configData = {};
 
 	let projectConfigure;
-	let exitConfirmed = false;
+	const exitConfirmed = false;
 
 	do {
 		// Configure SvelteCMS
 		projectConfigure = await select({
 			message: 'Configure SvelteCMS - Pick a Category (* Required)',
 			options: [
-				{ value: 'Database', label: pc[configData.database ? 'green' : 'white']('Database *'), hint: 'Configure Database', required: true },
-				{ value: 'Email', label: pc[configData.email ? 'green' : 'white']('Email *'), hint: 'Configure Email Server', required: true },
-				{ value: 'Language', label: pc[configData.language ? 'green' : 'white']('Language'), hint: 'Configure System & Content Languages' },
-				{ value: 'System', label: pc[configData.system ? 'green' : 'white']('System'), hint: 'Configure System settings' },
-				{ value: 'Media', label: pc[configData.media ? 'green' : 'white']('Media'), hint: 'Configure Media handling' },
-				{ value: 'Google', label: pc[configData.google ? 'green' : 'white']('Google'), hint: 'Configure Google API' },
-				{ value: 'Redis', label: pc[configData.redis ? 'green' : 'white']('Redis'), hint: 'Configure Redis cache' },
-				{ value: 'Mapbox', label: pc[configData.mapbox ? 'green' : 'white']('Mapbox'), hint: 'Configure Mapbox API' },
-				{ value: 'Tiktok', label: pc[configData.tiktok ? 'green' : 'white']('Tiktok'), hint: 'Configure Tiktok API' },
-				{ value: 'OpenAI', label: pc[configData.openai ? 'green' : 'white']('OpenAI'), hint: 'Define OpenAI API' },
+				{ value: 'Database', label: configData.database ? pc.green('Database *') : 'Database *', hint: 'Configure Database', required: true },
+				{ value: 'Email', label: configData.email ? pc.green('Email *') : 'Email *', hint: 'Configure Email Server', required: true },
+				{ value: 'Language', label: configData.language ? pc.green('Language') : 'Language', hint: 'Configure System & Content Languages' },
+				{ value: 'System', label: configData.system ? pc.green('System') : 'System', hint: 'Configure System settings' },
+				{ value: 'Media', label: configData.media ? pc.green('Media') : 'Media', hint: 'Configure Media handling' },
+				{ value: 'Google', label: configData.google ? pc.green('Google') : 'Google', hint: 'Configure Google API' },
+				{ value: 'Redis', label: configData.redis ? pc.green('Redis') : 'Redis', hint: 'Configure Redis cache' },
+				{ value: 'Mapbox', label: configData.mapbox ? pc.green('Mapbox') : 'Mapbox', hint: 'Configure Mapbox API' },
+				{ value: 'Tiktok', label: configData.tiktok ? pc.green('Tiktok') : 'Tiktok', hint: 'Configure Tiktok API' },
+				{ value: 'OpenAI', label: configData.openai ? pc.green('OpenAI') : 'OpenAI', hint: 'Define OpenAI API' },
 				{ value: 'Exit', label: 'Exit', hint: 'Exit the installer' }
 			]
 		});
@@ -50,54 +139,110 @@ export const configurationPrompt = async () => {
 
 		switch (projectConfigure) {
 			case 'Database': {
-				configData.database = await configureDatabase();
+				const result = await configureDatabase();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.database = result;
 				break;
 			}
 			case 'Email': {
-				configData.email = await configureEmail();
+				const result = await configureEmail();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.email = result;
 				break;
 			}
 			case 'Language': {
-				configData.language = await configureLanguage();
+				const result = await configureLanguage();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.language = result;
 				break;
 			}
 			case 'System': {
-				configData.system = await configureSystem();
+				const result = await configureSystem();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.system = result;
 				break;
 			}
 			case 'Media': {
-				configData.media = await configureMedia();
+				const result = await configureMedia();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.media = result;
 				break;
 			}
 			case 'Google': {
-				configData.google = await configureGoogle();
+				const result = await configureGoogle();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.google = result;
 				break;
 			}
 			case 'Redis': {
-				configData.redis = await configureRedis();
+				const result = await configureRedis();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.redis = result;
 				break;
 			}
 			case 'Mapbox': {
-				configData.mapbox = await configureMapbox();
+				const result = await configureMapbox();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.mapbox = result;
 				break;
 			}
 			case 'Tiktok': {
-				configData.tiktok = await configureTiktok();
+				const result = await configureTiktok();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.tiktok = result;
 				break;
 			}
 			case 'OpenAI': {
-				configData.openai = await configureOpenAI();
+				const result = await configureOpenAI();
+				if (isCancel(result)) {
+					cancelOperation();
+				}
+				configData.openai = result;
 				break;
 			}
 			case 'Exit': {
-				const confirmExit = await confirm({
-					message: 'Are you sure you want to exit?',
-					initial: false
-				});
-				if (confirmExit) {
-					exitConfirmed = true;
+				if (!configData.database || !configData.email) {
+					const confirmExit = await confirm({
+						message: 'Database and Email are required to save the configuration. Do you still want to exit without saving?',
+						initialValue: false
+					});
+					if (confirmExit) {
+						outro('Thank you for using SveltyCMS CLI Installer.');
+						process.exit(0);
+					}
+				} else {
+					const confirmSave = await confirm({
+						message: 'Do you want to save the configuration before exiting?',
+						initialValue: true
+					});
+					if (confirmSave) {
+						await createOrUpdateConfigFile(configData);
+						console.log('Configuration saved.');
+						outro('Thank you for using SveltyCMS CLI Installer.');
+						process.exit(0);
+					}
 				}
-				console.clear();
+
+				outro('Thank you for using SveltyCMS CLI Installer.');
+				process.exit(0);
 				break;
 			}
 			default:
@@ -109,7 +254,7 @@ export const configurationPrompt = async () => {
 	if (configData.database && configData.email) {
 		const confirmSave = await confirm({
 			message: 'Do you want to save the configuration?',
-			initial: true
+			initialValue: true
 		});
 
 		if (confirmSave) {
@@ -118,7 +263,5 @@ export const configurationPrompt = async () => {
 		} else {
 			console.log('Configuration not saved.');
 		}
-	} else {
-		console.log('Configuration requires Database and Email to be set.');
 	}
 };

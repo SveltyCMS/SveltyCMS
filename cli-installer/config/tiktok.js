@@ -1,4 +1,4 @@
-import { confirm, text, note } from '@clack/prompts';
+import { confirm, text, note, select } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 
@@ -9,7 +9,7 @@ export async function configureTiktok() {
 	// TikTok configuration
 	const USE_TIKTOK = await confirm({
 		message: 'Enable TikTok integration?',
-		initial: false
+		initialValue: false
 	});
 
 	let TIKTOK_TOKEN = '';
@@ -25,12 +25,27 @@ export async function configureTiktok() {
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (!action) {
 		console.log('TikTok configuration canceled.');
-		process.exit(0); // Exit with code 0
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (restartOrExit === 'restart') {
+			return configureTiktok();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	// Compile and return the configuration data

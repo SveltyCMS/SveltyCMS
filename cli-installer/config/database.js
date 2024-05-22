@@ -206,7 +206,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	);
 	const confirmSave = await confirm({
 		message: 'Do you want to save the configuration?',
-		initial: true
+		initialValue: true
 	});
 
 	if (!confirmSave) {

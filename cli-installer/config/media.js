@@ -1,7 +1,6 @@
-import { confirm, text, note } from '@clack/prompts';
+import { confirm, text, note, select } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
-import { select } from '@clack/prompts';
 
 export async function configureMedia() {
 	// SvelteCMS Title
@@ -35,17 +34,10 @@ export async function configureMedia() {
 		quality: await text({
 			message: 'Enter the media output quality between 0 and 100, bigger is higher quality, but larger file size:',
 			placeholder: '80',
-			initialValue: '80'
-			// validate(value) {
-			// 	const quality = parseInt(value);
-
-			// 	// Check if the parsed value is not a number or if it's less than 0 or greater than 100
-			// 	if (isNaN(quality) || quality < 0 || quality > 100) {
-			// 		return 'Please enter a valid quality between 0 and 100.';
-			// 	}
-
-			// 	return true;
-			// }
+			initialValue: '80',
+			validate(value) {
+				if (value.length === 0) return `Please enter a valid Media Output Quality between 0 and 100.`;
+			}
 		})
 	};
 
@@ -57,21 +49,36 @@ export async function configureMedia() {
 
 	// Summary
 	note(
-		`IMAGE_SIZES: ${IMAGE_SIZES || ''}\n` +
-			`MEDIA_FOLDER: ${MEDIA_FOLDER}\n` +
-			`MEDIA_OUTPUT_FORMAT_QUALITY: ${JSON.stringify(MEDIA_OUTPUT_FORMAT_QUALITY)}\n` +
-			`MEDIASERVER_URL: ${MEDIASERVER_URL || ''}`,
+		`IMAGE_SIZES: ${pc.green(IMAGE_SIZES || '')}\n` +
+			`MEDIA_FOLDER: ${pc.green(MEDIA_FOLDER)}\n` +
+			`MEDIA_OUTPUT_FORMAT_QUALITY: ${pc.green(JSON.stringify(MEDIA_OUTPUT_FORMAT_QUALITY))}\n` +
+			`MEDIASERVER_URL: ${pc.green(MEDIASERVER_URL || '')}`,
 		pc.green('Review your Media configuration:')
 	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (!action) {
 		console.log('Media configuration canceled.');
-		process.exit(0); // Exit with code 0
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (restartOrExit === 'restart') {
+			return configureMedia();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	// Compile and return the configuration data

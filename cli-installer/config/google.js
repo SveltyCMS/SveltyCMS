@@ -15,7 +15,7 @@ export async function configureGoogle() {
 	// Determine if Google OAuth should be used
 	const USE_GOOGLE_OAUTH = await confirm({
 		message: 'Do you want to use Google OAuth?',
-		initial: false
+		initialValue: false
 	});
 
 	let GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET;
@@ -40,21 +40,36 @@ export async function configureGoogle() {
 
 	// Summary
 	note(
-		`GOOGLE_API_KEY: ${GOOGLE_API_KEY}\n` +
-			`USE_GOOGLE_OAUTH: ${USE_GOOGLE_OAUTH}\n` +
-			`GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID || 'Not Applicable'}\n` +
-			`GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET || 'Not Applicable'}`,
+		`GOOGLE_API_KEY:  ${pc.green(GOOGLE_API_KEY)}\n` +
+			`USE_GOOGLE_OAUTH: ${pc.green(USE_GOOGLE_OAUTH)}\n` +
+			`GOOGLE_CLIENT_ID:  ${pc.green(GOOGLE_CLIENT_ID || 'Not Applicable')}\n` +
+			`GOOGLE_CLIENT_SECRET:  ${pc.green(GOOGLE_CLIENT_SECRET || 'Not Applicable')}`,
 		pc.green('Review your Google configuration:')
 	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (!action) {
 		console.log('Google configuration canceled.');
-		process.exit(0); // Exit with code 0
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (restartOrExit === 'restart') {
+			return configureGoogle();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	// Compile and return the configuration data

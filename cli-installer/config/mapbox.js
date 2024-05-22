@@ -1,4 +1,4 @@
-import { confirm, text, note } from '@clack/prompts';
+import { confirm, text, note, select } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 
@@ -22,16 +22,34 @@ export async function configureMapbox() {
 	}
 
 	// Summary
-	note(`USE_MAPBOX: ${USE_MAPBOX}\n` + (USE_MAPBOX ? `MAPBOX_API_TOKEN: ${MAPBOX_API_TOKEN}\n` : ''), pc.green('Review your Mapbox configuration:'));
+	note(
+		`USE_MAPBOX: ${pc.green(USE_MAPBOX)}\n` + (USE_MAPBOX ? `MAPBOX_API_TOKEN: ${pc.green(MAPBOX_API_TOKEN)}\n` : ''),
+		pc.green('Review your Mapbox configuration:')
+	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (!action) {
 		console.log('Mapbox configuration canceled.');
-		process.exit(0); // Exit with code 0
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (restartOrExit === 'restart') {
+			return configureMapbox();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	// Compile and return the configuration data

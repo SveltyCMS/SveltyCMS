@@ -9,7 +9,7 @@ export async function configureRedis() {
 	// Enable Redis Caching (optional - Not yet implemented)
 	const USE_REDIS = await confirm({
 		message: 'Enable Redis Caching?',
-		initial: false
+		initialValue: false
 	});
 
 	let REDIS_HOST = 'localhost';
@@ -39,7 +39,7 @@ export async function configureRedis() {
 		// Determine if a password should be used
 		const USE_PASSWORD = await confirm({
 			message: 'Do you want to set a password for Redis?',
-			initial: false
+			initialValue: false
 		});
 
 		if (USE_PASSWORD) {
@@ -53,20 +53,35 @@ export async function configureRedis() {
 	// Summary
 	note(
 		`USE_REDIS: ${USE_REDIS}\n` +
-			(USE_REDIS ? `REDIS_HOST: ${REDIS_HOST}\n` : '') +
-			(USE_REDIS ? `REDIS_PORT: ${REDIS_PORT}\n` : '') +
-			(USE_REDIS && REDIS_PASSWORD ? `REDIS_PASSWORD: ${REDIS_PASSWORD}\n` : ''),
+			(USE_REDIS ? `REDIS_HOST: ${pc.green(REDIS_HOST)}\n` : '') +
+			(USE_REDIS ? `REDIS_PORT:${pc.green(REDIS_PORT)}\n` : '') +
+			(USE_REDIS && REDIS_PASSWORD ? `REDIS_PASSWORD:${pc.green(REDIS_PASSWORD)}\n` : ''),
 		pc.green('Review your Redis configuration:')
 	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialinitiaValue: true
 	});
 
 	if (!action) {
 		console.log('Redis configuration canceled.');
-		process.exit(0); // Exit with code 0
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (restartOrExit === 'restart') {
+			return configureRedis();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	// Compile and return the configuration data

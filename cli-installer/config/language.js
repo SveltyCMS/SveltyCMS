@@ -81,17 +81,17 @@ export async function configureLanguage() {
 
 	// Summary
 	note(
-		`DEFAULT_CONTENT_LANGUAGE: ${answers.DEFAULT_CONTENT_LANGUAGE}\n` +
-			`AVAILABLE_CONTENT_LANGUAGES: ${answers.AVAILABLE_CONTENT_LANGUAGES.join(', ')}\n` +
-			`DEFAULT_SYSTEM_LANGUAGE: ${answers.DEFAULT_SYSTEM_LANGUAGE}\n` +
-			`AVAILABLE_SYSTEM_LANGUAGES: ${answers.AVAILABLE_SYSTEM_LANGUAGES.join(', ')}`,
+		`DEFAULT_CONTENT_LANGUAGE: ${pc.green(answers.DEFAULT_CONTENT_LANGUAGE)}\n` +
+			`AVAILABLE_CONTENT_LANGUAGES:${pc.green(answers.AVAILABLE_CONTENT_LANGUAGES.join(', '))}\n` +
+			`DEFAULT_SYSTEM_LANGUAGE:${pc.green(answers.DEFAULT_SYSTEM_LANGUAGE)}\n` +
+			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.green(answers.AVAILABLE_SYSTEM_LANGUAGES.join(', '))}`,
 
 		pc.green('Review your language configuration:')
 	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (isCancel(action)) {

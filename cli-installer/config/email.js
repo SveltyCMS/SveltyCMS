@@ -35,17 +35,19 @@ export async function configureEmail(privateConfigData = {}) {
 		SMTP_HOST = await text({
 			message: 'Enter the SMTP host:',
 			placeholder: 'smtp.provider.com',
-			initialValue: privateConfigData.SMTP_HOST || SMTP_HOST
+			initialValue: privateConfigData.SMTP_HOST || SMTP_HOST,
+			validate(value) {
+				if (value.length === 0) return `SMTP host is required!`;
+			}
 		});
 
 		SMTP_PORT = await text({
 			message: 'Enter the SMTP port:',
 			placeholder: '587',
-			initialValue: privateConfigData.SMTP_PORT || SMTP_PORT
-			// validate: (value) => {
-			// 	const port = parseInt(value, 10);
-			// 	return (!isNaN(port) && port > 0 && port < 65536) || 'Please enter a valid port number between 1 and 65535.';
-			// }
+			initialValue: privateConfigData.SMTP_PORT || SMTP_PORT,
+			validate(value) {
+				if (value.length === 0) return `Please enter a valid port number between 1 and 65535.`;
+			}
 		});
 	}
 
@@ -82,7 +84,7 @@ export async function configureEmail(privateConfigData = {}) {
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
-		initial: true
+		initialValue: true
 	});
 
 	if (isCancel(action)) {

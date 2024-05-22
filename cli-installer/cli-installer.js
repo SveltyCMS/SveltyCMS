@@ -1,5 +1,4 @@
 import { intro, outro, isCancel, cancel } from '@clack/prompts';
-import { setTimeout as sleep } from 'node:timers/promises';
 import pc from 'picocolors';
 
 // Components
