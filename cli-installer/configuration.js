@@ -3,6 +3,7 @@ import pc from 'picocolors';
 import fs from 'fs';
 import path from 'path';
 import ts from 'typescript';
+import { importSingleTs } from 'import-single-ts';
 
 import { Title, cancelOperation } from './cli-installer.js';
 import { createOrUpdateConfigFile } from './createOrUpdateConfigFile.js';
@@ -34,28 +35,42 @@ function transpileToJS(tsCode, compilerOptions) {
 	return result.outputText;
 }
 
+function importTSModule(filePath) {
+	const compilerOptions = {
+		target: ts.ScriptTarget.ESNext, // Compile to ESNext
+		module: ts.ModuleKind.CommonJS
+	};
+	const tsCode = fs.readFileSync(filePath, 'utf-8');
+	return transpileToJS(tsCode, compilerOptions);
+}
+
 async function importConfig(filePath) {
 	if (fs.existsSync(filePath)) {
 		try {
-			const tsCode = fs.readFileSync(filePath, 'utf-8');
-			const compilerOptions = {
-				target: ts.ScriptTarget.ESNext, // Compile to ESNext
-				module: ts.ModuleKind.CommonJS
-			};
-			const jsCode = transpileToJS(tsCode, compilerOptions);
+			let jsCode = importTSModule(filePath);
+			jsCode = jsCode.replaceAll('require(', 'await require(');
+
 			// Set up a mock require function for CommonJS compatibility
-			const requireMock = (module) => {
-				if (module === 'fs') {
-					return fs;
-				} else if (module === 'path') {
-					return path;
-				}
+			const requireMock = async (module) => {
 				// Add more modules as needed
-				throw new Error(`Cannot find module '${module}'`);
+				const typesModule = await importSingleTs(path.join(process.cwd(), 'config', 'types.ts'));
+				const registeredModules = {
+					fs: fs,
+					path: path,
+					'./types': typesModule
+				};
+				return (
+					registeredModules[module] ||
+					(() => {
+						throw new Error(`Cannot find module '${module}'`);
+					})()
+				);
 			};
+
+			const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
 			const moduleExports = {};
-			const moduleWrapper = new Function('exports', 'require', jsCode);
-			moduleWrapper(moduleExports, requireMock);
+			const moduleWrapper = new AsyncFunction('exports', 'require', jsCode);
+			await moduleWrapper(moduleExports, requireMock);
 			return moduleExports.default || moduleExports;
 		} catch (error) {
 			console.error(`Error importing configuration file: ${error.message}`);
@@ -100,7 +115,10 @@ export const configurationPrompt = async () => {
 	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
 	let backupMessages = [];
 
-	if (fs.existsSync(privateConfigPath) || fs.existsSync(publicConfigPath)) {
+	const privateExists = fs.existsSync(privateConfigPath);
+	const publicExists = fs.existsSync(publicConfigPath);
+
+	if (privateExists || publicExists) {
 		backupMessages = createBackup();
 		note(backupMessages.map((message) => pc.blue(message)).join('\n'), pc.green('Configuration found, backup created:'));
 	} else {
@@ -109,6 +127,17 @@ export const configurationPrompt = async () => {
 
 	// Initialize an object to store all the configuration data
 	let configData = {};
+
+	if (privateExists) {
+		const privateConfig = (await importConfig(privateConfigPath)).privateEnv;
+		configData = { ...configData, ...privateConfig };
+	}
+	if (publicExists) {
+		const publicConfig = (await importConfig(publicConfigPath)).publicEnv;
+		configData = { ...configData, ...publicConfig };
+	}
+
+	console.log(configData);
 
 	let projectConfigure;
 	const exitConfirmed = false;
@@ -139,95 +168,93 @@ export const configurationPrompt = async () => {
 
 		switch (projectConfigure) {
 			case 'Database': {
-				const result = await configureDatabase();
+				const result = await configureDatabase(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-
-				configData = { ...configData, ...result };
+				configData.database = result;
 				break;
 			}
 			case 'Email': {
-				const result = await configureEmail();
+				const result = await configureEmail(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-
-				configData = { ...configData, ...result };
+				configData.email = result;
 				break;
 			}
 			case 'Language': {
-				const result = await configureLanguage();
+				const result = await configureLanguage(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.language = result;
 				break;
 			}
 			case 'System': {
-				const result = await configureSystem();
+				const result = await configureSystem(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.system = result;
 				break;
 			}
 			case 'Media': {
-				const result = await configureMedia();
+				const result = await configureMedia(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.media = result;
 				break;
 			}
 			case 'Google': {
-				const result = await configureGoogle();
+				const result = await configureGoogle(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.google = result;
 				break;
 			}
 			case 'Redis': {
-				const result = await configureRedis();
+				const result = await configureRedis(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.redis = result;
 				break;
 			}
 			case 'Mapbox': {
-				const result = await configureMapbox();
+				const result = await configureMapbox(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.mapbox = result;
 				break;
 			}
 			case 'Tiktok': {
-				const result = await configureTiktok();
+				const result = await configureTiktok(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.tiktok = result;
 				break;
 			}
 			case 'OpenAI': {
-				const result = await configureOpenAI();
+				const result = await configureOpenAI(configData);
 				if (isCancel(result)) {
 					await cancelOperation();
 					return;
 				}
-				configData = { ...configData, ...result };
+				configData.openai = result;
 				break;
 			}
 			case 'Exit': {
