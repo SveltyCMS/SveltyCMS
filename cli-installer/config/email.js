@@ -1,6 +1,8 @@
 import { Title } from '../cli-installer.js';
-import { isCancel, text, select, confirm, note } from '@clack/prompts';
+import { isCancel, text, select, confirm, note, cancel } from '@clack/prompts';
 import pc from 'picocolors';
+
+import { configurationPrompt } from '../configuration.js';
 
 const emailProviders = [
 	{ name: 'Custom Provider', host: '', port: '' },
@@ -31,10 +33,17 @@ export async function configureEmail(privateConfigData = {}) {
 		}))
 	});
 
-	let SMTP_HOST = SMTP_PROVIDER.host;
-	let SMTP_PORT = SMTP_PROVIDER.port.toString();
+	if (isCancel(SMTP_PROVIDER)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
-	if (SMTP_PROVIDER.name === 'Custom') {
+	let SMTP_HOST = SMTP_PROVIDER.host;
+	let SMTP_PORT = SMTP_PROVIDER.port?.toString() || '';
+
+	if (SMTP_PROVIDER.name === 'Custom Provider') {
 		SMTP_HOST = await text({
 			message: 'Enter the SMTP host:',
 			placeholder: 'smtp.provider.com',
@@ -44,6 +53,13 @@ export async function configureEmail(privateConfigData = {}) {
 			}
 		});
 
+		if (isCancel(SMTP_HOST)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
 		SMTP_PORT = await text({
 			message: 'Enter the SMTP port:',
 			placeholder: '587',
@@ -52,6 +68,13 @@ export async function configureEmail(privateConfigData = {}) {
 				if (value.length === 0) return `Please enter a valid port number between 1 and 65535.`;
 			}
 		});
+
+		if (isCancel(SMTP_PORT)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 	}
 
 	const SMTP_EMAIL = await text({
@@ -63,6 +86,13 @@ export async function configureEmail(privateConfigData = {}) {
 		}
 	});
 
+	if (isCancel(SMTP_EMAIL)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	const SMTP_PASSWORD = await text({
 		message: 'Enter your email password:',
 		placeholder: 'Enter your email password',
@@ -73,6 +103,13 @@ export async function configureEmail(privateConfigData = {}) {
 		}
 	});
 
+	if (isCancel(SMTP_PASSWORD)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	// SveltyCMS Title
 	Title();
 
@@ -80,7 +117,7 @@ export async function configureEmail(privateConfigData = {}) {
 	note(
 		`SMTP_HOST: ${pc.green(SMTP_HOST)}\n` +
 			`SMTP_PORT: ${pc.green(SMTP_PORT)}\n` +
-			`SMTP_EMAIL:${pc.green(SMTP_EMAIL)}\n` +
+			`SMTP_EMAIL: ${pc.green(SMTP_EMAIL)}\n` +
 			`SMTP_PASSWORD: ${pc.green(SMTP_PASSWORD)}`,
 		pc.green('Review your Email configuration:')
 	);
@@ -91,8 +128,10 @@ export async function configureEmail(privateConfigData = {}) {
 	});
 
 	if (isCancel(action)) {
-		console.log('Email configuration canceled.');
-		process.exit(0); // Exit with code 0
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
 	}
 
 	if (!action) {
@@ -105,6 +144,13 @@ export async function configureEmail(privateConfigData = {}) {
 				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
 			]
 		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (restartOrExit === 'restart') {
 			return configureEmail();

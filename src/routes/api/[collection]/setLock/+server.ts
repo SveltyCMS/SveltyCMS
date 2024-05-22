@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { getCollectionModels } from '@api/db';
+import { getCollectionModels } from '@api/databases/db';
 
 // Export an asynchronous function named POST that is a RequestHandler
 export const POST: RequestHandler = async ({ params, request }) => {

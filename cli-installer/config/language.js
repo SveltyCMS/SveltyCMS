@@ -1,6 +1,7 @@
-import { confirm, multiselect, isCancel, select, cancel, note } from '@clack/prompts';
+import { confirm, multiselect, select, isCancel, cancel, note } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
 const languageOptions = [
 	{ value: 'da', label: 'Danish' },
@@ -41,42 +42,64 @@ export async function configureLanguage() {
 		hint: `${option.value}`
 	}));
 
-	const answers = {
-		DEFAULT_CONTENT_LANGUAGE: await select({
-			message: 'Choose the default content language. Default is English:',
-			options: options,
-			required: true,
-			cursorAt: ['en'],
-			initialValues: ['en']
-		}),
+	const DEFAULT_CONTENT_LANGUAGE = await select({
+		message: 'Choose the default content language. Default is English:',
+		options: options,
+		required: true,
+		cursorAt: ['en'],
+		initialValues: ['en']
+	});
 
-		AVAILABLE_CONTENT_LANGUAGES: await multiselect({
-			message: 'Select the available content languages. Default is English/German:',
-			options: options,
-			required: true,
-			cursorAt: ['en'],
-			initialValues: ['en', 'de']
-		}),
-
-		DEFAULT_SYSTEM_LANGUAGE: await select({
-			message: 'Choose the default system language. Default is English:',
-			options: options,
-			required: true,
-			cursorAt: ['en'],
-			initialValues: ['en']
-		}),
-
-		AVAILABLE_SYSTEM_LANGUAGES: await multiselect({
-			message: 'Select the available system languages. Default is English/German:',
-			options: options,
-			required: true,
-			cursorAt: ['en'],
-			initialValues: ['en', 'de']
-		})
-	};
-	if (isCancel(answers)) {
+	if (isCancel(DEFAULT_CONTENT_LANGUAGE)) {
 		cancel('Operation cancelled.');
-		process.exit(0);
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
+	const AVAILABLE_CONTENT_LANGUAGES = await multiselect({
+		message: 'Select the available content languages. Default is English/German:',
+		options: options,
+		required: true,
+		cursorAt: ['en'],
+		initialValues: ['en', 'de']
+	});
+
+	if (isCancel(AVAILABLE_CONTENT_LANGUAGES)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
+	const DEFAULT_SYSTEM_LANGUAGE = await select({
+		message: 'Choose the default system language. Default is English:',
+		options: options,
+		required: true,
+		cursorAt: ['en'],
+		initialValues: ['en']
+	});
+
+	if (isCancel(DEFAULT_SYSTEM_LANGUAGE)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
+	const AVAILABLE_SYSTEM_LANGUAGES = await multiselect({
+		message: 'Select the available system languages. Default is English/German:',
+		options: options,
+		required: true,
+		cursorAt: ['en'],
+		initialValues: ['en', 'de']
+	});
+
+	if (isCancel(AVAILABLE_SYSTEM_LANGUAGES)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
 	}
 
 	// SveltyCMS Title
@@ -84,11 +107,10 @@ export async function configureLanguage() {
 
 	// Summary
 	note(
-		`DEFAULT_CONTENT_LANGUAGE: ${pc.green(answers.DEFAULT_CONTENT_LANGUAGE)}\n` +
-			`AVAILABLE_CONTENT_LANGUAGES:${pc.green(answers.AVAILABLE_CONTENT_LANGUAGES.join(', '))}\n` +
-			`DEFAULT_SYSTEM_LANGUAGE:${pc.green(answers.DEFAULT_SYSTEM_LANGUAGE)}\n` +
-			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.green(answers.AVAILABLE_SYSTEM_LANGUAGES.join(', '))}`,
-
+		`DEFAULT_CONTENT_LANGUAGE: ${pc.green(DEFAULT_CONTENT_LANGUAGE)}\n` +
+			`AVAILABLE_CONTENT_LANGUAGES: ${pc.green(AVAILABLE_CONTENT_LANGUAGES.join(', '))}\n` +
+			`DEFAULT_SYSTEM_LANGUAGE: ${pc.green(DEFAULT_SYSTEM_LANGUAGE)}\n` +
+			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.green(AVAILABLE_SYSTEM_LANGUAGES.join(', '))}`,
 		pc.green('Review your language configuration:')
 	);
 
@@ -98,8 +120,10 @@ export async function configureLanguage() {
 	});
 
 	if (isCancel(action)) {
-		console.log('Language configuration canceled.');
-		process.exit(0); // Exit with code 0
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
 	}
 
 	if (!action) {
@@ -113,6 +137,13 @@ export async function configureLanguage() {
 			]
 		});
 
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
 		if (restartOrExit === 'restart') {
 			return configureLanguage();
 		} else if (restartOrExit === 'exit') {
@@ -122,5 +153,10 @@ export async function configureLanguage() {
 		}
 	}
 
-	return answers;
+	return {
+		DEFAULT_CONTENT_LANGUAGE,
+		AVAILABLE_CONTENT_LANGUAGES,
+		DEFAULT_SYSTEM_LANGUAGE,
+		AVAILABLE_SYSTEM_LANGUAGES
+	};
 }

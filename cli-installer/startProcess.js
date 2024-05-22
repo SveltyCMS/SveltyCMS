@@ -1,7 +1,9 @@
-import { select, cancel } from '@clack/prompts';
+import { select, isCancel, cancel } from '@clack/prompts';
 import { spawnSync } from 'child_process';
 import { Title } from './cli-installer.js';
 import pc from 'picocolors';
+
+import { main } from './cli-installer.js';
 
 // Detect installed package managers
 async function checkPackageManagers() {
@@ -35,6 +37,10 @@ function executeAction(manager, action) {
 export async function startProcess() {
 	// SveltyCMS Title
 	Title();
+
+	// Configuration Title
+	console.log(pc.blue('◆  Start SveltyCMS'));
+
 	try {
 		const packageManagers = await checkPackageManagers();
 
@@ -65,19 +71,18 @@ export async function startProcess() {
 			return { value: manager, label: manager, hint };
 		});
 
-		// Configuration Title
-		console.log(pc.blue('◆  Start SveltyCMS'));
-
 		// Select package manager
 		const selectedManager = await select({
 			message: 'Which package manager would you like to use for your project?',
 			options,
-			required: true,
-			isCancel: () => {
-				cancel('Operation cancelled.');
-				process.exit(0);
-			}
+			required: true
 		});
+
+		if (isCancel(selectedManager)) {
+			console.clear(); // Clear the terminal
+			await main(); // Restart the configuration process
+			return;
+		}
 
 		const action = await select({
 			message: 'What would you like to do next?',
@@ -88,12 +93,14 @@ export async function startProcess() {
 				{ value: 'check', label: 'Check project', hint: 'Check our SveltyCMS project' },
 				{ value: 'exit', label: 'Exit Installer', hint: 'Exit the CLI Installer' }
 			],
-			required: true,
-			isCancel: () => {
-				cancel('Operation cancelled.');
-				process.exit(0);
-			}
+			required: true
 		});
+
+		if (isCancel(action)) {
+			console.clear(); // Clear the terminal
+			await main(); // Restart the configuration process
+			return;
+		}
 
 		// Execute the selected action with the selected package manager
 		executeAction(selectedManager, action);

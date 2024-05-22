@@ -2,19 +2,16 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
-import { auth, googleAuth } from '@api/db';
+import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';
 import { systemLanguage } from '@stores/store';
-import { get } from 'svelte/store'
-
-let OAuth: any = null;
+import { get } from 'svelte/store';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
 	console.log('code: ', code);
-	
 
 	const result: Result = {
 		errors: [],
@@ -28,7 +25,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	if (!code) redirect(302, '/login');
 
 	try {
-		const {tokens} = await googleAuth.getToken(code)
+		const { tokens } = await googleAuth.getToken(code);
 		googleAuth.setCredentials(tokens);
 		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
@@ -126,13 +123,12 @@ export const actions: Actions = {
 			redirect(302, '/login');
 		}
 		try {
-			const {tokens} = await googleAuth.getToken(code)
+			const { tokens } = await googleAuth.getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
 			const { data: googleUser } = await oauth2.userinfo.get();
 			console.log('googleUser: ', googleUser);
-
 
 			// Get existing user if available
 			const existingUser = await auth.checkUser({ email: googleUser.email });

@@ -14,12 +14,14 @@ export const Title = () => {
 };
 
 // Define more prompts here for different configuration sections
-export const cancelOperation = () => {
-	cancel('Operation cancelled');
-	return process.exit(0);
+export const cancelOperation = async () => {
+	cancel('Operation cancelled.');
+	console.clear();
+	await main(); // Restart the configuration process
+	return;
 };
 
-async function main() {
+export async function main() {
 	// Start installer
 	const projectStart = await startOrInstallPrompt();
 

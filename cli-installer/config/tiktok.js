@@ -1,8 +1,9 @@
-import { confirm, text, note, select } from '@clack/prompts';
+import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
-export async function configureTiktok() {
+export async function configureTiktok(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
@@ -12,24 +13,49 @@ export async function configureTiktok() {
 	// TikTok configuration
 	const USE_TIKTOK = await confirm({
 		message: 'Enable TikTok integration?',
-		initialValue: false
+		initialValue: privateConfigData.USE_TIKTOK || false
 	});
+
+	if (isCancel(USE_TIKTOK)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	let TIKTOK_TOKEN = '';
 
 	if (USE_TIKTOK) {
 		TIKTOK_TOKEN = await text({
-			message: 'Enter your TikTok API Token:'
+			message: 'Enter your TikTok API Token:',
+			initialValue: privateConfigData.TIKTOK_TOKEN || ''
 		});
+
+		if (isCancel(TIKTOK_TOKEN)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 	}
 
 	// Summary
-	note(`USE_TIKTOK: ${USE_TIKTOK}\n` + (USE_TIKTOK ? `TIKTOK_TOKEN: ${TIKTOK_TOKEN}\n` : ''), pc.green('Review your TikTok configuration:'));
+	note(
+		`USE_TIKTOK: ${pc.green(USE_TIKTOK)}\n` + (USE_TIKTOK ? `TIKTOK_TOKEN: ${pc.green(TIKTOK_TOKEN)}\n` : ''),
+		pc.green('Review your TikTok configuration:')
+	);
 
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
 		initialValue: true
 	});
+
+	if (isCancel(action)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	if (!action) {
 		console.log('TikTok configuration canceled.');
@@ -41,6 +67,13 @@ export async function configureTiktok() {
 				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
 			]
 		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (restartOrExit === 'restart') {
 			return configureTiktok();

@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { collectionsModels } from '@api/db';
+import { collectionsModels } from '@api/databases/db';
 
 // Define GET request handler
 export const GET: RequestHandler = async ({ url }) => {

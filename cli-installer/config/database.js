@@ -1,20 +1,16 @@
-import { text, confirm, select, note } from '@clack/prompts';
+import { text, confirm, select, note, isCancel, cancel, spinner } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
-import path from 'path';
-import fs from 'fs';
+import { configurationPrompt } from '../configuration.js';
 
 // Function to test MongoDB connection
 async function testMongoDBConnection(connectionString) {
 	const mongoose = await import('mongoose');
 	try {
-		await mongoose.default.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
-		console.log('MongoDB connection successful!');
+		await mongoose.default.connect(connectionString);
 		await mongoose.default.connection.db.admin().ping();
-		console.log('MongoDB ping successful!');
 		return true;
 	} catch (error) {
-		console.error('MongoDB connection failed:', error);
 		return false;
 	}
 }
@@ -24,11 +20,9 @@ async function testMariaDBConnection(connectionString) {
 	const mariadb = await import('mariadb');
 	try {
 		const connection = await mariadb.createConnection(connectionString);
-		console.log('MariaDB connection successful!');
 		await connection.end();
 		return true;
 	} catch (error) {
-		console.error('MariaDB connection failed:', error);
 		return false;
 	}
 }
@@ -72,6 +66,13 @@ export async function configureDatabase(privateConfigData = {}) {
 		required: true
 	});
 
+	if (isCancel(projectDatabase)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	let connectionString;
 
 	if (projectDatabase === 'mongodb') {
@@ -85,6 +86,13 @@ export async function configureDatabase(privateConfigData = {}) {
 			],
 			required: true
 		});
+
+		if (isCancel(mongoOption)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (mongoOption === 'atlas') {
 			note(
@@ -101,22 +109,29 @@ export async function configureDatabase(privateConfigData = {}) {
 				placeholder: 'mongodb+srv://user:password@host/database',
 				required: true
 			});
+
+			if (isCancel(connectionString)) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			}
 		} else if (mongoOption === 'docker') {
 			note(
-				'1. Create a docker-compose.yml file with the following content:\n' +
-					'version: "3.9"\n' +
-					'services:\n' +
-					'  mongo:\n' +
-					'    image: mongo:latest\n' +
-					'    ports:\n' +
-					'      - 27017:27017\n' +
-					'    environment:\n' +
-					'      MONGO_INITDB_ROOT_USERNAME: <your-username>\n' +
-					'      MONGO_INITDB_ROOT_PASSWORD: <your-password>\n\n' +
-					'2. Replace <your-username> and <your-password> with your desired credentials.\n' +
-					'3. Save the file and run "docker-compose up" in the same directory.\n' +
-					'4. Once the container is running, copy the connection string in the following format:\n' +
-					'   mongodb://<your-username>:<your-password>@localhost:27017',
+				`1. Create a ${pc.green('docker-compose.yml')} file with the following content:\n` +
+					`${pc.green('version: "3.9"')}\n` +
+					`${pc.green('services:')}\n` +
+					`${pc.green('  mongo:')}\n` +
+					`${pc.green('    image: mongo:latest')}\n` +
+					`${pc.green('    ports:')}\n` +
+					`${pc.green('      - 27017:27017')}\n` +
+					`${pc.green('    environment:')}\n` +
+					`${pc.green('      MONGO_INITDB_ROOT_USERNAME: <your-username>')}\n` +
+					`${pc.green('      MONGO_INITDB_ROOT_PASSWORD: <your-password>')}\n\n` +
+					`2. Replace ${pc.green('<your-username>')} and ${pc.green('<your-password>')} with your desired credentials.\n` +
+					`3. Save the file and run ${pc.green('"docker-compose up"')} in the same directory.\n` +
+					`4. Once the container is running, copy the connection string in the following format:\n` +
+					`   ${pc.green('mongodb://<your-username>:<your-password>@localhost:27017')}`,
 				pc.green('For Docker MongoDB, please follow these steps:')
 			);
 
@@ -125,20 +140,58 @@ export async function configureDatabase(privateConfigData = {}) {
 				placeholder: 'mongodb://<your-username>:<your-password>@localhost:27017',
 				required: true
 			});
+
+			if (isCancel(connectionString)) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			}
 		} else if (mongoOption === 'local') {
 			connectionString = await text({
 				message: 'Enter your MongoDB local connection string:',
 				placeholder: 'mongodb://<your-username>:<your-password>@localhost:27017',
 				required: true
 			});
+
+			if (isCancel(connectionString)) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			}
 		}
 
-		// Test MongoDB connection
-		const isConnectionSuccessful = await testMongoDBConnection(connectionString);
+		// Test MongoDB connection with spinner
+		let isConnectionSuccessful = false;
+		const s = spinner();
+		try {
+			s.start('Testing MongoDB connection...');
+			isConnectionSuccessful = await testMongoDBConnection(connectionString);
+			s.stop();
+		} catch (error) {
+			s.stop();
+			note(
+				`${pc.red('MongoDB connection failed:')} ${error.message}\n` + 'Please check your connection string and try again.',
+				pc.red('Connection Error')
+			);
+		}
 
 		if (!isConnectionSuccessful) {
-			console.error('MongoDB connection test failed. Please check your connection string and try again.');
-			process.exit(1);
+			console.log(pc.red('◆  MongoDB connection test failed.') + ' Please check your connection string and try again.');
+			const retry = await confirm({
+				message: 'Do you want to try entering the connection string again?',
+				initialValue: true
+			});
+
+			if (isCancel(retry) || !retry) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			} else {
+				return configureDatabase(privateConfigData); // Restart the database configuration
+			}
 		}
 	} else if (projectDatabase === 'mariadb') {
 		const mariadbOption = await select({
@@ -151,24 +204,31 @@ export async function configureDatabase(privateConfigData = {}) {
 			required: true
 		});
 
+		if (isCancel(mariadbOption)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
 		if (mariadbOption === 'docker') {
 			note(
-				'1. Create a docker-compose.yml file with the following content:\n' +
-					'version: "3.9"\n' +
-					'services:\n' +
-					'  mariadb:\n' +
-					'    image: mariadb:latest\n' +
-					'    ports:\n' +
-					'      - 3306:3306\n' +
-					'    environment:\n' +
-					'      MYSQL_ROOT_PASSWORD: <your-password>\n' +
-					'      MYSQL_DATABASE: <your-database>\n' +
-					'      MYSQL_USER: <your-username>\n' +
-					'      MYSQL_PASSWORD: <your-password>\n\n' +
-					'2. Replace <your-username>, <your-password>, and <your-database> with your desired credentials and database name.\n' +
-					'3. Save the file and run "docker-compose up" in the same directory.\n' +
-					'4. Once the container is running, copy the connection string in the following format:\n' +
-					'   mariadb://<your-username>:<your-password>@localhost:3306/<your-database>',
+				`1. Create a ${pc.green('docker-compose.yml')} file with the following content:\n` +
+					`${pc.green('version: "3.9"')}\n` +
+					`${pc.green('services:')}\n` +
+					`${pc.green('  mariadb:')}\n` +
+					`${pc.green('    image: mariadb:latest')}\n` +
+					`${pc.green('    ports:')}\n` +
+					`${pc.green('      - 3306:3306')}\n` +
+					`${pc.green('    environment:')}\n` +
+					`${pc.green('      MYSQL_ROOT_PASSWORD: <your-password>')}\n` +
+					`${pc.green('      MYSQL_DATABASE: <your-database>')}\n` +
+					`${pc.green('      MYSQL_USER: <your-username>')}\n` +
+					`${pc.green('      MYSQL_PASSWORD: <your-password>')}\n\n` +
+					`2. Replace ${pc.green('<your-username>')}, ${pc.green('<your-password>')}, and ${pc.green('<your-database>')} with your desired credentials and database name.\n` +
+					`3. Save the file and run ${pc.green('"docker-compose up"')} in the same directory.\n` +
+					`4. Once the container is running, copy the connection string in the following format:\n` +
+					`   ${pc.green('mariadb://<your-username>:<your-password>@localhost:3306/<your-database>')}`,
 				pc.green('For Docker MariaDB, please follow these steps:')
 			);
 
@@ -177,20 +237,58 @@ export async function configureDatabase(privateConfigData = {}) {
 				placeholder: 'mariadb://<your-username>:<your-password>@localhost:3306/<your-database>',
 				required: true
 			});
+
+			if (isCancel(connectionString)) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			}
 		} else if (mariadbOption === 'local') {
 			connectionString = await text({
 				message: 'Enter your MariaDB local connection string:',
 				placeholder: 'mariadb://<your-username>:<your-password>@localhost:3306/<your-database>',
 				required: true
 			});
+
+			if (isCancel(connectionString)) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			}
 		}
 
-		// Test MariaDB connection
-		const isConnectionSuccessful = await testMariaDBConnection(connectionString);
+		// Test MariaDB connection with spinner
+		let isConnectionSuccessful = false;
+		const s = spinner();
+		try {
+			s.start('Testing MariaDB connection...');
+			isConnectionSuccessful = await testMariaDBConnection(connectionString);
+			s.stop();
+		} catch (error) {
+			s.stop();
+			note(
+				`${pc.red('MariaDB connection failed:')} ${error.message}\n` + 'Please check your connection string and try again.',
+				pc.red('Connection Error')
+			);
+		}
 
 		if (!isConnectionSuccessful) {
-			console.error('MariaDB connection test failed. Please check your connection string and try again.');
-			process.exit(1);
+			console.log(pc.red('◆  MariaDB connection test failed.') + ' Please check your connection string and try again.');
+			const retry = await confirm({
+				message: 'Do you want to try entering the connection string again?',
+				initialValue: true
+			});
+
+			if (isCancel(retry) || !retry) {
+				cancel('Operation cancelled.');
+				console.clear();
+				await configurationPrompt(); // Restart the configuration process
+				return;
+			} else {
+				return configureDatabase(privateConfigData); // Restart the database configuration
+			}
 		}
 	}
 
@@ -199,22 +297,52 @@ export async function configureDatabase(privateConfigData = {}) {
 
 	// Summary note before saving
 	note(
-		`Connection String: ${connectionString}` +
-			`\nDB_TYPE: ${pc.green(projectDatabase)}` +
-			`\nDB_HOST: ${pc.green(parsedConfig.DB_HOST)}` +
-			`\nDB_NAME: ${pc.green(parsedConfig.DB_NAME)}` +
-			`\nDB_USER: ${pc.green(parsedConfig.DB_USER)}` +
-			`\nDB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}`,
+		`Connection String: ${connectionString}\n` +
+			`DB_TYPE: ${pc.green(projectDatabase)}\n` +
+			`DB_HOST: ${pc.green(parsedConfig.DB_HOST)}\n` +
+			`DB_NAME: ${pc.green(parsedConfig.DB_NAME)}\n` +
+			`DB_USER: ${pc.green(parsedConfig.DB_USER)}\n` +
+			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}`,
 		pc.green('Review your Database configuration:')
 	);
+
 	const confirmSave = await confirm({
 		message: 'Do you want to save the configuration?',
 		initialValue: true
 	});
 
+	if (isCancel(confirmSave)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	if (!confirmSave) {
 		console.log('Configuration not saved.');
-		process.exit(0);
+		const restartOrExit = await select({
+			message: 'Do you want to restart or exit?',
+			options: [
+				{ value: 'restart', label: 'Restart', hint: 'Start again' },
+				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
+				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
+			]
+		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
+		if (restartOrExit === 'restart') {
+			return configureDatabase();
+		} else if (restartOrExit === 'exit') {
+			process.exit(1); // Exit with code 1
+		} else if (restartOrExit === 'cancel') {
+			process.exit(0); // Exit with code 0
+		}
 	}
 
 	return parsedConfig;

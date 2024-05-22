@@ -1,4 +1,4 @@
-import { select } from '@clack/prompts';
+import { select, isCancel, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';
 import path from 'path';
@@ -121,7 +121,14 @@ export const startOrInstallPrompt = async () => {
 		];
 	}
 
-	return select({ message, options });
+	const selection = await select({ message, options });
+
+	if (isCancel(selection) || selection === 'exit') {
+		outro('Thank you for using SveltyCMS CLI Installer.');
+		process.exit(0); // Exit with code 0
+	}
+
+	return selection;
 };
 
 export { privateConfig, publicConfig };
