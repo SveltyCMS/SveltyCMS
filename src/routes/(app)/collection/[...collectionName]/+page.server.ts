@@ -8,7 +8,7 @@ import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { WidgetType } from '@components/widgets';
 
 // Auth
-import { auth, getCollectionModels } from '@api/db';
+import { auth, getCollectionModels } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import mongoose from 'mongoose';
 

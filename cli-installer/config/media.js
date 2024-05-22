@@ -1,9 +1,10 @@
-import { confirm, text, note, select } from '@clack/prompts';
+import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
-export async function configureMedia() {
-	// SvelteCMS Title
+export async function configureMedia(privateConfigData = {}) {
+	// SveltyCMS Title
 	Title();
 
 	// Configuration Title
@@ -13,15 +14,29 @@ export async function configureMedia() {
 	const IMAGE_SIZES = await text({
 		message: "Enter the image sizes in format 'size: value', separated by commas (e.g., sm: 600, md: 900, lg: 1200), or leave blank:",
 		placeholder: 'sm: 600, md: 900, lg: 1200',
-		initialValue: ''
+		initialValue: privateConfigData.IMAGE_SIZES || ''
 	});
+
+	if (isCancel(IMAGE_SIZES)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	const MEDIA_FOLDER = await text({
 		message: "Enter the folder where the site's media files will be stored:",
 		placeholder: 'mediaFiles',
-		initialValue: 'mediaFiles',
+		initialValue: privateConfigData.MEDIA_FOLDER || 'mediaFiles',
 		required: false
 	});
+
+	if (isCancel(MEDIA_FOLDER)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	const MEDIA_OUTPUT_FORMAT_QUALITY = {
 		format: await select({
@@ -31,24 +46,38 @@ export async function configureMedia() {
 				{ value: 'avif', label: 'AVIF', hint: 'Best Compression, recommended' },
 				{ value: 'webp', label: 'WebP', hint: 'Great Compression, recommended as widely supported' }
 			],
-			initialValue: 'original',
+			initialValue: privateConfigData.MEDIA_OUTPUT_FORMAT_QUALITY?.format || 'original',
 			required: true
 		}),
 		quality: await text({
 			message: 'Enter the media output quality between 0 and 100, bigger is higher quality, but larger file size:',
 			placeholder: '80',
-			initialValue: '80',
+			initialValue: privateConfigData.MEDIA_OUTPUT_FORMAT_QUALITY?.quality || '80',
 			validate(value) {
 				if (value.length === 0) return `Please enter a valid Media Output Quality between 0 and 100.`;
 			}
 		})
 	};
 
+	if (isCancel(MEDIA_OUTPUT_FORMAT_QUALITY.format) || isCancel(MEDIA_OUTPUT_FORMAT_QUALITY.quality)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	const MEDIASERVER_URL = await text({
 		message: 'Enter the URL of the media server, or leave blank for localhost:',
 		placeholder: 'localhost',
-		initialValue: ''
+		initialValue: privateConfigData.MEDIASERVER_URL || ''
 	});
+
+	if (isCancel(MEDIASERVER_URL)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	// Summary
 	note(
@@ -64,6 +93,13 @@ export async function configureMedia() {
 		initialValue: true
 	});
 
+	if (isCancel(action)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	if (!action) {
 		console.log('Media configuration canceled.');
 		const restartOrExit = await select({
@@ -74,6 +110,13 @@ export async function configureMedia() {
 				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
 			]
 		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (restartOrExit === 'restart') {
 			return configureMedia();

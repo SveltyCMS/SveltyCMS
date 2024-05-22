@@ -1,8 +1,9 @@
-import { confirm, text, note, select } from '@clack/prompts';
+import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
-export async function configureMapbox() {
+export async function configureMapbox(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
@@ -12,16 +13,31 @@ export async function configureMapbox() {
 	// Mapbox configuration
 	const USE_MAPBOX = await confirm({
 		message: 'Enable Mapbox integration?',
-		initialValue: false
+		initialValue: privateConfigData.USE_MAPBOX || false
 	});
+
+	if (isCancel(USE_MAPBOX)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	let MAPBOX_API_TOKEN = '';
 
 	if (USE_MAPBOX) {
 		MAPBOX_API_TOKEN = await text({
 			message: 'Enter your Mapbox API Token:',
-			placeholder: 'see https://www.mapbox.com/account/access-tokens/'
+			placeholder: 'see https://www.mapbox.com/account/access-tokens/',
+			initialValue: privateConfigData.MAPBOX_API_TOKEN || ''
 		});
+
+		if (isCancel(MAPBOX_API_TOKEN)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 	}
 
 	// Summary
@@ -35,6 +51,13 @@ export async function configureMapbox() {
 		initialValue: true
 	});
 
+	if (isCancel(action)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	if (!action) {
 		console.log('Mapbox configuration canceled.');
 		const restartOrExit = await select({
@@ -45,6 +68,13 @@ export async function configureMapbox() {
 				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
 			]
 		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (restartOrExit === 'restart') {
 			return configureMapbox();

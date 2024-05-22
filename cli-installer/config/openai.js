@@ -1,8 +1,9 @@
-import { confirm, text, note, select } from '@clack/prompts';
+import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
+import { configurationPrompt } from '../configuration.js';
 
-export async function configureOpenAI() {
+export async function configureOpenAI(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
@@ -12,16 +13,31 @@ export async function configureOpenAI() {
 	// OpenAI configuration
 	const USE_OPENAI = await confirm({
 		message: 'Enable OpenAI integration?',
-		initialValue: false
+		initialValue: privateConfigData.USE_OPENAI || false
 	});
+
+	if (isCancel(USE_OPENAI)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
 
 	let VITE_OPEN_AI_KEY = '';
 
 	if (USE_OPENAI) {
 		VITE_OPEN_AI_KEY = await text({
 			message: 'Enter your OpenAI API Key:',
-			placeholder: 'see https://beta.openai.com/account/api-keys'
+			placeholder: 'see https://beta.openai.com/account/api-keys',
+			initialValue: privateConfigData.VITE_OPEN_AI_KEY || ''
 		});
+
+		if (isCancel(VITE_OPEN_AI_KEY)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 	}
 
 	// Summary
@@ -35,6 +51,13 @@ export async function configureOpenAI() {
 		initialValue: true
 	});
 
+	if (isCancel(action)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	if (!action) {
 		console.log('OpenAI configuration canceled.');
 		const restartOrExit = await select({
@@ -45,6 +68,13 @@ export async function configureOpenAI() {
 				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
 			]
 		});
+
+		if (isCancel(restartOrExit)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
 
 		if (restartOrExit === 'restart') {
 			return configureOpenAI();
