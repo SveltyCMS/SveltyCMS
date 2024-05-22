@@ -18,6 +18,11 @@ export const privateEnv = createPrivateConfig({
 	DB_USER: 'admin',
 	DB_PASSWORD: 'admin',
 
+	// Define the database retry settings
+	DB_RETRY_ATTEMPTS: 3, // Database Retry Attempts
+	DB_RETRY_DELAY: 3000, // Database Retry Delay
+	DB_POOL_SIZE: 5, // Database Pool Size
+
 	// Define the SMTP server for email sending
 	SMTP_HOST: '',
 	SMTP_PORT: 465,

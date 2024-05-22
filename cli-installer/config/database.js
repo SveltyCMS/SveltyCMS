@@ -61,7 +61,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
 		options: [
 			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' },
-			{ value: 'mariadb', label: 'MariaDB', hint: 'Supports Docker and Local' }
+			{ value: 'mariadb', label: 'MariaDB', hint: 'In development not Functional - Supports Docker and Local' }
 		],
 		required: true
 	});
@@ -292,6 +292,56 @@ export async function configureDatabase(privateConfigData = {}) {
 		}
 	}
 
+	// Ask if the user wants to configure advanced settings
+	const advanced = await confirm({
+		message: 'Would you like to configure advanced settings?'
+	});
+
+	// Handle advanced configuration for MongoDB
+	if (advanced && projectDatabase === 'mongodb') {
+		const retryAttempts = await text({
+			message: 'Enter number of retry attempts for MongoDB:',
+			initialValue: privateConfigData.DB_RETRY_ATTEMPTS || '3'
+		});
+
+		if (isCancel(configureDatabase)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
+		const retryDelay = await text({
+			message: 'Enter delay between retries in milliseconds:',
+			initialValue: privateConfigData.DB_RETRY_DELAY || '3000'
+		});
+		if (isCancel(configureDatabase)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
+		const poolSize = await text({
+			message: 'Enter the MongoDB connection pool size:',
+			initialValue: privateConfigData.DB_POOL_SIZE || '5'
+		});
+		if (isCancel(configureDatabase)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt(); // Restart the configuration process
+			return;
+		}
+
+		// Update privateConfigData with new settings
+		privateConfigData = {
+			...privateConfigData,
+			DB_RETRY_ATTEMPTS: retryAttempts,
+			DB_RETRY_DELAY: retryDelay,
+			DB_POOL_SIZE: poolSize
+		};
+	}
+
 	// Parse connection string
 	const parsedConfig = parseConnectionString(connectionString, projectDatabase);
 
@@ -302,7 +352,11 @@ export async function configureDatabase(privateConfigData = {}) {
 			`DB_HOST: ${pc.green(parsedConfig.DB_HOST)}\n` +
 			`DB_NAME: ${pc.green(parsedConfig.DB_NAME)}\n` +
 			`DB_USER: ${pc.green(parsedConfig.DB_USER)}\n` +
-			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}`,
+			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}\n` +
+			`Advanced Configuration:\n` +
+			`DB_RETRY_ATTEMPTS: ${pc.green(parsedConfig.DB_RETRY_ATTEMPTS)}\n` +
+			`DB_RETRY_DELAY: ${pc.green(parsedConfig.DB_RETRY_DELAY)}\n` +
+			`DB_POOL_SIZE: ${pc.green(parsedConfig.DB_POOL_SIZE)}`,
 		pc.green('Review your Database configuration:')
 	);
 

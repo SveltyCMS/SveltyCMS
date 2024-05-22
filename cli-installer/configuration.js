@@ -137,7 +137,7 @@ export const configurationPrompt = async () => {
 		configData = { ...configData, ...publicConfig };
 	}
 
-	console.log(configData);
+	// console.log(configData);
 
 	let projectConfigure;
 	const exitConfirmed = false;

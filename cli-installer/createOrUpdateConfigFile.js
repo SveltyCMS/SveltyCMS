@@ -26,6 +26,11 @@ export async function createOrUpdateConfigFile(configData) {
             DB_USER: '${configData?.DB_USER || ''}',
             DB_PASSWORD: '${configData?.DB_PASSWORD || ''}',
 
+            // Define the database retry settings
+            DB_RETRY_ATTEMPTS: ${configData?.DB_RETRY_ATTEMPTS || 5},
+            DB_RETRY_DELAY: ${configData?.DB_RETRY_DELAY || 5000},
+            DB_POOL_SIZE: ${configData?.DB_POOL_SIZE || 10},
+
             // Define the SMTP server for email sending
             SMTP_HOST: '${configData?.SMTP_HOST || ''}',
             SMTP_PORT: ${configData?.SMTP_PORT || 587},

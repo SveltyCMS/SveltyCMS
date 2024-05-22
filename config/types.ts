@@ -16,6 +16,9 @@ export const createPrivateConfig = (arg: {
 	DB_NAME: string; // Database Name
 	DB_USER: string; // Database User
 	DB_PASSWORD: string; // Database Password
+	DB_RETRY_ATTEMPTS?: number; // Database Retry Attempts
+	DB_RETRY_DELAY?: number; // Database Retry Delay
+	DB_POOL_SIZE?: number; // Database Pool Size
 
 	// SMTP config - See https://nodemailer.com
 	SMTP_HOST?: string; // SMTP Host

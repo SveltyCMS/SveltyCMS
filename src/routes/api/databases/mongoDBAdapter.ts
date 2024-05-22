@@ -12,20 +12,32 @@ import { mongooseSessionSchema, mongooseTokenSchema, mongooseUserSchema } from '
 export class MongoDBAdapter implements databaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
-	// Connect to MongoDB database using imported environment variables
-	async connect(): Promise<void> {
+	// Connect to MongoDB database using imported environment variables with retry
+	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		console.log(`\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
-		try {
-			await mongoose.connect(privateEnv.DB_HOST, {
-				authSource: 'admin',
-				user: privateEnv.DB_USER,
-				pass: privateEnv.DB_PASSWORD,
-				dbName: privateEnv.DB_NAME
-			});
-			console.log(`\x1b[32m====> Connection to ${privateEnv.DB_NAME} database successful!\x1b[0m`);
-		} catch (error) {
-			console.error('\x1b[31mError connecting to database:\x1b[0m', error);
-			throw new Error('Error connecting to database');
+
+		while (attempts > 0) {
+			try {
+				await mongoose.connect(privateEnv.DB_HOST, {
+					authSource: 'admin',
+					user: privateEnv.DB_USER,
+					pass: privateEnv.DB_PASSWORD,
+					dbName: privateEnv.DB_NAME,
+					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
+				});
+				console.log(`\x1b[32m====> Connection to ${privateEnv.DB_NAME} database successful!\x1b[0m`);
+				return; // Connection successful, exit loop
+			} catch (error) {
+				attempts--;
+				console.error(`\x1b[31mError connecting to database:\x1b[0m ${error}`);
+				if (attempts <= 0) {
+					throw new Error('Failed to connect to the database after maximum retries.');
+				}
+				console.log(`Retrying... (${attempts} attempts left)`);
+
+				// Wait before retrying only if more attempts remain
+				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
+			}
 		}
 	}
 
