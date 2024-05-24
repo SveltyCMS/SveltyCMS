@@ -1,4 +1,6 @@
+import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
+
 const { cpu, drive, mem, os } = osu;
 
 const cpuData: number[] = [];
@@ -12,13 +14,12 @@ const fetchCPUInfo = async () => {
 		cpuData.push(cpuUsage);
 		timeStamps.push(timeStamp);
 
-		// You might want to limit the size of the arrays to avoid using too much memory
+		// Limit the size of the arrays to avoid using too much memory
 		if (cpuData.length > 100) {
 			cpuData.shift();
 			timeStamps.shift();
 		}
 
-		//console.log('CPU Info:', cpuUsage);
 		return {
 			cpuUsage: cpuData,
 			timeStamps: timeStamps
@@ -32,7 +33,6 @@ const fetchCPUInfo = async () => {
 const fetchDiskInfo = async () => {
 	try {
 		const diskUsage = await drive.info('/');
-		//console.log('Disk Info:', diskUsage);
 		if (diskUsage && typeof diskUsage === 'object') {
 			return {
 				totalGb: diskUsage.totalGb,
@@ -53,7 +53,13 @@ const fetchDiskInfo = async () => {
 const fetchMemoryInfo = async () => {
 	try {
 		const memoryInfo = await mem.info();
-		return memoryInfo;
+		return {
+			totalMemMb: memoryInfo.totalMemMb,
+			usedMemMb: memoryInfo.usedMemMb,
+			freeMemMb: memoryInfo.freeMemMb,
+			usedMemPercentage: memoryInfo.usedMemPercentage,
+			freeMemPercentage: memoryInfo.freeMemPercentage
+		};
 	} catch (error) {
 		console.error('Error fetching memory info:', error);
 		throw new Error('Internal Server Error');
@@ -72,8 +78,6 @@ const getSystemInfo = async () => {
 		arch: os.arch()
 	};
 
-	//console.log('OS Info:', osInfo);
-
 	return {
 		cpuInfo,
 		diskInfo,
@@ -82,7 +86,7 @@ const getSystemInfo = async () => {
 	};
 };
 
-export async function GET() {
+export const GET: RequestHandler = async () => {
 	try {
 		const systemInfo = await getSystemInfo();
 
@@ -95,11 +99,11 @@ export async function GET() {
 	} catch (error) {
 		console.error('Error fetching system info:', error);
 
-		return new Response('{ error: "Internal Server Error" }', {
+		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
 			status: 500,
 			headers: {
 				'Content-Type': 'application/json'
 			}
 		});
 	}
-}
+};
