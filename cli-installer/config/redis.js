@@ -48,7 +48,7 @@ export async function configureRedis(privateConfigData = {}) {
 		REDIS_PORT = await text({
 			message: 'Enter the Redis port:',
 			placeholder: '6379',
-			initialValue: privateConfigData.REDIS_PORT || '6379',
+			initialValue: privateConfigData.REDIS_PORT?.toString() || '6379',
 			validate(value) {
 				if (value.length === 0) return `Please enter a valid port`;
 			}

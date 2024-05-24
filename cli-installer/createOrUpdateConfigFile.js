@@ -38,13 +38,13 @@ export async function createOrUpdateConfigFile(configData) {
             SMTP_PASSWORD: '${configData?.SMTP_PASSWORD || ''}',
 
             // Enable Redis Caching (optional - Not yet implemented).
-            USE_REDIS: ${configData?.USE_REDIS === 'false'},
+            USE_REDIS: ${configData?.USE_REDIS},
             REDIS_HOST: '${configData?.REDIS_HOST || ''}', // The hostname or IP address of your Redis server.
             REDIS_PORT: ${configData?.REDIS_PORT || 6379}, // The port number of your Redis server.
             REDIS_PASSWORD: '${configData?.REDIS_PASSWORD || ''}', // The password for your Redis server (if any).
 
             // Enable Google OAuth (optional).
-            USE_GOOGLE_OAUTH: ${configData?.USE_GOOGLE_OAUTH === 'false'},
+            USE_GOOGLE_OAUTH: ${configData?.USE_GOOGLE_OAUTH},
             GOOGLE_CLIENT_ID: '${configData?.GOOGLE_CLIENT_ID || ''}', // Google Client ID
             GOOGLE_CLIENT_SECRET: '${configData?.GOOGLE_CLIENT_SECRET || ''}', // Google Client Secret
 
@@ -56,9 +56,11 @@ export async function createOrUpdateConfigFile(configData) {
             MAPBOX_API_TOKEN: '${configData?.MAPBOX_API_TOKEN || ''}',  // Mapbox API Token
 
             // TIKTOK_TOKEN (optional)
+            USE_TIKTOK: ${configData?.USE_TIKTOK || 'false'},
             TIKTOK_TOKEN: '${configData?.TIKTOK_TOKEN || ''}',
 
             // OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
+            USE_OPEN_AI: ${configData?.USE_OPEN_AI || 'false'},
             VITE_OPEN_AI_KEY: '${configData?.VITE_OPEN_AI_KEY || ''}'
         });
     `;
@@ -91,15 +93,15 @@ export async function createOrUpdateConfigFile(configData) {
             AVAILABLE_SYSTEM_LANGUAGES: ${JSON.stringify(configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en'])},
 
             // The sizes of images that the site will generate. (Default: 'sm: 600, md: 900, lg: 1200')
-            IMAGE_SIZES: { sm: ${configData?.IMAGE_SIZES?.sm || 600}, md: ${configData?.IMAGE_SIZES?.md || 900}, lg: ${configData?.IMAGE_SIZES?.lg || 1200} } as const,
+            IMAGE_SIZES: { ${typeof configData?.IMAGE_SIZES === 'string' ? configData?.IMAGE_SIZES : JSON.stringify(configData?.IMAGE_SIZES).replaceAll('{', '').replaceAll('}', '').replaceAll('"', '')} } as const,
 
             // The folder where the site's media files will be stored. (Default: 'mediaFiles')
             MEDIA_FOLDER: '${configData?.MEDIA_FOLDER || 'mediaFiles'}',
 
             // Media Format & Quality how image are saved on the server.
             MEDIA_OUTPUT_FORMAT_QUALITY: {
-                format:  '${configData?.MEDIA_OUTPUT_FORMAT || 'original'}', // 'original' or 'avif', 'webp' (default: original)
-                quality: ${configData?.MEDIA_OUTPUT_QUALITY || 80} // quality between 0 and 100 (default: 80)
+                format:  '${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.format || 'original'}', // 'original' or 'avif', 'webp' (default: original)
+                quality: ${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.quality || 80} // quality between 0 and 100 (default: 80)
             } as const,
 
             // The URL of the media server (default: '' = localhost)
@@ -107,7 +109,7 @@ export async function createOrUpdateConfigFile(configData) {
             MEDIASERVER_URL: '${configData?.MEDIASERVER_URL || ''}',
 
             // Defines body size limit (default: 100mb)
-            BODY_SIZE_LIMIT: '${configData?.BODY_SIZE_LIMIT || '104857600'}',
+            BODY_SIZE_LIMIT: ${configData?.BODY_SIZE_LIMIT || 104857600},
 
             // Define you hostname where your site is running in development/production
             HOST_DEV: '${configData?.HOST_DEV || 'http://localhost:5173'}',

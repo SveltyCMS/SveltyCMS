@@ -136,8 +136,11 @@ export const configurationPrompt = async () => {
 		const publicConfig = (await importConfig(publicConfigPath)).publicEnv;
 		configData = { ...configData, ...publicConfig };
 	}
-
-	// console.log(configData);
+	
+	const requiredFields = {
+		database: !!configData.DB_HOST && !!configData.DB_NAME && !!configData.DB_TYPE,
+		email: !!configData.SMTP_HOST && !!configData.SMTP_PORT && !!configData.SMTP_EMAIL && !!configData.SMTP_PASSWORD,
+	};
 
 	let projectConfigure;
 	const exitConfirmed = false;
@@ -147,8 +150,8 @@ export const configurationPrompt = async () => {
 		projectConfigure = await select({
 			message: 'Configure SvelteCMS - Pick a Category (* Required)',
 			options: [
-				{ value: 'Database', label: configData.database ? pc.green('Database *') : 'Database *', hint: 'Configure Database', required: true },
-				{ value: 'Email', label: configData.email ? pc.green('Email *') : 'Email *', hint: 'Configure Email Server', required: true },
+				{ value: 'Database', label: requiredFields.database ? pc.green('Database *') : 'Database *', hint: 'Configure Database', required: true },
+				{ value: 'Email', label: requiredFields.email ? pc.green('Email *') : 'Email *', hint: 'Configure Email Server', required: true },
 				{ value: 'Language', label: configData.language ? pc.green('Language') : 'Language', hint: 'Configure System & Content Languages' },
 				{ value: 'System', label: configData.system ? pc.green('System') : 'System', hint: 'Configure System settings' },
 				{ value: 'Media', label: configData.media ? pc.green('Media') : 'Media', hint: 'Configure Media handling' },
@@ -173,7 +176,8 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.database = result;
+				configData = { ...configData, ...result };
+				requiredFields.database = true;
 				break;
 			}
 			case 'Email': {
@@ -182,7 +186,8 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.email = result;
+				configData = { ...configData, ...result };
+				requiredFields.email = true;
 				break;
 			}
 			case 'Language': {
@@ -191,7 +196,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.language = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'System': {
@@ -200,7 +205,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.system = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Media': {
@@ -209,7 +214,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.media = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Google': {
@@ -218,7 +223,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.google = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Redis': {
@@ -227,7 +232,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.redis = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Mapbox': {
@@ -236,7 +241,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.mapbox = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Tiktok': {
@@ -245,7 +250,7 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.tiktok = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'OpenAI': {
@@ -254,11 +259,11 @@ export const configurationPrompt = async () => {
 					await cancelOperation();
 					return;
 				}
-				configData.openai = result;
+				configData = { ...configData, ...result };
 				break;
 			}
 			case 'Exit': {
-				if (!configData.database || !configData.email) {
+				if (!Object.values(requiredFields).reduce((a, v) => a && v)) {
 					const confirmExit = await confirm({
 						message: 'Database and Email are required to save the configuration. Do you still want to exit without saving?',
 						initialValue: false

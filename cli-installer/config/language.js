@@ -29,7 +29,7 @@ const languageOptions = [
 
 languageOptions.sort((a, b) => a.label.localeCompare(b.label));
 
-export async function configureLanguage() {
+export async function configureLanguage(configData = {}) {
 	// SveltyCMS Title
 	Title();
 
@@ -46,10 +46,9 @@ export async function configureLanguage() {
 		message: 'Choose the default content language. Default is English:',
 		options: options,
 		required: true,
-		cursorAt: ['en'],
-		initialValues: ['en']
+		initialValue: configData?.DEFAULT_CONTENT_LANGUAGE || 'en'
 	});
-
+	
 	if (isCancel(DEFAULT_CONTENT_LANGUAGE)) {
 		cancel('Operation cancelled.');
 		console.clear();
@@ -61,8 +60,7 @@ export async function configureLanguage() {
 		message: 'Select the available content languages. Default is English/German:',
 		options: options,
 		required: true,
-		cursorAt: ['en'],
-		initialValues: ['en', 'de']
+		initialValues: configData?.AVAILABLE_CONTENT_LANGUAGES || ['en', 'de']
 	});
 
 	if (isCancel(AVAILABLE_CONTENT_LANGUAGES)) {
@@ -76,8 +74,7 @@ export async function configureLanguage() {
 		message: 'Choose the default system language. Default is English:',
 		options: options,
 		required: true,
-		cursorAt: ['en'],
-		initialValues: ['en']
+		initialValue: configData?.DEFAULT_SYSTEM_LANGUAGE || 'en'
 	});
 
 	if (isCancel(DEFAULT_SYSTEM_LANGUAGE)) {
@@ -91,8 +88,7 @@ export async function configureLanguage() {
 		message: 'Select the available system languages. Default is English/German:',
 		options: options,
 		required: true,
-		cursorAt: ['en'],
-		initialValues: ['en', 'de']
+		initialValues: configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en', 'de']
 	});
 
 	if (isCancel(AVAILABLE_SYSTEM_LANGUAGES)) {

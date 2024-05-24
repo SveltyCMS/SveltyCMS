@@ -61,7 +61,7 @@ export async function configureSystem(privateConfigData = {}) {
 	const PASSWORD_STRENGTH = await text({
 		message: 'Enter the password strength (default: 8):',
 		placeholder: '8',
-		initialValue: privateConfigData.PASSWORD_STRENGTH || '8',
+		initialValue: privateConfigData.PASSWORD_STRENGTH?.toString() || '8',
 		validate(value) {
 			if (value.length === 0) return `Password strength is required!`;
 		}
@@ -74,10 +74,18 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
+	let bodySizeParsed = privateConfigData.BODY_SIZE_LIMIT;
+	let bodySizeUnit = 'b';
+	if (bodySizeParsed) {
+		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'kb'; }
+		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'mb'; }
+		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'gb'; }
+	}
+
 	const BODY_SIZE_LIMIT = await text({
 		message: 'Enter the body size limit (default: 100mb):',
 		placeholder: '100mb',
-		initialValue: privateConfigData.BODY_SIZE_LIMIT || '100mb',
+		initialValue: privateConfigData.BODY_SIZE_LIMIT ? bodySizeParsed + bodySizeUnit : '100mb',
 		validate(value) {
 			const regex = /^(\d+)(mb|kb|gb|b)$/i;
 			if (!regex.test(value)) {
@@ -172,12 +180,25 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	}
 
+	let bodySizeLimitOutput = 0;
+	if (BODY_SIZE_LIMIT.endsWith('gb')) {
+		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('gb')[0]) * 1024 * 1024 * 1024;
+	}
+	else if (BODY_SIZE_LIMIT.endsWith('mb')) {
+		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('mb')[0]) * 1024 * 1024;
+	}
+	else if (BODY_SIZE_LIMIT.endsWith('kb')) {
+		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('kb')[0]) * 1024;
+	}
+	else if (BODY_SIZE_LIMIT.endsWith('b')) {
+		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('b')[0]);
+	}
 	return {
 		SITE_NAME,
 		HOST_DEV,
 		HOST_PROD,
 		PASSWORD_STRENGTH,
-		BODY_SIZE_LIMIT,
+		BODY_SIZE_LIMIT: bodySizeLimitOutput,
 		SEASONS,
 		SEASONS_REGION
 	};
