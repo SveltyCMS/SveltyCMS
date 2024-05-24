@@ -11,12 +11,12 @@ export async function configureOpenAI(privateConfigData = {}) {
 	console.log(pc.blue('◆  OpenAI Configuration:'));
 
 	// OpenAI configuration
-	const USE_OPENAI = await confirm({
+	const USE_OPEN_AI = await confirm({
 		message: 'Enable OpenAI integration?',
-		initialValue: privateConfigData.USE_OPENAI || false
+		initialValue: privateConfigData.USE_OPEN_AI || false
 	});
 
-	if (isCancel(USE_OPENAI)) {
+	if (isCancel(USE_OPEN_AI)) {
 		cancel('Operation cancelled.');
 		console.clear();
 		await configurationPrompt(); // Restart the configuration process
@@ -25,7 +25,7 @@ export async function configureOpenAI(privateConfigData = {}) {
 
 	let VITE_OPEN_AI_KEY = '';
 
-	if (USE_OPENAI) {
+	if (USE_OPEN_AI) {
 		VITE_OPEN_AI_KEY = await text({
 			message: 'Enter your OpenAI API Key:',
 			placeholder: 'see https://beta.openai.com/account/api-keys',
@@ -42,7 +42,7 @@ export async function configureOpenAI(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`USE_OPENAI: ${pc.green(USE_OPENAI)}\n` + (USE_OPENAI ? `VITE_OPEN_AI_KEY: ${pc.green(VITE_OPEN_AI_KEY)}\n` : ''),
+		`USE_OPENAI: ${pc.green(USE_OPEN_AI)}\n` + (USE_OPEN_AI ? `VITE_OPEN_AI_KEY: ${pc.green(VITE_OPEN_AI_KEY)}\n` : ''),
 		pc.green('Review your OpenAI configuration:')
 	);
 
@@ -87,7 +87,7 @@ export async function configureOpenAI(privateConfigData = {}) {
 
 	// Compile and return the configuration data
 	return {
-		USE_OPENAI,
-		VITE_OPEN_AI_KEY: USE_OPENAI ? VITE_OPEN_AI_KEY : undefined
+		USE_OPEN_AI,
+		VITE_OPEN_AI_KEY: USE_OPEN_AI ? VITE_OPEN_AI_KEY : ''
 	};
 }

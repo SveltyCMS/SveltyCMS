@@ -14,7 +14,7 @@ export async function configureMedia(privateConfigData = {}) {
 	const IMAGE_SIZES = await text({
 		message: "Enter the image sizes in format 'size: value', separated by commas (e.g., sm: 600, md: 900, lg: 1200), or leave blank:",
 		placeholder: 'sm: 600, md: 900, lg: 1200',
-		initialValue: privateConfigData.IMAGE_SIZES || ''
+		initialValue: JSON.stringify(privateConfigData.IMAGE_SIZES).replaceAll('{', '').replaceAll('}', '').replaceAll('"', '') || ''
 	});
 
 	if (isCancel(IMAGE_SIZES)) {
@@ -52,7 +52,7 @@ export async function configureMedia(privateConfigData = {}) {
 		quality: await text({
 			message: 'Enter the media output quality between 0 and 100, bigger is higher quality, but larger file size:',
 			placeholder: '80',
-			initialValue: privateConfigData.MEDIA_OUTPUT_FORMAT_QUALITY?.quality || '80',
+			initialValue: privateConfigData.MEDIA_OUTPUT_FORMAT_QUALITY?.quality?.toString() || '80',
 			validate(value) {
 				if (value.length === 0) return `Please enter a valid Media Output Quality between 0 and 100.`;
 			}

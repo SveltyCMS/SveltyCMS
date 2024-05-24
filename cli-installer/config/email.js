@@ -63,7 +63,7 @@ export async function configureEmail(privateConfigData = {}) {
 		SMTP_PORT = await text({
 			message: 'Enter the SMTP port:',
 			placeholder: '587',
-			initialValue: privateConfigData.SMTP_PORT || SMTP_PORT,
+			initialValue: privateConfigData.SMTP_PORT.toString() || SMTP_PORT,
 			validate(value) {
 				if (value.length === 0) return `Please enter a valid port number between 1 and 65535.`;
 			}

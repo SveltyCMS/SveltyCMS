@@ -50,9 +50,11 @@ export const createPrivateConfig = (arg: {
 	TWITCH_TOKEN?: string;
 
 	// TIKTOK_TOKEN - See https://dev.tiktok.com/docs/
+	USE_TIKTOK?: boolean;
 	TIKTOK_TOKEN?: string;
 
 	// OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
+	USE_OPEN_AI?: boolean;
 	VITE_OPEN_AI_KEY?: string;
 }) => arg;
 
