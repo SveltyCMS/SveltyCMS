@@ -6,10 +6,10 @@ import type { Unsubscriber } from 'svelte/store';
 
 // Mongoose
 import mongoose from 'mongoose';
-import type { databaseAdapter } from './databaseAdapter';
+import type { DatabaseAdapter } from './databaseAdapter';
 import { mongooseSessionSchema, mongooseTokenSchema, mongooseUserSchema } from '@src/auth/types';
 
-export class MongoDBAdapter implements databaseAdapter {
+export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	// Connect to MongoDB database using imported environment variables with retry
@@ -34,8 +34,8 @@ export class MongoDBAdapter implements databaseAdapter {
 					throw new Error('Failed to connect to the database after maximum retries.');
 				}
 				console.log(`Retrying... (${attempts} attempts left)`);
-
 				// Wait before retrying only if more attempts remain
+
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
 			}
 		}

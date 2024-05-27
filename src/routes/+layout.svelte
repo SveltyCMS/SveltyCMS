@@ -16,7 +16,7 @@
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
 
 	// SEO
-	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
+	const SeoTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
 

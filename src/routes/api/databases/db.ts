@@ -5,7 +5,7 @@ import { dev } from '$app/environment';
 // Adapters
 import { MongoDBAdapter } from './mongoDBAdapter';
 import { MariaDBAdapter } from './mariaDBAdapter';
-import type { databaseAdapter } from './databaseAdapter';
+import type { DatabaseAdapter } from './databaseAdapter';
 
 // Auth
 import { Auth } from '@src/auth';
@@ -15,7 +15,7 @@ import mongoose from 'mongoose';
 import { google } from 'googleapis';
 
 // Initialize the appropriate database adapter based on the environment variable
-let dbAdapter: databaseAdapter;
+let dbAdapter: DatabaseAdapter;
 
 if (privateEnv.DB_TYPE === 'mongodb') {
 	dbAdapter = new MongoDBAdapter();

@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -97,7 +98,9 @@
 					movable={item.movable}
 					resizable={item.resizable}
 				>
-					<button on:pointerdown={(e) => e.stopPropagation()} on:click={() => remove(item.id)} class="btn-icon absolute right-0 z-20"> ✕ </button>
+					<button on:pointerdown={(e) => e.stopPropagation()} on:click={() => remove(item.id)} class="btn-icon absolute right-0 z-20 text-black">
+						✕
+					</button>
 					<div
 						class="flex h-full w-full items-center justify-center rounded-md border border-surface-500 bg-surface-100 shadow-2xl dark:bg-surface-700"
 					>

@@ -74,7 +74,7 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-widget.modifyRequest = async ({ field, data, user, type, id, collection, meta_data }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ field, data, user, type, id, collection }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
 	console.log('data:', _data);
 	return;

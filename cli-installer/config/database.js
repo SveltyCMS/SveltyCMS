@@ -60,8 +60,8 @@ export async function configureDatabase(privateConfigData = {}) {
 		message: 'Choose your database option:',
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
 		options: [
-			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' },
-			{ value: 'mariadb', label: 'MariaDB', hint: 'In development not Functional - Supports Docker and Local' }
+			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' }
+			// { value: 'mariadb', label: 'MariaDB', hint: 'In development not Functional - Supports Docker and Local' }
 		],
 		required: true
 	});
