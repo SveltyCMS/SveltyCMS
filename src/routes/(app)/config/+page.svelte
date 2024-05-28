@@ -48,5 +48,11 @@
 			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
 			<p class="uppercase">{m.config_Martketplace()}</p>
 		</a>
+
+		<!-- System Settings -->
+		<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6">
+			<iconify-icon icon="uil:setting" width="28" class="text-white" />
+			<p class="uppercase">System Settings</p>
+		</a>
 	</div>
 </div>

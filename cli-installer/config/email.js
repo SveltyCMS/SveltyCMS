@@ -23,6 +23,12 @@ export async function configureEmail(privateConfigData = {}) {
 	// Configuration Title
 	console.log(pc.blue('◆  Email Configuration:'));
 
+    // Display a note about the SMTP configuration
+    note(
+        `The SMTP configuration is used to send emails from the system, such as notifications and password resets.`,
+        pc.green('Information:')
+    );
+    
 	const SMTP_PROVIDER = await select({
 		message: 'Select your SMTP provider or choose Custom for custom settings:',
 		placeholder: 'Gmail',

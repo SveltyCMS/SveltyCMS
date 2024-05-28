@@ -1,10 +1,22 @@
 import fs from 'fs/promises';
-import pathModule from 'path'; // Renamed to avoid naming conflict
+import pathModule from 'path';
+import { backupConfigFiles, restoreConfigFiles } from './backupRestore';
 
 // Create or Update Config File
-export async function createOrUpdateConfigFile(configData) {
-	// Private configuration content
-	const privateConfigContent = `
+export async function createOrUpdateConfigFile(configData, options = { backup: true, restore: false }) {
+    // Backup before making changes if option is set
+    if (options.backup) {
+        await backupConfigFiles();
+    }
+
+    // Restore from backup if option is set
+    if (options.restore) {
+        await restoreConfigFiles();
+        return;
+    }
+
+    // Private configuration content
+    const privateConfigContent = `
         /**
          * Do not Edit as the file will be overwritten by Cli Installer !!!
          * Rather use 'npm installer' to start the installer
@@ -65,8 +77,8 @@ export async function createOrUpdateConfigFile(configData) {
         });
     `;
 
-	// Public configuration content
-	const publicConfigContent = `
+    // Public configuration content
+    const publicConfigContent = `
         /**
          * Do not Edit as the file will be overwritten by Cli Installer !!!
          * Rather use 'npm installer' to start the installer
@@ -98,7 +110,7 @@ export async function createOrUpdateConfigFile(configData) {
             // The folder where the site's media files will be stored. (Default: 'mediaFiles')
             MEDIA_FOLDER: '${configData?.MEDIA_FOLDER || 'mediaFiles'}',
 
-            // Media Format & Quality how image are saved on the server.
+            // Media Format & Quality how images are saved on the server.
             MEDIA_OUTPUT_FORMAT_QUALITY: {
                 format:  '${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.format || 'original'}', // 'original' or 'avif', 'webp' (default: original)
                 quality: ${configData?.MEDIA_OUTPUT_FORMAT_QUALITY?.quality || 80} // quality between 0 and 100 (default: 80)
@@ -111,7 +123,7 @@ export async function createOrUpdateConfigFile(configData) {
             // Defines body size limit (default: 100mb)
             BODY_SIZE_LIMIT: ${configData?.BODY_SIZE_LIMIT || 104857600},
 
-            // Define you hostname where your site is running in development/production
+            // Define your hostname where your site is running in development/production
             HOST_DEV: '${configData?.HOST_DEV || 'http://localhost:5173'}',
             HOST_PROD: '${configData?.HOST_PROD || 'https://yourdomain.de'}',
 
@@ -124,19 +136,19 @@ export async function createOrUpdateConfigFile(configData) {
         });
     `;
 
-	try {
-		// Create or update the config directory
-		const configDir = pathModule.join(process.cwd(), 'config'); // Changed 'path' to 'pathModule'
-		await fs.mkdir(configDir, { recursive: true });
+    try {
+        // Create or update the config directory
+        const configDir = pathModule.join(process.cwd(), 'config');
+        await fs.mkdir(configDir, { recursive: true });
 
-		// Write private config file
-		await fs.writeFile(pathModule.join(configDir, 'private.ts'), privateConfigContent, 'utf-8'); // Changed 'path' to 'pathModule'
+        // Write private config file
+        await fs.writeFile(pathModule.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
 
-		// Write public config file
-		await fs.writeFile(pathModule.join(configDir, 'public.ts'), publicConfigContent, 'utf-8'); // Changed 'path' to 'pathModule'
+        // Write public config file
+        await fs.writeFile(pathModule.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
 
-		console.log('Configuration files created successfully!');
-	} catch (error) {
-		console.error('Error creating or updating configuration files:', error);
-	}
+        console.log('Configuration files created successfully!');
+    } catch (error) {
+        console.error('Error creating or updating configuration files:', error);
+    }
 }

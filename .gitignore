@@ -12,8 +12,8 @@ vite.config.ts.timestamp-*
 # secrets
 /config/private.ts
 /config/public.ts
-/config/private.backup.ts
-/config/public.backup.ts
+# Backup folder under config
+/config/backup/
 
 # SveltyCMS
 /tmp
