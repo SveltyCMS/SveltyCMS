@@ -1,4 +1,4 @@
-import { select, isCancel, cancel } from '@clack/prompts';
+import { select, isCancel, spinner, note } from '@clack/prompts';
 import { spawnSync } from 'child_process';
 import { Title } from './cli-installer.js';
 import pc from 'picocolors';
@@ -7,6 +7,8 @@ import { main } from './cli-installer.js';
 
 // Detect installed package managers
 async function checkPackageManagers() {
+	const spin = spinner();
+	spin.start('Checking for installed package managers...');
 	try {
 		const packageManagers = ['pnpm', 'npm', 'yarn'];
 		const bunResult = spawnSync('bun', ['--version']);
@@ -16,9 +18,10 @@ async function checkPackageManagers() {
 		} else {
 			packageManagers.push('bun');
 		}
-
+		spin.stop('Package managers checked successfully.');
 		return packageManagers;
 	} catch (error) {
+		spin.stop('An error occurred while checking for package managers.');
 		console.error('An error occurred while checking for package managers:', error);
 		return [];
 	}
@@ -49,6 +52,14 @@ export async function startProcess() {
 			console.log('Please install one and try again.');
 			return;
 		}
+
+		// Display a note about navigation instructions
+		note(
+			`- Select a package manager using ${pc.green('arrow keys')}
+- Press ${pc.green('Enter')} to select
+- Press ${pc.green('Ctrl+C')} to cancel at any time`,
+			pc.green('Package Manager Instructions:')
+		);
 
 		const options = packageManagers.map((manager) => {
 			let hint = '';

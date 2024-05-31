@@ -81,52 +81,18 @@ async function importConfig(filePath) {
 	return {};
 }
 
-function createBackup() {
-	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
-	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
-
-	const createBackupForFile = (filePath) => {
-		const backupPath = path.join(process.cwd(), 'config', `${path.basename(filePath, '.ts')}.backup.ts`);
-		try {
-			fs.copyFileSync(filePath, backupPath);
-			return `Backup created at /config/${path.basename(backupPath)}`;
-		} catch (error) {
-			return `Failed to create backup: ${error.message}`;
-		}
-	};
-
-	const backupMessages = [];
-	if (fs.existsSync(privateConfigPath)) {
-		backupMessages.push(createBackupForFile(privateConfigPath));
-	}
-	if (fs.existsSync(publicConfigPath)) {
-		backupMessages.push(createBackupForFile(publicConfigPath));
-	}
-
-	return backupMessages;
-}
-
 export const configurationPrompt = async () => {
 	// SveltyCMS Title
 	Title();
 
-	// Perform the backup process
+	// Initialize an object to store all the configuration data
+	let configData = {};
+
 	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');
 	const publicConfigPath = path.join(process.cwd(), 'config', 'public.ts');
-	let backupMessages = [];
 
 	const privateExists = fs.existsSync(privateConfigPath);
 	const publicExists = fs.existsSync(publicConfigPath);
-
-	if (privateExists || publicExists) {
-		backupMessages = createBackup();
-		note(backupMessages.map((message) => pc.blue(message)).join('\n'), pc.green('Configuration found, backup created:'));
-	} else {
-		note(pc.green('No existing configuration found. Default configuration loaded. Please complete the required setup.'), pc.green('Fresh Install:'));
-	}
-
-	// Initialize an object to store all the configuration data
-	let configData = {};
 
 	if (privateExists) {
 		const privateConfig = (await importConfig(privateConfigPath)).privateEnv;
@@ -136,10 +102,10 @@ export const configurationPrompt = async () => {
 		const publicConfig = (await importConfig(publicConfigPath)).publicEnv;
 		configData = { ...configData, ...publicConfig };
 	}
-	
+
 	const requiredFields = {
 		database: !!configData.DB_HOST && !!configData.DB_NAME && !!configData.DB_TYPE,
-		email: !!configData.SMTP_HOST && !!configData.SMTP_PORT && !!configData.SMTP_EMAIL && !!configData.SMTP_PASSWORD,
+		email: !!configData.SMTP_HOST && !!configData.SMTP_PORT && !!configData.SMTP_EMAIL && !!configData.SMTP_PASSWORD
 	};
 
 	let projectConfigure;

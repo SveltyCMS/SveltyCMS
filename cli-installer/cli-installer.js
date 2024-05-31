@@ -3,14 +3,14 @@ import pc from 'picocolors';
 
 // Components
 import { startOrInstallPrompt } from './startOrInstallPrompt.js';
+import { backupRestorePrompt } from './backupRestore.js';
 import { configurationPrompt } from './configuration.js';
 import { startProcess } from './startProcess.js';
 
+// Function to display the welcome message and navigation instructions
 export const Title = () => {
-	// Clear the terminal
-	console.clear();
-	// Welcome message
-	return intro(`${pc.bgRed(pc.white(pc.bold(' Welcome to SveltyCMS CLI installer! ')))}`);
+	console.clear(); // Clear the terminal
+	intro(`${pc.bgRed(pc.white(pc.bold(' Welcome to SveltyCMS CLI installer! ')))}`); // Welcome message
 };
 
 // Define more prompts here for different configuration sections
@@ -26,21 +26,26 @@ export async function main() {
 	const projectStart = await startOrInstallPrompt();
 
 	if (isCancel(projectStart)) {
-		cancelOperation();
+		await cancelOperation();
+		return;
 	}
 
 	// Handle user input
 	if (projectStart === 'install') {
+		await backupRestorePrompt();
+
 		const projectConfigure = await configurationPrompt();
 
 		if (isCancel(projectConfigure)) {
-			cancelOperation();
+			await cancelOperation();
+			return;
 		}
 	} else if (projectStart === 'start') {
 		const projectstartProcess = await startProcess();
 
 		if (isCancel(projectstartProcess)) {
-			cancelOperation();
+			await cancelOperation();
+			return;
 		}
 	} else if (projectStart === 'exit') {
 		outro('Thank you for using SveltyCMS CLI Installer.');

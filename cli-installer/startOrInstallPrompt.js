@@ -1,4 +1,4 @@
-import { select, isCancel, outro } from '@clack/prompts';
+import { select, isCancel, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';
 import path from 'path';
@@ -7,6 +7,14 @@ import { Title } from './cli-installer.js';
 export const startOrInstallPrompt = async () => {
 	// SveltyCMS Title
 	Title();
+
+	// Display a note about what the user can do/select
+	note(
+		`- Use ${pc.green('arrow keys')} to navigate
+- Press ${pc.green('Enter')} to select
+- Press ${pc.green('Ctrl+C')} to cancel at any time`,
+		pc.green('Navigation Instructions:')
+	);
 
 	// Define the paths for the configuration files
 	const privateConfigPath = path.join(process.cwd(), 'config', 'private.ts');

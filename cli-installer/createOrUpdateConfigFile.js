@@ -1,22 +1,10 @@
 import fs from 'fs/promises';
-import pathModule from 'path';
-import { backupConfigFiles, restoreConfigFiles } from './backupRestore';
+import path from 'path';
 
 // Create or Update Config File
-export async function createOrUpdateConfigFile(configData, options = { backup: true, restore: false }) {
-    // Backup before making changes if option is set
-    if (options.backup) {
-        await backupConfigFiles();
-    }
-
-    // Restore from backup if option is set
-    if (options.restore) {
-        await restoreConfigFiles();
-        return;
-    }
-
-    // Private configuration content
-    const privateConfigContent = `
+export async function createOrUpdateConfigFile(configData) {
+	// Private configuration content
+	const privateConfigContent = `
         /**
          * Do not Edit as the file will be overwritten by Cli Installer !!!
          * Rather use 'npm installer' to start the installer
@@ -77,8 +65,8 @@ export async function createOrUpdateConfigFile(configData, options = { backup: t
         });
     `;
 
-    // Public configuration content
-    const publicConfigContent = `
+	// Public configuration content
+	const publicConfigContent = `
         /**
          * Do not Edit as the file will be overwritten by Cli Installer !!!
          * Rather use 'npm installer' to start the installer
@@ -136,19 +124,19 @@ export async function createOrUpdateConfigFile(configData, options = { backup: t
         });
     `;
 
-    try {
-        // Create or update the config directory
-        const configDir = pathModule.join(process.cwd(), 'config');
-        await fs.mkdir(configDir, { recursive: true });
+	try {
+		// Create or update the config directory
+		const configDir = path.join(process.cwd(), 'config');
+		await fs.mkdir(configDir, { recursive: true });
 
-        // Write private config file
-        await fs.writeFile(pathModule.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
+		// Write private config file
+		await fs.writeFile(path.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
 
-        // Write public config file
-        await fs.writeFile(pathModule.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
+		// Write public config file
+		await fs.writeFile(path.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
 
-        console.log('Configuration files created successfully!');
-    } catch (error) {
-        console.error('Error creating or updating configuration files:', error);
-    }
+		console.log('Configuration files created successfully!');
+	} catch (error) {
+		console.error('Error creating or updating configuration files:', error);
+	}
 }
