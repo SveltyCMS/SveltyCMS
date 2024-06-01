@@ -85,6 +85,12 @@ export const configurationPrompt = async () => {
 	// SveltyCMS Title
 	Title();
 
+	// Note
+	note(
+		`${pc.green('Database')} and ${pc.green('Email')} configurations are required. Other configurations are optional.`,
+		pc.green('Configuration Instructions:')
+	);
+
 	// Initialize an object to store all the configuration data
 	let configData = {};
 
