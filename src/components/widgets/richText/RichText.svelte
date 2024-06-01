@@ -423,8 +423,9 @@
 			/>
 
 			<FileInput
+				closeButton
 				bind:show={showImageDialog}
-				class="absolute top-0 z-10 bg-white"
+				class="fixed  left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
 				on:change={(e) => {
 					let data = e.detail;
 					let url;

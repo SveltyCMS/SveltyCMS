@@ -1,9 +1,16 @@
 <script lang="ts">
+	//Store
+	import { page } from '$app/stores';
+
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+
+	// Auth
+	import type { User } from '@src/auth/types';
+	const user: User = $page.data.user;
 </script>
 
 <div class="my-2 flex items-center justify-between">
@@ -50,9 +57,11 @@
 		</a>
 
 		<!-- System Settings -->
-		<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6">
-			<iconify-icon icon="uil:setting" width="28" class="text-white" />
-			<p class="uppercase">System Settings</p>
-		</a>
+		{#if user.role === 'admin'}
+			<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6">
+				<iconify-icon icon="uil:setting" width="28" class="text-white" />
+				<p class="uppercase">System Settings</p>
+			</a>
+		{/if}
 	</div>
 </div>

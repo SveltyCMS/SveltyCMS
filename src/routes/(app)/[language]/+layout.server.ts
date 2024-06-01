@@ -20,20 +20,20 @@ export async function load({ cookies, route, params }) {
 
 	// Redirect to user page if lastAuthMethod token
 	if (user?.lastAuthMethod === 'token') {
-		redirect(302, `/user`);
+		throw redirect(302, `/user`);
 	}
 
 	const collection = collections.find((c: any) => c.name == params.collection);
 
-	//  Check if language and collection both set in url
+	// Check if language and collection both set in url
 	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
-		// if language is not available
-		error(404, {
+		// If language is not available
+		throw error(404, {
 			message: `The language '${params.language}' is not available.`
 		});
 	} else if (!collection && params.collection) {
-		// if collection is not found
-		error(404, {
+		// If collection is not found
+		throw error(404, {
 			message: `The collection '${params.collection}' does not exist.`
 		});
 	}
@@ -43,21 +43,21 @@ export async function load({ cookies, route, params }) {
 			// If the route does not have a language parameter and the contentLanguage store is not set
 			if (!params.language && !contentLanguage) {
 				// Redirect to the default language with the first accessible collection
-				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read != false);
-				redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
+				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
 			} else {
-				// filters collection based on reading permissions and redirects to first left one
-				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read != false);
-				redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
+				// Filters collection based on reading permissions and redirects to the first accessible one
+				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+				throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
 			}
 		}
-		if (collection?.permissions?.[user.role]?.read == false) {
-			error(404, {
+		if (collection?.permissions?.[user.role]?.read === false) {
+			throw error(404, {
 				message: 'No Access to this collection'
 			});
 		}
 		return {
-			user: user
+			user
 		};
 	}
 }

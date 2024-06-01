@@ -7,6 +7,7 @@ const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublished',
+	revision: true,
 
 	// Collection Permissions by user Roles
 	permissions: {

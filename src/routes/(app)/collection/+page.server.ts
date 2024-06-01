@@ -9,23 +9,25 @@ import mongoose from 'mongoose';
 export async function load(event) {
 	// Get session cookie value as string
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+
+	if (!session_id) {
+		throw redirect(302, `/login`);
+	}
+
 	// Validate user using auth and session value
 	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
 	// If user status is 200, return user object
-	if (user) {
-		if (user.role != 'admin') {
-			throw error(404, {
-				message: "You don't have any access to this page"
-			});
-		}
-	} else {
-		redirect(302, `/login`);
+	if (!user) {
+		throw redirect(302, `/login`);
 	}
+
+	if (user.role !== 'admin') {
+		throw error(404, "You don't have access to this page");
+	}
+
 	// Return user data
 	return {
-		props: {
-			user: user
-		}
+		user
 	};
 }

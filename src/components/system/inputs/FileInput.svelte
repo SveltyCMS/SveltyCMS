@@ -13,6 +13,7 @@
 	export let value: File | MediaImage | undefined = undefined;
 	export let multiple = false;
 	export let show = true;
+	export const closeButton = false;
 
 	let ev = createEventDispatcher();
 	let input: HTMLInputElement;
@@ -20,6 +21,7 @@
 
 	let mediaOnSelect = (data: MediaImage) => {
 		show = false;
+		showMedia = false;
 		value = data;
 		ev('change', value);
 	};
@@ -47,7 +49,7 @@
 		role="cell"
 		tabindex="0"
 		class={twMerge(
-			'mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
+			'relative mt-2 flex h-[200px] w-full max-w-full select-none flex-col items-center justify-center gap-4 rounded border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700',
 			$$props.class
 		)}
 	>

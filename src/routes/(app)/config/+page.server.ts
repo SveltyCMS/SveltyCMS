@@ -14,13 +14,11 @@ export async function load(event: any) {
 
 	// If validation fails, redirect the user to the login page
 	if (!user) {
-		redirect(302, `/login`);
+		throw redirect(302, `/login`);
 	}
 
 	// Return user data
 	return {
-		props: {
-			user: user
-		}
+		user
 	};
 }

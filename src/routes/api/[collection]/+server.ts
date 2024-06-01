@@ -14,7 +14,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 import mongoose from 'mongoose';
 
-// Define the GET request handler.// Define the GET request handler.
+// Define the GET request handler.
 export const GET: RequestHandler = async ({ params, url, cookies }) => {
 	try {
 		// Get the session cookie.
@@ -26,15 +26,13 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			? ((await auth.checkUser({ _id: user_id })) as User)
 			: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
 
-		// Check if the user has write access to the collection.
+		// Check if the user has read access to the collection.
 		if (!user) {
 			return new Response('', { status: 403 });
 		}
 
 		// Get the collection schema asynchronously.
 		const collection_schema = (await getCollections()).find((c) => c.name == params.collection) as Schema;
-		// const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
-
 		// Check if the user has read access to the collection.
 		const has_read_access = collection_schema?.permissions?.[user.role]?.read != false;
 
@@ -46,7 +44,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		const collections = await getCollectionModels();
 		const collection = collections[params.collection];
 
-		// Get the page number, length, filter, and sort from the URL parameters asynchronously.
+		// Get the page number, length, filter, and sort from the URL parameters.
 		const page = parseInt(url.searchParams.get('page') as string) || 1;
 		const length = parseInt(url.searchParams.get('length') as string) || Infinity;
 		const filter: { [key: string]: string } = JSON.parse(url.searchParams.get('filter') as string) || {};
@@ -61,7 +59,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		// Calculate the skip value.
 		const skip = (page - 1) * length;
 
-		// Create an array of aggregation pipelines asynchronously.
+		// Create an array of aggregation pipelines.
 		const aggregations: any = [];
 
 		// Modify the aggregation pipeline based on the search query.
@@ -82,7 +80,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			aggregations.push({ $sort: { status: sort.updatedAt } });
 		}
 
-		// Loop through the collection schema fields asynchronously.
+		// Loop through the collection schema fields.
 		await Promise.all(
 			collection_schema.fields.map(async (field: any) => {
 				const widget = widgets[field.widget.Name];
@@ -110,7 +108,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			})
 		);
 
-		// Aggregate the collection asynchronously.
+		// Aggregate the collection.
 		const entryListWithCount = await collection.aggregate([
 			{
 				$facet: {
@@ -120,10 +118,10 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			}
 		]);
 
-		// Get the entry list and total count asynchronously.
+		// Get the entry list and total count.
 		let entryList = entryListWithCount[0].entries;
 
-		// Modify entry list asynchronously.
+		// Modify entry list.
 		entryList = await Promise.all(
 			entryList.map(async (entry: any) => {
 				for (const field of collection_schema.fields) {
@@ -156,7 +154,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 			})
 		);
 
-		// Fetch elements by ID asynchronously.
+		// Fetch elements by ID.
 		await get_elements_by_id.getAll();
 
 		// Calculate total count and pages count.
@@ -196,7 +194,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			return new Response('', { status: 403 });
 		}
 
-		// Check if the user has write access to the collection.
+		// Get the collection schema.
 		const collection_schema = (await getCollections().then((collections) => collections.find((c: any) => c.name == params.collection))) as Schema;
 		const has_write_access = collection_schema?.permissions?.[user.role]?.write != false;
 
@@ -204,11 +202,11 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			return new Response('', { status: 403 });
 		}
 
-		// Get the collection model asynchronously.
+		// Get the collection model.
 		const collections = await getCollectionModels();
 		const collection = collections[params.collection];
 
-		// Parse the form data asynchronously.
+		// Parse the form data.
 		const body: any = {};
 
 		for (const key of data.keys()) {
@@ -230,6 +228,19 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 
 		// Get the _id of the entry.
 		const _id = data.get('_id') as string;
+
+		// Handle revision saving
+		const document = await collection.findById(_id);
+		if (document) {
+			const revision = {
+				revisionNumber: document.__v.length + 1,
+				editedAt: new Date(),
+				editedBy: user.username || 'System', // Use actual user info
+				changes: document.toObject()
+			};
+			document.__v.push(revision);
+			await document.save();
+		}
 
 		for (const field of collection_schema.fields) {
 			const widget = widgets[field.widget.Name];
@@ -264,8 +275,7 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 			);
 		}
 
-		// Update the entry asynchronously.
-		console.log(body?._meta_data?.media_images?.removed);
+		// Update the entry.
 		const response = await collection.updateOne({ _id }, body, { upsert: true });
 
 		// Return the response as a JSON string.
@@ -306,7 +316,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 			return new Response('', { status: 403 });
 		}
 
-		// Get the collection model asynchronously.
+		// Get the collection model.
 		const collections = await getCollectionModels();
 		const collection = collections[params.collection];
 
@@ -339,7 +349,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 		if (!collection) return new Response('collection not found!!');
 		body._id = new mongoose.Types.ObjectId();
 
-		// Loop through the collection schema fields asynchronously.
+		// Loop through the collection schema fields.
 		await Promise.all(
 			collection_schema.fields.map(async (field: any) => {
 				const widget = widgets[field.widget.Name];
@@ -371,7 +381,7 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 			})
 		);
 
-		// Insert the entry asynchronously.
+		// Insert the entry.
 		const insertedEntry = await collection.insertMany(body);
 
 		// Return the inserted entry as a JSON response.
@@ -412,7 +422,7 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 			return new Response('', { status: 403 });
 		}
 
-		// Get the collection model asynchronously.
+		// Get the collection model.
 		const collections = await getCollectionModels();
 		const collection = collections[params.collection];
 
@@ -420,7 +430,7 @@ export const DELETE: RequestHandler = async ({ params, request, cookies }) => {
 		let ids = data.get('ids') as string;
 		ids = JSON.parse(ids);
 
-		// Delete the entries asynchronously.
+		// Delete the entries.
 		const deletionResult = await collection.deleteMany({
 			_id: {
 				$in: ids

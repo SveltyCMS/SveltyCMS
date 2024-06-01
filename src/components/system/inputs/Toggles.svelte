@@ -7,21 +7,24 @@
 	export let label: string = '';
 	export let icon: any = null;
 	export let labelColor: string = 'text-primary-500'; // Default label color
+	export let iconOn: string = 'wpf:invisible'; // Default icon when toggle is on
+	export let iconOff: string = 'gridicons:not-visible'; // Default icon when toggle is off
 
 	const random = crypto.randomUUID();
-	$: labelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
+	$: currentLabelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
 
 	function updateToggle(event) {
 		dispatch('toggle', event.target.checked);
+		value = event.target.checked; // Update value to reflect the change
 	}
 </script>
 
-<label for="toggleSwitch{random}" class={`text-dark flex cursor-pointer select-none items-center text-white`}>
-	<label for="toggleSwitch{random}" class={`mr-3 flex items-center gap-2 ${labelColor}`}>
+<label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
+	<label for="toggleSwitch{random}" class="mr-3 flex items-center gap-2 {currentLabelColor}">
 		<!-- {#if value}
-			<iconify-icon icon="wpf:invisible" width="24" class="text-white" />
+			<iconify-icon icon={iconOn} width="24" class="text-white" />
 		{:else}
-			<iconify-icon icon="gridicons:not-visible" width="24" class="text-white" />
+			<iconify-icon icon={iconOff} width="24" class="text-white" />
 		{/if} -->
 		{label}
 	</label>
@@ -31,9 +34,9 @@
 
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
-			<!-- <span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
+			<span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
 				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
-			</span> -->
+			</span>
 		</div>
 
 		<!-- icon with background color -->
@@ -41,9 +44,9 @@
 			class="absolute left-1 top-1 flex h-6 w-6 items-center justify-end rounded-full bg-error-500 transition peer-checked:translate-x-6 peer-checked:bg-primary-900"
 		>
 			{#if value}
-				<iconify-icon {icon} width="24" />
+				<iconify-icon icon={iconOn} width="24" />
 			{:else}
-				<iconify-icon {icon} width="24" />
+				<iconify-icon icon={iconOff} width="24" />
 			{/if}
 		</div>
 	</div>

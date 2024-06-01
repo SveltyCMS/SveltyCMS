@@ -27,9 +27,7 @@
 	});
 
 	// Map the status to boolean
-	//console.log('Status', $entryData?.status);
 	let isPublished = $entryData?.status === 'published';
-	//console.log('isPublished', isPublished);
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -98,13 +96,13 @@
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
 					Save
 				</button>
-
 				<!-- Publish/Unpublish -->
 				<div class="gradient-secondary btn w-full gap-2">
 					<Toggles
 						label={isPublished ? 'Published' : 'Unpublished'}
 						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
-						icon={isPublished ? 'ic:baseline-check-circle' : 'material-symbols:close'}
+						iconOn="ic:baseline-check-circle"
+						iconOff="material-symbols:close"
 						bind:value={isPublished}
 						on:toggle={toggleStatus}
 					/>
@@ -144,13 +142,13 @@
 			<main class="mt-2 flex w-full flex-col items-center justify-center gap-2 text-left dark:text-white">
 				<p class="w-full border-b text-center font-bold uppercase text-tertiary-500 dark:text-primary-500">Publish Options:</p>
 
-				<!--Authored by autocomplete -->
-				<div class="flexflex-col items-center justify-center">
-					<p class="">{m.sidebar_authoredby()}</p>
-					<div class="relative z-50">
+				<!-- Authored by autocomplete -->
+				<div class="flex w-full flex-col items-start justify-center">
+					<p class="mb-1">{m.sidebar_authoredby()}</p>
+					<div class="relative z-50 w-full">
 						<!-- add use:popup directive to the element that triggers the popup -->
 						<input
-							class="autocomplete variant-filled-surface text-sm"
+							class="autocomplete variant-filled-surface w-full text-sm"
 							type="search"
 							name="autocomplete-search"
 							bind:value={inputPopupUser}
@@ -158,16 +156,18 @@
 							use:popup={popupSettingsUser}
 						/>
 						<!-- popup element should have a data-popup attribute that matches the target property in your popup settings -->
-						<div data-popup="popupAutocomplete ">
+						<div data-popup="popupAutocomplete">
 							<!-- ensure Autocomplete component is correctly set up -->
 							<Autocomplete bind:input={inputPopupUser} options={Userlist} on:selection={onPopupUserSelect} />
 						</div>
 					</div>
 				</div>
 
-				<!--Authored on -->
-				<p class="text-left">{m.sidebar_authoredon()}</p>
-				<input type="datetime-local" bind:value={schedule} class="variant-filled-surface text-sm" />
+				<!-- Authored on -->
+				<div class="mt-2 flex w-full flex-col items-start justify-center">
+					<p class="mb-1">{m.sidebar_authoredon()}</p>
+					<input type="datetime-local" bind:value={schedule} class="variant-filled-surface w-full text-sm" />
+				</div>
 			</main>
 
 			{#if $mode == 'create'}
