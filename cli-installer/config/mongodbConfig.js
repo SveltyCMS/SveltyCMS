@@ -157,5 +157,9 @@ export async function configureMongoDB(privateConfigData = {}) {
 		}
 	}
 
+	// Include the database name in the connection string
+	const dbName = connectionString.includes('/') ? connectionString.split('/').pop() : 'sveltycms';
+	connectionString = connectionString.replace(/\/?$/, `/${dbName}`);
+
 	return connectionString;
 }

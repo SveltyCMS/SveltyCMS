@@ -7,8 +7,11 @@ export async function configureRedis(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  Redis Configuration:'));
+	// Display a note about the Redis configuration
+	note(
+		`The Redis configuration allows you to set up Redis caching for your application. Redis can help improve performance by caching frequently accessed data.`,
+		pc.green('Redis Configuratio:')
+	);
 
 	// Enable Redis Caching (optional - Not yet implemented)
 	const USE_REDIS = await confirm({

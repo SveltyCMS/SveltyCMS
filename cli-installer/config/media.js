@@ -7,8 +7,11 @@ export async function configureMedia(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  Media Configuration:'));
+	// Display a note about the Media configuration
+	note(
+		`The Media configuration allows you to set the sizes for image processing, the folder for storing media files, the output format and quality for image optimization, and the media server URL.`,
+		pc.green('Media Configuration:')
+	);
 
 	// Media configuration
 	const IMAGE_SIZES = await text({

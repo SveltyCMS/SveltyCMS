@@ -2,7 +2,7 @@ import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';
 import { configureMariaDB } from './mariadbConfig.js';
-import { text, select, note, isCancel, cancel } from '@clack/prompts';
+import { text, select, note, isCancel, cancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
 function parseConnectionString(connectionString, dbType) {
@@ -10,14 +10,14 @@ function parseConnectionString(connectionString, dbType) {
 	if (dbType === 'mongodb') {
 		return {
 			DB_HOST: parsed.host,
-			DB_NAME: parsed.pathname.slice(1),
+			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
 			DB_USER: parsed.username,
 			DB_PASSWORD: parsed.password
 		};
 	} else if (dbType === 'mariadb') {
 		return {
 			DB_HOST: parsed.hostname,
-			DB_NAME: parsed.pathname.slice(1),
+			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
 			DB_USER: parsed.username,
 			DB_PASSWORD: parsed.password
 		};
@@ -32,7 +32,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	// Guide Note
 	note(
 		`${pc.green('Database')} configuration is required. Follow the instructions for your preferred database setup.`,
-		pc.green('Database Configuration Instructions:')
+		pc.green('Database Configuration:')
 	);
 
 	// Configure SvelteCMS
@@ -61,9 +61,23 @@ export async function configureDatabase(privateConfigData = {}) {
 		connectionString = await configureMariaDB(privateConfigData);
 	}
 
+	// Prompt for the database name
+	const dbName = await text({
+		message: 'Enter the database name:',
+		initialValue: privateConfigData.DB_NAME || 'sveltycms'
+	});
+
+	if (isCancel(dbName)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	// Ask if the user wants to configure advanced settings
 	const advanced = await confirm({
-		message: 'Would you like to configure advanced settings?'
+		message: 'Would you like to configure advanced settings?',
+		initialValue: false // Set to false by default to streamline the process
 	});
 
 	if (advanced && projectDatabase === 'mongodb') {
@@ -108,6 +122,14 @@ export async function configureDatabase(privateConfigData = {}) {
 			DB_RETRY_DELAY: retryDelay,
 			DB_POOL_SIZE: poolSize
 		};
+	} else {
+		// Set default values if advanced settings are not configured
+		privateConfigData = {
+			...privateConfigData,
+			DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS || '3',
+			DB_RETRY_DELAY: privateConfigData.DB_RETRY_DELAY || '3000',
+			DB_POOL_SIZE: privateConfigData.DB_POOL_SIZE || '5'
+		};
 	}
 
 	// Parse connection string
@@ -120,11 +142,11 @@ export async function configureDatabase(privateConfigData = {}) {
 			`DB_HOST: ${pc.green(parsedConfig.DB_HOST)}\n` +
 			`DB_NAME: ${pc.green(parsedConfig.DB_NAME)}\n` +
 			`DB_USER: ${pc.green(parsedConfig.DB_USER)}\n` +
-			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}\n` +
+			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}\n\n` +
 			`Advanced Configuration:\n` +
-			`DB_RETRY_ATTEMPTS: ${pc.green(parsedConfig.DB_RETRY_ATTEMPTS)}\n` +
-			`DB_RETRY_DELAY: ${pc.green(parsedConfig.DB_RETRY_DELAY)}\n` +
-			`DB_POOL_SIZE: ${pc.green(parsedConfig.DB_POOL_SIZE)}`,
+			`DB_RETRY_ATTEMPTS: ${pc.green(privateConfigData.DB_RETRY_ATTEMPTS)}\n` +
+			`DB_RETRY_DELAY: ${pc.green(privateConfigData.DB_RETRY_DELAY)}\n` +
+			`DB_POOL_SIZE: ${pc.green(privateConfigData.DB_POOL_SIZE)}`,
 		pc.green('Review your Database configuration:')
 	);
 

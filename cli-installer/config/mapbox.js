@@ -7,8 +7,11 @@ export async function configureMapbox(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  Mapbox Configuration:'));
+	// Display a note about the Mapbox configuration
+	note(
+		`The Mapbox configuration allows you to integrate Mapbox services, enabling map features within your application.`,
+		pc.green('Mapbox Configuration:')
+	);
 
 	// Mapbox configuration
 	const USE_MAPBOX = await confirm({

@@ -7,8 +7,11 @@ export async function configureTiktok(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  TikTok Configuration:'));
+	// Display a note about the TikTok configuration
+	note(
+		`The TikTok configuration allows you to integrate TikTok services, enabling features such as sharing and embedding TikTok content within your application.`,
+		pc.green('TikTok Configuration:')
+	);
 
 	// TikTok configuration
 	const USE_TIKTOK = await confirm({

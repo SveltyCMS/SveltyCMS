@@ -7,8 +7,11 @@ export async function configureGoogle(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  Google Configuration:'));
+	// Display a note about the Google configuration
+	note(
+		`The Google configuration is used to integrate Google services such as Google OAuth and Google API access.`,
+		pc.green('Google API Information:')
+	);
 
 	// Collect Google API Key
 	const GOOGLE_API_KEY = await text({

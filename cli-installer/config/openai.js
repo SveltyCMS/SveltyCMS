@@ -7,8 +7,11 @@ export async function configureOpenAI(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  OpenAI Configuration:'));
+	// Display a note about the OpenAI configuration
+	note(
+		`The OpenAI configuration allows you to integrate OpenAI services, such as GPT-3, for generating content and other AI-powered features.`,
+		pc.green('OpenAI Configuration:')
+	);
 
 	// OpenAI configuration
 	const USE_OPEN_AI = await confirm({

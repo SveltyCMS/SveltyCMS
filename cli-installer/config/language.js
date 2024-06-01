@@ -33,8 +33,11 @@ export async function configureLanguage(configData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  Language Configuration:'));
+	// Display a note about the Language configuration
+	note(
+		`The Language configuration allows you to set the default and available languages for both content and system interfaces.`,
+		pc.green('Language Configuration:')
+	);
 
 	const options = languageOptions.map((option) => ({
 		value: option.value,
@@ -48,7 +51,7 @@ export async function configureLanguage(configData = {}) {
 		required: true,
 		initialValue: configData?.DEFAULT_CONTENT_LANGUAGE || 'en'
 	});
-	
+
 	if (isCancel(DEFAULT_CONTENT_LANGUAGE)) {
 		cancel('Operation cancelled.');
 		console.clear();

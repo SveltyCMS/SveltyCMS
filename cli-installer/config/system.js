@@ -7,8 +7,11 @@ export async function configureSystem(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
-	// Configuration Title
-	console.log(pc.blue('◆  System Configuration:'));
+	// Display a note about the System configuration
+	note(
+		`The System configuration allows you to set essential settings for your site, such as site name, host names for development and production, password strength, body size limit, and optional seasonal settings.`,
+		pc.green('System Configuration:')
+	);
 
 	const SITE_NAME = await text({
 		message: 'Enter the site name:',
@@ -77,9 +80,18 @@ export async function configureSystem(privateConfigData = {}) {
 	let bodySizeParsed = privateConfigData.BODY_SIZE_LIMIT;
 	let bodySizeUnit = 'b';
 	if (bodySizeParsed) {
-		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'kb'; }
-		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'mb'; }
-		if (bodySizeParsed / 1024 > 1) { bodySizeParsed /= 1024; bodySizeUnit = 'gb'; }
+		if (bodySizeParsed / 1024 > 1) {
+			bodySizeParsed /= 1024;
+			bodySizeUnit = 'kb';
+		}
+		if (bodySizeParsed / 1024 > 1) {
+			bodySizeParsed /= 1024;
+			bodySizeUnit = 'mb';
+		}
+		if (bodySizeParsed / 1024 > 1) {
+			bodySizeParsed /= 1024;
+			bodySizeUnit = 'gb';
+		}
 	}
 
 	const BODY_SIZE_LIMIT = await text({
@@ -183,14 +195,11 @@ export async function configureSystem(privateConfigData = {}) {
 	let bodySizeLimitOutput = 0;
 	if (BODY_SIZE_LIMIT.endsWith('gb')) {
 		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('gb')[0]) * 1024 * 1024 * 1024;
-	}
-	else if (BODY_SIZE_LIMIT.endsWith('mb')) {
+	} else if (BODY_SIZE_LIMIT.endsWith('mb')) {
 		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('mb')[0]) * 1024 * 1024;
-	}
-	else if (BODY_SIZE_LIMIT.endsWith('kb')) {
+	} else if (BODY_SIZE_LIMIT.endsWith('kb')) {
 		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('kb')[0]) * 1024;
-	}
-	else if (BODY_SIZE_LIMIT.endsWith('b')) {
+	} else if (BODY_SIZE_LIMIT.endsWith('b')) {
 		bodySizeLimitOutput = Number(BODY_SIZE_LIMIT.split('b')[0]);
 	}
 	return {
