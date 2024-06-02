@@ -132,8 +132,8 @@ importers:
         specifier: ^3.1.5
         version: 3.1.5(chart.js@4.4.3)(svelte@4.2.17)
       svelte-grid-extended:
-        specifier: ^1.2.0
-        version: 1.2.0(svelte@4.2.17)
+        specifier: ^1.2.1
+        version: 1.2.1(svelte@4.2.17)
       svelte-lexical:
         specifier: ^0.4.0
         version: 0.4.0(svelte@4.2.17)
@@ -206,7 +206,7 @@ importers:
         version: 9.1.0(eslint@8.57.0)
       eslint-plugin-prettier:
         specifier: ^5.1.3
-        version: 5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5)
+        version: 5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.3.0)
       eslint-plugin-svelte:
         specifier: ^2.39.0
         version: 2.39.0(eslint@8.57.0)(svelte@4.2.17)(ts-node@10.9.2(@types/node@20.13.0)(typescript@5.4.5))
@@ -220,14 +220,14 @@ importers:
         specifier: ^8.4.38
         version: 8.4.38
       prettier:
-        specifier: ^3.2.5
-        version: 3.2.5
+        specifier: ^3.3.0
+        version: 3.3.0
       prettier-plugin-svelte:
         specifier: ^3.2.3
-        version: 3.2.3(prettier@3.2.5)(svelte@4.2.17)
+        version: 3.2.3(prettier@3.3.0)(svelte@4.2.17)
       prettier-plugin-tailwindcss:
         specifier: ^0.5.14
-        version: 0.5.14(prettier-plugin-svelte@3.2.3(prettier@3.2.5)(svelte@4.2.17))(prettier@3.2.5)
+        version: 0.5.14(prettier-plugin-svelte@3.2.3(prettier@3.3.0)(svelte@4.2.17))(prettier@3.3.0)
       semantic-release:
         specifier: ^23.1.1
         version: 23.1.1(typescript@5.4.5)
@@ -1719,8 +1719,8 @@ packages:
     resolution: {integrity: sha512-AyQEn5hIPV7Ze+xFoXVU3QTHXVbWPrzaOkxtENMPMuNL6VVHrp4hHfDt9nrQpjO7BgvuM95dMtkycX5M/DZR3w==}
     engines: {node: '>=16.0.0'}
 
-  '@whatwg-node/fetch@0.9.17':
-    resolution: {integrity: sha512-TDYP3CpCrxwxpiNY0UMNf096H5Ihf67BK1iKGegQl5u9SlpEDYrvnV71gWBGJm+Xm31qOy8ATgma9rm8Pe7/5Q==}
+  '@whatwg-node/fetch@0.9.18':
+    resolution: {integrity: sha512-hqoz6StCW+AjV/3N+vg0s1ah82ptdVUb9nH2ttj3UbySOXUvytWw2yqy8c1cKzyRk6mDD00G47qS3fZI9/gMjg==}
     engines: {node: '>=16.0.0'}
 
   '@whatwg-node/node-fetch@0.5.11':
@@ -1991,8 +1991,8 @@ packages:
     resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
     engines: {node: '>=16'}
 
-  caniuse-lite@1.0.30001625:
-    resolution: {integrity: sha512-4KE9N2gcRH+HQhpeiRZXd+1niLB/XNLAhSy4z7fI8EzcbcPoAqjNInxVHTiTwWfTIV4w096XG8OtCOCQQKPv3w==}
+  caniuse-lite@1.0.30001626:
+    resolution: {integrity: sha512-JRW7kAH8PFJzoPCJhLSHgDgKg5348hsQ68aqb+slnzuB5QFERv846oA/mRChmlLAOdEDeOkRn3ynb1gSFnjt3w==}
 
   canvas@2.11.2:
     resolution: {integrity: sha512-ItanGBMrmRV7Py2Z+Xhs7cT+FNt5K0vPL4p9EZ/UX/Mu7hFbkxSjKF2KVtPwX7UYWp7dRKnrTvReflgrItJbdw==}
@@ -2410,8 +2410,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.4.787:
-    resolution: {integrity: sha512-d0EFmtLPjctczO3LogReyM2pbBiiZbnsKnGF+cdZhsYzHm/A0GV7W94kqzLD8SN4O3f3iHlgLUChqghgyznvCQ==}
+  electron-to-chromium@1.4.788:
+    resolution: {integrity: sha512-ubp5+Ev/VV8KuRoWnfP2QF2Bg+O2ZFdb49DiiNbz2VmgkIqrnyYaqIOqj8A6K/3p1xV0QcU5hBQ1+BmB6ot1OA==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -2513,8 +2513,8 @@ packages:
     resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
     engines: {node: '>=12'}
 
-  eslint-compat-utils@0.5.0:
-    resolution: {integrity: sha512-dc6Y8tzEcSYZMHa+CMPLi/hyo1FzNeonbhJL7Ol0ccuKQkwopJcJBA9YL/xmMTLU1eKigXo9vj9nALElWYSowg==}
+  eslint-compat-utils@0.5.1:
+    resolution: {integrity: sha512-3z3vFexKIEnjHE3zCMRo6fn/e44U7T1khUjg+Hp0ZQMCigh28rALD0nPFBcGZuiLC5rLZa2ubQHDRln09JfU2Q==}
     engines: {node: '>=12'}
     peerDependencies:
       eslint: '>=6.0.0'
@@ -3241,8 +3241,8 @@ packages:
   isomorphic.js@0.2.5:
     resolution: {integrity: sha512-PIeMbHqMt4DnUP3MA/Flc0HElYjMXArsw1qwJZcm9sqR8mq3l8NYizFMty0pWwE/tzIGH3EKK5+jes5mAr85yw==}
 
-  issue-parser@7.0.0:
-    resolution: {integrity: sha512-jgAw78HO3gs9UrKqJNQvfDj9Ouy8Mhu40fbEJ8yXff4MW8+/Fcn9iFjyWUQ6SKbX8ipPk3X5A3AyfYHRu6uVLw==}
+  issue-parser@7.0.1:
+    resolution: {integrity: sha512-3YZcUUR2Wt1WsapF+S/WiA2WmlW0cWAoPccMqne7AxEBhCdFeTPjfv/Axb8V2gyCgY3nRw+ksZ3xSUX+R47iAg==}
     engines: {node: ^18.17 || >=20.6.1}
 
   jackspeak@3.1.2:
@@ -4321,8 +4321,8 @@ packages:
       prettier-plugin-svelte:
         optional: true
 
-  prettier@3.2.5:
-    resolution: {integrity: sha512-3/GWa9aOC0YeD7LUfvOG2NiDyhOWRvt1k+rcKhOuYnMY24iiCphgneUfJDyFXd6rZCAnuLBv6UeAULtrhT/F4A==}
+  prettier@3.3.0:
+    resolution: {integrity: sha512-J9odKxERhCQ10OC2yb93583f6UnYutOeiV5i0zEDS7UGTdUt0u+y8erxl3lBKvwo/JHyyoEdXjwp4dke9oyZ/g==}
     engines: {node: '>=14'}
     hasBin: true
 
@@ -4912,8 +4912,8 @@ packages:
       svelte:
         optional: true
 
-  svelte-grid-extended@1.2.0:
-    resolution: {integrity: sha512-T0Ipyim2vbky1mftxPYqgLGBjbGCbCZ/NvS9Sy1EL5ZWNUdBYyu2kiRGOqx6GBZisc9Rr5sUaRBFKt5gSWEt5Q==}
+  svelte-grid-extended@1.2.1:
+    resolution: {integrity: sha512-ASEN5L6cHQMsyBkBsG//nR1vrRNJxlzqg0QhmbNLh9r4jp9tMNGg2v2UQ6Bh4jp9IbqIgpX4jRD/Ds/wFzyULg==}
     peerDependencies:
       svelte: ^4.0.0
 
@@ -6561,7 +6561,7 @@ snapshots:
       globby: 14.0.1
       http-proxy-agent: 7.0.2
       https-proxy-agent: 7.0.4
-      issue-parser: 7.0.0
+      issue-parser: 7.0.1
       lodash-es: 4.17.21
       mime: 4.0.3
       p-filter: 4.1.0
@@ -7043,7 +7043,7 @@ snapshots:
 
   '@whatwg-node/events@0.1.1': {}
 
-  '@whatwg-node/fetch@0.9.17':
+  '@whatwg-node/fetch@0.9.18':
     dependencies:
       '@whatwg-node/node-fetch': 0.5.11
       urlpattern-polyfill: 10.0.0
@@ -7058,7 +7058,7 @@ snapshots:
 
   '@whatwg-node/server@0.9.34':
     dependencies:
-      '@whatwg-node/fetch': 0.9.17
+      '@whatwg-node/fetch': 0.9.18
       tslib: 2.6.2
 
   JSONStream@1.3.5:
@@ -7217,7 +7217,7 @@ snapshots:
   autoprefixer@10.4.19(postcss@8.4.38):
     dependencies:
       browserslist: 4.23.0
-      caniuse-lite: 1.0.30001625
+      caniuse-lite: 1.0.30001626
       fraction.js: 4.3.7
       normalize-range: 0.1.2
       picocolors: 1.0.1
@@ -7271,8 +7271,8 @@ snapshots:
 
   browserslist@4.23.0:
     dependencies:
-      caniuse-lite: 1.0.30001625
-      electron-to-chromium: 1.4.787
+      caniuse-lite: 1.0.30001626
+      electron-to-chromium: 1.4.788
       node-releases: 2.0.14
       update-browserslist-db: 1.0.16(browserslist@4.23.0)
 
@@ -7339,7 +7339,7 @@ snapshots:
   camelcase@8.0.0:
     optional: true
 
-  caniuse-lite@1.0.30001625: {}
+  caniuse-lite@1.0.30001626: {}
 
   canvas@2.11.2:
     dependencies:
@@ -7736,7 +7736,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.4.787: {}
+  electron-to-chromium@1.4.788: {}
 
   emoji-regex@8.0.0: {}
 
@@ -7897,7 +7897,7 @@ snapshots:
 
   escape-string-regexp@5.0.0: {}
 
-  eslint-compat-utils@0.5.0(eslint@8.57.0):
+  eslint-compat-utils@0.5.1(eslint@8.57.0):
     dependencies:
       eslint: 8.57.0
       semver: 7.6.2
@@ -7906,10 +7906,10 @@ snapshots:
     dependencies:
       eslint: 8.57.0
 
-  eslint-plugin-prettier@5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.2.5):
+  eslint-plugin-prettier@5.1.3(eslint-config-prettier@9.1.0(eslint@8.57.0))(eslint@8.57.0)(prettier@3.3.0):
     dependencies:
       eslint: 8.57.0
-      prettier: 3.2.5
+      prettier: 3.3.0
       prettier-linter-helpers: 1.0.0
       synckit: 0.8.8
     optionalDependencies:
@@ -7921,7 +7921,7 @@ snapshots:
       '@jridgewell/sourcemap-codec': 1.4.15
       debug: 4.3.5
       eslint: 8.57.0
-      eslint-compat-utils: 0.5.0(eslint@8.57.0)
+      eslint-compat-utils: 0.5.1(eslint@8.57.0)
       esutils: 2.0.3
       known-css-properties: 0.31.0
       postcss: 8.4.38
@@ -8408,7 +8408,7 @@ snapshots:
       '@graphql-tools/utils': 10.2.1(graphql@16.8.1)
       '@graphql-yoga/logger': 2.0.0
       '@graphql-yoga/subscription': 5.0.0
-      '@whatwg-node/fetch': 0.9.17
+      '@whatwg-node/fetch': 0.9.18
       '@whatwg-node/server': 0.9.34
       dset: 3.1.3
       graphql: 16.8.1
@@ -8571,7 +8571,7 @@ snapshots:
       enhanced-resolve: 5.16.1
       esbuild: 0.20.2
     optionalDependencies:
-      prettier: 3.2.5
+      prettier: 3.3.0
       typescript: 5.4.5
 
   imurmurhash@0.1.4: {}
@@ -8727,7 +8727,7 @@ snapshots:
 
   isomorphic.js@0.2.5: {}
 
-  issue-parser@7.0.0:
+  issue-parser@7.0.1:
     dependencies:
       lodash.capitalize: 4.2.1
       lodash.escaperegexp: 4.1.2
@@ -9645,18 +9645,18 @@ snapshots:
     dependencies:
       fast-diff: 1.3.0
 
-  prettier-plugin-svelte@3.2.3(prettier@3.2.5)(svelte@4.2.17):
+  prettier-plugin-svelte@3.2.3(prettier@3.3.0)(svelte@4.2.17):
     dependencies:
-      prettier: 3.2.5
+      prettier: 3.3.0
       svelte: 4.2.17
 
-  prettier-plugin-tailwindcss@0.5.14(prettier-plugin-svelte@3.2.3(prettier@3.2.5)(svelte@4.2.17))(prettier@3.2.5):
+  prettier-plugin-tailwindcss@0.5.14(prettier-plugin-svelte@3.2.3(prettier@3.3.0)(svelte@4.2.17))(prettier@3.3.0):
     dependencies:
-      prettier: 3.2.5
+      prettier: 3.3.0
     optionalDependencies:
-      prettier-plugin-svelte: 3.2.3(prettier@3.2.5)(svelte@4.2.17)
+      prettier-plugin-svelte: 3.2.3(prettier@3.3.0)(svelte@4.2.17)
 
-  prettier@3.2.5: {}
+  prettier@3.3.0: {}
 
   pretty-ms@9.0.0:
     dependencies:
@@ -10423,7 +10423,7 @@ snapshots:
     optionalDependencies:
       svelte: 4.2.17
 
-  svelte-grid-extended@1.2.0(svelte@4.2.17):
+  svelte-grid-extended@1.2.1(svelte@4.2.17):
     dependencies:
       svelte: 4.2.17
 
@@ -10451,7 +10451,7 @@ snapshots:
       '@lexical/yjs': 0.14.2(lexical@0.14.2)(yjs@13.6.2)
       lexical: 0.14.2
       lodash-es: 4.17.21
-      prettier: 3.2.5
+      prettier: 3.3.0
       svelte: 4.2.17
       y-websocket: 1.5.0(yjs@13.6.2)
       yjs: 13.6.2

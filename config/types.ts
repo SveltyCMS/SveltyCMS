@@ -4,46 +4,59 @@ import type { AvailableLanguageTag } from '../src/paraglide/runtime';
  * The PRIVAT configuration for the application,
  */
 export const createPrivateConfig = (arg: {
+	// Define the database type (Default: 'mongodb')
 	DB_TYPE: 'mongodb' | 'mariadb';
-	DB_HOST: string;
-	DB_NAME: string;
-	DB_USER: string;
-	DB_PASSWORD: string;
-	DB_RETRY_ATTEMPTS?: number;
-	DB_RETRY_DELAY?: number;
-	DB_POOL_SIZE?: number;
-	SMTP_HOST?: string;
-	SMTP_PORT?: number;
-	SMTP_EMAIL?: string;
-	SMTP_PASSWORD?: string;
-	SERVER_PORT?: number;
-	USE_GOOGLE_OAUTH: boolean;
-	GOOGLE_CLIENT_ID?: string;
-	GOOGLE_CLIENT_SECRET?: string;
-	USE_REDIS: boolean;
-	REDIS_HOST?: string;
-	REDIS_PORT?: number;
-	REDIS_PASSWORD?: string;
-	USE_MAPBOX: boolean;
-	MAPBOX_API_TOKEN?: string;
-	SECRET_MAPBOX_API_TOKEN?: string;
+
+	/**
+	 * Define the database connection:
+	 * Use local a Database via "MongoDB Compass" or "Docker MongoDB"
+	 * or online via "MongoDB Atlas" as mongodb+srv://
+	 */
+	DB_HOST: string; // Database Host
+	DB_NAME: string; // Database Name
+	DB_USER: string; // Database User
+	DB_PASSWORD: string; // Database Password
+	DB_RETRY_ATTEMPTS?: number; // Database Retry Attempts
+	DB_RETRY_DELAY?: number; // Database Retry Delay
+	DB_POOL_SIZE?: number; // Database Pool Size
+
+	// SMTP config - See https://nodemailer.com
+	SMTP_HOST?: string; // SMTP Host
+	SMTP_PORT?: number; // SMTP Port
+	SMTP_EMAIL?: string; // SMTP Email
+	SMTP_PASSWORD?: string; // SMTP Password
+	SERVER_PORT?: number; // Server Port
+
+	// Google OAuth - See https://developers.google.com/identity/protocols/oauth2/web-server
+	USE_GOOGLE_OAUTH: boolean; //  Enable Google OAuth. Set to `true` to enable
+	GOOGLE_CLIENT_ID?: string; // Google Client ID
+	GOOGLE_CLIENT_SECRET?: string; // Google Client Secret
+
+	// Redis config - See https://redis.io/documentation
+	USE_REDIS: boolean; // Enable Redis for caching by setting to true
+	REDIS_HOST?: string; // The hostname or IP address of your Redis server.
+	REDIS_PORT?: number; // The port number of your Redis server.
+	REDIS_PASSWORD?: string; // The password for your Redis server (if any).
+
+	// Mapbox config  - See https://docs.mapbox.com/
+	USE_MAPBOX: boolean; // Enable Mapbox. Set to `true` to enable
+	MAPBOX_API_TOKEN?: string; // Public Mapbox API Token
+	SECRET_MAPBOX_API_TOKEN?: string; // Secret Mapbox API Token
+
+	// Google API for map & youtube - See https://developers.google.com/maps/documentation/javascript/get-api-key
 	GOOGLE_API_KEY?: string;
+
+	// TWITCH_TOKEN - See https://dev.twitch.tv/docs/authentication/
 	TWITCH_TOKEN?: string;
+
+	// TIKTOK_TOKEN - See https://dev.tiktok.com/docs/
 	USE_TIKTOK?: boolean;
 	TIKTOK_TOKEN?: string;
+
+	// OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
 	USE_OPEN_AI?: boolean;
 	VITE_OPEN_AI_KEY?: string;
 }) => arg;
-
-export const privateConfigCategories = {
-	database: ['DB_TYPE', 'DB_HOST', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'DB_RETRY_ATTEMPTS', 'DB_RETRY_DELAY', 'DB_POOL_SIZE'],
-	email: ['SMTP_HOST', 'SMTP_PORT', 'SMTP_EMAIL', 'SMTP_PASSWORD'],
-	google: ['USE_GOOGLE_OAUTH', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_API_KEY'],
-	redis: ['USE_REDIS', 'REDIS_HOST', 'REDIS_PORT', 'REDIS_PASSWORD'],
-	mapbox: ['USE_MAPBOX', 'MAPBOX_API_TOKEN'],
-	tiktok: ['USE_TIKTOK', 'TIKTOK_TOKEN'],
-	openai: ['USE_OPEN_AI', 'VITE_OPEN_AI_KEY']
-};
 
 /**
  * The PUBLIC configuration for the application,
@@ -55,42 +68,50 @@ type MediaOutputFormatQuality = {
 };
 
 export const createPublicConfig = <const C, S extends AvailableLanguageTag, const V extends { [key: string]: number }>(arg: {
-	HOST_DEV: string;
-	HOST_PROD: string;
-	SITE_NAME: string;
+	// Define you hostname where you site is running
+	HOST_DEV: string; // Hostname for development eg. http://localhost:5173
+	HOST_PROD: string; // Hostname for production eg. 'mywebsite.com'
+
+	// The name of the site that this CMS should get.
+	SITE_NAME: string; // Site Name
+
+	// Password Strength ( default 8)
 	PASSWORD_STRENGTH?: number | 8;
-	DEFAULT_CONTENT_LANGUAGE: C;
-	AVAILABLE_CONTENT_LANGUAGES: C[];
-	AVAILABLE_SYSTEM_LANGUAGES: S[];
-	DEFAULT_SYSTEM_LANGUAGE: NoInfer<S>;
+
+	// Content Language
+	DEFAULT_CONTENT_LANGUAGE: C; // Default Content Language
+	AVAILABLE_CONTENT_LANGUAGES: C[]; // Available Content Languages
+
+	// System Language
+	AVAILABLE_SYSTEM_LANGUAGES: S[]; // Available System Languages
+	DEFAULT_SYSTEM_LANGUAGE: NoInfer<S>; // Default System Language
+
+	// Media Folder where the site's media files will be stored.
 	MEDIA_FOLDER: string;
+
+	/**
+	 * Determines how media files are saved on the server.
+	 * Options are: 'original', 'webp', or 'avif'.
+	 * 'original' saves the file in its original format.
+	 * 'webp' and 'avif' save the file in an optimized format using the respective codec.
+	 */
+
 	MEDIA_OUTPUT_FORMAT_QUALITY: MediaOutputFormatQuality;
+
+	// Media Server URL
 	MEDIASERVER_URL?: string;
+
+	// The sizes of images that the site will generate. eg. { sm: 600, md: 900, lg: 1200 }
 	IMAGE_SIZES: V;
+
+	//Define body size limit for your Uploads eg. 100mb
 	BODY_SIZE_LIMIT?: number;
+
+	// Seasons Icons for login page. Set to `true` to enable
 	SEASONS?: boolean;
 	SEASON_REGION?: string;
+
+	// Github VERSION synchronization to display updated
 	PKG_VERSION?: string;
 }) => arg;
-
-export const publicConfigCategories = {
-	site: [
-		'SITE_NAME',
-		'DEFAULT_CONTENT_LANGUAGE',
-		'AVAILABLE_CONTENT_LANGUAGES',
-		'DEFAULT_SYSTEM_LANGUAGE',
-		'AVAILABLE_SYSTEM_LANGUAGES',
-		'IMAGE_SIZES',
-		'MEDIA_FOLDER',
-		'MEDIA_OUTPUT_FORMAT_QUALITY',
-		'MEDIASERVER_URL',
-		'BODY_SIZE_LIMIT',
-		'HOST_DEV',
-		'HOST_PROD',
-		'PASSWORD_STRENGTH',
-		'SEASONS',
-		'SEASON_REGION'
-	]
-};
-
 type NoInfer<T> = [T][T extends any ? 0 : never];
