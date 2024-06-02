@@ -1,21 +1,27 @@
 <script lang="ts">
 	import type { SvelteComponent } from 'svelte';
 	import { privateConfigCategories, publicConfigCategories } from '@root/config/guiConfig';
+	import { privateEnv } from '@root/config/private';
+	import { publicEnv } from '@root/config/public';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	// Skeleton
+	import { getModalStore, popup } from '@skeletonlabs/skeleton';
+	import type { PopupSettings } from '@skeletonlabs/skeleton';
+
+	const modalStore = getModalStore();
+	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
+
+	let formData = {};
+	let errors = {};
 
 	export let parent: SvelteComponent;
 	export let title: string;
 	export let configCategory: string;
 	export let description: string;
 	export let isPrivate: boolean;
-
-	// Skeleton
-	import { getModalStore, popup, type PopupSettings } from '@skeletonlabs/skeleton';
-
-	const modalStore = getModalStore();
-
-	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
-	let formData = {};
-	let errors = {};
 
 	interface ConfigField<T> {
 		type: T;
@@ -31,18 +37,25 @@
 		fields: { [key: string]: ConfigField<any> };
 	}
 
+	// Load actual configuration values
+	const actualConfig = isPrivate ? privateEnv : publicEnv;
+
 	// Determine the category config based on whether it's private or public
 	const categoryConfig: ConfigCategory = isPrivate ? privateConfigCategories[configCategory] : publicConfigCategories[configCategory];
+
+	// Merge actual configuration values with defaults
 	const configData = Object.entries(categoryConfig.fields).map(([key, field]: [string, ConfigField<any>]) => ({
 		key,
 		...field,
-		value: field.default
+		value: actualConfig[key] !== undefined ? actualConfig[key] : field.default
 	}));
+
+	console.log('Config Data:', configData);
 
 	function validate() {
 		errors = {};
 		for (const { key, type, value, allowedValues } of configData) {
-			if (!formData[key] || (typeof formData[key] === 'string' && formData[key].trim() === '')) {
+			if (formData[key] === undefined || formData[key] === '') {
 				errors[key] = `${key} is required`;
 			} else if (allowedValues && !allowedValues.includes(formData[key])) {
 				errors[key] = `${key} must be one of ${allowedValues.join(', ')}`;
@@ -59,13 +72,13 @@
 		if (validate()) {
 			// Handle valid data submission
 			console.log('Valid data:', formData);
-			parent.onClose();
+			parent.onSave(formData);
 		} else {
 			console.log('Errors:', errors);
 		}
 	}
 
-	// Initialize form data with default values
+	// Initialize form data with actual values or defaults
 	$: formData = configData.reduce((acc, { key, value }) => {
 		acc[key] = value;
 		return acc;
@@ -81,19 +94,20 @@
 
 {#if $modalStore[0]}
 	<div class="modal-example-fullscreen {cBase}">
-		<div class="flex flex-col items-center space-y-4">
-			<h2 class="h2 capitalize text-tertiary-500 dark:text-primary-500">{title}</h2>
-			<p>{description}</p>
-			<form on:submit|preventDefault={handleSubmit} class="wrapper w-full max-w-lg">
+		<div class="flex h-full w-full max-w-xl flex-col items-center">
+			<div class="top-0 w-full py-2 text-center">
+				<h2 class="h2 mb-2 capitalize text-tertiary-500 dark:text-primary-500">{title} Setup:</h2>
+				<p>{description}</p>
+			</div>
+			<form on:submit|preventDefault={handleSubmit} class="wrapper w-full flex-grow overflow-y-auto p-4">
 				{#each configData as { key, value, type, helper, icon, allowedValues }}
 					<div class="mb-4">
 						<label class="mb-2 block" for={key}>
 							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500" />
 							{key}
-
-							<button use:popup={popupFeatured} class="btn-sm ml-2 p-0">
+							<span use:popup={popupFeatured} class=" ml-2 p-0">
 								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600" />
-							</button>
+							</span>
 
 							<!-- Popup Tooltip with the arrow element -->
 							<div class="card variant-filled z-50 max-w-sm p-2" data-popup="popupFeatured">
@@ -109,22 +123,28 @@
 								{/each}
 							</select>
 						{:else if type === 'boolean'}
-							<input type="checkbox" id={key} class="input text-tertiary-500 dark:text-primary-500" bind:checked={formData[key]} />
+							<input
+								type="checkbox"
+								id={key}
+								placeholder={helper}
+								class="input text-tertiary-500 dark:text-primary-500"
+								bind:checked={formData[key]}
+							/>
 						{:else if type === 'number'}
-							<input type="number" id={key} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
+							<input type="number" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
 						{:else}
-							<input type="text" id={key} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
+							<input type="text" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
 						{/if}
 						{#if errors[key]}
 							<p class="text-xs italic text-error-500">{errors[key]}</p>
 						{/if}
 					</div>
 				{/each}
-				<div class="flex justify-between space-x-4">
-					<button type="button" class="variant-filled btn" on:click={parent.onClose}>Close</button>
-					<button type="submit" class="variant-filled btn">Save</button>
-				</div>
 			</form>
+			<div class="bg-surface-100-800-token sticky bottom-0 z-10 m-2 flex w-full justify-between py-2">
+				<button type="button" class="variant-filled btn" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button type="submit" class="variant-filled btn">{m.button_save()}</button>
+			</div>
 		</div>
 	</div>
 {/if}
