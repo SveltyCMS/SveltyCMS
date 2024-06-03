@@ -364,8 +364,8 @@
 	"config_Martketplace": "Маркетплаце",
 	"config_Dashboard": "Командна табла",
 	"widget_ImageUpload_Allowed": "Дозвољени су ПНГ, ЈПГ, ГИФ, ВЕБП, АВИФ и СВГ",
-	"userpage_email": "Емаил:",
 	"databaseConfig_description": "Подешавања базе података укључујући тип, хост, име, корисничке акредитиве и детаље скупа веза.",
+	"databaseConfig_DB_Type_helper": "Дефинишите тип базе података (нпр. 'монгодб' или 'мариадб').",
 	"databaseConfig_DB_HOST_helper": "Наведите хост базе података (нпр. 'лоцалхост' или ИП адресу).",
 	"databaseConfig_DB_NAME_helper": "Наведите име базе података на коју ћете се повезати.",
 	"databaseConfig_DB_USER_helper": "Унесите корисничко име за везу са базом података, ако је потребно.",
@@ -414,5 +414,6 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Величине слика које ће сајт генерисати. (подразумевано: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "Фасцикла у којој ће се чувати медијске датотеке сајта. (подразумевано: 'медиаФилес')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Подешавања формата и квалитета за медијске датотеке. (подразумевано: формат: 'оригинал', квалитет: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "УРЛ сервера медија. (подразумевано је локални хост као: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "УРЛ сервера медија. (подразумевано је локални хост као: '')",
+	"userpage_email": "Емаил:"
 }

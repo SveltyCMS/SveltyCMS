@@ -365,6 +365,7 @@
 	"config_Dashboard": "ダッシュボード",
 	"widget_ImageUpload_Allowed": "PNG、JPG、GIF、WEBP、AVIF、SVG が使用可能",
 	"databaseConfig_description": "タイプ、ホスト、名前、ユーザー資格情報、接続プールの詳細を含むデータベース設定。",
+	"databaseConfig_DB_Type_helper": "データベースのタイプを定義します (例: 'mongodb' または 'mariadb')。",
 	"databaseConfig_DB_HOST_helper": "データベース ホスト (例: 'localhost' または IP アドレス) を指定します。",
 	"databaseConfig_DB_NAME_helper": "接続するデータベースの名前を指定します。",
 	"databaseConfig_DB_USER_helper": "必要に応じて、データベース接続のユーザー名を入力します。",

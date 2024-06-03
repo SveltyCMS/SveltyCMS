@@ -85,11 +85,13 @@
 	}, {});
 
 	// Popup Tooltips
-	const popupFeatured: PopupSettings = {
-		event: 'hover',
-		target: 'popupFeatured',
-		placement: 'right'
-	};
+	function getPopupSettings(key: string): PopupSettings {
+		return {
+			event: 'hover',
+			target: `popup${key}`,
+			placement: 'right'
+		};
+	}
 </script>
 
 {#if $modalStore[0]}
@@ -105,12 +107,12 @@
 						<label class="mb-2 block" for={key}>
 							<iconify-icon {icon} width="18" class="mr-2 text-tertiary-500 dark:text-primary-500" />
 							{key}
-							<span use:popup={popupFeatured} class=" ml-2 p-0">
+							<span use:popup={getPopupSettings(key)} class=" ml-2 p-0">
 								<iconify-icon icon="mdi:help-circle-outline" width="18" class=" text-gray-600" />
 							</span>
 
 							<!-- Popup Tooltip with the arrow element -->
-							<div class="card variant-filled z-50 max-w-sm p-2" data-popup="popupFeatured">
+							<div class="card variant-filled z-50 max-w-sm p-2" data-popup={`popup${key}`}>
 								{helper}
 								<div class="variant-filled arrow" />
 							</div>
@@ -123,13 +125,10 @@
 								{/each}
 							</select>
 						{:else if type === 'boolean'}
-							<input
-								type="checkbox"
-								id={key}
-								placeholder={helper}
-								class="input text-tertiary-500 dark:text-primary-500"
-								bind:checked={formData[key]}
-							/>
+							<select id={key} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]}>
+								<option value={true}>True</option>
+								<option value={false}>False</option>
+							</select>
 						{:else if type === 'number'}
 							<input type="number" id={key} placeholder={helper} class="input text-tertiary-500 dark:text-primary-500" bind:value={formData[key]} />
 						{:else}

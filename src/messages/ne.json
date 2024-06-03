@@ -364,8 +364,6 @@
 	"config_Martketplace": "बजार",
 	"config_Dashboard": "ड्यासबोर्ड",
 	"widget_ImageUpload_Allowed": "PNG, JPG, GIF, WEBP, AVIF, र SVG लाई अनुमति छ",
-	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
-	"modaltokenuser_email_address": "इ - मेल ठेगाना",
 	"databaseConfig_description": "प्रकार, होस्ट, नाम, प्रयोगकर्ता प्रमाणहरू, र जडान पूल विवरणहरू सहित डाटाबेस सेटिङहरू।",
 	"databaseConfig_DB_Type_helper": "डेटाबेसको प्रकार परिभाषित गर्नुहोस् (जस्तै, 'mongodb' वा 'mariadb')।",
 	"databaseConfig_DB_HOST_helper": "डाटाबेस होस्ट निर्दिष्ट गर्नुहोस् (जस्तै, 'localhost' वा IP ठेगाना)।",
@@ -416,5 +414,7 @@
 	"mediaConfig_IMAGE_SIZE_helper": "साइटले उत्पन्न गर्ने छविहरूको आकार। (पूर्वनिर्धारित: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "फोल्डर जहाँ साइटका मिडिया फाइलहरू भण्डारण गरिनेछ। (पूर्वनिर्धारित: 'mediaFiles')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "मिडिया फाइलहरूको लागि ढाँचा र गुणस्तर सेटिङहरू। (पूर्वनिर्धारित: ढाँचा: 'मूल', गुणस्तर: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "मिडिया सर्भरको URL। (पूर्वनिर्धारित रूपमा स्थानीय होस्ट हो: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "मिडिया सर्भरको URL। (पूर्वनिर्धारित रूपमा स्थानीय होस्ट हो: '')",
+	"modaledit_tokenemailaddress": "इ - मेल ठेगाना",
+	"modaltokenuser_email_address": "इ - मेल ठेगाना"
 }

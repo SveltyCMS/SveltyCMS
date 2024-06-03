@@ -365,6 +365,7 @@
 	"config_Dashboard": "Panel",
 	"widget_ImageUpload_Allowed": "Dozwolone formaty PNG, JPG, GIF, WEBP, AVIF i SVG",
 	"databaseConfig_description": "Ustawienia bazy danych, w tym typ, host, nazwa, poświadczenia użytkownika i szczegóły puli połączeń.",
+	"databaseConfig_DB_Type_helper": "Zdefiniuj typ bazy danych (np. „mongodb” lub „mariadb”).",
 	"databaseConfig_DB_HOST_helper": "Określ hosta bazy danych (np. „localhost” lub adres IP).",
 	"databaseConfig_DB_NAME_helper": "Podaj nazwę bazy danych, z którą chcesz się połączyć.",
 	"databaseConfig_DB_USER_helper": "W razie potrzeby wprowadź nazwę użytkownika dla połączenia z bazą danych.",

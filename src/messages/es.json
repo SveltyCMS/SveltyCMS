@@ -364,7 +364,6 @@
 	"config_Martketplace": "Mercado",
 	"config_Dashboard": "Panel",
 	"widget_ImageUpload_Allowed": "Se permiten PNG, JPG, GIF, WEBP, AVIF y SVG",
-	"signup_password": "Contraseña",
 	"databaseConfig_description": "Configuraciones de la base de datos que incluyen tipo, host, nombre, credenciales de usuario y detalles del grupo de conexiones.",
 	"databaseConfig_DB_Type_helper": "Defina el tipo de base de datos (por ejemplo, 'mongodb' o 'mariadb').",
 	"databaseConfig_DB_HOST_helper": "Especifique el host de la base de datos (por ejemplo, 'localhost' o una dirección IP).",
@@ -415,5 +414,6 @@
 	"mediaConfig_IMAGE_SIZE_helper": "Los tamaños de imágenes que generará el sitio. (predeterminado: {sm: 600, md: 900, lg: 1200}",
 	"mediaConfig_MEDIA_FOLDER_helper": "La carpeta donde se almacenarán los archivos multimedia del sitio. (predeterminado: 'archivos multimedia')",
 	"mediaConfig_MEDIA_OUTPUT_FORMAT_QUALITY_helper": "Configuración de formato y calidad para archivos multimedia. (predeterminado: formato: 'original', calidad: 80)",
-	"mediaConfig_MEDIASERVER_URL_helper": "La URL del servidor de medios. (el valor predeterminado es localhost como: '')"
+	"mediaConfig_MEDIASERVER_URL_helper": "La URL del servidor de medios. (el valor predeterminado es localhost como: '')",
+	"signup_password": "Contraseña"
 }

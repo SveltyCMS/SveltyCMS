@@ -365,6 +365,7 @@
 	"config_Dashboard": "仪表板",
 	"widget_ImageUpload_Allowed": "允许 PNG、JPG、GIF、WEBP、AVIF 和 SVG",
 	"databaseConfig_description": "数据库设置包括类型、主机、名称、用户凭据和连接池详细信息。",
+	"databaseConfig_DB_Type_helper": "定义数据库的类型（例如“mongodb”或“mariadb”）。",
 	"databaseConfig_DB_HOST_helper": "指定数据库主机（例如“localhost”或 IP 地址）。",
 	"databaseConfig_DB_NAME_helper": "提供要连接的数据库的名称。",
 	"databaseConfig_DB_USER_helper": "如果需要，输入数据库连接的用户名。",

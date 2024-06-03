@@ -12,6 +12,8 @@ vite.config.ts.timestamp-*
 # secrets
 /config/private.ts
 /config/public.ts
+/data.json
+
 # Backup folder under config
 /config/backup/
 

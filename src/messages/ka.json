@@ -365,6 +365,7 @@
 	"config_Dashboard": "დაფა",
 	"widget_ImageUpload_Allowed": "დაშვებულია PNG, JPG, GIF, WEBP, AVIF და SVG",
 	"databaseConfig_description": "მონაცემთა ბაზის პარამეტრები, მათ შორის ტიპი, ჰოსტი, სახელი, მომხმარებლის რწმუნებათა სიგელები და კავშირის აუზის დეტალები.",
+	"databaseConfig_DB_Type_helper": "განსაზღვრეთ მონაცემთა ბაზის ტიპი (მაგ., 'mongodb' ან 'mariadb').",
 	"databaseConfig_DB_HOST_helper": "მიუთითეთ მონაცემთა ბაზის ჰოსტი (მაგ., 'localhost' ან IP მისამართი).",
 	"databaseConfig_DB_NAME_helper": "მიუთითეთ მონაცემთა ბაზის სახელი დასაკავშირებლად.",
 	"databaseConfig_DB_USER_helper": "საჭიროების შემთხვევაში შეიყვანეთ მომხმარებლის სახელი მონაცემთა ბაზის კავშირისთვის.",
