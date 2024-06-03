@@ -23,6 +23,7 @@ const languageOptions = [
 	{ value: 'sr', label: 'Serbian' },
 	{ value: 'sv', label: 'Swedish' },
 	{ value: 'tr', label: 'Turkish' },
+	{ value: 'uk', label: 'Ukrainian' },
 	{ value: 'ur', label: 'Urdu' },
 	{ value: 'zh', label: 'Chinese' }
 ];
