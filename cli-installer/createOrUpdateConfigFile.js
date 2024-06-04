@@ -66,6 +66,12 @@ export async function createOrUpdateConfigFile(configData) {
     `;
 
 	// Public configuration content
+	const imageSizes = configData?.IMAGE_SIZES
+		? typeof configData.IMAGE_SIZES === 'string'
+			? configData.IMAGE_SIZES
+			: JSON.stringify(configData.IMAGE_SIZES).replace(/{|}|"/g, '')
+		: 'sm: 600, md: 900, lg: 1200';
+
 	const publicConfigContent = `
         /**
          * Do not Edit as the file will be overwritten by Cli Installer !!!
@@ -93,7 +99,7 @@ export async function createOrUpdateConfigFile(configData) {
             AVAILABLE_SYSTEM_LANGUAGES: ${JSON.stringify(configData?.AVAILABLE_SYSTEM_LANGUAGES || ['en'])},
 
             // The sizes of images that the site will generate. (Default: 'sm: 600, md: 900, lg: 1200')
-            IMAGE_SIZES: { ${typeof configData?.IMAGE_SIZES === 'string' ? configData?.IMAGE_SIZES : JSON.stringify(configData?.IMAGE_SIZES).replaceAll('{', '').replaceAll('}', '').replaceAll('"', '')} } as const,
+            IMAGE_SIZES: { ${imageSizes} } as const,
 
             // The folder where the site's media files will be stored. (Default: 'mediaFiles')
             MEDIA_FOLDER: '${configData?.MEDIA_FOLDER || 'mediaFiles'}',
@@ -128,12 +134,15 @@ export async function createOrUpdateConfigFile(configData) {
 		// Create or update the config directory
 		const configDir = path.join(process.cwd(), 'config');
 		await fs.mkdir(configDir, { recursive: true });
+		//console.log('Config directory created or already exists.');
 
 		// Write private config file
 		await fs.writeFile(path.join(configDir, 'private.ts'), privateConfigContent, 'utf-8');
+		//console.log('Private configuration file created.');
 
 		// Write public config file
 		await fs.writeFile(path.join(configDir, 'public.ts'), publicConfigContent, 'utf-8');
+		//console.log('Public configuration file created.');
 
 		console.log('Configuration files created successfully!');
 	} catch (error) {

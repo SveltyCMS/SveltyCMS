@@ -63,9 +63,9 @@ export async function configureEmail(privateConfigData = {}) {
 		SMTP_PORT = await text({
 			message: 'Enter the SMTP port:',
 			placeholder: '587',
-			initialValue: privateConfigData.SMTP_PORT.toString() || SMTP_PORT,
+			initialValue: privateConfigData.SMTP_PORT?.toString() || SMTP_PORT,
 			validate(value) {
-				if (value.length === 0) return `Please enter a valid port number between 1 and 65535.`;
+				if (isNaN(value) || value < 1 || value > 65535) return `Please enter a valid port number between 1 and 65535.`;
 			}
 		});
 
@@ -96,7 +96,6 @@ export async function configureEmail(privateConfigData = {}) {
 	const SMTP_PASSWORD = await text({
 		message: 'Enter your email password:',
 		placeholder: 'Enter your email password',
-		// secret: true,
 		initialValue: privateConfigData.SMTP_PASSWORD || '',
 		validate(value) {
 			if (value.length === 0) return `Password is required!`;
@@ -162,6 +161,7 @@ export async function configureEmail(privateConfigData = {}) {
 	}
 
 	return {
+		SMTP_PROVIDER: SMTP_PROVIDER.name,
 		SMTP_HOST,
 		SMTP_PORT,
 		SMTP_EMAIL,

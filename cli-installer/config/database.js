@@ -9,14 +9,14 @@ function parseConnectionString(connectionString, dbType) {
 	const parsed = new URL(connectionString);
 	if (dbType === 'mongodb') {
 		return {
-			DB_HOST: parsed.host,
+			DB_HOST: `${parsed.protocol}//${parsed.host}`,
 			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
 			DB_USER: parsed.username,
 			DB_PASSWORD: parsed.password
 		};
 	} else if (dbType === 'mariadb') {
 		return {
-			DB_HOST: parsed.hostname,
+			DB_HOST: `${parsed.protocol}//${parsed.host}`,
 			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
 			DB_USER: parsed.username,
 			DB_PASSWORD: parsed.password
