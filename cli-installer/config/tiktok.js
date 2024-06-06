@@ -9,13 +9,22 @@ export async function configureTiktok(privateConfigData = {}) {
 
 	// Display a note about the TikTok configuration
 	note(
-		`The TikTok configuration allows you to integrate TikTok services, enabling features such as sharing and embedding TikTok content within your application.`,
+		`The TikTok configuration allows you to integrate TikTok services,\n` +
+			`enabling features such as sharing and embedding TikTok content\n` +
+			`within your application.`,
 		pc.green('TikTok Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`USE_TIKTOK: ${pc.red(privateConfigData.USE_TIKTOK ? 'true' : 'false')}\n` + `TIKTOK_TOKEN: ${pc.red(privateConfigData.TIKTOK_TOKEN)}`,
+		pc.red('Existing TikTok Configuration:')
 	);
 
 	// TikTok configuration
 	const USE_TIKTOK = await confirm({
 		message: 'Enable TikTok integration?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_TIKTOK || false
 	});
 
@@ -44,7 +53,7 @@ export async function configureTiktok(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`USE_TIKTOK: ${pc.green(USE_TIKTOK)}\n` + (USE_TIKTOK ? `TIKTOK_TOKEN: ${pc.green(TIKTOK_TOKEN)}\n` : ''),
+		`USE_TIKTOK: ${pc.green(USE_TIKTOK ? 'true' : 'false')}\n` + (USE_TIKTOK ? `TIKTOK_TOKEN: ${pc.green(TIKTOK_TOKEN)}\n` : ''),
 		pc.green('Review your TikTok configuration:')
 	);
 

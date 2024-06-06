@@ -20,7 +20,7 @@ export async function createOrUpdateConfigFile(configData) {
 
             // Define the database connection
             DB_HOST: '${configData?.DB_HOST || ''}',
-            DB_NAME: '${configData?.DB_NAME || ''}',
+            DB_NAME: '${configData?.DB_NAME || 'SveltyCMS'}',
 
             // Define the database username & password if required
             DB_USER: '${configData?.DB_USER || ''}',
@@ -38,13 +38,13 @@ export async function createOrUpdateConfigFile(configData) {
             SMTP_PASSWORD: '${configData?.SMTP_PASSWORD || ''}',
 
             // Enable Redis Caching (optional - Not yet implemented).
-            USE_REDIS: ${configData?.USE_REDIS},
+            USE_REDIS: ${configData?.USE_REDIS || 'false'},
             REDIS_HOST: '${configData?.REDIS_HOST || ''}', // The hostname or IP address of your Redis server.
             REDIS_PORT: ${configData?.REDIS_PORT || 6379}, // The port number of your Redis server.
             REDIS_PASSWORD: '${configData?.REDIS_PASSWORD || ''}', // The password for your Redis server (if any).
 
             // Enable Google OAuth (optional).
-            USE_GOOGLE_OAUTH: ${configData?.USE_GOOGLE_OAUTH},
+            USE_GOOGLE_OAUTH: ${configData?.USE_GOOGLE_OAUTH || 'false'},
             GOOGLE_CLIENT_ID: '${configData?.GOOGLE_CLIENT_ID || ''}', // Google Client ID
             GOOGLE_CLIENT_SECRET: '${configData?.GOOGLE_CLIENT_SECRET || ''}', // Google Client Secret
 
@@ -52,7 +52,7 @@ export async function createOrUpdateConfigFile(configData) {
             GOOGLE_API_KEY: '${configData?.GOOGLE_API_KEY || ''}',  // Google API Key
 
             // Mapbox (optional).
-            USE_MAPBOX: ${configData?.USE_MAPBOX === 'false'},
+            USE_MAPBOX: ${configData?.USE_MAPBOX || 'false'},
             MAPBOX_API_TOKEN: '${configData?.MAPBOX_API_TOKEN || ''}',  // Mapbox API Token
 
             // TIKTOK_TOKEN (optional)
@@ -117,6 +117,9 @@ export async function createOrUpdateConfigFile(configData) {
             // Defines body size limit (default: 100mb)
             BODY_SIZE_LIMIT: ${configData?.BODY_SIZE_LIMIT || 104857600},
 
+            // The path where the site's data will be extracted. (Default: 'data')
+            EXTRACT_DATA_PATH: '${configData?.EXTRACT_DATA_PATH || ''}',
+
             // Define your hostname where your site is running in development/production
             HOST_DEV: '${configData?.HOST_DEV || 'http://localhost:5173'}',
             HOST_PROD: '${configData?.HOST_PROD || 'https://yourdomain.de'}',
@@ -125,7 +128,7 @@ export async function createOrUpdateConfigFile(configData) {
             PASSWORD_STRENGTH: ${configData?.PASSWORD_STRENGTH || 8},
 
             // Seasons/Events for login page (default: false)
-            SEASONS: ${configData?.SEASONS === 'false'}, // Set to true to enable seasonal decorations
+            SEASONS: ${configData?.SEASONS || 'false'}, // Set to true to enable seasonal decorations
             SEASON_REGION: '${configData?.SEASON_REGION || 'Europe'}' // Currently only 'Europe' is supported
         });
     `;

@@ -9,9 +9,35 @@ export async function configureGoogle(privateConfigData = {}) {
 
 	// Display a note about the Google configuration
 	note(
-		`The Google configuration is used to integrate Google services such as Google OAuth and Google API access.`,
+		`The Google configuration is used to integrate Google services such as\n` + `Google OAuth and Google API access.`,
 		pc.green('Google API Information:')
 	);
+
+	// Display existing configuration
+	note(
+		`GOOGLE_API_KEY: ${pc.red(privateConfigData.GOOGLE_API_KEY)}\n` +
+			`USE_GOOGLE_OAUTH: ${pc.red(privateConfigData.USE_GOOGLE_OAUTH ? 'true' : 'false')}\n` +
+			`GOOGLE_CLIENT_ID: ${pc.red(privateConfigData.GOOGLE_CLIENT_ID)}\n` +
+			`GOOGLE_CLIENT_SECRET: ${pc.red(privateConfigData.GOOGLE_CLIENT_SECRET)}`,
+		pc.red('Existing Google Configuration:')
+	);
+
+	// Ask if the user wants to update the existing configuration
+	const updateConfig = await confirm({
+		message: 'Do you want to update the existing Google configuration?',
+		initialValue: true
+	});
+
+	if (isCancel(updateConfig)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
+	if (!updateConfig) {
+		return privateConfigData; // Return existing config if no updates
+	}
 
 	// Collect Google API Key
 	const GOOGLE_API_KEY = await text({
@@ -30,6 +56,7 @@ export async function configureGoogle(privateConfigData = {}) {
 	// Determine if Google OAuth should be used
 	const USE_GOOGLE_OAUTH = await confirm({
 		message: 'Do you want to use Google OAuth?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_GOOGLE_OAUTH || false
 	});
 

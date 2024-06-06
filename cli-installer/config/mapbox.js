@@ -9,13 +9,20 @@ export async function configureMapbox(privateConfigData = {}) {
 
 	// Display a note about the Mapbox configuration
 	note(
-		`The Mapbox configuration allows you to integrate Mapbox services, enabling map features within your application.`,
+		`The Mapbox configuration allows you to integrate Mapbox services,\n` + `enabling map features within your application.`,
 		pc.green('Mapbox Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`USE_MAPBOX: ${pc.red(privateConfigData.USE_MAPBOX ? 'true' : 'false')}\n` + `MAPBOX_API_TOKEN: ${pc.red(privateConfigData.MAPBOX_API_TOKEN)}`,
+		pc.red('Existing Mapbox Configuration:')
 	);
 
 	// Mapbox configuration
 	const USE_MAPBOX = await confirm({
 		message: 'Enable Mapbox integration?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_MAPBOX || false
 	});
 
@@ -45,7 +52,7 @@ export async function configureMapbox(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`USE_MAPBOX: ${pc.green(USE_MAPBOX)}\n` + (USE_MAPBOX ? `MAPBOX_API_TOKEN: ${pc.green(MAPBOX_API_TOKEN)}\n` : ''),
+		`USE_MAPBOX: ${pc.green(USE_MAPBOX ? 'true' : 'false')}\n` + (USE_MAPBOX ? `MAPBOX_API_TOKEN: ${pc.green(MAPBOX_API_TOKEN)}\n` : ''),
 		pc.green('Review your Mapbox configuration:')
 	);
 

@@ -1,11 +1,10 @@
 import { Title } from '../cli-installer.js';
 import { isCancel, text, select, confirm, note, cancel } from '@clack/prompts';
 import pc from 'picocolors';
-
 import { configurationPrompt } from '../configuration.js';
 
 const emailProviders = [
-	{ name: 'Custom Provider', host: '', port: '' },
+	{ name: 'Custom Provider', host: '', port: 587 },
 	{ name: 'Gmail', host: 'smtp.gmail.com', port: 587 },
 	{ name: 'GMX', host: 'smtp.gmx.com', port: 587 },
 	{ name: 'iCloud', host: 'smtp.mail.me.com', port: 587 },
@@ -21,7 +20,19 @@ export async function configureEmail(privateConfigData = {}) {
 	Title();
 
 	// Display a note about the SMTP configuration
-	note(`The SMTP configuration is used to send emails from the system, such as notifications and password resets.`, pc.green('Email Configuration:'));
+	note(
+		`The SMTP configuration is used to send emails from the system,\n` + `such as notifications and password resets.`,
+		pc.green('Email Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`SMTP_HOST: ${pc.red(privateConfigData.SMTP_HOST)}\n` +
+			`SMTP_PORT: ${pc.red(privateConfigData.SMTP_PORT?.toString())}\n` +
+			`SMTP_EMAIL: ${pc.red(privateConfigData.SMTP_EMAIL)}\n` +
+			`SMTP_PASSWORD: ${pc.red(privateConfigData.SMTP_PASSWORD)}`,
+		pc.red('Existing Email Configuration:')
+	);
 
 	const SMTP_PROVIDER = await select({
 		message: 'Select your SMTP provider or choose Custom for custom settings:',
@@ -161,7 +172,6 @@ export async function configureEmail(privateConfigData = {}) {
 	}
 
 	return {
-		SMTP_PROVIDER: SMTP_PROVIDER.name,
 		SMTP_HOST,
 		SMTP_PORT,
 		SMTP_EMAIL,

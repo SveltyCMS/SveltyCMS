@@ -10,31 +10,23 @@
 
 	// Components
 	import DropDown from './DropDown.svelte';
-	import ColorSelector from './ColorSelector.svelte';
-	import ImageResize from './ImageResize';
+	import ColorSelector from './components/ColorSelector.svelte';
+	import Heading from './extensions/Heading';
+	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './ImageDescription.svelte';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
 
 	// Skeleton
-	import { ListBox, ListBoxItem, popup, type PopupSettings } from '@skeletonlabs/skeleton';
-
-	const popupCombobox: PopupSettings = {
-		event: 'click',
-		target: 'popupCombobox',
-		placement: 'bottom-start',
-		closeQuery: '.listbox-item'
-	};
+	import { ListBox } from '@skeletonlabs/skeleton';
 
 	// TipTap
 	import StarterKit from '@tiptap/starter-kit'; // enables you to use the editor
 	import { Editor, Extension } from '@tiptap/core'; // enables you to use the editor
-	import TextStyle from './TextStyle'; // enables you to set the text style
+	import TextStyle from './extensions/TextStyle'; // enables you to set the text style
 	import FontFamily from '@tiptap/extension-font-family'; // enables you to set the font family
 	import Color from '@tiptap/extension-color'; // enables you to set the font color
 	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
 	import Link from '@tiptap/extension-link'; // adds support for <a> tags
-	import BulletList from '@tiptap/extension-bullet-list'; // adds support for <ul> tags
-	import ListItem from '@tiptap/extension-list-item'; // adds support for the <li> HTML tag
 
 	export let field: FieldType;
 	export const WidgetData = async () => ({ images, data: _data });
@@ -62,10 +54,16 @@
 
 	onMount(() => {
 		editor = new Editor({
+			parseOptions: { preserveWhitespace: 'full' },
 			element: element,
 			extensions: [
 				StarterKit,
-				Link,
+				Heading,
+				Link.configure({
+					HTMLAttributes: {
+						class: 'text-[#00d3d0] cursor-pointer underline'
+					}
+				}),
 				TextStyle,
 				FontFamily,
 				Color,

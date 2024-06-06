@@ -46,7 +46,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 
 		// Get the page number, length, filter, and sort from the URL parameters.
 		const page = parseInt(url.searchParams.get('page') as string) || 1;
-		const length = parseInt(url.searchParams.get('length') as string) || Infinity;
+		const length = parseInt(url.searchParams.get('length') as string) || 0;
 		const filter: { [key: string]: string } = JSON.parse(url.searchParams.get('filter') as string) || {};
 		const sort: { [key: string]: number } = JSON.parse(url.searchParams.get('sort') as string) || {};
 
@@ -112,7 +112,7 @@ export const GET: RequestHandler = async ({ params, url, cookies }) => {
 		const entryListWithCount = await collection.aggregate([
 			{
 				$facet: {
-					entries: [...aggregations, { $skip: skip }, { $limit: length }],
+					entries: [...aggregations, { $skip: skip }, ...(length ? [{ $limit: length }] : [])],
 					totalCount: [...aggregations, { $count: 'total' }]
 				}
 			}
@@ -214,8 +214,6 @@ export const PATCH: RequestHandler = async ({ params, request, cookies }) => {
 				body[key] = JSON.parse(data.get(key) as string, (key, value) => {
 					if (value?.instanceof == 'File') {
 						const file = data.get(value.id) as File;
-						file.path = value.path;
-
 						data.delete(value.id);
 						return file;
 					}
@@ -332,7 +330,6 @@ export const POST: RequestHandler = async ({ params, request, cookies }) => {
 				body[key] = JSON.parse(data.get(key) as string, (key, value) => {
 					if (value?.instanceof == 'File') {
 						const file = data.get(value.id) as File;
-						file.path = value.path;
 						data.delete(value.id);
 						return file;
 					}
