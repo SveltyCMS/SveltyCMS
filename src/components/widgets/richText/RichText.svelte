@@ -9,11 +9,11 @@
 	import { entryData, mode, contentLanguage } from '@src/stores/store';
 
 	// Components
-	import DropDown from './DropDown.svelte';
+	import DropDown from './components/DropDown.svelte';
 	import ColorSelector from './components/ColorSelector.svelte';
-	import Heading from './extensions/Heading';
+	// import Heading from './extensions/Heading';
 	import ImageResize from './extensions/ImageResize';
-	import ImageDescription from './ImageDescription.svelte';
+	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
 
 	// Skeleton
@@ -58,7 +58,7 @@
 			element: element,
 			extensions: [
 				StarterKit,
-				Heading,
+				// Heading,
 				Link.configure({
 					HTMLAttributes: {
 						class: 'text-[#00d3d0] cursor-pointer underline'

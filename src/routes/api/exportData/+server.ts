@@ -1,7 +1,7 @@
 import fs from 'fs';
 import type { RequestHandler } from './$types';
-import privateEnv from '@root/config/private';
 import { GET as getData } from '@src/routes/api/[collection]/+server';
+import { publicEnv } from '@root/config/public';
 
 // Auth
 import { auth } from '@api/databases/db';
@@ -40,8 +40,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			).json()
 		).entryList;
 	}
-	if (privateEnv.EXTRACT_DATA_PATH) {
-		fs.writeFileSync(privateEnv.EXTRACT_DATA_PATH, JSON.stringify(data).replaceAll('/storage', 'storage'));
+	if (publicEnv.EXTRACT_DATA_PATH) {
+		fs.writeFileSync(publicEnv.EXTRACT_DATA_PATH, JSON.stringify(data).replaceAll('/media', 'media'));
 		return new Response('', { status: 200 });
 	} else {
 		return new Response('EXTRACT_DATA_PATH not configured', { status: 500 });

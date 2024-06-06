@@ -22,6 +22,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`HOST_PROD: ${pc.red(privateConfigData.HOST_PROD)}\n` +
 			`PASSWORD_STRENGTH: ${pc.red(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
 			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
+			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
 			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
 			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
 		pc.red('Existing System Configuration:')
@@ -176,6 +177,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`HOST_PROD: ${pc.green(HOST_PROD)}\n` +
 			`PASSWORD_STRENGTH: ${pc.green(PASSWORD_STRENGTH)}\n` +
 			`BODY_SIZE_LIMIT: ${pc.green(BODY_SIZE_LIMIT)}\n` +
+			`EXTRACT_DATA_PATH: ${pc.green(EXTRACT_DATA_PATH)}\n` +
 			`SEASONS: ${pc.green(SEASONS)}\n` +
 			`SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
 		pc.green('Review your System configuration:')
