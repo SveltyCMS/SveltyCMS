@@ -1,4 +1,3 @@
-
 <svg
 	xmlns="http://www.w3.org/2000/svg"
 	xml:space="preserve"
@@ -8,13 +7,13 @@
 >
 	<g>
 		<!-- Upper rectangle -->
-		<polygon points="40,30 160,30 140,70 20,70" fill={fill} />
+		<polygon points="40,30 160,30 140,70 20,70" fill="red" />
 		<!-- Upper triangle -->
-		<polygon points="20,70 50,100 80,70" fill={fill} style="filter: brightness(0.6);" />
+		<polygon points="20,70 50,100 80,70" fill="red" style="filter: brightness(0.6);" />
 		
 		<!-- Lower rectangle -->
-		<polygon points="160,170 40,170 60,130 180,130" fill={fill} />
+		<polygon points="160,170 40,170 60,130 180,130" fill="red" />
 		<!-- Lower triangle -->
-		<polygon points="180,130 150,100 120,130" fill={fill} style="filter: brightness(0.6);" />
+		<polygon points="180,130 150,100 120,130" fill="red" style="filter: brightness(0.6);" />
 	</g>
 </svg>
