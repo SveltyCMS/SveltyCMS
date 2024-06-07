@@ -93,7 +93,7 @@
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
 			<div class="mb-4 flex flex-row gap-2">
-				<SveltyCMSLogo className="w-12" fill="red" />
+				<SveltyCMSLogo className="w-14" fill="red" />
 
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
 					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>

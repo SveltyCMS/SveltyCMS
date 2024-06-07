@@ -69,15 +69,15 @@
 			/>
 		</svg>
 
-		<div class="absolute left-1/2 top-[77px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
+		<div class="absolute left-1/2 top-[68px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 			<!-- Logo -->
-			<Logo fill="black" className="w-8 h-8" />
+			<Logo fill="red" className="w-16 h-16" />
 			<!-- PUBLIC SITENAME -->
-			<div class="text-3xl font-bold text-error-500">
+			<div class="-mt-2 text-3xl font-bold text-black">
 				{publicEnv.SITE_NAME}
 			</div>
 			<!-- Slogan -->
-			<div class="-mt-[1px] text-[12px] font-bold text-black">
+			<div class="-mt-[1px] text-[12px] font-bold text-secondary-500">
 				{m.logo_slogan()}
 			</div>
 		</div>

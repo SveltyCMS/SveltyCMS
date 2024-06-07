@@ -144,7 +144,7 @@
 	<!-- Corporate Identity Full-->
 	{#if $sidebarState.left === 'full'}
 		<a href="/" class="t flex pt-2 !no-underline">
-			<SveltyCMSLogo fill="red" className="h-8 rtl:ml-2 " />
+			<SveltyCMSLogo fill="red" className="h-10 rtl:ml-2 " />
 			<span class="text-token relative pl-1 text-2xl font-bold">{publicEnv.SITE_NAME} </span>
 		</a>
 	{:else}

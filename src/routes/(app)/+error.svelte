@@ -29,7 +29,7 @@
 					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">{char}</div>
 				{/each}
 			</div>
-			<SveltyCMSLogo fill="red" className="absolute top-[50%] -translate-y-[50%] translate-x-[50%] left-0 h-16 mb-2" />
+			<SveltyCMSLogo fill="red" className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 h-20 mb-2" />
 		</div>
 
 		<div class="relative">
