@@ -71,7 +71,7 @@
 
 		<div class="absolute left-1/2 top-[68px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 			<!-- Logo -->
-			<Logo fill="red" className="w-16 h-16" />
+			<Logo fill="red" className="w-14 h-14" />
 			<!-- PUBLIC SITENAME -->
 			<div class="-mt-2 text-3xl font-bold text-black">
 				{publicEnv.SITE_NAME}
