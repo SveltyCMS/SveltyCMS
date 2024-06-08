@@ -2,9 +2,6 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	// Components
-	import SiteName from '@components/SiteName.svelte';
-
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// ParaglideJS
@@ -112,17 +109,17 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>Reset your password for <SiteName /></title>
-		<meta name="description" content="Reset your password for <SiteName />" />
+		<title>Reset your password for {publicEnv.SITE_NAME}</title>
+		<meta name="description" content="Reset your password for {publicEnv.SITE_NAME}" />
 	</Head>
-	<Preview preview="Reset your password for <SiteName />" />
+	<Preview preview="Reset your password for {publicEnv.SITE_NAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
 					<Img
 						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png"
-						alt="<SiteName /> logo"
+						alt="{publicEnv.SITE_NAME} logo"
 						width="150"
 						height="auto"
 						style={{ display: 'block', margin: '0 auto' }}
@@ -130,7 +127,7 @@
 				</Link>
 			</Section>
 			<Text style={paragraph}>Hello {email}</Text>
-			<Text style={paragraph}>You have requested to reset your Password to get access to <SiteName /></Text>
+			<Text style={paragraph}>You have requested to reset your Password to get access to {publicEnv.SITE_NAME}</Text>
 			<Section style={review}>
 				<Text style={paragraph_center}>{m.forgottenpassword_token()}</Text>
 				<Text style={paragraph_center}><span style={styleToString(paragraphbold)}>{token}</span></Text>
@@ -146,7 +143,7 @@
 				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your <SiteName /> Team</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>

@@ -2,9 +2,6 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	// Components
-	import SiteName from '@components/SiteName.svelte';
-
 	// Stores
 	import { page } from '$app/stores';
 
@@ -52,20 +49,20 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>Your password for <SiteName /> was changed</title>
-		<meta name="description" content="Your password for <SiteName /> was changed" />
+		<title>Your password for {publicEnv.SITE_NAME} was changed</title>
+		<meta name="description" content="Your password for {publicEnv.SITE_NAME} was changed" />
 	</Head>
-	<Preview preview="Your password for <SiteName /> was changed" />
+	<Preview preview="Your password for {publicEnv.SITE_NAME} was changed" />
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
-				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="<SiteName /> logo" width="150" height="auto" />
+				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 			</Link>
 			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
-			<Text style={paragraph}>You have successfully changed your Password for <SiteName /></Text>
+			<Text style={paragraph}>You have successfully changed your Password for {publicEnv.SITE_NAME}</Text>
 			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>Your <SiteName /> Team</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>

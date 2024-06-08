@@ -2,9 +2,6 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
-	// Components
-	import SiteName from '@components/SiteName.svelte';
-
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@src/stores/store';
@@ -115,19 +112,19 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>User Registration token for <SiteName /></title>
-		<meta name="description" content="User Registration token for <SiteName />" />
+		<title>User Registration token for {publicEnv.SITE_NAME}</title>
+		<meta name="description" content="User Registration token for {publicEnv.SITE_NAME}" />
 	</Head>
-	<Preview preview="User Registration token for <SiteName />" />
+	<Preview preview="User Registration token for {publicEnv.SITE_NAME}" />
 	<Section style={main}>
 		<Container style={container}>
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="<SiteName /> logo" width="150" height="auto" />
+					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 				</Link>
 			</Section>
 
-			<Text style={paragraph}>You have received an Access Token to create a new user for <SiteName /></Text>
+			<Text style={paragraph}>You have received an Access Token to create a new user for {publicEnv.SITE_NAME}</Text>
 			<Section style={review}>
 				<Column style={label}>
 					<Text style={paragraph}>{m.usertoken_email()}</Text>
@@ -148,7 +145,7 @@
 				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your <SiteName /> Team</Text>
+			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
 		</Container>
 	</Section>
 </Html>
