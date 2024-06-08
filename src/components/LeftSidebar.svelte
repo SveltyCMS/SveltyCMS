@@ -17,6 +17,7 @@
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
 
 	// Skeleton
@@ -145,7 +146,7 @@
 	{#if $sidebarState.left === 'full'}
 		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
 			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
-			<span class="text-token relative text-2xl font-bold">{publicEnv.SITE_NAME} </span>
+			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
@@ -155,7 +156,7 @@
 			</button>
 
 			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 !no-underline">
-				<SveltyCMSLogo fill="red" className="h-9 ltr:mr-2 rtl:ml-2" />
+				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
 			</a>
 		</div>
 	{/if}

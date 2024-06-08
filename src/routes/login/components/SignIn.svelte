@@ -10,6 +10,7 @@
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
 	// Components
+	import SiteName from '@components/SiteName.svelte';
 	import SigninIcon from './icons/SigninIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -307,7 +308,7 @@
 				<SveltyCMSLogo className="w-14" fill="red" />
 
 				<h1 class="text-3xl font-bold text-black lg:text-4xl">
-					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
+					<div class="text-xs text-surface-300"><SiteName /></div>
 					{#if !PWforgot && !PWreset}
 						<div class="lg:-mt-1">{m.form_signin()}</div>
 					{:else if PWforgot && !PWreset}

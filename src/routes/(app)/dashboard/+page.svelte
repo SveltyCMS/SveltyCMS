@@ -36,6 +36,7 @@
 	};
 
 	let items: GridItemType[] = [];
+	let dropdownOpen = false;
 
 	const itemSize = { height: 40 };
 
@@ -68,18 +69,41 @@
 
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name="Dashboard for {publicEnv.SITE_NAME}" icon="" />
-	<button on:click={() => addNewItem(CPUWidget)} type="button" class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
-		<iconify-icon icon="carbon:add-filled" width="24" class="text-white" />
-		ADD CPU
-	</button>
-	<button on:click={() => addNewItem(DiskWidget)} type="button" class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
-		<iconify-icon icon="carbon:add-filled" width="24" class="text-white" />
-		ADD DISK
-	</button>
-	<button on:click={() => addNewItem(MemoryWidget)} type="button" class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
-		<iconify-icon icon="carbon:add-filled" width="24" class="text-white" />
-		ADD MEMORY
-	</button>
+	<div class="relative">
+		<button
+			on:click={() => (dropdownOpen = !dropdownOpen)}
+			type="button"
+			class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary"
+		>
+			<iconify-icon icon="carbon:add-filled" width="24" class="text-white" />
+			Add
+		</button>
+		{#if dropdownOpen}
+			<div class="absolute z-10 right-0 mt-2 w-48 divide-y divide-gray-200 rounded border border-gray-300 bg-white shadow-lg dark:divide-gray-600 dark:border-gray-700 dark:bg-gray-800">
+				<button
+					on:click={() => {
+						addNewItem(CPUWidget);
+						dropdownOpen = false;
+					}}
+					type="button"
+					class="block w-full px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700">ADD CPU</button>
+				<button
+					on:click={() => {
+						addNewItem(DiskWidget);
+						dropdownOpen = false;
+					}}
+					type="button"
+					class="block w-full px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700">ADD DISK</button>
+				<button
+					on:click={() => {
+						addNewItem(MemoryWidget);
+						dropdownOpen = false;
+					}}
+					type="button"
+					class="block w-full px-4 py-2 text-left hover:bg-gray-200 dark:hover:bg-gray-700">ADD MEMORY</button>
+			</div>
+		{/if}
+	</div>
 	<button class="variant-filled-secondary btn" on:click={resetGrid}>Reset Grid</button>
 </div>
 

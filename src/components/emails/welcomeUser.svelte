@@ -3,6 +3,9 @@
 	import { publicEnv } from '@root/config/public';
 	import { systemLanguage } from '@src/stores/store';
 
+	// Components
+	import SiteName from '@components/SiteName.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -47,20 +50,20 @@
 
 <Html lang={$systemLanguage}>
 	<Head>
-		<title>Welcome to {publicEnv.SITE_NAME} </title>
-		<meta name="description" content="Welcome to {publicEnv.SITE_NAME}" />
+		<title>Welcome to <SiteName /> </title>
+		<meta name="description" content="Welcome to <SiteName />" />
 	</Head>
 
-	<Preview preview="Welcome to {publicEnv.SITE_NAME}" />
+	<Preview preview="Welcome to <SiteName />" />
 	<Section>
 		<Container>
 			<Section style={btnContainer}>
 				<Link href={hostLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
+					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt=<SiteName /> width="150" height="auto" />
 				</Link>
 			</Section>
 			<Text>{m.welcomeuser_username({ username })}</Text>
-			<Text>Welcome to {publicEnv.SITE_NAME} - a Sveltekit powered flexible Headless CMS</Text>
+			<Text>Welcome to <SiteName /> - a Sveltekit powered flexible Headless CMS</Text>
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
 				{m.welcomeuser_discussion1()}
@@ -70,10 +73,10 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>Go to {publicEnv.SITE_NAME}</Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>Go to <SiteName /></Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} team</Text>
+			<Text style={footer}>Your <SiteName /> team</Text>
 		</Container>
 	</Section>
 </Html>

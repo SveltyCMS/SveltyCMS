@@ -14,6 +14,7 @@
 	import { zod } from 'sveltekit-superforms/adapters';
 
 	// Components
+	import SiteName from '@components/SiteName.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -96,7 +97,7 @@
 				<SveltyCMSLogo className="w-14" fill="red" />
 
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
-					<div class="text-xs text-surface-300">{publicEnv.SITE_NAME}</div>
+					<div class="text-xs text-surface-300"><SiteName /></div>
 					<div class="break-words lg:-mt-1">
 						{m.form_signup()}
 						{#if !firstUserExists}

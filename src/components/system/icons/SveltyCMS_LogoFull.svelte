@@ -1,15 +1,14 @@
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
-
+	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import Seasons from './Seasons.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { publicEnv } from '@root/config/public';
 </script>
 
 <!-- CSS Logo -->
-
 <a
 	href="https://github.com/Rar9/SveltyCMS"
 	target="_blank"
@@ -72,9 +71,10 @@
 		<div class="absolute left-1/2 top-[68px] flex -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center text-center">
 			<!-- Logo -->
 			<Logo fill="red" className="w-14 h-14" />
+
 			<!-- PUBLIC SITENAME -->
 			<div class="-mt-2 text-3xl font-bold text-black">
-				{publicEnv.SITE_NAME}
+				<SiteName />
 			</div>
 			<!-- Slogan -->
 			<div class="-mt-[1px] text-[12px] font-bold text-secondary-500">
