@@ -1,10 +1,6 @@
 import { privateEnv } from '@root/config/private';
-
-// Store
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
-
-// Mongoose
 import mongoose from 'mongoose';
 import type { DatabaseAdapter } from './databaseAdapter';
 import { mongooseSessionSchema, mongooseTokenSchema, mongooseUserSchema } from '@src/auth/types';
@@ -105,5 +101,46 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				mongoose.model(schemaName, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 			}
 		});
+	}
+
+	// Fetch the last 5 added collections
+	async getLastFiveCollections(): Promise<any[]> {
+		const collections = Object.keys(mongoose.models);
+		const recentCollections: any[] = [];
+
+		for (const collectionName of collections) {
+			const model = mongoose.models[collectionName];
+			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
+			recentCollections.push({ collectionName, recentDocs });
+		}
+
+		return recentCollections;
+	}
+
+	// Fetch logged in users
+	async getLoggedInUsers(): Promise<any[]> {
+		const sessionModel = mongoose.models['auth_sessions'];
+		const loggedInUsers = await sessionModel.find({ active: true }).exec();
+		return loggedInUsers;
+	}
+
+	// Fetch other CMS data as needed
+	async getCMSData(): Promise<any> {
+		// Implement logic to fetch additional CMS data if required
+		return {};
+	}
+
+	// Fetch the last 5 added media items
+	async getLastFiveMedia(): Promise<any[]> {
+		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const recentMedia: any[] = [];
+
+		for (const schemaName of mediaSchemas) {
+			const model = mongoose.models[schemaName];
+			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
+			recentMedia.push({ schemaName, recentDocs });
+		}
+
+		return recentMedia;
 	}
 }

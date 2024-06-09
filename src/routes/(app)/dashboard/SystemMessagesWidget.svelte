@@ -27,7 +27,7 @@
 	}
 
 	function saveWidgets() {
-		const serializedWidgets = grid.save();
+		const serializedWidgets = gridController.save();
 		localStorage.setItem('dashboardWidgets', JSON.stringify(serializedWidgets));
 	}
 </script>

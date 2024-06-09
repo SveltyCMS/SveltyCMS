@@ -26,7 +26,7 @@ const fetchCPUInfo = async () => {
 		};
 	} catch (error) {
 		console.error('Error fetching CPU info:', error);
-		throw new Error('Internal Server Error');
+		throw new Error('Failed to fetch CPU information');
 	}
 };
 
@@ -46,7 +46,7 @@ const fetchDiskInfo = async () => {
 		}
 	} catch (error) {
 		console.error('Error fetching disk info:', error);
-		throw new Error('Internal Server Error');
+		throw new Error('Failed to fetch disk information');
 	}
 };
 
@@ -62,28 +62,36 @@ const fetchMemoryInfo = async () => {
 		};
 	} catch (error) {
 		console.error('Error fetching memory info:', error);
-		throw new Error('Internal Server Error');
+		throw new Error('Failed to fetch memory information');
 	}
 };
 
 const getSystemInfo = async () => {
-	const cpuInfo = await fetchCPUInfo();
-	const diskInfo = await fetchDiskInfo();
-	const memoryInfo = await fetchMemoryInfo();
-	const osInfo = {
-		platform: os.platform(),
-		uptime: os.uptime(),
-		hostname: os.hostname(),
-		type: os.type(),
-		arch: os.arch()
-	};
+	try {
+		const [cpuInfo, diskInfo, memoryInfo] = await Promise.all([
+			fetchCPUInfo(),
+			fetchDiskInfo(),
+			fetchMemoryInfo()
+		]);
 
-	return {
-		cpuInfo,
-		diskInfo,
-		memoryInfo,
-		osInfo
-	};
+		const osInfo = {
+			platform: os.platform(),
+			uptime: os.uptime(),
+			hostname: os.hostname(),
+			type: os.type(),
+			arch: os.arch()
+		};
+
+		return {
+			cpuInfo,
+			diskInfo,
+			memoryInfo,
+			osInfo
+		};
+	} catch (error) {
+		console.error('Error fetching system info:', error);
+		throw new Error('Failed to fetch system information');
+	}
 };
 
 export const GET: RequestHandler = async () => {
