@@ -3,6 +3,7 @@ import { readFileSync } from 'fs';
 
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
+import svelte from '@sveltejs/vite-plugin-svelte';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-js-adapter-vite';
 
