@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
@@ -18,11 +18,16 @@
 
 	let chart;
 	let chartCanvas;
+	let interval;
 
 	async function fetchData() {
-		const res = await fetch('/api/systemInfo');
-		const data = await res.json();
-		cpuInfo.set(data.cpuInfo);
+		try {
+			const res = await fetch('/api/systemInfo');
+			const data = await res.json();
+			cpuInfo.set(data.cpuInfo);
+		} catch (error) {
+			console.error('Error fetching CPU data:', error);
+		}
 	}
 
 	onMount(async () => {
@@ -60,19 +65,30 @@
 				maintainAspectRatio: false
 			}
 		});
+
+		interval = setInterval(fetchData, 5000);
 	});
 
-	// Update chart when data changes
 	$: {
 		if (chart) {
-			chart.data.labels = $cpuInfo.timeStamps;
-			chart.data.datasets[0].data = $cpuInfo.cpuUsage;
+			const { cpuUsage, timeStamps } = $cpuInfo;
+			chart.data.labels = timeStamps;
+			chart.data.datasets[0].data = cpuUsage;
 			chart.update();
 		}
 	}
+
+	onDestroy(() => {
+		if (interval) clearInterval(interval);
+		if (chart) chart.destroy();
+	});
 </script>
 
 <div class="relative h-full w-full rounded-lg border bg-white p-2">
 	<h2 class="text-center font-bold">CPU Usage</h2>
 	<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
 </div>
+
+<style>
+	/* Add any additional styling here */
+</style>

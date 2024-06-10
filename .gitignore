@@ -20,6 +20,7 @@ vite.config.ts.timestamp-*
 # SveltyCMS
 /tmp
 trash/
+media/
 mediaFiles/
 collections/
 

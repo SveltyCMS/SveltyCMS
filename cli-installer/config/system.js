@@ -9,8 +9,23 @@ export async function configureSystem(privateConfigData = {}) {
 
 	// Display a note about the System configuration
 	note(
-		`The System configuration allows you to set essential settings for your site, such as site name, host names for development and production, password strength, body size limit, and optional seasonal settings.`,
+		`The System configuration allows you to set essential settings for\n` +
+			`your site, such as site name, host names for development and production,\n` +
+			`password strength, body size limit, and optional seasonal settings.`,
 		pc.green('System Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`SITE_NAME: ${pc.red(privateConfigData.SITE_NAME)}\n` +
+			`HOST_DEV: ${pc.red(privateConfigData.HOST_DEV)}\n` +
+			`HOST_PROD: ${pc.red(privateConfigData.HOST_PROD)}\n` +
+			`PASSWORD_STRENGTH: ${pc.red(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
+			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
+			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
+			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
+			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
+		pc.red('Existing System Configuration:')
 	);
 
 	const SITE_NAME = await text({
@@ -113,8 +128,22 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
+	const EXTRACT_DATA_PATH = await confirm({
+		message: 'Path to extract data to?',
+		placeholder: 'default: current directory',
+		initialValue: privateConfigData.EXTRACT_DATA_PATH || ''
+	});
+
+	if (isCancel(EXTRACT_DATA_PATH)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	const SEASONS = await confirm({
 		message: 'Do you want to enable seasons?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.SEASONS || false
 	});
 
@@ -148,6 +177,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`HOST_PROD: ${pc.green(HOST_PROD)}\n` +
 			`PASSWORD_STRENGTH: ${pc.green(PASSWORD_STRENGTH)}\n` +
 			`BODY_SIZE_LIMIT: ${pc.green(BODY_SIZE_LIMIT)}\n` +
+			`EXTRACT_DATA_PATH: ${pc.green(EXTRACT_DATA_PATH)}\n` +
 			`SEASONS: ${pc.green(SEASONS)}\n` +
 			`SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
 		pc.green('Review your System configuration:')

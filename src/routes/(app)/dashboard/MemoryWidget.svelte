@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
@@ -26,28 +26,32 @@
 	let chartCanvas;
 
 	async function fetchData() {
-		const res = await fetch('/api/systemInfo');
-		const data = await res.json();
-		memoryInfo.set(data.memoryInfo);
+		try {
+			const res = await fetch('/api/systemInfo');
+			const data = await res.json();
+			memoryInfo.set(data.memoryInfo);
+		} catch (error) {
+			console.error('Error fetching memory data:', error);
+		}
 	}
 
 	const textCenterPlugin = {
 		id: 'textCenterPlugin',
 		beforeDraw: (chart) => {
-			const { totalMemMb, usedMemMb, freeMemMb, usedMemPercentage, freeMemPercentage } = $memoryInfo;
 			const ctx = chart.ctx;
 			const { width, height } = chart;
+			const memoryInfoValue = $memoryInfo;
 			ctx.save();
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 			ctx.font = '18px Arial';
 
 			// Draw total in the center
-			ctx.fillText(`${totalMemMb} MB`, width / 2, height / 2);
+			ctx.fillText(`${(memoryInfoValue.totalMemMb / 1024).toFixed(2)} GB`, width / 2, height / 2);
 
 			// Draw used and free percentages directly on the chart
 			chart.data.datasets[0].data.forEach((value, index) => {
-				const percentage = index === 0 ? usedMemPercentage : freeMemPercentage;
+				const percentage = index === 0 ? memoryInfoValue.usedMemPercentage : memoryInfoValue.freeMemPercentage;
 				const angle = (chart.getDatasetMeta(0).data[index].startAngle + chart.getDatasetMeta(0).data[index].endAngle) / 2;
 				const posX = width / 2 + Math.cos(angle) * (width / 4);
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
@@ -60,9 +64,7 @@
 
 	onMount(async () => {
 		await fetchData();
-		const { usedMemPercentage, freeMemPercentage } = $memoryInfo;
-
-		Chart.register(textCenterPlugin);
+		const { usedMemMb, freeMemMb } = $memoryInfo;
 
 		chart = new Chart(chartCanvas, {
 			type: 'doughnut',
@@ -70,9 +72,9 @@
 				labels: ['Used', 'Free'],
 				datasets: [
 					{
-						data: [$memoryInfo.usedMemMb, $memoryInfo.freeMemMb],
-						backgroundColor: ['rgba(255, 159, 64, 0.2)', 'rgba(75, 192, 192, 0.2)'],
-						borderColor: ['rgba(255, 159, 64, 1)', 'rgba(75, 192, 192, 1)'],
+						data: [usedMemMb, freeMemMb],
+						backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'],
+						borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
 						borderWidth: 1
 					}
 				]
@@ -81,6 +83,7 @@
 				responsive: true,
 				maintainAspectRatio: false,
 				plugins: {
+					textCenterPlugin, // Register the plugin
 					tooltip: {
 						callbacks: {
 							label: function (context) {
@@ -88,19 +91,23 @@
 								const value = context.raw || 0;
 								const totalMemMb = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
 								const percentage = (value / totalMemMb) * 100;
-								return `${value.toFixed(2)} MB (${percentage.toFixed(2)}%)`;
+								return `${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
 							}
 						}
 					}
 				}
 			}
 		});
+
+		const interval = setInterval(fetchData, 5000);
+		onDestroy(() => clearInterval(interval));
 	});
 
 	// Update chart when data changes
 	$: {
 		if (chart) {
-			chart.data.datasets[0].data = [$memoryInfo.usedMemPercentage, $memoryInfo.freeMemPercentage];
+			const { usedMemMb, freeMemMb } = $memoryInfo;
+			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
 			chart.update();
 		}
 	}
@@ -110,8 +117,8 @@
 	<h2 class="text-center font-bold">Memory Usage</h2>
 	<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
 	<div class="absolute bottom-5 left-0 flex w-full justify-between gap-2 px-2 text-xs">
-		<p>Total: {$memoryInfo.totalMemMb} MB</p>
-		<p>Used: {$memoryInfo.usedMemMb} MB ({$memoryInfo.usedMemPercentage}%)</p>
-		<p>Free: {$memoryInfo.freeMemMb} MB ({$memoryInfo.freeMemPercentage}%)</p>
+		<p>Total: {($memoryInfo.totalMemMb / 1024).toFixed(2)} GB</p>
+		<p>Used: {($memoryInfo.usedMemMb / 1024).toFixed(2)} GB ({$memoryInfo.usedMemPercentage}%)</p>
+		<p>Free: {($memoryInfo.freeMemMb / 1024).toFixed(2)} GB ({$memoryInfo.freeMemPercentage}%)</p>
 	</div>
 </div>

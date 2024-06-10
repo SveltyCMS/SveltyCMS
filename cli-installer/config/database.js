@@ -5,33 +5,13 @@ import { configureMariaDB } from './mariadbConfig.js';
 import { text, select, note, isCancel, cancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
-function parseConnectionString(connectionString, dbType) {
-	const parsed = new URL(connectionString);
-	if (dbType === 'mongodb') {
-		return {
-			DB_HOST: `${parsed.protocol}//${parsed.host}`,
-			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
-			DB_USER: parsed.username,
-			DB_PASSWORD: parsed.password
-		};
-	} else if (dbType === 'mariadb') {
-		return {
-			DB_HOST: `${parsed.protocol}//${parsed.host}`,
-			DB_NAME: parsed.pathname.slice(1) || 'sveltycms',
-			DB_USER: parsed.username,
-			DB_PASSWORD: parsed.password
-		};
-	}
-	return {};
-}
-
 export async function configureDatabase(privateConfigData = {}) {
 	// SveltyCMS Title
 	Title();
 
 	// Guide Note
 	note(
-		`${pc.green('Database')} configuration is required. Follow the instructions for your preferred database setup.`,
+		`${pc.green('Database configuration is required')}\n` + `Follow the instructions for your preferred database setup.`,
 		pc.green('Database Configuration:')
 	);
 
@@ -41,7 +21,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
 		options: [
 			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' },
-			{ value: 'mariadb', label: 'MariaDB', hint: 'In development not Functional Yet- Supports Docker and Local' }
+			{ value: 'other', label: 'Other', hint: 'more Databases will be available soon' }
 		],
 		required: true
 	});
@@ -53,15 +33,16 @@ export async function configureDatabase(privateConfigData = {}) {
 		return;
 	}
 
-	let connectionString;
+	let dbConfig = {};
 
 	if (projectDatabase === 'mongodb') {
-		connectionString = await configureMongoDB(privateConfigData);
+		dbConfig = await configureMongoDB(privateConfigData);
 	} else if (projectDatabase === 'mariadb') {
-		connectionString = await configureMariaDB(privateConfigData);
+		dbConfig = await configureMariaDB(privateConfigData);
+	} else if (projectDatabase === 'other') {
+		await configurationPrompt(); // Restart the configuration process
 	}
 
-	// Prompt for the database name
 	const dbName = await text({
 		message: 'Enter the database name:',
 		initialValue: privateConfigData.DB_NAME || 'sveltycms'
@@ -74,7 +55,6 @@ export async function configureDatabase(privateConfigData = {}) {
 		return;
 	}
 
-	// Ask if the user wants to configure advanced settings
 	const advanced = await confirm({
 		message: 'Would you like to configure advanced settings?',
 		initialValue: false // Set to false by default to streamline the process
@@ -97,6 +77,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			message: 'Enter delay between retries in milliseconds:',
 			initialValue: privateConfigData.DB_RETRY_DELAY || '3000'
 		});
+
 		if (isCancel(retryDelay)) {
 			cancel('Operation cancelled.');
 			console.clear();
@@ -108,6 +89,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			message: 'Enter the MongoDB connection pool size:',
 			initialValue: privateConfigData.DB_POOL_SIZE || '5'
 		});
+
 		if (isCancel(poolSize)) {
 			cancel('Operation cancelled.');
 			console.clear();
@@ -115,7 +97,6 @@ export async function configureDatabase(privateConfigData = {}) {
 			return;
 		}
 
-		// Update privateConfigData with new settings
 		privateConfigData = {
 			...privateConfigData,
 			DB_RETRY_ATTEMPTS: retryAttempts,
@@ -123,7 +104,6 @@ export async function configureDatabase(privateConfigData = {}) {
 			DB_POOL_SIZE: poolSize
 		};
 	} else {
-		// Set default values if advanced settings are not configured
 		privateConfigData = {
 			...privateConfigData,
 			DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS || '3',
@@ -132,17 +112,13 @@ export async function configureDatabase(privateConfigData = {}) {
 		};
 	}
 
-	// Parse connection string
-	const parsedConfig = parseConnectionString(connectionString, projectDatabase);
-
 	// Summary note before saving
 	note(
-		`Connection String: ${connectionString}\n` +
-			`DB_TYPE: ${pc.green(projectDatabase)}\n` +
-			`DB_HOST: ${pc.green(parsedConfig.DB_HOST)}\n` +
-			`DB_NAME: ${pc.green(parsedConfig.DB_NAME)}\n` +
-			`DB_USER: ${pc.green(parsedConfig.DB_USER)}\n` +
-			`DB_PASSWORD: ${pc.green(parsedConfig.DB_PASSWORD)}\n\n` +
+		`DB_TYPE: ${pc.green(projectDatabase)}\n` +
+			`DB_HOST: ${pc.green(dbConfig.DB_HOST)}\n` +
+			`DB_NAME: ${pc.green(dbName)}\n` +
+			`DB_USER: ${pc.green(dbConfig.DB_USER)}\n` +
+			`DB_PASSWORD: ${pc.green(dbConfig.DB_PASSWORD)}\n\n` +
 			`Advanced Configuration:\n` +
 			`DB_RETRY_ATTEMPTS: ${pc.green(privateConfigData.DB_RETRY_ATTEMPTS)}\n` +
 			`DB_RETRY_DELAY: ${pc.green(privateConfigData.DB_RETRY_DELAY)}\n` +
@@ -189,5 +165,14 @@ export async function configureDatabase(privateConfigData = {}) {
 		}
 	}
 
-	return parsedConfig;
+	return {
+		DB_TYPE: projectDatabase,
+		DB_HOST: dbConfig.DB_HOST,
+		DB_NAME: dbName,
+		DB_USER: dbConfig.DB_USER,
+		DB_PASSWORD: dbConfig.DB_PASSWORD,
+		DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS,
+		DB_RETRY_DELAY: privateConfigData.DB_RETRY_DELAY,
+		DB_POOL_SIZE: privateConfigData.DB_POOL_SIZE
+	};
 }

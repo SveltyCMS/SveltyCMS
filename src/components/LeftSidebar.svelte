@@ -17,6 +17,7 @@
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
+	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
 
 	// Skeleton
@@ -143,19 +144,19 @@
 <div class="flex h-full w-full flex-col justify-between">
 	<!-- Corporate Identity Full-->
 	{#if $sidebarState.left === 'full'}
-		<a href="/" class="t flex pt-2 !no-underline">
-			<SveltyCMSLogo fill="red" className="h-8 rtl:ml-2 " />
-			<span class="text-token relative pl-1 text-2xl font-bold">{publicEnv.SITE_NAME} </span>
+		<a href="/" aria-label="SveltyCMS Logo" class="flex pt-2 !no-underline">
+			<SveltyCMSLogo fill="red" className="h-9 -ml-2" />
+			<span class="text-token relative text-2xl font-bold"><SiteName /> </span>
 		</a>
 	{:else}
 		<!-- Corporate Identity Collapsed-->
-		<div class="flex justify-start gap-1.5">
+		<div class="gap flex justify-start">
 			<button type="button" on:click={() => toggleSidebar('left', 'hidden')} class="variant-ghost-surface btn-icon mt-1">
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
 			</button>
 
-			<a href="/" class="flex justify-center pt-2 !no-underline">
-				<SveltyCMSLogo fill="red" className="h-9 ltr:mr-2 rtl:ml-2" />
+			<a href="/" aria-label="SveltyCMS Logo" class="flex justify-center pt-2 !no-underline">
+				<SveltyCMSLogo fill="red" className="h-9 -ml-2 ltr:mr-2 rtl:ml-2 rtl:-mr-2" />
 			</a>
 		</div>
 	{/if}

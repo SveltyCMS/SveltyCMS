@@ -9,8 +9,20 @@ export async function configureMedia(privateConfigData = {}) {
 
 	// Display a note about the Media configuration
 	note(
-		`The Media configuration allows you to set the sizes for image processing, the folder for storing media files, the output format and quality for image optimization, and the media server URL.`,
+		`The Media configuration allows you to set the sizes for image\n` +
+			`processing, the folder for storing media files, the output\n` +
+			`format and quality for image optimization,\n` +
+			`and the media server URL.`,
 		pc.green('Media Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`IMAGE_SIZES: ${pc.red(JSON.stringify(privateConfigData.IMAGE_SIZES).replaceAll('{', '').replaceAll('}', '').replaceAll('"', ''))}\n` +
+			`MEDIA_FOLDER: ${pc.red(privateConfigData.MEDIA_FOLDER)}\n` +
+			`MEDIA_OUTPUT_FORMAT_QUALITY: ${pc.red(JSON.stringify(privateConfigData.MEDIA_OUTPUT_FORMAT_QUALITY))}\n` +
+			`MEDIASERVER_URL: ${pc.red(privateConfigData.MEDIASERVER_URL)}`,
+		pc.red('Existing Media Configuration:')
 	);
 
 	// Media configuration

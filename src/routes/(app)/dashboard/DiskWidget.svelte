@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { onMount } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
 	import { writable } from 'svelte/store';
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
@@ -26,27 +26,32 @@
 	let chartCanvas;
 
 	async function fetchData() {
-		const res = await fetch('/api/systemInfo');
-		const data = await res.json();
-		diskInfo.set(data.diskInfo);
+		try {
+			const res = await fetch('/api/systemInfo');
+			const data = await res.json();
+			diskInfo.set(data.diskInfo);
+		} catch (error) {
+			console.error('Error fetching disk data:', error);
+		}
 	}
+
 	const textCenterPlugin = {
 		id: 'textCenterPlugin',
 		beforeDraw: (chart) => {
-			const { totalGb, usedGb, freeGb, usedPercentage, freePercentage } = $diskInfo;
 			const ctx = chart.ctx;
 			const { width, height } = chart;
+			const diskInfoValue = $diskInfo;
 			ctx.save();
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
 			ctx.font = '18px Arial';
 
 			// Draw total in the center
-			ctx.fillText(`${totalGb} MB`, width / 2, height / 2);
+			ctx.fillText(`${diskInfoValue.totalGb} GB`, width / 2, height / 2);
 
 			// Draw used and free percentages directly on the chart
 			chart.data.datasets[0].data.forEach((value, index) => {
-				const percentage = index === 0 ? usedPercentage : freePercentage;
+				const percentage = index === 0 ? diskInfoValue.usedPercentage : diskInfoValue.freePercentage;
 				const angle = (chart.getDatasetMeta(0).data[index].startAngle + chart.getDatasetMeta(0).data[index].endAngle) / 2;
 				const posX = width / 2 + Math.cos(angle) * (width / 4);
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
@@ -59,7 +64,7 @@
 
 	onMount(async () => {
 		await fetchData();
-		const { usedPercentage, freePercentage } = $diskInfo;
+		const { usedGb, freeGb } = $diskInfo;
 
 		chart = new Chart(chartCanvas, {
 			type: 'doughnut',
@@ -67,7 +72,7 @@
 				labels: ['Used', 'Free'],
 				datasets: [
 					{
-						data: [$diskInfo.usedGb, $diskInfo.freeGb],
+						data: [usedGb, freeGb],
 						backgroundColor: ['rgba(255, 99, 132, 0.2)', 'rgba(54, 162, 235, 0.2)'],
 						borderColor: ['rgba(255, 99, 132, 1)', 'rgba(54, 162, 235, 1)'],
 						borderWidth: 1
@@ -78,6 +83,7 @@
 				responsive: true,
 				maintainAspectRatio: false,
 				plugins: {
+					textCenterPlugin, // Register the plugin
 					tooltip: {
 						callbacks: {
 							label: function (context) {
@@ -92,12 +98,16 @@
 				}
 			}
 		});
+
+		const interval = setInterval(fetchData, 5000);
+		onDestroy(() => clearInterval(interval));
 	});
 
 	// Update chart when data changes
 	$: {
 		if (chart) {
-			chart.data.datasets[0].data = [$diskInfo.usedPercentage, $diskInfo.freePercentage];
+			const { usedGb, freeGb } = $diskInfo;
+			chart.data.datasets[0].data = [usedGb, freeGb];
 			chart.update();
 		}
 	}
