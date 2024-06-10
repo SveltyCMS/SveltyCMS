@@ -37,13 +37,10 @@ let resolvers: { [key: string]: any } = {
 const collectionSchemas: string[] = [];
 
 async function setupGraphQL() {
-	console.log('Getting collections...');
 	const collections = await getCollections();
-	console.log(`Found ${collections.length} collections`);
 
 	// Loop over each collection to define typeDefs and resolvers
 	for (const collection of collections) {
-		console.log(`Processing collection: ${collection.name}`);
 		resolvers[collection.name as string] = {};
 		// Default same for all Content
 		let collectionSchema = `
@@ -54,7 +51,6 @@ async function setupGraphQL() {
         `;
 
 		for (const field of collection.fields) {
-			console.log(`Processing field: ${getFieldName(field, true)}`);
 			const schema = widgets[field.widget.Name].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
 
 			if (schema.resolver) {
@@ -77,8 +73,8 @@ async function setupGraphQL() {
 								collection
 							}).typeName
 						}\n`;
-						console.log('---------------------------');
-						console.log(collectionSchema);
+						// console.log('---------------------------');
+						// console.log(collectionSchema);
 						resolvers[collection.name as string] = deepmerge(
 							{
 								[getFieldName(_field, true)]: (parent) => {
@@ -114,13 +110,8 @@ async function setupGraphQL() {
     }
     `;
 
-	// Log the final typeDefs for debugging
-	console.log('Final TypeDefs:');
-	console.log(typeDefs);
-
 	// Loop over each collection to define resolvers for querying data
 	for (const collection of collections) {
-		console.log(`Adding resolver for ${collection.name}...`);
 		// Add a resolver function for collections
 		resolvers.Query[collection.name as string] = async () => {
 			try {
@@ -156,7 +147,6 @@ async function setupGraphQL() {
 		};
 	}
 
-	console.log('Creating Yoga app...');
 	const yogaApp = createYoga<RequestEvent>({
 		// Import schema and resolvers
 		schema: createSchema({
@@ -169,7 +159,6 @@ async function setupGraphQL() {
 		fetchAPI: globalThis
 	});
 
-	console.log('Exporting Yoga app...');
 	// Ensure the exported functions return a Response object
 	return yogaApp;
 }

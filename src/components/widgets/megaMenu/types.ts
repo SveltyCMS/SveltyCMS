@@ -63,15 +63,10 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 	const types = new Set();
 	let levelCount = 0;
 
-	console.log('Generating GraphQL schema for MegaMenu:', field.label);
-
 	for (const level of fields) {
 		const children: Array<any> = [];
-		console.log(`Processing level ${levelCount}...`);
 
 		for (const _field of level) {
-			console.log(`Processing field: ${getFieldName(_field, true)}`);
-
 			try {
 				const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({ label: `${getFieldName(_field, true)}_Level${levelCount}`, collection });
 				if (fieldSchema) {
@@ -110,7 +105,6 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		  children: [${collection.name}_${getFieldName(field, true)}_Level1]
 		}
 	  `;
-		console.log('Generated GraphQL schema:', graphql);
 		return { typeName, graphql };
 	} catch (error) {
 		console.error('Error generating GraphQL schema:', error);
