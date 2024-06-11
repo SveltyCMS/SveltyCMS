@@ -1,5 +1,5 @@
 <script lang="ts">
-	//Store
+	// Store
 	import { page } from '$app/stores';
 
 	// Component
@@ -21,7 +21,11 @@
 	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
 	<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-4">
 		<!-- Collection -->
-		<a href="/collection" class="variant-outline-tertiary btn w-full gap-2 overflow-hidden py-6 dark:variant-outline-secondary">
+		<a
+			href="/collection"
+			class="variant-outline-tertiary btn w-full gap-2 overflow-hidden py-6 dark:variant-outline-secondary"
+			aria-label={m.config_systembuilder()}
+		>
 			<iconify-icon icon="fluent-mdl2:build-definition" width="24" class="text-tertiary-600" />
 			<p class="overflow-hidden overflow-ellipsis uppercase">
 				{m.config_systembuilder()}
@@ -29,7 +33,13 @@
 		</a>
 
 		<!-- Graphql Api -->
-		<a href="/api/graphql" rel="external" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+		<a
+			href="/api/graphql"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary"
+			aria-label={m.config_graphql()}
+		>
 			<iconify-icon icon="teenyicons:graphql-solid" width="24" class="text-warning-600" />
 			<p class="uppercase">
 				{m.config_graphql()}
@@ -37,7 +47,7 @@
 		</a>
 
 		<!-- Editor -->
-		<a href="/imageEditor" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+		<a href="/imageEditor" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary" aria-label={m.config_imageeditor()}>
 			<iconify-icon icon="bi:images" width="24" class="text-primary-600" />
 			<p class="uppercase">
 				{m.config_imageeditor()}
@@ -45,20 +55,26 @@
 		</a>
 
 		<!-- Dashboard -->
-		<a href="/dashboard" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary">
+		<a href="/dashboard" class="variant-outline-tertiary btn w-full gap-2 py-6 dark:variant-outline-secondary" aria-label={m.config_Dashboard()}>
 			<iconify-icon icon="bi:images" width="24" class="text-error-600" />
 			<p class="uppercase">{m.config_Dashboard()}</p>
 		</a>
 
 		<!-- Market Place -->
-		<a href="https://www.sveltyCMS.com" class="variant-ghost-primary btn w-full gap-2 py-6">
+		<a
+			href="https://www.sveltyCMS.com"
+			target="_blank"
+			rel="noopener noreferrer"
+			class="variant-ghost-primary btn w-full gap-2 py-6"
+			aria-label={m.config_Martketplace()}
+		>
 			<iconify-icon icon="icon-park-outline:shopping-bag" width="28" class="text-white" />
 			<p class="uppercase">{m.config_Martketplace()}</p>
 		</a>
 
 		<!-- System Settings -->
 		{#if user.role === 'admin'}
-			<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6">
+			<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Settings">
 				<iconify-icon icon="uil:setting" width="28" class="text-white" />
 				<p class="uppercase">System Settings</p>
 			</a>
