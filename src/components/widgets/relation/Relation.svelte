@@ -7,6 +7,8 @@
 	import Fields from '@components/Fields.svelte';
 
 	import type { FieldType } from '.';
+	import axios from 'axios';
+	import { getData } from '@src/utils/data';
 	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
 
 	export let field: FieldType;
@@ -39,7 +41,12 @@
 
 	async function openDropDown() {
 		if (!field) return;
-		dropDownData = await find({}, field.relation);
+		dropDownData = (
+			await getData({
+				collectionName: field.relation as any,
+				limit: 10
+			})
+		).entryList;
 		showDropDown = true;
 		entryMode = 'choose';
 	}

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import axios from 'axios';
 	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
+	import { deleteData, getData, setStatus } from '@src/utils/data';
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -312,13 +313,13 @@
 				switch (status) {
 					case 'delete':
 						// If the status is 'Delete', call the delete endpoint
-						await axios.delete(`/api/${$collection.name}`, { data: formData });
+						await deleteData({ data: formData, collectionName: $collection.name as any });
 						break;
 					case 'publish':
 					case 'unpublish':
 					case 'test':
 						// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
-						await axios.patch(`/api/${$collection.name}/setStatus`, formData);
+						await setStatus({ data: formData, collectionName: $collection.name as any });
 						break;
 					case 'clone':
 					case 'schedule':
