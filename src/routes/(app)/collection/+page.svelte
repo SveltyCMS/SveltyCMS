@@ -141,13 +141,26 @@
 	}
 </script>
 
-<div class="my-2 flex items-center justify-between">
+<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
 	<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" />
+	<div class="mt-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
+		<!-- add new Category-->
+		<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded">
+			<iconify-icon icon="bi:collection" width="18" class="text-white" />
+			{m.collection_addcategory()}
+		</button>
 
-	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary">
-		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-		{m.button_save()}
-	</button>
+		<!-- add new Collection-->
+		<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded">
+			<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
+			{m.collection_addcollection()}
+		</button>
+
+		<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary lg:ml-4">
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+			{m.button_save()}
+		</button>
+	</div>
 </div>
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
@@ -156,30 +169,8 @@
 			<p class="my-2 text-center">{m.collection_first()}</p>
 		{:else}
 			<p class="mb-4 text-center dark:text-primary-500">{m.collection_text_description()}</p>
-			<!-- TODO: add sticky top sticky top-0 z-50 -->
 
-			<!-- Category/Collection buttons -->
-			<div class=" mb-3 ml-1 flex flex-col justify-around gap-1 rounded-sm py-2 dark:border-surface-400 sm:flex-row lg:justify-center lg:gap-8">
-				<!-- add new Category-->
-				<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded">
-					<iconify-icon icon="bi:collection" width="18" class="text-white" />
-					{m.collection_addcategory()}
-				</button>
-
-				<!-- add new Collection-->
-				<button
-					on:click={handleAddCollectionClick}
-					type="button"
-					class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded"
-				>
-					<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
-					{m.collection_addcollection()}
-				</button>
-			</div>
-
-			<!-- TODO:calculate the width according to number of columns -->
 			<!-- display unassigned collections -->
-
 			<Unassigned items={UnassignedCollections} onDrop={handleUnassignedUpdated} />
 
 			<!-- display collections -->

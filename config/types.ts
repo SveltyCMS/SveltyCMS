@@ -107,6 +107,9 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	//Define body size limit for your Uploads eg. 100mb
 	BODY_SIZE_LIMIT?: number;
 
+	// Define path to extract data
+	EXTRACT_DATA_PATH?: string;
+
 	// Seasons Icons for login page. Set to `true` to enable
 	SEASONS?: boolean;
 	SEASON_REGION?: string;

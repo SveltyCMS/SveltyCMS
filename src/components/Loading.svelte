@@ -12,7 +12,7 @@
 	<div class="absolute h-[210px] w-[210px] rounded-full border-[4px] border-surface-400 border-x-transparent" id="loader4" />
 	<div class="absolute flex flex-col items-center justify-center rounded-full bg-transparent p-6 uppercase text-black dark:text-white">
 		<div>{m.loading_pleasewait()}</div>
-		<div><SveltyCMSLogo className="w-10 p-1" fill="red" /></div>
+		<div><SveltyCMSLogo className="w-16 p-1" fill="red" /></div>
 		<div>{m.loading_loading()}</div>
 	</div>
 </div>

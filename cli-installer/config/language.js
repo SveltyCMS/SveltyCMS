@@ -36,8 +36,17 @@ export async function configureLanguage(configData = {}) {
 
 	// Display a note about the Language configuration
 	note(
-		`The Language configuration allows you to set the default and available languages for both content and system interfaces.`,
+		`The Language configuration allows you to set the default\n` + `and available languages for both content and system interfaces.`,
 		pc.green('Language Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`DEFAULT_CONTENT_LANGUAGE: ${pc.red(configData.DEFAULT_CONTENT_LANGUAGE)}\n` +
+			`AVAILABLE_CONTENT_LANGUAGES: ${pc.red(configData.AVAILABLE_CONTENT_LANGUAGES ? configData.AVAILABLE_CONTENT_LANGUAGES.join(', ') : 'Not set')}\n` +
+			`DEFAULT_SYSTEM_LANGUAGE: ${pc.red(configData.DEFAULT_SYSTEM_LANGUAGE)}\n` +
+			`AVAILABLE_SYSTEM_LANGUAGES: ${pc.red(configData.AVAILABLE_SYSTEM_LANGUAGES ? configData.AVAILABLE_SYSTEM_LANGUAGES.join(', ') : 'Not set')}`,
+		pc.red('Existing Language Configuration:')
 	);
 
 	const options = languageOptions.map((option) => ({

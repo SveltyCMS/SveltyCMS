@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+
 	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth

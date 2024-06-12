@@ -9,13 +9,20 @@ export async function configureOpenAI(privateConfigData = {}) {
 
 	// Display a note about the OpenAI configuration
 	note(
-		`The OpenAI configuration allows you to integrate OpenAI services, such as GPT-3, for generating content and other AI-powered features.`,
+		`The OpenAI configuration allows you to integrate OpenAI services,\n` + `such as GPT-3, for generating content and other AI-powered features.`,
 		pc.green('OpenAI Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`USE_OPEN_AI: ${pc.red(privateConfigData.USE_OPEN_AI ? 'true' : 'false')}\n` + `VITE_OPEN_AI_KEY: ${pc.red(privateConfigData.VITE_OPEN_AI_KEY)}`,
+		pc.red('Existing OpenAI Configuration:')
 	);
 
 	// OpenAI configuration
 	const USE_OPEN_AI = await confirm({
 		message: 'Enable OpenAI integration?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_OPEN_AI || false
 	});
 
@@ -45,7 +52,7 @@ export async function configureOpenAI(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`USE_OPENAI: ${pc.green(USE_OPEN_AI)}\n` + (USE_OPEN_AI ? `VITE_OPEN_AI_KEY: ${pc.green(VITE_OPEN_AI_KEY)}\n` : ''),
+		`USE_OPEN_AI: ${pc.green(USE_OPEN_AI ? 'true' : 'false')}\n` + (USE_OPEN_AI ? `VITE_OPEN_AI_KEY: ${pc.green(VITE_OPEN_AI_KEY)}\n` : ''),
 		pc.green('Review your OpenAI configuration:')
 	);
 

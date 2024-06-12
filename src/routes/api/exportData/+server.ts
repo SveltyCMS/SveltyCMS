@@ -1,8 +1,10 @@
 import fs from 'fs';
 import type { RequestHandler } from './$types';
+import { GET as getData } from '@src/routes/api/[collection]/+server';
+import { publicEnv } from '@root/config/public';
 
 // Auth
-import { auth, getCollectionModels } from '@api/databases/db';
+import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores
@@ -21,7 +23,6 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	}
 
 	// Get the collection model.
-	const collectionsModels = await getCollectionModels();
 	const $collections = get(collections);
 
 	// Get the form data.
@@ -29,10 +30,20 @@ export const GET: RequestHandler = async ({ cookies }) => {
 
 	for (const collection of $collections) {
 		const name = collection.name as string;
-		data[name as string] = await collectionsModels[name as string].find({});
+		data[name as string] = (
+			await (
+				await (getData as any)({
+					params: { collection: name },
+					url: new URL(`http://localhost/api/${name}`),
+					cookies
+				})
+			).json()
+		).entryList;
 	}
-	console.log(data);
-	fs.writeFileSync(`${import.meta.env.root}/data.json`, JSON.stringify(data));
-
-	return new Response('', { status: 200 });
+	if (publicEnv.EXTRACT_DATA_PATH) {
+		fs.writeFileSync(publicEnv.EXTRACT_DATA_PATH, JSON.stringify(data).replaceAll('/media', 'media'));
+		return new Response('', { status: 200 });
+	} else {
+		return new Response('EXTRACT_DATA_PATH not configured', { status: 500 });
+	}
 };

@@ -23,9 +23,15 @@ async function ensureDir(dir) {
 	}
 }
 
+// Format the date to a human-readable format
+function formatTimestamp(date) {
+	const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' };
+	return new Intl.DateTimeFormat('en-US', options).format(date).replace(/[:]/g, '-').replace(/[,]/g, '').replace(/ /g, '_');
+}
+
 // Backup Config Files with timestamp
 export async function backupConfigFiles() {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+	const timestamp = formatTimestamp(new Date());
 
 	try {
 		await ensureDir(BACKUP_DIR);
@@ -50,7 +56,6 @@ export async function backupConfigFiles() {
 			}
 		}
 
-		console.log('Backup completed successfully!');
 		return { privateBackup, publicBackup };
 	} catch (error) {
 		console.error('Error creating backup:', error);
@@ -120,7 +125,7 @@ async function configFilesExist() {
 
 // Database Backup (Example for MongoDB)
 export async function backupDatabase(dbHost, dbName) {
-	const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+	const timestamp = formatTimestamp(new Date());
 	const backupFile = path.join(BACKUP_DIR, `db-backup-${dbName}-${timestamp}.gz`);
 
 	try {
@@ -153,7 +158,10 @@ export const backupRestorePrompt = async () => {
 	if (!backupsExist) {
 		// Automatically backup if no backups exist
 		const { privateBackup, publicBackup } = await backupConfigFiles();
-		note(`Backup completed successfully:\n- Private: ${privateBackup}\n- Public: ${publicBackup}`, pc.green('Backup Confirmation:'));
+		const shortPrivateBackup = path.relative(process.cwd(), privateBackup);
+		const shortPublicBackup = path.relative(process.cwd(), publicBackup);
+
+		note(`Private: ${pc.green(shortPrivateBackup)}\n` + `Public: ${pc.green(shortPublicBackup)}`, pc.green('Backup completed successfully:'));
 
 		const confirmProceed = await confirm({
 			message: 'Do you want to proceed to configuration?',
@@ -170,10 +178,10 @@ export const backupRestorePrompt = async () => {
 	}
 
 	// Display a note about navigation instructions
-	note(`- Backup the current configuration files or restore from a previous backup.`, pc.green('Backup/Restore Options:'));
+	note(`Backup the current configuration files or\n` + `restore from a previous backup.`, pc.green('Backup/Restore Options:'));
 
 	const options = [
-		{ value: 'backup', label: 'Backup Current Configuration', hint: 'Create a backup of current configuration files' },
+		{ value: 'backup', label: 'Backup Current Configuration', hint: 'Create a backup of your config files' },
 		{ value: 'restore', label: 'Restore from Backup', hint: 'Restore configuration files from a previous backup' },
 		{ value: 'database', label: 'Backup your Database', hint: 'Create a backup of your SveltyCMS database' },
 		{ value: 'Exit', label: 'Exit to Installer', hint: 'Exit the SveltyCMS installer' }
@@ -192,7 +200,10 @@ export const backupRestorePrompt = async () => {
 	switch (choice) {
 		case 'backup': {
 			const { privateBackup, publicBackup } = await backupConfigFiles();
-			note(`Backup completed successfully:\n- Private: ${privateBackup}\n- Public: ${publicBackup}`, pc.green('Backup Confirmation:'));
+			const shortPrivateBackup = path.relative(process.cwd(), privateBackup);
+			const shortPublicBackup = path.relative(process.cwd(), publicBackup);
+
+			note(`Private: ${pc.green(shortPrivateBackup)}\n` + `Public: ${pc.green(shortPublicBackup)}`, pc.green('Backup completed successfully:'));
 
 			const confirmProceed = await confirm({
 				message: 'Do you want to proceed to configuration?',
@@ -232,7 +243,8 @@ export const backupRestorePrompt = async () => {
 			});
 
 			const dbBackupFile = await backupDatabase(dbHostCustom, dbName);
-			note(`Database backup completed successfully:\n- File: ${dbBackupFile}`, pc.green('Database Backup Confirmation:'));
+
+			note(`File: ${pc.green(dbBackupFile)}`, pc.green('Database backup completed successfully:'));
 
 			const confirmProceed = await confirm({
 				message: 'Do you want to proceed to configuration?',

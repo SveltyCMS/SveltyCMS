@@ -4,6 +4,9 @@ import Path from 'path';
 import mongoose from 'mongoose';
 
 import { publicEnv } from '@root/config/public';
+
+import { addData, updateData } from '@src/utils/data';
+
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
 import _crypto from 'crypto';
@@ -528,7 +531,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 	switch ($mode) {
 		// Create a new Collection
 		case 'create':
-			return await axios.post(`/api/${$collection.name}`, formData, config).then((res) => res.data);
+			return await addData({ data: formData, collectionName: $collection.name as any });
 		// Edit an existing Collection
 		case 'edit':
 			formData.append('_id', id || $entryData._id);
@@ -560,7 +563,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 				await axios.post(`/api/${$collection.name}`, newRevision, config).then((res) => res.data);
 			}
 
-			return await axios.patch(`/api/${$collection.name}`, formData, config).then((res) => res.data);
+			return await updateData({ data: formData, collectionName: $collection.name as any });
 	}
 }
 // Function to delete image files associated with a content item
@@ -982,4 +985,16 @@ export const pascalToCamelCase = (str: string) => {
 
 RegExp.escape = (string) => {
 	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+};
+
+export const toFormData = function (obj: { [key: string]: string | number }) {
+	const formData = new FormData();
+	for (const key in obj) {
+		if (typeof obj[key] == 'string') {
+			formData.append(key, obj[key] as string);
+		} else {
+			formData.append(key, JSON.stringify(obj[key]));
+		}
+	}
+	return formData;
 };

@@ -9,13 +9,25 @@ export async function configureRedis(privateConfigData = {}) {
 
 	// Display a note about the Redis configuration
 	note(
-		`The Redis configuration allows you to set up Redis caching for your application. Redis can help improve performance by caching frequently accessed data.`,
-		pc.green('Redis Configuratio:')
+		`The Redis configuration allows you to set up Redis caching for\n` +
+			`your application. Redis can help improve performance by caching\n` +
+			`frequently accessed data.`,
+		pc.green('Redis Configuration:')
+	);
+
+	// Display existing configuration
+	note(
+		`USE_REDIS: ${pc.red(privateConfigData.USE_REDIS ? 'true' : 'false')}\n` +
+			`REDIS_HOST: ${pc.red(privateConfigData.REDIS_HOST)}\n` +
+			`REDIS_PORT: ${pc.red(privateConfigData.REDIS_PORT ? privateConfigData.REDIS_PORT.toString() : 'Not set')}\n` +
+			`REDIS_PASSWORD: ${pc.red(privateConfigData.REDIS_PASSWORD)}`,
+		pc.red('Existing Redis Configuration:')
 	);
 
 	// Enable Redis Caching (optional - Not yet implemented)
 	const USE_REDIS = await confirm({
 		message: 'Enable Redis Caching?',
+		placeholder: 'false / true',
 		initialValue: privateConfigData.USE_REDIS || false
 	});
 
@@ -95,7 +107,7 @@ export async function configureRedis(privateConfigData = {}) {
 
 	// Summary
 	note(
-		`USE_REDIS: ${USE_REDIS}\n` +
+		`USE_REDIS: ${pc.green(USE_REDIS ? 'true' : 'false')}\n` +
 			(USE_REDIS ? `REDIS_HOST: ${pc.green(REDIS_HOST)}\n` : '') +
 			(USE_REDIS ? `REDIS_PORT: ${pc.green(REDIS_PORT)}\n` : '') +
 			(USE_REDIS && REDIS_PASSWORD ? `REDIS_PASSWORD: ${pc.green(REDIS_PASSWORD)}\n` : ''),

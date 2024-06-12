@@ -2,8 +2,6 @@ import { isCancel, select, confirm, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';
 import path from 'path';
-import ts from 'typescript';
-import { importSingleTs } from 'import-single-ts';
 
 import { Title, cancelOperation } from './cli-installer.js';
 import { createOrUpdateConfigFile } from './createOrUpdateConfigFile.js';
@@ -43,48 +41,27 @@ const OPTIONS = [
 	{ value: 'Exit', label: 'Save & Exit', hint: 'Save & Exit the installer' }
 ];
 
-// Helper function to dynamically import TypeScript modules
-async function importTSModule(filePath) {
-	const tsCode = fs.readFileSync(filePath, 'utf-8');
-	const { outputText: jsCode } = ts.transpileModule(tsCode, {
-		compilerOptions: {
-			module: ts.ModuleKind.ESNext,
-			target: ts.ScriptTarget.ESNext
-		}
-	});
-
-	const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
-	const requireMock = (module) => {
-		const registeredModules = {
-			fs,
-			path,
-			'./types': importSingleTs(path.join(process.cwd(), 'config', 'types.ts'))
-		};
-		if (!registeredModules[module]) {
-			throw new Error(`Cannot find module '${module}'`);
-		}
-		return registeredModules[module];
-	};
-
-	const moduleExports = {};
-	const moduleWrapper = new AsyncFunction('exports', 'require', jsCode);
-	await moduleWrapper(moduleExports, requireMock);
-
-	return moduleExports.default || moduleExports;
-}
-
-async function importConfig(filePath) {
+// Helper function to read the TypeScript file as a text file
+async function readConfigFile(filePath) {
 	try {
 		if (fs.existsSync(filePath)) {
-			return await importTSModule(filePath);
+			return fs.readFileSync(filePath, 'utf-8');
 		}
-		// else {
-		// 	console.log(`Configuration file not found: ${filePath}`);
-		// }
 	} catch (error) {
-		console.error(`Error importing configuration file: ${error.message}`);
+		console.error(`Error reading configuration file: ${error.message}`);
 	}
-	return {};
+	return '';
+}
+
+// Function to parse the configuration file content to extract the environment variables
+function parseConfig(content) {
+	const env = {};
+	const regex = /(\w+):\s*'([^']*)'/g;
+	let match;
+	while ((match = regex.exec(content)) !== null) {
+		env[match[1]] = match[2];
+	}
+	return env;
 }
 
 function hasRequiredFields(configData) {
@@ -128,15 +105,18 @@ async function handleExit(configData) {
 export const configurationPrompt = async () => {
 	Title();
 	note(
-		`${pc.green('Database')} and ${pc.green('Email')} configurations are required. Other configurations are optional.`,
+		`${pc.green('Database')} and ${pc.green('Email')} configurations are required.\n` + `Other configurations are optional.`,
 		pc.green('Configuration Instructions:')
 	);
 
 	let configData = {};
-	const privateConfig = await importConfig(CONFIG_PATHS.private);
-	const publicConfig = await importConfig(CONFIG_PATHS.public);
+	const privateConfigContent = await readConfigFile(CONFIG_PATHS.private);
+	const publicConfigContent = await readConfigFile(CONFIG_PATHS.public);
 
-	configData = { ...configData, ...privateConfig?.privateEnv, ...publicConfig?.publicEnv };
+	const privateConfig = parseConfig(privateConfigContent);
+	const publicConfig = parseConfig(publicConfigContent);
+
+	configData = { ...configData, ...privateConfig, ...publicConfig };
 
 	let exitConfirmed = false;
 	do {

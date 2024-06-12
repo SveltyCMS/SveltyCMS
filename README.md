@@ -10,7 +10,7 @@
 
 <p align="center">
 
- <img alt="Latest SemVer)" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
+ <img alt="Latest SemVer" src="https://img.shields.io/github/v/tag/Rar9/SveltyCMS">
 
   <img alt="GitHub issues" src="https://img.shields.io/github/issues/Rar9/SveltyCMS">
 </p>
