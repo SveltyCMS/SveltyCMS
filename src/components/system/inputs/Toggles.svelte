@@ -11,8 +11,8 @@
 	export let iconOff: string = 'gridicons:not-visible'; // Default icon when toggle is off
 
 	const random = crypto.randomUUID();
-	$: currentLabelColor = value ? 'text-primary-500' : 'text-error-500'; // Make labelColor reactive
 
+	// Function to handle toggle update
 	function updateToggle(event) {
 		dispatch('toggle', event.target.checked);
 		value = event.target.checked; // Update value to reflect the change
@@ -20,14 +20,9 @@
 </script>
 
 <label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
-	<label for="toggleSwitch{random}" class="mr-3 flex items-center gap-2 {currentLabelColor}">
-		<!-- {#if value}
-			<iconify-icon icon={iconOn} width="24" class="text-white" />
-		{:else}
-			<iconify-icon icon={iconOff} width="24" class="text-white" />
-		{/if} -->
+	<span class="mr-3 flex items-center gap-2 {value ? 'text-primary-500' : labelColor}">
 		{label}
-	</label>
+	</span>
 
 	<div class="relative">
 		<input name={label} type="checkbox" id="toggleSwitch{random}" checked={value} class="peer sr-only" on:click={updateToggle} />

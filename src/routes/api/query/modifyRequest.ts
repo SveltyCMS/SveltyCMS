@@ -1,8 +1,26 @@
 import widgets from '@src/components/widgets';
 import { getFieldName } from '@src/utils/utils';
+import type { User } from '@src/auth/types';
+import type { Collection } from 'mongoose';
+
+// Define Field type locally if not available in @src/collections/types
+interface Field {
+	widget: {
+		Name: string;
+	};
+}
+
+// Define the parameters for the function
+interface ModifyRequestParams {
+	data: any[];
+	fields: Field[];
+	collection: Collection<any>;
+	user: User;
+	type: string;
+}
 
 // Function to modify request data based on field widgets
-export async function modifyRequest({ data, fields, collection, user, type }) {
+export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
 	try {
 		for (const field of fields) {
 			const widget = widgets[field.widget.Name];
@@ -34,6 +52,7 @@ export async function modifyRequest({ data, fields, collection, user, type }) {
 				);
 			}
 		}
+		return data; // Return the modified data
 	} catch (error) {
 		// Handle error by checking its type
 		if (error instanceof Error) {

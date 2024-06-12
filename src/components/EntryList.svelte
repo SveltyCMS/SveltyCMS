@@ -662,91 +662,22 @@
 			</table>
 		</div>
 
-		<!-- Pagination not updating -->
-		<!-- <div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-			<TablePagination {currentPage} {pagesCount} {rowsPerPage} {rowsPerPageOptions} {refreshTableData} />
-		</div> -->
-
-		<!-- Pagination   working -->
+		<!-- Pagination  -->
 		<div class="sticky bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
-			<!-- <TablePagination {currentPage} {pagesCount} {rowsPerPage} {refreshTableData} /> -->
-
-			<div class="mb-1 text-xs md:mb-0 md:text-sm">
-				<span>{m.entrylist_page()}</span> <span class="text-tertiary-500 dark:text-primary-500">{currentPage}</span>
-				<span>{m.entrylist_of()}</span> <span class="text-tertiary-500 dark:text-primary-500">{data?.pagesCount || 0}</span>
-			</div>
-
-			<!-- Pagination controls -->
-			<div class="variant-outline btn-group">
-				<!-- First page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isFirstPage}
-					aria-label="Go to first page"
-					on:click={() => {
-						currentPage = 1;
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:first-page" width="24" class:disabled={currentPage === 1} />
-				</button>
-
-				<!-- Previous page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isFirstPage}
-					aria-label="Go to Previous page"
-					on:click={() => {
-						currentPage = Math.max(1, currentPage - 1);
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:chevron-left" width="24" class:disabled={currentPage === 1} />
-				</button>
-
-				<!-- Rows per page select dropdown -->
-				{#if rowsPerPage !== undefined}
-					<select
-						value={rowsPerPage}
-						on:change={rowsPerPageHandler}
-						class="mt-0.5 bg-transparent text-center text-tertiary-500 dark:text-primary-500"
-					>
-						{#each rowsPerPageOptions as pageSize}
-							<option class="bg-surface-500 text-white" value={pageSize}> {pageSize} {m.entrylist_rows()} </option>
-						{/each}
-					</select>
-				{/if}
-
-				<!-- Next page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isLastPage}
-					aria-label="Go to Next page"
-					on:click={() => {
-						currentPage = Math.min(currentPage + 1, data?.pagesCount || 0);
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:chevron-right" width="24" class:active={currentPage === data?.pagesCount} />
-				</button>
-
-				<!-- Last page -->
-				<button
-					type="button"
-					class="btn"
-					disabled={isLastPage}
-					aria-label="Go to Last page"
-					on:click={() => {
-						currentPage = data?.pagesCount || 0;
-						refreshTableData();
-					}}
-				>
-					<iconify-icon icon="material-symbols:last-page" width="24" class:disabled={currentPage === data?.pagesCount} />
-				</button>
-			</div>
+			<TablePagination
+				{currentPage}
+				{pagesCount}
+				{rowsPerPage}
+				{rowsPerPageOptions}
+				on:updatePage={(e) => {
+					currentPage = e.detail;
+					refreshTableData();
+				}}
+				on:updateRowsPerPage={(e) => {
+					rowsPerPage = e.detail;
+					refreshTableData();
+				}}
+			/>
 		</div>
 	{:else}
 		<!-- Display a message when no data is yet available -->

@@ -115,9 +115,9 @@
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">
-		<label for="media-type">Search</label>
+		<label for="globalSearch">Search</label>
 		<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-			<input type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
+			<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 			{#if globalSearchValue}
 				<button on:click={() => (globalSearchValue = '')} class="variant-filled-surface w-12">
 					<iconify-icon icon="ic:outline-search-off" width="24" />
@@ -127,8 +127,8 @@
 
 		<div class="mt-4 flex justify-between">
 			<div class="flex flex-col">
-				<label for="media-type">Type</label>
-				<select bind:value={selectedMediaType} class="input">
+				<label for="mediaType">Type</label>
+				<select id="mediaType" bind:value={selectedMediaType} class="input">
 					{#each mediaTypes as type}
 						<option value={type.value}>
 							<p class="flex items-center gap-2">
@@ -141,11 +141,12 @@
 			</div>
 
 			<div class="flex flex-col text-center">
-				<label>Sort</label>
-				<button class="variant-ghost-surface btn">
+				<label for="sortButton">Sort</label>
+				<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
 					<iconify-icon icon="flowbite:sort-outline" width="24" />
 				</button>
 			</div>
+
 			<div class="flex items-center justify-center text-center text-xs md:hidden">
 				<div class="flex flex-col items-center justify-center">
 					<div class="flex sm:divide-x sm:divide-gray-500">
@@ -203,9 +204,9 @@
 
 	<div class="mb-2 hidden items-center justify-between gap-1 md:flex md:gap-3">
 		<div class="mb-8 flex w-full flex-col justify-center gap-1">
-			<label for="media-type">Search</label>
+			<label for="globalSearchMd">Search</label>
 			<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
-				<input type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
+				<input id="globalSearchMd" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 				{#if globalSearchValue}
 					<button on:click={() => (globalSearchValue = '')} class="variant-filled-surface w-12">
 						<iconify-icon icon="ic:outline-search-off" width="24" />
@@ -215,9 +216,9 @@
 		</div>
 
 		<div class="mb-8 flex flex-col justify-center gap-1">
-			<label for="media-type">Type</label>
+			<label for="mediaTypeMd">Type</label>
 			<div class="input-group">
-				<select bind:value={selectedMediaType}>
+				<select id="mediaTypeMd" bind:value={selectedMediaType}>
 					{#each mediaTypes as type}
 						<option value={type.value}>
 							<p class="flex items-center justify-between gap-2">
@@ -231,8 +232,8 @@
 		</div>
 
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
-			<label>Sort</label>
-			<button class="variant-ghost-surface btn">
+			<label for="sortButton">Sort</label>
+			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
 				<iconify-icon icon="flowbite:sort-outline" width="24" />
 			</button>
 		</div>

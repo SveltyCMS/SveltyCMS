@@ -4,8 +4,16 @@ import mongoose from 'mongoose';
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const limit = 10;
-		const search = url.searchParams.get('search') as string;
-		const re = new RegExp(RegExp.escape(search), 'i');
+		const search = url.searchParams.get('search');
+
+		// Implement RegExp.escape if it's not already defined
+		if (!RegExp.escape) {
+			(RegExp as any).escape = function (s: string) {
+				return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			};
+		}
+
+		const re = search ? new RegExp(RegExp.escape(search), 'i') : null;
 
 		// Ensure the required media collections exist
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
@@ -19,7 +27,8 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		// Fetch files for each media type
 		const fetchFilesPromises = mediaTypes.map(async (type) => {
-			const files = await mongoose.models[type].find(search ? { 'original.name': { $regex: re } } : {}).limit(limit);
+			const query = search ? { 'original.name': { $regex: re } } : {};
+			const files = await mongoose.models[type].find(query).limit(limit);
 			return files.map((file) => ({ ...file.toObject(), type: type.split('_')[1].charAt(0).toUpperCase() + type.split('_')[1].slice(1) }));
 		});
 
