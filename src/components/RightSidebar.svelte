@@ -49,7 +49,6 @@
 		mode.set('view');
 		handleSidebarToggle();
 	}
-	//console.log('collection', $collection);
 
 	// TODO: Schedule
 	const date = new Date();
@@ -96,6 +95,7 @@
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
 					Save
 				</button>
+
 				<!-- Publish/Unpublish -->
 				<div class="gradient-secondary btn w-full gap-2">
 					<Toggles

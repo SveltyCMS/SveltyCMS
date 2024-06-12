@@ -1,19 +1,17 @@
+import { publicEnv } from '@root/config/public';
+
 import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 import mongoose from 'mongoose';
 
-import { publicEnv } from '@root/config/public';
-
-import { addData, updateData } from '@src/utils/data';
+import { addData, updateData, handleRequest } from '@src/utils/data';
 
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
 import _crypto from 'crypto';
 import type { z } from 'zod';
 import type { MediaImage } from './types';
-
-// pdf.js
 
 // Stores
 import { get } from 'svelte/store';
@@ -519,10 +517,13 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);
 	const formData = data instanceof FormData ? data : await col2formData(data);
+
 	if (_mode === 'edit' && !id) {
 		throw new Error('ID is required for edit mode.');
 	}
+
 	if (!formData) return;
+
 	if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
 
 	// Define status for each collection
@@ -532,6 +533,7 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 		// Create a new Collection
 		case 'create':
 			return await addData({ data: formData, collectionName: $collection.name as any });
+
 		// Edit an existing Collection
 		case 'edit':
 			formData.append('_id', id || $entryData._id);
@@ -541,10 +543,11 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 				// Create a new revision of the Collection
 				const newRevision = {
 					...$entryData,
-					_id: new mongoose.Types.ObjectId().toString, // Generate a new ObjectId for the new revision
+					_id: new mongoose.Types.ObjectId().toString(), // Fixed syntax error: Added parentheses
 					__v: [
+						...($entryData.__v || []),
 						{
-							revisionNumber: $entryData.__v.length, // Start the revision number at the current length of the __v array
+							revisionNumber: $entryData.__v ? $entryData.__v.length : 0, // Fixed potential error if __v is undefined
 							editedAt: new Date().getTime().toString(),
 							editedBy: { Username: UserSchema.username },
 							changes: {}
@@ -553,19 +556,17 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 				};
 
 				// Append the new revision to the existing revisions
-				const revisions = $entryData.__v || [];
-				revisions.push(newRevision);
+				const revisionFormData = new FormData();
+				revisionFormData.append('data', JSON.stringify(newRevision));
+				revisionFormData.append('collectionName', $collection.name as any);
 
-				// Update the __v array with the new revisions
-				$entryData.__v = revisions;
-
-				// Save the new revision to the database
-				await axios.post(`/api/${$collection.name}`, newRevision, config).then((res) => res.data);
+				await handleRequest(revisionFormData, 'POST');
 			}
 
 			return await updateData({ data: formData, collectionName: $collection.name as any });
 	}
 }
+
 // Function to delete image files associated with a content item
 export async function deleteMediaImage(collectionName: string, fileName: string) {
 	const env_sizes = publicEnv.IMAGE_SIZES;

@@ -116,5 +116,8 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 
 	// Github VERSION synchronization to display updated
 	PKG_VERSION?: string;
+
+	// DEMO Mode
+	DEMO?: boolean;
 }) => arg;
 type NoInfer<T> = [T][T extends any ? 0 : never];

@@ -11,7 +11,6 @@
 	// Components
 	import DropDown from './components/DropDown.svelte';
 	import ColorSelector from './components/ColorSelector.svelte';
-	// import Heading from './extensions/Heading';
 	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
@@ -58,12 +57,7 @@
 			element: element,
 			extensions: [
 				StarterKit,
-				// Heading,
-				Link.configure({
-					HTMLAttributes: {
-						class: 'text-[#00d3d0] cursor-pointer underline'
-					}
-				}),
+				Link,
 				TextStyle,
 				FontFamily,
 				Color,

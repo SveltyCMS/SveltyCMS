@@ -1,10 +1,12 @@
+import { publicEnv } from '@root/config/public';
+
 import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 import mongoose from 'mongoose';
-import { publicEnv } from '@root/config/public';
 import { browser } from '$app/environment';
 import _crypto from 'crypto';
+
 import type { MediaImage, MediaDocument, MediaAudio, MediaVideo, MediaRemoteVideo } from './types';
 
 // Get defined sizes from publicEnv

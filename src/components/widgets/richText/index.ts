@@ -1,7 +1,8 @@
 const WIDGET_NAME = 'RichText' as const;
 
 import { publicEnv } from '@root/config/public';
-import { getFieldName, getGuiFields, saveImage } from '@src/utils/utils';
+import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { saveImage } from '@src/utils/media';
 import { GuiSchema, GraphqlSchema, type Params } from './types';
 import mongoose from 'mongoose';
 import type { ModifyRequestParams } from '..';

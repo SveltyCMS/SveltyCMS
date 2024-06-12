@@ -1,5 +1,5 @@
 <script lang="ts">
-	import axios from 'axios';
+	// Utils
 	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
 	import { deleteData, getData, setStatus } from '@src/utils/data';
 
@@ -108,12 +108,13 @@
 
 	// This function refreshes the data displayed in a table by fetching new data from an API endpoint and updating the tableData and options variables.
 	async function refreshTableData(fetch = true) {
-		//console.log('refreshTableData called');
 		// Clear loading timer
-		loadingTimer && clearTimeout(loadingTimer);
+		if (loadingTimer) {
+			clearTimeout(loadingTimer);
+		}
 
 		// If the collection name is empty, return
-		if ($collection.name == '') return;
+		if (!$collection.name) return;
 
 		// If fetch is true, set isLoading to true
 		if (fetch) {
@@ -122,27 +123,37 @@
 				isLoading = true;
 			}, 400);
 
-			// Fetch data from API endpoint
-			data = (await axios
-				.get(
-					`/api/${$collection.name}?page=${currentPage}&length=${rowsPerPage}&filter=${JSON.stringify(filters)}&sort=${JSON.stringify(
+			// Fetch data using getData function
+			try {
+				data = await getData({
+					collectionName: $collection.name as any,
+					page: currentPage,
+					limit: rowsPerPage, // assuming rowsPerPage is defined
+					contentLanguage: $contentLanguage,
+					filter: JSON.stringify(filters),
+					sort: JSON.stringify(
 						sorting.isSorted
 							? {
 									[sorting.sortedBy]: sorting.isSorted
 								}
 							: {}
-					)}&search=${globalSearchValue}`
-				)
-				.then((data) => data.data)) as { entryList: [any]; pagesCount: number };
+					)
+				});
 
-			// Set loading to false
-			isLoading = false;
-			clearTimeout(loadingTimer);
+				// Set loading to false
+				isLoading = false;
+				clearTimeout(loadingTimer);
+			} catch (error) {
+				console.error('Error fetching data:', error);
+				isLoading = false;
+				clearTimeout(loadingTimer);
+				return;
+			}
 		}
 
 		// Update tableData and options
-		data &&
-			(tableData = await Promise.all(
+		if (data) {
+			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
 
@@ -154,9 +165,10 @@
 
 						// Status
 						// TODO: Add Localized status states, Pay attention to Status.svelte modifier
-						//obj.status = entry.status ? m.status_(obj.status) : 'N/A';
+
 						obj.status = entry.status ? entry.status.charAt(0).toUpperCase() + entry.status.slice(1) : 'N/A';
-						//Collection fields
+
+						// Collection fields
 						obj[field.label] = await field.display?.({
 							data: entry[getFieldName(field)],
 							collection: $collection.name,
@@ -173,9 +185,10 @@
 
 					return obj;
 				})
-			));
+			);
+		}
 
-		// For rending Table data
+		// For rendering Table data
 		tableHeaders = $collection.fields.map((field) => ({ label: field.label, name: getFieldName(field) }));
 		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
 
@@ -248,7 +261,7 @@
 		$collection;
 	}
 
-	// Tick  All Rows
+	// Tick All Rows
 	function process_selectAll(selectAll: boolean) {
 		if (selectAll) {
 			// Iterate only over visible entries

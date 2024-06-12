@@ -5,11 +5,11 @@ import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 import { categories, collections, unAssigned } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 import { initWidgets } from '@components/widgets';
-import type { Schema } from './types';
+import type { Schema, CollectionNames } from './types';
 import deepmerge from 'deepmerge';
 import { defaultPermissions } from '@src/auth/types';
 
-let imports: { [Key: string]: Schema } = {};
+let imports = {} as { [key in CollectionNames]: Schema };
 let rnd = Math.random();
 let unsubscribe: Unsubscriber | undefined;
 
@@ -68,12 +68,11 @@ export { categories };
 async function getImports(recompile: boolean = false) {
 	// If imports object is not empty, return its current value
 	if (Object.keys(imports).length && !recompile) return imports;
-	imports = {};
+	imports = {} as { [key in CollectionNames]: Schema };
 	// If running in development or building mode
 	if (dev || building) {
 		// Dynamically import all TypeScript files in current directory, except for specified files
 		const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./Auth.ts', '!./config.ts']);
-
 		// Add imported modules to imports object
 		for (const module in modules) {
 			const name = module.replace(/.ts$/, '').replace('./', '');
@@ -97,7 +96,8 @@ async function getImports(recompile: boolean = false) {
 			// Dynamically import returned files from /api/collections/
 			for (const file of files) {
 				const name = file.replace(/.js$/, '');
-				const collection = (await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)).default;
+				const collection = (await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd)).default;
+				// const collection = (await import(/* @vite-ignore */ '/api/importCollection/' + file + '?' + rnd)).default;
 				if (collection) {
 					collection.name = name;
 					!collection.icon && (collection.icon = 'iconoir:info-empty');

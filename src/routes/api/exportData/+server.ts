@@ -1,7 +1,8 @@
 import fs from 'fs';
 import type { RequestHandler } from './$types';
-import { GET as getData } from '@src/routes/api/[collection]/+server';
 import { publicEnv } from '@root/config/public';
+import { _GET } from '@api/query/GET';
+import mongoose from 'mongoose';
 
 // Auth
 import { auth } from '@api/databases/db';
@@ -26,16 +27,15 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	const $collections = get(collections);
 
 	// Get the form data.
-	const data = await request.formData();
+	const data: { [key: string]: any } = {};
 
 	for (const collection of $collections) {
 		const name = collection.name as string;
 		data[name as string] = (
 			await (
-				await (getData as any)({
-					params: { collection: name },
-					url: new URL(`http://localhost/api/${name}`),
-					cookies
+				await _GET({
+					schema: collection,
+					user
 				})
 			).json()
 		).entryList;

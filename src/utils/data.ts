@@ -4,7 +4,7 @@ import { config, toFormData } from './utils';
 import type { CollectionNames } from '@src/collections/types';
 
 // Helper function to handle API requests
-async function handleRequest(data: FormData, method: string) {
+export async function handleRequest(data: FormData, method: string) {
 	data.append('method', method);
 	try {
 		const response = await axios.post('/api/query', data, config);
