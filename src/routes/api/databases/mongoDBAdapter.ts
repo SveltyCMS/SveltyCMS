@@ -38,7 +38,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
-					collections.forEach((collection) => {
+					// Use Object.values to iterate over the collection values
+					Object.values(collections).forEach((collection) => {
 						if (!collection.name) return;
 
 						// Create a detailed revisions schema

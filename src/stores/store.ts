@@ -1,6 +1,6 @@
 import { writable, type Writable } from 'svelte/store';
 import { publicEnv } from '@root/config/public';
-import type { Schema } from '@collections/types';
+import type { CollectionNames, Schema } from '@src/collections/types';
 
 // Paraglidejs
 import * as m from '@src/paraglide/messages.js';
@@ -17,7 +17,7 @@ export const categories: Writable<
 		collections: Array<Schema>;
 	}>
 > = writable();
-export const collections: Writable<Array<Schema>> = writable();
+export const collections = writable({}) as Writable<{ [key in CollectionNames]: Schema }>;
 export const unAssigned: Writable<Array<Schema>> = writable();
 export const collection: Writable<Schema> = writable();
 export const targetWidget: Writable<any> = writable({});

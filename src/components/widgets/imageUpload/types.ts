@@ -41,7 +41,7 @@ export type Params = {
 	permissions?: Permissions;
 
 	// Widget Specific parameters
-	path: string | 'global' | 'unique';
+	folder: string | 'global' | 'unique';
 	type?: string | 'image' | 'audio' | 'video' | 'document' | 'remotevideo';
 	allowedtypes?: string[];
 	multiupload?: boolean;

@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	// Get the form data.
 	const data: { [key: string]: any } = {};
 
-	for (const collection of $collections) {
+	for (const collection of Object.values($collections)) {
 		const name = collection.name as string;
 		data[name as string] = (
 			await (

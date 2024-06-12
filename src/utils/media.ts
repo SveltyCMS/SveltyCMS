@@ -11,7 +11,7 @@ import type { MediaImage, MediaDocument, MediaAudio, MediaVideo, MediaRemoteVide
 
 // Get defined sizes from publicEnv
 const env_sizes = publicEnv.IMAGE_SIZES;
-const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
+export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Sanitizes a string by replacing spaces with underscores and removing non-alphanumeric characters.
 function sanitize(str: string): string {

@@ -13,11 +13,12 @@ import * as m from '@src/paraglide/messages';
 /**
  * Defines Relation widget Parameters
  */
-const widget = <K extends CollectionContent[T], T extends CollectionNames & keyof CollectionContent>(params: Params<K, T>) => {
+const widget = <K extends CollectionContent[T][number], T extends CollectionNames & keyof CollectionContent>(params: Params<K, T>) => {
 	// Define the display function
 	const display = async ({ data, collection, field, entry, contentLanguage }) => {
-		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
+		const relative_collection = (await getCollections())[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
+
 		return data?.[getFieldName(relative_field)]
 			? await relative_field?.display({
 					data: data[getFieldName(relative_field)],
@@ -28,7 +29,6 @@ const widget = <K extends CollectionContent[T], T extends CollectionNames & keyo
 				})
 			: '';
 	};
-
 	display.default = true;
 
 	// Define the widget object
@@ -78,7 +78,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	}
 	const { getCollectionModels } = await import('@src/routes/api/databases/db');
 	const relative_collection = (await getCollectionModels())[field.relation];
-	const relative_collection_schema = (await getCollections()).find((c) => c.name == field.relation) as Schema;
+	const relative_collection_schema = (await getCollections())[field.relation] as Schema;
 	const response = (await relative_collection.findById(_data)) as any;
 	const result = {};
 	for (const key in relative_collection_schema.fields) {
@@ -109,7 +109,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
+		const relative_collection = (await getCollections())[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
 		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {
@@ -123,9 +123,10 @@ widget.aggregations = {
 			}) ?? []
 		);
 	},
+
 	sorts: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-		const relative_collection = (await getCollections()).find((c: any) => c.name == field.relation);
+		const relative_collection = (await getCollections())[field.relation];
 		const relative_field = relative_collection?.fields.find((f) => getFieldName(f) == field.displayPath);
 		const widget = widgets[relative_field.widget.Name];
 		const new_field = deepmerge(relative_field, {

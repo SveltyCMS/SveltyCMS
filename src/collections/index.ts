@@ -16,10 +16,9 @@ let unsubscribe: Unsubscriber | undefined;
 // Define getCollections function to return a promise that resolves with the value of the collections store
 export async function getCollections() {
 	initWidgets();
-	return new Promise<any>((resolve) => {
+	return new Promise<{ [key in CollectionNames]: Schema }>((resolve) => {
 		unsubscribe = collections.subscribe((collections) => {
-			if (collections?.length > 0) {
-				// collection.set(collections[0]);
+			if (Object.keys(collections)?.length > 0) {
 				unsubscribe && unsubscribe();
 				unsubscribe = undefined;
 				resolve(collections);
@@ -52,10 +51,22 @@ export const updateCollections = async (recompile: boolean = false) => {
 		for (const _category of _categories) {
 			_category.collections = _category.collections.filter((x) => !!x == true);
 		}
-		const _collections = _categories.map((x) => x.collections).reduce((x, acc) => x.concat(acc));
+
+		// Define categories and collections
+		const _collections = _categories
+			.map((x) => x.collections)
+			.reduce((acc, x) => acc.concat(x))
+			.reduce(
+				(acc, x) => {
+					acc[x.name as string] = x;
+					return acc;
+				},
+				{} as { [key in CollectionNames]: Schema }
+			);
+
 		categories.set(_categories);
 		collections.set(_collections); // returns all collections
-		unAssigned.set(Object.values(imports).filter((x) => !_collections.includes(x)));
+		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 	});
 };
 

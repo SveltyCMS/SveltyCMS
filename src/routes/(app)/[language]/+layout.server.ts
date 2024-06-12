@@ -23,7 +23,7 @@ export async function load({ cookies, route, params }) {
 		throw redirect(302, `/user`);
 	}
 
-	const collection = collections.find((c: any) => c.name == params.collection);
+	const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
 	// Check if language and collection both set in url
 	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
@@ -39,15 +39,15 @@ export async function load({ cookies, route, params }) {
 	}
 
 	if (user) {
-		if (route.id != '/(app)/[language]/[collection]') {
+		if (route.id !== '/(app)/[language]/[collection]') {
 			// If the route does not have a language parameter and the contentLanguage store is not set
 			if (!params.language && !contentLanguage) {
 				// Redirect to the default language with the first accessible collection
-				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
 				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
 			} else {
 				// Filters collection based on reading permissions and redirects to the first accessible one
-				const _filtered = collections.filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
 				throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
 			}
 		}

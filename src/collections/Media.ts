@@ -15,7 +15,7 @@ const schema: Schema = {
 	fields: [
 		widgets.ImageUpload({
 			label: 'Image',
-			path: 'global'
+			folder: 'global'
 		})
 	]
 };

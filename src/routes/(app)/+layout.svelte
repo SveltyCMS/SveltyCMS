@@ -45,7 +45,7 @@
 		ForwardBackward = true; // Set ForwardBackward to true to indicate that the user is navigating using the browser's forward or backward buttons
 
 		// Update the value of the collection store based on the current page's collection parameter
-		collection.set($collections.find((x) => x.name === $page.params.collection) as Schema);
+		collection.set($collections[$page.params.collection as string] as Schema);
 	};
 
 	// Subscribe to changes in the collection store and do redirects

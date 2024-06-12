@@ -13,9 +13,16 @@ export async function registerCollections() {
 	const collectionSchemas: string[] = [];
 
 	// Loop over each collection to register Mongoose models and build typeDefs and resolvers
-	for (const collection of collections) {
+	for (const collection of Object.values(collections)) {
+		// Type check for collection
+		if (!collection.name) {
+			console.error('Collection name is undefined:', collection);
+			continue;
+		}
+		const collectionName: string = collection.name;
+
 		// Register Mongoose model if not already registered
-		if (!mongoose.models[collection.name]) {
+		if (!mongoose.models[collectionName]) {
 			const schemaDefinition: any = {};
 			collection.fields.forEach((field) => {
 				schemaDefinition[getFieldName(field)] = {
@@ -24,15 +31,15 @@ export async function registerCollections() {
 				};
 			});
 			const schema = new mongoose.Schema(schemaDefinition, { timestamps: true });
-			mongoose.model(collection.name, schema);
+			mongoose.model(collectionName, schema);
 		}
 
 		// Initialize collection resolvers
-		resolvers[collection.name as string] = {};
+		resolvers[collectionName] = {};
 
 		// Initialize GraphQL type definition for the collection
 		let collectionSchema = `
-            type ${collection.name} {
+            type ${collectionName} {
                 _id: String
                 createdAt: String
                 updatedAt: String
@@ -64,13 +71,13 @@ export async function registerCollections() {
 								collection
 							}).typeName
 						}\n`;
-						deepmerge(resolvers[collection.name as string], {
+						deepmerge(resolvers[collectionName], {
 							[getFieldName(_field, true)]: (parent) => parent[getFieldName(_field)]
 						});
 					}
 				} else {
 					collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
-					deepmerge(resolvers[collection.name as string], {
+					deepmerge(resolvers[collectionName], {
 						[getFieldName(field, true)]: (parent) => parent[getFieldName(field)]
 					});
 				}
@@ -90,21 +97,27 @@ export async function registerCollections() {
 export async function collectionsResolvers(redisClient, privateEnv) {
 	const { resolvers, collections } = await registerCollections();
 
-	for (const collection of collections) {
-		resolvers.Query[collection.name as string] = async () => {
+	for (const collection of Object.values(collections)) {
+		if (!collection.name) {
+			console.error('Collection name is undefined:', collection);
+			continue;
+		}
+		const collectionName: string = collection.name;
+
+		resolvers.Query[collectionName] = async () => {
 			try {
 				// Try to fetch the result from Redis first
 				if (privateEnv.USE_REDIS === true) {
-					const cachedResult = await redisClient.get(collection.name);
+					const cachedResult = await redisClient.get(collectionName);
 					if (cachedResult) {
 						return JSON.parse(cachedResult);
 					}
 				}
 
 				// Fetch result from the database
-				const model = mongoose.models[collection.name];
+				const model = mongoose.models[collectionName];
 				if (!model) {
-					throw new Error(`Model not found for collection: ${collection.name}`);
+					throw new Error(`Model not found for collection: ${collectionName}`);
 				}
 
 				const dbResult = await model
@@ -120,12 +133,12 @@ export async function collectionsResolvers(redisClient, privateEnv) {
 
 				// Store the DB result in Redis for future requests
 				if (privateEnv.USE_REDIS === true) {
-					await redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
+					await redisClient.set(collectionName, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
 				}
 
 				return dbResult;
 			} catch (error) {
-				console.error(`Error fetching data for ${collection.name}:`, error);
+				console.error(`Error fetching data for ${collectionName}:`, error);
 				throw error;
 			}
 		};

@@ -7,7 +7,8 @@
 	import Fields from '@components/Fields.svelte';
 
 	import type { FieldType } from '.';
-	import axios from 'axios';
+
+	// Utils
 	import { getData } from '@src/utils/data';
 	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
 
@@ -22,7 +23,7 @@
 	let showDropDown = false;
 	let entryMode: 'create' | 'edit' | 'choose' = 'choose';
 	let relation_entry: any;
-	const relationCollection = $collections.find((x) => x.name == field?.relation);
+	let relationCollection = $collections[field?.relation];
 
 	export const WidgetData = async () => {
 		let relation_id = '';
@@ -32,9 +33,14 @@
 		} else if (entryMode == 'choose') {
 			relation_id = selected?._id;
 		} else if (entryMode == 'edit') {
-			relation_id = relation_entry
-				? (await saveFormData({ data: fieldsData, _collection: relationCollection, _mode: 'edit', id: relation_entry._id }))[0]?._id
-				: '';
+			relation_id = (
+				await saveFormData({
+					data: fieldsData,
+					_collection: relationCollection,
+					_mode: 'edit',
+					id: relation_entry._id
+				})
+			)[0]?._id;
 		}
 		return relation_id;
 	};
@@ -47,6 +53,7 @@
 				limit: 10
 			})
 		).entryList;
+
 		showDropDown = true;
 		entryMode = 'choose';
 	}
@@ -72,8 +79,13 @@
 
 		data = data[field.displayPath] ? data : value;
 		data = $mode == 'create' ? {} : data;
-
-		display = await field?.display({ data, field, collection: $collection, entry: $entryData, contentLanguage: $contentLanguage });
+		display = await field?.display({
+			data,
+			field,
+			collection: $collection,
+			entry: $entryData,
+			contentLanguage: $contentLanguage
+		});
 	})(expanded);
 
 	function save() {
@@ -84,7 +96,10 @@
 
 {#if !expanded && !showDropDown}
 	<div class="relative mb-1 flex w-screen min-w-[200px] max-w-full items-center justify-start gap-0.5 rounded border py-1 pl-10 pr-2">
-		<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown}>{@html selected?.display || display || 'select new'}</button>
+		<button class="flex-grow text-center dark:text-primary-500" on:click={openDropDown}>
+			{@html selected?.display || display || 'select new'}
+		</button>
+
 		<div class="ml-auto flex items-center pr-2">
 			{#if $mode == 'create'}
 				<button

@@ -15,25 +15,23 @@
 	let ForwardBackward: boolean = false; // if using browser history
 
 	// Set the value of the collection store to the collection object from the collections array that has a name property that matches the current page's collection parameter
-	collection.set($collections.find((x) => x.name === $page.params.collection) as Schema); // current collection
+	collection.set($collections[$page.params.collection as string] as Schema); // current collection
 
 	window.onpopstate = async () => {
 		ForwardBackward = true;
-		collection.set($collections.find((x) => x.name === $page.params.collection) as Schema);
+		collection.set($collections[$page.params.collection as string] as Schema);
 	};
 
 	// Subscribe to changes in the collection store and do redirects
-	// TODO; fix redirect due to reload?
-	const unsubscribe = collection.subscribe(() => {
+	const unsubscribe = collection.subscribe((_) => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
-			// alert('ForwardBackward');
-			goto(`/${$page.params.language}/${$collection.name}`);
+			goto(`/${$contentLanguage}/${$collection.name}`);
 		}
 		ForwardBackward = false;
 	});
+
 	onDestroy(() => {
-		// alert('onDestroy');
 		unsubscribe();
 	});
 

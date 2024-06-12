@@ -12,12 +12,14 @@ import { createClient } from 'redis';
 
 // Initialize Redis client if needed
 let redisClient: any = null;
+
 if (privateEnv.USE_REDIS === true) {
 	// Create Redis client
 	redisClient = createClient({
 		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
 		password: privateEnv.REDIS_PASSWORD
 	});
+	// Connect to Redis
 	redisClient.on('error', (err: Error) => {
 		console.error('Redis error: ', err);
 	});
@@ -33,7 +35,9 @@ async function setupGraphQL() {
         ${userTypeDefs()}
         ${mediaTypeDefs()}
         type Query {
-            ${collections.map((collection: any) => `${collection.name}: [${collection.name}]`).join('\n')}
+			${Object.values(collections)
+				.map((collection) => `${collection.name}: [${collection.name}]`)
+				.join('\n')}
             users: [User]
             mediaImages: [MediaImage]
             mediaDocuments: [MediaDocument]

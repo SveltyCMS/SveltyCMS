@@ -19,7 +19,7 @@ export async function load({ cookies }) {
 	if (!user) throw redirect(302, `/login`);
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = (await getCollections()).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
+	const _filtered = Object.values(await getCollections()).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
 
 	if (_filtered.length == 0) {
 		throw error(404, {

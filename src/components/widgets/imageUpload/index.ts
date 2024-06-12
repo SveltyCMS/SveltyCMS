@@ -113,6 +113,8 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 					index = removed.indexOf(_id.toString());
 				}
 			}
+			console.log(_data);
+			console.log(_id);
 			await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
 			break;
 		case 'DELETE':

@@ -21,7 +21,7 @@ const widget = (params: Params) => {
 			db_fieldName: params.uploader_db_fieldName,
 			label: params.uploader_label,
 			display: params.uploader_display,
-			path: params.uploader_path
+			folder: params.uploader_path
 		})
 	);
 
