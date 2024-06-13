@@ -5,7 +5,6 @@
 
 	// Auth
 	import { roles } from '@src/auth/types';
-	import { addUserTokenSchema } from '@utils/formSchemas';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -14,7 +13,6 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	export let addUserForm: PageData['addUserForm'];
-	export let data: PageData;
 
 	// Exposes parent props to this component.
 	export let parent: any;
@@ -45,7 +43,7 @@
 	// Superforms
 	import { superForm } from 'sveltekit-superforms/client';
 	import { zod } from 'sveltekit-superforms/adapters';
-	//import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
+	import { addUserTokenSchema } from '@utils/formSchemas';
 
 	const { form, allErrors, errors, enhance } = superForm(addUserForm as Record<string, unknown>, {
 		id: 'addUser',
@@ -66,7 +64,6 @@
 			};
 			toastStore.trigger(t);
 
-			// console.log($allErrors.length);
 			if ($allErrors.length > 0) cancel();
 		},
 
@@ -80,13 +77,11 @@
 		}
 	});
 
-	// define default role
+	// Define default role and token validity options
 	let roleSelected = Object.values(roles)[1];
-
-	/// Calculate expiration time in seconds based on expiresIn value
 	let expiresIn = '2 hrs'; // Set the default validity
 	let expiresInLabel = '';
-	let expirationTime: any;
+	let expirationTime: number | undefined;
 
 	// Define the validity options and their corresponding seconds
 	const validityOptions = [
@@ -111,7 +106,6 @@
 			{$modalStore[0]?.body ?? '(body missing)'}
 		</article>
 
-		<!-- <SuperDebug data={$form} /> -->
 		<form class="modal-form {cForm}" method="post" action="?/addUser" id="addUser" use:enhance>
 			<!-- Email field -->
 			<div class="group relative mb-6 w-full">
@@ -141,7 +135,6 @@
 							<span
 								class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
-									// filterRole(r);
 									roleSelected = r;
 								}}
 								on:keypress
@@ -163,7 +156,6 @@
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-1 space-x-2 sm:justify-start sm:gap-2">
-						<!-- <input type="text" class="hidden" name="expireIn" bind:value={$form.expiresIn} /> -->
 						{#each validityOptions as option}
 							<span
 								class="chip {expiresIn === option.value ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"

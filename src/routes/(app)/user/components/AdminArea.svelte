@@ -53,6 +53,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { publicEnv } from '@root/config/public';
 
 	const flipDurationMs = 300;
 
@@ -144,21 +145,21 @@
 	let pagesCount: number = userPaginationSettings.pagesCount || 1;
 	let currentPage: number = userPaginationSettings.currentPage || 1;
 	let rowsPerPage: number = userPaginationSettings.rowsPerPage || 10;
-	const rowsPerPageOptions = [10, 25, 50, 100, 500];
-
-	let isFirstPage: boolean;
-	let isLastPage: boolean;
+	const rowsPerPageOptions = [2, 10, 25, 50, 100, 500];
 
 	async function refreshTableData() {
+		// Clear loading timer & show loader
 		loadingTimer && clearTimeout(loadingTimer);
 
 		try {
 			let responseData: any;
 			if (showUserList || showUsertoken) {
+				// Show loader
 				loadingTimer = setTimeout(() => {
 					isLoading = true;
 				}, 400);
 
+				// Get User/Token data
 				if (showUserList) {
 					responseData = await axios.get('/api/getUsers').then((data) => data.data);
 				} else {
@@ -171,9 +172,23 @@
 					const formattedItem = {};
 					for (const header of tableHeaders) {
 						const { key } = header;
-						formattedItem[key] = item[key] || 'NO DATA';
-						if (key === 'createdAt' || key === 'updatedAt' || key === 'expiresIn') {
-							formattedItem[key] = new Date(item[key]).toLocaleString();
+						//console.log(key, item[key]);
+						// Display avatar image in table
+						if (key === 'avatar') {
+							if (item[key]) {
+								const avatarUrl = `${item[key].thumbnail.url}`;
+								console.log('Avatar URL:', avatarUrl); // Log the constructed URL
+								formattedItem[key] = avatarUrl;
+							} else {
+								formattedItem[key] = '/Default_User.svg';
+							}
+						} else {
+							formattedItem[key] = item[key] || 'NO DATA';
+
+							// Display CreatedAt/UpdatedAt in table
+							if (key === 'createdAt' || key === 'updatedAt' || key === 'expiresIn') {
+								formattedItem[key] = new Date(item[key]).toLocaleString();
+							}
 						}
 					}
 					return formattedItem;
@@ -181,6 +196,7 @@
 
 				filters = {};
 
+				// Set table headers
 				if (userPaginationSettings.displayTableHeaders.length > 0) {
 					displayTableHeaders = userPaginationSettings.displayTableHeaders.map((header) => ({
 						...header,
@@ -195,13 +211,18 @@
 				}
 
 				SelectAll = false;
-				pagesCount = pagesCount || 1;
-				isFirstPage = currentPage === 1;
-				isLastPage = currentPage === pagesCount;
+				const totalRows = tableData.length;
+				pagesCount = Math.ceil(totalRows / rowsPerPage);
 
-				if (currentPage > (pagesCount || 0)) {
-					currentPage = pagesCount || 1;
+				// Reset currentPage to 1 if it exceeds the new total pages
+				if (currentPage > pagesCount) {
+					currentPage = 1;
 				}
+
+				// Slice tableData for current page
+				const startIndex = (currentPage - 1) * rowsPerPage;
+				const endIndex = startIndex + rowsPerPage;
+				tableData = tableData.slice(startIndex, endIndex);
 
 				isLoading = false;
 				clearTimeout(loadingTimer);
@@ -476,21 +497,23 @@
 				</table>
 			</div>
 
-			<!-- Pagination Component -->
-			<TablePagination
-				{currentPage}
-				{pagesCount}
-				{rowsPerPage}
-				{rowsPerPageOptions}
-				on:updatePage={(e) => {
-					currentPage = e.detail;
-					refreshTableData();
-				}}
-				on:updateRowsPerPage={(e) => {
-					rowsPerPage = e.detail;
-					refreshTableData();
-				}}
-			/>
+			<!-- Pagination  -->
+			<div class="relative bottom-0 left-0 right-0 mt-2 flex flex-col items-center justify-center px-2 md:flex-row md:justify-between md:p-4">
+				<TablePagination
+					{currentPage}
+					{pagesCount}
+					{rowsPerPage}
+					{rowsPerPageOptions}
+					on:updatePage={(e) => {
+						currentPage = e.detail;
+						refreshTableData();
+					}}
+					on:updateRowsPerPage={(e) => {
+						rowsPerPage = e.detail;
+						refreshTableData();
+					}}
+				/>
+			</div>
 		{:else}
 			<div class="variant-ghost-error btn text-center font-bold">
 				{#if showUserList}

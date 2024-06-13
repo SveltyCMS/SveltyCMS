@@ -31,7 +31,7 @@ export type Params<K, T> = {
 	permissions?: Permissions;
 
 	// Widget Specific parameters
-	displayPath: any;
+	displayPath: K;
 	relation: T;
 };
 

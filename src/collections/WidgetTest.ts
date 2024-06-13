@@ -14,9 +14,8 @@ const schema: Schema = {
 	// Widget fields can be inspected for individual options
 	fields: [
 		widgets.Text({
-			db_fieldName: 'firstname',
-			// label: get(LL).COLLECTION_TEST_First(),
 			label: 'First',
+			db_fieldName: 'firstname',
 			icon: 'ri:t-box-line',
 			// placeholder: get(LL).COLLECTION_TEST_First_placeholder(),
 			placeholder: 'Enter First Name',
@@ -26,8 +25,8 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'middlename',
 			label: 'Middle',
+			db_fieldName: 'middlename',
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Middle Name',
 			readonly: true,
@@ -35,8 +34,8 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'lastname',
 			label: 'Last',
+			db_fieldName: 'lastname',
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Last Name',
 			width: 3,
@@ -44,8 +43,8 @@ const schema: Schema = {
 		}),
 
 		widgets.Text({
-			db_fieldName: 'Full_Text_option',
 			label: 'Full Text option',
+			db_fieldName: 'Full_Text_option',
 			icon: 'carbon:character-whole-number',
 			prefix: 'pre',
 			suffix: 'suf',

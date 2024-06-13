@@ -73,6 +73,7 @@ widget.Description = m.widget_relation_description();
 // Widget modifyRequest
 widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestParams<typeof widget>) => {
 	const _data = data.get();
+
 	if (type !== 'GET' || !_data) {
 		return;
 	}

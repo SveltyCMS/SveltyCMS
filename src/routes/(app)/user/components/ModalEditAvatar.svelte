@@ -21,10 +21,9 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	let files: FileList;
-
 	export let avatarSrc: any;
 
+	let files: FileList;
 	let _avatarSrc: undefined | string = undefined;
 
 	function onChange(e: Event) {

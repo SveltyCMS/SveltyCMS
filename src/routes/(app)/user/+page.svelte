@@ -62,6 +62,7 @@
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
+	import { onMount } from 'svelte';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -162,6 +163,10 @@
 		};
 		modalStore.trigger(d);
 	}
+
+	onMount(() => {
+		avatarSrc.subscribe((value) => {});
+	});
 
 	// Modal Confirm
 	function modalConfirm(): void {
