@@ -51,18 +51,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		await configurationPrompt(); // Restart the configuration process
 	}
 
-	const dbName = await text({
-		message: 'Enter the database name:',
-		initialValue: privateConfigData.DB_NAME || 'sveltycms'
-	});
-
-	if (isCancel(dbName)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt(); // Restart the configuration process
-		return;
-	}
-
+	// Advanced Settings
 	const advanced = await confirm({
 		message: 'Would you like to configure advanced settings?',
 		initialValue: false // Set to false by default to streamline the process
@@ -124,7 +113,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	note(
 		`DB_TYPE: ${pc.green(projectDatabase)}\n` +
 			`DB_HOST: ${pc.green(dbConfig.DB_HOST)}\n` +
-			`DB_NAME: ${pc.green(dbName)}\n` +
+			`DB_NAME: ${pc.green(dbConfig.DB_NAME)}\n` +
 			`DB_USER: ${pc.green(dbConfig.DB_USER)}\n` +
 			`DB_PASSWORD: ${pc.green(dbConfig.DB_PASSWORD)}\n\n` +
 			`Advanced Configuration:\n` +
@@ -176,7 +165,7 @@ export async function configureDatabase(privateConfigData = {}) {
 	return {
 		DB_TYPE: projectDatabase,
 		DB_HOST: dbConfig.DB_HOST,
-		DB_NAME: dbName,
+		DB_NAME: dbConfig.DB_NAME,
 		DB_USER: dbConfig.DB_USER,
 		DB_PASSWORD: dbConfig.DB_PASSWORD,
 		DB_RETRY_ATTEMPTS: privateConfigData.DB_RETRY_ATTEMPTS,

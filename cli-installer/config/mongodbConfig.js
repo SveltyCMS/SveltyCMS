@@ -82,7 +82,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		return;
 	}
 
-	let dbHost, dbUser, dbPassword, dbName;
+	let dbHost, dbUser, dbPassword, dbName, connectionString;
 
 	if (mongoOption === 'atlas') {
 		note(
@@ -98,7 +98,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		);
 
 		// Atlas connection string
-		const connectionString = await text({
+		connectionString = await text({
 			message: 'Enter your MongoDB Atlas connection string:',
 			placeholder: 'mongodb+srv://<username>:<password>@<cluster-name>',
 			required: true
@@ -110,7 +110,6 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
-
 		// Parse the connection string to extract the username
 		const url = new URL(connectionString);
 		dbUser = url.username;
@@ -128,17 +127,36 @@ export async function configureMongoDB(privateConfigData = {}) {
 			return;
 		}
 
+		// Prompt for the database name
+		dbName = await text({
+			message: 'Enter the database name:',
+			placeholder: 'SvelteCMS',
+			initialValue: privateConfigData.DB_NAME || 'SvelteCMS',
+			required: true
+		});
+
+		if (isCancel(dbName)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt();
+			return;
+		}
 		// Parse missing values from the connection string
 		dbHost = url.host;
 		dbPassword = password;
-		dbName = url.pathname.replace('/', ''); // Extract the database name from the URL
+
+		// Reconstruct the connection string with the password
+		connectionString = `mongodb+srv://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}/${dbName}`;
 	} else if (mongoOption === 'docker-local') {
 		note(
-			`To set up Docker or Local MongoDB, you need to have Docker installed and running on your machine if using Docker.\n` +
-				`Ensure your Docker container is running with the MongoDB image or your local MongoDB server is running.`,
+			`To set up Docker or Local MongoDB, you need to have Docker installed\n` +
+				`and running on your machine if using Docker.\n` +
+				`Ensure your Docker container is running with the MongoDB image or\n` +
+				`your local MongoDB server is running.`,
 			pc.green('Docker/Local MongoDB Setup Instructions:')
 		);
 
+		// Database Host
 		dbHost = await text({
 			message: 'Enter the MongoDB host:',
 			placeholder: 'mongodb://localhost:27017',
@@ -153,6 +171,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			return;
 		}
 
+		// Database name
 		dbName = await text({
 			message: 'Enter the database name:',
 			placeholder: 'SvelteCMS',
@@ -167,6 +186,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			return;
 		}
 
+		// Database User
 		dbUser = await text({
 			message: 'Enter the MongoDB user:',
 			placeholder: 'Username if set, otherwise leave blank',
@@ -181,6 +201,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			return;
 		}
 
+		// Database Password
 		dbPassword = await text({
 			message: 'Enter the MongoDB password:',
 			placeholder: 'Password if set, otherwise leave blank',
@@ -194,13 +215,20 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
+
+		// Reconstruct the connection string if user and password are set
+		if (dbUser !== '' && dbPassword !== '') {
+			connectionString = `mongodb://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}/${dbName}`;
+		} else {
+			connectionString = `mongodb://${dbHost}/${dbName}`;
+		}
 	}
 
 	let isConnectionSuccessful = false;
 	const s = spinner();
 	try {
 		s.start('Testing MongoDB connection...');
-		isConnectionSuccessful = await testMongoDBConnection(dbHost, dbName, dbUser, dbPassword);
+		isConnectionSuccessful = await testMongoDBConnection(connectionString);
 		s.stop();
 	} catch (error) {
 		s.stop();
@@ -233,7 +261,6 @@ export async function configureMongoDB(privateConfigData = {}) {
 		`DB_HOST: ${pc.green(dbHost)}\n` + `DB_NAME: ${pc.green(dbName)}\n` + `DB_USER: ${pc.green(dbUser)}\n` + `DB_PASSWORD: ${pc.green(dbPassword)}`,
 		pc.green('Review your MongoDB configuration:')
 	);
-
 	const action = await confirm({
 		message: 'Is the above configuration correct?',
 		initialValue: true
