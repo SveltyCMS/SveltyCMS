@@ -1,7 +1,6 @@
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';
-import { configureMariaDB } from './mariadbConfig.js';
 import { text, select, note, isCancel, cancel, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 
@@ -11,7 +10,11 @@ export async function configureDatabase(privateConfigData = {}) {
 
 	// Guide Note
 	note(
-		`${pc.green('Database configuration is required')}\n` + `Follow the instructions for your preferred database setup.`,
+		`${pc.green('Database configuration is required for SveltyCMS.')}\n\n` +
+			`This setup process will guide you through configuring\n` +
+			`your preferred database option.\n\n` +
+			`If you need further assistance, please refer to the\n` +
+			`documentation: ${pc.blue('https://docs.SveltyCMS.com/database-setup')}`,
 		pc.green('Database Configuration:')
 	);
 
@@ -37,9 +40,14 @@ export async function configureDatabase(privateConfigData = {}) {
 
 	if (projectDatabase === 'mongodb') {
 		dbConfig = await configureMongoDB(privateConfigData);
-	} else if (projectDatabase === 'mariadb') {
-		dbConfig = await configureMariaDB(privateConfigData);
 	} else if (projectDatabase === 'other') {
+		note(
+			`We're actively working on adding support for more\n` +
+				`database options.\n\n` +
+				`Please check back soon or refer to the documentation\n` +
+				`for manual setup instructions: ${pc.blue('https://docs.SveltyCMS.com/docs/database-setup')}`,
+			pc.green('Database Option Not Available Yet')
+		);
 		await configurationPrompt(); // Restart the configuration process
 	}
 

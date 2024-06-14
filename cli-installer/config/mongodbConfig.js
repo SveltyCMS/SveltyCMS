@@ -3,14 +3,14 @@ import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';
 
 // Function to test MongoDB connection
-async function testMongoDBConnection(host, dbName, user, password) {
+async function testMongoDBConnection(connectionString) {
 	const mongoose = await import('mongoose');
 	try {
-		const connectionString = `mongodb://${user}:${password}@${host}/${dbName}`;
 		await mongoose.default.connect(connectionString);
 		await mongoose.default.connection.db.admin().ping();
 		return true;
 	} catch (error) {
+		console.error('Error connecting to MongoDB:', error);
 		if (error.message.includes('getaddrinfo')) {
 			throw new Error(
 				'Unable to resolve the MongoDB host URL. Please check the DB_HOST value and ensure that the hostname or IP address is correct.'
@@ -135,11 +135,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 	} else if (mongoOption === 'docker-local') {
 		note(
 			`To set up Docker or Local MongoDB, you need to have Docker installed and running on your machine if using Docker.\n` +
-				`Ensure your Docker container is running with the MongoDB image or your local MongoDB server is running.\n\n` +
-				`Here is an example Docker command to run MongoDB:\n` +
-				`${pc.green('docker run --name mongodb -d -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=root -e MONGO_INITDB_ROOT_PASSWORD=secret mongo')}\n\n` +
-				`Here is an example command to start MongoDB locally:\n` +
-				`${pc.green('mongod --dbpath /path/to/your/db')}`,
+				`Ensure your Docker container is running with the MongoDB image or your local MongoDB server is running.`,
 			pc.green('Docker/Local MongoDB Setup Instructions:')
 		);
 
