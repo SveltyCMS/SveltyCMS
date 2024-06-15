@@ -14,9 +14,20 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Connect to MongoDB database using imported environment variables with retry logic
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
+		// Construct the MongoDB connection string
+		let connectionString: string;
+
+		if (privateEnv.DB_HOST.startsWith('mongodb+srv://')) {
+			// MongoDB Atlas connection string
+			connectionString = privateEnv.DB_HOST;
+		} else {
+			// Standard MongoDB connection string with host and port
+			connectionString = `mongodb://${privateEnv.DB_USER}:${encodeURIComponent(privateEnv.DB_PASSWORD)}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
+		}
+
 		while (attempts > 0) {
 			try {
-				await mongoose.connect(privateEnv.DB_HOST, {
+				await mongoose.connect(connectionString, {
 					authSource: 'admin',
 					user: privateEnv.DB_USER,
 					pass: privateEnv.DB_PASSWORD,

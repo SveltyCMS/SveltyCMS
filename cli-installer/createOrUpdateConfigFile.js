@@ -20,6 +20,7 @@ export async function createOrUpdateConfigFile(configData) {
 
             // Define the database connection
             DB_HOST: '${configData?.DB_HOST || ''}',
+            DB_PORT: ${configData?.DB_PORT || ''},
             DB_NAME: '${configData?.DB_NAME || 'SveltyCMS'}',
 
             // Define the database username & password if required

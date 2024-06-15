@@ -1,37 +1,17 @@
-import { text, confirm, select, note, isCancel, cancel, spinner } from '@clack/prompts';
+import { text, note, isCancel, cancel, select, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';
 
-// Function to test MongoDB connection
-async function testMongoDBConnection(connectionString) {
-	const mongoose = await import('mongoose');
-	try {
-		await mongoose.default.connect(connectionString);
-		await mongoose.default.connection.db.admin().ping();
-		return true;
-	} catch (error) {
-		console.error('Error connecting to MongoDB:', error);
-		if (error.message.includes('getaddrinfo')) {
-			throw new Error(
-				'Unable to resolve the MongoDB host URL. Please check the DB_HOST value and ensure that the hostname or IP address is correct.'
-			);
-		} else if (error.message.includes('IP access list')) {
-			throw new Error('Your IP address is not whitelisted on the MongoDB Atlas cluster. Please whitelist your IP address and try again.');
-		} else {
-			throw new Error(`Connection Error: ${error.message}`);
-		}
-	}
-}
-
 export async function configureMongoDB(privateConfigData = {}) {
 	// Extract the relevant MongoDB configuration
-	const { DB_TYPE, DB_HOST, DB_NAME, DB_USER, DB_PASSWORD } = privateConfigData;
+	const { DB_TYPE, DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASSWORD } = privateConfigData;
 
 	// Display existing configuration if present
-	if (DB_TYPE && DB_HOST && DB_NAME && DB_USER && DB_PASSWORD) {
+	if (DB_TYPE && DB_HOST && DB_PORT && DB_NAME && DB_USER && DB_PASSWORD) {
 		note(
 			`DB_TYPE: ${pc.red(DB_TYPE)}\n` +
 				`DB_HOST: ${pc.red(DB_HOST)}\n` +
+				`DB_PORT: ${pc.red(DB_PORT)}\n` +
 				`DB_NAME: ${pc.red(DB_NAME)}\n` +
 				`DB_USER: ${pc.red(DB_USER)}\n` +
 				`DB_PASSWORD: ${pc.red(DB_PASSWORD)}`,
@@ -46,12 +26,14 @@ export async function configureMongoDB(privateConfigData = {}) {
 		if (isCancel(continueWithExisting) || !continueWithExisting) {
 			cancel('Operation cancelled.');
 			console.clear();
-			await configurationPrompt(); // Restart the configuration process
+			await configurationPrompt();
 			return;
 		}
 
 		return {
 			DB_HOST,
+			DB_PORT,
+			DB_NAME,
 			DB_USER,
 			DB_PASSWORD
 		};
@@ -82,7 +64,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		return;
 	}
 
-	let dbHost, dbUser, dbPassword, dbName, connectionString;
+	let dbHost, dbPort, dbUser, dbPassword, dbName, connectionString;
 
 	if (mongoOption === 'atlas') {
 		note(
@@ -110,9 +92,11 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
-		// Parse the connection string to extract the username
+
+		// Parse the connection string to extract the username and hostname
 		const url = new URL(connectionString);
 		dbUser = url.username;
+		dbHost = url.hostname;
 
 		// Atlas Password
 		const password = await text({
@@ -141,8 +125,9 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
-		// Parse missing values from the connection string
-		dbHost = url.host;
+
+		// MongoDB Atlas does not expose a port in the connection string, default to 27017
+		dbPort = '27017';
 		dbPassword = password;
 
 		// Reconstruct the connection string with the password
@@ -165,6 +150,21 @@ export async function configureMongoDB(privateConfigData = {}) {
 		});
 
 		if (isCancel(dbHost)) {
+			cancel('Operation cancelled.');
+			console.clear();
+			await configurationPrompt();
+			return;
+		}
+
+		// Database Port
+		dbPort = await text({
+			message: 'Enter the MongoDB port:',
+			placeholder: '27017',
+			initialValue: privateConfigData.DB_PORT || '27017',
+			required: true
+		});
+
+		if (isCancel(dbPort)) {
 			cancel('Operation cancelled.');
 			console.clear();
 			await configurationPrompt();
@@ -218,90 +218,15 @@ export async function configureMongoDB(privateConfigData = {}) {
 
 		// Reconstruct the connection string if user and password are set
 		if (dbUser !== '' && dbPassword !== '') {
-			connectionString = `mongodb://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}/${dbName}`;
+			connectionString = `mongodb://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
 		} else {
-			connectionString = `mongodb://${dbHost}/${dbName}`;
-		}
-	}
-
-	let isConnectionSuccessful = false;
-	const s = spinner();
-	try {
-		s.start('Testing MongoDB connection...');
-		isConnectionSuccessful = await testMongoDBConnection(connectionString);
-		s.stop();
-	} catch (error) {
-		s.stop();
-		note(
-			`${pc.red('MongoDB connection failed:')} ${error.message}\n` + 'Please check your connection details and try again.',
-			pc.red('Connection Error')
-		);
-	}
-
-	if (isConnectionSuccessful) {
-		note(`${pc.green('MongoDB connection successful!')}`, pc.green('Connection Test Result:'));
-	} else {
-		console.log(pc.red('◆  MongoDB connection test failed.') + ' Please check your connection details and try again.');
-		const retry = await confirm({
-			message: 'Do you want to try entering the connection details again?',
-			initialValue: true
-		});
-
-		if (isCancel(retry) || !retry) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
-		} else {
-			return configureMongoDB(privateConfigData);
-		}
-	}
-
-	note(
-		`DB_HOST: ${pc.green(dbHost)}\n` + `DB_NAME: ${pc.green(dbName)}\n` + `DB_USER: ${pc.green(dbUser)}\n` + `DB_PASSWORD: ${pc.green(dbPassword)}`,
-		pc.green('Review your MongoDB configuration:')
-	);
-	const action = await confirm({
-		message: 'Is the above configuration correct?',
-		initialValue: true
-	});
-
-	if (isCancel(action)) {
-		cancel('Operation cancelled.');
-		console.clear();
-		await configurationPrompt();
-		return;
-	}
-
-	if (!action) {
-		console.log('MongoDB configuration canceled.');
-		const restartOrExit = await select({
-			message: 'Do you want to restart or exit?',
-			options: [
-				{ value: 'restart', label: 'Restart', hint: 'Start again' },
-				{ value: 'cancel', label: 'Cancel', hint: 'Clear and return to selection' },
-				{ value: 'exit', label: 'Exit', hint: 'Quit the installer' }
-			]
-		});
-
-		if (isCancel(restartOrExit)) {
-			cancel('Operation cancelled.');
-			console.clear();
-			await configurationPrompt();
-			return;
-		}
-
-		if (restartOrExit === 'restart') {
-			return configureMongoDB();
-		} else if (restartOrExit === 'exit') {
-			process.exit(1); // Exit with code 1
-		} else if (restartOrExit === 'cancel') {
-			process.exit(0); // Exit with code 0
+			connectionString = `mongodb://${dbHost}:${dbPort}/${dbName}`;
 		}
 	}
 
 	return {
 		DB_HOST: dbHost,
+		DB_PORT: dbPort,
 		DB_NAME: dbName,
 		DB_USER: dbUser,
 		DB_PASSWORD: dbPassword

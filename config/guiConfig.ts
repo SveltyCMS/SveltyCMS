@@ -33,6 +33,12 @@ const databaseConfig: ConfigCategory = {
 			helper: m.databaseConfig_DB_HOST_helper(),
 			icon: 'mdi:server-network'
 		},
+		DB_PORT: {
+			type: 'number',
+			default: 27017,
+			helper: 'Default MongoDB port: 27017, Default MariaDB port: 3306',
+			icon: 'mdi:port'
+		},
 		DB_NAME: {
 			type: 'string',
 			default: '',

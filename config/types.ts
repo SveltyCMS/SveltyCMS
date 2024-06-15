@@ -13,6 +13,7 @@ export const createPrivateConfig = (arg: {
 	 * or online via "MongoDB Atlas" as mongodb+srv://
 	 */
 	DB_HOST: string; // Database Host
+	DB_PORT: number; // Database Port
 	DB_NAME: string; // Database Name
 	DB_USER: string; // Database User
 	DB_PASSWORD: string; // Database Password
