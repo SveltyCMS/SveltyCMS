@@ -1,7 +1,11 @@
-import mongoose, { Schema, type InferSchemaType, Model as M } from 'mongoose';
+// Define the hardcoded admin role
+export const adminRole = 'admin';
 
-// Define Available Roles  // User =  External Token for api access
-export const roles = ['admin', 'developer', 'editor', 'user'] as const;
+// Define flexible roles
+export const flexibleRoles = ['developer', 'editor', 'user'] as const;
+
+// Combine all roles
+export const roles = [adminRole, ...flexibleRoles] as const;
 
 // Define the type for roles
 export type Roles = (typeof roles)[number];
@@ -16,7 +20,7 @@ export const permissions = [
 
 // Defines Permissions type for flexible role-based permissions.
 export type Permissions = {
-	[K in Roles]?: { [permissions in (typeof permissions)[number]]?: boolean };
+	[K in Roles]?: { [permission in (typeof permissions)[number]]?: boolean };
 };
 
 // Define a user Role permission that can be overwritten
@@ -84,39 +88,17 @@ export const UserSchema = {
 
 // Define the schema for a Session
 export const SessionSchema = {
-	user_id: { type: mongoose.Schema.Types.ObjectId, required: true }, // The ID of the user who owns the session
+	user_id: { type: String, required: true }, // The ID of the user who owns the session
 	expires: { type: Date, required: true } // When the session expires
 };
 
 // Define the schema for a Token
 export const TokenSchema = {
-	user_id: { type: mongoose.Schema.Types.ObjectId, required: true }, // The ID of the user who owns the token
+	user_id: { type: String, required: true }, // The ID of the user who owns the token
 	token: { type: String, required: true }, // The token string
 	email: String, // The email associated with the token
 	expires: { type: Date, required: true } // When the token expires
 };
-
-// Create Mongoose schemas for the User, Token, and Session
-export const mongooseUserSchema = new Schema(UserSchema, { timestamps: true });
-export const mongooseSessionSchema = new Schema(SessionSchema, { id: true });
-export const mongooseTokenSchema = new Schema(TokenSchema, { timestamps: true, id: true });
-
-// Utility type to modify an existing type (T) by adding/overriding properties (R)
-type Modify<T, R> = Omit<T, keyof R> & R;
-
-// Define types for Session, Token, and User based on their respective schemas
-export type User = Modify<
-	// Infer the type of the mongooseUserSchema property (likely a Mongoose schema)
-	InferSchemaType<typeof mongooseUserSchema>,
-	{
-		id: string;
-		role: Roles; // Assuming Roles is defined elsewhere (e.g., type alias or enum)
-		lastAuthMethod: 'password' | 'token';
-	}
->;
-export type Session = InferSchemaType<typeof mongooseSessionSchema> & { id: string };
-export type Token = InferSchemaType<typeof mongooseTokenSchema> & { id: string };
-
 // Define the type for a Cookie
 export type Cookie = {
 	name: string; // The name of the cookie
@@ -153,4 +135,11 @@ export const sanitizePermissions = (permissions: any) => {
 };
 
 // Define the type for a Model
-export type Model = M<any, {}, {}, {}, any, any>;
+export interface Model<T> {
+	create(data: Partial<T>): Promise<T>;
+	findOne(query: Partial<T>): Promise<T | null>;
+	find(query: Partial<T>): Promise<T[]>;
+	updateOne(query: Partial<T>, update: Partial<T>): Promise<void>;
+	deleteOne(query: Partial<T>): Promise<void>;
+	countDocuments(query?: Partial<T>): Promise<number>;
+}

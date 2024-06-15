@@ -1,14 +1,18 @@
 import { privateEnv } from '@root/config/private';
+
+// Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
+
+// Define MongoDBAdapter interface
 import mongoose from 'mongoose';
+import { SessionSchema, TokenSchema, UserSchema } from '@src/auth/mongoAuthAdapter';
 import type { DatabaseAdapter } from './databaseAdapter';
-import { mongooseSessionSchema, mongooseTokenSchema, mongooseUserSchema } from '@src/auth/types';
 
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
-	// Connect to MongoDB database using imported environment variables with retry
+	// Connect to MongoDB database using imported environment variables with retry logic
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		while (attempts > 0) {
 			try {
@@ -23,7 +27,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			} catch (error) {
 				attempts--;
 				if (attempts <= 0) {
-					throw new Error('Failed to connect to the database after maximum retries.');
+					throw new Error(`Failed to connect to the database after maximum retries. Error: ${(error as Error).message}`);
 				}
 				// Wait before retrying only if more attempts remain
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
@@ -33,49 +37,57 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Set up collections in the database using imported schemas
 	async getCollectionModels(): Promise<any> {
-		return new Promise<any>((resolve) => {
+		return new Promise<any>((resolve, reject) => {
 			this.unsubscribe = collections.subscribe((collections) => {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
-					// Use Object.values to iterate over the collection values
-					Object.values(collections).forEach((collection) => {
-						if (!collection.name) return;
+					try {
+						// Use Object.values to iterate over the collection values
+						Object.values(collections).forEach((collection) => {
+							if (!collection.name) return;
 
-						// Create a detailed revisions schema
-						const RevisionSchema = new mongoose.Schema(
-							{
-								revisionNumber: { type: Number, default: 0 },
-								editedAt: { type: Date, default: Date.now },
-								editedBy: { type: String, default: 'System' },
-								changes: { type: Object, default: {} }
-							},
-							{ _id: false }
-						);
+							// Create a detailed revisions schema
+							const RevisionSchema = new mongoose.Schema(
+								{
+									revisionNumber: { type: Number, default: 0 },
+									editedAt: { type: Date, default: Date.now },
+									editedBy: { type: String, default: 'System' },
+									changes: { type: Object, default: {} }
+								},
+								{ _id: false }
+							);
 
-						// Create a new mongoose schema using the collection's fields and timestamps
-						const schemaObject = new mongoose.Schema(
-							{
-								createdAt: Date,
-								updatedAt: Date,
-								createdBy: String,
-								__v: [RevisionSchema], // versionKey
-								translationStatus: {}
-							},
-							{
-								typeKey: '$type',
-								strict: false,
-								timestamps: true // Use the default Mongoose timestamp
-							}
-						);
+							// Create a new mongoose schema using the collection's fields and timestamps
+							const schemaObject = new mongoose.Schema(
+								{
+									createdAt: Date,
+									updatedAt: Date,
+									createdBy: String,
+									__v: [RevisionSchema], // versionKey
+									translationStatus: {}
+								},
+								{
+									typeKey: '$type',
+									strict: false,
+									timestamps: true // Use the default Mongoose timestamp
+								}
+							);
 
-						// Add the mongoose model for the collection to the collectionsModels object
-						collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
-					});
+							// Add the mongoose model for the collection to the collectionsModels object
+							collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
+						});
 
-					this.unsubscribe && this.unsubscribe();
-					this.unsubscribe = undefined;
-					resolve(collectionsModels);
+						this.unsubscribe && this.unsubscribe();
+						this.unsubscribe = undefined;
+						resolve(collectionsModels);
+					} catch (error) {
+						this.unsubscribe && this.unsubscribe();
+						this.unsubscribe = undefined;
+						reject(`Failed to set up collection models: ${(error as Error).message}`);
+					}
+				} else {
+					reject('No collections found to set up models.');
 				}
 			});
 		});
@@ -84,13 +96,13 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	// Set up authentication collections if they don't already exist
 	setupAuthModels(): void {
 		if (!mongoose.models['auth_tokens']) {
-			mongoose.model('auth_tokens', mongooseTokenSchema);
+			mongoose.model('auth_tokens', TokenSchema);
 		}
 		if (!mongoose.models['auth_users']) {
-			mongoose.model('auth_users', mongooseUserSchema);
+			mongoose.model('auth_users', UserSchema);
 		}
 		if (!mongoose.models['auth_sessions']) {
-			mongoose.model('auth_sessions', mongooseSessionSchema);
+			mongoose.model('auth_sessions', SessionSchema);
 		}
 	}
 
@@ -123,12 +135,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		const sessionModel = mongoose.models['auth_sessions'];
 		const loggedInUsers = await sessionModel.find({ active: true }).exec();
 		return loggedInUsers;
-	}
-
-	// Fetch other CMS data as needed
-	async getCMSData(): Promise<any> {
-		// Implement logic to fetch additional CMS data if required
-		return {};
 	}
 
 	// Fetch the last 5 added media items
