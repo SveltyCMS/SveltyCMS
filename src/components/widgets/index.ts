@@ -1,7 +1,4 @@
-import type mongoose from 'mongoose';
-
-// Auth
-import type { Model, User } from '@src/auth/types';
+import type { Model, User, WidgetId } from '@src/auth/types';
 
 // Widgets
 import Address from './address';
@@ -65,8 +62,8 @@ type K = (typeof widgets)[keyof typeof widgets]['Name'];
 
 // Define the modifyRequest function
 export type ModifyRequestParams<T extends (...args: any) => any> = {
-	collection: Model;
-	id?: mongoose.Types.ObjectId;
+	collection: Model<any>;
+	id?: WidgetId;
 	field: ReturnType<T>;
 	data: { get: () => any; update: (newData) => void };
 	user: User;
@@ -77,13 +74,13 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 // Define the widget type
 export type WidgetType = {
 	[key in K]: (typeof widgets)[key] & {
-		modifyRequest: (args: ModifyRequestParams<(typeof widgets)[keyof typeof widgets]>) => Promise<{}>;
+		modifyRequest: (args: ModifyRequestParams<(typeof widgets)[keyof typeof widgets]>) => Promise<object>;
 	};
 };
 
 // Expose the widgets
 export const initWidgets = () => (globalThis.widgets = widgets);
-initWidgets();
+initWidgets(); // Initialize
 export default widgets as WidgetType;
 
 // Expose the widget context

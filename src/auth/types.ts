@@ -175,3 +175,5 @@ export interface Model<T> {
 	deleteOne(query: Partial<T>): Promise<void>;
 	countDocuments(query?: Partial<T>): Promise<number>;
 }
+
+export type WidgetId = string;

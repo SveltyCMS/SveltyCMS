@@ -1,7 +1,7 @@
 import { privateEnv } from '@root/config/private';
 import mongoose from 'mongoose';
 import { collections } from '@stores/store';
-import { SessionSchema, TokenSchema, UserSchema } from '@src/auth/mongoDBAuthAdapter';
+import { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema } from '@src/auth/mongoDBAuthAdapter';
 import type { DatabaseAdapter } from './databaseAdapter';
 import type { Unsubscriber } from 'svelte/store';
 
@@ -10,14 +10,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Connect to MongoDB database using imported environment variables with retry logic
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		// Construct the MongoDB connection string
-		const connectionString = privateEnv.DB_HOST.startsWith('mongodb+srv://')
-			? privateEnv.DB_HOST
-			: `mongodb://${privateEnv.DB_USER}:${encodeURIComponent(privateEnv.DB_PASSWORD)}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
-
 		while (attempts > 0) {
 			try {
-				await mongoose.connect(connectionString, {
+				await mongoose.connect(privateEnv.DB_HOST, {
 					authSource: 'admin',
 					user: privateEnv.DB_USER,
 					pass: privateEnv.DB_PASSWORD,
@@ -25,6 +20,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
 				});
 				console.log(`Successfully connected to ${privateEnv.DB_NAME}`);
+				this.setupAuthModels(); // Ensure models are set up after connection is successful
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
@@ -38,6 +34,19 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	}
 
+	// Set up authentication collections if they don't already exist
+	setupAuthModels(): void {
+		if (!mongoose.models.auth_tokens) {
+			mongoose.model('auth_tokens', TokenMongooseSchema);
+		}
+		if (!mongoose.models.auth_users) {
+			mongoose.model('auth_users', UserMongooseSchema);
+		}
+		if (!mongoose.models.auth_sessions) {
+			mongoose.model('auth_sessions', SessionMongooseSchema);
+		}
+	}
+
 	// Set up collections in the database using imported schemas
 	async getCollectionModels(): Promise<any> {
 		return new Promise<any>((resolve, reject) => {
@@ -46,11 +55,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
 					try {
-						// Use Object.values to iterate over the collection values
 						Object.values(collections).forEach((collection) => {
 							if (!collection.name) return;
 
-							// Create a detailed revisions schema
 							const RevisionSchema = new mongoose.Schema(
 								{
 									revisionNumber: { type: Number, default: 0 },
@@ -61,23 +68,21 @@ export class MongoDBAdapter implements DatabaseAdapter {
 								{ _id: false }
 							);
 
-							// Create a new mongoose schema using the collection's fields and timestamps
 							const schemaObject = new mongoose.Schema(
 								{
 									createdAt: Date,
 									updatedAt: Date,
 									createdBy: String,
-									__v: [RevisionSchema], // versionKey
+									__v: [RevisionSchema],
 									translationStatus: {}
 								},
 								{
 									typeKey: '$type',
 									strict: false,
-									timestamps: true // Use the default Mongoose timestamp
+									timestamps: true
 								}
 							);
 
-							// Add the mongoose model for the collection to the collectionsModels object
 							collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
 						});
 
@@ -94,19 +99,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				}
 			});
 		});
-	}
-
-	// Set up authentication collections if they don't already exist
-	setupAuthModels(): void {
-		if (!mongoose.models['auth_tokens']) {
-			mongoose.model('auth_tokens', TokenSchema);
-		}
-		if (!mongoose.models['auth_users']) {
-			mongoose.model('auth_users', UserSchema);
-		}
-		if (!mongoose.models['auth_sessions']) {
-			mongoose.model('auth_sessions', SessionSchema);
-		}
 	}
 
 	// Set up Media collections if they don't already exist
@@ -134,7 +126,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Fetch logged in users
 	async getLoggedInUsers(): Promise<any[]> {
-		const sessionModel = mongoose.models['auth_sessions'];
+		const sessionModel = mongoose.models.auth_sessions;
 		const loggedInUsers = await sessionModel.find({ active: true }).lean().exec();
 		return loggedInUsers;
 	}

@@ -1,6 +1,6 @@
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token } from './types';
-import { UserSchema } from './types';
+
 import crypto from 'crypto';
 import { Sequelize, DataTypes, Model } from 'sequelize';
 import { privateEnv } from '@root/config/private';

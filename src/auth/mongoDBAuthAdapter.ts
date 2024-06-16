@@ -1,19 +1,24 @@
 import mongoose, { Schema, Document } from 'mongoose';
-import type { AuthDBAdapter } from './authDBAdapter';
 import crypto from 'crypto';
-import { UserSchema, SessionSchema, TokenSchema } from './types';
+
+// Import types
+import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token } from './types';
+import { UserSchema, SessionSchema, TokenSchema } from './types';
 
 // Create Mongoose schemas
 const UserMongooseSchema = new Schema(UserSchema, { timestamps: true });
 const SessionMongooseSchema = new Schema(SessionSchema, { id: true });
 const TokenMongooseSchema = new Schema(TokenSchema, { timestamps: true, id: true });
 
-// Create Mongoose models
-const UserModel = mongoose.model<User & Document>('User', UserMongooseSchema);
-const SessionModel = mongoose.model<Session & Document>('Session', SessionMongooseSchema);
-const TokenModel = mongoose.model<Token & Document>('Token', TokenMongooseSchema);
+// Check and create models only if they don't exist
+const UserModel = mongoose.models.User || mongoose.model<User & Document>('User', UserMongooseSchema);
+const SessionModel = mongoose.models.Session || mongoose.model<Session & Document>('Session', SessionMongooseSchema);
+const TokenModel = mongoose.models.Token || mongoose.model<Token & Document>('Token', TokenMongooseSchema);
 
+export { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema, UserModel, SessionModel, TokenModel };
+
+// Define a function to get a mongoose model by name
 export class MongoDBAuthAdapter implements AuthDBAdapter {
 	async createUser(userData: Partial<User>): Promise<User> {
 		const user = await UserModel.create(userData);

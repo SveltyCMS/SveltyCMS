@@ -1,5 +1,4 @@
 import { publicEnv } from '@root/config/public';
-import mongoose from 'mongoose';
 
 // Auth
 import { auth } from '@api/databases/db';
@@ -19,9 +18,11 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	const user_id = data.get('user_id') as string;
 
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User)
-		: ((await auth.validateSession(new mongoose.Types.ObjectId(session_id))) as User);
+	if (!auth) {
+		throw new Error('Auth is not initialized');
+	}
+
+	const user = user_id ? ((await auth.checkUser({ id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
 
 	if (!user) {
 		throw new Error('Unauthorized');
