@@ -1,13 +1,9 @@
 import { privateEnv } from '@root/config/private';
-
-// Stores
-import { collections } from '@stores/store';
-import type { Unsubscriber } from 'svelte/store';
-
-// Define MongoDBAdapter interface
 import mongoose from 'mongoose';
-import { SessionSchema, TokenSchema, UserSchema } from '@src/auth/mongoAuthAdapter';
+import { collections } from '@stores/store';
+import { SessionSchema, TokenSchema, UserSchema } from '@src/auth/mongoDBAuthAdapter';
 import type { DatabaseAdapter } from './databaseAdapter';
+import type { Unsubscriber } from 'svelte/store';
 
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
@@ -15,15 +11,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	// Connect to MongoDB database using imported environment variables with retry logic
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		// Construct the MongoDB connection string
-		let connectionString: string;
-
-		if (privateEnv.DB_HOST.startsWith('mongodb+srv://')) {
-			// MongoDB Atlas connection string
-			connectionString = privateEnv.DB_HOST;
-		} else {
-			// Standard MongoDB connection string with host and port
-			connectionString = `mongodb://${privateEnv.DB_USER}:${encodeURIComponent(privateEnv.DB_PASSWORD)}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
-		}
+		const connectionString = privateEnv.DB_HOST.startsWith('mongodb+srv://')
+			? privateEnv.DB_HOST
+			: `mongodb://${privateEnv.DB_USER}:${encodeURIComponent(privateEnv.DB_PASSWORD)}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`;
 
 		while (attempts > 0) {
 			try {
@@ -34,9 +24,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					dbName: privateEnv.DB_NAME,
 					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
 				});
+				console.log(`Successfully connected to ${privateEnv.DB_NAME}`);
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
+				console.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${(error as Error).message}`);
 				if (attempts <= 0) {
 					throw new Error(`Failed to connect to the database after maximum retries. Error: ${(error as Error).message}`);
 				}
@@ -130,35 +122,33 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	// Fetch the last 5 added collections
 	async getLastFiveCollections(): Promise<any[]> {
 		const collections = Object.keys(mongoose.models);
-		const recentCollections: any[] = [];
-
-		for (const collectionName of collections) {
-			const model = mongoose.models[collectionName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
-			recentCollections.push({ collectionName, recentDocs });
-		}
-
+		const recentCollections = await Promise.all(
+			collections.map(async (collectionName) => {
+				const model = mongoose.models[collectionName];
+				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+				return { collectionName, recentDocs };
+			})
+		);
 		return recentCollections;
 	}
 
 	// Fetch logged in users
 	async getLoggedInUsers(): Promise<any[]> {
 		const sessionModel = mongoose.models['auth_sessions'];
-		const loggedInUsers = await sessionModel.find({ active: true }).exec();
+		const loggedInUsers = await sessionModel.find({ active: true }).lean().exec();
 		return loggedInUsers;
 	}
 
 	// Fetch the last 5 added media items
 	async getLastFiveMedia(): Promise<any[]> {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const recentMedia: any[] = [];
-
-		for (const schemaName of mediaSchemas) {
-			const model = mongoose.models[schemaName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
-			recentMedia.push({ schemaName, recentDocs });
-		}
-
+		const recentMedia = await Promise.all(
+			mediaSchemas.map(async (schemaName) => {
+				const model = mongoose.models[schemaName];
+				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+				return { schemaName, recentDocs };
+			})
+		);
 		return recentMedia;
 	}
 }

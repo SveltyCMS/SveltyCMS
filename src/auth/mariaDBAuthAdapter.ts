@@ -1,109 +1,109 @@
-// Import the necessary types and crypto
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token } from './types';
+import { UserSchema } from './types';
 import crypto from 'crypto';
+import { Sequelize, DataTypes, Model } from 'sequelize';
+import { privateEnv } from '@root/config/private';
 
-// Import schemas from types.ts
-import { UserSchema, SessionSchema, TokenSchema } from './types';
+const sequelize = new Sequelize(
+	`mariadb://${privateEnv.DB_USER}:${privateEnv.DB_PASSWORD}@${privateEnv.DB_HOST}:${privateEnv.DB_PORT}/${privateEnv.DB_NAME}`
+);
 
-// Define a function to load Sequelize and the MariaDB connection
-const loadSequelize = async () => {
-	const { Sequelize, DataTypes, Model } = await import('sequelize');
+class UserModel extends Model<User> implements User {
+	public id!: string;
+	public email!: string;
+	public password?: string;
+	public role!: string;
+	public username?: string;
+	public avatar?: string;
+	public lastAuthMethod?: string;
+	public lastActiveAt?: Date;
+	public expiresAt?: Date;
+	public is_registered?: boolean;
+	public blocked?: boolean;
+	public resetRequestedAt?: string;
+	public resetToken?: string;
+}
 
-	// Initialize Sequelize with your database connection
-	const sequelize = new Sequelize('mariadb://user:pass@host:port/dbname');
-
-	// Define the User model
-	class UserModel extends Model<User, Optional<User, 'id'>> implements User {
-		public id!: string;
-		public email!: string;
-		public password?: string;
-		public role!: string;
-		public username?: string;
-		public avatar?: string;
-		public lastAuthMethod?: 'password' | 'token';
-		public lastActiveAt?: Date;
-		public expiresAt?: Date;
-		public is_registered?: boolean;
-		public blocked?: boolean;
-		public resetRequestedAt?: Date;
-		public resetToken?: string;
+UserModel.init(
+	{
+		id: { type: DataTypes.STRING, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+		email: { type: DataTypes.STRING, allowNull: false },
+		password: { type: DataTypes.STRING, allowNull: true },
+		role: { type: DataTypes.STRING, allowNull: false },
+		username: { type: DataTypes.STRING, allowNull: true },
+		avatar: { type: DataTypes.STRING, allowNull: true },
+		lastAuthMethod: { type: DataTypes.STRING, allowNull: true },
+		lastActiveAt: { type: DataTypes.DATE, allowNull: true },
+		expiresAt: { type: DataTypes.DATE, allowNull: true },
+		is_registered: { type: DataTypes.BOOLEAN, allowNull: true },
+		blocked: { type: DataTypes.BOOLEAN, allowNull: true },
+		resetRequestedAt: { type: DataTypes.DATE, allowNull: true },
+		resetToken: { type: DataTypes.STRING, allowNull: true }
+	},
+	{
+		sequelize,
+		tableName: 'users',
+		timestamps: true,
+		modelName: 'User'
 	}
+);
 
-	UserModel.init(
-		{
-			...UserSchema,
-			id: { type: DataTypes.STRING, primaryKey: true }
-		},
-		{
-			sequelize,
-			tableName: 'users',
-			timestamps: true,
-			modelName: 'User'
-		}
-	);
+class SessionModel extends Model<Session> implements Session {
+	public id!: string;
+	public user_id!: string;
+	public expires!: Date;
+}
 
-	// Define the Session model
-	class SessionModel extends Model<Session, Optional<Session, 'id'>> implements Session {
-		public id!: string;
-		public user_id!: string;
-		public expires!: Date;
+SessionModel.init(
+	{
+		id: { type: DataTypes.STRING, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+		user_id: { type: DataTypes.STRING, allowNull: false },
+		expires: { type: DataTypes.DATE, allowNull: false }
+	},
+	{
+		sequelize,
+		tableName: 'sessions',
+		timestamps: false,
+		modelName: 'Session'
 	}
+);
 
-	SessionModel.init(
-		{
-			...SessionSchema,
-			id: { type: DataTypes.STRING, primaryKey: true }
-		},
-		{
-			sequelize,
-			tableName: 'sessions',
-			timestamps: false,
-			modelName: 'Session'
-		}
-	);
+class TokenModel extends Model<Token> implements Token {
+	public id!: string;
+	public user_id!: string;
+	public token!: string;
+	public email?: string;
+	public expires!: Date;
+}
 
-	// Define the Token model
-	class TokenModel extends Model<Token, Optional<Token, 'id'>> implements Token {
-		public id!: string;
-		public user_id!: string;
-		public token!: string;
-		public email?: string;
-		public expires!: Date;
+TokenModel.init(
+	{
+		id: { type: DataTypes.STRING, primaryKey: true, defaultValue: DataTypes.UUIDV4 },
+		user_id: { type: DataTypes.STRING, allowNull: false },
+		token: { type: DataTypes.STRING, allowNull: false },
+		email: { type: DataTypes.STRING, allowNull: true },
+		expires: { type: DataTypes.DATE, allowNull: false }
+	},
+	{
+		sequelize,
+		tableName: 'tokens',
+		timestamps: true,
+		modelName: 'Token'
 	}
-
-	TokenModel.init(
-		{
-			...TokenSchema,
-			id: { type: DataTypes.STRING, primaryKey: true }
-		},
-		{
-			sequelize,
-			tableName: 'tokens',
-			timestamps: true,
-			modelName: 'Token'
-		}
-	);
-
-	return { sequelize, UserModel, SessionModel, TokenModel };
-};
+);
 
 export class MariaDBAuthAdapter implements AuthDBAdapter {
 	private sequelize: Sequelize;
-	private UserModel: typeof Model;
-	private SessionModel: typeof Model;
-	private TokenModel: typeof Model;
+	private UserModel: typeof UserModel;
+	private SessionModel: typeof SessionModel;
+	private TokenModel: typeof TokenModel;
 
 	constructor() {
-		if (process.env.DB_TYPE === 'mariadb') {
-			(async () => {
-				const { sequelize, UserModel, SessionModel, TokenModel } = await loadSequelize();
-				this.sequelize = sequelize;
-				this.UserModel = UserModel;
-				this.SessionModel = SessionModel;
-				this.TokenModel = TokenModel;
-			})();
-		}
+		this.sequelize = sequelize;
+		this.UserModel = UserModel;
+		this.SessionModel = SessionModel;
+		this.TokenModel = TokenModel;
 	}
 
 	async createUser(userData: Partial<User>): Promise<User> {
@@ -140,6 +140,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 
 	async createSession(data: { user_id: string; expires: number }): Promise<Session> {
 		const session = await this.SessionModel.create({
+			id: crypto.randomUUID(),
 			user_id: data.user_id,
 			expires: new Date(Date.now() + data.expires)
 		});
@@ -151,9 +152,10 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	async validateSession(session_id: string): Promise<User | null> {
-		const session = await this.SessionModel.findByPk(session_id, { include: [this.UserModel] });
+		const session = await this.SessionModel.findByPk(session_id);
 		if (session && session.expires > new Date()) {
-			return session.user_id as any as User;
+			const user = await this.UserModel.findByPk(session.user_id);
+			return user ? (user.toJSON() as User) : null;
 		}
 		return null;
 	}
@@ -165,6 +167,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	async createToken(user_id: string, email: string, expires: number): Promise<string> {
 		const tokenString = crypto.randomBytes(16).toString('hex');
 		await this.TokenModel.create({
+			id: crypto.randomUUID(),
 			user_id,
 			token: tokenString,
 			email,

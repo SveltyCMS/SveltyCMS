@@ -47,6 +47,11 @@ export type Params = {
 	multiupload?: boolean;
 	sizelimit?: number;
 	extensions?: string;
+	metadata?: Record<string, any>;
+	tags?: string[];
+	categories?: string[];
+	responsive?: boolean;
+	customDisplayComponent?: any;
 	watermark?: {
 		url: string; // URL of the watermark image
 		position?: WATERMARK_POSITION; // Optional position (defaults to center)
@@ -54,6 +59,7 @@ export type Params = {
 		scale?: number; // Scale watermark size as a percentage (defaults to 100)
 		offsetX?: number; // Offset watermark position in pixels (horizontal)
 		offsetY?: number; // Offset watermark position in pixels (vertical)
+		rotation?: number; // Rotate watermark in degrees
 	};
 };
 
@@ -73,9 +79,26 @@ export const GuiSchema = {
 	permissions: { widget: Permission, required: false },
 
 	// Widget Specific parameters
-	path: { widget: Input, required: false },
+	folder: { widget: Input, required: false },
 	multiupload: { widget: Input, required: true },
-	watermark: { widget: Input, required: true }
+	sizelimit: { widget: Input, required: true },
+	extensions: { widget: Input, required: false },
+	metadata: { widget: Input, required: false },
+	tags: { widget: Input, required: false },
+	categories: { widget: Input, required: false },
+	responsive: { widget: Toggles, required: false },
+	customDisplayComponent: { widget: Input, required: false },
+	watermark: {
+		widget: {
+			size: { widget: Input, required: true },
+			opacity: { widget: Input, required: true },
+			position: { widget: Input, required: true },
+			offsetX: { widget: Input, required: false },
+			offsetY: { widget: Input, required: false },
+			rotation: { widget: Input, required: false }
+		},
+		required: false
+	}
 };
 
 // Create a type name by combining the collection name and label

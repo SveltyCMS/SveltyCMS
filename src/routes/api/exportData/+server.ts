@@ -2,7 +2,6 @@ import fs from 'fs';
 import type { RequestHandler } from './$types';
 import { publicEnv } from '@root/config/public';
 import { _GET } from '@api/query/GET';
-import mongoose from 'mongoose';
 
 // Auth
 import { auth } from '@api/databases/db';
@@ -16,10 +15,15 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	// Get the session cookie.
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	// Validate the session.
-	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		return new Response('Internal Server Error', { status: 500 });
+	}
 
-	if (!user || user.role != 'admin') {
+	// Validate the session.
+	const user = await auth.validateSession(session_id);
+
+	if (!user || user.role !== 'admin') {
 		return new Response('', { status: 403 });
 	}
 
@@ -31,7 +35,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 
 	for (const collection of Object.values($collections)) {
 		const name = collection.name as string;
-		data[name as string] = (
+		data[name] = (
 			await (
 				await _GET({
 					schema: collection,
@@ -40,6 +44,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			).json()
 		).entryList;
 	}
+
 	if (publicEnv.EXTRACT_DATA_PATH) {
 		fs.writeFileSync(publicEnv.EXTRACT_DATA_PATH, JSON.stringify(data).replaceAll('/media', 'media'));
 		return new Response('', { status: 200 });

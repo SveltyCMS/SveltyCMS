@@ -59,20 +59,28 @@ const schema: Schema = {
 		})
 
 		// widgets.MediaUpload({
-		// 	label: 'Image',
-		// 	required: true,
-		// 	icon: 'material-symbols:image-outline',
-		// 	path: 'images' //This save to images folder, and is not globally available
-		// 	type: 'image' // Allow only images, or 'video' or 'audio'
-		// 	multiupload: true //Allow multiple uploads not working
-		// 	watermark: {
-		// 		url: '/logo.png', // Adjust URL as needed
-		// 		position: 'bottom-right', // Adjust position as needed
-		// 		opacity: 0.9, // Adjust opacity (0 - 1)
-		// 		scale: 50, // Adjust scale as a percentage
-		// 		offsetX: 10, // Adjust horizontal offset in pixels
-		// 		offsetY: 20 // Adjust vertical offset in pixels
-		// 	}
+		//     label: 'Media',
+		//     required: true,
+		//     icon: 'material-symbols:video-library',
+		//     folder: 'media', // This saves to media folder, and is not globally available
+		//     type: 'video', // Allow only videos
+		//     multiupload: true, // Allow multiple uploads
+		//     metadata: {
+		//         description: 'Sample media description',
+		//         author: 'Admin'
+		//     },
+		//     tags: ['video', 'sample'],
+		//     categories: ['tutorial', 'example'],
+		//     responsive: true, // Enable responsive image handling
+		//     watermark: {
+		//         url: '/logo.png', // Adjust URL as needed
+		//         position: 'bottom-right', // Adjust position as needed
+		//         opacity: 0.9, // Adjust opacity (0 - 1)
+		//         scale: 50, // Adjust scale as a percentage
+		//         offsetX: 10, // Adjust horizontal offset in pixels
+		//         offsetY: 20, // Adjust vertical offset in pixels
+		//         rotation: 45 // Adjust rotation in degrees
+		//     }
 		// })
 	]
 };

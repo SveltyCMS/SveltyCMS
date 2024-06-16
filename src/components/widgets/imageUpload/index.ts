@@ -30,7 +30,15 @@ const widget = (params: Params) => {
 				url = URL.createObjectURL(data);
 			}
 
-			return `<img class='max-w-[200px] inline-block' src="${url}" />`;
+			if (params.type === 'video') {
+				return `<video class='max-w-[200px] inline-block' src="${url}" controls></video>`;
+			} else if (params.type === 'audio') {
+				return `<audio class='max-w-[200px] inline-block' src="${url}" controls></audio>`;
+			} else if (params.type === 'document') {
+				return `<a class='max-w-[200px] inline-block' href="${url}" target="_blank">${data?.name || 'Document'}</a>`;
+			} else {
+				return `<img class='max-w-[200px] inline-block' src="${url}" />`;
+			}
 		};
 		display.default = true;
 	}
@@ -57,17 +65,23 @@ const widget = (params: Params) => {
 		permissions: params.permissions,
 
 		// extras
-		path: params.path || 'unique',
+		folder: params.folder || 'unique',
 		multiupload: params.multiupload,
 		sizelimit: params.sizelimit,
 		extensions: params.extensions,
+		metadata: params.metadata,
+		tags: params.tags,
+		categories: params.categories,
+		responsive: params.responsive,
+		customDisplayComponent: params.customDisplayComponent,
 		watermark: {
 			url: params.watermark?.url,
 			position: params.watermark?.position,
 			opacity: params.watermark?.opacity,
 			scale: params.watermark?.scale,
 			offsetX: params.watermark?.offsetX,
-			offsetY: params.watermark?.offsetY
+			offsetY: params.watermark?.offsetY,
+			rotation: params.watermark?.rotation
 		}
 	};
 

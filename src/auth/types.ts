@@ -71,7 +71,7 @@ export const color = {
 export const UserSchema = {
 	// Can be changed by /user
 	email: { type: String, required: true }, // The email associated email
-	password: { type: String }, // The password of the user
+	password: String, // The password of the user
 	role: { type: String, required: true }, // The role of the user
 	username: String, // The username of the user
 	avatar: String, // The URL of the user's avatar media_image
@@ -99,6 +99,38 @@ export const TokenSchema = {
 	email: String, // The email associated with the token
 	expires: { type: Date, required: true } // When the token expires
 };
+
+// Define the TypeScript types based on the schemas
+export interface User {
+	id: string;
+	email: string;
+	password?: string;
+	role: string;
+	username?: string;
+	avatar?: string;
+	lastAuthMethod?: string;
+	lastActiveAt?: Date;
+	expiresAt?: Date;
+	is_registered?: boolean;
+	blocked?: boolean;
+	resetRequestedAt?: string;
+	resetToken?: string;
+}
+
+export interface Session {
+	id: string;
+	user_id: string;
+	expires: Date;
+}
+
+export interface Token {
+	id: string;
+	user_id: string;
+	token: string;
+	email?: string;
+	expires: Date;
+}
+
 // Define the type for a Cookie
 export type Cookie = {
 	name: string; // The name of the cookie

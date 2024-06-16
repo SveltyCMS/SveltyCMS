@@ -3,19 +3,29 @@ import { getCollections } from '@collections';
 import { redirect, type Actions, error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth, initializationPromise } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import mongoose from 'mongoose';
 
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
+	// Wait for initialization to complete
+	if (initializationPromise) {
+		await initializationPromise;
+	}
+
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
+	if (!auth) {
+		// Handle the case where auth is not initialized
+		console.error('Authentication system is not initialized - src/routes/+page.server.ts');
+		throw error(500, 'Internal Server Error');
+	}
+
 	// Validate the user's session
-	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+	const user = await auth.validateSession(session_id);
 	if (!user) throw redirect(302, `/login`);
 
 	// Get the collections and filter based on reading permissions
@@ -28,7 +38,7 @@ export async function load({ cookies }) {
 	}
 
 	// Redirect to the first collection in the collections array
-	redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
+	throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
 }
 
 export const actions = {
@@ -54,6 +64,6 @@ export const actions = {
 		localStorage.setItem('systemlanguage', systemlanguage);
 		localStorage.setItem('theme', theme);
 
-		redirect(303, '/');
+		throw redirect(303, '/');
 	}
 } satisfies Actions;

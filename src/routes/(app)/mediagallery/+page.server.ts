@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/utils';
 
@@ -15,7 +15,12 @@ export const load: PageServerLoad = async (event) => {
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 	if (!session_id) throw redirect(302, `/login`);
 
-	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
+
+	const user = await auth.validateSession(session_id);
 	if (!user) throw redirect(302, `/login`);
 
 	const MediaImages = getModel('media_images');
@@ -46,7 +51,12 @@ export const actions: Actions = {
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 		if (!session_id) throw redirect(302, `/login`);
 
-		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+		if (!auth) {
+			console.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
+
+		const user = await auth.validateSession(session_id);
 		if (!user) throw redirect(302, `/login`);
 
 		const formData = await event.request.formData();

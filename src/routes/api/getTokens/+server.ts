@@ -1,16 +1,21 @@
-import mongoose from 'mongoose';
 import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Get the session cookie
 		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
+		if (!auth) {
+			console.error('Authentication system is not initialized');
+			return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
+		}
+
 		// Validate the session
-		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+		const user = await auth.validateSession(session_id);
 
 		if (!user || user.role !== 'admin') {
 			return new Response('', { status: 403 });

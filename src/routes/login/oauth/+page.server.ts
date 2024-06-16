@@ -5,7 +5,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
-import mongoose from 'mongoose';
+// Stores
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
@@ -22,7 +22,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	};
 
-	if (!code) redirect(302, '/login');
+	if (!code) {
+		throw redirect(302, '/login');
+	}
+
+	if (!auth || !googleAuth) {
+		console.error('Authentication system is not initialized');
+		throw new Error('Internal Server Error');
+	}
 
 	try {
 		const { tokens } = await googleAuth.getToken(code);
@@ -36,7 +43,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			const existingUser = await auth.checkUser({ email: googleUser.email });
 			if (existingUser) return [existingUser, false];
 
-			/// Probably will never happen but just to be sure.
+			// Probably will never happen but just to be sure.
 			if (!googleUser.email) {
 				throw new Error('Google did not return an email address.');
 			}
@@ -81,7 +88,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
 
 			// Create User Session
-			const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(user.id) });
+			const session = await auth.createSession({ user_id: user.id?.toString() as string });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
@@ -89,10 +96,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		result.data = { needSignIn };
 	} catch (e) {
 		console.log(e);
-
-		redirect(302, '/login');
+		throw redirect(302, '/login');
 	}
-	if (!result.data.needSignIn) redirect(303, '/');
+	if (!result.data.needSignIn) throw redirect(303, '/');
 
 	return result;
 };
@@ -120,8 +126,14 @@ export const actions: Actions = {
 		console.log('code: ', code);
 
 		if (!code) {
-			redirect(302, '/login');
+			throw redirect(302, '/login');
 		}
+
+		if (!auth || !googleAuth) {
+			console.error('Authentication system is not initialized');
+			return { success: false, message: 'Internal Server Error' };
+		}
+
 		try {
 			const { tokens } = await googleAuth.getToken(code);
 			googleAuth.setCredentials(tokens);
@@ -177,7 +189,7 @@ export const actions: Actions = {
 				await sendWelcomeEmail(googleUser.email, googleUser.name);
 
 				// Create User Session
-				const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(user.id) });
+				const session = await auth.createSession({ user_id: user.id?.toString() as string });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 				await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
@@ -185,11 +197,11 @@ export const actions: Actions = {
 				result.data = { user };
 			} else {
 				// User already exists, consume token
-				const validate = await auth.consumeToken(token, existingUser._id); // Consume the token
+				const validate = await auth.consumeToken(token, existingUser.id?.toString() as string); // Consume the token
 
-				if (validate) {
+				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ user_id: new mongoose.Types.ObjectId(existingUser.id) });
+					const session = await auth.createSession({ user_id: existingUser.id?.toString() as string });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 					await auth.updateUserAttributes(existingUser, { lastAuthMethod: 'password' });
@@ -202,10 +214,10 @@ export const actions: Actions = {
 			}
 		} catch (e) {
 			console.error('error:', e);
-			redirect(302, '/login');
+			throw redirect(302, '/login');
 		}
 
-		if (result.success) redirect(303, '/');
+		if (result.success) throw redirect(303, '/');
 		else return result;
 	}
 };

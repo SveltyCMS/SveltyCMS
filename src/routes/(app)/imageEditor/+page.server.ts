@@ -1,11 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { publicEnv } from '@root/config/public';
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 // Auth
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import mongoose from 'mongoose';
 
 export async function load(event: any) {
 	// Secure this page with session cookie
@@ -15,8 +14,14 @@ export async function load(event: any) {
 		throw redirect(302, `/login`);
 	}
 
+	// Check if `auth` is initialized
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
+
 	// Validate the user's session
-	const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+	const user = await auth.validateSession(session_id);
 
 	if (!user) {
 		throw redirect(302, `/login`);
@@ -35,12 +40,14 @@ export async function load(event: any) {
 			};
 
 			return {
-				imageData
+				imageData,
+				user // return the user data if needed
 			};
 		} else {
 			throw new Error('File not found');
 		}
-	} catch (error) {
+	} catch (err) {
+		console.error('Error loading file:', err);
 		return {
 			status: 404,
 			error: 'File not found'

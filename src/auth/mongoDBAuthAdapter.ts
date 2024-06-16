@@ -1,10 +1,8 @@
 import mongoose, { Schema, Document } from 'mongoose';
 import type { AuthDBAdapter } from './authDBAdapter';
-import type { User, Session, Token } from './types';
 import crypto from 'crypto';
-
-// Import schemas from types.ts
 import { UserSchema, SessionSchema, TokenSchema } from './types';
+import type { User, Session, Token } from './types';
 
 // Create Mongoose schemas
 const UserMongooseSchema = new Schema(UserSchema, { timestamps: true });
@@ -16,7 +14,7 @@ const UserModel = mongoose.model<User & Document>('User', UserMongooseSchema);
 const SessionModel = mongoose.model<Session & Document>('Session', SessionMongooseSchema);
 const TokenModel = mongoose.model<Token & Document>('Token', TokenMongooseSchema);
 
-export class MongoAuthAdapter implements AuthDBAdapter {
+export class MongoDBAuthAdapter implements AuthDBAdapter {
 	async createUser(userData: Partial<User>): Promise<User> {
 		const user = await UserModel.create(userData);
 		return user.toObject() as User;
@@ -115,5 +113,3 @@ export class MongoAuthAdapter implements AuthDBAdapter {
 		return tokens.map((token) => token.toObject() as Token);
 	}
 }
-
-export { UserSchema, SessionSchema, TokenSchema };

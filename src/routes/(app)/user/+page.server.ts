@@ -1,5 +1,5 @@
 import { publicEnv } from '@root/config/public';
-import { redirect, type Actions, fail } from '@sveltejs/kit';
+import { redirect, type Actions, fail, error } from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
 import sharp from 'sharp';
@@ -19,6 +19,10 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 // Check if it's the first user
 async function getIsFirstUser() {
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
 	return (await auth.getUserCount()) === 0;
 }
 
@@ -27,7 +31,13 @@ export async function load(event) {
 	try {
 		// Get the session cookie
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-		const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+		if (!auth) {
+			console.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
+
+		const user = await auth.validateSession(session_id);
 		const isFirstUser = await getIsFirstUser();
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
@@ -124,8 +134,13 @@ export const actions: Actions = {
 		try {
 			const { request, cookies } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
 
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 			const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
 			if (!user || user.role !== 'admin') {
@@ -146,7 +161,7 @@ export const actions: Actions = {
 			const newUser = await auth.createUser({ email, role: role as Roles, lastAuthMethod: 'password', is_registered: false });
 			if (!newUser) return fail(400, { message: 'unknown error' });
 
-			const token = await auth.createToken(newUser._id, expirationTime * 1000);
+			const token = await auth.createToken(newUser.id, expirationTime * 1000);
 			await fetch('/api/sendMail', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -170,11 +185,17 @@ export const actions: Actions = {
 	changePassword: async (event) => {
 		try {
 			const { request, cookies } = event;
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
 			const changePasswordForm = await superValidate(request, zod(changePasswordSchema));
 			const { password } = changePasswordForm.data;
 
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+			const user = await auth.validateSession(session_id);
 
 			if (!user) {
 				return { form: changePasswordForm, message: 'User does not exist or session expired' };
@@ -194,7 +215,13 @@ export const actions: Actions = {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -217,7 +244,13 @@ export const actions: Actions = {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -228,7 +261,7 @@ export const actions: Actions = {
 
 			for (const info_json of infos) {
 				const info = JSON.parse(info_json as string) as { id: string; field: 'email' | 'role' | 'name' | 'avatar'; value: string };
-				const targetUser = await auth.checkUser({ _id: info.id });
+				const targetUser = await auth.checkUser({ id: info.id });
 
 				if (targetUser) {
 					await auth.updateUserAttributes(targetUser, { [info.field]: info.value });
@@ -240,12 +273,18 @@ export const actions: Actions = {
 		}
 	},
 
-	// Unblock user
+	// Block user
 	blockUser: async (event) => {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -254,7 +293,7 @@ export const actions: Actions = {
 			const data = await request.formData();
 			const userIdToBlock = data.get('id');
 
-			const userToBlock = await auth.checkUser({ _id: userIdToBlock as string });
+			const userToBlock = await auth.checkUser({ id: userIdToBlock as string });
 
 			if (!userToBlock) {
 				return fail(400, { message: 'User not found' });
@@ -280,7 +319,13 @@ export const actions: Actions = {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -288,7 +333,7 @@ export const actions: Actions = {
 
 			const data = await request.formData();
 			const userIdToUnblock = data.get('id');
-			const userToUnblock = await auth.checkUser({ _id: userIdToUnblock as string });
+			const userToUnblock = await auth.checkUser({ id: userIdToUnblock as string });
 
 			if (!userToUnblock) {
 				return fail(400, { message: 'User not found' });
@@ -308,7 +353,13 @@ export const actions: Actions = {
 		try {
 			const { request, cookies } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user) {
 				return fail(403, { message: "You don't have permission to save avatar" });
@@ -336,7 +387,13 @@ export const actions: Actions = {
 		try {
 			const { cookies } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user) {
 				return fail(403, { message: "You don't have permission to delete avatar" });
@@ -371,7 +428,13 @@ export const actions: Actions = {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403, { message: "You don't have permission to edit tokens" });
@@ -415,7 +478,13 @@ export const actions: Actions = {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession(new mongoose.Types.ObjectId(session_id));
+
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Internal Server Error');
+			}
+
+			const user = await auth.validateSession(session_id);
 
 			if (!user || user.role !== 'admin') {
 				return fail(403, { message: "You don't have permission to delete tokens" });
