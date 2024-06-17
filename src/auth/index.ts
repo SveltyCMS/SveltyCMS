@@ -59,7 +59,10 @@ export class Auth {
 
 	// Create a session, valid for 1 hour by default, and only one session per device
 	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }): Promise<Session> {
-		return await this.db.createSession({ user_id, expires });
+		console.log(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+		const session = await this.db.createSession({ user_id, expires });
+		console.log(`Session created with ID: ${session.id} for user ID: ${user_id}`);
+		return session;
 	}
 
 	// Check if a user exists by ID or email
@@ -123,7 +126,14 @@ export class Auth {
 
 	// Validate a session
 	async validateSession(session_id: string): Promise<User | null> {
-		return await this.db.validateSession(session_id);
+		console.log(`Auth: Validating session with ID: ${session_id}`);
+		const user = await this.db.validateSession(session_id);
+		if (user) {
+			console.log(`Auth: Session is valid for user: ${user.email}`);
+		} else {
+			console.log(`Auth: Session is invalid or user not found.`);
+		}
+		return user;
 	}
 
 	// Create a token, default expires in 1 hour
@@ -135,12 +145,18 @@ export class Auth {
 
 	// Validate a token
 	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
-		return await this.db.validateToken(token, user_id);
+		console.log(`Auth: Validating token: ${token} for user ID: ${user_id}`);
+		const validation = await this.db.validateToken(token, user_id);
+		console.log(`Auth: Token validation result: ${validation.message}`);
+		return validation;
 	}
 
 	// Consume a token
 	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
-		return await this.db.consumeToken(token, user_id);
+		console.log(`Auth: Consuming token: ${token} for user ID: ${user_id}`);
+		const consumption = await this.db.consumeToken(token, user_id);
+		console.log(`Auth: Token consumption result: ${consumption.message}`);
+		return consumption;
 	}
 
 	// Invalidate all sessions for a user

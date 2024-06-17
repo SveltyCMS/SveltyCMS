@@ -1,16 +1,20 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
-
 import { compile } from './compile';
 
-// Define an async GET request handler
 export const GET: RequestHandler = async () => {
-	// Call the compile function to transpile TypeScript files into JavaScript files
-	await compile();
+	try {
+		console.log('Starting compilation...');
+		await compile();
+		console.log('Compilation complete.');
 
-	// Update the collections and log the collection models
-	await updateCollections(true);
+		console.log('Updating collections...');
+		await updateCollections(true);
+		console.log('Collections updated.');
 
-	// Return a response with a 200 OK status and no body
-	return new Response(null, { status: 200 });
+		return new Response(null, { status: 200 });
+	} catch (error) {
+		console.error('Error during GET /compile:', error);
+		return new Response(null, { status: 500 });
+	}
 };

@@ -1,5 +1,10 @@
 import fs from 'fs/promises';
 import path from 'path';
+import util from 'util';
+import { exec } from 'child_process';
+
+// Promisify exec for async usage
+const execAsync = util.promisify(exec);
 
 const CONFIG_DIR = path.join(process.cwd(), 'config');
 const BACKUP_DIR = path.join(CONFIG_DIR, 'backup');
@@ -8,7 +13,7 @@ const BACKUP_LIMIT = 5; // Max number of backup pairs (private + public)
 async function ensureDir(dir: string) {
 	try {
 		await fs.mkdir(dir, { recursive: true });
-	} catch (error) {
+	} catch (error: any) {
 		if (error.code !== 'EEXIST') {
 			console.error(`Error creating directory ${dir}:`, error);
 			throw error;
@@ -49,6 +54,18 @@ export async function backupConfigFiles() {
 		console.error('Error creating backup:', error);
 		throw error;
 	}
+}
+
+// Define your custom select function here if it's a custom function
+async function select(options: { message: string; options: Array<{ name: string; value: string }> }): Promise<string> {
+	// This is a placeholder implementation. You need to replace this with your actual select logic.
+	// For example, you can use a prompt library or implement your own CLI selection mechanism.
+	console.log(options.message);
+	for (const option of options.options) {
+		console.log(`${option.value}: ${option.name}`);
+	}
+	// Here we just return the first option's value for simplicity
+	return options.options[0].value;
 }
 
 // Restore Config Files

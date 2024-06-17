@@ -10,13 +10,18 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
 export async function load({ cookies }) {
+	console.log('Load function started.');
+
 	// Wait for initialization to complete
 	if (initializationPromise) {
+		console.log('Waiting for initialization promise...');
 		await initializationPromise;
+		console.log('Initialization promise resolved.');
 	}
 
 	// Get the session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	console.log('Session ID:', session_id);
 
 	if (!auth) {
 		// Handle the case where auth is not initialized
@@ -26,12 +31,22 @@ export async function load({ cookies }) {
 
 	// Validate the user's session
 	const user = await auth.validateSession(session_id);
-	if (!user) throw redirect(302, `/login`);
+	console.log('User:', user);
+
+	if (!user) {
+		console.warn('User not found, redirecting to login.');
+		throw redirect(302, `/login`);
+	}
 
 	// Get the collections and filter based on reading permissions
-	const _filtered = Object.values(await getCollections()).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
+	const collections = await getCollections();
+	console.log('Collections:', collections);
+
+	const _filtered = Object.values(collections).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
+	console.log('Filtered collections:', _filtered);
 
 	if (_filtered.length == 0) {
+		console.error('No collections found for user.');
 		throw error(404, {
 			message: "You don't have access to any collection"
 		});

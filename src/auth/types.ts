@@ -67,101 +67,66 @@ export const color = {
 	}
 } as const;
 
-// Define the schema for a User
-export const UserSchema = {
-	// Can be changed by /user
-	email: { type: String, required: true }, // The email associated email
-	password: String, // The password of the user
-	role: { type: String, required: true }, // The role of the user
-	username: String, // The username of the user
-	avatar: String, // The URL of the user's avatar media_image
-
-	// Cannot be changed by /user
-	lastAuthMethod: String, // The last method the user used to authenticate
-	lastActiveAt: Date, // The last time the user was active
-	expiresAt: Date, // When the reset token expires
-	is_registered: Boolean, // Whether the user has completed registration
-	blocked: Boolean, // Whether the user is blocked
-	resetRequestedAt: String, // The last time the user requested a password reset
-	resetToken: String // The token for resetting the user's password
-};
-
-// Define the schema for a Session
-export const SessionSchema = {
-	user_id: { type: String, required: true }, // The ID of the user who owns the session
-	expires: { type: Date, required: true } // When the session expires
-};
-
-// Define the schema for a Token
-export const TokenSchema = {
-	user_id: { type: String, required: true }, // The ID of the user who owns the token
-	token: { type: String, required: true }, // The token string
-	email: String, // The email associated with the token
-	expires: { type: Date, required: true } // When the token expires
-};
-
-// Define the TypeScript types based on the schemas
+// User interface represents a user in the system.
 export interface User {
-	id: string;
-	email: string;
-	password?: string;
-	role: string;
-	username?: string;
-	avatar?: string;
-	lastAuthMethod?: string;
-	lastActiveAt?: Date;
-	expiresAt?: Date;
-	is_registered?: boolean;
-	blocked?: boolean;
-	resetRequestedAt?: string;
-	resetToken?: string;
+	id: string; // Unique identifier for the user
+	email: string; // Email address of the user
+	password?: string; // Hashed password of the user
+	role: string; // Role of the user (e.g., admin, developer, editor, user)
+	username?: string; // Username of the user
+	avatar?: string; // URL of the user's avatar image
+	lastAuthMethod?: string; // The last authentication method used by the user
+	lastActiveAt?: Date; // The last time the user was active
+	expiresAt?: Date; // When the reset token expires
+	is_registered?: boolean; // Indicates if the user has completed registration
+	blocked?: boolean; // Indicates if the user is blocked
+	resetRequestedAt?: string; // The last time the user requested a password reset
+	resetToken?: string; // Token for resetting the user's password
 }
 
+// Session interface represents a session in the system.
 export interface Session {
-	id: string;
-	user_id: string;
-	expires: Date;
+	id: string; // Unique identifier for the session
+	user_id: string; // The ID of the user who owns the session
+	expires: Date; // When the session expires
 }
 
+// Token interface represents a token in the system.
 export interface Token {
-	id: string;
-	user_id: string;
-	token: string;
-	email?: string;
-	expires: Date;
+	id: string; // Unique identifier for the token
+	user_id: string; // The ID of the user who owns the token
+	token: string; // The token string
+	email?: string; // Email associated with the token
+	expires: Date; // When the token expires
 }
 
 // Define the type for a Cookie
 export type Cookie = {
-	name: string; // The name of the cookie
-	value: string; // The value of the cookie
+	name: string;
+	value: string;
 	attributes: {
-		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined; // The SameSite attribute of the cookie
-		path: string; // The path of the cookie
-		httpOnly: true; // Whether the cookie is HTTP only
-		expires: Date; // When the cookie expires
-		secure: boolean; // Whether the cookie is secure
+		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
+		path: string;
+		httpOnly: true;
+		expires: Date;
+		secure: boolean;
 	};
 };
 
 // Sanitizes a permissions dictionary by removing empty roles
-// (roles with no permissions) and returning undefined if all roles are empty.
 export const sanitizePermissions = (permissions: any) => {
 	const res = Object.keys(permissions).reduce((acc, r) => {
 		acc[r] = Object.keys(permissions[r]).reduce((acc, p) => {
-			// Include permission only if it's denied (false)
 			if (permissions[r][p] != defaultPermissions[r][p]) {
 				acc[p] = permissions[r][p];
 			}
 			return acc;
 		}, {});
 
-		// Remove role if it has no permissions (empty object)
 		if (Object.keys(acc[r]).length == 0) delete acc[r];
 		return acc;
 	}, {});
 
-	// Return undefined if all roles are empty (no valid permissions)
 	if (Object.keys(res).length == 0) return undefined;
 	return res;
 };
@@ -176,4 +141,5 @@ export interface Model<T> {
 	countDocuments(query?: Partial<T>): Promise<number>;
 }
 
+// Define the type for a Widgets
 export type WidgetId = string;

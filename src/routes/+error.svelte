@@ -10,27 +10,39 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	const speed = 50;
+	const speed = 100;
 	const size = 140;
 	const font = 0.9;
 	const repeat = 3;
 	const separator = ' • ';
 
-	let array: string[] = [];
-	$: array = Array.from({ length: repeat }, () => publicEnv.SITE_NAME + separator)
-		.join('')
-		.split('');
+	let siteName = publicEnv.SITE_NAME;
+
+	let combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
+
+	let array: string[] = combinedString.split('').filter((char) => char !== ' ');
 </script>
 
 {#if $page}
 	<main class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
 		<div class="relative">
 			<!-- Rotating SiteName -->
-			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 1000}ms; --font: {font}em">
+			<div class="seal absolute" style="--size: {size}px; --speed: {speed * 200}ms; --font: {font}em">
 				{#each array as char, index}
-					<!-- Angle calculation -->
 					<div class="char" style="--angle: {`${(1 / array.length) * index}turn`}">
-						<SiteName {char} />
+						{#if char === 'S' && (index + 1) % 10 === 0}
+							<!-- This is the last 'S' in each "SveltyCMS•" -->
+							<span class="text-primary-500"><SiteName {char} /></span>
+						{:else if index % 10 < 6}
+							<!-- This is the main part of each "SveltyCMS•" -->
+							<SiteName {char} />
+						{:else if index % 10 >= 6 && index % 10 < 9}
+							<!-- This is the last part of each "SveltyCMS•" -->
+							<span class="text-primary-500"><SiteName {char} /></span>
+						{:else}
+							<!-- This is the separator '•' -->
+							<SiteName {char} />
+						{/if}
 					</div>
 				{/each}
 			</div>
