@@ -89,7 +89,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
 
 			// Create User Session
-			const session = await auth.createSession({ user_id: user._id.toString() });
+			const session = await auth.createSession({ userId: user.id.toString() });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
@@ -190,7 +190,7 @@ export const actions: Actions = {
 				await sendWelcomeEmail(googleUser.email, googleUser.name);
 
 				// Create User Session
-				const session = await auth.createSession({ user_id: user._id.toString() });
+				const session = await auth.createSession({ userId: user._id.toString() });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 				await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
@@ -202,7 +202,7 @@ export const actions: Actions = {
 
 				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ user_id: existingUser._id.toString() });
+					const session = await auth.createSession({ userId: existingUser._id.toString() });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 					await auth.updateUserAttributes(existingUser, { lastAuthMethod: 'password' });

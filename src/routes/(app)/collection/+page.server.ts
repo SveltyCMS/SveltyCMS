@@ -4,13 +4,13 @@ import { redirect, error } from '@sveltejs/kit';
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// Load function that handles authentication and user validation
-export async function load(event) {
+export async function load({ cookies }) {
 	// Get session cookie value as string
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
 
-	if (!session_id) {
-		throw redirect(302, `/login`);
+	// Redirect if no session ID is found, indicating no current session
+	if (!sessionId) {
+		throw redirect(302, '/login');
 	}
 
 	if (!auth) {
@@ -18,19 +18,20 @@ export async function load(event) {
 		throw error(500, 'Internal Server Error');
 	}
 
-	// Validate user using auth and session value
-	const user = await auth.validateSession(session_id);
+	// Validate the session and retrieve the associated user
+	const user = await auth.validateSession({ sessionId });
 
-	// If user status is 200, return user object
+	// Redirect to login if no user is found (session is invalid or expired)
 	if (!user) {
-		throw redirect(302, `/login`);
+		throw redirect(302, '/login');
 	}
 
+	// Check user access level; redirect if insufficient permissions
 	if (user.role !== 'admin') {
-		throw error(404, "You don't have access to this page");
+		throw error(403, "You don't have access to this page");
 	}
 
-	// Return user data
+	// Return user data for the page if validation is successful
 	return {
 		user
 	};

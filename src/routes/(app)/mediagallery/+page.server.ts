@@ -11,56 +11,45 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 const getModel = (name: string) =>
 	mongoose.models[name] || mongoose.model(name, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 
-export const load: PageServerLoad = async (event) => {
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) throw redirect(302, `/login`);
+export const load: PageServerLoad = async ({ cookies }) => {
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	if (!sessionId) throw redirect(302, `/login`);
 
 	if (!auth) {
 		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession({ sessionId });
 	if (!user) throw redirect(302, `/login`);
 
-	const MediaImages = getModel('media_images');
-	const MediaDocuments = getModel('media_documents');
-	const MediaAudio = getModel('media_audio');
-	const MediaVideos = getModel('media_videos');
-	const MediaRemote = getModel('media_remote');
+	// Fetch all media types concurrently
+	const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+	const mediaPromises = mediaTypes.map((type) => getModel(type).find().lean().exec());
+	const results = await Promise.all(mediaPromises);
 
-	const images = await MediaImages.find().lean().exec();
-	const documents = await MediaDocuments.find().lean().exec();
-	const audio = await MediaAudio.find().lean().exec();
-	const videos = await MediaVideos.find().lean().exec();
-	const remote = await MediaRemote.find().lean().exec();
-
-	const media = [
-		...images.map((item) => ({ ...item, type: 'image' })),
-		...documents.map((item) => ({ ...item, type: 'document' })),
-		...audio.map((item) => ({ ...item, type: 'audio' })),
-		...videos.map((item) => ({ ...item, type: 'video' })),
-		...remote.map((item) => ({ ...item, type: 'remote' }))
-	];
+	const media = results
+		.flat()
+		.map((items, index) => items.map((item) => ({ ...item, type: mediaTypes[index].split('_')[1] })))
+		.flat();
 
 	return { user, media };
 };
 
 export const actions: Actions = {
-	default: async (event) => {
-		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) throw redirect(302, `/login`);
+	default: async ({ request, cookies }) => {
+		const sessionId = cookies.get(SESSION_COOKIE_NAME);
+		if (!sessionId) throw redirect(302, `/login`);
 
 		if (!auth) {
 			console.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		const user = await auth.validateSession(session_id);
+		const user = await auth.validateSession({ sessionId });
 		if (!user) throw redirect(302, `/login`);
 
-		const formData = await event.request.formData();
-
+		const formData = await request.formData();
 		for (const file of formData.values()) {
 			if (file instanceof File) {
 				let collectionName;
@@ -83,7 +72,7 @@ export const actions: Actions = {
 					saveFunction = saveRemoteMedia;
 				}
 
-				const { id, fileInfo } = await saveFunction(file, collectionName);
+				const { fileInfo } = await saveFunction(file, collectionName);
 
 				const collection = getModel(collectionName);
 				const newMedia = new collection({

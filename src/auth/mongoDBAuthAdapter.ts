@@ -5,7 +5,8 @@ import crypto from 'crypto';
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token } from './types';
 
-// Define MongoDB schemas based on the types
+// Define MongoDB schemas based on the shared field definitions
+
 // Schema for User collection
 const UserMongooseSchema = new Schema(
 	{
@@ -28,7 +29,7 @@ const UserMongooseSchema = new Schema(
 // Schema for Session collection
 const SessionMongooseSchema = new Schema(
 	{
-		user_id: { type: String, required: true }, // ID of the user who owns the session, required field
+		userId: { type: String, required: true }, // ID of the user who owns the session, required field
 		expires: { type: Date, required: true } // Expiry date of the session, required field
 	},
 	{ timestamps: true }
@@ -37,9 +38,9 @@ const SessionMongooseSchema = new Schema(
 // Schema for Token collection
 const TokenMongooseSchema = new Schema(
 	{
-		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
+		userId: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
-		email: String, // Email associated with the token, optional field
+		email: { type: String, required: true }, // Email associated with the token, required field
 		expires: { type: Date, required: true } // Expiry date of the token, required field
 	},
 	{ timestamps: true }
@@ -57,13 +58,23 @@ export { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema, UserMod
 export class MongoDBAuthAdapter implements AuthDBAdapter {
 	// Create a new user.
 	async createUser(userData: Partial<User>): Promise<User> {
+		// Ensure email is not null or undefined, set a default if necessary or throw an error.
+		if (!userData.email) {
+			throw new Error('Email is required');
+		}
+		// Add more validations as needed for other fields
 		const user = await UserModel.create(userData);
 		return user.toObject() as User;
 	}
 
 	// Update attributes of an existing user.
-	async updateUserAttributes(user: User, attributes: Partial<User>): Promise<void> {
-		await UserModel.updateOne({ _id: user.id }, { $set: attributes });
+	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
+		// Replace null email with undefined to prevent database errors, or handle appropriately.
+		if (attributes.email === null) {
+			throw new Error('Email cannot be null');
+		}
+		// Continue with the update if validation passes
+		await UserModel.updateOne({ _id: userId }, { $set: attributes });
 	}
 
 	// Delete a user by ID.
@@ -95,59 +106,60 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Create a new session for a user.
-	async createSession(data: { user_id: string; expires: number }): Promise<Session> {
+	async createSession(data: { userId: string; expires: number }): Promise<Session> {
 		const session = await SessionModel.create({
-			user_id: new mongoose.Types.ObjectId(data.user_id),
+			userId: new mongoose.Types.ObjectId(data.userId),
 			expires: new Date(Date.now() + data.expires)
 		});
 		return session.toObject() as Session;
 	}
 
 	// Destroy a session by ID.
-	async destroySession(session_id: string): Promise<void> {
-		await SessionModel.deleteOne({ _id: session_id });
+	async destroySession(sessionId: string): Promise<void> {
+		await SessionModel.deleteOne({ _id: sessionId });
 	}
 
 	// Validate a session by ID.
-	async validateSession(session_id: string): Promise<User | null> {
-		console.log(`Validating session with ID: ${session_id}`);
-		const session = await SessionModel.findById(session_id);
+	async validateSession(sessionId: string): Promise<User | null> {
+		console.log(`Validating session with ID: ${sessionId}`);
+		const session = await SessionModel.findById(sessionId);
 		if (session) {
 			console.log(`Session found: ${session}`);
 			if (session.expires > new Date()) {
-				const user = await UserModel.findById(session.user_id);
+				const user = await UserModel.findById(session.userId);
 				console.log(`User found: ${user}`);
 				return user ? (user.toObject() as User) : null;
 			} else {
 				console.log(`Session expired: ${session}`);
 			}
 		} else {
-			console.log(`Session not found with ID: ${session_id}`);
+			console.log(`Session not found with ID: ${sessionId}`);
 		}
 		return null;
 	}
 
 	// Invalidate all sessions for a user.
-	async invalidateAllUserSessions(user_id: string): Promise<void> {
-		await SessionModel.deleteMany({ user_id: new mongoose.Types.ObjectId(user_id) });
+	async invalidateAllUserSessions(userId: string): Promise<void> {
+		await SessionModel.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
 	}
 
 	// Create a new token for a user.
-	async createToken(user_id: string, email: string, expires: number): Promise<string> {
-		const tokenString = crypto.randomBytes(16).toString('hex');
+	async createToken(data: { userId: string; email: string; expires: number }): Promise<string> {
+		const { userId, email, expires } = data; // Destructure the data object to extract properties
+		const tokenString = crypto.randomBytes(16).toString('hex'); // Generate a secure token string
 		await TokenModel.create({
-			user_id: new mongoose.Types.ObjectId(user_id),
+			userId: new mongoose.Types.ObjectId(userId), // Convert userId to ObjectId for MongoDB
 			token: tokenString,
 			email,
-			expires: new Date(Date.now() + expires)
+			expires: new Date(Date.now() + expires) // Calculate the expiration time from the current time
 		});
-		return tokenString;
+		return tokenString; // Return the newly created token string
 	}
 
 	// Validate a token
-	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
-		console.log(`Validating token: ${token} for user ID: ${user_id}`);
-		const tokenDoc = await TokenModel.findOne({ token, user_id: new mongoose.Types.ObjectId(user_id) });
+	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
+		console.log(`Validating token: ${token} for user ID: ${userId}`);
+		const tokenDoc = await TokenModel.findOne({ token, userId: new mongoose.Types.ObjectId(userId) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { success: true, message: 'Token is valid' };
@@ -160,9 +172,9 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Consume a token
-	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
-		console.log(`Consuming token: ${token} for user ID: ${user_id}`);
-		const tokenDoc = await TokenModel.findOneAndDelete({ token, user_id: new mongoose.Types.ObjectId(user_id) });
+	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
+		console.log(`Consuming token: ${token} for user ID: ${userId}`);
+		const tokenDoc = await TokenModel.findOneAndDelete({ token, userId: new mongoose.Types.ObjectId(userId) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { status: true, message: 'Token is valid' };

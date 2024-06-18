@@ -38,7 +38,7 @@
 	}
 
 	export const value: File | MediaImage | undefined = undefined;
-	export let multiple = false;
+	export const multiple = false;
 
 	let files: File[] = [];
 	let input: HTMLInputElement;

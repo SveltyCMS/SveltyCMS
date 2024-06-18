@@ -20,17 +20,16 @@ export async function load({ cookies }) {
 	}
 
 	// Get the session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
-	console.log('Session ID:', session_id);
+	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+	console.log('Session ID:', sessionId);
 
 	if (!auth) {
-		// Handle the case where auth is not initialized
 		console.error('Authentication system is not initialized - src/routes/+page.server.ts');
 		throw error(500, 'Internal Server Error');
 	}
 
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession({ sessionId });
 	console.log('User:', user);
 
 	if (!user) {

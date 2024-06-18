@@ -22,62 +22,77 @@ export class Auth {
 
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
-		const { email, password, username, role, lastAuthMethod, is_registered } = userData;
+		try {
+			const { email, password, username, role, lastAuthMethod, is_registered } = userData;
 
-		// Hash the password
-		let hashed_password: string | undefined = undefined;
-		if (password) {
-			hashed_password = await argon2.hash(password, argon2Attributes);
+			// Hash the password
+			let hashed_password: string | undefined;
+			if (password) {
+				hashed_password = await argon2.hash(password, argon2Attributes); // Use await
+			}
+
+			// Create the user
+			return await this.db.createUser({
+				email,
+				password: hashed_password,
+				username,
+				role,
+				lastAuthMethod,
+				is_registered
+			});
+		} catch (error) {
+			throw new Error(`Failed to create user: ${error}`);
 		}
-
-		// Create the user
-		return await this.db.createUser({
-			email,
-			password: hashed_password,
-			username,
-			role,
-			lastAuthMethod,
-			is_registered
-		});
 	}
 
 	// Update user attributes
-	async updateUserAttributes(user: User, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
 		// Check if password needs updating
 		if (attributes.password) {
 			// Hash the password with argon2
 			attributes.password = await argon2.hash(attributes.password, argon2Attributes);
 		}
+		// Convert null email to undefined
+		if (attributes.email === null) {
+			attributes.email = undefined;
+		}
 		// Update the user attributes
-		await this.db.updateUserAttributes(user, attributes);
+		await this.db.updateUserAttributes(userId, attributes);
 	}
 
 	// Delete the user from the database
-	async deleteUser(id: string): Promise<void> {
-		await this.db.deleteUser(id);
+	async deleteUser(userId: string): Promise<void> {
+		await this.db.deleteUser(userId);
 	}
 
 	// Create a session, valid for 1 hour by default, and only one session per device
-	async createSession({ user_id, expires = 60 * 60 * 1000 }: { user_id: string; expires?: number }): Promise<Session> {
-		console.log(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
-		const session = await this.db.createSession({ user_id, expires });
-		console.log(`Session created with ID: ${session.id} for user ID: ${user_id}`);
+	async createSession({
+		userId,
+		expires = 60 * 60 * 1000, // 1 hour by default
+		isExtended = false // Extend session if required
+	}: {
+		userId: string;
+		expires?: number;
+		isExtended?: boolean;
+	}): Promise<Session> {
+		expires = isExtended ? expires * 2 : expires; // Extend session time if required
+		console.log(`Creating session for user ID: ${userId} with expiry: ${expires}`);
+		const session = await this.db.createSession({ userId, expires });
+		console.log(`Session created with ID: ${session.id} for user ID: ${userId}`);
 		return session;
 	}
-
 	// Check if a user exists by ID or email
-	async checkUser(fields: { id?: string; email?: string }): Promise<User | null> {
+	async checkUser(fields: { userId?: string; email?: string }): Promise<User | null> {
 		return fields.email ? await this.db.getUserByEmail(fields.email) : await this.db.getUserById(fields.id!);
 	}
-
 	// Get the total number of users
 	async getUserCount(): Promise<number> {
 		return await this.db.getUserCount();
 	}
 
 	// Get a user by ID
-	async getUserById(id: string): Promise<User | null> {
-		return await this.db.getUserById(id);
+	async getUserById(userId: string): Promise<User | null> {
+		return await this.db.getUserById(userId);
 	}
 
 	// Get all users
@@ -91,8 +106,8 @@ export class Auth {
 	}
 
 	// Delete a user session
-	async destroySession(session_id: string): Promise<void> {
-		await this.db.destroySession(session_id);
+	async destroySession(sessionId: string): Promise<void> {
+		await this.db.destroySession(sessionId);
 	}
 
 	// Create a cookie object that expires in 1 year
@@ -101,11 +116,11 @@ export class Auth {
 			name: SESSION_COOKIE_NAME,
 			value: session.id,
 			attributes: {
-				sameSite: 'lax',
+				sameSite: 'strict',
 				path: '/',
 				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
-				secure: false
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
+				secure: true // Ensure cookies are sent only over HTTPS
 			}
 		};
 	}
@@ -113,10 +128,33 @@ export class Auth {
 	// Log in a user with email and password
 	async login(email: string, password: string): Promise<User | null> {
 		const user = await this.db.getUserByEmail(email);
-		if (user && (await argon2.verify(user.password!, password))) {
-			return user;
+		if (!user || !user.password) {
+			return null; // Properly handle non-existent user or password not set
 		}
-		return null;
+
+		if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
+			throw new Error('Account is temporarily locked. Please try again later.');
+		}
+
+		try {
+			if (await argon2.verify(user.password, password)) {
+				await this.db.updateUserAttributes(user.id, { failedAttempts: 0, lockoutUntil: null });
+				return user;
+			} else {
+				user.failedAttempts++;
+				if (user.failedAttempts >= 5) {
+					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
+					await this.db.updateUserAttributes(user.id, { lockoutUntil });
+					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
+				} else {
+					await this.db.updateUserAttributes(user.id, { lockoutUntil: undefined }); // Use undefined instead of null
+					throw new Error('Invalid credentials. Please try again.');
+				}
+			}
+		} catch (error) {
+			console.error(`Login error: ${error}`);
+			throw error;
+		}
 	}
 
 	// Log out a user by destroying their session
@@ -125,9 +163,9 @@ export class Auth {
 	}
 
 	// Validate a session
-	async validateSession(session_id: string): Promise<User | null> {
-		console.log(`Auth: Validating session with ID: ${session_id}`);
-		const user = await this.db.validateSession(session_id);
+	async validateSession({ sessionId }: { sessionId: string }): Promise<User | null> {
+		console.log(`Auth: Validating session with ID: ${sessionId}`);
+		const user = await this.db.validateSession(sessionId);
 		if (user) {
 			console.log(`Auth: Session is valid for user: ${user.email}`);
 		} else {
@@ -135,33 +173,30 @@ export class Auth {
 		}
 		return user;
 	}
-
 	// Create a token, default expires in 1 hour
-	async createToken(user_id: string, expires = 60 * 60 * 1000): Promise<string> {
-		const user = await this.db.getUserById(user_id);
+	async createToken(userId: string, expires = 60 * 60 * 1000): Promise<string> {
+		const user = await this.db.getUserById(userId);
 		if (!user) throw new Error('User not found');
-		return await this.db.createToken(user_id, user.email, expires);
+		return await this.db.createToken({ userId, email: user.email, expires });
 	}
 
 	// Validate a token
-	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
-		console.log(`Auth: Validating token: ${token} for user ID: ${user_id}`);
-		const validation = await this.db.validateToken(token, user_id);
-		console.log(`Auth: Token validation result: ${validation.message}`);
-		return validation;
+	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
+		console.log(`Auth: Validating token: ${token} for user ID: ${userId}`);
+		return await this.db.validateToken(token, userId);
 	}
 
 	// Consume a token
-	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
-		console.log(`Auth: Consuming token: ${token} for user ID: ${user_id}`);
-		const consumption = await this.db.consumeToken(token, user_id);
+	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
+		console.log(`Auth: Consuming token: ${token} for user ID: ${userId}`);
+		const consumption = await this.db.consumeToken(token, userId);
 		console.log(`Auth: Token consumption result: ${consumption.message}`);
 		return consumption;
 	}
 
 	// Invalidate all sessions for a user
-	async invalidateAllUserSessions(user_id: string): Promise<void> {
-		await this.db.invalidateAllUserSessions(user_id);
+	async invalidateAllUserSessions(userId: string): Promise<void> {
+		await this.db.invalidateAllUserSessions(userId);
 	}
 
 	// Update a user's password
@@ -169,7 +204,7 @@ export class Auth {
 		const user = await this.db.getUserByEmail(email);
 		if (!user) return { status: false, message: 'User not found' };
 		const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
-		await this.db.updateUserAttributes(user, { password: hashedPassword });
+		await this.db.updateUserAttributes(user.id, { password: hashedPassword });
 		return { status: true, message: 'Password updated successfully' };
 	}
 }

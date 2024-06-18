@@ -2,15 +2,16 @@ import fs from 'fs/promises';
 import path from 'path';
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
+
 // Auth
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export async function load(event: any) {
 	// Secure this page with session cookie
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	const sessionId = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
-	if (!session_id) {
+	if (!sessionId) {
 		throw redirect(302, `/login`);
 	}
 
@@ -21,7 +22,7 @@ export async function load(event: any) {
 	}
 
 	// Validate the user's session
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession({ sessionId });
 
 	if (!user) {
 		throw redirect(302, `/login`);

@@ -61,21 +61,21 @@ export class MariaDBAdapter implements DatabaseAdapter {
 			await connection.query(`
 				CREATE TABLE IF NOT EXISTS auth_tokens (
 					id INT AUTO_INCREMENT PRIMARY KEY,
-					user_id INT NOT NULL,
+					userId INT NOT NULL,
 					token VARCHAR(255) NOT NULL,
 					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-					FOREIGN KEY (user_id) REFERENCES auth_users(id)
+					FOREIGN KEY (userId) REFERENCES auth_users(id)
 				)
 			`);
 
 			await connection.query(`
 				CREATE TABLE IF NOT EXISTS auth_sessions (
 					id INT AUTO_INCREMENT PRIMARY KEY,
-					user_id INT NOT NULL,
+					userId INT NOT NULL,
 					session_token VARCHAR(255) NOT NULL,
 					active BOOLEAN DEFAULT TRUE,
 					created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-					FOREIGN KEY (user_id) REFERENCES auth_users(id)
+					FOREIGN KEY (userId) REFERENCES auth_users(id)
 				)
 			`);
 		} finally {

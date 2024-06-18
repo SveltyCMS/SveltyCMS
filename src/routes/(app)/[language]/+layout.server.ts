@@ -10,24 +10,32 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { contentLanguage } from '@src/stores/store';
 
 export async function load({ cookies, route, params }) {
-	const collections = await getCollections();
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+
+	// Redirect to login if no valid User session
+	if (!sessionId) {
+		console.error('No session ID found, redirecting to login.');
+		throw redirect(302, '/login');
+	}
 
 	if (!auth) {
 		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
-	const user = await auth.validateSession(session_id);
+	const user = await auth.validateSession({ sessionId });
 
 	// Redirect to login if no valid User session
-	if (!user) throw redirect(302, `/login`);
+	if (!user) {
+		return redirect(302, '/login');
+	}
 
 	// Redirect to user page if lastAuthMethod token
 	if (user?.lastAuthMethod === 'token') {
 		throw redirect(302, `/user`);
 	}
 
+	const collections = await getCollections();
 	const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
 	// Check if language and collection both set in url

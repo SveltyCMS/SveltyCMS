@@ -9,13 +9,13 @@ function isWithinExpiration(expiresAt: Date): boolean {
 }
 
 // Function to create a new token
-export async function createNewToken(TokenModel: Model<Token>, user_id: string, email: string, expires: number): Promise<string> {
-	// Check if a token for this user_id already exists
-	const existingToken = await TokenModel.findOne({ user_id });
+export async function createNewToken(TokenModel: Model<Token>, userId: string, email: string, expires: number): Promise<string> {
+	// Check if a token for this userId already exists
+	const existingToken = await TokenModel.findOne({ userId });
 
 	if (existingToken) {
 		// If a token exists, delete it before creating a new one
-		await TokenModel.deleteOne({ user_id });
+		await TokenModel.deleteOne({ userId });
 	}
 
 	// Generate a random 16-byte token string using crypto.randomBytes
@@ -23,15 +23,15 @@ export async function createNewToken(TokenModel: Model<Token>, user_id: string, 
 	const expiresIn = new Date(Date.now() + expires);
 
 	// Insert the new token into the database
-	await TokenModel.create({ user_id, token, email, expires: expiresIn });
+	await TokenModel.create({ userId, token, email, expires: expiresIn });
 
 	// Return the created token
 	return token;
 }
 
 // Function to validate a token
-export async function validateToken(TokenModel: Model<Token>, token: string, user_id: string): Promise<{ success: boolean; message: string }> {
-	const result = await TokenModel.findOne({ user_id, token });
+export async function validateToken(TokenModel: Model<Token>, token: string, userId: string): Promise<{ success: boolean; message: string }> {
+	const result = await TokenModel.findOne({ userId, token });
 
 	if (result) {
 		if (isWithinExpiration(result.expires)) {
@@ -45,11 +45,11 @@ export async function validateToken(TokenModel: Model<Token>, token: string, use
 }
 
 // Function to consume a token
-export async function consumeToken(TokenModel: Model<Token>, token: string, user_id: string): Promise<{ status: boolean; message: string }> {
-	const result = await TokenModel.findOne({ user_id, token });
+export async function consumeToken(TokenModel: Model<Token>, token: string, userId: string): Promise<{ status: boolean; message: string }> {
+	const result = await TokenModel.findOne({ userId, token });
 
 	if (result) {
-		await TokenModel.deleteOne({ user_id, token });
+		await TokenModel.deleteOne({ userId, token });
 
 		if (isWithinExpiration(result.expires)) {
 			return { status: true, message: 'Token is valid' };

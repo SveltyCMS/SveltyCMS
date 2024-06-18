@@ -14,12 +14,12 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
-export async function load(event) {
-	// Get session cookie value as string
-	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
-
-	if (!session_id) {
-		throw redirect(302, `/login`);
+export async function load({ cookies }) {
+	// Get session cookie value
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	if (!sessionId) {
+		console.error('Session ID is missing, redirecting to login.');
+		throw redirect(302, '/login');
 	}
 
 	if (!auth) {
@@ -28,23 +28,19 @@ export async function load(event) {
 	}
 
 	// Validate user using auth and session value
-	const user = await auth.validateSession(session_id);
-
+	const user = await auth.validateSession({ sessionId });
 	// If user status is 200, return user object
 	if (!user) {
-		throw redirect(302, `/login`);
+		console.error('User not authenticated, redirecting to login.');
+		throw redirect(302, '/login');
 	}
 
 	if (user.role !== 'admin') {
-		throw error(404, {
-			message: "You don't have any access to this page"
-		});
+		console.error('User does not have administrative access.');
+		throw error(403, "You don't have access to this page");
 	}
 
-	// Return user data
-	return {
-		user
-	};
+	return { user };
 }
 
 // Create or Update Collection

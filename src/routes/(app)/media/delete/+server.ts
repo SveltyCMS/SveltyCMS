@@ -5,9 +5,9 @@ import mongoose from 'mongoose';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
 
-	if (!session_id) {
+	if (!sessionId) {
 		return new Response('Session ID is missing', { status: 403 });
 	}
 
@@ -16,7 +16,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return new Response('Internal Server Error', { status: 500 });
 	}
 
-	const user = await auth.validateSession(session_id);
+	// Validate the user's session
+	const user = await auth.validateSession({ sessionId });
 	if (!user || user.role !== 'admin') {
 		return new Response("You don't have access", { status: 403 });
 	}

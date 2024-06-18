@@ -15,10 +15,7 @@ import type { MediaImage } from './types';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, entryData, mode, collections, collection, collectionValue } from '@stores/store';
-
-// Auth
-import { UserSchema } from '@src/auth/types';
+import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
 
 export const config = {
 	headers: {

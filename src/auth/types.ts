@@ -82,19 +82,21 @@ export interface User {
 	blocked?: boolean; // Indicates if the user is blocked
 	resetRequestedAt?: string; // The last time the user requested a password reset
 	resetToken?: string; // Token for resetting the user's password
+	failedAttempts: number; // Tracks the number of consecutive failed login attempts
+	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
 }
 
 // Session interface represents a session in the system.
 export interface Session {
 	id: string; // Unique identifier for the session
-	user_id: string; // The ID of the user who owns the session
+	userId: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }
 
 // Token interface represents a token in the system.
 export interface Token {
 	id: string; // Unique identifier for the token
-	user_id: string; // The ID of the user who owns the token
+	userId: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email?: string; // Email associated with the token
 	expires: Date; // When the token expires
