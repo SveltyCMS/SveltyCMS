@@ -389,7 +389,7 @@ export async function saveAudio(file: File, collectionName: string) {
 		fs.writeFileSync(filePath, buffer);
 
 		// Save fileInfo to database
-		const res = await mongoose.models['media_audios'].insertMany([fileInfo]);
+		const res = await mongoose.models['media_audio'].insertMany([fileInfo]);
 		return new mongoose.Types.ObjectId(res[0]._id);
 	} catch (error) {
 		console.error('Error saving audio:', error);

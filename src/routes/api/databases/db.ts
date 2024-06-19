@@ -45,9 +45,8 @@ async function loadAdapters() {
 
 async function connectToDatabase(retries = MAX_RETRIES) {
 	if (!dbAdapter) {
-		const errorMsg = 'Database adapter not initialized';
-		console.error(errorMsg);
-		throw new Error(errorMsg);
+		console.error('Database adapter not initialized');
+		throw new Error('Database adapter not initialized');
 	}
 
 	console.log(`\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);

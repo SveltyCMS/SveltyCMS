@@ -1,7 +1,7 @@
 import mariadb from 'mariadb';
 import crypto from 'crypto';
 import type { AuthDBAdapter } from './authDBAdapter';
-import type { User, Session, Token } from './types';
+import type { User, Session, Token, Role, Permission } from './types';
 
 // Define the pool for MariaDB connection
 const pool = mariadb.createPool({
@@ -15,29 +15,152 @@ const pool = mariadb.createPool({
 
 // MariaDBAuthAdapter class implementing AuthDBAdapter interface
 export class MariaDBAuthAdapter implements AuthDBAdapter {
-	// Create a new user
-	async createUser(userData: Partial<User>): Promise<User> {
+	// Create a new role
+	async createRole(roleData: Role): Promise<Role> {
 		const conn = await pool.getConnection();
 		try {
-			const result = await conn.query('INSERT INTO auth_users SET ?', userData);
-			const user = { ...userData, id: result.insertId } as User;
-			return user;
+			const result = await conn.query('INSERT INTO roles SET ?', roleData);
+			return { ...roleData, id: result.insertId };
 		} finally {
 			conn.release();
 		}
 	}
 
-	// Update attributes of an existing user using single object parameter
-	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
+	// Update a role
+	async updateRole(roleId: string, roleData: Partial<Role>): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('UPDATE auth_users SET ? WHERE id = ?', [attributes, userId]);
+			await conn.query('UPDATE roles SET ? WHERE id = ?', [roleData, roleId]);
 		} finally {
 			conn.release();
 		}
 	}
 
-	// Delete a user by ID
+	// Delete a role
+	async deleteRole(roleId: string): Promise<void> {
+		const conn = await pool.getConnection();
+		try {
+			await conn.query('DELETE FROM roles WHERE id = ?', [roleId]);
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Get a role by ID
+	async getRoleById(roleId: string): Promise<Role | null> {
+		const conn = await pool.getConnection();
+		try {
+			const rows = await conn.query('SELECT * FROM roles WHERE id = ?', [roleId]);
+			return rows[0] || null;
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Get all roles
+	async getAllRoles(): Promise<Role[]> {
+		const conn = await pool.getConnection();
+		try {
+			const rows = await conn.query('SELECT * FROM roles');
+			return rows;
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Create a permission
+	async createPermission(permissionData: Permission): Promise<Permission> {
+		const conn = await pool.getConnection();
+		try {
+			const result = await conn.query('INSERT INTO permissions SET ?', permissionData);
+			return { ...permissionData, id: result.insertId };
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Update a permission
+	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
+		const conn = await pool.getConnection();
+		try {
+			await conn.query('UPDATE permissions SET ? WHERE id = ?', [permissionData, permissionId]);
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Assign permission to a role
+	async assignPermissionToRole(roleId: string, permissionId: string): Promise<void> {
+		const conn = await pool.getConnection();
+		try {
+			// Assuming a role_permissions table exists that links roles and permissions
+			await conn.query('INSERT INTO role_permissions (roleId, permissionId) VALUES (?, ?)', [roleId, permissionId]);
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Remove permission from a role
+	async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
+		const conn = await pool.getConnection();
+		try {
+			await conn.query('DELETE FROM role_permissions WHERE roleId = ? AND permissionId = ?', [roleId, permissionId]);
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Get permissions for a role
+	async getPermissionsForRole(roleId: string): Promise<Permission[]> {
+		const conn = await pool.getConnection();
+		try {
+			const rows = await conn.query(
+				`
+                SELECT p.* FROM permissions p
+                JOIN role_permissions rp ON p.id = rp.permissionId
+                WHERE rp.roleId = ?
+            `,
+				[roleId]
+			);
+			return rows;
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Delete a permission
+	async deletePermission(permissionId: string): Promise<void> {
+		const conn = await pool.getConnection();
+		try {
+			await conn.query('DELETE FROM permissions WHERE id = ?', [permissionId]);
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Get a permission by ID
+	async getPermissionById(permissionId: string): Promise<Permission | null> {
+		const conn = await pool.getConnection();
+		try {
+			const rows = await conn.query('SELECT * FROM permissions WHERE id = ?', [permissionId]);
+			return rows[0] || null;
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Get all permissions
+	async getAllPermissions(): Promise<Permission[]> {
+		const conn = await pool.getConnection();
+		try {
+			const rows = await conn.query('SELECT * FROM permissions');
+			return rows;
+		} finally {
+			conn.release();
+		}
+	}
+
+	// Delete a user
 	async deleteUser(id: string): Promise<void> {
 		const conn = await pool.getConnection();
 		try {

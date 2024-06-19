@@ -81,10 +81,20 @@ export class Auth {
 		console.log(`Session created with ID: ${session.id} for user ID: ${userId}`);
 		return session;
 	}
-	// Check if a user exists by ID or email
+
+	// Check if a user exists by ID or email// Check if a user exists by ID or email
 	async checkUser(fields: { userId?: string; email?: string }): Promise<User | null> {
-		return fields.email ? await this.db.getUserByEmail(fields.email) : await this.db.getUserById(fields.id!);
+		if (fields.email) {
+			return await this.db.getUserByEmail(fields.email);
+		} else if (fields.userId) {
+			return await this.db.getUserById(fields.userId);
+		} else {
+			// Handle the case where neither userId nor email is provided
+			console.error('No user identifier provided.');
+			return null;
+		}
 	}
+
 	// Get the total number of users
 	async getUserCount(): Promise<number> {
 		return await this.db.getUserCount();
@@ -116,11 +126,11 @@ export class Auth {
 			name: SESSION_COOKIE_NAME,
 			value: session.id,
 			attributes: {
-				sameSite: 'strict',
+				sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
 				path: '/',
 				httpOnly: true,
 				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
-				secure: true // Ensure cookies are sent only over HTTPS
+				secure: false // TODO:  set to true for production. Ensure cookies are sent only over HTTPS
 			}
 		};
 	}

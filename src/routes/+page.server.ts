@@ -15,13 +15,19 @@ export async function load({ cookies }) {
 	// Wait for initialization to complete
 	if (initializationPromise) {
 		console.log('Waiting for initialization promise...');
-		await initializationPromise;
+		await initializationPromise.catch((e) => console.error('Initialization failed:', e));
 		console.log('Initialization promise resolved.');
 	}
 
 	// Get the session cookie
-	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+	const sessionId = cookies.get(SESSION_COOKIE_NAME);
 	console.log('Session ID:', sessionId);
+
+	if (!sessionId) {
+		console.error('Session ID is missing from cookies');
+		// Redirect or handle error as needed
+		throw redirect(302, '/login');
+	}
 
 	if (!auth) {
 		console.error('Authentication system is not initialized - src/routes/+page.server.ts');
