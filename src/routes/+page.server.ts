@@ -13,10 +13,12 @@ export async function load({ cookies }) {
 	console.log('Load function started.');
 
 	// Wait for initialization to complete
-	if (initializationPromise) {
-		console.log('Waiting for initialization promise...');
-		await initializationPromise.catch((e) => console.error('Initialization failed:', e));
+	try {
+		await initializationPromise;
 		console.log('Initialization promise resolved.');
+	} catch (e) {
+		console.error('Initialization failed:', e);
+		throw error(500, 'Internal Server Error'); // Stop further execution and return an error response
 	}
 
 	// Get the session cookie
@@ -25,7 +27,7 @@ export async function load({ cookies }) {
 
 	if (!sessionId) {
 		console.error('Session ID is missing from cookies');
-		// Redirect or handle error as needed
+		// Redirect to login page if session is not found
 		throw redirect(302, '/login');
 	}
 
@@ -35,22 +37,34 @@ export async function load({ cookies }) {
 	}
 
 	// Validate the user's session
-	const user = await auth.validateSession({ sessionId });
-	console.log('User:', user);
+	let user;
+	try {
+		user = await auth.validateSession({ sessionId });
+		console.log('User:', user);
+	} catch (e) {
+		console.error('Session validation failed:', e);
+		throw redirect(302, '/login');
+	}
 
 	if (!user) {
 		console.warn('User not found, redirecting to login.');
-		throw redirect(302, `/login`);
+		throw redirect(302, '/login');
 	}
 
 	// Get the collections and filter based on reading permissions
-	const collections = await getCollections();
-	console.log('Collections:', collections);
+	let collections;
+	try {
+		collections = await getCollections();
+		console.log('Collections:', collections);
+	} catch (e) {
+		console.error('Failed to get collections:', e);
+		throw error(500, 'Internal Server Error');
+	}
 
-	const _filtered = Object.values(collections).filter((c: any) => user && c?.permissions?.[user.role]?.read != false);
-	console.log('Filtered collections:', _filtered);
+	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+	console.log('Filtered collections:', filteredCollections);
 
-	if (_filtered.length == 0) {
+	if (filteredCollections.length === 0) {
 		console.error('No collections found for user.');
 		throw error(404, {
 			message: "You don't have access to any collection"
@@ -58,32 +72,40 @@ export async function load({ cookies }) {
 	}
 
 	// Redirect to the first collection in the collections array
-	throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
+	const firstCollection = filteredCollections[0];
+	if (firstCollection && firstCollection.name) {
+		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
+	} else {
+		console.error('No valid collections to redirect to.');
+		throw error(500, 'Internal Server Error');
+	}
 }
 
 export const actions = {
-	default: async ({ cookies, request }) => {
-		const data = await request.formData();
-		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
+    default: async ({ cookies, request }) => {
+        const data = await request.formData();
+        const theme = data.get('theme') === 'light' ? 'light' : 'dark';
+        let systemLanguage = data.get('systemlanguage') as string;
 
-		let systemlanguage = data.get('systemlanguage') as string; // get the system language from the form data
+        // Check if the provided system language is available, if not, default to source language
+        if (!availableLanguageTags.includes(systemLanguage)) {
+            systemLanguage = sourceLanguageTag;
+        }
 
-		// Check if the provided system language is available, if not, default to source language
-		if (!availableLanguageTags.includes(sourceLanguageTag)) {
-			systemlanguage = sourceLanguageTag;
-		}
+        // Set the cookies
+        cookies.set('theme', theme, { path: '/' });
+        cookies.set('systemlanguage', systemLanguage, { path: '/' });
 
-		// Set the cookies
-		cookies.set('theme', theme, { path: '/' });
-		cookies.set('systemlanguage', systemlanguage, { path: '/' });
+        // Update the language tag in paraglide
+        setLanguageTag(systemLanguage);
 
-		// Update the language tag in paraglide
-		setLanguageTag(systemlanguage as any);
+        // Assume a session creation method is called here and a session object is returned
+        const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
+        const sessionCookie = auth.createSessionCookie(session);
 
-		// Store the system language and theme color in local storage
-		localStorage.setItem('systemlanguage', systemlanguage);
-		localStorage.setItem('theme', theme);
+        // Set the session cookie
+        cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
-		throw redirect(303, '/');
-	}
+        throw redirect(303, '/');
+    }
 } satisfies Actions;

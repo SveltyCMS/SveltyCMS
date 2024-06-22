@@ -1,5 +1,5 @@
 import argon2 from 'argon2';
-import type { Cookie, User, Session, Token } from './types';
+import type { Cookie, User, Session, Token, PermissionAction, Role } from './types';
 import type { AuthDBAdapter } from './authDBAdapter';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
@@ -11,7 +11,7 @@ const argon2Attributes = {
 	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
 	parallelism: 2, // Number of execution threads
 	saltLength: 16 // Salt length in bytes
-} as { secret?: any };
+} as const;
 
 export class Auth {
 	private db: AuthDBAdapter;
@@ -82,7 +82,7 @@ export class Auth {
 		return session;
 	}
 
-	// Check if a user exists by ID or email// Check if a user exists by ID or email
+	// Check if a user exists by ID or email
 	async checkUser(fields: { userId?: string; email?: string }): Promise<User | null> {
 		if (fields.email) {
 			return await this.db.getUserByEmail(fields.email);
@@ -120,20 +120,20 @@ export class Auth {
 		await this.db.destroySession(sessionId);
 	}
 
-	// Create a cookie object that expires in 1 year
-	createSessionCookie(session: Session): Cookie {
-		return {
-			name: SESSION_COOKIE_NAME,
-			value: session.id,
-			attributes: {
-				sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
-				path: '/',
-				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
-				secure: false // TODO:  set to true for production. Ensure cookies are sent only over HTTPS
-			}
-		};
-	}
+// Create a cookie object that expires in 1 year
+createSessionCookie(session: Session): Cookie {
+    return {
+        name: SESSION_COOKIE_NAME,
+        value: session.id,
+        attributes: {
+            sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
+            path: '/',
+            httpOnly: true,
+            expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
+            secure: process.env.NODE_ENV === 'production' // Secure flag based on environment
+        }
+    };
+}
 
 	// Log in a user with email and password
 	async login(email: string, password: string): Promise<User | null> {
@@ -157,7 +157,7 @@ export class Auth {
 					await this.db.updateUserAttributes(user.id, { lockoutUntil });
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
 				} else {
-					await this.db.updateUserAttributes(user.id, { lockoutUntil: undefined }); // Use undefined instead of null
+					await this.db.updateUserAttributes(user.id, { failedAttempts: user.failedAttempts });
 					throw new Error('Invalid credentials. Please try again.');
 				}
 			}
@@ -183,6 +183,7 @@ export class Auth {
 		}
 		return user;
 	}
+
 	// Create a token, default expires in 1 hour
 	async createToken(userId: string, expires = 60 * 60 * 1000): Promise<string> {
 		const user = await this.db.getUserById(userId);

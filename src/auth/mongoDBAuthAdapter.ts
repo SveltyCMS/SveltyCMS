@@ -22,10 +22,12 @@ const UserMongooseSchema = new Schema(
 		is_registered: Boolean, // Registration status of the user, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
 		resetRequestedAt: String, // Last time the user requested a password reset, optional field
-		resetToken: String // Token for resetting the user's password, optional field
+		resetToken: String, // Token for resetting the user's password, optional field
+		is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
+		permissions: [{ type: Schema.Types.ObjectId, ref: 'Permission' }] // User-specific permissions, optional field
 	},
 	{ timestamps: true }
-); // Automatically adds createdAt and updatedAt fields
+);
 
 // Schema for Session collection
 const SessionMongooseSchema = new Schema(
@@ -34,7 +36,7 @@ const SessionMongooseSchema = new Schema(
 		expires: { type: Date, required: true } // Expiry date of the session, required field
 	},
 	{ timestamps: true }
-); // Automatically adds createdAt and updatedAt fields
+);
 
 // Schema for Token collection
 const TokenMongooseSchema = new Schema(
@@ -45,23 +47,29 @@ const TokenMongooseSchema = new Schema(
 		expires: { type: Date, required: true } // Expiry date of the token, required field
 	},
 	{ timestamps: true }
-); // Automatically adds createdAt and updatedAt fields
+);
 
+// Schema for Role collection
 const RoleSchema = new Schema(
 	{
 		name: { type: String, required: true },
-		description: { type: String, required: false }
+		description: { type: String, required: false },
+		permissions: [{ type: Schema.Types.ObjectId, ref: 'Permission' }]
 	},
 	{ timestamps: true }
-); // Added comma here
+);
 
+// Schema for Permission collection
 const PermissionSchema = new Schema(
 	{
 		name: { type: String, required: true },
-		description: { type: String, required: false }
+		description: { type: String, required: false },
+		contextId: { type: String, required: true },
+		contextType: { type: String, required: true },
+		requires2FA: { type: Boolean, required: false }
 	},
 	{ timestamps: true }
-); // Added comma here
+);
 
 // Check and create models only if they don't exist
 const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserMongooseSchema);
@@ -124,20 +132,22 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		return await UserModel.countDocuments();
 	}
 
-	// Create a new session for a user.
-	async createSession(data: { userId: string; expires: number }): Promise<Session> {
-		console.log('Attempting to create session for user:', data.userId);
-		const session = await SessionModel.create({
-			userId: data.userId, // Use userId directly, Mongoose will generate ObjectId
-			expires: new Date(Date.now() + data.expires)
-		});
-		if (!session) {
-			console.error('Failed to create session');
-			throw new Error('Session creation failed');
-		}
-		console.log('Session created:', session);
-		return session.toObject() as Session;
-	}
+// Create a new session for a user.
+async createSession(data: { userId: string; expires: number }): Promise<Session> {
+    console.log('Creating session with data:', data);
+    console.log('Attempting to create session for user:', data.userId);
+    try {
+        const session = await SessionModel.create({
+            userId: data.userId,
+            expires: new Date(Date.now() + data.expires)
+        });
+        console.log('Session created successfully:', session);
+        return session.toObject() as Session;
+    } catch (error) {
+        console.error('Error creating session:', error);
+        throw error;
+    }
+}
 
 	// Destroy a session by ID.
 	async destroySession(sessionId: string): Promise<void> {
@@ -145,27 +155,23 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Validate a session by ID.
-
 	async validateSession(sessionId: string): Promise<User | null> {
-		console.log(`Validating session with ID: ${sessionId}`);
+		console.log(`MongoDBAuthAdapter: Validating session with ID: ${sessionId}`);
 		const session = await SessionModel.findById(sessionId);
 		if (!session) {
-			console.log('No session found with ID:', sessionId);
+			console.log('MongoDBAuthAdapter: No session found');
 			return null;
 		}
 		console.log('Session found:', session);
-		if (session.expires > new Date()) {
-			const user = await UserModel.findById(session.userId); // Use session.userId directly
-			if (!user) {
-				console.log('No user found for session ID:', sessionId);
-				return null;
-			}
-			console.log('Session is valid, user found:', user);
-			return user.toObject() as User;
-		} else {
-			console.log('Session expired:', session);
+		// Check if session has expired
+		if (session.expires <= new Date()) {
+			console.log('MongoDBAuthAdapter: Session expired');
+			await SessionModel.deleteOne({ _id: sessionId });
 			return null;
 		}
+		const user = await UserModel.findById(session.userId);
+		console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
+		return user ? user.toObject() : null;
 	}
 
 	// Invalidate all sessions for a user.
@@ -193,7 +199,8 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { success: true, message: 'Token is valid' };
-			} else {
+
+} else {
 				return { success: false, message: 'Token is expired' };
 			}
 		} else {
@@ -241,12 +248,12 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	async getRoleById(roleId: string): Promise<Role | null> {
-		const role = await RoleModel.findById(roleId);
+		const role = await RoleModel.findById(roleId).populate('permissions');
 		return role ? (role.toObject() as Role) : null;
 	}
 
 	async getAllRoles(): Promise<Role[]> {
-		const roles = await RoleModel.find();
+		const roles = await RoleModel.find().populate('permissions');
 		return roles.map((role) => role.toObject() as Role);
 	}
 
@@ -287,5 +294,19 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
 		await RoleModel.updateOne({ _id: roleId }, { $pull: { permissions: permissionId } });
+	}
+
+	// User-specific permissions management
+	async assignPermissionToUser(userId: string, permissionId: string): Promise<void> {
+		await UserModel.updateOne({ _id: userId }, { $addToSet: { permissions: permissionId } });
+	}
+
+	async removePermissionFromUser(userId: string, permissionId: string): Promise<void> {
+		await UserModel.updateOne({ _id: userId }, { $pull: { permissions: permissionId } });
+	}
+
+	async getPermissionsForUser(userId: string): Promise<Permission[]> {
+		const user = await UserModel.findById(userId).populate('permissions');
+		return user ? (user.permissions as Permission[]) : [];
 	}
 }
