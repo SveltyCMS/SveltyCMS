@@ -6,11 +6,25 @@ import { text, spinner, select, note, isCancel, cancel, confirm } from '@clack/p
 import pc from 'picocolors';
 
 // Helper function to test database connection
-async function testDatabaseConnection(dbType, { host, port, user, password, database, connectionString }) {
+async function testDatabaseConnection(dbType, { host, port, user, password, database }) {
 	if (dbType === 'mongodb') {
 		const mongoose = await import('mongoose');
 		try {
-			await mongoose.default.connect(connectionString);
+			// Construct the MongoDB connection string dynamically
+			let connectionString;
+			if (host.includes('mongodb.net')) {
+				// Use mongodb+srv:// for Atlas
+				connectionString = `mongodb+srv://${user}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
+			} else {
+				// Use mongodb:// for local or Docker
+				const credentials = user && password ? `${user}:${encodeURIComponent(password)}@` : '';
+				const portString = port ? `:${port}` : '';
+				connectionString = `mongodb://${credentials}${host}${portString}/${database}`;
+			}
+
+			console.log('Connecting to MongoDB with connection string:', connectionString);
+
+			await mongoose.default.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
 			await mongoose.default.connection.db.admin().ping();
 			return true;
 		} catch (error) {
