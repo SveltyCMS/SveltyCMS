@@ -68,11 +68,7 @@ const fetchMemoryInfo = async () => {
 
 const getSystemInfo = async () => {
 	try {
-		const [cpuInfo, diskInfo, memoryInfo] = await Promise.all([
-			fetchCPUInfo(),
-			fetchDiskInfo(),
-			fetchMemoryInfo()
-		]);
+		const [cpuInfo, diskInfo, memoryInfo] = await Promise.all([fetchCPUInfo(), fetchDiskInfo(), fetchMemoryInfo()]);
 
 		const osInfo = {
 			platform: os.platform(),

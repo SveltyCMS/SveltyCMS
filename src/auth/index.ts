@@ -120,20 +120,20 @@ export class Auth {
 		await this.db.destroySession(sessionId);
 	}
 
-// Create a cookie object that expires in 1 year
-createSessionCookie(session: Session): Cookie {
-    return {
-        name: SESSION_COOKIE_NAME,
-        value: session.id,
-        attributes: {
-            sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
-            path: '/',
-            httpOnly: true,
-            expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
-            secure: process.env.NODE_ENV === 'production' // Secure flag based on environment
-        }
-    };
-}
+	// Create a cookie object that expires in 1 year
+	createSessionCookie(session: Session): Cookie {
+		return {
+			name: SESSION_COOKIE_NAME,
+			value: session.id,
+			attributes: {
+				sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
+				path: '/',
+				httpOnly: true,
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
+				secure: process.env.NODE_ENV === 'production' // Secure flag based on environment
+			}
+		};
+	}
 
 	// Log in a user with email and password
 	async login(email: string, password: string): Promise<User | null> {

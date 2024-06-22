@@ -6,7 +6,7 @@
 		const res = await fetch('/api/users');
 		const users = (await res.json()).data;
 		// Assume each user has an activities field containing recent activities
-		activities = users.flatMap(user => user.activities);
+		activities = users.flatMap((user) => user.activities);
 	});
 </script>
 

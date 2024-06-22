@@ -92,7 +92,7 @@
 		<!-- DEMO MODE -->
 		{#if publicEnv.DEMO == true}
 			<div
-				class="absolute bottom-8 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 py-2 md:p-4 text-center text-white md:bottom-1"
+				class="absolute bottom-8 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 py-2 text-center text-white md:bottom-1 md:p-4"
 			>
 				<p class="text-2xl font-bold">SveltyCMS DEMO MODE</p>
 				<p>This site will reset every 10 min.</p>

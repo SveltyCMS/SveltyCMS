@@ -103,14 +103,14 @@
 		<ul class="drops absolute right-2 top-14 mt-1 divide-y divide-white rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto">
 			{#each Object.keys(buttonMap) as type}
 				{#if $storeListboxValue !== type}
-					<li class={`  hover:text-white gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus`}>
+					<li class={` hover:text-white gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus`}}>
 						<button
 							type="button"
-							class={`btn flex w-full justify-between gap-2 gradient-${buttonMap[type][1]} ${buttonMap[type][1]}-hover ${buttonMap[type][1]}-focus`}
-							on:click|preventDefault={() => handleOptionClick(type)}
+							class={btn flex w-full justify-between gap-2 gradient-${buttonMap[type][1]} ${buttonMap[type][1]}-hover ${buttonMap[type][1]}-focus`}}
+							on:click|preventDefault={) => handleOptionClick(type)}}
 						>
-							<iconify-icon icon={buttonMap[type][2]} width="24" class="" />
-							<p class="w-full">{buttonMap[type][0]}</p>
+							<iconify-icon icon={uttonMap[type][2]}} width="24" class=""></iconify-icon>
+							<p class="w-full">{uttonMap[type][0]}}</p>
 						</button>
 					</li>
 				{/if}

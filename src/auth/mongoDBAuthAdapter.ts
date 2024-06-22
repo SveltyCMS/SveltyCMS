@@ -132,22 +132,22 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		return await UserModel.countDocuments();
 	}
 
-// Create a new session for a user.
-async createSession(data: { userId: string; expires: number }): Promise<Session> {
-    console.log('Creating session with data:', data);
-    console.log('Attempting to create session for user:', data.userId);
-    try {
-        const session = await SessionModel.create({
-            userId: data.userId,
-            expires: new Date(Date.now() + data.expires)
-        });
-        console.log('Session created successfully:', session);
-        return session.toObject() as Session;
-    } catch (error) {
-        console.error('Error creating session:', error);
-        throw error;
-    }
-}
+	// Create a new session for a user.
+	async createSession(data: { userId: string; expires: number }): Promise<Session> {
+		console.log('Creating session with data:', data);
+		console.log('Attempting to create session for user:', data.userId);
+		try {
+			const session = await SessionModel.create({
+				userId: data.userId,
+				expires: new Date(Date.now() + data.expires)
+			});
+			console.log('Session created successfully:', session);
+			return session.toObject() as Session;
+		} catch (error) {
+			console.error('Error creating session:', error);
+			throw error;
+		}
+	}
 
 	// Destroy a session by ID.
 	async destroySession(sessionId: string): Promise<void> {
@@ -199,8 +199,7 @@ async createSession(data: { userId: string; expires: number }): Promise<Session>
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { success: true, message: 'Token is valid' };
-
-} else {
+			} else {
 				return { success: false, message: 'Token is expired' };
 			}
 		} else {

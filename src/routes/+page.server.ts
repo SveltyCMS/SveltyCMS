@@ -82,30 +82,30 @@ export async function load({ cookies }) {
 }
 
 export const actions = {
-    default: async ({ cookies, request }) => {
-        const data = await request.formData();
-        const theme = data.get('theme') === 'light' ? 'light' : 'dark';
-        let systemLanguage = data.get('systemlanguage') as string;
+	default: async ({ cookies, request }) => {
+		const data = await request.formData();
+		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
+		let systemLanguage = data.get('systemlanguage') as string;
 
-        // Check if the provided system language is available, if not, default to source language
-        if (!availableLanguageTags.includes(systemLanguage)) {
-            systemLanguage = sourceLanguageTag;
-        }
+		// Check if the provided system language is available, if not, default to source language
+		if (!availableLanguageTags.includes(systemLanguage)) {
+			systemLanguage = sourceLanguageTag;
+		}
 
-        // Set the cookies
-        cookies.set('theme', theme, { path: '/' });
-        cookies.set('systemlanguage', systemLanguage, { path: '/' });
+		// Set the cookies
+		cookies.set('theme', theme, { path: '/' });
+		cookies.set('systemlanguage', systemLanguage, { path: '/' });
 
-        // Update the language tag in paraglide
-        setLanguageTag(systemLanguage);
+		// Update the language tag in paraglide
+		setLanguageTag(systemLanguage);
 
-        // Assume a session creation method is called here and a session object is returned
-        const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
-        const sessionCookie = auth.createSessionCookie(session);
+		// Assume a session creation method is called here and a session object is returned
+		const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
+		const sessionCookie = auth.createSessionCookie(session);
 
-        // Set the session cookie
-        cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		// Set the session cookie
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
-        throw redirect(303, '/');
-    }
+		throw redirect(303, '/');
+	}
 } satisfies Actions;
