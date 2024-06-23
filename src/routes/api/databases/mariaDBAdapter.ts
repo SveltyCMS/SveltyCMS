@@ -3,6 +3,9 @@ import mariadb from 'mariadb';
 import type { Pool } from 'mariadb';
 import type { DatabaseAdapter } from './databaseAdapter';
 
+// System Logs
+import logger from '@utils/logger';
+
 export class MariaDBAdapter implements DatabaseAdapter {
 	private pool: Pool;
 
@@ -20,9 +23,9 @@ export class MariaDBAdapter implements DatabaseAdapter {
 	async connect(): Promise<void> {
 		try {
 			await this.pool.getConnection();
-			console.log('Successfully connected to the MariaDB database');
+			// logger.info('Successfully connected to the MariaDB database');
 		} catch (error) {
-			console.error('Failed to connect to the MariaDB database:', (error as Error).message);
+			logger.error(`Failed to connect to the MariaDB database: ${(error as Error).message}`);
 			throw new Error(`Failed to connect to the MariaDB database: ${(error as Error).message}`);
 		}
 	}

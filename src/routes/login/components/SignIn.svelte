@@ -285,6 +285,11 @@
 		email: hide_email,
 		token: registration_token
 	};
+
+	// Function to handle the "Back" button click
+	function goBack() {
+		active = undefined; // Change to the state you want to represent the login view
+	}
 </script>
 
 <Toast />
@@ -300,6 +305,9 @@
 	class:hover={active == undefined || active == 1}
 >
 	{#if active == 0}
+		<!-- Back button -->
+		<button on:click={goBack} class="variant-filled-surface btn-icon"> ← </button>
+
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 

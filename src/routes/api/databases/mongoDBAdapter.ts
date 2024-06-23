@@ -5,11 +5,14 @@ import mongoose from 'mongoose';
 import type { DatabaseAdapter } from './databaseAdapter';
 import { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema } from '@src/auth/mongoDBAuthAdapter';
 
+// System Logs
+import logger from '@utils/logger';
+
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		console.log('Attempting to connect to MongoDB...');
+		// logger.info('Attempting to connect to MongoDB...');
 		while (attempts > 0) {
 			try {
 				await mongoose.connect(privateEnv.DB_HOST, {
@@ -19,14 +22,16 @@ export class MongoDBAdapter implements DatabaseAdapter {
 					dbName: privateEnv.DB_NAME,
 					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
 				});
-				console.log(`Successfully connected to ${privateEnv.DB_NAME}`);
+				// logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
-				console.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${(error as Error).message}`);
+				logger.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${(error as Error).message}`);
+
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';
-					console.error(errorMsg);
+					logger.error(errorMsg);
+
 					throw new Error(errorMsg);
 				}
 				// Wait before retrying only if more attempts remain
@@ -36,7 +41,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	}
 
 	async getCollectionModels(): Promise<any> {
-		console.log('Setting up collection models...');
+		// console.log('Setting up collection models...');
 		return new Promise<any>((resolve) => {
 			this.unsubscribe = collections.subscribe((collections) => {
 				if (collections) {
@@ -71,7 +76,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 						);
 
 						collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
-						console.log(`Collection model for ${collection.name} set up.`);
+						// console.log(`Collection model for ${collection.name} set up.`);
 					});
 
 					this.unsubscribe && this.unsubscribe();
@@ -83,43 +88,31 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		});
 	}
 
+	// Set up authentication models
 	setupAuthModels(): void {
-		console.log('Setting up authentication models...');
 		if (!mongoose.models['auth_tokens']) {
 			mongoose.model('auth_tokens', TokenMongooseSchema);
-			console.log('auth_tokens model set up.');
-		} else {
-			console.log('auth_tokens model already exists.');
 		}
 		if (!mongoose.models['auth_users']) {
 			mongoose.model('auth_users', UserMongooseSchema);
-			console.log('auth_users model set up.');
-		} else {
-			console.log('auth_users model already exists.');
 		}
 		if (!mongoose.models['auth_sessions']) {
 			mongoose.model('auth_sessions', SessionMongooseSchema);
-			console.log('auth_sessions model set up.');
-		} else {
-			console.log('auth_sessions model already exists.');
 		}
-		console.log('Authentication models setup complete.');
 	}
 
+	// Set up media models
 	setupMediaModels(): void {
-		console.log('Setting up media models...');
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		mediaSchemas.forEach((schemaName) => {
 			if (!mongoose.models[schemaName]) {
 				mongoose.model(schemaName, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-				console.log(`${schemaName} model set up.`);
 			}
 		});
-		console.log('Media models setup complete.');
 	}
 
+	// Get recent last 5 collections
 	async getLastFiveCollections(): Promise<any[]> {
-		console.log('Fetching the last 5 added collections...');
 		const collections = Object.keys(mongoose.models);
 		const recentCollections: any[] = [];
 
@@ -127,30 +120,26 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			const model = mongoose.models[collectionName];
 			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
 			recentCollections.push({ collectionName, recentDocs });
-			console.log(`Fetched recent documents for ${collectionName}`);
 		}
 
-		console.log('Last 5 collections fetched.');
 		return recentCollections;
 	}
 
+	// Get logged in users
 	async getLoggedInUsers(): Promise<any[]> {
-		console.log('Fetching logged in users...');
 		const sessionModel = mongoose.models['auth_sessions'];
 		const loggedInUsers = await sessionModel.find({ active: true }).exec();
-		console.log('Logged in users fetched.');
 		return loggedInUsers;
 	}
 
+	// Get CMS data
 	async getCMSData(): Promise<any> {
-		console.log('Fetching CMS data...');
 		const cmsData = {}; // Replace with actual logic
-		console.log('CMS data fetched.');
 		return cmsData;
 	}
 
+	// Get recent last 5 media documents
 	async getLastFiveMedia(): Promise<any[]> {
-		console.log('Fetching the last 5 added media items...');
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		const recentMedia: any[] = [];
 
@@ -160,8 +149,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			recentMedia.push({ schemaName, recentDocs });
 			console.log(`Fetched recent media documents for ${schemaName}`);
 		}
-
-		console.log('Last 5 media items fetched.');
 		return recentMedia;
 	}
 }

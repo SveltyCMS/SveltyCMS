@@ -99,7 +99,6 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		// Prepare the filter and update statements with proper typings
 		const filter: FilterQuery<User> = { _id: userId };
 		const update: UpdateQuery<User> = { $set: attributes };
-
 		// Execute the update with correctly typed parameters
 		await UserModel.updateOne(filter, update);
 	}
@@ -135,7 +134,6 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	// Create a new session for a user.
 	async createSession(data: { userId: string; expires: number }): Promise<Session> {
 		console.log('Creating session with data:', data);
-		console.log('Attempting to create session for user:', data.userId);
 		try {
 			const session = await SessionModel.create({
 				userId: data.userId,
@@ -162,8 +160,6 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			console.log('MongoDBAuthAdapter: No session found');
 			return null;
 		}
-		console.log('Session found:', session);
-		// Check if session has expired
 		if (session.expires <= new Date()) {
 			console.log('MongoDBAuthAdapter: Session expired');
 			await SessionModel.deleteOne({ _id: sessionId });
@@ -235,6 +231,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		return role.toObject() as Role;
 	}
 
+	// Update a role
 	async updateRole(roleId: string, roleData: Partial<Role>): Promise<void> {
 		const filter: FilterQuery<Role> = { _id: roleId };
 		const update: UpdateQuery<Role> = { $set: roleData };
@@ -242,15 +239,18 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		await RoleModel.updateOne(filter, update);
 	}
 
+	// Delete a role
 	async deleteRole(roleId: string): Promise<void> {
 		await RoleModel.deleteOne({ _id: roleId });
 	}
 
+	// Get a role by ID
 	async getRoleById(roleId: string): Promise<Role | null> {
 		const role = await RoleModel.findById(roleId).populate('permissions');
 		return role ? (role.toObject() as Role) : null;
 	}
 
+	// Get all roles
 	async getAllRoles(): Promise<Role[]> {
 		const roles = await RoleModel.find().populate('permissions');
 		return roles.map((role) => role.toObject() as Role);
@@ -263,24 +263,29 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		return permission.toObject() as Permission;
 	}
 
+	// Update a permission
 	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
 		await PermissionModel.updateOne({ _id: permissionId }, { $set: permissionData });
 	}
 
+	// Delete a permission
 	async deletePermission(permissionId: string): Promise<void> {
 		await PermissionModel.deleteOne({ _id: permissionId });
 	}
 
+	// Get a permission by ID
 	async getPermissionById(permissionId: string): Promise<Permission | null> {
 		const permission = await PermissionModel.findById(permissionId);
 		return permission ? (permission.toObject() as Permission) : null;
 	}
 
+	// Get all permissions
 	async getAllPermissions(): Promise<Permission[]> {
 		const permissions = await PermissionModel.find();
 		return permissions.map((permission) => permission.toObject() as Permission);
 	}
 
+	// Complete Role-Permission management
 	async getPermissionsForRole(roleId: string): Promise<Permission[]> {
 		const role = await RoleModel.findById(roleId).populate('permissions');
 		return role ? (role.permissions as Permission[]) : [];
@@ -291,6 +296,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		await RoleModel.updateOne({ _id: roleId }, { $addToSet: { permissions: permissionId } });
 	}
 
+	// Remove the missing link and unlink permissions to roles
 	async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
 		await RoleModel.updateOne({ _id: roleId }, { $pull: { permissions: permissionId } });
 	}
@@ -300,10 +306,12 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		await UserModel.updateOne({ _id: userId }, { $addToSet: { permissions: permissionId } });
 	}
 
+	// Add the missing link and unlink permissions to users
 	async removePermissionFromUser(userId: string, permissionId: string): Promise<void> {
 		await UserModel.updateOne({ _id: userId }, { $pull: { permissions: permissionId } });
 	}
 
+	// User-Specific Permissions Methods (if needed)
 	async getPermissionsForUser(userId: string): Promise<Permission[]> {
 		const user = await UserModel.findById(userId).populate('permissions');
 		return user ? (user.permissions as Permission[]) : [];

@@ -9,8 +9,11 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
+// Define the available language tags for type safety
+type LanguageTag = (typeof availableLanguageTags)[number];
+
 export async function load({ cookies }) {
-	console.log('Load function started.');
+	// console.log('Load function started.');
 
 	// Wait for initialization to complete
 	try {
@@ -18,22 +21,32 @@ export async function load({ cookies }) {
 		console.log('Initialization promise resolved.');
 	} catch (e) {
 		console.error('Initialization failed:', e);
-		throw error(500, 'Internal Server Error'); // Stop further execution and return an error response
-	}
-
-	// Get the session cookie
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	console.log('Session ID:', sessionId);
-
-	if (!sessionId) {
-		console.error('Session ID is missing from cookies');
-		// Redirect to login page if session is not found
-		throw redirect(302, '/login');
+		throw error(500, 'Internal Server Error');
 	}
 
 	if (!auth) {
-		console.error('Authentication system is not initialized - src/routes/+page.server.ts');
+		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
+	}
+
+	// Secure this page with session cookie
+
+	let sessionId = cookies.get(SESSION_COOKIE_NAME);
+	console.log('Session ID:', sessionId);
+
+	// If no session ID is found, create a new session
+	if (!sessionId) {
+		// console.log('Session ID is missing from cookies, creating a new session.');
+		try {
+			const newSession = await auth.createSession({ userId: 'guestUserId' });
+			const sessionCookie = auth.createSessionCookie(newSession);
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			sessionId = sessionCookie.value;
+			// console.log('New session created:', sessionId);
+		} catch (e) {
+			console.error('Failed to create a new session:', e);
+			throw error(500, 'Internal Server Error');
+		}
 	}
 
 	// Validate the user's session
@@ -85,7 +98,7 @@ export const actions = {
 	default: async ({ cookies, request }) => {
 		const data = await request.formData();
 		const theme = data.get('theme') === 'light' ? 'light' : 'dark';
-		let systemLanguage = data.get('systemlanguage') as string;
+		let systemLanguage = data.get('systemlanguage') as LanguageTag;
 
 		// Check if the provided system language is available, if not, default to source language
 		if (!availableLanguageTags.includes(systemLanguage)) {
@@ -99,12 +112,22 @@ export const actions = {
 		// Update the language tag in paraglide
 		setLanguageTag(systemLanguage);
 
-		// Assume a session creation method is called here and a session object is returned
-		const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
-		const sessionCookie = auth.createSessionCookie(session);
+		if (!auth) {
+			console.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
 
-		// Set the session cookie
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		try {
+			// Assume a session creation method is called here and a session object is returned
+			const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
+			const sessionCookie = auth.createSessionCookie(session);
+
+			// Set the session cookie
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		} catch (e) {
+			console.error('Session creation failed:', e);
+			throw error(500, 'Internal Server Error');
+		}
 
 		throw redirect(303, '/');
 	}

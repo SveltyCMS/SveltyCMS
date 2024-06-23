@@ -76,6 +76,11 @@
 	let formElement: HTMLFormElement;
 
 	let showPassword = false;
+
+	// Function to handle the "Back" button click
+	function goBack() {
+		active = undefined; // Change to the state you want to represent the login view
+	}
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -89,6 +94,9 @@
 	class:hover={active == undefined || active == 0}
 >
 	{#if active == 1}
+		<!-- Back button -->
+		<button on:click={goBack} class="variant-filled-surface btn-icon"> ← </button>
+
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 

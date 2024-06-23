@@ -15,11 +15,27 @@ type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
 export async function load({ cookies }) {
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
+
 	// Get session cookie value
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	let sessionId = cookies.get(SESSION_COOKIE_NAME);
+
+	// If no session ID is found, create a new session
 	if (!sessionId) {
-		console.error('Session ID is missing, redirecting to login.');
-		throw redirect(302, '/login');
+		// console.log('Session ID is missing from cookies, creating a new session.');
+		try {
+			const newSession = await auth.createSession({ userId: 'guestUserId' });
+			const sessionCookie = auth.createSessionCookie(newSession);
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			sessionId = sessionCookie.value;
+			// console.log('New session created:', sessionId);
+		} catch (e) {
+			console.error('Failed to create a new session:', e);
+			throw error(500, 'Internal Server Error');
+		}
 	}
 
 	if (!auth) {

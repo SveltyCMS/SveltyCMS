@@ -21,22 +21,22 @@ const RETRY_DELAY = 5000; // 5 seconds
 let initializationPromise: Promise<void> | null = null;
 
 async function loadAdapters() {
-	console.log('Loading database and authentication adapters...');
+	// console.log('Loading database and authentication adapters...');
 	try {
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			console.log('Detected MongoDB as the database type.');
+			// console.log('Detected MongoDB as the database type.');
 			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/mongoDBAuthAdapter')]);
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
 		} else if (privateEnv.DB_TYPE === 'mariadb') {
-			console.log('Detected MariaDB as the database type.');
+			// console.log('Detected MariaDB as the database type.');
 			const [{ MariaDBAdapter }, { MariaDBAuthAdapter }] = await Promise.all([import('./mariaDBAdapter'), import('@src/auth/mariaDBAuthAdapter')]);
 			dbAdapter = new MariaDBAdapter();
 			authAdapter = new MariaDBAuthAdapter();
 		} else {
 			throw new Error('Unsupported DB_TYPE specified in environment variables');
 		}
-		console.log('Adapters loaded successfully');
+		// console.log('Adapters loaded successfully');
 	} catch (error) {
 		console.error('Error loading adapters:', error);
 		throw error;
@@ -131,7 +131,7 @@ export async function getCollectionModels() {
 let googleAuth: any = null;
 
 if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
-	console.log('Setting up Google OAuth2...');
+	// console.log('Setting up Google OAuth2...');
 	const oauth2Client = new google.auth.OAuth2(
 		privateEnv.GOOGLE_CLIENT_ID,
 		privateEnv.GOOGLE_CLIENT_SECRET,
@@ -139,7 +139,7 @@ if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 	);
 
 	googleAuth = oauth2Client;
-	console.log('Google OAuth2 setup complete.');
+	// console.log('Google OAuth2 setup complete.');
 } else {
 	console.warn('Google client ID and secret not provided. Google OAuth will not be available.');
 }

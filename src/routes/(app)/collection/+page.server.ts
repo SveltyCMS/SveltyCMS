@@ -5,12 +5,27 @@ import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export async function load({ cookies }) {
-	// Get session cookie value as string
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
+	if (!auth) {
+		console.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
 
-	// Redirect if no session ID is found, indicating no current session
+	// Get session cookie value as string
+	let sessionId = cookies.get(SESSION_COOKIE_NAME);
+
+	// If no session ID is found, create a new session
 	if (!sessionId) {
-		throw redirect(302, '/login');
+		// console.log('Session ID is missing from cookies, creating a new session.');
+		try {
+			const newSession = await auth.createSession({ userId: 'guestUserId' });
+			const sessionCookie = auth.createSessionCookie(newSession);
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			sessionId = sessionCookie.value;
+			// console.log('New session created:', sessionId);
+		} catch (e) {
+			console.error('Failed to create a new session:', e);
+			throw error(500, 'Internal Server Error');
+		}
 	}
 
 	if (!auth) {
