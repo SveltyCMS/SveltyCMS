@@ -25,7 +25,7 @@ export class Auth {
 	// Create a new user with hashed password
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
-			const { email, password, username, role, lastAuthMethod, is_registered } = userData;
+			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
 
 			// Hash the password
 			let hashed_password: string | undefined;
@@ -40,7 +40,7 @@ export class Auth {
 				username,
 				role,
 				lastAuthMethod,
-				is_registered
+				isRegistered
 			});
 
 			logger.info(`User created: ${user.id}`);

@@ -3,7 +3,7 @@ import crypto from 'crypto';
 
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
-import type { User, Session, Token, Role, Permission } from './types';
+import type { User, Session, Token, Role, AuthPermission } from './types';
 
 // Define the pool for MariaDB connection
 const pool = mariadb.createPool({
@@ -264,7 +264,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Create a permission.
-	async createPermission(permissionData: Permission): Promise<Permission> {
+	async createPermission(permissionData: AuthPermission): Promise<AuthPermission> {
 		const conn = await pool.getConnection();
 		try {
 			const result = await conn.query('INSERT INTO permissions SET ?', permissionData);
@@ -275,7 +275,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Update a permission.
-	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
+	async updatePermission(permissionId: string, permissionData: Partial<AuthPermission>): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
 			await conn.query('UPDATE permissions SET ? WHERE id = ?', [permissionData, permissionId]);
@@ -295,7 +295,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get a permission by ID.
-	async getPermissionById(permissionId: string): Promise<Permission | null> {
+	async getPermissionById(permissionId: string): Promise<AuthPermission | null> {
 		const conn = await pool.getConnection();
 		try {
 			const rows = await conn.query('SELECT * FROM permissions WHERE id = ?', [permissionId]);
@@ -306,7 +306,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get all permissions.
-	async getAllPermissions(): Promise<Permission[]> {
+	async getAllPermissions(): Promise<AuthPermission[]> {
 		const conn = await pool.getConnection();
 		try {
 			const rows = await conn.query('SELECT * FROM permissions');
@@ -337,7 +337,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get permissions for a role.
-	async getPermissionsForRole(roleId: string): Promise<Permission[]> {
+	async getPermissionsForRole(roleId: string): Promise<AuthPermission[]> {
 		const conn = await pool.getConnection();
 		try {
 			const rows = await conn.query(
@@ -375,7 +375,7 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get permissions for a user.
-	async getPermissionsForUser(userId: string): Promise<Permission[]> {
+	async getPermissionsForUser(userId: string): Promise<AuthPermission[]> {
 		const conn = await pool.getConnection();
 		try {
 			const rows = await conn.query(

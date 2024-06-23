@@ -945,10 +945,12 @@ export const get_elements_by_id = {
 	}
 };
 
+// Create random ID
 export const createRandomID = (id?: string) => {
 	return id ? new mongoose.Types.ObjectId(id) : new mongoose.Types.ObjectId();
 };
 
+// Meta data
 export const meta_data: {
 	meta_data: { [key: string]: any };
 	add: (key: 'media_images_remove', data: string[]) => void;
@@ -977,14 +979,17 @@ export const meta_data: {
 	}
 };
 
+// PascalCase to camelCase
 export const pascalToCamelCase = (str: string) => {
 	return str.substring(0, 0) + str.charAt(0).toLowerCase() + str.substring(1);
 };
 
+// Escape regex metacharacters
 RegExp.escape = (string) => {
 	return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 };
 
+// Convert an object to form data
 export const toFormData = function (obj: { [key: string]: string | number }) {
 	const formData = new FormData();
 	for (const key in obj) {
@@ -996,3 +1001,9 @@ export const toFormData = function (obj: { [key: string]: string | number }) {
 	}
 	return formData;
 };
+
+// Get current date
+export function get_date() {
+	const d = new Date();
+	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}

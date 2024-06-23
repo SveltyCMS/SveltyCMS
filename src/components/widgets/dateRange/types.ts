@@ -5,7 +5,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permission from '@src/components/Permission.svelte';
 
 // Auth
-import type { Permissions } from '@src/auth/types';
+import type { AuthPermission } from '@src/auth/types';
 
 /**
  * Defines DataRange widget Parameters
@@ -23,7 +23,7 @@ export type Params = {
 	width?: number;
 
 	// Permissions
-	permissions?: Permissions;
+	permissions?: AuthPermission[];
 
 	// Widget Specific parameters
 };

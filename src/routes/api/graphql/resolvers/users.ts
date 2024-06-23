@@ -12,7 +12,7 @@ export function userTypeDefs() {
             lastAuthMethod: String
             lastActivity: String
             expiresAt: String
-            is_registered: Boolean
+            isRegistered: Boolean
             #------------------------
             createdAt: String
             updatedAt: String

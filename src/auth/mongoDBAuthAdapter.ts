@@ -4,7 +4,7 @@ import crypto from 'crypto';
 
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
-import type { User, Session, Token, Role, Permission } from './types';
+import type { User, Session, Token, Role, AuthPermission } from './types';
 
 // Define MongoDB schemas based on the shared field definitions
 
@@ -19,9 +19,9 @@ const UserMongooseSchema = new Schema(
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
 		lastActiveAt: Date, // Last time the user was active, optional field
 		expiresAt: Date, // Expiry date for the user, optional field
-		is_registered: Boolean, // Registration status of the user, optional field
+		isRegistered: Boolean, // Registration status of the user, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
-		resetRequestedAt: String, // Last time the user requested a password reset, optional field
+		resetRequestedAt: Date, // Last time the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
 		is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
 		permissions: [{ type: Schema.Types.ObjectId, ref: 'Permission' }] // User-specific permissions, optional field
@@ -76,7 +76,7 @@ const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>(
 const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionMongooseSchema);
 const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenMongooseSchema);
 const RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
-const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
+const PermissionModel = mongoose.models.auth_permissions || mongoose.model<AuthPermission & Document>('auth_permissions', PermissionSchema);
 
 // Export Mongoose schemas and models for external use
 export { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema, UserModel, SessionModel, TokenModel };
@@ -257,14 +257,14 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Complete Permissions management
-	async createPermission(permissionData: Permission): Promise<Permission> {
+	async createPermission(permissionData: AuthPermission): Promise<AuthPermission> {
 		const permission = new PermissionModel(permissionData);
 		await permission.save();
-		return permission.toObject() as Permission;
+		return permission.toObject() as AuthPermission;
 	}
 
 	// Update a permission
-	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
+	async updatePermission(permissionId: string, permissionData: Partial<AuthPermission>): Promise<void> {
 		await PermissionModel.updateOne({ _id: permissionId }, { $set: permissionData });
 	}
 
@@ -274,21 +274,21 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get a permission by ID
-	async getPermissionById(permissionId: string): Promise<Permission | null> {
+	async getPermissionById(permissionId: string): Promise<AuthPermission | null> {
 		const permission = await PermissionModel.findById(permissionId);
-		return permission ? (permission.toObject() as Permission) : null;
+		return permission ? (permission.toObject() as AuthPermission) : null;
 	}
 
 	// Get all permissions
-	async getAllPermissions(): Promise<Permission[]> {
+	async getAllPermissions(): Promise<AuthPermission[]> {
 		const permissions = await PermissionModel.find();
-		return permissions.map((permission) => permission.toObject() as Permission);
+		return permissions.map((permission) => permission.toObject() as AuthPermission);
 	}
 
 	// Complete Role-Permission management
-	async getPermissionsForRole(roleId: string): Promise<Permission[]> {
+	async getPermissionsForRole(roleId: string): Promise<AuthPermission[]> {
 		const role = await RoleModel.findById(roleId).populate('permissions');
-		return role ? (role.permissions as Permission[]) : [];
+		return role ? (role.permissions as AuthPermission[]) : [];
 	}
 
 	// Add the missing link and unlink permissions to roles
@@ -312,8 +312,8 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// User-Specific Permissions Methods (if needed)
-	async getPermissionsForUser(userId: string): Promise<Permission[]> {
+	async getPermissionsForUser(userId: string): Promise<AuthPermission[]> {
 		const user = await UserModel.findById(userId).populate('permissions');
-		return user ? (user.permissions as Permission[]) : [];
+		return user ? (user.permissions as AuthPermission[]) : [];
 	}
 }
