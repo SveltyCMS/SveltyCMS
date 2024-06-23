@@ -131,7 +131,6 @@ export async function configureMongoDB(privateConfigData = {}) {
 		dbPassword = password;
 
 		// Reconstruct the connection string with the password
-		connectionString = `mongodb+srv://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}/${dbName}`;
 	} else if (mongoOption === 'docker-local') {
 		note(
 			`To set up Docker or Local MongoDB, you need to have Docker installed\n` +
@@ -145,7 +144,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		dbHost = await text({
 			message: 'Enter the MongoDB host:',
 			placeholder: 'mongodb://localhost:27017',
-			initialValue: privateConfigData.DB_HOST,
+			initialValue: privateConfigData.DB_HOST || 'mongodb://localhost:27017',
 			required: true
 		});
 

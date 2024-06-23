@@ -17,9 +17,7 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 				connectionString = `mongodb+srv://${user}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
 			} else {
 				// Use mongodb:// for local or Docker
-				const credentials = user && password ? `${user}:${encodeURIComponent(password)}@` : '';
-				const portString = port ? `:${port}` : '';
-				connectionString = `mongodb://${credentials}${host}${portString}/${database}`;
+				connectionString = `mongodb://${user}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
 			}
 
 			console.log('Connecting to MongoDB with connection string:', connectionString);
