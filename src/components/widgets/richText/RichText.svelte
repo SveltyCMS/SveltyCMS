@@ -14,6 +14,7 @@
 	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './components/ImageDescription.svelte';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
+	import VideoDialog from './components/VideoDialog.svelte';
 
 	// Skeleton
 	import { ListBox } from '@skeletonlabs/skeleton';
@@ -26,6 +27,7 @@
 	import Color from '@tiptap/extension-color'; // enables you to set the font color
 	import TextAlign from '@tiptap/extension-text-align'; //adds a text align attribute to a specified list of nodes
 	import Link from '@tiptap/extension-link'; // adds support for <a> tags
+	import Youtube from '@tiptap/extension-youtube'; // adds support for <a> tags
 
 	export let field: FieldType;
 	export const WidgetData = async () => ({ images, data: _data });
@@ -34,6 +36,7 @@
 	let element;
 	let editor: Editor;
 	let showImageDialog = false;
+	let showVideoDialog = false;
 	let images = {};
 	let active_dropDown = '';
 
@@ -61,6 +64,7 @@
 				TextStyle,
 				FontFamily,
 				Color,
+				Youtube,
 				ImageResize,
 				TextAlign.configure({
 					types: ['heading', 'paragraph', 'image']
@@ -232,6 +236,17 @@
 				showImageDialog = true;
 			},
 			active: () => editor.isActive('image')
+		},
+		{
+			name: 'video',
+			icon: 'fa6-solid:video',
+			onClick: () => {
+				// editor.commands.setYoutubeVideo({
+				// 	src: 'https://www.youtube.com/watch?v=Q2x2KdHtZ_w'
+				// });
+				showVideoDialog = true;
+			},
+			active: () => editor.isActive('video')
 		}
 	];
 
@@ -414,6 +429,7 @@
 				}}
 			/>
 
+			<!-- Image -->
 			<FileInput
 				closeButton
 				bind:show={showImageDialog}
@@ -433,6 +449,9 @@
 					}
 				}}
 			/>
+
+			<!-- Video -->
+			<VideoDialog bind:show={showVideoDialog} {editor} />
 		</div>
 	{/if}
 
