@@ -23,6 +23,7 @@ trash/
 media/
 mediaFiles/
 collections/
+logs/
 
 # debug
 npm-debug.log*
@@ -35,3 +36,5 @@ yarn-error.log*
 /playwright-report/
 /playwright/.cache/
 /error-screenshot.png
+
+
