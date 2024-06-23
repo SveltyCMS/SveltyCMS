@@ -1,8 +1,13 @@
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
 	import { privateEnv } from '@root/config/private';
-
 	import type { PageData } from '../$types';
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
+
+	// Function to handle the "Back" button click
+	function handleBack() {
+		dispatch('back');
+	}
 
 	// Stores
 	import { page } from '$app/stores';
@@ -118,7 +123,14 @@
 				</h1>
 			</div>
 
-			<div class="-mt-2 text-right text-xs text-error-500">{m.form_required()}</div>
+			<!-- Required with Back button -->
+			<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
+				{m.form_required()}
+
+				<button on:click|stopPropagation={handleBack} class="variant-outline-secondary btn-icon">
+					<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
+				</button>
+			</div>
 
 			<!-- <SuperDebug data={$form} display={dev} /> -->
 			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
