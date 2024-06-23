@@ -23,7 +23,7 @@ trash/
 media/
 mediaFiles/
 collections/
-/logs
+logs/
 
 # debug
 npm-debug.log*

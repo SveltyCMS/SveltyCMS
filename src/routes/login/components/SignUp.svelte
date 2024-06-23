@@ -86,6 +86,9 @@
 	function goBack() {
 		active = undefined; // Change to the state you want to represent the login view
 	}
+
+	$: passwordStrength = $form.password || '';
+	$: confirmPasswordStrength = $form.confirm_password || '';
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->
@@ -188,7 +191,10 @@
 					inputClass="text-white"
 					autocomplete="on"
 				/>
-				{#if $errors.password}<span class="text-xs text-error-500">{$errors.password}</span>{/if}
+				{#if $errors.password}
+					<span class="text-xs text-error-500">{$errors.password}</span>
+				{/if}
+				<PasswordStrength password={passwordStrength} label={m.form_password()} />
 
 				<!-- Password Confirm -->
 				<FloatingInput
@@ -211,6 +217,7 @@
 				{#if $errors.confirm_password}
 					<span class="text-xs text-error-500">{$errors.confirm_password}</span>
 				{/if}
+				<PasswordStrength password={confirmPasswordStrength} label={m.form_confirmpassword()} />
 
 				{#if firstUserExists == true}
 					<!-- Registration Token -->
