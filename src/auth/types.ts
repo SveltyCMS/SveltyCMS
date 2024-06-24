@@ -7,7 +7,7 @@ export const otherRoles = ['developer', 'editor', 'user'] as const;
 export const roles = [adminRole, ...otherRoles] as const;
 
 // List of possible permissions for simplicity and type safety.
-export const permissions = [
+export const permissionActions = [
 	'create', // Allows creating new content.
 	'read', // Allows viewing content.
 	'write', // Allows modifying existing content.
@@ -15,10 +15,10 @@ export const permissions = [
 ] as const;
 
 // Type for the specific actions a role can perform.
-export type PermissionAction = (typeof permissions)[number];
+export type PermissionAction = (typeof permissionActions)[number];
 
 // Permission interface to define what each permission can do
-export interface AuthPermission {
+export interface Permission {
 	id: string;
 	action: PermissionAction;
 	contextId: string; // This could be a collectionId or widgetId indicating scope
@@ -32,7 +32,7 @@ export interface Role {
 	id: string;
 	name: string;
 	description?: string;
-	permissions: AuthPermission[]; // This includes permission IDs which can be resolved to actual permissions
+	permissions: Permission[]; // This includes permission IDs which can be resolved to actual permissions
 }
 
 // Define the type for RateLimit
@@ -63,7 +63,7 @@ export interface User {
 	failedAttempts: number; // Tracks the number of consecutive failed login attempts
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
-	permissions?: AuthPermission[]; // Optional user-specific permissions
+	permissions?: Permission[]; // Optional user-specific permissions
 }
 
 // Session interface represents a session in the system.
@@ -86,7 +86,7 @@ export interface Token {
 export interface Collection {
 	id: string;
 	name: string;
-	permissions: AuthPermission[]; // Permissions specific to this collection
+	permissions: Permission[]; // Permissions specific to this collection
 }
 
 // Define the type for a Cookie
@@ -168,7 +168,7 @@ export function hasPermission(user: User, roles: Role[], action: PermissionActio
 
 // Define default permissions for roles. Could be loaded from a database or configuration file for adaptability.
 export const defaultPermissions = {
-	admin: permissions.map((permission) => ({
+	admin: permissionActions.map((permission) => ({
 		action: permission,
 		contextId: 'global', // Admin has global access for all actions.
 		description: `Admin default permission for ${permission}`,

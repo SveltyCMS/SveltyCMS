@@ -1,7 +1,7 @@
 import { privateEnv } from '@root/config/private';
 import type { RequestEvent } from '@sveltejs/kit';
 
-//GraphQL
+// GraphQL Yoga
 import { createSchema, createYoga } from 'graphql-yoga';
 import { registerCollections, collectionsResolvers } from './resolvers/collections';
 import { userTypeDefs, userResolvers } from './resolvers/users';
@@ -19,10 +19,13 @@ if (privateEnv.USE_REDIS === true) {
 		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
 		password: privateEnv.REDIS_PASSWORD
 	});
+
 	// Connect to Redis
 	redisClient.on('error', (err: Error) => {
 		console.error('Redis error: ', err);
 	});
+
+	redisClient.connect().catch(console.error);
 }
 
 // GraphQL
@@ -35,9 +38,9 @@ async function setupGraphQL() {
         ${userTypeDefs()}
         ${mediaTypeDefs()}
         type Query {
-			${Object.values(collections)
-				.map((collection) => `${collection.name}: [${collection.name}]`)
-				.join('\n')}
+            ${Object.values(collections)
+							.map((collection) => `${collection.name}: [${collection.name}]`)
+							.join('\n')}
             users: [User]
             mediaImages: [MediaImage]
             mediaDocuments: [MediaDocument]

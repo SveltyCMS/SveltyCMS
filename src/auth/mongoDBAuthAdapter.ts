@@ -4,12 +4,12 @@ import crypto from 'crypto';
 
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
-import type { User, Session, Token, Role, AuthPermission } from './types';
+import type { User, Session, Token, Role, Permission } from './types';
 
 // Define MongoDB schemas based on the shared field definitions
 
 // Schema for User collection
-const UserMongooseSchema = new Schema(
+const UserSchema = new Schema(
 	{
 		email: { type: String, required: true }, // User's email, required field
 		password: String, // User's password, optional field
@@ -30,7 +30,7 @@ const UserMongooseSchema = new Schema(
 );
 
 // Schema for Session collection
-const SessionMongooseSchema = new Schema(
+const SessionSchema = new Schema(
 	{
 		userId: { type: String, required: true }, // ID of the user who owns the session, required field
 		expires: { type: Date, required: true } // Expiry date of the session, required field
@@ -39,7 +39,7 @@ const SessionMongooseSchema = new Schema(
 );
 
 // Schema for Token collection
-const TokenMongooseSchema = new Schema(
+const TokenSchema = new Schema(
 	{
 		userId: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
@@ -72,14 +72,14 @@ const PermissionSchema = new Schema(
 );
 
 // Check and create models only if they don't exist
-const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserMongooseSchema);
-const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionMongooseSchema);
-const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenMongooseSchema);
+const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
+const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionSchema);
+const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
 const RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
-const PermissionModel = mongoose.models.auth_permissions || mongoose.model<AuthPermission & Document>('auth_permissions', PermissionSchema);
+const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
 
 // Export Mongoose schemas and models for external use
-export { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema, UserModel, SessionModel, TokenModel };
+export { UserSchema, SessionSchema, TokenSchema, UserModel, SessionModel, TokenModel };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements AuthDBAdapter {
@@ -257,14 +257,14 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Complete Permissions management
-	async createPermission(permissionData: AuthPermission): Promise<AuthPermission> {
+	async createPermission(permissionData: Permission): Promise<Permission> {
 		const permission = new PermissionModel(permissionData);
 		await permission.save();
-		return permission.toObject() as AuthPermission;
+		return permission.toObject() as Permission;
 	}
 
 	// Update a permission
-	async updatePermission(permissionId: string, permissionData: Partial<AuthPermission>): Promise<void> {
+	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
 		await PermissionModel.updateOne({ _id: permissionId }, { $set: permissionData });
 	}
 
@@ -274,21 +274,21 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Get a permission by ID
-	async getPermissionById(permissionId: string): Promise<AuthPermission | null> {
+	async getPermissionById(permissionId: string): Promise<Permission | null> {
 		const permission = await PermissionModel.findById(permissionId);
-		return permission ? (permission.toObject() as AuthPermission) : null;
+		return permission ? (permission.toObject() as Permission) : null;
 	}
 
 	// Get all permissions
-	async getAllPermissions(): Promise<AuthPermission[]> {
+	async getAllPermissions(): Promise<Permission[]> {
 		const permissions = await PermissionModel.find();
-		return permissions.map((permission) => permission.toObject() as AuthPermission);
+		return permissions.map((permission) => permission.toObject() as Permission);
 	}
 
 	// Complete Role-Permission management
-	async getPermissionsForRole(roleId: string): Promise<AuthPermission[]> {
+	async getPermissionsForRole(roleId: string): Promise<Permission[]> {
 		const role = await RoleModel.findById(roleId).populate('permissions');
-		return role ? (role.permissions as AuthPermission[]) : [];
+		return role ? (role.permissions as Permission[]) : [];
 	}
 
 	// Add the missing link and unlink permissions to roles
@@ -312,8 +312,8 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// User-Specific Permissions Methods (if needed)
-	async getPermissionsForUser(userId: string): Promise<AuthPermission[]> {
+	async getPermissionsForUser(userId: string): Promise<Permission[]> {
 		const user = await UserModel.findById(userId).populate('permissions');
-		return user ? (user.permissions as AuthPermission[]) : [];
+		return user ? (user.permissions as Permission[]) : [];
 	}
 }

@@ -3,8 +3,8 @@ import { publicEnv } from '@root/config/public';
 import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
-import mongoose from 'mongoose';
 
+import type { DatabaseAdapter } from '@src/routes/api/databases/databaseAdapter';
 import { addData, updateData, handleRequest } from '@src/utils/data';
 
 import type { Schema } from '@collections/types';
@@ -142,30 +142,30 @@ const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves image to disk and returns file information
-export async function saveImage(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
+export async function saveImage(file: File, collectionName: string, dbAdapter: DatabaseAdapter): Promise<{ id: string; fileInfo: MediaImage }> {
 	try {
-		if (browser) return {} as any;
+		if (typeof window !== 'undefined') return {} as any; // Skip if running in browser
 		const sharp = (await import('sharp')).default;
 
-		let fileInfo = {};
+		let fileInfo: MediaImage = {} as MediaImage;
 
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 		const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-		const existing_file = await mongoose.models['media_images'].findOne({ hash: hash });
+		const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
 		const path = file.path || 'global'; // 'global' | 'unique' | 'collection'
-		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // / Extract name without extension
+		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // Extract name without extension
 		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
 
-		if (existing_file) {
-			return { id: new mongoose.Types.ObjectId(existing_file._id), fileInfo: existing_file };
+		if (existingFile) {
+			return { id: existingFile._id, fileInfo: existingFile };
 		}
 
 		// Original image URL construction
 		let url: string;
-		if (path == 'global') {
+		if (path === 'global') {
 			url = `/original/${hash}-${sanitizedBlobName}.${ext}`;
-		} else if (path == 'unique') {
+		} else if (path === 'unique') {
 			url = `/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
 		} else {
 			url = `/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
@@ -187,8 +187,6 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 				size: file.size,
 				width: info.width,
 				height: info.height
-				// createdAt: new Date(),
-				// lastModified: new Date(file.lastModified)
 			}
 		};
 
@@ -199,7 +197,7 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
 
 		for (const size in SIZES) {
-			if (size == 'original') continue;
+			if (size === 'original') continue;
 
 			const fullName = `${hash}-${sanitizedBlobName}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
 			const resizedImage = await sharp(buffer)
@@ -211,50 +209,47 @@ export async function saveImage(file: File, collectionName: string): Promise<{ i
 				.toBuffer({ resolveWithObject: true });
 
 			// Save resized image URL construction
-			let url: string;
-			if (path == 'global') {
-				url = `${size}/${fullName}`;
-			} else if (path == 'unique') {
-				url = `${collectionName}/${size}/${fullName}`;
+			let resizedUrl: string;
+			if (path === 'global') {
+				resizedUrl = `${size}/${fullName}`;
+			} else if (path === 'unique') {
+				resizedUrl = `${collectionName}/${size}/${fullName}`;
 			} else {
-				url = `${path}/${size}/${fullName}`;
+				resizedUrl = `${path}/${size}/${fullName}`;
 			}
 
 			// Prepend MEDIASERVER_URL if it's set
 			if (publicEnv.MEDIASERVER_URL) {
-				url = `${publicEnv.MEDIASERVER_URL}/${url}`;
+				resizedUrl = `${publicEnv.MEDIASERVER_URL}/${resizedUrl}`;
 			}
 
-			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`))) {
+				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`), { recursive: true });
 			}
 
 			// Resized images are saved as SIZES
-			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, resizedImage.data);
+			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`, resizedImage.data);
 			fileInfo[size] = {
 				name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-				url,
+				url: resizedUrl,
 				type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
 				size: resizedImage.info.size,
 				width: resizedImage.info.width,
 				height: resizedImage.info.height
-				// createdAt: new Date(),
-				// lastModified: new Date(file.lastModified)
 			};
 		}
 
-		const res = await mongoose.models['media_images'].insertMany(fileInfo);
+		await dbAdapter.insertMany('media_images', [fileInfo]);
 
-		return { id: new mongoose.Types.ObjectId(res[0]._id), fileInfo: fileInfo as MediaImage };
+		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaImage };
 	} catch (error) {
 		console.error('Error saving image:', error);
 		// Handle error appropriately, e.g., return null or throw an error
 		throw error;
 	}
 }
-
 // Save files and returns file information
-export async function saveDocument(file: File, collectionName: string) {
+export async function saveDocument(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	if (browser) return;
 	const fields: { file: any; replace: (id: string) => void }[] = [];
 	const parseFiles = async (data: any) => {
@@ -270,11 +265,12 @@ export async function saveDocument(file: File, collectionName: string) {
 			const arrayBuffer = await blob.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
 			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-			const existing_file = await mongoose.models['media_documents'].findOne({ hash: hash });
-			if (existing_file) {
-				data[fieldname] = existing_file._id.toString(); // ObjectID to string
+			const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
+			if (existingFile) {
+				data[fieldname] = existingFile._id.toString(); // ObjectID to string
 				continue;
 			}
+
 			const path = blob.path; // 'global' | 'unique' | 'collection'
 			const { name: fileNameWithoutExt, ext } = removeExtension(blob.name); // Extract name without extension
 			const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
@@ -323,7 +319,7 @@ export async function saveDocument(file: File, collectionName: string) {
 
 	await parseFiles(file);
 
-	const res = await mongoose.models['media_documents'].insertMany(fields.map((v) => v.file));
+	const res = await dbAdapter.models['media_documents'].insertMany(fields.map((v) => v.file));
 
 	for (const index in res) {
 		const id = res[index]._id;
@@ -356,8 +352,8 @@ export async function saveVideo(file: File, collectionName: string) {
 		fs.writeFileSync(filePath, buffer);
 
 		// Save fileInfo to database
-		const res = await mongoose.models['media_videos'].insertMany([fileInfo]);
-		return new mongoose.Types.ObjectId(res[0]._id);
+		const res = await dbAdapter.models['media_videos'].insertMany([fileInfo]);
+		return new dbAdapter.Types.ObjectId(res[0]._id);
 	} catch (error) {
 		console.error('Error saving video:', error);
 		throw error;
@@ -389,8 +385,8 @@ export async function saveAudio(file: File, collectionName: string) {
 		fs.writeFileSync(filePath, buffer);
 
 		// Save fileInfo to database
-		const res = await mongoose.models['media_audio'].insertMany([fileInfo]);
-		return new mongoose.Types.ObjectId(res[0]._id);
+		const res = await dbAdapter.models['media_audio'].insertMany([fileInfo]);
+		return new dbAdapter.Types.ObjectId(res[0]._id);
 	} catch (error) {
 		console.error('Error saving audio:', error);
 		throw error;
@@ -947,7 +943,7 @@ export const get_elements_by_id = {
 
 // Create random ID
 export const createRandomID = (id?: string) => {
-	return id ? new mongoose.Types.ObjectId(id) : new mongoose.Types.ObjectId();
+	return id || Math.random().toString(36).substr(2, 9);
 };
 
 // Meta data
