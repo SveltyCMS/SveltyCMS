@@ -9,6 +9,9 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
+// Logger
+import logger from '@src/utils/logger.js';
+
 // Define the available language tags for type safety
 type LanguageTag = (typeof availableLanguageTags)[number];
 
@@ -44,7 +47,7 @@ export async function load({ cookies }) {
 			sessionId = sessionCookie.value;
 			// console.log('New session created:', sessionId);
 		} catch (e) {
-			console.error('Failed to create a new session:', e);
+			logger.error('Failed to create a new session:');
 			throw error(500, 'Internal Server Error');
 		}
 	}
@@ -60,7 +63,7 @@ export async function load({ cookies }) {
 	}
 
 	if (!user) {
-		console.warn('User not found, redirecting to login.');
+		// console.warn('User not found, redirecting to login.');
 		throw redirect(302, '/login');
 	}
 
@@ -68,17 +71,17 @@ export async function load({ cookies }) {
 	let collections;
 	try {
 		collections = await getCollections();
-		console.log('Collections:', collections);
+		// console.log('Collections:', collections);
 	} catch (e) {
-		console.error('Failed to get collections:', e);
+		logger.error('Failed to get collections:', e);
 		throw error(500, 'Internal Server Error');
 	}
 
 	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-	console.log('Filtered collections:', filteredCollections);
+	// console.log('Filtered collections:', filteredCollections);
 
 	if (filteredCollections.length === 0) {
-		console.error('No collections found for user.');
+		// console.error('No collections found for user.');
 		throw error(404, {
 			message: "You don't have access to any collection"
 		});

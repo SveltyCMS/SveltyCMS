@@ -220,11 +220,11 @@ export class Auth {
 				user.failedAttempts++;
 				if (user.failedAttempts >= 5) {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
-					await this.db.updateUserAttributes(user.id, { lockoutUntil });
+					await this.db.updateUserAttributes(user.id.toString(), { lockoutUntil });
 					logger.warn(`User locked out due to too many failed attempts: ${user.id}`);
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
 				} else {
-					await this.db.updateUserAttributes(user.id, { failedAttempts: user.failedAttempts });
+					await this.db.updateUserAttributes(user.id.toString(), { failedAttempts: user.failedAttempts });
 					logger.warn(`Invalid login attempt for user: ${user.id}`);
 					throw new Error('Invalid credentials. Please try again.');
 				}
@@ -237,10 +237,10 @@ export class Auth {
 	}
 
 	// Log out a user by destroying their session
-	async logOut(session_id: string): Promise<void> {
+	async logOut(sessionId: string): Promise<void> {
 		try {
-			await this.db.destroySession(session_id);
-			logger.info(`User logged out: ${session_id}`);
+			await this.db.destroySession(sessionId);
+			logger.info(`User logged out: ${sessionId}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to log out: ${err.message}`);
