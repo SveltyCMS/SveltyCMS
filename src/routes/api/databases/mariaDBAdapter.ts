@@ -86,6 +86,36 @@ export class MariaDBAdapter implements DatabaseAdapter {
 		}
 	}
 
+	// Find one record in a collection
+	async findOne(collection: string, query: object): Promise<any> {
+		const connection = await this.pool.getConnection();
+		try {
+			const keys = Object.keys(query);
+			const values = Object.values(query);
+			const conditions = keys.map((key) => `${key} = ?`).join(' AND ');
+			const sql = `SELECT * FROM ${collection} WHERE ${conditions} LIMIT 1`;
+			const result = await connection.query(sql, values);
+			return result[0] || null;
+		} finally {
+			connection.release();
+		}
+	}
+
+	// Insert many records into a collection
+	async insertMany(collection: string, docs: object[]): Promise<any[]> {
+		const connection = await this.pool.getConnection();
+		try {
+			const keys = Object.keys(docs[0]);
+			const values = docs.map((doc) => keys.map((key) => doc[key]));
+			const placeholders = docs.map(() => `(${keys.map(() => '?').join(', ')})`).join(', ');
+			const sql = `INSERT INTO ${collection} (${keys.join(', ')}) VALUES ${placeholders}`;
+			await connection.query(sql, values.flat());
+			return docs;
+		} finally {
+			connection.release();
+		}
+	}
+
 	// Set up media tables if they don't already exist
 	async setupMediaModels(): Promise<void> {
 		const connection = await this.pool.getConnection();
@@ -152,5 +182,9 @@ export class MariaDBAdapter implements DatabaseAdapter {
 		} finally {
 			connection.release();
 		}
+	}
+
+	async disconnect(): Promise<void> {
+		await this.pool.end();
 	}
 }

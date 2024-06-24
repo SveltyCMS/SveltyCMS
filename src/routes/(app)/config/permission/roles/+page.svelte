@@ -1,23 +1,24 @@
-<!-- src/routes/permission/roles/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissionsAction, type PermissionAction, type Role } from '@src/auth/types';
+	import { permissionActions, type PermissionAction, type Role, type Permission } from '@src/auth/types';
 	import { getPermissions } from '@src/auth/permissionManager';
 
 	let newRoles: Role[] = [];
 	let roleName = '';
-	let rolePermissions: Record<PermissionAction, boolean> = {};
+	let rolePermissions: Record<PermissionAction, boolean> = Object.fromEntries(permissionActions.map((action) => [action, false])) as Record<
+		PermissionAction,
+		boolean
+	>;
+	let permissionsList: Permission[] = []; // Explicitly type the permissions array
 
 	onMount(() => {
-		permissionsAction = getPermissions();
+		permissionsList = getPermissions();
 
-		// Dynamically create rolePermissions based on permissionList
-		permissionsAction.forEach((permission) => {
+		// Dynamically create rolePermissions based on permissionActions
+		permissionActions.forEach((permission) => {
 			rolePermissions[permission] = false;
 		});
 	});
-
-	let permissionsAction: Permission[] = []; // Explicitly type the permissions array
 
 	// Function to handle the addition of a new role
 	const addRole = async () => {
@@ -41,7 +42,7 @@
 
 		if (response.ok) {
 			roleName = '';
-			rolePermissions = { create: false, read: false, write: false, delete: false };
+			rolePermissions = Object.fromEntries(permissionActions.map((action) => [action, false])) as Record<PermissionAction, boolean>;
 			const updatedRole: Role = await response.json();
 			newRoles.push(updatedRole);
 		} else {
@@ -62,10 +63,13 @@
 		{/each}
 	</div>
 	<button on:click={addRole}>Add Role</button>
-	<h3>Existing Permissions</h3>
+	<h3>Existing Roles</h3>
 	<ul>
-		{#each permissionsAction as permission}
-			<li>{permission.contextId} - {permission.action}</li>
+		{#each newRoles as role}
+			<li>
+				{role.name} - {#each role.permissions as permission}{permission.action}{#if permission !== role.permissions[role.permissions.length - 1]},
+					{/if}{/each}
+			</li>
 		{/each}
 	</ul>
 </div>

@@ -1,11 +1,11 @@
-import type { PermissionAction, Role, User, RateLimit, Permission } from '@src/auth/types';
+import type { PermissionAction, Role, User, RateLimit, Permission, ContextType } from '@src/auth/types';
 import { hasPermission as checkPermission } from '@src/auth/types';
 import { createRandomID } from '@src/utils/utils';
 
 const permissionTable: Permission[] = [];
 
 // Add a permission to the permission table
-export function addPermission(contextId: string, action: PermissionAction, requiredRole: string, contextType: 'collection' | 'widget') {
+export function addPermission(contextId: string, action: PermissionAction, requiredRole: string, contextType: ContextType) {
 	const existingPermission = permissionTable.find((perm) => perm.contextId === contextId && perm.action === action);
 
 	if (!existingPermission) {

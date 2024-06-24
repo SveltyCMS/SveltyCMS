@@ -9,4 +9,7 @@ export interface DatabaseAdapter {
 	// Additional Methods for Data Operations
 	findOne(collection: string, query: object): Promise<any>;
 	insertMany(collection: string, docs: object[]): Promise<any[]>;
+
+	// Method for Disconnecting
+	disconnect(): Promise<void>;
 }

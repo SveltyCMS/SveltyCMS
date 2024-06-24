@@ -17,13 +17,31 @@ export const permissionActions = [
 // Type for the specific actions a role can perform.
 export type PermissionAction = (typeof permissionActions)[number];
 
+// List of possible context types for simplicity and type safety.
+export const contextTypes = [
+	'collection', // Collection context
+	'widget', // Widget context
+	'system' // System context
+] as const;
+
+// Type for the specific context types.
+export type ContextType = (typeof contextTypes)[number] | string;
+
+// Define the type for a PermissionConfig
+export interface PermissionConfig {
+	contextId: string;
+	requiredRole: string; // The role that is required to perform the action
+	action: PermissionAction; // The action that the role is allowed to perform
+	contextType: ContextType; // The type of context that the role is allowed to perform the action in
+}
+
 // Permission interface to define what each permission can do
 export interface Permission {
 	id: string;
 	action: PermissionAction;
 	contextId: string; // This could be a collectionId or widgetId indicating scope
 	description?: string;
-	contextType: 'collection' | 'widget'; // Distinguishes between collections and widgets
+	contextType: ContextType; // Distinguishes between collections and widgets
 	requires2FA?: boolean; // Indicates if this permission requires two-factor authentication
 }
 
@@ -123,7 +141,8 @@ function checkRateLimit(rateLimits: RateLimit[], userId: string, action: Permiss
 	const rateLimit = rateLimits.find((rl) => rl.userId === userId && rl.action === action);
 	if (rateLimit) {
 		const now = new Date();
-		if (now.getTime() - rateLimit.lastActionAt.getTime() < rateLimit.windowMs) {
+		const timePassed = now.getTime() - rateLimit.lastActionAt.getTime();
+		if (timePassed < rateLimit.windowMs) {
 			if (rateLimit.current >= rateLimit.limit) {
 				return false;
 			}
@@ -174,7 +193,7 @@ export const defaultPermissions = {
 		description: `Admin default permission for ${permission}`,
 		requires2FA: false
 	}))
-	// Additional roles can be defined here
+	// Additional roles are defined via database
 };
 
 // Icons for permissions

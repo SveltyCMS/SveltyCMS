@@ -1,6 +1,9 @@
 import { privateEnv } from '@root/config/private';
+
+// Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
+
 import mongoose from 'mongoose';
 import type { DatabaseAdapter } from './databaseAdapter';
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
@@ -111,6 +114,25 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		});
 	}
 
+	// Implementing findOne method
+	async findOne(collection: string, query: object): Promise<any> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		return model.findOne(query).exec();
+	}
+
+	// Implementing insertMany method
+	async insertMany(collection: string, docs: object[]): Promise<any[]> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		const result = await model.insertMany(docs);
+		return result;
+	}
+
 	// Get recent last 5 collections
 	async getLastFiveCollections(): Promise<any[]> {
 		const collections = Object.keys(mongoose.models);
@@ -150,5 +172,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			console.log(`Fetched recent media documents for ${schemaName}`);
 		}
 		return recentMedia;
+	}
+
+	async disconnect(): Promise<void> {
+		await mongoose.disconnect();
 	}
 }
