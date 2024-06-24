@@ -159,7 +159,7 @@ export const actions: Actions = {
 				return fail(400, { message: 'User already exists' });
 			}
 
-			const newUser = await auth.createUser({ email, role: role as Roles, lastAuthMethod: 'password', is_registered: false });
+			const newUser = await auth.createUser({ email, role: role as Roles, lastAuthMethod: 'password', isRegistered: false });
 			if (!newUser) return fail(400, { message: 'unknown error' });
 
 			const token = await auth.createToken(newUser.id, expirationTime * 1000);

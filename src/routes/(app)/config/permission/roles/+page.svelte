@@ -1,27 +1,35 @@
+<!-- src/routes/permission/roles/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissions as permissionList, type PermissionAction, type Role } from '@src/auth/types';
+	import { permissionsAction, type PermissionAction, type Role } from '@src/auth/types';
+	import { getPermissions } from '@src/auth/permissionManager';
 
 	let newRoles: Role[] = [];
 	let roleName = '';
-	let rolePermissions: Record<PermissionAction, boolean> = {
-		create: false,
-		read: false,
-		write: false,
-		delete: false
-	};
+	let rolePermissions: Record<PermissionAction, boolean> = {};
+
+	onMount(() => {
+		permissionsAction = getPermissions();
+
+		// Dynamically create rolePermissions based on permissionList
+		permissionsAction.forEach((permission) => {
+			rolePermissions[permission] = false;
+		});
+	});
+
+	let permissionsAction: Permission[] = []; // Explicitly type the permissions array
 
 	// Function to handle the addition of a new role
 	const addRole = async () => {
-		// Prepare the new role data for the API, omitting the ID for permissions
-		const roleData = {
+		const roleData: Omit<Role, 'id'> = {
 			name: roleName,
 			permissions: Object.entries(rolePermissions)
 				.filter(([_, allowed]) => allowed)
 				.map(([action]) => ({
-					action,
+					id: crypto.randomUUID(),
+					action: action as PermissionAction,
 					contextId: 'global', // Example context, adjust as necessary
-					contextType: 'global' // Same here
+					contextType: 'collection' // or 'widget', adjust as necessary
 				}))
 		};
 
@@ -34,9 +42,8 @@
 		if (response.ok) {
 			roleName = '';
 			rolePermissions = { create: false, read: false, write: false, delete: false };
-			// Optionally fetch and update roles list from server response
-			const updatedRole = await response.json();
-			newRoles.push(updatedRole); // Assuming the backend returns the newly created role with IDs
+			const updatedRole: Role = await response.json();
+			newRoles.push(updatedRole);
 		} else {
 			console.error('Failed to add the role');
 		}
@@ -55,4 +62,10 @@
 		{/each}
 	</div>
 	<button on:click={addRole}>Add Role</button>
+	<h3>Existing Permissions</h3>
+	<ul>
+		{#each permissionsAction as permission}
+			<li>{permission.contextId} - {permission.action}</li>
+		{/each}
+	</ul>
 </div>

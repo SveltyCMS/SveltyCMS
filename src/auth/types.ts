@@ -7,7 +7,7 @@ export const otherRoles = ['developer', 'editor', 'user'] as const;
 export const roles = [adminRole, ...otherRoles] as const;
 
 // List of possible permissions for simplicity and type safety.
-export const permissions = [
+export const permissionActions = [
 	'create', // Allows creating new content.
 	'read', // Allows viewing content.
 	'write', // Allows modifying existing content.
@@ -15,7 +15,7 @@ export const permissions = [
 ] as const;
 
 // Type for the specific actions a role can perform.
-export type PermissionAction = (typeof permissions)[number];
+export type PermissionAction = (typeof permissionActions)[number];
 
 // Permission interface to define what each permission can do
 export interface Permission {
@@ -56,9 +56,9 @@ export interface User {
 	lastAuthMethod?: string; // The last authentication method used by the user
 	lastActiveAt?: Date; // The last time the user was active
 	expiresAt?: Date; // When the reset token expires
-	is_registered?: boolean; // Indicates if the user has completed registration
+	isRegistered?: boolean; // Indicates if the user has completed registration
 	blocked?: boolean; // Indicates if the user is blocked
-	resetRequestedAt?: string; // The last time the user requested a password reset
+	resetRequestedAt?: Date; // The last time the user requested a password reset
 	resetToken?: string; // Token for resetting the user's password
 	failedAttempts: number; // Tracks the number of consecutive failed login attempts
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
@@ -168,7 +168,7 @@ export function hasPermission(user: User, roles: Role[], action: PermissionActio
 
 // Define default permissions for roles. Could be loaded from a database or configuration file for adaptability.
 export const defaultPermissions = {
-	admin: permissions.map((permission) => ({
+	admin: permissionActions.map((permission) => ({
 		action: permission,
 		contextId: 'global', // Admin has global access for all actions.
 		description: `Admin default permission for ${permission}`,

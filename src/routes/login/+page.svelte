@@ -16,7 +16,6 @@
 	const _languageTag = languageTag(); // Get the current language tag
 
 	let inputlanguagevalue = '';
-
 	// Use the inferred return type of languageTag
 	type LanguageCode = ReturnType<typeof languageTag>;
 
@@ -44,7 +43,7 @@
 
 	import { onMount } from 'svelte';
 
-	let timeRemaining = { minutes: 0, seconds: 0 };
+	let timeRemaining: { minutes: number; seconds: number } = { minutes: 0, seconds: 0 };
 	let interval: ReturnType<typeof setInterval>;
 
 	// Function to calculate the time remaining until the next reset
@@ -74,9 +73,15 @@
 		interval = setInterval(updateTimeRemaining, 1000);
 		return () => clearInterval(interval);
 	});
+
+	// Function to reset to initial state
+	function resetToInitialState() {
+		active = undefined;
+		background = 'white';
+	}
 </script>
 
-<div class={`flex min-h-lvh w-full overflow-y-auto bg-[#242728] bg-${background}`}>
+<div class={`flex min-h-lvh w-full overflow-y-auto bg-${background}`}>
 	<SignIn
 		{active}
 		FormSchemaLogin={data.loginForm}
@@ -84,15 +89,22 @@
 		FormSchemaReset={data.resetForm}
 		on:click={() => (active = 0)}
 		on:pointerenter={() => (background = '#242728')}
+		on:back={resetToInitialState}
 	/>
 
-	<SignUp bind:active FormSchemaSignUp={data.signUpForm} on:click={() => (active = 1)} on:pointerenter={() => (background = 'white')} />
+	<SignUp
+		bind:active
+		FormSchemaSignUp={data.signUpForm}
+		on:click={() => (active = 1)}
+		on:pointerenter={() => (background = 'white')}
+		on:back={resetToInitialState}
+	/>
 
 	{#if active == undefined}
 		<!-- DEMO MODE -->
 		{#if publicEnv.DEMO == true}
 			<div
-				class="absolute bottom-8 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 py-2 text-center text-white md:bottom-1 md:p-4"
+				class="absolute bottom-8 left-1/2 flex min-w-[350px] -translate-x-1/2 -translate-y-1/2 transform flex-col items-center justify-center rounded-xl bg-error-500 p-4 text-center text-white md:bottom-1"
 			>
 				<p class="text-2xl font-bold">SveltyCMS DEMO MODE</p>
 				<p>This site will reset every 10 min.</p>

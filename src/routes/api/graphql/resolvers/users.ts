@@ -1,35 +1,45 @@
-import mongoose from 'mongoose';
+import type { DatabaseAdapter } from '@src/routes/api/databases/databaseAdapter';
+import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
 
-// Defines the GraphQL type definition for User. (no Passwords)
-export function userTypeDefs() {
+function generateGraphQLTypeDefsFromSchema(schema: any, typeName: string) {
+	const fields = Object.keys(schema)
+		.map((key) => {
+			let type;
+			switch (typeof schema[key]) {
+				case 'string':
+					type = 'String';
+					break;
+				case 'boolean':
+					type = 'Boolean';
+					break;
+				case 'object':
+					type = schema[key] === Date ? 'String' : 'String';
+					break;
+				default:
+					type = 'String';
+			}
+			return `${key}: ${type}`;
+		})
+		.join('\n');
+
 	return `
-        type User {
-            _id: String
-            email: String
-            username: String
-            role: String
-            avatar: String
-            lastAuthMethod: String
-            lastActivity: String
-            expiresAt: String
-            is_registered: Boolean
-            #------------------------
-            createdAt: String
-            updatedAt: String
+        type ${typeName} {
+            ${fields}
         }
     `;
 }
 
-// Provides resolvers for querying User data.
-export function userResolvers() {
-	return {
-		// Resolver function for fetching users.
+export function userTypeDefs(authDBAdapter: AuthDBAdapter) {
+	const userSchema = authDBAdapter.getUserSchema();
+	return generateGraphQLTypeDefsFromSchema(userSchema, 'User');
+}
 
-		users: async () => {
-			// Fetch the user model
-			const userModel = mongoose.models['auth_users'];
-			// Find all users and return them
-			return await userModel.find().lean();
+export function userResolvers(dbAdapter: DatabaseAdapter) {
+	return {
+		Query: {
+			users: async () => {
+				return await dbAdapter.findMany('auth_users', {});
+			}
 		}
 	};
 }

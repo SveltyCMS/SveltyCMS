@@ -9,7 +9,7 @@ import type { User, Session, Token, Role, Permission } from './types';
 // Define MongoDB schemas based on the shared field definitions
 
 // Schema for User collection
-const UserMongooseSchema = new Schema(
+const UserSchema = new Schema(
 	{
 		email: { type: String, required: true }, // User's email, required field
 		password: String, // User's password, optional field
@@ -19,9 +19,9 @@ const UserMongooseSchema = new Schema(
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
 		lastActiveAt: Date, // Last time the user was active, optional field
 		expiresAt: Date, // Expiry date for the user, optional field
-		is_registered: Boolean, // Registration status of the user, optional field
+		isRegistered: Boolean, // Registration status of the user, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
-		resetRequestedAt: String, // Last time the user requested a password reset, optional field
+		resetRequestedAt: Date, // Last time the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
 		is2FAEnabled: Boolean, // Whether the user has 2FA enabled, optional field
 		permissions: [{ type: Schema.Types.ObjectId, ref: 'Permission' }] // User-specific permissions, optional field
@@ -30,7 +30,7 @@ const UserMongooseSchema = new Schema(
 );
 
 // Schema for Session collection
-const SessionMongooseSchema = new Schema(
+const SessionSchema = new Schema(
 	{
 		userId: { type: String, required: true }, // ID of the user who owns the session, required field
 		expires: { type: Date, required: true } // Expiry date of the session, required field
@@ -39,7 +39,7 @@ const SessionMongooseSchema = new Schema(
 );
 
 // Schema for Token collection
-const TokenMongooseSchema = new Schema(
+const TokenSchema = new Schema(
 	{
 		userId: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
@@ -72,14 +72,14 @@ const PermissionSchema = new Schema(
 );
 
 // Check and create models only if they don't exist
-const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserMongooseSchema);
-const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionMongooseSchema);
-const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenMongooseSchema);
+const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
+const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionSchema);
+const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
 const RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
 const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
 
 // Export Mongoose schemas and models for external use
-export { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema, UserModel, SessionModel, TokenModel };
+export { UserSchema, SessionSchema, TokenSchema, UserModel, SessionModel, TokenModel };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements AuthDBAdapter {

@@ -1,11 +1,14 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { signUpFormSchema } from '@src/utils/formSchemas';
+	import type { z } from 'zod';
 
 	export let password: string = '';
+	export let label: string = 'Password';
 
-	const { password: passwordSchema } = signUpFormSchema.shape();
-	const constraints = passwordSchema?._def.checks || [];
+	// Extract the password schema
+	const passwordSchema = (signUpFormSchema.innerType() as z.ZodObject<any>).shape.password as z.ZodString;
+	const constraints = passwordSchema._def.checks || [];
 
 	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 	let YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
@@ -62,7 +65,7 @@
 {#if password}
 	<div class="flex flex-col items-center justify-center">
 		<div class="progress-bar" style="background-color: {color}; width: {percentage}%;" />
-		<span class="mt-1 text-sm text-primary-500">{feedback}</span>
+		<span class="mt-1 text-sm text-primary-500">{label} strength: {feedback}</span>
 	</div>
 {/if}
 

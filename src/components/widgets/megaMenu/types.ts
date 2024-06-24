@@ -5,7 +5,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permission from '@src/components/Permission.svelte';
 
 // Auth
-import type { Permissions } from '@src/auth/types';
+import type { Permission } from '@src/auth/types';
 import GuiFields from '@components/widgets/megaMenu/GuiFields.svelte';
 
 import widgets, { type WidgetType } from '..';
@@ -28,7 +28,7 @@ export type Params = {
 	width?: number;
 
 	// Permissions
-	permissions?: Permissions;
+	permissions?: Permission[];
 
 	// Widget Specific parameters
 	fields: Fields; // Make sure this is always an array of arrays

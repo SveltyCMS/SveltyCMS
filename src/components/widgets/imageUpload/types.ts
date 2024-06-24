@@ -5,7 +5,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permission from '@src/components/Permission.svelte';
 
 // Auth
-import type { Permissions } from '@src/auth/types';
+import type { Permission } from '@src/auth/types';
 
 import { SIZES } from '@utils/utils';
 
@@ -38,7 +38,7 @@ export type Params = {
 	width?: number;
 
 	// Permissions
-	permissions?: Permissions;
+	permissions?: Permission[];
 
 	// Widget Specific parameters
 	folder: string | 'global' | 'unique';

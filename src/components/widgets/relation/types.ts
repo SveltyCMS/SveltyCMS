@@ -7,7 +7,7 @@ import Toggles from '@components/system/inputs/Toggles.svelte';
 import Permission from '@src/components/Permission.svelte';
 
 // Auth
-import type { Permissions } from '@src/auth/types';
+import type { Permission } from '@src/auth/types';
 import GuiField from './GuiField.svelte';
 
 import { getFieldName } from '@utils/utils';
@@ -28,7 +28,7 @@ export type Params<K, T> = {
 	width?: number;
 
 	// Permissions
-	permissions?: Permissions;
+	permissions?: Permission[];
 
 	// Widget Specific parameters
 	displayPath: K;
