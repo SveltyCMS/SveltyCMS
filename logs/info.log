@@ -17,3 +17,18 @@
 2024-06-23T12:57:15.017Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
 2024-06-23T12:59:07.679Z [INFO]: Attempting to connect to MongoDB...
 2024-06-23T12:59:07.679Z [INFO]: Successfully connected to SveltyCMS
+2024-06-23T14:16:06.106Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
+2024-06-23T14:16:07.842Z [INFO]: Session created with ID: undefined for user ID: guestUserId
+2024-06-23T14:16:07.901Z [INFO]: Validating session with ID: undefined
+2024-06-23T14:27:16.159Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:27:43.840Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:30:24.115Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:32:30.502Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:33:28.673Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:35:14.534Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
+2024-06-23T15:35:14.808Z [INFO]: Session created with ID: undefined for user ID: guestUserId
+2024-06-23T15:35:14.884Z [INFO]: Validating session with ID: undefined
+2024-06-23T15:42:08.833Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
+2024-06-23T15:42:08.879Z [INFO]: Session created with ID: 66784250c2deae906b616b05 for user ID: guestUserId
+2024-06-23T15:42:08.892Z [INFO]: Validating session with ID: 66784250c2deae906b616b05
+2024-06-24T05:17:53.232Z [INFO]: Validating session with ID: 66784250c2deae906b616b05

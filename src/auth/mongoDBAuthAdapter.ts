@@ -140,7 +140,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 				expires: new Date(Date.now() + data.expires)
 			});
 			console.log('Session created successfully:', session);
-			return session.toObject() as Session;
+			return { ...session.toObject(), id: session._id.toString() } as Session;
 		} catch (error) {
 			console.error('Error creating session:', error);
 			throw error;
@@ -165,9 +165,12 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			await SessionModel.deleteOne({ _id: sessionId });
 			return null;
 		}
-		const user = await UserModel.findById(session.userId);
-		console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
-		return user ? user.toObject() : null;
+		if (session.userId === 'guestUserId') {
+			const user = await UserModel.findById(session.userId);
+			console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
+			return user ? user.toObject() : null;	
+		}
+		return null;
 	}
 
 	// Invalidate all sessions for a user.

@@ -1,7 +1,11 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
+import { superValidate } from 'sveltekit-superforms';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { zod } from 'sveltekit-superforms/adapters';
 // Auth
+import { privateEnv } from "@root/config/private";
 import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -25,85 +29,121 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 	if (!code) {
 		console.error('Authorization code is missing');
-		throw redirect(302, '/login');
+		// throw redirect(302, '/login');
 	}
 
-	if (!auth || !googleAuth) {
+	if (!auth && !googleAuth) {
 		console.error('Authentication system is not initialized');
 		throw new Error('Internal Server Error');
 	}
 
 	try {
-		const { tokens } = await googleAuth.getToken(code);
-		googleAuth.setCredentials(tokens);
-		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
-
-		const { data: googleUser } = await oauth2.userinfo.get();
-		console.log('Google user information:', googleUser);
-
-		const getUser = async (): Promise<[User | null, boolean]> => {
-			const existingUser = await auth.checkUser({ email: googleUser.email });
-			if (existingUser) return [existingUser, false];
-
-			// Ensure Google user email exists
-			if (!googleUser.email) {
-				throw new Error('Google did not return an email address.');
-			}
-			const username = googleUser.name ?? '';
-
-			const isFirst = (await auth.getUserCount()) === 0;
-
-			if (isFirst) {
-				const user = await auth.createUser({
-					email: googleUser.email,
-					username,
-					role: 'admin',
-					blocked: false
-				});
-
-				await fetch('/api/sendMail', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({
+		if (code && privateEnv.USE_GOOGLE_OAUTH) {
+			const { tokens } = await googleAuth.getToken(code);
+			googleAuth.setCredentials(tokens);
+			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+	
+			const { data: googleUser } = await oauth2.userinfo.get();
+			console.log('Google user information:', googleUser);
+	
+			const getUser = async (): Promise<[User | null, boolean]> => {
+				const existingUser = await auth.checkUser({ email: googleUser.email });
+				if (existingUser) return [existingUser, false];
+	
+				// Ensure Google user email exists
+				if (!googleUser.email) {
+					throw new Error('Google did not return an email address.');
+				}
+				const username = googleUser.name ?? '';
+	
+				const isFirst = (await auth.getUserCount()) === 0;
+	
+				if (isFirst) {
+					const user = await auth.createUser({
 						email: googleUser.email,
-						subject: `New registration ${googleUser.name}`,
-						message: `New registration ${googleUser.name}`,
-						templateName: 'welcomeUser',
-						lang: get(systemLanguage),
-						props: {
-							username: googleUser.name,
-							email: googleUser.email
-						}
-					})
-				});
-
-				return [user, false];
-			} else {
-				return [null, true];
+						username,
+						role: 'admin',
+						blocked: false
+					});
+	
+					await fetch('/api/sendMail', {
+						method: 'POST',
+						headers: {
+							'Content-Type': 'application/json'
+						},
+						body: JSON.stringify({
+							email: googleUser.email,
+							subject: `New registration ${googleUser.name}`,
+							message: `New registration ${googleUser.name}`,
+							templateName: 'welcomeUser',
+							lang: get(systemLanguage),
+							props: {
+								username: googleUser.name,
+								email: googleUser.email
+							}
+						})
+					});
+	
+					return [user, false];
+				} else {
+					return [null, true];
+				}
+			};
+	
+			const [user, needSignIn] = await getUser();
+	
+			if (!needSignIn) {
+				if (!user) {
+					console.error('User not found after getting user information.');
+					throw new Error('User not found.');
+				}
+				if ((user as any).blocked) {
+					console.warn('User is blocked.');
+					return { status: false, message: 'User is blocked' };
+				}
+	
+				// Create User Session
+				const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
+				const sessionCookie = auth.createSessionCookie(session);
+				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+				await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'google' });
 			}
-		};
-
-		const [user, needSignIn] = await getUser();
-
-		if (!needSignIn) {
-			if (!user) {
-				console.error('User not found after getting user information.');
-				throw new Error('User not found.');
-			}
-			if ((user as any).blocked) {
-				console.warn('User is blocked.');
-				return { status: false, message: 'User is blocked' };
-			}
-
-			// Create User Session
-			const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'google' });
+			result.data = { needSignIn };
+		} else {
+		
+			// Check if first user exist
+			const firstUserExists = (await auth.getUserCount()) != 0;
+		
+			// Different schemas, so no id required.
+		
+			// SignIn
+			const loginForm = await superValidate(zod(loginFormSchema));
+			const forgotForm = await superValidate(zod(forgotFormSchema));
+			const resetForm = await superValidate(zod(resetFormSchema));
+		
+			// SignUp FirstUser
+			const withoutToken = await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })));
+			// SignUp Other Users
+			const withToken = await superValidate(zod(signUpFormSchema));
+		
+			// Check if first user exist
+			const signUpForm: typeof withToken = (await auth.getUserCount()) != 0 ? (withoutToken as any) : withToken;
+		
+			// Always return Data & all Forms in load and form actions.
+			return {
+				//resetData, // Check if the URL has the token and email parameters
+		
+				firstUserExists, // Check if first user exist
+		
+				// SignIn Page
+				loginForm,
+				forgotForm,
+				resetForm,
+		
+				// SignUp Page
+				signUpForm
+			};
 		}
-		result.data = { needSignIn };
 	} catch (e) {
 		console.error('Error during login process:', e);
 		throw redirect(302, '/login');

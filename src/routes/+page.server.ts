@@ -36,13 +36,14 @@ export async function load({ cookies }) {
 
 	// If no session ID is found, create a new session
 	if (!sessionId) {
-		// console.log('Session ID is missing from cookies, creating a new session.');
+		console.log('Session ID is missing from cookies, creating a new session.');
 		try {
 			const newSession = await auth.createSession({ userId: 'guestUserId' });
 			const sessionCookie = auth.createSessionCookie(newSession);
+			console.log(sessionCookie);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			sessionId = sessionCookie.value;
-			// console.log('New session created:', sessionId);
+			console.log('New session created:', sessionId);
 		} catch (e) {
 			console.error('Failed to create a new session:', e);
 			throw error(500, 'Internal Server Error');
