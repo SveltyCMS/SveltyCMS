@@ -111,19 +111,19 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	// Get a user by ID.
 	async getUserById(id: string): Promise<User | null> {
 		const user = await UserModel.findById(id);
-		return user ? (user.toObject() as User) : null;
+		return user ? ({ ...user.toObject(), id: user._id.toString() } as User) : null;
 	}
 
 	// Get a user by email.
 	async getUserByEmail(email: string): Promise<User | null> {
 		const user = await UserModel.findOne({ email });
-		return user ? (user.toObject() as User) : null;
+		return user ? ({ ...user.toObject(), id: user._id.toString() } as User) : null;
 	}
 
 	// Get all users.
 	async getAllUsers(): Promise<User[]> {
 		const users = await UserModel.find();
-		return users.map((user) => user.toObject() as User);
+		return users.map((user) => ({ ...user.toObject(), id: user._id.toString() }) as User);
 	}
 
 	// Get the total number of users.
@@ -156,6 +156,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	async validateSession(sessionId: string): Promise<User | null> {
 		console.log(`MongoDBAuthAdapter: Validating session with ID: ${sessionId}`);
 		const session = await SessionModel.findById(sessionId);
+		console.log(session);
 		if (!session) {
 			console.log('MongoDBAuthAdapter: No session found');
 			return null;
@@ -165,7 +166,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			await SessionModel.deleteOne({ _id: sessionId });
 			return null;
 		}
-		if (session.userId === 'guestUserId') {
+		if (session.userId !== 'guestUserId') {
 			const user = await UserModel.findById(session.userId);
 			console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
 			return user ? user.toObject() : null;	
