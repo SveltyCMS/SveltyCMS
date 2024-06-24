@@ -15,14 +15,14 @@ import { _SETSTATUS } from './SETSTATUS';
 
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
-	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
-	const userId = data.get('userId') as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	const user_id = data.get('user_id') as string;
 
 	if (!auth) {
 		throw new Error('Auth is not initialized');
 	}
 
-	const user = userId ? ((await auth.checkUser({ id: userId })) as User) : ((await auth.validateSession(sessionId)) as User);
+	const user = user_id ? ((await auth.checkUser({ id: user_id })) as User) : ((await auth.validateSession(session_id)) as User);
 
 	if (!user) {
 		throw new Error('Unauthorized');
@@ -46,7 +46,7 @@ export const POST = async ({ request, cookies }) => {
 	const data = await request.formData();
 	const method = data.get('method') as string;
 
-	['userId', 'collectionName', 'method'].forEach((key) => data.delete(key));
+	['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
 
 	try {
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);

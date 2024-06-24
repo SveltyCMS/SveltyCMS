@@ -55,7 +55,7 @@ export interface Role {
 
 // Define the type for RateLimit
 export interface RateLimit {
-	userId: string; // The ID of the user
+	user_id: string; // The ID of the user
 	action: PermissionAction; // The action being rate limited
 	limit: number; // Number of allowed actions
 	windowMs: number; // Time window in milliseconds
@@ -74,7 +74,7 @@ export interface User {
 	lastAuthMethod?: string; // The last authentication method used by the user
 	lastActiveAt?: Date; // The last time the user was active
 	expiresAt?: Date; // When the reset token expires
-	isRegistered?: boolean; // Indicates if the user has completed registration
+	is_registered?: boolean; // Indicates if the user has completed registration
 	blocked?: boolean; // Indicates if the user is blocked
 	resetRequestedAt?: Date; // The last time the user requested a password reset
 	resetToken?: string; // Token for resetting the user's password
@@ -87,14 +87,14 @@ export interface User {
 // Session interface represents a session in the system.
 export interface Session {
 	id: string; // Unique identifier for the session
-	userId: string; // The ID of the user who owns the session
+	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }
 
 // Token interface represents a token in the system.
 export interface Token {
 	id: string; // Unique identifier for the token
-	userId: string; // The ID of the user who owns the token
+	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email?: string; // Email associated with the token
 	expires: Date; // When the token expires
@@ -137,8 +137,8 @@ function hasRolePermission(role: Role, action: PermissionAction, contextId: stri
 }
 
 // Utility function to check if the action is within the rate limit.
-function checkRateLimit(rateLimits: RateLimit[], userId: string, action: PermissionAction): boolean {
-	const rateLimit = rateLimits.find((rl) => rl.userId === userId && rl.action === action);
+function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {
+	const rateLimit = rateLimits.find((rl) => rl.user_id === user_id && rl.action === action);
 	if (rateLimit) {
 		const now = new Date();
 		const timePassed = now.getTime() - rateLimit.lastActionAt.getTime();

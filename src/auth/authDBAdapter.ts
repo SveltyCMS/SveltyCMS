@@ -3,23 +3,23 @@ import type { User, Session, Token, Role, Permission } from './types';
 export interface AuthDBAdapter {
 	// User Management Methods
 	createUser(userData: Partial<User>): Promise<User>;
-	updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void>;
-	deleteUser(userId: string): Promise<void>;
-	getUserById(userId: string): Promise<User | null>;
+	updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void>;
+	deleteUser(user_id: string): Promise<void>;
+	getUserById(user_id: string): Promise<User | null>;
 	getUserByEmail(email: string): Promise<User | null>;
 	getAllUsers(): Promise<User[]>;
 	getUserCount(): Promise<number>;
 
 	// Session Management Methods
-	createSession(data: { userId: string; expires: number }): Promise<Session>;
-	destroySession(sessionId: string): Promise<void>;
-	validateSession(sessionId: string): Promise<User | null>;
-	invalidateAllUserSessions(userId: string): Promise<void>;
+	createSession(data: { user_id: string; expires: number }): Promise<Session>;
+	destroySession(session_id: string): Promise<void>;
+	validateSession(session_id: string): Promise<User | null>;
+	invalidateAllUserSessions(user_id: string): Promise<void>;
 
 	// Token Management Methods
-	createToken(data: { userId: string; email: string; expires: number }): Promise<string>;
-	validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }>;
-	consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }>;
+	createToken(data: { user_id: string; email: string; expires: number }): Promise<string>;
+	validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }>;
+	consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }>;
 	getAllTokens(): Promise<Token[]>;
 
 	// Role Management Methods
@@ -42,7 +42,7 @@ export interface AuthDBAdapter {
 	getPermissionsForRole(roleId: string): Promise<Permission[]>;
 
 	// User-Specific Permissions Methods (if needed)
-	assignPermissionToUser(userId: string, permissionId: string): Promise<void>;
-	removePermissionFromUser(userId: string, permissionId: string): Promise<void>;
-	getPermissionsForUser(userId: string): Promise<Permission[]>;
+	assignPermissionToUser(user_id: string, permissionId: string): Promise<void>;
+	removePermissionFromUser(user_id: string, permissionId: string): Promise<void>;
+	getPermissionsForUser(user_id: string): Promise<Permission[]>;
 }

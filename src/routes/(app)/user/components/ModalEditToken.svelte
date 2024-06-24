@@ -22,18 +22,18 @@
 	export let token: string;
 	export let email: string;
 	export let role: string;
-	export let userId: string;
+	export let user_id: string;
 
 	// Form Data
 	const formData = {
-		userId: userId,
+		user_id: user_id,
 		email: email,
 		token: token,
 		role: role
 	};
 
 	const errorStatus = {
-		userId: { status: false, msg: '' },
+		user_id: { status: false, msg: '' },
 		email: { status: false, msg: '' },
 		token: { status: false, msg: '' }
 	};
@@ -52,7 +52,7 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify([
 				{
-					userID: userId,
+					user_id: user_id,
 					role: role
 				}
 			])
@@ -86,9 +86,9 @@
 			<div class="group relative z-0 mb-6 w-full">
 				<iconify-icon icon="mdi:user-circle" width="18" class="absolute left-0 top-3.5 text-gray-400" />
 				<input
-					bind:value={formData.userId}
-					on:keydown={() => (errorStatus.userId.status = false)}
-					color={errorStatus.userId.status ? 'red' : 'base'}
+					bind:value={formData.user_id}
+					on:keydown={() => (errorStatus.user_id.status = false)}
+					color={errorStatus.user_id.status ? 'red' : 'base'}
 					type="text"
 					name="username"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
@@ -103,9 +103,9 @@
 					{m.modaledit_tokenusername()}<span class="ml-2 text-error-500">*</span>
 				</label>
 
-				{#if !errorStatus.userId.status}
+				{#if !errorStatus.user_id.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
-						{errorStatus.userId.msg}
+						{errorStatus.user_id.msg}
 					</div>
 				{/if}
 			</div>

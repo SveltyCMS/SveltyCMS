@@ -12,15 +12,15 @@ const getModel = (name: string) =>
 	mongoose.models[name] || mongoose.model(name, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 
 export const load: PageServerLoad = async ({ cookies }) => {
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	if (!sessionId) throw redirect(302, `/login`);
+	const session_id = cookies.get(SESSION_COOKIE_NAME);
+	if (!session_id) throw redirect(302, `/login`);
 
 	if (!auth) {
 		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
-	const user = await auth.validateSession({ sessionId });
+	const user = await auth.validateSession({ session_id });
 	if (!user) throw redirect(302, `/login`);
 
 	// Fetch all media types concurrently
@@ -38,15 +38,15 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
-		const sessionId = cookies.get(SESSION_COOKIE_NAME);
-		if (!sessionId) throw redirect(302, `/login`);
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		if (!session_id) throw redirect(302, `/login`);
 
 		if (!auth) {
 			console.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		const user = await auth.validateSession({ sessionId });
+		const user = await auth.validateSession({ session_id });
 		if (!user) throw redirect(302, `/login`);
 
 		const formData = await request.formData();

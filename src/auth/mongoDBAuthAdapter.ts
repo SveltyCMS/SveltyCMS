@@ -5,6 +5,8 @@ import crypto from 'crypto';
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token, Role, Permission } from './types';
+
+// Logger
 import logger from '@src/utils/logger';
 
 // Define MongoDB schemas based on the shared field definitions
@@ -12,6 +14,7 @@ import logger from '@src/utils/logger';
 // Schema for User collection
 const UserSchema = new Schema(
 	{
+		id: { type: String, required: true },
 		email: { type: String, required: true }, // User's email, required field
 		password: String, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
@@ -20,7 +23,7 @@ const UserSchema = new Schema(
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
 		lastActiveAt: Date, // Last time the user was active, optional field
 		expiresAt: Date, // Expiry date for the user, optional field
-		isRegistered: Boolean, // Registration status of the user, optional field
+		is_registered: Boolean, // Registration status of the user, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
 		resetRequestedAt: Date, // Last time the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
@@ -33,7 +36,7 @@ const UserSchema = new Schema(
 // Schema for Session collection
 const SessionSchema = new Schema(
 	{
-		userId: { type: String, required: true }, // ID of the user who owns the session, required field
+		user_id: { type: String, required: true }, // ID of the user who owns the session, required field
 		expires: { type: Date, required: true } // Expiry date of the session, required field
 	},
 	{ timestamps: true }
@@ -42,7 +45,7 @@ const SessionSchema = new Schema(
 // Schema for Token collection
 const TokenSchema = new Schema(
 	{
-		userId: { type: String, required: true }, // ID of the user who owns the token, required field
+		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
 		email: { type: String, required: true }, // Email associated with the token, required field
 		expires: { type: Date, required: true } // Expiry date of the token, required field
@@ -96,9 +99,9 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Update attributes of an existing user.
-	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		// Prepare the filter and update statements with proper typings
-		const filter: FilterQuery<User> = { id: userId };
+		const filter: FilterQuery<User> = { id: user_id };
 		const update: UpdateQuery<User> = { $set: attributes };
 		// Execute the update with correctly typed parameters
 		await UserModel.updateOne(filter, update);
@@ -133,11 +136,11 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Create a new session for a user.
-	async createSession(data: { userId: string; expires: number }): Promise<Session> {
+	async createSession(data: { user_id: string; expires: number }): Promise<Session> {
 		// logger.info('Creating session with data:', data);
 		try {
 			const session = await SessionModel.create({
-				userId: data.userId,
+				user_id: data.user_id,
 				expires: new Date(Date.now() + data.expires)
 			});
 			// logger.info('Session created successfully:', session);
@@ -149,14 +152,14 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Destroy a session by ID.
-	async destroySession(sessionId: string): Promise<void> {
-		await SessionModel.deleteOne({ id: sessionId });
+	async destroySession(session_id: string): Promise<void> {
+		await SessionModel.deleteOne({ id: session_id });
 	}
 
 	// Validate a session by ID.
-	async validateSession(sessionId: string): Promise<User | null> {
-		// console.log(`MongoDBAuthAdapter: Validating session with ID: ${sessionId}`);
-		const session = await SessionModel.findById(sessionId);
+	async validateSession(session_id: string): Promise<User | null> {
+		// console.log(`MongoDBAuthAdapter: Validating session with ID: ${session_id}`);
+		const session = await SessionModel.findById(session_id);
 
 		if (!session) {
 			// console.log('MongoDBAuthAdapter: No session found');
@@ -164,11 +167,11 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		}
 		if (session.expires <= new Date()) {
 			// console.log('MongoDBAuthAdapter: Session expired');
-			await SessionModel.deleteOne({ id: sessionId });
+			await SessionModel.deleteOne({ id: session_id });
 			return null;
 		}
-		if (session.userId !== 'guestUserId') {
-			const user = await UserModel.findById(session.userId);
+		if (session.user_id !== 'guestuser_id') {
+			const user = await UserModel.findById(session.user_id);
 			// console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
 			return user ? user.toObject() : null;
 		}
@@ -176,16 +179,16 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Invalidate all sessions for a user.
-	async invalidateAllUserSessions(userId: string): Promise<void> {
-		await SessionModel.deleteMany({ userId: new mongoose.Types.ObjectId(userId) });
+	async invalidateAllUserSessions(user_id: string): Promise<void> {
+		await SessionModel.deleteMany({ user_id: new mongoose.Types.ObjectId(user_id) });
 	}
 
 	// Create a new token for a user.
-	async createToken(data: { userId: string; email: string; expires: number }): Promise<string> {
-		const { userId, email, expires } = data; // Destructure the data object to extract properties
+	async createToken(data: { user_id: string; email: string; expires: number }): Promise<string> {
+		const { user_id, email, expires } = data; // Destructure the data object to extract properties
 		const tokenString = crypto.randomBytes(16).toString('hex'); // Generate a secure token string
 		await TokenModel.create({
-			userId: new mongoose.Types.ObjectId(userId), // Convert userId to ObjectId for MongoDB
+			user_id: new mongoose.Types.ObjectId(user_id), // Convert user_id to ObjectId for MongoDB
 			token: tokenString,
 			email,
 			expires: new Date(Date.now() + expires) // Calculate the expiration time from the current time
@@ -194,9 +197,9 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Validate a token
-	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
-		// console.log(`Validating token: ${token} for user ID: ${userId}`);
-		const tokenDoc = await TokenModel.findOne({ token, userId: new mongoose.Types.ObjectId(userId) });
+	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
+		// console.log(`Validating token: ${token} for user ID: ${user_id}`);
+		const tokenDoc = await TokenModel.findOne({ token, user_id: new mongoose.Types.ObjectId(user_id) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { success: true, message: 'Token is valid' };
@@ -209,9 +212,9 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Consume a token
-	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
-		// console.log(`Consuming token: ${token} for user ID: ${userId}`);
-		const tokenDoc = await TokenModel.findOneAndDelete({ token, userId: new mongoose.Types.ObjectId(userId) });
+	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
+		// console.log(`Consuming token: ${token} for user ID: ${user_id}`);
+		const tokenDoc = await TokenModel.findOneAndDelete({ token, user_id: new mongoose.Types.ObjectId(user_id) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
 				return { status: true, message: 'Token is valid' };
@@ -307,18 +310,18 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// User-specific permissions management
-	async assignPermissionToUser(userId: string, permissionId: string): Promise<void> {
-		await UserModel.updateOne({ id: userId }, { $addToSet: { permissions: permissionId } });
+	async assignPermissionToUser(user_id: string, permissionId: string): Promise<void> {
+		await UserModel.updateOne({ id: user_id }, { $addToSet: { permissions: permissionId } });
 	}
 
 	// Add the missing link and unlink permissions to users
-	async removePermissionFromUser(userId: string, permissionId: string): Promise<void> {
-		await UserModel.updateOne({ id: userId }, { $pull: { permissions: permissionId } });
+	async removePermissionFromUser(user_id: string, permissionId: string): Promise<void> {
+		await UserModel.updateOne({ id: user_id }, { $pull: { permissions: permissionId } });
 	}
 
 	// User-Specific Permissions Methods (if needed)
-	async getPermissionsForUser(userId: string): Promise<Permission[]> {
-		const user = await UserModel.findById(userId).populate('permissions');
+	async getPermissionsForUser(user_id: string): Promise<Permission[]> {
+		const user = await UserModel.findById(user_id).populate('permissions');
 		return user ? (user.permissions as Permission[]) : [];
 	}
 }

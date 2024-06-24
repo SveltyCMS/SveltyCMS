@@ -34,7 +34,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			return new Response(JSON.stringify({ message: 'User already exists' }), { status: 400 });
 		}
 
-		const newUser = await auth.createUser({ email, role, lastAuthMethod: 'password', isRegistered: false });
+		const newUser = await auth.createUser({ email, role, lastAuthMethod: 'password', is_registered: false });
 		const token = await auth.createToken(newUser.id, expirationTime * 1000);
 
 		// Send the token via email (this should be implemented)

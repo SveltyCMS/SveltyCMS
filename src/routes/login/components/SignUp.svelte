@@ -102,9 +102,6 @@
 	class:hover={active == undefined || active == 0}
 >
 	{#if active == 1}
-		<!-- Back button -->
-		<button on:click={goBack} class="variant-filled-surface btn-icon"> ← </button>
-
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
@@ -131,7 +128,7 @@
 				{m.form_required()}
 
 				<button on:click|stopPropagation={handleBack} class="variant-outline-secondary btn-icon">
-					<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
+					<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
 				</button>
 			</div>
 
@@ -194,7 +191,7 @@
 				{#if $errors.password}
 					<span class="text-xs text-error-500">{$errors.password}</span>
 				{/if}
-				<PasswordStrength password={passwordStrength} label={m.form_password()} />
+				<!-- <PasswordStrength password={passwordStrength} label={m.form_password()} /> -->
 
 				<!-- Password Confirm -->
 				<FloatingInput
@@ -217,7 +214,7 @@
 				{#if $errors.confirm_password}
 					<span class="text-xs text-error-500">{$errors.confirm_password}</span>
 				{/if}
-				<PasswordStrength password={confirmPasswordStrength} label={m.form_confirmpassword()} />
+				<!-- <PasswordStrength password={confirmPasswordStrength} label={m.form_confirmpassword()} /> -->
 
 				{#if firstUserExists == true}
 					<!-- Registration Token -->

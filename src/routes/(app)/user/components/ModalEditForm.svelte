@@ -28,11 +28,11 @@
 	export let username: string | null = null;
 	export let email: string | null = null;
 	export let role: string | null = null;
-	export let userId: string | null = null;
+	export let user_id: string | null = null;
 
 	// Form Data
 	const formData = {
-		userId: isGivenData ? userId : user?.id,
+		user_id: isGivenData ? user_id : user?.id,
 		username: isGivenData ? username : user?.username,
 		email: isGivenData ? email : user?.email,
 		password: '',
@@ -54,7 +54,7 @@
 		// console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
-		if ((isGivenData && userId != user?.id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
+		if ((isGivenData && user_id != user?.id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
 			modalStore.close();
 		} else {
 			console.log('error');
@@ -103,7 +103,7 @@
 					bind:value={formData.username}
 					on:keydown={() => (errorStatus.username.status = false)}
 					required
-					disabled={isGivenData && userId != user?.id}
+					disabled={isGivenData && user_id != user?.id}
 				/>
 				{#if !errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
@@ -153,7 +153,7 @@
 					{/if}
 				</div>
 			{/if}
-			{#if (user.id == userId || !isGivenData) && user?.lastAuthMethod == 'token'}
+			{#if (user.id == user_id || !isGivenData) && user?.lastAuthMethod == 'token'}
 				<!-- Password field -->
 				<div class="group relative z-0 mb-6 w-full">
 					<iconify-icon icon="mdi:password" width="18" class="absolute left-0 top-3.5 text-gray-400" />
@@ -266,7 +266,7 @@
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
 			{#if isFirstUser}
-				<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={!isFirstUser && (!isGivenData || user.id == userId)}>
+				<button type="button" on:click={deleteUser} class="variant-filled-error btn" disabled={!isFirstUser && (!isGivenData || user.id == user_id)}>
 					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 				</button>
 			{:else}

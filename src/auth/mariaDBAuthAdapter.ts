@@ -29,10 +29,10 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Update attributes of an existing user.
-	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('UPDATE auth_users SET ? WHERE id = ?', [attributes, userId]);
+			await conn.query('UPDATE auth_users SET ? WHERE id = ?', [attributes, user_id]);
 		} finally {
 			conn.release();
 		}
@@ -93,38 +93,38 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Create a new session for a user.
-	async createSession(data: { userId: string; expires: number }): Promise<Session> {
+	async createSession(data: { user_id: string; expires: number }): Promise<Session> {
 		const conn = await pool.getConnection();
 		try {
 			const expiresDate = new Date(Date.now() + data.expires);
 			const result = await conn.query('INSERT INTO auth_sessions SET ?', {
-				userId: data.userId,
+				user_id: data.user_id,
 				expires: expiresDate
 			});
-			return { id: result.insertId, userId: data.userId, expires: expiresDate } as Session;
+			return { id: result.insertId, user_id: data.user_id, expires: expiresDate } as Session;
 		} finally {
 			conn.release();
 		}
 	}
 
 	// Destroy a session by ID.
-	async destroySession(sessionId: string): Promise<void> {
+	async destroySession(session_id: string): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('DELETE FROM auth_sessions WHERE id = ?', [sessionId]);
+			await conn.query('DELETE FROM auth_sessions WHERE id = ?', [session_id]);
 		} finally {
 			conn.release();
 		}
 	}
 
 	// Validate a session by ID.
-	async validateSession(sessionId: string): Promise<User | null> {
+	async validateSession(session_id: string): Promise<User | null> {
 		const conn = await pool.getConnection();
 		try {
-			const rows = await conn.query('SELECT * FROM auth_sessions WHERE id = ? AND expires > NOW()', [sessionId]);
+			const rows = await conn.query('SELECT * FROM auth_sessions WHERE id = ? AND expires > NOW()', [session_id]);
 			if (rows.length > 0) {
 				const session = rows[0];
-				const userRows = await conn.query('SELECT * FROM auth_users WHERE id = ?', [session.userId]);
+				const userRows = await conn.query('SELECT * FROM auth_users WHERE id = ?', [session.user_id]);
 				return userRows[0] || null;
 			}
 			return null;
@@ -134,23 +134,23 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Invalidate all sessions for a user.
-	async invalidateAllUserSessions(userId: string): Promise<void> {
+	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('DELETE FROM auth_sessions WHERE userId = ?', [userId]);
+			await conn.query('DELETE FROM auth_sessions WHERE user_id = ?', [user_id]);
 		} finally {
 			conn.release();
 		}
 	}
 
 	// Create a new token.
-	async createToken(data: { userId: string; email: string; expires: number }): Promise<string> {
+	async createToken(data: { user_id: string; email: string; expires: number }): Promise<string> {
 		const conn = await pool.getConnection();
 		try {
 			const tokenString = crypto.randomBytes(16).toString('hex');
 			const expiresDate = new Date(Date.now() + data.expires);
 			await conn.query('INSERT INTO auth_tokens SET ?', {
-				userId: data.userId,
+				user_id: data.user_id,
 				token: tokenString,
 				email: data.email,
 				expires: expiresDate
@@ -162,10 +162,10 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Validate a token.
-	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
+	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
 		const conn = await pool.getConnection();
 		try {
-			const rows = await conn.query('SELECT * FROM auth_tokens WHERE token = ? AND userId = ?', [token, userId]);
+			const rows = await conn.query('SELECT * FROM auth_tokens WHERE token = ? AND user_id = ?', [token, user_id]);
 			if (rows.length > 0) {
 				const tokenDoc = rows[0];
 				if (tokenDoc.expires > new Date()) {
@@ -181,10 +181,10 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Consume a token.
-	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
+	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
 		const conn = await pool.getConnection();
 		try {
-			const rows = await conn.query('DELETE FROM auth_tokens WHERE token = ? AND userId = ? RETURNING *', [token, userId]);
+			const rows = await conn.query('DELETE FROM auth_tokens WHERE token = ? AND user_id = ? RETURNING *', [token, user_id]);
 			if (rows.length > 0) {
 				const tokenDoc = rows[0];
 				if (tokenDoc.expires > new Date()) {
@@ -355,36 +355,36 @@ export class MariaDBAuthAdapter implements AuthDBAdapter {
 	}
 
 	// Assign permission to a user.
-	async assignPermissionToUser(userId: string, permissionId: string): Promise<void> {
+	async assignPermissionToUser(user_id: string, permissionId: string): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('INSERT INTO user_permissions (userId, permissionId) VALUES (?, ?)', [userId, permissionId]);
+			await conn.query('INSERT INTO user_permissions (user_id, permissionId) VALUES (?, ?)', [user_id, permissionId]);
 		} finally {
 			conn.release();
 		}
 	}
 
 	// Remove permission from a user.
-	async removePermissionFromUser(userId: string, permissionId: string): Promise<void> {
+	async removePermissionFromUser(user_id: string, permissionId: string): Promise<void> {
 		const conn = await pool.getConnection();
 		try {
-			await conn.query('DELETE FROM user_permissions WHERE userId = ? AND permissionId = ?', [userId, permissionId]);
+			await conn.query('DELETE FROM user_permissions WHERE user_id = ? AND permissionId = ?', [user_id, permissionId]);
 		} finally {
 			conn.release();
 		}
 	}
 
 	// Get permissions for a user.
-	async getPermissionsForUser(userId: string): Promise<Permission[]> {
+	async getPermissionsForUser(user_id: string): Promise<Permission[]> {
 		const conn = await pool.getConnection();
 		try {
 			const rows = await conn.query(
 				`
                 SELECT p.* FROM permissions p
                 JOIN user_permissions up ON p.id = up.permissionId
-                WHERE up.userId = ?
+                WHERE up.user_id = ?
             `,
-				[userId]
+				[user_id]
 			);
 			return rows;
 		} finally {

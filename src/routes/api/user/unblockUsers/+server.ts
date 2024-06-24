@@ -6,16 +6,16 @@ import logger from '@src/utils/logger'; // Import logger
 export const PUT: RequestHandler = async (event) => {
 	try {
 		const { request } = event;
-		const { userIds } = await request.json();
+		const { user_ids } = await request.json();
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		for (const userId of userIds) {
-			await auth.updateUserAttributes(userId, { blocked: false });
-			logger.info(`User unblocked successfully with user ID: ${userId}`);
+		for (const user_id of user_ids) {
+			await auth.updateUserAttributes(user_id, { blocked: false });
+			logger.info(`User unblocked successfully with user ID: ${user_id}`);
 		}
 
 		return new Response(JSON.stringify({ success: true }), { status: 200 });

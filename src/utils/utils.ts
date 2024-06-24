@@ -505,7 +505,7 @@ export async function saveFormData({
 	_mode,
 	id,
 	authAdapter,
-	userId
+	user_id
 }: {
 	data: any;
 	_collection?: Schema;
@@ -513,7 +513,7 @@ export async function saveFormData({
 	id?: string;
 	dbAdapter: DatabaseAdapter;
 	authAdapter: AuthDBAdapter;
-	userId: string;
+	user_id: string;
 }) {
 	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
@@ -533,7 +533,7 @@ export async function saveFormData({
 	formData.append('status', $collection.status || 'unpublished');
 
 	// Retrieve the user from the auth adapter
-	const user: User | null = await authAdapter.getUserById(userId);
+	const user: User | null = await authAdapter.getUserById(user_id);
 	const username = user ? user.username : 'Unknown';
 
 	switch ($mode) {

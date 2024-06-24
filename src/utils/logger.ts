@@ -66,9 +66,10 @@ class Logger {
 		logToFile('warn', message);
 	}
 
-	error(message: string) {
-		console.error(formatMessage('error', message));
-		logToFile('error', message);
+	error(message: string, error?: Error) {
+		const errorMessage = error ? `${message} - ${error.message}\n${error.stack}` : message;
+		console.error(formatMessage('error', errorMessage));
+		logToFile('error', errorMessage);
 	}
 
 	// Method to filter logs by level

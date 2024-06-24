@@ -25,7 +25,7 @@ export class Auth {
 	// Create a new user with hashed password
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
-			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
+			const { email, password, username, role, lastAuthMethod, is_registered } = userData;
 
 			// Hash the password
 			let hashed_password: string | undefined;
@@ -40,7 +40,7 @@ export class Auth {
 				username,
 				role,
 				lastAuthMethod,
-				isRegistered
+				is_registered
 			});
 
 			logger.info(`User created: ${user.id}`);
@@ -53,7 +53,7 @@ export class Auth {
 	}
 
 	// Update user attributes
-	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
 			// Check if password needs updating
 			if (attributes.password) {
@@ -65,8 +65,8 @@ export class Auth {
 				attributes.email = undefined;
 			}
 			// Update the user attributes
-			await this.db.updateUserAttributes(userId, attributes);
-			logger.info(`User attributes updated for user ID: ${userId}`);
+			await this.db.updateUserAttributes(user_id, attributes);
+			logger.info(`User attributes updated for user ID: ${user_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to update user attributes: ${err.message}`);
@@ -75,10 +75,10 @@ export class Auth {
 	}
 
 	// Delete the user from the database
-	async deleteUser(userId: string): Promise<void> {
+	async deleteUser(user_id: string): Promise<void> {
 		try {
-			await this.db.deleteUser(userId);
-			logger.info(`User deleted: ${userId}`);
+			await this.db.deleteUser(user_id);
+			logger.info(`User deleted: ${user_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to delete user: ${err.message}`);
@@ -88,19 +88,19 @@ export class Auth {
 
 	// Create a session, valid for 1 hour by default, and only one session per device
 	async createSession({
-		userId,
+		user_id,
 		expires = 60 * 60 * 1000, // 1 hour by default
 		isExtended = false // Extend session if required
 	}: {
-		userId: string;
+		user_id: string;
 		expires?: number;
 		isExtended?: boolean;
 	}): Promise<Session> {
 		try {
 			expires = isExtended ? expires * 2 : expires; // Extend session time if required
-			logger.info(`Creating session for user ID: ${userId} with expiry: ${expires}`);
-			const session = await this.db.createSession({ userId, expires });
-			logger.info(`Session created with ID: ${session.id} for user ID: ${userId}`);
+			logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+			const session = await this.db.createSession({ user_id, expires });
+			logger.info(`Session created with ID: ${session.id} for user ID: ${user_id}`);
 			return session;
 		} catch (error) {
 			const err = error as Error;
@@ -110,12 +110,12 @@ export class Auth {
 	}
 
 	// Check if a user exists by ID or email
-	async checkUser(fields: { userId?: string; email?: string }): Promise<User | null> {
+	async checkUser(fields: { user_id?: string; email?: string }): Promise<User | null> {
 		try {
 			if (fields.email) {
 				return await this.db.getUserByEmail(fields.email);
-			} else if (fields.userId) {
-				return await this.db.getUserById(fields.userId);
+			} else if (fields.user_id) {
+				return await this.db.getUserById(fields.user_id);
 			} else {
 				logger.warn('No user identifier provided.');
 				return null;
@@ -139,9 +139,9 @@ export class Auth {
 	}
 
 	// Get a user by ID
-	async getUserById(userId: string): Promise<User | null> {
+	async getUserById(user_id: string): Promise<User | null> {
 		try {
-			return await this.db.getUserById(userId);
+			return await this.db.getUserById(user_id);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to get user by ID: ${err.message}`);
@@ -172,10 +172,10 @@ export class Auth {
 	}
 
 	// Delete a user session
-	async destroySession(sessionId: string): Promise<void> {
+	async destroySession(session_id: string): Promise<void> {
 		try {
-			await this.db.destroySession(sessionId);
-			logger.info(`Session destroyed: ${sessionId}`);
+			await this.db.destroySession(session_id);
+			logger.info(`Session destroyed: ${session_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to destroy session: ${err.message}`);
@@ -237,10 +237,10 @@ export class Auth {
 	}
 
 	// Log out a user by destroying their session
-	async logOut(sessionId: string): Promise<void> {
+	async logOut(session_id: string): Promise<void> {
 		try {
-			await this.db.destroySession(sessionId);
-			logger.info(`User logged out: ${sessionId}`);
+			await this.db.destroySession(session_id);
+			logger.info(`User logged out: ${session_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to log out: ${err.message}`);
@@ -249,14 +249,14 @@ export class Auth {
 	}
 
 	// Validate a session
-	async validateSession({ sessionId }: { sessionId: string }): Promise<User | null> {
+	async validateSession({ session_id }: { session_id: string }): Promise<User | null> {
 		try {
-			logger.info(`Validating session with ID: ${sessionId}`);
-			const user = await this.db.validateSession(sessionId);
+			logger.info(`Validating session with ID: ${session_id}`);
+			const user = await this.db.validateSession(session_id);
 			if (user) {
 				logger.info(`Session is valid for user: ${user.email}`);
 			} else {
-				logger.warn(`Invalid session ID: ${sessionId}`);
+				logger.warn(`Invalid session ID: ${session_id}`);
 			}
 			return user;
 		} catch (error) {
@@ -267,12 +267,12 @@ export class Auth {
 	}
 
 	// Create a token, default expires in 1 hour
-	async createToken(userId: string, expires = 60 * 60 * 1000): Promise<string> {
+	async createToken(user_id: string, expires = 60 * 60 * 1000): Promise<string> {
 		try {
-			const user = await this.db.getUserById(userId);
+			const user = await this.db.getUserById(user_id);
 			if (!user) throw new Error('User not found');
-			const token = await this.db.createToken({ userId, email: user.email, expires });
-			logger.info(`Token created for user ID: ${userId}`);
+			const token = await this.db.createToken({ user_id, email: user.email, expires });
+			logger.info(`Token created for user ID: ${user_id}`);
 			return token;
 		} catch (error) {
 			const err = error as Error;
@@ -282,10 +282,10 @@ export class Auth {
 	}
 
 	// Validate a token
-	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
+	async validateToken(token: string, user_id: string): Promise<{ success: boolean; message: string }> {
 		try {
-			logger.info(`Validating token: ${token} for user ID: ${userId}`);
-			return await this.db.validateToken(token, userId);
+			logger.info(`Validating token: ${token} for user ID: ${user_id}`);
+			return await this.db.validateToken(token, user_id);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to validate token: ${err.message}`);
@@ -294,10 +294,10 @@ export class Auth {
 	}
 
 	// Consume a token
-	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
+	async consumeToken(token: string, user_id: string): Promise<{ status: boolean; message: string }> {
 		try {
-			logger.info(`Consuming token: ${token} for user ID: ${userId}`);
-			const consumption = await this.db.consumeToken(token, userId);
+			logger.info(`Consuming token: ${token} for user ID: ${user_id}`);
+			const consumption = await this.db.consumeToken(token, user_id);
 			logger.info(`Token consumption result: ${consumption.message}`);
 			return consumption;
 		} catch (error) {
@@ -308,10 +308,10 @@ export class Auth {
 	}
 
 	// Invalidate all sessions for a user
-	async invalidateAllUserSessions(userId: string): Promise<void> {
+	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		try {
-			await this.db.invalidateAllUserSessions(userId);
-			logger.info(`Invalidated all sessions for user ID: ${userId}`);
+			await this.db.invalidateAllUserSessions(user_id);
+			logger.info(`Invalidated all sessions for user ID: ${user_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to invalidate all sessions for user ID: ${err.message}`);
