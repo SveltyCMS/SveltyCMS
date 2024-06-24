@@ -14,7 +14,8 @@
 
 	// Function to handle the addition of a new permission
 	const addNewPermission = () => {
-		addPermission({ contextId, action, role: 'admin', contextType });
+		// Correct the arguments passed to addPermission
+		addPermission(contextId, action, 'admin', contextType);
 		permissionsList = getPermissions();
 	};
 </script>

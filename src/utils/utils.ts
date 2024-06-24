@@ -5,13 +5,16 @@ import axios from 'axios';
 import Path from 'path';
 
 import type { DatabaseAdapter } from '@src/routes/api/databases/databaseAdapter';
+import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
+import type { User } from '@src/auth/types';
+
 import { addData, updateData, handleRequest } from '@src/utils/data';
 
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
-import _crypto from 'crypto';
+import _crypto, { randomBytes } from 'crypto';
 import type { z } from 'zod';
-import type { MediaImage } from './types';
+import type { MediaAudio, MediaImage, MediaVideo } from './types';
 
 // Stores
 import { get } from 'svelte/store';
@@ -120,18 +123,18 @@ function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; e
 	return { fileNameWithoutExt, ext };
 }
 
-export async function saveMedia(type, file, collectionName) {
+export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	switch (type) {
 		case 'image':
-			return await saveImage(file, collectionName);
+			return await saveImage(file, collectionName, dbAdapter);
 		case 'document':
-			return await saveDocument(file, collectionName);
+			return await saveDocument(file, collectionName, dbAdapter);
 		case 'audio':
-			return await saveAudio(file, collectionName);
+			return await saveAudio(file, collectionName, dbAdapter);
 		case 'video':
-			return await saveVideo(file, collectionName);
+			return await saveVideo(file, collectionName, dbAdapter);
 		case 'remote':
-			return await saveRemoteMedia(file, collectionName);
+			return await saveRemoteMedia(file, collectionName, dbAdapter);
 		default:
 			throw new Error(`Unsupported media type: ${type}`);
 	}
@@ -328,7 +331,7 @@ export async function saveDocument(file: File, collectionName: string, dbAdapter
 }
 
 // Implement the saveVideo function to handle video files
-export async function saveVideo(file: File, collectionName: string) {
+export async function saveVideo(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = hashFileContent(buffer);
@@ -352,8 +355,8 @@ export async function saveVideo(file: File, collectionName: string) {
 		fs.writeFileSync(filePath, buffer);
 
 		// Save fileInfo to database
-		const res = await dbAdapter.models['media_videos'].insertMany([fileInfo]);
-		return new dbAdapter.Types.ObjectId(res[0]._id);
+		await dbAdapter.insertMany('media_videos', [fileInfo]);
+		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaVideo };
 	} catch (error) {
 		console.error('Error saving video:', error);
 		throw error;
@@ -361,7 +364,7 @@ export async function saveVideo(file: File, collectionName: string) {
 }
 
 // Implement the saveAudio function to handle audio files
-export async function saveAudio(file: File, collectionName: string) {
+export async function saveAudio(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = hashFileContent(buffer);
@@ -372,9 +375,9 @@ export async function saveAudio(file: File, collectionName: string) {
 			name: `${hash}-${fileNameWithoutExt}.${ext}`,
 			type: file.type,
 			size: file.size,
-			icon: iconName // URL to the icon
-			// createdAt: new Date(),
-			// lastModified: new Date(file.lastModified)
+			icon: iconName, // URL to the icon
+			createdAt: new Date(),
+			lastModified: new Date(file.lastModified)
 		};
 
 		// Store the file in the appropriate location
@@ -385,8 +388,8 @@ export async function saveAudio(file: File, collectionName: string) {
 		fs.writeFileSync(filePath, buffer);
 
 		// Save fileInfo to database
-		const res = await dbAdapter.models['media_audio'].insertMany([fileInfo]);
-		return new dbAdapter.Types.ObjectId(res[0]._id);
+		await dbAdapter.insertMany('media_audio', [fileInfo]);
+		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaAudio };
 	} catch (error) {
 		console.error('Error saving audio:', error);
 		throw error;
@@ -394,10 +397,11 @@ export async function saveAudio(file: File, collectionName: string) {
 }
 
 // Implement the saveRemoteMedia function to handle remote video files
-export async function saveRemoteMedia(fileUrl: string, collectionName: string): Promise<mongoose.Types.ObjectId> {
+export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: DatabaseAdapter): Promise<{ id: string }> {
 	try {
 		const response = await fetch(fileUrl);
 		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+
 		const buffer = Buffer.from(await response.arrayBuffer());
 		const hash = hashFileContent(buffer);
 		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName'); // Safeguard default name
@@ -414,18 +418,9 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string): 
 		};
 
 		// Save fileInfo to database using the collectionName
-		const MediaModel = mongoose.model(
-			collectionName,
-			new mongoose.Schema({
-				name: String,
-				url: String,
-				hash: String
-				// createdAt: Date
-			})
-		);
+		const res = await dbAdapter.insertMany(collectionName, [fileInfo]);
 
-		const res = await MediaModel.create(fileInfo);
-		return new mongoose.Types.ObjectId(res._id);
+		return { id: res[0]._id };
 	} catch (error) {
 		console.error('Error saving remote media:', error);
 		throw error;
@@ -504,7 +499,22 @@ export function getFieldName(field: any, sanitize = false) {
 }
 
 //Save Collections data to database
-export async function saveFormData({ data, _collection, _mode, id }: { data: any; _collection?: Schema; _mode?: 'edit' | 'create'; id?: string }) {
+export async function saveFormData({
+	data,
+	_collection,
+	_mode,
+	id,
+	authAdapter,
+	userId
+}: {
+	data: any;
+	_collection?: Schema;
+	_mode?: 'edit' | 'create';
+	id?: string;
+	dbAdapter: DatabaseAdapter;
+	authAdapter: AuthDBAdapter;
+	userId: string;
+}) {
 	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
@@ -522,6 +532,10 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 	// Define status for each collection
 	formData.append('status', $collection.status || 'unpublished');
 
+	// Retrieve the user from the auth adapter
+	const user: User | null = await authAdapter.getUserById(userId);
+	const username = user ? user.username : 'Unknown';
+
 	switch ($mode) {
 		// Create a new Collection
 		case 'create':
@@ -536,13 +550,13 @@ export async function saveFormData({ data, _collection, _mode, id }: { data: any
 				// Create a new revision of the Collection
 				const newRevision = {
 					...$entryData,
-					_id: new mongoose.Types.ObjectId().toString(), // Fixed syntax error: Added parentheses
+					_id: createRandomID(),
 					__v: [
 						...($entryData.__v || []),
 						{
 							revisionNumber: $entryData.__v ? $entryData.__v.length : 0, // Fixed potential error if __v is undefined
 							editedAt: new Date().getTime().toString(),
-							editedBy: { Username: UserSchema.username },
+							editedBy: { username },
 							changes: {}
 						}
 					]
@@ -914,7 +928,7 @@ export function updateTranslationProgress(data, field) {
 export const get_elements_by_id = {
 	// This function is used to get elements by id together at the end to minimize calls to database.
 	store: {},
-	add(collection, id, callback) {
+	add(collection: string, id: string, callback: (data: any) => void) {
 		if (!collection || !id) return;
 		if (!this.store[collection]) {
 			this.store[collection] = {};
@@ -925,27 +939,27 @@ export const get_elements_by_id = {
 			this.store[collection][id].push(callback);
 		}
 	},
-	async getAll() {
+	async getAll(dbAdapter: DatabaseAdapter) {
 		const store = this.store;
 		this.store = {};
 		for (const collection in store) {
 			const ids = Object.keys(store[collection]);
-			const data = await mongoose.models[collection].find({ _id: { $in: ids } });
+			const data = await dbAdapter.findOne(collection, { _id: { $in: ids } });
 
-			for (const doc in data) {
-				for (const callback of store[collection][data[doc]._id.toString()]) {
-					callback(data[doc]);
+			for (const doc of data) {
+				for (const callback of store[collection][doc._id.toString()]) {
+					callback(doc);
 				}
 			}
 		}
 	}
 };
 
-// Create random ID
+// Create random UUID// Create random ID
 export const createRandomID = (id?: string) => {
-	return id || Math.random().toString(36).substr(2, 9);
+	if (id) return id;
+	return randomBytes(16).toString('hex');
 };
-
 // Meta data
 export const meta_data: {
 	meta_data: { [key: string]: any };

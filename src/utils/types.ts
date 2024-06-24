@@ -1,11 +1,13 @@
-import type mongoose from 'mongoose';
-import type { SIZES } from './utils';
+import type { SIZES } from '@utils/utils';
+
+// Generic ID type to replace specific ID creation
+export type ID = string | number;
 
 // Media Image
 export type MediaImage = {
 	hash: string;
-	_id: mongoose.Types.ObjectId;
-	used_by: mongoose.Types.ObjectId[];
+	id: ID;
+	used_by: ID[];
 	type: 'Image';
 } & Record<
 	keyof typeof SIZES,
@@ -22,8 +24,8 @@ export type MediaImage = {
 // Media Document
 export type MediaDocument = {
 	hash: string;
-	_id: mongoose.Types.ObjectId;
-	used_by: mongoose.Types.ObjectId[];
+	id: ID;
+	used_by: ID[];
 	type: 'Document';
 	name: string;
 	size: number;
@@ -33,8 +35,8 @@ export type MediaDocument = {
 // Media Audio
 export type MediaAudio = {
 	hash: string;
-	_id: mongoose.Types.ObjectId;
-	used_by: mongoose.Types.ObjectId[];
+	id: ID;
+	used_by: ID[];
 	type: 'Audio';
 	name: string;
 	size: number;
@@ -45,8 +47,8 @@ export type MediaAudio = {
 // Media Video
 export type MediaVideo = {
 	hash: string;
-	_id: mongoose.Types.ObjectId;
-	used_by: mongoose.Types.ObjectId[];
+	id: ID;
+	used_by: ID[];
 	type: 'Video';
 	name: string;
 	size: number;
@@ -57,8 +59,8 @@ export type MediaVideo = {
 // Media Remote Video
 export type MediaRemoteVideo = {
 	hash: string;
-	_id: mongoose.Types.ObjectId;
-	used_by: mongoose.Types.ObjectId[];
+	id: ID;
+	used_by: ID[];
 	type: 'RemoteVideo';
 	name: string;
 	url: string;
