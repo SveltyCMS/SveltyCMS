@@ -5,6 +5,7 @@ import crypto from 'crypto';
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token, Role, Permission } from './types';
+import logger from '@src/utils/logger';
 
 // Define MongoDB schemas based on the shared field definitions
 
@@ -97,7 +98,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 	// Update attributes of an existing user.
 	async updateUserAttributes(userId: string, attributes: Partial<User>): Promise<void> {
 		// Prepare the filter and update statements with proper typings
-		const filter: FilterQuery<User> = { _id: userId };
+		const filter: FilterQuery<User> = { id: userId };
 		const update: UpdateQuery<User> = { $set: attributes };
 		// Execute the update with correctly typed parameters
 		await UserModel.updateOne(filter, update);
@@ -105,25 +106,25 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Delete a user by ID.
 	async deleteUser(id: string): Promise<void> {
-		await UserModel.deleteOne({ _id: id });
+		await UserModel.deleteOne({ id: id });
 	}
 
 	// Get a user by ID.
 	async getUserById(id: string): Promise<User | null> {
 		const user = await UserModel.findById(id);
-		return user ? ({ ...user.toObject(), id: user._id.toString() } as User) : null;
+		return user ? ({ ...user.toObject(), id: user.id.toString() } as User) : null;
 	}
 
 	// Get a user by email.
 	async getUserByEmail(email: string): Promise<User | null> {
 		const user = await UserModel.findOne({ email });
-		return user ? ({ ...user.toObject(), id: user._id.toString() } as User) : null;
+		return user ? ({ ...user.toObject(), id: user.id.toString() } as User) : null;
 	}
 
 	// Get all users.
 	async getAllUsers(): Promise<User[]> {
 		const users = await UserModel.find();
-		return users.map((user) => ({ ...user.toObject(), id: user._id.toString() }) as User);
+		return users.map((user) => ({ ...user.toObject(), id: user.id.toString() }) as User);
 	}
 
 	// Get the total number of users.
@@ -133,43 +134,43 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Create a new session for a user.
 	async createSession(data: { userId: string; expires: number }): Promise<Session> {
-		console.log('Creating session with data:', data);
+		// logger.info('Creating session with data:', data);
 		try {
 			const session = await SessionModel.create({
 				userId: data.userId,
 				expires: new Date(Date.now() + data.expires)
 			});
-			console.log('Session created successfully:', session);
-			return { ...session.toObject(), id: session._id.toString() } as Session;
+			// logger.info('Session created successfully:', session);
+			return { ...session.toObject(), id: session.id.toString() } as Session;
 		} catch (error) {
-			console.error('Error creating session:', error);
+			logger.error('Error creating session:');
 			throw error;
 		}
 	}
 
 	// Destroy a session by ID.
 	async destroySession(sessionId: string): Promise<void> {
-		await SessionModel.deleteOne({ _id: sessionId });
+		await SessionModel.deleteOne({ id: sessionId });
 	}
 
 	// Validate a session by ID.
 	async validateSession(sessionId: string): Promise<User | null> {
-		console.log(`MongoDBAuthAdapter: Validating session with ID: ${sessionId}`);
+		// console.log(`MongoDBAuthAdapter: Validating session with ID: ${sessionId}`);
 		const session = await SessionModel.findById(sessionId);
-		console.log(session);
+
 		if (!session) {
-			console.log('MongoDBAuthAdapter: No session found');
+			// console.log('MongoDBAuthAdapter: No session found');
 			return null;
 		}
 		if (session.expires <= new Date()) {
-			console.log('MongoDBAuthAdapter: Session expired');
-			await SessionModel.deleteOne({ _id: sessionId });
+			// console.log('MongoDBAuthAdapter: Session expired');
+			await SessionModel.deleteOne({ id: sessionId });
 			return null;
 		}
 		if (session.userId !== 'guestUserId') {
 			const user = await UserModel.findById(session.userId);
-			console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
-			return user ? user.toObject() : null;	
+			// console.log(`MongoDBAuthAdapter: User found: ${user ? 'Yes' : 'No'}`);
+			return user ? user.toObject() : null;
 		}
 		return null;
 	}
@@ -194,7 +195,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Validate a token
 	async validateToken(token: string, userId: string): Promise<{ success: boolean; message: string }> {
-		console.log(`Validating token: ${token} for user ID: ${userId}`);
+		// console.log(`Validating token: ${token} for user ID: ${userId}`);
 		const tokenDoc = await TokenModel.findOne({ token, userId: new mongoose.Types.ObjectId(userId) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
@@ -209,7 +210,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Consume a token
 	async consumeToken(token: string, userId: string): Promise<{ status: boolean; message: string }> {
-		console.log(`Consuming token: ${token} for user ID: ${userId}`);
+		// console.log(`Consuming token: ${token} for user ID: ${userId}`);
 		const tokenDoc = await TokenModel.findOneAndDelete({ token, userId: new mongoose.Types.ObjectId(userId) });
 		if (tokenDoc) {
 			if (tokenDoc.expires > new Date()) {
@@ -237,7 +238,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Update a role
 	async updateRole(roleId: string, roleData: Partial<Role>): Promise<void> {
-		const filter: FilterQuery<Role> = { _id: roleId };
+		const filter: FilterQuery<Role> = { id: roleId };
 		const update: UpdateQuery<Role> = { $set: roleData };
 
 		await RoleModel.updateOne(filter, update);
@@ -245,7 +246,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Delete a role
 	async deleteRole(roleId: string): Promise<void> {
-		await RoleModel.deleteOne({ _id: roleId });
+		await RoleModel.deleteOne({ id: roleId });
 	}
 
 	// Get a role by ID
@@ -269,12 +270,12 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Update a permission
 	async updatePermission(permissionId: string, permissionData: Partial<Permission>): Promise<void> {
-		await PermissionModel.updateOne({ _id: permissionId }, { $set: permissionData });
+		await PermissionModel.updateOne({ id: permissionId }, { $set: permissionData });
 	}
 
 	// Delete a permission
 	async deletePermission(permissionId: string): Promise<void> {
-		await PermissionModel.deleteOne({ _id: permissionId });
+		await PermissionModel.deleteOne({ id: permissionId });
 	}
 
 	// Get a permission by ID
@@ -297,22 +298,22 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 
 	// Add the missing link and unlink permissions to roles
 	async assignPermissionToRole(roleId: string, permissionId: string): Promise<void> {
-		await RoleModel.updateOne({ _id: roleId }, { $addToSet: { permissions: permissionId } });
+		await RoleModel.updateOne({ id: roleId }, { $addToSet: { permissions: permissionId } });
 	}
 
 	// Remove the missing link and unlink permissions to roles
 	async removePermissionFromRole(roleId: string, permissionId: string): Promise<void> {
-		await RoleModel.updateOne({ _id: roleId }, { $pull: { permissions: permissionId } });
+		await RoleModel.updateOne({ id: roleId }, { $pull: { permissions: permissionId } });
 	}
 
 	// User-specific permissions management
 	async assignPermissionToUser(userId: string, permissionId: string): Promise<void> {
-		await UserModel.updateOne({ _id: userId }, { $addToSet: { permissions: permissionId } });
+		await UserModel.updateOne({ id: userId }, { $addToSet: { permissions: permissionId } });
 	}
 
 	// Add the missing link and unlink permissions to users
 	async removePermissionFromUser(userId: string, permissionId: string): Promise<void> {
-		await UserModel.updateOne({ _id: userId }, { $pull: { permissions: permissionId } });
+		await UserModel.updateOne({ id: userId }, { $pull: { permissions: permissionId } });
 	}
 
 	// User-Specific Permissions Methods (if needed)

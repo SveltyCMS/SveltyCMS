@@ -8,6 +8,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
+import logger from '@src/utils/logger.js';
 
 // Define the available language tags for type safety
 type LanguageTag = (typeof availableLanguageTags)[number];
@@ -40,12 +41,11 @@ export async function load({ cookies }) {
 		try {
 			const newSession = await auth.createSession({ userId: 'guestUserId' });
 			const sessionCookie = auth.createSessionCookie(newSession);
-			console.log(sessionCookie);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			sessionId = sessionCookie.value;
-			console.log('New session created:', sessionId);
+			// console.log('New session created:', sessionId);
 		} catch (e) {
-			console.error('Failed to create a new session:', e);
+			logger.error('Failed to create a new session:');
 			throw error(500, 'Internal Server Error');
 		}
 	}
