@@ -251,6 +251,7 @@ export const actions: Actions = {
 				throw error(500, 'Internal Server Error');
 			}
 
+			// Validate the user's session
 			const user = await auth.validateSession({ sessionId });
 
 			if (!user || user.role !== 'admin') {

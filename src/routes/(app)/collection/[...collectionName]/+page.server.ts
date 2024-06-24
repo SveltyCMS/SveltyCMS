@@ -45,6 +45,7 @@ export async function load({ cookies }) {
 
 	// Validate user using auth and session value
 	const user = await auth.validateSession({ sessionId });
+
 	// If user status is 200, return user object
 	if (!user) {
 		console.error('User not authenticated, redirecting to login.');

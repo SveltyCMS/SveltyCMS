@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Components
 	import widgets from '@components/widgets';
-	import Permission from '@src/components/Permission.svelte';
+	import PermissionsSetting from '@src/components/PermissionsSetting.svelte';
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
@@ -23,5 +23,5 @@
 </script>
 
 {#if $modalStore[0]}
-	<Permission permissions={$targetWidget['permissions']} on:update={handlePermissionUpdate} />
+	<PermissionsSetting permissions={$targetWidget['permissions']} on:update={handlePermissionUpdate} />
 {/if}

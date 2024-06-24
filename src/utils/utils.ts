@@ -1017,3 +1017,12 @@ export function get_date() {
 	const d = new Date();
 	return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
+
+// Convert data to string
+export function toStringHelper({ field, data, path }: { field: any; data: any[]; path: (lang: string) => string }) {
+	if (!data) return '';
+	if (field.translated) return path(publicEnv.DEFAULT_CONTENT_LANGUAGE);
+	return publicEnv.AVAILABLE_CONTENT_LANGUAGES.reduce((acc, lang) => {
+		return (acc += path(lang) + '\n');
+	}, '\n');
+}

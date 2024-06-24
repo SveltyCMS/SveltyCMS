@@ -15,7 +15,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		}
 
 		// Validate the session
-		const user = await auth.validateSession(sessionId);
+		const user = await auth.validateSession({ sessionId });
 
 		if (!user || user.role !== 'admin') {
 			return new Response('', { status: 403 });
