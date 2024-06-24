@@ -2,7 +2,7 @@ const WIDGET_NAME = 'Text' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@src/utils/utils';
-import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
+import { GuiSchema, GraphqlSchema, type Params } from './types';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';

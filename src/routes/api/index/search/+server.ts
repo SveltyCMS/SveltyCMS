@@ -1,13 +1,10 @@
-import axios from 'axios';
+import { indexer } from '@src/stores/load.js';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 
 // Auth
 import { auth } from '@src/routes/api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
-
-// Indexer
-import { indexer } from '@src/stores/load.js';
 
 // Define the POST request handler
 export const POST = async ({ cookies, request }) => {
@@ -18,8 +15,9 @@ export const POST = async ({ cookies, request }) => {
 	}
 
 	// Check if the indexer process is running, if not, spawn it
-	if (!indexer || (indexer as ChildProcessWithoutNullStreams).exitCode) {
-		spawn('main.exe');
+	let process: ChildProcessWithoutNullStreams | undefined = indexer;
+	if (!process || process.exitCode) {
+		process = spawn('main.exe');
 	}
 
 	// Retrieve the session ID from cookies
@@ -29,7 +27,7 @@ export const POST = async ({ cookies, request }) => {
 	const data = await request.formData();
 
 	// Extract user ID from the form data
-	const userId = data.get('user_id') as string;
+	const userId = data.get('userId') as string;
 
 	// Authenticate user based on user ID or session ID
 	const user = userId
@@ -45,8 +43,20 @@ export const POST = async ({ cookies, request }) => {
 	}
 
 	// Send a POST request to the backend with the search text
-	const res = (await axios.post('http://localhost:8000', { search_text })).data;
+	if (!process.stdin) {
+		return new Response('Indexer process input stream is not available', { status: 500 });
+	}
+
+	console.time('search');
+	process.stdin.write(search_text + '\n');
+	const res = await new Promise<string>((resolve) => {
+		const listener = process.stdout.once('data', (data) => {
+			resolve(data.toString());
+			listener.removeAllListeners();
+			console.timeEnd('search');
+		});
+	});
 
 	// Return the response from the backend
-	return new Response(JSON.stringify(res), { status: 200 });
+	return new Response(res, { status: 200 });
 };
