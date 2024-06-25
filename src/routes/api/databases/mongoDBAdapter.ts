@@ -3,9 +3,9 @@ import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 import mongoose from 'mongoose';
 import type { DatabaseAdapter } from './databaseAdapter';
-import { UserMongooseSchema, SessionMongooseSchema, TokenMongooseSchema } from '@src/auth/mongoDBAuthAdapter';
+import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
-// System Logs
+// Import logger
 import logger from '@utils/logger';
 
 export class MongoDBAdapter implements DatabaseAdapter {
@@ -91,13 +91,13 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	// Set up authentication models
 	setupAuthModels(): void {
 		if (!mongoose.models['auth_tokens']) {
-			mongoose.model('auth_tokens', TokenMongooseSchema);
+			mongoose.model('auth_tokens', TokenSchema);
 		}
 		if (!mongoose.models['auth_users']) {
-			mongoose.model('auth_users', UserMongooseSchema);
+			mongoose.model('auth_users', UserSchema);
 		}
 		if (!mongoose.models['auth_sessions']) {
-			mongoose.model('auth_sessions', SessionMongooseSchema);
+			mongoose.model('auth_sessions', SessionSchema);
 		}
 	}
 

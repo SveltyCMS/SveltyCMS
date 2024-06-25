@@ -3,8 +3,8 @@ import type { RequestHandler } from '@sveltejs/kit';
 // Auth
 import { auth } from '@api/databases/db';
 
-// System logs
-import logger from '@src/utils/logger';
+// Import logger
+import logger from '@utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

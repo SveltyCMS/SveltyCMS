@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
 // Auth
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import type { Roles } from '@src/auth/types';
+import type { Role } from '@src/auth/types';
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
@@ -159,7 +159,7 @@ export const actions: Actions = {
 				return fail(400, { message: 'User already exists' });
 			}
 
-			const newUser = await auth.createUser({ email, role: role as Roles, lastAuthMethod: 'password', isRegistered: false });
+			const newUser = await auth.createUser({ email, role: role as Role, lastAuthMethod: 'password', isRegistered: false });
 			if (!newUser) return fail(400, { message: 'unknown error' });
 
 			const token = await auth.createToken(newUser.id, expirationTime * 1000);

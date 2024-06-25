@@ -37,4 +37,7 @@ yarn-error.log*
 /playwright/.cache/
 /error-screenshot.png
 
-
+# rust
+/data.json
+/indexes
+/*.bin

@@ -1,4 +1,4 @@
-import { redirect } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
@@ -42,6 +42,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		console.log('Google user information:', googleUser);
 
 		const getUser = async (): Promise<[User | null, boolean]> => {
+			if (!auth) {
+				console.error('Authentication system is not initialized');
+				throw error(500, 'Authentication system not initialized.');
+			}
+
 			const existingUser = await auth.checkUser({ email: googleUser.email });
 			if (existingUser) return [existingUser, false];
 

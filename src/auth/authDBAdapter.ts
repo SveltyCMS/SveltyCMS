@@ -41,7 +41,7 @@ export interface AuthDBAdapter {
 	removePermissionFromRole(roleId: string, permissionId: string): Promise<void>;
 	getPermissionsForRole(roleId: string): Promise<Permission[]>;
 
-	// User-Specific Permissions Methods (if needed)
+	// User-Specific Permissions Methods
 	assignPermissionToUser(userId: string, permissionId: string): Promise<void>;
 	removePermissionFromUser(userId: string, permissionId: string): Promise<void>;
 	getPermissionsForUser(userId: string): Promise<Permission[]>;

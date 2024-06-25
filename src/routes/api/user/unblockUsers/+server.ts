@@ -1,7 +1,9 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import { auth } from '@api/databases/db'; // Import the auth instance
-import logger from '@src/utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 export const PUT: RequestHandler = async (event) => {
 	try {

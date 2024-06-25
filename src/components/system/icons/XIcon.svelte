@@ -1,3 +1,19 @@
+<script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+	const dispatch = createEventDispatcher();
+
+	function handleClick() {
+		dispatch('click');
+	}
+
+	function handleKeyDown(event: KeyboardEvent) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			handleClick();
+		}
+	}
+</script>
+
 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 224 224" fill="none">
 	<mask id="mask0_218_2" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="224" height="224">
 		<path
@@ -121,7 +137,19 @@
 		</linearGradient>
 	</defs>
 </svg>
-<svg on:click class={$$props.class} xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 224 224" fill="none">
+<svg
+	on:click={handleClick}
+	on:keydown={handleKeyDown}
+	role="button"
+	tabindex="0"
+	aria-label="Close icon"
+	class={$$props.class}
+	xmlns="http://www.w3.org/2000/svg"
+	width="20"
+	height="20"
+	viewBox="0 0 224 224"
+	fill="none"
+>
 	<mask id="mask0_218_2" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="0" y="0" width="224" height="224">
 		<path
 			d="M47.8328 0.816767C41.6328 2.61677 37.2328 6.11678 21.6328 22.0167C2.43281 41.4167 -1.26719 47.1167 0.632801 53.6167C2.5328 59.8167 8.23281 66.4167 32.1328 89.8167L54.9328 112.117L29.4328 137.717C-1.06719 168.317 -2.56718 170.817 1.83282 180.717C4.03282 185.417 34.1328 216.317 41.2328 221.217C46.1328 224.517 52.2328 224.717 58.0328 221.717C60.5328 220.417 72.6328 209.317 87.2328 194.717L112.333 169.917L138.033 195.417C153.833 211.117 165.033 221.417 167.233 222.317C172.333 224.417 178.633 224.217 182.833 221.717C187.233 219.117 219.033 187.217 221.833 182.617C224.433 178.317 224.433 171.917 221.733 166.517C220.433 164.017 209.533 152.217 195.133 137.617C181.633 124.017 170.733 112.517 170.933 111.917C171.133 111.317 182.133 99.9167 195.433 86.6167C209.833 72.1167 220.433 60.6167 221.733 58.1167C224.433 52.7167 224.433 46.4167 221.733 41.8167C218.133 35.9167 185.333 4.01677 180.633 1.81677C175.133 -0.683233 174.433 -0.683233 167.933 2.31677C163.633 4.31677 157.333 10.0167 137.333 29.8167L112.133 54.8167L88.0328 30.4167C60.8328 2.71679 55.1328 -1.38323 47.8328 0.816767Z"
