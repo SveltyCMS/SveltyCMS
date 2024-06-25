@@ -22,7 +22,7 @@ export async function load({ cookies, route, params }) {
 	if (!sessionId) {
 		// console.log('Session ID is missing from cookies, creating a new session.');
 		try {
-			const newSession = await auth.createSession({ userId: 'guestUserId' });
+			const newSession = await auth.createSession({ userId: 'guestuserId' });
 			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			sessionId = sessionCookie.value;

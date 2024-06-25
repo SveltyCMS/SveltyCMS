@@ -13,11 +13,10 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 			// Construct the MongoDB connection string dynamically
 			let connectionString;
 			if (host.includes('mongodb.net')) {
-				// Use mongodb+srv:// for Atlas
-				connectionString = `mongodb+srv://${user}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
+				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
 			} else {
 				// Use mongodb:// for local or Docker
-				connectionString = `mongodb://${user}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
+				connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}?retryWrites=true&w=majority`;
 			}
 
 			console.log('Connecting to MongoDB with connection string:', connectionString);

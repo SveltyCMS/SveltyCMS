@@ -200,7 +200,7 @@ export const actions: Actions = {
 					username: googleUser.name ?? '',
 					role: isFirst ? 'admin' : 'user',
 					lastAuthMethod: 'password',
-					isRegistered: true,
+					is_registered: true,
 					blocked: false
 				});
 

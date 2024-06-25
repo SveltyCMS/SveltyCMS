@@ -1,22 +1,22 @@
-<!-- src/routes/permission/permissions/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissions as permissionList, type PermissionAction, type ContextType, type Permission } from '@src/auth/types';
+	import { permissionActions, type PermissionAction, type Permission } from '@src/auth/types';
 	import { addPermission, getPermissions } from '@src/auth/permissionManager';
 
 	let contextId = '';
 	let action: PermissionAction = 'read';
-	let contextType: ContextType = 'collection';
-	let permissions: Permission[] = [];
+	let contextType: 'collection' | 'widget' = 'collection';
+	let permissionsList: Permission[] = [];
 
 	onMount(() => {
-		permissions = getPermissions();
+		permissionsList = getPermissions();
 	});
 
 	// Function to handle the addition of a new permission
 	const addNewPermission = () => {
+		// Correct the arguments passed to addPermission
 		addPermission(contextId, action, 'admin', contextType);
-		permissions = getPermissions();
+		permissionsList = getPermissions();
 	};
 </script>
 
@@ -24,7 +24,7 @@
 	<h2>Manage Permissions</h2>
 	<input type="text" bind:value={contextId} placeholder="Context ID" />
 	<select bind:value={action}>
-		{#each permissionList as perm}
+		{#each permissionActions as perm}
 			<option value={perm}>{perm}</option>
 		{/each}
 	</select>
@@ -35,7 +35,7 @@
 	<button on:click={addNewPermission}>Add Permission</button>
 	<h3>Existing Permissions</h3>
 	<ul>
-		{#each permissions as permission}
+		{#each permissionsList as permission}
 			<li>{permission.contextId} - {permission.action}</li>
 		{/each}
 	</ul>

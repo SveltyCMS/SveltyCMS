@@ -7,8 +7,9 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import type { User } from '@src/auth/types';
-	const user: User = $page.data.user;
+	import type { PermissionConfig } from '@src/auth/types';
+
+	const { user, roles, rateLimits } = $page.data;
 	let isFirstUser = $page.data.isFirstUser;
 
 	// Stores
@@ -20,7 +21,17 @@
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import AdminArea from './components/AdminArea.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
 
+	// Define permissions for different contexts
+	const permissions: Record<string, PermissionConfig> = {
+		adminArea: {
+			contextId: 'user/adminArea',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'user'
+		}
+	};
 	function executeActions() {
 		//console.log('executeActions called');
 		// Get the current value of the triggerActionStore
@@ -213,7 +224,7 @@
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_userid()}<span class="ml-2">{user.id}</span>
+					{m.userpage_userId()}<span class="ml-2">{user.id}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
@@ -255,9 +266,9 @@
 	</div>
 
 	<!-- Admin area -->
-	{#if user.role === 'admin'}
+	<PermissionGuard {user} {roles} {rateLimits} {...permissions.adminArea}>
 		<div class="wrapper2">
 			<AdminArea {data} />
 		</div>
-	{/if}
+	</PermissionGuard>
 </div>

@@ -124,6 +124,7 @@
 		"chart.js": "^4.4.3",
 		"chartjs-adapter-date-fns": "^3.0.0",
 		"deepmerge": "^4.3.1",
+		"htmlparser2": "^9.1.0",
 		"google-auth-library": "^9.11.0",
 		"googleapis": "^140.0.0",
 		"graphql": "^16.9.0",

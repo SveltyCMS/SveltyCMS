@@ -465,7 +465,7 @@ export const actions: Actions = {
 			}
 
 			const expiresAt = new Date(Date.now() + expirationTime * 1000);
-			await mongoose.models['tokens'].updateOne({ _id: tokenId }, { expiresAt });
+			await mongoose.models['tokens'].updateOne({ Id: tokenId }, { expiresAt });
 
 			return { success: true, message: 'Token updated successfully' };
 		} catch (error) {
@@ -500,7 +500,7 @@ export const actions: Actions = {
 				return fail(404, { message: 'Token not found' });
 			}
 
-			await mongoose.models['tokens'].deleteOne({ _id: tokenId });
+			await mongoose.models['tokens'].deleteOne({ Id: tokenId });
 
 			return { success: true, message: 'Token deleted successfully' };
 		} catch (error) {

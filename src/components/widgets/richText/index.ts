@@ -3,7 +3,7 @@ const WIDGET_NAME = 'RichText' as const;
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { saveImage } from '@src/utils/media';
-import { GuiSchema, GraphqlSchema, type Params } from './types';
+import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import mongoose from 'mongoose';
 import type { ModifyRequestParams } from '..';
 
@@ -111,6 +111,7 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyR
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+widget.toString = toString;
 
 // Widget icon and helper text
 widget.Icon = 'icon-park-outline:text';

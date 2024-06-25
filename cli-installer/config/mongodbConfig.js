@@ -143,8 +143,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 		// Database Host
 		dbHost = await text({
 			message: 'Enter the MongoDB host:',
-			placeholder: 'mongodb://localhost:27017',
-			initialValue: privateConfigData.DB_HOST || 'mongodb://localhost:27017',
+			placeholder: 'localhost',
+			initialValue: privateConfigData.DB_HOST || 'localhost',
 			required: true
 		});
 
@@ -170,7 +170,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			return;
 		}
 
-		// Database name
+		// Database Name
 		dbName = await text({
 			message: 'Enter the database name:',
 			placeholder: 'SvelteCMS',
@@ -217,7 +217,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 
 		// Reconstruct the connection string if user and password are set
 		if (dbUser !== '' && dbPassword !== '') {
-			connectionString = `mongodb://${dbUser}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
+			connectionString = `mongodb://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
 		} else {
 			connectionString = `mongodb://${dbHost}:${dbPort}/${dbName}`;
 		}

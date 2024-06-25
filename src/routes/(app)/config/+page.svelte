@@ -17,31 +17,32 @@
 	} from '@src/paraglide/messages';
 
 	// Auth
-	import type { User, Role, RateLimit, PermissionAction, ContextType } from '@src/auth/types';
-	import { addPermission, hasPermission } from '@src/auth/permissionManager';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
+	import type { PermissionConfig } from '@src/auth/types';
 
-	const user: User = $page.data.user;
-	const roles: Role[] = $page.data.roles;
-	const rateLimits: RateLimit[] = $page.data.rateLimits;
+	const { user, roles, rateLimits } = $page.data;
 
-	// Define the necessary context and action
-	const systemSettingsPermission: { contextId: string; requiredRole: string; action: PermissionAction; contextType: ContextType } = {
-		contextId: 'config/systemsetting',
-		requiredRole: 'admin',
-		action: 'read',
-		contextType: 'collection' // or 'widget', depending on your actual use case
+	// Define permissions for different contexts
+	const permissions: Record<string, PermissionConfig> = {
+		systemSettings: {
+			contextId: 'config/systemsetting',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
+		},
+		systemRoles: {
+			contextId: 'config/permissions/roles',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
+		},
+		systemPermissions: {
+			contextId: 'config/permissions/permission',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
+		}
 	};
-
-	// Add permission dynamically
-	addPermission(
-		systemSettingsPermission.contextId,
-		systemSettingsPermission.action,
-		systemSettingsPermission.requiredRole,
-		systemSettingsPermission.contextType
-	);
-
-	// Check if the user has the required permission
-	const userHasPermission = hasPermission(user, roles, systemSettingsPermission.action, systemSettingsPermission.contextId, rateLimits);
 </script>
 
 <div class="my-2 flex items-center justify-between">
@@ -104,11 +105,27 @@
 		</a>
 
 		<!-- System Settings -->
-		{#if userHasPermission}
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemSettings}>
 			<a href="/config/systemsetting" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Settings">
 				<iconify-icon icon="uil:setting" width="28" class="text-white" />
 				<p class="uppercase">System Settings</p>
 			</a>
-		{/if}
+		</PermissionGuard>
+
+		<!-- System Roles -->
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemRoles}>
+			<a href="/config/permissions/roles" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Roles">
+				<iconify-icon icon="uil:setting" width="28" class="text-white" />
+				<p class="uppercase">System Roles</p>
+			</a>
+		</PermissionGuard>
+
+		<!-- System Permissions -->
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemPermissions}>
+			<a href="/config/permissions/permission" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Permissions">
+				<iconify-icon icon="uil:setting" width="28" class="text-white" />
+				<p class="uppercase">System Permissions</p>
+			</a>
+		</PermissionGuard>
 	</div>
 </div>

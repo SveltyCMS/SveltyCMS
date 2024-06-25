@@ -73,17 +73,6 @@
 			// Submit email as lowercase only
 			$form.email = $form.email.toLowerCase();
 
-			// Trigger the login error toast
-			// const t = {
-			// 	message: m.form_wrong(),
-			// 	// Provide any utility or variant background style:
-			// 	background: 'variant-filled-error',
-			// 	timeout: 4000,
-			// 	// Add your custom classes here:
-			// 	classes: 'border-1 !rounded-md'
-			// };
-			// toastStore.trigger(t);
-
 			// handle login form submission
 			if ($allErrors.length > 0) {
 				cancel();
@@ -311,9 +300,6 @@
 	class:hover={active == undefined || active == 1}
 >
 	{#if active == 0}
-		<!-- Back button -->
-		<button on:click={goBack} class="variant-filled-surface btn-icon"> ← </button>
-
 		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 

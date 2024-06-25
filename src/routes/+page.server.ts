@@ -9,6 +9,9 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Paraglidejs
 import { setLanguageTag, sourceLanguageTag, availableLanguageTags } from '@src/paraglide/runtime';
 
+// Import logger
+import logger from '@utils/logger';
+
 // Define the available language tags for type safety
 type LanguageTag = (typeof availableLanguageTags)[number];
 
@@ -59,7 +62,7 @@ export async function load({ cookies }) {
 	}
 
 	if (!user) {
-		console.warn('User not found, redirecting to login.');
+		// console.warn('User not found, redirecting to login.');
 		throw redirect(302, '/login');
 	}
 
@@ -67,17 +70,17 @@ export async function load({ cookies }) {
 	let collections: any;
 	try {
 		collections = await getCollections();
-		console.log('Collections:', collections);
+		// console.log('Collections:', collections);
 	} catch (e) {
-		console.error('Failed to get collections:', e);
-		throw error(500, 'Failed to retrieve collections.');
+		logger.error('Failed to get collections:', e as Error);
+		throw error(500, 'Internal Server Error');
 	}
 
 	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-	console.log('Filtered collections:', filteredCollections);
+	// console.log('Filtered collections:', filteredCollections);
 
 	if (filteredCollections.length === 0) {
-		console.error('No collections found for user.');
+		// console.error('No collections found for user.');
 		throw error(404, {
 			message: "You don't have access to any collection"
 		});
@@ -118,13 +121,13 @@ export const actions = {
 
 		try {
 			// Assume a session creation method is called here and a session object is returned
-			const session = await auth.createSession({ userId: 'someUserId', expires: 3600000 });
+			const session = await auth.createSession({ userId: 'someuser_id', expires: 3600000 });
 			const sessionCookie = auth.createSessionCookie(session);
 
 			// Set the session cookie
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
 		} catch (e) {
-			console.error('Session creation failed:', e);
+			logger.error('Session creation failed:', e as Error);
 			throw error(500, 'Failed to create a session.');
 		}
 

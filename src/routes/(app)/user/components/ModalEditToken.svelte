@@ -52,7 +52,7 @@
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify([
 				{
-					userID: userId,
+					userId: userId,
 					role: role
 				}
 			])

@@ -109,7 +109,7 @@
 							class={`btn flex w-full justify-between gap-2 gradient-${buttonMap[type][1]} ${buttonMap[type][1]}-hover ${buttonMap[type][1]}-focus`}
 							on:click|preventDefault={() => handleOptionClick(type)}
 						>
-							<iconify-icon icon={buttonMap[type][2]} width="24" />
+							<iconify-icon icon={buttonMap[type][2]} width="24" class=""></iconify-icon>
 							<p class="w-full">{buttonMap[type][0]}</p>
 						</button>
 					</li>

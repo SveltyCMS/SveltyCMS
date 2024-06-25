@@ -20,6 +20,7 @@ const convertId = (doc: any) => {
 // Schema for User collection
 const UserSchema = new Schema(
 	{
+		id: { type: String, required: true },
 		email: { type: String, required: true }, // User's email, required field
 		password: String, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field

@@ -84,11 +84,11 @@ initWidgets(); // Initialize
 export default widgets as WidgetType;
 
 // Expose the widget context
-export const widgetContext = Object.keys(widgets).map((key) => {
-	const name = widgets[key].Name as K;
-	return {
-		[name]: {
-			run() {}
-		}
-	};
-});
+// export const widgetContext = Object.keys(widgets).map((key) => {
+// 	const name = widgets[key].Name as K;
+// 	return {
+// 		[name]: {
+// 			run() {}
+// 		}
+// 	};
+// });

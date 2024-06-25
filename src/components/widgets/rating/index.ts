@@ -59,6 +59,7 @@ const widget = (params: Params) => {
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'material-symbols:star-outline';

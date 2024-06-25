@@ -59,8 +59,9 @@ const widget = (params: Params) => {
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+widget.toString = () => '';
 
-// widget icon and helper text
+// Widget icon and helper text
 widget.Icon = 'ic:outline-email';
 widget.Description = m.widget_email_description();
 

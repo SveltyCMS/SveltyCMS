@@ -4,7 +4,7 @@ import { publicEnv } from '@root/config/public';
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import Permission from '@src/components/Permission.svelte';
+import PermissionsSetting from '@src/components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@src/auth/types';
@@ -45,7 +45,7 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: Permission, required: false },
+	permissions: { widget: PermissionsSetting, required: false },
 
 	// Widget Specific parameters
 	color: { widget: Input, required: false }
