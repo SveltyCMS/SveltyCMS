@@ -241,15 +241,14 @@ export const actions: Actions = {
 	OAuth: async (event) => {
 		// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
 		// const lang = signUpOAuthForm.data.lang;
-		const [url, state] = await googleAuth.getAuthorizationUrl();
-
-		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
-			path: '/', // redirect
-			httpOnly: true, // only readable in the server
-			maxAge: 60 * 60 // a reasonable expiration date 1 hour
-		});
-
-		redirect(302, url);
+		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+		
+		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
+		if (!redirectUrl) {
+			console.error('Error during OAuth callback: Redirect url not generated');
+		} else {
+			redirect(307, redirectUrl);
+		}
 	},
 
 	//Function for handling the SignIn form submission and user authentication

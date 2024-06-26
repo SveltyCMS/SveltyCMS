@@ -65,7 +65,7 @@ export interface RateLimit {
 
 // User interface represents a user in the system.
 export interface User {
-	id: string; // Unique identifier for the user
+	id?: string; // Unique identifier for the user
 	email: string; // Email address of the user
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
