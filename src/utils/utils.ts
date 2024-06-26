@@ -12,7 +12,6 @@ import { addData, updateData, handleRequest } from '@src/utils/data';
 
 import type { Schema } from '@collections/types';
 import { browser } from '$app/environment';
-import _crypto, { randomBytes } from 'crypto';
 import type { z } from 'zod';
 import type { MediaAudio, MediaImage, MediaVideo } from './types';
 
@@ -70,7 +69,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	// used to save data
 	const formData = new FormData();
 	const data = {};
-	const parseFiles = (object: any) => {
+	const parseFiles = async (object: any) => {
 		for (const key in object) {
 			if (!(object[key] instanceof File) && typeof object[key] == 'object') {
 				parseFiles(object[key]);
@@ -79,7 +78,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 				continue;
 			}
 			// object[key] is file here
-			const uuid = createRandomID().toString();
+			const uuid = (await createRandomID()).toString();
 			formData.append(uuid, object[key]);
 			object[key] = { instanceof: 'File', id: uuid, path: object[key].path };
 		}
@@ -91,7 +90,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 		data[key] = value;
 	}
 
-	parseFiles(data);
+	await parseFiles(data);
 
 	for (const key in data) {
 		if (typeof data[key] === 'object') {
@@ -112,8 +111,8 @@ export function sanitize(str: string) {
 }
 
 // Utility to hash file content
-function hashFileContent(buffer: Buffer): string {
-	return _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+async function hashFileContent(buffer: Buffer): Promise<string> {
+	return (await sha256(buffer)).slice(0, 20);
 }
 
 // Utility to sanitize and prepare file names
@@ -149,12 +148,13 @@ export async function saveImage(file: File, collectionName: string, dbAdapter: D
 	try {
 		if (typeof window !== 'undefined') return {} as any; // Skip if running in browser
 		const sharp = (await import('sharp')).default;
+		const _crypto = (await import('crypto')).default;
 
 		let fileInfo: MediaImage = {} as MediaImage;
 
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
-		const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+		const hash = (await sha256(buffer)).slice(0, 20);
 		const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
 		const path = file.path || 'global'; // 'global' | 'unique' | 'collection'
 		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // Extract name without extension
@@ -244,7 +244,7 @@ export async function saveImage(file: File, collectionName: string, dbAdapter: D
 
 		await dbAdapter.insertMany('media_images', [fileInfo]);
 
-		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaImage };
+		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaImage };
 	} catch (error) {
 		console.error('Error saving image:', error);
 		// Handle error appropriately, e.g., return null or throw an error
@@ -267,7 +267,7 @@ export async function saveDocument(file: File, collectionName: string, dbAdapter
 			const blob = data[fieldname] as File;
 			const arrayBuffer = await blob.arrayBuffer();
 			const buffer = Buffer.from(arrayBuffer);
-			const hash = _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+			const hash = (await sha256(buffer)).slice(0, 20);
 			const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
 			if (existingFile) {
 				data[fieldname] = existingFile._id.toString(); // ObjectID to string
@@ -334,7 +334,7 @@ export async function saveDocument(file: File, collectionName: string, dbAdapter
 export async function saveVideo(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = hashFileContent(buffer);
+		const hash = await hashFileContent(buffer);
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const iconName = 'video-icon.svg'; // Assuming an icon file is stored locally or remotely
 
@@ -356,7 +356,7 @@ export async function saveVideo(file: File, collectionName: string, dbAdapter: D
 
 		// Save fileInfo to database
 		await dbAdapter.insertMany('media_videos', [fileInfo]);
-		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaVideo };
+		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaVideo };
 	} catch (error) {
 		console.error('Error saving video:', error);
 		throw error;
@@ -367,7 +367,7 @@ export async function saveVideo(file: File, collectionName: string, dbAdapter: D
 export async function saveAudio(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = hashFileContent(buffer);
+		const hash = await hashFileContent(buffer);
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const iconName = 'audio-icon.svg'; // Assuming an icon file is stored locally or remotely
 
@@ -389,7 +389,7 @@ export async function saveAudio(file: File, collectionName: string, dbAdapter: D
 
 		// Save fileInfo to database
 		await dbAdapter.insertMany('media_audio', [fileInfo]);
-		return { id: createRandomID().toString(), fileInfo: fileInfo as MediaAudio };
+		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaAudio };
 	} catch (error) {
 		console.error('Error saving audio:', error);
 		throw error;
@@ -403,7 +403,7 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string, d
 		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
 
 		const buffer = Buffer.from(await response.arrayBuffer());
-		const hash = hashFileContent(buffer);
+		const hash = await hashFileContent(buffer);
 		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName'); // Safeguard default name
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
 
@@ -550,7 +550,7 @@ export async function saveFormData({
 				// Create a new revision of the Collection
 				const newRevision = {
 					...$entryData,
-					_id: createRandomID(),
+					_id: await createRandomID(),
 					__v: [
 						...($entryData.__v || []),
 						{
@@ -956,8 +956,9 @@ export const get_elements_by_id = {
 };
 
 // Create random UUID// Create random ID
-export const createRandomID = (id?: string) => {
+export const createRandomID = async (id?: string) => {
 	if (id) return id;
+	const randomBytes = (await import('crypto')).randomBytes;
 	return randomBytes(16).toString('hex');
 };
 // Meta data
@@ -1025,4 +1026,30 @@ export function toStringHelper({ field, data, path }: { field: any; data: any[];
 	return publicEnv.AVAILABLE_CONTENT_LANGUAGES.reduce((acc, lang) => {
 		return (acc += path(lang) + '\n');
 	}, '\n');
+}
+
+export function sha256(buffer: Buffer) {
+  // Get the string as arraybuffer.
+  return crypto.subtle.digest("SHA-256", buffer).then(function(hash) {
+    return hex(hash)
+  })
+}
+
+function hex(buffer) {
+  var digest = ''
+  var view = new DataView(buffer)
+  for(var i = 0; i < view.byteLength; i += 4) {
+    // We use getUint32 to reduce the number of iterations (notice the `i += 4`)
+    var value = view.getUint32(i)
+    // toString(16) will transform the integer into the corresponding hex string
+    // but will remove any initial "0"
+    var stringValue = value.toString(16)
+    // One Uint32 element is 4 bytes or 8 hex chars (it would also work with 4
+    // chars for Uint16 and 2 chars for Uint8)
+    var padding = '00000000'
+    var paddedValue = (padding + stringValue).slice(-padding.length)
+    digest += paddedValue
+  }
+  
+  return digest
 }

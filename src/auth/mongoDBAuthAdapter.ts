@@ -7,6 +7,7 @@ import logger from '@utils/logger';
 // Import types
 import type { AuthDBAdapter } from './authDBAdapter';
 import type { User, Session, Token, Role, Permission } from './types';
+import type { MediaAudio, MediaDocument, MediaImage, MediaRemoteVideo } from '@src/utils/types';
 
 // Utility function to convert MongoDB _id to id
 const convertId = (doc: any) => {
@@ -20,7 +21,7 @@ const convertId = (doc: any) => {
 // Schema for User collection
 const UserSchema = new Schema(
 	{
-		id: { type: String, required: true },
+		id: { type: String, required: false },
 		email: { type: String, required: true }, // User's email, required field
 		password: String, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
@@ -81,6 +82,8 @@ const PermissionSchema = new Schema(
 	{ timestamps: true }
 );
 
+const MediaSchema = new Schema({}, { typeKey: '$type', strict: false, timestamps: true });
+
 // Check and create models only if they don't exist
 
 const UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
@@ -88,9 +91,15 @@ const SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & D
 const TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
 const RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
 const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
+const MediaAudioModel = mongoose.models.media_audios || mongoose.model<MediaAudio>('media_audios', MediaSchema);
+const MediaDocumentModel = mongoose.models.media_documents || mongoose.model<MediaDocument>('media_documents', MediaSchema);
+const MediaImageModel = mongoose.models.media_images || mongoose.model<MediaImage>('media_images', MediaSchema);
+const MediaRemoteModel = mongoose.models.media_remotes || mongoose.model<MediaRemoteVideo>('media_remotes', MediaSchema);
+const MediaVideoModel = mongoose.models.media_videos|| mongoose.model<MediaRemoteVideo>('media_videos', MediaSchema);
+
 
 // Export Mongoose schemas and models for external use
-export { UserSchema, SessionSchema, TokenSchema, UserModel, SessionModel, TokenModel };
+export { UserSchema, SessionSchema, TokenSchema, UserModel, SessionModel, TokenModel, MediaAudioModel, MediaDocumentModel, MediaImageModel, MediaRemoteModel, MediaVideoModel };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements AuthDBAdapter {

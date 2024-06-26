@@ -5,12 +5,15 @@
 	export let mediaType: string;
 	export let sectionName: string;
 	export let files: File[] = [];
+	export let onDelete: (file: File) => void;
 
+	import { enhance } from '$app/forms';
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
+	import type { SubmitFunction } from '../$types';
 	const modalStore = getModalStore();
 
 	// Form Data
@@ -76,12 +79,21 @@
 	function handleDelete(file: File) {
 		// Handle the delete action here
 		files = files.filter((f) => f !== file);
+		onDelete(file);
 	}
 
 	// We've created a custom submit function to pass the response and close the modal.
-	function onFormSubmit(): void {
-		if ($modalStore[0].response) $modalStore[0].response(formData);
+	const onFormSubmit: SubmitFunction = ({ formData }) => {
+		files.forEach(async (file, index) => {
+			formData.append('files', file);
+		});
+	
 		modalStore.close();
+
+		return ({ result }) => {
+			console.log(result);
+			console.log('Form returned.')
+		}
 	}
 
 	// Base Classes
@@ -98,7 +110,7 @@
 		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 
-		<form class=" {cForm}">
+		<form id="upload-form" class=" {cForm}" action="/mediagallery" method="post" use:enhance={onFormSubmit}>
 			<!-- Show all media as card with delete button and edit button -->
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
 				{#each files as file}
@@ -152,7 +164,7 @@
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter}">
 			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+			<button type="submit" form="upload-form" class="btn {parent.buttonPositive}">{m.button_save()}</button>
 		</footer>
 	</div>
 {/if}

@@ -434,12 +434,12 @@
 				closeButton
 				bind:show={showImageDialog}
 				class="fixed  left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
-				on:change={(e) => {
+				on:change={async (e) => {
 					let data = e.detail;
 					let url;
 					if (data instanceof File) {
 						url = URL.createObjectURL(data);
-						let image_id = createRandomID().toString();
+						let image_id = (await createRandomID()).toString();
 						images[image_id] = data;
 						editor.chain().focus().setImage({ src: url, id: image_id }).run();
 					} else {

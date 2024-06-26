@@ -5,9 +5,9 @@ import axios from 'axios';
 import Path from 'path';
 import mongoose from 'mongoose';
 import { browser } from '$app/environment';
-import _crypto from 'crypto';
 
 import type { MediaImage, MediaDocument, MediaAudio, MediaVideo, MediaRemoteVideo } from './types';
+import { sha256 } from './utils';
 
 // Get defined sizes from publicEnv
 const env_sizes = publicEnv.IMAGE_SIZES;
@@ -19,8 +19,8 @@ function sanitize(str: string): string {
 }
 
 // Generates a SHA-256 hash from a buffer and returns the first 20 characters.
-function hashFileContent(buffer: Buffer): string {
-	return _crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+async function hashFileContent(buffer: Buffer): Promise<string> {
+	return (await sha256(buffer)).slice(0, 20);
 }
 
 // Extracts the filename without extension and the extension from a given filename.
@@ -59,11 +59,11 @@ function constructUrl(path: string, hash: string, fileName: string, ext: string,
 async function saveResizedImages(buffer: Buffer, hash: string, fileName: string, collectionName: string, ext: string, path: string) {
 	const sharpModule = await import('sharp');
 	const sharp = sharpModule.default;
-	const format = publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof sharpModule.FormatEnum;
-
+	const format = (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format) as keyof sharpModule.FormatEnum;
 	for (const size in SIZES) {
 		if (size === 'original') continue;
 
+		console.log(ext);
 		const resizedImage = await sharp(buffer)
 			.rotate()
 			.resize({ width: SIZES[size] })
@@ -78,8 +78,9 @@ async function saveResizedImages(buffer: Buffer, hash: string, fileName: string,
 }
 
 // Saves media information to the database.
-async function saveMediaToDb<T>(collection: string, fileInfo: T): Promise<mongoose.Types.ObjectId> {
-	const res = await mongoose.models[collection].insertMany([fileInfo]);
+async function saveMediaToDb<T>(collection: string, fileInfo: T, userId: string): Promise<mongoose.Types.ObjectId> {
+	// if (!fileInfo.original) throw new Error('File information is missing.');
+	const res = await mongoose.models[collection].insertMany([{ ...fileInfo, user: userId }]);
 	return new mongoose.Types.ObjectId(res[0]._id);
 }
 
@@ -88,13 +89,14 @@ async function saveMedia<T>(
 	file: File,
 	collection: string,
 	collectionName: string,
-	handleResizing: boolean
+	handleResizing: boolean,
+	userId: string
 ): Promise<{ id: mongoose.Types.ObjectId; fileInfo: T }> {
 	if (browser) return {} as any;
 
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = hashFileContent(buffer);
+		const hash = await hashFileContent(buffer);
 		const existingFile = await mongoose.models[collection].findOne({ hash });
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const sanitizedFileName = sanitize(fileNameWithoutExt);
@@ -121,12 +123,13 @@ async function saveMedia<T>(
 		await saveFileToDisk(buffer, url);
 
 		// If resizing is needed and the file is not an SVG, resize the image
-		if (handleResizing && file.type !== 'image/svg+xml') {
+		if (handleResizing && file.type.split('/')[0] === 'image' && file.type.includes('svg') === false) {
 			await saveResizedImages(buffer, hash, sanitizedFileName, collectionName, ext, path);
 		}
 
 		// Save file information to the database
-		const id = await saveMediaToDb<T>(collection, fileInfo);
+		console.log(`Saving media to db: ${collection} - ${fileInfo}`)
+		const id = await saveMediaToDb<T>(collection, fileInfo, userId);
 		return { id, fileInfo: fileInfo as T };
 	} catch (error) {
 		console.error('Error saving media:', error);
@@ -137,23 +140,23 @@ async function saveMedia<T>(
 // Specific Media Saving Functions
 
 //Saves an image file.
-export async function saveImage(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
-	return saveMedia<MediaImage>(file, 'media_images', collectionName, true);
+export async function saveImage(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
+	return await saveMedia<MediaImage>(file, 'media_images', collectionName, true, userId);
 }
 
 // Saves a document file.
-export async function saveDocument(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaDocument }> {
-	return saveMedia<MediaDocument>(file, 'media_documents', collectionName, false);
+export async function saveDocument(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaDocument }> {
+	return await saveMedia<MediaDocument>(file, 'media_documents', collectionName, false, userId);
 }
 
 // Saves a video file.
-export async function saveVideo(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaVideo }> {
-	return saveMedia<MediaVideo>(file, 'media_videos', collectionName, false);
+export async function saveVideo(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaVideo }> {
+	return await saveMedia<MediaVideo>(file, 'media_videos', collectionName, false, userId);
 }
 
 // Saves an audio file.
-export async function saveAudio(file: File, collectionName: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaAudio }> {
-	return saveMedia<MediaAudio>(file, 'media_audio', collectionName, false);
+export async function saveAudio(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaAudio }> {
+	return await saveMedia<MediaAudio>(file, 'media_audio', collectionName, false, userId);
 }
 
 // Saves a remote media file from a URL.
@@ -161,7 +164,7 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string): 
 	try {
 		const response = await axios.get(fileUrl, { responseType: 'arraybuffer' });
 		const buffer = Buffer.from(response.data);
-		const hash = hashFileContent(buffer);
+		const hash = await hashFileContent(buffer);
 		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
 		const url = `path_or_url_where_files_are_stored/${hash}-${fileNameWithoutExt}.${ext}`;

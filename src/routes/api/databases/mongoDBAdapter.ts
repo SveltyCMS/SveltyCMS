@@ -11,6 +11,7 @@ import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAda
 // Import logger
 import logger from '@utils/logger';
 
+const mediaSchema = new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true })
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
@@ -109,7 +110,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		mediaSchemas.forEach((schemaName) => {
 			if (!mongoose.models[schemaName]) {
-				mongoose.model(schemaName, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
+				mongoose.model(schemaName, mediaSchema);
 			}
 		});
 	}
