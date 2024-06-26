@@ -7,7 +7,9 @@ import sharp from 'sharp';
 import { publicEnv } from '@root/config/public';
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import logger from '@src/utils/logger';
+
+// Import logger
+import logger from '@utils/logger';
 
 // Utility functions for file operations
 function removeExtension(filename: string) {

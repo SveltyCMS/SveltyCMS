@@ -1,141 +1,40 @@
-2024-06-23T12:03:52.518Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
-2024-06-23T12:18:03.460Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
-2024-06-23T12:31:17.728Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
-2024-06-23T12:39:50.306Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
-2024-06-23T12:48:21.925Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:48:21.925Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:50:08.982Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:50:08.982Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:51:58.011Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:51:58.012Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:52:47.531Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:52:47.532Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:52:55.645Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:52:55.679Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:56:56.869Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:56:56.897Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T12:57:15.017Z [INFO]: Validating session with ID: 6677f120390973928a21c1ca
-2024-06-23T12:59:07.679Z [INFO]: Attempting to connect to MongoDB...
-2024-06-23T12:59:07.679Z [INFO]: Successfully connected to SveltyCMS
-2024-06-23T14:16:06.106Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
-2024-06-23T14:16:07.842Z [INFO]: Session created with ID: undefined for user ID: guestUserId
-2024-06-23T14:16:07.901Z [INFO]: Validating session with ID: undefined
-2024-06-23T14:27:16.159Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:27:43.840Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:30:24.115Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:32:30.502Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:33:28.673Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:35:14.534Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
-2024-06-23T15:35:14.808Z [INFO]: Session created with ID: undefined for user ID: guestUserId
-2024-06-23T15:35:14.884Z [INFO]: Validating session with ID: undefined
-2024-06-23T15:42:08.833Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
-2024-06-23T15:42:08.879Z [INFO]: Session created with ID: 66784250c2deae906b616b05 for user ID: guestUserId
-2024-06-23T15:42:08.892Z [INFO]: Validating session with ID: 66784250c2deae906b616b05
-2024-06-24T05:17:53.232Z [INFO]: Validating session with ID: 66784250c2deae906b616b05
-2024-06-24T05:49:45.524Z [INFO]: User created: undefined
-2024-06-24T05:49:45.525Z [INFO]: Creating session for user ID: undefined with expiry: 3600000
-2024-06-24T05:55:44.569Z [INFO]: User logged in: undefined
-2024-06-24T06:02:39.954Z [INFO]: User created: undefined
-2024-06-24T06:02:39.955Z [INFO]: Creating session for user ID: undefined with expiry: 3600000
-2024-06-24T06:07:15.398Z [INFO]: User created: undefined
-2024-06-24T06:07:15.398Z [INFO]: Creating session for user ID: undefined with expiry: 3600000
-2024-06-24T06:10:58.504Z [INFO]: User created: undefined
-2024-06-24T06:10:58.605Z [INFO]: Creating session for user ID: 66790df26cdf6158615d5528 with expiry: 3600000
-2024-06-24T06:10:58.724Z [INFO]: Session created with ID: 66790df26cdf6158615d552a for user ID: 66790df26cdf6158615d5528
-2024-06-24T06:14:35.728Z [INFO]: User logged in: undefined
-2024-06-24T06:14:35.729Z [INFO]: Creating session for user ID: 66790ecb6cdf6158615d5530 with expiry: 3600000
-2024-06-24T06:14:35.753Z [INFO]: Session created with ID: 66790ecb6cdf6158615d5531 for user ID: 66790ecb6cdf6158615d5530
-2024-06-24T06:14:35.806Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T06:14:36.066Z [INFO]: Validating session with ID: 66790ecb6cdf6158615d5531
-2024-06-24T06:15:06.700Z [INFO]: User logged in: undefined
-2024-06-24T06:15:06.701Z [INFO]: Creating session for user ID: 66790eea6cdf6158615d5539 with expiry: 3600000
-2024-06-24T06:15:06.756Z [INFO]: Session created with ID: 66790eea6cdf6158615d553a for user ID: 66790eea6cdf6158615d5539
-2024-06-24T06:15:06.769Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T06:15:07.258Z [INFO]: Validating session with ID: 66790eea6cdf6158615d553a
-2024-06-24T06:21:33.695Z [INFO]: User logged in: undefined
-2024-06-24T06:21:33.696Z [INFO]: Creating session for user ID: 6679106d6cdf6158615d5544 with expiry: 3600000
-2024-06-24T06:21:33.712Z [INFO]: Session created with ID: 6679106d6cdf6158615d5545 for user ID: 6679106d6cdf6158615d5544
-2024-06-24T06:21:33.722Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T06:21:33.901Z [INFO]: Validating session with ID: 6679106d6cdf6158615d5545
-2024-06-24T06:25:31.954Z [INFO]: User logged in: undefined
-2024-06-24T06:25:31.955Z [INFO]: Creating session for user ID: 6679115b6cdf6158615d554f with expiry: 3600000
-2024-06-24T06:25:31.977Z [INFO]: Session created with ID: 6679115b6cdf6158615d5550 for user ID: 6679115b6cdf6158615d554f
-2024-06-24T06:25:31.992Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T06:25:32.155Z [INFO]: Validating session with ID: 6679115b6cdf6158615d5550
-2024-06-24T06:28:29.758Z [INFO]: User created: undefined
-2024-06-24T06:28:29.761Z [INFO]: Creating session for user ID: 6679120d6cdf6158615d555d with expiry: 3600000
-2024-06-24T06:28:29.773Z [INFO]: Session created with ID: 6679120d6cdf6158615d555f for user ID: 6679120d6cdf6158615d555d
-2024-06-24T06:28:31.898Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:28:31.919Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:28:33.376Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:28:36.033Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:30:30.841Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:30:30.978Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:30:31.620Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:30:32.043Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:30:53.993Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:30:54.055Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:30:54.327Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:30:54.386Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:35:46.420Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:35:46.458Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:35:46.948Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:35:47.023Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:36:08.358Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:36:09.286Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:36:21.523Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:36:21.584Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:37:57.847Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:38:14.729Z [INFO]: Validating session with ID: 6679120d6cdf6158615d555f
-2024-06-24T06:39:26.439Z [INFO]: User created: undefined
-2024-06-24T06:39:26.446Z [INFO]: Creating session for user ID: 6679149e6cdf6158615d557e with expiry: 3600000
-2024-06-24T06:39:26.483Z [INFO]: Session created with ID: 6679149e6cdf6158615d5580 for user ID: 6679149e6cdf6158615d557e
-2024-06-24T06:39:31.290Z [INFO]: Validating session with ID: 6679149e6cdf6158615d5580
-2024-06-24T06:39:31.378Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:39:31.721Z [INFO]: Validating session with ID: 6679149e6cdf6158615d5580
-2024-06-24T06:39:31.932Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:39:56.293Z [INFO]: Validating session with ID: 6679149e6cdf6158615d5580
-2024-06-24T06:39:56.387Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T06:40:22.704Z [INFO]: Creating session for user ID: guestUserId with expiry: 3600000
-2024-06-24T06:40:22.822Z [INFO]: Session created with ID: 667914d66cdf6158615d5588 for user ID: guestUserId
-2024-06-24T06:40:22.894Z [INFO]: Validating session with ID: 667914d66cdf6158615d5588
-2024-06-24T06:41:10.845Z [INFO]: User logged in: undefined
-2024-06-24T06:41:10.847Z [INFO]: Creating session for user ID: 667915066cdf6158615d5591 with expiry: 3600000
-2024-06-24T06:41:10.871Z [INFO]: Session created with ID: 667915066cdf6158615d5592 for user ID: 667915066cdf6158615d5591
-2024-06-24T06:41:10.886Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T06:41:11.062Z [INFO]: Validating session with ID: 667915066cdf6158615d5592
-2024-06-24T07:01:16.671Z [INFO]: User logged in: 6679149e6cdf6158615d557e
-2024-06-24T07:01:16.751Z [INFO]: Creating session for user ID: 6679149e6cdf6158615d557e with expiry: 3600000
-2024-06-24T07:01:16.851Z [INFO]: Session created with ID: 667919bc6cdf6158615d559d for user ID: 6679149e6cdf6158615d557e
-2024-06-24T07:01:16.990Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T07:01:17.519Z [INFO]: Validating session with ID: 667919bc6cdf6158615d559d
-2024-06-24T07:01:18.137Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T07:01:20.472Z [INFO]: Validating session with ID: 667919bc6cdf6158615d559d
-2024-06-24T07:01:21.105Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T07:31:38.859Z [INFO]: Validating session with ID: 667919bc6cdf6158615d559d
-2024-06-24T07:31:58.175Z [INFO]: Validating session with ID: 667919bc6cdf6158615d559d
-2024-06-24T07:33:26.606Z [INFO]: User created: undefined
-2024-06-24T07:33:26.608Z [INFO]: Creating session for user ID: 667921406cdf6158615d55ac with expiry: 3600000
-2024-06-24T07:33:26.627Z [INFO]: Session created with ID: 667921466cdf6158615d55ae for user ID: 667921406cdf6158615d55ac
-2024-06-24T07:33:29.391Z [INFO]: Validating session with ID: 667921466cdf6158615d55ae
-2024-06-24T07:33:29.464Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T07:33:29.732Z [INFO]: Validating session with ID: 667921466cdf6158615d55ae
-2024-06-24T07:33:29.821Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T08:03:41.160Z [INFO]: Validating session with ID: 667921466cdf6158615d55ae
-2024-06-24T08:03:41.191Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T18:31:22.640Z [INFO]: Validating session with ID: 667921466cdf6158615d55ae
-2024-06-24T19:02:22.255Z [INFO]: User logged in: 667921406cdf6158615d55ac
-2024-06-24T19:02:22.317Z [INFO]: Creating session for user ID: 667921406cdf6158615d55ac with expiry: 3600000
-2024-06-24T19:02:22.970Z [INFO]: Session created with ID: 6679c2be6eb56f66dda9836a for user ID: 667921406cdf6158615d55ac
-2024-06-24T19:02:23.269Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T19:03:27.755Z [INFO]: User logged in: 667921406cdf6158615d55ac
-2024-06-24T19:03:27.781Z [INFO]: Creating session for user ID: 667921406cdf6158615d55ac with expiry: 3600000
-2024-06-24T19:03:27.867Z [INFO]: Session created with ID: 6679c2ff6eb56f66dda9836f for user ID: 667921406cdf6158615d55ac
-2024-06-24T19:03:28.086Z [INFO]: User attributes updated for user ID: [object Object]
-2024-06-24T19:03:29.719Z [INFO]: Validating session with ID: 6679c2be6eb56f66dda9836a
-2024-06-24T19:03:29.805Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T19:03:30.295Z [INFO]: Validating session with ID: 6679c2ff6eb56f66dda9836f
-2024-06-24T19:03:30.387Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-24T19:03:33.942Z [INFO]: Validating session with ID: 6679c2ff6eb56f66dda9836f
-2024-06-24T19:03:41.461Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
-2024-06-26T13:50:59.620Z [INFO]: Validating session with ID: 6679c2ff6eb56f66dda9836f
+2024-06-25T18:37:35.942Z [INFO]: User count retrieved: 0
+2024-06-25T18:37:35.955Z [INFO]: User count retrieved: 0
+2024-06-25T18:40:24.048Z [INFO]: User count retrieved: 0
+2024-06-25T18:40:24.068Z [INFO]: User count retrieved: 0
+2024-06-25T18:40:47.092Z [INFO]: User count retrieved: 0
+2024-06-25T18:40:47.094Z [INFO]: User count retrieved: 0
+2024-06-25T18:41:44.078Z [INFO]: User count retrieved: 0
+2024-06-25T18:41:44.080Z [INFO]: User count retrieved: 0
+2024-06-25T18:41:59.098Z [INFO]: User count retrieved: 0
+2024-06-25T18:41:59.235Z [INFO]: User count retrieved: 0
+2024-06-25T18:42:08.058Z [INFO]: User count retrieved: 0
+2024-06-25T18:42:08.059Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:06.452Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:06.456Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:38.222Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:38.223Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:55.081Z [INFO]: User count retrieved: 0
+2024-06-25T18:43:55.083Z [INFO]: User count retrieved: 0
+2024-06-26T14:29:18.024Z [INFO]: User count retrieved: 1
+2024-06-26T14:29:18.088Z [INFO]: User count retrieved: 1
+2024-06-26T14:30:26.403Z [INFO]: User count retrieved: 1
+2024-06-26T14:30:26.420Z [INFO]: User count retrieved: 1
+2024-06-26T14:30:48.729Z [INFO]: User attributes updated: undefined
+2024-06-26T14:30:48.730Z [INFO]: User logged in: undefined
+2024-06-26T14:30:48.859Z [INFO]: Session created with ID: undefined for user ID: 667c2618cef1401c1a7f9607
+2024-06-26T14:30:48.747Z [INFO]: Creating session for user ID: 667c2618cef1401c1a7f9607 with expiry: 3600000
+2024-06-26T14:30:48.940Z [INFO]: User attributes updated: [object Object]
+2024-06-26T14:30:48.946Z [INFO]: User attributes updated for user ID: [object Object]
+2024-06-26T14:31:01.882Z [INFO]: Validating session with ID: undefined
+2024-06-26T14:31:02.606Z [INFO]: User count retrieved: 1
+2024-06-26T14:31:02.706Z [INFO]: User count retrieved: 1
+2024-06-26T15:16:44.196Z [INFO]: Validating session with ID: undefined
+2024-06-26T15:17:55.855Z [INFO]: User logged in: 667921406cdf6158615d55ac
+2024-06-26T15:17:55.865Z [INFO]: Creating session for user ID: 667921406cdf6158615d55ac with expiry: 3600000
+2024-06-26T15:17:55.918Z [INFO]: Session created with ID: 667c31234743b027e531d8df for user ID: 667921406cdf6158615d55ac
+2024-06-26T15:17:55.928Z [INFO]: User attributes updated for user ID: [object Object]
+2024-06-26T15:17:56.001Z [INFO]: Validating session with ID: 667c31234743b027e531d8df
+2024-06-26T15:17:56.066Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com
+2024-06-26T15:17:57.650Z [INFO]: Validating session with ID: 667c31234743b027e531d8df
+2024-06-26T15:17:59.610Z [INFO]: Session is valid for user: awesome.guy.9402625@gmail.com

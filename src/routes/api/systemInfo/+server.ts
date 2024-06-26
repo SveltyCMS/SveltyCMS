@@ -6,11 +6,13 @@ const { cpu, drive, mem, os } = osu;
 const cpuData: number[] = [];
 const timeStamps: string[] = [];
 
+// Function to fetch CPU usage information
 const fetchCPUInfo = async () => {
 	try {
 		const cpuUsage = await cpu.usage();
 		const timeStamp = new Date().toISOString();
 
+		// Store the CPU usage and timestamp
 		cpuData.push(cpuUsage);
 		timeStamps.push(timeStamp);
 
@@ -30,6 +32,7 @@ const fetchCPUInfo = async () => {
 	}
 };
 
+// Function to fetch disk usage information
 const fetchDiskInfo = async () => {
 	try {
 		const diskUsage = await drive.info('/');
@@ -50,6 +53,7 @@ const fetchDiskInfo = async () => {
 	}
 };
 
+// Function to fetch memory usage information
 const fetchMemoryInfo = async () => {
 	try {
 		const memoryInfo = await mem.info();
@@ -66,10 +70,12 @@ const fetchMemoryInfo = async () => {
 	}
 };
 
+// Function to fetch overall system information
 const getSystemInfo = async () => {
 	try {
 		const [cpuInfo, diskInfo, memoryInfo] = await Promise.all([fetchCPUInfo(), fetchDiskInfo(), fetchMemoryInfo()]);
 
+		// Fetch OS information
 		const osInfo = {
 			platform: os.platform(),
 			uptime: os.uptime(),
@@ -90,10 +96,13 @@ const getSystemInfo = async () => {
 	}
 };
 
+// Define the GET request handler
 export const GET: RequestHandler = async () => {
 	try {
+		// Fetch system information
 		const systemInfo = await getSystemInfo();
 
+		// Return the system information as a JSON response
 		return new Response(JSON.stringify(systemInfo), {
 			status: 200,
 			headers: {
@@ -103,6 +112,7 @@ export const GET: RequestHandler = async () => {
 	} catch (error) {
 		console.error('Error fetching system info:', error);
 
+		// Return an error response in case of failure
 		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
 			status: 500,
 			headers: {

@@ -1,23 +1,22 @@
+<!-- src/routes/permission/roles/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissionActions, type PermissionAction, type Role, type Permission } from '@src/auth/types';
+	import { permissions as permissionList, type PermissionAction, type Role } from '@src/auth/types';
 	import { getPermissions } from '@src/auth/permissionManager';
 
 	let newRoles: Role[] = [];
 	let roleName = '';
-	let rolePermissions: Record<PermissionAction, boolean> = Object.fromEntries(permissionActions.map((action) => [action, false])) as Record<
-		PermissionAction,
-		boolean
-	>;
-	let permissionsList: Permission[] = []; // Explicitly type the permissions array
+	let rolePermissions: Record<PermissionAction, boolean> = {
+		create: false,
+		read: false,
+		write: false,
+		delete: false
+	};
+
+	let permissions = [];
 
 	onMount(() => {
-		permissionsList = getPermissions();
-
-		// Dynamically create rolePermissions based on permissionActions
-		permissionActions.forEach((permission) => {
-			rolePermissions[permission] = false;
-		});
+		permissions = getPermissions();
 	});
 
 	// Function to handle the addition of a new role
@@ -42,7 +41,7 @@
 
 		if (response.ok) {
 			roleName = '';
-			rolePermissions = Object.fromEntries(permissionActions.map((action) => [action, false])) as Record<PermissionAction, boolean>;
+			rolePermissions = { create: false, read: false, write: false, delete: false };
 			const updatedRole: Role = await response.json();
 			newRoles.push(updatedRole);
 		} else {
@@ -63,13 +62,10 @@
 		{/each}
 	</div>
 	<button on:click={addRole}>Add Role</button>
-	<h3>Existing Roles</h3>
+	<h3>Existing Permissions</h3>
 	<ul>
-		{#each newRoles as role}
-			<li>
-				{role.name} - {#each role.permissions as permission}{permission.action}{#if permission !== role.permissions[role.permissions.length - 1]},
-					{/if}{/each}
-			</li>
+		{#each permissions as permission}
+			<li>{permission.contextId} - {permission.action}</li>
 		{/each}
 	</ul>
 </div>

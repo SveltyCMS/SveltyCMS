@@ -21,8 +21,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 // Define an asynchronous function to sign out a user
 async function signOut(cookies: Cookies) {
 	try {
-		const sessionID = cookies.get(SESSION_COOKIE_NAME) as string;
-		await auth.destroySession(sessionID);
+		const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+		await auth.destroySession(sessionId);
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/login' });
 		return new Response(JSON.stringify({ status: 200 }));
 	} catch (e) {

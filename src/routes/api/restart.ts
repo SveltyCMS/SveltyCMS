@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
+import { exec } from 'child_process';
 
 export async function POST() {
 	try {
 		// Logic to restart the server
-		// This could involve calling a system command, e.g., using child_process in Node.js
 		await restartServer();
 		return json({ success: true });
 	} catch (error) {
@@ -12,10 +12,7 @@ export async function POST() {
 	}
 }
 
-async function restartServer() {
-	// Implement the logic to restart the server
-	// For example, you might use a child process to call a system command
-	const { exec } = require('child_process');
+async function restartServer(): Promise<void> {
 	return new Promise((resolve, reject) => {
 		exec('your-restart-command', (error, stdout, stderr) => {
 			if (error) {

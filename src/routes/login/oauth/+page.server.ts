@@ -5,13 +5,14 @@ import type { Actions, PageServerLoad } from './$types';
 import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
+
 // Stores
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
-	console.log('code: ', code);
+	console.log('Authorization code:', code);
 
 	const result: Result = {
 		errors: [],
@@ -23,6 +24,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	};
 
 	if (!code) {
+		console.error('Authorization code is missing');
 		throw redirect(302, '/login');
 	}
 
@@ -37,16 +39,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
 		const { data: googleUser } = await oauth2.userinfo.get();
-		console.log('googleUser: ', googleUser);
+		console.log('Google user information:', googleUser);
 
 		const getUser = async (): Promise<[User | null, boolean]> => {
-			const existingUser = await auth.checkUser({ email: googleUser.email });
-			if (existingUser) return [existingUser, false];
-
-			// Probably will never happen but just to be sure.
 			if (!googleUser.email) {
 				throw new Error('Google did not return an email address.');
 			}
+
+			const existingUser = await auth.checkUser({ email: googleUser.email });
+			if (existingUser) return [existingUser, false];
+
 			const username = googleUser.name ?? '';
 
 			const isFirst = (await auth.getUserCount()) === 0;
@@ -78,28 +80,36 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				});
 
 				return [user, false];
-			} else return [null, true];
+			} else {
+				return [null, true];
+			}
 		};
 
 		const [user, needSignIn] = await getUser();
 
 		if (!needSignIn) {
-			if (!user) throw new Error('User not found.');
-			if ((user as any).blocked) return { status: false, message: 'User is blocked' };
+			if (!user) {
+				console.error('User not found after getting user information.');
+				throw new Error('User not found.');
+			}
+			if ((user as any).blocked) {
+				console.warn('User is blocked.');
+				return { status: false, message: 'User is blocked' };
+			}
 
 			// Create User Session
-			const session = await auth.createSession({ userId: user.id?.toString() as string });
+			const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
+			await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'password' });
 		}
 		result.data = { needSignIn };
 	} catch (e) {
-		console.log(e);
+		console.error('Error during login process:', e);
 		throw redirect(302, '/login');
 	}
-	if (!result.data.needSignIn) throw redirect(303, '/');
 
+	if (!result.data.needSignIn) throw redirect(303, '/');
 	return result;
 };
 
@@ -117,15 +127,17 @@ export const actions: Actions = {
 		};
 
 		if (!token || typeof token !== 'string') {
+			console.error('Token not found or invalid');
 			result.errors.push('Token not found');
 			result.success = false;
 			return result;
 		}
 
 		const code = url.searchParams.get('code');
-		console.log('code: ', code);
+		console.log('Authorization code:', code);
 
 		if (!code) {
+			console.error('Authorization code is missing');
 			throw redirect(302, '/login');
 		}
 
@@ -140,7 +152,14 @@ export const actions: Actions = {
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
 			const { data: googleUser } = await oauth2.userinfo.get();
-			console.log('googleUser: ', googleUser);
+			console.log('Google user information:', googleUser);
+
+			if (!googleUser.email) {
+				console.error('Google did not return an email address.');
+				result.errors.push('Google did not return an email address.');
+				result.success = false;
+				return result;
+			}
 
 			// Get existing user if available
 			const existingUser = await auth.checkUser({ email: googleUser.email });
@@ -181,7 +200,7 @@ export const actions: Actions = {
 					username: googleUser.name ?? '',
 					role: isFirst ? 'admin' : 'user',
 					lastAuthMethod: 'password',
-					isRegistered: true,
+					is_registered: true,
 					blocked: false
 				});
 
@@ -189,31 +208,32 @@ export const actions: Actions = {
 				await sendWelcomeEmail(googleUser.email, googleUser.name);
 
 				// Create User Session
-				const session = await auth.createSession({ userId: user.id?.toString() as string });
+				const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
+				await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'password' });
 
 				result.data = { user };
 			} else {
 				// User already exists, consume token
-				const validate = await auth.consumeToken(token, existingUser.id?.toString() as string); // Consume the token
+				const validate = await auth.consumeToken(token, existingUser.id.toString()); // Consume the token
 
 				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ userId: existingUser.id?.toString() as string });
+					const session = await auth.createSession({ userId: existingUser.id.toString(), expires: 3600000 });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-					await auth.updateUserAttributes(existingUser, { lastAuthMethod: 'password' });
+					await auth.updateUserAttributes(existingUser.id.toString(), { lastAuthMethod: 'password' });
 
 					result.data = { user: existingUser };
 				} else {
+					console.error('Invalid token');
 					result.errors.push('Invalid token');
 					result.success = false;
 				}
 			}
 		} catch (e) {
-			console.error('error:', e);
+			console.error('Error during login process:', e);
 			throw redirect(302, '/login');
 		}
 

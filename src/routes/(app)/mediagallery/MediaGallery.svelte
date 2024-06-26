@@ -41,7 +41,7 @@
 	// Reactive statement to filter files
 	$: filteredFiles = files.filter(
 		(file) =>
-			file.thumbnail.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType)
+			file.thumbnail?.name?.toLowerCase()?.includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType)
 	);
 
 	// Handle delete image

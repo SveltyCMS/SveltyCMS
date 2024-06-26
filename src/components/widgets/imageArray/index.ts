@@ -97,6 +97,7 @@ widget.modifyRequest = async ({ field, data, user, type, id, collection }: Modif
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'bi:images';

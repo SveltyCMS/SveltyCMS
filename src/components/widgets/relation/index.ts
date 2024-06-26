@@ -65,6 +65,7 @@ const widget = <K extends CollectionContent[T][number], T extends CollectionName
 widget.Name = WIDGET_NAME;
 widget.GuiSchema = GuiSchema;
 widget.GraphqlSchema = GraphqlSchema;
+widget.toString = () => '';
 
 // Widget icon and helper text
 widget.Icon = 'fluent-mdl2:relationship';

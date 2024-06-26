@@ -1,10 +1,13 @@
 import { publicEnv } from '@root/config/public';
 
+import { toStringHelper } from '@src/utils/utils';
+import { Parser } from 'htmlparser2';
+
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import Permission from '@src/components/Permission.svelte';
+import PermissionsSetting from '@src/components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@src/auth/types';
@@ -46,7 +49,7 @@ export const GuiSchema = {
 	width: { widget: Input, required: false },
 
 	// Permissions
-	permissions: { widget: Permission, required: false }
+	permissions: { widget: PermissionsSetting, required: false }
 
 	// Widget Specific parameters
 };
@@ -68,3 +71,23 @@ export const GraphqlSchema: GraphqlSchema = ({ label, collection }) => {
 	`
 	};
 };
+
+let parsed_text: any;
+export function toString({ field, data }: { field: any; data: any }) {
+	parsed_text = '';
+	const parser = new Parser({
+		ontext: (text) => {
+			parsed_text += text.trim();
+		}
+	});
+
+	return toStringHelper({
+		field,
+		data,
+		path: (lang) => {
+			parser.write(data.content[lang]);
+			parser.end();
+			return data.header[lang] + '\n' + parsed_text;
+		}
+	});
+}

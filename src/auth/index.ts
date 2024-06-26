@@ -1,7 +1,9 @@
 import argon2 from 'argon2';
 import type { Cookie, User, Session, Token } from './types';
 import type { AuthDBAdapter } from './authDBAdapter';
-import logger from '../utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
@@ -237,10 +239,10 @@ export class Auth {
 	}
 
 	// Log out a user by destroying their session
-	async logOut(session_id: string): Promise<void> {
+	async logOut(sessionId: string): Promise<void> {
 		try {
-			await this.db.destroySession(session_id);
-			logger.info(`User logged out: ${session_id}`);
+			await this.db.destroySession(sessionId);
+			logger.info(`User logged out: ${sessionId}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to log out: ${err.message}`);

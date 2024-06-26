@@ -21,7 +21,7 @@
 			ref: ModalUploadMedia,
 			// Provide default slot content as a template literal
 			slot: '<p>add Media</p>',
-			props: { mediaType: 'image', sectionName: 'Gallery', files }
+			props: { mediaType: 'image', sectionName: 'Gallery', files, onDelete, }
 		};
 		const d: ModalSettings = {
 			type: 'component',
@@ -86,6 +86,10 @@
 			}
 			modalAddMedia(); // Trigger the modal after files are selected
 		}
+	}
+
+	function onDelete(file: File) {
+		files = files.filter((f) => f !== file);
 	}
 </script>
 

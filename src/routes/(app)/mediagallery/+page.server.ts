@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/utils';
+import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/media';
 
 // Auth
 import { auth } from '@api/databases/db';
@@ -26,14 +26,39 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	// Fetch all media types concurrently
 	const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 	const mediaPromises = mediaTypes.map((type) => getModel(type).find().lean().exec());
-	const results = await Promise.all(mediaPromises);
+	let results = await Promise.all(mediaPromises);
 
-	const media = results
-		.flat()
-		.map((items, index) => items.map((item) => ({ ...item, type: mediaTypes[index].split('_')[1] })))
-		.flat();
-
+	results = results.map((arr, index) => arr.map((item) => ({ ...item, _id: item._id.toString(), type: mediaTypes[index].split('_')[1] })));
+	const media = results.flat();
+	console.log(media)
 	return { user, media };
+};
+
+const saveMediaFile = {
+	'application': saveDocument,
+	'audio': saveAudio,
+	'font': saveDocument,
+	'example': saveDocument,
+	'image': saveImage,
+	'message': saveDocument,
+	'model': saveDocument,
+	'multipart': saveDocument,
+	'text': saveDocument,
+	'video': saveVideo,
+}
+
+// Collection name for media files
+const collectionNames = {
+	'application': 'media_documents',
+	'audio': 'media_audios',
+	'font': 'media_documents',
+	'example': 'media_documents',
+	'image': 'media_images',
+	'message': 'media_documents',
+	'model': 'media_documents',
+	'multipart': 'media_documents',
+	'text': 'media_documents',
+	'video': 'media_videos',
 };
 
 export const actions: Actions = {
@@ -46,10 +71,30 @@ export const actions: Actions = {
 			throw error(500, 'Internal Server Error');
 		}
 
+		console.log("HEREEEEEEEEEEE")
 		const user = await auth.validateSession({ sessionId });
 		if (!user) throw redirect(302, `/login`);
 
 		const formData = await request.formData();
+		const files = formData.getAll('files');
+		console.log(files);
+
+		for (const file of files) {
+			try {
+				const type = file.type.split('/')[0];
+				const { fileInfo } = await saveMediaFile[type](file, collectionNames[type], user.id);
+				// const collection = getModel(collectionNames[type]);
+				// const newMedia = new collection({
+				// 	...fileInfo,
+				// 	user: user.id
+				// });
+				// await newMedia.save();
+			} catch (e) {
+				console.error(e);
+			}
+		}
+
+		return { success: true };
 		for (const file of formData.values()) {
 			if (file instanceof File) {
 				let collectionName;

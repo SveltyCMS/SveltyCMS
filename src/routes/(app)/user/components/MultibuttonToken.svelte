@@ -52,7 +52,7 @@
 				token: selectedRows[0].data.token,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				userId: selectedRows[0].data.userID
+				userId: selectedRows[0].data.userId
 			},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'

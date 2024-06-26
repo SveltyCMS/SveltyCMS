@@ -69,7 +69,7 @@ export function createCategories(collections: any) {return [\n`;
 			return new Response('Config file updated successfully by API', { status: 200 });
 		} else {
 			// Return a 304 response indicating no update was necessary
-			// console.log('Config file  doesnt need an update 304');
+			// console.log('Config file doesn't need an update 304');
 			return new Response(null, { status: 304 });
 		}
 	} catch (error: any) {

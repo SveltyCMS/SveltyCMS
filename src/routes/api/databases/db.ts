@@ -20,45 +20,54 @@ const RETRY_DELAY = 5000; // 5 seconds
 
 let initializationPromise: Promise<void> | null = null;
 
+// Load database and authentication adapters
 async function loadAdapters() {
-	// console.log('Loading database and authentication adapters...');
 	try {
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			// console.log('Detected MongoDB as the database type.');
 			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/mongoDBAuthAdapter')]);
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
-		} else if (privateEnv.DB_TYPE === 'mariadb') {
-			// console.log('Detected MariaDB as the database type.');
-			const [{ MariaDBAdapter }, { MariaDBAuthAdapter }] = await Promise.all([import('./mariaDBAdapter'), import('@src/auth/mariaDBAuthAdapter')]);
-			dbAdapter = new MariaDBAdapter();
-			authAdapter = new MariaDBAuthAdapter();
+		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
+			console.log('Detected MariaDB as the database type.');
+			// const [{ MariaDBAdapter }, { MariaDBAuthAdapter }] = await Promise.all([import('./mariaDBAdapter'), import('@src/auth/mariaDBAuthAdapter')]);
+			// dbAdapter = new MariaDBAdapter();
+			// authAdapter = new MariaDBAuthAdapter();
+
+			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
+			// 	import('./drizzleDBAdapter'),
+			// 	import('@src/auth/drizzleDBAuthAdapter')
+			// ]);
+			// dbAdapter = new DrizzleDBAdapter();
+			// authAdapter = new DrizzleAuthAdapter();
 		} else {
 			throw new Error('Unsupported DB_TYPE specified in environment variables');
 		}
-		// console.log('Adapters loaded successfully');
 	} catch (error) {
 		console.error('Error loading adapters:', error);
 		throw error;
 	}
 }
 
+// Connect to the database
 async function connectToDatabase(retries = MAX_RETRIES) {
 	if (!dbAdapter) {
 		console.error('Database adapter not initialized');
 		throw new Error('Database adapter not initialized');
 	}
-
+	// Message for connecting to the database
 	console.log(`\n\x1b[33m\x1b[5m====> Trying to Connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	while (retries > 0) {
 		try {
 			await dbAdapter.connect();
+
+			// Message for successful connection
 			console.log(
 				`\x1b[32m====> Connection to ${privateEnv.DB_NAME} database successful!\x1b[0m\n====> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`
 			);
 			return;
 		} catch (error) {
+			// Message for connecting to the database
 			console.error(`\x1b[31mError connecting to database:\x1b[0m`, error);
 			retries -= 1;
 			if (retries > 0) {
@@ -73,6 +82,7 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 	}
 }
 
+// Initialize adapters
 async function initializeAdapters() {
 	try {
 		await loadAdapters();
