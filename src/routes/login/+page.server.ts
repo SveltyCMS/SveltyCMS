@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import mongoose from "mongoose";
 
 import { message, superValidate } from 'sveltekit-superforms';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 // Auth
 import { publicEnv } from "@root/config/public";
@@ -217,18 +217,36 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		// const lang = signUpOAuthForm.data.lang;
-		const [url, state] = await googleAuth.getAuthorizationUrl();
+		console.log('OAuth call');
+		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+		console.log('signUpOAuthForm', signUpOAuthForm);
+		const lang = signUpOAuthForm.data.lang;
+		console.log('lang', lang);
 
-		event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
-			path: '/', // redirect
-			httpOnly: true, // only readable in the server
-			maxAge: 60 * 60 // a reasonable expiration date 1 hour
-		});
+		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
-		redirect(302, url);
+		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
+		if (!redirectUrl) {
+			console.error('Error during OAuth callback: Redirect url not generated');
+		} else {
+			redirect(307, redirectUrl);
+		}
 	},
+
+	// // OAuth Sign-Up
+	// OAuth: async (event) => {
+	// 	// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+	// 	// const lang = signUpOAuthForm.data.lang;
+	// 	const [url, state] = await googleAuth.getAuthorizationUrl();
+
+	// 	event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
+	// 		path: '/', // redirect
+	// 		httpOnly: true, // only readable in the server
+	// 		maxAge: 60 * 60 // a reasonable expiration date 1 hour
+	// 	});
+
+	// 	redirect(302, url);
+	// },
 
 	//Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
