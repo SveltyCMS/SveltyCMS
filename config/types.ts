@@ -118,6 +118,9 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	// Github VERSION synchronization to display updated
 	PKG_VERSION?: string;
 
+	// Log Level (default: 'error') (Options: 'error', 'warn', 'info', 'none')
+	LOG_LEVELS: ('info' | 'warn' | 'error' | 'none')[];
+
 	// DEMO Mode
 	DEMO?: boolean;
 }) => arg;

@@ -2,7 +2,8 @@ import fs from 'fs';
 import path from 'path';
 
 // Define log levels
-const LOG_LEVELS = ['info', 'warn', 'error'] as const;
+import { publicEnv } from '@root/config/public';
+const LOG_LEVELS = publicEnv.LOG_LEVELS || [['none', 'info', 'warn', 'error']];
 type LogLevel = (typeof LOG_LEVELS)[number];
 
 // Define the directory where logs will be stored

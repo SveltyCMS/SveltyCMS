@@ -1,4 +1,4 @@
-import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
+import { confirm, text, note, select, isCancel, cancel, multiselect } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
@@ -23,6 +23,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`PASSWORD_STRENGTH: ${pc.red(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
 			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
 			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
+			`LOG_LEVELS: ${pc.red(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
 			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
 			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
 		pc.red('Existing System Configuration:')
@@ -141,6 +142,23 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
+	const LOG_LEVELS = await multiselect({
+		message: 'Select log levels to be outputted:',
+		options: [
+			{ value: 'info', label: 'Info' },
+			{ value: 'warn', label: 'Warn' },
+			{ value: 'error', label: 'Error' }
+		],
+		initialValues: privateConfigData.LOG_LEVELS || ['info', 'warn', 'error']
+	});
+
+	if (isCancel(LOG_LEVELS)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	const SEASONS = await confirm({
 		message: 'Do you want to enable seasons?',
 		placeholder: 'false / true',
@@ -178,6 +196,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`PASSWORD_STRENGTH: ${pc.green(PASSWORD_STRENGTH)}\n` +
 			`BODY_SIZE_LIMIT: ${pc.green(BODY_SIZE_LIMIT)}\n` +
 			`EXTRACT_DATA_PATH: ${pc.green(EXTRACT_DATA_PATH)}\n` +
+			`LOG_LEVELS: ${pc.green(LOG_LEVELS.join(', '))}\n` +
 			`SEASONS: ${pc.green(SEASONS)}\n` +
 			`SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
 		pc.green('Review your System configuration:')
@@ -238,6 +257,7 @@ export async function configureSystem(privateConfigData = {}) {
 		HOST_PROD,
 		PASSWORD_STRENGTH,
 		BODY_SIZE_LIMIT: bodySizeLimitOutput,
+		LOG_LEVELS,
 		SEASONS,
 		SEASONS_REGION
 	};

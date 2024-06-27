@@ -128,6 +128,9 @@ export async function createOrUpdateConfigFile(configData) {
             // Overwrite the default Password strength (Default 8)
             PASSWORD_STRENGTH: ${configData?.PASSWORD_STRENGTH || 8},
 
+            // Log Level (default: 'error') (Options: 'error', 'warn', 'info', 'off')
+            LOG_LEVEL: '${configData?.LOG_LEVEL || 'error'}',
+
             // Seasons/Events for login page (default: false)
             SEASONS: ${configData?.SEASONS || 'false'}, // Set to true to enable seasonal decorations
             SEASON_REGION: '${configData?.SEASON_REGION || 'Europe'}' // Currently only 'Europe' is supported
