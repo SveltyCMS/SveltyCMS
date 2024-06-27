@@ -222,11 +222,11 @@ export class Auth {
 				user.failedAttempts++;
 				if (user.failedAttempts >= 5) {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
-					await this.db.updateUserAttributes(user._id.toString(), { lockoutUntil });
+					await this.db.updateUserAttributes(user.id.toString(), { lockoutUntil });
 					logger.warn(`User locked out due to too many failed attempts: ${user.id}`);
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
 				} else {
-					await this.db.updateUserAttributes(user._id.toString(), { failedAttempts: user.failedAttempts });
+					await this.db.updateUserAttributes(user.id.toString(), { failedAttempts: user.failedAttempts });
 					logger.warn(`Invalid login attempt for user: ${user.id}`);
 					throw new Error('Invalid credentials. Please try again.');
 				}
