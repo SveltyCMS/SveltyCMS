@@ -1,16 +1,13 @@
-import { dev } from '$app/environment';
-import { error, redirect, type Cookies } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-// Superforms
-import { fail, message, superValidate } from 'sveltekit-superforms';
-import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema } from '@utils/formSchemas';
+import { message, superValidate } from 'sveltekit-superforms';
+import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, signUpOAuthFormSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
-
 // Auth
-import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
+import { publicEnv } from "@root/config/public";
+import { privateEnv } from "@root/config/private";
 import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -37,7 +34,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		// throw redirect(302, '/login');
 	}
 
-	if (!auth || !googleAuth) {
+	if (!auth && !googleAuth) {
 		console.error('Authentication system is not initialized');
 		throw new Error('Internal Server Error');
 	}
@@ -47,27 +44,22 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			const { tokens } = await googleAuth.getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
-
+	
 			const { data: googleUser } = await oauth2.userinfo.get();
 			console.log('Google user information:', googleUser);
-
+	
 			const getUser = async (): Promise<[User | null, boolean]> => {
-				if (!auth) {
-					console.error('Authentication system is not initialized');
-					throw error(500, 'Authentication system not initialized.');
-				}
-
 				const existingUser = await auth.checkUser({ email: googleUser.email });
 				if (existingUser) return [existingUser, false];
-
+	
 				// Ensure Google user email exists
 				if (!googleUser.email) {
 					throw new Error('Google did not return an email address.');
 				}
 				const username = googleUser.name ?? '';
-
+	
 				const isFirst = (await auth.getUserCount()) === 0;
-
+	
 				if (isFirst) {
 					const user = await auth.createUser({
 						email: googleUser.email,
@@ -75,7 +67,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 						role: 'admin',
 						blocked: false
 					});
-
+	
 					await fetch('/api/sendMail', {
 						method: 'POST',
 						headers: {
@@ -93,15 +85,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 							}
 						})
 					});
-
+	
 					return [user, false];
 				} else {
 					return [null, true];
 				}
 			};
-
+	
 			const [user, needSignIn] = await getUser();
-
+	
 			if (!needSignIn) {
 				if (!user) {
 					console.error('User not found after getting user information.');
@@ -111,12 +103,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 					console.warn('User is blocked.');
 					return { status: false, message: 'User is blocked' };
 				}
-
-				if (!auth) {
-					console.error('Authentication system is not initialized');
-					throw error(500, 'Internal Server Error');
-				}
-
+	
 				// Create User Session
 				const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
@@ -125,40 +112,36 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 			result.data = { needSignIn };
 		} else {
-			if (!auth) {
-				console.error('Authentication system is not initialized');
-				throw error(500, 'Internal Server Error');
-			}
-
+		
 			// Check if first user exist
 			const firstUserExists = (await auth.getUserCount()) != 0;
-
+		
 			// Different schemas, so no id required.
-
+		
 			// SignIn
 			const loginForm = await superValidate(zod(loginFormSchema));
 			const forgotForm = await superValidate(zod(forgotFormSchema));
 			const resetForm = await superValidate(zod(resetFormSchema));
-
+		
 			// SignUp FirstUser
 			const withoutToken = await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })));
 			// SignUp Other Users
 			const withToken = await superValidate(zod(signUpFormSchema));
-
+		
 			// Check if first user exist
 			const signUpForm: typeof withToken = (await auth.getUserCount()) != 0 ? (withoutToken as any) : withToken;
-
+		
 			// Always return Data & all Forms in load and form actions.
 			return {
 				//resetData, // Check if the URL has the token and email parameters
-
+		
 				firstUserExists, // Check if first user exist
-
+		
 				// SignIn Page
 				loginForm,
 				forgotForm,
 				resetForm,
-
+		
 				// SignUp Page
 				signUpForm
 			};
@@ -176,11 +159,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 export const actions: Actions = {
 	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
-		if (!auth) {
-			console.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		// console.log('action signUp');
 		const isFirst = (await auth.getUserCount()) == 0;
 		const signUpForm = await superValidate(event, zod(signUpFormSchema));
@@ -195,13 +173,13 @@ export const actions: Actions = {
 
 		let resp: { status: boolean; message?: string } = { status: false };
 
-		if (user && user.isRegistered) {
+		if (user && user.is_registered) {
 			// Finished account exists
 			return { form: signUpFormSchema, message: 'This email is already registered' };
 		} else if (isFirst) {
 			// No account exists signUp for admin
 			resp = await FirstUsersignUp(username, email, password, event.cookies);
-		} else if (user && user.isRegistered == false) {
+		} else if (user && user.is_registered == false) {
 			// Unfinished account exists
 			resp = await finishRegistration(username, email, password, token, event.cookies);
 		} else if (!user && !isFirst) {
@@ -239,10 +217,14 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		// const lang = signUpOAuthForm.data.lang;
+		console.log('OAuth call');
+		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+		console.log('signUpOAuthForm', signUpOAuthForm);
+		const lang = signUpOAuthForm.data.lang;
+		console.log('lang', lang);
+
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-		
+
 		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
 		if (!redirectUrl) {
 			console.error('Error during OAuth callback: Redirect url not generated');
@@ -250,6 +232,21 @@ export const actions: Actions = {
 			redirect(307, redirectUrl);
 		}
 	},
+
+	// // OAuth Sign-Up
+	// OAuth: async (event) => {
+	// 	// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+	// 	// const lang = signUpOAuthForm.data.lang;
+	// 	const [url, state] = await googleAuth.getAuthorizationUrl();
+
+	// 	event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
+	// 		path: '/', // redirect
+	// 		httpOnly: true, // only readable in the server
+	// 		maxAge: 60 * 60 // a reasonable expiration date 1 hour
+	// 	});
+
+	// 	redirect(302, url);
+	// },
 
 	//Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
@@ -371,11 +368,6 @@ async function signIn(
 	// console.log('signIn called', email, password, isToken, cookies);
 
 	if (!isToken) {
-		if (!auth) {
-			console.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		const user = await auth.login(email, password);
 
 		if (!user) {
@@ -384,18 +376,13 @@ async function signIn(
 
 		// Create User Session
 		console.log(user, new mongoose.Types.ObjectId(user.id));
-		const session = await auth.createSession({ userId: user.id });
+		const session = await auth.createSession({ userId: new mongoose.Types.ObjectId(user.id) });
 		const sessionCookie = auth.createSessionCookie(session);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 		await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
 
 		return { status: true };
 	} else {
-		if (!auth) {
-			console.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		// User is registered, and credentials are provided as a token
 		const token = password;
 		const user = await auth.checkUser({ email });
@@ -404,12 +391,11 @@ async function signIn(
 			return { status: false, message: 'User does not exist' };
 		}
 
-		const result = await auth.consumeToken(token, user.id);
+		const result = await auth.consumeToken(token, new mongoose.Types.ObjectId(user.id));
 
 		if (result.status) {
 			// Create User Session
-			const session = await auth.createSession({ userId: user.id });
-
+			const session = await auth.createSession({ userId: new mongoose.Types.ObjectId(user.id) });
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
@@ -422,17 +408,14 @@ async function signIn(
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	// console.log('FirstUsersignUp called', username, email, password, cookies);
-	if (!auth) {
-		console.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
+
 	const user = await auth.createUser({
 		password,
 		email,
 		username,
 		role: 'admin',
 		lastAuthMethod: 'password',
-		isRegistered: true
+		is_registered: true
 	});
 
 	if (!user) {
@@ -441,7 +424,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	// Create User Session
-	const session = await auth.createSession({ userId: user.id.toString() });
+	const session = await auth.createSession({ userId: user._id.toString() });
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -452,26 +435,18 @@ async function FirstUsersignUp(username: string, email: string, password: string
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
 	// console.log('finishRegistration called', username, email, token);
-	if (!auth) {
-		console.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
+
 	const user = await auth.checkUser({ email });
 
 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const result = await auth.consumeToken(token, user.id);
+	const result = await auth.consumeToken(token, user._id.toString());
 
 	if (result.status) {
-		await auth.updateUserAttributes(user, {
-			username,
-			password,
-			lastAuthMethod: 'password',
-			isRegistered: true
-		});
+		await auth.updateUserAttributes(user, { username, password, lastAuthMethod: 'password', is_registered: true });
 
 		// Create User Session
-		const session = await auth.createSession({ userId: user.id.toString() });
+		const session = await auth.createSession({ userId: user._id.toString() });
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -493,11 +468,6 @@ interface ForgotPWCheckResult {
 // Function for handling the Forgotten Password
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
-		if (!auth) {
-			console.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hours
 		const user = await auth.checkUser({ email });
 
@@ -505,7 +475,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const token = await auth.createToken(user.id.toString(), expiresIn);
+		const token = await auth.createToken(user._id.toString(), expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -517,11 +487,6 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 // Function for handling the RESET Password
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	try {
-		if (!auth) {
-			console.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		// Obtain the user using auth.checkUser based on the email
 		const user = await auth.checkUser({ email });
 		if (!user) {
@@ -529,7 +494,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		}
 
 		// Consume the token
-		const validate = await auth.consumeToken(token, user.id.toString());
+		const validate = await auth.consumeToken(token, user._id.toString());
 
 		if (validate.status) {
 			// Check token expiration
@@ -540,7 +505,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			}
 
 			// Token is valid and not expired, proceed with password update
-			auth.invalidateAllUserSessions(user.id.toString()); // Invalidate all user sessions
+			auth.invalidateAllUserSessions(user._id.toString()); // Invalidate all user sessions
 			const updateResult = await auth.updateUserPassword(email, password); // Pass the email and password
 
 			if (updateResult.status) {
