@@ -11,7 +11,6 @@ import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAda
 // Import logger
 import logger from '@utils/logger';
 
-const mediaSchema = new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true })
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
