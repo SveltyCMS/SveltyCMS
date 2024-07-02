@@ -20,7 +20,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	fs.mkdirSync('./indexes', { recursive: true });
 
 	// Retrieve the session ID from cookies
-	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Check if the authentication system is initialized
 	if (!auth) {
@@ -29,7 +29,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 	}
 
 	// Validate the session
-	const user = await auth.validateSession({ sessionId });
+	const user = await auth.validateSession({ session_id });
 
 	// Check if the user is authenticated and has admin role
 	if (!user || user.role != 'admin') {

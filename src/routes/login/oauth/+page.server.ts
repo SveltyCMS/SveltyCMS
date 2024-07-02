@@ -10,6 +10,10 @@ import type { User } from '@src/auth/types';
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
+if (!auth || !googleAuth) {
+	throw new Error('Authentication system is not initialized');
+}
+
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
 	console.log('Authorization code:', code);
@@ -28,34 +32,30 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		throw redirect(302, '/login');
 	}
 
-	if (!auth || !googleAuth) {
-		console.error('Authentication system is not initialized');
-		throw new Error('Internal Server Error');
-	}
-
 	try {
-		const { tokens } = await googleAuth.getToken(code);
-		googleAuth.setCredentials(tokens);
-		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+		const { tokens } = await googleAuth!.getToken(code);
+		googleAuth!.setCredentials(tokens);
+		const oauth2 = google.oauth2({ auth: googleAuth!, version: 'v2' });
 
 		const { data: googleUser } = await oauth2.userinfo.get();
 		console.log('Google user information:', googleUser);
 
 		const getUser = async (): Promise<[User | null, boolean]> => {
-			if (!googleUser.email) {
+			const email = googleUser.email;
+			if (!email) {
 				throw new Error('Google did not return an email address.');
 			}
 
-			const existingUser = await auth.checkUser({ email: googleUser.email });
+			const existingUser = await auth!.checkUser({ email });
 			if (existingUser) return [existingUser, false];
 
 			const username = googleUser.name ?? '';
 
-			const isFirst = (await auth.getUserCount()) === 0;
+			const isFirst = (await auth!.getUserCount()) === 0;
 
 			if (isFirst) {
-				const user = await auth.createUser({
-					email: googleUser.email,
+				const user = await auth!.createUser({
+					email,
 					username,
 					role: 'admin',
 					blocked: false
@@ -67,14 +67,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 						'Content-Type': 'application/json'
 					},
 					body: JSON.stringify({
-						email: googleUser.email,
+						email,
 						subject: `New registration ${googleUser.name}`,
 						message: `New registration ${googleUser.name}`,
 						templateName: 'welcomeUser',
 						lang: get(systemLanguage),
 						props: {
-							username: googleUser.name,
-							email: googleUser.email
+							username: googleUser.name || '',
+							email
 						}
 					})
 				});
@@ -92,16 +92,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				console.error('User not found after getting user information.');
 				throw new Error('User not found.');
 			}
-			if ((user as any).blocked) {
+			if (user.blocked) {
 				console.warn('User is blocked.');
 				return { status: false, message: 'User is blocked' };
 			}
 
 			// Create User Session
-			const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
-			const sessionCookie = auth.createSessionCookie(session);
+			const session = await auth!.createSession({ user_id: user.user_id, expires: 3600000 });
+			const sessionCookie = auth!.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'password' });
+			await auth!.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
 		}
 		result.data = { needSignIn };
 	} catch (e) {
@@ -147,14 +147,15 @@ export const actions: Actions = {
 		}
 
 		try {
-			const { tokens } = await googleAuth.getToken(code);
-			googleAuth.setCredentials(tokens);
-			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+			const { tokens } = await googleAuth!.getToken(code);
+			googleAuth!.setCredentials(tokens);
+			const oauth2 = google.oauth2({ auth: googleAuth!, version: 'v2' });
 
 			const { data: googleUser } = await oauth2.userinfo.get();
 			console.log('Google user information:', googleUser);
 
-			if (!googleUser.email) {
+			const email = googleUser.email;
+			if (!email) {
 				console.error('Google did not return an email address.');
 				result.errors.push('Google did not return an email address.');
 				result.success = false;
@@ -162,7 +163,7 @@ export const actions: Actions = {
 			}
 
 			// Get existing user if available
-			const existingUser = await auth.checkUser({ email: googleUser.email });
+			const existingUser = await auth!.checkUser({ email });
 
 			// If the user doesn't exist, create a new one
 			if (!existingUser) {
@@ -192,38 +193,38 @@ export const actions: Actions = {
 				};
 
 				// Check if it's the first user
-				const isFirst = (await auth.getUserCount()) === 0;
+				const isFirst = (await auth!.getUserCount()) === 0;
 
 				// Create User
-				const user = await auth.createUser({
-					email: googleUser.email,
+				const user = await auth!.createUser({
+					email,
 					username: googleUser.name ?? '',
 					role: isFirst ? 'admin' : 'user',
-					lastAuthMethod: 'password',
-					is_registered: true,
+					lastAuthMethod: 'google',
+					isRegistered: true,
 					blocked: false
 				});
 
 				// Send welcome email
-				await sendWelcomeEmail(googleUser.email, googleUser.name);
+				await sendWelcomeEmail(email, googleUser.name || '');
 
 				// Create User Session
-				const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
-				const sessionCookie = auth.createSessionCookie(session);
+				const session = await auth!.createSession({ user_id: user.user_id, expires: 3600000 });
+				const sessionCookie = auth!.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'password' });
+				await auth!.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
 
 				result.data = { user };
 			} else {
 				// User already exists, consume token
-				const validate = await auth.consumeToken(token, existingUser.id.toString()); // Consume the token
+				const validate = await auth!.consumeToken(token, existingUser.user_id); // Consume the token
 
 				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ userId: existingUser.id.toString(), expires: 3600000 });
-					const sessionCookie = auth.createSessionCookie(session);
+					const session = await auth!.createSession({ user_id: existingUser.user_id, expires: 3600000 });
+					const sessionCookie = auth!.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-					await auth.updateUserAttributes(existingUser.id.toString(), { lastAuthMethod: 'password' });
+					await auth!.updateUserAttributes(existingUser.user_id, { lastAuthMethod: 'google' });
 
 					result.data = { user: existingUser };
 				} else {

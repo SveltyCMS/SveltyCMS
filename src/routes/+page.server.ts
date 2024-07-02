@@ -33,18 +33,18 @@ export async function load({ cookies }) {
 	}
 
 	// Secure this page with session cookie
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	console.log('Session ID:', sessionId);
+	const session_id = cookies.get(SESSION_COOKIE_NAME);
+	console.log('Session ID:', session_id);
 
 	// If no session ID is found, create a new session
-	// if (!sessionId) {
+	// if (!session_id) {
 	// 	console.log('Session ID is missing from cookies, creating a new session.');
 	// 	try {
-	// 		const newSession = await auth.createSession({ userId: 'guestUserId', expires: 3600000 });
+	// 		const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
 	// 		const sessionCookie = auth.createSessionCookie(newSession);
 	// 		cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
-	// 		sessionId = sessionCookie.value;
-	// 		console.log('New session created:', sessionId);
+	// 		session_id = sessionCookie.value;
+	// 		console.log('New session created:', session_id);
 	// 	} catch (e) {
 	// 		console.error('Failed to create a new session:', e);
 	// 		throw error(500, 'Failed to create a new session.');
@@ -54,7 +54,7 @@ export async function load({ cookies }) {
 	// Validate the user's session
 	let user: any;
 	try {
-		user = await auth.validateSession({ sessionId: sessionId! });
+		user = await auth.validateSession({ session_id: session_id! });
 		console.log('User:', user);
 	} catch (e) {
 		console.error('Session validation failed:', e);
@@ -121,7 +121,7 @@ export const actions = {
 
 		try {
 			// Assume a session creation method is called here and a session object is returned
-			const session = await auth.createSession({ userId: 'someuser_id', expires: 3600000 });
+			const session = await auth.createSession({ user_id: 'someuser_id', expires: 3600000 });
 			const sessionCookie = auth.createSessionCookie(session);
 
 			// Set the session cookie

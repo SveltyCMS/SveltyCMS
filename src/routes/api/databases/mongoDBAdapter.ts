@@ -4,28 +4,46 @@ import { privateEnv } from '@root/config/private';
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 
+// Database
 import mongoose from 'mongoose';
 import type { DatabaseAdapter } from './databaseAdapter';
+
+// Auth
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
-// Import logger
+// System Logs
 import logger from '@utils/logger';
+
+// Define the media schema (assuming it's defined similarly to other schemas)
+const mediaSchema = new mongoose.Schema(
+	{
+		url: String,
+		altText: String,
+		createdAt: { type: Date, default: Date.now },
+		updatedAt: { type: Date, default: Date.now }
+	},
+	{ timestamps: true }
+);
 
 export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		// logger.info('Attempting to connect to MongoDB...');
+
+		// Construct the connection string
+		const connectionString = `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`;
+
 		while (attempts > 0) {
 			try {
-				await mongoose.connect(privateEnv.DB_HOST, {
+				await mongoose.connect(connectionString, {
 					authSource: 'admin',
 					user: privateEnv.DB_USER,
 					pass: privateEnv.DB_PASSWORD,
 					dbName: privateEnv.DB_NAME,
 					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
 				});
-				// logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
+				logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
@@ -34,9 +52,9 @@ export class MongoDBAdapter implements DatabaseAdapter {
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';
 					logger.error(errorMsg);
-
 					throw new Error(errorMsg);
 				}
+
 				// Wait before retrying only if more attempts remain
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
 			}
@@ -44,7 +62,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	}
 
 	async getCollectionModels(): Promise<any> {
-		// console.log('Setting up collection models...');
 		return new Promise<any>((resolve) => {
 			this.unsubscribe = collections.subscribe((collections) => {
 				if (collections) {
@@ -84,7 +101,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 					this.unsubscribe && this.unsubscribe();
 					this.unsubscribe = undefined;
-					console.log('Collection models setup complete.');
+					logger.info('Collection models setup complete.');
 					resolve(collectionsModels);
 				}
 			});
@@ -169,12 +186,14 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			const model = mongoose.models[schemaName];
 			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
 			recentMedia.push({ schemaName, recentDocs });
-			console.log(`Fetched recent media documents for ${schemaName}`);
+			logger.info(`Fetched recent media documents for ${schemaName}`);
 		}
 		return recentMedia;
 	}
 
+	// Disconnect
 	async disconnect(): Promise<void> {
 		await mongoose.disconnect();
+		logger.info('Database connection closed.');
 	}
 }

@@ -8,7 +8,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
 		// Get the session cookie.
-		const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 		// Check if the authentication system is initialized.
 		if (!auth) {
@@ -16,8 +16,8 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			return new Response(JSON.stringify({ error: 'Internal Server Error' }), { status: 500 });
 		}
 
-		// Validate the session by passing an object with the sessionId property.
-		const user = await auth.validateSession({ sessionId });
+		// Validate the session by passing an object with the session_id property.
+		const user = await auth.validateSession({ session_id });
 
 		// Check if the user is authenticated and has admin role.
 		if (!user || user.role !== 'admin') {

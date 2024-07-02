@@ -17,7 +17,7 @@ import { _SETSTATUS } from './SETSTATUS';
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the session ID from cookies
-	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	// Retrieve the user ID from the form data
 	const userId = data.get('userId') as string;
 
@@ -28,7 +28,7 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	// Authenticate user based on user ID or session ID
 	const user = userId
 		? ((await auth.checkUser({ userId })) as User) // Check user with user ID
-		: ((await auth.validateSession({ sessionId })) as User); // Validate session with session ID
+		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
 
 	if (!user) {
 		throw new Error('Unauthorized');

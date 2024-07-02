@@ -1,7 +1,6 @@
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import mongoose from 'mongoose';
 
 // Superforms
 import { fail, message, superValidate } from 'sveltekit-superforms';
@@ -34,7 +33,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 	if (!code) {
 		console.error('Authorization code is missing');
-		// throw redirect(302, '/login');
+		throw redirect(302, '/login');
 	}
 
 	if (!auth || !googleAuth) {
@@ -57,20 +56,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 					throw error(500, 'Authentication system not initialized.');
 				}
 
-				const existingUser = await auth.checkUser({ email: googleUser.email });
-				if (existingUser) return [existingUser, false];
-
-				// Ensure Google user email exists
-				if (!googleUser.email) {
+				const email = googleUser.email;
+				if (!email) {
 					throw new Error('Google did not return an email address.');
 				}
+
+				const existingUser = await auth.checkUser({ email });
+				if (existingUser) return [existingUser, false];
+
 				const username = googleUser.name ?? '';
 
 				const isFirst = (await auth.getUserCount()) === 0;
 
 				if (isFirst) {
 					const user = await auth.createUser({
-						email: googleUser.email,
+						email,
 						username,
 						role: 'admin',
 						blocked: false
@@ -82,14 +82,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 							'Content-Type': 'application/json'
 						},
 						body: JSON.stringify({
-							email: googleUser.email,
+							email,
 							subject: `New registration ${googleUser.name}`,
 							message: `New registration ${googleUser.name}`,
 							templateName: 'welcomeUser',
 							lang: get(systemLanguage),
 							props: {
-								username: googleUser.name,
-								email: googleUser.email
+								username: googleUser.name ?? '',
+								email
 							}
 						})
 					});
@@ -107,7 +107,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 					console.error('User not found after getting user information.');
 					throw new Error('User not found.');
 				}
-				if ((user as any).blocked) {
+				if (user.blocked) {
 					console.warn('User is blocked.');
 					return { status: false, message: 'User is blocked' };
 				}
@@ -118,10 +118,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				}
 
 				// Create User Session
-				const session = await auth.createSession({ userId: user.id.toString(), expires: 3600000 });
+				const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user.id.toString(), { lastAuthMethod: 'google' });
+				await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
 			}
 			result.data = { needSignIn };
 		} else {
@@ -217,14 +217,14 @@ export const actions: Actions = {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					email: email,
+					email,
 					subject: `New registration for ${username}`,
 					message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 					templateName: 'welcomeUser',
 
 					props: {
-						username: username,
-						email: email
+						username,
+						email
 					}
 				})
 			});
@@ -254,21 +254,6 @@ export const actions: Actions = {
 			redirect(307, redirectUrl);
 		}
 	},
-
-	// // OAuth Sign-Up
-	// OAuth: async (event) => {
-	// 	// const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-	// 	// const lang = signUpOAuthForm.data.lang;
-	// 	const [url, state] = await googleAuth.getAuthorizationUrl();
-
-	// 	event.cookies.set('google_oauth_state', JSON.stringify({ stateCookie: state }), {
-	// 		path: '/', // redirect
-	// 		httpOnly: true, // only readable in the server
-	// 		maxAge: 60 * 60 // a reasonable expiration date 1 hour
-	// 	});
-
-	// 	redirect(302, url);
-	// },
 
 	//Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
@@ -331,15 +316,15 @@ export const actions: Actions = {
 					'Content-Type': 'application/json'
 				},
 				body: JSON.stringify({
-					email: email,
+					email,
 					subject: 'Forgotten Password',
 					message: 'Forgotten Password',
 					templateName: 'forgottenPassword',
 					props: {
-						email: email,
-						token: token,
-						expiresIn: expiresIn,
-						resetLink: resetLink
+						email,
+						token,
+						expiresIn,
+						resetLink
 						// lang: lang
 					}
 				})
@@ -347,7 +332,7 @@ export const actions: Actions = {
 
 			// Return message if form is submitted successfully
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
-			return { form: pwforgottenForm, token: token, email: email };
+			return { form: pwforgottenForm, token, email };
 		} else {
 			// console.log('resp.status is false');
 			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
@@ -402,11 +387,10 @@ async function signIn(
 		}
 
 		// Create User Session
-		console.log(user, new mongoose.Types.ObjectId(user.id));
-		const session = await auth.createSession({ userId: user.id });
+		const session = await auth.createSession({ user_id: user.user_id });
 		const sessionCookie = auth.createSessionCookie(session);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-		await auth.updateUserAttributes(user, { lastAuthMethod: 'password' });
+		await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'password' });
 
 		return { status: true };
 	} else {
@@ -423,15 +407,15 @@ async function signIn(
 			return { status: false, message: 'User does not exist' };
 		}
 
-		const result = await auth.consumeToken(token, user.id);
+		const result = await auth.consumeToken(token, user.user_id);
 
 		if (result.status) {
 			// Create User Session
-			const session = await auth.createSession({ userId: user.id });
+			const session = await auth.createSession({ user_id: user.user_id });
 
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user, { lastAuthMethod: 'token' });
+			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'token' });
 			return { status: true };
 		} else {
 			return result;
@@ -460,7 +444,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	// Create User Session
-	const session = await auth.createSession({ userId: user.id.toString() });
+	const session = await auth.createSession({ user_id: user.user_id.toString() });
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -479,10 +463,10 @@ async function finishRegistration(username: string, email: string, password: str
 
 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const result = await auth.consumeToken(token, user.id);
+	const result = await auth.consumeToken(token, user.user_id);
 
 	if (result.status) {
-		await auth.updateUserAttributes(user, {
+		await auth.updateUserAttributes(user.user_id, {
 			username,
 			password,
 			lastAuthMethod: 'password',
@@ -490,7 +474,7 @@ async function finishRegistration(username: string, email: string, password: str
 		});
 
 		// Create User Session
-		const session = await auth.createSession({ userId: user.id.toString() });
+		const session = await auth.createSession({ user_id: user.user_id.toString() });
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -524,7 +508,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const token = await auth.createToken(user.id.toString(), expiresIn);
+		const token = await auth.createToken(user.user_id.toString(), expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
@@ -548,7 +532,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		}
 
 		// Consume the token
-		const validate = await auth.consumeToken(token, user.id.toString());
+		const validate = await auth.consumeToken(token, user.user_id.toString());
 
 		if (validate.status) {
 			// Check token expiration
@@ -559,7 +543,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			}
 
 			// Token is valid and not expired, proceed with password update
-			auth.invalidateAllUserSessions(user.id.toString()); // Invalidate all user sessions
+			auth.invalidateAllUserSessions(user.user_id.toString()); // Invalidate all user sessions
 			const updateResult = await auth.updateUserPassword(email, password); // Pass the email and password
 
 			if (updateResult.status) {

@@ -37,7 +37,7 @@ export interface PermissionConfig {
 
 // Permission interface to define what each permission can do
 export interface Permission {
-	id: string;
+	permission_id: string;
 	action: PermissionAction;
 	contextId: string; // This could be a collectionId or widgetId indicating scope
 	description?: string;
@@ -47,15 +47,15 @@ export interface Permission {
 
 // Define the type for a Role with dynamically assigned permissions
 export interface Role {
-	id: string;
-	name: string;
-	description?: string;
+	role_id: string; // Unique identifier for the role
+	name: string; // Name of the role
+	description?: string; // Description of the role
 	permissions: Permission[]; // This includes permission IDs which can be resolved to actual permissions
 }
 
 // Define the type for RateLimit
 export interface RateLimit {
-	userId: string; // The ID of the user
+	user_id: string; // The ID of the user
 	action: PermissionAction; // The action being rate limited
 	limit: number; // Number of allowed actions
 	windowMs: number; // Time window in milliseconds
@@ -65,7 +65,7 @@ export interface RateLimit {
 
 // User interface represents a user in the system.
 export interface User {
-	id?: string; // Unique identifier for the user
+	user_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
@@ -86,15 +86,15 @@ export interface User {
 
 // Session interface represents a session in the system.
 export interface Session {
-	id: string; // Unique identifier for the session
-	userId: string; // The ID of the user who owns the session
+	session_id: string; // Unique identifier for the session
+	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }
 
 // Token interface represents a token in the system.
 export interface Token {
-	id: string; // Unique identifier for the token
-	userId: string; // The ID of the user who owns the token
+	token_id: string; // Unique identifier for the token
+	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email?: string; // Email associated with the token
 	expires: Date; // When the token expires
@@ -102,15 +102,16 @@ export interface Token {
 
 // Collection interface to encapsulate permissions specific to collections.
 export interface Collection {
-	id: string;
+	collection_id: string;
 	name: string;
 	permissions: Permission[]; // Permissions specific to this collection
 }
 
 // Define the type for a Cookie
 export type Cookie = {
-	name: string;
-	value: string;
+	name: string; // Name of the cookie
+	value: string; // Value of the cookie
+	// Attributes of the cookie
 	attributes: {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
@@ -138,7 +139,7 @@ function hasRolePermission(role: Role, action: PermissionAction, contextId: stri
 
 // Utility function to check if the action is within the rate limit.
 function checkRateLimit(rateLimits: RateLimit[], userId: string, action: PermissionAction): boolean {
-	const rateLimit = rateLimits.find((rl) => rl.userId === userId && rl.action === action);
+	const rateLimit = rateLimits.find((rl) => rl.user_id === userId && rl.action === action);
 	if (rateLimit) {
 		const now = new Date();
 		const timePassed = now.getTime() - rateLimit.lastActionAt.getTime();
@@ -158,7 +159,7 @@ function checkRateLimit(rateLimits: RateLimit[], userId: string, action: Permiss
 // Main utility function to check if a user has a specific permission in a given context considering both user and role-based permissions.
 export function hasPermission(user: User, roles: Role[], action: PermissionAction, contextId: string, rateLimits: RateLimit[]): boolean {
 	// Check if the action is within the rate limit
-	if (!checkRateLimit(rateLimits, user.id, action)) {
+	if (!checkRateLimit(rateLimits, user.user_id!, action)) {
 		return false;
 	}
 
@@ -168,7 +169,7 @@ export function hasPermission(user: User, roles: Role[], action: PermissionActio
 	}
 
 	// Find the user's role object
-	const userRole = roles.find((role) => role.id === user.role);
+	const userRole = roles.find((role) => role.role_id === user.role);
 	if (!userRole) {
 		return false; // Role not found
 	}

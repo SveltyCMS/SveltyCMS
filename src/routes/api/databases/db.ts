@@ -28,14 +28,15 @@ async function loadAdapters() {
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
-			console.log('Detected MariaDB as the database type.');
+			console.log('Detected SQL database as the database type.');
+
 			// const [{ MariaDBAdapter }, { MariaDBAuthAdapter }] = await Promise.all([import('./mariaDBAdapter'), import('@src/auth/mariaDBAuthAdapter')]);
 			// dbAdapter = new MariaDBAdapter();
-			// authAdapter = new MariaDBAuthAdapter();
+			// authAdapter = new MariaDBAuthAdapter()
 
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
 			// 	import('./drizzleDBAdapter'),
-			// 	import('@src/auth/drizzleDBAuthAdapter')
+			// 	import('@src/auth/drizzleAuthAdapter')
 			// ]);
 			// dbAdapter = new DrizzleDBAdapter();
 			// authAdapter = new DrizzleAuthAdapter();

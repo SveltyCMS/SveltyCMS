@@ -17,7 +17,7 @@ async function deleteImageModel(hash: string) {
 export const DELETE: RequestHandler = async (event) => {
 	try {
 		const { request, cookies } = event;
-		const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 		// Check if the authentication system is initialized
 		if (!auth) {
@@ -26,11 +26,11 @@ export const DELETE: RequestHandler = async (event) => {
 		}
 
 		// Validate the session
-		const user = await auth.validateSession({ sessionId });
+		const user = await auth.validateSession({ session_id });
 
 		// Check if the user is authenticated
 		if (!user) {
-			logger.warn(`Unauthorized avatar delete attempt by session: ${sessionId}`);
+			logger.warn(`Unauthorized avatar delete attempt by session: ${session_id}`);
 			return new Response(JSON.stringify({ message: "You don't have permission to delete avatar" }), { status: 403 });
 		}
 

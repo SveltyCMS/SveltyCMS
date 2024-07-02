@@ -30,7 +30,7 @@ async function getIsFirstUser() {
 export async function load(event) {
 	try {
 		// Get the session cookie
-		const sessionId = event.cookies.get(SESSION_COOKIE_NAME) as string;
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
 		if (!auth) {
 			console.error('Authentication system is not initialized');
@@ -38,7 +38,7 @@ export async function load(event) {
 		}
 
 		// Validate the user's session
-		const user = await auth.validateSession({ sessionId });
+		const user = await auth.validateSession({ session_id });
 		const isFirstUser = await getIsFirstUser();
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
@@ -134,14 +134,14 @@ export const actions: Actions = {
 	addUser: async (event) => {
 		try {
 			const { request, cookies } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 			const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
 			if (!user || user.role !== 'admin') {
@@ -195,8 +195,8 @@ export const actions: Actions = {
 			const changePasswordForm = await superValidate(request, zod(changePasswordSchema));
 			const { password } = changePasswordForm.data;
 
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
-			const user = await auth.validateSession({ sessionId });
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
 				return { form: changePasswordForm, message: 'User does not exist or session expired' };
@@ -215,14 +215,14 @@ export const actions: Actions = {
 	deleteUser: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -244,14 +244,14 @@ export const actions: Actions = {
 	editUser: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -278,14 +278,14 @@ export const actions: Actions = {
 	blockUser: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -319,14 +319,14 @@ export const actions: Actions = {
 	unblockUser: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403);
@@ -353,14 +353,14 @@ export const actions: Actions = {
 	saveAvatar: async (event) => {
 		try {
 			const { request, cookies } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
 				return fail(403, { message: "You don't have permission to save avatar" });
@@ -387,14 +387,14 @@ export const actions: Actions = {
 	deleteAvatar: async (event) => {
 		try {
 			const { cookies } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
 				return fail(403, { message: "You don't have permission to delete avatar" });
@@ -428,14 +428,14 @@ export const actions: Actions = {
 	editToken: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403, { message: "You don't have permission to edit tokens" });
@@ -478,14 +478,14 @@ export const actions: Actions = {
 	deleteToken: async (event) => {
 		try {
 			const { cookies, request } = event;
-			const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
 				console.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ sessionId });
+			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
 				return fail(403, { message: "You don't have permission to delete tokens" });

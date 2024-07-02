@@ -22,7 +22,7 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 	}
 
 	// Retrieve the session ID from cookies
-	const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 	// Retrieve data from the request form
 	const data = await request.formData();
@@ -33,7 +33,7 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 	// Authenticate user based on user ID or session ID
 	const user = userId
 		? ((await auth.checkUser({ userId })) as User) // Check user with user ID
-		: ((await auth.validateSession({ sessionId })) as User); // Validate session with session ID
+		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
 
 	// Extract search text from the form data
 	const searchText = data.get('searchText') as string;

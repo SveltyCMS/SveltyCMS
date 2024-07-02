@@ -115,17 +115,17 @@ async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<st
 export const POST: RequestHandler = async (event) => {
 	try {
 		const { request, cookies } = event;
-		const sessionId = cookies.get(SESSION_COOKIE_NAME) as string;
+		const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		const user = await auth.validateSession({ sessionId });
+		const user = await auth.validateSession({ session_id });
 
 		if (!user) {
-			logger.warn(`Unauthorized avatar save attempt by session: ${sessionId}`);
+			logger.warn(`Unauthorized avatar save attempt by session: ${session_id}`);
 			return new Response(JSON.stringify({ message: "You don't have permission to save avatar" }), { status: 403 });
 		}
 

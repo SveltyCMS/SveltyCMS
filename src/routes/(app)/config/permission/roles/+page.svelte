@@ -1,8 +1,8 @@
-<!-- src/routes/permission/roles/+page.svelte -->
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissions as permissionList, type PermissionAction, type Role } from '@src/auth/types';
+	import { type PermissionAction, type Role, type Permission } from '@src/auth/types';
 	import { getPermissions } from '@src/auth/permissionManager';
+	import { createRandomID } from '@src/utils/utils';
 
 	let newRoles: Role[] = [];
 	let roleName = '';
@@ -13,7 +13,7 @@
 		delete: false
 	};
 
-	let permissions = [];
+	let permissions: Permission[] = [];
 
 	onMount(() => {
 		permissions = getPermissions();
@@ -21,16 +21,18 @@
 
 	// Function to handle the addition of a new role
 	const addRole = async () => {
-		const roleData: Omit<Role, 'id'> = {
+		const roleData: Omit<Role, 'id' | 'role_id'> = {
 			name: roleName,
-			permissions: Object.entries(rolePermissions)
-				.filter(([_, allowed]) => allowed)
-				.map(([action]) => ({
-					id: crypto.randomUUID(),
-					action: action as PermissionAction,
-					contextId: 'global', // Example context, adjust as necessary
-					contextType: 'collection' // or 'widget', adjust as necessary
-				}))
+			permissions: await Promise.all(
+				Object.entries(rolePermissions)
+					.filter(([_, allowed]) => allowed)
+					.map(async ([action]) => ({
+						permission_id: await createRandomID(),
+						action: action as PermissionAction,
+						contextId: 'global', // Example context, adjust as necessary
+						contextType: 'collection' // or 'widget', adjust as necessary
+					}))
+			)
 		};
 
 		const response = await fetch('/api/roles', {

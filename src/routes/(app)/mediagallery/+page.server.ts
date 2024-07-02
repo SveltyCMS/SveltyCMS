@@ -12,15 +12,15 @@ const getModel = (name: string) =>
 	mongoose.models[name] || mongoose.model(name, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
 
 export const load: PageServerLoad = async ({ cookies }) => {
-	const sessionId = cookies.get(SESSION_COOKIE_NAME);
-	if (!sessionId) throw redirect(302, `/login`);
+	const session_id = cookies.get(SESSION_COOKIE_NAME);
+	if (!session_id) throw redirect(302, `/login`);
 
 	if (!auth) {
 		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
-	const user = await auth.validateSession({ sessionId });
+	const user = await auth.validateSession({ session_id });
 	if (!user) throw redirect(302, `/login`);
 
 	// Fetch all media types concurrently
@@ -30,49 +30,49 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	results = results.map((arr, index) => arr.map((item) => ({ ...item, _id: item._id.toString(), type: mediaTypes[index].split('_')[1] })));
 	const media = results.flat();
-	console.log(media)
+	console.log(media);
 	return { user, media };
 };
 
 const saveMediaFile = {
-	'application': saveDocument,
-	'audio': saveAudio,
-	'font': saveDocument,
-	'example': saveDocument,
-	'image': saveImage,
-	'message': saveDocument,
-	'model': saveDocument,
-	'multipart': saveDocument,
-	'text': saveDocument,
-	'video': saveVideo,
-}
+	application: saveDocument,
+	audio: saveAudio,
+	font: saveDocument,
+	example: saveDocument,
+	image: saveImage,
+	message: saveDocument,
+	model: saveDocument,
+	multipart: saveDocument,
+	text: saveDocument,
+	video: saveVideo
+};
 
 // Collection name for media files
 const collectionNames = {
-	'application': 'media_documents',
-	'audio': 'media_audios',
-	'font': 'media_documents',
-	'example': 'media_documents',
-	'image': 'media_images',
-	'message': 'media_documents',
-	'model': 'media_documents',
-	'multipart': 'media_documents',
-	'text': 'media_documents',
-	'video': 'media_videos',
+	application: 'media_documents',
+	audio: 'media_audios',
+	font: 'media_documents',
+	example: 'media_documents',
+	image: 'media_images',
+	message: 'media_documents',
+	model: 'media_documents',
+	multipart: 'media_documents',
+	text: 'media_documents',
+	video: 'media_videos'
 };
 
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
-		const sessionId = cookies.get(SESSION_COOKIE_NAME);
-		if (!sessionId) throw redirect(302, `/login`);
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		if (!session_id) throw redirect(302, `/login`);
 
 		if (!auth) {
 			console.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		console.log("HEREEEEEEEEEEE")
-		const user = await auth.validateSession({ sessionId });
+		console.log('HEREEEEEEEEEEE');
+		const user = await auth.validateSession({ session_id });
 		if (!user) throw redirect(302, `/login`);
 
 		const formData = await request.formData();

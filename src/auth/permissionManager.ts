@@ -1,17 +1,18 @@
 import type { PermissionAction, Role, User, RateLimit, Permission } from '@src/auth/types';
 import { hasPermission as checkPermission } from '@src/auth/types';
+import crypto from 'crypto';
 
 const permissionTable: Permission[] = [];
 
 // Add a permission to the permission table
-export function addPermission(contextId: string, action: PermissionAction, requiredRole: string, contextType: 'collection' | 'widget') {
-	const existingPermission = permissionTable.find((perm) => perm.contextId === contextId && perm.action === action);
+export function addPermission(context_id: string, action: PermissionAction, requiredRole: string, contextType: 'collection' | 'widget') {
+	const existingPermission = permissionTable.find((perm) => perm.contextId === context_id && perm.action === action);
 
 	if (!existingPermission) {
 		const newPermission: Permission = {
-			id: crypto.randomUUID(),
+			permission_id: crypto.randomUUID(),
 			action,
-			contextId,
+			contextId: context_id,
 			contextType,
 			description: `Default permission for ${requiredRole}`
 		};
@@ -20,8 +21,8 @@ export function addPermission(contextId: string, action: PermissionAction, requi
 }
 
 // Main utility function to check if a user has a specific permission in a given context
-export function hasPermission(user: User, roles: Role[], action: PermissionAction, contextId: string, rateLimits: RateLimit[]): boolean {
-	return checkPermission(user, roles, action, contextId, rateLimits);
+export function hasPermission(user: User, roles: Role[], action: PermissionAction, context_id: string, rateLimits: RateLimit[]): boolean {
+	return checkPermission(user, roles, action, context_id, rateLimits);
 }
 
 // Get the permission table

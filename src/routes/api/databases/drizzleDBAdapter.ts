@@ -96,12 +96,34 @@ export class DrizzleDBAdapter implements DatabaseAdapter {
 
 	// Set up authentication models
 	setupAuthModels(): void {
-		setupAuthModels(db);
+		// Define your auth models setup here
 	}
 
 	// Set up media models
 	setupMediaModels(): void {
-		setupMediaModels(db);
+		// Define your media models setup here
+	}
+
+	async findOne(collection: string, query: object): Promise<any> {
+		const model = db.getModel(collection);
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		return model.findOne(query);
+	}
+
+	async insertMany(collection: string, docs: object[]): Promise<any[]> {
+		const model = db.getModel(collection);
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		const result = await model.insertMany(docs);
+		return result;
+	}
+
+	async disconnect(): Promise<void> {
+		await dbClient.destroy();
+		logger.info('Database connection closed.');
 	}
 
 	// Get recent last 5 collections
