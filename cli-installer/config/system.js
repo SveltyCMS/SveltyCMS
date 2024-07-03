@@ -145,11 +145,13 @@ export async function configureSystem(privateConfigData = {}) {
 	const LOG_LEVELS = await multiselect({
 		message: 'Select log levels to be outputted:',
 		options: [
+			{ value: 'debug', label: 'Debug' },
 			{ value: 'info', label: 'Info' },
 			{ value: 'warn', label: 'Warn' },
-			{ value: 'error', label: 'Error' }
+			{ value: 'error', label: 'Error' },
+			{ value: 'none', label: 'None' }
 		],
-		initialValues: privateConfigData.LOG_LEVELS || ['info', 'warn', 'error']
+		initialValues: privateConfigData.LOG_LEVELS || ['error']
 	});
 
 	if (isCancel(LOG_LEVELS)) {

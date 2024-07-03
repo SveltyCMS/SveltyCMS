@@ -10,13 +10,16 @@ import type { User } from '@src/auth/types';
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
+// Import logger
+import logger from '@utils/logger';
+
 if (!auth || !googleAuth) {
 	throw new Error('Authentication system is not initialized');
 }
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
-	console.log('Authorization code:', code);
+	logger.debug(`Authorization code: ${code}`);
 
 	const result: Result = {
 		errors: [],
@@ -28,7 +31,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	};
 
 	if (!code) {
-		console.error('Authorization code is missing');
+		logger.error('Authorization code is missing');
 		throw redirect(302, '/login');
 	}
 
@@ -38,7 +41,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const oauth2 = google.oauth2({ auth: googleAuth!, version: 'v2' });
 
 		const { data: googleUser } = await oauth2.userinfo.get();
-		console.log('Google user information:', googleUser);
+		logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 		const getUser = async (): Promise<[User | null, boolean]> => {
 			const email = googleUser.email;
@@ -89,11 +92,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		if (!needSignIn) {
 			if (!user) {
-				console.error('User not found after getting user information.');
+				logger.error('User not found after getting user information.');
 				throw new Error('User not found.');
 			}
 			if (user.blocked) {
-				console.warn('User is blocked.');
+				logger.warn('User is blocked.');
 				return { status: false, message: 'User is blocked' };
 			}
 
@@ -105,7 +108,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 		result.data = { needSignIn };
 	} catch (e) {
-		console.error('Error during login process:', e);
+		logger.error('Error during login process:', e as Error);
 		throw redirect(302, '/login');
 	}
 
@@ -127,22 +130,22 @@ export const actions: Actions = {
 		};
 
 		if (!token || typeof token !== 'string') {
-			console.error('Token not found or invalid');
+			logger.error('Token not found or invalid');
 			result.errors.push('Token not found');
 			result.success = false;
 			return result;
 		}
 
 		const code = url.searchParams.get('code');
-		console.log('Authorization code:', code);
+		logger.debug(`Authorization code: ${code}`);
 
 		if (!code) {
-			console.error('Authorization code is missing');
+			logger.error('Authorization code is missing');
 			throw redirect(302, '/login');
 		}
 
 		if (!auth || !googleAuth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			return { success: false, message: 'Internal Server Error' };
 		}
 
@@ -152,11 +155,11 @@ export const actions: Actions = {
 			const oauth2 = google.oauth2({ auth: googleAuth!, version: 'v2' });
 
 			const { data: googleUser } = await oauth2.userinfo.get();
-			console.log('Google user information:', googleUser);
+			logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 			const email = googleUser.email;
 			if (!email) {
-				console.error('Google did not return an email address.');
+				logger.error('Google did not return an email address.');
 				result.errors.push('Google did not return an email address.');
 				result.success = false;
 				return result;
@@ -187,7 +190,7 @@ export const actions: Actions = {
 							})
 						});
 					} catch (error) {
-						console.error('Error sending welcome email:', error);
+						logger.error('Error sending welcome email:', error as Error);
 						throw new Error('Failed to send welcome email');
 					}
 				};
@@ -228,13 +231,13 @@ export const actions: Actions = {
 
 					result.data = { user: existingUser };
 				} else {
-					console.error('Invalid token');
+					logger.error('Invalid token');
 					result.errors.push('Invalid token');
 					result.success = false;
 				}
 			}
 		} catch (e) {
-			console.error('Error during login process:', e);
+			logger.error('Error during login process:', e as Error);
 			throw redirect(302, '/login');
 		}
 

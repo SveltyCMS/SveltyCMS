@@ -29,30 +29,35 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
-		// logger.info('Attempting to connect to MongoDB...');
+		logger.debug('Attempting to connect to MongoDB...');
+		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv');
 
 		// Construct the connection string
-		const connectionString = `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`;
+		const connectionString = isAtlas
+			? privateEnv.DB_HOST // Use DB_HOST as full connection string for Atlas
+			: `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`; // Local/Docker connection
 
 		while (attempts > 0) {
 			try {
 				await mongoose.connect(connectionString, {
-					authSource: 'admin',
+					authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
 					user: privateEnv.DB_USER,
 					pass: privateEnv.DB_PASSWORD,
 					dbName: privateEnv.DB_NAME,
 					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
 				});
-				logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
+				// Inform about successful connection
+				logger.debug(`MongoDB adapter connected successfully to ${privateEnv.DB_NAME}`);
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
-				logger.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${(error as Error).message}`);
+				const err = error as Error;
+				logger.error(`MongoDB adapter failed to connect. Attempts left: ${attempts}. Error: ${err.message}`);
 
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';
 					logger.error(errorMsg);
-					throw new Error(errorMsg);
+					throw new Error(`MongoDB adapter failed to connect after maximum retries. Error: ${err.message}`);
 				}
 
 				// Wait before retrying only if more attempts remain
@@ -101,7 +106,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 					this.unsubscribe && this.unsubscribe();
 					this.unsubscribe = undefined;
-					logger.info('Collection models setup complete.');
+					logger.info('MongoDB adapter collection models setup complete.');
 					resolve(collectionsModels);
 				}
 			});
@@ -135,7 +140,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	async findOne(collection: string, query: object): Promise<any> {
 		const model = mongoose.models[collection];
 		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
+			logger.error(`findOne failed. Collection ${collection} does not exist.`);
+			throw new Error(`findOne failed. Collection ${collection} does not exist.`);
 		}
 		return model.findOne(query).exec();
 	}
@@ -144,7 +150,8 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	async insertMany(collection: string, docs: object[]): Promise<any[]> {
 		const model = mongoose.models[collection];
 		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
+			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
+			throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
 		}
 		const result = await model.insertMany(docs);
 		return result;
@@ -186,7 +193,7 @@ export class MongoDBAdapter implements DatabaseAdapter {
 			const model = mongoose.models[schemaName];
 			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
 			recentMedia.push({ schemaName, recentDocs });
-			logger.info(`Fetched recent media documents for ${schemaName}`);
+			logger.debug(`Fetched recent media documents for ${schemaName}`);
 		}
 		return recentMedia;
 	}
@@ -194,6 +201,6 @@ export class MongoDBAdapter implements DatabaseAdapter {
 	// Disconnect
 	async disconnect(): Promise<void> {
 		await mongoose.disconnect();
-		logger.info('Database connection closed.');
+		logger.debug('MongoDB adapter connection closed.');
 	}
 }

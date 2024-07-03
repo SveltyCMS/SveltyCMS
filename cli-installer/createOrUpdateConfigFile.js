@@ -128,7 +128,7 @@ export async function createOrUpdateConfigFile(configData) {
             // Overwrite the default Password strength (Default 8)
             PASSWORD_STRENGTH: ${configData?.PASSWORD_STRENGTH || 8},
 
-            // Log Level (default: 'error') (Options: 'error', 'warn', 'info', 'off')
+	        // Log Level (default: 'error') (Options: 'debug' | 'error' | 'warn' | 'info' | 'none')
             LOG_LEVEL: '${configData?.LOG_LEVEL || 'error'}',
 
             // Seasons/Events for login page (default: false)

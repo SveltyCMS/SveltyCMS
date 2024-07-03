@@ -18,8 +18,8 @@
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalWidgetForm from '@src/routes/(app)/collection/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte';
-	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
+	import ModalWidgetForm from '@src/routes/(app)/config/collection/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte';
+	import ModalSelectWidget from '../ModalSelectWidget.svelte';
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL

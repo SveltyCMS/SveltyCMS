@@ -52,7 +52,8 @@ export class DrizzleDBAdapter implements DatabaseAdapter {
 				return;
 			} catch (error) {
 				attempts--;
-				logger.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${(error as Error).message}`);
+				const err = error as Error;
+				logger.error(`Failed to connect to the database. Attempts left: ${attempts}. Error: ${err.message}`);
 
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';

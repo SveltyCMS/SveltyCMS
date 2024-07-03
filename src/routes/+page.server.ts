@@ -16,37 +16,37 @@ import logger from '@utils/logger';
 type LanguageTag = (typeof availableLanguageTags)[number];
 
 export async function load({ cookies }) {
-	console.log('Load function started.');
+	logger.debug('Load function started.');
 
 	// Wait for initialization to complete
 	try {
 		await initializationPromise;
-		console.log('Initialization promise resolved.');
+		logger.debug('Initialization promise resolved.');
 	} catch (e) {
-		console.error('Initialization failed:', e);
+		logger.error('Initialization failed:', e as Error);
 		throw error(500, 'Failed to initialize the authentication system.');
 	}
 
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Authentication system not initialized.');
 	}
 
 	// Secure this page with session cookie
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	console.log('Session ID:', session_id);
+	logger.debug('Session ID:', session_id);
 
 	// If no session ID is found, create a new session
 	// if (!session_id) {
-	// 	console.log('Session ID is missing from cookies, creating a new session.');
+	// 	logger.debug('Session ID is missing from cookies, creating a new session.');
 	// 	try {
 	// 		const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
 	// 		const sessionCookie = auth.createSessionCookie(newSession);
 	// 		cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
 	// 		session_id = sessionCookie.value;
-	// 		console.log('New session created:', session_id);
+	// 		logger.debug('New session created:', session_id);
 	// 	} catch (e) {
-	// 		console.error('Failed to create a new session:', e);
+	// 		logger.error('Failed to create a new session:', e as Error);
 	// 		throw error(500, 'Failed to create a new session.');
 	// 	}
 	// }
@@ -55,14 +55,14 @@ export async function load({ cookies }) {
 	let user: any;
 	try {
 		user = await auth.validateSession({ session_id: session_id! });
-		console.log('User:', user);
+		logger.debug('User:', user);
 	} catch (e) {
-		console.error('Session validation failed:', e);
+		logger.error('Session validation failed:', e as Error);
 		throw redirect(302, '/login');
 	}
 
 	if (!user) {
-		// console.warn('User not found, redirecting to login.');
+		logger.warn('User not found, redirecting to login.');
 		throw redirect(302, '/login');
 	}
 
@@ -70,17 +70,17 @@ export async function load({ cookies }) {
 	let collections: any;
 	try {
 		collections = await getCollections();
-		// console.log('Collections:', collections);
+		logger.debug('Collections:', collections);
 	} catch (e) {
 		logger.error('Failed to get collections:', e as Error);
 		throw error(500, 'Internal Server Error');
 	}
 
 	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-	// console.log('Filtered collections:', filteredCollections);
+	logger.debug('Filtered collections:', filteredCollections);
 
 	if (filteredCollections.length === 0) {
-		// console.error('No collections found for user.');
+		logger.error('No collections found for user.');
 		throw error(404, {
 			message: "You don't have access to any collection"
 		});
@@ -91,7 +91,7 @@ export async function load({ cookies }) {
 	if (firstCollection && firstCollection.name) {
 		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
 	} else {
-		console.error('No valid collections to redirect to.');
+		logger.error('No valid collections to redirect to.');
 		throw error(500, 'No valid collections to redirect to.');
 	}
 }
@@ -115,7 +115,7 @@ export const actions = {
 		setLanguageTag(systemLanguage);
 
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Authentication system not initialized.');
 		}
 

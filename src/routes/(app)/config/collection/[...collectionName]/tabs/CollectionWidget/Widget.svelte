@@ -9,7 +9,7 @@
 	import widgets from '@src/components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
-	import ModalSelectWidget from '@src/routes/(app)/collection/[...collectionName]/ModalSelectWidget.svelte';
+	import ModalSelectWidget from '@src/routes/(app)/config/collection/[...collectionName]/ModalSelectWidget.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

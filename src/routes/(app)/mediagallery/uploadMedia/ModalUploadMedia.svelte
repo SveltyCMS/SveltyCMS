@@ -25,11 +25,11 @@
 	function generateThumbnail(file: File): string {
 		const fileExt = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
 		switch (true) {
-			case file.type.startsWith('image/'):
+			case file.type?.startsWith('image/'):
 				return URL.createObjectURL(file); // Show actual image as thumbnail
-			case file.type.startsWith('video/'):
+			case file.type?.startsWith('video/'):
 				return 'fa-solid:video';
-			case file.type.startsWith('audio/'):
+			case file.type?.startsWith('audio/'):
 				return 'fa-solid:play-circle';
 			case fileExt === '.pdf':
 				return 'vscode-icons:file-type-pdf2';
@@ -48,7 +48,7 @@
 		}
 	}
 
-	function formatMimeType(mimeType: string): string {
+	function formatMimeType(mimeType?: string): string {
 		if (typeof mimeType === 'undefined') {
 			return 'Unknown Type';
 		}
@@ -67,7 +67,7 @@
 
 	// Specific function to generate icons for types badge
 	function getTypeIcon(file: File): string {
-		if (file.type.startsWith('image/')) return 'carbon:image';
+		if (file.type?.startsWith('image/')) return 'carbon:image';
 		return generateThumbnail(file);
 	}
 
@@ -87,14 +87,14 @@
 		files.forEach(async (file, index) => {
 			formData.append('files', file);
 		});
-	
+
 		modalStore.close();
 
 		return ({ result }) => {
 			console.log(result);
-			console.log('Form returned.')
-		}
-	}
+			console.log('Form returned.');
+		};
+	};
 
 	// Base Classes
 	const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex flex-col justify-center items-center';
@@ -107,7 +107,7 @@
 		<header class={`${cHeader}`}>
 			{$modalStore[0]?.title ?? '(title missing)'}
 		</header>
-		<article class="hidden text-center sm:block">{$modalStore[0].body ?? '(body missing)'}</article>
+		<article class="hidden text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 
 		<form id="upload-form" class=" {cForm}" action="/mediagallery" method="post" use:enhance={onFormSubmit}>
@@ -128,9 +128,9 @@
 						<!-- Media preview -->
 						<div class="card-header flex h-32 flex-col items-center justify-center">
 							{#if generateThumbnail(file)}
-								{#if file.type.startsWith('image/')}
+								{#if file.type?.startsWith('image/')}
 									<img src={generateThumbnail(file)} alt={file.name} class="max-h-full max-w-full" />
-								{:else if file.type.startsWith('audio/')}
+								{:else if file.type?.startsWith('audio/')}
 									<audio controls class="max-h-full max-w-full">
 										<!-- audio player -->
 										<source src={URL.createObjectURL(file)} type={file.type} />

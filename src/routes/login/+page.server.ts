@@ -18,8 +18,12 @@ import type { User } from '@src/auth/types';
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
+// Import logger
+import logger from '@utils/logger';
+
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
+	// logger.debug('Authorization code:', code);
 	console.log('Authorization code:', code);
 
 	const result: Result = {
@@ -32,12 +36,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	};
 
 	if (!code) {
-		console.error('Authorization code is missing');
+		logger.error('Authorization code is missing');
 		throw redirect(302, '/login');
 	}
 
 	if (!auth || !googleAuth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw new Error('Internal Server Error');
 	}
 
@@ -49,10 +53,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			const { data: googleUser } = await oauth2.userinfo.get();
 			console.log('Google user information:', googleUser);
+			// logger.debug('Google user information:', googleUser);
 
 			const getUser = async (): Promise<[User | null, boolean]> => {
 				if (!auth) {
-					console.error('Authentication system is not initialized');
+					logger.error('Authentication system is not initialized');
 					throw error(500, 'Authentication system not initialized.');
 				}
 
@@ -104,16 +109,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			if (!needSignIn) {
 				if (!user) {
-					console.error('User not found after getting user information.');
+					logger.error('User not found after getting user information.');
 					throw new Error('User not found.');
 				}
 				if (user.blocked) {
-					console.warn('User is blocked.');
+					logger.warn('User is blocked.');
 					return { status: false, message: 'User is blocked' };
 				}
 
 				if (!auth) {
-					console.error('Authentication system is not initialized');
+					logger.error('Authentication system is not initialized');
 					throw error(500, 'Internal Server Error');
 				}
 
@@ -126,7 +131,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			result.data = { needSignIn };
 		} else {
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -163,8 +168,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				signUpForm
 			};
 		}
-	} catch (e) {
-		console.error('Error during login process:', e);
+	} catch (error) {
+		logger.error('Error during login process:', error as Error);
 		throw redirect(302, '/login');
 	}
 
@@ -177,11 +182,11 @@ export const actions: Actions = {
 	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		// console.log('action signUp');
+		logger.debug('action signUp');
 		const isFirst = (await auth.getUserCount()) == 0;
 		const signUpForm = await superValidate(event, zod(signUpFormSchema));
 
@@ -210,6 +215,7 @@ export const actions: Actions = {
 
 		if (resp.status) {
 			console.log('resp', resp);
+			// logger.debug('resp', resp);
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -239,23 +245,25 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		console.log('OAuth call');
+		logger.debug('OAuth call');
 		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
 		console.log('signUpOAuthForm', signUpOAuthForm);
+		// logger.debug('signUpOAuthForm', signUpOAuthForm);
 		const lang = signUpOAuthForm.data.lang;
 		console.log('lang', lang);
+		//logger.debug('lang', lang);
 
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
 		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
 		if (!redirectUrl) {
-			console.error('Error during OAuth callback: Redirect url not generated');
+			logger.error('Error during OAuth callback: Redirect url not generated');
 		} else {
 			redirect(307, redirectUrl);
 		}
 	},
 
-	//Function for handling the SignIn form submission and user authentication
+	// Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
 		const signInForm = await superValidate(event, zod(loginFormSchema));
 
@@ -282,7 +290,8 @@ export const actions: Actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
-		//console.log('pwforgottenForm', pwforgottenForm);
+		console.log('pwforgottenForm', pwforgottenForm);
+		//logger.debug('pwforgottenForm', pwforgottenForm);
 
 		// Validate
 		let resp: { status: boolean; message?: string } = { status: false };
@@ -308,7 +317,8 @@ export const actions: Actions = {
 			// Define token resetLink
 			const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 			const resetLink = `${baseUrl}/login?token=${token}&email=${email}`;
-			//console.log('resetLink', resetLink);
+			console.log('resetLink', resetLink);
+			// logger.debug('resetLink', resetLink);
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -334,27 +344,28 @@ export const actions: Actions = {
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
 			return { form: pwforgottenForm, token, email };
 		} else {
-			// console.log('resp.status is false');
+			logger.debug('resp.status is false');
 			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
 		}
 	},
 
 	// Function for handling the RESET
 	resetPW: async (event) => {
-		// console.log('resetPW');
+		logger.debug('resetPW');
 		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 
 		// Validate
 		const password = pwresetForm.data.password;
 		const token = pwresetForm.data.token;
 		const email = pwresetForm.data.email;
-		//const lang = pwresetForm.data.lang;
+		// const lang = pwresetForm.data.lang;
 
 		// Define expiresIn
 		const expiresIn = 1 * 60 * 60; // expiration in 1 hours
 
 		const resp = await resetPWCheck(password, token, email, expiresIn);
 		console.log('resetPW resp', resp);
+		//logger.debug('resetPW resp', resp);
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
@@ -372,11 +383,11 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	// console.log('signIn called', email, password, isToken, cookies);
+	// logger.debug('signIn called', email, password, isToken, cookies);
 
 	if (!isToken) {
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
@@ -395,7 +406,7 @@ async function signIn(
 		return { status: true };
 	} else {
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
@@ -424,9 +435,9 @@ async function signIn(
 }
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	// console.log('FirstUsersignUp called', username, email, password, cookies);
+	// logger.debug('FirstUsersignUp called', username, email, password, cookies);
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 	const user = await auth.createUser({
@@ -439,7 +450,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	});
 
 	if (!user) {
-		console.error('User creation failed');
+		logger.error('User creation failed');
 		return { status: false, message: 'User does not exist' };
 	}
 
@@ -454,9 +465,9 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
-	// console.log('finishRegistration called', username, email, token);
+	// logger.debug('finishRegistration called', username, email, token);
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 	const user = await auth.checkUser({ email });
@@ -497,7 +508,7 @@ interface ForgotPWCheckResult {
 async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 	try {
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
@@ -512,7 +523,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 
 		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
 	} catch (error) {
-		console.error(error);
+		logger.error('An error occurred:', error as Error);
 		return { success: false, message: 'An error occurred' };
 	}
 }
@@ -521,7 +532,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 async function resetPWCheck(password: string, token: string, email: string, expiresIn: number) {
 	try {
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
@@ -554,8 +565,8 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		} else {
 			return { status: false, message: validate.message };
 		}
-	} catch (e) {
-		console.error('Password reset failed:', e);
+	} catch (error) {
+		logger.error('Password reset failed:', error as Error);
 		return { status: false, message: 'An error occurred' };
 	}
 }

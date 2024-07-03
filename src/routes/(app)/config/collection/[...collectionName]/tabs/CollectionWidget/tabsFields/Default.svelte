@@ -32,6 +32,7 @@
 		</div>
 		<div class="my-1 text-xs text-error-500">* Required</div>
 	</div>
+
 	<div class="options-table">
 		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
 			{#if property === 'icon'}

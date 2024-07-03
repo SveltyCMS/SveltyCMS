@@ -22,11 +22,11 @@
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 	//check if collection Name exists set mode edit or create
-	if ($collections.find((x) => x.name === collectionName)) {
+	if (Object.values($collections).find((x) => x.name === collectionName)) {
 		// fetch the collection from the API
 		getCollections().then((data) => {
 			mode.set('edit');
-			const collection = data.find((x) => x.name === collectionName) as Schema;
+			const collection = data.find((x: any) => x.name === collectionName) as Schema;
 			collectionValue.set(collection); // current collection
 		});
 	} else {
