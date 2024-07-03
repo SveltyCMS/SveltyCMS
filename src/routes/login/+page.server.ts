@@ -23,8 +23,7 @@ import logger from '@utils/logger';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	const code = url.searchParams.get('code');
-	// logger.debug('Authorization code:', code);
-	console.log('Authorization code:', code);
+	logger.debug(`Authorization code: ${code}`);
 
 	const result: Result = {
 		errors: [],
@@ -52,8 +51,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
 			const { data: googleUser } = await oauth2.userinfo.get();
-			console.log('Google user information:', googleUser);
-			// logger.debug('Google user information:', googleUser);
+			logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 			const getUser = async (): Promise<[User | null, boolean]> => {
 				if (!auth) {
@@ -214,8 +212,8 @@ export const actions: Actions = {
 		}
 
 		if (resp.status) {
-			console.log('resp', resp);
-			// logger.debug('resp', resp);
+			logger.debug(`resp: ${JSON.stringify(resp)}`);
+
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -246,12 +244,12 @@ export const actions: Actions = {
 	// OAuth Sign-Up
 	OAuth: async (event) => {
 		logger.debug('OAuth call');
+
 		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		console.log('signUpOAuthForm', signUpOAuthForm);
-		// logger.debug('signUpOAuthForm', signUpOAuthForm);
+		logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
+
 		const lang = signUpOAuthForm.data.lang;
-		console.log('lang', lang);
-		//logger.debug('lang', lang);
+		logger.debug(`lang: ${lang}`);
 
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
@@ -290,8 +288,7 @@ export const actions: Actions = {
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
 		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
-		console.log('pwforgottenForm', pwforgottenForm);
-		//logger.debug('pwforgottenForm', pwforgottenForm);
+		logger.debug(`pwforgottenForm: ${JSON.stringify(pwforgottenForm)}`);
 
 		// Validate
 		let resp: { status: boolean; message?: string } = { status: false };
@@ -317,8 +314,8 @@ export const actions: Actions = {
 			// Define token resetLink
 			const baseUrl = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 			const resetLink = `${baseUrl}/login?token=${token}&email=${email}`;
-			console.log('resetLink', resetLink);
-			// logger.debug('resetLink', resetLink);
+			logger.debug(`resetLink: ${resetLink}`);
+
 			// Send welcome email
 			await event.fetch('/api/sendMail', {
 				method: 'POST',
@@ -364,8 +361,8 @@ export const actions: Actions = {
 		const expiresIn = 1 * 60 * 60; // expiration in 1 hours
 
 		const resp = await resetPWCheck(password, token, email, expiresIn);
-		console.log('resetPW resp', resp);
-		//logger.debug('resetPW resp', resp);
+		logger.debug(`resetPW resp: ${JSON.stringify(resp)}`);
+
 		if (resp) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
@@ -383,7 +380,7 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	// logger.debug('signIn called', email, password, isToken, cookies);
+	logger.debug(`signIn called with email: ${email}, password: ${password}, isToken: ${isToken}, cookies: ${JSON.stringify(cookies)}`);
 
 	if (!isToken) {
 		if (!auth) {
@@ -435,7 +432,7 @@ async function signIn(
 }
 
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	// logger.debug('FirstUsersignUp called', username, email, password, cookies);
+	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}, cookies: ${JSON.stringify(cookies)}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -465,7 +462,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
-	// logger.debug('finishRegistration called', username, email, token);
+	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}, cookies: ${JSON.stringify(cookies)}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');

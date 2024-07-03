@@ -22,8 +22,8 @@ export async function load({ cookies }) {
 	try {
 		await initializationPromise;
 		logger.debug('Initialization promise resolved.');
-	} catch (e) {
-		logger.error('Initialization failed:', e as Error);
+	} catch (error: any) {
+		logger.error(`Initialization failed: ${(error as Error).message}`);
 		throw error(500, 'Failed to initialize the authentication system.');
 	}
 
@@ -33,31 +33,31 @@ export async function load({ cookies }) {
 	}
 
 	// Secure this page with session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	logger.debug('Session ID:', session_id);
+	let session_id = cookies.get(SESSION_COOKIE_NAME);
+	logger.debug(`Session ID: ${session_id}`);
 
-	// If no session ID is found, create a new session
-	// if (!session_id) {
-	// 	logger.debug('Session ID is missing from cookies, creating a new session.');
-	// 	try {
-	// 		const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
-	// 		const sessionCookie = auth.createSessionCookie(newSession);
-	// 		cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
-	// 		session_id = sessionCookie.value;
-	// 		logger.debug('New session created:', session_id);
-	// 	} catch (e) {
-	// 		logger.error('Failed to create a new session:', e as Error);
-	// 		throw error(500, 'Failed to create a new session.');
-	// 	}
-	// }
+	// If no session ID is found, create a new session for first-time setup
+	if (!session_id) {
+		logger.debug('Session ID is missing from cookies, creating a new session.');
+		try {
+			const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
+			const sessionCookie = auth.createSessionCookie(newSession);
+			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
+			session_id = sessionCookie.value;
+			logger.debug(`New session created: ${session_id}`);
+		} catch (error: any) {
+			logger.error(`Failed to create a new session: ${(error as Error).message}`);
+			throw error(500, 'Failed to create a new session.');
+		}
+	}
 
 	// Validate the user's session
 	let user: any;
 	try {
 		user = await auth.validateSession({ session_id: session_id! });
-		logger.debug('User:', user);
-	} catch (e) {
-		logger.error('Session validation failed:', e as Error);
+		logger.debug(`User: ${JSON.stringify(user)}`);
+	} catch (error) {
+		logger.error(`Session validation failed: ${(error as Error).message}`);
 		throw redirect(302, '/login');
 	}
 
@@ -70,14 +70,14 @@ export async function load({ cookies }) {
 	let collections: any;
 	try {
 		collections = await getCollections();
-		logger.debug('Collections:', collections);
-	} catch (e) {
-		logger.error('Failed to get collections:', e as Error);
+		logger.debug(`Collections: ${JSON.stringify(collections)}`);
+	} catch (error: any) {
+		logger.error(`Failed to get collections: ${(error as Error).message}`);
 		throw error(500, 'Internal Server Error');
 	}
 
 	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-	logger.debug('Filtered collections:', filteredCollections);
+	logger.debug(`Filtered collections: ${JSON.stringify(filteredCollections)}`);
 
 	if (filteredCollections.length === 0) {
 		logger.error('No collections found for user.');
@@ -126,8 +126,8 @@ export const actions = {
 
 			// Set the session cookie
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
-		} catch (e) {
-			logger.error('Session creation failed:', e as Error);
+		} catch (error: any) {
+			logger.error(`Session creation failed: ${(error as Error).message}`);
 			throw error(500, 'Failed to create a session.');
 		}
 

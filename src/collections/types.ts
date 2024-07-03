@@ -1,16 +1,16 @@
 import type widgets from '@components/widgets';
 
 // Auth
-import type { Permissions } from '@src/auth/types';
+import type { Permission } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
-	name?: string;
+	name: string; // Make `name` non-optional
 	slug?: string;
 	icon?: string;
 	description?: string;
 	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
-	permissions?: Permissions;
+	permissions?: Permission;
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 	strict?: boolean;
 	revision?: boolean;
