@@ -89,7 +89,11 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			const user = new UserModel(userData);
 			await user.save();
 			logger.info(`User created: ${user.email}`);
-			return user.toObject() as User;
+			// Return the user with the correct user_id field
+			return {
+				...user.toObject(),
+				user_id: user._id.toString() // Ensure user_id is set correctly
+			} as User;
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to create user: ${error.message}`);
@@ -129,6 +133,10 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			throw error;
 		}
 	}
+
+	// getUserSchema() {
+	// 	return UserSchema.obj; // Return the schema definition object
+	// }
 
 	// Get a user by ID
 	async getUserById(user_id: string): Promise<User | null> {
@@ -206,11 +214,7 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			logger.info(`Session created for user: ${data.user_id}, expires at: ${expiresAt}`);
 			return session.toObject() as Session;
 		} catch (error) {
-			if (error instanceof Error) {
-				logger.error(`Failed to create session: ${error.message}`);
-			} else {
-				logger.error('Failed to create session: Unknown error');
-			}
+			logger.error('Error in blockUser action:', error as Error);
 			throw error;
 		}
 	}

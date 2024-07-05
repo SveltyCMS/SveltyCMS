@@ -22,8 +22,8 @@ export async function load({ cookies }) {
 	try {
 		await initializationPromise;
 		logger.debug('Initialization promise resolved.');
-	} catch (error: any) {
-		logger.error(`Initialization failed: ${(error as Error).message}`);
+	} catch (err: any) {
+		logger.error(`Initialization failed: ${err.message}`);
 		throw error(500, 'Failed to initialize the authentication system.');
 	}
 
@@ -45,8 +45,8 @@ export async function load({ cookies }) {
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
 			session_id = sessionCookie.value;
 			logger.debug(`New session created: ${session_id}`);
-		} catch (error: any) {
-			logger.error(`Failed to create a new session: ${(error as Error).message}`);
+		} catch (err: any) {
+			logger.error(`Failed to create a new session: ${err.message}`);
 			throw error(500, 'Failed to create a new session.');
 		}
 	}
@@ -56,8 +56,8 @@ export async function load({ cookies }) {
 	try {
 		user = await auth.validateSession({ session_id: session_id! });
 		logger.debug(`User: ${JSON.stringify(user)}`);
-	} catch (error) {
-		logger.error(`Session validation failed: ${(error as Error).message}`);
+	} catch (err: any) {
+		logger.error(`Session validation failed: ${err.message}`);
 		throw redirect(302, '/login');
 	}
 
@@ -71,8 +71,8 @@ export async function load({ cookies }) {
 	try {
 		collections = await getCollections();
 		logger.debug(`Collections: ${JSON.stringify(collections)}`);
-	} catch (error: any) {
-		logger.error(`Failed to get collections: ${(error as Error).message}`);
+	} catch (err: any) {
+		logger.error(`Failed to get collections: ${err.message}`);
 		throw error(500, 'Internal Server Error');
 	}
 
@@ -89,6 +89,7 @@ export async function load({ cookies }) {
 	// Redirect to the first collection in the collections array
 	const firstCollection = filteredCollections[0];
 	if (firstCollection && firstCollection.name) {
+		logger.debug(`Redirecting to first collection: ${firstCollection.name}`);
 		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
 	} else {
 		logger.error('No valid collections to redirect to.');
@@ -126,8 +127,9 @@ export const actions = {
 
 			// Set the session cookie
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
-		} catch (error: any) {
-			logger.error(`Session creation failed: ${(error as Error).message}`);
+			logger.debug(`Session created and cookie set: ${sessionCookie.value}`);
+		} catch (err: any) {
+			logger.error(`Session creation failed: ${err.message}`);
 			throw error(500, 'Failed to create a session.');
 		}
 

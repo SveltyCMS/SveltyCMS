@@ -57,7 +57,7 @@
 	"devDependencies": {
 		"@clack/prompts": "^0.7.0",
 		"@iconify/svelte": "^4.0.2",
-		"@inlang/paraglide-js": "^1.11.0",
+		"@inlang/paraglide-js": "^1.11.1",
 		"@inlang/paraglide-js-adapter-vite": "^1.2.40",
 		"@playwright/test": "^1.45.1",
 		"@semantic-release/git": "^10.0.1",
@@ -130,7 +130,7 @@
 		"graphql-yoga": "^5.6.0",
 		"htmlparser2": "^9.1.0",
 		"iconify-icon": "^2.1.0",
-		"mapbox-gl": "^3.4.0",
+		"mapbox-gl": "^3.5.0",
 		"mariadb": "^3.3.1",
 		"mime-types": "^2.1.35",
 		"moment": "^2.30.1",

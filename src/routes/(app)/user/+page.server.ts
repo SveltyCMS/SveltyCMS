@@ -17,13 +17,18 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 
+// Logger
+import logger from '@src/utils/logger';
+
 // Check if it's the first user
 async function getIsFirstUser() {
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
-	return (await auth.getUserCount()) === 0;
+	const userCount = await auth.getUserCount();
+	logger.debug(`Current user count: ${userCount}`);
+	return userCount === 0;
 }
 
 // Load function that handles authentication and user validation
@@ -33,7 +38,7 @@ export async function load(event) {
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
 
 		if (!auth) {
-			console.error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
@@ -44,12 +49,13 @@ export async function load(event) {
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
 		if (!user) {
+			logger.warn('Invalid session, redirecting to login');
 			throw redirect(302, `/login`);
 		}
 
 		return { user, addUserForm, changePasswordForm, isFirstUser };
-	} catch (error) {
-		console.error(error);
+	} catch (err) {
+		logger.error('Error during load function:', err as Error);
 		throw redirect(302, `/login`);
 	}
 }
@@ -123,8 +129,8 @@ async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<st
 		}
 
 		return fileUrl;
-	} catch (error) {
-		console.error('Error in saveAvatarImage:', error);
+	} catch (err) {
+		logger.error('Error in saveAvatarImage:', err as Error);
 		throw new Error('Failed to save avatar image');
 	}
 }
@@ -137,7 +143,7 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -145,6 +151,7 @@ export const actions: Actions = {
 			const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to add a new user');
 				return fail(400, { message: "You don't have permission to add user" });
 			}
 
@@ -152,15 +159,20 @@ export const actions: Actions = {
 			const expirationTime = { '2 hrs': 7200, '12 hrs': 43200, '2 days': 172800, '1 week': 604800 }[expiresIn];
 
 			if (!expirationTime) {
+				logger.warn('Invalid expiration time provided');
 				return { form: addUserForm, message: 'Invalid value for token validity' };
 			}
 
 			if (await auth.checkUser({ email })) {
+				logger.warn(`User with email ${email} already exists`);
 				return fail(400, { message: 'User already exists' });
 			}
 
 			const newUser = await auth.createUser({ email, role: role as Role, lastAuthMethod: 'password', isRegistered: false });
-			if (!newUser) return fail(400, { message: 'unknown error' });
+			if (!newUser) {
+				logger.error('Unknown error occurred while creating a new user');
+				return fail(400, { message: 'Unknown error' });
+			}
 
 			const token = await auth.createToken(newUser.id, expirationTime * 1000);
 			await fetch('/api/sendMail', {
@@ -175,9 +187,10 @@ export const actions: Actions = {
 				})
 			});
 
+			logger.info(`New user created: ${email}`);
 			return { form: addUserForm };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in addUser action:', err as Error);
 			return fail(403, { message: "You don't have permission to add user" });
 		}
 	},
@@ -188,7 +201,7 @@ export const actions: Actions = {
 			const { request, cookies } = event;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -199,14 +212,16 @@ export const actions: Actions = {
 			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
+				logger.warn('User does not exist or session expired');
 				return { form: changePasswordForm, message: 'User does not exist or session expired' };
 			}
 
 			await auth.updateUserAttributes(user.id, { password, lastAuthMethod: 'password' });
 
+			logger.info(`Password changed for user: ${user.email}`);
 			return { form: changePasswordForm };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in changePassword action:', err as Error);
 			return fail(403, { message: "You don't have permission to change password" });
 		}
 	},
@@ -218,13 +233,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to delete a user');
 				return fail(403);
 			}
 
@@ -233,9 +249,10 @@ export const actions: Actions = {
 
 			for (const id of ids) {
 				await auth.deleteUser(id as string);
+				logger.info(`User deleted: ${id}`);
 			}
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in deleteUser action:', err as Error);
 			return fail(403, { message: "You don't have permission to delete user" });
 		}
 	},
@@ -247,13 +264,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to edit a user');
 				return fail(403);
 			}
 
@@ -266,10 +284,11 @@ export const actions: Actions = {
 
 				if (targetUser) {
 					await auth.updateUserAttributes(targetUser, { [info.field]: info.value });
+					logger.info(`User ${info.id} updated: ${info.field} to ${info.value}`);
 				}
 			}
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in editUser action:', err);
 			return fail(403, { message: "You don't have permission to edit user" });
 		}
 	},
@@ -281,13 +300,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to block a user');
 				return fail(403);
 			}
 
@@ -297,20 +317,23 @@ export const actions: Actions = {
 			const userToBlock = await auth.checkUser({ id: userIdToBlock as string });
 
 			if (!userToBlock) {
+				logger.warn(`User to block not found: ${userIdToBlock}`);
 				return fail(400, { message: 'User not found' });
 			}
 
 			const isFirstUser = await getIsFirstUser();
 
 			if (isFirstUser) {
+				logger.warn('Attempted to block the only admin user');
 				return fail(400, { message: 'Cannot block the only admin user' });
 			}
 
 			await auth.updateUserAttributes(userToBlock, { blocked: true });
 
+			logger.info(`User blocked: ${userIdToBlock}`);
 			return { success: true };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in blockUser action:', err);
 			return fail(403, { message: "You don't have permission to block user" });
 		}
 	},
@@ -322,13 +345,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to unblock a user');
 				return fail(403);
 			}
 
@@ -337,14 +361,16 @@ export const actions: Actions = {
 			const userToUnblock = await auth.checkUser({ id: userIdToUnblock as string });
 
 			if (!userToUnblock) {
+				logger.warn(`User to unblock not found: ${userIdToUnblock}`);
 				return fail(400, { message: 'User not found' });
 			}
 
 			await auth.updateUserAttributes(userToUnblock, { blocked: false });
 
+			logger.info(`User unblocked: ${userIdToUnblock}`);
 			return { success: true };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in unblockUser action:', err);
 			return fail(403, { message: "You don't have permission to unblock user" });
 		}
 	},
@@ -356,13 +382,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
+				logger.warn('Unauthorized user attempted to save avatar');
 				return fail(403, { message: "You don't have permission to save avatar" });
 			}
 
@@ -370,15 +397,17 @@ export const actions: Actions = {
 			const avatarFile = data.get('avatar') as File;
 
 			if (!avatarFile) {
+				logger.warn('No avatar file provided');
 				return fail(400, { message: 'No avatar file provided' });
 			}
 
 			const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
 			await auth.updateUserAttributes(user.id, { avatar: avatarUrl });
 
+			logger.info(`Avatar saved for user: ${user.id}`);
 			return { success: true, url: avatarUrl };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in saveAvatar action:', err);
 			return fail(500, { message: 'Failed to save avatar' });
 		}
 	},
@@ -390,36 +419,39 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user) {
+				logger.warn('Unauthorized user attempted to delete avatar');
 				return fail(403, { message: "You don't have permission to delete avatar" });
 			}
 
 			const avatarPath = user.avatar;
 
 			if (!avatarPath) {
+				logger.info('No avatar to delete');
 				return { success: true };
 			}
 
-			const avatarFilePath = Path.join(publicEnv.MEDIA_FOLDER, avatarPath);
+			const avatarFilePath = path.join(publicEnv.MEDIA_FOLDER, avatarPath);
 
 			try {
 				await fs.promises.unlink(avatarFilePath);
 				await mongoose.models['media_images'].deleteOne({ 'thumbnail.url': avatarPath });
 				await auth.updateUserAttributes(user.id, { avatar: '' });
 
+				logger.info(`Avatar deleted for user: ${user.id}`);
 				return { success: true };
-			} catch (error) {
-				console.error('Error deleting avatar:', error);
+			} catch (err) {
+				logger.error('Error deleting avatar:', err);
 				return fail(500, { message: 'Failed to delete avatar' });
 			}
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in deleteAvatar action:', err);
 			return fail(500, { message: 'Failed to delete avatar' });
 		}
 	},
@@ -431,13 +463,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to edit token');
 				return fail(403, { message: "You don't have permission to edit tokens" });
 			}
 
@@ -448,6 +481,7 @@ export const actions: Actions = {
 			const token = await mongoose.models['tokens'].findById(tokenId);
 
 			if (!token) {
+				logger.warn(`Token not found: ${tokenId}`);
 				return fail(404, { message: 'Token not found' });
 			}
 
@@ -461,15 +495,17 @@ export const actions: Actions = {
 			const expirationTime = expirationTimes[expiresIn as string];
 
 			if (!expirationTime) {
+				logger.warn('Invalid expiration time provided for token');
 				return fail(400, { message: 'Invalid value for token validity' });
 			}
 
 			const expiresAt = new Date(Date.now() + expirationTime * 1000);
 			await mongoose.models['tokens'].updateOne({ Id: tokenId }, { expiresAt });
 
+			logger.info(`Token ${tokenId} updated with new expiration time`);
 			return { success: true, message: 'Token updated successfully' };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in editToken action:', err);
 			return fail(500, { message: 'Failed to edit token' });
 		}
 	},
@@ -481,13 +517,14 @@ export const actions: Actions = {
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
 			if (!auth) {
-				console.error('Authentication system is not initialized');
+				logger.error('Authentication system is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
 			const user = await auth.validateSession({ session_id });
 
 			if (!user || user.role !== 'admin') {
+				logger.warn('Unauthorized user attempted to delete token');
 				return fail(403, { message: "You don't have permission to delete tokens" });
 			}
 
@@ -497,14 +534,16 @@ export const actions: Actions = {
 			const token = await mongoose.models['tokens'].findById(tokenId);
 
 			if (!token) {
+				logger.warn(`Token not found: ${tokenId}`);
 				return fail(404, { message: 'Token not found' });
 			}
 
 			await mongoose.models['tokens'].deleteOne({ Id: tokenId });
 
+			logger.info(`Token ${tokenId} deleted successfully`);
 			return { success: true, message: 'Token deleted successfully' };
-		} catch (error) {
-			console.error(error);
+		} catch (err) {
+			logger.error('Error in deleteToken action:', err);
 			return fail(500, { message: 'Failed to delete token' });
 		}
 	}

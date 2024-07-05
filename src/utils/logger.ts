@@ -3,8 +3,8 @@ import path from 'path';
 import { publicEnv } from '@root/config/public';
 
 // Use the provided log levels from the public environment configuration
-const LOG_LEVELS = new Set(publicEnv.LOG_LEVELS as ('debug' | 'info' | 'warn' | 'error' | 'none')[]);
-type LogLevel = 'debug' | 'info' | 'warn' | 'error' | 'none';
+const LOG_LEVELS = new Set(publicEnv.LOG_LEVELS);
+type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
 
 // Define the directory where logs will be stored
 const logDirectory = path.resolve('logs');
@@ -15,23 +15,24 @@ if (!fs.existsSync(logDirectory)) {
 }
 
 // Define log file paths for each log level
-const logFiles = ['debug', 'info', 'warn', 'error'].reduce(
-	(files, level) => {
-		files[level] = path.join(logDirectory, `${level}.log`);
-		return files;
-	},
-	{} as Record<LogLevel, string>
-);
+const logFiles: Record<LogLevel, string> = {
+	debug: path.join(logDirectory, 'debug.log'),
+	info: path.join(logDirectory, 'info.log'),
+	warn: path.join(logDirectory, 'warn.log'),
+	error: path.join(logDirectory, 'error.log'),
+	none: '' // No file for 'none' level
+};
 
 // Define log rotation settings
 const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5 MB
 
 // Color codes for different log levels
-const COLORS = {
+const COLORS: Record<LogLevel, string> = {
 	debug: '\x1b[34m', // Blue
 	info: '\x1b[32m', // Green
 	warn: '\x1b[33m', // Yellow
 	error: '\x1b[31m', // Red
+	none: '\x1b[0m', // Reset
 	reset: '\x1b[0m' // Reset
 };
 
@@ -43,27 +44,43 @@ function formatMessage(level: LogLevel, message: string): string {
 }
 
 // Helper function to write log messages to the appropriate file with rotation
-function logToFile(level: LogLevel, message: string) {
+async function logToFile(level: LogLevel, message: string) {
+	if (level === 'none') return;
+
 	const formattedMessage = formatMessage(level, message);
 	const filePath = logFiles[level];
 
-	fs.stat(filePath, (err, stats) => {
-		if (!err && stats.size > MAX_LOG_SIZE) {
-			// Rotate log file
+	try {
+		const stats = await fs.promises.stat(filePath);
+		if (stats.size > MAX_LOG_SIZE) {
 			const rotatedFilePath = `${filePath}.${new Date().toISOString().replace(/[:.]/g, '-')}`;
-			fs.rename(filePath, rotatedFilePath, (err) => {
-				if (err) console.error(`Failed to rotate log file: ${err.message}`);
-				fs.appendFile(filePath, formattedMessage + '\n', 'utf8', (err) => {
-					if (err) console.error(`Failed to write log message: ${err.message}`);
-				});
-			});
-		} else {
-			fs.appendFile(filePath, formattedMessage + '\n', 'utf8', (err) => {
-				if (err) console.error(`Failed to write log message: ${err.message}`);
-			});
+			await fs.promises.rename(filePath, rotatedFilePath);
 		}
-	});
+	} catch (err) {
+		if (err.code !== 'ENOENT') {
+			console.error(`Failed to check log file: ${err.message}`);
+			return;
+		}
+	}
+
+	try {
+		await fs.promises.appendFile(filePath, formattedMessage + '\n', 'utf8');
+	} catch (err) {
+		console.error(`Failed to write log message: ${err.message}`);
+	}
 }
+
+// Asynchronous log flushing
+let logBuffer: { level: LogLevel; message: string }[] = [];
+const FLUSH_INTERVAL = 5000; // 5 seconds
+
+function flushLogs() {
+	const logsToFlush = [...logBuffer];
+	logBuffer = [];
+	logsToFlush.forEach((log) => logToFile(log.level, log.message));
+}
+
+setInterval(flushLogs, FLUSH_INTERVAL);
 
 // Logger class with different log levels
 class Logger {
@@ -71,21 +88,21 @@ class Logger {
 		if (!LOG_LEVELS.has('debug')) return;
 		const formattedMessage = formatMessage('debug', message);
 		console.debug(formattedMessage);
-		logToFile('debug', message);
+		logBuffer.push({ level: 'debug', message });
 	}
 
 	info(message: string) {
 		if (!LOG_LEVELS.has('info')) return;
 		const formattedMessage = formatMessage('info', message);
 		console.log(formattedMessage);
-		logToFile('info', message);
+		logBuffer.push({ level: 'info', message });
 	}
 
 	warn(message: string) {
 		if (!LOG_LEVELS.has('warn')) return;
 		const formattedMessage = formatMessage('warn', message);
 		console.warn(formattedMessage);
-		logToFile('warn', message);
+		logBuffer.push({ level: 'warn', message });
 	}
 
 	error(message: string, error?: Error) {
@@ -93,27 +110,55 @@ class Logger {
 		const errorMessage = error ? `${message} - ${error.message}\n${error.stack}` : message;
 		const formattedMessage = formatMessage('error', errorMessage);
 		console.error(formattedMessage);
-		logToFile('error', errorMessage);
+		logBuffer.push({ level: 'error', message: errorMessage });
 	}
 
 	// Method to filter logs by level
-	filterLogs(level: LogLevel): string[] {
-		if (fs.existsSync(logFiles[level])) {
-			return fs
-				.readFileSync(logFiles[level], 'utf8')
-				.split('\n')
-				.filter((line) => line);
+	async filterLogs(level: LogLevel): Promise<string[]> {
+		if (level === 'none' || !fs.existsSync(logFiles[level])) return [];
+		try {
+			const data = await fs.promises.readFile(logFiles[level], 'utf8');
+			return data.split('\n').filter((line) => line);
+		} catch (err) {
+			console.error(`Failed to read log file: ${err.message}`);
+			return [];
 		}
-		return [];
+	}
+
+	// Method to filter logs by time range
+	async filterLogsByTimeRange(level: LogLevel, startTime: Date, endTime: Date): Promise<string[]> {
+		const logs = await this.filterLogs(level);
+		return logs.filter((log) => {
+			const timestamp = log.split(' ')[0];
+			const logDate = new Date(timestamp);
+			return logDate >= startTime && logDate <= endTime;
+		});
 	}
 
 	// Method to delete logs by level
-	deleteLogs(level: LogLevel): void {
-		if (fs.existsSync(logFiles[level])) {
-			fs.unlinkSync(logFiles[level]);
-			console.log(`Deleted ${level} logs.`);
-		} else {
+	async deleteLogs(level: LogLevel): Promise<void> {
+		if (level === 'none' || !fs.existsSync(logFiles[level])) {
 			console.log(`No ${level} logs to delete.`);
+			return;
+		}
+		try {
+			await fs.promises.unlink(logFiles[level]);
+			console.log(`Deleted ${level} logs.`);
+		} catch (err) {
+			console.error(`Failed to delete log file: ${err.message}`);
+		}
+	}
+
+	// Method to send logs to a remote server
+	async sendLogsToRemoteServer(logServerUrl: string, logData: { level: LogLevel; message: string }[]): Promise<void> {
+		try {
+			await fetch(logServerUrl, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(logData)
+			});
+		} catch (err) {
+			console.error(`Failed to send logs to remote server: ${err.message}`);
 		}
 	}
 }

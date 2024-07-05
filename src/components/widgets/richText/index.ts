@@ -101,8 +101,9 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyR
 			data.update(_data);
 			break;
 		case 'DELETE':
-			console.log(id);
-			await mongoose.models['media_images'].updateMany({ used_by: id }, { $pull: { used_by: id } });
+			//console.log(id);
+			await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } });
+			// await mongoose.models['media_images'].updateMany({ used_by: id }, { $pull: { used_by: id } });
 			break;
 	}
 };

@@ -27,15 +27,13 @@ let initializationPromise: Promise<void> | null = null;
 async function loadAdapters() {
 	try {
 		if (privateEnv.DB_TYPE === 'mongodb') {
+			logger.debug('Detected mongodb database as the database type.');
+
 			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/mongoDBAuthAdapter')]);
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
-			logger.info('Detected SQL database as the database type.');
-
-			// const [{ MariaDBAdapter }, { MariaDBAuthAdapter }] = await Promise.all([import('./mariaDBAdapter'), import('@src/auth/mariaDBAuthAdapter')]);
-			// dbAdapter = new MariaDBAdapter();
-			// authAdapter = new MariaDBAuthAdapter()
+			logger.debug('Detected SQL database as the database type.');
 
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
 			// 	import('./drizzleDBAdapter'),
@@ -90,18 +88,32 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 // Initialize adapters
 async function initializeAdapters() {
 	try {
+		logger.debug('Starting to load adapters...');
+		const loadAdaptersStart = Date.now();
 		await loadAdapters();
+		logger.debug(`Adapters loaded in ${Date.now() - loadAdaptersStart}ms`);
+
+		logger.debug('Starting to connect to the database...');
+		const connectToDatabaseStart = Date.now();
 		await connectToDatabase();
+		logger.debug(`Database connected in ${Date.now() - connectToDatabaseStart}ms`);
 
 		// Set up authentication collections if they don't already exist
 		if (dbAdapter) {
+			logger.debug('Setting up authentication models...');
+			const setupAuthModelsStart = Date.now();
 			dbAdapter.setupAuthModels();
+			logger.debug(`Authentication models set up in ${Date.now() - setupAuthModelsStart}ms`);
+
+			logger.debug('Setting up media models...');
+			const setupMediaModelsStart = Date.now();
 			dbAdapter.setupMediaModels();
+			logger.debug(`Media models set up in ${Date.now() - setupMediaModelsStart}ms`);
 		}
 
 		if (authAdapter) {
 			auth = new Auth(authAdapter);
-			// logger.info('Authentication adapter initialized.');
+			logger.debug('Authentication adapter initialized.');
 		} else {
 			const errorMsg = 'Authentication adapter not initialized';
 			logger.error(errorMsg);

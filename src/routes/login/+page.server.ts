@@ -1,3 +1,6 @@
+import { publicEnv } from '@root/config/public';
+import { privateEnv } from '@root/config/private';
+
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -8,8 +11,6 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 import { zod } from 'sveltekit-superforms/adapters';
 
 // Auth
-import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
 import { auth, googleAuth } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
@@ -34,31 +35,26 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	};
 
-	if (!code) {
-		logger.error('Authorization code is missing');
-		throw redirect(302, '/login');
-	}
+	if (privateEnv.USE_GOOGLE_OAUTH) {
+		// Google OAuth flow
+		if (!code) {
+			logger.error('Authorization code is missing');
+			throw redirect(302, '/login');
+		}
 
-	if (!auth || !googleAuth) {
-		logger.error('Authentication system is not initialized');
-		throw new Error('Internal Server Error');
-	}
+		if (!auth || !googleAuth) {
+			logger.error('Authentication system is not initialized');
+			throw new Error('Internal Server Error');
+		}
 
-	try {
-		if (code && privateEnv.USE_GOOGLE_OAUTH) {
+		try {
 			const { tokens } = await googleAuth.getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
-
 			const { data: googleUser } = await oauth2.userinfo.get();
 			logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
 			const getUser = async (): Promise<[User | null, boolean]> => {
-				if (!auth) {
-					logger.error('Authentication system is not initialized');
-					throw error(500, 'Authentication system not initialized.');
-				}
-
 				const email = googleUser.email;
 				if (!email) {
 					throw new Error('Google did not return an email address.');
@@ -68,7 +64,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				if (existingUser) return [existingUser, false];
 
 				const username = googleUser.name ?? '';
-
 				const isFirst = (await auth.getUserCount()) === 0;
 
 				if (isFirst) {
@@ -81,19 +76,14 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 					await fetch('/api/sendMail', {
 						method: 'POST',
-						headers: {
-							'Content-Type': 'application/json'
-						},
+						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({
 							email,
 							subject: `New registration ${googleUser.name}`,
 							message: `New registration ${googleUser.name}`,
 							templateName: 'welcomeUser',
 							lang: get(systemLanguage),
-							props: {
-								username: googleUser.name ?? '',
-								email
-							}
+							props: { username: googleUser.name || '', email }
 						})
 					});
 
@@ -115,64 +105,50 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 					return { status: false, message: 'User is blocked' };
 				}
 
-				if (!auth) {
-					logger.error('Authentication system is not initialized');
-					throw error(500, 'Internal Server Error');
-				}
-
-				// Create User Session
 				const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 				await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
 			}
 			result.data = { needSignIn };
-		} else {
-			if (!auth) {
-				logger.error('Authentication system is not initialized');
-				throw error(500, 'Internal Server Error');
-			}
-
-			// Check if first user exist
-			const firstUserExists = (await auth.getUserCount()) != 0;
-
-			// Different schemas, so no id required.
-
-			// SignIn
-			const loginForm = await superValidate(zod(loginFormSchema));
-			const forgotForm = await superValidate(zod(forgotFormSchema));
-			const resetForm = await superValidate(zod(resetFormSchema));
-
-			// SignUp FirstUser
-			const withoutToken = await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })));
-			// SignUp Other Users
-			const withToken = await superValidate(zod(signUpFormSchema));
-
-			// Check if first user exist
-			const signUpForm: typeof withToken = (await auth.getUserCount()) != 0 ? (withoutToken as any) : withToken;
-
-			// Always return Data & all Forms in load and form actions.
-			return {
-				//resetData, // Check if the URL has the token and email parameters
-
-				firstUserExists, // Check if first user exist
-
-				// SignIn Page
-				loginForm,
-				forgotForm,
-				resetForm,
-
-				// SignUp Page
-				signUpForm
-			};
+		} catch (err) {
+			logger.error('Error during login process:', err as Error);
+			throw redirect(302, '/login');
 		}
-	} catch (error) {
-		logger.error('Error during login process:', error as Error);
-		throw redirect(302, '/login');
-	}
 
-	if (!result.data.needSignIn) throw redirect(303, '/');
-	return result;
+		if (!result.data.needSignIn) throw redirect(303, '/');
+		return result;
+	} else {
+		// Default email/password authentication flow
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw new Error('Internal Server Error');
+		}
+
+		// Check if first user exist
+		const firstUserExists = (await auth.getUserCount()) !== 0;
+		// Different schemas, so no id required.
+
+		// SignIn
+		const loginForm = await superValidate(zod(loginFormSchema));
+		const forgotForm = await superValidate(zod(forgotFormSchema));
+		const resetForm = await superValidate(zod(resetFormSchema));
+		const signUpForm = firstUserExists
+			? await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })))
+			: await superValidate(zod(signUpFormSchema));
+
+		// Always return Data & all Forms in load and form actions.
+		return {
+			// Check if first user exist
+			firstUserExists,
+			// SignIn Page
+			loginForm,
+			forgotForm,
+			resetForm,
+			// SignUp Page
+			signUpForm
+		};
+	}
 };
 
 // Actions for SignIn and SignUp a user with form data
@@ -237,6 +213,7 @@ export const actions: Actions = {
 			message(signUpForm, 'SignUp User form submitted');
 			redirect(303, '/');
 		} else {
+			logger.warn(`Sign-up failed: ${resp.message}`);
 			return { form: signUpForm, message: resp.message || 'Unknown error' };
 		}
 	},
@@ -255,9 +232,11 @@ export const actions: Actions = {
 
 		const redirectUrl = googleAuth.generateAuthUrl({ access_type: 'offline', scope: scopes });
 		if (!redirectUrl) {
-			logger.error('Error during OAuth callback: Redirect url not generated');
+			logger.error('Error during OAuth callback: Redirect URL not generated');
+			throw error(500, 'Failed to generate redirect URL.');
 		} else {
-			redirect(307, redirectUrl);
+			logger.debug(`Redirect URL: ${redirectUrl}`);
+			throw redirect(307, redirectUrl);
 		}
 	},
 
@@ -268,7 +247,7 @@ export const actions: Actions = {
 		// Validate
 		if (!signInForm.valid) return fail(400, { signInForm });
 
-		const email = signInForm.data.email.toLocaleLowerCase();
+		const email = signInForm.data.email.toLowerCase();
 		const password = signInForm.data.password;
 		const isToken = signInForm.data.isToken;
 
@@ -281,6 +260,7 @@ export const actions: Actions = {
 		} else {
 			// Handle the case when resp is undefined or when status is false
 			const errorMessage = resp?.message || 'An error occurred during sign-in.';
+			logger.warn(`Sign-in failed: ${errorMessage}`);
 			return { form: signInForm, message: errorMessage };
 		}
 	},
@@ -292,7 +272,7 @@ export const actions: Actions = {
 
 		// Validate
 		let resp: { status: boolean; message?: string } = { status: false };
-		const email = pwforgottenForm.data.email.toLocaleLowerCase();
+		const email = pwforgottenForm.data.email.toLowerCase();
 		const checkMail = await forgotPWCheck(email);
 		// const lang = pwforgottenForm.data.lang;
 
@@ -341,7 +321,7 @@ export const actions: Actions = {
 			message(pwforgottenForm, 'SignIn Forgotten form submitted');
 			return { form: pwforgottenForm, token, email };
 		} else {
-			logger.debug('resp.status is false');
+			logger.warn(`Forgotten password failed: ${resp.message}`);
 			return { form: pwforgottenForm, status: checkMail.success, message: resp.message || 'Unknown error' };
 		}
 	},
@@ -363,12 +343,13 @@ export const actions: Actions = {
 		const resp = await resetPWCheck(password, token, email, expiresIn);
 		logger.debug(`resetPW resp: ${JSON.stringify(resp)}`);
 
-		if (resp) {
+		if (resp.status) {
 			// Return message if form is submitted successfully
 			message(pwresetForm, 'SignIn Reset form submitted');
-			redirect(303, '/login');
+			throw redirect(303, '/login');
 		} else {
-			return { form: pwresetForm };
+			logger.warn(`Password reset failed: ${resp.message}`);
+			return { form: pwresetForm, message: resp.message };
 		}
 	}
 };
@@ -380,7 +361,7 @@ async function signIn(
 	isToken: boolean,
 	cookies: Cookies
 ): Promise<{ status: true } | { status: false; message: string }> {
-	logger.debug(`signIn called with email: ${email}, password: ${password}, isToken: ${isToken}, cookies: ${JSON.stringify(cookies)}`);
+	logger.debug(`signIn called with email: ${email}, password: ${password}, isToken: ${isToken}`);
 
 	if (!isToken) {
 		if (!auth) {
@@ -391,6 +372,7 @@ async function signIn(
 		const user = await auth.login(email, password);
 
 		if (!user) {
+			logger.warn('User does not exist');
 			return { status: false, message: 'User does not exist' };
 		}
 
@@ -412,6 +394,7 @@ async function signIn(
 		const user = await auth.checkUser({ email });
 
 		if (!user) {
+			logger.warn('User does not exist');
 			return { status: false, message: 'User does not exist' };
 		}
 
@@ -426,6 +409,7 @@ async function signIn(
 			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'token' });
 			return { status: true };
 		} else {
+			logger.warn(`Token consumption failed: ${result.message}`);
 			return result;
 		}
 	}
@@ -452,7 +436,13 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	// Create User Session
-	const session = await auth.createSession({ user_id: user.user_id.toString() });
+	const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 }); // Ensure expires is provided
+	if (!session || !session.session_id) {
+		logger.error('Session creation failed');
+		return { status: false, message: 'Failed to create session' };
+	}
+	logger.info(`Session created with ID: ${session.session_id} for user ID: ${user.user_id}`);
+
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
 	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -462,7 +452,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
-	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}, cookies: ${JSON.stringify(cookies)}`);
+	logger.debug(`finishRegistration called with username: ${username}, email: ${email}, password: ${password}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -489,6 +479,7 @@ async function finishRegistration(username: string, email: string, password: str
 
 		return { status: true };
 	} else {
+		logger.warn(`Token consumption failed: ${result.message}`);
 		return result;
 	}
 }
@@ -518,9 +509,9 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		// Create a new token
 		const token = await auth.createToken(user.user_id.toString(), expiresIn);
 
-		return { success: true, message: 'Password reset token sent by Email', token: token, expiresIn: expiresIn };
-	} catch (error) {
-		logger.error('An error occurred:', error as Error);
+		return { success: true, message: 'Password reset token sent by Email', token, expiresIn };
+	} catch (err: any) {
+		logger.error('An error occurred:', err);
 		return { success: false, message: 'An error occurred' };
 	}
 }
@@ -536,6 +527,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		// Obtain the user using auth.checkUser based on the email
 		const user = await auth.checkUser({ email });
 		if (!user) {
+			logger.warn('Invalid token: User does not exist');
 			return { status: false, message: 'Invalid token' };
 		}
 
@@ -547,6 +539,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			const currentTime = Date.now();
 			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
 			if (currentTime >= tokenExpiryTime) {
+				logger.warn('Token has expired');
 				return { status: false, message: 'Token has expired' };
 			}
 
@@ -557,13 +550,15 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			if (updateResult.status) {
 				return { status: true };
 			} else {
+				logger.warn(`Password update failed: ${updateResult.message}`);
 				return { status: false, message: updateResult.message };
 			}
 		} else {
+			logger.warn(`Token consumption failed: ${validate.message}`);
 			return { status: false, message: validate.message };
 		}
-	} catch (error) {
-		logger.error('Password reset failed:', error as Error);
+	} catch (err: any) {
+		logger.error('Password reset failed:', err);
 		return { status: false, message: 'An error occurred' };
 	}
 }

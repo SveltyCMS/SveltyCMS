@@ -8,6 +8,7 @@ import { modifyRequest } from './modifyRequest';
 
 import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
+import logger from '@utils/logger'; // Import logger
 
 // Function to handle GET requests for a specified collection
 export async function _GET({
@@ -28,10 +29,20 @@ export async function _GET({
 	page?: number;
 }) {
 	try {
+		logger.debug(`GET request received for schema: ${schema.name}, userId: ${user.user_id}`);
+
 		const aggregations: any = [];
 		const collections = await getCollectionModels(); // Get collection models from the database
+		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
+
 		const collection = collections[schema.name as string]; // Get the specific collection based on the schema name
 		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
+
+		// Check if the collection exists
+		if (!collection) {
+			logger.error(`Collection not found for schema: ${schema.name}`);
+			return new Response('Collection not found!', { status: 404 });
+		}
 
 		// Build aggregation pipelines for sorting and filtering
 		for (const field of schema.fields) {
@@ -69,6 +80,7 @@ export async function _GET({
 				}
 			}
 		]);
+
 		const entryList = entryListWithCount[0].entries;
 
 		// Modify request with the retrieved entries
@@ -79,6 +91,7 @@ export async function _GET({
 			user,
 			type: 'GET'
 		});
+		logger.debug(`Request modified for entries: ${JSON.stringify(entryList)}`);
 
 		// Get all collected IDs and modify request
 		await get_elements_by_id.getAll();
@@ -86,6 +99,8 @@ export async function _GET({
 		// Calculate total count and pages count
 		const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
 		const pagesCount = Math.ceil(totalCount / limit);
+
+		logger.debug(`Total count: ${totalCount}, Pages count: ${pagesCount}`);
 
 		// Return the response with entry list and pages count
 		return new Response(
@@ -97,8 +112,10 @@ export async function _GET({
 	} catch (error) {
 		// Handle error by checking its type
 		if (error instanceof Error) {
+			logger.error(`Error occurred during GET request: ${error.message}`);
 			return new Response(error.message, { status: 500 });
 		} else {
+			logger.error('Unknown error occurred during GET request');
 			return new Response('Unknown error occurred', { status: 500 });
 		}
 	}

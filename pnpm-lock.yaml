@@ -16,7 +16,7 @@ importers:
         version: 5.0.2
       '@mapbox/mapbox-gl-language':
         specifier: ^1.0.1
-        version: 1.0.1(mapbox-gl@3.4.0)
+        version: 1.0.1(mapbox-gl@3.5.0)
       '@tiptap/core':
         specifier: ^2.4.0
         version: 2.4.0(@tiptap/pm@2.4.0)
@@ -102,8 +102,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.0
       mapbox-gl:
-        specifier: ^3.4.0
-        version: 3.4.0
+        specifier: ^3.5.0
+        version: 3.5.0
       mariadb:
         specifier: ^3.3.1
         version: 3.3.1
@@ -160,8 +160,8 @@ importers:
         specifier: ^4.0.2
         version: 4.0.2(svelte@4.2.18)
       '@inlang/paraglide-js':
-        specifier: ^1.11.0
-        version: 1.11.0
+        specifier: ^1.11.1
+        version: 1.11.1
       '@inlang/paraglide-js-adapter-vite':
         specifier: ^1.2.40
         version: 1.2.40
@@ -666,8 +666,8 @@ packages:
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
 
-  '@graphql-tools/utils@10.2.3':
-    resolution: {integrity: sha512-j7x0sO0VtWVhD3FubyY42abx+g61/at5W5Y3DSOckPkBo7yVjkcnAsXoB4jiUnznhGme/o+uX5VgA8HrjyR5ZQ==}
+  '@graphql-tools/utils@10.3.0':
+    resolution: {integrity: sha512-HFJo2F62Y6AUQsIj1hMbcRr0wKS6nwWd2QsdnOEwK+Y4gW/N8tiHCk1gqgGtPk16GrTmpjm4AAbfv/AEzulcOw==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       graphql: ^14.0.0 || ^15.0.0 || ^16.0.0 || ^17.0.0
@@ -862,8 +862,8 @@ packages:
     resolution: {integrity: sha512-2+mAYI4hDMTr7AAei5CNzjqpjzOvsnlGrVvHrohtYs+Jn+tayokDaO7iL5o9k9SYrlXBZ7tUshAw88UQ1+f82Q==}
     deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
 
-  '@inlang/paraglide-js@1.11.0':
-    resolution: {integrity: sha512-mka73qxNZ2OGTz0XkwKoO/Gj62WZPA/2F1kcTWEGS9Q4j+Bo7+6rKXCFQq428yYqg/p82THWY0si/cMY3/HpTA==}
+  '@inlang/paraglide-js@1.11.1':
+    resolution: {integrity: sha512-WSAsGiSQ1lRWMB4sj/gIykrlRvyXWNde+Lv+/4DYxIc5122FBnWl3X2dGJeBCUHOFKmQbgJL1XKrjVDfWyRrXg==}
     hasBin: true
 
   '@inlang/paraglide-js@1.7.0':
@@ -2106,8 +2106,8 @@ packages:
       chart.js: '>=2.8.0'
       date-fns: '>=2.0.0'
 
-  cheap-ruler@3.0.2:
-    resolution: {integrity: sha512-02T332h1/HTN6cDSufLP8x4JzDs2+VC+8qZ/N0kWIVPyc2xUkWwWh3B2fJxR7raXkL4Mq7k554mfuM9ofv/vGg==}
+  cheap-ruler@4.0.0:
+    resolution: {integrity: sha512-0BJa8f4t141BYKQyn9NSQt1PguFQXMXwZiA5shfoaBYHAb2fFk2RAX+tiWMoQU+Agtzt3mdt0JtuyshAXqZ+Vw==}
 
   chokidar@3.6.0:
     resolution: {integrity: sha512-7VT13fmjotKpGipCW9JEQAusEPE+Ei8nl6/g4FBAmIm0GOOLMua9NDDo/DWp0ZAxCr3cPq5ZpBqmPAQgDda2Pw==}
@@ -2452,8 +2452,8 @@ packages:
   duplexer2@0.1.4:
     resolution: {integrity: sha512-asLFVfWWtJ90ZyOUHMqk7/S2w2guQKxUI2itj3d92ADHhxUSbCMGi1f1cBcJ7xM1To+pE/Khbwo1yuNbMEPKeA==}
 
-  earcut@2.2.4:
-    resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
+  earcut@3.0.0:
+    resolution: {integrity: sha512-41Fs7Q/PLq1SDbqjsgcY7GA42T0jvaCNGXgGtsNdvg+Yv8eIu06bxv4/PoREkZ9nMDNwnUSG9OFB9+yv8eKhDg==}
 
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
@@ -2820,8 +2820,8 @@ packages:
     resolution: {integrity: sha512-hymDOu5B53XvN4QT9dBmZxPX4CWhBPPLguTZ9MMFeFa/Kg0xWVfylOVNlJji/E7yTZWFd/q9GO5TxDLq156D7g==}
     engines: {node: '>= 4'}
 
-  geojson-vt@3.2.1:
-    resolution: {integrity: sha512-EvGQQi/zPrDA6zr6BnJD/YhwAkBP8nnJ9emh3EnHQKVMfg/MRVtPbMYdgVy/IaEmn4UfagD2a6fafPDL5hbtwg==}
+  geojson-vt@4.0.2:
+    resolution: {integrity: sha512-AV9ROqlNqoZEIJGfm1ncNjEXfkz2hdFlZf0qkVfmkwdKa8vj7H16YUOT81rJw1rdFhyEDlN2Tds91p/glzbl5A==}
 
   get-caller-file@2.0.5:
     resolution: {integrity: sha512-DyFP3BM/3YHTQOCUL/w0OZHR0lpKeGrxotcHWcqNEdnltqFwXVfhEBQ94eIo34AfQpo0rGki4cyIiftY06h2Fg==}
@@ -3476,8 +3476,8 @@ packages:
     resolution: {integrity: sha512-hdN1wVrZbb29eBGiGjJbeP8JbKjq1urkHJ/LIP/NY48MZ1QVXUsQBV1G1zvYFHn1XE06cwjBsOI2K3Ulnj1YXQ==}
     engines: {node: '>=8'}
 
-  mapbox-gl@3.4.0:
-    resolution: {integrity: sha512-QWgL28zg/zuIOHeF8DXPvHy1UHTgO5p4Oy6ifCAHwI9/hoI9/Fruya0yI4HkDtX1OgzTLO6SHO13A781BGJvyw==}
+  mapbox-gl@3.5.0:
+    resolution: {integrity: sha512-IjbyJvJGjQM+5MU2otvK2Pm5Qg/7S1VOR5Y7mf63WsMkQQ9uU1OT5rcxUJEiC7M4107DYL+DTb4vpvXO8l3bNQ==}
 
   mariadb@3.3.1:
     resolution: {integrity: sha512-L8bh4iuZU3J8H7Co7rQ6OY9FDLItAN1rGy8kPA7Dyxo8AiHADuuONoypKKp1pE09drs6e5LR7UW9luLZ/A4znA==}
@@ -4056,8 +4056,8 @@ packages:
     resolution: {integrity: sha512-Fl2z/BHvkTNvkuBzYTpTuirHZg6wW9z8+4SND/3mDTEcYbbNKWAy21dz9D3ePNNwrrK8pqZO5vLPZ1hLF6T7XA==}
     engines: {node: '>=6'}
 
-  pbf@3.2.1:
-    resolution: {integrity: sha512-ClrV7pNOn7rtmoQVF4TS1vyU0WhYRnP92fzbfF75jAIwpnzdJXf8iTd4CMEqO4yUenH6NDqLiwjqlh6QgZzgLQ==}
+  pbf@3.3.0:
+    resolution: {integrity: sha512-XDF38WCH3z5OV/OVa8GKUNtLAyneuzbCisx7QUCF8Q6Nutx0WnJrQe5O+kOtBlLfRNUws98Y58Lblp+NJG5T4Q==}
     hasBin: true
 
   pdfjs-dist@4.4.168:
@@ -5333,8 +5333,8 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-  yoctocolors@2.1.0:
-    resolution: {integrity: sha512-FsQpXXeOEe05tcJN4Z2eicuC6+6KiJdBbPOAChanSkwwjZ277XGsh8wh/HaPuGeifTiw/7dgAzabitu2bnDvRg==}
+  yoctocolors@2.1.1:
+    resolution: {integrity: sha512-GQHQqAopRhwU8Kt1DDM8NjibDXHC8eoh1erhGAJPEyveY9qqVeXvVikNKrDz69sHowPMorbPUrH/mx8c50eiBQ==}
     engines: {node: '>=18'}
 
   yup@1.4.0:
@@ -5600,7 +5600,7 @@ snapshots:
 
   '@graphql-tools/executor@1.2.8(graphql@16.9.0)':
     dependencies:
-      '@graphql-tools/utils': 10.2.3(graphql@16.9.0)
+      '@graphql-tools/utils': 10.3.0(graphql@16.9.0)
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.9.0)
       '@repeaterjs/repeater': 3.0.6
       graphql: 16.9.0
@@ -5609,19 +5609,19 @@ snapshots:
 
   '@graphql-tools/merge@9.0.4(graphql@16.9.0)':
     dependencies:
-      '@graphql-tools/utils': 10.2.3(graphql@16.9.0)
+      '@graphql-tools/utils': 10.3.0(graphql@16.9.0)
       graphql: 16.9.0
       tslib: 2.6.3
 
   '@graphql-tools/schema@10.0.4(graphql@16.9.0)':
     dependencies:
       '@graphql-tools/merge': 9.0.4(graphql@16.9.0)
-      '@graphql-tools/utils': 10.2.3(graphql@16.9.0)
+      '@graphql-tools/utils': 10.3.0(graphql@16.9.0)
       graphql: 16.9.0
       tslib: 2.6.3
       value-or-promise: 1.0.12
 
-  '@graphql-tools/utils@10.2.3(graphql@16.9.0)':
+  '@graphql-tools/utils@10.3.0(graphql@16.9.0)':
     dependencies:
       '@graphql-typed-document-node/core': 3.2.0(graphql@16.9.0)
       cross-inspect: 1.0.0
@@ -5802,7 +5802,7 @@ snapshots:
       - debug
       - supports-color
 
-  '@inlang/paraglide-js@1.11.0':
+  '@inlang/paraglide-js@1.11.1':
     dependencies:
       '@inlang/detect-json-formatting': 1.0.0
       commander: 11.1.0
@@ -6043,9 +6043,9 @@ snapshots:
       suggestions: 1.7.1
       xtend: 4.0.2
 
-  '@mapbox/mapbox-gl-language@1.0.1(mapbox-gl@3.4.0)':
+  '@mapbox/mapbox-gl-language@1.0.1(mapbox-gl@3.5.0)':
     dependencies:
-      mapbox-gl: 3.4.0
+      mapbox-gl: 3.5.0
 
   '@mapbox/mapbox-gl-supported@3.0.0': {}
 
@@ -7303,7 +7303,7 @@ snapshots:
       chart.js: 4.4.3
       date-fns: 3.6.0
 
-  cheap-ruler@3.0.2: {}
+  cheap-ruler@4.0.0: {}
 
   chokidar@3.6.0:
     dependencies:
@@ -7613,7 +7613,7 @@ snapshots:
     dependencies:
       readable-stream: 2.3.8
 
-  earcut@2.2.4: {}
+  earcut@3.0.0: {}
 
   eastasianwidth@0.2.0: {}
 
@@ -7907,7 +7907,7 @@ snapshots:
       pretty-ms: 9.0.0
       signal-exit: 4.1.0
       strip-final-newline: 4.0.0
-      yoctocolors: 2.1.0
+      yoctocolors: 2.1.1
 
   extend-shallow@2.0.1:
     dependencies:
@@ -8075,7 +8075,7 @@ snapshots:
 
   generic-pool@3.9.0: {}
 
-  geojson-vt@3.2.1: {}
+  geojson-vt@4.0.2: {}
 
   get-caller-file@2.0.5: {}
 
@@ -8226,7 +8226,7 @@ snapshots:
       '@envelop/core': 5.0.1
       '@graphql-tools/executor': 1.2.8(graphql@16.9.0)
       '@graphql-tools/schema': 10.0.4(graphql@16.9.0)
-      '@graphql-tools/utils': 10.2.3(graphql@16.9.0)
+      '@graphql-tools/utils': 10.3.0(graphql@16.9.0)
       '@graphql-yoga/logger': 2.0.0
       '@graphql-yoga/subscription': 5.0.1
       '@whatwg-node/fetch': 0.9.18
@@ -8769,7 +8769,7 @@ snapshots:
 
   map-obj@4.3.0: {}
 
-  mapbox-gl@3.4.0:
+  mapbox-gl@3.5.0:
     dependencies:
       '@mapbox/jsonlint-lines-primitives': 2.0.2
       '@mapbox/mapbox-gl-supported': 3.0.0
@@ -8778,17 +8778,17 @@ snapshots:
       '@mapbox/unitbezier': 0.0.1
       '@mapbox/vector-tile': 1.3.1
       '@mapbox/whoots-js': 3.1.0
-      cheap-ruler: 3.0.2
+      cheap-ruler: 4.0.0
       csscolorparser: 1.0.3
-      earcut: 2.2.4
+      earcut: 3.0.0
       fflate: 0.8.2
-      geojson-vt: 3.2.1
+      geojson-vt: 4.0.2
       gl-matrix: 3.4.3
       grid-index: 1.1.0
       kdbush: 4.0.2
       lodash.clonedeep: 4.5.0
       murmurhash-js: 1.0.0
-      pbf: 3.2.1
+      pbf: 3.3.0
       potpack: 2.0.0
       quickselect: 2.0.0
       rw: 1.3.3
@@ -9253,7 +9253,7 @@ snapshots:
   path2d@0.2.1:
     optional: true
 
-  pbf@3.2.1:
+  pbf@3.3.0:
     dependencies:
       ieee754: 1.2.1
       resolve-protobuf-schema: 2.1.0
@@ -10470,7 +10470,7 @@ snapshots:
     dependencies:
       '@mapbox/point-geometry': 0.1.0
       '@mapbox/vector-tile': 1.3.1
-      pbf: 3.2.1
+      pbf: 3.3.0
 
   w3c-keyname@2.2.8: {}
 
@@ -10593,7 +10593,7 @@ snapshots:
 
   yocto-queue@0.1.0: {}
 
-  yoctocolors@2.1.0: {}
+  yoctocolors@2.1.1: {}
 
   yup@1.4.0:
     dependencies:
