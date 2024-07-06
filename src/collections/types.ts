@@ -7,6 +7,7 @@ import type { Permission } from '@src/auth/types';
 export interface Schema {
 	name: string; // Make `name` non-optional
 	slug?: string;
+	links?: CollectionNames[];
 	icon?: string;
 	description?: string;
 	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';

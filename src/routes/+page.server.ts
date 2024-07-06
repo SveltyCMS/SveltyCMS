@@ -36,17 +36,19 @@ export async function load({ cookies }) {
 	let session_id = cookies.get(SESSION_COOKIE_NAME);
 	logger.debug(`Session ID: ${session_id}`);
 
-	// If no session ID is found, create a new session for first-time setup
+	// If no session ID is found, create a new guest session
 	if (!session_id) {
-		logger.debug('Session ID is missing from cookies, creating a new session.');
+		logger.warn('No session ID found, creating a guest session.');
 		try {
 			const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
 			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
 			session_id = sessionCookie.value;
-			logger.debug(`New session created: ${session_id}`);
+			logger.debug(`New guest session created: ${session_id}`);
+			// After creating a guest session, redirect to login
+			throw redirect(302, '/login');
 		} catch (err: any) {
-			logger.error(`Failed to create a new session: ${err.message}`);
+			logger.error(`Failed to create a new guest session: ${err.message}`);
 			throw error(500, 'Failed to create a new session.');
 		}
 	}
@@ -54,7 +56,7 @@ export async function load({ cookies }) {
 	// Validate the user's session
 	let user: any;
 	try {
-		user = await auth.validateSession({ session_id: session_id! });
+		user = await auth.validateSession({ session_id: session_id });
 		logger.debug(`User: ${JSON.stringify(user)}`);
 	} catch (err: any) {
 		logger.error(`Session validation failed: ${err.message}`);

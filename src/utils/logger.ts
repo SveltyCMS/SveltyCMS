@@ -32,15 +32,14 @@ const COLORS: Record<LogLevel, string> = {
 	info: '\x1b[32m', // Green
 	warn: '\x1b[33m', // Yellow
 	error: '\x1b[31m', // Red
-	none: '\x1b[0m', // Reset
-	reset: '\x1b[0m' // Reset
+	none: '\x1b[0m' // No color for 'none' level
 };
 
 // Helper function to format log messages
 function formatMessage(level: LogLevel, message: string): string {
 	const timestamp = new Date().toISOString();
-	const color = COLORS[level] || COLORS.reset;
-	return `${timestamp} [${color}${level.toUpperCase()}${COLORS.reset}]: ${message}`;
+	const color = COLORS[level];
+	return `${timestamp} [${color}${level.toUpperCase()}\x1b[0m]: ${message}`;
 }
 
 // Helper function to write log messages to the appropriate file with rotation

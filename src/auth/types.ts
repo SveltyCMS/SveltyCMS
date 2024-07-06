@@ -115,7 +115,7 @@ export type Cookie = {
 	attributes: {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
-		httpOnly: true;
+		httpOnly: boolean;
 		expires: Date;
 		secure: boolean;
 	};

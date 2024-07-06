@@ -254,6 +254,10 @@ export class Auth {
 	async validateSession({ session_id }: { session_id: string }): Promise<User | null> {
 		try {
 			logger.info(`Validating session with ID: ${session_id}`);
+			if (!session_id) {
+				logger.error('Session ID is undefined');
+				throw new Error('Session ID is undefined');
+			}
 			const user = await this.db.validateSession(session_id);
 			if (user) {
 				logger.info(`Session is valid for user: ${user.email}`);
