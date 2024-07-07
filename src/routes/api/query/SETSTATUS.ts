@@ -1,6 +1,5 @@
 import type { Schema } from '@src/collections/types';
-import mongoose from 'mongoose';
-import { getCollectionModels } from '../databases/db';
+import { dbAdapter, getCollectionModels } from '@api/databases/db';
 
 // Import logger
 import logger from '@utils/logger';
@@ -26,12 +25,7 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 		logger.debug(`Updating status to '${status}' for IDs: ${ids.join(', ')}`);
 
 		// Update the status of the documents with the specified IDs
-		const result = await collection.updateMany(
-			{
-				_id: { $in: ids.map((id: string) => new mongoose.Types.ObjectId(id)) }
-			},
-			{ $set: { status } }
-		);
+		const result = await dbAdapter.updateMany(schema.name, { _id: { $in: ids } }, { $set: { status } });
 		logger.debug(`Status updated: ${JSON.stringify(result)}`);
 
 		// Return the result as a JSON response

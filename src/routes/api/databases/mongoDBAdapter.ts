@@ -6,7 +6,7 @@ import type { Unsubscriber } from 'svelte/store';
 
 // Database
 import mongoose from 'mongoose';
-import type { DatabaseAdapter } from './databaseAdapter';
+import type { dbAdapter } from './dbAdapter';
 
 // Auth
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
@@ -25,7 +25,29 @@ const mediaSchema = new mongoose.Schema(
 	{ timestamps: true }
 );
 
-export class MongoDBAdapter implements DatabaseAdapter {
+// Define the Draft schema
+const DraftSchema = new mongoose.Schema({
+	originalDocumentId: mongoose.Schema.Types.ObjectId,
+	content: mongoose.Schema.Types.Mixed,
+	createdAt: { type: Date, default: Date.now },
+	updatedAt: { type: Date, default: Date.now },
+	status: { type: String, enum: ['draft', 'published'], default: 'draft' },
+	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+// Define the Revision schema
+const RevisionSchema = new mongoose.Schema({
+	documentId: mongoose.Schema.Types.ObjectId,
+	content: mongoose.Schema.Types.Mixed,
+	createdAt: { type: Date, default: Date.now },
+	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+});
+
+// Create models for Draft and Revision
+const Draft = mongoose.model('Draft', DraftSchema);
+const Revision = mongoose.model('Revision', RevisionSchema);
+
+export class MongoDBAdapter implements dbAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -66,6 +88,11 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	}
 
+	// Generate an ID using ObjectId
+	generateId(): string {
+		return new mongoose.Types.ObjectId().toString();
+	}
+
 	// Get collection models
 	async getCollectionModels(): Promise<any> {
 		logger.debug('getCollectionModels called');
@@ -84,22 +111,13 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 						logger.debug(`Setting up collection model for ${collection.name}`);
 
-						const RevisionSchema = new mongoose.Schema(
-							{
-								revisionNumber: { type: Number, default: 0 },
-								editedAt: { type: Date, default: Date.now },
-								editedBy: { type: String, default: 'System' },
-								changes: { type: Object, default: {} }
-							},
-							{ _id: false }
-						);
-
 						const schemaObject = new mongoose.Schema(
 							{
 								createdAt: Date,
 								updatedAt: Date,
 								createdBy: String,
-								__v: [RevisionSchema],
+								revisionsEnabled: Boolean,
+								__v: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Revision' }],
 								translationStatus: {}
 							},
 							{
@@ -190,6 +208,87 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 		const result = await model.insertMany(docs);
 		return result;
+	}
+
+	// Implementing updateOne method
+	async updateOne(collection: string, query: object, update: object): Promise<any> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
+			throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
+		}
+		const result = await model.updateOne(query, update).exec();
+		return result;
+	}
+
+	// Implementing updateMany method
+	async updateMany(collection: string, query: object, update: object): Promise<any> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
+			throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
+		}
+		const result = await model.updateMany(query, update).exec();
+		return result;
+	}
+
+	// Create a new draft
+	async createDraft(content: any, originalDocumentId: string, userId: string) {
+		const draft = new Draft({
+			originalDocumentId,
+			content,
+			createdBy: userId
+		});
+		await draft.save();
+		return draft;
+	}
+
+	// Update a draft
+	async updateDraft(draftId: string, content: any) {
+		const draft = await Draft.findById(draftId);
+		if (!draft) throw new Error('Draft not found');
+		draft.content = content;
+		draft.updatedAt = new Date(); // Assign a Date object instead of a timestamp
+		await draft.save();
+		return draft;
+	}
+
+	// Get drafts
+	async publishDraft(draftId: string) {
+		const draft = await Draft.findById(draftId);
+		if (!draft) throw new Error('Draft not found');
+		draft.status = 'published';
+		await draft.save();
+
+		// Optionally, save a revision
+		const revision = new Revision({
+			documentId: draft.originalDocumentId,
+			content: draft.content,
+			createdBy: draft.createdBy
+		});
+		await revision.save();
+		return draft;
+	}
+
+	// Get drafts
+	async getDraftsByUser(userId: string) {
+		return await Draft.find({ createdBy: userId });
+	}
+
+	// Create a new revision
+	async createRevision(documentId: string, content: any, userId: string) {
+		const revision = new Revision({
+			documentId,
+			content,
+			createdBy: userId
+		});
+		await revision.save();
+		return revision;
+	}
+
+	// Get revisions
+	async getRevisions(documentId: string) {
+		return await Revision.find({ documentId }).sort({ createdAt: -1 });
 	}
 
 	// Get recent last 5 collections

@@ -10,11 +10,11 @@ export interface Schema {
 	links?: CollectionNames[];
 	icon?: string;
 	description?: string;
-	status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
+	status?: 'draft' | 'published' | 'unpublished' | 'schedule' | 'cloned';
 	permissions?: Permission;
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
 	strict?: boolean;
-	revision?: boolean;
+	revision?: boolean; // Make revisions optional
 }
 
 // Define a new `CollectionNames` type that represents the shape of an object with several properties

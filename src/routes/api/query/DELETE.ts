@@ -1,9 +1,7 @@
-import mongoose from 'mongoose';
-
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
-import { getCollectionModels } from '../databases/db';
+import { dbAdapter, getCollectionModels } from '../databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // Import logger
@@ -34,7 +32,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		for (const id of idsArray) {
 			await modifyRequest({
 				collection,
-				data: [{ _id: new mongoose.Types.ObjectId(id) }],
+				data: [{ _id: id }],
 				user,
 				fields: schema.fields,
 				type: 'DELETE'

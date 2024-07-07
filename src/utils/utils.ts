@@ -4,7 +4,7 @@ import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 
-import type { DatabaseAdapter } from '@src/routes/api/databases/databaseAdapter';
+import type { dbAdapter } from '@src/routes/api/databases/dbAdapter';
 import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
 import type { User } from '@src/auth/types';
 
@@ -122,7 +122,7 @@ function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; e
 	return { fileNameWithoutExt, ext };
 }
 
-export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
+export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: any) {
 	switch (type) {
 		case 'image':
 			return await saveImage(file, collectionName, dbAdapter);
@@ -144,11 +144,11 @@ const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves image to disk and returns file information
-export async function saveImage(file: File, collectionName: string, dbAdapter: DatabaseAdapter): Promise<{ id: string; fileInfo: MediaImage }> {
+export async function saveImage(file: File, collectionName: string, dbAdapter: any): Promise<{ id: string; fileInfo: MediaImage }> {
 	try {
 		if (typeof window !== 'undefined') return {} as any; // Skip if running in browser
 		const sharp = (await import('sharp')).default;
-		const _crypto = (await import('crypto')).default;
+		// const _crypto = (await import('crypto')).default;
 
 		let fileInfo: MediaImage = {} as MediaImage;
 
@@ -252,7 +252,7 @@ export async function saveImage(file: File, collectionName: string, dbAdapter: D
 	}
 }
 // Save files and returns file information
-export async function saveDocument(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
+export async function saveDocument(file: File, collectionName: string, dbAdapter: any) {
 	if (browser) return;
 	const fields: { file: any; replace: (id: string) => void }[] = [];
 	const parseFiles = async (data: any) => {
@@ -331,7 +331,7 @@ export async function saveDocument(file: File, collectionName: string, dbAdapter
 }
 
 // Implement the saveVideo function to handle video files
-export async function saveVideo(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
+export async function saveVideo(file: File, collectionName: string, dbAdapter: any) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = await hashFileContent(buffer);
@@ -364,7 +364,7 @@ export async function saveVideo(file: File, collectionName: string, dbAdapter: D
 }
 
 // Implement the saveAudio function to handle audio files
-export async function saveAudio(file: File, collectionName: string, dbAdapter: DatabaseAdapter) {
+export async function saveAudio(file: File, collectionName: string, dbAdapter: any) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = await hashFileContent(buffer);
@@ -397,7 +397,7 @@ export async function saveAudio(file: File, collectionName: string, dbAdapter: D
 }
 
 // Implement the saveRemoteMedia function to handle remote video files
-export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: DatabaseAdapter): Promise<{ id: string }> {
+export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: any): Promise<{ id: string }> {
 	try {
 		const response = await fetch(fileUrl);
 		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
@@ -511,7 +511,7 @@ export async function saveFormData({
 	_collection?: Schema;
 	_mode?: 'edit' | 'create';
 	id?: string;
-	dbAdapter: DatabaseAdapter;
+	dbAdapter: any;
 	authAdapter: AuthDBAdapter;
 	user_id: string;
 }) {
@@ -939,7 +939,7 @@ export const get_elements_by_id = {
 			this.store[collection][id].push(callback);
 		}
 	},
-	async getAll(dbAdapter: DatabaseAdapter) {
+	async getAll(dbAdapter: any) {
 		const store = this.store;
 		this.store = {};
 		for (const collection in store) {
@@ -961,6 +961,7 @@ export const createRandomID = async (id?: string) => {
 	const randomBytes = (await import('crypto')).randomBytes;
 	return randomBytes(16).toString('hex');
 };
+
 // Meta data
 export const meta_data: {
 	meta_data: { [key: string]: any };

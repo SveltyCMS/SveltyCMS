@@ -1,11 +1,11 @@
-import mongoose from 'mongoose';
-
-import { getCollectionModels } from '../databases/db';
+import { dbAdapter, getCollectionModels } from '@api/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
-import logger from '@utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 // Function to handle PATCH requests for a specified collection
 export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
@@ -17,7 +17,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
 		const collection = collections[schema.name as string]; // Get the specific collection based on the schema name
-		const _id = new mongoose.Types.ObjectId(data.get('_id') as string); // Get the document ID from the form data
+		const _id = data.get('_id') as string; // Get the document ID from the form data
 		const fileIDS: string[] = [];
 
 		// Check if the collection exists
@@ -50,10 +50,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 
 		// Handle removal of storage images
 		if (body?._meta_data?.storage_images?.removed) {
-			await mongoose.models['_storage_images'].updateMany(
-				{ _id: { $in: body._meta_data.storage_images.removed } },
-				{ $pull: { used_by: new mongoose.Types.ObjectId(_id) } }
-			);
+			await dbAdapter.updateMany('_storage_images', { _id: { $in: body._meta_data.storage_images.removed } }, { $pull: { used_by: _id } });
 		}
 		body._id = _id;
 		logger.debug(`Document prepared for update: ${JSON.stringify(body)}`);
@@ -63,7 +60,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 		logger.debug(`Request modified: ${JSON.stringify(body)}`);
 
 		// Update the document in the collection
-		const result = await collection.updateOne({ _id: new mongoose.Types.ObjectId(_id) }, { $set: body });
+		const result = await dbAdapter.updateOne(schema.name, { _id }, { $set: body });
 		logger.debug(`Document updated: ${JSON.stringify(result)}`);
 
 		// Return the result as a JSON response

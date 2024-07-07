@@ -1,7 +1,7 @@
 import widgets from '@src/components/widgets';
 import { getFieldName } from '@src/utils/utils';
 import type { User } from '@src/auth/types';
-import type { Collection } from 'mongoose';
+import type { CollectionModel } from '@api/databases/dbAdapter';
 
 // Import logger
 import logger from '@utils/logger';
@@ -17,7 +17,7 @@ interface Field {
 interface ModifyRequestParams {
 	data: any[];
 	fields: Field[];
-	collection: Collection<any>;
+	collection: CollectionModel;
 	user: User;
 	type: string;
 }
@@ -69,7 +69,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 		return data; // Return the modified data
 	} catch (error) {
 		// Handle error by checking its type
-		logger.error('Error in modifyRequest:', error);
+		logger.error('Error in modifyRequest:', error as Error);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		throw new Error(errorMessage);
 	}

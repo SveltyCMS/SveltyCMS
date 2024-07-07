@@ -1,9 +1,7 @@
-import mongoose from 'mongoose';
-
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
-import { getCollectionModels } from '../databases/db';
+import { dbAdapter, getCollectionModels } from '@api/databases/db';
 import { modifyRequest } from './modifyRequest';
 import logger from '@utils/logger'; // Import logger
 
@@ -49,7 +47,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 
 		// Set the status to 'PUBLISHED' and assign a new ObjectId
 		body['status'] = 'PUBLISHED';
-		body._id = new mongoose.Types.ObjectId();
+		body._id = dbAdapter.generateId(); // Use adapter's generateId method
 		logger.debug(`Document prepared for insertion: ${JSON.stringify(body)}`);
 
 		// Modify request with the updated body

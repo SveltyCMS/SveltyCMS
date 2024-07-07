@@ -1,4 +1,4 @@
-import type { DatabaseAdapter } from '@src/routes/api/databases/databaseAdapter';
+import type { dbAdapter } from '@api/databases/dbAdapter';
 import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
 
 function generateGraphQLTypeDefsFromSchema(schema: any, typeName: string) {
@@ -34,7 +34,7 @@ export function userTypeDefs(authDBAdapter: AuthDBAdapter) {
 	return generateGraphQLTypeDefsFromSchema(userSchema, 'User');
 }
 
-export function userResolvers(dbAdapter: DatabaseAdapter) {
+export function userResolvers(dbAdapter: any) {
 	return {
 		Query: {
 			users: async () => {

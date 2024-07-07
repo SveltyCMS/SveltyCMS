@@ -7,14 +7,14 @@ import { Auth } from '@src/auth';
 import { google } from 'googleapis';
 
 // Adapters
-import type { DatabaseAdapter } from './databaseAdapter';
+import type { dbAdapter } from './dbAdapter';
 import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 // Database and authentication adapters
-let dbAdapter: DatabaseAdapter | null = null;
+let dbAdapter: dbAdapter | null = null;
 let authAdapter: AuthDBAdapter | null = null;
 let auth: Auth | null = null;
 

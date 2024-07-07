@@ -1,12 +1,13 @@
 import { privateEnv } from '@root/config/private';
+import { createRandomID } from '@src/utils/utils';
 
 // Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 
 // Drizzle
-import type { DatabaseAdapter } from './databaseAdapter';
-import { createConnection } from 'drizzle-orm';
+import type { dbAdapter } from './dbAdapter';
+import { createConnectionPool, sql } from 'drizzle-orm';
 
 import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
@@ -41,7 +42,7 @@ const dbClient =
 	privateEnv.DB_TYPE === 'mariadb' ? dbConfig.mariadb.client(dbConfig.mariadb.connection) : dbConfig.postgres.client(dbConfig.postgres.connection);
 const db = createConnection(dbClient);
 
-export class DrizzleDBAdapter implements DatabaseAdapter {
+export class DrizzleDBAdapter implements dbAdapter {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -64,6 +65,10 @@ export class DrizzleDBAdapter implements DatabaseAdapter {
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
 			}
 		}
+	}
+
+	async generateId(): Promise<string> {
+		return createRandomID();
 	}
 
 	async getCollectionModels(): Promise<any> {
@@ -120,6 +125,70 @@ export class DrizzleDBAdapter implements DatabaseAdapter {
 		}
 		const result = await model.insertMany(docs);
 		return result;
+	}
+
+	async createDraft(content: any, originalDocumentId: string, userId: string): Promise<any> {
+		const draftId = await this.generateId();
+		const result = await db.query(sql`
+			INSERT INTO drafts (id, original_document_id, content, created_by, status)
+			VALUES (${draftId}, ${originalDocumentId}, ${content}, ${userId}, 'draft')
+			RETURNING *
+		`);
+		return result.rows[0];
+	}
+
+	async updateDraft(draftId: string, content: any): Promise<any> {
+		const result = await db.query(sql`
+			UPDATE drafts
+			SET content = ${content}, updated_at = NOW()
+			WHERE id = ${draftId}
+			RETURNING *
+		`);
+		return result.rows[0];
+	}
+
+	async publishDraft(draftId: string): Promise<any> {
+		const result = await db.query(sql`
+			UPDATE drafts
+			SET status = 'published'
+			WHERE id = ${draftId}
+			RETURNING *
+		`);
+
+		const draft = result.rows[0];
+		const revisionId = await this.generateId();
+		await db.query(sql`
+			INSERT INTO revisions (id, document_id, content, created_by)
+			VALUES (${revisionId}, ${draft.original_document_id}, ${draft.content}, ${draft.created_by})
+		`);
+		return draft;
+	}
+
+	async getDraftsByUser(userId: string): Promise<any[]> {
+		const result = await db.query(sql`
+			SELECT * FROM drafts
+			WHERE created_by = ${userId}
+		`);
+		return result.rows;
+	}
+
+	async createRevision(documentId: string, content: any, userId: string): Promise<any> {
+		const revisionId = await this.generateId();
+		const result = await db.query(sql`
+			INSERT INTO revisions (id, document_id, content, created_by)
+			VALUES (${revisionId}, ${documentId}, ${content}, ${userId})
+			RETURNING *
+		`);
+		return result.rows[0];
+	}
+
+	async getRevisions(documentId: string): Promise<any[]> {
+		const result = await db.query(sql`
+			SELECT * FROM revisions
+			WHERE document_id = ${documentId}
+			ORDER BY created_at DESC
+		`);
+		return result.rows;
 	}
 
 	async disconnect(): Promise<void> {
