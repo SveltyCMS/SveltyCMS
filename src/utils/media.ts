@@ -59,7 +59,9 @@ function constructUrl(path: string, hash: string, fileName: string, ext: string,
 async function saveResizedImages(buffer: Buffer, hash: string, fileName: string, collectionName: string, ext: string, path: string) {
 	const sharpModule = await import('sharp');
 	const sharp = sharpModule.default;
-	const format = (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format) as keyof sharpModule.FormatEnum;
+	const format = (
+		publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format
+	) as keyof sharpModule.FormatEnum;
 	for (const size in SIZES) {
 		if (size === 'original') continue;
 
@@ -78,9 +80,9 @@ async function saveResizedImages(buffer: Buffer, hash: string, fileName: string,
 }
 
 // Saves media information to the database.
-async function saveMediaToDb<T>(collection: string, fileInfo: T, userId: string): Promise<mongoose.Types.ObjectId> {
+async function saveMediaToDb<T>(collection: string, fileInfo: T, user_id: string): Promise<mongoose.Types.ObjectId> {
 	// if (!fileInfo.original) throw new Error('File information is missing.');
-	const res = await mongoose.models[collection].insertMany([{ ...fileInfo, user: userId }]);
+	const res = await mongoose.models[collection].insertMany([{ ...fileInfo, user: user_id }]);
 	return new mongoose.Types.ObjectId(res[0]._id);
 }
 
@@ -90,7 +92,7 @@ async function saveMedia<T>(
 	collection: string,
 	collectionName: string,
 	handleResizing: boolean,
-	userId: string
+	user_id: string
 ): Promise<{ id: mongoose.Types.ObjectId; fileInfo: T }> {
 	if (browser) return {} as any;
 
@@ -128,8 +130,8 @@ async function saveMedia<T>(
 		}
 
 		// Save file information to the database
-		console.log(`Saving media to db: ${collection} - ${fileInfo}`)
-		const id = await saveMediaToDb<T>(collection, fileInfo, userId);
+		console.log(`Saving media to db: ${collection} - ${fileInfo}`);
+		const id = await saveMediaToDb<T>(collection, fileInfo, user_id);
 		return { id, fileInfo: fileInfo as T };
 	} catch (error) {
 		console.error('Error saving media:', error);
@@ -140,23 +142,27 @@ async function saveMedia<T>(
 // Specific Media Saving Functions
 
 //Saves an image file.
-export async function saveImage(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
-	return await saveMedia<MediaImage>(file, 'media_images', collectionName, true, userId);
+export async function saveImage(file: File, collectionName: string, user_id: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaImage }> {
+	return await saveMedia<MediaImage>(file, 'media_images', collectionName, true, user_id);
 }
 
 // Saves a document file.
-export async function saveDocument(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaDocument }> {
-	return await saveMedia<MediaDocument>(file, 'media_documents', collectionName, false, userId);
+export async function saveDocument(
+	file: File,
+	collectionName: string,
+	user_id: string
+): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaDocument }> {
+	return await saveMedia<MediaDocument>(file, 'media_documents', collectionName, false, user_id);
 }
 
 // Saves a video file.
-export async function saveVideo(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaVideo }> {
-	return await saveMedia<MediaVideo>(file, 'media_videos', collectionName, false, userId);
+export async function saveVideo(file: File, collectionName: string, user_id: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaVideo }> {
+	return await saveMedia<MediaVideo>(file, 'media_videos', collectionName, false, user_id);
 }
 
 // Saves an audio file.
-export async function saveAudio(file: File, collectionName: string, userId: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaAudio }> {
-	return await saveMedia<MediaAudio>(file, 'media_audio', collectionName, false, userId);
+export async function saveAudio(file: File, collectionName: string, user_id: string): Promise<{ id: mongoose.Types.ObjectId; fileInfo: MediaAudio }> {
+	return await saveMedia<MediaAudio>(file, 'media_audio', collectionName, false, user_id);
 }
 
 // Saves a remote media file from a URL.

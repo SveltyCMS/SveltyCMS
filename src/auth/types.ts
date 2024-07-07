@@ -138,8 +138,8 @@ function hasRolePermission(role: Role, action: PermissionAction, contextId: stri
 }
 
 // Utility function to check if the action is within the rate limit.
-function checkRateLimit(rateLimits: RateLimit[], userId: string, action: PermissionAction): boolean {
-	const rateLimit = rateLimits.find((rl) => rl.user_id === userId && rl.action === action);
+function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {
+	const rateLimit = rateLimits.find((rl) => rl.user_id === user_id && rl.action === action);
 	if (rateLimit) {
 		const now = new Date();
 		const timePassed = now.getTime() - rateLimit.lastActionAt.getTime();

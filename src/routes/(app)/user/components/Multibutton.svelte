@@ -38,7 +38,7 @@
 				username: selectedRows[0].data.username,
 				email: selectedRows[0].data.email,
 				role: selectedRows[0].data.role,
-				userId: selectedRows[0].data.userId
+				user_id: selectedRows[0].data.user_id
 			},
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'

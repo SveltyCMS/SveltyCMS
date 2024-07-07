@@ -10,7 +10,7 @@ import logger from '@utils/logger'; // Import logger
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
-		logger.debug(`POST request received for schema: ${schema.name}, userId: ${user.user_id}`);
+		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user.user_id}`);
 
 		const body: { [key: string]: any } = {};
 		const collections = await getCollectionModels(); // Get collection models from the database
@@ -64,12 +64,8 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		return new Response(JSON.stringify(result), { status: 201 }); // 201 Created
 	} catch (error) {
 		// Handle error by checking its type
-		if (error instanceof Error) {
-			logger.error(`Error occurred during POST request: ${error.message}`);
-			return new Response(error.message, { status: 500 });
-		} else {
-			logger.error('Unknown error occurred during POST request');
-			return new Response('Unknown error occurred', { status: 500 });
-		}
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		logger.error(`Error occurred during POST request: ${errorMessage}`);
+		return new Response(errorMessage, { status: 500 });
 	}
 };

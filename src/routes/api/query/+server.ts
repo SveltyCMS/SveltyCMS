@@ -19,15 +19,15 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the session ID from cookies
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 	// Retrieve the user ID from the form data
-	const userId = data.get('userId') as string;
+	const user_id = data.get('user_id') as string;
 
 	if (!auth) {
 		throw new Error('Auth is not initialized');
 	}
 
 	// Authenticate user based on user ID or session ID
-	const user = userId
-		? ((await auth.checkUser({ userId })) as User) // Check user with user ID
+	const user = user_id
+		? ((await auth.checkUser({ user_id })) as User) // Check user with user ID
 		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
 
 	if (!user) {
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	const method = data.get('method') as string;
 
 	// Delete these keys from the form data as they are no longer needed
-	['userId', 'collectionName', 'method'].forEach((key) => data.delete(key));
+	['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
 
 	try {
 		// Check user permissions
@@ -117,10 +117,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 	} catch (error) {
 		// Handle error by checking its type
-		if (error instanceof Error) {
-			return new Response(error.message, { status: 403 });
-		} else {
-			return new Response('Unknown error occurred', { status: 500 });
-		}
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		return new Response(errorMessage, { status: error instanceof Error ? 403 : 500 });
 	}
 };

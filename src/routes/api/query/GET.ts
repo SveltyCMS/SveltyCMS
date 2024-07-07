@@ -8,7 +8,9 @@ import { modifyRequest } from './modifyRequest';
 
 import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
-import logger from '@utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({
@@ -29,7 +31,7 @@ export async function _GET({
 	page?: number;
 }) {
 	try {
-		logger.debug(`GET request received for schema: ${schema.name}, userId: ${user.user_id}`);
+		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user.user_id}`);
 
 		const aggregations: any = [];
 		const collections = await getCollectionModels(); // Get collection models from the database
@@ -111,12 +113,7 @@ export async function _GET({
 		);
 	} catch (error) {
 		// Handle error by checking its type
-		if (error instanceof Error) {
-			logger.error(`Error occurred during GET request: ${error.message}`);
-			return new Response(error.message, { status: 500 });
-		} else {
-			logger.error('Unknown error occurred during GET request');
-			return new Response('Unknown error occurred', { status: 500 });
-		}
+		logger.error(`Error occurred during GET request: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		return new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 });
 	}
 }

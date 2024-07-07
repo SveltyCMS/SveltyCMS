@@ -40,7 +40,7 @@ export async function load({ cookies }) {
 	if (!session_id) {
 		logger.warn('No session ID found, creating a guest session.');
 		try {
-			const newSession = await auth.createSession({ user_id: 'guestUserId', expires: 3600000 });
+			const newSession = await auth.createSession({ user_id: 'guestuser_id', expires: 3600000 });
 			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, { ...sessionCookie.attributes, httpOnly: true, secure: true });
 			session_id = sessionCookie.value;

@@ -84,7 +84,7 @@
 	const tokenTableData = [];
 
 	const tableHeadersUser = [
-		{ label: m.adminarea_userId(), key: 'id' },
+		{ label: m.adminarea_user_id(), key: 'id' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_avatar(), key: 'avatar' },
 		{ label: m.form_email(), key: 'email' },
@@ -97,7 +97,7 @@
 	];
 
 	const tableHeaderToken = [
-		{ label: m.adminarea_userId(), key: 'userId' },
+		{ label: m.adminarea_user_id(), key: 'user_id' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_email(), key: 'email' },
 		{ label: m.adminarea_expiresin(), key: 'expiresIn' },

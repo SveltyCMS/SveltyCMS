@@ -146,6 +146,6 @@
 		"svelte-grid-extended": "^1.2.1",
 		"svelte-lexical": "^0.4.1",
 		"svelty-email": "^0.0.10",
-		"tailwind-merge": "^2.3.0"
+		"tailwind-merge": "^2.4.0"
 	}
 }

@@ -6,15 +6,15 @@ import logger from '@src/utils/logger'; // Import logger
 export const PUT: RequestHandler = async (event) => {
 	try {
 		const { request } = event;
-		const { userId, newUserData } = await request.json();
+		const { user_id, newUserData } = await request.json();
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		await auth.updateUserAttributes(userId, newUserData);
-		logger.info(`User edited successfully with user ID: ${userId}`);
+		await auth.updateUserAttributes(user_id, newUserData);
+		logger.info(`User edited successfully with user ID: ${user_id}`);
 		return new Response(JSON.stringify({ success: true }), { status: 200 });
 	} catch (error) {
 		const err = error as Error;

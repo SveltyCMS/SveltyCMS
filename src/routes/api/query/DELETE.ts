@@ -5,12 +5,14 @@ import type { User } from '@src/auth/types';
 
 import { getCollectionModels } from '../databases/db';
 import { modifyRequest } from './modifyRequest';
-import logger from '@utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
-		logger.debug(`DELETE request received for schema: ${schema.name}, userId: ${user.user_id}`);
+		logger.debug(`DELETE request received for schema: ${schema.name}, user_id: ${user.user_id}`);
 
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
@@ -50,12 +52,8 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		return new Response(JSON.stringify(result));
 	} catch (error) {
 		// Handle error by checking its type
-		if (error instanceof Error) {
-			logger.error(`Error occurred during DELETE request: ${error.message}`);
-			return new Response(error.message, { status: 500 });
-		} else {
-			logger.error('Unknown error occurred during DELETE request');
-			return new Response('Unknown error occurred', { status: 500 });
-		}
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		logger.error(`Error occurred during DELETE request: ${errorMessage}`);
+		return new Response(errorMessage, { status: 500 });
 	}
 };

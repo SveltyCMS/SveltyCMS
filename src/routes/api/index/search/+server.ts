@@ -28,11 +28,11 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 	const data = await request.formData();
 
 	// Extract user ID from the form data
-	const userId = data.get('userId') as string;
+	const user_id = data.get('user_id') as string;
 
 	// Authenticate user based on user ID or session ID
-	const user = userId
-		? ((await auth.checkUser({ userId })) as User) // Check user with user ID
+	const user = user_id
+		? ((await auth.checkUser({ user_id })) as User) // Check user with user ID
 		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
 
 	// Extract search text from the form data

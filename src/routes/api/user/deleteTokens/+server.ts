@@ -8,15 +8,15 @@ import logger from '@utils/logger';
 export const DELETE: RequestHandler = async (event) => {
 	try {
 		const { request } = event;
-		const { userId } = await request.json();
+		const { user_id } = await request.json();
 
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		await auth.invalidateAllUserSessions(userId);
-		logger.info(`All tokens deleted successfully for user ID: ${userId}`);
+		await auth.invalidateAllUserSessions(user_id);
+		logger.info(`All tokens deleted successfully for user ID: ${user_id}`);
 		return new Response(JSON.stringify({ success: true }), { status: 200 });
 	} catch (error) {
 		const err = error as Error;
