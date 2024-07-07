@@ -134,10 +134,6 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 		}
 	}
 
-	// getUserSchema() {
-	// 	return UserSchema.obj; // Return the schema definition object
-	// }
-
 	// Get a user by ID
 	async getUserById(user_id: string): Promise<User | null> {
 		try {
@@ -212,9 +208,17 @@ export class MongoDBAuthAdapter implements AuthDBAdapter {
 			});
 			await session.save();
 			logger.info(`Session created for user: ${data.user_id}, expires at: ${expiresAt}`);
-			return session.toObject() as Session;
+			return {
+				session_id: session._id.toString(),
+				user_id: session.user_id,
+				expires: session.expires
+			} as Session;
 		} catch (error) {
-			logger.error('Error in blockUser action:', error as Error);
+			if (error instanceof Error) {
+				logger.error(`Failed to create session: ${error.message}`);
+			} else {
+				logger.error('Failed to create session: Unknown error');
+			}
 			throw error;
 		}
 	}

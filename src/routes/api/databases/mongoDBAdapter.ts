@@ -66,14 +66,23 @@ export class MongoDBAdapter implements DatabaseAdapter {
 		}
 	}
 
+	// Get collection models
 	async getCollectionModels(): Promise<any> {
+		logger.debug('getCollectionModels called');
 		return new Promise<any>((resolve) => {
 			this.unsubscribe = collections.subscribe((collections) => {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
+					logger.debug('Collections found:', { collections });
+
 					Object.values(collections).forEach((collection) => {
-						if (!collection.name) return;
+						if (!collection.name) {
+							logger.warn('Collection without a name encountered:', { collection });
+							return;
+						}
+
+						logger.debug(`Setting up collection model for ${collection.name}`);
 
 						const RevisionSchema = new mongoose.Schema(
 							{
@@ -100,14 +109,22 @@ export class MongoDBAdapter implements DatabaseAdapter {
 							}
 						);
 
+						if (mongoose.models[collection.name]) {
+							logger.debug(`Collection model for ${collection.name} already exists.`);
+						} else {
+							logger.debug(`Creating new collection model for ${collection.name}.`);
+						}
+
 						collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
-						// console.log(`Collection model for ${collection.name} set up.`);
+						logger.info(`Collection model for ${collection.name} set up successfully.`);
 					});
 
 					this.unsubscribe && this.unsubscribe();
 					this.unsubscribe = undefined;
 					logger.info('MongoDB adapter collection models setup complete.');
 					resolve(collectionsModels);
+				} else {
+					logger.warn('No collections found to set up models.');
 				}
 			});
 		});
@@ -115,14 +132,32 @@ export class MongoDBAdapter implements DatabaseAdapter {
 
 	// Set up authentication models
 	setupAuthModels(): void {
-		if (!mongoose.models['auth_tokens']) {
-			mongoose.model('auth_tokens', TokenSchema);
-		}
-		if (!mongoose.models['auth_users']) {
-			mongoose.model('auth_users', UserSchema);
-		}
-		if (!mongoose.models['auth_sessions']) {
-			mongoose.model('auth_sessions', SessionSchema);
+		try {
+			if (!mongoose.models['auth_tokens']) {
+				mongoose.model('auth_tokens', TokenSchema);
+				logger.debug('Auth tokens model created.');
+			} else {
+				logger.debug('Auth tokens model already exists.');
+			}
+
+			if (!mongoose.models['auth_users']) {
+				mongoose.model('auth_users', UserSchema);
+				logger.debug('Auth users model created.');
+			} else {
+				logger.debug('Auth users model already exists.');
+			}
+
+			if (!mongoose.models['auth_sessions']) {
+				mongoose.model('auth_sessions', SessionSchema);
+				logger.debug('Auth sessions model created.');
+			} else {
+				logger.debug('Auth sessions model already exists.');
+			}
+			logger.info('Authentication models set up successfully.');
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to set up authentication models: ${err.message}`);
+			throw new Error(`Failed to set up authentication models: ${err.message}`);
 		}
 	}
 

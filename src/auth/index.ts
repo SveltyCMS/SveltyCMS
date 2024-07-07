@@ -28,13 +28,12 @@ export class Auth {
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
-
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
-				hashedPassword = await argon2.hash(password, argon2Attributes); // Use await
+				hashedPassword = await argon2.hash(password, argon2Attributes);
 			}
-
+			logger.debug(`Creating user with email: ${email}`);
 			// Create the user in the database
 			const user = await this.db.createUser({
 				email,
@@ -44,7 +43,6 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered
 			});
-
 			logger.info(`User created: ${user.user_id}`);
 			return user;
 		} catch (error) {
@@ -99,9 +97,10 @@ export class Auth {
 		isExtended?: boolean;
 	}): Promise<Session> {
 		try {
-			expires = isExtended ? expires * 2 : expires; // Extend session time if required
+			expires = isExtended ? expires * 2 : expires;
 			logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
 			const session = await this.db.createSession({ user_id, expires });
+
 			logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
 			return session;
 		} catch (error) {

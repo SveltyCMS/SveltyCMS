@@ -59,7 +59,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 						blocked: false
 					});
 
-					// send welcome email
+					// Send Welcome email
 					await fetch('/api/sendMail', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
@@ -393,6 +393,7 @@ async function signIn(
 	}
 }
 
+// Function create a new OTHER USER account and creating a session.
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}, cookies: ${JSON.stringify(cookies)}`);
 	if (!auth) {

@@ -46,7 +46,7 @@ async function loadAdapters() {
 		}
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error loading adapters: ${err.message}`);
+		logger.error(`Error loading adapters: ${err.message}`, { name: err.name, message: err.message });
 		throw error;
 	}
 }
@@ -70,11 +70,11 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 		} catch (error) {
 			// Message for connection error
 			const err = error as Error;
-			logger.error(`\x1b[31m Error connecting to database:\x1b[0m ${err.message}`);
+			logger.error(`\x1b[31m Error connecting to database:\x1b[0m ${err.message}`, { name: err.name, message: err.message });
 
 			retries -= 1;
 			if (retries > 0) {
-				logger.info(`Retrying... Attempts left: ${retries}`);
+				logger.info(`Retrying... Attempts left: ${retries}`, { retries });
 				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
 			} else {
 				const errorMsg = 'Failed to connect to the database after maximum retries';
@@ -102,12 +102,12 @@ async function initializeAdapters() {
 		if (dbAdapter) {
 			logger.debug('Setting up authentication models...');
 			const setupAuthModelsStart = Date.now();
-			dbAdapter.setupAuthModels();
+			await dbAdapter.setupAuthModels();
 			logger.debug(`Authentication models set up in ${Date.now() - setupAuthModelsStart}ms`);
 
 			logger.debug('Setting up media models...');
 			const setupMediaModelsStart = Date.now();
-			dbAdapter.setupMediaModels();
+			await dbAdapter.setupMediaModels();
 			logger.debug(`Media models set up in ${Date.now() - setupMediaModelsStart}ms`);
 		}
 
@@ -122,7 +122,7 @@ async function initializeAdapters() {
 		logger.debug('Adapters initialized successfully');
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error initializing adapters: ${err.message}`);
+		logger.error(`Error initializing adapters: ${err.message}`, { name: err.name, message: err.message });
 		initializationPromise = null; // Reset promise on error to retry initialization if needed
 		throw error;
 	}
@@ -134,7 +134,8 @@ initializationPromise = initializeAdapters()
 		logger.debug('Initialization completed successfully.');
 	})
 	.catch((error) => {
-		logger.error(`Initialization promise rejected with error: ${error}`);
+		const err = error as Error;
+		logger.error(`Initialization promise rejected with error: ${err.message}`, { name: err.name, message: err.message });
 		initializationPromise = null; // Reset promise on error to retry initialization if needed
 	});
 
@@ -151,7 +152,7 @@ export async function getCollectionModels() {
 	logger.info('Fetching collection models...');
 	const models = await dbAdapter.getCollectionModels();
 	Object.assign(collectionsModels, models);
-	logger.debug('Collection models fetched successfully: ' + JSON.stringify(collectionsModels));
+	logger.debug('Collection models fetched successfully', { collectionsModels });
 	return collectionsModels;
 }
 
