@@ -7,15 +7,15 @@ import { Auth } from '@src/auth';
 import { google } from 'googleapis';
 
 // Adapters
-import type { dbAdapter } from './dbAdapter';
-import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
+import type { dbInterface } from '@api/databases/dbInterface';
+import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 // Database and authentication adapters
-let dbAdapter: dbAdapter | null = null;
-let authAdapter: AuthDBAdapter | null = null;
+let dbAdapter: dbInterface | null = null;
+let authAdapter: authDBInterface | null = null;
 let auth: Auth | null = null;
 
 const MAX_RETRIES = 5;
@@ -36,8 +36,8 @@ async function loadAdapters() {
 			logger.debug('Detected SQL database as the database type.');
 
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
-			// 	import('./drizzleDBAdapter'),
-			// 	import('@src/auth/drizzleAuthAdapter')
+			//     import('./drizzleDBAdapter'),
+			//     import('@src/auth/drizzleAuthAdapter')
 			// ]);
 			// dbAdapter = new DrizzleDBAdapter();
 			// authAdapter = new DrizzleAuthAdapter();
@@ -174,4 +174,4 @@ if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 }
 
 // Export collections and auth objects
-export { collectionsModels, auth, googleAuth, initializationPromise };
+export { collectionsModels, auth, googleAuth, initializationPromise, dbAdapter, authAdapter };

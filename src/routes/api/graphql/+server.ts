@@ -32,7 +32,6 @@ if (privateEnv.USE_REDIS === true) {
 async function setupGraphQL() {
 	const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
-	// Add typeDefs and resolvers to typeDefs
 	const typeDefs = `
         ${collectionsTypeDefs}
         ${userTypeDefs()}
@@ -53,24 +52,20 @@ async function setupGraphQL() {
 	const resolvers = {
 		Query: {
 			...(await collectionsResolvers(redisClient, privateEnv)),
-			...userResolvers(),
+			...userResolvers(), // Ensure that userResolvers and mediaResolvers are functions
 			...mediaResolvers()
 		}
 	};
 
 	const yogaApp = createYoga<RequestEvent>({
-		// Import schema and resolvers
 		schema: createSchema({
 			typeDefs,
 			resolvers
 		}),
-		// Define explicitly the GraphQL endpoint
 		graphqlEndpoint: '/api/graphql',
-		// Use SvelteKit's Response object
 		fetchAPI: globalThis
 	});
 
-	// Ensure the exported functions return a Response object
 	return yogaApp;
 }
 

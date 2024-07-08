@@ -1,10 +1,12 @@
 import { db } from '@api/databases/drizzleDBAdapter';
-import type { AuthDBAdapter } from './authDBAdapter';
+import type { authDBInterface } from './authDBInterface';
 import type { User, Session, Token, Role, Permission } from './types';
 import crypto from 'crypto';
+
+// Import logger
 import logger from '@utils/logger';
 
-export class DrizzleAuthAdapter implements AuthDBAdapter {
+export class DrizzleAuthAdapter implements authDBInterface {
 	async createUser(userData: Partial<User>): Promise<User> {
 		const [user] = await db.insert('users').values(userData).returning('*');
 		return user;

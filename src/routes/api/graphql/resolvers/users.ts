@@ -1,25 +1,29 @@
-import type { dbAdapter } from '@api/databases/dbAdapter';
-import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
+import type { dbInterface } from '@src/routes/api/databases/dbInterface';
+import type { User } from '@src/auth/types';
 
-function generateGraphQLTypeDefsFromSchema(schema: any, typeName: string) {
-	const fields = Object.keys(schema)
-		.map((key) => {
-			let type;
-			switch (typeof schema[key]) {
-				case 'string':
-					type = 'String';
-					break;
-				case 'boolean':
-					type = 'Boolean';
-					break;
-				case 'object':
-					type = schema[key] === Date ? 'String' : 'String';
-					break;
-				default:
-					type = 'String';
-			}
-			return `${key}: ${type}`;
-		})
+// Helper function to map TypeScript types to GraphQL types
+function mapTypeToGraphQLType(value: any): string {
+	if (Array.isArray(value)) {
+		return `[${mapTypeToGraphQLType(value[0])}]`;
+	}
+	switch (typeof value) {
+		case 'string':
+			return 'String';
+		case 'boolean':
+			return 'Boolean';
+		case 'number':
+			return 'Int';
+		case 'object':
+			return value instanceof Date ? 'String' : 'String';
+		default:
+			return 'String';
+	}
+}
+
+// Helper function to generate GraphQL type definitions from a TypeScript type
+function generateGraphQLTypeDefsFromType<T extends Record<string, any>>(type: T, typeName: string): string {
+	const fields = Object.entries(type)
+		.map(([key, value]) => `${key}: ${mapTypeToGraphQLType(value)}`)
 		.join('\n');
 
 	return `
@@ -29,12 +33,34 @@ function generateGraphQLTypeDefsFromSchema(schema: any, typeName: string) {
     `;
 }
 
-export function userTypeDefs(authDBAdapter: AuthDBAdapter) {
-	const userSchema = authDBAdapter.getUserSchema();
-	return generateGraphQLTypeDefsFromSchema(userSchema, 'User');
+// Use a partial User object to define the types
+const userTypeSample: Partial<User> = {
+	user_id: '',
+	email: '',
+	password: '',
+	role: '',
+	username: '',
+	avatar: '',
+	lastAuthMethod: '',
+	lastActiveAt: new Date(),
+	expiresAt: new Date(),
+	isRegistered: false,
+	blocked: false,
+	resetRequestedAt: new Date(),
+	resetToken: '',
+	failedAttempts: 0,
+	lockoutUntil: new Date(),
+	is2FAEnabled: false,
+	permissions: []
+};
+
+// TypeDefs
+export function userTypeDefs() {
+	return generateGraphQLTypeDefsFromType(userTypeSample, 'User');
 }
 
-export function userResolvers(dbAdapter: any) {
+// Resolvers
+export function userResolvers(dbAdapter: dbInterface) {
 	return {
 		Query: {
 			users: async () => {

@@ -6,7 +6,7 @@ import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 
 // Drizzle
-import type { dbAdapter } from './dbAdapter';
+import type { dbInterface } from './dbInterface';
 import { createConnectionPool, sql } from 'drizzle-orm';
 
 import * as mariadb from 'drizzle-orm/mariadb';
@@ -42,7 +42,7 @@ const dbClient =
 	privateEnv.DB_TYPE === 'mariadb' ? dbConfig.mariadb.client(dbConfig.mariadb.connection) : dbConfig.postgres.client(dbConfig.postgres.connection);
 const db = createConnection(dbClient);
 
-export class DrizzleDBAdapter implements dbAdapter {
+export class DrizzleDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {

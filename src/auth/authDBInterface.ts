@@ -1,6 +1,6 @@
 import type { User, Session, Token, Role, Permission } from './types';
 
-export interface AuthDBAdapter {
+export interface authDBInterface {
 	// User Management Methods
 	createUser(userData: Partial<User>): Promise<User>;
 	updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void>;

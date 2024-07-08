@@ -4,8 +4,8 @@ import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 
-import type { dbAdapter } from '@src/routes/api/databases/dbAdapter';
-import type { AuthDBAdapter } from '@src/auth/authDBAdapter';
+import type { dbInterface } from '@src/routes/api/databases/dbInterface';
+import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { User } from '@src/auth/types';
 
 import { addData, updateData, handleRequest } from '@src/utils/data';
@@ -122,7 +122,7 @@ function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; e
 	return { fileNameWithoutExt, ext };
 }
 
-export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: any) {
+export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: dbInterface) {
 	switch (type) {
 		case 'image':
 			return await saveImage(file, collectionName, dbAdapter);
@@ -144,7 +144,7 @@ const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
 // Saves image to disk and returns file information
-export async function saveImage(file: File, collectionName: string, dbAdapter: any): Promise<{ id: string; fileInfo: MediaImage }> {
+export async function saveImage(file: File, collectionName: string, dbAdapter: dbInterface): Promise<{ id: string; fileInfo: MediaImage }> {
 	try {
 		if (typeof window !== 'undefined') return {} as any; // Skip if running in browser
 		const sharp = (await import('sharp')).default;
@@ -252,7 +252,7 @@ export async function saveImage(file: File, collectionName: string, dbAdapter: a
 	}
 }
 // Save files and returns file information
-export async function saveDocument(file: File, collectionName: string, dbAdapter: any) {
+export async function saveDocument(file: File, collectionName: string, dbAdapter: dbInterface) {
 	if (browser) return;
 	const fields: { file: any; replace: (id: string) => void }[] = [];
 	const parseFiles = async (data: any) => {
@@ -331,7 +331,7 @@ export async function saveDocument(file: File, collectionName: string, dbAdapter
 }
 
 // Implement the saveVideo function to handle video files
-export async function saveVideo(file: File, collectionName: string, dbAdapter: any) {
+export async function saveVideo(file: File, collectionName: string, dbAdapter: dbInterface) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = await hashFileContent(buffer);
@@ -364,7 +364,7 @@ export async function saveVideo(file: File, collectionName: string, dbAdapter: a
 }
 
 // Implement the saveAudio function to handle audio files
-export async function saveAudio(file: File, collectionName: string, dbAdapter: any) {
+export async function saveAudio(file: File, collectionName: string, dbAdapter: dbInterface) {
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = await hashFileContent(buffer);
@@ -397,7 +397,7 @@ export async function saveAudio(file: File, collectionName: string, dbAdapter: a
 }
 
 // Implement the saveRemoteMedia function to handle remote video files
-export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: any): Promise<{ id: string }> {
+export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: dbInterface): Promise<{ id: string }> {
 	try {
 		const response = await fetch(fileUrl);
 		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
@@ -512,7 +512,7 @@ export async function saveFormData({
 	_mode?: 'edit' | 'create';
 	id?: string;
 	dbAdapter: any;
-	authAdapter: AuthDBAdapter;
+	authAdapter: authDBInterface;
 	user_id: string;
 }) {
 	//console.log('saveFormData was called');

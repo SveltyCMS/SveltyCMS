@@ -5,7 +5,7 @@ import crypto from 'crypto';
 import logger from '@utils/logger';
 
 // Import types
-import type { AuthDBAdapter } from './authDBAdapter';
+import type { authDBAdapter } from './authDBInterface';
 import type { User, Session, Token, Role, Permission } from './types';
 
 // Schema for User collection
@@ -82,7 +82,7 @@ const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permi
 export { UserSchema, SessionSchema, TokenSchema };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
-export class MongoDBAuthAdapter implements AuthDBAdapter {
+export class MongoDBAuthAdapter implements authDBAdapter {
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {

@@ -1,5 +1,5 @@
-// Define dbAdapter interface
-export interface dbAdapter {
+// Define dbInterface
+export interface dbInterface {
 	// Database Connection and Setup Methods
 	connect(): Promise<void>;
 	getCollectionModels(): Promise<Record<string, any>>;
@@ -8,6 +8,7 @@ export interface dbAdapter {
 
 	// Additional Methods for Data Operations
 	findOne(collection: string, query: object): Promise<any>;
+	findMany(collection: string, query: object): Promise<any[]>;
 	insertMany(collection: string, docs: object[]): Promise<any[]>;
 	updateOne(collection: string, query: object, update: object): Promise<any>;
 	updateMany(collection: string, query: object, update: object): Promise<any>;

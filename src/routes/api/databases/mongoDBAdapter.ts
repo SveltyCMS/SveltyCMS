@@ -6,7 +6,7 @@ import type { Unsubscriber } from 'svelte/store';
 
 // Database
 import mongoose from 'mongoose';
-import type { dbAdapter } from './dbAdapter';
+import type { dbInterface } from './dbInterface';
 
 // Auth
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
@@ -47,7 +47,7 @@ const RevisionSchema = new mongoose.Schema({
 const Draft = mongoose.model('Draft', DraftSchema);
 const Revision = mongoose.model('Revision', RevisionSchema);
 
-export class MongoDBAdapter implements dbAdapter {
+export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -197,6 +197,16 @@ export class MongoDBAdapter implements dbAdapter {
 			throw new Error(`findOne failed. Collection ${collection} does not exist.`);
 		}
 		return model.findOne(query).exec();
+	}
+
+	// Implementing findMany method
+	async findMany(collection: string, query: object): Promise<any[]> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			logger.error(`findMany failed. Collection ${collection} does not exist.`);
+			throw new Error(`findMany failed. Collection ${collection} does not exist.`);
+		}
+		return model.find(query).exec();
 	}
 
 	// Implementing insertMany method

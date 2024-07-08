@@ -1,6 +1,6 @@
 import argon2 from 'argon2';
 import type { Cookie, User, Session, Token } from './types';
-import type { AuthDBAdapter } from './authDBAdapter';
+import type { authDBAdapter } from './authDBInterface';
 
 // Import logger
 import logger from '@utils/logger';
@@ -18,9 +18,9 @@ const argon2Attributes = {
 
 // Auth class to handle user and session management
 export class Auth {
-	private db: AuthDBAdapter;
+	private db: authDBAdapter;
 
-	constructor(dbAdapter: AuthDBAdapter) {
+	constructor(dbAdapter: authDBAdapter) {
 		this.db = dbAdapter;
 	}
 
