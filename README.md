@@ -88,7 +88,8 @@ Install [Node.js](https://nodejs.org/en) to get started which ships with npm.
 We recommend the faster [pnpm](https://pnpm.io) package manager. [Yarn](https://yarnpkg.com) and the [bun.sh](https://bun.sh) can also be used as well. Adapt the command accordingly.
 
 ```bash
-npm install   # installs all required package dependencies
+# installs all required package dependencies
+npm install
 ```
 
 ### Setup via CLI Installer
@@ -98,6 +99,7 @@ This project uses a public/private configuration to store sensitive information,
 To set up the SvelteCMC project, you just need to start the CLI Installer. Minium requirements are a Database and Email to get started :
 
 ```bash
+# start the cli-installer to setup your database & email
 npm run installer
 ```
 
