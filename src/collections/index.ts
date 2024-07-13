@@ -9,6 +9,9 @@ import type { Schema, CollectionNames } from './types';
 import deepmerge from 'deepmerge';
 import { defaultPermissions } from '@src/auth/types';
 
+// System Logs
+import logger from '@utils/logger';
+
 let imports = {} as { [key in CollectionNames]: Schema };
 let rnd = Math.random();
 let unsubscribe: Unsubscriber | undefined;
@@ -65,6 +68,7 @@ export const updateCollections = async (recompile: boolean = false) => {
 			);
 
 		categories.set(_categories);
+		logger.debug('Setting collections:', { collections: Object.keys(_collections) });
 		collections.set(_collections); // returns all collections
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 	});
@@ -77,11 +81,15 @@ export { categories };
 
 // Define getImports function to dynamically populate imports object
 async function getImports(recompile: boolean = false) {
+	logger.debug('Starting getImports function');
+
 	// If imports object is not empty, return its current value
 	if (Object.keys(imports).length && !recompile) return imports;
 	imports = {} as { [key in CollectionNames]: Schema };
 	// If running in development or building mode
 	if (dev || building) {
+		logger.debug('Running in dev or building mode');
+
 		// Dynamically import all TypeScript files in current directory, except for specified files
 		const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./Auth.ts', '!./config.ts']);
 		// Add imported modules to imports object
@@ -99,8 +107,12 @@ async function getImports(recompile: boolean = false) {
 
 		// If not running in development or building mode
 	} else {
+		logger.debug('Running in production mode');
+
 		// If running in browser environment
 		if (browser) {
+			logger.debug('Running in browser environment');
+
 			const files = ((await axios.get('/api/getCollections')) as any).data;
 			// console.log('browser files', files);
 
@@ -120,6 +132,8 @@ async function getImports(recompile: boolean = false) {
 
 			// If not running in browser environment
 		} else {
+			logger.debug('Running in server environment');
+
 			const files = getCollectionFiles();
 
 			// Dynamically import returned files from folder specified by import.meta.env.collectionsFolder
@@ -142,6 +156,6 @@ async function getImports(recompile: boolean = false) {
 		collection.permissions = deepmerge(defaultPermissions, collection.permissions || {});
 	}
 
-	//console.log(imports);
+	logger.debug('Imported collections:', { collections: Object.keys(imports) });
 	return imports;
 }

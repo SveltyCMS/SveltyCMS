@@ -57,6 +57,9 @@ export async function load({ cookies }) {
 	let user: any;
 	try {
 		user = await auth.validateSession({ session_id: session_id });
+		if (user && user._id) {
+			user._id = user._id.toString(); // Ensure ObjectId is converted to string
+		}
 		logger.debug(`User: ${JSON.stringify(user)}`);
 	} catch (err: any) {
 		logger.error(`Session validation failed: ${err.message}`);
@@ -72,14 +75,20 @@ export async function load({ cookies }) {
 	let collections: any;
 	try {
 		collections = await getCollections();
-		logger.debug(`Collections: ${JSON.stringify(collections)}`);
+		logger.debug('Fetched collections:', { collections: Object.keys(collections) });
 	} catch (err: any) {
 		logger.error(`Failed to get collections: ${err.message}`);
 		throw error(500, 'Internal Server Error');
 	}
 
-	const filteredCollections = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-	logger.debug(`Filtered collections: ${JSON.stringify(filteredCollections)}`);
+	const filteredCollections = Object.values(collections).filter((c: any) => {
+		logger.debug(`Checking permissions for collection ${c.name}`, {
+			userRole: user.role,
+			collectionPermissions: c.permissions
+		});
+		return c?.permissions?.[user.role]?.read !== false;
+	});
+	logger.debug('Filtered collections after permission check', { filteredCollections: filteredCollections.map((c) => c.name) });
 
 	if (filteredCollections.length === 0) {
 		logger.error('No collections found for user.');

@@ -43,9 +43,9 @@ const RevisionSchema = new mongoose.Schema({
 	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
 });
 
-// Create models for Draft and Revision
-const Draft = mongoose.model('Draft', DraftSchema);
-const Revision = mongoose.model('Revision', RevisionSchema);
+// Create models for Draft and Revision only if they don't already exist
+const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
+const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -96,17 +96,17 @@ export class MongoDBAdapter implements dbInterface {
 	// Get collection models
 	async getCollectionModels(): Promise<any> {
 		logger.debug('getCollectionModels called');
-		return new Promise<any>((resolve) => {
-			this.unsubscribe = collections.subscribe((collections) => {
+		return new Promise<any>((resolve, reject) => {
+			this.unsubscribe = collections.subscribe(async (collections) => {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
 					logger.debug('Collections found:', { collections });
 
-					Object.values(collections).forEach((collection) => {
+					for (const collection of Object.values(collections)) {
 						if (!collection.name) {
 							logger.warn('Collection without a name encountered:', { collection });
-							return;
+							continue;
 						}
 
 						logger.debug(`Setting up collection model for ${collection.name}`);
@@ -131,11 +131,19 @@ export class MongoDBAdapter implements dbInterface {
 							logger.debug(`Collection model for ${collection.name} already exists.`);
 						} else {
 							logger.debug(`Creating new collection model for ${collection.name}.`);
+							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
+
+							// Create collection explicitly
+							await mongoose.connection.createCollection(collection.name);
+							logger.info(`Collection ${collection.name} created.`);
+
+							// Insert a placeholder document to ensure collection creation
+							await collectionsModels[collection.name].create({ placeholder: true });
+							logger.info(`Placeholder document inserted into collection ${collection.name}.`);
 						}
 
-						collectionsModels[collection.name] = mongoose.models[collection.name] || mongoose.model(collection.name, schemaObject);
 						logger.info(`Collection model for ${collection.name} set up successfully.`);
-					});
+					}
 
 					this.unsubscribe && this.unsubscribe();
 					this.unsubscribe = undefined;
@@ -143,6 +151,7 @@ export class MongoDBAdapter implements dbInterface {
 					resolve(collectionsModels);
 				} else {
 					logger.warn('No collections found to set up models.');
+					reject(new Error('No collections found to set up models.'));
 				}
 			});
 		});
@@ -185,8 +194,10 @@ export class MongoDBAdapter implements dbInterface {
 		mediaSchemas.forEach((schemaName) => {
 			if (!mongoose.models[schemaName]) {
 				mongoose.model(schemaName, mediaSchema);
+				logger.debug(`Media model for ${schemaName} created.`);
 			}
 		});
+		logger.info('Media models set up successfully.');
 	}
 
 	// Implementing findOne method

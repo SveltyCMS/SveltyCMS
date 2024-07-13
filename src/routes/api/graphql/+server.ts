@@ -6,6 +6,7 @@ import { createSchema, createYoga } from 'graphql-yoga';
 import { registerCollections, collectionsResolvers } from './resolvers/collections';
 import { userTypeDefs, userResolvers } from './resolvers/users';
 import { mediaTypeDefs, mediaResolvers } from './resolvers/media';
+import { dbAdapter } from '@api/databases/db';
 
 // Redis
 import { createClient } from 'redis';
@@ -52,8 +53,8 @@ async function setupGraphQL() {
 	const resolvers = {
 		Query: {
 			...(await collectionsResolvers(redisClient, privateEnv)),
-			...userResolvers(), // Ensure that userResolvers and mediaResolvers are functions
-			...mediaResolvers()
+			...userResolvers(dbAdapter),
+			...mediaResolvers(dbAdapter)
 		}
 	};
 

@@ -4,6 +4,9 @@ import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { dbAdapter } from '@api/databases/db';
 
+// System logger
+import logger from '@utils/logger';
+
 // Registers collection schemas dynamically.
 export async function registerCollections() {
 	const collections = await getCollections();
@@ -15,7 +18,7 @@ export async function registerCollections() {
 	for (const collection of Object.values(collections)) {
 		// Type check for collection
 		if (!collection.name) {
-			console.error('Collection name is undefined:', collection);
+			logger.error('Collection name is undefined:', collection);
 			continue;
 		}
 		const collectionName: string = collection.name;
@@ -80,17 +83,22 @@ export async function registerCollections() {
 }
 
 // Builds resolvers for querying collection data.
-export async function collectionsResolvers(redisClient, privateEnv) {
+export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 	const { resolvers, collections } = await registerCollections();
 
 	for (const collection of Object.values(collections)) {
 		if (!collection.name) {
-			console.error('Collection name is undefined:', collection);
+			logger.error('Collection name is undefined:', collection);
 			continue;
 		}
 		const collectionName: string = collection.name;
 
 		resolvers.Query[collectionName] = async () => {
+			if (!dbAdapter) {
+				logger.error('Database adapter is not initialized');
+				throw new Error('Database adapter is not initialized');
+			}
+
 			try {
 				// Try to fetch the result from Redis first
 				if (privateEnv.USE_REDIS === true) {
@@ -116,7 +124,7 @@ export async function collectionsResolvers(redisClient, privateEnv) {
 
 				return dbResult;
 			} catch (error) {
-				console.error(`Error fetching data for ${collectionName}:`, error);
+				logger.error(`Error fetching data for ${collectionName}:`, error);
 				throw error;
 			}
 		};

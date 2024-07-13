@@ -5,7 +5,6 @@ export function mediaTypeDefs() {
         type MediaImage {
             _id: String
             url: String
-            #------------------------
             createdAt: String
             updatedAt: String
         }
@@ -13,7 +12,6 @@ export function mediaTypeDefs() {
         type MediaDocument {
             _id: String
             url: String
-            #------------------------
             createdAt: String
             updatedAt: String
         }
@@ -21,7 +19,6 @@ export function mediaTypeDefs() {
         type MediaAudio {
             _id: String
             url: String
-            #------------------------
             createdAt: String
             updatedAt: String
         }
@@ -29,7 +26,6 @@ export function mediaTypeDefs() {
         type MediaVideo {
             _id: String
             url: String
-            #------------------------
             createdAt: String
             updatedAt: String
         }
@@ -37,7 +33,6 @@ export function mediaTypeDefs() {
         type MediaRemote {
             _id: String
             url: String
-            #------------------------
             createdAt: String
             updatedAt: String
         }
@@ -46,35 +41,37 @@ export function mediaTypeDefs() {
 
 export function mediaResolvers() {
 	return {
-		mediaImages: async () => {
-			if (!dbAdapter) {
-				throw new Error('Database adapter is not initialized');
+		Query: {
+			mediaImages: async () => {
+				if (!dbAdapter) {
+					throw new Error('Database adapter is not initialized');
+				}
+				return await dbAdapter.findMany('media_images', {});
+			},
+			mediaDocuments: async () => {
+				if (!dbAdapter) {
+					throw new Error('Database adapter is not initialized');
+				}
+				return await dbAdapter.findMany('media_documents', {});
+			},
+			mediaAudio: async () => {
+				if (!dbAdapter) {
+					throw new Error('Database adapter is not initialized');
+				}
+				return await dbAdapter.findMany('media_audio', {});
+			},
+			mediaVideos: async () => {
+				if (!dbAdapter) {
+					throw new Error('Database adapter is not initialized');
+				}
+				return await dbAdapter.findMany('media_videos', {});
+			},
+			mediaRemote: async () => {
+				if (!dbAdapter) {
+					throw new Error('Database adapter is not initialized');
+				}
+				return await dbAdapter.findMany('media_remote', {});
 			}
-			return await dbAdapter.findMany('media_images', {});
-		},
-		mediaDocuments: async () => {
-			if (!dbAdapter) {
-				throw new Error('Database adapter is not initialized');
-			}
-			return await dbAdapter.findMany('media_documents', {});
-		},
-		mediaAudio: async () => {
-			if (!dbAdapter) {
-				throw new Error('Database adapter is not initialized');
-			}
-			return await dbAdapter.findMany('media_audio', {});
-		},
-		mediaVideos: async () => {
-			if (!dbAdapter) {
-				throw new Error('Database adapter is not initialized');
-			}
-			return await dbAdapter.findMany('media_videos', {});
-		},
-		mediaRemote: async () => {
-			if (!dbAdapter) {
-				throw new Error('Database adapter is not initialized');
-			}
-			return await dbAdapter.findMany('media_remote', {});
 		}
 	};
 }
