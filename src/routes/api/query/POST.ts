@@ -3,12 +3,19 @@ import type { User } from '@src/auth/types';
 
 import { dbAdapter, getCollectionModels } from '@api/databases/db';
 import { modifyRequest } from './modifyRequest';
-import logger from '@utils/logger'; // Import logger
+
+// Import logger
+import logger from '@utils/logger';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
 		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user.user_id}`);
+
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+		}
 
 		const body: { [key: string]: any } = {};
 		const collections = await getCollectionModels(); // Get collection models from the database
@@ -54,8 +61,24 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		await modifyRequest({ data: [body], fields: schema.fields, collection, user, type: 'POST' });
 		logger.debug(`Request modified: ${JSON.stringify(body)}`);
 
+		// Handle links if any
+		for (const _collection in body._links) {
+			const linkedCollection = collections[_collection as string];
+			if (!linkedCollection) continue;
+
+			const newLinkId = dbAdapter.generateId();
+			await dbAdapter.insertMany(_collection, [
+				{
+					_id: newLinkId,
+					_link_id: body._id,
+					_linked_collection: schema.name
+				}
+			]);
+			body._links[_collection] = newLinkId;
+		}
+
 		// Insert the new document into the collection
-		const result = await collection.insertMany(body);
+		const result = await collection.insertMany([body]);
 		logger.debug(`Document inserted: ${JSON.stringify(result)}`);
 
 		// Return the result as a JSON response

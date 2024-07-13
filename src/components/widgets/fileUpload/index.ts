@@ -1,16 +1,14 @@
-const WIDGET_NAME = 'FileUpload' as const;
-
 import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { ModifyRequestParams } from '..';
-import mongoose from 'mongoose';
+import { dbAdapter } from '@api/databases/db'; // Import database adapter
 
-//ParaglideJS
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
-/**
- * Defines FileUpload widget Parameters
- */
+// Defines FileUpload widget Parameters
+const WIDGET_NAME = 'FileUpload' as const;
+
 const widget = (params: Params) => {
 	// Define the display function
 	let display: any;
@@ -88,7 +86,8 @@ widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>
 	if (type !== 'GET') {
 		if (_data._id) {
 			console.log(_data);
-			data.update(new mongoose.Types.ObjectId(_data._id));
+			const newId = dbAdapter.generateId(); // Use adapter's generateId method
+			data.update(newId);
 		} else {
 			console.error('No _id found in _data:', _data);
 		}
@@ -98,11 +97,10 @@ widget.modifyRequest = async ({ data, type }: ModifyRequestParams<typeof widget>
 	get_elements_by_id.add('media_files', _data, (newData) => data.update(newData));
 };
 
-// Widget Aggregations:
+// Widget Aggregations
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;
-
 		return [{ $match: { [`${getFieldName(field)}.original.name`]: { $regex: info.filter, $options: 'i' } } }];
 	},
 	sorts: async (info) => {

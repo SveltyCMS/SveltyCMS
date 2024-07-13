@@ -1,13 +1,12 @@
-const WIDGET_NAME = 'ImageUpload' as const;
+const WIDGET_NAME = 'ImageUpload' as const; // Defines ImageUpload widget Parameters
 
 import type { MediaImage } from '@src/utils/types';
-
 import { getFieldName, getGuiFields, get_elements_by_id, meta_data, saveImage } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
-import mongoose from 'mongoose';
+import { dbAdapter } from '@api/databases/db'; // Import your database adapter
 
-//ParaglideJS
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 /**
@@ -113,11 +112,11 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 		case 'POST':
 		case 'PATCH':
 			if (_data instanceof File) {
-				_id = (await saveImage(_data, collection.name)).id;
+				_id = (await saveImage(_data, collection.modelName)).id;
 				data.update(_id);
 			} else if (_data?._id) {
-				//chosen image from _media_images
-				_id = new mongoose.Types.ObjectId(_data._id);
+				// chosen image from _media_images
+				_id = _data._id;
 				data.update(_id);
 			}
 			if (meta_data?.media_images?.removed && _id) {
@@ -130,15 +129,15 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 			}
 			console.log(_data);
 			console.log(_id);
-			await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
+			await dbAdapter.updateOne('media_images', { _id }, { $addToSet: { used_by: id } });
 			break;
 		case 'DELETE':
-			await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } });
+			await dbAdapter.updateMany('media_images', {}, { $pull: { used_by: id } });
 			break;
 	}
 };
 
-// Widget Aggregations:
+// Widget Aggregations
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

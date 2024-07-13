@@ -9,6 +9,11 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 	try {
 		logger.debug(`SETSTATUS request received for schema: ${schema.name}`);
 
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+		}
+
 		const collections = await getCollectionModels(); // Get collection models from the database
 		const collection = collections[schema.name as string]; // Get the specific collection based on the schema name
 

@@ -27,8 +27,8 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 	// Authenticate user based on user ID or session ID
 	const user = user_id
-		? ((await auth.checkUser({ user_id })) as User) // Check user with user ID
-		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
+		? ((await auth.checkUser({ _id: user_id })) as User) // Check user with user ID
+		: ((await auth.validateSession(session_id)) as User); // Validate session with session ID
 
 	if (!user) {
 		throw new Error('Unauthorized');

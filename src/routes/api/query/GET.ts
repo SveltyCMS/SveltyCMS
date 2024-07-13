@@ -33,6 +33,11 @@ export async function _GET({
 	try {
 		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user.user_id}`);
 
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+		}
+
 		const aggregations: any = [];
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);

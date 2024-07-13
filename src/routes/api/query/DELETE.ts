@@ -12,6 +12,11 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 	try {
 		logger.debug(`DELETE request received for schema: ${schema.name}, user_id: ${user.user_id}`);
 
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
+		}
+
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
@@ -38,6 +43,15 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 				type: 'DELETE'
 			});
 			logger.debug(`Request modified for ID: ${id}`);
+
+			// Handle link deletions for each ID
+			for (const link of schema.links || []) {
+				await dbAdapter.deleteMany(link, {
+					_link_id: id,
+					_linked_collection: schema.name
+				});
+				logger.debug(`Links deleted for ID: ${id} in collection: ${link}`);
+			}
 		}
 
 		// Delete the documents with the specified IDs
