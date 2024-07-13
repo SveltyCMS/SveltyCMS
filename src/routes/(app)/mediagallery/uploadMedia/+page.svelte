@@ -21,7 +21,7 @@
 			ref: ModalUploadMedia,
 			// Provide default slot content as a template literal
 			slot: '<p>add Media</p>',
-			props: { mediaType: 'image', sectionName: 'Gallery', files, onDelete, }
+			props: { mediaType: 'image', sectionName: 'Gallery', files, onDelete }
 		};
 		const d: ModalSettings = {
 			type: 'component',
