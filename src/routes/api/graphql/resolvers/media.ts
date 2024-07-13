@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+import { dbAdapter } from '@api/databases/db';
 
 export function mediaTypeDefs() {
 	return `
@@ -47,24 +47,34 @@ export function mediaTypeDefs() {
 export function mediaResolvers() {
 	return {
 		mediaImages: async () => {
-			const mediaModel = mongoose.models['media_images'];
-			return await mediaModel.find().lean();
+			if (!dbAdapter) {
+				throw new Error('Database adapter is not initialized');
+			}
+			return await dbAdapter.findMany('media_images', {});
 		},
 		mediaDocuments: async () => {
-			const mediaModel = mongoose.models['media_documents'];
-			return await mediaModel.find().lean();
+			if (!dbAdapter) {
+				throw new Error('Database adapter is not initialized');
+			}
+			return await dbAdapter.findMany('media_documents', {});
 		},
 		mediaAudio: async () => {
-			const mediaModel = mongoose.models['media_audio'];
-			return await mediaModel.find().lean();
+			if (!dbAdapter) {
+				throw new Error('Database adapter is not initialized');
+			}
+			return await dbAdapter.findMany('media_audio', {});
 		},
 		mediaVideos: async () => {
-			const mediaModel = mongoose.models['media_videos'];
-			return await mediaModel.find().lean();
+			if (!dbAdapter) {
+				throw new Error('Database adapter is not initialized');
+			}
+			return await dbAdapter.findMany('media_videos', {});
 		},
 		mediaRemote: async () => {
-			const mediaModel = mongoose.models['media_remote'];
-			return await mediaModel.find().lean();
+			if (!dbAdapter) {
+				throw new Error('Database adapter is not initialized');
+			}
+			return await dbAdapter.findMany('media_remote', {});
 		}
 	};
 }

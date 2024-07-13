@@ -5,10 +5,9 @@ import Path from 'path';
 import sharp from 'sharp';
 import { removeExtension, sanitize } from '@src/utils/utils';
 import crypto from 'crypto';
-import mongoose from 'mongoose';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth, dbAdapter } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { Role } from '@src/auth/types';
 
@@ -66,7 +65,8 @@ async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<st
 		const arrayBuffer = await file.arrayBuffer();
 		const buffer = Buffer.from(arrayBuffer);
 		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-		const existingFile = await mongoose.models['media_images'].findOne({ hash });
+
+		const existingFile = await dbAdapter.findOne('media_images', { hash });
 
 		if (existingFile) {
 			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`;
@@ -121,9 +121,9 @@ async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<st
 			}
 		};
 
-		const savedImage = await mongoose.models['media_images'].create(imageData);
+		await dbAdapter.insertMany('media_images', [imageData]);
 
-		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${savedImage.thumbnail.url}`;
+		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${imageData.thumbnail.url}`;
 		if (publicEnv.MEDIASERVER_URL) {
 			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
 		}
@@ -418,8 +418,8 @@ export const actions: Actions = {
 			const { cookies } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-			if (!auth) {
-				logger.error('Authentication system is not initialized');
+			if (!auth || !dbAdapter) {
+				logger.error('Authentication system or database adapter is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -437,11 +437,11 @@ export const actions: Actions = {
 				return { success: true };
 			}
 
-			const avatarFilePath = path.join(publicEnv.MEDIA_FOLDER, avatarPath);
+			const avatarFilePath = Path.join(publicEnv.MEDIA_FOLDER, avatarPath);
 
 			try {
 				await fs.promises.unlink(avatarFilePath);
-				await mongoose.models['media_images'].deleteOne({ 'thumbnail.url': avatarPath });
+				await dbAdapter.deleteOne('media_images', { 'thumbnail.url': avatarPath });
 				await auth.updateUserAttributes(user.id, { avatar: '' });
 
 				logger.info(`Avatar deleted for user: ${user.id}`);
@@ -462,8 +462,8 @@ export const actions: Actions = {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-			if (!auth) {
-				logger.error('Authentication system is not initialized');
+			if (!auth || !dbAdapter) {
+				logger.error('Authentication system or database adapter is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -478,7 +478,7 @@ export const actions: Actions = {
 			const tokenId = data.get('id');
 			const expiresIn = data.get('expiresIn');
 
-			const token = await mongoose.models['tokens'].findById(tokenId);
+			const token = await dbAdapter.findOne('tokens', { _id: tokenId });
 
 			if (!token) {
 				logger.warn(`Token not found: ${tokenId}`);
@@ -500,7 +500,7 @@ export const actions: Actions = {
 			}
 
 			const expiresAt = new Date(Date.now() + expirationTime * 1000);
-			await mongoose.models['tokens'].updateOne({ Id: tokenId }, { expiresAt });
+			await dbAdapter.updateOne('tokens', { _id: tokenId }, { expiresAt });
 
 			logger.info(`Token ${tokenId} updated with new expiration time`);
 			return { success: true, message: 'Token updated successfully' };
@@ -516,8 +516,8 @@ export const actions: Actions = {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
 
-			if (!auth) {
-				logger.error('Authentication system is not initialized');
+			if (!auth || !dbAdapter) {
+				logger.error('Authentication system or database adapter is not initialized');
 				throw error(500, 'Internal Server Error');
 			}
 
@@ -531,14 +531,14 @@ export const actions: Actions = {
 			const data = await request.formData();
 			const tokenId = data.get('id');
 
-			const token = await mongoose.models['tokens'].findById(tokenId);
+			const token = await dbAdapter.findOne('tokens', { _id: tokenId });
 
 			if (!token) {
 				logger.warn(`Token not found: ${tokenId}`);
 				return fail(404, { message: 'Token not found' });
 			}
 
-			await mongoose.models['tokens'].deleteOne({ Id: tokenId });
+			await dbAdapter.deleteOne('tokens', { _id: tokenId });
 
 			logger.info(`Token ${tokenId} deleted successfully`);
 			return { success: true, message: 'Token deleted successfully' };

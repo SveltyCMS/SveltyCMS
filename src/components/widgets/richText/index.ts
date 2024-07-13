@@ -4,10 +4,10 @@ import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { saveImage } from '@src/utils/media';
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
-import mongoose from 'mongoose';
 import type { ModifyRequestParams } from '..';
+import { dbAdapter } from '@api/databases/db'; // Import your database adapter
 
-//ParaglideJS
+// ParaglideJS
 import * as m from '@src/paraglide/messages';
 
 /**
@@ -19,9 +19,7 @@ const widget = (params: Params) => {
 
 	if (!params.display) {
 		display = async ({ data, contentLanguage }) => {
-			// console.log(data);
 			data = data ? data : {}; // Ensure data is not undefined
-			// Return the data for the default content language or a message indicating no data entry
 			return params.translated ? data[contentLanguage] || m.widgets_nodata() : data[publicEnv.DEFAULT_CONTENT_LANGUAGE] || m.widgets_nodata();
 		};
 		display.default = true;
@@ -58,25 +56,27 @@ const widget = (params: Params) => {
 	return { ...field, widget };
 };
 
-widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyRequestParams<typeof widget>) => {
+widget.modifyRequest = async ({ data, type, collection, id, meta_data, user }: ModifyRequestParams<typeof widget>) => {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized.');
+	}
+
 	switch (type) {
 		case 'POST':
-		case 'PATCH':
-			let images = data.get().images;
-			let _data = data.get().data;
+		case 'PATCH': {
+			const images = data.get().images;
+			const _data = data.get().data;
 			let _id;
 
 			for (const id of (_data.content['en'] as string).matchAll(/media_image="(.+?)"/gms)) {
 				// Images from richtext content itself
-				images[id[1]] = new mongoose.Types.ObjectId(id[1]);
+				images[id[1]] = id[1];
 			}
 
 			for (const img_id in images) {
 				if (images[img_id] instanceof File) {
 					// Locally selected new images
-					const res = await saveImage(images[img_id], collection.name);
-					// const res = await saveImage(media[media_id], field.media_folder);
-
+					const res = await saveImage(images[img_id], collection.name, user.user_id); // Include user_id argument
 					const fileInfo = res.fileInfo;
 					_id = res.id;
 					for (const lang in _data.content) {
@@ -84,7 +84,7 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyR
 					}
 				} else {
 					// Selected from Media images
-					_id = new mongoose.Types.ObjectId(images[img_id]);
+					_id = images[img_id];
 				}
 				if (meta_data?.media_images?.removed && _id) {
 					const removed = meta_data?.media_images?.removed as string[];
@@ -96,15 +96,15 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data }: ModifyR
 					}
 				}
 
-				await mongoose.models['media_images'].updateOne({ _id }, { $addToSet: { used_by: id } });
+				await dbAdapter.updateOne('media_images', { _id }, { $addToSet: { used_by: id } });
 			}
 			data.update(_data);
 			break;
-		case 'DELETE':
-			//console.log(id);
-			await mongoose.models['media_images'].updateMany({}, { $pull: { used_by: id } });
-			// await mongoose.models['media_images'].updateMany({ used_by: id }, { $pull: { used_by: id } });
+		}
+		case 'DELETE': {
+			await dbAdapter.updateMany('media_images', {}, { $pull: { used_by: id } });
 			break;
+		}
 	}
 };
 
@@ -118,7 +118,9 @@ widget.toString = toString;
 widget.Icon = 'icon-park-outline:text';
 widget.Description = m.widget_text_description();
 
-// Widget Aggregations:
+/**
+ * Widget Aggregations
+ */
 widget.aggregations = {
 	filters: async (info) => {
 		const field = info.field as ReturnType<typeof widget>;

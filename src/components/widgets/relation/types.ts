@@ -1,5 +1,3 @@
-import mongoose from 'mongoose';
-
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';
@@ -11,6 +9,7 @@ import type { Permission } from '@src/auth/types';
 import GuiField from './GuiField.svelte';
 
 import { getFieldName } from '@utils/utils';
+import { dbAdapter } from '@api/databases/db'; // Import your database adapter
 
 /**
  * Defines Relation widget Parameters
@@ -70,8 +69,12 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 		resolver: {
 			[collection.name]: {
 				async [getFieldName(field)](parent: any) {
-					// console.log(getFieldName(field));
-					const res = await mongoose.models[field.relation].findById(parent[getFieldName(field)]).lean();
+					if (!dbAdapter) {
+						throw new Error('Database adapter is not initialized.');
+					}
+
+					// Fetch related document using dbAdapter
+					const res = await dbAdapter.findOne(field.relation, { _id: parent[getFieldName(field)] });
 
 					return res;
 				}

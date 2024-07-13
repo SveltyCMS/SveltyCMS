@@ -1,12 +1,12 @@
 import type { RequestHandler } from './$types';
-import mongoose from 'mongoose';
+import { dbAdapter } from '@api/databases/db'; // Import your database adapter
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {
 		const limit = 10;
 		const search = url.searchParams.get('search');
 
-		// Implement RegExp.escape if it's not already defined
+		// Ensure RegExp.escape is implemented
 		if (!RegExp.escape) {
 			(RegExp as any).escape = function (s: string) {
 				return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -15,21 +15,14 @@ export const GET: RequestHandler = async ({ url }) => {
 
 		const re = search ? new RegExp(RegExp.escape(search), 'i') : null;
 
-		// Ensure the required media collections exist
+		// Define media types
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		await Promise.all(
-			mediaTypes.map(async (type) => {
-				if (!mongoose.models[type]) {
-					await mongoose.model(type, new mongoose.Schema({}, { typeKey: '$type', strict: false, timestamps: true }));
-				}
-			})
-		);
 
 		// Fetch files for each media type
 		const fetchFilesPromises = mediaTypes.map(async (type) => {
 			const query = search ? { 'original.name': { $regex: re } } : {};
-			const files = await mongoose.models[type].find(query).limit(limit);
-			return files.map((file) => ({ ...file.toObject(), type: type.split('_')[1].charAt(0).toUpperCase() + type.split('_')[1].slice(1) }));
+			const files = await dbAdapter.findMany(type, query, { limit });
+			return files.map((file: any) => ({ ...file, type: type.split('_')[1].charAt(0).toUpperCase() + type.split('_')[1].slice(1) }));
 		});
 
 		// Concatenate and return files from all media types

@@ -1,7 +1,5 @@
-import { auth } from '@api/databases/db';
+import { auth, dbAdapter } from '@api/databases/db';
 import type { RequestHandler } from './$types';
-
-import mongoose from 'mongoose';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
@@ -11,8 +9,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		return new Response('Session ID is missing', { status: 403 });
 	}
 
-	if (!auth) {
-		console.error('Authentication system is not initialized');
+	if (!auth || !dbAdapter) {
+		console.error('Authentication system or database adapter is not initialized');
 		return new Response('Internal Server Error', { status: 500 });
 	}
 
@@ -26,8 +24,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	const id = formData.get('id') as string;
 
 	try {
-		await mongoose.models['media_images'].deleteOne({ _id: new mongoose.Types.ObjectId(id) });
-		return new Response('has been successfully deleted', { status: 200 });
+		await dbAdapter.deleteOne('media_images', { _id: id });
+		return new Response('Media image has been successfully deleted', { status: 200 });
 	} catch (err) {
 		console.error('Error deleting media image:', err);
 		return new Response('Error deleting media image', { status: 500 });

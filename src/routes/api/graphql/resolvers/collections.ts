@@ -1,18 +1,17 @@
-import mongoose from 'mongoose';
-
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
+import { dbAdapter } from '@api/databases/db';
 
-// Registers collection schemas dynamically in Mongoose.
+// Registers collection schemas dynamically.
 export async function registerCollections() {
 	const collections = await getCollections();
 	const typeDefsSet = new Set<string>();
 	const resolvers: { [key: string]: any } = { Query: {} };
 	const collectionSchemas: string[] = [];
 
-	// Loop over each collection to register Mongoose models and build typeDefs and resolvers
+	// Loop over each collection to build typeDefs and resolvers
 	for (const collection of Object.values(collections)) {
 		// Type check for collection
 		if (!collection.name) {
@@ -20,19 +19,6 @@ export async function registerCollections() {
 			continue;
 		}
 		const collectionName: string = collection.name;
-
-		// Register Mongoose model if not already registered
-		if (!mongoose.models[collectionName]) {
-			const schemaDefinition: any = {};
-			collection.fields.forEach((field) => {
-				schemaDefinition[getFieldName(field)] = {
-					type: mongoose.Schema.Types.Mixed,
-					required: field.required || false
-				};
-			});
-			const schema = new mongoose.Schema(schemaDefinition, { timestamps: true });
-			mongoose.model(collectionName, schema);
-		}
 
 		// Initialize collection resolvers
 		resolvers[collectionName] = {};
@@ -115,15 +101,7 @@ export async function collectionsResolvers(redisClient, privateEnv) {
 				}
 
 				// Fetch result from the database
-				const model = mongoose.models[collectionName];
-				if (!model) {
-					throw new Error(`Model not found for collection: ${collectionName}`);
-				}
-
-				const dbResult = await model
-					.find({ status: { $ne: 'unpublished' } })
-					.sort({ createdAt: -1 })
-					.lean();
+				const dbResult = await dbAdapter.findMany(collectionName, { status: { $ne: 'unpublished' } }, { sort: { createdAt: -1 } });
 
 				// Convert dates to ISO strings
 				dbResult.forEach((doc: any) => {
