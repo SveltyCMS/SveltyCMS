@@ -4,7 +4,7 @@ import { readFileSync } from 'fs';
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
-import { paraglide } from '@inlang/paraglide-js-adapter-vite';
+import { paraglide } from '@inlang/paraglide-vite';
 
 // Gets package.json version info on app start
 // https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs';

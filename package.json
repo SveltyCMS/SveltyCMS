@@ -58,7 +58,6 @@
 		"@clack/prompts": "^0.7.0",
 		"@iconify/svelte": "^4.0.2",
 		"@inlang/paraglide-js": "^1.11.2",
-		"@inlang/paraglide-js-adapter-vite": "^1.2.40",
 		"@playwright/test": "^1.45.1",
 		"@semantic-release/git": "^10.0.1",
 		"@skeletonlabs/skeleton": "^2.10.1",
@@ -100,6 +99,7 @@
 	"type": "module",
 	"dependencies": {
 		"@floating-ui/dom": "^1.6.7",
+		"@inlang/paraglide-vite": "^1.2.74",
 		"@mapbox/mapbox-gl-geocoder": "^5.0.2",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@tiptap/core": "^2.4.0",
