@@ -5,6 +5,9 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Define the GET request handler
 export const GET: RequestHandler = async () => {
 	try {

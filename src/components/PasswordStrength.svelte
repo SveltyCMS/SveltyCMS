@@ -64,16 +64,7 @@
 
 {#if password}
 	<div class="flex flex-col items-center justify-center">
-		<div class="progress-bar" style="background-color: {color}; width: {percentage}%;" />
+		<div class="transition duration-300 ease-in-out" style="background-color: {color}; width: {percentage}%;" />
 		<span class="mt-1 text-sm text-primary-500">{label} strength: {feedback}</span>
 	</div>
 {/if}
-
-<style lang="postcss">
-	.progress-bar {
-		height: 0.4rem;
-		transition:
-			width 0.2s ease-in-out,
-			background-color 0.2s ease-in-out;
-	}
-</style>
