@@ -25,8 +25,12 @@
 			const data = await res.json();
 			contentInfo.set(data);
 			loading.set(false);
-		} catch (err) {
-			error.set(err.message);
+		} catch (err: unknown) {
+			if (err instanceof Error) {
+				error.set(err.message);
+			} else {
+				error.set('An unknown error occurred');
+			}
 			loading.set(false);
 		}
 	});
@@ -47,7 +51,7 @@
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.widget {
 		padding: 1rem;
 		border: 1px solid #ccc;

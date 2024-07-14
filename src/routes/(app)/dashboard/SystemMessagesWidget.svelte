@@ -1,19 +1,29 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import axios from 'axios';
-
-	// Skeleton
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
-	// Popup Tooltips
+	// Define the structure of a system message
+	interface SystemMessage {
+		title: string;
+		timestamp: string;
+		body: string;
+	}
+
+	// Define the type of the messages array
+	let messages: SystemMessage[] = [];
+
+	// Skeleton popup settings
 	const RemoveTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Remove',
 		placement: 'right'
 	};
 
+	// Import gridController and Badge if they are not defined in the current file
+	import { gridController } from '@src/utils/gridController'; // Adjust the path as needed
+
 	export let label: string;
-	let messages = [];
 
 	onMount(async () => {
 		const response = await axios.get('/api/systemMessages');
@@ -22,8 +32,10 @@
 
 	function removeWidget() {
 		const el = document.getElementById('systemMessagesWidget');
-		el.parentElement.remove();
-		saveWidgets();
+		if (el && el.parentElement) {
+			el.parentElement.remove();
+			saveWidgets();
+		}
 	}
 
 	function saveWidgets() {
@@ -33,7 +45,7 @@
 </script>
 
 <div id="systemMessagesWidget" class="relative rounded-lg bg-white p-4 shadow-md dark:bg-gray-800">
-	<h3 class="mb-2 text-lg font-bold">{label} <Badge>Alert</Badge></h3>
+	<h3 class="mb-2 text-lg font-bold">{label} <span class="variant-filled badge">Alert</span></h3>
 	<ul>
 		{#each messages as message}
 			<li class="mb-1">
@@ -52,7 +64,7 @@
 	</button>
 </div>
 
-<style>
+<style lang="postcss">
 	.remove-button {
 		position: absolute;
 		top: 5px;

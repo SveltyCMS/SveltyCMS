@@ -5,6 +5,9 @@
 	// Stores
 	import { mode, entryData } from '@stores/store';
 
+	// System Logs
+	import logger from '@src/utils/logger';
+
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
@@ -28,16 +31,12 @@
 				method: 'POST',
 				body: formData
 			});
-			// console.log('API Response:', response);
-
 			const data = await response.json();
-			// console.log('API Data:', data);
-
 			myData = data;
 
-			console.log('Video Data:', myData);
+			logger.debug('Video data fetched successfully', { myData }); // Log the success
 		} catch (error) {
-			console.error('Error:', error);
+			logger.error('Error fetching video data', error as Error); // Log the error
 		}
 	}
 

@@ -8,8 +8,8 @@
 
 	let files: MediaImage[] = [];
 	let search = '';
-	let searchDeb = debounce(500);
-	let showInfo = Array.from({ length: files.length }, () => false);
+	const searchDeb = debounce(500);
+	const showInfo = Array.from({ length: files.length }, () => false);
 
 	export let onselect: any = () => {};
 

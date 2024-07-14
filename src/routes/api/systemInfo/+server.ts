@@ -1,6 +1,9 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 const { cpu, drive, mem, os } = osu;
 
 const cpuData: number[] = [];
@@ -27,7 +30,7 @@ const fetchCPUInfo = async () => {
 			timeStamps: timeStamps
 		};
 	} catch (error) {
-		console.error('Error fetching CPU info:', error);
+		logger.error('Error fetching CPU info:', error);
 		throw new Error('Failed to fetch CPU information');
 	}
 };
@@ -48,7 +51,7 @@ const fetchDiskInfo = async () => {
 			throw new Error('Disk usage information is not available');
 		}
 	} catch (error) {
-		console.error('Error fetching disk info:', error);
+		logger.error('Error fetching disk info:', error);
 		throw new Error('Failed to fetch disk information');
 	}
 };
@@ -65,7 +68,7 @@ const fetchMemoryInfo = async () => {
 			freeMemPercentage: memoryInfo.freeMemPercentage
 		};
 	} catch (error) {
-		console.error('Error fetching memory info:', error);
+		logger.error('Error fetching memory info:', error);
 		throw new Error('Failed to fetch memory information');
 	}
 };
@@ -91,7 +94,7 @@ const getSystemInfo = async () => {
 			osInfo
 		};
 	} catch (error) {
-		console.error('Error fetching system info:', error);
+		logger.error('Error fetching system info:', error);
 		throw new Error('Failed to fetch system information');
 	}
 };
@@ -101,6 +104,7 @@ export const GET: RequestHandler = async () => {
 	try {
 		// Fetch system information
 		const systemInfo = await getSystemInfo();
+		logger.info('System information fetched successfully');
 
 		// Return the system information as a JSON response
 		return new Response(JSON.stringify(systemInfo), {
@@ -110,7 +114,7 @@ export const GET: RequestHandler = async () => {
 			}
 		});
 	} catch (error) {
-		console.error('Error fetching system info:', error);
+		logger.error('Error fetching system info:', error);
 
 		// Return an error response in case of failure
 		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {

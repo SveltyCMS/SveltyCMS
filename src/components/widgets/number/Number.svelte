@@ -6,7 +6,6 @@
 	import { mode, entryData, contentLanguage } from '@stores/store';
 
 	import { getFieldName } from '@utils/utils';
-	//console.log('contentLanguage', $contentLanguage);
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
@@ -14,7 +13,7 @@
 
 	const _data = $mode == 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	let validationError: string | null = null;
+	const validationError: string | null = null;
 
 	let numberInput: HTMLInputElement;
 	const language = $contentLanguage;
@@ -58,10 +57,6 @@
 			return 'bg-red-600';
 		} else if (field?.maxlength && length > field?.maxlength) {
 			return 'bg-red-600';
-			// } else if (field?.count && length === field?.count) {
-			// 	return 'bg-green-600';
-			// } else if (field?.count && length > field?.count) {
-			// 	return 'bg-orange-600';
 		} else if (field?.minlength) {
 			return '!variant-filled-surface';
 		} else {
@@ -80,21 +75,7 @@
 		size: z.string().optional(),
 		width: z.number().optional(),
 		required: z.boolean().optional()
-
-		// Widget Specfic
 	});
-
-	function validateInput() {
-		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
-			}
-		}
-	}
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
@@ -123,30 +104,14 @@
 		<button class="!px-1">
 			{#if field?.minlength || field?.maxlength}
 				<span class="badge mr-1 rounded-full {getBadgeClass(count)}">
-					{#if field?.minlength && field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.maxlength}
-						{count}/{field?.maxlength}
-					{:else if field?.minlength && field?.maxlength}
-						{count} => {field?.minlength}/{field?.maxlength}
-					{:else if field?.minlength}
-						min {field?.minlength}
-					{/if}
+					{count}/{field?.maxlength}
 				</span>
 			{/if}
 			{field?.suffix}
 		</button>
 	{:else if field?.minlength || field?.maxlength}
 		<span class="badge rounded-none {getBadgeClass(count)}">
-			{#if field?.minlength && field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.maxlength}
-				{count}/{field?.maxlength}
-			{:else if field?.minlength && field?.maxlength}
-				{count} => {field?.minlength}/{field?.maxlength}
-			{:else if field?.minlength}
-				min {field?.minlength}
-			{/if}
+			{count}/{field?.maxlength}
 		</span>
 	{/if}
 </div>

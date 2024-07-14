@@ -1,5 +1,7 @@
 import fs from 'fs';
 import crypto from 'crypto';
+// System Logs
+import logger from '@src/utils/logger';
 
 // Cache for transpiled modules
 const cache = new Map();
@@ -10,22 +12,22 @@ export async function compile({
 	collectionsFolderJS = import.meta.env.collectionsFolderJS,
 	collectionsFolderTS = import.meta.env.collectionsFolderTS
 } = {}) {
-	// console.log('Starting compilation...');
-	// console.log(`collectionsFolderJS: ${collectionsFolderJS}`);
-	// console.log(`collectionsFolderTS: ${collectionsFolderTS}`);
+	logger.info('Starting compilation...');
+	logger.debug(`collectionsFolderJS: ${collectionsFolderJS}`);
+	logger.debug(`collectionsFolderTS: ${collectionsFolderTS}`);
 
 	// This global variable is used to store the current file name
 	globalThis.__filename = '';
 
 	// If the collections folder for JavaScript does not exist, create it
 	if (!fs.existsSync(collectionsFolderJS)) {
-		// console.log(`Creating directory: ${collectionsFolderJS}`);
+		logger.info(`Creating directory: ${collectionsFolderJS}`);
 		fs.mkdirSync(collectionsFolderJS);
 	}
 
 	// Get the list of TypeScript files from the collections folder, excluding Auth.ts and index.ts
 	const files = fs.readdirSync(collectionsFolderTS).filter((file) => !['index.ts'].includes(file));
-	// console.log(`Files to compile: ${files.join(', ')}`);
+	logger.info(`Files to compile: ${files.join(', ')}`);
 
 	// Loop through each file
 	for (const file of files) {
@@ -33,7 +35,7 @@ export async function compile({
 			const tsFilePath = `${collectionsFolderTS.replace(/\/$/, '')}/${file}`;
 			const jsFilePath = `${collectionsFolderJS.replace(/\/$/, '')}/${file.trim().replace(/\.ts$/g, '.js')}`;
 
-			// console.log(`Compiling ${tsFilePath} to ${jsFilePath}`);
+			logger.info(`Compiling ${tsFilePath} to ${jsFilePath}`);
 
 			// Check if JS file exists and if TS file has been modified since last compile
 			let recompile = false;
@@ -50,7 +52,7 @@ export async function compile({
 
 				// Compare hashes and modification times to determine if recompilation is necessary
 				if (contentHash === existingHash && tsStats.mtime <= jsStats.mtime) {
-					// console.log(`Skipping compilation for ${file}, no changes detected.`);
+					logger.info(`Skipping compilation for ${file}, no changes detected.`);
 					continue; // No need to recompile
 				}
 
@@ -94,11 +96,11 @@ export async function compile({
 
 			// Write the content to the file
 			fs.writeFileSync(jsFilePath, code);
-			// console.log(`Compiled and wrote ${jsFilePath}`);
+			logger.info(`Compiled and wrote ${jsFilePath}`);
 		} catch (error) {
-			console.error(`Error compiling ${file}: ${error}`);
+			logger.error(`Error compiling ${file}: ${error}`);
 			// Handle the error appropriately
 		}
 	}
-	// console.log('Compilation complete.');
+	logger.info('Compilation complete.');
 }

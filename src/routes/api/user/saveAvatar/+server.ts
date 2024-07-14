@@ -1,10 +1,12 @@
+import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { publicEnv } from '@root/config/public';
+
+// Auth
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 

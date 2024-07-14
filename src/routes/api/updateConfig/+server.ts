@@ -3,19 +3,23 @@ import path from 'path';
 import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 export const POST: RequestHandler = async ({ request }) => {
 	// Get the data from the request body
 	let data = await request.json();
 
 	// If data is undefined, return an error response
 	if (!data) {
+		logger.warn('No data provided in the request');
 		return new Response('No data provided', { status: 400 });
 	}
 
 	// Define the path to the config.ts file
 	const configFilePath = path.join(process.cwd(), 'src', 'collections', 'config.ts');
 
-	// map data
+	// Map data
 	data = data.map((category: any) => {
 		const newData = {
 			...category,
@@ -52,6 +56,7 @@ export function createCategories(collections: any) {return [\n`;
 			existingContent = await fs.readFile(configFilePath, 'utf8');
 		} catch (readError) {
 			// If the file doesn't exist, proceed with writing the new content
+			logger.info('Config file does not exist, creating a new one');
 		}
 
 		// Create a hash of the new config content
@@ -64,16 +69,14 @@ export function createCategories(collections: any) {return [\n`;
 		if (newContentHash !== existingContentHash) {
 			// Write the new content to the config.ts file asynchronously
 			await fs.writeFile(configFilePath, newConfigFileContent);
-			// Return a success response
-			// console.log('Config file updated successfully by API');
+			logger.info('Config file updated successfully by API');
 			return new Response('Config file updated successfully by API', { status: 200 });
 		} else {
-			// Return a 304 response indicating no update was necessary
-			// console.log('Config file doesn't need an update 304');
+			logger.info('Config file does not need an update (304)');
 			return new Response(null, { status: 304 });
 		}
 	} catch (error: any) {
-		console.error(error);
+		logger.error('Error updating config file:', error);
 		// Return a Response object with a 500 status code
 		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
 	}

@@ -14,6 +14,9 @@ import { _PATCH } from './PATCH';
 import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the session ID from cookies
@@ -57,15 +60,19 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	// Retrieve the method from the form data
 	const method = data.get('method') as string;
 
+	logger.info('Received request', { method, user_id: data.get('user_id') });
+
 	// Delete these keys from the form data as they are no longer needed
 	['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
 
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
+		logger.debug('User permissions checked', { user: user.user_id, has_read_access, has_write_access });
 
 		// If user does not have read access, return 403 Forbidden response
 		if (!has_read_access) {
+			logger.warn('Forbidden access attempt', { user: user.user_id });
 			return new Response('Forbidden', { status: 403 });
 		}
 
@@ -75,6 +82,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		const filter: { [key: string]: string } = JSON.parse(data.get('filter') as string) || {};
 		const sort: { [key: string]: number } = JSON.parse(data.get('sort') as string) || {};
 		const contentLanguage = (data.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
+		logger.debug('Request parameters parsed', { page, limit, filter, sort, contentLanguage });
 
 		// Handle different methods
 		switch (method) {
@@ -94,6 +103,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			case 'SETSTATUS': {
 				// If user does not have write access, return 403 Forbidden response
 				if (!has_write_access) {
+					logger.warn('Forbidden write access attempt', { user: user.user_id });
 					return new Response('Forbidden', { status: 403 });
 				}
 				// Select the appropriate handler based on the method
@@ -105,6 +115,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				}[method];
 
 				// Call the handler and return its response
+				logger.info('Processing request', { method, user: user.user_id });
 				return handler({
 					data,
 					schema: collection_schema,
@@ -113,11 +124,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			}
 			default:
 				// If method is not allowed, return 405 Method Not Allowed response
+				logger.warn('Method not allowed', { method });
 				return new Response('Method not allowed', { status: 405 });
 		}
 	} catch (error) {
 		// Handle error by checking its type
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		logger.error('Error processing request', { error: errorMessage });
 		return new Response(errorMessage, { status: error instanceof Error ? 403 : 500 });
 	}
 };

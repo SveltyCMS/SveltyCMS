@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onDestroy } from 'svelte';
 	import { theme } from '@stores/themeStore';
 
 	let currentTheme: string;
@@ -12,6 +13,11 @@
 		} else {
 			document.documentElement.classList.remove('dark');
 		}
+	});
+
+	// unsubscribe when the component is destroyed
+	onDestroy(() => {
+		unsubscribe();
 	});
 
 	// toggle between light and dark themes

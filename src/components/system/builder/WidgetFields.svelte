@@ -38,7 +38,7 @@
 		node.onpointerup = () => {
 			clearTimeout(timeOut);
 		};
-		node.onpointerleave = (e) => {
+		node.onpointerleave = () => {
 			clearTimeout(timeOut);
 		};
 		timeOut = setTimeout(() => {

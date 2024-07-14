@@ -9,7 +9,7 @@
 	const dispatch = createEventDispatcher();
 
 	// Initialize the showInfo array with false values
-	let showInfo = Array.from({ length: filteredFiles.length }, () => false);
+	const showInfo = Array.from({ length: filteredFiles.length }, () => false);
 
 	// Popup Tooltips
 	const FileTooltip: PopupSettings = {

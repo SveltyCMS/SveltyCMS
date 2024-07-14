@@ -4,15 +4,16 @@
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
 
-	export let id: string = crypto.randomUUID();
-	export let x: number = 0;
-	export let y: number = 0;
-	export let w: number = 2;
-	export let h: number = 5;
-	export let min: { w: number; h: number } = { w: 1, h: 1 };
-	export let max: { w: number; h: number } | undefined = undefined;
-	export let movable: boolean = true;
-	export let resizable: boolean = true;
+	export let label;
+	export const id: string = crypto.randomUUID();
+	export const x: number = 0;
+	export const y: number = 0;
+	export const w: number = 2;
+	export const h: number = 5;
+	export const min: { w: number; h: number } = { w: 1, h: 1 };
+	export const max: { w: number; h: number } | undefined = undefined;
+	export const movable: boolean = true;
+	export const resizable: boolean = true;
 
 	const cpuInfo = writable<{ cpuUsage: number[]; timeStamps: string[] }>({ cpuUsage: [], timeStamps: [] });
 
@@ -88,7 +89,3 @@
 	<h2 class="text-center font-bold">CPU Usage</h2>
 	<canvas bind:this={chartCanvas} class="h-full w-full p-2"></canvas>
 </div>
-
-<style>
-	/* Add any additional styling here */
-</style>

@@ -1,13 +1,25 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	let activities = [];
+
+	interface Activity {
+		timestamp: string;
+		description: string;
+	}
+
+	interface User {
+		activities: Activity[];
+	}
+
+	let activities: Activity[] = [];
 
 	onMount(async () => {
 		const res = await fetch('/api/users');
-		const users = (await res.json()).data;
+		const users: User[] = (await res.json()).data;
 		// Assume each user has an activities field containing recent activities
 		activities = users.flatMap((user) => user.activities);
 	});
+
+	export let label;
 </script>
 
 <section>

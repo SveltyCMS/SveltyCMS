@@ -53,7 +53,6 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { publicEnv } from '@root/config/public';
 
 	const flipDurationMs = 300;
 

@@ -1,3 +1,6 @@
+// System Logs
+import logger from '@src/utils/logger';
+
 import type { dbInterface } from '@src/routes/api/databases/dbInterface';
 import type { User } from '@src/auth/types';
 
@@ -64,7 +67,15 @@ export function userResolvers(dbAdapter: dbInterface) {
 	return {
 		Query: {
 			users: async () => {
-				return await dbAdapter.findMany('auth_users', {});
+				logger.info('Fetching users from the database');
+				try {
+					const users = await dbAdapter.findMany('auth_users', {});
+					logger.info('Users retrieved successfully', { count: users.length });
+					return users;
+				} catch (error) {
+					logger.error('Error fetching users:', error as Error);
+					throw new Error('Failed to fetch users');
+				}
 			}
 		}
 	};

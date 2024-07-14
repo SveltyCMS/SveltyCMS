@@ -14,30 +14,38 @@ import { get } from 'svelte/store';
 // Components
 import widgets from '@src/components/widgets';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Define the GET request handler
 export const GET: RequestHandler = async ({ cookies }) => {
 	// Create the indexes directory if it doesn't exist
 	fs.mkdirSync('./indexes', { recursive: true });
+	logger.debug('Indexes directory ensured to exist.');
 
 	// Retrieve the session ID from cookies
 	const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
+	logger.debug(`Session ID retrieved: ${session_id}`);
 
 	// Check if the authentication system is initialized
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		return new Response('Internal Server Error', { status: 500 });
 	}
 
 	// Validate the session
 	const user = await auth.validateSession({ session_id });
+	logger.debug(`User validated: ${JSON.stringify(user)}`);
 
 	// Check if the user is authenticated and has admin role
 	if (!user || user.role != 'admin') {
+		logger.warn('Unauthorized access attempt.');
 		return new Response('', { status: 403 });
 	}
 
 	// Retrieve collections from the store
 	const $collections = get(collections);
+	logger.debug('Collections retrieved from store.');
 
 	// Iterate over each collection to create index files
 	for (const collection of Object.values($collections)) {
@@ -52,6 +60,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 				})
 			).json()
 		).entryList;
+		logger.debug(`Entry list fetched for collection: ${collection.name}`);
 
 		// Iterate over each entry in the entry list
 		for (const entry of entryList) {
@@ -78,10 +87,13 @@ export const GET: RequestHandler = async ({ cookies }) => {
 
 		// Write the formatted text to a file
 		if (text) {
-			fs.writeFileSync('./indexes/' + collection.name + '.txt', text);
+			const filePath = './indexes/' + collection.name + '.txt';
+			fs.writeFileSync(filePath, text);
+			logger.debug(`Index file written: ${filePath}`);
 		}
 	}
 
 	// Return a success response
+	logger.info('Index files creation completed successfully.');
 	return new Response('', { status: 200 });
 };

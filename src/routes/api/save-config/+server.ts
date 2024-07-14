@@ -5,6 +5,9 @@ import argon2 from 'argon2';
 import { promisify } from 'util';
 import { backupConfigFiles } from './backup-utils';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 const execAsync = promisify(exec);
 
 export const POST: RequestHandler = async ({ request }) => {
@@ -21,6 +24,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		// Backup the current configuration before saving
 		await backupConfigFiles();
+		logger.info('Configuration files backed up successfully');
 
 		// Save the config data using the CLI/Script
 		await saveConfigFile(encryptedConfigData, isPrivate);
@@ -28,9 +32,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		// Trigger the restart
 		await triggerServerRestart();
 
+		logger.info('Configuration saved and server restart triggered successfully');
 		return json({ success: true });
 	} catch (error) {
-		console.error('Error saving config:', error);
+		logger.error('Error saving config:', error);
 		return json({ success: false, error: 'Failed to save configuration' });
 	}
 };
@@ -41,10 +46,12 @@ async function saveConfigFile(configData: { [key: string]: any }, isPrivate: boo
 
 	try {
 		const { stdout, stderr } = await execAsync(`node ${scriptPath} ${JSON.stringify(configData)} ${configType}`);
-		console.log(`stdout: ${stdout}`);
-		console.log(`stderr: ${stderr}`);
+		logger.info('Configuration script executed successfully', { stdout, stderr });
+		if (stderr) {
+			logger.warn('Configuration script stderr', { stderr });
+		}
 	} catch (error) {
-		console.error(`exec error: ${error}`);
+		logger.error('Error executing configuration script:', error);
 		throw error;
 	}
 }
@@ -52,10 +59,12 @@ async function saveConfigFile(configData: { [key: string]: any }, isPrivate: boo
 async function triggerServerRestart(): Promise<void> {
 	try {
 		const { stdout, stderr } = await execAsync('your-restart-command');
-		console.log(`stdout: ${stdout}`);
-		console.log(`stderr: ${stderr}`);
+		logger.info('Server restart command executed successfully', { stdout, stderr });
+		if (stderr) {
+			logger.warn('Server restart command stderr', { stderr });
+		}
 	} catch (error) {
-		console.error(`exec error: ${error}`);
+		logger.error('Error executing server restart command:', error);
 		throw error;
 	}
 }

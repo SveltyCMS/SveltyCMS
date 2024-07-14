@@ -13,8 +13,7 @@
 	import { page } from '$app/stores';
 
 	// Superforms
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-	import { superForm } from 'sveltekit-superforms/client';
+	import { superForm, type SuperValidated } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
 	import { zod } from 'sveltekit-superforms/adapters';
 
@@ -30,7 +29,25 @@
 	import * as m from '@src/paraglide/messages';
 
 	export let active: undefined | 0 | 1 = undefined;
-	export let FormSchemaSignUp: PageData['signUpForm'];
+	export let FormSchemaSignUp:
+		| SuperValidated<
+				{
+					email: string;
+					password: string;
+					confirm_password: string;
+					username: string;
+					token?: string;
+				},
+				any,
+				{
+					email: string;
+					password: string;
+					confirm_password: string;
+					username: string;
+					token?: string;
+				}
+		  >
+		| undefined;
 
 	let tabIndex = 1;
 	const activeOauth = false;
@@ -38,36 +55,39 @@
 	const pageData = $page.data as PageData;
 	let firstUserExists = pageData.firstUserExists;
 
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
-		id: 'signup',
-		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
-		// Clear form on success.
-		resetForm: true,
-		// Prevent page invalidation, which would clear the other form when the load function executes again.
-		invalidateAll: false,
-		// other options
-		applyAction: true,
-		taintedMessage: '',
-		multipleSubmits: 'prevent',
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(
+		FormSchemaSignUp ?? { email: '', password: '', confirm_password: '', username: '', token: '' },
+		{
+			id: 'signup',
+			validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
+			// Clear form on success.
+			resetForm: true,
+			// Prevent page invalidation, which would clear the other form when the load function executes again.
+			invalidateAll: false,
+			// other options
+			applyAction: true,
+			taintedMessage: '',
+			multipleSubmits: 'prevent',
 
-		onSubmit: ({ cancel }) => {
-			// handle login form submission
-			if ($allErrors.length > 0) cancel();
-		},
+			onSubmit: ({ cancel }) => {
+				// handle login form submission
+				if ($allErrors.length > 0) cancel();
+			},
 
-		onResult: ({ result, cancel }) => {
-			if (result.type == 'redirect') return;
-			cancel();
+			onResult: ({ result, cancel }) => {
+				if (result.type == 'redirect') return;
+				cancel();
 
-			// add wiggle animation to form element
-			formElement.classList.add('wiggle');
-			setTimeout(() => formElement.classList.remove('wiggle'), 300);
+				// add wiggle animation to form element
+				formElement.classList.add('wiggle');
+				setTimeout(() => formElement.classList.remove('wiggle'), 300);
 
-			if (result.type == 'success') {
-				response = result.data?.message;
+				if (result.type == 'success') {
+					response = result.data?.message;
+				}
 			}
 		}
-	});
+	);
 
 	const params = new URL(window.location.href).searchParams;
 
@@ -75,7 +95,7 @@
 		active = 1;
 		firstUserExists = false;
 		// update token value
-		$form.token = params.get('regToken')!;
+		$form.token = params.get('regToken') as string;
 	}
 
 	let formElement: HTMLFormElement;
@@ -242,9 +262,7 @@
 				{#if response}
 					<span class="text-xs text-error-500">{response} </span>
 				{/if}
-
 				<!-- <PasswordStrength password={$form.password} />  -->
-
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->
 					<button type="submit" class="variant-filled btn mt-4 uppercase"
@@ -252,7 +270,6 @@
 						<!-- Loading indicators -->
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
-
 					<!-- Email + Oauth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">

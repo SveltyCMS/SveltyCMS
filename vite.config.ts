@@ -12,7 +12,7 @@ import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
 import { generateCollectionFieldTypes, generateCollectionTypes } from './src/utils/collectionTypes';
 
-// Load package.json version info
+// Gets package.json version info on app start
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 // Get current file and directory info
@@ -82,5 +82,10 @@ export default defineConfig({
 	define: {
 		__VERSION__: JSON.stringify(pkg.version),
 		SUPERFORMS_LEGACY: true
+		// },
+		// logLevel: 'error', // Change log level to 'info'
+		// build: {
+		// 	minify: false, // Disable minification to make the build output more readable
+		// 	sourcemap: true // Enable source maps to get better error stack traces
 	}
 });

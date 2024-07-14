@@ -11,8 +11,8 @@
 	const constraints = passwordSchema._def.checks || [];
 
 	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
-	let YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
-	let GREEN_LENGTH = YELLOW_LENGTH + 4;
+	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
+	const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 	function calculateScore(password: string) {
 		let score = 0;

@@ -1,22 +1,35 @@
 <script lang="ts">
-	export let mediaItems = [];
-	export let selectedMedia = null;
-	export let onSelect;
+	type MediaItem = {
+		url: string;
+		name: string;
+	};
 
-	function handleSelect(media) {
+	export let mediaItems: MediaItem[] = [];
+	export let selectedMedia: MediaItem | null = null;
+	export let onSelect: (media: MediaItem) => void;
+
+	function handleSelect(media: MediaItem) {
 		onSelect(media);
 	}
 </script>
 
 <div class="grid grid-cols-3 gap-4">
 	{#each mediaItems as media}
-		<div class="cursor-pointer" on:click={() => handleSelect(media)}>
+		<button
+			type="button"
+			class="cursor-pointer"
+			on:click={() => handleSelect(media)}
+			on:keydown={(e) => (e.key === 'Enter' ? handleSelect(media) : null)}
+			aria-pressed={media === selectedMedia}
+			role="button"
+			tabindex="0"
+		>
 			<img src={media.url} alt={media.name} class="thumbnail {media === selectedMedia ? 'selected' : ''}" />
-		</div>
+		</button>
 	{/each}
 </div>
 
-<style>
+<style lang="postcss">
 	.thumbnail {
 		width: 100%;
 		height: auto;

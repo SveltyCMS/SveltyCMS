@@ -4,7 +4,7 @@
 	import { getPermissions } from '@src/auth/permissionManager';
 	import { createRandomID } from '@src/utils/utils';
 
-	let newRoles: Role[] = [];
+	const newRoles: Role[] = [];
 	let roleName = '';
 	let rolePermissions: Record<PermissionAction, boolean> = {
 		create: false,

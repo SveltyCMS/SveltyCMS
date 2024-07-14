@@ -17,9 +17,9 @@
 	let header: HTMLDivElement;
 
 	function setPosition(node: HTMLDivElement) {
-		let parent = header.parentElement as HTMLElement;
+		const parent = header.parentElement as HTMLElement;
 		node.style.minWidth = header.offsetWidth + 'px';
-		let left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
+		const left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
 		if (left_pos + node.offsetWidth > parent.offsetWidth) {
 			node.style.right = '0';
 		} else {

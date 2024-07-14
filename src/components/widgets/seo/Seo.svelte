@@ -36,14 +36,14 @@
 	let titleCharacterWidth = 0;
 	let descriptionCharacterWidth = 0;
 	let SeoPreviewToggle = false;
-	let score = 0;
+	const score = 0;
 	let progress = 0;
 	let suggestions: Suggestion[] = [];
 	let hostUrl;
 	let showHeatmap = false;
-	let seoContent = '';
+	const seoContent = '';
 	let seoKeywords: string[] = [];
-	let validationError: string | null = null;
+	const validationError: string | null = null;
 
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	$: updateTranslationProgress(_data, field);

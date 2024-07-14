@@ -15,7 +15,7 @@
 		show;
 	}
 
-	let ev = createEventDispatcher();
+	const ev = createEventDispatcher();
 </script>
 
 <div class:hidden={!show}>

@@ -216,7 +216,7 @@ const ImageResize = ImageExtension.extend({
 					nodeAttrs.margin = resizer.style.margin = `0 ${marginRight} 0 0`;
 				}
 			};
-			resizer.ondragend = (e) => {
+			resizer.ondragend = () => {
 				resizer.style.opacity = '1';
 			};
 

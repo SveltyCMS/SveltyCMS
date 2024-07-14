@@ -11,7 +11,7 @@
 
 	// Superforms
 	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
-	import { superForm } from 'sveltekit-superforms/client';
+	import { superForm, type SuperValidated } from 'sveltekit-superforms/client';
 	import { zod } from 'sveltekit-superforms/adapters';
 	import { loginFormSchema, forgotFormSchema, resetFormSchema } from '@utils/formSchemas';
 
@@ -56,8 +56,8 @@
 	}
 
 	// Login Form
-	export let FormSchemaLogin: PageData['loginForm'];
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
+	export let FormSchemaLogin: SuperValidated<{ email: string; password: string }, any, { email: string; password: string }> | undefined;
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin ?? { email: '', password: '' }, {
 		id: 'login',
 		validators: zod(loginFormSchema),
 		// Clear form on success.
@@ -105,14 +105,14 @@
 	});
 
 	// Forgot Form
-	export let FormSchemaForgot: PageData['forgotForm'];
+	export let FormSchemaForgot: SuperValidated<{ email: string }, any, { email: string }> | undefined;
 	const {
 		form: forgotForm,
 		allErrors: forgotAllErrors,
 		errors: forgotErrors,
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
-	} = superForm(FormSchemaForgot, {
+	} = superForm(FormSchemaForgot ?? { email: '' }, {
 		id: 'forgot',
 		validators: zod(forgotFormSchema),
 		// Clear form on success.
@@ -203,14 +203,20 @@
 	});
 
 	// Reset Form
-	export let FormSchemaReset: PageData['resetForm'];
+	export let FormSchemaReset:
+		| SuperValidated<
+				{ email: string; password: string; confirm_password: string; token: string },
+				any,
+				{ email: string; password: string; confirm_password: string; token: string }
+		  >
+		| undefined;
 	const {
 		form: resetForm,
 		allErrors: resetAllErrors,
 		errors: resetErrors,
 		enhance: resetEnhance,
 		delayed: resetDelayed
-	} = superForm(FormSchemaReset, {
+	} = superForm(FormSchemaReset ?? { email: '', password: '', confirm_password: '', token: '' }, {
 		id: 'reset',
 		validators: zod(resetFormSchema),
 		// Clear form on success.
@@ -235,7 +241,7 @@
 			if (result.type === 'error') {
 				// Extract and format error messages
 				let errorMessages = '';
-				allErrors.subscribe((errors) => {
+				resetAllErrors.subscribe((errors) => {
 					errorMessages = errors.map((error) => error.messages.join(', ')).join('; ');
 				});
 			} else if (result.type === 'success') {

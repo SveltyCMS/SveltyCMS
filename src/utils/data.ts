@@ -1,3 +1,6 @@
+// System Logs
+import logger from '@src/utils/logger';
+
 import axios from 'axios';
 import { config, toFormData } from './utils';
 
@@ -8,9 +11,10 @@ export async function handleRequest(data: FormData, method: string) {
 	data.append('method', method);
 	try {
 		const response = await axios.post('/api/query', data, config);
+		logger.info(`Successfully completed ${method} request`, { data: response.data });
 		return response.data;
 	} catch (error) {
-		console.error(`Error in ${method} request:`, error);
+		logger.error(`Error in ${method} request:`, error as Error);
 		throw error;
 	}
 }
@@ -27,12 +31,13 @@ export async function getData(query: {
 	const q = toFormData({ method: 'GET', ...query });
 	try {
 		const response = await axios.post('/api/query', q);
+		logger.info('Successfully completed GET request', { data: response.data });
 		return response.data as {
 			entryList: [any];
 			pagesCount: number;
 		};
 	} catch (error) {
-		console.error('Error in GET request:', error);
+		logger.error('Error in GET request:', error as Error);
 		throw error;
 	}
 }

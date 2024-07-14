@@ -10,7 +10,7 @@
 
 	// Utils
 	import { getData } from '@src/utils/data';
-	import { extractData, find, findById, getFieldName, saveFormData } from '@src/utils/utils';
+	import { extractData, findById, getFieldName, saveFormData } from '@src/utils/utils';
 
 	export let field: FieldType;
 	const fieldName = getFieldName(field);
@@ -23,7 +23,7 @@
 	let showDropDown = false;
 	let entryMode: 'create' | 'edit' | 'choose' = 'choose';
 	let relation_entry: any;
-	let relationCollection = $collections[field?.relation];
+	const relationCollection = $collections[field?.relation];
 
 	export const WidgetData = async () => {
 		let relation_id = '';
