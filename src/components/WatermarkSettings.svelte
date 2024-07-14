@@ -5,65 +5,51 @@
 	export let positionY = 0;
 	export let rotation = 0;
 
-	function handleSizeChange(event) {
-		size = event.target.value;
+	function handleSizeChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		size = target.value;
 	}
 
-	function handleOpacityChange(event) {
-		opacity = parseFloat(event.target.value);
+	function handleOpacityChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		opacity = parseFloat(target.value);
 	}
 
-	function handlePositionXChange(event) {
-		positionX = parseInt(event.target.value, 10);
+	function handlePositionXChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		positionX = parseInt(target.value, 10);
 	}
 
-	function handlePositionYChange(event) {
-		positionY = parseInt(event.target.value, 10);
+	function handlePositionYChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		positionY = parseInt(target.value, 10);
 	}
 
-	function handleRotationChange(event) {
-		rotation = parseInt(event.target.value, 10);
+	function handleRotationChange(event: Event) {
+		const target = event.target as HTMLInputElement;
+		rotation = parseInt(target.value, 10);
 	}
 </script>
 
-<div class="settings">
+<div class="grid grid-cols-2 gap-2">
 	<div>
-		<label>Size</label>
-		<input type="text" bind:value={size} on:input={handleSizeChange} placeholder="e.g., 100px or 50%" />
+		<label class="block font-bold" for="size">Size</label>
+		<input class="w-full" id="size" type="text" bind:value={size} on:input={handleSizeChange} placeholder="e.g., 100px or 50%" />
 	</div>
 	<div>
-		<label>Opacity</label>
-		<input type="range" min="0" max="1" step="0.1" bind:value={opacity} on:input={handleOpacityChange} />
+		<label class="block font-bold" for="opacity">Opacity</label>
+		<input class="w-full" id="opacity" type="range" min="0" max="1" step="0.1" bind:value={opacity} on:input={handleOpacityChange} />
 	</div>
 	<div>
-		<label>Position X</label>
-		<input type="number" bind:value={positionX} on:input={handlePositionXChange} />
+		<label class="block font-bold" for="positionX">Position X</label>
+		<input class="w-full" id="positionX" type="number" bind:value={positionX} on:input={handlePositionXChange} />
 	</div>
 	<div>
-		<label>Position Y</label>
-		<input type="number" bind:value={positionY} on:input={handlePositionYChange} />
+		<label class="block font-bold" for="positionY">Position Y</label>
+		<input class="w-full" id="positionY" type="number" bind:value={positionY} on:input={handlePositionYChange} />
 	</div>
 	<div>
-		<label>Rotation</label>
-		<input type="number" bind:value={rotation} on:input={handleRotationChange} />
+		<label class="block font-bold" for="rotation">Rotation</label>
+		<input class="w-full" id="rotation" type="number" bind:value={rotation} on:input={handleRotationChange} />
 	</div>
 </div>
-
-<style>
-	.settings {
-		display: grid;
-		grid-template-columns: 1fr 1fr;
-		gap: 10px;
-	}
-	.settings label {
-		display: block;
-		font-weight: bold;
-	}
-	.settings input[type='text'],
-	.settings input[type='number'] {
-		width: 100%;
-	}
-	.settings input[type='range'] {
-		width: 100%;
-	}
-</style>

@@ -16,11 +16,11 @@
 	const repeat = 3;
 	const separator = ' • ';
 
-	let siteName = publicEnv.SITE_NAME;
+	const siteName = publicEnv.SITE_NAME;
 
-	let combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
+	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
 
-	let array: string[] = combinedString.split('').filter((char) => char !== ' ');
+	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
 </script>
 
 {#if $page}

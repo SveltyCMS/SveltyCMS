@@ -10,6 +10,9 @@ import { sha256 } from './utils';
 import { dbAdapter } from '@api/databases/db';
 import type sharp from 'sharp';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Get defined sizes from publicEnv
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
@@ -38,6 +41,7 @@ async function saveFileToDisk(buffer: Buffer, url: string) {
 		fs.mkdirSync(Path.dirname(fullPath), { recursive: true });
 	}
 	fs.writeFileSync(fullPath, buffer);
+	logger.info('File saved to disk', { url: fullPath });
 }
 
 // Constructs a URL for storing a file based on the provided parameters.
@@ -81,15 +85,19 @@ async function saveResizedImages(buffer: Buffer, hash: string, fileName: string,
 
 		const resizedUrl = constructUrl(path, hash, fileName, format, collectionName);
 		await saveFileToDisk(resizedImage.data, resizedUrl);
+		logger.info('Resized image saved', { url: resizedUrl, size });
 	}
 }
 
 // Saves media information to the database.
 async function saveMediaToDb<T>(collection: string, fileInfo: T, user_id: string): Promise<string> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
+		const errorMessage = 'Database adapter is not initialized';
+		logger.error(errorMessage);
+		throw new Error(errorMessage);
 	}
 	const res = await dbAdapter.insertMany(collection, [{ ...fileInfo, user: user_id }]);
+	logger.info('Media saved to database', { collection, fileInfo });
 	return res[0]._id;
 }
 
@@ -113,6 +121,7 @@ async function saveMedia<T>(
 
 		// If the file already exists, return the existing file information
 		if (existingFile) {
+			logger.info('File already exists in the database', { fileId: existingFile._id, collection });
 			return { id: existingFile._id, fileInfo: existingFile };
 		}
 
@@ -137,11 +146,11 @@ async function saveMedia<T>(
 		}
 
 		// Save file information to the database
-		console.log(`Saving media to db: ${collection} - ${fileInfo}`);
+		logger.info(`Saving media to db: ${collection}`, { fileInfo });
 		const id = await saveMediaToDb<T>(collection, fileInfo, user_id);
 		return { id, fileInfo: fileInfo as T };
 	} catch (error) {
-		console.error('Error saving media:', error);
+		logger.error('Error saving media:', error as Error);
 		throw error;
 	}
 }
@@ -188,14 +197,17 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string): 
 		};
 
 		if (!dbAdapter) {
-			throw new Error('Database adapter is not initialized');
+			const errorMessage = 'Database adapter is not initialized';
+			logger.error(errorMessage);
+			throw new Error(errorMessage);
 		}
 
 		const res = await dbAdapter.insertMany(collectionName, [fileInfo]);
 		const id = res[0]._id;
+		logger.info('Remote media saved to database', { collectionName, fileInfo });
 		return { id, fileInfo: { ...fileInfo, id } };
 	} catch (error) {
-		console.error('Error saving remote media:', error);
+		logger.error('Error saving remote media:', error as Error);
 		throw error;
 	}
 }

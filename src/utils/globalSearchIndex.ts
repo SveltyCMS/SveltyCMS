@@ -1,5 +1,9 @@
 // Create a Global Search Index
+
 import { writable } from 'svelte/store';
+
+// System Logs
+import logger from '@src/utils/logger';
 
 // GlobalSearchIndex
 let modalEditAvatar: any;
@@ -25,6 +29,7 @@ interface SearchData {
 	};
 }
 
+// Initialize the global search index with predefined data
 export const globalSearchIndex = writable<SearchData[]>([
 	{
 		title: 'Home',
@@ -124,3 +129,5 @@ export const globalSearchIndex = writable<SearchData[]>([
 		triggers: { 'Go to System Builder': { path: '/collection', action: [() => {}] } }
 	}
 ]);
+
+logger.info('Global search index initialized');

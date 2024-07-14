@@ -1,11 +1,28 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	let media = [];
+
+	// Define the structure of a media document
+	interface MediaDocument {
+		createdAt: string;
+		createdBy: string;
+	}
+
+	// Define the structure of a media schema
+	interface MediaSchema {
+		schemaName: string;
+		recentDocs: MediaDocument[];
+	}
+
+	// Define the type of the media array
+	let media: MediaSchema[] = [];
 
 	onMount(async () => {
 		const res = await fetch('/api/media');
-		media = (await res.json()).data;
+		const data = await res.json();
+		media = data.data;
 	});
+
+	export let label;
 </script>
 
 <section>

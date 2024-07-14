@@ -15,7 +15,7 @@
 		show;
 	}
 
-	let ev = createEventDispatcher();
+	const ev = createEventDispatcher();
 </script>
 
 <div class:hidden={!show}>
@@ -45,7 +45,7 @@
 	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.description {
 		position: fixed;
 		top: 100%;

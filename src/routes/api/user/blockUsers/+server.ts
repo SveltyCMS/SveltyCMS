@@ -9,9 +9,11 @@ import logger from '@utils/logger';
 export const POST: RequestHandler = async ({ request }) => {
 	try {
 		const data = await request.json();
+		logger.info('Received request to block users', { userIds: data.map((user: any) => user.id) });
 
 		// Get all users to find admin count
 		if (!auth) {
+			logger.error('Auth is not initialized');
 			throw new Error('Auth is not initialized');
 		}
 
@@ -33,6 +35,7 @@ export const POST: RequestHandler = async ({ request }) => {
 			// Invalidate all sessions and block the user
 			await auth.invalidateAllUserSessions(user.id);
 			await auth.updateUserAttributes(user.id, { blocked: true });
+			logger.info('User blocked successfully', { userId: user.id });
 		}
 
 		if (flag) {

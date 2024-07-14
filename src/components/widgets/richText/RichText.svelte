@@ -32,18 +32,18 @@
 	export let field: FieldType;
 	export const WidgetData = async () => ({ images, data: _data });
 
-	let fieldName = getFieldName(field);
+	const fieldName = getFieldName(field);
 	let element;
 	let editor: Editor;
 	let showImageDialog = false;
 	let showVideoDialog = false;
-	let images = {};
+	const images = {};
 	let active_dropDown = '';
 
 	export let value = $entryData[fieldName] || { content: {}, header: {} };
 	console.log($entryData);
 
-	let _data = $mode == 'create' ? { content: {}, header: {} } : value;
+	const _data = $mode == 'create' ? { content: {}, header: {} } : value;
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 	contentLanguage.subscribe(async (val) => {
@@ -52,7 +52,7 @@
 	});
 
 	$: updateTranslationProgress(_data.content, field);
-	let deb = debounce(500);
+	const deb = debounce(500);
 
 	onMount(() => {
 		editor = new Editor({
@@ -103,7 +103,7 @@
 
 	function handleImageDeletes(transaction) {
 		const getImageIds = (fragment) => {
-			let srcs = new Set();
+			const srcs = new Set();
 			fragment.forEach((node) => {
 				if (node.type.name === 'image') {
 					srcs.add(node.attrs.media_image);
@@ -112,11 +112,11 @@
 			return srcs;
 		};
 
-		let currentIds = getImageIds(transaction.doc.content);
-		let previousIds = getImageIds(transaction.before.content);
+		const currentIds = getImageIds(transaction.doc.content);
+		const previousIds = getImageIds(transaction.before.content);
 
 		// Determine which images were deleted
-		let deletedImageIds = [...previousIds].filter((id) => !currentIds.has(id)) as string[];
+		const deletedImageIds = [...previousIds].filter((id) => !currentIds.has(id)) as string[];
 
 		if (deletedImageIds.length > 0) {
 			meta_data.add('media_images_remove', deletedImageIds);
@@ -435,11 +435,11 @@
 				bind:show={showImageDialog}
 				class="fixed  left-1/2 top-0 z-10 -translate-x-1/2 bg-white"
 				on:change={async (e) => {
-					let data = e.detail;
+					const data = e.detail;
 					let url;
 					if (data instanceof File) {
 						url = URL.createObjectURL(data);
-						let image_id = (await createRandomID()).toString();
+						const image_id = (await createRandomID()).toString();
 						images[image_id] = data;
 						editor.chain().focus().setImage({ src: url, id: image_id }).run();
 					} else {

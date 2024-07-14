@@ -3,6 +3,9 @@ import path from 'path';
 import util from 'util';
 import { exec } from 'child_process';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Promisify exec for async usage
 const execAsync = util.promisify(exec);
 
@@ -15,7 +18,7 @@ async function ensureDir(dir: string) {
 		await fs.mkdir(dir, { recursive: true });
 	} catch (error: any) {
 		if (error.code !== 'EEXIST') {
-			console.error(`Error creating directory ${dir}:`, error);
+			logger.error(`Error creating directory ${dir}:`, error);
 			throw error;
 		}
 	}
@@ -48,10 +51,10 @@ export async function backupConfigFiles() {
 			}
 		}
 
-		console.log('Backup completed successfully!');
+		logger.info('Backup completed successfully', { privateBackup, publicBackup });
 		return { privateBackup, publicBackup };
 	} catch (error) {
-		console.error('Error creating backup:', error);
+		logger.error('Error creating backup:', error);
 		throw error;
 	}
 }
@@ -60,9 +63,9 @@ export async function backupConfigFiles() {
 async function select(options: { message: string; options: Array<{ name: string; value: string }> }): Promise<string> {
 	// This is a placeholder implementation. You need to replace this with your actual select logic.
 	// For example, you can use a prompt library or implement your own CLI selection mechanism.
-	console.log(options.message);
+	logger.info(options.message);
 	for (const option of options.options) {
-		console.log(`${option.value}: ${option.name}`);
+		logger.info(`${option.value}: ${option.name}`);
 	}
 	// Here we just return the first option's value for simplicity
 	return options.options[0].value;
@@ -91,12 +94,13 @@ export async function restoreConfigFiles() {
 		if (selectedTimestamp) {
 			await fs.copyFile(path.join(BACKUP_DIR, `private.backup.${selectedTimestamp}.ts`), path.join(CONFIG_DIR, 'private.ts'));
 			await fs.copyFile(path.join(BACKUP_DIR, `public.backup.${selectedTimestamp}.ts`), path.join(CONFIG_DIR, 'public.ts'));
-			console.log('Restore completed successfully!');
+			logger.info('Restore completed successfully', { selectedTimestamp });
 		} else {
-			console.log('Restore cancelled.');
+			logger.info('Restore cancelled');
 		}
 	} catch (error) {
-		console.error('Error restoring backup:', error);
+		logger.error('Error restoring backup:', error);
+		throw error;
 	}
 }
 
@@ -107,6 +111,7 @@ export async function backupFilesExist() {
 		const files = await fs.readdir(BACKUP_DIR);
 		return files.some((file) => file.startsWith('private.backup') || file.startsWith('public.backup'));
 	} catch (error) {
+		logger.error('Error checking backup files existence:', error);
 		return false;
 	}
 }
@@ -116,16 +121,20 @@ export async function configFilesExist() {
 	const privateConfigPath = path.join(CONFIG_DIR, 'private.ts');
 	const publicConfigPath = path.join(CONFIG_DIR, 'public.ts');
 
-	const privateExists = await fs
-		.stat(privateConfigPath)
-		.then(() => true)
-		.catch(() => false);
-	const publicExists = await fs
-		.stat(publicConfigPath)
-		.then(() => true)
-		.catch(() => false);
-
-	return privateExists || publicExists;
+	try {
+		const privateExists = await fs
+			.stat(privateConfigPath)
+			.then(() => true)
+			.catch(() => false);
+		const publicExists = await fs
+			.stat(publicConfigPath)
+			.then(() => true)
+			.catch(() => false);
+		return privateExists || publicExists;
+	} catch (error) {
+		logger.error('Error checking config files existence:', error);
+		return false;
+	}
 }
 
 // Database Backup (Example for MongoDB)
@@ -136,10 +145,10 @@ export async function backupDatabase(dbHost: string, dbName: string) {
 	try {
 		await ensureDir(BACKUP_DIR);
 		await execAsync(`mongodump --uri=${dbHost}/${dbName} --archive=${backupFile} --gzip`);
-		console.log(`Database backup completed: ${backupFile}`);
+		logger.info('Database backup completed successfully', { backupFile });
 		return backupFile;
 	} catch (error) {
-		console.error('Error creating database backup:', error);
+		logger.error('Error creating database backup:', error);
 		throw error;
 	}
 }

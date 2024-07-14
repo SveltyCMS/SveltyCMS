@@ -137,7 +137,7 @@
 			const node = e.currentTarget as HTMLElement;
 			const pointerID = e.pointerId;
 
-			node.onpointerleave = node.onpointerup = (e) => {
+			node.onpointerleave = node.onpointerup = () => {
 				clearTimeout(timeout);
 			};
 

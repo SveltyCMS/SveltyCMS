@@ -1,6 +1,6 @@
 <script lang="ts">
-	import { roles, permissionActions as PermissionsEnum, icon, color } from '@src/auth/types';
-	import type { Role, PermissionAction } from '@src/auth/types';
+	import { roles, permissionActions as PermissionsEnum, icon } from '@src/auth/types';
+	import type { PermissionAction } from '@src/auth/types';
 
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -9,14 +9,17 @@
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
-	// Localized messages
-	import * as m from '@src/paraglide/messages';
+	// Define the type for a role with permissions
+	interface RoleWithPermissions {
+		name: string;
+		permissions: { [key in PermissionAction]?: boolean };
+	}
 
 	// Permissions are assumed to be passed in or fetched dynamically
-	export let permissions = {};
+	export let permissions: { [key: string]: { [key in PermissionAction]?: boolean } } = {};
 
 	// Initialize rolesArray dynamically based on provided permissions
-	let rolesArray: { name: string; permissions: { [key in PermissionAction]?: boolean } }[] = [];
+	let rolesArray: RoleWithPermissions[] = [];
 
 	$: rolesArray = Object.entries(permissions).map(([role, perms]) => ({
 		name: role,
@@ -52,12 +55,10 @@
 	}
 
 	let searchQuery = '';
+	let filteredRolesArray: RoleWithPermissions[] = [];
 
 	// Filter roles based on search query
-	$: {
-		const lowerCaseQuery = searchQuery.toLowerCase();
-		rolesArray = rolesArray.filter((role) => role.name.toLowerCase().includes(lowerCaseQuery));
-	}
+	$: filteredRolesArray = rolesArray.filter((role) => role.name.toLowerCase().includes(searchQuery.toLowerCase()));
 </script>
 
 <div>
@@ -77,7 +78,7 @@
 		</thead>
 		<!-- Table Body -->
 		<tbody>
-			{#each rolesArray as role}
+			{#each filteredRolesArray as role}
 				<tr>
 					<!-- Role Name -->
 					<td>{role.name}</td>
@@ -87,7 +88,7 @@
 								on:click={() => togglePermission(role.name, permission)}
 								class={`btn ${role.permissions[permission] ? 'btn-success' : 'btn-error'}`}
 							>
-								{icon[permission]}
+								<iconify-icon icon={icon[permission]} />
 							</button>
 						</td>
 					{/each}

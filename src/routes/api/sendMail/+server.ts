@@ -9,6 +9,9 @@ import welcomeUser from '@components/emails/welcomeUser.svelte';
 import forgottenPassword from '@components/emails/forgottenPassword.svelte';
 import updatedPassword from '@components/emails/updatedPassword.svelte';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 import nodemailer from 'nodemailer';
 
 import type { ComponentType } from 'svelte';
@@ -37,26 +40,24 @@ const templates: Record<string, ComponentType> = {
 };
 
 export const POST: RequestHandler = async ({ request }) => {
-	// console.log(request);
 	const { email, subject, message, templateName, props } = await request.json();
 	const userLanguage = languageTag(); // Get the user's language
-	await sendMail(email, subject, message, templateName, props, userLanguage);
-	return new Response(null, { status: 200 });
+	logger.debug('Received email request', { email, subject, templateName });
+
+	try {
+		await sendMail(email, subject, message, templateName, props, userLanguage);
+		return new Response(null, { status: 200 });
+	} catch (error) {
+		logger.error('Error sending email:', error);
+		return new Response('Failed to send email', { status: 500 });
+	}
 };
 
 async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
-	// console.log(email, subject, message);
-	// function sendMail(email, subject, message, html) {
 	const transporter = nodemailer.createTransport({
-		// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-		// @ts-ignore
 		host: privateEnv.SMTP_HOST,
 		port: privateEnv.SMTP_PORT,
 		secure: true,
-		//service: 'gmail',
-
-		// port: SMTP_PORT,
-		// secure: false, // true for 465, false for other ports
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
 			pass: privateEnv.SMTP_PASSWORD
@@ -79,12 +80,11 @@ async function sendMail(email: string, subject: string, message: string, templat
 		html: emailHtml
 	};
 
-	//console.log(emailHtml);
-
-	await transporter.sendMail(options).catch((err) => console.log(err));
-
-	return {
-		status: 200,
-		body: { success: true }
-	};
+	try {
+		const info = await transporter.sendMail(options);
+		logger.info('Email sent successfully', { email, subject, messageId: info.messageId });
+	} catch (err) {
+		logger.error('Error sending email:', err);
+		throw err;
+	}
 }

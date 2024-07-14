@@ -11,10 +11,14 @@ import { dbAdapter } from '@api/databases/db';
 // Redis
 import { createClient } from 'redis';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Initialize Redis client if needed
 let redisClient: any = null;
 
 if (privateEnv.USE_REDIS === true) {
+	logger.info('Initializing Redis client');
 	// Create Redis client
 	redisClient = createClient({
 		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
@@ -23,17 +27,19 @@ if (privateEnv.USE_REDIS === true) {
 
 	// Connect to Redis
 	redisClient.on('error', (err: Error) => {
-		console.error('Redis error: ', err);
+		logger.error('Redis error: ', err);
 	});
 
-	redisClient.connect().catch(console.error);
+	redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
 }
 
 // GraphQL
 async function setupGraphQL() {
-	const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
+	try {
+		logger.info('Setting up GraphQL schema and resolvers');
+		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
-	const typeDefs = `
+		const typeDefs = `
         ${collectionsTypeDefs}
         ${userTypeDefs()}
         ${mediaTypeDefs()}
@@ -50,35 +56,46 @@ async function setupGraphQL() {
         }
     `;
 
-	const resolvers = {
-		Query: {
-			...(await collectionsResolvers(redisClient, privateEnv)),
-			...userResolvers(dbAdapter),
-			...mediaResolvers(dbAdapter)
-		}
-	};
+		const resolvers = {
+			Query: {
+				...(await collectionsResolvers(redisClient, privateEnv)),
+				...userResolvers(dbAdapter),
+				...mediaResolvers(dbAdapter)
+			}
+		};
 
-	const yogaApp = createYoga<RequestEvent>({
-		schema: createSchema({
-			typeDefs,
-			resolvers
-		}),
-		graphqlEndpoint: '/api/graphql',
-		fetchAPI: globalThis
-	});
+		const yogaApp = createYoga<RequestEvent>({
+			schema: createSchema({
+				typeDefs,
+				resolvers
+			}),
+			graphqlEndpoint: '/api/graphql',
+			fetchAPI: globalThis
+		});
 
-	return yogaApp;
+		logger.info('GraphQL setup completed successfully');
+		return yogaApp;
+	} catch (error) {
+		logger.error('Error setting up GraphQL: ', error);
+		throw error;
+	}
 }
 
 const yogaAppPromise = setupGraphQL();
 
 const handler = async (event: RequestEvent) => {
-	const yogaApp = await yogaAppPromise;
-	const response = await yogaApp.handleRequest(event.request, event);
-	return new Response(response.body, {
-		status: response.status,
-		headers: response.headers
-	});
+	try {
+		const yogaApp = await yogaAppPromise;
+		const response = await yogaApp.handleRequest(event.request, event);
+		logger.info('GraphQL request handled successfully', { status: response.status });
+		return new Response(response.body, {
+			status: response.status,
+			headers: response.headers
+		});
+	} catch (error) {
+		logger.error('Error handling GraphQL request: ', error);
+		return new Response('Internal Server Error', { status: 500 });
+	}
 };
 
 // Export the handlers for GET and POST requests

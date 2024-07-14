@@ -10,7 +10,7 @@
 	import type { PermissionConfig } from '@src/auth/types';
 
 	const { user, roles, rateLimits } = $page.data;
-	let isFirstUser = $page.data.isFirstUser;
+	const isFirstUser = $page.data.isFirstUser;
 
 	// Stores
 	import '@stores/store';

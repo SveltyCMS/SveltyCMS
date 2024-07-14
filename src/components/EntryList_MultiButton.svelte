@@ -13,7 +13,6 @@
 	let actionname: string;
 	let buttonClass: string;
 	let iconValue: string;
-	let iconClass: string;
 
 	function handleButtonClick() {
 		switch ($storeListboxValue) {
@@ -72,7 +71,7 @@
 
 	// a reactive statement that runs whenever storeListboxValue is updated
 	$: {
-		[actionname, buttonClass, iconValue, iconClass] = buttonMap[$storeListboxValue] || ['', '', '', ''];
+		[actionname, buttonClass, iconValue] = buttonMap[$storeListboxValue] || ['', '', '', ''];
 		buttonClass = `btn ${buttonClass} rounded-none w-36 justify-between`;
 	}
 </script>

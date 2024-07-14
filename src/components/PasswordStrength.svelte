@@ -11,8 +11,8 @@
 	const constraints = passwordSchema._def.checks || [];
 
 	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
-	let YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
-	let GREEN_LENGTH = YELLOW_LENGTH + 4;
+	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
+	const GREEN_LENGTH = YELLOW_LENGTH + 4;
 
 	function calculateScore(password: string) {
 		let score = 0;
@@ -64,16 +64,7 @@
 
 {#if password}
 	<div class="flex flex-col items-center justify-center">
-		<div class="progress-bar" style="background-color: {color}; width: {percentage}%;" />
+		<div class="transition duration-300 ease-in-out" style="background-color: {color}; width: {percentage}%;" />
 		<span class="mt-1 text-sm text-primary-500">{label} strength: {feedback}</span>
 	</div>
 {/if}
-
-<style lang="postcss">
-	.progress-bar {
-		height: 0.4rem;
-		transition:
-			width 0.2s ease-in-out,
-			background-color 0.2s ease-in-out;
-	}
-</style>

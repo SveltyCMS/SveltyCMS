@@ -7,7 +7,6 @@
 
 	let icons = []; // array of icon names
 	let start = 0; // Declare a variable for the start index and initialize it to 0
-	let total = 0; // variable to store the total number of results
 	let selectedLibrary = 'ic'; // Default library is 'ic - Google Material Icons'
 	let librariesLoaded = false;
 	let iconLibraries = {};
@@ -19,7 +18,7 @@
 	export let searchQuery: string = '';
 
 	// function to fetch icons from Iconify API
-	async function searchIcons(query: string, libraryCategory: string, event?: FocusEvent) {
+	async function searchIcons(query: string, libraryCategory: string) {
 		// Calculate start index based on current page number
 		start = page * 50; // Use page variable instead of start variable
 
@@ -32,7 +31,6 @@
 			const data = await response.json();
 
 			if (data && data.icons) {
-				total = data.total; // update total variable
 				icons = data.icons; // update icons array
 				// Use loadIcons function to preload icons from API
 				loadIcons(icons.map((icon) => `${data.prefix}:${icon}`));
@@ -156,11 +154,7 @@
 			<!-- Pagination buttons -->
 			{#if icons.length > 0}
 				<div class="mt-2 flex justify-between">
-					<button
-						disabled={start === 0}
-						on:keydown
-						on:click={prevPage}
-						class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
+					<button disabled={start === 0} on:click={prevPage} class={`${page === 0 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}
 						>{m.button_previous()}
 					</button>
 
@@ -169,7 +163,6 @@
 					</div>
 					<button
 						disabled={icons.length < 50}
-						on:keydown
 						on:click={nextPage}
 						class={`${icons.length < 50 ? 'hidden' : 'block'} variant-filled-primary btn-sm rounded`}>{m.button_next()}</button
 					>

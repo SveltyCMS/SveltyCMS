@@ -22,7 +22,7 @@
 	const user: User = $page.data.user;
 	console.log('User:', user);
 
-	let isFirstUser = $page.data.isFirstUser;
+	const isFirstUser = $page.data.isFirstUser;
 
 	export let isGivenData: boolean = false;
 	export let username: string | null = null;
@@ -70,7 +70,7 @@
 
 	async function deleteUser() {
 		const formData = new FormData(formElement); // create a FormData object from the formElement
-		formData.append('id', user.id); // add the id property to the FormData object
+		formData.append('id', user.user_id); // add the id property to the FormData object
 
 		const res = await axios.post('?/deleteUser', formData);
 

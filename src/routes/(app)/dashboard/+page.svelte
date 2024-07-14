@@ -14,14 +14,22 @@
 	import { fade } from 'svelte/transition';
 	import Grid, { GridItem } from 'svelte-grid-extended';
 	import { onMount } from 'svelte';
+	import type { SvelteComponentTyped } from 'svelte';
 
-	type WidgetComponent =
-		| typeof CPUWidget
-		| typeof DiskWidget
-		| typeof MemoryWidget
-		| typeof Last5MediaWidget
-		| typeof UserActivityWidget
-		| typeof SystemMessagesWidget;
+	type WidgetComponentProps = {
+		label: string;
+		id?: string;
+		x?: number;
+		y?: number;
+		w?: number;
+		h?: number;
+		min?: { w: number; h: number };
+		max?: { w: number; h: number };
+		movable?: boolean;
+		resizable?: boolean;
+	};
+
+	type WidgetComponent = new (...args: any[]) => SvelteComponentTyped<WidgetComponentProps>;
 
 	type GridItemType = {
 		id: string;
@@ -34,7 +42,7 @@
 		movable: boolean;
 		resizable: boolean;
 		component: WidgetComponent;
-		label: string; // Added label property
+		label: string;
 	};
 
 	let items: GridItemType[] = [];
@@ -77,11 +85,11 @@
 			movable: true,
 			resizable: true,
 			component: componentType,
-			label // Added label property to the new item
+			label
 		};
 		items = [...items, newItem];
 		saveWidgets();
-		dropdownOpen = false; // Close the dropdown
+		dropdownOpen = false;
 	}
 
 	onMount(() => {

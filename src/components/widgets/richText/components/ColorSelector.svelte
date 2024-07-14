@@ -10,15 +10,15 @@
 	export let active = '';
 
 	let expanded = false;
-	let dispatch = createEventDispatcher();
+	const dispatch = createEventDispatcher();
 	let header: HTMLDivElement;
 
 	$: key != active && (expanded = false);
 	$: dispatch('change', color);
 
 	function setPosition(node: HTMLDivElement) {
-		let parent = header.parentElement as HTMLElement;
-		let left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
+		const parent = header.parentElement as HTMLElement;
+		const left_pos = header.getBoundingClientRect().left - parent.getBoundingClientRect().left;
 		if (left_pos + node.offsetWidth > parent.offsetWidth) {
 			node.style.right = '0';
 		} else {

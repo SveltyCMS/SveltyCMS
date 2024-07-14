@@ -1,10 +1,9 @@
 <script lang="ts">
-	import { publicEnv } from '@root/config/public';
-	import { goto, pushState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collection, categories, headerActionButton, shouldShowNextButton } from '@stores/store';
+	import { mode, collection, categories, shouldShowNextButton } from '@stores/store';
 	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { get } from 'svelte/store';
 

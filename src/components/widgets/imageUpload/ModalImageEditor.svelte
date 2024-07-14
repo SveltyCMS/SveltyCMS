@@ -39,7 +39,7 @@
 		(value as MediaImage)?.thumbnail?.url &&
 			axios.get((value as MediaImage).thumbnail.url, { responseType: 'blob' }).then(({ data }) => {
 				if (value instanceof File) return;
-				let file = new File([data], value.thumbnail.name, {
+				const file = new File([data], value.thumbnail.name, {
 					type: value.thumbnail.type
 				});
 
@@ -48,7 +48,7 @@
 	}
 
 	let editing = false;
-	let edit = {
+	const edit = {
 		stage: {} as Stage,
 		group: {} as Group,
 		transformers: [] as Transformer[],
@@ -72,8 +72,8 @@
 					this.image.onload = resolve;
 				});
 			}
-			let Konva = (await import('konva')).default;
-			let scale = Math.min((window.innerWidth - 50) / 1.5 / this.image.naturalWidth, (window.innerHeight - 80) / 1.5 / this.image.naturalHeight);
+			const Konva = (await import('konva')).default;
+			const scale = Math.min((window.innerWidth - 50) / 1.5 / this.image.naturalWidth, (window.innerHeight - 80) / 1.5 / this.image.naturalHeight);
 
 			this.stage = new Konva.Stage({
 				container: 'canvas',
@@ -119,7 +119,7 @@
 							let type = ((value as any).original.type as string) || _data.type;
 							type = type.includes('svg') ? 'image/png' : type;
 							name = name.endsWith('svg') ? name.replace('svg', 'png') : name;
-							let file = new File([await blob.arrayBuffer()], name, {
+							const file = new File([await blob.arrayBuffer()], name, {
 								type
 							});
 							file.path = field.path;
@@ -134,9 +134,9 @@
 			editing = false;
 		},
 		async addBlur() {
-			let Konva = (await import('konva')).default;
-			let range = document.createElement('input');
-			let canvas = document.getElementsByTagName('canvas')[0] as HTMLCanvasElement;
+			const Konva = (await import('konva')).default;
+			const range = document.createElement('input');
+			const canvas = document.getElementsByTagName('canvas')[0] as HTMLCanvasElement;
 			range.type = 'range';
 			range.min = '0';
 			range.max = '30';
@@ -146,12 +146,12 @@
 			range.onchange = () => {
 				blurRect.pixelSize(Number(range.value));
 			};
-			let updateRangePos = () => {
-				let rect = canvas.getBoundingClientRect();
+			const updateRangePos = () => {
+				const rect = canvas.getBoundingClientRect();
 				range.style.left = (blurRect.x() + blurRect.width() / 2) * this.stage.scaleX() - range.offsetWidth / 2 + rect.left + 'px';
 				range.style.top = (blurRect.y() + blurRect.height()) * this.stage.scaleY() + 20 + rect.top + 'px';
 			};
-			let blurRect = new Konva.Image({
+			const blurRect = new Konva.Image({
 				image: this.image,
 				width: 300,
 				height: 100,
@@ -190,7 +190,7 @@
 
 			canvas.parentElement?.parentElement?.appendChild(range);
 			updateRangePos();
-			let tr = new Konva.Transformer({
+			const tr = new Konva.Transformer({
 				rotateAnchorOffset: 20,
 				nodes: [blurRect],
 				rotateEnabled: false

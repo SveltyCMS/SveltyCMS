@@ -21,12 +21,12 @@
 	let navigation_info = JSON.parse(localStorage.getItem('navigation') || '{}');
 	const buttonRadius = 25; // home button size
 	let showRoutes = false;
-	let center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
+	const center = { x: window.innerWidth / 2, y: window.innerHeight / 2 };
 	let firstLine: SVGLineElement;
 	let firstCircle: HTMLDivElement;
 	const circles: HTMLDivElement[] = [];
 	let svg: SVGElement;
-	let user: User = $page.data.user;
+	const user: User = $page.data.user;
 
 	// Endpoint definition with URL and icon only
 	let endpoints: {

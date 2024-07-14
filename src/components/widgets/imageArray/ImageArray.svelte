@@ -36,7 +36,7 @@
 		for (let i = 0; i < files.length; i++) {
 			const fieldsData = _fieldsValue[i];
 
-			for (let key in fieldsData) {
+			for (const key in fieldsData) {
 				console.log(await fieldsData[key]());
 			}
 

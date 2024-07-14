@@ -29,12 +29,12 @@
 
 	// MegaMenu Save Layer Next
 	async function saveLayer() {
-		let _fieldsData = await extractData(fieldsData);
+		const _fieldsData = await extractData(fieldsData);
 
 		if (!_data) {
 			_data = { ..._fieldsData, children: [] };
 		} else if ($mode == 'edit') {
-			for (let key in _fieldsData) {
+			for (const key in _fieldsData) {
 				$currentChild[key] = _fieldsData[key];
 			}
 		} else if ($mode == 'create' && $currentChild.children) {

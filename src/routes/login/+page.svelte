@@ -21,7 +21,7 @@
 
 	function handleLanguageSelection(event: Event) {
 		const target = event.target as HTMLInputElement;
-		let selectedLanguage = target.value.toLowerCase() as LanguageCode;
+		const selectedLanguage = target.value.toLowerCase() as LanguageCode;
 		systemLanguage.set(selectedLanguage);
 	}
 

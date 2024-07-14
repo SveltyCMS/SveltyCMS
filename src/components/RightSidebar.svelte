@@ -51,7 +51,6 @@
 	}
 
 	// TODO: Schedule
-	const date = new Date();
 	let schedule = '';
 
 	// TODO: user autocomplete

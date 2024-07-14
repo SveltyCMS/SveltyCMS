@@ -17,7 +17,7 @@
 	// Exposes parent props to this component.
 	export let parent: any;
 
-	// Skelton & Stores
+	// Skeleton & Stores
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
@@ -37,7 +37,7 @@
 			password: '',
 			expiresIn: '',
 			expiresInLabel: ''
-		};
+		} as unknown as PageData['addUserForm']; // Ensure typing compatibility
 	}
 
 	// Superforms
@@ -55,7 +55,7 @@
 		onSubmit: ({ cancel }) => {
 			// Trigger the toast
 			const t = {
-				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Send',
+				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
 				// Provide any utility or variant background style:
 				background: 'gradient-tertiary',
 				timeout: 3000,
@@ -91,9 +91,11 @@
 		{ label: '1 week', value: '1 week', seconds: 7 * 24 * 60 * 60 }
 	];
 
-	$: $form.role = roleSelected;
-	$: $form.expiresIn = expiresIn;
-	$: $form.expiresInLabel = expiresInLabel;
+	$: {
+		$form.role = roleSelected;
+		$form.expiresIn = expiresIn;
+		$form.expiresInLabel = expiresInLabel;
+	}
 </script>
 
 <!-- @component This example creates a simple form modal. -->

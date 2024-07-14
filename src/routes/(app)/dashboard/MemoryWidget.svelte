@@ -1,9 +1,10 @@
 <script lang="ts">
-	import { onMount, onDestroy } from 'svelte';
-	import { writable } from 'svelte/store';
+	import { onMount, onDestroy, getContext } from 'svelte';
+	import { writable, get } from 'svelte/store';
 	import Chart from 'chart.js/auto';
 	import 'chartjs-adapter-date-fns';
 
+	export let label;
 	export const id: string = crypto.randomUUID();
 	export const x: number = 0;
 	export const y: number = 0;
@@ -40,7 +41,7 @@
 		beforeDraw: (chart) => {
 			const ctx = chart.ctx;
 			const { width, height } = chart;
-			const memoryInfoValue = $memoryInfo;
+			const memoryInfoValue = get(memoryInfo);
 			ctx.save();
 			ctx.textAlign = 'center';
 			ctx.textBaseline = 'middle';
@@ -52,7 +53,9 @@
 			// Draw used and free percentages directly on the chart
 			chart.data.datasets[0].data.forEach((value, index) => {
 				const percentage = index === 0 ? memoryInfoValue.usedMemPercentage : memoryInfoValue.freeMemPercentage;
-				const angle = (chart.getDatasetMeta(0).data[index].startAngle + chart.getDatasetMeta(0).data[index].endAngle) / 2;
+				const meta = chart.getDatasetMeta(0);
+				const element = meta.data[index];
+				const angle = (element.startAngle + element.endAngle) / 2;
 				const posX = width / 2 + Math.cos(angle) * (width / 4);
 				const posY = height / 2 + Math.sin(angle) * (height / 4);
 				ctx.fillText(`${percentage.toFixed(2)}%`, posX, posY);
@@ -64,7 +67,7 @@
 
 	onMount(async () => {
 		await fetchData();
-		const { usedMemMb, freeMemMb } = $memoryInfo;
+		const { usedMemMb, freeMemMb } = get(memoryInfo);
 
 		chart = new Chart(chartCanvas, {
 			type: 'doughnut',
@@ -83,20 +86,21 @@
 				responsive: true,
 				maintainAspectRatio: false,
 				plugins: {
-					textCenterPlugin, // Register the plugin
 					tooltip: {
 						callbacks: {
 							label: function (context) {
 								const label = context.label || '';
-								const value = context.raw || 0;
-								const totalMemMb = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
-								const percentage = (value / totalMemMb) * 100;
+								const value = typeof context.raw === 'number' ? context.raw : 0;
+								const dataSet = context.chart.data.datasets[0].data as number[];
+								const totalMemMb = dataSet.reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
+								const percentage = totalMemMb ? (value / totalMemMb) * 100 : 0;
 								return `${(value / 1024).toFixed(2)} GB (${percentage.toFixed(2)}%)`;
 							}
 						}
 					}
 				}
-			}
+			},
+			plugins: [textCenterPlugin] // Register the plugin here
 		});
 
 		const interval = setInterval(fetchData, 5000);
@@ -106,7 +110,7 @@
 	// Update chart when data changes
 	$: {
 		if (chart) {
-			const { usedMemMb, freeMemMb } = $memoryInfo;
+			const { usedMemMb, freeMemMb } = get(memoryInfo);
 			chart.data.datasets[0].data = [usedMemMb, freeMemMb];
 			chart.update();
 		}

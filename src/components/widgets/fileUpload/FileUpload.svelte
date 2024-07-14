@@ -36,7 +36,7 @@
 		};
 
 		if (value instanceof File) {
-			let fileList = new DataTransfer();
+			const fileList = new DataTransfer();
 			fileList.items.add(value);
 			node.files = fileList.files;
 			_data = node.files[0];
@@ -45,7 +45,7 @@
 	}
 
 	// Select Media Image
-	let mediaOnSelect = (data: MediaFiles) => {
+	const mediaOnSelect = (data: MediaFiles) => {
 		updated = true;
 		showMedia = false;
 		_data = data;

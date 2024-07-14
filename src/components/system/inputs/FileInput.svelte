@@ -15,7 +15,7 @@
 	export let show = true;
 	export const closeButton = false;
 
-	let ev = createEventDispatcher();
+	const ev = createEventDispatcher();
 	let input: HTMLInputElement;
 	let showMedia = false;
 
@@ -26,7 +26,7 @@
 		ev('change', value);
 	};
 
-	let onChange = () => {
+	const onChange = () => {
 		if (input.files?.length == 0) return;
 		value = input.files?.[0] as File;
 		show = false;
