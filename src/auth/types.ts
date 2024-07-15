@@ -70,6 +70,9 @@ export interface User {
 	password?: string; // Hashed password of the user
 	role: string; // Role of the user (e.g., admin, developer, editor, user)
 	username?: string; // Username of the user
+	firstName?: string; // First name of the user
+	lastName?: string; // Last name of the user
+	locale?: string; // Locale of the user
 	avatar?: string; // URL of the user's avatar image
 	lastAuthMethod?: string; // The last authentication method used by the user
 	lastActiveAt?: Date; // The last time the user was active

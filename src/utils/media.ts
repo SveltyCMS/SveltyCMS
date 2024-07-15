@@ -1,26 +1,28 @@
 import { publicEnv } from '@root/config/public';
-
 import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 import { browser } from '$app/environment';
-
-import type { MediaImage, MediaDocument, MediaAudio, MediaVideo, MediaRemoteVideo } from './types';
 import { sha256 } from './utils';
 import { dbAdapter } from '@api/databases/db';
-import type sharp from 'sharp';
+import sharp from 'sharp';
+import crypto from 'crypto';
+
+import { removeExtension, sanitize } from '@src/utils/utils';
 
 // System Logs
 import logger from '@src/utils/logger';
 
+// Define media types
+type MediaImage = any;
+type MediaDocument = any;
+type MediaAudio = any;
+type MediaVideo = any;
+type MediaRemoteVideo = any;
+
 // Get defined sizes from publicEnv
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-// Sanitizes a string by replacing spaces with underscores and removing non-alphanumeric characters.
-function sanitize(str: string): string {
-	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
-}
 
 // Generates a SHA-256 hash from a buffer and returns the first 20 characters.
 async function hashFileContent(buffer: Buffer): Promise<string> {
@@ -29,9 +31,9 @@ async function hashFileContent(buffer: Buffer): Promise<string> {
 
 // Extracts the filename without extension and the extension from a given filename.
 function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
-	const ext = Path.extname(fileName).toLowerCase();
-	const fileNameWithoutExt = sanitize(Path.basename(fileName, ext));
-	return { fileNameWithoutExt, ext };
+	const { name: fileNameWithoutExt, ext } = removeExtension(fileName);
+	const sanitizedFileNameWithoutExt = sanitize(fileNameWithoutExt);
+	return { fileNameWithoutExt: sanitizedFileNameWithoutExt, ext };
 }
 
 // Saves a buffer to disk at the specified URL.
@@ -114,7 +116,7 @@ async function saveMedia<T>(
 	try {
 		const buffer = Buffer.from(await file.arrayBuffer());
 		const hash = await hashFileContent(buffer);
-		const existingFile = await dbAdapter?.findOne(collection, { hash });
+		const existingFile = dbAdapter ? await dbAdapter.findOne(collection, { hash }) : null;
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const sanitizedFileName = sanitize(fileNameWithoutExt);
 		const path = file.path || 'global';
@@ -209,5 +211,87 @@ export async function saveRemoteMedia(fileUrl: string, collectionName: string): 
 	} catch (error) {
 		logger.error('Error saving remote media:', error as Error);
 		throw error;
+	}
+}
+
+// Save avatar image function
+export async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<string> {
+	try {
+		const arrayBuffer = await file.arrayBuffer();
+		const buffer = Buffer.from(arrayBuffer);
+		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
+
+		const existingFile = dbAdapter ? await dbAdapter.findOne('media_images', { hash }) : null;
+
+		if (existingFile) {
+			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`;
+			if (publicEnv.MEDIASERVER_URL) {
+				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+			}
+			return fileUrl;
+		}
+
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const sanitizedBlobName = sanitize(fileNameWithoutExt);
+		const format =
+			ext === '.svg' ? 'svg' : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
+		const url = `${path}/${hash}-${sanitizedBlobName}.${format}`;
+
+		let resizedBuffer: Buffer;
+		let info: any;
+
+		if (format === 'svg') {
+			resizedBuffer = buffer;
+			info = { width: null, height: null };
+		} else {
+			const result = await sharp(buffer)
+				.rotate()
+				.resize({ width: 300 })
+				.toFormat(format as keyof import('sharp').FormatEnum, {
+					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
+				})
+				.toBuffer({ resolveWithObject: true });
+
+			resizedBuffer = result.data;
+			info = result.info;
+		}
+
+		const finalBuffer = buffer.byteLength < resizedBuffer.byteLength ? buffer : resizedBuffer;
+
+		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
+			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
+		}
+
+		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, finalBuffer);
+
+		const imageData = {
+			hash,
+			thumbnail: {
+				name: `${hash}-${sanitizedBlobName}.${format}`,
+				url,
+				type: `image/${format}`,
+				size: file.size,
+				width: info.width,
+				height: info.height
+			}
+		};
+
+		if (!dbAdapter) {
+			const errorMessage = 'Database adapter is not initialized';
+			logger.error(errorMessage);
+			throw new Error(errorMessage);
+		}
+
+		await dbAdapter.insertMany('media_images', [imageData]);
+
+		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${imageData.thumbnail.url}`;
+		if (publicEnv.MEDIASERVER_URL) {
+			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
+		}
+
+		return fileUrl;
+	} catch (err) {
+		logger.error('Error in saveAvatarImage:', err as Error);
+		throw new Error('Failed to save avatar image');
 	}
 }

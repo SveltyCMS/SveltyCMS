@@ -2,9 +2,6 @@ import { publicEnv } from '@root/config/public';
 import { redirect, type Actions, fail, error } from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
-import sharp from 'sharp';
-import { removeExtension, sanitize } from '@src/utils/utils';
-import crypto from 'crypto';
 
 // Auth
 import { auth, dbAdapter } from '@api/databases/db';
@@ -18,6 +15,9 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 // Logger
 import logger from '@src/utils/logger';
+
+// Import saveAvatarImage from utils/media
+import { saveAvatarImage } from '@src/utils/media';
 
 // Check if it's the first user
 async function getIsFirstUser() {
@@ -56,82 +56,6 @@ export async function load(event) {
 	} catch (err) {
 		logger.error('Error during load function:', err as Error);
 		throw redirect(302, `/login`);
-	}
-}
-
-// Upload avatar image
-async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<string> {
-	try {
-		const arrayBuffer = await file.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-		const hash = crypto.createHash('sha256').update(buffer).digest('hex').slice(0, 20);
-
-		const existingFile = await dbAdapter.findOne('media_images', { hash });
-
-		if (existingFile) {
-			let fileUrl = `${publicEnv.MEDIA_FOLDER}/${existingFile.thumbnail.url}`;
-			if (publicEnv.MEDIASERVER_URL) {
-				fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
-			}
-			return fileUrl;
-		}
-
-		const { name: fileNameWithoutExt, ext } = removeExtension(file.name);
-		const sanitizedBlobName = sanitize(fileNameWithoutExt);
-		const format =
-			ext === '.svg' ? 'svg' : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original' ? ext : publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format;
-		const url = `${path}/${hash}-${sanitizedBlobName}.${format}`;
-
-		let resizedBuffer: Buffer;
-		let info: any;
-
-		if (format === 'svg') {
-			resizedBuffer = buffer;
-			info = { width: null, height: null };
-		} else {
-			const result = await sharp(buffer)
-				.rotate()
-				.resize({ width: 300 })
-				.toFormat(format as keyof import('sharp').FormatEnum, {
-					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
-				})
-				.toBuffer({ resolveWithObject: true });
-
-			resizedBuffer = result.data;
-			info = result.info;
-		}
-
-		const finalBuffer = buffer.byteLength < resizedBuffer.byteLength ? buffer : resizedBuffer;
-
-		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
-		}
-
-		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, finalBuffer);
-
-		const imageData = {
-			hash,
-			thumbnail: {
-				name: `${hash}-${sanitizedBlobName}.${format}`,
-				url,
-				type: `image/${format}`,
-				size: file.size,
-				width: info.width,
-				height: info.height
-			}
-		};
-
-		await dbAdapter.insertMany('media_images', [imageData]);
-
-		let fileUrl = `${publicEnv.MEDIA_FOLDER}/${imageData.thumbnail.url}`;
-		if (publicEnv.MEDIASERVER_URL) {
-			fileUrl = `${publicEnv.MEDIASERVER_URL}/${fileUrl}`;
-		}
-
-		return fileUrl;
-	} catch (err) {
-		logger.error('Error in saveAvatarImage:', err as Error);
-		throw new Error('Failed to save avatar image');
 	}
 }
 

@@ -5,7 +5,6 @@ import crypto from 'crypto';
 import logger from '@utils/logger';
 
 // Import types
-import type { authDBAdapter } from './authDBInterface';
 import type { User, Session, Token, Role, Permission } from './types';
 
 // Schema for User collection
@@ -15,6 +14,9 @@ const UserSchema = new Schema(
 		password: String, // User's password, optional field
 		role: { type: String, required: true }, // User's role, required field
 		username: String, // User's username, optional field
+		firstName: String, // First name of the user
+		lastName: String, // Last name of the user
+		locale: String, // Locale of the user
 		avatar: String, // URL of the user's avatar, optional field
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
 		lastActiveAt: Date, // Last time the user was active, optional field
@@ -82,7 +84,7 @@ const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permi
 export { UserSchema, SessionSchema, TokenSchema };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
-export class MongoDBAuthAdapter implements authDBAdapter {
+export class MongoDBAuthAdapter implements authDBInterface {
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
@@ -108,7 +110,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
 			await UserModel.updateOne({ _id: user_id }, { $set: attributes });
-			logger.info(`User attributes updated: ${user_id}`);
+			logger.debug(`User attributes updated: ${user_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to update user attributes: ${error.message}`);
@@ -138,7 +140,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getUserById(user_id: string): Promise<User | null> {
 		try {
 			const user = await UserModel.findById(user_id);
-			logger.info(`User retrieved by ID: ${user_id}`);
+			logger.debug(`User retrieved by ID: ${user_id}`);
 			return user ? (user.toObject() as User) : null;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -154,7 +156,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getUserByEmail(email: string): Promise<User | null> {
 		try {
 			const user = await UserModel.findOne({ email });
-			logger.info(`User retrieved by email: ${email}`);
+			logger.debug(`User retrieved by email: ${email}`);
 			return user ? (user.toObject() as User) : null;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -170,7 +172,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getAllUsers(): Promise<User[]> {
 		try {
 			const users = await UserModel.find();
-			logger.info('All users retrieved');
+			logger.debug('All users retrieved');
 			return users.map((user) => user.toObject() as User);
 		} catch (error) {
 			if (error instanceof Error) {
@@ -186,7 +188,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getUserCount(): Promise<number> {
 		try {
 			const count = await UserModel.countDocuments();
-			logger.info(`User count retrieved: ${count}`);
+			logger.debug(`User count retrieved: ${count}`);
 			return count;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -207,7 +209,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 				expires: expiresAt
 			});
 			await session.save();
-			logger.info(`Session created for user: ${data.user_id}, expires at: ${expiresAt}`);
+			logger.debug(`Session created for user: ${data.user_id}, expires at: ${expiresAt}`);
 			return {
 				session_id: session._id.toString(),
 				user_id: session.user_id,
@@ -227,7 +229,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async destroySession(session_id: string): Promise<void> {
 		try {
 			await SessionModel.deleteOne({ _id: session_id });
-			logger.info(`Session destroyed: ${session_id}`);
+			logger.debug(`Session destroyed: ${session_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to destroy session: ${error.message}`);
@@ -248,7 +250,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 				return null;
 			}
 			const user = await UserModel.findById(session.user_id);
-			logger.info(`Session validated for user: ${session.user_id}`);
+			logger.debug(`Session validated for user: ${session.user_id}`);
 			return user ? (user.toObject() as User) : null;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -264,7 +266,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async invalidateAllUserSessions(user_id: string): Promise<void> {
 		try {
 			await SessionModel.deleteMany({ user_id });
-			logger.info(`All sessions invalidated for user: ${user_id}`);
+			logger.debug(`All sessions invalidated for user: ${user_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to invalidate all sessions: ${error.message}`);
@@ -286,7 +288,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 				expires: new Date(Date.now() + data.expires) // Calculate the expiration time from the current time
 			});
 			await token.save();
-			logger.info(`Token created for user: ${data.user_id}`);
+			logger.debug(`Token created for user: ${data.user_id}`);
 			return tokenString; // Return the newly created token string
 		} catch (error) {
 			if (error instanceof Error) {
@@ -304,7 +306,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 			const tokenDoc = await TokenModel.findOne({ token, user_id });
 			if (tokenDoc) {
 				const message = tokenDoc.expires > new Date() ? 'Token is valid' : 'Token is expired';
-				logger.info(`Token validation result for user: ${user_id}, message: ${message}`);
+				logger.debug(`Token validation result for user: ${user_id}, message: ${message}`);
 				return { success: tokenDoc.expires > new Date(), message };
 			} else {
 				const message = 'Token does not exist';
@@ -327,7 +329,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 			const tokenDoc = await TokenModel.findOneAndDelete({ token, user_id });
 			if (tokenDoc) {
 				const message = tokenDoc.expires > new Date() ? 'Token is valid' : 'Token is expired';
-				logger.info(`Token consumed for user: ${user_id}, message: ${message}`);
+				logger.debug(`Token consumed for user: ${user_id}, message: ${message}`);
 				return { status: tokenDoc.expires > new Date(), message };
 			} else {
 				const message = 'Token does not exist';
@@ -348,7 +350,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getAllTokens(): Promise<Token[]> {
 		try {
 			const tokens = await TokenModel.find();
-			logger.info('All tokens retrieved');
+			logger.debug('All tokens retrieved');
 			return tokens.map((token) => token.toObject() as Token);
 		} catch (error) {
 			if (error instanceof Error) {
@@ -365,7 +367,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 		try {
 			const role = new RoleModel(roleData);
 			await role.save();
-			logger.info(`Role created: ${role.name}`);
+			logger.debug(`Role created: ${role.name}`);
 			return role.toObject() as Role;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -381,7 +383,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async updateRole(role_id: string, roleData: Partial<Role>): Promise<void> {
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $set: roleData });
-			logger.info(`Role updated: ${role_id}`);
+			logger.debug(`Role updated: ${role_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to update role: ${error.message}`);
@@ -396,7 +398,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async deleteRole(role_id: string): Promise<void> {
 		try {
 			await RoleModel.deleteOne({ _id: role_id });
-			logger.info(`Role deleted: ${role_id}`);
+			logger.debug(`Role deleted: ${role_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to delete role: ${error.message}`);
@@ -411,7 +413,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getRoleById(role_id: string): Promise<Role | null> {
 		try {
 			const role = await RoleModel.findById(role_id).populate('permissions');
-			logger.info(`Role retrieved by ID: ${role_id}`);
+			logger.debug(`Role retrieved by ID: ${role_id}`);
 			return role ? (role.toObject() as Role) : null;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -427,7 +429,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getAllRoles(): Promise<Role[]> {
 		try {
 			const roles = await RoleModel.find().populate('permissions');
-			logger.info('All roles retrieved');
+			logger.debug('All roles retrieved');
 			return roles.map((role) => role.toObject() as Role);
 		} catch (error) {
 			if (error instanceof Error) {
@@ -444,7 +446,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 		try {
 			const permission = new PermissionModel(permissionData);
 			await permission.save();
-			logger.info(`Permission created: ${permission.name}`);
+			logger.debug(`Permission created: ${permission.name}`);
 			return permission.toObject() as Permission;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -460,7 +462,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async updatePermission(permission_id: string, permissionData: Partial<Permission>): Promise<void> {
 		try {
 			await PermissionModel.updateOne({ _id: permission_id }, { $set: permissionData });
-			logger.info(`Permission updated: ${permission_id}`);
+			logger.debug(`Permission updated: ${permission_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to update permission: ${error.message}`);
@@ -475,7 +477,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async deletePermission(permission_id: string): Promise<void> {
 		try {
 			await PermissionModel.deleteOne({ _id: permission_id });
-			logger.info(`Permission deleted: ${permission_id}`);
+			logger.debug(`Permission deleted: ${permission_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to delete permission: ${error.message}`);
@@ -490,7 +492,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getPermissionById(permission_id: string): Promise<Permission | null> {
 		try {
 			const permission = await PermissionModel.findById(permission_id);
-			logger.info(`Permission retrieved by ID: ${permission_id}`);
+			logger.debug(`Permission retrieved by ID: ${permission_id}`);
 			return permission ? (permission.toObject() as Permission) : null;
 		} catch (error) {
 			if (error instanceof Error) {
@@ -506,7 +508,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getAllPermissions(): Promise<Permission[]> {
 		try {
 			const permissions = await PermissionModel.find();
-			logger.info('All permissions retrieved');
+			logger.debug('All permissions retrieved');
 			return permissions.map((permission) => permission.toObject() as Permission);
 		} catch (error) {
 			if (error instanceof Error) {
@@ -522,7 +524,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getPermissionsForRole(role_id: string): Promise<Permission[]> {
 		try {
 			const role = await RoleModel.findById(role_id).populate('permissions');
-			logger.info(`Permissions retrieved for role: ${role_id}`);
+			logger.debug(`Permissions retrieved for role: ${role_id}`);
 			return role ? (role.permissions as Permission[]) : [];
 		} catch (error) {
 			if (error instanceof Error) {
@@ -538,7 +540,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async assignPermissionToRole(role_id: string, permission_id: string): Promise<void> {
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $addToSet: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} assigned to role ${role_id}`);
+			logger.debug(`Permission ${permission_id} assigned to role ${role_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to assign permission to role: ${error.message}`);
@@ -553,7 +555,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async removePermissionFromRole(role_id: string, permission_id: string): Promise<void> {
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $pull: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} removed from role ${role_id}`);
+			logger.debug(`Permission ${permission_id} removed from role ${role_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to remove permission from role: ${error.message}`);
@@ -568,7 +570,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async assignPermissionToUser(user_id: string, permission_id: string): Promise<void> {
 		try {
 			await UserModel.updateOne({ _id: user_id }, { $addToSet: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} assigned to user ${user_id}`);
+			logger.debug(`Permission ${permission_id} assigned to user ${user_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to assign permission to user: ${error.message}`);
@@ -583,7 +585,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async removePermissionFromUser(user_id: string, permission_id: string): Promise<void> {
 		try {
 			await UserModel.updateOne({ _id: user_id }, { $pull: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} removed from user ${user_id}`);
+			logger.debug(`Permission ${permission_id} removed from user ${user_id}`);
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to remove permission from user: ${error.message}`);
@@ -598,7 +600,7 @@ export class MongoDBAuthAdapter implements authDBAdapter {
 	async getPermissionsForUser(user_id: string): Promise<Permission[]> {
 		try {
 			const user = await UserModel.findById(user_id).populate('permissions');
-			logger.info(`Permissions retrieved for user: ${user_id}`);
+			logger.debug(`Permissions retrieved for user: ${user_id}`);
 			return user ? (user.permissions as Permission[]) : [];
 		} catch (error) {
 			if (error instanceof Error) {

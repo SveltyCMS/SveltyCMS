@@ -1,21 +1,44 @@
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+
 // Auth
 import { auth, googleAuth, initializationPromise } from '@api/databases/db';
+import type { User } from '@src/auth/types';
 import { google } from 'googleapis';
 
 // Stores
 import { systemLanguage } from '@stores/store';
-import { get } from 'svelte/store';
 
 // Import logger
 import logger from '@utils/logger';
 
-import type { User } from '@src/auth/types';
+// Import saveAvatarImage from utils/media
+import { saveAvatarImage } from '@src/utils/media';
+
+async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
+	try {
+		await fetchFn('/api/sendMail', {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json' },
+			body: JSON.stringify({
+				email,
+				subject: `Welcome to our platform, ${username}!`,
+				message: `Welcome ${username} to our platform`,
+				templateName: 'welcomeUser',
+				props: { username, email }
+			})
+		});
+		logger.debug(`Welcome email sent to ${email}`);
+	} catch (err) {
+		logger.error('Error sending welcome email:', err as Error);
+	}
+}
+
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete
 
 	if (!auth || !googleAuth) {
+		logger.error('Authentication system is not initialized');
 		throw new Error('Authentication system is not initialized');
 	}
 
@@ -34,68 +57,76 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const { data: googleUser } = await oauth2.userinfo.get();
 		logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
 
-		const getUser = async (): Promise<[User | null, boolean]> => {
-			const email = googleUser.email;
-			if (!email) {
-				throw new Error('Google did not return an email address.');
-			}
-			if (!auth) {
-				logger.error('Authentication system is not initialized');
-				throw error(500, 'Authentication system not initialized.');
-			}
-			const existingUser = await auth.checkUser({ email });
-			if (existingUser) return [existingUser, false];
-
-			const username = googleUser.name ?? '';
-			const isFirst = (await auth.getUserCount()) === 0;
-
-			if (isFirst) {
-				const user = await auth.createUser({
-					email,
-					username,
-					role: 'admin',
-					blocked: false
-				});
-
-				await fetch('/api/sendMail', {
-					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
-					body: JSON.stringify({
-						email,
-						subject: `New registration ${googleUser.name}`,
-						message: `New registration ${googleUser.name}`,
-						templateName: 'welcomeUser',
-						lang: get(systemLanguage),
-						props: { username: googleUser.name || '', email }
-					})
-				});
-
-				return [user, false];
-			} else {
-				return [null, true];
-			}
-		};
-
-		const [user, needSignIn] = await getUser();
-
-		if (!needSignIn) {
-			if (!user) {
-				logger.error('User not found after getting user information.');
-				throw new Error('User not found.');
-			}
-			if (user.blocked) {
-				logger.warn('User is blocked.');
-				return { status: false, message: 'User is blocked' };
-			}
-
-			// Create User Session
-			const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 });
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
+		const email = googleUser.email;
+		if (!email) {
+			logger.error('Google did not return an email address.');
+			throw new Error('Google did not return an email address.');
 		}
 
-		return { data: { needSignIn } };
+		const locale = googleUser.locale;
+		if (locale) {
+			systemLanguage.set(locale);
+		}
+
+		const existingUser = await auth.checkUser({ email });
+		const isFirst = (await auth.getUserCount()) === 0;
+
+		let user: User | null = null;
+		let avatarUrl: string | null = null;
+
+		if (existingUser) {
+			user = existingUser;
+		} else {
+			// Fetch the remote picture and save it as the avatar
+			if (googleUser.picture) {
+				const response = await fetch(googleUser.picture);
+				const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
+				avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+			}
+
+			user = await auth.createUser({
+				email,
+				username: googleUser.name ?? '',
+				firstName: googleUser.given_name,
+				lastName: googleUser.family_name,
+				avatar: avatarUrl ?? googleUser.picture,
+				role: isFirst ? 'admin' : 'user',
+				lastAuthMethod: 'google',
+				isRegistered: true,
+				blocked: false
+			});
+
+			// Verify the new user creation
+			user = await auth.checkUser({ email });
+			if (!user) {
+				logger.error('User creation failed, user not found after creation.');
+				throw new Error('User creation failed');
+			}
+
+			await sendWelcomeEmail(fetch, email, googleUser.name || '');
+		}
+
+		if (!user._id) {
+			logger.error('User ID is missing after creation or retrieval');
+			throw new Error('User ID is missing');
+		}
+
+		logger.debug(`User found or created with ID: ${user._id}`);
+
+		// Create User Session
+		const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
+		const sessionCookie = auth.createSessionCookie(session);
+		logger.debug(`Session cookie: ${JSON.stringify(sessionCookie)}`);
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		await auth.updateUserAttributes(user._id.toString(), {
+			lastAuthMethod: 'google',
+			firstName: googleUser.given_name,
+			lastName: googleUser.family_name,
+			avatar: avatarUrl ?? googleUser.picture
+		});
+
+		logger.info('Successfully created session and set cookie');
+		throw redirect(302, '/');
 	} catch (e) {
 		logger.error('Error during login process:', e as Error);
 		throw redirect(302, '/login');
@@ -104,7 +135,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 export const actions: Actions = {
 	// default action
-	default: async ({ request, url, cookies }) => {
+	default: async ({ request, url, cookies, fetch }) => {
 		const data = await request.formData();
 		const token = data.get('token');
 
@@ -142,66 +173,78 @@ export const actions: Actions = {
 				return { errors: ['Google did not return an email address.'], success: false, message: '' };
 			}
 
+			const locale = googleUser.locale;
+			if (locale) {
+				systemLanguage.set(locale);
+			}
+
 			// Get existing user if available
 			const existingUser = await auth.checkUser({ email });
 
 			// If the user doesn't exist, create a new one
-			if (!existingUser) {
-				const sendWelcomeEmail = async (email: string, username: string) => {
-					try {
-						await fetch('/api/sendMail', {
-							method: 'POST',
-							headers: { 'Content-Type': 'application/json' },
-							body: JSON.stringify({
-								email,
-								subject: `New registration ${username}`,
-								message: `New registration ${username}`,
-								templateName: 'welcomeUser',
-								lang: get(systemLanguage),
-								props: { username, email }
-							})
-						});
-					} catch (err) {
-						logger.error('Error sending welcome email:', err as Error);
-						throw new Error('Failed to send welcome email');
-					}
-				};
+			let user: User | null = null;
+			let avatarUrl: string | null = null;
 
+			if (!existingUser) {
 				// Check if it's the first user
 				const isFirst = (await auth.getUserCount()) === 0;
 
+				// Fetch the remote picture and save it as the avatar
+				if (googleUser.picture) {
+					const response = await fetch(googleUser.picture);
+					const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
+					avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+				}
+
 				// Create User
-				const user = await auth.createUser({
+				user = await auth.createUser({
 					email,
 					username: googleUser.name ?? '',
+					firstName: googleUser.given_name,
+					lastName: googleUser.family_name,
+					avatar: avatarUrl ?? googleUser.picture,
 					role: isFirst ? 'admin' : 'user',
 					lastAuthMethod: 'google',
 					isRegistered: true,
 					blocked: false
 				});
 
+				// Verify the new user creation
+				user = await auth.checkUser({ email });
+				if (!user) {
+					logger.error('User creation failed, user not found after creation.');
+					throw new Error('User creation failed');
+				}
+
 				// Send welcome email
-				await sendWelcomeEmail(email, googleUser.name || '');
+				await sendWelcomeEmail(fetch, email, googleUser.name || '');
 
 				// Create User Session
-				const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 });
+				const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
+				await auth.updateUserAttributes(user._id.toString(), {
+					lastAuthMethod: 'google',
+					firstName: googleUser.given_name,
+					lastName: googleUser.family_name,
+					avatar: avatarUrl ?? googleUser.picture
+				});
 
 				return { success: true, data: { user } };
 			} else {
+				user = existingUser;
+
 				// User already exists, consume token
-				const validate = await auth.consumeToken(token, existingUser.user_id);
+				const validate = await auth.consumeToken(token, user._id.toString());
 
 				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ user_id: existingUser.user_id, expires: 3600000 });
+					const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-					await auth.updateUserAttributes(existingUser.user_id, { lastAuthMethod: 'google' });
+					await auth.updateUserAttributes(user._id.toString(), { lastAuthMethod: 'google' });
 
-					return { success: true, data: { user: existingUser } };
+					return { success: true, data: { user } };
 				} else {
 					logger.error('Invalid token');
 					return { errors: ['Invalid token'], success: false, message: '' };
