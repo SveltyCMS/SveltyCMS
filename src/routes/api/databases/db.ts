@@ -5,6 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { google } from 'googleapis';
+import { getCollections, updateCollections } from '@src/collections';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
@@ -35,6 +36,7 @@ async function loadAdapters() {
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Detected SQL database as the database type.');
 
+			// Uncomment and ensure these adapters are correctly implemented
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
 			//     import('./drizzleDBAdapter'),
 			//     import('@src/auth/drizzleAuthAdapter')
@@ -58,6 +60,7 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 		throw new Error('Database adapter not initialized');
 	}
 	// Message for connecting to the database
+
 	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	while (retries > 0) {
@@ -98,7 +101,17 @@ async function initializeAdapters() {
 		await connectToDatabase();
 		logger.debug(`Database connected in ${Date.now() - connectToDatabaseStart}ms`);
 
-		// Set up authentication collections if they don't already exist
+		// Initialize collections
+		logger.debug('Initializing collections...');
+		const initCollectionsStart = Date.now();
+		await updateCollections();
+		const collections = await getCollections();
+		logger.debug(`Collections initialized in ${Date.now() - initCollectionsStart}ms`);
+
+		if (Object.keys(collections).length === 0) {
+			throw new Error('No collections found after initialization');
+		}
+
 		if (dbAdapter) {
 			logger.debug('Setting up authentication models...');
 			const setupAuthModelsStart = Date.now();
@@ -109,6 +122,11 @@ async function initializeAdapters() {
 			const setupMediaModelsStart = Date.now();
 			await dbAdapter.setupMediaModels();
 			logger.debug(`Media models set up in ${Date.now() - setupMediaModelsStart}ms`);
+
+			logger.debug('Setting up collection models...');
+			const setupCollectionModelsStart = Date.now();
+			await dbAdapter.getCollectionModels(); // Changed from getCollectionModels to use dbAdapter
+			logger.debug(`Collection models set up in ${Date.now() - setupCollectionModelsStart}ms`);
 		}
 
 		if (authAdapter) {
@@ -150,9 +168,17 @@ export async function getCollectionModels() {
 		throw new Error(errorMsg);
 	}
 	logger.info('Fetching collection models...');
-	const models = await dbAdapter.getCollectionModels();
-	Object.assign(collectionsModels, models);
-	logger.debug('Collection models fetched successfully', { collectionsModels });
+
+	try {
+		const models = await dbAdapter.getCollectionModels();
+		Object.assign(collectionsModels, models);
+		logger.debug('Collection models fetched successfully', { collectionsModels });
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Error fetching collection models: ${err.message}`, { name: err.name, message: err.message });
+		throw error;
+	}
+
 	return collectionsModels;
 }
 

@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
 
 // Auth
-import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
+import { UserSchema, SessionSchema, TokenSchema, RoleSchema, PermissionSchema } from '@src/auth/mongoDBAuthAdapter';
 
 // System Logs
 import logger from '@utils/logger';
@@ -17,39 +17,40 @@ import logger from '@utils/logger';
 // Define the media schema (assuming it's defined similarly to other schemas)
 const mediaSchema = new mongoose.Schema(
 	{
-		url: String,
-		altText: String,
-		createdAt: { type: Date, default: Date.now },
-		updatedAt: { type: Date, default: Date.now }
+		url: String, // The URL of the media
+		altText: String, // The alt text for the media
+		createdAt: { type: Date, default: Date.now }, // The date the media was created
+		updatedAt: { type: Date, default: Date.now } // The date the media was last updated
 	},
 	{ timestamps: true }
 );
 
 // Define the Draft schema
 const DraftSchema = new mongoose.Schema({
-	originalDocumentId: mongoose.Schema.Types.ObjectId,
-	content: mongoose.Schema.Types.Mixed,
-	createdAt: { type: Date, default: Date.now },
-	updatedAt: { type: Date, default: Date.now },
-	status: { type: String, enum: ['draft', 'published'], default: 'draft' },
-	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+	originalDocumentId: mongoose.Schema.Types.ObjectId, // The ID of the original document
+	content: mongoose.Schema.Types.Mixed, // The content of the draft
+	createdAt: { type: Date, default: Date.now }, // The date the draft was created
+	updatedAt: { type: Date, default: Date.now }, // The date the draft was last updated
+	status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
+	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the draft
 });
 
 // Define the Revision schema
 const RevisionSchema = new mongoose.Schema({
-	documentId: mongoose.Schema.Types.ObjectId,
-	content: mongoose.Schema.Types.Mixed,
-	createdAt: { type: Date, default: Date.now },
-	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' }
+	documentId: mongoose.Schema.Types.ObjectId, // The ID of the document
+	content: mongoose.Schema.Types.Mixed, // The content of the revision
+	createdAt: { type: Date, default: Date.now }, // The date the revision was created
+	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the revision
 });
 
-// Create models for Draft and Revision only if they don't already exist
+// Create Draft and Revision models only if they don't already exist
 const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
 const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 
+	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		logger.debug('Attempting to connect to MongoDB...');
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv');
@@ -122,7 +123,7 @@ export class MongoDBAdapter implements dbInterface {
 							},
 							{
 								typeKey: '$type',
-								strict: false,
+								strict: true, // Enable strict mode
 								timestamps: true
 							}
 						);

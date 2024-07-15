@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import logger from '@utils/logger';
 
 // Import types
+import type { authDBInterface } from './authDBInterface';
 import type { User, Session, Token, Role, Permission } from './types';
 
 // Schema for User collection
@@ -81,7 +82,7 @@ const RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>(
 const PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
 
 // Export schemas for use in other files
-export { UserSchema, SessionSchema, TokenSchema };
+export { UserSchema, SessionSchema, TokenSchema, RoleSchema, PermissionSchema, UserModel };
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements authDBInterface {
