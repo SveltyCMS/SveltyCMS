@@ -9,7 +9,7 @@ import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
 
 // Auth
-import { UserSchema, SessionSchema, TokenSchema, RoleSchema, PermissionSchema } from '@src/auth/mongoDBAuthAdapter';
+import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
 // System Logs
 import logger from '@utils/logger';
@@ -22,26 +22,32 @@ const mediaSchema = new mongoose.Schema(
 		createdAt: { type: Date, default: Date.now }, // The date the media was created
 		updatedAt: { type: Date, default: Date.now } // The date the media was last updated
 	},
-	{ timestamps: true }
+	{ timestamps: true, collection: 'media' } // Explicitly set the collection name
 );
 
 // Define the Draft schema
-const DraftSchema = new mongoose.Schema({
-	originalDocumentId: mongoose.Schema.Types.ObjectId, // The ID of the original document
-	content: mongoose.Schema.Types.Mixed, // The content of the draft
-	createdAt: { type: Date, default: Date.now }, // The date the draft was created
-	updatedAt: { type: Date, default: Date.now }, // The date the draft was last updated
-	status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
-	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the draft
-});
+const DraftSchema = new mongoose.Schema(
+	{
+		originalDocumentId: mongoose.Schema.Types.ObjectId, // The ID of the original document
+		content: mongoose.Schema.Types.Mixed, // The content of the draft
+		createdAt: { type: Date, default: Date.now }, // The date the draft was created
+		updatedAt: { type: Date, default: Date.now }, // The date the draft was last updated
+		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
+		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the draft
+	},
+	{ collection: 'drafts' }
+); // Explicitly set the collection name
 
 // Define the Revision schema
-const RevisionSchema = new mongoose.Schema({
-	documentId: mongoose.Schema.Types.ObjectId, // The ID of the document
-	content: mongoose.Schema.Types.Mixed, // The content of the revision
-	createdAt: { type: Date, default: Date.now }, // The date the revision was created
-	createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the revision
-});
+const RevisionSchema = new mongoose.Schema(
+	{
+		documentId: mongoose.Schema.Types.ObjectId, // The ID of the document
+		content: mongoose.Schema.Types.Mixed, // The content of the revision
+		createdAt: { type: Date, default: Date.now }, // The date the revision was created
+		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the revision
+	},
+	{ collection: 'revisions' }
+); // Explicitly set the collection name
 
 // Create Draft and Revision models only if they don't already exist
 const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
@@ -118,13 +124,13 @@ export class MongoDBAdapter implements dbInterface {
 								updatedAt: Date,
 								createdBy: String,
 								revisionsEnabled: Boolean,
-								__v: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Revision' }],
 								translationStatus: {}
 							},
 							{
 								typeKey: '$type',
 								strict: true, // Enable strict mode
-								timestamps: true
+								timestamps: true,
+								collection: collection.name.toLowerCase() // Explicitly set the collection name to avoid duplicates
 							}
 						);
 
@@ -134,13 +140,8 @@ export class MongoDBAdapter implements dbInterface {
 							logger.debug(`Creating new collection model for ${collection.name}.`);
 							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
 
-							// Create collection explicitly
-							await mongoose.connection.createCollection(collection.name);
+							await mongoose.connection.createCollection(collection.name.toLowerCase());
 							logger.info(`Collection ${collection.name} created.`);
-
-							// Insert a placeholder document to ensure collection creation
-							await collectionsModels[collection.name].create({ placeholder: true });
-							logger.info(`Placeholder document inserted into collection ${collection.name}.`);
 						}
 
 						logger.info(`Collection model for ${collection.name} set up successfully.`);
@@ -270,7 +271,7 @@ export class MongoDBAdapter implements dbInterface {
 		const draft = await Draft.findById(draftId);
 		if (!draft) throw new Error('Draft not found');
 		draft.content = content;
-		draft.updatedAt = new Date(); // Assign a Date object instead of a timestamp
+		draft.updatedAt = new Date();
 		await draft.save();
 		return draft;
 	}
@@ -282,7 +283,6 @@ export class MongoDBAdapter implements dbInterface {
 		draft.status = 'published';
 		await draft.save();
 
-		// Optionally, save a revision
 		const revision = new Revision({
 			documentId: draft.originalDocumentId,
 			content: draft.content,
