@@ -42,8 +42,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		throw new Error('Authentication system is not initialized');
 	}
 
+	// Log the entire URL for debugging
+	logger.debug(`Full URL: ${url.toString()}`);
+
 	const code = url.searchParams.get('code');
-	logger.debug(`Authorization code: ${code}`);
+	logger.debug(`Authorization code from URL: ${code}`);
 
 	if (!code) {
 		logger.error('Authorization code is missing');
@@ -53,6 +56,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	try {
 		const { tokens } = await googleAuth.getToken(code);
 		googleAuth.setCredentials(tokens);
+		logger.debug(`Tokens received: ${JSON.stringify(tokens)}`);
 		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 		const { data: googleUser } = await oauth2.userinfo.get();
 		logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);

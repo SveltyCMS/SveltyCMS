@@ -24,6 +24,9 @@ const RETRY_DELAY = 5000; // 5 seconds
 
 let initializationPromise: Promise<void> | null = null;
 
+// Flag to track initialization status
+let isInitialized = false;
+
 // Load database and authentication adapters
 async function loadAdapters() {
 	try {
@@ -60,7 +63,6 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 		throw new Error('Database adapter not initialized');
 	}
 	// Message for connecting to the database
-
 	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	while (retries > 0) {
@@ -90,6 +92,11 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 
 // Initialize adapters
 async function initializeAdapters() {
+	if (isInitialized) {
+		logger.debug('Adapters already initialized, skipping initialization.');
+		return;
+	}
+
 	try {
 		logger.debug('Starting to load adapters...');
 		const loadAdaptersStart = Date.now();
@@ -137,6 +144,8 @@ async function initializeAdapters() {
 			logger.error(errorMsg);
 			throw new Error(errorMsg);
 		}
+
+		isInitialized = true; // Mark as initialized
 		logger.debug('Adapters initialized successfully');
 	} catch (error) {
 		const err = error as Error;

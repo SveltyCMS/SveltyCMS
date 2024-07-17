@@ -55,6 +55,7 @@ const Revision = mongoose.models.Revision || mongoose.model('Revision', Revision
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
+	private collectionsInitialized = false;
 
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
@@ -103,12 +104,20 @@ export class MongoDBAdapter implements dbInterface {
 	// Get collection models
 	async getCollectionModels(): Promise<any> {
 		logger.debug('getCollectionModels called');
+
+		if (this.collectionsInitialized) {
+			logger.debug('Collections already initialized, skipping reinitialization.');
+			return mongoose.models;
+		}
+
 		return new Promise<any>((resolve, reject) => {
 			this.unsubscribe = collections.subscribe(async (collections) => {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
 
-					logger.debug('Collections found:', { collections });
+					// Map to collection names only
+					const collectionNames = Object.values(collections).map((collection) => collection.name);
+					logger.debug('Collections found:', { collectionNames });
 
 					for (const collection of Object.values(collections)) {
 						if (!collection.name) {
@@ -149,6 +158,7 @@ export class MongoDBAdapter implements dbInterface {
 
 					this.unsubscribe && this.unsubscribe();
 					this.unsubscribe = undefined;
+					this.collectionsInitialized = true;
 					logger.info('MongoDB adapter collection models setup complete.');
 					resolve(collectionsModels);
 				} else {

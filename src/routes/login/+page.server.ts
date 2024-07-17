@@ -33,6 +33,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				throw new Error('Authentication system is not initialized');
 			}
 
+			logger.debug('Fetching tokens using authorization code...');
 			const { tokens } = await googleAuth.getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });

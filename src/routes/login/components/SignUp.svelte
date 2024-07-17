@@ -4,29 +4,21 @@
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	// Function to handle the "Back" button click
 	function handleBack() {
 		dispatch('back');
 	}
 
-	// Stores
 	import { page } from '$app/stores';
-
-	// Superforms
-	// import SuperDebug from 'sveltekit-superforms/client/SuperDebug.svelte';
 	import { superForm } from 'sveltekit-superforms/client';
 	import { signUpFormSchema } from '@utils/formSchemas';
 	import { zod } from 'sveltekit-superforms/adapters';
 
-	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
 	import PasswordStrength from '@src/components/PasswordStrength.svelte';
-
-	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	export let active: undefined | 0 | 1 = undefined;
@@ -41,17 +33,13 @@
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
 		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
-		// Clear form on success.
 		resetForm: true,
-		// Prevent page invalidation, which would clear the other form when the load function executes again.
 		invalidateAll: false,
-		// other options
 		applyAction: true,
 		taintedMessage: '',
 		multipleSubmits: 'prevent',
 
 		onSubmit: ({ cancel }) => {
-			// handle login form submission
 			if ($allErrors.length > 0) cancel();
 		},
 
@@ -59,7 +47,6 @@
 			if (result.type == 'redirect') return;
 			cancel();
 
-			// add wiggle animation to form element
 			formElement.classList.add('wiggle');
 			setTimeout(() => formElement.classList.remove('wiggle'), 300);
 
@@ -74,24 +61,20 @@
 	if (params.has('regToken')) {
 		active = 1;
 		firstUserExists = false;
-		// update token value
 		$form.token = params.get('regToken')!;
 	}
 
 	let formElement: HTMLFormElement;
-
 	let showPassword = false;
 
-	// Function to handle the "Back" button click
 	function goBack() {
-		active = undefined; // Change to the state you want to represent the login view
+		active = undefined;
 	}
 
 	$: passwordStrength = $form.password || '';
 	$: confirmPasswordStrength = $form.confirm_password || '';
 </script>
 
-<!-- svelte-ignore a11y-no-static-element-interactions -->
 <section
 	on:click
 	on:pointerenter
@@ -102,12 +85,11 @@
 	class:hover={active == undefined || active == 0}
 >
 	{#if active == 1}
-		<!-- CSS Logo -->
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>
 			<div class="mb-4 flex flex-row gap-2">
-				<SveltyCMSLogo className="w-14" fill="red" />
+				<SveltyCMSLogo class="w-14" fill="red" />
 
 				<h1 class="text-3xl font-bold text-white lg:text-4xl">
 					<div class="text-xs text-surface-300"><SiteName /></div>
@@ -116,14 +98,12 @@
 						{#if !firstUserExists}
 							<span class="text-2xl text-primary-500 sm:text-3xl">: Admin</span>
 						{:else}
-							<!-- TODO: Grab User Role from Token  -->
 							<span class="text-2xl capitalize text-primary-500 sm:text-3xl">: New User</span>
 						{/if}
 					</div>
 				</h1>
 			</div>
 
-			<!-- Required with Back button -->
 			<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
 				{m.form_required()}
 
@@ -132,9 +112,7 @@
 				</button>
 			</div>
 
-			<!-- <SuperDebug data={$form} display={dev} /> -->
 			<form method="post" action="?/signUp" use:enhance bind:this={formElement} class="items flex flex-col gap-3" class:hide={active != 1}>
-				<!-- Username field -->
 				<FloatingInput
 					id="usernamesignUp"
 					name="username"
@@ -152,7 +130,6 @@
 				/>
 				{#if $errors.username}<span class="text-xs text-error-500">{$errors.username}</span>{/if}
 
-				<!-- Email field -->
 				<FloatingInput
 					id="emailsignUp"
 					name="email"
@@ -170,7 +147,6 @@
 				/>
 				{#if $errors.email}<span class="text-xs text-error-500">{$errors.email}</span>{/if}
 
-				<!-- Password field -->
 				<FloatingInput
 					id="passwordsignUp"
 					name="password"
@@ -191,9 +167,9 @@
 				{#if $errors.password}
 					<span class="text-xs text-error-500">{$errors.password}</span>
 				{/if}
-				<!-- <PasswordStrength password={passwordStrength} label={m.form_password()} /> -->
 
-				<!-- Password Confirm -->
+				<PasswordStrength password={$form.password} />
+
 				<FloatingInput
 					id="confirm_passwordsignUp"
 					name="confirm_password"
@@ -214,10 +190,10 @@
 				{#if $errors.confirm_password}
 					<span class="text-xs text-error-500">{$errors.confirm_password}</span>
 				{/if}
-				<!-- <PasswordStrength password={confirmPasswordStrength} label={m.form_confirmpassword()} /> -->
+
+				<PasswordStrength password={$form.confirm_password} />
 
 				{#if firstUserExists == true}
-					<!-- Registration Token -->
 					<FloatingInput
 						id="tokensignUp"
 						name="token"
@@ -240,30 +216,23 @@
 				{/if}
 
 				{#if response}
-					<span class="text-xs text-error-500">{response} </span>
+					<span class="text-xs text-error-500">{response}</span>
 				{/if}
 
-				<!-- <PasswordStrength password={$form.password} />  -->
-
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
-					<!-- Email signin only -->
-					<button type="submit" class="variant-filled btn mt-4 uppercase"
-						>{m.form_signup()}
-						<!-- Loading indicators -->
+					<button type="submit" class="variant-filled btn mt-4 uppercase">
+						{m.form_signup()}
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
-
-					<!-- Email + Oauth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
 						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
 							<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
-							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 						<form method="post" action="?/OAuth" class="w-1/4">
-							<button type="submit" class="btn w-full">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-2" />
+							<button type="submit" class="btn flex w-full items-center justify-center">
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2" />
 								<span class="">OAuth</span>
 							</button>
 						</form>
