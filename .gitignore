@@ -24,6 +24,7 @@ media/
 mediaFiles/
 collections/
 logs/
+.node-version
 
 # debug
 npm-debug.log*
