@@ -28,6 +28,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 	if (privateEnv.USE_GOOGLE_OAUTH && code) {
 		// Google OAuth flow
+		logger.debug('Entering OAuth flow in load function');
 		try {
 			if (!auth || !googleAuth) {
 				throw new Error('Authentication system is not initialized');
@@ -35,6 +36,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			logger.debug('Fetching tokens using authorization code...');
 			const { tokens } = await googleAuth.getToken(code);
+			logger.debug(`Received tokens: ${JSON.stringify(tokens)}`);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 			const { data: googleUser } = await oauth2.userinfo.get();
@@ -82,27 +84,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			const [user, needSignIn] = await getUser();
 
-			if (!needSignIn) {
-				if (!user) {
-					throw new Error('User not found.');
-				}
-				if (user.blocked) {
-					logger.warn('User is blocked.');
-					return { status: false, message: 'User is blocked' };
-				}
-
-				const session = await auth!.createSession({ user_id: user.user_id, expires: 3600000 });
+			if (!needSignIn && user && user.user_id) {
+				// Create session and set cookie
+				const session = await auth!.createSession({ user_id: user.user_id!, expires: 3600000 });
 				const sessionCookie = auth!.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth!.updateUserAttributes(user.user_id, { lastAuthMethod: 'google' });
+				await auth!.updateUserAttributes(user.user_id!, { lastAuthMethod: 'google' });
 
 				throw redirect(303, '/');
 			}
 
 			return { needSignIn };
 		} catch (err) {
-			logger.error('Error during login process:', err as Error);
-			throw redirect(302, '/login');
+			logger.error('Error during login process:', err);
+			return { error: 'An error occurred during the login process. Please try again.' };
 		}
 	}
 
@@ -202,7 +197,7 @@ export const actions: Actions = {
 
 	// OAuth Sign-Up
 	OAuth: async (event) => {
-		logger.debug('OAuth call');
+		logger.debug('OAuth action called');
 
 		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
 		logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
@@ -212,13 +207,24 @@ export const actions: Actions = {
 
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
-		const redirectUrl = googleAuth!.generateAuthUrl({ access_type: 'offline', scope: scopes });
-		if (!redirectUrl) {
-			logger.error('Error during OAuth callback: Redirect URL not generated');
-			throw error(500, 'Failed to generate redirect URL.');
-		} else {
-			logger.debug(`Redirect URL: ${redirectUrl}`);
-			throw redirect(307, redirectUrl);
+		try {
+			const redirectUrl = googleAuth!.generateAuthUrl({
+				access_type: 'offline',
+				scope: scopes,
+				redirect_uri: 'http://localhost:5173/login/oauth' // Make sure this matches your Google OAuth settings
+			});
+			logger.debug(`Generated redirect URL: ${redirectUrl}`);
+
+			if (!redirectUrl) {
+				logger.error('Error during OAuth callback: Redirect URL not generated');
+				throw error(500, 'Failed to generate redirect URL.');
+			} else {
+				logger.debug(`Redirecting to: ${redirectUrl}`);
+				throw redirect(307, redirectUrl);
+			}
+		} catch (err) {
+			logger.error(`Error in OAuth action: ${err}`);
+			throw error(500, 'An error occurred during OAuth initialization');
 		}
 	},
 
@@ -349,19 +355,27 @@ async function signIn(
 		}
 
 		const user = await auth.login(email, password);
+		logger.debug(`User returned from login: ${JSON.stringify(user)}`);
 
-		if (!user) {
-			logger.warn('User does not exist');
-			return { status: false, message: 'User does not exist' };
+		if (!user || !user.user_id) {
+			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
+			return { status: false, message: 'Invalid credentials' };
 		}
 
 		// Create User Session
-		const session = await auth.createSession({ user_id: user.user_id });
-		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-		await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'password' });
+		try {
+			logger.debug(`Attempting to create session for user_id: ${user.user_id}`);
+			const session = await auth.createSession({ user_id: user.user_id });
+			logger.debug(`Session created: ${JSON.stringify(session)}`);
+			const sessionCookie = auth.createSessionCookie(session);
+			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'password' });
 
-		return { status: true };
+			return { status: true };
+		} catch (error) {
+			logger.error(`Failed to create session: ${error}`);
+			return { status: false, message: 'Failed to create session' };
+		}
 	} else {
 		if (!auth) {
 			logger.error('Authentication system is not initialized');

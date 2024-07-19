@@ -43,6 +43,9 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered
 			});
+			if (!user || !user.user_id) {
+				throw new Error('User creation failed: No user ID returned');
+			}
 			logger.info(`User created: ${user.user_id}`);
 			return user;
 		} catch (error) {
@@ -96,18 +99,24 @@ export class Auth {
 		expires?: number;
 		isExtended?: boolean;
 	}): Promise<Session> {
-		try {
-			expires = isExtended ? expires * 2 : expires;
-			logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
-			const session = await this.db.createSession({ user_id, expires });
-
-			logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
-			return session;
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to create session: ${err.message}`);
-			throw new Error(`Failed to create session: ${err.message}`);
+		if (!user_id) {
+			logger.error('user_id is required to create a session');
+			throw new Error('user_id is required to create a session');
 		}
+
+		logger.debug(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+
+		expires = isExtended ? expires * 2 : expires;
+		logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+		const session = await this.db.createSession({ user_id, expires });
+
+		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
+		return session;
+	}
+	catch(error) {
+		const err = error as Error;
+		logger.error(`Failed to create session: ${err.message}`);
+		throw new Error(`Failed to create session: ${err.message}`);
 	}
 
 	// Check if a user exists by ID or email
@@ -204,7 +213,8 @@ export class Auth {
 		const user = await this.db.getUserByEmail(email);
 		if (!user || !user.password) {
 			logger.warn(`Login failed: User not found or password not set for email: ${email}`);
-			return null; // Properly handle non-existent user or password not set
+			return null;
+			// Properly handle non-existent user or password not set
 		}
 
 		if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
@@ -216,7 +226,7 @@ export class Auth {
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user.user_id!, { failedAttempts: 0, lockoutUntil: null });
 				logger.info(`User logged in: ${user.user_id}`);
-				return user;
+				return user; // Make sure this returns the full user object
 			} else {
 				user.failedAttempts++;
 				if (user.failedAttempts >= 5) {

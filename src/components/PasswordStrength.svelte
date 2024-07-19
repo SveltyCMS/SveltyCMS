@@ -5,9 +5,6 @@
 
 	export let password: string = '';
 
-	const passwordSchema = (signUpFormSchema.innerType() as z.ZodObject<any>).shape.password as z.ZodString;
-	const constraints = passwordSchema._def.checks || [];
-
 	const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 	const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
 	const GREEN_LENGTH = YELLOW_LENGTH + 4;
@@ -34,7 +31,7 @@
 
 	function getColor(score: number) {
 		if (score < 1) return 'red';
-		else if (score < 2) return 'yellow';
+		else if (score < 2) return 'darkorange';
 		else return 'green';
 	}
 
@@ -42,13 +39,13 @@
 	$: feedback = getFeedback(score);
 	$: color = getColor(score);
 	$: percentage = Math.min(100, (password.length / GREEN_LENGTH) * 100);
-	$: textColor = color === 'yellow' ? 'black' : 'white';
+	$: textColor = color === 'darkorange' ? 'black' : 'white';
 </script>
 
 {#if password}
 	<div class="relative -mt-1 flex w-full flex-col items-center justify-center">
-		<div class="relative h-5 w-full rounded-full transition duration-300 ease-in-out" style="background-color: {color}; width: {percentage}%;">
-			<span class="absolute inset-0 flex items-center justify-center text-xs" style="color: {textColor};">{feedback}</span>
+		<div class="relative h-4 w-full rounded-sm transition duration-300 ease-in-out" style="background-color: {color}; width: {percentage}%;">
+			<span class=" absolute inset-0 flex items-center justify-center text-xs font-bold" style="color: {textColor};">{feedback}</span>
 		</div>
 	</div>
 {/if}
