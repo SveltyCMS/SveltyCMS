@@ -18,7 +18,7 @@ export interface Schema {
 }
 
 // Define a new `CollectionNames` type that represents the shape of an object with several properties
-export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Posts2' | 'Products' | 'Relation' | 'WidgetTest';
+
 
 // Define a new `Collection` interface that represents the shape of an object with several properties
 export type CollectionContent = {
@@ -48,3 +48,4 @@ export type CollectionContent = {
 		'RichText'
 	];
 };
+export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Relation'|'WidgetTest';

@@ -1,5 +1,6 @@
 import widgets from '@components/widgets';
 import type { Schema } from './types';
+
 const schema: Schema = {
 	// Collection Name coming from filename so not needed
 
@@ -32,7 +33,12 @@ const schema: Schema = {
 			icon: 'ri:t-box-line',
 			placeholder: 'Enter Last Name',
 			width: 2,
-			required: true
+			required: true,
+			permissions: {
+				developer: {
+					read: false
+				}
+			}
 		})
 	]
 };

@@ -35,8 +35,8 @@ const DraftSchema = new mongoose.Schema(
 		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
 		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the draft
 	},
-	{ collection: 'drafts' }
-); // Explicitly set the collection name
+	{ collection: 'collection_drafts' } // Explicitly set the collection name
+);
 
 // Define the Revision schema
 const RevisionSchema = new mongoose.Schema(
@@ -46,12 +46,24 @@ const RevisionSchema = new mongoose.Schema(
 		createdAt: { type: Date, default: Date.now }, // The date the revision was created
 		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the revision
 	},
-	{ collection: 'revisions' }
-); // Explicitly set the collection name
+	{ collection: 'collection_revisions' } // Explicitly set the collection name
+);
 
-// Create Draft and Revision models only if they don't already exist
+// Define the Widget schema
+const widgetSchema = new mongoose.Schema(
+	{
+		name: { type: String, required: true, unique: true }, // Name of the widget
+		isActive: { type: Boolean, default: true }, // Whether the widget is active or not
+		createdAt: { type: Date, default: Date.now }, // When the widget was created
+		updatedAt: { type: Date, default: Date.now } // When the widget was last updated
+	},
+	{ timestamps: true, collection: 'system_widgets' } // Explicitly set the collection name
+);
+
+// Create Draft, Revision, and Widget models. Create models only if they don't already exist
 const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
 const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
+const Widget = mongoose.models.Widget || mongoose.model('Widget', widgetSchema);
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -210,6 +222,109 @@ export class MongoDBAdapter implements dbInterface {
 			}
 		});
 		logger.info('Media models set up successfully.');
+	}
+
+	// Set up widget models
+	setupWidgetModels(): void {
+		if (!mongoose.models['system_widgets']) {
+			mongoose.model('system_widgets', widgetSchema);
+			logger.debug('Widget model for system_widgets created.');
+		} else {
+			logger.debug('Widget model already exists.');
+		}
+		logger.info('Widget models set up successfully.');
+	}
+
+	// Install a new widget
+	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
+		try {
+			const widget = new Widget({
+				...widgetData,
+				isActive: widgetData.isActive ?? false,
+				createdAt: new Date(),
+				updatedAt: new Date()
+			});
+			await widget.save();
+			logger.info(`Widget ${widgetData.name} installed successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error installing widget: ${err.message}`);
+			throw new Error(`Error installing widget: ${err.message}`);
+		}
+	}
+
+	// Fetch all widgets
+	async getWidgets(): Promise<any[]> {
+		try {
+			return await Widget.find().exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching widgets: ${err.message}`);
+			throw new Error(`Error fetching widgets: ${err.message}`);
+		}
+	}
+
+	// Fetch active widgets
+	async getActiveWidgets(): Promise<string[]> {
+		try {
+			const widgets = await Widget.find({ isActive: true }).exec();
+			return widgets.map((widget) => widget.name);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching active widgets: ${err.message}`);
+			throw new Error(`Error fetching active widgets: ${err.message}`);
+		}
+	}
+
+	// Activate a widget
+	async activateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
+
+			if (result.nModified === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already active.`);
+			}
+
+			logger.info(`Widget ${widgetName} activated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error activating widget: ${err.message}`);
+			throw new Error(`Error activating widget: ${err.message}`);
+		}
+	}
+
+	// Deactivate a widget
+	async deactivateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
+
+			if (result.nModified === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
+			}
+
+			logger.info(`Widget ${widgetName} deactivated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deactivating widget: ${err.message}`);
+			throw new Error(`Error deactivating widget: ${err.message}`);
+		}
+	}
+
+	// Update a widget
+	async updateWidget(widgetName: string, updateData: any): Promise<void> {
+		try {
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+
+			if (result.nModified === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
+			}
+
+			logger.info(`Widget ${widgetName} updated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating widget: ${err.message}`);
+			throw new Error(`Error updating widget: ${err.message}`);
+		}
 	}
 
 	// Implementing findOne method

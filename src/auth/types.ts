@@ -252,13 +252,6 @@ export interface Model<T> {
 // Define the type for a Widgets
 export type WidgetId = string;
 
-// Define the type for role-based permissions
-export interface RolePermissions {
-	[role: string]: {
-		[action in PermissionAction]?: boolean;
-	};
-}
-
 // Define the type for Schema
 export interface Schema {
 	icon?: string;
@@ -266,4 +259,11 @@ export interface Schema {
 	revision?: boolean;
 	permissions?: RolePermissions;
 	fields: any[];
+}
+
+// Define the type for role-based permissions
+export interface RolePermissions {
+	[role: string]: {
+		[action in PermissionAction]?: boolean;
+	};
 }

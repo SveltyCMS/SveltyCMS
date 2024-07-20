@@ -1,4 +1,8 @@
 import type { Model, User, WidgetId } from '@src/auth/types';
+// import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
+
+// // System logger
+// import logger from '@utils/logger';
 
 // Widgets
 import Address from './address';
@@ -57,6 +61,42 @@ const widgets = {
 	// Url // Url - Link to internal / External hyperlinks
 };
 
+// Widgets container
+// const widgets: Record<string, any> = {};
+
+// Dynamic import function
+// async function importWidget(widgetName: string) {
+// 	try {
+// 		const module = await import(`./${widgetName}`);
+// 		return module.default;
+// 	} catch (error) {
+// 		logger.error(`Failed to import widget: ${widgetName}`, error as Error);
+// 		throw new Error(`Widget module for ${widgetName} not found.`);
+// 	}
+// }
+// Initialize widgets
+// export async function initWidgets() {
+// 	try {
+// 		const activeWidgets: string[] = await getActiveWidgets();
+
+// 		for (const widgetName of activeWidgets) {
+// 			const widgetModule = await importWidget(widgetName);
+// 			widgets[widgetName] = widgetModule;
+// 		}
+// 		globalThis.widgets = widgets;
+// 		logger.info('Widgets initialized successfully.');
+// 	} catch (error) {
+// 		if (error instanceof Error) {
+// 			logger.error(`Failed to initialize widgets: ${error.message}`);
+// 		} else {
+// 			logger.error('Failed to initialize widgets: unknown error');
+// 		}
+// 	}
+// }
+
+// Ensure widgets are initialized before using them
+// await initWidgets();
+
 // Define the widget types
 type K = (typeof widgets)[keyof typeof widgets]['Name'];
 
@@ -65,7 +105,7 @@ export type ModifyRequestParams<T extends (...args: any) => any> = {
 	collection: Model<any>;
 	id?: WidgetId;
 	field: ReturnType<T>;
-	data: { get: () => any; update: (newData) => void };
+	data: { get: () => any; update: (newData: any) => void };
 	user: User;
 	type: 'GET' | 'POST' | 'DELETE' | 'PATCH';
 	meta_data?: { [key: string]: any };
@@ -82,13 +122,3 @@ export type WidgetType = {
 export const initWidgets = () => (globalThis.widgets = widgets);
 initWidgets(); // Initialize
 export default widgets as WidgetType;
-
-// Expose the widget context
-// export const widgetContext = Object.keys(widgets).map((key) => {
-// 	const name = widgets[key].Name as K;
-// 	return {
-// 		[name]: {
-// 			run() {}
-// 		}
-// 	};
-// });

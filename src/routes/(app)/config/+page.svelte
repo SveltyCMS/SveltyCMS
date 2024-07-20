@@ -41,6 +41,12 @@
 			requiredRole: 'admin',
 			action: 'read',
 			contextType: 'system'
+		},
+		widgetManagement: {
+			contextId: 'config/widgetManagement',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
 		}
 	};
 </script>
@@ -125,6 +131,14 @@
 			<a href="/config/permissions/permission" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Permissions">
 				<iconify-icon icon="uil:setting" width="28" class="text-white" />
 				<p class="uppercase">System Permissions</p>
+			</a>
+		</PermissionGuard>
+
+		<!-- Widget Management -->
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.widgetManagement}>
+			<a href="/config/widgetManagement" class="variant-ghost-secondary btn w-full gap-2 py-6" aria-label={config_WidgetManagement()}>
+				<iconify-icon icon="mdi:widgets" width="28" class="text-white" />
+				<p class="uppercase">Widget Management</p>
 			</a>
 		</PermissionGuard>
 	</div>

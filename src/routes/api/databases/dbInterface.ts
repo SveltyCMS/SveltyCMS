@@ -22,6 +22,14 @@ export interface dbInterface {
 	createRevision(documentId: string, content: any, userId: string): Promise<any>;
 	getRevisions(documentId: string): Promise<any[]>;
 
+	// Methods for Widget Management
+	installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>;
+	getAllWidgets(): Promise<any[]>;
+	getActiveWidgets(): Promise<string[]>;
+	activateWidget(widgetName: string): Promise<void>;
+	deactivateWidget(widgetName: string): Promise<void>;
+	updateWidget(widgetName: string, updateData: any): Promise<void>;
+
 	// Method for Disconnecting
 	disconnect(): Promise<void>;
 }

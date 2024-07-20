@@ -82,13 +82,14 @@ export class DrizzleDBAdapter implements dbInterface {
 		await this.setupCollectionModels();
 		this.setupAuthModels();
 		this.setupMediaModels();
+		this.setupWidgetModels();
 	}
 
 	private async createTablesIfNotExist(): Promise<void> {
 		try {
 			// Create auth tables
 			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS users (
+                CREATE TABLE IF NOT EXISTS auth_users (
                     id VARCHAR(255) PRIMARY KEY,
                     email VARCHAR(255) UNIQUE NOT NULL,
                     password VARCHAR(255) NOT NULL,
@@ -102,7 +103,7 @@ export class DrizzleDBAdapter implements dbInterface {
                     user_id VARCHAR(255) NOT NULL,
                     active BOOLEAN DEFAULT true,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
+                    FOREIGN KEY (user_id) REFERENCES auth_users(id)
                 )
             `);
 
@@ -116,6 +117,39 @@ export class DrizzleDBAdapter implements dbInterface {
             `);
 
 			// ... Create other media tables ...
+
+			// Create system tables
+			await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS system_widgets (
+                    id VARCHAR(255) PRIMARY KEY,
+                    name VARCHAR(255) UNIQUE NOT NULL,
+                    is_active BOOLEAN DEFAULT true,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+			await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS collection_drafts (
+                    id VARCHAR(255) PRIMARY KEY,
+                    original_document_id VARCHAR(255) NOT NULL,
+                    content TEXT NOT NULL,
+                    created_by VARCHAR(255) NOT NULL,
+                    status VARCHAR(50) DEFAULT 'draft',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
+
+			await db.execute(sql`
+                CREATE TABLE IF NOT EXISTS collection_revisions (
+                    id VARCHAR(255) PRIMARY KEY,
+                    document_id VARCHAR(255) NOT NULL,
+                    content TEXT NOT NULL,
+                    created_by VARCHAR(255) NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            `);
 
 			logger.info('Core tables created or already exist');
 		} catch (error) {
@@ -204,12 +238,132 @@ export class DrizzleDBAdapter implements dbInterface {
 		// This method is called only once during initialization
 	}
 
+	setupWidgetModels(): void {
+		// Ensure widget models are set up here
+		this.createTablesIfNotExist();
+	}
+
+	// Install a new widget
+	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
+		try {
+			const widgetId = await this.generateId();
+			await db.execute(sql`
+                INSERT INTO system_widgets (id, name, is_active, created_at, updated_at)
+                VALUES (${widgetId}, ${widgetData.name}, ${widgetData.isActive ?? false}, NOW(), NOW())
+            `);
+			logger.info(`Widget ${widgetData.name} installed successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error installing widget: ${err.message}`);
+			throw new Error(`Error installing widget: ${err.message}`);
+		}
+	}
+
+	// Fetch all widgets
+	async getWidgets(): Promise<any[]> {
+		try {
+			const result = await db.execute(sql`SELECT * FROM system_widgets`);
+			return result;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching widgets: ${err.message}`);
+			throw new Error(`Error fetching widgets: ${err.message}`);
+		}
+	}
+
+	// Fetch active widgets
+	async getActiveWidgets(): Promise<string[]> {
+		try {
+			const result = await db.execute(sql`SELECT name FROM system_widgets WHERE is_active = true`);
+			return result.map((row: any) => row.name);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching active widgets: ${err.message}`);
+			throw new Error(`Error fetching active widgets: ${err.message}`);
+		}
+	}
+
+	// Activate a widget
+	async activateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await db.execute(sql`
+                UPDATE system_widgets
+                SET is_active = true, updated_at = NOW()
+                WHERE name = ${widgetName}
+            `);
+
+			if (result.rowCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already active.`);
+			}
+
+			logger.info(`Widget ${widgetName} activated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error activating widget: ${err.message}`);
+			throw new Error(`Error activating widget: ${err.message}`);
+		}
+	}
+
+	// Deactivate a widget
+	async deactivateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await db.execute(sql`
+                UPDATE system_widgets
+                SET is_active = false, updated_at = NOW()
+                WHERE name = ${widgetName}
+            `);
+
+			if (result.rowCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
+			}
+
+			logger.info(`Widget ${widgetName} deactivated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deactivating widget: ${err.message}`);
+			throw new Error(`Error deactivating widget: ${err.message}`);
+		}
+	}
+
+	// Update a widget
+	async updateWidget(widgetName: string, updateData: any): Promise<void> {
+		try {
+			const fields = Object.entries(updateData)
+				.map(([key, value]) => `${key} = ${value}`)
+				.join(', ');
+
+			const result = await db.execute(sql`
+                UPDATE system_widgets
+                SET ${fields}, updated_at = NOW()
+                WHERE name = ${widgetName}
+            `);
+
+			if (result.rowCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
+			}
+
+			logger.info(`Widget ${widgetName} updated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating widget: ${err.message}`);
+			throw new Error(`Error updating widget: ${err.message}`);
+		}
+	}
+
 	async findOne(collection: string, query: object): Promise<any> {
 		const model = this.collectionsModels[collection];
 		if (!model) {
 			throw new Error(`Collection ${collection} does not exist.`);
 		}
 		return db.select().from(model).where(query).limit(1).execute();
+	}
+
+	async findMany(collection: string, query: object): Promise<any[]> {
+		const model = this.collectionsModels[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		return db.select().from(model).where(query).execute();
 	}
 
 	async insertMany(collection: string, docs: object[]): Promise<any[]> {
@@ -220,11 +374,27 @@ export class DrizzleDBAdapter implements dbInterface {
 		return db.insert(model).values(docs).execute();
 	}
 
+	async updateOne(collection: string, query: object, update: object): Promise<any> {
+		const model = this.collectionsModels[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		return db.update(model).set(update).where(query).execute();
+	}
+
+	async updateMany(collection: string, query: object, update: object): Promise<any> {
+		const model = this.collectionsModels[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} does not exist.`);
+		}
+		return db.update(model).set(update).where(query).execute();
+	}
+
 	async createDraft(content: any, originalDocumentId: string, userId: string): Promise<any> {
 		const draftId = await this.generateId();
 		const result = await db.execute(sql`
-            INSERT INTO drafts (id, original_document_id, content, created_by, status)
-            VALUES (${draftId}, ${originalDocumentId}, ${content}, ${userId}, 'draft')
+            INSERT INTO collection_drafts (id, original_document_id, content, created_by, status, created_at, updated_at)
+            VALUES (${draftId}, ${originalDocumentId}, ${content}, ${userId}, 'draft', NOW(), NOW())
             RETURNING *
         `);
 		return result[0];
@@ -232,7 +402,7 @@ export class DrizzleDBAdapter implements dbInterface {
 
 	async updateDraft(draftId: string, content: any): Promise<any> {
 		const result = await db.execute(sql`
-            UPDATE drafts
+            UPDATE collection_drafts
             SET content = ${content}, updated_at = NOW()
             WHERE id = ${draftId}
             RETURNING *
@@ -242,7 +412,7 @@ export class DrizzleDBAdapter implements dbInterface {
 
 	async publishDraft(draftId: string): Promise<any> {
 		const result = await db.execute(sql`
-            UPDATE drafts
+            UPDATE collection_drafts
             SET status = 'published'
             WHERE id = ${draftId}
             RETURNING *
@@ -251,15 +421,15 @@ export class DrizzleDBAdapter implements dbInterface {
 		const draft = result[0];
 		const revisionId = await this.generateId();
 		await db.execute(sql`
-            INSERT INTO revisions (id, document_id, content, created_by)
-            VALUES (${revisionId}, ${draft.original_document_id}, ${draft.content}, ${draft.created_by})
+            INSERT INTO collection_revisions (id, document_id, content, created_by, created_at)
+            VALUES (${revisionId}, ${draft.original_document_id}, ${draft.content}, ${draft.created_by}, NOW())
         `);
 		return draft;
 	}
 
 	async getDraftsByUser(userId: string): Promise<any[]> {
 		const result = await db.execute(sql`
-            SELECT * FROM drafts
+            SELECT * FROM collection_drafts
             WHERE created_by = ${userId}
         `);
 		return result;
@@ -268,8 +438,8 @@ export class DrizzleDBAdapter implements dbInterface {
 	async createRevision(documentId: string, content: any, userId: string): Promise<any> {
 		const revisionId = await this.generateId();
 		const result = await db.execute(sql`
-            INSERT INTO revisions (id, document_id, content, created_by)
-            VALUES (${revisionId}, ${documentId}, ${content}, ${userId})
+            INSERT INTO collection_revisions (id, document_id, content, created_by, created_at)
+            VALUES (${revisionId}, ${documentId}, ${content}, ${userId}, NOW())
             RETURNING *
         `);
 		return result[0];
@@ -277,7 +447,7 @@ export class DrizzleDBAdapter implements dbInterface {
 
 	async getRevisions(documentId: string): Promise<any[]> {
 		const result = await db.execute(sql`
-            SELECT * FROM revisions
+            SELECT * FROM collection_revisions
             WHERE document_id = ${documentId}
             ORDER BY created_at DESC
         `);
