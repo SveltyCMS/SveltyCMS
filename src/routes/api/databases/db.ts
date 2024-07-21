@@ -92,6 +92,7 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 
 // Initialize adapters
 async function initializeAdapters() {
+	console.log('here');
 	if (isInitialized) {
 		logger.debug('Adapters already initialized, skipping initialization.');
 		return;
