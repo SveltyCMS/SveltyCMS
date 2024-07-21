@@ -43,10 +43,10 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered
 			});
-			if (!user || !user.user_id) {
+			if (!user || !user._id) {
 				throw new Error('User creation failed: No user ID returned');
 			}
-			logger.info(`User created: ${user.user_id}`);
+			logger.info(`User created: ${user._id}`);
 			return user;
 		} catch (error) {
 			const err = error as Error;
@@ -224,19 +224,19 @@ export class Auth {
 
 		try {
 			if (await argon2.verify(user.password, password)) {
-				await this.db.updateUserAttributes(user.user_id!, { failedAttempts: 0, lockoutUntil: null });
-				logger.info(`User logged in: ${user.user_id}`);
+				await this.db.updateUserAttributes(user._id!, { failedAttempts: 0, lockoutUntil: null });
+				logger.info(`User logged in: ${user._id}`);
 				return user; // Make sure this returns the full user object
 			} else {
 				user.failedAttempts++;
 				if (user.failedAttempts >= 5) {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
-					await this.db.updateUserAttributes(user.user_id!, { lockoutUntil });
-					logger.warn(`User locked out due to too many failed attempts: ${user.user_id}`);
+					await this.db.updateUserAttributes(user._id!, { lockoutUntil });
+					logger.warn(`User locked out due to too many failed attempts: ${user._id}`);
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
 				} else {
-					await this.db.updateUserAttributes(user.user_id!, { failedAttempts: user.failedAttempts });
-					logger.warn(`Invalid login attempt for user: ${user.user_id}`);
+					await this.db.updateUserAttributes(user._id!, { failedAttempts: user.failedAttempts });
+					logger.warn(`Invalid login attempt for user: ${user._id}`);
 					throw new Error('Invalid credentials. Please try again.');
 				}
 			}
@@ -343,8 +343,8 @@ export class Auth {
 				return { status: false, message: 'User not found' };
 			}
 			const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
-			await this.db.updateUserAttributes(user.user_id!, { password: hashedPassword });
-			logger.info(`Password updated for user ID: ${user.user_id}`);
+			await this.db.updateUserAttributes(user._id!, { password: hashedPassword });
+			logger.info(`Password updated for user ID: ${user._id}`);
 			return { status: true, message: 'Password updated successfully' };
 		} catch (error) {
 			const err = error as Error;

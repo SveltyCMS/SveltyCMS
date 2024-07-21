@@ -1,10 +1,11 @@
 import { redirect, error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth, initializationPromise } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export async function load({ cookies }) {
+	await initializationPromise;
 	if (!auth) {
 		console.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -41,9 +42,11 @@ export async function load({ cookies }) {
 	if (!user) {
 		throw redirect(302, `/login`);
 	}
-
+let {_id,...rest} = user;
+console.log(rest);
 	// Return user data
 	return {
-		user
+		_id:_id.toString(),
+		...rest
 	};
 }

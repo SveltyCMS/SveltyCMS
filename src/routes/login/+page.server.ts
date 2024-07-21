@@ -11,7 +11,7 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 import { zod } from 'sveltekit-superforms/adapters';
 
 // Auth
-import { auth, googleAuth } from '@api/databases/db';
+import { auth, googleAuth, initializationPromise } from '@api/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 
@@ -23,6 +23,7 @@ import { get } from 'svelte/store';
 import logger from '@utils/logger';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
+	await initializationPromise; // Ensure initialization is complete
 	const code = url.searchParams.get('code');
 	logger.debug(`Authorization code: ${code}`);
 
@@ -84,12 +85,12 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 			const [user, needSignIn] = await getUser();
 
-			if (!needSignIn && user && user.user_id) {
+			if (!needSignIn && user && user._id) {
 				// Create session and set cookie
-				const session = await auth!.createSession({ user_id: user.user_id!, expires: 3600000 });
+				const session = await auth!.createSession({ user_id: user._id!, expires: 3600000 });
 				const sessionCookie = auth!.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth!.updateUserAttributes(user.user_id!, { lastAuthMethod: 'google' });
+				await auth!.updateUserAttributes(user._id!, { lastAuthMethod: 'google' });
 
 				throw redirect(303, '/');
 			}
@@ -357,19 +358,19 @@ async function signIn(
 		const user = await auth.login(email, password);
 		logger.debug(`User returned from login: ${JSON.stringify(user)}`);
 
-		if (!user || !user.user_id) {
+		if (!user || !user._id) {
 			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
 			return { status: false, message: 'Invalid credentials' };
 		}
 
 		// Create User Session
 		try {
-			logger.debug(`Attempting to create session for user_id: ${user.user_id}`);
-			const session = await auth.createSession({ user_id: user.user_id });
+			logger.debug(`Attempting to create session for user_id: ${user._id}`);
+			const session = await auth.createSession({ user_id: user._id });
 			logger.debug(`Session created: ${JSON.stringify(session)}`);
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'password' });
+			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'password' });
 
 			return { status: true };
 		} catch (error) {
@@ -391,15 +392,15 @@ async function signIn(
 			return { status: false, message: 'User does not exist' };
 		}
 
-		const result = await auth.consumeToken(token, user.user_id);
+		const result = await auth.consumeToken(token, user._id);
 
 		if (result.status) {
 			// Create User Session
-			const session = await auth.createSession({ user_id: user.user_id });
+			const session = await auth.createSession({ user_id: user._id });
 
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user.user_id, { lastAuthMethod: 'token' });
+			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
 			return { status: true };
 		} else {
 			logger.warn(`Token consumption failed: ${result.message}`);
@@ -430,12 +431,12 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	}
 
 	// Create User Session
-	const session = await auth.createSession({ user_id: user.user_id, expires: 3600000 }); // Ensure expires is provided
+	const session = await auth.createSession({ user_id: user._id, expires: 3600000 }); // Ensure expires is provided
 	if (!session || !session.session_id) {
 		logger.error('Session creation failed');
 		return { status: false, message: 'Failed to create session' };
 	}
-	logger.info(`Session created with ID: ${session.session_id} for user ID: ${user.user_id}`);
+	logger.info(`Session created with ID: ${session.session_id} for user ID: ${user._id}`);
 
 	// Create session cookie and set it
 	const sessionCookie = auth.createSessionCookie(session);
@@ -455,10 +456,10 @@ async function finishRegistration(username: string, email: string, password: str
 
 	if (!user) return { status: false, message: 'User does not exist' };
 
-	const result = await auth.consumeToken(token, user.user_id);
+	const result = await auth.consumeToken(token, user._id);
 
 	if (result.status) {
-		await auth.updateUserAttributes(user.user_id, {
+		await auth.updateUserAttributes(user._id, {
 			username,
 			password,
 			lastAuthMethod: 'password',
@@ -466,7 +467,7 @@ async function finishRegistration(username: string, email: string, password: str
 		});
 
 		// Create User Session
-		const session = await auth.createSession({ user_id: user.user_id.toString() });
+		const session = await auth.createSession({ user_id: user._id.toString() });
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -501,7 +502,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const token = await auth.createToken(user.user_id.toString(), expiresIn);
+		const token = await auth.createToken(user._id.toString(), expiresIn);
 
 		return { success: true, message: 'Password reset token sent by Email', token, expiresIn };
 	} catch (err: any) {
@@ -526,7 +527,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 		}
 
 		// Consume the token
-		const validate = await auth.consumeToken(token, user.user_id.toString());
+		const validate = await auth.consumeToken(token, user._id.toString());
 
 		if (validate.status) {
 			// Check token expiration
@@ -538,7 +539,7 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			}
 
 			// Token is valid and not expired, proceed with password update
-			auth.invalidateAllUserSessions(user.user_id.toString()); // Invalidate all user sessions
+			auth.invalidateAllUserSessions(user._id.toString()); // Invalidate all user sessions
 			const updateResult = await auth.updateUserPassword(email, password); // Pass the email and password
 
 			if (updateResult.status) {
