@@ -14,6 +14,7 @@
 	let userHasPermission = false;
 
 	if (addDynamicPermission) {
+		console.log(requiredRole);
 		addPermission(contextId, action, requiredRole, contextType);
 	}
 
