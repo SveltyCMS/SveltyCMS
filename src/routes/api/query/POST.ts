@@ -5,12 +5,12 @@ import { dbAdapter, getCollectionModels } from '@api/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
-		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user.user_id}`);
+		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user._id}`);
 
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');

@@ -6,7 +6,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 
 // System Logs
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 export const GET: RequestHandler = async () => {
 	try {
@@ -52,9 +52,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const newUser = await auth.createUser({ email, role, lastAuthMethod: 'password', isRegistered: false });
-		const token = await auth.createToken(newUser.user_id, expirationTime * 1000);
+		const token = await auth.createToken(newUser._id, expirationTime * 1000);
 
-		logger.info('User created successfully', { userId: newUser.user_id });
+		logger.info('User created successfully', { userId: newUser._id });
 
 		// Send the token via email (this should be implemented)
 		await fetch('/api/sendMail', {

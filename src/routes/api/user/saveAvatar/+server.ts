@@ -6,7 +6,7 @@ import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';

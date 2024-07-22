@@ -2,7 +2,7 @@ import type { RequestHandler } from './$types';
 import { collectionsModels } from '@api/databases/db';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define GET request handler
 export const GET: RequestHandler = async ({ url }) => {

@@ -505,7 +505,8 @@ export async function saveFormData({
 	_mode,
 	id,
 	authAdapter,
-	user_id
+	user_id,
+	user
 }: {
 	data: any;
 	_collection?: Schema;
@@ -514,7 +515,9 @@ export async function saveFormData({
 	dbAdapter: any;
 	authAdapter: authDBInterface;
 	user_id: string;
+	user?:User | undefined
 }) {
+	debugger
 	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
@@ -533,7 +536,7 @@ export async function saveFormData({
 	formData.append('status', $collection.status || 'unpublished');
 
 	// Retrieve the user from the auth adapter
-	const user: User | null = await authAdapter.getUserById(user_id);
+	//const user: User | null = await authAdapter.getUserById(user_id);
 	const username = user ? user.username : 'Unknown';
 
 	switch ($mode) {
@@ -958,8 +961,10 @@ export const get_elements_by_id = {
 // Create random UUID// Create random ID
 export const createRandomID = async (id?: string) => {
 	if (id) return id;
-	const randomBytes = (await import('crypto')).randomBytes;
-	return randomBytes(16).toString('hex');
+	const {randomBytes}= await import("crypto");
+	debugger
+	const _randomBytes = (await import('crypto')).default.randomBytes;
+	return _randomBytes(16).toString('hex');
 };
 
 // Meta data

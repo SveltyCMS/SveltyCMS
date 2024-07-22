@@ -88,7 +88,7 @@
 		const formData = new FormData();
 		if (file) {
 			formData.append('avatar', file);
-			formData.append('user_id', user.user_id);
+			formData.append('user_id', user._id);
 		}
 		const response = await axios.post(
 			'?/saveAvatar',
@@ -116,7 +116,7 @@
 	async function deleteAvatar() {
 		try {
 			const formData = new FormData();
-			formData.append('user_id', user.user_id);
+			formData.append('user_id', user._id);
 
 			const response = await axios.post('?/deleteAvatar', formData, {
 				headers: {

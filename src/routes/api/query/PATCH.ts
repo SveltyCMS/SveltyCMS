@@ -5,12 +5,12 @@ import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Function to handle PATCH requests for a specified collection
 export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {
 	try {
-		logger.debug(`PATCH request received for schema: ${schema.name}, user_id: ${user.user_id}`);
+		logger.debug(`PATCH request received for schema: ${schema.name}, user_id: ${user._id}`);
 
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');

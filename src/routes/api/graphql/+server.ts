@@ -12,7 +12,7 @@ import { dbAdapter } from '@api/databases/db';
 import { createClient } from 'redis';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Initialize Redis client if needed
 let redisClient: any = null;

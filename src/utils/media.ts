@@ -5,13 +5,13 @@ import Path from 'path';
 import { browser } from '$app/environment';
 import { sha256 } from './utils';
 import { dbAdapter } from '@api/databases/db';
-import sharp from 'sharp';
+
 import crypto from 'crypto';
 
 import { removeExtension, sanitize } from '@src/utils/utils';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define media types
 type MediaImage = any;

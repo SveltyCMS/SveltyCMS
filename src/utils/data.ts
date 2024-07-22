@@ -1,5 +1,5 @@
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 import axios from 'axios';
 import { config, toFormData } from './utils';

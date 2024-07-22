@@ -6,7 +6,7 @@ import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define a POST request handler function
 export const POST: RequestHandler = async ({ request, cookies }) => {

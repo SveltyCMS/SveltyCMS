@@ -16,7 +16,7 @@ import { defaultPermissions } from '@src/auth/types';
 import type { Schema, CollectionNames } from './types';
 
 // System logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 let imports = {} as { [key in CollectionNames]: Schema };
 let rnd = Math.random();

@@ -10,7 +10,7 @@ import { google } from 'googleapis';
 import { systemLanguage } from '@stores/store';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';
@@ -110,18 +110,18 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
 		}
 
-		if (!user.user_id) {
+		if (!user._id) {
 			logger.error('User ID is missing after creation or retrieval');
 			throw new Error('User ID is missing');
 		}
 
-		logger.debug(`User found or created with ID: ${user.user_id}`);
+		logger.debug(`User found or created with ID: ${user._id}`);
 
 		// Create User Session
-		const session = await auth.createSession({ user_id: user.user_id.toString(), expires: 3600000 });
+		const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
 		const sessionCookie = auth.createSessionCookie(session);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-		await auth.updateUserAttributes(user.user_id.toString(), {
+		await auth.updateUserAttributes(user._id.toString(), {
 			lastAuthMethod: 'google',
 			firstName: googleUser.given_name,
 			lastName: googleUser.family_name,
@@ -223,10 +223,10 @@ export const actions: Actions = {
 				await sendWelcomeEmail(fetch, email, googleUser.name || '');
 
 				// Create User Session
-				const session = await auth.createSession({ user_id: user.user_id.toString(), expires: 3600000 });
+				const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
 				const sessionCookie = auth.createSessionCookie(session);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth.updateUserAttributes(user.user_id.toString(), {
+				await auth.updateUserAttributes(user._id.toString(), {
 					lastAuthMethod: 'google',
 					firstName: googleUser.given_name,
 					lastName: googleUser.family_name,
@@ -238,14 +238,14 @@ export const actions: Actions = {
 				user = existingUser;
 
 				// User already exists, consume token
-				const validate = await auth.consumeToken(token, user.user_id.toString());
+				const validate = await auth.consumeToken(token, user._id.toString());
 
 				if (validate.status) {
 					// Create User Session
-					const session = await auth.createSession({ user_id: user.user_id.toString(), expires: 3600000 });
+					const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-					await auth.updateUserAttributes(user.user_id.toString(), { lastAuthMethod: 'google' });
+					await auth.updateUserAttributes(user._id.toString(), { lastAuthMethod: 'google' });
 
 					return { success: true, data: { user } };
 				} else {
