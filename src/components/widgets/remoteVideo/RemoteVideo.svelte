@@ -6,7 +6,7 @@
 	import { mode, entryData } from '@stores/store';
 
 	// System Logs
-	import logger from '@src/utils/logger';
+	import { logger } from '@src/utils/logger';
 
 	export let field: FieldType;
 

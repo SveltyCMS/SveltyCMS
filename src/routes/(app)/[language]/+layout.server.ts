@@ -10,7 +10,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { contentLanguage } from '@src/stores/store';
 
 // Logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 export async function load({ cookies, route, params }) {
 	if (!auth) {
@@ -95,8 +95,8 @@ export async function load({ cookies, route, params }) {
 		}
 		let {_id,...rest} = user;
 		return {
-			_id:_id.toString(),
-			...rest
+			user:{_id:_id.toString(),
+				...rest}
 		};
 	}
 }

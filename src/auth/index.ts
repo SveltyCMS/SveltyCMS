@@ -1,20 +1,13 @@
-import argon2 from 'argon2';
 import type { Cookie, User, Session, Token } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
 // Argon2 hashing attributes
-const argon2Attributes = {
-	type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
-	timeCost: 2, // Number of iterations
-	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
-	parallelism: 2, // Number of execution threads
-	saltLength: 16 // Salt length in bytes
-} as const;
+
 
 // Auth class to handle user and session management
 export class Auth {
@@ -30,6 +23,14 @@ export class Auth {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
 			// Hash the password
 			let hashedPassword: string | undefined;
+			const argon2 = await import("argon2");
+			const argon2Attributes = {
+				type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
+				timeCost: 2, // Number of iterations
+				memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
+				parallelism: 2, // Number of execution threads
+				saltLength: 16 // Salt length in bytes
+			} as const;
 			if (password) {
 				hashedPassword = await argon2.hash(password, argon2Attributes);
 			}
@@ -61,6 +62,14 @@ export class Auth {
 			// Check if password needs updating
 			if (attributes.password) {
 				// Hash the password with argon2
+				const argon2 = await import("argon2");
+				const argon2Attributes = {
+					type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
+					timeCost: 2, // Number of iterations
+					memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
+					parallelism: 2, // Number of execution threads
+					saltLength: 16 // Salt length in bytes
+				} as const;
 				attributes.password = await argon2.hash(attributes.password, argon2Attributes);
 			}
 			// Convert null email to undefined
@@ -223,6 +232,7 @@ export class Auth {
 		}
 
 		try {
+			const argon2 = await import("argon2");
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user._id!, { failedAttempts: 0, lockoutUntil: null });
 				logger.info(`User logged in: ${user._id}`);
@@ -342,6 +352,14 @@ export class Auth {
 				logger.warn(`Failed to update password: User not found for email: ${email}`);
 				return { status: false, message: 'User not found' };
 			}
+			const argon2 = await import("argon2");
+			const argon2Attributes = {
+				type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
+				timeCost: 2, // Number of iterations
+				memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
+				parallelism: 2, // Number of execution threads
+				saltLength: 16 // Salt length in bytes
+			} as const;
 			const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
 			await this.db.updateUserAttributes(user._id!, { password: hashedPassword });
 			logger.info(`Password updated for user ID: ${user._id}`);

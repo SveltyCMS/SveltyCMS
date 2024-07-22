@@ -76,7 +76,7 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data, user }: M
 			for (const img_id in images) {
 				if (images[img_id] instanceof File) {
 					// Locally selected new images
-					const res = await saveImage(images[img_id], collection.name, user.user_id); // Include user_id argument
+					const res = await saveImage(images[img_id], collection.name, user._id); // Include user_id argument
 					const fileInfo = res.fileInfo;
 					_id = res.id;
 					for (const lang in _data.content) {

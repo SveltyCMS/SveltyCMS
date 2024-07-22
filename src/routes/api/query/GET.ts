@@ -3,14 +3,14 @@ import { publicEnv } from '@root/config/public';
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
-import { getCollectionModels } from '../databases/db';
+import { dbAdapter, getCollectionModels } from '../databases/db';
 import { modifyRequest } from './modifyRequest';
 
 import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({
@@ -31,7 +31,7 @@ export async function _GET({
 	page?: number;
 }) {
 	try {
-		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user.user_id}`);
+		logger.debug(`GET request received for schema: ${schema.name}, user_id: ${user._id}`);
 
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');

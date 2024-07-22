@@ -12,7 +12,7 @@ import type { dbInterface } from './dbInterface';
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
 // System Logs
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define the media schema (assuming it's defined similarly to other schemas)
 const mediaSchema = new mongoose.Schema(

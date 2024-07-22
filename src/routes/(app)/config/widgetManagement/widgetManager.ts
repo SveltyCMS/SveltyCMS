@@ -1,7 +1,7 @@
 import { dbAdapter } from '@api/databases/db';
 import { promises as fs } from 'fs';
 import path from 'path';
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Path to widgets directory
 const WIDGETS_DIR = path.resolve('src/components/widgets');
@@ -67,6 +67,14 @@ export async function getAllWidgets(): Promise<any[]> {
 
 // Fetch active widgets
 export async function getActiveWidgets(): Promise<string[]> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter not initialized');
+	}
+	return await dbAdapter.getActiveWidgets();
+}
+
+// we have to change this function I just duplicate the about as this was missing but imported
+export async function getInstalledWidgets(): Promise<string[]> {
 	if (!dbAdapter) {
 		throw new Error('Database adapter not initialized');
 	}

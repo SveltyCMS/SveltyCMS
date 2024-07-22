@@ -8,7 +8,7 @@ import type { User } from '@src/auth/types';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define the POST request handler
 export const POST: RequestHandler = async ({ cookies, request }) => {
@@ -58,7 +58,7 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 			return new Response('Indexer process input stream is not available', { status: 500 });
 		}
 
-		logger.info('Starting search', { user: user.user_id, searchText });
+		logger.info('Starting search', { user: user._id, searchText });
 		console.time('search');
 		process.stdin.write(searchText + '\n');
 		const res = await new Promise<string>((resolve) => {

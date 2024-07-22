@@ -1,5 +1,5 @@
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 import { dbAdapter } from '@api/databases/db';
 

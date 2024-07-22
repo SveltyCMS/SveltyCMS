@@ -4,7 +4,7 @@ import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/routes/api/databases/dbInterface';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Define Field type locally if not available in @src/collections/types
 interface Field {
@@ -25,7 +25,7 @@ interface ModifyRequestParams {
 // Function to modify request data based on field widgets
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
 	try {
-		logger.debug(`Starting modifyRequest for type: ${type}, user: ${user.user_id}, collection: ${collection.modelName}`);
+		logger.debug(`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${collection.modelName}`);
 		logger.debug(`Initial data: ${JSON.stringify(data)}`);
 
 		for (const field of fields) {

@@ -4,13 +4,12 @@ import type { Actions, PageServerLoad } from './$types';
 // Auth
 import { auth, googleAuth, initializationPromise } from '@api/databases/db';
 import type { User } from '@src/auth/types';
-import { google } from 'googleapis';
 
 // Stores
 import { systemLanguage } from '@stores/store';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';
@@ -58,6 +57,7 @@ if(privateEnv.USE_GOOGLE_OAUTH&&!googleAuth){
 	}
 if(privateEnv.USE_GOOGLE_OAUTH){
 	try {
+		const {google} = await import("googleapis");
 		const { tokens } = await googleAuth.getToken(code);
 		googleAuth.setCredentials(tokens);
 		const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });

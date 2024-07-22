@@ -224,7 +224,7 @@
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_user_id()}<span class="ml-2">{user.user_id}</span>
+					{m.userpage_user_id()}<span class="ml-2">{user._id}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">

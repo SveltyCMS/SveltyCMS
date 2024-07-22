@@ -33,7 +33,7 @@
 	import { dndzone } from 'svelte-dnd-action';
 
 	// System logger
-	import logger from '@src/utils/logger';
+	import { logger } from '@src/utils/logger';
 
 	const flipDurationMs = 300;
 

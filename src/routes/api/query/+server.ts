@@ -15,7 +15,7 @@ import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
@@ -31,7 +31,7 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	// Authenticate user based on user ID or session ID
 	const user = user_id
 		? ((await auth.checkUser({ _id: user_id })) as User) // Check user with user ID
-		: ((await auth.validateSession(session_id)) as User); // Validate session with session ID
+		: ((await auth.validateSession({session_id})) as User); // Validate session with session ID
 
 	if (!user) {
 		throw new Error('Unauthorized');
@@ -63,16 +63,16 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	logger.info('Received request', { method, user_id: data.get('user_id') });
 
 	// Delete these keys from the form data as they are no longer needed
-	['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
+	//['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
 
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
-		logger.debug('User permissions checked', { user: user.user_id, has_read_access, has_write_access });
+		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access });
 
 		// If user does not have read access, return 403 Forbidden response
 		if (!has_read_access) {
-			logger.warn('Forbidden access attempt', { user: user.user_id });
+			logger.warn('Forbidden access attempt', { user: user._id });
 			return new Response('Forbidden', { status: 403 });
 		}
 
@@ -103,7 +103,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 			case 'SETSTATUS': {
 				// If user does not have write access, return 403 Forbidden response
 				if (!has_write_access) {
-					logger.warn('Forbidden write access attempt', { user: user.user_id });
+					logger.warn('Forbidden write access attempt', { user: user._id });
 					return new Response('Forbidden', { status: 403 });
 				}
 				// Select the appropriate handler based on the method
@@ -115,7 +115,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 				}[method];
 
 				// Call the handler and return its response
-				logger.info('Processing request', { method, user: user.user_id });
+				logger.info('Processing request', { method, user: user._id });
 				return handler({
 					data,
 					schema: collection_schema,

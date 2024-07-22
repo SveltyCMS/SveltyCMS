@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 // System Logs
-import logger from '@src/utils/logger';
+import {logger} from '@src/utils/logger';
 
 // This function returns a list of all the collection files in the current directory.
 export function getCollectionFiles() {

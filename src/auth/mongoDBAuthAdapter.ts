@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import crypto from 'crypto';
 
 // Import logger
-import logger from '@utils/logger';
+import {logger} from '@src/utils/logger';
 
 // Import types
 import type { authDBInterface } from './authDBInterface';
