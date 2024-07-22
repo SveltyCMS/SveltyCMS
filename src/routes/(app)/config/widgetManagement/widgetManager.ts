@@ -73,6 +73,14 @@ export async function getActiveWidgets(): Promise<string[]> {
 	return await dbAdapter.getActiveWidgets();
 }
 
+// we have to change this function I just duplicate the about as this was missing but imported
+export async function getInstalledWidgets(): Promise<string[]> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter not initialized');
+	}
+	return await dbAdapter.getActiveWidgets();
+}
+
 // Activate a widget by name
 export async function activateWidget(widgetName: string): Promise<void> {
 	if (!dbAdapter) {
