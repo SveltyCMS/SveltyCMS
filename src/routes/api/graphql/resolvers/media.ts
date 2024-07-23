@@ -44,7 +44,6 @@ export function mediaTypeDefs() {
 
 export function mediaResolvers() {
 	return {
-		Query: {
 			mediaImages: async () => {
 				if (!dbAdapter) {
 					logger.error('Database adapter is not initialized');
@@ -90,6 +89,6 @@ export function mediaResolvers() {
 				logger.info('Fetched media remote', { count: result.length });
 				return result;
 			}
-		}
+		
 	};
 }

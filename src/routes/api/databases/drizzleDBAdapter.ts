@@ -60,6 +60,7 @@ export class DrizzleDBAdapter implements dbInterface {
 				logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
 				await this.initialize();
 				this.isInitialized = true;
+				console.log("connect");
 				return;
 			} catch (error) {
 				attempts--;

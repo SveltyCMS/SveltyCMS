@@ -65,7 +65,6 @@ export function userTypeDefs() {
 // Resolvers
 export function userResolvers(dbAdapter: dbInterface) {
 	return {
-		Query: {
 			users: async () => {
 				logger.info('Fetching users from the database');
 				try {
@@ -77,6 +76,6 @@ export function userResolvers(dbAdapter: dbInterface) {
 					throw new Error('Failed to fetch users');
 				}
 			}
-		}
+		
 	};
 }

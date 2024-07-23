@@ -136,7 +136,7 @@
 
 		<!-- Widget Management -->
 		<PermissionGuard {user} {roles} {rateLimits} {...permissions.widgetManagement}>
-			<a href="/config/widgetManagement" class="variant-ghost-secondary btn w-full gap-2 py-6" aria-label={config_WidgetManagement()}>
+			<a href="/config/widgetManagement" class="variant-ghost-secondary btn w-full gap-2 py-6">
 				<iconify-icon icon="mdi:widgets" width="28" class="text-white" />
 				<p class="uppercase">Widget Management</p>
 			</a>

@@ -58,7 +58,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	if (privateEnv.USE_GOOGLE_OAUTH) {
 		try {
 			const { google } = await import('googleapis');
-			const { tokens } = await googleAuth.getToken(code);
+			const { tokens } = await (await googleAuth()).getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 			const { data: googleUser } = await oauth2.userinfo.get();
@@ -198,7 +198,7 @@ export const actions: Actions = {
 		}
 
 		try {
-			const { tokens } = await googleAuth.getToken(code);
+			const { tokens } = await (await googleAuth()).getToken(code);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
 
