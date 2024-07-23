@@ -38,7 +38,7 @@ function generateGraphQLTypeDefsFromType<T extends Record<string, any>>(type: T,
 
 // Use a partial User object to define the types
 const userTypeSample: Partial<User> = {
-	user_id: '',
+	_id: '',
 	email: '',
 	password: '',
 	role: '',
@@ -65,7 +65,6 @@ export function userTypeDefs() {
 // Resolvers
 export function userResolvers(dbAdapter: dbInterface) {
 	return {
-		Query: {
 			users: async () => {
 				logger.info('Fetching users from the database');
 				try {
@@ -77,6 +76,6 @@ export function userResolvers(dbAdapter: dbInterface) {
 					throw new Error('Failed to fetch users');
 				}
 			}
-		}
+		
 	};
 }

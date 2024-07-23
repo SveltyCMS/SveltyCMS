@@ -83,7 +83,7 @@
 	const tokenTableData = [];
 
 	const tableHeadersUser = [
-		{ label: m.adminarea_user_id(), key: 'id' },
+		{ label: m.adminarea_user_id(), key: '_id' },
 		{ label: m.adminarea_blocked(), key: 'blocked' },
 		{ label: m.form_avatar(), key: 'avatar' },
 		{ label: m.form_email(), key: 'email' },
@@ -167,6 +167,7 @@
 
 				const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 
+				debugger;
 				tableData = responseData.map((item) => {
 					const formattedItem = {};
 					for (const header of tableHeaders) {
@@ -182,6 +183,7 @@
 								formattedItem[key] = '/Default_User.svg';
 							}
 						} else {
+							debugger;
 							formattedItem[key] = item[key] || 'NO DATA';
 
 							// Display CreatedAt/UpdatedAt in table

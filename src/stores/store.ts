@@ -96,7 +96,7 @@ export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }
 export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
 
-export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
+export const tableHeaders = ['_id', 'email', 'username', 'role', 'createdAt'] as const;
 
 // Widget store
 

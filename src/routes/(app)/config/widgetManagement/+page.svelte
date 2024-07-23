@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { activateWidget, deactivateWidget, getInstalledWidgets, getActiveWidgets } from './widgetManager';
+	//import { activateWidget, deactivateWidget, getInstalledWidgets, getActiveWidgets } from './widgetManager';
 
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
@@ -19,12 +19,13 @@
 
 	async function loadWidgets() {
 		try {
-			const widgets = await getInstalledWidgets();
-			activeWidgets = await getActiveWidgets();
-			installedWidgets = widgets.map((widget) => ({
-				...widget,
-				status: activeWidgets.includes(widget.name) ? 'active' : 'inactive'
-			}));
+			// const widgets = await getInstalledWidgets();
+			// activeWidgets = await getActiveWidgets();
+			// installedWidgets = widgets.map((widget) => ({
+			// 	...widget,
+			// 	status: activeWidgets.includes(widget.name) ? 'active' : 'inactive'
+			// }));
+			return [];
 		} catch (error) {
 			console.error('Failed to load widgets:', error);
 		}
@@ -34,9 +35,9 @@
 		const newStatus = widget.status === 'active' ? 'inactive' : 'active';
 		try {
 			if (newStatus === 'active') {
-				await activateWidget(widget.name);
+				//await activateWidget(widget.name);
 			} else {
-				await deactivateWidget(widget.name);
+				//await deactivateWidget(widget.name);
 			}
 			widget.status = newStatus;
 		} catch (error) {
