@@ -3,7 +3,7 @@
 import { writable } from 'svelte/store';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // GlobalSearchIndex
 let modalEditAvatar: any;

@@ -20,7 +20,7 @@ import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete

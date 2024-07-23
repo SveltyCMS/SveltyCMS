@@ -10,7 +10,7 @@ import { google } from 'googleapis';
 import { systemLanguage } from '@stores/store';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';

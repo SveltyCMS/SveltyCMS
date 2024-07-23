@@ -3,7 +3,7 @@ import mime from 'mime-types';
 import type { RequestHandler } from './$types';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async ({ params }) => {

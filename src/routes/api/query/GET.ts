@@ -10,7 +10,7 @@ import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({

@@ -11,7 +11,7 @@ import crypto from 'crypto';
 import { removeExtension, sanitize } from '@src/utils/utils';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define media types
 type MediaImage = any;

@@ -2,7 +2,7 @@ import { json } from '@sveltejs/kit';
 import { exec } from 'child_process';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export async function POST() {
 	try {

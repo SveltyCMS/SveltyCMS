@@ -1,5 +1,5 @@
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 import type { dbInterface } from '@src/routes/api/databases/dbInterface';
 import type { User } from '@src/auth/types';

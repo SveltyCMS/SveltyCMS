@@ -5,7 +5,7 @@ import deepmerge from 'deepmerge';
 import { dbAdapter } from '@api/databases/db';
 
 // System logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {

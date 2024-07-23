@@ -6,7 +6,7 @@ import { promisify } from 'util';
 import { backupConfigFiles } from './backup-utils';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const execAsync = promisify(exec);
 
@@ -18,7 +18,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const encryptedConfigData = {};
 		for (const key in configData) {
 			if (Object.prototype.hasOwnProperty.call(configData, key)) {
-				encryptedConfigData[key] = "";//await argon2.hash(configData[key]);
+				encryptedConfigData[key] = ''; //await argon2.hash(configData[key]);
 			}
 		}
 

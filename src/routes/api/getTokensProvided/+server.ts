@@ -2,7 +2,7 @@ import { privateEnv } from '@root/config/private';
 import { json, type RequestHandler } from '@sveltejs/kit';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async () => {
 	// Initialize tokensProvided object

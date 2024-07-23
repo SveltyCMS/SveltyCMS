@@ -15,7 +15,7 @@ import { get } from 'svelte/store';
 import widgets from '@src/components/widgets';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async ({ cookies }) => {
