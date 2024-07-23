@@ -4,7 +4,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { auth } from '@api/databases/db';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

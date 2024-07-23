@@ -11,7 +11,7 @@ import type { dbInterface } from '@api/databases/dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
@@ -195,7 +195,7 @@ export async function getCollectionModels() {
 let googleAuth: any = null;
 
 if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
-	const {google} = await import("googleapis");
+	const { google } = await import('googleapis');
 	logger.debug('Setting up Google OAuth2...');
 	const oauth2Client = new google.auth.OAuth2(
 		privateEnv.GOOGLE_CLIENT_ID,

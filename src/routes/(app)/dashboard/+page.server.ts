@@ -42,11 +42,11 @@ export async function load({ cookies }) {
 	if (!user) {
 		throw redirect(302, `/login`);
 	}
-let {_id,...rest} = user;
-console.log(rest);
+	let { _id, ...rest } = user;
+	console.log(rest);
 	// Return user data
 	return {
-		_id:_id.toString(),
+		_id: _id.toString(),
 		...rest
 	};
 }

@@ -5,7 +5,7 @@ import { dbAdapter, getCollectionModels } from '@api/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

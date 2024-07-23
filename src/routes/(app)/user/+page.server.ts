@@ -14,7 +14,7 @@ import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 
 // Logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';

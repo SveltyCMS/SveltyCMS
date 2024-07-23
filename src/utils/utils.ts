@@ -515,9 +515,9 @@ export async function saveFormData({
 	dbAdapter: any;
 	authAdapter: authDBInterface;
 	user_id: string;
-	user?:User | undefined
+	user?: User | undefined;
 }) {
-	debugger
+	debugger;
 	//console.log('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
@@ -961,8 +961,8 @@ export const get_elements_by_id = {
 // Create random UUID// Create random ID
 export const createRandomID = async (id?: string) => {
 	if (id) return id;
-	const {randomBytes}= await import("crypto");
-	debugger
+	const { randomBytes } = await import('crypto');
+	debugger;
 	const _randomBytes = (await import('crypto')).default.randomBytes;
 	return _randomBytes(16).toString('hex');
 };

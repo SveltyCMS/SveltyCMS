@@ -4,7 +4,7 @@ import { auth } from '@api/databases/db'; // Import the auth instance
 import { SESSION_COOKIE_NAME } from '@src/auth'; // Import the session cookie name
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Mocked function to delete image model
 async function deleteImageModel(hash: string) {

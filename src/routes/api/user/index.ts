@@ -6,7 +6,7 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 
 // System Logs
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async () => {
 	try {

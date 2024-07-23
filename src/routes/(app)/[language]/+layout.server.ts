@@ -10,7 +10,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import { contentLanguage } from '@src/stores/store';
 
 // Logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export async function load({ cookies, route, params }) {
 	if (!auth) {
@@ -86,17 +86,16 @@ export async function load({ cookies, route, params }) {
 				throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
 			}
 		}
-		if(collection?.permissions[user.role].filter(e=>e.action == "read").length < 0){
-		//if (collection?.permissions?.[user.role]?.read === false) {
+		if (collection?.permissions[user.role].filter((e) => e.action == 'read').length < 0) {
+			//if (collection?.permissions?.[user.role]?.read === false) {
 			logger.warn('No Access to this collection');
 			throw error(404, {
 				message: 'No Access to this collection'
 			});
 		}
-		let {_id,...rest} = user;
+		let { _id, ...rest } = user;
 		return {
-			user:{_id:_id.toString(),
-				...rest}
+			user: { _id: _id.toString(), ...rest }
 		};
 	}
 }
