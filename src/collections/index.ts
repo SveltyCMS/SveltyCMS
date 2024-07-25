@@ -137,7 +137,11 @@ async function getImports(recompile: boolean = false): Promise<{ [key in Collect
 			// Dynamically import returned files from folder specified by import.meta.env.collectionsFolder
 			for (const file of files) {
 				const name = file.replace(/.js$/, '') as CollectionNames;
-				const collectionModule = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd);
+				let collectionModule:any=null;
+				if(typeof window !== 'undefined')
+				collectionModule =(await axios.get('/api/getCollection?fileName=' + file + '?' + rnd)).data;
+			else
+			collectionModule = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd);
 				const collection = collectionModule.default;
 
 				if (collection) {

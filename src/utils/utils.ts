@@ -957,14 +957,21 @@ export const get_elements_by_id = {
 		}
 	}
 };
-
+function getRandomHex(size) {
+	const bytes = new Uint8Array(size);
+	for (let i = 0; i < size; i++) {
+	  bytes[i] = Math.floor(Math.random() * 256);
+	}
+	
+	return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  }
 // Create random UUID// Create random ID
 export const createRandomID = async (id?: string) => {
 	if (id) return id;
-	const { randomBytes } = await import('crypto');
-	debugger;
-	const _randomBytes = (await import('crypto')).default.randomBytes;
-	return _randomBytes(16).toString('hex');
+	return getRandomHex(16);
+	// const { randomBytes } = await import('crypto');
+	// const _randomBytes = (await import('crypto')).default.randomBytes;
+	// return _randomBytes(16).toString('hex');
 };
 
 // Meta data

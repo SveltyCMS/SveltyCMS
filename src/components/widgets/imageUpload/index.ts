@@ -112,7 +112,7 @@ widget.modifyRequest = async ({ data, type, collection, id }: ModifyRequestParam
 		case 'POST':
 		case 'PATCH':
 			if (_data instanceof File) {
-				_id = (await saveImage(_data, collection.modelName)).id;
+				_id = (await saveImage(_data, collection.modelName,dbAdapter)).id;
 				data.update(_id);
 			} else if (_data?._id) {
 				// chosen image from _media_images

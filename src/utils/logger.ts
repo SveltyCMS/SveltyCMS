@@ -18,7 +18,7 @@ import { get, readable, type Readable } from 'svelte/store';
 // Import the file path as per your folder structure
 
 // Default log level will be set to silent but will be modified as per the environment in context.
-const defaultLogLevel = 'silent';
+const defaultLogLevel = 'trace';
 
 // This is an IIFE, self executing funtion. It will return the Pino Logger instance
 const pinoLogger: PinoLogger = (() => {
