@@ -8,7 +8,7 @@ import typography from '@tailwindcss/typography';
 // Import the Skeleton plugin
 import { skeleton } from '@skeletonlabs/tw-plugin';
 // Import Custom Theme
-import { SveltyCMSTheme } from './SveltyCMSTheme';
+import { SveltyCMSTheme } from './src/themes/SveltyCMS/SveltyCMSTheme';
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {

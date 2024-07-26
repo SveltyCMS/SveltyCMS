@@ -91,7 +91,7 @@ async function connectToDatabase(retries = MAX_RETRIES) {
 
 // Initialize adapters
 async function initializeAdapters() {
-	console.log('here');
+	// Check if adapters are already initialized
 	if (isInitialized) {
 		logger.debug('Adapters already initialized, skipping initialization.');
 		return;
@@ -144,6 +144,7 @@ async function initializeAdapters() {
 			logger.error(errorMsg);
 			throw new Error(errorMsg);
 		}
+		
 
 		isInitialized = true; // Mark as initialized
 		logger.debug('Adapters initialized successfully');

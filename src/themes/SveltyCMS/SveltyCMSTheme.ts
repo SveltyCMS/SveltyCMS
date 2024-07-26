@@ -99,3 +99,4 @@ export const SveltyCMSTheme: CustomThemeConfig = {
 		'--color-surface-900': '18 19 20' // #121314
 	}
 };
+

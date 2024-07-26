@@ -38,6 +38,10 @@ const DraftSchema = new mongoose.Schema(
 	{ collection: 'collection_drafts' } // Explicitly set the collection name
 );
 
+// Create Draft model
+const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
+
+
 // Define the Revision schema
 const RevisionSchema = new mongoose.Schema(
 	{
@@ -48,6 +52,10 @@ const RevisionSchema = new mongoose.Schema(
 	},
 	{ collection: 'collection_revisions' } // Explicitly set the collection name
 );
+
+// Create Revision model
+const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
+
 
 // Define the Widget schema
 const widgetSchema = new mongoose.Schema(
@@ -60,10 +68,23 @@ const widgetSchema = new mongoose.Schema(
 	{ timestamps: true, collection: 'system_widgets' } // Explicitly set the collection name
 );
 
-// Create Draft, Revision, and Widget models. Create models only if they don't already exist
-const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
-const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
+// Create Widget model
 const Widget = mongoose.models.Widget || mongoose.model('Widget', widgetSchema);
+
+// Define the Theme schema
+const ThemeSchema = new mongoose.Schema(
+    {
+        name: { type: String, required: true, unique: true }, // Name of the theme
+        path: { type: String, required: true }, // Path to the theme file
+        createdAt: { type: Date, default: Date.now }, // Creation timestamp
+        updatedAt: { type: Date, default: Date.now } // Last updated timestamp
+    },
+    { collection: 'system_themes' } // Explicitly set the collection name
+);
+
+// Create Theme model
+const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
+
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -234,6 +255,24 @@ export class MongoDBAdapter implements dbInterface {
 		}
 		logger.info('Widget models set up successfully.');
 	}
+
+		// Store themes in the database
+async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
+    try {
+        await Theme.insertMany(themes.map(theme => ({
+            name: theme.name,
+            path: theme.path,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+        })), { ordered: false }); // Use ordered: false to ignore duplicates
+        logger.info(`Stored ${themes.length} themes in the database.`);
+    } catch (error) {
+        const err = error as Error;
+        logger.error(`Error storing themes: ${err.message}`);
+        throw new Error(`Error storing themes: ${err.message}`);
+    }
+}
+
 
 	// Install a new widget
 	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
