@@ -42,6 +42,7 @@ export interface Permission {
 	contextId: string; // This could be a collectionId or widgetId indicating scope
 	description?: string;
 	contextType: ContextType; // Distinguishes between collections and widgets
+	requiredRole: string; // The role that is required to perform the action
 	requires2FA?: boolean; // Indicates if this permission requires two-factor authentication
 }
 

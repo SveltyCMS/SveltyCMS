@@ -128,16 +128,16 @@
 
 		<!-- Roles -->
 		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemRoles}>
-			<a href="/config/permissions/roles" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Roles">
-				<iconify-icon icon="uil:users-alt" width="28" class="text-white" />
+			<a href="/config/roles" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Roles">
+				<iconify-icon icon="mdi:account-group" width="28" class="text-white" />
 				<p class="uppercase">Roles</p>
 			</a>
 		</PermissionGuard>
 
 		<!-- Permissions -->
 		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemPermissions}>
-			<a href="/config/permissions/permission" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Permissions">
-				<iconify-icon icon="uil:key-skeleton" width="28" class="text-white" />
+			<a href="/config/permission" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Permissions">
+				<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-white" />
 				<p class="uppercase">Permissions</p>
 			</a>
 		</PermissionGuard>

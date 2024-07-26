@@ -93,7 +93,7 @@ export async function load({ cookies, route, params }) {
 				message: 'No Access to this collection'
 			});
 		}
-		let { _id, ...rest } = user;
+		const { _id, ...rest } = user;
 		return {
 			user: { _id: _id.toString(), ...rest }
 		};
