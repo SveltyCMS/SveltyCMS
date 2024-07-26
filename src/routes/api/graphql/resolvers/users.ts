@@ -65,17 +65,16 @@ export function userTypeDefs() {
 // Resolvers
 export function userResolvers(dbAdapter: dbInterface) {
 	return {
-			users: async () => {
-				logger.info('Fetching users from the database');
-				try {
-					const users = await dbAdapter.findMany('auth_users', {});
-					logger.info('Users retrieved successfully', { count: users.length });
-					return users;
-				} catch (error) {
-					logger.error('Error fetching users:', error as Error);
-					throw new Error('Failed to fetch users');
-				}
+		users: async () => {
+			logger.info('Fetching users from the database');
+			try {
+				const users = await dbAdapter.findMany('auth_users', {});
+				logger.info('Users retrieved successfully', { count: users.length });
+				return users;
+			} catch (error) {
+				logger.error('Error fetching users:', error as Error);
+				throw new Error('Failed to fetch users');
 			}
-		
+		}
 	};
 }

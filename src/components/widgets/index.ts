@@ -2,7 +2,7 @@ import type { Model, User, WidgetId } from '@src/auth/types';
 // import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
 
 // // System logger
-// import {logger} from '@src/utils/logger';
+// import { logger } from '@src/utils/logger';
 
 // Widgets
 import Address from './address';

@@ -42,11 +42,11 @@ export async function load({ cookies }) {
 
 	// Log successful session validation
 	logger.debug(`User session validated successfully for user: ${user._id}`);
-    const {_id,...rest} = user;
+	const { _id, ...rest } = user;
 	// Return user data
 	return {
-		user:{
-			_id:_id.toString(),
+		user: {
+			_id: _id.toString(),
 			...rest
 		}
 	};

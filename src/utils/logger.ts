@@ -1,4 +1,3 @@
-
 import pino, { type Logger, type LoggerOptions } from 'pino';
 
 export enum ServerEnvironment {

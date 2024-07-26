@@ -1,13 +1,10 @@
 import { privateEnv } from '@root/config/private';
-
 // Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
-
 // Database
 import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
-
 // Auth
 import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
@@ -41,7 +38,6 @@ const DraftSchema = new mongoose.Schema(
 // Create Draft model
 const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
 
-
 // Define the Revision schema
 const RevisionSchema = new mongoose.Schema(
 	{
@@ -55,7 +51,6 @@ const RevisionSchema = new mongoose.Schema(
 
 // Create Revision model
 const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
-
 
 // Define the Widget schema
 const widgetSchema = new mongoose.Schema(
@@ -73,18 +68,17 @@ const Widget = mongoose.models.Widget || mongoose.model('Widget', widgetSchema);
 
 // Define the Theme schema
 const ThemeSchema = new mongoose.Schema(
-    {
-        name: { type: String, required: true, unique: true }, // Name of the theme
-        path: { type: String, required: true }, // Path to the theme file
-        createdAt: { type: Date, default: Date.now }, // Creation timestamp
-        updatedAt: { type: Date, default: Date.now } // Last updated timestamp
-    },
-    { collection: 'system_themes' } // Explicitly set the collection name
+	{
+		name: { type: String, required: true, unique: true }, // Name of the theme
+		path: { type: String, required: true }, // Path to the theme file
+		createdAt: { type: Date, default: Date.now }, // Creation timestamp
+		updatedAt: { type: Date, default: Date.now } // Last updated timestamp
+	},
+	{ collection: 'system_themes' } // Explicitly set the collection name
 );
 
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
-
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -94,12 +88,10 @@ export class MongoDBAdapter implements dbInterface {
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		logger.debug('Attempting to connect to MongoDB...');
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv');
-
 		// Construct the connection string
 		const connectionString = isAtlas
 			? privateEnv.DB_HOST // Use DB_HOST as full connection string for Atlas
 			: `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`; // Local/Docker connection
-
 		while (attempts > 0) {
 			try {
 				await mongoose.connect(connectionString, {
@@ -147,7 +139,6 @@ export class MongoDBAdapter implements dbInterface {
 			this.unsubscribe = collections.subscribe(async (collections) => {
 				if (collections) {
 					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
-
 					// Map to collection names only
 					const collectionNames = Object.values(collections).map((collection) => collection.name);
 					logger.debug('Collections found:', { collectionNames });
@@ -256,23 +247,35 @@ export class MongoDBAdapter implements dbInterface {
 		logger.info('Widget models set up successfully.');
 	}
 
-		// Store themes in the database
-async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
-    try {
-        await Theme.insertMany(themes.map(theme => ({
-            name: theme.name,
-            path: theme.path,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-        })), { ordered: false }); // Use ordered: false to ignore duplicates
-        logger.info(`Stored ${themes.length} themes in the database.`);
-    } catch (error) {
-        const err = error as Error;
-        logger.error(`Error storing themes: ${err.message}`);
-        throw new Error(`Error storing themes: ${err.message}`);
-    }
-}
+	async getAllWidgets(): Promise<any[]> {
+		try {
+			return await Widget.find().lean().exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching all widgets: ${err.message}`);
+			throw new Error(`Error fetching all widgets: ${err.message}`);
+		}
+	}
 
+	// Store themes in the database
+	async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
+		try {
+			await Theme.insertMany(
+				themes.map((theme) => ({
+					name: theme.name,
+					path: theme.path,
+					createdAt: new Date(),
+					updatedAt: new Date()
+				})),
+				{ ordered: false } // Use ordered: false to ignore duplicates
+			);
+			logger.info(`Stored ${themes.length} themes in the database.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error storing themes: ${err.message}`);
+			throw new Error(`Error storing themes: ${err.message}`);
+		}
+	}
 
 	// Install a new widget
 	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
@@ -295,7 +298,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 	// Fetch all widgets
 	async getWidgets(): Promise<any[]> {
 		try {
-			return await Widget.find().exec();
+			return await Widget.find().lean().exec();
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error fetching widgets: ${err.message}`);
@@ -306,7 +309,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 	// Fetch active widgets
 	async getActiveWidgets(): Promise<string[]> {
 		try {
-			const widgets = await Widget.find({ isActive: true }).exec();
+			const widgets = await Widget.find({ isActive: true }).lean().exec();
 			return widgets.map((widget) => widget.name);
 		} catch (error) {
 			const err = error as Error;
@@ -320,7 +323,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 		try {
 			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
 
-			if (result.nModified === 0) {
+			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or already active.`);
 			}
 
@@ -337,7 +340,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 		try {
 			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
 
-			if (result.nModified === 0) {
+			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
 			}
 
@@ -354,7 +357,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 		try {
 			const result = await Widget.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
 
-			if (result.nModified === 0) {
+			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
 			}
 
@@ -373,7 +376,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 			logger.error(`findOne failed. Collection ${collection} does not exist.`);
 			throw new Error(`findOne failed. Collection ${collection} does not exist.`);
 		}
-		return model.findOne(query).exec();
+		return model.findOne(query).lean().exec();
 	}
 
 	// Implementing findMany method
@@ -383,7 +386,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 			logger.error(`findMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`findMany failed. Collection ${collection} does not exist.`);
 		}
-		return model.find(query).exec();
+		return model.find(query).lean().exec();
 	}
 
 	// Implementing insertMany method
@@ -393,8 +396,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
 		}
-		const result = await model.insertMany(docs);
-		return result;
+		return model.insertMany(docs);
 	}
 
 	// Implementing updateOne method
@@ -404,8 +406,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
 		}
-		const result = await model.updateOne(query, update).exec();
-		return result;
+		return model.updateOne(query, update).exec();
 	}
 
 	// Implementing updateMany method
@@ -415,8 +416,35 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
 		}
-		const result = await model.updateMany(query, update).exec();
-		return result;
+		return model.updateMany(query, update).exec();
+	}
+
+	// Implementing deleteOne method
+	async deleteOne(collection: string, query: object): Promise<number> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} not found`);
+		}
+		return model.deleteOne(query).then((result) => result.deletedCount);
+	}
+
+	// Implementing deleteMany method
+	async deleteMany(collection: string, query: object): Promise<number> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			throw new Error(`Collection ${collection} not found`);
+		}
+		return model.deleteMany(query).then((result) => result.deletedCount);
+	}
+
+	// Implementing countDocuments method
+	async countDocuments(collection: string, query?: object): Promise<number> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
+			throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
+		}
+		return model.countDocuments(query).exec();
 	}
 
 	// Create a new draft
@@ -458,7 +486,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 
 	// Get drafts
 	async getDraftsByUser(userId: string) {
-		return await Draft.find({ createdBy: userId });
+		return await Draft.find({ createdBy: userId }).lean().exec();
 	}
 
 	// Create a new revision
@@ -474,7 +502,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 
 	// Get revisions
 	async getRevisions(documentId: string) {
-		return await Revision.find({ documentId }).sort({ createdAt: -1 });
+		return await Revision.find({ documentId }).sort({ createdAt: -1 }).lean().exec();
 	}
 
 	// Get recent last 5 collections
@@ -484,7 +512,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 
 		for (const collectionName of collections) {
 			const model = mongoose.models[collectionName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
+			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
 			recentCollections.push({ collectionName, recentDocs });
 		}
 
@@ -494,14 +522,14 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 	// Get logged in users
 	async getLoggedInUsers(): Promise<any[]> {
 		const sessionModel = mongoose.models['auth_sessions'];
-		const loggedInUsers = await sessionModel.find({ active: true }).exec();
-		return loggedInUsers;
+		return await sessionModel.find({ active: true }).lean().exec();
 	}
 
 	// Get CMS data
 	async getCMSData(): Promise<any> {
-		const cmsData = {}; // Replace with actual logic
-		return cmsData;
+		// Implement your CMS data fetching logic here
+		// This is a placeholder and should be replaced with actual implementation
+		return {};
 	}
 
 	// Get recent last 5 media documents
@@ -511,7 +539,7 @@ async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
 
 		for (const schemaName of mediaSchemas) {
 			const model = mongoose.models[schemaName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).exec();
+			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
 			recentMedia.push({ schemaName, recentDocs });
 			logger.debug(`Fetched recent media documents for ${schemaName}`);
 		}

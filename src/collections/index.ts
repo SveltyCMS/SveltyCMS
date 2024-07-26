@@ -16,7 +16,7 @@ import { defaultPermissions } from '@src/auth/types';
 import type { Schema, CollectionNames } from './types';
 
 // System logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 let imports = {} as { [key in CollectionNames]: Schema };
 let rnd = Math.random();
@@ -137,11 +137,9 @@ async function getImports(recompile: boolean = false): Promise<{ [key in Collect
 			// Dynamically import returned files from folder specified by import.meta.env.collectionsFolder
 			for (const file of files) {
 				const name = file.replace(/.js$/, '') as CollectionNames;
-				let collectionModule:any=null;
-				if(typeof window !== 'undefined')
-				collectionModule =(await axios.get('/api/getCollection?fileName=' + file + '?' + rnd)).data;
-			else
-			collectionModule = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd);
+				let collectionModule: any = null;
+				if (typeof window !== 'undefined') collectionModule = (await axios.get('/api/getCollection?fileName=' + file + '?' + rnd)).data;
+				else collectionModule = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd);
 				const collection = collectionModule.default;
 
 				if (collection) {

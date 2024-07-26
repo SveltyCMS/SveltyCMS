@@ -36,7 +36,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 
 			logger.debug('Fetching tokens using authorization code...');
-			const { tokens } =await (await googleAuth()).getToken(code);
+			const { tokens } = await (await googleAuth()).getToken(code);
 			logger.debug(`Received tokens: ${JSON.stringify(tokens)}`);
 			googleAuth.setCredentials(tokens);
 			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });

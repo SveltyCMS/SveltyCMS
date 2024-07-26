@@ -12,6 +12,9 @@ export interface dbInterface {
 	insertMany(collection: string, docs: object[]): Promise<any[]>;
 	updateOne(collection: string, query: object, update: object): Promise<any>;
 	updateMany(collection: string, query: object, update: object): Promise<any>;
+	deleteOne(collection: string, query: object): Promise<number>;
+	deleteMany(collection: string, query: object): Promise<number>;
+	countDocuments(collection: string, query?: object): Promise<number>;
 
 	// Methods for Draft and Revision Management
 	generateId(): string;
@@ -33,7 +36,6 @@ export interface dbInterface {
 	// Method for Disconnecting
 	disconnect(): Promise<void>;
 }
-
 // Define a generic Collection type to be used by database adapters
 export interface CollectionModel {
 	modelName: string;
@@ -41,4 +43,7 @@ export interface CollectionModel {
 	updateOne(query: object, update: object): Promise<any>;
 	updateMany(query: object, update: object): Promise<any>;
 	insertMany(docs: object[]): Promise<any[]>;
+	deleteOne(query: object): Promise<number>;
+	deleteMany(query: object): Promise<number>;
+	countDocuments(query?: object): Promise<number>;
 }

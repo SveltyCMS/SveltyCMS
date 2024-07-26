@@ -13,7 +13,7 @@ import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
 
 // Import logger
-import {logger} from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define connection configuration for MariaDB and PostgreSQL
 const dbConfig = {
@@ -60,7 +60,7 @@ export class DrizzleDBAdapter implements dbInterface {
 				logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
 				await this.initialize();
 				this.isInitialized = true;
-				console.log("connect");
+				console.log('connect');
 				return;
 			} catch (error) {
 				attempts--;

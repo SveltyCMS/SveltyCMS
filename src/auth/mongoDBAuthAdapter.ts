@@ -108,10 +108,16 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Update attributes of an existing user
-	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
 		try {
 			await UserModel.updateOne({ _id: user_id }, { $set: attributes });
 			logger.debug(`User attributes updated: ${user_id}`);
+			// Return the updated user
+			const user = await this.getUserById(user_id);
+			if (!user) {
+				throw new Error('User not found');
+			}
+			return user;
 		} catch (error) {
 			if (error instanceof Error) {
 				logger.error(`Failed to update user attributes: ${error.message}`);

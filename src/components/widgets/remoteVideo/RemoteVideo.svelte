@@ -5,9 +5,6 @@
 	// Stores
 	import { mode, entryData } from '@stores/store';
 
-	// System Logs
-	import { logger } from '@src/utils/logger';
-
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
@@ -34,9 +31,9 @@
 			const data = await response.json();
 			myData = data;
 
-			logger.debug('Video data fetched successfully', { myData }); // Log the success
+			console.log('Video data fetched successfully', { myData }); // Log the success
 		} catch (error) {
-			logger.error('Error fetching video data', error as Error); // Log the error
+			console.log('Error fetching video data', error as Error); // Log the error
 		}
 	}
 

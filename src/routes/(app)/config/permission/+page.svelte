@@ -1,16 +1,16 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { permissionActions, contextTypes, type PermissionAction, type Permission, type ContextType } from '@src/auth/types';
-	import { addPermission, getPermissions } from '@src/auth/permissionManager';
+	import { permissionActions, contextTypes, roles, type PermissionAction, type Permission, type ContextType, type Role } from '@src/auth/types';
+	import { addPermission, getPermissions, updatePermission } from '@src/auth/permissionManager';
 
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 
-	let contextId = '';
-	let action: PermissionAction = 'read';
-	let contextType: ContextType = 'collection';
-	let requiredRole = '';
 	let permissionsList: Permission[] = [];
+	let modifiedPermissions: Set<string> = new Set();
+	let searchTerm = '';
+
+	$: filteredPermissions = permissionsList.filter((permission) => permission.contextId.toLowerCase().includes(searchTerm.toLowerCase()));
 
 	onMount(() => {
 		loadPermissions();
@@ -20,18 +20,27 @@
 		permissionsList = getPermissions();
 	}
 
-	// Function to handle the addition of a new permission
-	const addNewPermission = () => {
-		if (contextId && requiredRole) {
-			addPermission(contextId, action, requiredRole, contextType);
-			permissionsList = getPermissions();
-			// Reset form
-			contextId = '';
-			action = 'read';
-			contextType = 'collection';
-			requiredRole = '';
+	function toggleRole(permission: Permission, role: string) {
+		const currentRoles = permission.requiredRole.split(',').map((r) => r.trim());
+		if (currentRoles.includes(role)) {
+			permission.requiredRole = currentRoles.filter((r) => r !== role).join(',');
+		} else {
+			permission.requiredRole = [...currentRoles, role].join(',');
 		}
-	};
+		modifiedPermissions.add(permission.permission_id);
+		modifiedPermissions = modifiedPermissions;
+	}
+
+	async function saveChanges() {
+		for (const permissionId of modifiedPermissions) {
+			const permission = permissionsList.find((p) => p.permission_id === permissionId);
+			if (permission) {
+				await updatePermission(permission);
+			}
+		}
+		modifiedPermissions.clear();
+		loadPermissions();
+	}
 </script>
 
 <div class="my-2 flex items-center justify-between">
@@ -40,54 +49,61 @@
 
 <div class="mb-6 text-center sm:text-left">
 	<p class="text-tertiary-500 dark:text-primary-500">
-		This page allows you to define and manage permissions for different actions and contexts in the system. Permissions can be assigned to roles to
+		This page allows you to manage permissions for different actions and contexts in the system. Permissions can be assigned to multiple roles to
 		control user access.
 	</p>
 </div>
 
-<div class="card p-4">
-	<h3 class="mb-4 text-lg font-semibold">Add New Permission</h3>
-	<div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-		<input type="text" bind:value={contextId} placeholder="Context ID" class="input" />
-		<select bind:value={action} class="select">
-			{#each permissionActions as perm}
-				<option value={perm}>{perm}</option>
-			{/each}
-		</select>
-		<select bind:value={contextType} class="select">
-			{#each contextTypes as type}
-				<option value={type}>{type}</option>
-			{/each}
-		</select>
-		<input type="text" bind:value={requiredRole} placeholder="Required Role" class="input" />
-	</div>
-	<button on:click={addNewPermission} class="variant-filled-primary btn mt-4">Add Permission</button>
-</div>
-
 <div class="card mt-8 p-4">
 	<h3 class="mb-4 text-lg font-semibold">Existing Permissions</h3>
-	{#if permissionsList.length === 0}
-		<p class="text-tertiary-500 dark:text-primary-500">No permissions defined yet.</p>
+	<div class="mb-4">
+		<input type="text" bind:value={searchTerm} placeholder="Search permissions..." class="input w-full" />
+	</div>
+	{#if filteredPermissions.length === 0}
+		<p class="text-tertiary-500 dark:text-primary-500">
+			{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
+		</p>
 	{:else}
-		<table class="table w-full">
-			<thead>
-				<tr>
-					<th>Context ID</th>
+		<table class="compact table w-full">
+			<thead class="text-tertiary-500 dark:text-primary-500">
+				<tr class="divide-x">
+					<th>Permission ID</th>
 					<th>Action</th>
-					<th>Context Type</th>
-					<th>Required Role</th>
+					<th>Type</th>
+					{#each roles as role}
+						<th>{role}</th>
+					{/each}
 				</tr>
 			</thead>
 			<tbody>
-				{#each permissionsList as permission}
-					<tr>
+				{#each filteredPermissions as permission}
+					<tr class="divide-x">
 						<td>{permission.contextId}</td>
 						<td>{permission.action}</td>
 						<td>{permission.contextType}</td>
-						<td>{permission.requiredRole}</td>
+						{#each roles as role}
+							<td class="text-center">
+								<input
+									type="checkbox"
+									checked={permission.requiredRole
+										.split(',')
+										.map((r) => r.trim())
+										.includes(role)}
+									on:change={() => toggleRole(permission, role)}
+								/>
+							</td>
+						{/each}
 					</tr>
 				{/each}
 			</tbody>
 		</table>
+	{/if}
+
+	{#if modifiedPermissions.size > 0}
+		<div class="mt-4 text-right">
+			<button on:click={saveChanges} class="variant-filled-primary btn">
+				Save Changes ({modifiedPermissions.size})
+			</button>
+		</div>
 	{/if}
 </div>

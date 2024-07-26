@@ -51,8 +51,8 @@ export async function load(event) {
 			logger.warn('Invalid session, redirecting to login');
 			throw redirect(302, `/login`);
 		}
-        let {_id,...rest} = user;
-		return { user:{_id:_id.toString(),...rest}, addUserForm, changePasswordForm, isFirstUser };
+		let { _id, ...rest } = user;
+		return { user: { _id: _id.toString(), ...rest }, addUserForm, changePasswordForm, isFirstUser };
 	} catch (err) {
 		logger.error('Error during load function:', err as Error);
 		throw redirect(302, `/login`);

@@ -166,7 +166,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		// Validate the user's session
 		const user = await auth.validateSession({ session_id });
 		const collections = await getCollections();
-		let firstCollection = Object.keys(collections)[0];
+		const firstCollection = Object.keys(collections)[0];
 		redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 	}
 };

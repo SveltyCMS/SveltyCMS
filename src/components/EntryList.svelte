@@ -32,9 +32,6 @@
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
 
-	// System logger
-	import { logger } from '@src/utils/logger';
-
 	const flipDurationMs = 300;
 
 	function handleDndConsider(event: CustomEvent<{ items: any[] }>) {
@@ -148,7 +145,7 @@
 				clearTimeout(loadingTimer);
 			} catch (error) {
 				const err = error as Error;
-				logger.error(`'Error fetching data: ${err.message}`);
+				console.log(`'Error fetching data: ${err.message}`);
 
 				isLoading = false;
 				clearTimeout(loadingTimer);
@@ -357,7 +354,7 @@
 				mode.set('view');
 			} catch (error) {
 				const err = error as Error;
-				logger.error(`'Error : ${err.message}`);
+				console.log(`'Error : ${err.message}`);
 			}
 		};
 

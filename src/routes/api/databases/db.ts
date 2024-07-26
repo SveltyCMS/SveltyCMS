@@ -144,7 +144,6 @@ async function initializeAdapters() {
 			logger.error(errorMsg);
 			throw new Error(errorMsg);
 		}
-		
 
 		isInitialized = true; // Mark as initialized
 		logger.debug('Adapters initialized successfully');
@@ -194,21 +193,21 @@ export async function getCollectionModels() {
 
 // Google OAuth2 - optional authentication
 //let googleAuth: any = null;
-async function googleAuth(){
-if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
-	const { google } = await import('googleapis');
-	logger.debug('Setting up Google OAuth2...');
-	const oauth2Client = new google.auth.OAuth2(
-		privateEnv.GOOGLE_CLIENT_ID,
-		privateEnv.GOOGLE_CLIENT_SECRET,
-		`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
-	);
+async function googleAuth() {
+	if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
+		const { google } = await import('googleapis');
+		logger.debug('Setting up Google OAuth2...');
+		const oauth2Client = new google.auth.OAuth2(
+			privateEnv.GOOGLE_CLIENT_ID,
+			privateEnv.GOOGLE_CLIENT_SECRET,
+			`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
+		);
 
-	return oauth2Client;
-	logger.debug('Google OAuth2 setup complete.');
-} else {
-	logger.warn('Google client ID and secret not provided. Google OAuth will not be available.');
-}
+		return oauth2Client;
+		logger.debug('Google OAuth2 setup complete.');
+	} else {
+		logger.warn('Google client ID and secret not provided. Google OAuth will not be available.');
+	}
 }
 // Export collections and auth objects
 export { collectionsModels, auth, googleAuth, initializationPromise, dbAdapter, authAdapter };

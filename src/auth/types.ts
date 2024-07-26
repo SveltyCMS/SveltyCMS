@@ -29,7 +29,7 @@ export type ContextType = (typeof contextTypes)[number] | string;
 
 // Define the type for a PermissionConfig
 export interface PermissionConfig {
-	contextId: string;
+	contextId: string; // This could be a collectionId or widgetId indicating scope
 	requiredRole: string; // The role that is required to perform the action
 	action: PermissionAction; // The action that the role is allowed to perform
 	contextType: ContextType; // The type of context that the role is allowed to perform the action in
@@ -37,10 +37,10 @@ export interface PermissionConfig {
 
 // Permission interface to define what each permission can do
 export interface Permission {
-	permission_id: string;
-	action: PermissionAction;
+	permission_id: string; // Unique identifier for the permission
+	action: PermissionAction; // The action that the role is allowed to perform
 	contextId: string; // This could be a collectionId or widgetId indicating scope
-	description?: string;
+	description?: string; // Description of the permission
 	contextType: ContextType; // Distinguishes between collections and widgets
 	requiredRole: string; // The role that is required to perform the action
 	requires2FA?: boolean; // Indicates if this permission requires two-factor authentication
@@ -106,8 +106,8 @@ export interface Token {
 
 // Collection interface to encapsulate permissions specific to collections.
 export interface Collection {
-	collection_id: string;
-	name: string;
+	collection_id: string; // Unique identifier for the collection
+	name: string; // Name of the collection
 	permissions: Permission[]; // Permissions specific to this collection
 }
 

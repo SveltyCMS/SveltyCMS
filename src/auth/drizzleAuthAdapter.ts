@@ -4,7 +4,7 @@ import type { User, Session, Token, Role, Permission } from './types';
 import crypto from 'crypto';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+// import { logger } from '@src/utils/logger';
 
 export class DrizzleAuthAdapter implements authDBInterface {
 	async createUser(userData: Partial<User>): Promise<User> {
@@ -12,8 +12,10 @@ export class DrizzleAuthAdapter implements authDBInterface {
 		return user;
 	}
 
-	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
+	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
 		await db.update('users').set(attributes).where({ user_id });
+		const updatedUser = await db.select().from('users').where({ user_id }).one();
+		return updatedUser;
 	}
 
 	async deleteUser(user_id: string): Promise<void> {
