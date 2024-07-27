@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { publicEnv } from '@root/config/public';
 	import { page } from '$app/stores';
 	import { theme, previewTheme } from '../stores/themeStore';
@@ -24,42 +25,40 @@
 	let currentTheme: string;
 	let currentPreviewTheme: string | null;
 
-	// Default theme set to SveltyCMSTheme
-	const defaultTheme = 'SveltyCMSTheme';
-	theme.set(defaultTheme);
-
-	// Import the default theme CSS
-	import '../themes/SveltyCMS/SveltyCMSTheme.css';
+	onMount(async () => {
+		try {
+			const response = await fetch('/api/theme/default');
+			const defaultTheme = await response.json();
+			if (defaultTheme) {
+				theme.set(defaultTheme.name);
+				await import(/* @vite-ignore */ defaultTheme.path);
+				console.log(`Default theme '${defaultTheme.name}' loaded from database.`);
+			} else {
+				console.warn('No default theme found in database. Using SveltyCMSTheme as fallback.');
+				theme.set('SveltyCMSTheme');
+				await import('../themes/SveltyCMS/SveltyCMSTheme.css');
+			}
+		} catch (error) {
+			console.error('Failed to load default theme:', error);
+			console.warn('Using SveltyCMSTheme as fallback due to error.');
+			theme.set('SveltyCMSTheme');
+			await import('../themes/SveltyCMS/SveltyCMSTheme.css');
+		}
+	});
 
 	theme.subscribe((value) => {
 		currentTheme = value;
-		// loadThemeCSS(currentTheme);
 		document.documentElement.setAttribute('data-theme', currentTheme);
 	});
 
 	previewTheme.subscribe((value) => {
 		currentPreviewTheme = value;
 		if (currentPreviewTheme) {
-			// loadThemeCSS(currentPreviewTheme);
 			document.documentElement.setAttribute('data-preview-theme', currentPreviewTheme);
 		} else {
 			document.documentElement.removeAttribute('data-preview-theme');
 		}
 	});
-
-	// function loadThemeCSS(themeName: string) {
-	//     switch(themeName) {
-	//         case 'SveltyCMSTheme':
-	//             import('../themes/SveltyCMS/SveltyCMSTheme.css');
-	//             break;
-	//         // For custom themes, we can use a pattern to load them dynamically
-	//         default:
-	//             const customThemePath = `../themes/custom/${themeName}/theme.css`;
-	//             import(customThemePath)
-	//                 .then(() => console.log(`${themeName} theme loaded successfully.`))
-	//                 .catch(err => console.error(`Failed to load custom theme ${themeName}:`, err));
-	//     }
-	// }
 </script>
 
 <svelte:head>

@@ -5,6 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
+import { setLoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
@@ -30,13 +31,17 @@ let isInitialized = false;
 async function loadAdapters() {
 	try {
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			logger.debug('Detected mongodb database as the database type.');
+			logger.debug('Loading MongoDB adapters...');
 
-			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/mongoDBAuthAdapter')]);
+			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([
+				import('./mongoDBAdapter'),
+				import('@src/auth/mongoDBAuth/mongoDBAuthAdapter')
+			]);
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
+			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
-			logger.debug('Detected SQL database as the database type.');
+			logger.debug('Loading SQL adapters...');
 
 			// Uncomment and ensure these adapters are correctly implemented
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
@@ -45,13 +50,14 @@ async function loadAdapters() {
 			// ]);
 			// dbAdapter = new DrizzleDBAdapter();
 			// authAdapter = new DrizzleAuthAdapter();
+			throw new Error('SQL adapters not implemented yet');
 		} else {
-			throw new Error('Unsupported DB_TYPE specified in environment variables');
+			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error loading adapters: ${err.message}`, { name: err.name, message: err.message });
-		throw error;
+		logger.error(`Error loading adapters: ${err.message}`, { error: err });
+		throw err;
 	}
 }
 
@@ -99,59 +105,49 @@ async function initializeAdapters() {
 
 	try {
 		logger.debug('Starting to load adapters...');
-		const loadAdaptersStart = Date.now();
 		await loadAdapters();
-		logger.debug(`Adapters loaded in ${Date.now() - loadAdaptersStart}ms`);
-
-		logger.debug('Starting to connect to the database...');
-		const connectToDatabaseStart = Date.now();
 		await connectToDatabase();
-		logger.debug(`Database connected in ${Date.now() - connectToDatabaseStart}ms`);
 
-		// Initialize collections
 		logger.debug('Initializing collections...');
-		const initCollectionsStart = Date.now();
 		await updateCollections();
 		const collections = await getCollections();
-		logger.debug(`Collections initialized in ${Date.now() - initCollectionsStart}ms`);
 
 		if (Object.keys(collections).length === 0) {
 			throw new Error('No collections found after initialization');
 		}
 
 		if (dbAdapter) {
-			logger.debug('Setting up authentication models...');
-			const setupAuthModelsStart = Date.now();
 			await dbAdapter.setupAuthModels();
-			logger.debug(`Authentication models set up in ${Date.now() - setupAuthModelsStart}ms`);
-
-			logger.debug('Setting up media models...');
-			const setupMediaModelsStart = Date.now();
 			await dbAdapter.setupMediaModels();
-			logger.debug(`Media models set up in ${Date.now() - setupMediaModelsStart}ms`);
-
-			logger.debug('Setting up collection models...');
-			const setupCollectionModelsStart = Date.now();
-			await dbAdapter.getCollectionModels(); // Changed from getCollectionModels to use dbAdapter
-			logger.debug(`Collection models set up in ${Date.now() - setupCollectionModelsStart}ms`);
+			await dbAdapter.getCollectionModels();
+		} else {
+			throw new Error('Database adapter not initialized');
 		}
 
 		if (authAdapter) {
 			auth = new Auth(authAdapter);
 			logger.debug('Authentication adapter initialized.');
+
+			// Initialize default roles and permissions
+			await authAdapter.initializeDefaultRolesAndPermissions();
+			logger.info('Default roles and permissions initialized.');
+
+			// Load roles and permissions after initialization
+			const roles = await authAdapter.getAllRoles();
+			const permissions = await authAdapter.getAllPermissions();
+			setLoadedRolesAndPermissions(roles, permissions);
+			logger.info('Roles and permissions loaded.');
 		} else {
-			const errorMsg = 'Authentication adapter not initialized';
-			logger.error(errorMsg);
-			throw new Error(errorMsg);
+			throw new Error('Authentication adapter not initialized');
 		}
 
 		isInitialized = true; // Mark as initialized
-		logger.debug('Adapters initialized successfully');
+		logger.info('Adapters initialized successfully');
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error initializing adapters: ${err.message}`, { name: err.name, message: err.message });
+		logger.error(`Error initializing adapters: ${err.message}`, { error: err });
 		initializationPromise = null; // Reset promise on error to retry initialization if needed
-		throw error;
+		throw err;
 	}
 }
 
@@ -176,19 +172,18 @@ export async function getCollectionModels() {
 		logger.error(errorMsg);
 		throw new Error(errorMsg);
 	}
-	logger.info('Fetching collection models...');
 
 	try {
+		logger.debug('Fetching collection models...');
 		const models = await dbAdapter.getCollectionModels();
 		Object.assign(collectionsModels, models);
-		logger.debug('Collection models fetched successfully', { collectionsModels });
+		logger.debug('Collection models fetched successfully', { modelCount: Object.keys(models).length });
+		return collectionsModels;
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error fetching collection models: ${err.message}`, { name: err.name, message: err.message });
-		throw error;
+		logger.error(`Error fetching collection models: ${err.message}`, { error: err });
+		throw err;
 	}
-
-	return collectionsModels;
 }
 
 // Google OAuth2 - optional authentication
