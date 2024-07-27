@@ -27,6 +27,10 @@ const schema: Schema = {
 		},
 		user: {
 			read: true
+		},
+		admin:{
+			read:true,
+			write:true
 		}
 	},
 

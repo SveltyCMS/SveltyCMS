@@ -1,7 +1,7 @@
 <script lang="ts">
 	// Auth
-	import { roles } from '@src/auth/types';
-
+	import { getLoadedRoles } from '@src/auth/types';
+	const roles = getLoadedRoles();
 	export let value: string;
 
 	const classes = `${

@@ -17,6 +17,7 @@
 
 	// Paraglide JS
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
+	import { DEFAULT_THEME } from '@src/utils/utils';
 
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
@@ -29,6 +30,9 @@
 	export let data: PageData;
 
 	onMount(async () => {
+		if (!data || !data.theme) {
+			data.theme = DEFAULT_THEME;
+		}
 		theme.set(data.theme.name);
 		await import(/* @vite-ignore */ data.theme.path);
 		console.log(`Theme '${data.theme.name}' loaded.`);

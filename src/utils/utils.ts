@@ -1066,3 +1066,8 @@ function hex(buffer) {
 
 	return digest;
 }
+
+export const DEFAULT_THEME = {
+	name: 'SveltyCMSTheme',
+	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css'
+};
