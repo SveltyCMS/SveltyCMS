@@ -8,9 +8,6 @@ import type { Unsubscriber } from 'svelte/store';
 import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
 
-// Auth
-import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuth/mongoDBAuthAdapter';
-
 // System Logs
 import { logger } from '@src/utils/logger';
 
@@ -106,6 +103,10 @@ export class MongoDBAdapter implements dbInterface {
 				});
 				// Inform about successful connection
 				logger.debug(`MongoDB adapter connected successfully to ${privateEnv.DB_NAME}`);
+
+				// Initialize default theme after successful connection
+				await this.initializeDefaultTheme();
+
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
@@ -121,6 +122,48 @@ export class MongoDBAdapter implements dbInterface {
 				// Wait before retrying only if more attempts remain
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
 			}
+		}
+	}
+
+	// Add this method to your MongoDBAdapter class
+
+	async initializeDefaultTheme(): Promise<void> {
+		try {
+			const themes = await this.getAllThemes();
+
+			if (themes.length === 0) {
+				// If no themes exist, create the default SveltyCMS theme
+				const defaultTheme = {
+					name: 'SveltyCMSTheme',
+					path: '/themes/SveltyCMS/SveltyCMSTheme.css',
+					isDefault: true
+				};
+
+				await this.storeThemes([defaultTheme]);
+				logger.info('Default SveltyCMS theme created successfully.');
+			} else {
+				// If themes exist but no default is set, set the SveltyCMS theme as default
+				const sveltyCMSTheme = themes.find((theme) => theme.name === 'SveltyCMSTheme');
+				if (sveltyCMSTheme) {
+					if (!sveltyCMSTheme.isDefault) {
+						await this.setDefaultTheme('SveltyCMSTheme');
+						logger.info('SveltyCMS theme set as default.');
+					}
+				} else {
+					// If SveltyCMS theme doesn't exist, create it
+					const defaultTheme = {
+						name: 'SveltyCMSTheme',
+						path: '/themes/SveltyCMS/SveltyCMSTheme.css',
+						isDefault: true
+					};
+					await this.storeThemes([defaultTheme]);
+					logger.info('SveltyCMS theme created and set as default.');
+				}
+			}
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error initializing default theme: ${err.message}`);
+			throw new Error(`Error initializing default theme: ${err.message}`);
 		}
 	}
 

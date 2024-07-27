@@ -3,6 +3,7 @@
 	import { publicEnv } from '@root/config/public';
 	import { page } from '$app/stores';
 	import { theme, previewTheme } from '../stores/themeStore';
+	import type { PageData } from './$types';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -25,25 +26,12 @@
 	let currentTheme: string;
 	let currentPreviewTheme: string | null;
 
+	export let data: PageData;
+
 	onMount(async () => {
-		try {
-			const response = await fetch('/api/theme/default');
-			const defaultTheme = await response.json();
-			if (defaultTheme) {
-				theme.set(defaultTheme.name);
-				await import(/* @vite-ignore */ defaultTheme.path);
-				console.log(`Default theme '${defaultTheme.name}' loaded from database.`);
-			} else {
-				console.warn('No default theme found in database. Using SveltyCMSTheme as fallback.');
-				theme.set('SveltyCMSTheme');
-				await import('../themes/SveltyCMS/SveltyCMSTheme.css');
-			}
-		} catch (error) {
-			console.error('Failed to load default theme:', error);
-			console.warn('Using SveltyCMSTheme as fallback due to error.');
-			theme.set('SveltyCMSTheme');
-			await import('../themes/SveltyCMS/SveltyCMSTheme.css');
-		}
+		theme.set(data.theme.name);
+		await import(/* @vite-ignore */ data.theme.path);
+		console.log(`Theme '${data.theme.name}' loaded.`);
 	});
 
 	theme.subscribe((value) => {

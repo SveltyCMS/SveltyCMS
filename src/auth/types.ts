@@ -145,6 +145,16 @@ export type Cookie = {
 	};
 };
 
+// Theme interface
+export interface Theme {
+	theme_id: string; // Unique identifier for the theme
+	name: string; // Name of the theme
+	path: string; // Path to the theme file
+	isDefault: boolean; // Indicates if this is the default theme
+	createdAt: Date; // When the theme was created
+	updatedAt: Date; // When the theme was last updated
+}
+
 // Utility function to check if the action is within the rate limit.
 function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {
 	const rateLimit = rateLimits?.find((rl) => rl.user_id === user_id && rl.action === action);

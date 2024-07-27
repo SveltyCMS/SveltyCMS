@@ -11,7 +11,7 @@ export interface authDBInterface {
 	getUserCount(filter?: object): Promise<number>;
 
 	// Session Management Methods
-	createSession(data: { user_id: string; expires: number }): Promise<Session>;
+	createSession(data: { user_id: string; expires: number }): Promise<Session & { session_id: string }>;
 	destroySession(session_id: string): Promise<void>;
 	validateSession(session_id: string): Promise<User | null>;
 	invalidateAllUserSessions(user_id: string): Promise<void>;

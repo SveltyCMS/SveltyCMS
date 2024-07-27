@@ -132,7 +132,6 @@
 		"graphql-yoga": "^5.6.2",
 		"htmlparser2": "^9.1.0",
 		"iconify-icon": "^2.1.0",
-		"ioredis": "^5.4.1",
 		"mapbox-gl": "^3.5.2",
 		"mariadb": "^3.3.1",
 		"mime-types": "^2.1.35",

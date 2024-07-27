@@ -5,7 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions } from '@src/auth/types';
+import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
@@ -135,7 +135,15 @@ async function initializeAdapters() {
 			// Load roles and permissions after initialization
 			const roles = await authAdapter.getAllRoles();
 			const permissions = await authAdapter.getAllPermissions();
-			setLoadedRolesAndPermissions(roles, permissions);
+
+			// Create a LoadedRolesAndPermissions object
+			const loadedData: LoadedRolesAndPermissions = {
+				roles,
+				permissions
+			};
+
+			// Pass the single object to setLoadedRolesAndPermissions
+			setLoadedRolesAndPermissions(loadedData);
 			logger.info('Roles and permissions loaded.');
 		} else {
 			throw new Error('Authentication adapter not initialized');

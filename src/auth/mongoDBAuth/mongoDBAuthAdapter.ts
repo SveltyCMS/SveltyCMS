@@ -195,7 +195,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Create a new session for a user
-	async createSession(data: { user_id: string; expires: number }): Promise<Session> {
+	async createSession(data: { user_id: string; expires: number }): Promise<Session & { session_id: string }> {
 		try {
 			const expiresAt = new Date(Date.now() + data.expires);
 			const session = new SessionModel({
@@ -204,7 +204,11 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			});
 			await session.save();
 			logger.debug(`Session created for user: ${data.user_id}, expires at: ${expiresAt}`);
-			return session.toObject() as Session;
+			const sessionObject = session.toObject();
+			return {
+				...sessionObject,
+				session_id: sessionObject._id.toString() // Explicitly set session_id
+			};
 		} catch (error) {
 			logger.error(`Failed to create session: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;

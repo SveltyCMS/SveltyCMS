@@ -112,19 +112,24 @@ export class Auth {
 			throw new Error('user_id is required to create a session');
 		}
 
-		logger.debug(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+		try {
+			logger.debug(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
 
-		expires = isExtended ? expires * 2 : expires;
-		logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
-		const session = await this.db.createSession({ user_id, expires });
+			expires = isExtended ? expires * 2 : expires;
+			logger.info(`Creating session for user ID: ${user_id} with expiry: ${expires}`);
+			const session = await this.db.createSession({ user_id, expires });
 
-		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
-		return session;
-	}
-	catch(error) {
-		const err = error as Error;
-		logger.error(`Failed to create session: ${err.message}`);
-		throw new Error(`Failed to create session: ${err.message}`);
+			if (!session || !session.session_id) {
+				throw new Error('Session creation failed: No session ID returned');
+			}
+
+			logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
+			return session;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to create session: ${err.message}`);
+			throw new Error(`Failed to create session: ${err.message}`);
+		}
 	}
 
 	// Check if a user exists by ID or email
