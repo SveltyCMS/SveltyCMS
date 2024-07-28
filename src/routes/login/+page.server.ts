@@ -1,5 +1,6 @@
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import crypto from 'crypto';
 
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
@@ -411,38 +412,48 @@ async function signIn(
 
 // Function create a new OTHER USER account and creating a session.
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}, cookies: ${JSON.stringify(cookies)}`);
+	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
-	const user = await auth.createUser({
-		password,
-		email,
-		username,
-		role: 'admin',
-		lastAuthMethod: 'password',
-		isRegistered: true
-	});
+	try {
+		const user = await auth.createUser({
+			password,
+			email,
+			username,
+			role: 'admin',
+			lastAuthMethod: 'password',
+			isRegistered: true,
+			failedAttempts: 0
+		});
 
-	if (!user) {
-		logger.error('User creation failed');
-		return { status: false, message: 'User does not exist' };
+		if (!user || !user._id) {
+			logger.error('User creation failed: No user ID returned');
+			return { status: false, message: 'Failed to create user' };
+		}
+
+		// Generate a device ID (you can use any method to generate a unique ID)
+		const device_id = crypto.randomUUID();
+
+		// Create User Session
+		const session = await auth.createSession({ user_id: user._id, device_id, expires: 3600000 });
+		if (!session || !session.session_id) {
+			logger.error('Session creation failed');
+			return { status: false, message: 'Failed to create session' };
+		}
+		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user._id}`);
+
+		// Create session cookie and set it
+		const sessionCookie = auth.createSessionCookie(session);
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
+		return { status: true };
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Failed to create first user: ${err.message}`);
+		return { status: false, message: `Failed to create user: ${err.message}` };
 	}
-
-	// Create User Session
-	const session = await auth.createSession({ user_id: user._id, expires: 3600000 }); // Ensure expires is provided
-	if (!session || !session.session_id) {
-		logger.error('Session creation failed');
-		return { status: false, message: 'Failed to create session' };
-	}
-	logger.info(`Session created with ID: ${session.session_id} for user ID: ${user._id}`);
-
-	// Create session cookie and set it
-	const sessionCookie = auth.createSessionCookie(session);
-	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-
-	return { status: true };
 }
 
 // Function create a new OTHER USER account and creating a session.

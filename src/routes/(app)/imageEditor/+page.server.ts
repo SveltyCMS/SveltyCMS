@@ -7,9 +7,12 @@ import { redirect, error } from '@sveltejs/kit';
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
+// Logger
+import { logger } from '@src/utils/logger';
+
 export async function load(event: any) {
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
@@ -33,7 +36,7 @@ export async function load(event: any) {
 
 	// Check if `auth` is initialized
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
@@ -64,7 +67,7 @@ export async function load(event: any) {
 			throw new Error('File not found');
 		}
 	} catch (err) {
-		console.error('Error loading file:', err);
+		logger.error('Error loading file:', err);
 		return {
 			status: 404,
 			error: 'File not found'

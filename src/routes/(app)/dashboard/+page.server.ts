@@ -4,10 +4,13 @@ import { redirect, error } from '@sveltejs/kit';
 import { auth, initializationPromise } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
+// Logger
+import { logger } from '@src/utils/logger';
+
 export async function load({ cookies }) {
 	await initializationPromise;
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
@@ -24,14 +27,14 @@ export async function load({ cookies }) {
 			session_id = sessionCookie.value;
 			// console.log('New session created:', session_id);
 		} catch (e) {
-			console.error('Failed to create a new session:', e);
+			logger.error('Failed to create a new session:', e);
 			throw error(500, 'Internal Server Error');
 		}
 	}
 
 	// Check if `auth` is initialized
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
@@ -42,8 +45,8 @@ export async function load({ cookies }) {
 	if (!user) {
 		throw redirect(302, `/login`);
 	}
-	let { _id, ...rest } = user;
-	console.log(rest);
+	const { _id, ...rest } = user;
+	logger.debug(rest);
 	// Return user data
 	return {
 		_id: _id.toString(),

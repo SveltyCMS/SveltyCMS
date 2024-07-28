@@ -1,6 +1,6 @@
 import { db } from '@api/databases/drizzleDBAdapter';
-import type { authDBInterface } from './authDBInterface';
-import type { User, Session, Token, Role, Permission } from './types';
+import type { authDBInterface } from '../authDBInterface';
+import type { User, Session, Token, Role, Permission } from '../types';
 import crypto from 'crypto';
 
 // Import logger
