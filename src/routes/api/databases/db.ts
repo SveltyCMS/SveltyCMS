@@ -5,7 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
+import { setLoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
