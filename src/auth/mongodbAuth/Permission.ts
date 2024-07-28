@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import { PermissionAction, type Permission } from '../types';
 
 // Define the Permission schema
-const PermissionSchema = new Schema(
+export const PermissionSchema = new Schema(
 	{
 		name: { type: String, required: true }, // Name of the permission, required field
 		action: { type: String, enum: Object.values(PermissionAction), required: true }, // Action of the permission, required field

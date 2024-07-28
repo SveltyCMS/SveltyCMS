@@ -9,8 +9,8 @@ import { google } from 'googleapis';
 // Stores
 import { systemLanguage } from '@stores/store';
 
-// Import logger
-import { logger } from '@src/utils/logger';
+// System Logs
+import logger from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';

@@ -1,8 +1,8 @@
-// System Logs
-import { logger } from '@src/utils/logger';
-
 import { exec } from 'child_process';
 import fs from 'fs';
+
+// System Logs
+import logger from '@src/utils/logger';
 
 let files: Array<string> = [];
 let saveFiles: Array<string> = [];

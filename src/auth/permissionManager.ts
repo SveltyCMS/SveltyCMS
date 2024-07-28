@@ -10,6 +10,7 @@ export function addPermission(context_id: string, action: PermissionAction, requ
 	if (!existingPermission) {
 		const newPermission: Permission = {
 			permission_id: typeof window === 'undefined' ? crypto.randomUUID() : self.crypto.randomUUID(),
+			name: 'admin',
 			action,
 			contextId: context_id,
 			contextType,

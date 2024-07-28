@@ -20,8 +20,8 @@ import type { User } from '@src/auth/types';
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
-// Import logger
-import { logger } from '@src/utils/logger';
+// System Logs
+import logger from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete

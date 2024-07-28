@@ -5,7 +5,7 @@ import { dbAdapter, getCollectionModels } from '../databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

@@ -4,8 +4,8 @@ import { redirect, error } from '@sveltejs/kit';
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// Logger
-import { logger } from '@src/utils/logger';
+// System Logs
+import logger from '@src/utils/logger';
 
 export async function load({ cookies }) {
 	if (!auth) {

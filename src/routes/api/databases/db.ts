@@ -12,7 +12,7 @@ import type { dbInterface } from '@api/databases/dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;

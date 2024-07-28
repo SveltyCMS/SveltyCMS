@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import type { User } from '../types';
 
 // Define the User schema
-const UserSchema = new Schema(
+export const UserSchema = new Schema(
 	{
 		email: { type: String, required: true, unique: true }, // User's email, required field
 		password: { type: String }, // User's password, optional field

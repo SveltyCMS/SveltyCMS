@@ -152,22 +152,6 @@ export type Cookie = {
 	};
 };
 
-// Utility function to check if a user has a specific permission in a given context.
-function hasUserPermission(user: User, action: PermissionAction, contextId: string): boolean {
-	return (
-		user.permissions?.some(
-			(permission) => permission.action === action && (permission.contextId === contextId || permission.contextId === 'global')
-		) ?? false
-	);
-}
-
-// Utility function to check if a role has a specific permission in a given context.
-function hasRolePermission(role: Role, action: PermissionAction, contextId: string): boolean {
-	return role.permissions.some(
-		(permission) => permission.action === action && (permission.contextId === contextId || permission.contextId === 'global')
-	);
-}
-
 // Utility function to check if the action is within the rate limit.
 function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {
 	const rateLimit = rateLimits?.find((rl) => rl.user_id === user_id && rl.action === action);
@@ -188,7 +172,7 @@ function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: Permis
 }
 
 // Main utility function to check if a user has a specific permission in a given context considering both user and role-based permissions.
-export function hasPermission(user: User, action: PermissionAction, contextId: string, rateLimits: RateLimit[]): boolean {
+export function hasPermission(user: User, roles: Role[], action: PermissionAction, contextId: string, rateLimits: RateLimit[]): boolean {
 	if (!checkRateLimit(rateLimits, user._id!, action)) {
 		return false;
 	}

@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import type { Token } from '../types';
 
 // Define the Token schema
-const TokenSchema = new Schema(
+export const TokenSchema = new Schema(
 	{
 		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field

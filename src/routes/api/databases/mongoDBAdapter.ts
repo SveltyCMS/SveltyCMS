@@ -7,11 +7,14 @@ import type { Unsubscriber } from 'svelte/store';
 // Database
 import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
+
 // Auth
-import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
+import { UserSchema } from '@src/auth/mongodbAuth/User';
+import { SessionSchema } from '@src/auth/mongodbAuth/Session';
+import { TokenSchema } from '@src/auth/mongodbAuth/Token';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Define the media schema (assuming it's defined similarly to other schemas)
 const mediaSchema = new mongoose.Schema(
@@ -127,8 +130,7 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Add this method to your MongoDBAdapter class
-
+	// Initialize default theme
 	async initializeDefaultTheme(): Promise<void> {
 		try {
 			const themes = await this.getAllThemes();
@@ -140,16 +142,19 @@ export class MongoDBAdapter implements dbInterface {
 					path: '/themes/SveltyCMS/SveltyCMSTheme.css',
 					isDefault: true
 				};
-
 				await this.storeThemes([defaultTheme]);
 				logger.info('Default SveltyCMS theme created successfully.');
 			} else {
-				// If themes exist but no default is set, set the SveltyCMS theme as default
+				// Check if SveltyCMSTheme exists
 				const sveltyCMSTheme = themes.find((theme) => theme.name === 'SveltyCMSTheme');
 				if (sveltyCMSTheme) {
+					// Check if the theme is already marked as default
 					if (!sveltyCMSTheme.isDefault) {
-						await this.setDefaultTheme('SveltyCMSTheme');
+						// Update the existing theme to set it as default
+						await Theme.updateOne({ name: 'SveltyCMSTheme' }, { $set: { isDefault: true } });
 						logger.info('SveltyCMS theme set as default.');
+					} else {
+						logger.info('SveltyCMS theme is already set as default.');
 					}
 				} else {
 					// If SveltyCMS theme doesn't exist, create it

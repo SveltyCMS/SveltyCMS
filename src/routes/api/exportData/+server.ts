@@ -12,7 +12,7 @@ import { collections } from '@src/stores/store';
 import { get } from 'svelte/store';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 export const GET: RequestHandler = async ({ cookies }) => {
 	// Get the session cookie.

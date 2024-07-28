@@ -15,7 +15,7 @@ import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {

@@ -5,7 +5,7 @@ import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Function to handle PATCH requests for a specified collection
 export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

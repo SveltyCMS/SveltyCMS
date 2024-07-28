@@ -4,7 +4,7 @@ import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/routes/api/databases/dbInterface';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Define Field type locally if not available in @src/collections/types
 interface Field {

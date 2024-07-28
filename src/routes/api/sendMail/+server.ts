@@ -10,7 +10,7 @@ import forgottenPassword from '@components/emails/forgottenPassword.svelte';
 import updatedPassword from '@components/emails/updatedPassword.svelte';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 import nodemailer from 'nodemailer';
 

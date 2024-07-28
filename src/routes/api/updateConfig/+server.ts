@@ -4,7 +4,7 @@ import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	// Get the data from the request body

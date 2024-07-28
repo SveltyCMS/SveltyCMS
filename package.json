@@ -141,7 +141,6 @@
 		"nodemailer": "^6.9.14",
 		"pdfjs-dist": "^4.5.136",
 		"picocolors": "^1.0.1",
-		"pino": "^9.3.2",
 		"redis": "^4.6.15",
 		"sequelize": "^6.37.3",
 		"serve-static": "^1.15.0",

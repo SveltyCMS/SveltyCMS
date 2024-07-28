@@ -2,7 +2,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import type { Session } from '../types';
 
 // Define the Session schema
-const SessionSchema = new Schema(
+export const SessionSchema = new Schema(
 	{
 		user_id: { type: String, required: true }, // ID of the user who owns the session, required field
 		device_id: { type: String, required: true }, // ID of the device used for the session, required field

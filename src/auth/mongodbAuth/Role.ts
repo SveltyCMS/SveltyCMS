@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 import type { Role } from '../types';
 
 // Define the Role schema
-const RoleSchema = new Schema(
+export const RoleSchema = new Schema(
 	{
 		name: { type: String, required: true }, // Name of the role, required field
 		description: String, // Description of the role, optional field

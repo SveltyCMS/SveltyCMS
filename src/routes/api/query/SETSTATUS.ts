@@ -2,7 +2,7 @@ import type { Schema } from '@src/collections/types';
 import { dbAdapter, getCollectionModels } from '@api/databases/db';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Function to handle SETSTATUS requests for a specified collection
 export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Schema }) => {

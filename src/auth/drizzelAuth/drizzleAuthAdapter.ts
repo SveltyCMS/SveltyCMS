@@ -4,7 +4,7 @@ import type { User, Session, Token, Role, Permission } from '../types';
 import crypto from 'crypto';
 
 // Import logger
-// import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 export class DrizzleAuthAdapter implements authDBInterface {
 	async createUser(userData: Partial<User>): Promise<User> {

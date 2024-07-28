@@ -1,6 +1,5 @@
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
-import deepmerge from 'deepmerge';
 
 import { createCategories } from './config';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
@@ -15,7 +14,7 @@ import { initWidgets } from '@components/widgets';
 import type { Schema, CollectionNames } from './types';
 
 // System logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 let imports = {} as { [key in CollectionNames]: Schema };
 let rnd = Math.random();

@@ -6,8 +6,8 @@ import { PermissionModel } from './Permission';
 
 import crypto from 'crypto';
 
-// Import logger
-import { logger } from '@src/utils/logger';
+// System Logs
+import logger from '@src/utils/logger';
 
 // Import types
 import type { authDBInterface } from '../authDBInterface';
@@ -64,11 +64,9 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			// Check if roles and permissions already exist
 			const existingRoles = await this.getAllRoles();
 			const existingPermissions = await this.getAllPermissions();
-
 			if (existingRoles.length === 0 && existingPermissions.length === 0) {
 				// Create default roles first
 				const createdRoles = await Promise.all(defaultRoles.map((roleData) => this.createRole(roleData as Role)));
-
 				// Now create permissions with the correct requiredRole
 				const adminRole = createdRoles.find((role) => role.name === 'admin');
 				if (!adminRole) throw new Error('Admin role not created');
@@ -78,32 +76,34 @@ export class MongoDBAuthAdapter implements authDBInterface {
 				);
 
 				// Assign permissions to roles
-				for (const role of createdRoles) {
-					if (role.name === 'admin') {
-						// Assign all permissions to admin
-						await Promise.all(createdPermissions.map((perm) => this.assignPermissionToRole(role.role_id, perm.permission_id)));
-					} else if (role.name === 'user') {
-						// Assign only read permission to regular users
-						const readPermission = createdPermissions.find((p) => p.name === 'read_content');
-						if (readPermission) {
-							await this.assignPermissionToRole(role.role_id, readPermission.permission_id);
+				await Promise.all(
+					createdRoles.map(async (role) => {
+						if (role.name === 'admin') {
+							// Assign all permissions to admin
+							await Promise.all(createdPermissions.map((perm) => this.assignPermissionToRole(role.role_id, perm.permission_id)));
+						} else if (role.name === 'user') {
+							// Assign only read permission to regular users
+							const readPermission = createdPermissions.find((p) => p.name === 'read_content');
+							if (readPermission) {
+								await this.assignPermissionToRole(role.role_id, readPermission.permission_id);
+							}
 						}
-					}
-					// Add more role-specific permission assignments as needed
-				}
+						// Add more role-specific permission assignments as needed
+					})
+				);
 
 				logger.info('Default roles and permissions initialized');
 			} else {
 				logger.info('Roles and permissions already exist, skipping initialization');
 			}
 		} catch (error) {
-			logger.error('Error initializing default roles and permissions:', error);
+			logger.error(`Error initializing default roles and permissions: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
 		}
 	}
 
 	// Create a new user
-	async createUser(userData: Omit<User, '_id'>): Promise<User> {
+	async createUser(userData: Partial<User>): Promise<User> {
 		try {
 			const user = new UserModel(userData);
 			await user.save();

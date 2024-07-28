@@ -13,7 +13,7 @@ import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Define connection configuration for MariaDB and PostgreSQL
 const dbConfig = {

@@ -1,12 +1,12 @@
+import { privateEnv } from '@root/config/private';
 import type { Cookie, User, Session, Token } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 // Redis
 import { getCachedSession, setCachedSession, clearCachedSession } from '@api/databases/redis';
 
-// Import logger
-import { logger } from '@src/utils/logger';
-import { privateEnv } from '@root/config/private';
+// System Logs
+import logger from '@src/utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 

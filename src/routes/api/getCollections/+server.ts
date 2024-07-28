@@ -2,7 +2,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { getCollectionFiles } from './getCollectionFiles';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import logger from '@src/utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async () => {

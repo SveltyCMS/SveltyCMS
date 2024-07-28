@@ -9,8 +9,9 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Paraglide JS
 import { contentLanguage } from '@src/stores/store';
 
-// Logger
-import { logger } from '@src/utils/logger';
+// System Logs
+import logger from '@src/utils/logger';
+
 const DEFAULT_THEME = {
 	name: 'SveltyCMSTheme',
 	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
@@ -92,7 +93,7 @@ export async function load({ cookies, route, params }) {
 		}
 		let hasPermission = false;
 		try {
-			hasPermission = collection?.permissions[user.role]['read']
+			hasPermission = collection?.permissions[user.role]['read'];
 		} catch (error) {
 			hasPermission = false;
 		}
