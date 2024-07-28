@@ -4,8 +4,8 @@
 	import '@stores/store';
 
 	// Auth
-	import { roles } from '@src/auth/types';
-
+	import { getLoadedRoles } from '@src/auth/types';
+	const roles = getLoadedRoles();
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 

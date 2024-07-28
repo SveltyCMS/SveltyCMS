@@ -12,7 +12,6 @@ import type { Unsubscriber } from 'svelte/store';
 // Components
 import { initWidgets } from '@components/widgets';
 
-import { defaultPermissions } from '@src/auth/types';
 import type { Schema, CollectionNames } from './types';
 
 // System logger
@@ -153,7 +152,7 @@ async function getImports(recompile: boolean = false): Promise<{ [key in Collect
 		}
 
 		for (const key in imports) {
-			imports[key].permissions = deepmerge(defaultPermissions, imports[key].permissions || {});
+			imports[key].permissions = imports[key].permissions;
 		}
 
 		logger.debug('Imported collections:', { collections: Object.keys(imports) });

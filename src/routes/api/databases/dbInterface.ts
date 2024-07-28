@@ -33,6 +33,12 @@ export interface dbInterface {
 	deactivateWidget(widgetName: string): Promise<void>;
 	updateWidget(widgetName: string, updateData: any): Promise<void>;
 
+	// Theme-related methods
+	setDefaultTheme(themeName: string): Promise<void>;
+	storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void>;
+	getDefaultTheme(): Promise<any>;
+	getAllThemes(): Promise<any[]>;
+
 	// Method for Disconnecting
 	disconnect(): Promise<void>;
 }

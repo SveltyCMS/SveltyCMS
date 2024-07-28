@@ -1,12 +1,12 @@
 import { privateEnv } from '@root/config/private';
+
 // Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
+
 // Database
 import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
-// Auth
-import { UserSchema, SessionSchema, TokenSchema } from '@src/auth/mongoDBAuthAdapter';
 
 // System Logs
 import { logger } from '@src/utils/logger';
@@ -103,6 +103,10 @@ export class MongoDBAdapter implements dbInterface {
 				});
 				// Inform about successful connection
 				logger.debug(`MongoDB adapter connected successfully to ${privateEnv.DB_NAME}`);
+
+				// Initialize default theme after successful connection
+				await this.initializeDefaultTheme();
+
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
@@ -118,6 +122,48 @@ export class MongoDBAdapter implements dbInterface {
 				// Wait before retrying only if more attempts remain
 				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
 			}
+		}
+	}
+
+	// Add this method to your MongoDBAdapter class
+
+	async initializeDefaultTheme(): Promise<void> {
+		try {
+			const themes = await this.getAllThemes();
+
+			if (themes.length === 0) {
+				// If no themes exist, create the default SveltyCMS theme
+				const defaultTheme = {
+					name: 'SveltyCMSTheme',
+					path: '/themes/SveltyCMS/SveltyCMSTheme.css',
+					isDefault: true
+				};
+
+				await this.storeThemes([defaultTheme]);
+				logger.info('Default SveltyCMS theme created successfully.');
+			} else {
+				// If themes exist but no default is set, set the SveltyCMS theme as default
+				const sveltyCMSTheme = themes.find((theme) => theme.name === 'SveltyCMSTheme');
+				if (sveltyCMSTheme) {
+					if (!sveltyCMSTheme.isDefault) {
+						await this.setDefaultTheme('SveltyCMSTheme');
+						logger.info('SveltyCMS theme set as default.');
+					}
+				} else {
+					// If SveltyCMS theme doesn't exist, create it
+					const defaultTheme = {
+						name: 'SveltyCMSTheme',
+						path: '/themes/SveltyCMS/SveltyCMSTheme.css',
+						isDefault: true
+					};
+					await this.storeThemes([defaultTheme]);
+					logger.info('SveltyCMS theme created and set as default.');
+				}
+			}
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error initializing default theme: ${err.message}`);
+			throw new Error(`Error initializing default theme: ${err.message}`);
 		}
 	}
 
@@ -219,7 +265,7 @@ export class MongoDBAdapter implements dbInterface {
 			logger.info('Authentication models set up successfully.');
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to set up authentication models: ${err.message}`);
+			logger.error(`Failed to set up authentication models: ${err.message}`, { error: err });
 			throw new Error(`Failed to set up authentication models: ${err.message}`);
 		}
 	}
@@ -257,13 +303,40 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Store themes in the database
-	async storeThemes(themes: { name: string; path: string }[]): Promise<void> {
+	// Set default theme
+	async setDefaultTheme(themeName: string): Promise<void> {
 		try {
+			// First, unset the current default theme
+			await Theme.updateMany({}, { $set: { isDefault: false } });
+
+			// Then, set the new default theme
+			const result = await Theme.updateOne({ name: themeName }, { $set: { isDefault: true } });
+
+			if (result.modifiedCount === 0) {
+				throw new Error(`Theme with name ${themeName} not found.`);
+			}
+
+			logger.info(`Theme ${themeName} set as default successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error setting default theme: ${err.message}`);
+			throw new Error(`Error setting default theme: ${err.message}`);
+		}
+	}
+
+	// Store themes in the database
+	async storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void> {
+		try {
+			// If there's a default theme in the new themes, unset the current default
+			if (themes.some((theme) => theme.isDefault)) {
+				await Theme.updateMany({}, { $set: { isDefault: false } });
+			}
+
 			await Theme.insertMany(
 				themes.map((theme) => ({
 					name: theme.name,
 					path: theme.path,
+					isDefault: theme.isDefault || false,
 					createdAt: new Date(),
 					updatedAt: new Date()
 				})),
@@ -274,6 +347,33 @@ export class MongoDBAdapter implements dbInterface {
 			const err = error as Error;
 			logger.error(`Error storing themes: ${err.message}`);
 			throw new Error(`Error storing themes: ${err.message}`);
+		}
+	}
+
+	// Fetch default theme
+	async getDefaultTheme(): Promise<any> {
+		try {
+			const defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
+			if (!defaultTheme) {
+				logger.warn('No default theme found.');
+				return null;
+			}
+			return defaultTheme;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching default theme: ${err.message}`);
+			throw new Error(`Error fetching default theme: ${err.message}`);
+		}
+	}
+
+	// Fetch all themes
+	async getAllThemes(): Promise<any[]> {
+		try {
+			return await Theme.find().lean().exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching all themes: ${err.message}`);
+			throw new Error(`Error fetching all themes: ${err.message}`);
 		}
 	}
 
@@ -371,12 +471,18 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing findOne method
 	async findOne(collection: string, query: object): Promise<any> {
-		const model = mongoose.models[collection];
-		if (!model) {
-			logger.error(`findOne failed. Collection ${collection} does not exist.`);
-			throw new Error(`findOne failed. Collection ${collection} does not exist.`);
+		try {
+			const model = mongoose.models[collection];
+			if (!model) {
+				logger.error(`Collection ${collection} does not exist.`);
+				throw new Error(`Collection ${collection} does not exist.`);
+			}
+			return await model.findOne(query).lean().exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error in findOne for collection ${collection}: ${err.message}`, { error: err });
+			throw err;
 		}
-		return model.findOne(query).lean().exec();
 	}
 
 	// Implementing findMany method
@@ -548,7 +654,13 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Disconnect
 	async disconnect(): Promise<void> {
-		await mongoose.disconnect();
-		logger.debug('MongoDB adapter connection closed.');
+		try {
+			await mongoose.disconnect();
+			logger.info('MongoDB adapter connection closed.');
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error disconnecting from MongoDB: ${err.message}`, { error: err });
+			throw err;
+		}
 	}
 }

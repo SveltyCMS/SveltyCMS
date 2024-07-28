@@ -2,7 +2,7 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
-import { auth, googleAuth, initializationPromise } from '@api/databases/db';
+import { auth, googleAuth, initializationPromise, dbAdapter } from '@api/databases/db';
 import type { User } from '@src/auth/types';
 
 // Stores
@@ -17,6 +17,11 @@ import { privateEnv } from '@root/config/private';
 import { getCollections } from '@src/collections';
 import { publicEnv } from '@root/config/public';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+
+const DEFAULT_THEME = {
+	name: 'SveltyCMSTheme',
+	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
+};
 
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
 	try {
@@ -39,6 +44,24 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete
+
+	// Fetch the theme
+	let theme;
+	try {
+		const dbTheme = await dbAdapter.getDefaultTheme();
+		if (dbTheme && dbTheme.name && dbTheme.name !== DEFAULT_THEME.name) {
+			theme = {
+				name: dbTheme.name,
+				path: dbTheme.path
+			};
+		} else {
+			theme = DEFAULT_THEME;
+		}
+	} catch (err) {
+		logger.error('Failed to load theme from database:', err);
+		theme = DEFAULT_THEME;
+	}
+
 	if (privateEnv.USE_GOOGLE_OAUTH && !googleAuth) {
 		logger.error('Authentication system is not initialized');
 		throw new Error('Authentication system is not initialized');
@@ -164,11 +187,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 
 		// Validate the user's session
-		const user = await auth.validateSession({ session_id });
+		await auth.validateSession({ session_id });
 		const collections = await getCollections();
 		const firstCollection = Object.keys(collections)[0];
 		redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 	}
+
+	// Return the theme along with any other data you're already returning
+	return {
+		theme
+	};
 };
 
 export const actions: Actions = {
