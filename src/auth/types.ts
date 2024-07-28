@@ -95,8 +95,7 @@ export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
 	password?: string; // Hashed password of the user
-	role: RoleId; // Role of the user (e.g., admin, developer, editor, user)
-	permissions?: PermissionId[]; // Optional user-specific permissions
+	role: string; // Role of the user (e.g., admin, developer, editor, user)
 	username?: string; // Username of the user
 	firstName?: string; // First name of the user
 	lastName?: string; // Last name of the user
@@ -112,6 +111,7 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	permissions?: Permission[]; // Optional user-specific permissions
 }
 
 // Session interface represents a session in the system.
@@ -151,6 +151,22 @@ export type Cookie = {
 		secure: boolean;
 	};
 };
+
+// Utility function to check if a user has a specific permission in a given context.
+function hasUserPermission(user: User, action: PermissionAction, contextId: string): boolean {
+	return (
+		user.permissions?.some(
+			(permission) => permission.action === action && (permission.contextId === contextId || permission.contextId === 'global')
+		) ?? false
+	);
+}
+
+// Utility function to check if a role has a specific permission in a given context.
+function hasRolePermission(role: Role, action: PermissionAction, contextId: string): boolean {
+	return role.permissions.some(
+		(permission) => permission.action === action && (permission.contextId === contextId || permission.contextId === 'global')
+	);
+}
 
 // Utility function to check if the action is within the rate limit.
 function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {

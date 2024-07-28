@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { roles, permissionActions as PermissionsEnum, icon } from '@src/auth/types';
+	import { PermissionAction as PermissionsEnum, icon } from '@src/auth/types';
 	import type { PermissionAction } from '@src/auth/types';
 
 	import { createEventDispatcher } from 'svelte';

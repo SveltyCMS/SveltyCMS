@@ -3,7 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth, dbAdapter } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -11,6 +11,10 @@ import { contentLanguage } from '@src/stores/store';
 
 // Logger
 import { logger } from '@src/utils/logger';
+const DEFAULT_THEME = {
+	name: 'SveltyCMSTheme',
+	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
+};
 
 export async function load({ cookies, route, params }) {
 	if (!auth) {
@@ -86,14 +90,35 @@ export async function load({ cookies, route, params }) {
 				throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
 			}
 		}
-		if (collection?.permissions[user.role].filter((e) => e.action == 'read').length < 0) {
+		let hasPermission = false;
+		try {
+			hasPermission = collection?.permissions[user.role]['read']
+		} catch (error) {
+			hasPermission = false;
+		}
+		if (!hasPermission) {
 			//if (collection?.permissions?.[user.role]?.read === false) {
 			logger.warn('No Access to this collection');
-			throw error(404, {
+			throw error(401, {
 				message: 'No Access to this collection'
 			});
 		}
 		const { _id, ...rest } = user;
+		let theme;
+		try {
+			const dbTheme = await dbAdapter.getDefaultTheme();
+			if (dbTheme && dbTheme.name && dbTheme.name !== DEFAULT_THEME.name) {
+				theme = {
+					name: dbTheme.name,
+					path: dbTheme.path
+				};
+			} else {
+				theme = DEFAULT_THEME;
+			}
+		} catch (err) {
+			logger.error('Failed to load theme from database:', err);
+			theme = DEFAULT_THEME;
+		}
 		return {
 			user: { _id: _id.toString(), ...rest }
 		};

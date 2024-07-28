@@ -5,7 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions } from '@src/auth/types';
+import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
@@ -40,7 +40,9 @@ async function loadAdapters() {
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
 			logger.info('MongoDB adapters loaded successfully.');
+			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
+			logger.debug('Loading SQL adapters...');
 			logger.debug('Loading SQL adapters...');
 
 			// Uncomment and ensure these adapters are correctly implemented
@@ -51,11 +53,15 @@ async function loadAdapters() {
 			// dbAdapter = new DrizzleDBAdapter();
 			// authAdapter = new DrizzleAuthAdapter();
 			throw new Error('SQL adapters not implemented yet');
+			throw new Error('SQL adapters not implemented yet');
 		} else {
+			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
 	} catch (error) {
 		const err = error as Error;
+		logger.error(`Error loading adapters: ${err.message}`, { error: err });
+		throw err;
 		logger.error(`Error loading adapters: ${err.message}`, { error: err });
 		throw err;
 	}

@@ -1,7 +1,9 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import { publicEnv } from '@root/config/public';
 	import { page } from '$app/stores';
 	import { theme, previewTheme } from '../stores/themeStore';
+	import type { PageData } from './$types';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -15,6 +17,7 @@
 
 	// Paraglide JS
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
+	import { DEFAULT_THEME } from '@src/utils/utils';
 
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
@@ -24,42 +27,30 @@
 	let currentTheme: string;
 	let currentPreviewTheme: string | null;
 
-	// Default theme set to SveltyCMSTheme
-	const defaultTheme = 'SveltyCMSTheme';
-	theme.set(defaultTheme);
+	export let data: PageData;
 
-	// Import the default theme CSS
-	import '../themes/SveltyCMS/SveltyCMSTheme.css';
+	onMount(async () => {
+		if (!data || !data.theme) {
+			data.theme = DEFAULT_THEME;
+		}
+		theme.set(data.theme.name);
+		await import(/* @vite-ignore */ data.theme.path);
+		console.log(`Theme '${data.theme.name}' loaded.`);
+	});
 
 	theme.subscribe((value) => {
 		currentTheme = value;
-		// loadThemeCSS(currentTheme);
 		document.documentElement.setAttribute('data-theme', currentTheme);
 	});
 
 	previewTheme.subscribe((value) => {
 		currentPreviewTheme = value;
 		if (currentPreviewTheme) {
-			// loadThemeCSS(currentPreviewTheme);
 			document.documentElement.setAttribute('data-preview-theme', currentPreviewTheme);
 		} else {
 			document.documentElement.removeAttribute('data-preview-theme');
 		}
 	});
-
-	// function loadThemeCSS(themeName: string) {
-	//     switch(themeName) {
-	//         case 'SveltyCMSTheme':
-	//             import('../themes/SveltyCMS/SveltyCMSTheme.css');
-	//             break;
-	//         // For custom themes, we can use a pattern to load them dynamically
-	//         default:
-	//             const customThemePath = `../themes/custom/${themeName}/theme.css`;
-	//             import(customThemePath)
-	//                 .then(() => console.log(`${themeName} theme loaded successfully.`))
-	//                 .catch(err => console.error(`Failed to load custom theme ${themeName}:`, err));
-	//     }
-	// }
 </script>
 
 <svelte:head>

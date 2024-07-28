@@ -138,6 +138,11 @@ export class Auth {
 		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
 		return session;
 	}
+	catch(error) {
+		const err = error as Error;
+		logger.error(`Failed to create session: ${err.message}`);
+		throw new Error(`Failed to create session: ${err.message}`);
+	}
 
 	// Check if a user exists by ID or email
 	async checkUser(fields: { user_id?: string; email?: string }): Promise<User | null> {

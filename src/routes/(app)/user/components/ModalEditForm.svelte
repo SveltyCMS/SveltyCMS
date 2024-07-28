@@ -18,7 +18,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import { roles, type User } from '@src/auth/types';
+	import { type User } from '@src/auth/types';
 	const user: User = $page.data.user;
 	console.log('User:', user);
 
@@ -32,7 +32,7 @@
 
 	// Form Data
 	const formData = {
-		user_id: isGivenData ? user_id : user?.user_id,
+		user_id: isGivenData ? user_id : user?._id,
 		username: isGivenData ? username : user?.username,
 		email: isGivenData ? email : user?.email,
 		password: '',
@@ -54,7 +54,7 @@
 		// console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
-		if ((isGivenData && user_id != user?.user_id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
+		if ((isGivenData && user_id != user?._id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
 			modalStore.close();
 		} else {
 			console.log('error');
@@ -103,7 +103,7 @@
 					bind:value={formData.username}
 					on:keydown={() => (errorStatus.username.status = false)}
 					required
-					disabled={isGivenData && user_id != user?.user_id}
+					disabled={isGivenData && user_id != user?._id}
 				/>
 				{#if !errorStatus.username.status}
 					<div class="absolute left-0 top-11 text-xs text-error-500">
