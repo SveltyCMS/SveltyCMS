@@ -133,7 +133,9 @@ export class MongoDBAdapter implements dbInterface {
 	// Initialize default theme
 	async initializeDefaultTheme(): Promise<void> {
 		try {
+			logger.debug('Initializing default theme...');
 			const themes = await this.getAllThemes();
+			logger.debug(`Found ${themes.length} themes`);
 
 			if (themes.length === 0) {
 				// If no themes exist, create the default SveltyCMS theme
@@ -360,7 +362,11 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch default theme
 	async getDefaultTheme(): Promise<any> {
 		try {
-			const defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
+			let defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
+			if (!defaultTheme) {
+				logger.warn('No theme with isDefault: true found. Falling back to SveltyCMSTheme.');
+				defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean().exec();
+			}
 			if (!defaultTheme) {
 				logger.warn('No default theme found.');
 				return null;

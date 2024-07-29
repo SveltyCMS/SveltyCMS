@@ -12,7 +12,6 @@ import logger from '@src/utils/logger';
 // Import types
 import type { authDBInterface } from '../authDBInterface';
 import type { User, Session, Token, Role, Permission } from '../types';
-import { PermissionAction, ContextType } from '../types';
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements authDBInterface {
@@ -21,34 +20,38 @@ export class MongoDBAuthAdapter implements authDBInterface {
 		try {
 			const defaultPermissions: Partial<Permission>[] = [
 				{
+					permission_id: 'create_content',
 					name: 'create_content',
-					action: PermissionAction.Create,
+					action: 'create',
 					contextId: 'global',
-					contextType: ContextType.Collection,
+					contextType: 'collection',
 					description: 'Create new content',
 					requiredRole: '' // This will be set after role creation
 				},
 				{
+					permission_id: 'read_content',
 					name: 'read_content',
-					action: PermissionAction.Read,
+					action: 'read',
 					contextId: 'global',
-					contextType: ContextType.Collection,
+					contextType: 'collection',
 					description: 'Read content',
 					requiredRole: '' // This will be set after role creation
 				},
 				{
+					permission_id: 'update_content',
 					name: 'update_content',
-					action: PermissionAction.Write,
+					action: 'write',
 					contextId: 'global',
-					contextType: ContextType.Collection,
+					contextType: 'collection',
 					description: 'Update existing content',
 					requiredRole: '' // This will be set after role creation
 				},
 				{
+					permission_id: 'delete_content',
 					name: 'delete_content',
-					action: PermissionAction.Delete,
+					action: 'delete',
 					contextId: 'global',
-					contextType: ContextType.Collection,
+					contextType: 'collection',
 					description: 'Delete content',
 					requiredRole: '' // This will be set after role creation
 				}
@@ -64,33 +67,32 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			// Check if roles and permissions already exist
 			const existingRoles = await this.getAllRoles();
 			const existingPermissions = await this.getAllPermissions();
+
+			logger.debug(`Existing roles: ${existingRoles.length}, Existing permissions: ${existingPermissions.length}`);
+
+			// If no roles or permissions exist, create them
 			if (existingRoles.length === 0 && existingPermissions.length === 0) {
 				// Create default roles first
 				const createdRoles = await Promise.all(defaultRoles.map((roleData) => this.createRole(roleData as Role)));
-				// Now create permissions with the correct requiredRole
+				logger.debug(`Created ${createdRoles.length} roles`);
+
+				// Now create permissions
+				const createdPermissions = await Promise.all(defaultPermissions.map((perm) => this.createPermission(perm as Permission)));
+				logger.debug(`Created ${createdPermissions.length} permissions`);
+
+				// Find the admin role
 				const adminRole = createdRoles.find((role) => role.name === 'admin');
-				if (!adminRole) throw new Error('Admin role not created');
 
-				const createdPermissions = await Promise.all(
-					defaultPermissions.map((perm) => this.createPermission({ ...perm, requiredRole: adminRole.role_id } as Permission))
-				);
-
-				// Assign permissions to roles
-				await Promise.all(
-					createdRoles.map(async (role) => {
-						if (role.name === 'admin') {
-							// Assign all permissions to admin
-							await Promise.all(createdPermissions.map((perm) => this.assignPermissionToRole(role.role_id, perm.permission_id)));
-						} else if (role.name === 'user') {
-							// Assign only read permission to regular users
-							const readPermission = createdPermissions.find((p) => p.name === 'read_content');
-							if (readPermission) {
-								await this.assignPermissionToRole(role.role_id, readPermission.permission_id);
-							}
-						}
-						// Add more role-specific permission assignments as needed
-					})
-				);
+				if (adminRole) {
+					logger.debug(`Admin role found with ID: ${adminRole.role_id}`);
+					// Assign all permissions to admin
+					for (const perm of createdPermissions) {
+						await this.assignPermissionToRole(adminRole.role_id, perm.permission_id);
+						logger.debug(`Permission ${perm.permission_id} assigned to role ${adminRole.role_id}`);
+					}
+				} else {
+					throw new Error('Admin role not created');
+				}
 
 				logger.info('Default roles and permissions initialized');
 			} else {
@@ -421,12 +423,13 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Create a new role
-	async createRole(roleData: Role): Promise<Role> {
+	async createRole(roleData: Partial<Role>): Promise<Role> {
 		try {
+			logger.debug(`Creating role: ${JSON.stringify(roleData)}`);
 			const role = new RoleModel(roleData);
 			await role.save();
-			logger.debug(`Role created: ${role.name}`);
-			return role.toObject() as Role;
+			logger.info(`Role created: ${role.name} with ID: ${role._id}`);
+			return role.toObject();
 		} catch (error) {
 			logger.error(`Failed to create role: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
@@ -492,12 +495,13 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Create a new permission
-	async createPermission(permissionData: Permission): Promise<Permission> {
+	async createPermission(permissionData: Partial<Permission>): Promise<Permission> {
 		try {
+			logger.debug(`Creating permission: ${JSON.stringify(permissionData)}`);
 			const permission = new PermissionModel(permissionData);
 			await permission.save();
-			logger.debug(`Permission created: ${permission.name}`);
-			return permission.toObject() as Permission;
+			logger.info(`Permission created: ${permission.name} with ID: ${permission._id}`);
+			return permission.toObject();
 		} catch (error) {
 			logger.error(`Failed to create permission: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
@@ -649,10 +653,38 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	// Assign a permission to a role
 	async assignPermissionToRole(role_id: string, permission_id: string): Promise<void> {
 		try {
-			await RoleModel.updateOne({ _id: role_id }, { $addToSet: { permissions: permission_id } });
-			logger.debug(`Permission ${permission_id} assigned to role ${role_id}`);
+			logger.debug(`Attempting to assign permission ${permission_id} to role ${role_id}`);
+
+			// First, check if the role exists
+			const roleExists = await RoleModel.exists({ _id: role_id });
+			if (!roleExists) {
+				logger.warn(`Role ${role_id} not found when assigning permission ${permission_id}`);
+				throw new Error(`Role ${role_id} not found`);
+			}
+
+			// Then, check if the permission exists
+			const permissionExists = await PermissionModel.exists({ _id: permission_id });
+			if (!permissionExists) {
+				logger.warn(`Permission ${permission_id} not found when assigning to role ${role_id}`);
+				throw new Error(`Permission ${permission_id} not found`);
+			}
+
+			// If both exist, proceed with the assignment
+			const result = await RoleModel.findByIdAndUpdate(
+				role_id,
+				{ $addToSet: { permissions: permission_id } },
+				{ new: true } // This option returns the updated document
+			);
+
+			if (result) {
+				logger.info(`Permission ${permission_id} successfully assigned to role ${role_id}`);
+			} else {
+				// This shouldn't happen as we've already checked for existence, but just in case
+				logger.warn(`Unexpected: Role ${role_id} not found when assigning permission ${permission_id}`);
+				throw new Error(`Unexpected: Role ${role_id} not found`);
+			}
 		} catch (error) {
-			logger.error(`Failed to assign permission to role: ${error instanceof Error ? error.message : 'Unknown error'}`);
+			logger.error(`Failed to assign permission ${permission_id} to role ${role_id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
 		}
 	}

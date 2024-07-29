@@ -127,7 +127,65 @@ export const globalSearchIndex = writable<SearchData[]>([
 		description: 'Build and customize your collections.',
 		keywords: ['builder', 'collection', 'configuration', 'settings', 'system', 'permissions'],
 		triggers: { 'Go to System Builder': { path: '/collection', action: [() => {}] } }
+	},
+	{
+		title: 'Access Management',
+		description: 'Manage user access and permissions.',
+		keywords: ['access', 'management', 'permissions', 'roles', 'users'],
+		triggers: {
+			'Go to Access Management': { path: '/config/accessManagement', action: [() => {}] }
+		}
+	},
+	{
+		title: 'Roles',
+		description: 'Manage user roles in the system.',
+		keywords: ['roles', 'user roles', 'permissions', 'access'],
+		triggers: {
+			'Manage Roles': { path: '/config/accessManagement/roles', action: [() => {}] }
+		}
+	},
+	{
+		title: 'Permissions',
+		description: 'Configure and manage system permissions.',
+		keywords: ['permissions', 'access control', 'security'],
+		triggers: {
+			'Manage Permissions': { path: '/config/accessManagement/permissions', action: [() => {}] }
+		}
+	},
+	{
+		title: 'Theme',
+		description: 'Customize the look and feel of your site.',
+		keywords: ['theme', 'appearance', 'design', 'colors', 'layout'],
+		triggers: {
+			'Customize Theme': { path: '/config/theme', action: [() => {}] }
+		}
 	}
 ]);
 
-logger.info('Global search index initialized');
+logger.info('Global search index initialized with Access Management, Roles, Permissions, and Theme');
+
+// Function to add new items to the global search index
+export function addToGlobalSearchIndex(newItem: SearchData) {
+	globalSearchIndex.update((currentIndex) => [...currentIndex, newItem]);
+	logger.info(`Added new item to global search index: ${newItem.title}`);
+}
+
+// Function to search the global index
+export function searchGlobalIndex(query: string): SearchData[] {
+	let results: SearchData[] = [];
+	globalSearchIndex.subscribe((index) => {
+		results = index.filter(
+			(item) =>
+				item.title.toLowerCase().includes(query.toLowerCase()) ||
+				item.description.toLowerCase().includes(query.toLowerCase()) ||
+				item.keywords.some((keyword) => keyword.toLowerCase().includes(query.toLowerCase()))
+		);
+	})();
+	return results;
+}
+
+// Initialize the global search functionality
+export function initializeGlobalSearch() {
+	// This function can be called to set up any necessary event listeners or initial state
+	logger.info('Global search functionality initialized');
+}

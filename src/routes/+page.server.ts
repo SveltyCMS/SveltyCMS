@@ -7,6 +7,7 @@ import type { User } from '@src/auth/types';
 
 // Stores
 import { systemLanguage } from '@stores/store';
+import { set as setCachedSession, get as getCachedSession } from '@stores/cachedSessionStore';
 
 // System Logs
 import logger from '@src/utils/logger';
@@ -98,46 +99,52 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				systemLanguage.set(locale);
 			}
 
-			const existingUser = await auth.checkUser({ email });
-			const isFirst = (await auth.getUserCount()) === 0;
-
 			let user: User | null = null;
-			let avatarUrl: string | null = null;
-
-			if (existingUser) {
-				user = existingUser;
+			const cachedUser = getCachedSession(email);
+			if (cachedUser) {
+				user = cachedUser;
 			} else {
-				// Fetch the remote picture and save it as the avatar
-				if (googleUser.picture) {
-					const response = await fetch(googleUser.picture);
-					const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
-					avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+				const existingUser = await auth.checkUser({ email });
+				const isFirst = (await auth.getUserCount()) === 0;
+
+				let avatarUrl: string | null = null;
+
+				if (existingUser) {
+					user = existingUser;
+				} else {
+					// Fetch the remote picture and save it as the avatar
+					if (googleUser.picture) {
+						const response = await fetch(googleUser.picture);
+						const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });
+						avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
+					}
+
+					user = await auth.createUser({
+						email,
+						username: googleUser.name ?? '',
+						firstName: googleUser.given_name,
+						lastName: googleUser.family_name,
+						avatar: avatarUrl ?? googleUser.picture,
+						role: isFirst ? 'admin' : 'user',
+						lastAuthMethod: 'google',
+						isRegistered: true,
+						blocked: false
+					});
+
+					// Verify the new user creation
+					user = await auth.checkUser({ email });
+					if (!user) {
+						logger.error('User creation failed, user not found after creation.');
+						throw new Error('User creation failed');
+					}
+
+					await sendWelcomeEmail(fetch, email, googleUser.name || '');
 				}
 
-				user = await auth.createUser({
-					email,
-					username: googleUser.name ?? '',
-					firstName: googleUser.given_name,
-					lastName: googleUser.family_name,
-					avatar: avatarUrl ?? googleUser.picture,
-					role: isFirst ? 'admin' : 'user',
-					lastAuthMethod: 'google',
-					isRegistered: true,
-					blocked: false
-				});
-
-				// Verify the new user creation
-				user = await auth.checkUser({ email });
-				if (!user) {
-					logger.error('User creation failed, user not found after creation.');
-					throw new Error('User creation failed');
-				}
-
-				await sendWelcomeEmail(fetch, email, googleUser.name || '');
+				setCachedSession(email, user);
 			}
 
 			if (!user._id) {
-				// Changed _id to user_id
 				logger.error('User ID is missing after creation or retrieval');
 				throw new Error('User ID is missing');
 			}
@@ -167,13 +174,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		// If no session ID is found, create a new session
 		if (!session_id) {
-			// console.log('Session ID is missing from cookies, creating a new session.');
 			try {
 				const newSession = await auth.createSession({ user_id: 'guestuser_id' });
 				const sessionCookie = auth.createSessionCookie(newSession);
 				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 				session_id = sessionCookie.value;
-				// console.log('New session created:', session_id);
 			} catch (e) {
 				console.error('Failed to create a new session:', e);
 				throw error(500, 'Internal Server Error');
@@ -190,7 +195,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		await auth.validateSession({ session_id });
 		const collections = await getCollections();
 		const firstCollection = Object.keys(collections)[0];
-		redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
+		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 	}
 
 	// Return the theme along with any other data you're already returning

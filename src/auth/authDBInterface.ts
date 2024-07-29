@@ -28,7 +28,7 @@ export interface authDBInterface {
 	deleteExpiredTokens(): Promise<number>;
 
 	// Role Management Methods
-	createRole(roleData: Role): Promise<Role>;
+	createRole(roleData: Partial<Role>): Promise<Role>;
 	updateRole(role_id: string, roleData: Partial<Role>): Promise<void>;
 	deleteRole(role_id: string): Promise<void>;
 	getRoleById(role_id: string): Promise<Role | null>;

@@ -49,8 +49,11 @@ export const contextTypes = [
 	'system' // System context
 ] as const;
 
+// Create type aliases
 export type RoleId = string;
 export type PermissionId = string;
+export type PermissionAction = (typeof permissionActions)[number];
+export type ContextType = (typeof contextTypes)[number];
 
 // Define the type for a PermissionConfig
 export interface PermissionConfig {
