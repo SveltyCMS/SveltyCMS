@@ -1,11 +1,11 @@
 import { privateEnv } from '@root/config/private';
-import { createClient } from 'redis';
+
 
 // System Logs
 import logger from '@src/utils/logger';
 import type { User } from '@src/auth/types';
 
-let redisClient: ReturnType<typeof createClient> | null = null;
+let redisClient: ReturnType<any> | null = null;
 
 // Initialize Redis
 export async function initializeRedis() {
@@ -13,7 +13,7 @@ export async function initializeRedis() {
 		logger.info('Redis is disabled in configuration');
 		return;
 	}
-
+	const { createClient } = import('redis');
 	try {
 		redisClient = createClient({
 			url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,

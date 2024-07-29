@@ -1,5 +1,4 @@
 <script lang="ts">
-	import { PermissionAction as PermissionsEnum, icon } from '@src/auth/types';
 	import type { PermissionAction } from '@src/auth/types';
 
 	import { createEventDispatcher } from 'svelte';
@@ -71,9 +70,9 @@
 		<thead>
 			<tr>
 				<th>Role</th>
-				{#each PermissionsEnum as permission}
+				<!-- {#each PermissionEnum as permission}
 					<th>{permission}</th>
-				{/each}
+				{/each} -->
 			</tr>
 		</thead>
 		<!-- Table Body -->
@@ -82,13 +81,13 @@
 				<tr>
 					<!-- Role Name -->
 					<td>{role.name}</td>
-					{#each PermissionsEnum as permission}
+					{#each role.permissions as permission}
 						<td>
 							<button
 								on:click={() => togglePermission(role.name, permission)}
 								class={`btn ${role.permissions[permission] ? 'btn-success' : 'btn-error'}`}
 							>
-								<iconify-icon icon={icon[permission]} />
+								<!-- <iconify-icon icon={icon[permission]} /> -->
 							</button>
 						</td>
 					{/each}
