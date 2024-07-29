@@ -23,19 +23,19 @@
 			contextType: 'system'
 		},
 		systemRoles: {
-			contextId: 'config/permissions/roles',
-			requiredRole: 'admin',
-			action: 'read',
-			contextType: 'system'
-		},
-		systemPermissions: {
-			contextId: 'config/permissions/permission',
+			contextId: 'config/accessManagement',
 			requiredRole: 'admin',
 			action: 'read',
 			contextType: 'system'
 		},
 		widgetManagement: {
 			contextId: 'config/widgetManagement',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
+		},
+		themeManagement: {
+			contextId: 'config/themeManagement',
 			requiredRole: 'admin',
 			action: 'read',
 			contextType: 'system'
@@ -111,7 +111,7 @@
 		</PermissionGuard>
 
 		<!-- Theme Management -->
-		<PermissionGuard {user} {roles} {rateLimits} {...permissions.widgetManagement}>
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.themeManagement}>
 			<a href="/config/themeManagement" class="variant-ghost-primary btn w-full gap-2 py-6">
 				<iconify-icon icon="ph:layout" width="28" class="text-white" />
 				<p class="uppercase">Themes</p>
@@ -126,19 +126,11 @@
 			</a>
 		</PermissionGuard>
 
-		<!-- Roles -->
-		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemRoles}>
-			<a href="/config/roles" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Roles">
+		<!-- Access Management -->
+		<PermissionGuard {user} {roles} {rateLimits} {...permissions.accessManagement}>
+			<a href="/config/assessManagement" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="Access Management">
 				<iconify-icon icon="mdi:account-group" width="28" class="text-white" />
-				<p class="uppercase">Roles</p>
-			</a>
-		</PermissionGuard>
-
-		<!-- Permissions -->
-		<PermissionGuard {user} {roles} {rateLimits} {...permissions.systemPermissions}>
-			<a href="/config/permission" class="variant-ghost-error btn w-full gap-2 py-6" aria-label="System Permissions">
-				<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-white" />
-				<p class="uppercase">Permissions</p>
+				<p class="uppercase">Access Management</p>
 			</a>
 		</PermissionGuard>
 	</div>

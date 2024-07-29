@@ -5,7 +5,7 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions } from '@src/auth/types';
+import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters
 import type { dbInterface } from '@api/databases/dbInterface';
@@ -35,7 +35,7 @@ async function loadAdapters() {
 
 			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([
 				import('./mongoDBAdapter'),
-				import('@src/auth/mongodbAuth/mongoDBAuthAdapter')
+				import('@src/auth/mongoDBAuth/mongoDBAuthAdapter')
 			]);
 			dbAdapter = new MongoDBAdapter();
 			authAdapter = new MongoDBAuthAdapter();
@@ -134,15 +134,30 @@ async function initializeAdapters() {
 			auth = new Auth(authAdapter);
 			logger.debug('Authentication adapter initialized.');
 
-			// Initialize default roles and permissions
-			await authAdapter.initializeDefaultRolesAndPermissions();
-			logger.info('Default roles and permissions initialized.');
+			// Initialize default roles and permissions (if applicable)
+			try {
+				await authAdapter.initializeDefaultRolesAndPermissions();
+				logger.info('Default roles and permissions initialized.');
+			} catch (error) {
+				const err = error as Error;
+				logger.error(`Error initializing default roles and permissions: ${err.message}`, { error: err });
+			}
 
 			// Load roles and permissions after initialization
-			const roles = await authAdapter.getAllRoles();
-			const permissions = await authAdapter.getAllPermissions();
-			setLoadedRolesAndPermissions(roles, permissions);
-			logger.info('Roles and permissions loaded.');
+			try {
+				const roles = await authAdapter.getAllRoles();
+				const permissions = await authAdapter.getAllPermissions();
+
+				// Combine roles and permissions into a single object for type safety
+				const loadedData: LoadedRolesAndPermissions = { roles, permissions };
+
+				setLoadedRolesAndPermissions(loadedData);
+				logger.info('Roles and permissions loaded.');
+			} catch (error) {
+				const err = error as Error;
+				logger.error(`Error loading roles and permissions: ${err.message}`, { error: err });
+				// Handle loading error appropriately (e.g., display error message to user, retry)
+			}
 		} else {
 			throw new Error('Authentication adapter not initialized');
 		}

@@ -35,19 +35,19 @@ export function getRoleByName(roleName: string): Role | undefined {
 }
 
 // List of possible permissions for simplicity and type safety.
-export enum PermissionAction {
-	Create = 'create', // Allows creating new content.
-	Read = 'read', // Allows viewing content.
-	Write = 'write', // Allows modifying existing content.
-	Delete = 'delete' // Allows removing content.
-}
+export const permissionActions = [
+	'create', // Allows creating new content.
+	'read', // Allows viewing content.
+	'write', // Allows modifying existing content.
+	'delete' // Allows removing content.
+] as const;
 
 // List of possible context types for simplicity and type safety.
-export enum ContextType {
-	Collection = 'collection', // Collection context
-	Widget = 'widget', // Widget context
-	System = 'system' // System context
-}
+export const contextTypes = [
+	'collection', // Collection context
+	'widget', // Widget context
+	'system' // System context
+] as const;
 
 export type RoleId = string;
 export type PermissionId = string;

@@ -9,9 +9,9 @@ import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
 
 // Auth
-import { UserSchema } from '@src/auth/mongodbAuth/User';
-import { SessionSchema } from '@src/auth/mongodbAuth/Session';
-import { TokenSchema } from '@src/auth/mongodbAuth/Token';
+import { UserSchema } from '@src/auth/mongoDBAuth/User';
+import { SessionSchema } from '@src/auth/mongoDBAuth/Session';
+import { TokenSchema } from '@src/auth/mongoDBAuth/Token';
 
 // System Logs
 import logger from '@src/utils/logger';

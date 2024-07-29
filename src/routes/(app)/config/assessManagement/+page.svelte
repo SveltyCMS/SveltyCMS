@@ -1,0 +1,56 @@
+<script lang="ts">
+	// Store
+	import { page } from '$app/stores';
+	import { tabSet } from '@stores/store';
+
+	// Auth
+	import Roles from './Roles.svelte';
+	import Permissions from './Permissions.svelte';
+
+	// Skeleton
+	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
+
+	// Components
+	import PageTitle from '@components/PageTitle.svelte';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+</script>
+
+<div class="my-2 flex items-center justify-between">
+	<PageTitle name="Access Management" icon="mdi:account-key" />
+</div>
+
+<div class="mb-6 text-center sm:text-left">
+	<p class="text-tertiary-500 dark:text-primary-500">
+		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
+		can perform in the system.
+	</p>
+</div>
+
+<TabGroup justify="justify-center">
+	<!-- User Roles -->
+	<Tab bind:group={$tabSet} name="roles" value={0}>
+		<svelte:fragment slot="lead">
+			<iconify-icon icon="mdi:account-group" width="28" class="text-white" />
+		</svelte:fragment>
+		<span>Roles</span>
+	</Tab>
+
+	<!-- User Permissions-->
+	<Tab bind:group={$tabSet} name="permissions" value={1}>
+		<svelte:fragment slot="lead">
+			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-white" />
+		</svelte:fragment>
+		<span>Permission</span>
+	</Tab>
+
+	<!-- Tab Panels --->
+	<svelte:fragment slot="panel">
+		{#if $tabSet === 0}
+			<Roles />
+		{:else}
+			<Permissions />
+		{/if}
+	</svelte:fragment>
+</TabGroup>
