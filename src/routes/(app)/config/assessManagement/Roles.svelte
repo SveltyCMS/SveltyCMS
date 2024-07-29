@@ -3,6 +3,7 @@
 	import { writable } from 'svelte/store';
 	import { authAdapter, initializationPromise } from '@api/databases/db';
 	import type { Role, Permission } from '@src/auth/types';
+	import axios from 'axios';
 
 	let roles = writable<Role[]>([]);
 	let selectedRoles = writable<Set<string>>(new Set());
@@ -15,9 +16,9 @@
 
 	onMount(async () => {
 		try {
-			await initializationPromise;
+			// await initializationPromise;
 			await loadRoles();
-			await loadPermissions();
+			// await loadPermissions();
 		} catch (err) {
 			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
 		} finally {
@@ -26,11 +27,10 @@
 	});
 
 	const loadRoles = async () => {
-		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
-		}
 		try {
-			const rolesData = await authAdapter.getAllRoles();
+			const resp = await axios.get('/api/auth/roles');
+			const { rolesData } = resp.data; //await authAdapter.getAllRoles();
+			console.log(rolesData);
 			roles.set(rolesData);
 		} catch (err) {
 			throw new Error(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
@@ -144,9 +144,9 @@
 				<p>No roles defined yet.</p>
 			{:else}
 				<ul class="list-disc pl-5">
-					{#each $roles as role (role.role_id)}
+					{#each $roles as role (role._id)}
 						<li class="flex items-center">
-							<input type="checkbox" checked={$selectedRoles.has(role.role_id)} on:change={() => toggleRoleSelection(role.role_id)} class="mr-2" />
+							<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
 							{role.name} - {role.description}
 							<ul class="ml-4">
 								{#each role.permissions as permissionId}

@@ -77,7 +77,7 @@ export interface Permission {
 
 // Define the type for a Role with dynamically assigned permissions
 export interface Role {
-	role_id: RoleId; // Unique identifier for the role
+	_id: RoleId; // Unique identifier for the role
 	name: string; // Name of the role
 	description?: string; // Description of the role
 	permissions: PermissionId[]; // This includes permission IDs which can be resolved to actual permissions

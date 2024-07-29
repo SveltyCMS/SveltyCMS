@@ -3,6 +3,7 @@
 	import { writable } from 'svelte/store';
 	import { authAdapter, initializationPromise } from '@api/databases/db';
 	import type { Permission, Role } from '@src/auth/types';
+	import axios from 'axios';
 
 	let permissionsList = writable<Permission[]>([]);
 	let modifiedPermissions = writable<Set<string>>(new Set());
@@ -28,23 +29,23 @@
 	});
 
 	const loadPermissions = async () => {
-		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
-		}
+		// if (!authAdapter) {
+		// 	throw new Error('Auth adapter is not initialized');
+		// }
 		try {
-			const permissions = await authAdapter.getAllPermissions();
-			permissionsList.set(permissions);
+			const resp = await axios.get('/api/auth/permissions');
+			const { permissionsData } = resp.data; //await authAdapter.getAllPermissions();
+			permissionsList.set(permissionsData);
 		} catch (err) {
 			throw new Error(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
 	const loadRoles = async () => {
-		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
-		}
 		try {
-			const rolesData = await authAdapter.getAllRoles();
+			const resp = await axios.get('/api/auth/roles');
+			const { rolesData } = resp.data; //await authAdapter.getAllRoles();
+			console.log(rolesData);
 			roles.set(rolesData);
 		} catch (err) {
 			throw new Error(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);

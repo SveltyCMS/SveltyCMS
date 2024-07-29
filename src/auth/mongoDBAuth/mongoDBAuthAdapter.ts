@@ -485,7 +485,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	// Get all roles
 	async getAllRoles(): Promise<Role[]> {
 		try {
-			const roles = await RoleModel.find().populate('permissions');
+			const roles = await RoleModel.find().populate({path:"permissions"});
 			logger.debug('All roles retrieved');
 			return roles.map((role) => role.toObject() as Role);
 		} catch (error) {
