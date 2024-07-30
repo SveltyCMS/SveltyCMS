@@ -10,6 +10,7 @@ import logger from '@src/utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
+// Session Store Interface
 export interface SessionStore {
 	get(sessionId: string): Promise<User | null>;
 	set(sessionId: string, user: User, expirationInSeconds: number): Promise<void>;
@@ -18,6 +19,7 @@ export interface SessionStore {
 	close(): Promise<void>;
 }
 
+// Default Session Store
 export const defaultSessionStore = new OptionalRedisSessionStore();
 
 // Auth class to handle user and session management
@@ -112,45 +114,27 @@ export class Auth {
 		}
 	}
 
-	// Create a session, valid for 1 hour by default, and only one session per device
+	/// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		device_id,
 		expires = 60 * 60 * 1000, // 1 hour by default
 		isExtended = false // Extend session if required
 	}: {
 		user_id: string;
-		device_id: string;
 		expires?: number;
 		isExtended?: boolean;
 	}): Promise<Session> {
-		if (!user_id || !device_id) {
-			logger.error('user_id and device_id are required to create a session');
-			throw new Error('user_id and device_id are required to create a session');
+		if (!user_id) {
+			logger.error('user_id is required to create a session');
+			throw new Error('user_id is required to create a session');
 		}
 
-		logger.debug(`Creating session for user ID: ${user_id} with device ID: ${device_id}`);
-
-		// Check for existing active session for this device
-		const existingSession = await this.db.getActiveSessionByDeviceId(user_id, device_id);
-		if (existingSession) {
-			// If there's an existing session, update its expiry
-			logger.info(`Updating existing session for user ID: ${user_id} and device ID: ${device_id}`);
-			const updatedSession = await this.db.updateSessionExpiry(existingSession.session_id, isExtended ? expires * 2 : expires);
-			const user = await this.db.getUserById(user_id);
-			if (user) {
-				await this.sessionStore.set(updatedSession.session_id, user, expires / 1000);
-			} else {
-				logger.error(`User not found for ID: ${user_id}`);
-				throw new Error(`User not found for ID: ${user_id}`);
-			}
-			return updatedSession;
-		}
+		logger.debug(`Creating session for user ID: ${user_id}`);
 
 		// If no existing session, create a new one
 		expires = isExtended ? expires * 2 : expires;
-		logger.info(`Creating new session for user ID: ${user_id} with device ID: ${device_id} and expiry: ${expires}`);
-		const session = await this.db.createSession({ user_id, device_id, expires });
+		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires}`);
+		const session = await this.db.createSession({ user_id, expires });
 		const user = await this.db.getUserById(user_id);
 		if (user) {
 			await this.sessionStore.set(session.session_id, user, expires / 1000);

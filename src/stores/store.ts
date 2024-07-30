@@ -6,9 +6,6 @@ import type { CollectionNames, Schema } from '@src/collections/types';
 import * as m from '@src/paraglide/messages.js';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
-// This creates a writable store that can hold a string value or be undefined.
-export const device_id = writable<string | undefined>();
-
 //  Categories
 export const categories: Writable<
 	Array<{

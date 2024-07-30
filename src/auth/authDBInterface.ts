@@ -11,8 +11,7 @@ export interface authDBInterface {
 	getUserCount(filter?: object): Promise<number>;
 
 	// Session Management Methods
-	createSession(sessionData: { user_id: string; device_id: string; expires: number }): Promise<Session>;
-	getActiveSessionByDeviceId(user_id: string, device_id: string): Promise<Session | null>;
+	createSession(sessionData: { user_id: string; expires: number }): Promise<Session>;
 	updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session>;
 	destroySession(session_id: string): Promise<void>;
 	deleteExpiredSessions(): Promise<number>;
@@ -28,24 +27,24 @@ export interface authDBInterface {
 	deleteExpiredTokens(): Promise<number>;
 
 	// Role Management Methods
-	createRole(roleData: Partial<Role>): Promise<Role>;
-	updateRole(role_id: string, roleData: Partial<Role>): Promise<void>;
-	deleteRole(role_id: string): Promise<void>;
+	createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role>;
+	updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void>;
+	deleteRole(role_id: string, currentUserId: string): Promise<void>;
 	getRoleById(role_id: string): Promise<Role | null>;
 	getAllRoles(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Role[]>;
 	getRoleByName(name: string): Promise<Role | null>;
 
 	// Permission Management Methods
-	createPermission(permissionData: Permission): Promise<Permission>;
-	updatePermission(permission_id: string, permissionData: Partial<Permission>): Promise<void>;
-	deletePermission(permission_id: string): Promise<void>;
+	createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission>;
+	updatePermission(permission_id: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
+	deletePermission(permission_id: string, currentUserId: string): Promise<void>;
 	getPermissionById(permission_id: string): Promise<Permission | null>;
 	getAllPermissions(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Permission[]>;
 	getPermissionByName(name: string): Promise<Permission | null>;
 
 	// Role-Permissions Linking Methods
-	assignPermissionToRole(role_id: string, permission_id: string): Promise<void>;
-	removePermissionFromRole(role_id: string, permission_id: string): Promise<void>;
+	assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;
+	removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;
 	getPermissionsForRole(role_id: string): Promise<Permission[]>;
 	getRolesForPermission(permission_id: string): Promise<Role[]>;
 

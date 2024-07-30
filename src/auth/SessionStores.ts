@@ -16,6 +16,7 @@ export class InMemorySessionStore implements SessionStore {
 		this.cleanupInterval = setInterval(() => this.cleanup(), privateEnv.SESSION_CLEANUP_INTERVAL ?? 60000);
 	}
 
+	// Cleanup expired sessions
 	private cleanup() {
 		const now = Date.now();
 		for (const [sessionId, session] of this.sessions) {
@@ -26,6 +27,7 @@ export class InMemorySessionStore implements SessionStore {
 		logger.debug(`Cleaned up expired sessions. Current count: ${this.sessions.size}`);
 	}
 
+	// Get a user by ID
 	async get(sessionId: string): Promise<User | null> {
 		const session = this.sessions.get(sessionId);
 		if (!session || session.expiresAt < Date.now()) {
@@ -34,6 +36,7 @@ export class InMemorySessionStore implements SessionStore {
 		return session.user;
 	}
 
+	// Set a user
 	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
 		this.sessions.set(sessionId, {
 			user,
@@ -44,6 +47,7 @@ export class InMemorySessionStore implements SessionStore {
 		}
 	}
 
+	// Delete a user
 	private evictOldestSession() {
 		let oldestSessionId: string | null = null;
 		let oldestTimestamp = Infinity;
@@ -61,10 +65,12 @@ export class InMemorySessionStore implements SessionStore {
 		}
 	}
 
+	// Delete a user
 	async delete(sessionId: string): Promise<void> {
 		this.sessions.delete(sessionId);
 	}
 
+	// Validate a user by ID
 	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
 		if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
 			const dbUser = await dbValidationFn(sessionId);
@@ -77,20 +83,24 @@ export class InMemorySessionStore implements SessionStore {
 		return this.get(sessionId);
 	}
 
+	// Close the session store
 	async close() {
 		clearInterval(this.cleanupInterval);
 	}
 }
 
+// Optional Redis session store
 export class OptionalRedisSessionStore implements SessionStore {
 	private redisStore: SessionStore | null = null;
 	private fallbackStore: SessionStore;
 
+	// Constructor for Redis session store
 	constructor(fallbackStore: SessionStore = new InMemorySessionStore()) {
 		this.fallbackStore = fallbackStore;
 		this.initializeRedis();
 	}
 
+	// Initialize Redis session store
 	private async initializeRedis() {
 		if (!privateEnv.USE_REDIS) {
 			logger.info('Redis is disabled in configuration, using fallback session store');
@@ -107,10 +117,12 @@ export class OptionalRedisSessionStore implements SessionStore {
 		}
 	}
 
+	// Get a user by ID
 	async get(sessionId: string): Promise<User | null> {
 		return this.redisStore ? this.redisStore.get(sessionId) : this.fallbackStore.get(sessionId);
 	}
 
+	// Set a user
 	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
 		if (this.redisStore) {
 			await this.redisStore.set(sessionId, user, expirationInSeconds);
@@ -118,6 +130,7 @@ export class OptionalRedisSessionStore implements SessionStore {
 		await this.fallbackStore.set(sessionId, user, expirationInSeconds);
 	}
 
+	// Delete a user
 	async delete(sessionId: string): Promise<void> {
 		if (this.redisStore) {
 			await this.redisStore.delete(sessionId);
@@ -125,6 +138,7 @@ export class OptionalRedisSessionStore implements SessionStore {
 		await this.fallbackStore.delete(sessionId);
 	}
 
+	// Validate a user by ID
 	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
 		if (this.redisStore) {
 			return this.redisStore.validateWithDB(sessionId, dbValidationFn);
@@ -132,7 +146,11 @@ export class OptionalRedisSessionStore implements SessionStore {
 		return this.fallbackStore.validateWithDB(sessionId, dbValidationFn);
 	}
 
-	async close() {
-		clearInterval(this.cleanupInterval);
+	// Close the session store
+	async close(): Promise<void> {
+		if (this.redisStore) {
+			await this.redisStore.close();
+		}
+		await this.fallbackStore.close();
 	}
 }

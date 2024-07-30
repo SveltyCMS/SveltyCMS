@@ -11,7 +11,7 @@ import logger from '@src/utils/logger';
 
 // Import types
 import type { authDBInterface } from '../authDBInterface';
-import type { User, Session, Token, Role, Permission } from '../types';
+import type { User, Session, Token, Role, Permission, PermissionAction } from '../types';
 
 // MongoDBAuthAdapter class implementing AuthDBAdapter interface
 export class MongoDBAuthAdapter implements authDBInterface {
@@ -54,6 +54,24 @@ export class MongoDBAuthAdapter implements authDBInterface {
 					contextType: 'collection',
 					description: 'Delete content',
 					requiredRole: '' // This will be set after role creation
+				},
+				{
+					permission_id: 'manage_roles',
+					name: 'manage_roles',
+					action: 'manage_roles',
+					contextId: 'global',
+					contextType: 'system',
+					description: 'Manage roles',
+					requiredRole: ''
+				},
+				{
+					permission_id: 'manage_permissions',
+					name: 'manage_permissions',
+					action: 'manage_permissions',
+					contextId: 'global',
+					contextType: 'system',
+					description: 'Manage permissions',
+					requiredRole: ''
 				}
 			];
 
@@ -104,6 +122,15 @@ export class MongoDBAuthAdapter implements authDBInterface {
 		}
 	}
 
+	// Helper method to convert the database result to Session
+	private convertToSession(sessionData: any): Session {
+		return {
+			session_id: sessionData._id.toString(),
+			user_id: sessionData.user_id,
+			expires: sessionData.expires
+		};
+	}
+
 	// Create a new user
 	async createUser(userData: Partial<User>): Promise<User> {
 		try {
@@ -112,11 +139,11 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			logger.info(`User created: ${user.email}`);
 			return user.toObject() as User;
 		} catch (error) {
-			logger.error(`Failed to create user: ${error instanceof Error ? error.message : 'Unknown error'}`);
+			const err = error as Error;
+			logger.error(`Failed to create user with email ${userData.email}: ${err.message}`);
 			throw error;
 		}
 	}
-
 	// Update attributes of an existing user
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
 		try {
@@ -172,7 +199,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	// Get all users
 	async getAllUsers(): Promise<User[]> {
 		try {
-			const users = await UserModel.find();
+			const users = await UserModel.find().lean();
 			logger.debug('All users retrieved');
 			return users.map((user) => user.toObject() as User);
 		} catch (error) {
@@ -193,59 +220,28 @@ export class MongoDBAuthAdapter implements authDBInterface {
 		}
 	}
 
-	// Helper method to convert the database result to Session
-	private convertToSession(sessionData: any): Session {
-		return {
-			session_id: sessionData._id.toString(),
-			user_id: sessionData.user_id,
-			device_id: sessionData.device_id,
-			expires: sessionData.expires
-		};
-	}
-
 	// Create a new session for a user
-	async createSession(sessionData: { user_id: string; device_id: string; expires: number }): Promise<Session> {
+	async createSession(sessionData: { user_id: string; expires: number }): Promise<Session> {
 		try {
 			const expiresAt = new Date(Date.now() + sessionData.expires);
 			const session = new SessionModel({
 				user_id: sessionData.user_id,
-				device_id: sessionData.device_id,
 				expires: expiresAt
 			});
 			await session.save();
 			logger.debug(`Session created for user: ${sessionData.user_id}, expires at: ${expiresAt}`);
 
+			// Convert the Mongoose document to a plain JavaScript object
+			const sessionObject = session.toObject();
+
+			// Return the session object with the correct shape
 			return {
-				session_id: session._id.toString(),
-				user_id: session.user_id,
-				device_id: session.device_id,
-				expires: session.expires
+				session_id: sessionObject._id.toString(),
+				user_id: sessionObject.user_id,
+				expires: sessionObject.expires
 			};
 		} catch (error) {
 			logger.error(`Failed to create session: ${error instanceof Error ? error.message : 'Unknown error'}`);
-			throw error;
-		}
-	}
-
-	// Get an active session by user ID and device ID
-	async getActiveSessionByDeviceId(user_id: string, device_id: string): Promise<Session | null> {
-		try {
-			const session = await SessionModel.findOne({
-				user_id,
-				device_id,
-				expires: { $gt: new Date() }
-			})
-				.lean()
-				.exec();
-
-			if (session) {
-				logger.debug(`Active session found for user: ${user_id}, device: ${device_id}`);
-				return this.convertToSession(session);
-			}
-			logger.debug(`No active session found for user: ${user_id}, device: ${device_id}`);
-			return null;
-		} catch (error) {
-			logger.error(`Failed to get active session: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
 		}
 	}
@@ -262,7 +258,6 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			}
 
 			logger.debug(`Session ${session_id} expiry updated to: ${newExpiryDate}`);
-
 			return this.convertToSession(updatedSession);
 		} catch (error) {
 			logger.error(`Failed to update session expiry: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -423,7 +418,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Create a new role
-	async createRole(roleData: Partial<Role>): Promise<Role> {
+	async createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
+			throw new Error('Unauthorized: User does not have permission to manage roles');
+		}
 		try {
 			logger.debug(`Creating role: ${JSON.stringify(roleData)}`);
 			const role = new RoleModel(roleData);
@@ -437,7 +435,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Update a role
-	async updateRole(role_id: string, roleData: Partial<Role>): Promise<void> {
+	async updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
+			throw new Error('Unauthorized: User does not have permission to manage roles');
+		}
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $set: roleData });
 			logger.debug(`Role updated: ${role_id}`);
@@ -448,7 +449,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Delete a role
-	async deleteRole(role_id: string): Promise<void> {
+	async deleteRole(role_id: string, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
+			throw new Error('Unauthorized: User does not have permission to manage roles');
+		}
 		try {
 			await RoleModel.deleteOne({ _id: role_id });
 			logger.debug(`Role deleted: ${role_id}`);
@@ -495,7 +499,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Create a new permission
-	async createPermission(permissionData: Partial<Permission>): Promise<Permission> {
+	async createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+			throw new Error('Unauthorized: User does not have permission to manage permissions');
+		}
 		try {
 			logger.debug(`Creating permission: ${JSON.stringify(permissionData)}`);
 			const permission = new PermissionModel(permissionData);
@@ -509,7 +516,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Update a permission
-	async updatePermission(permission_id: string, permissionData: Partial<Permission>): Promise<void> {
+	async updatePermission(permission_id: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+			throw new Error('Unauthorized: User does not have permission to manage permissions');
+		}
 		try {
 			await PermissionModel.updateOne({ _id: permission_id }, { $set: permissionData });
 			logger.debug(`Permission updated: ${permission_id}`);
@@ -520,7 +530,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Delete a permission
-	async deletePermission(permission_id: string): Promise<void> {
+	async deletePermission(permission_id: string, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+			throw new Error('Unauthorized: User does not have permission to manage permissions');
+		}
 		try {
 			await PermissionModel.deleteOne({ _id: permission_id });
 			logger.debug(`Permission deleted: ${permission_id}`);
@@ -651,7 +664,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Assign a permission to a role
-	async assignPermissionToRole(role_id: string, permission_id: string): Promise<void> {
+	async assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_roles')) || !(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+			throw new Error('Unauthorized: User does not have permission to assign permissions to roles');
+		}
 		try {
 			logger.debug(`Attempting to assign permission ${permission_id} to role ${role_id}`);
 
@@ -690,7 +706,10 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Remove a permission from a role
-	async removePermissionFromRole(role_id: string, permission_id: string): Promise<void> {
+	async removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
+		if (!(await this.checkUserPermission(currentUserId, 'manage_roles')) || !(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+			throw new Error('Unauthorized: User does not have permission to remove permissions from roles');
+		}
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $pull: { permissions: permission_id } });
 			logger.debug(`Permission ${permission_id} removed from role ${role_id}`);
@@ -701,7 +720,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	}
 
 	// Check user permission
-	async checkUserPermission(user_id: string, permission_name: string): Promise<boolean> {
+	async checkUserPermission(user_id: string, requiredAction: PermissionAction): Promise<boolean> {
 		try {
 			const user = await UserModel.findById(user_id).populate({
 				path: 'roles',
@@ -709,10 +728,13 @@ export class MongoDBAuthAdapter implements authDBInterface {
 			});
 			if (!user) return false;
 
-			const hasDirectPermission = user.permissions?.some((p) => p.name === permission_name);
+			const isAdmin = user.roles?.some((role) => role.name.toLowerCase() === 'admin');
+			if (isAdmin) return true;
+
+			const hasDirectPermission = user.permissions?.some((p) => p.action === requiredAction);
 			if (hasDirectPermission) return true;
 
-			return user.roles?.some((role) => role.permissions?.some((p) => p.name === permission_name)) || false;
+			return user.roles?.some((role) => role.permissions?.some((p) => p.action === requiredAction)) || false;
 		} catch (error) {
 			logger.error(`Failed to check user permission: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;

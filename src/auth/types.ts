@@ -39,7 +39,9 @@ export const permissionActions = [
 	'create', // Allows creating new content.
 	'read', // Allows viewing content.
 	'write', // Allows modifying existing content.
-	'delete' // Allows removing content.
+	'delete', // Allows removing content.
+	'manage_roles', // Allows managing roles.
+	'manage_permissions' // Allows managing permissions.
 ] as const;
 
 // List of possible context types for simplicity and type safety.
@@ -120,7 +122,6 @@ export interface User {
 // Session interface represents a session in the system.
 export interface Session {
 	session_id: string; // Unique identifier for the session
-	device_id: string; // ID of the device used for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }

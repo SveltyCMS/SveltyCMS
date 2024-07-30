@@ -5,7 +5,6 @@ import type { Session } from '../types';
 export const SessionSchema = new Schema(
 	{
 		user_id: { type: String, required: true }, // ID of the user who owns the session, required field
-		device_id: { type: String, required: true }, // ID of the device used for the session, required field
 		expires: { type: Date, required: true } // Expiry date of the session, required field
 	},
 	{ timestamps: true }

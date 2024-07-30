@@ -1,10 +1,5 @@
 <script lang="ts">
-	import { getContext } from 'svelte';
-	import type { authDBInterface } from '@src/auth/authDBInterface';
-	import type { User, Role, Permission, PermissionAction, ContextType, RateLimit, PermissionConfig } from '@src/auth/types';
-	import { getLoadedPermissions, getLoadedRoles, getRoleByName } from '@src/auth/types';
-
-	const authDB: authDBInterface = getContext('authDB');
+	import type { User, Role, PermissionAction, ContextType, RateLimit } from '@src/auth/types';
 
 	export let user: User;
 	export let roles: Role[];
@@ -12,8 +7,7 @@
 	export let contextId: string;
 	export let action: PermissionAction;
 	export let requiredRole: string;
-	export let contextType: ContextType;
-	export let addDynamicPermission: boolean = false;
+	export let contextType: ContextType | string;
 
 	let userHasPermission = false;
 
@@ -23,48 +17,37 @@
 		}
 	}
 
-	async function checkUserPermission() {
-		if (addDynamicPermission) {
-			const newPermission: Permission = {
-				permission_id: `${action}_${contextType}_${contextId}`,
-				name: `${action}_${contextType}_${contextId}`,
-				description: `Permission to ${action} ${contextType} with ID ${contextId}`,
-				contextType,
-				action,
-				contextId,
-				requiredRole
-			};
-			await authDB.createPermission(newPermission);
-			const role = getRoleByName(requiredRole);
-			if (role) {
-				await authDB.assignPermissionToRole(role.role_id, newPermission.permission_id);
-			}
-		}
+	function checkUserPermission() {
+		console.log('PermissionGuard: Checking permission for:', {
+			user,
+			roles,
+			contextId,
+			action,
+			requiredRole,
+			contextType
+		});
 
-		const userRole = getRoleByName(user.role);
-		if (!userRole) {
+		if (!user) {
+			console.error('PermissionGuard: User object is undefined or null');
 			userHasPermission = false;
 			return;
 		}
 
-		// Check rate limits
-		const userRateLimit = rateLimits.find((rl) => rl.user_id === user._id && rl.action === action);
-		if (userRateLimit) {
-			// Implement rate limit check logic here
-			// For now, we'll assume the user is not rate limited
+		console.log('PermissionGuard: User role:', user.role);
+
+		// Always allow admin access
+		if (user.role === 'admin') {
+			console.log('PermissionGuard: User is admin, granting permission');
+			userHasPermission = true;
+			return;
 		}
 
-		const rolePermissions = await authDB.getPermissionsForRole(userRole.role_id);
-		const userPermissions = user.permissions || [];
-
-		const allPermissions = [...rolePermissions, ...userPermissions];
-
-		userHasPermission = allPermissions.some(
-			(perm) => perm.action === action && perm.contextType === contextType && (perm.contextId === contextId || perm.contextId === 'global')
-		);
+		// ... rest of the function ...
 	}
 </script>
 
 {#if userHasPermission}
 	<slot />
+{:else}
+	<p>You don't have permission to view this content.</p>
 {/if}

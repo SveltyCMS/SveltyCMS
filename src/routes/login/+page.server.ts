@@ -1,6 +1,5 @@
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
-import crypto from 'crypto';
 
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
@@ -363,7 +362,6 @@ async function signIn(
 			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
 			return { status: false, message: 'Invalid credentials' };
 		}
-
 		// Create User Session
 		try {
 			logger.debug(`Attempting to create session for user_id: ${user._id}`);
@@ -433,11 +431,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Failed to create user' };
 		}
 
-		// Generate a device ID (you can use any method to generate a unique ID)
-		const device_id = crypto.randomUUID();
-
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id, device_id, expires: 3600000 });
+		const session = await auth.createSession({ user_id: user._id, expires: 3600000 });
 		if (!session || !session.session_id) {
 			logger.error('Session creation failed');
 			return { status: false, message: 'Failed to create session' };
