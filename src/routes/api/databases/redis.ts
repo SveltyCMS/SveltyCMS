@@ -1,7 +1,12 @@
 import { privateEnv } from '@root/config/private';
-import { createClient } from 'redis';
-import logger from '@src/utils/logger';
+
+// Types
 import type { User } from '@src/auth/types';
+
+import { createClient } from 'redis';
+
+// System Logs
+import logger from '@src/utils/logger';
 
 let redisClient: ReturnType<typeof createClient> | null = null;
 
@@ -22,7 +27,8 @@ export async function initializeRedis() {
 
 		redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 	} catch (error) {
-		logger.error('Failed to initialize Redis client', error);
+		const err = error as Error;
+		logger.error(`Failed to initialize Redis client: ${err.message}`);
 		redisClient = null;
 	}
 }
