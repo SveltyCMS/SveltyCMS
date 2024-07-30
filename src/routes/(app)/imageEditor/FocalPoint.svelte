@@ -1,5 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
+	import MouseHandler from './MouseHandler.svelte';
+
 	const dispatch = createEventDispatcher();
 
 	// Use export to define your props
@@ -7,57 +9,21 @@
 	export let CONT_WIDTH = 0;
 	export let CONT_HEIGHT = 0;
 
-	let isDragging = false;
 	let containerRef;
 	let iconRef;
 
-	function handleMouseDown(event) {
-		isDragging = true;
-		handleMove(event);
-	}
-
-	function handleMouseMove(event) {
-		if (!isDragging) return;
-		handleMove(event);
-	}
-
-	function handleMove(event) {
-		const containerRect = containerRef.getBoundingClientRect();
-		const iconRect = iconRef.getBoundingClientRect();
-		const x = event.clientX - containerRect.left - iconRect.width / 2;
-		const y = event.clientY - containerRect.top - iconRect.height / 2;
-
+	function handleMove(event: { detail: { x: number, y: number } }) {
+		const { x, y } = event.detail;
 		focalPoint = { x, y };
 		dispatch('move', { x, y });
 	}
 
-	function handleMouseUp() {
-		isDragging = false;
-	}
-
-	function handleTouchStart(event) {
-		isDragging = true;
-		handleTouchMove(event);
-	}
-
-	function handleTouchMove(event) {
-		if (!isDragging) return;
-		event.preventDefault(); // Prevent scrolling on touch devices
-		const touch = event.touches[0];
-		handleMove(touch);
-	}
-
-	function handleTouchEnd() {
-		isDragging = false;
-	}
-
-	function handleKeyDown(event) {
-		if (event.key === 'ArrowUp' || event.key === 'ArrowDown' || event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+	function handleKeyDown(event: KeyboardEvent) {
+		if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(event.key)) {
 			event.preventDefault(); // Prevent scrolling with arrow keys
 		}
 
-		let x = focalPoint.x;
-		let y = focalPoint.y;
+		let { x, y } = focalPoint;
 
 		switch (event.key) {
 			case 'ArrowUp':
@@ -85,22 +51,22 @@
 	bind:this={containerRef}
 	class="relative overflow-hidden"
 	style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}
-	on:mousedown={handleMouseDown}
-	on:mousemove={handleMouseMove}
-	on:mouseup={handleMouseUp}
-	on:mouseleave={handleMouseUp}
-	on:touchstart|passive={handleTouchStart}
-	on:touchmove|passive={handleTouchMove}
-	on:touchend={handleTouchEnd}
-	on:touchcancel={handleTouchEnd}
 	on:keydown={handleKeyDown}
 	tabindex="0"
 >
-	<iconify-icon
-		bind:this={iconRef}
-		icon="bi:plus-circle-fill"
-		width="30"
-		class="absolute cursor-move rounded-full border-[3px] border-tertiary-500 bg-black text-white dark:border-primary-500 dark:bg-white dark:text-surface-500"
-		style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}
-	/>
+	<MouseHandler
+		on:move={handleMove}
+		bind:x={focalPoint.x}
+		bind:y={focalPoint.y}
+		{CONT_WIDTH}
+		{CONT_HEIGHT}
+	>
+		<iconify-icon
+			bind:this={iconRef}
+			icon="bi:plus-circle-fill"
+			width="30"
+			class="absolute cursor-move rounded-full border-[3px] border-tertiary-500 bg-black text-white dark:border-primary-500 dark:bg-white dark:text-surface-500"
+			style={`left: ${focalPoint.x}px; top: ${focalPoint.y}px;`}
+		/>
+	</MouseHandler>
 </button>

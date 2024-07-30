@@ -1,5 +1,6 @@
-import { z } from 'zod';
 import { publicEnv } from '@root/config/public';
+
+import { z } from 'zod';
 
 const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
 

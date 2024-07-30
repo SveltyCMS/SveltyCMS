@@ -1,23 +1,23 @@
+import { publicEnv } from '@root/config/public';
+import { privateEnv } from '@root/config/private';
+
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
 import { auth, googleAuth, initializationPromise, dbAdapter } from '@api/databases/db';
 import type { User } from '@src/auth/types';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores
 import { systemLanguage } from '@stores/store';
-import { set as setCachedSession, get as getCachedSession } from '@stores/cachedSessionStore';
-
-// System Logs
-import logger from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';
-import { privateEnv } from '@root/config/private';
 import { getCollections } from '@src/collections';
-import { publicEnv } from '@root/config/public';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+
+// System Logs
+import logger from '@src/utils/logger';
 
 const DEFAULT_THEME = {
 	name: 'SveltyCMSTheme',

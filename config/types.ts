@@ -39,6 +39,12 @@ export const createPrivateConfig = (arg: {
 	REDIS_PORT?: number; // The port number of your Redis server.
 	REDIS_PASSWORD?: string; // The password for your Redis server (if any).
 
+	// Session configuration
+	SESSION_CLEANUP_INTERVAL?: number; // Session Cleanup Interval
+	MAX_IN_MEMORY_SESSIONS?: number; // Max In Memory Sessions
+	DB_VALIDATION_PROBABILITY?: number; // DB Validation Probability
+	SESSION_EXPIRATION_SECONDS?: number; // Session Expiration Seconds
+
 	// Mapbox config  - See https://docs.mapbox.com/
 	USE_MAPBOX: boolean; // Enable Mapbox. Set to `true` to enable
 	MAPBOX_API_TOKEN?: string; // Public Mapbox API Token

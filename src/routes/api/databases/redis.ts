@@ -1,13 +1,10 @@
 import { privateEnv } from '@root/config/private';
 import { createClient } from 'redis';
-
-// System Logs
 import logger from '@src/utils/logger';
 import type { User } from '@src/auth/types';
 
 let redisClient: ReturnType<typeof createClient> | null = null;
 
-// Initialize Redis
 export async function initializeRedis() {
 	if (!privateEnv.USE_REDIS) {
 		logger.info('Redis is disabled in configuration');
@@ -30,7 +27,6 @@ export async function initializeRedis() {
 	}
 }
 
-// Redis helpers
 export async function getCache<T>(key: string): Promise<T | null> {
 	if (!redisClient) {
 		logger.warn('Redis client is not initialized. Returning null.');
@@ -41,12 +37,15 @@ export async function getCache<T>(key: string): Promise<T | null> {
 		const value = await redisClient.get(key);
 		return value ? JSON.parse(value) : null;
 	} catch (error) {
-		logger.error('Redis get error', error);
+		if (error instanceof Error) {
+			logger.error(`Redis get error for key ${key}: ${error.message}`);
+		} else {
+			logger.error(`Redis get error for key ${key}: ${String(error)}`);
+		}
 		return null;
 	}
 }
 
-// Set cache
 export async function setCache<T>(key: string, value: T, expirationInSeconds: number = 3600): Promise<void> {
 	if (!redisClient) {
 		logger.warn('Redis client is not initialized. Skipping cache set.');
@@ -58,26 +57,26 @@ export async function setCache<T>(key: string, value: T, expirationInSeconds: nu
 			EX: expirationInSeconds
 		});
 	} catch (error) {
-		logger.error('Redis set error', error);
+		if (error instanceof Error) {
+			logger.error(`Redis set error for key ${key}: ${error.message}`);
+		} else {
+			logger.error(`Redis set error for key ${key}: ${String(error)}`);
+		}
 	}
 }
 
-// Get cached session
 export async function getCachedSession(sessionId: string): Promise<User | null> {
 	return getCache<User>(`session:${sessionId}`);
 }
 
-// Set cached session
 export async function setCachedSession(sessionId: string, user: User, expirationInSeconds: number = 3600): Promise<void> {
 	await setCache(`session:${sessionId}`, user, expirationInSeconds);
 }
 
-// Clear cached session
 export async function clearCachedSession(sessionId: string): Promise<void> {
 	await clearCache(`session:${sessionId}`);
 }
 
-// Clear cache by key
 export async function clearCache(key: string): Promise<void> {
 	if (!redisClient) {
 		logger.warn('Redis client is not initialized. Skipping cache clear.');
@@ -87,14 +86,21 @@ export async function clearCache(key: string): Promise<void> {
 	try {
 		await redisClient.del(key);
 	} catch (error) {
-		logger.error('Redis delete error', error);
+		if (error instanceof Error) {
+			logger.error(`Redis delete error for key ${key}: ${error.message}`);
+		} else {
+			logger.error(`Redis delete error for key ${key}: ${String(error)}`);
+		}
 	}
 }
 
-// Close Redis connection
 export async function closeRedisConnection() {
 	if (redisClient) {
 		await redisClient.quit();
 		logger.info('Redis connection closed');
 	}
+}
+
+export function isRedisEnabled(): boolean {
+	return !!redisClient;
 }

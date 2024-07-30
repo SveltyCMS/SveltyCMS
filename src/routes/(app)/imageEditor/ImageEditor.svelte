@@ -1,201 +1,99 @@
 <script lang="ts">
-	import Zoom from './Zoom.svelte';
-	import Blur from './Blur.svelte';
-	import Crop from './Crop.svelte';
-	import FocalPoint from './FocalPoint.svelte';
-	import Rotate from './Rotate.svelte';
-	import { onMount } from 'svelte';
+    import Zoom from './Zoom.svelte';
+    import Blur from './Blur.svelte';
+    import Crop from './Crop.svelte';
+    import FocalPoint from './FocalPoint.svelte';
+    import Rotate from './Rotate.svelte';
+    import { onMount, createEventDispatcher } from 'svelte';
 
-	export let image: File | null | undefined;
+    export let imageFile: File | null = null;
+    const dispatch = createEventDispatcher();
 
-	let activeState = 'rotate';
-	let zoom = 1;
+    let activeState = 'rotate';
+    let zoom = 1;
+    let rotate = 0;
+    let imageView: HTMLImageElement | undefined;
 
-	// Initialize CONT_WIDTH and CONT_HEIGHT with a default value
-	let CONT_WIDTH: number = 0;
-	let CONT_HEIGHT: number = 0;
+    // Crop variables
+    let cropTop = 10, cropLeft = 10, cropRight = 10, cropBottom = 10, cropCenter = 0, cropShape: 'rect' | 'round' = 'rect';
+    // Blur variables
+    let blurTop = 10, blurLeft = 10, blurRight = 10, blurBottom = 10, blurCenter = 0, blurRotate = 0;
+    // Focal point variables
+    let focalPoint = { x: 0, y: 0 }, initialFocalPoint = { x: 0, y: 0 };
 
-	let imageView: HTMLImageElement | undefined;
+    onMount(() => {
+        if (imageView) {
+            imageView.addEventListener('load', handleImageLoad);
+        }
+    });
 
-	// Initialize the CROP values with default values
-	let cropTop = 10;
-	let cropLeft = 10;
-	let cropRight = 10;
-	let cropBottom = 10;
-	let cropCenter = 0;
-	let cropShape: 'rect' | 'round' = 'rect'; // or 'round'
+    function handleImageLoad() {
+        // Set initial values based on image dimensions
+        focalPoint = { x: imageView?.naturalWidth / 2, y: imageView?.naturalHeight / 2 };
+    }
 
-	// Initialize the BLUR values with default values
-	let blurTop = 10;
-	let blurLeft = 10;
-	let blurRight = 10;
-	let blurBottom = 10;
-	let blurCenter = 0;
-	let blurRotate = 0;
+    function applyTransformations() {
+        // Logic to apply transformations (crop, blur, rotate, etc.) to the image and return the updated image
+        const updatedImage = new Blob(); // Replace with actual transformation logic
+        dispatch('imageUpdate', { updatedImage });
+    }
 
-	// Initialize the BLUR values with default values
-	let focalPoint = { x: 0, y: 0 };
-	const initialFocalPoint = { x: 0, y: 0 };
+    function handleImageUpdate() {
+        applyTransformations();
+    }
 
-	// Initialize the Rotate values with default values,
-	let rotate: number = 0;
+    function resetFocalPoint() {
+        focalPoint = { ...initialFocalPoint };
+    }
 
-	// Use the use:action directive to bind the image element to the imageView variable
-	function bindImageView(node: HTMLImageElement) {
-		imageView = node;
-	}
-
-	onMount(() => {
-		if (imageView) {
-			imageView.addEventListener('load', handleImageLoad);
-		}
-	});
-
-	function handleImageLoad() {
-		CONT_WIDTH = imageView?.naturalWidth ?? 0;
-		CONT_HEIGHT = imageView?.naturalHeight ?? 0;
-		focalPoint = { x: CONT_WIDTH / 2, y: CONT_HEIGHT / 2 };
-
-		// Set initial crop values to center the crop area
-		cropTop = CONT_HEIGHT / 4;
-		cropLeft = CONT_WIDTH / 4;
-		cropRight = (CONT_WIDTH * 3) / 4;
-		cropBottom = (CONT_HEIGHT * 3) / 4;
-		cropCenter = 0;
-	}
-
-	function resetFocalPoint() {
-		// Reset the focal point to its initial position
-		focalPoint = { ...initialFocalPoint };
-	}
-
-	// Dragging functionality
-	let startX: number;
-	let startY: number;
-	let dragging: boolean = false;
-
-	function handleDragStart(event: MouseEvent) {
-		dragging = true;
-		startX = event.clientX;
-		startY = event.clientY;
-	}
-
-	function handleDragging(event: MouseEvent) {
-		if (!dragging || !imageView) return; // Add null check for imageView
-		const offsetX = event.clientX - startX;
-		const offsetY = event.clientY - startY;
-		imageView.style.left = `${offsetX}px`;
-		imageView.style.top = `${offsetY}px`;
-	}
-
-	function handleDragEnd(event: MouseEvent) {
-		dragging = false;
-	}
+    // Event handlers for dragging, etc...
 </script>
 
-<!-- Image Info -->
-<div class="flex items-center justify-between">
-	<p>
-		<span class="hidden lg:inline-block">Image:</span>
-		<span class="text-tertiary-500 dark:text-primary-500">{image?.name}</span>
-	</p>
-	<p class="text-tertiary-500 dark:text-primary-500">{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</p>
-	<p>
-		Width: <span class="text-tertiary-500 dark:text-primary-500">{CONT_WIDTH}</span> x Height:
-		<span class="text-tertiary-500 dark:text-primary-500">{CONT_HEIGHT}</span>
-	</p>
+<div class="flex flex-col h-full">
+    <!-- Image Info -->
+    <div class="image-info p-4">
+        <p>Image: {imageFile?.name}</p>
+        <p>{Math.round(focalPoint.x)} x {Math.round(focalPoint.y)}</p>
+    </div>
+
+    <!-- Image Area -->
+    <div class="flex-grow flex justify-center items-center p-4">
+        <div class="image-area relative" on:mousedown={handleDragStart} on:mousemove={handleDragging} on:mouseup={handleDragEnd}>
+            <img bind:this={imageView} src={imageFile ? URL.createObjectURL(imageFile) : ''} alt="" class="image max-w-full max-h-full object-contain" on:load={handleImageLoad} />
+            {#if activeState === 'cropping'}
+                <Crop bind:cropTop bind:cropLeft bind:cropRight bind:cropBottom bind:cropCenter bind:cropShape />
+            {/if}
+            {#if activeState === 'blurring'}
+                <Blur bind:blurTop bind:blurLeft bind:blurRight bind:blurBottom bind:blurCenter bind:blurRotate />
+            {/if}
+            {#if activeState === 'focalpoint'}
+                <FocalPoint bind:focalPoint />
+            {/if}
+        </div>
+    </div>
+
+    <!-- Controls -->
+    <div class="controls p-4 flex flex-wrap justify-around bg-gray-100">
+        <button class="btn" on:click={resetFocalPoint}>Reset All</button>
+        <button class="btn" on:click={() => activeState = activeState === 'cropping' ? '' : 'cropping'}>Crop</button>
+        <button class="btn" on:click={() => activeState = activeState === 'blurring' ? '' : 'blurring'}>Blur</button>
+        <button class="btn" on:click={() => activeState = activeState === 'focalpoint' ? '' : 'focalpoint'}>Focal Point</button>
+        <button class="btn" on:click={() => activeState = activeState === 'rotate' ? '' : 'rotate'}>Rotate</button>
+        <button class="btn" on:click={() => activeState = activeState === 'zoom' ? '' : 'zoom'}>Zoom</button>
+    </div>
 </div>
 
-<!-- Image Area -->
-<div class="h-[calc(100vh -20%)] relative flex min-h-[150px] max-w-5xl items-center justify-center overflow-hidden rounded-lg border border-gray-200">
-	<!-- Use the use:bindImageView action to bind the image element -->
-	<div
-		role="button"
-		tabindex="0"
-		on:mousedown|stopPropagation={(e) => handleDragStart(e)}
-		on:mousemove|stopPropagation={(e) => handleDragging(e)}
-		on:mouseup|stopPropagation={(e) => handleDragEnd(e)}
-	>
-		<img
-			use:bindImageView
-			src={image ? URL.createObjectURL(image) : ''}
-			alt=""
-			class="relative mx-auto w-auto cursor-move"
-			style={`transform: rotate(${rotate}deg) scale(${zoom}); object-fit: contain;`}
-			on:load={() => handleImageLoad()}
-		/>
-	</div>
-
-	<!-- Image overlays -->
-	<div class="absolute left-1/2 top-1/2 translate-x-[-50%] translate-y-[-50%]">
-		{#if activeState === 'cropping'}
-			<!-- Pass the image and the crop values to the Crop component  -->
-
-			<Crop bind:cropTop bind:cropLeft bind:cropRight bind:cropBottom bind:cropCenter bind:cropShape {CONT_WIDTH} {CONT_HEIGHT} />
-		{/if}
-
-		{#if activeState === 'blurring'}
-			<!-- Pass the image and the blur values to the Blur component  -->
-			<Blur bind:blurTop bind:blurLeft bind:blurRight bind:blurBottom bind:blurCenter bind:blurRotate {CONT_WIDTH} {CONT_HEIGHT} />
-		{/if}
-
-		{#if activeState === 'focalpoint'}
-			<!-- Pass the image, the focal point coordinates, and the image dimensions to the FocalPoint component -->
-			<FocalPoint bind:focalPoint on:move:handleMove {CONT_WIDTH} {CONT_HEIGHT} />
-		{/if}
-	</div>
-</div>
-
-<!-- Enable and Disable module functionality -->
-<div class="mt-1 flex items-center justify-between px-2">
-	<!-- Reset -->
-	<button on:click={resetFocalPoint} class="">
-		<iconify-icon icon="material-symbols-light:device-reset" width="38" class="text-tertiary-500" />
-		<p class="text-xs">Reset All</p>
-	</button>
-
-	<!-- Crop -->
-	<button on:click={() => (activeState = activeState === 'cropping' ? '' : 'cropping')}>
-		<iconify-icon icon="material-symbols:crop" width="28" class={activeState === 'cropping' ? 'text-error-500' : 'text-surface-token'} />
-		<p class="text-xs">Crop</p>
-	</button>
-
-	<!-- Blur -->
-	<button on:click={() => (activeState = activeState === 'blurring' ? '' : 'blurring')}>
-		<iconify-icon icon="ic:round-blur-circular" width="28" class={activeState === 'blurring' ? 'text-error-500' : 'text-surface-token'} />
-		<p class="text-xs">Blur</p>
-	</button>
-
-	<!-- Focal Point -->
-	<button on:click={() => (activeState = activeState === 'focalpoint' ? '' : 'focalpoint')}>
-		<iconify-icon
-			icon="material-symbols:center-focus-strong"
-			width="28"
-			class={activeState === 'focalpoint' ? 'text-error-500' : 'text-surface-token'}
-		/>
-		<p class="text-xs">Focal Point</p>
-	</button>
-
-	<!-- Rotate -->
-	<button on:click={() => (activeState = activeState === 'rotate' ? '' : 'rotate')} title="Rotate">
-		<iconify-icon icon="material-symbols:rotate-left-rounded" width="28" class={activeState === 'rotate' ? 'text-error-500' : 'text-surface-token'} />
-		<p class="text-xs">Rotate</p>
-	</button>
-
-	<button on:click={() => (activeState = activeState === 'zoom' ? '' : 'zoom')} title="Zoom">
-		<iconify-icon icon="material-symbols:zoom-out-map" width="28" class={activeState === 'zoom' ? 'text-error-500' : 'text-surface-token'} />
-		<p class="text-xs">Zoom</p>
-	</button>
-</div>
-
-<div class="flex items-center justify-between">
-	{#if activeState !== 'rotate'}
-		<!-- Zoom -->
-		<Zoom bind:zoom />
-	{/if}
-
-	{#if activeState === 'rotate'}
-		<!-- Rotate  -->
-		<Rotate bind:rotate bind:image />
-	{/if}
-</div>
+<style>
+    .image-info p {
+        margin: 0;
+    }
+    .btn {
+        @apply bg-blue-500 text-white font-bold py-2 px-4 rounded;
+    }
+    .btn:focus {
+        @apply outline-none ring-2 ring-blue-400;
+    }
+    .controls {
+        @apply sticky bottom-0;
+    }
+</style>

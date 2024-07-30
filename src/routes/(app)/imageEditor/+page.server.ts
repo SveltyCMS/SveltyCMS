@@ -7,7 +7,7 @@ import { redirect, error } from '@sveltejs/kit';
 import { auth } from '@api/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// Logger
+// System Logger
 import logger from '@src/utils/logger';
 
 export async function load(event: any) {

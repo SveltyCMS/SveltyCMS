@@ -44,6 +44,12 @@ export async function createOrUpdateConfigFile(configData) {
             REDIS_PORT: ${configData?.REDIS_PORT || 6379}, // The port number of your Redis server.
             REDIS_PASSWORD: '${configData?.REDIS_PASSWORD || ''}', // The password for your Redis server (if any).
 
+            // Session configuration
+	        SESSION_CLEANUP_INTERVAL: ${configData?.SESSION_CLEANUP_INTERVAL || 6000}, // 1 minute
+	        MAX_IN_MEMORY_SESSIONS: ${configData?.MAX_IN_MEMORY_SESSIONS || 10000}, // 10000 sessions
+	        DB_VALIDATION_PROBABILITY: ${configData?.DB_VALIDATION_PROBABILITY || 0.1}, // 10% of sessions will be validated
+	        SESSION_EXPIRATION_SECONDS:  ${configData?.SESSION_EXPIRATION_SECONDS || 3600}, // 1 hour by default
+
             // Enable Google OAuth (optional).
             USE_GOOGLE_OAUTH: ${configData?.USE_GOOGLE_OAUTH || 'false'},
             GOOGLE_CLIENT_ID: '${configData?.GOOGLE_CLIENT_ID || ''}', // Google Client ID

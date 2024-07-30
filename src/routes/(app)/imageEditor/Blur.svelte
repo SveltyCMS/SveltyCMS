@@ -1,15 +1,15 @@
 <script lang="ts">
 	import MouseHandler from './MouseHandler.svelte';
-
 	import { onMount } from 'svelte';
 
-	// Define your props for the Blur.svelte component that considers the image dimensions
+	// Define your props for the Blur.svelte component
 	// export let blurAmount: number = 5; // The blur amount in pixels
-	export let blurTop: number;
-	export let blurLeft: number;
-	export let blurRight: number;
-	export let blurBottom: number;
-	export let blurCenter: number;
+
+	export let blurTop: number = 10;
+	export let blurLeft: number = 10;
+	export let blurRight: number = 30;
+	export let blurBottom: number = 30;
+	export let blurCenter: number = 0;
 	export let blurRotate: number = 0;
 
 	// Define ImageSize for Overlay
@@ -17,87 +17,58 @@
 	export let CONT_HEIGHT: number;
 
 	onMount(async () => {
-		// Initialize your blur area here
-		// You might use the `sharp` library to apply the blur effect from +page.server.ts
-		// // Create a sharp instance with the image to be blurred
-		// const image = sharp('path/to/image.jpg');
-		// // Define the blur radius
-		// const blurRadius = 5;
-		// // Apply the blur effect
-		// image.blur(blurRadius);
-		// // Output the blurred image to a file
-		// image.toFile('path/to/blurred_image.jpg');
+		// Initialization logic if needed
 	});
 
-	function handleMove(event: { detail: { x: number; y: number } }) {
-		// console.log('Move event handled');
-
+	function handleMove(event: CustomEvent) {
+		const { x, y } = event.detail;
 		// Calculate offset from the image center
-		const offsetTop = event.detail.y - CONT_HEIGHT / 2;
-		const offsetX = event.detail.x - CONT_WIDTH / 2;
+		const offsetTop = y - CONT_HEIGHT / 2;
+		const offsetLeft = x - CONT_WIDTH / 2;
 
-		// Update blur top and left based on the offset
-		blurTop = blurCenter + offsetTop;
-		blurLeft = blurCenter + offsetX;
+		// Update the blur values
+		blurTop += offsetTop;
+		blurLeft += offsetLeft;
+		blurRight += offsetLeft;
+		blurBottom += offsetTop;
 	}
 
-	function handleResize(event: { detail: { x: number; y: number; corner: string } }) {
-		// console.log('Resize event handled');
+	function handleResize(event: CustomEvent) {
+		const { x, y, corner } = event.detail;
 
-		switch (event.detail.corner) {
+		switch (corner) {
 			case 'TopLeft':
-				blurTop = blurTop + event.detail.y;
-				blurLeft = blurLeft + event.detail.x;
+				blurTop += y;
+				blurLeft += x;
 				break;
 			case 'TopRight':
-				blurTop = blurTop + event.detail.y;
-				blurRight = blurRight - event.detail.x;
+				blurTop += y;
+				blurRight -= x;
 				break;
 			case 'BottomLeft':
-				blurBottom = blurBottom - event.detail.y;
-				blurLeft = blurLeft + event.detail.x;
+				blurBottom -= y;
+				blurLeft += x;
 				break;
 			case 'BottomRight':
-				blurBottom = blurBottom - event.detail.y;
-				blurRight = blurRight - event.detail.x;
+				blurBottom -= y;
+				blurRight -= x;
 				break;
 			case 'Center':
-				blurCenter = blurCenter + event.detail.x;
-				blurCenter = blurCenter + event.detail.y;
-				break;
-			default:
+				blurTop += y;
+				blurLeft += x;
+				blurRight += x;
+				blurBottom += y;
 				break;
 		}
-
-		// Update the position of the corners based on the new values of blurTop, blurLeft, blurRight, and blurBottom
-		const corners = document.querySelectorAll('.corner');
-		corners.forEach((corner) => {
-			const cornerData = (corner as HTMLElement).dataset.corner;
-			if (cornerData === 'TopLeft') {
-				(corner as HTMLElement).style.top = `${blurTop}px`;
-				(corner as HTMLElement).style.left = `${blurLeft}px`;
-			} else if (cornerData === 'TopRight') {
-				(corner as HTMLElement).style.top = `${blurTop}px`;
-				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
-			} else if (cornerData === 'BottomLeft') {
-				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
-				(corner as HTMLElement).style.left = `${blurLeft}px`;
-			} else if (cornerData === 'BottomRight') {
-				(corner as HTMLElement).style.bottom = `${CONT_HEIGHT - blurBottom}px`;
-				(corner as HTMLElement).style.right = `${CONT_WIDTH - blurRight}px`;
-			}
-		});
 	}
 
-	function handleRotate(event: { detail: { x: number; y: number } }) {
-		// console.log('Rotate event handled');
-
-		blurRotate += event.detail.x;
+	// Function to handle the rotate event
+	function handleRotate(event: CustomEvent) {
+		const { x } = event.detail;
+		blurRotate += x;
 	}
 
 	function handleDelete() {
-		// console.log('Delete event handled');
-
 		// You can add logic here to reset or remove the blur area
 		blurTop = 0;
 		blurLeft = 0;
@@ -105,58 +76,61 @@
 		blurBottom = 0;
 		blurCenter = 0;
 		blurRotate = 0;
-
 		// Set the visible prop to false if you have a visibility control
 		//visible = false;
 	}
 
 	function handleAdd() {
-		// console.log('Add  event handled');
+		// Logic for adding blur
 		// Update the separate variables with the event data
 	}
 </script>
 
 <div class="relative" style={`width: ${CONT_WIDTH}px; height: ${CONT_HEIGHT}px;`}>
 	<!-- Wrap the blur area element inside the MouseHandler component tag -->
-	<MouseHandler on:move={handleMove} on:resize={handleResize} on:rotate={handleRotate}>
-		<!-- Use an if block to conditionally render the blur area based on the image prop -->
-
+	<MouseHandler
+		on:move={handleMove}
+		on:resize={handleResize}
+		on:rotate={handleRotate}
+		bind:TopLeft={blurTop}
+		bind:TopRight={blurRight}
+		bind:BottomLeft={blurLeft}
+		bind:BottomRight={blurBottom}
+		bind:Center={blurCenter}
+		bind:Rotate={blurRotate}
+		{CONT_WIDTH}
+		{CONT_HEIGHT}
+	>
 		<div
 			class="absolute grid grid-cols-2 grid-rows-2"
 			style={`top: ${blurTop}px; left: ${blurLeft}px; width: ${blurRight - blurLeft}px; height: ${
 				blurBottom - blurTop
 			}px; transform: translate(-50%, -50%) rotate(${blurRotate}deg); border-radius: 5px;`}
 		>
-			<!-- Use a button elements -->
+			<!-- Button group for add and delete actions -->
 			<div
 				class="variant-filled-surface btn-group absolute -top-14 left-0 -translate-x-1/2 -translate-y-1/2 divide-x divide-surface-400 rounded-full"
 			>
 				<!-- Add Blur -->
-				<button type="button" on:click={handleAdd} class="">
+				<button type="button" on:click={handleAdd}>
 					<iconify-icon icon="clarity:clone-solid" width="14" />
 				</button>
-
 				<!-- Delete Blur -->
-				<button type="button" on:click={handleDelete} class="">
+				<button type="button" on:click={handleDelete}>
 					<iconify-icon icon="icomoon-free:bin" width="12" />
 				</button>
 			</div>
-			<!-- Add additional corners and lines to create a 3x3 grid -->
+
+			<!-- Corners for resizing and moving -->
 			<div class="corner" data-corner="TopLeft"></div>
 			<div class="corner" data-corner="TopRight"></div>
 			<div class="corner" data-corner="BottomLeft"></div>
 			<div class="corner" data-corner="BottomRight"></div>
-			<!-- Add a div element for the Center -->
 			<div class="corner" data-corner="Center"></div>
-			<!-- Add a div element for the Rotate -->
 			<div class="corner" data-corner="Rotate"></div>
-			<!-- Add a flexible border lines -->
 			<div class="middle-horizontal line"></div>
 			<div class="middle-vertical line"></div>
 		</div>
-
-		<!-- Pass the new props to the slot tag -->
-		<slot />
 	</MouseHandler>
 </div>
 

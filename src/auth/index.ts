@@ -1,23 +1,33 @@
-import { privateEnv } from '@root/config/private';
+// Types
 import type { Cookie, User, Session, Token } from './types';
 import type { authDBInterface } from './authDBInterface';
 
-// Redis
-import { getCachedSession, setCachedSession, clearCachedSession } from '@api/databases/redis';
+// Cache & Redis
+import { OptionalRedisSessionStore } from './SessionStores';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 
-// Argon2 hashing attributes
+export interface SessionStore {
+	get(sessionId: string): Promise<User | null>;
+	set(sessionId: string, user: User, expirationInSeconds: number): Promise<void>;
+	delete(sessionId: string): Promise<void>;
+	validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null>;
+	close(): Promise<void>;
+}
+
+export const defaultSessionStore = new OptionalRedisSessionStore();
 
 // Auth class to handle user and session management
 export class Auth {
 	private db: authDBInterface;
+	private sessionStore: SessionStore;
 
-	constructor(dbAdapter: authDBInterface) {
+	constructor(dbAdapter: authDBInterface, sessionStore: SessionStore = defaultSessionStore) {
 		this.db = dbAdapter;
+		this.sessionStore = sessionStore;
 	}
 
 	// Create a new user with hashed password
@@ -127,6 +137,13 @@ export class Auth {
 			// If there's an existing session, update its expiry
 			logger.info(`Updating existing session for user ID: ${user_id} and device ID: ${device_id}`);
 			const updatedSession = await this.db.updateSessionExpiry(existingSession.session_id, isExtended ? expires * 2 : expires);
+			const user = await this.db.getUserById(user_id);
+			if (user) {
+				await this.sessionStore.set(updatedSession.session_id, user, expires / 1000);
+			} else {
+				logger.error(`User not found for ID: ${user_id}`);
+				throw new Error(`User not found for ID: ${user_id}`);
+			}
 			return updatedSession;
 		}
 
@@ -134,14 +151,16 @@ export class Auth {
 		expires = isExtended ? expires * 2 : expires;
 		logger.info(`Creating new session for user ID: ${user_id} with device ID: ${device_id} and expiry: ${expires}`);
 		const session = await this.db.createSession({ user_id, device_id, expires });
+		const user = await this.db.getUserById(user_id);
+		if (user) {
+			await this.sessionStore.set(session.session_id, user, expires / 1000);
+		} else {
+			logger.error(`User not found for ID: ${user_id}`);
+			throw new Error(`User not found for ID: ${user_id}`);
+		}
 
 		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
 		return session;
-	}
-	catch(error) {
-		const err = error as Error;
-		logger.error(`Failed to create session: ${err.message}`);
-		throw new Error(`Failed to create session: ${err.message}`);
 	}
 
 	// Check if a user exists by ID or email
@@ -210,10 +229,7 @@ export class Auth {
 	async destroySession(session_id: string): Promise<void> {
 		try {
 			await this.db.destroySession(session_id);
-			// Clear the session from Redis cache if enabled
-			if (privateEnv.USE_REDIS) {
-				await clearCachedSession(session_id);
-			}
+			await this.sessionStore.delete(session_id);
 			logger.info(`Session destroyed: ${session_id}`);
 		} catch (error) {
 			const err = error as Error;
@@ -309,26 +325,12 @@ export class Auth {
 				throw new Error('Session ID is undefined');
 			}
 
-			let user: User | null = null;
-
-			// Try to get the session from Redis cache if enabled
-			if (privateEnv.USE_REDIS) {
-				user = await getCachedSession(session_id);
-				if (user) {
-					logger.info(`Session found in cache for user: ${user.email}`);
-					return user;
-				}
-			}
-
-			// If not in cache or Redis is not enabled, validate from the database
-			user = await this.db.validateSession(session_id);
+			const user = await this.sessionStore.validateWithDB(session_id, async (sid) => {
+				return this.db.validateSession(sid);
+			});
 
 			if (user) {
 				logger.info(`Session is valid for user: ${user.email}`);
-				// Cache the session if Redis is enabled
-				if (privateEnv.USE_REDIS) {
-					await setCachedSession(session_id, user);
-				}
 			} else {
 				logger.warn(`Invalid session ID: ${session_id}`);
 			}

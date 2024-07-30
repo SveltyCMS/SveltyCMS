@@ -24,8 +24,11 @@ export async function configureSystem(privateConfigData = {}) {
 			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
 			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
 			`LOG_LEVELS: ${pc.red(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
-			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
-			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
+			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
+			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
+			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
+			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}`,
+		`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` + `SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
 		pc.red('Existing System Configuration:')
 	);
 
@@ -161,6 +164,72 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
+	const SESSION_CLEANUP_INTERVAL = await text({
+        message: 'Enter the session cleanup interval in milliseconds (default: 60000):',
+        placeholder: '60000',
+        initialValue: privateConfigData.SESSION_CLEANUP_INTERVAL?.toString() || '60000',
+        validate(value) {
+            if (isNaN(Number(value))) return `Please enter a valid number.`;
+        }
+    });
+
+    if (isCancel(SESSION_CLEANUP_INTERVAL)) {
+        cancel('Operation cancelled.');
+        console.clear();
+        await configurationPrompt();
+        return;
+    }
+
+    const MAX_IN_MEMORY_SESSIONS = await text({
+        message: 'Enter the maximum number of in-memory sessions (default: 10000):',
+        placeholder: '10000',
+        initialValue: privateConfigData.MAX_IN_MEMORY_SESSIONS?.toString() || '10000',
+        validate(value) {
+            if (isNaN(Number(value))) return `Please enter a valid number.`;
+        }
+    });
+
+    if (isCancel(MAX_IN_MEMORY_SESSIONS)) {
+        cancel('Operation cancelled.');
+        console.clear();
+        await configurationPrompt();
+        return;
+    }
+
+	const DB_VALIDATION_PROBABILITY = await text({
+        message: 'Enter the database validation probability (0-1, default: 0.1):',
+        placeholder: '0.1',
+        initialValue: privateConfigData.DB_VALIDATION_PROBABILITY?.toString() || '0.1',
+        validate(value) {
+            const num = Number(value);
+            if (isNaN(num) || num < 0 || num > 1) return `Please enter a valid number between 0 and 1.`;
+        }
+    });
+
+    if (isCancel(DB_VALIDATION_PROBABILITY)) {
+        cancel('Operation cancelled.');
+        console.clear();
+        await configurationPrompt();
+        return;
+    }
+
+	const SESSION_EXPIRATION_SECONDS = await text({
+        message: 'Enter the session expiration time in seconds (default: 3600):',
+        placeholder: '3600',
+        initialValue: privateConfigData.SESSION_EXPIRATION_SECONDS?.toString() || '3600',
+        validate(value) {
+            if (isNaN(Number(value))) return `Please enter a valid number.`;
+        }
+    });
+
+    if (isCancel(SESSION_EXPIRATION_SECONDS)) {
+        cancel('Operation cancelled.');
+        console.clear();
+        await configurationPrompt();
+        return;
+    }
+
+
 	const SEASONS = await confirm({
 		message: 'Do you want to enable seasons?',
 		placeholder: 'false / true',
@@ -199,8 +268,12 @@ export async function configureSystem(privateConfigData = {}) {
 			`BODY_SIZE_LIMIT: ${pc.green(BODY_SIZE_LIMIT)}\n` +
 			`EXTRACT_DATA_PATH: ${pc.green(EXTRACT_DATA_PATH)}\n` +
 			`LOG_LEVELS: ${pc.green(LOG_LEVELS.join(', '))}\n` +
-			`SEASONS: ${pc.green(SEASONS)}\n` +
-			`SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
+			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
+			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
+			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
+			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}`,
+
+		`SEASONS: ${pc.green(SEASONS)}\n` + `SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
 		pc.green('Review your System configuration:')
 	);
 
@@ -260,6 +333,10 @@ export async function configureSystem(privateConfigData = {}) {
 		PASSWORD_STRENGTH,
 		BODY_SIZE_LIMIT: bodySizeLimitOutput,
 		LOG_LEVELS,
+		SESSION_CLEANUP_INTERVAL: Number(SESSION_CLEANUP_INTERVAL),
+        MAX_IN_MEMORY_SESSIONS: Number(MAX_IN_MEMORY_SESSIONS),
+        DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),
+        SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS)
 		SEASONS,
 		SEASONS_REGION
 	};
