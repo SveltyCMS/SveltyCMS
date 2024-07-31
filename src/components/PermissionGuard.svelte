@@ -10,13 +10,12 @@
 	export let contextType: ContextType | string;
 
 	let userHasPermission = false;
-	roles = getLoadedRoles();
 	$: {
-		if (user && roles && rateLimits && contextId && action && requiredRole && contextType) {
+		// {rateLimits &&} will add this check later
+		if (user && roles && contextId && action && requiredRole && contextType) {
 			checkUserPermission();
 		}
 	}
-	debugger;
 	function checkUserPermission() {
 		console.log('PermissionGuard: Checking permission for:', {
 			user,

@@ -201,7 +201,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 		try {
 			const users = await UserModel.find().lean();
 			logger.debug('All users retrieved');
-			return users.map((user) => user.toObject() as User);
+			return users.map((user) => user as User);
 		} catch (error) {
 			logger.error(`Failed to get all users: ${error instanceof Error ? error.message : 'Unknown error'}`);
 			throw error;
