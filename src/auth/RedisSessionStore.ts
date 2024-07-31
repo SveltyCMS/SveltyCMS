@@ -42,6 +42,7 @@ export class RedisSessionStore implements SessionStore {
 			logger.info(`Session stored in Redis: ${sessionId}`);
 		} catch (error) {
 			logger.error(`Error storing session in Redis: ${error}`);
+			throw error; // Rethrow the error
 		}
 	}
 

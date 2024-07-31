@@ -97,9 +97,14 @@ export class OptionalRedisSessionStore implements SessionStore {
 	// Constructor for Redis session store
 	constructor(fallbackStore: SessionStore = new InMemorySessionStore()) {
 		this.fallbackStore = fallbackStore;
-		this.initializeRedis();
+		if (privateEnv.USE_REDIS) {
+			this.initializeRedis().catch((err) => {
+				logger.error(`Failed to initialize Redis, using fallback session store: ${err.message}`);
+			});
+		} else {
+			logger.info('Redis is disabled in configuration, using fallback session store');
+		}
 	}
-
 	// Initialize Redis session store
 	private async initializeRedis() {
 		if (!privateEnv.USE_REDIS) {

@@ -114,7 +114,7 @@ export class Auth {
 		}
 	}
 
-	/// Create a session, valid for 1 hour by default
+	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
 		expires = 60 * 60 * 1000, // 1 hour by default

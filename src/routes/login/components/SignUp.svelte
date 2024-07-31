@@ -220,7 +220,7 @@
 
 				<PasswordStrength password={$form.confirm_password} />
 
-				{#if firstUserExists == true && 'token' in $form}
+				{#if firstUserExists == true}
 					<!-- Registration Token -->
 					<FloatingInput
 						id="tokensignUp"
