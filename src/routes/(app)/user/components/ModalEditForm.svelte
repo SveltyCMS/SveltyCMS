@@ -13,12 +13,12 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
-
+	const roles = getLoadedRoles();
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import { type User } from '@src/auth/types';
+	import { getLoadedRoles, type User } from '@src/auth/types';
 	const user: User = $page.data.user;
 	console.log('User:', user);
 

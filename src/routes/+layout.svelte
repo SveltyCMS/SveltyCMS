@@ -33,7 +33,7 @@
 		if (!data || !data.theme) {
 			data.theme = DEFAULT_THEME;
 		}
-		theme.set(data.theme.name);
+		theme.set(data.theme);
 		await import(/* @vite-ignore */ data.theme.path);
 		console.log(`Theme '${data.theme.name}' loaded.`);
 	});

@@ -7,7 +7,7 @@ export const RoleSchema = new Schema(
 	{
 		name: { type: String, required: true }, // Name of the role, required field
 		description: String, // Description of the role, optional field
-		permissions: [{ type: Schema.Types.ObjectId, ref: 'Permission' }] // Permissions associated with the role, optional field
+		permissions: [{ type: Schema.Types.ObjectId, ref: 'auth_permissions' }] // Permissions associated with the role, optional field
 	},
 	{ timestamps: true }
 );

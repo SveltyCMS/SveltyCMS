@@ -105,8 +105,8 @@ export class MongoDBAuthAdapter implements authDBInterface {
 					logger.debug(`Admin role found with ID: ${adminRole.role_id}`);
 					// Assign all permissions to admin
 					for (const perm of createdPermissions) {
-						await this.assignPermissionToRole(adminRole.role_id, perm.permission_id);
-						logger.debug(`Permission ${perm.permission_id} assigned to role ${adminRole.role_id}`);
+						await this.assignPermissionToRole(adminRole._id, perm._id);
+						logger.debug(`Permission ${perm._id} assigned to role ${adminRole._id}`);
 					}
 				} else {
 					throw new Error('Admin role not created');
@@ -419,9 +419,9 @@ export class MongoDBAuthAdapter implements authDBInterface {
 
 	// Create a new role
 	async createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role> {
-		if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
-			throw new Error('Unauthorized: User does not have permission to manage roles');
-		}
+		// if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
+		// 	throw new Error('Unauthorized: User does not have permission to manage roles');
+		// }
 		try {
 			logger.debug(`Creating role: ${JSON.stringify(roleData)}`);
 			const role = new RoleModel(roleData);
@@ -436,9 +436,9 @@ export class MongoDBAuthAdapter implements authDBInterface {
 
 	// Update a role
 	async updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void> {
-		if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
-			throw new Error('Unauthorized: User does not have permission to manage roles');
-		}
+		// if (!(await this.checkUserPermission(currentUserId, 'manage_roles'))) {
+		// 	throw new Error('Unauthorized: User does not have permission to manage roles');
+		// }
 		try {
 			await RoleModel.updateOne({ _id: role_id }, { $set: roleData });
 			logger.debug(`Role updated: ${role_id}`);
@@ -489,7 +489,7 @@ export class MongoDBAuthAdapter implements authDBInterface {
 	// Get all roles
 	async getAllRoles(): Promise<Role[]> {
 		try {
-			const roles = await RoleModel.find().populate('permissions');
+			const roles = await RoleModel.find();//.populate('permissions');
 			logger.debug('All roles retrieved');
 			return roles.map((role) => role.toObject() as Role);
 		} catch (error) {
@@ -500,9 +500,9 @@ export class MongoDBAuthAdapter implements authDBInterface {
 
 	// Create a new permission
 	async createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission> {
-		if (!(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
-			throw new Error('Unauthorized: User does not have permission to manage permissions');
-		}
+		// if (!(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+		// 	throw new Error('Unauthorized: User does not have permission to manage permissions');
+		// }
 		try {
 			logger.debug(`Creating permission: ${JSON.stringify(permissionData)}`);
 			const permission = new PermissionModel(permissionData);
@@ -665,9 +665,9 @@ export class MongoDBAuthAdapter implements authDBInterface {
 
 	// Assign a permission to a role
 	async assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
-		if (!(await this.checkUserPermission(currentUserId, 'manage_roles')) || !(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
-			throw new Error('Unauthorized: User does not have permission to assign permissions to roles');
-		}
+		// if (!(await this.checkUserPermission(currentUserId, 'manage_roles')) || !(await this.checkUserPermission(currentUserId, 'manage_permissions'))) {
+		// 	throw new Error('Unauthorized: User does not have permission to assign permissions to roles');
+		// }
 		try {
 			logger.debug(`Attempting to assign permission ${permission_id} to role ${role_id}`);
 

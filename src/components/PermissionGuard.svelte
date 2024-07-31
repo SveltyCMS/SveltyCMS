@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { User, Role, PermissionAction, ContextType, RateLimit } from '@src/auth/types';
+	import { type User, type Role, type PermissionAction, type ContextType, type RateLimit, getLoadedRoles } from '@src/auth/types';
 
 	export let user: User;
 	export let roles: Role[];
@@ -10,13 +10,13 @@
 	export let contextType: ContextType | string;
 
 	let userHasPermission = false;
-
+	roles = getLoadedRoles();
 	$: {
 		if (user && roles && rateLimits && contextId && action && requiredRole && contextType) {
 			checkUserPermission();
 		}
 	}
-
+	debugger;
 	function checkUserPermission() {
 		console.log('PermissionGuard: Checking permission for:', {
 			user,

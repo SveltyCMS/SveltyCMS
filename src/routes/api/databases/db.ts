@@ -6,7 +6,7 @@ import { privateEnv } from '@root/config/private';
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
 import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
-import { google } from 'googleapis';
+
 
 // Adapters
 import type { dbInterface } from './dbInterface';
@@ -177,6 +177,7 @@ export async function getCollectionModels() {
 
 async function googleAuth() {
 	if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
+		const { google } = import('googleapis');
 		logger.debug('Setting up Google OAuth2...');
 		const oauth2Client = new google.auth.OAuth2(
 			privateEnv.GOOGLE_CLIENT_ID,
