@@ -2,9 +2,9 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
-import { auth, googleAuth, initializationPromise } from '@api/databases/db';
 import type { User } from '@src/auth/types';
 import { google } from 'googleapis';
+import { auth, initializationPromise, googleAuth } from '@api/databases/db';
 
 // Stores
 import { systemLanguage } from '@stores/store';

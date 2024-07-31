@@ -79,7 +79,7 @@ export const signUpFormSchema = z
 		email,
 		password,
 		confirm_password,
-		token
+		token: z.string().optional() // Make it optional if it's not always required
 	})
 	.refine((data) => data.password === data.confirm_password, {
 		message: m.formSchemas_Passwordmatch(),

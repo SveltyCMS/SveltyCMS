@@ -1,18 +1,11 @@
 import { privateEnv } from '@root/config/private';
 import { createRandomID } from '@src/utils/utils';
-
-// Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
-
-// Drizzle
-import type { dbInterface } from './dbInterface';
+import type { dbInterface, CollectionModel } from './dbInterface';
 import { drizzle, sql } from 'drizzle-orm';
-
 import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
-
-// Import logger
 import logger from '@src/utils/logger';
 
 // Define connection configuration for MariaDB and PostgreSQL
@@ -39,8 +32,9 @@ const dbConfig = {
 
 // Create the database connection based on the environment configuration
 const dbClient =
-	privateEnv.DB_TYPE === 'mariadb' ? dbConfig.mariadb.client(dbConfig.mariadb.connection) : dbConfig.postgres.client(dbConfig.postgres.connection);
-const db = drizzle(dbClient);
+	privateEnv.DB_TYPE === 'mariadb'
+		? drizzle(dbConfig.mariadb.client(dbConfig.mariadb.connection))
+		: drizzle(dbConfig.postgres.client(dbConfig.postgres.connection));
 
 export class DrizzleDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -48,19 +42,19 @@ export class DrizzleDBAdapter implements dbInterface {
 	private collectionsModels: { [key: string]: any } = {};
 	private isInitialized: boolean = false;
 
-	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
+	async connect(): Promise<void> {
 		if (this.isInitialized) {
 			logger.info('Database already initialized');
 			return;
 		}
 
+		let attempts = privateEnv.DB_RETRY_ATTEMPTS || 3;
 		while (attempts > 0) {
 			try {
-				await db.execute(sql`SELECT 1`);
+				await dbClient.execute(sql`SELECT 1`);
 				logger.info(`Successfully connected to ${privateEnv.DB_NAME}`);
 				await this.initialize();
 				this.isInitialized = true;
-				console.log('connect');
 				return;
 			} catch (error) {
 				attempts--;
@@ -73,436 +67,211 @@ export class DrizzleDBAdapter implements dbInterface {
 					throw new Error(errorMsg);
 				}
 
-				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
+				await new Promise((resolve) => setTimeout(resolve, 5000));
 			}
 		}
 	}
 
-	private async initialize(): Promise<void> {
-		await this.createTablesIfNotExist();
-		await this.setupCollectionModels();
-		this.setupAuthModels();
-		this.setupMediaModels();
-		this.setupWidgetModels();
+	async initialize(): Promise<void> {
+		logger.debug('Initializing DrizzleDBAdapter...');
+
+		// Subscribe to collections store
+		this.unsubscribe = collections.subscribe(async (cols) => {
+			for (const [collectionName, collection] of Object.entries(cols)) {
+				if (!this.tables[collectionName]) {
+					logger.debug(`Setting up table for collection: ${collectionName}`);
+					await this.setupTable(collectionName, collection);
+				}
+			}
+		});
+
+		logger.debug('DrizzleDBAdapter initialization complete.');
 	}
 
-	private async createTablesIfNotExist(): Promise<void> {
+	async setupTable(collectionName: string, collection: any): Promise<void> {
+		const tableSql = this.generateTableSQL(collectionName, collection);
 		try {
-			// Create auth tables
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS auth_users (
-                    id VARCHAR(255) PRIMARY KEY,
-                    email VARCHAR(255) UNIQUE NOT NULL,
-                    password VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS auth_sessions (
-                    id VARCHAR(255) PRIMARY KEY,
-                    user_id VARCHAR(255) NOT NULL,
-                    active BOOLEAN DEFAULT true,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES auth_users(id)
-                )
-            `);
-
-			// Create media tables
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS media_images (
-                    id VARCHAR(255) PRIMARY KEY,
-                    url VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-			// ... Create other media tables ...
-
-			// Create system tables
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS system_widgets (
-                    id VARCHAR(255) PRIMARY KEY,
-                    name VARCHAR(255) UNIQUE NOT NULL,
-                    is_active BOOLEAN DEFAULT true,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS collection_drafts (
-                    id VARCHAR(255) PRIMARY KEY,
-                    original_document_id VARCHAR(255) NOT NULL,
-                    content TEXT NOT NULL,
-                    created_by VARCHAR(255) NOT NULL,
-                    status VARCHAR(50) DEFAULT 'draft',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-			await db.execute(sql`
-                CREATE TABLE IF NOT EXISTS collection_revisions (
-                    id VARCHAR(255) PRIMARY KEY,
-                    document_id VARCHAR(255) NOT NULL,
-                    content TEXT NOT NULL,
-                    created_by VARCHAR(255) NOT NULL,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            `);
-
-			logger.info('Core tables created or already exist');
+			await dbClient.execute(tableSql);
+			this.tables[collectionName] = true;
+			logger.info(`Table created for collection: ${collectionName}`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error creating core tables: ${err.message}`);
+			logger.error(`Error creating table for collection: ${collectionName}. Error: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	private async setupCollectionModels(): Promise<void> {
-		return new Promise<void>((resolve) => {
-			this.unsubscribe = collections.subscribe(async (collections) => {
-				if (collections) {
-					for (const collection of Object.values(collections)) {
-						if (!collection.name) continue;
-
-						if (!this.tables[collection.name]) {
-							await this.createCollectionTable(collection.name, collection.fields);
-						}
-
-						this.collectionsModels[collection.name] = db.getTable(collection.name);
-						logger.info(`Collection model for ${collection.name} set up.`);
-					}
-
-					this.unsubscribe && this.unsubscribe();
-					this.unsubscribe = undefined;
-					logger.info('Collection models setup complete.');
-					resolve();
-				}
-			});
-		});
-	}
-
-	private async createCollectionTable(name: string, fields: any): Promise<void> {
-		const fieldDefinitions = Object.entries(fields)
-			.map(([fieldName, fieldType]) => {
-				return `${fieldName} ${this.getSQLType(fieldType)}`;
+	generateTableSQL(collectionName: string, collection: any): string {
+		const columns = collection.fields
+			.map((field: any) => {
+				const type = this.getSQLType(field.type);
+				return `${field.name} ${type}`;
 			})
 			.join(', ');
 
-		const query = sql`
-            CREATE TABLE IF NOT EXISTS ${name} (
-                id VARCHAR(255) PRIMARY KEY,
-                ${fieldDefinitions},
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        `;
-
-		try {
-			await db.execute(query);
-			this.tables[name] = true;
-			logger.info(`Table ${name} created or already exists`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error creating table ${name}: ${err.message}`);
-			throw error;
-		}
+		return `CREATE TABLE IF NOT EXISTS ${collectionName} (${columns});`;
 	}
 
-	private getSQLType(fieldType: string): string {
+	getSQLType(fieldType: string): string {
 		switch (fieldType) {
 			case 'string':
 				return 'VARCHAR(255)';
 			case 'number':
-				return 'FLOAT';
+				return 'INT';
 			case 'boolean':
 				return 'BOOLEAN';
 			case 'date':
-				return 'TIMESTAMP';
+				return 'DATE';
 			default:
-				return 'TEXT';
+				throw new Error(`Unsupported field type: ${fieldType}`);
 		}
 	}
 
-	async generateId(): Promise<string> {
-		return createRandomID();
+	async setupAuthModels(): Promise<void> {
+		// Add your logic to setup authorization models
 	}
 
-	setupAuthModels(): void {
-		// Define your auth models setup here
-		// This method is called only once during initialization
+	async setupMediaModels(): Promise<void> {
+		// Add your logic to setup media models
 	}
 
-	setupMediaModels(): void {
-		// Define your media models setup here
-		// This method is called only once during initialization
-	}
-
-	setupWidgetModels(): void {
-		// Ensure widget models are set up here
-		this.createTablesIfNotExist();
-	}
-
-	// Install a new widget
-	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
-		try {
-			const widgetId = await this.generateId();
-			await db.execute(sql`
-                INSERT INTO system_widgets (id, name, is_active, created_at, updated_at)
-                VALUES (${widgetId}, ${widgetData.name}, ${widgetData.isActive ?? false}, NOW(), NOW())
-            `);
-			logger.info(`Widget ${widgetData.name} installed successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error installing widget: ${err.message}`);
-			throw new Error(`Error installing widget: ${err.message}`);
-		}
-	}
-
-	// Fetch all widgets
-	async getWidgets(): Promise<any[]> {
-		try {
-			const result = await db.execute(sql`SELECT * FROM system_widgets`);
-			return result;
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching widgets: ${err.message}`);
-			throw new Error(`Error fetching widgets: ${err.message}`);
-		}
-	}
-
-	// Fetch active widgets
-	async getActiveWidgets(): Promise<string[]> {
-		try {
-			const result = await db.execute(sql`SELECT name FROM system_widgets WHERE is_active = true`);
-			return result.map((row: any) => row.name);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching active widgets: ${err.message}`);
-			throw new Error(`Error fetching active widgets: ${err.message}`);
-		}
-	}
-
-	// Activate a widget
-	async activateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await db.execute(sql`
-                UPDATE system_widgets
-                SET is_active = true, updated_at = NOW()
-                WHERE name = ${widgetName}
-            `);
-
-			if (result.rowCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or already active.`);
-			}
-
-			logger.info(`Widget ${widgetName} activated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error activating widget: ${err.message}`);
-			throw new Error(`Error activating widget: ${err.message}`);
-		}
-	}
-
-	// Deactivate a widget
-	async deactivateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await db.execute(sql`
-                UPDATE system_widgets
-                SET is_active = false, updated_at = NOW()
-                WHERE name = ${widgetName}
-            `);
-
-			if (result.rowCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
-			}
-
-			logger.info(`Widget ${widgetName} deactivated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deactivating widget: ${err.message}`);
-			throw new Error(`Error deactivating widget: ${err.message}`);
-		}
-	}
-
-	// Update a widget
-	async updateWidget(widgetName: string, updateData: any): Promise<void> {
-		try {
-			const fields = Object.entries(updateData)
-				.map(([key, value]) => `${key} = ${value}`)
-				.join(', ');
-
-			const result = await db.execute(sql`
-                UPDATE system_widgets
-                SET ${fields}, updated_at = NOW()
-                WHERE name = ${widgetName}
-            `);
-
-			if (result.rowCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
-			}
-
-			logger.info(`Widget ${widgetName} updated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating widget: ${err.message}`);
-			throw new Error(`Error updating widget: ${err.message}`);
-		}
+	async getCollectionModels(): Promise<{ [key: string]: any }> {
+		return this.collectionsModels;
 	}
 
 	async findOne(collection: string, query: object): Promise<any> {
-		const model = this.collectionsModels[collection];
-		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
-		}
-		return db.select().from(model).where(query).limit(1).execute();
+		const result = await dbClient.execute(sql`SELECT * FROM ${collection} WHERE ${query} LIMIT 1`);
+		return result[0];
 	}
 
 	async findMany(collection: string, query: object): Promise<any[]> {
-		const model = this.collectionsModels[collection];
-		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
-		}
-		return db.select().from(model).where(query).execute();
+		const results = await dbClient.execute(sql`SELECT * FROM ${collection} WHERE ${query}`);
+		return results;
 	}
 
 	async insertMany(collection: string, docs: object[]): Promise<any[]> {
-		const model = this.collectionsModels[collection];
-		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
-		}
-		return db.insert(model).values(docs).execute();
+		const results = await dbClient.execute(sql`INSERT INTO ${collection} VALUES (${docs})`);
+		return results;
 	}
 
 	async updateOne(collection: string, query: object, update: object): Promise<any> {
-		const model = this.collectionsModels[collection];
-		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
-		}
-		return db.update(model).set(update).where(query).execute();
+		const result = await dbClient.execute(sql`UPDATE ${collection} SET ${update} WHERE ${query} LIMIT 1`);
+		return result;
 	}
 
 	async updateMany(collection: string, query: object, update: object): Promise<any> {
-		const model = this.collectionsModels[collection];
-		if (!model) {
-			throw new Error(`Collection ${collection} does not exist.`);
-		}
-		return db.update(model).set(update).where(query).execute();
+		const results = await dbClient.execute(sql`UPDATE ${collection} SET ${update} WHERE ${query}`);
+		return results;
+	}
+
+	async deleteOne(collection: string, query: object): Promise<number> {
+		const result = await dbClient.execute(sql`DELETE FROM ${collection} WHERE ${query} LIMIT 1`);
+		return result.rowCount;
+	}
+
+	async deleteMany(collection: string, query: object): Promise<number> {
+		const results = await dbClient.execute(sql`DELETE FROM ${collection} WHERE ${query}`);
+		return results.rowCount;
+	}
+
+	async countDocuments(collection: string, query?: object): Promise<number> {
+		const result = await dbClient.execute(sql`SELECT COUNT(*) FROM ${collection} WHERE ${query || 1}`);
+		return result[0].count;
+	}
+
+	generateId(): string {
+		return createRandomID();
 	}
 
 	async createDraft(content: any, originalDocumentId: string, userId: string): Promise<any> {
-		const draftId = await this.generateId();
-		const result = await db.execute(sql`
-            INSERT INTO collection_drafts (id, original_document_id, content, created_by, status, created_at, updated_at)
-            VALUES (${draftId}, ${originalDocumentId}, ${content}, ${userId}, 'draft', NOW(), NOW())
-            RETURNING *
-        `);
-		return result[0];
+		const draftId = this.generateId();
+		await dbClient.execute(
+			sql`INSERT INTO drafts (id, content, original_document_id, user_id) VALUES (${draftId}, ${content}, ${originalDocumentId}, ${userId})`
+		);
+		return { draftId, content, originalDocumentId, userId };
 	}
 
 	async updateDraft(draftId: string, content: any): Promise<any> {
-		const result = await db.execute(sql`
-            UPDATE collection_drafts
-            SET content = ${content}, updated_at = NOW()
-            WHERE id = ${draftId}
-            RETURNING *
-        `);
-		return result[0];
+		await dbClient.execute(sql`UPDATE drafts SET content = ${content} WHERE id = ${draftId}`);
+		return { draftId, content };
 	}
 
 	async publishDraft(draftId: string): Promise<any> {
-		const result = await db.execute(sql`
-            UPDATE collection_drafts
-            SET status = 'published'
-            WHERE id = ${draftId}
-            RETURNING *
-        `);
-
-		const draft = result[0];
-		const revisionId = await this.generateId();
-		await db.execute(sql`
-            INSERT INTO collection_revisions (id, document_id, content, created_by, created_at)
-            VALUES (${revisionId}, ${draft.original_document_id}, ${draft.content}, ${draft.created_by}, NOW())
-        `);
+		const draft = await this.findOne('drafts', { id: draftId });
+		const { original_document_id, content } = draft;
+		await dbClient.execute(sql`UPDATE documents SET content = ${content} WHERE id = ${original_document_id}`);
+		await this.deleteOne('drafts', { id: draftId });
 		return draft;
 	}
 
 	async getDraftsByUser(userId: string): Promise<any[]> {
-		const result = await db.execute(sql`
-            SELECT * FROM collection_drafts
-            WHERE created_by = ${userId}
-        `);
-		return result;
+		const drafts = await this.findMany('drafts', { user_id: userId });
+		return drafts;
 	}
 
 	async createRevision(documentId: string, content: any, userId: string): Promise<any> {
-		const revisionId = await this.generateId();
-		const result = await db.execute(sql`
-            INSERT INTO collection_revisions (id, document_id, content, created_by, created_at)
-            VALUES (${revisionId}, ${documentId}, ${content}, ${userId}, NOW())
-            RETURNING *
-        `);
-		return result[0];
+		const revisionId = this.generateId();
+		await dbClient.execute(
+			sql`INSERT INTO revisions (id, document_id, content, user_id) VALUES (${revisionId}, ${documentId}, ${content}, ${userId})`
+		);
+		return { revisionId, documentId, content, userId };
 	}
 
 	async getRevisions(documentId: string): Promise<any[]> {
-		const result = await db.execute(sql`
-            SELECT * FROM collection_revisions
-            WHERE document_id = ${documentId}
-            ORDER BY created_at DESC
-        `);
-		return result;
+		const revisions = await this.findMany('revisions', { document_id: documentId });
+		return revisions;
+	}
+
+	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
+		await dbClient.execute(sql`INSERT INTO widgets (name, is_active) VALUES (${widgetData.name}, ${widgetData.isActive || true})`);
+	}
+
+	async getAllWidgets(): Promise<any[]> {
+		const widgets = await this.findMany('widgets', {});
+		return widgets;
+	}
+
+	async getActiveWidgets(): Promise<string[]> {
+		const widgets = await this.findMany('widgets', { is_active: true });
+		return widgets.map((widget) => widget.name);
+	}
+
+	async activateWidget(widgetName: string): Promise<void> {
+		await dbClient.execute(sql`UPDATE widgets SET is_active = true WHERE name = ${widgetName}`);
+	}
+
+	async deactivateWidget(widgetName: string): Promise<void> {
+		await dbClient.execute(sql`UPDATE widgets SET is_active = false WHERE name = ${widgetName}`);
+	}
+
+	async updateWidget(widgetName: string, updateData: any): Promise<void> {
+		await dbClient.execute(sql`UPDATE widgets SET ${updateData} WHERE name = ${widgetName}`);
+	}
+
+	async setDefaultTheme(themeName: string): Promise<void> {
+		await dbClient.execute(sql`UPDATE themes SET is_default = false`);
+		await dbClient.execute(sql`UPDATE themes SET is_default = true WHERE name = ${themeName}`);
+	}
+
+	async storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void> {
+		for (const theme of themes) {
+			await dbClient.execute(sql`INSERT INTO themes (name, path, is_default) VALUES (${theme.name}, ${theme.path}, ${theme.isDefault || false})`);
+		}
+	}
+
+	async getDefaultTheme(): Promise<any> {
+		const theme = await this.findOne('themes', { is_default: true });
+		return theme;
+	}
+
+	async getAllThemes(): Promise<any[]> {
+		const themes = await this.findMany('themes', {});
+		return themes;
 	}
 
 	async disconnect(): Promise<void> {
-		await dbClient.end();
-		logger.info('Database connection closed.');
-	}
-
-	async getLastFiveCollections(): Promise<any[]> {
-		const recentCollections: any[] = [];
-
-		for (const [collectionName, model] of Object.entries(this.collectionsModels)) {
-			const recentDocs = await db
-				.select()
-				.from(model)
-				.orderBy(sql`created_at DESC`)
-				.limit(5)
-				.execute();
-			recentCollections.push({ collectionName, recentDocs });
+		if (this.unsubscribe) {
+			this.unsubscribe();
 		}
-
-		return recentCollections;
-	}
-
-	async getLoggedInUsers(): Promise<any[]> {
-		const sessionModel = db.getTable('auth_sessions');
-		const loggedInUsers = await db.select().from(sessionModel).where({ active: true }).execute();
-		return loggedInUsers;
-	}
-
-	async getCMSData(): Promise<any> {
-		// Implement your CMS data fetching logic here
-		const cmsData = {}; // Replace with actual logic
-		return cmsData;
-	}
-
-	async getLastFiveMedia(): Promise<any[]> {
-		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const recentMedia: any[] = [];
-
-		for (const schemaName of mediaSchemas) {
-			const model = db.getTable(schemaName);
-			const recentDocs = await db
-				.select()
-				.from(model)
-				.orderBy(sql`created_at DESC`)
-				.limit(5)
-				.execute();
-			recentMedia.push({ schemaName, recentDocs });
-			logger.info(`Fetched recent media documents for ${schemaName}`);
-		}
-		return recentMedia;
+		logger.info('Disconnected from the database');
 	}
 }

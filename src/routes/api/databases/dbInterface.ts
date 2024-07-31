@@ -1,4 +1,3 @@
-// Define dbInterface
 export interface dbInterface {
 	// Database Connection and Setup Methods
 	connect(): Promise<void>;
@@ -42,6 +41,7 @@ export interface dbInterface {
 	// Method for Disconnecting
 	disconnect(): Promise<void>;
 }
+
 // Define a generic Collection type to be used by database adapters
 export interface CollectionModel {
 	modelName: string;

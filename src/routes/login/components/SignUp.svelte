@@ -220,9 +220,8 @@
 
 				<PasswordStrength password={$form.confirm_password} />
 
-				{#if firstUserExists == true}
+				{#if firstUserExists == true && 'token' in $form}
 					<!-- Registration Token -->
-
 					<FloatingInput
 						id="tokensignUp"
 						name="token"
@@ -250,7 +249,6 @@
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->
-
 					<button type="submit" class="variant-filled btn mt-4 uppercase">
 						{m.form_signup()}
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}

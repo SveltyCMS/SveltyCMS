@@ -31,20 +31,6 @@ export class RedisSessionStore implements SessionStore {
 		});
 	}
 
-	// Get session from Redis
-	async get(sessionId: string): Promise<User | null> {
-		try {
-			// Retrieve and decrypt user data from Redis
-
-			const encryptedUser = await this.redisClient.get(`session:${sessionId}`);
-			return encryptedUser ? JSON.parse(decrypt(encryptedUser)) : null;
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching session from Redis: ${err.message}`);
-			return null;
-		}
-	}
-
 	// Set session in Redis
 	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
 		try {
@@ -53,9 +39,21 @@ export class RedisSessionStore implements SessionStore {
 			await this.redisClient.set(`session:${sessionId}`, encryptedUser, {
 				EX: expirationInSeconds
 			});
+			logger.info(`Session stored in Redis: ${sessionId}`);
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error caching session in Redis: ${err.message}`);
+			logger.error(`Error storing session in Redis: ${error}`);
+		}
+	}
+
+	// Get session from Redis
+	async get(sessionId: string): Promise<User | null> {
+		try {
+			const encryptedUser = await this.redisClient.get(`session:${sessionId}`);
+			logger.info(`Session retrieved from Redis: ${sessionId}`);
+			return encryptedUser ? JSON.parse(decrypt(encryptedUser)) : null;
+		} catch (error) {
+			logger.error(`Error retrieving session from Redis: ${error}`);
+			return null;
 		}
 	}
 
