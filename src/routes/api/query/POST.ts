@@ -1,7 +1,7 @@
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
-import { dbAdapter, getCollectionModels } from '@api/databases/db';
+import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 // Import logger

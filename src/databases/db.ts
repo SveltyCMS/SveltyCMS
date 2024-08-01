@@ -7,7 +7,6 @@ import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
 import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
 
-
 // Adapters
 import type { dbInterface } from './dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
@@ -175,20 +174,21 @@ export async function getCollectionModels() {
 	}
 }
 
+// Google OAuth2 - optional authentication
 async function googleAuth() {
 	if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
-		const { google } = import('googleapis');
+		const { google } = await import('googleapis');
 		logger.debug('Setting up Google OAuth2...');
 		const oauth2Client = new google.auth.OAuth2(
 			privateEnv.GOOGLE_CLIENT_ID,
 			privateEnv.GOOGLE_CLIENT_SECRET,
 			`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 		);
+		logger.debug('Google OAuth2 setup complete.');
 		return oauth2Client;
 	} else {
 		logger.warn('Google client ID and secret not provided. Google OAuth will not be available.');
-		return null;
 	}
 }
-
+// Export collections and auth objects
 export { collectionsModels, auth, googleAuth, initializationPromise, dbAdapter, authAdapter };

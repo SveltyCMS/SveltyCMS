@@ -4,7 +4,7 @@ import type { Actions, PageServerLoad } from './$types';
 // Auth
 import type { User } from '@src/auth/types';
 import { google } from 'googleapis';
-import { auth, initializationPromise, googleAuth } from '@api/databases/db';
+import { auth, initializationPromise, googleAuth } from '@src/databases/db';
 
 // Stores
 import { systemLanguage } from '@stores/store';

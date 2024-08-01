@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { auth } from '@api/databases/db'; // Import the auth instance
+import { auth } from '@src/databases/db'; // Import the auth instance
 
 // Import logger
 import logger from '@src/utils/logger';

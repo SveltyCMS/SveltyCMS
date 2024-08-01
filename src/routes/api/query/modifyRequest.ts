@@ -1,7 +1,7 @@
 import widgets from '@src/components/widgets';
 import { getFieldName } from '@src/utils/utils';
 import type { User } from '@src/auth/types';
-import type { CollectionModel } from '@src/routes/api/databases/dbInterface';
+import type { CollectionModel } from '@src/databases/dbInterface';
 
 // Import logger
 import logger from '@src/utils/logger';

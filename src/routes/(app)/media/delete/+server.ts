@@ -1,4 +1,4 @@
-import { auth, dbAdapter } from '@api/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 import type { RequestHandler } from './$types';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 

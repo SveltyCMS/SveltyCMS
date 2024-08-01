@@ -5,7 +5,7 @@ import { getFieldName, getGuiFields } from '@src/utils/utils';
 import { saveImage } from '@src/utils/media';
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import type { ModifyRequestParams } from '..';
-import { dbAdapter } from '@api/databases/db'; // Import your database adapter
+import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

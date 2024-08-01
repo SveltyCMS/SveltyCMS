@@ -1,7 +1,7 @@
 import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { ModifyRequestParams } from '..';
-import { dbAdapter } from '@api/databases/db'; // Import database adapter
+import { dbAdapter } from '@src/databases/db'; // Import database adapter
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

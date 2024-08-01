@@ -4,7 +4,7 @@ const WIDGET_NAME = 'MediaUpload' as const; // Defines MediaUpload widget Parame
 import { getFieldName, getGuiFields, get_elements_by_id, meta_data, saveFile } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

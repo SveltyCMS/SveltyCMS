@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { dbAdapter } from '@api/databases/db'; // Import your database adapter
+import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
 export const GET: RequestHandler = async ({ url }) => {
 	try {

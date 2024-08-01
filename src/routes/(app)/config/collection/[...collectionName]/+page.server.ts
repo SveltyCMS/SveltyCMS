@@ -8,7 +8,7 @@ import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { WidgetType } from '@components/widgets';
 
 // Auth
-import { auth, getCollectionModels } from '@api/databases/db';
+import { auth, getCollectionModels } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;

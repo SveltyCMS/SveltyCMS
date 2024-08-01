@@ -1,5 +1,5 @@
 import type { Schema } from '@src/collections/types';
-import { dbAdapter, getCollectionModels } from '@api/databases/db';
+import { dbAdapter, getCollectionModels } from '@src/databases/db';
 
 // Import logger
 import logger from '@src/utils/logger';

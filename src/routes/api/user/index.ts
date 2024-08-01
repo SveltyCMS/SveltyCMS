@@ -1,5 +1,5 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
-import { auth } from '@api/databases/db';
+import { auth } from '@src/databases/db';
 import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';

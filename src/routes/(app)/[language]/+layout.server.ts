@@ -3,7 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth, dbAdapter } from '@api/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS

@@ -5,7 +5,7 @@ import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Auth
-import { auth, googleAuth, initializationPromise, dbAdapter } from '@api/databases/db';
+import { auth, googleAuth, initializationPromise, dbAdapter } from '@src/databases/db';
 import type { User } from '@src/auth/types';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 

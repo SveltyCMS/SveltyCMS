@@ -4,7 +4,7 @@ import type { MediaImage } from '@src/utils/types';
 import { getFieldName, getGuiFields, get_elements_by_id, meta_data, saveImage } from '@src/utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
-import { dbAdapter } from '@api/databases/db'; // Import your database adapter
+import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';

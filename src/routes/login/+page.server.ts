@@ -11,7 +11,7 @@ import { loginFormSchema, forgotFormSchema, resetFormSchema, signUpFormSchema, s
 import { zod } from 'sveltekit-superforms/adapters';
 
 // Auth
-import { auth, googleAuth, initializationPromise } from '@api/databases/db';
+import { auth, googleAuth, initializationPromise } from '@src/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 

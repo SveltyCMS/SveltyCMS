@@ -1,4 +1,4 @@
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 import { promises as fs } from 'fs';
 import path from 'path';
 import logger from '@src/utils/logger';

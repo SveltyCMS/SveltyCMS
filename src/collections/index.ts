@@ -88,7 +88,7 @@ export const updateCollections = async (recompile: boolean = false) => {
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
 		if (typeof window === 'undefined') {
-			const { getCollectionModels } = await import('@api/databases/db');
+			const { getCollectionModels } = await import('@src/databases/db');
 			await getCollectionModels();
 		}
 

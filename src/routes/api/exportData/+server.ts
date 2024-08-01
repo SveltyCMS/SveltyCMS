@@ -4,7 +4,7 @@ import { publicEnv } from '@root/config/public';
 import { _GET } from '@api/query/GET';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores

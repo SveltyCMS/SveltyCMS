@@ -4,7 +4,7 @@ import fs from 'fs';
 import Path from 'path';
 
 // Auth
-import { auth, authAdapter, dbAdapter, initializationPromise } from '@api/databases/db';
+import { auth, authAdapter, dbAdapter, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { Role } from '@src/auth/types';
 
@@ -54,7 +54,7 @@ export async function load(event) {
 		const roles = await authAdapter?.getAllRoles();
 		let { _id, ...rest } = user;
 		const _roles = JSON.parse(JSON.stringify(roles));
-		return { user: { _id: _id.toString(), ...rest },roles:_roles, addUserForm, changePasswordForm, isFirstUser };
+		return { user: { _id: _id.toString(), ...rest }, roles: _roles, addUserForm, changePasswordForm, isFirstUser };
 	} catch (err) {
 		logger.error('Error during load function:', err as Error);
 		throw redirect(302, `/login`);

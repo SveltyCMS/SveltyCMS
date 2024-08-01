@@ -4,7 +4,7 @@ import { _GET } from '../query/GET';
 import { getFieldName } from '@src/utils/utils';
 
 // Auth
-import { auth } from '../databases/db';
+import { auth } from '../../../databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores

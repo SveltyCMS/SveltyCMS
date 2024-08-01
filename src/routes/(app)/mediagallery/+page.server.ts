@@ -3,7 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/media';
 
 // Auth
-import { auth, dbAdapter } from '@api/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export const load: PageServerLoad = async ({ cookies }) => {

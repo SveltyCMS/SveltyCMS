@@ -1,5 +1,5 @@
 import type { RequestHandler } from './$types';
-import { collectionsModels } from '@api/databases/db';
+import { collectionsModels } from '@src/databases/db';
 
 // System Logs
 import logger from '@src/utils/logger';

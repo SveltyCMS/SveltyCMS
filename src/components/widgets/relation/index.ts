@@ -78,7 +78,7 @@ widget.modifyRequest = async ({ field, data, user, type, id }: ModifyRequestPara
 	if (type !== 'GET' || !_data) {
 		return;
 	}
-	const { getCollectionModels } = await import('@src/routes/api/databases/db');
+	const { getCollectionModels } = await import('@src/databases/db');
 	const relative_collection = (await getCollectionModels())[field.relation];
 	const relative_collection_schema = (await getCollections())[field.relation] as Schema;
 	const response = (await relative_collection.findById(_data)) as any;

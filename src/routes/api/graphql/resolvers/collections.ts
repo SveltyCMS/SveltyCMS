@@ -2,7 +2,7 @@ import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // System logger
 import logger from '@src/utils/logger';

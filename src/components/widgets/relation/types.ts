@@ -9,7 +9,7 @@ import type { Permission } from '@src/auth/types';
 import GuiField from './GuiField.svelte';
 
 import { getFieldName } from '@utils/utils';
-import { dbAdapter } from '@api/databases/db'; // Import your database adapter
+import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
 /**
  * Defines Relation widget Parameters

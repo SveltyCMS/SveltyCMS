@@ -67,6 +67,7 @@ export interface PermissionConfig {
 
 // Permission interface to define what each permission can do
 export interface Permission {
+	_id: string; // The id of the permission
 	permission_id: PermissionId; // Unique identifier for the permission
 	name: string; // Name of the permission
 	action: PermissionAction; // The action that the role is allowed to perform
@@ -79,6 +80,7 @@ export interface Permission {
 
 // Define the type for a Role with dynamically assigned permissions
 export interface Role {
+	_id: string; // Unique identifier for the role
 	role_id: RoleId; // Unique identifier for the role
 	name: string; // Name of the role
 	description?: string; // Description of the role

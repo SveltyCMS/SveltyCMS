@@ -1,4 +1,4 @@
-import { dbAdapter, getCollectionModels } from '@api/databases/db';
+import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
 
 import type { User } from '@src/auth/types';

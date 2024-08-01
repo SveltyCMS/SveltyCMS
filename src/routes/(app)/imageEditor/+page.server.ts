@@ -5,7 +5,7 @@ import type { PageServerLoad } from './$types';
 import { publicEnv } from '@root/config/public';
 import path from 'path';
 import fs from 'fs/promises';
-import { auth } from '@api/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import logger from '@src/utils/logger';
 

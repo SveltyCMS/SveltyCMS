@@ -1,7 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 
 // Auth
-import { auth, initializationPromise } from '@api/databases/db';
+import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logger

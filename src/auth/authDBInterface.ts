@@ -1,6 +1,6 @@
 import type { User, Session, Token, Role, Permission } from './types';
 
-export interface authDBInterface {
+export interface UserDBInterface {
 	// User Management Methods
 	createUser(userData: Partial<User>): Promise<User>;
 	updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User>;
@@ -9,7 +9,9 @@ export interface authDBInterface {
 	getUserByEmail(email: string): Promise<User | null>;
 	getAllUsers(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<User[]>;
 	getUserCount(filter?: object): Promise<number>;
+}
 
+export interface SessionDBInterface {
 	// Session Management Methods
 	createSession(sessionData: { user_id: string; expires: number }): Promise<Session>;
 	updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session>;
@@ -18,14 +20,18 @@ export interface authDBInterface {
 	validateSession(session_id: string): Promise<User | null>;
 	invalidateAllUserSessions(user_id: string): Promise<void>;
 	getActiveSessions(user_id: string): Promise<Session[]>;
+}
 
-	// Token Management Methods
+export interface TokenDBInterface {
+	/// Token Management Methods
 	createToken(data: { user_id: string; email: string; expires: number; type: string }): Promise<string>;
 	validateToken(token: string, user_id: string, type: string): Promise<{ success: boolean; message: string }>;
 	consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }>;
 	getAllTokens(filter?: object): Promise<Token[]>;
 	deleteExpiredTokens(): Promise<number>;
+}
 
+export interface RoleDBInterface {
 	// Role Management Methods
 	createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role>;
 	updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void>;
@@ -33,7 +39,9 @@ export interface authDBInterface {
 	getRoleById(role_id: string): Promise<Role | null>;
 	getAllRoles(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Role[]>;
 	getRoleByName(name: string): Promise<Role | null>;
+}
 
+export interface PermissionDBInterface {
 	// Permission Management Methods
 	createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission>;
 	updatePermission(permission_id: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
@@ -41,7 +49,9 @@ export interface authDBInterface {
 	getPermissionById(permission_id: string): Promise<Permission | null>;
 	getAllPermissions(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Permission[]>;
 	getPermissionByName(name: string): Promise<Permission | null>;
+}
 
+export interface authDBInterface extends UserDBInterface, SessionDBInterface, RoleDBInterface, PermissionDBInterface {
 	// Role-Permissions Linking Methods
 	assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;
 	removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;

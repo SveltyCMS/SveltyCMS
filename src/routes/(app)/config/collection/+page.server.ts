@@ -1,7 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 export async function load({ cookies }) {

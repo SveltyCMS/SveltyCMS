@@ -1,7 +1,7 @@
 // System Logs
 import logger from '@src/utils/logger';
 
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 export function mediaTypeDefs() {
 	return `

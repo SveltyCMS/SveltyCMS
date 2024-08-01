@@ -1,6 +1,6 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
-import { auth } from '@api/databases/db'; // Import the auth instance
+import { auth } from '@src/databases/db'; // Import the auth instance
 import { SESSION_COOKIE_NAME } from '@src/auth'; // Import the session cookie name
 
 // Import logger

@@ -2,7 +2,7 @@ import { indexer } from '@src/stores/load.js';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 
 // Auth
-import { auth } from '@src/routes/api/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 import type { RequestHandler } from '@sveltejs/kit';

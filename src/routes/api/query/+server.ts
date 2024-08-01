@@ -2,7 +2,7 @@ import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@api/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 

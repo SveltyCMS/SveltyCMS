@@ -1,7 +1,7 @@
 // System Logs
 import logger from '@src/utils/logger';
 
-import type { dbInterface } from '@src/routes/api/databases/dbInterface';
+import type { dbInterface } from '@src/databases/dbInterface';
 import type { User } from '@src/auth/types';
 
 // Helper function to map TypeScript types to GraphQL types

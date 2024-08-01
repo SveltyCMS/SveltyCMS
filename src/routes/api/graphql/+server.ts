@@ -6,7 +6,7 @@ import { createSchema, createYoga } from 'graphql-yoga';
 import { registerCollections, collectionsResolvers } from './resolvers/collections';
 import { userTypeDefs, userResolvers } from './resolvers/users';
 import { mediaTypeDefs, mediaResolvers } from './resolvers/media';
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 // Redis
 import { createClient } from 'redis';

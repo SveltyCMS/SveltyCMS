@@ -4,7 +4,7 @@ import axios from 'axios';
 import Path from 'path';
 import { browser } from '$app/environment';
 import { sha256 } from './utils';
-import { dbAdapter } from '@api/databases/db';
+import { dbAdapter } from '@src/databases/db';
 
 import crypto from 'crypto';
 

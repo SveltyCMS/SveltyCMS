@@ -4,7 +4,7 @@ import fs from 'fs';
 import axios from 'axios';
 import Path from 'path';
 
-import type { dbInterface } from '@src/routes/api/databases/dbInterface';
+import type { dbInterface } from '@src/databases/dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { User } from '@src/auth/types';
 
