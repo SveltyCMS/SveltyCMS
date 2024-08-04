@@ -1,8 +1,30 @@
+/* @file src/routes/api/graphql/resolvers/collections.ts
+ * @description Dynamic GraphQL schema and resolver generation for collections.
+ *
+ * This module provides functionality to:
+ * - Dynamically register collection schemas based on the CMS configuration
+ * - Generate GraphQL type definitions and resolvers for each collection
+ * - Handle complex field types and nested structures
+ * - Integrate with Redis for caching (if enabled)
+ *
+ * Features:
+ * - Dynamic schema generation based on widget configurations
+ * - Support for extracted fields and nested structures
+ * - Integration with custom widget schemas
+ * - Redis caching for improved performance
+ * - Error handling and logging
+ *
+ * Usage:
+ * - Used by the main GraphQL setup to generate collection-specific schemas and resolvers
+ * - Provides the foundation for querying collection data through the GraphQL API
+ */
+
 // System Logs
 import logger from '@src/utils/logger';
 
 import { dbAdapter } from '@src/databases/db';
 
+// Registers collection schemas dynamically.
 export function mediaTypeDefs() {
 	return `
         type MediaImage {
@@ -42,6 +64,7 @@ export function mediaTypeDefs() {
     `;
 }
 
+// Builds resolvers for querying collection data.
 export function mediaResolvers() {
 	return {
 		mediaImages: async () => {

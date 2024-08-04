@@ -1,15 +1,41 @@
+/**
+ * @file src/routes/api/query/GET.ts
+ * @description Handler for GET operations on collections.
+ *
+ * This module provides functionality to:
+ * - Retrieve documents from a specified collection
+ * - Apply sorting, filtering, and pagination
+ * - Handle custom widget aggregations
+ * - Perform post-retrieval modifications via modifyRequest
+ *
+ * Features:
+ * - Support for custom widget-based filtering and sorting
+ * - Pagination with skip and limit
+ * - Aggregation pipeline for complex queries
+ * - Total count and pages count calculation
+ * - Content language handling
+ * - Error handling and logging
+ *
+ * Usage:
+ * Called by the main query handler for GET operations
+ * Accepts parameters for schema, user, sorting, filtering, content language, and pagination
+ *
+ * Note: This handler assumes that user authentication and authorization
+ * have already been performed by the calling function.
+ */
+
 import { publicEnv } from '@root/config/public';
 
+// Types
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 
-import { dbAdapter, getCollectionModels } from '../../../databases/db';
+import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
-
 import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
 
-// Import logger
+// System Logger
 import logger from '@src/utils/logger';
 
 // Function to handle GET requests for a specified collection
@@ -38,7 +64,7 @@ export async function _GET({
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		const aggregations: any = [];
+		const aggregations: any[] = [];
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
@@ -48,7 +74,7 @@ export async function _GET({
 		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
-			return new Response('Collection not found!', { status: 404 });
+			return new Response('Collection not found', { status: 404 });
 		}
 
 		// Build aggregation pipelines for sorting and filtering
@@ -59,7 +85,7 @@ export async function _GET({
 				const _filter = filter[fieldName];
 				const _sort = sort[fieldName];
 
-				if (widget.aggregations.filters && _filter) {
+				if (widget.aggregations?.filters && _filter) {
 					const _aggregations = await widget.aggregations.filters({
 						field,
 						contentLanguage,
@@ -67,7 +93,7 @@ export async function _GET({
 					});
 					aggregations.push(..._aggregations);
 				}
-				if (widget.aggregations.sorts && _sort) {
+				if (widget.aggregations?.sorts && _sort) {
 					const _aggregations = await widget.aggregations.sorts({
 						field,
 						contentLanguage,
@@ -79,7 +105,7 @@ export async function _GET({
 		}
 
 		// Execute the aggregation pipeline
-		const entryListWithCount = await collection.aggregate([
+		const [{ entries, totalCount }] = await collection.aggregate([
 			{
 				$facet: {
 					entries: [...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])],
@@ -88,37 +114,30 @@ export async function _GET({
 			}
 		]);
 
-		const entryList = entryListWithCount[0].entries;
-
 		// Modify request with the retrieved entries
 		await modifyRequest({
-			data: entryList,
+			data: entries,
 			collection,
 			fields: schema.fields,
 			user,
 			type: 'GET'
 		});
-		logger.debug(`Request modified for entries: ${JSON.stringify(entryList)}`);
+		logger.debug(`Request modified for ${entries.length} entries`);
 
 		// Get all collected IDs and modify request
-		await get_elements_by_id.getAll();
+		await get_elements_by_id.getAll(dbAdapter);
 
 		// Calculate total count and pages count
-		const totalCount = entryListWithCount[0].totalCount[0] ? entryListWithCount[0].totalCount[0].total : 0;
-		const pagesCount = Math.ceil(totalCount / limit);
+		const total = totalCount[0]?.total ?? 0;
+		const pagesCount = limit > 0 ? Math.ceil(total / limit) : 1;
 
-		logger.debug(`Total count: ${totalCount}, Pages count: ${pagesCount}`);
+		logger.info(`GET request completed. Total count: ${total}, Pages count: ${pagesCount}`);
 
 		// Return the response with entry list and pages count
-		return new Response(
-			JSON.stringify({
-				entryList,
-				pagesCount
-			})
-		);
+		return new Response(JSON.stringify({ entryList: entries, pagesCount }), { headers: { 'Content-Type': 'application/json' } });
 	} catch (error) {
-		// Handle error by checking its type
-		logger.error(`Error occurred during GET request: ${error instanceof Error ? error.message : 'Unknown error'}`);
-		return new Response(error instanceof Error ? error.message : 'Unknown error occurred', { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		logger.error(`Error occurred during GET request: ${errorMessage}`);
+		return new Response(errorMessage, { status: 500 });
 	}
 }

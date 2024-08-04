@@ -1,11 +1,43 @@
+/**
+ * @file src/routes/api/graphql/resolvers/collections.ts
+ * @description Dynamic GraphQL schema and resolver generation for collections.
+ *
+ * This module provides functionality to:
+ * - Dynamically register collection schemas based on the CMS configuration
+ * - Generate GraphQL type definitions and resolvers for each collection
+ * - Handle complex field types and nested structures
+ * - Integrate with Redis for caching (if enabled)
+ *
+ * Features:
+ * - Dynamic schema generation based on widget configurations
+ * - Support for extracted fields and nested structures
+ * - Integration with custom widget schemas
+ * - Redis caching for improved performance
+ * - Error handling and logging
+ *
+ * Usage:
+ * Used by the main GraphQL setup to generate collection-specific schemas and resolvers
+ */
+
 import { getCollections } from '@collections';
 import widgets from '@components/widgets';
 import { getFieldName } from '@utils/utils';
 import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';
 
-// System logger
+// System Logger
 import logger from '@src/utils/logger';
+
+interface Collection {
+	name: string;
+	fields: any[];
+}
+
+interface WidgetSchema {
+	graphql: string;
+	typeName: string;
+	resolver?: any;
+}
 
 // Registers collection schemas dynamically.
 export async function registerCollections() {
@@ -14,60 +46,46 @@ export async function registerCollections() {
 	const resolvers: { [key: string]: any } = { Query: {} };
 	const collectionSchemas: string[] = [];
 
-	// Loop over each collection to build typeDefs and resolvers
-	for (const collection of Object.values(collections)) {
-		// Type check for collection
+	for (const collection of Object.values(collections) as Collection[]) {
 		if (!collection.name) {
 			logger.error('Collection name is undefined:', collection);
 			continue;
 		}
-		const collectionName: string = collection.name;
 
-		// Initialize collection resolvers
-		resolvers[collectionName] = {};
-
-		// Initialize GraphQL type definition for the collection
+		resolvers[collection.name] = {};
 		let collectionSchema = `
-            type ${collectionName} {
+            type ${collection.name} {
                 _id: String
                 createdAt: String
                 updatedAt: String
         `;
 
-		// Loop over each field to build the schema and resolvers
 		for (const field of collection.fields) {
-			const schema = widgets[field.widget.Name].GraphqlSchema?.({ field, label: getFieldName(field, true), collection });
+			const schema = widgets[field.widget.Name].GraphqlSchema?.({ field, label: getFieldName(field, true), collection }) as WidgetSchema | undefined;
 
-			// Merge resolvers if available
 			if (schema?.resolver) {
 				deepmerge(resolvers, schema.resolver);
 			}
 
-			// Build the GraphQL type definition
 			if (schema) {
-				const _types = schema.graphql.split(/(?=type.*?{)/);
-				for (const type of _types) {
-					typeDefsSet.add(type);
-				}
-				// Handle extracted fields
+				schema.graphql.split(/(?=type.*?{)/).forEach((type) => typeDefsSet.add(type));
+
 				if ('extract' in field && field.extract && 'fields' in field && field.fields.length > 0) {
-					const _fields = field.fields;
-					for (const _field of _fields) {
-						collectionSchema += `${getFieldName(_field, true)}: ${
-							widgets[_field.widget.Name].GraphqlSchema?.({
-								field: _field,
-								label: getFieldName(_field, true),
-								collection
-							}).typeName
-						}\n`;
-						deepmerge(resolvers[collectionName], {
-							[getFieldName(_field, true)]: (parent) => parent[getFieldName(_field)]
+					field.fields.forEach((_field: any) => {
+						const fieldSchema = widgets[_field.widget.Name].GraphqlSchema?.({
+							field: _field,
+							label: getFieldName(_field, true),
+							collection
 						});
-					}
+						collectionSchema += `${getFieldName(_field, true)}: ${fieldSchema?.typeName}\n`;
+						deepmerge(resolvers[collection.name], {
+							[getFieldName(_field, true)]: (parent: any) => parent[getFieldName(_field)]
+						});
+					});
 				} else {
 					collectionSchema += `${getFieldName(field, true)}: ${schema.typeName}\n`;
-					deepmerge(resolvers[collectionName], {
-						[getFieldName(field, true)]: (parent) => parent[getFieldName(field)]
+					deepmerge(resolvers[collection.name], {
+						[getFieldName(field, true)]: (parent: any) => parent[getFieldName(field)]
 					});
 				}
 			}
@@ -86,45 +104,40 @@ export async function registerCollections() {
 export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 	const { resolvers, collections } = await registerCollections();
 
-	for (const collection of Object.values(collections)) {
+	for (const collection of Object.values(collections) as Collection[]) {
 		if (!collection.name) {
 			logger.error('Collection name is undefined:', collection);
 			continue;
 		}
-		const collectionName: string = collection.name;
 
-		resolvers.Query[collectionName] = async () => {
+		resolvers.Query[collection.name] = async () => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
 				throw new Error('Database adapter is not initialized');
 			}
 
 			try {
-				// Try to fetch the result from Redis first
 				if (privateEnv.USE_REDIS === true) {
-					const cachedResult = await redisClient.get(collectionName);
+					const cachedResult = await redisClient.get(collection.name);
 					if (cachedResult) {
 						return JSON.parse(cachedResult);
 					}
 				}
 
-				// Fetch result from the database
-				const dbResult = await dbAdapter.findMany(collectionName, { status: { $ne: 'unpublished' } }, { sort: { createdAt: -1 } });
+				const dbResult = await dbAdapter.findMany(collection.name, { status: { $ne: 'unpublished' } }, { sort: { createdAt: -1 } });
 
-				// Convert dates to ISO strings
 				dbResult.forEach((doc: any) => {
 					doc.createdAt = new Date(doc.createdAt).toISOString();
 					doc.updatedAt = new Date(doc.updatedAt).toISOString();
 				});
 
-				// Store the DB result in Redis for future requests
 				if (privateEnv.USE_REDIS === true) {
-					await redisClient.set(collectionName, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
+					await redisClient.set(collection.name, JSON.stringify(dbResult), 'EX', 60 * 60); // Cache for 1 hour
 				}
 
 				return dbResult;
 			} catch (error) {
-				logger.error(`Error fetching data for ${collectionName}:`, error);
+				logger.error(`Error fetching data for ${collection.name}:`, error);
 				throw error;
 			}
 		};

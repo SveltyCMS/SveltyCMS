@@ -1,3 +1,29 @@
+/**
+ * @file src/routes/api/query/PATCH.ts
+ * @description Handler for PATCH operations on collections.
+ *
+ * This module provides functionality to:
+ * - Update documents in a specified collection
+ * - Handle file uploads and removals
+ * - Manage links between collections
+ * - Process custom widget modifications
+ *
+ * Features:
+ * - Dynamic parsing of form data, including file handling
+ * - Support for linked collections
+ * - Storage image management
+ * - Link creation and deletion between collections
+ * - Integration with modifyRequest for custom widget processing
+ * - Comprehensive error handling and logging
+ *
+ * Usage:
+ * Called by the main query handler for PATCH operations
+ * Expects FormData with document ID and updated field values
+ *
+ * Note: This handler assumes that user authentication and authorization
+ * have already been performed by the calling function.
+ */
+
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
 

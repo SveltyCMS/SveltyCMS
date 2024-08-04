@@ -1,9 +1,34 @@
+/**
+ * @file src/routes/api/query/modifyRequest.ts
+ * @description Utility function for modifying request data based on field widgets.
+ *
+ * This module provides functionality to:
+ * - Process each field in a collection schema
+ * - Apply widget-specific modifications to the request data
+ * - Handle custom widget logic for different request types (GET, POST, etc.)
+ *
+ * Features:
+ * - Support for custom widget-based data modifications
+ * - Asynchronous processing of each entry in the data array
+ * - Data accessor pattern for safe data manipulation
+ * - Detailed logging for debugging purposes
+ *
+ * Usage:
+ * Called by various query handlers (GET, POST, etc.) to modify request data
+ * before final processing or database operations.
+ *
+ * Note: This function assumes that the widgets have a 'modifyRequest' method
+ * if they need to perform custom modifications.
+ */
+
 import widgets from '@src/components/widgets';
 import { getFieldName } from '@src/utils/utils';
+
+// Types
 import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
-// Import logger
+// System logger
 import logger from '@src/utils/logger';
 
 // Define Field type locally if not available in @src/collections/types
@@ -26,7 +51,6 @@ interface ModifyRequestParams {
 export async function modifyRequest({ data, fields, collection, user, type }: ModifyRequestParams) {
 	try {
 		logger.debug(`Starting modifyRequest for type: ${type}, user: ${user._id}, collection: ${collection.modelName}`);
-		logger.debug(`Initial data: ${JSON.stringify(data)}`);
 
 		for (const field of fields) {
 			const widget = widgets[field.widget.Name];
@@ -59,18 +83,17 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 							meta_data: entry.meta_data
 						});
 
-						logger.debug(`Modified entry: ${JSON.stringify(entry)}`);
 						return entry;
 					})
 				);
 			}
 		}
-		logger.debug(`Modified data: ${JSON.stringify(data)}`);
+
+		logger.debug(`ModifyRequest completed for ${data.length} entries`);
 		return data; // Return the modified data
 	} catch (error) {
-		// Handle error by checking its type
-		logger.error('Error in modifyRequest:', error as Error);
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		throw new Error(errorMessage);
+		logger.error('Error in modifyRequest:', { error: errorMessage });
+		throw new Error(`ModifyRequest failed: ${errorMessage}`);
 	}
 }

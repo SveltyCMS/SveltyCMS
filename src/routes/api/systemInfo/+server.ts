@@ -1,11 +1,36 @@
+/**
+ * @file src/routes/api/systemInfo/+server.ts
+ * @description API endpoint for fetching system information.
+ *
+ * This module provides functionality to:
+ * - Fetch and track CPU usage over time
+ * - Retrieve disk usage information
+ * - Get memory usage details
+ * - Collect overall system information including OS details
+ *
+ * Features:
+ * - Real-time CPU usage tracking with historical data
+ * - Disk space utilization reporting
+ * - Memory usage statistics
+ * - OS information collection
+ * - Error handling and logging
+ *
+ * Usage:
+ * GET /api/systemInfo
+ * Returns: JSON object with CPU, disk, memory, and OS information
+ *
+ * Note: This endpoint may expose sensitive system information.
+ * Ensure proper access controls are in place.
+ */
+
 import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
-
-// System Logs
+// System Loggger
 import logger from '@src/utils/logger';
 
 const { cpu, drive, mem, os } = osu;
 
+const MAX_DATA_POINTS = 100;
 const cpuData: number[] = [];
 const timeStamps: string[] = [];
 
@@ -15,20 +40,16 @@ const fetchCPUInfo = async () => {
 		const cpuUsage = await cpu.usage();
 		const timeStamp = new Date().toISOString();
 
-		// Store the CPU usage and timestamp
 		cpuData.push(cpuUsage);
 		timeStamps.push(timeStamp);
 
-		// Limit the size of the arrays to avoid using too much memory
-		if (cpuData.length > 100) {
+		// Store the CPU usage and timestamp
+		if (cpuData.length > MAX_DATA_POINTS) {
 			cpuData.shift();
 			timeStamps.shift();
 		}
 
-		return {
-			cpuUsage: cpuData,
-			timeStamps: timeStamps
-		};
+		return { cpuUsage: cpuData, timeStamps };
 	} catch (error) {
 		logger.error('Error fetching CPU info:', error);
 		throw new Error('Failed to fetch CPU information');
@@ -87,12 +108,7 @@ const getSystemInfo = async () => {
 			arch: os.arch()
 		};
 
-		return {
-			cpuInfo,
-			diskInfo,
-			memoryInfo,
-			osInfo
-		};
+		return { cpuInfo, diskInfo, memoryInfo, osInfo };
 	} catch (error) {
 		logger.error('Error fetching system info:', error);
 		throw new Error('Failed to fetch system information');
@@ -109,19 +125,14 @@ export const GET: RequestHandler = async () => {
 		// Return the system information as a JSON response
 		return new Response(JSON.stringify(systemInfo), {
 			status: 200,
-			headers: {
-				'Content-Type': 'application/json'
-			}
+			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
 		logger.error('Error fetching system info:', error);
-
 		// Return an error response in case of failure
 		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
 			status: 500,
-			headers: {
-				'Content-Type': 'application/json'
-			}
+			headers: { 'Content-Type': 'application/json' }
 		});
 	}
 };

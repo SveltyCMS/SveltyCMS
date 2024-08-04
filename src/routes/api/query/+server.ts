@@ -1,25 +1,50 @@
+/**
+ * @file src/routes/api/query/+server.ts
+ * @description Main API endpoint for handling CRUD operations on collections.
+ *
+ * This module provides a centralized handler for various database operations:
+ * - GET: Retrieve entries from a collection
+ * - POST: Create new entries in a collection
+ * - PATCH: Update existing entries in a collection
+ * - DELETE: Remove entries from a collection
+ * - SETSTATUS: Update the status of entries in a collection
+ *
+ * Features:
+ * - User authentication and authorization
+ * - Permission checking based on user roles and collection schemas
+ * - Support for pagination, filtering, and sorting
+ * - Content language handling
+ * - Comprehensive error handling and logging
+ *
+ * Usage:
+ * POST /api/query
+ * Body: FormData with 'method', 'user_id' or session cookie, 'collectionName', and other operation-specific data
+ *
+ * Note: This endpoint uses a POST method for all operations, with the actual operation
+ * specified in the 'method' field of the FormData.
+ */
+
 import { publicEnv } from '@root/config/public';
 import type { RequestHandler } from '@sveltejs/kit';
 
-// Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+// Types
 import type { User } from '@src/auth/types';
+import type { Schema } from '@src/collections/types';
+
+// Auth
+import { auth } from '@scr/databases/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
 
 import { getCollections } from '@src/collections';
-import type { Schema } from '@src/collections/types';
 import { _GET } from './GET';
 import { _POST } from './POST';
 import { _PATCH } from './PATCH';
 import { _DELETE } from './DELETE';
 import { _SETSTATUS } from './SETSTATUS';
 
-// System Logs
+// System Logger
 import logger from '@src/utils/logger';
-import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-const sessionAdapter = new SessionAdapter();
-const userAdapter = new UserAdapter();
+
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the session ID from cookies
@@ -33,8 +58,8 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 	// Authenticate user based on user ID or session ID
 	const user = user_id
-		? ((await userAdapter.getUserById(user_id)) as User) // Check user with user ID
-		: ((await sessionAdapter.validateSession(session_id)) as User); // Validate session with session ID
+		? ((await auth.checkUser({ _id: user_id })) as User) // Check user with user ID
+		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
 
 	if (!user) {
 		throw new Error('Unauthorized');
@@ -65,9 +90,6 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 	logger.info('Received request', { method, user_id: data.get('user_id') });
 
-	// Delete these keys from the form data as they are no longer needed
-	//['user_id', 'collectionName', 'method'].forEach((key) => data.delete(key));
-
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
@@ -82,8 +104,8 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		// Parse pagination, filter, sort, and content language from the form data
 		const page = parseInt(data.get('page') as string) || 1;
 		const limit = parseInt(data.get('limit') as string) || 0;
-		const filter: { [key: string]: string } = JSON.parse(data.get('filter') as string) || {};
-		const sort: { [key: string]: number } = JSON.parse(data.get('sort') as string) || {};
+		const filter = JSON.parse((data.get('filter') as string) || '{}');
+		const sort = JSON.parse((data.get('sort') as string) || '{}');
 		const contentLanguage = (data.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
 		logger.debug('Request parameters parsed', { page, limit, filter, sort, contentLanguage });

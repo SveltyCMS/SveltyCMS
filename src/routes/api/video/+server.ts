@@ -1,3 +1,27 @@
+/**
+ * @file src/routes/api/video/+server.ts
+ * @description API endpoint for retrieving video information from various platforms.
+ *
+ * This module provides functionality to:
+ * - Extract video information from YouTube, Vimeo, TikTok, and Twitch URLs
+ * - Parse and validate video URLs
+ * - Fetch video metadata (title, thumbnail, URL) from respective platforms
+ *
+ * Features:
+ * - Support for multiple video platforms (YouTube, Vimeo, TikTok, Twitch)
+ * - URL parsing and video ID extraction
+ * - Error handling for invalid URLs or API failures
+ * - Logging of requests and responses
+ *
+ * Usage:
+ * POST /api/video
+ * Body: FormData with 'url' field containing the video URL
+ * Returns: JSON object with videoTitle, videoThumbnail, and videoUrl
+ *
+ * Note: Ensure that necessary API keys or tokens are configured for
+ * each supported video platform.
+ */
+
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { tiktok, twitch, vimeo, youtube } from '@components/widgets/remoteVideo/video';
 
@@ -5,35 +29,36 @@ import { tiktok, twitch, vimeo, youtube } from '@components/widgets/remoteVideo/
 import logger from '@src/utils/logger';
 
 // Extracts the video ID from a YouTube URL
-function getYouTubeVideoId(url: string) {
-	const regExp = /^(?:https?:\/\/)?(?:www\.)?youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/|watch\?.+&v=)([^#&?]+).*$/;
+function getYouTubeVideoId(url: string): string | null {
+	const regExp = /^(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:watch\?v=|embed\/|v\/|u\/\w\/|watch\?.+&v=)|youtu\.be\/)([^#&?]+).*$/;
 	const match = url.match(regExp);
-
 	return match ? match[1] : null;
 }
 
 export const POST: RequestHandler = async ({ request }) => {
-	logger.debug('POST function called', { request });
+	logger.debug('Video info request received');
 
 	try {
 		const data = await request.formData();
-		const res = Object.fromEntries(data);
-		const url = res.url.toString();
-		// Use the URL class to parse the URL
+		const url = data.get('url');
+
+		if (!url || typeof url !== 'string') {
+			logger.warn('Invalid or missing URL in request');
+			return json({ error: 'Invalid or missing URL' }, { status: 400 });
+		}
+
 		const parsedUrl = new URL(decodeURIComponent(url));
-		// Get the hostname from the URL
 		const hostname = parsedUrl.hostname;
 
 		let videoData: any;
-		// Use a lookup object to map the URL to the corresponding function
 
+		// Use a lookup object to map the URL to the corresponding function
 		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
 			const videoId = getYouTubeVideoId(url);
-			if (videoId) {
-				videoData = await youtube(videoId);
-			} else {
+			if (!videoId) {
 				throw new Error('Invalid YouTube URL');
 			}
+			videoData = await youtube(videoId);
 		} else if (hostname.includes('vimeo.com')) {
 			const videoId = parsedUrl.pathname.split('/').pop();
 			videoData = await vimeo(videoId);
@@ -43,20 +68,14 @@ export const POST: RequestHandler = async ({ request }) => {
 			const videoId = parsedUrl.pathname.split('/').pop();
 			videoData = await twitch(videoId);
 		} else {
-			return json({
-				videoTitle: 'Invalid URL',
-				videoThumbnail: '',
-				videoUrl: ''
-			});
+			logger.warn('Unsupported video platform', { url });
+			return json({ error: 'Unsupported video platform' }, { status: 400 });
 		}
-		logger.debug('Video data retrieved successfully', { videoData });
+
+		logger.info('Video data retrieved successfully', { platform: hostname });
 		return json(videoData);
 	} catch (error) {
 		logger.error('Error processing video URL', error);
-		return json({
-			videoTitle: 'An error occurred',
-			videoThumbnail: '',
-			videoUrl: ''
-		});
+		return json({ error: 'An error occurred while processing the video URL' }, { status: 500 });
 	}
 };

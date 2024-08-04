@@ -1,6 +1,26 @@
-// System Logs
+/**
+ * @file src/routes/api/graphql/resolvers/users.ts
+ * @description GraphQL type definitions and resolvers for user-related queries.
+ *
+ * This module provides:
+ * - Dynamic generation of GraphQL type definitions based on User type
+ * - Resolver function to fetch user data from the database
+ *
+ * Features:
+ * - Automatic mapping of TypeScript types to GraphQL types
+ * - Dynamic generation of User type definition
+ * - Integration with database adapter for user data retrieval
+ * - Error handling and logging
+ *
+ * Usage:
+ * - Used in the main GraphQL setup to include user-related schema and resolver
+ * - Allows querying of user data through the GraphQL API
+ */
+
+// System Logger
 import logger from '@src/utils/logger';
 
+// Types
 import type { dbInterface } from '@src/databases/dbInterface';
 import type { User } from '@src/auth/types';
 
@@ -15,9 +35,9 @@ function mapTypeToGraphQLType(value: any): string {
 		case 'boolean':
 			return 'Boolean';
 		case 'number':
-			return 'Int';
+			return Number.isInteger(value) ? 'Int' : 'Float';
 		case 'object':
-			return value instanceof Date ? 'String' : 'String';
+			return value instanceof Date ? 'String' : 'JSON';
 		default:
 			return 'String';
 	}
@@ -72,7 +92,7 @@ export function userResolvers(dbAdapter: dbInterface) {
 				logger.info('Users retrieved successfully', { count: users.length });
 				return users;
 			} catch (error) {
-				logger.error('Error fetching users:', error as Error);
+				logger.error('Error fetching users:', { error: error instanceof Error ? error.message : String(error) });
 				throw new Error('Failed to fetch users');
 			}
 		}

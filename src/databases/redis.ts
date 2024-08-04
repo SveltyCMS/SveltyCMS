@@ -1,3 +1,25 @@
+/**
+ * @file src/databases/redis.ts
+ * @description Redis client initialization and caching operations for the CMS.
+ *
+ * This module provides functionality for:
+ * - Initializing and managing a Redis client connection
+ * - Caching and retrieving data using Redis
+ * - Handling session caching specifically for user sessions
+ *
+ * Features:
+ * - Conditional Redis initialization based on configuration
+ * - Generic caching operations (get, set, clear)
+ * - Session-specific caching operations
+ * - Error handling and logging for all Redis operations
+ * - Connection management (initialization and closure)
+ *
+ * Usage:
+ * This module is used throughout the application for caching purposes,
+ * particularly for improving performance of frequently accessed data
+ * and managing user sessions.
+ */
+
 import { privateEnv } from '@root/config/private';
 
 // Types

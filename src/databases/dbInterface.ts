@@ -1,3 +1,27 @@
+/**
+ * @file src/databases/dbInterface.ts
+ * @description Database interface definition for the CMS.
+ *
+ * This module defines the dbInterface, which serves as a contract for database adapters.
+ * It specifies methods for:
+ * - Database connection and setup
+ * - Basic CRUD operations
+ * - Draft and revision management
+ * - Widget management
+ * - Theme management
+ *
+ * The interface ensures consistency across different database implementations
+ * (e.g., MongoDB, MariaDB, PostgreSQL) by defining a common set of methods
+ * that must be implemented by each adapter.
+ *
+ * It also defines a generic CollectionModel interface for use by database adapters.
+ *
+ * Usage:
+ * This interface should be implemented by all database adapters in the CMS.
+ * It provides a unified API for database operations, allowing for easy
+ * swapping of database backends without changing the application logic.
+ */
+
 export interface dbInterface {
 	// Database Connection and Setup Methods
 	connect(): Promise<void>;

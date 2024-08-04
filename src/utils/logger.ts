@@ -1,3 +1,23 @@
+/**
+ * @file src/utils/logger.ts
+ * @description Custom logger with configurable levels and colorized output.
+ *
+ * Features:
+ * - Configurable log levels (fatal, error, warn, info, debug, trace)
+ * - Colorized console output for better readability
+ * - Timestamp prefix for each log entry
+ * - Optional object logging for additional context
+ * - Runtime-configurable log levels
+ *
+ * Usage:
+ * import logger from '@src/utils/logger';
+ * logger.info('Server started');
+ * logger.error('Database connection failed', { dbName: 'main' });
+ *
+ * To change log levels at runtime:
+ * logger.setLevels(['error', 'warn', 'info']);
+ */
+
 import { publicEnv } from '@root/config/public';
 
 // Define the possible log levels

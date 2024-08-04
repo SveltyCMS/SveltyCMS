@@ -1,3 +1,27 @@
+/**
+ * @file src/routes/api/save-config/backup-utils.ts
+ * @description Utility functions for backing up and restoring configuration files and database.
+ *
+ * This module provides functionality to:
+ * - Backup and restore configuration files with timestamped versions
+ * - Manage a limited number of backups
+ * - Check existence of backup and configuration files
+ * - Perform database backups (example for MongoDB)
+ *
+ * Features:
+ * - Timestamped backups for easy identification
+ * - Automatic cleanup of old backups
+ * - Separate backup storage for private and public configurations
+ * - CLI-based backup selection for restoration
+ * - Database backup support (MongoDB example)
+ *
+ * Usage:
+ * Import and use these functions in your configuration management and backup routines.
+ *
+ * Note: Ensure proper access controls are in place as these functions deal with
+ * sensitive configuration data and database operations.
+ */
+
 import fs from 'fs/promises';
 import path from 'path';
 import util from 'util';
@@ -54,7 +78,7 @@ export async function backupConfigFiles() {
 		logger.info('Backup completed successfully', { privateBackup, publicBackup });
 		return { privateBackup, publicBackup };
 	} catch (error) {
-		logger.error('Error creating backup:', error);
+		logger.error('Error creating backup:', error as Error);
 		throw error;
 	}
 }
@@ -99,7 +123,7 @@ export async function restoreConfigFiles() {
 			logger.info('Restore cancelled');
 		}
 	} catch (error) {
-		logger.error('Error restoring backup:', error);
+		logger.error('Error restoring backup:', error as Error);
 		throw error;
 	}
 }
@@ -111,7 +135,7 @@ export async function backupFilesExist() {
 		const files = await fs.readdir(BACKUP_DIR);
 		return files.some((file) => file.startsWith('private.backup') || file.startsWith('public.backup'));
 	} catch (error) {
-		logger.error('Error checking backup files existence:', error);
+		logger.error('Error checking backup files existence:', error as Error);
 		return false;
 	}
 }
@@ -122,17 +146,19 @@ export async function configFilesExist() {
 	const publicConfigPath = path.join(CONFIG_DIR, 'public.ts');
 
 	try {
-		const privateExists = await fs
-			.stat(privateConfigPath)
-			.then(() => true)
-			.catch(() => false);
-		const publicExists = await fs
-			.stat(publicConfigPath)
-			.then(() => true)
-			.catch(() => false);
+		const [privateExists, publicExists] = await Promise.all([
+			fs
+				.access(privateConfigPath)
+				.then(() => true)
+				.catch(() => false),
+			fs
+				.access(publicConfigPath)
+				.then(() => true)
+				.catch(() => false)
+		]);
 		return privateExists || publicExists;
 	} catch (error) {
-		logger.error('Error checking config files existence:', error);
+		logger.error('Error checking config files existence:', error as Error);
 		return false;
 	}
 }
@@ -148,7 +174,7 @@ export async function backupDatabase(dbHost: string, dbName: string) {
 		logger.info('Database backup completed successfully', { backupFile });
 		return backupFile;
 	} catch (error) {
-		logger.error('Error creating database backup:', error);
+		logger.error('Error creating database backup:', error as Error);
 		throw error;
 	}
 }

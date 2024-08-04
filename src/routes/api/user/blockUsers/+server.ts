@@ -1,53 +1,72 @@
+/**
+ * @file src/routes/api/user/blockUsers/+server.ts
+ * @description API endpoint for blocking multiple users.
+ *
+ * This module provides functionality to:
+ * - Block multiple users simultaneously
+ * - Invalidate all sessions for blocked users
+ * - Prevent blocking all admin users
+ *
+ * Features:
+ * - Bulk user blocking
+ * - Session invalidation for blocked users
+ * - Admin count check to ensure at least one admin remains
+ * - Error handling and logging
+ *
+ * Usage:
+ * POST /api/user/blockUsers
+ * Body: JSON array of user objects with 'id' and 'role' properties
+ *
+ * Note: This endpoint performs sensitive operations and should be
+ * properly secured with authentication and authorization checks.
+ */
+
 import type { RequestHandler } from '@sveltejs/kit';
 
 // Auth
 import { auth } from '@src/databases/db';
 
-// Import logger
+// System logger
 import logger from '@src/utils/logger';
+
+interface UserToBlock {
+	id: string;
+	role: string;
+}
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {
-		const data = await request.json();
-		logger.info('Received request to block users', { userIds: data.map((user: any) => user.id) });
+		const users: UserToBlock[] = await request.json();
+		logger.info('Received request to block users', { userIds: users.map((user) => user.id) });
 
-		// Get all users to find admin count
 		if (!auth) {
 			logger.error('Auth is not initialized');
-			throw new Error('Auth is not initialized');
+			return new Response(JSON.stringify({ success: false, message: 'Auth is not initialized' }), { status: 500 });
 		}
 
-		const users = await auth.getAllUsers();
-		const adminCount = users.filter((user) => user.role === 'admin').length;
-
+		const allUsers = await auth.getAllUsers();
+		const adminCount = allUsers.filter((user) => user.role === 'admin').length;
 		let remainingAdminCount = adminCount;
-		let flag = false;
 
-		for (const user of data) {
-			if (user.role === 'admin' && remainingAdminCount === 1) {
-				flag = true;
-				break;
-			}
+		for (const user of users) {
 			if (user.role === 'admin') {
-				remainingAdminCount -= 1;
+				remainingAdminCount--;
+				if (remainingAdminCount === 0) {
+					logger.warn('Attempt to block the last remaining admin.');
+					return new Response(JSON.stringify({ success: false, message: 'Cannot block all admins' }), { status: 400 });
+				}
 			}
 
-			// Invalidate all sessions and block the user
 			await auth.invalidateAllUserSessions(user.id);
 			await auth.updateUserAttributes(user.id, { blocked: true });
 			logger.info('User blocked successfully', { userId: user.id });
 		}
 
-		if (flag) {
-			logger.warn('Attempt to block the last remaining admin.');
-			return new Response(JSON.stringify({ success: false, message: 'Cannot block all admins' }), { status: 400 });
-		}
-
-		logger.info('Users blocked successfully.');
-		return new Response(JSON.stringify({ success: true }), { status: 200 });
+		logger.info('Users blocked successfully.', { blockedCount: users.length });
+		return new Response(JSON.stringify({ success: true, message: `${users.length} users blocked successfully` }), { status: 200 });
 	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error blocking users: ${err.message}`);
-		return new Response(JSON.stringify({ success: false, message: err.message }), { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+		logger.error(`Error blocking users: ${errorMessage}`);
+		return new Response(JSON.stringify({ success: false, message: errorMessage }), { status: 500 });
 	}
 };

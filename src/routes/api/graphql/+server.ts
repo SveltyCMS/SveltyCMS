@@ -1,3 +1,28 @@
+/**
+ * @file src/routes/api/graphql/+server.ts
+ * @description GraphQL API setup and request handler for the CMS.
+ *
+ * This module sets up the GraphQL schema and resolvers, including:
+ * - Collection-specific schemas and resolvers
+ * - User-related schemas and resolvers
+ * - Media-related schemas and resolvers
+ *
+ * It also handles:
+ * - Redis client initialization (if enabled)
+ * - GraphQL Yoga server setup
+ * - Request handling for both GET and POST methods
+ *
+ * Features:
+ * - Dynamic schema generation based on registered collections
+ * - Integration with Redis for caching (optional)
+ * - Error handling and logging
+ * - Support for various query types (collections, users, media)
+ *
+ * Usage:
+ * This endpoint handles GraphQL queries at /api/graphql
+ * Supports both GET and POST methods
+ */
+
 import { privateEnv } from '@root/config/private';
 import type { RequestEvent } from '@sveltejs/kit';
 
@@ -11,11 +36,11 @@ import { dbAdapter } from '@src/databases/db';
 // Redis
 import { createClient } from 'redis';
 
-// System Logs
+// System Logger
 import logger from '@src/utils/logger';
 
 // Initialize Redis client if needed
-let redisClient: any = null;
+let redisClient: ReturnType<typeof createClient> | null = null;
 
 if (privateEnv.USE_REDIS === true) {
 	logger.info('Initializing Redis client');
@@ -40,21 +65,21 @@ async function setupGraphQL() {
 		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
 		const typeDefs = `
-        ${collectionsTypeDefs}
-        ${userTypeDefs()}
-        ${mediaTypeDefs()}
-        type Query {
-            ${Object.values(collections)
-							.map((collection) => `${collection.name}: [${collection.name}]`)
-							.join('\n')}
-            users: [User]
-            mediaImages: [MediaImage]
-            mediaDocuments: [MediaDocument]
-            mediaAudio: [MediaAudio]
-            mediaVideos: [MediaVideo]
-            mediaRemote: [MediaRemote]
-        }
-    `;
+            ${collectionsTypeDefs}
+            ${userTypeDefs()}
+            ${mediaTypeDefs()}
+            type Query {
+                ${Object.values(collections)
+									.map((collection) => `${collection.name}: [${collection.name}]`)
+									.join('\n')}
+                users: [User]
+                mediaImages: [MediaImage]
+                mediaDocuments: [MediaDocument]
+                mediaAudio: [MediaAudio]
+                mediaVideos: [MediaVideo]
+                mediaRemote: [MediaRemote]
+            }
+        `;
 
 		const resolvers = {
 			Query: {

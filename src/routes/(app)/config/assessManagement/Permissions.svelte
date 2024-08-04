@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { authAdapter, initializationPromise } from '@api/databases/db';
+	import { authAdapter, initializationPromise } from '@src/databases/db';
 	import type { Permission, Role } from '@src/auth/types';
 
 	let permissionsList = writable<Permission[]>([]);
