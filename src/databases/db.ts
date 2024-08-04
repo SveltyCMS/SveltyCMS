@@ -9,13 +9,15 @@ import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@s
 
 // Adapters
 import type { dbInterface } from './dbInterface';
-import type { authDBInterface } from '@src/auth/authDBInterface';
+import type { authDBInterface, PermissionDBInterface, RoleDBInterface } from '@src/auth/authDBInterface';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
+let rolesAdapter: RoleDBInterface | null = null;
+let permissionsAdapter: PermissionDBInterface | null = null;
 let authAdapter: authDBInterface | null = null;
 let auth: Auth | null = null;
 
@@ -32,12 +34,16 @@ async function loadAdapters() {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([
+			const [{ MongoDBAdapter }, { mongoDBAuthAdapter },{RoleAdapter},{PermissionAdapter}] = await Promise.all([
 				import('./mongoDBAdapter'),
-				import('@src/auth/mongoDBAuth/mongoDBAuthAdapter')
+				import('@src/auth/mongoDBAuth/mongoDBAuthAdapter'),
+				import("@src/auth/mongoDBAuth/roleAdapter"),
+				import("@src/auth/mongoDBAuth/permissionAdapter")
 			]);
 			dbAdapter = new MongoDBAdapter();
-			authAdapter = new MongoDBAuthAdapter();
+			authAdapter = mongoDBAuthAdapter;
+			rolesAdapter = new RoleAdapter();
+			permissionsAdapter = new PermissionAdapter();
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
@@ -125,8 +131,8 @@ async function initializeAdapters(): Promise<void> {
 			}
 
 			try {
-				const roles = await authAdapter.getAllRoles();
-				const permissions = await authAdapter.getAllPermissions();
+				const roles = await rolesAdapter.getAllRoles();
+				const permissions = await permissionsAdapter.getAllPermissions();
 				const loadedData: LoadedRolesAndPermissions = { roles, permissions };
 				setLoadedRolesAndPermissions(loadedData);
 				logger.info('Roles and permissions loaded.');

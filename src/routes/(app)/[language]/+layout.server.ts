@@ -11,13 +11,14 @@ import { contentLanguage } from '@src/stores/store';
 
 // System Logs
 import logger from '@src/utils/logger';
+import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 const DEFAULT_THEME = {
 	name: 'SveltyCMSTheme',
 	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
 };
-
 export async function load({ cookies, route, params }) {
+	const sessionAdapter = new SessionAdapter();
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -30,8 +31,8 @@ export async function load({ cookies, route, params }) {
 	if (!session_id) {
 		logger.warn('Session ID is missing from cookies, creating a new session.');
 		try {
-			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
-			const sessionCookie = auth.createSessionCookie(newSession);
+			const newSession = await sessionAdapter.createSession({ user_id: 'guestuser_id' });
+			const sessionCookie = sessionAdapter.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			session_id = sessionCookie.value;
 			logger.debug('New session created:', session_id);
@@ -41,7 +42,7 @@ export async function load({ cookies, route, params }) {
 		}
 	}
 
-	const user = await auth.validateSession({ session_id });
+	const user = await sessionAdapter.validateSession(session_id );
 
 	// Redirect to login if no valid User session
 	if (!user) {

@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import type { authDBInterface } from '../types';
+import type { authDBInterface } from '../authDBInterface';
+import { UserAdapter } from './userAdapter';
+import { SessionAdapter } from './sessionAdapter';
+import { RoleAdapter } from './roleAdapter';
+import { PermissionAdapter } from './permissionAdapter';
+// import type { authDBInterface } from '../types';
 
 // Define a type that represents the structure of our adapters
 type AdapterMethods<T> = {
@@ -84,16 +89,19 @@ class MongoDBAuthAdapter implements authDBInterface {
 		this.permissionsAdapter = createAdapter('permissionsAdapter', permissionsAdapterMethods);
 
 		// Initialize your actual adapters
-		this.userAdapter.userAdapter = new UserAdapter(db, 'users');
-		this.sessionAdapter.sessionAdapter = new SessionAdapter(db, 'sessions');
-		this.roleAdapter.roleAdapter = new RoleAdapter(db, 'roles');
-		this.permissionsAdapter.permissionsAdapter = new PermissionsAdapter(db, 'permissions');
+		this.userAdapter.userAdapter = new UserAdapter();
+		this.sessionAdapter.sessionAdapter = new SessionAdapter();
+		this.roleAdapter.roleAdapter = new RoleAdapter();
+		this.permissionsAdapter.permissionsAdapter = new PermissionAdapter();
+		this.initialize();
 	}
 
 	// Implement the methods from authDBInterface
 	// TypeScript will ensure we implement all required methods
-	createUser = this.userAdapter.createUser;
-	updateUserAttributes = this.userAdapter.updateUserAttributes;
+	private initialize(){
+		this.userAdapter.createUser;
+	 this.userAdapter.updateUserAttributes;
+	}
 	// ... and so on for all methods
 }
 

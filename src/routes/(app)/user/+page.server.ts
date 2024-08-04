@@ -18,20 +18,28 @@ import logger from '@src/utils/logger';
 
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';
-
+import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
+import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
+import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+const userAdapter = new UserAdapter();
+const sessionAdapter = new SessionAdapter();
+const rolesAdapter = new RoleAdapter();
+const tokenAdapter = new TokenAdapter();
 // Check if it's the first user
 async function getIsFirstUser() {
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
-	const userCount = await auth.getUserCount();
+	const userCount = await userAdapter.getUserCount();
 	logger.debug(`Current user count: ${userCount}`);
 	return userCount === 0;
 }
 
 // Load function that handles authentication and user validation
 export async function load(event) {
+
 	try {
 		// Get the session cookie
 		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
@@ -42,7 +50,7 @@ export async function load(event) {
 		}
 
 		// Validate the user's session
-		const user = await auth.validateSession({ session_id });
+		const user = await sessionAdapter.validateSession(session_id);
 		const isFirstUser = await getIsFirstUser();
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
@@ -51,7 +59,7 @@ export async function load(event) {
 			logger.warn('Invalid session, redirecting to login');
 			throw redirect(302, `/login`);
 		}
-		const roles = await authAdapter?.getAllRoles();
+		const roles = await rolesAdapter.getAllRoles();
 		let { _id, ...rest } = user;
 		const _roles = JSON.parse(JSON.stringify(roles));
 		return { user: { _id: _id.toString(), ...rest }, roles: _roles, addUserForm, changePasswordForm, isFirstUser };
@@ -73,7 +81,7 @@ export const actions: Actions = {
 				throw error(500, 'Internal Server Error');
 			}
 
-			const user = await auth.validateSession({ session_id });
+			const user = await sessionAdapter.validateSession(session_id);
 			const addUserForm = await superValidate(request, zod(addUserTokenSchema));
 
 			if (!user || user.role !== 'admin') {
@@ -100,7 +108,7 @@ export const actions: Actions = {
 				return fail(400, { message: 'Unknown error' });
 			}
 
-			const token = await auth.createToken(newUser.id, expirationTime * 1000);
+			const token = await tokenAdapter.createToken({user_id:newUser._id,email:newUser.email,expires:expirationTime * 1000,type:"user"}); // don't know type is 
 			await fetch('/api/sendMail', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },

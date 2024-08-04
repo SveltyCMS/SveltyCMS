@@ -16,7 +16,10 @@ import { _SETSTATUS } from './SETSTATUS';
 
 // System Logs
 import logger from '@src/utils/logger';
-
+import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
+import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
+const sessionAdapter = new SessionAdapter();
+const userAdapter = new UserAdapter();
 // Helper function to check user permissions
 async function checkUserPermissions(data: FormData, cookies: any) {
 	// Retrieve the session ID from cookies
@@ -30,8 +33,8 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 	// Authenticate user based on user ID or session ID
 	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User) // Check user with user ID
-		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
+		? ((await userAdapter.getUserById(user_id)) as User) // Check user with user ID
+		: ((await sessionAdapter.validateSession(session_id)) as User); // Validate session with session ID
 
 	if (!user) {
 		throw new Error('Unauthorized');
