@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types
 import type { Token } from '../types';
-import type { TokenDBInterface } from '../authDBInterface';
+import type { authDBInterface } from '../authDBInterface';
 
 import crypto from 'crypto';
 
@@ -20,7 +20,7 @@ export const TokenSchema = new Schema(
 	{ timestamps: true }
 );
 
-export class TokenAdapter implements TokenDBInterface {
+export class TokenAdapter implements Partial<authDBInterface> {
 	private TokenModel: Model<Token & Document>;
 
 	constructor() {

@@ -6,7 +6,7 @@ import { PermissionSchema } from './permissionAdapter';
 
 // Types
 import type { Permission, Role, User } from '../types';
-import type { UserDBInterface } from '../authDBInterface';
+import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
@@ -37,7 +37,7 @@ export const UserSchema = new Schema(
 	{ timestamps: true }
 );
 
-export class UserAdapter implements UserDBInterface {
+export class UserAdapter implements Partial<authDBInterface> {
 	private UserModel: Model<User & Document>;
 	private RoleModel: Model<Role & Document>;
 	private PermissionModel: Model<Permission & Document>;
@@ -113,17 +113,12 @@ export class UserAdapter implements UserDBInterface {
 	}
 
 	// Get all users with optional filtering, sorting, and pagination
-	async getAllUsers(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: string | { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: mongoose.FilterQuery<User & Document>;
-	}): Promise<User[]> {
+	async getAllUsers(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<User[]> {
 		try {
 			let query = this.UserModel.find(options?.filter || {});
 
 			if (options?.sort) {
-				query = query.sort(options.sort);
+				query = query.sort(options.sort as any);
 			}
 			if (typeof options?.skip === 'number') {
 				query = query.skip(options.skip);
@@ -204,8 +199,11 @@ export class UserAdapter implements UserDBInterface {
 			if (!user) return [];
 
 			const directPermissions = (user.permissions as Permission[]) || [];
-			const role = await this.RoleModel.findOne({ name: user.role }).populate('permissions');
-			const rolePermissions = (role?.permissions as Permission[]) || [];
+			const role = await this.RoleModel.findOne({ name: user.role }).populate({
+				path: 'permissions',
+				model: this.PermissionModel
+			});
+			const rolePermissions = (role?.permissions as unknown as Permission[]) || [];
 
 			const allPermissions = [...directPermissions, ...rolePermissions];
 			const uniquePermissions = Array.from(new Set(allPermissions.map((p) => p._id.toString())))
@@ -248,11 +246,15 @@ export class UserAdapter implements UserDBInterface {
 			if (!user) return false;
 
 			// Check direct permissions
-			if ((user.permissions as Permission[])?.some((p) => p.name === permission_name)) return true;
+			const userPermissions = user.permissions as unknown as Permission[];
+			if (userPermissions?.some((p) => p.name === permission_name)) return true;
 
 			// Check role-based permissions
 			const role = await this.RoleModel.findOne({ name: user.role }).populate('permissions');
-			if ((role?.permissions as Permission[])?.some((p) => p.name === permission_name)) return true;
+			if (!role) return false;
+
+			const rolePermissions = role.permissions as unknown as Permission[];
+			if (rolePermissions?.some((p) => p.name === permission_name)) return true;
 
 			return false;
 		} catch (error) {

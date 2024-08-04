@@ -1,3 +1,28 @@
+/**
+ * @file src/databases/db.ts
+ * @description Database and authentication initialization and management module.
+ *
+ * This module handles:
+ * - Loading of database and authentication adapters based on the configured DB_TYPE
+ * - Database connection with retry mechanism
+ * - Initialization of auth models, media models, and collection models
+ * - Setup of default roles and permissions
+ * - Google OAuth2 client setup
+ *
+ * Features:
+ * - Dynamic adapter loading for different database types (MongoDB, MariaDB, PostgreSQL)
+ * - Retry mechanism for database connection
+ * - Initialization state management to prevent redundant setups
+ * - Asynchronous initialization with promise-based error handling
+ * - Collection models management
+ * - Google OAuth2 client configuration (when credentials are provided)
+ *
+ * Usage:
+ * This module is typically imported and used in the application's startup process
+ * to ensure database and authentication systems are properly initialized before
+ * handling requests.
+ */
+
 import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
@@ -9,15 +34,13 @@ import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@s
 
 // Adapters
 import type { dbInterface } from './dbInterface';
-import type { authDBInterface, PermissionDBInterface, RoleDBInterface } from '@src/auth/authDBInterface';
+import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
-let rolesAdapter: RoleDBInterface | null = null;
-let permissionsAdapter: PermissionDBInterface | null = null;
 let authAdapter: authDBInterface | null = null;
 let auth: Auth | null = null;
 
@@ -34,26 +57,19 @@ async function loadAdapters() {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const [{ MongoDBAdapter }, { mongoDBAuthAdapter },{RoleAdapter},{PermissionAdapter}] = await Promise.all([
-				import('./mongoDBAdapter'),
-				import('@src/auth/mongoDBAuth/mongoDBAuthAdapter'),
-				import("@src/auth/mongoDBAuth/roleAdapter"),
-				import("@src/auth/mongoDBAuth/permissionAdapter")
-			]);
+			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/authAdapter')]);
 			dbAdapter = new MongoDBAdapter();
-			authAdapter = mongoDBAuthAdapter;
-			rolesAdapter = new RoleAdapter();
-			permissionsAdapter = new PermissionAdapter();
+			authAdapter = new MongoDBAuthAdapter();
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
+			// Implement SQL adapters loading here
 			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
 			// 	import('./drizzleDBAdapter'),
 			// 	import('@src/auth/drizzelDBAuth/drizzleAuthAdapter')
 			// ]);
 			// dbAdapter = new DrizzleDBAdapter();
 			// authAdapter = new DrizzleAuthAdapter();
-			// logger.info('SQL adapters loaded successfully.');
 		} else {
 			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
@@ -66,28 +82,23 @@ async function loadAdapters() {
 // Connect to the database
 async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 	if (!dbAdapter) {
-		const errorMsg = 'Database adapter not initialized';
-		logger.error(errorMsg);
-		throw new Error(errorMsg);
+		throw new Error('Database adapter not initialized');
 	}
 
 	logger.info(`Trying to connect to your defined ${privateEnv.DB_NAME} database ...`);
 
-	while (retries > 0) {
+	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
 			await dbAdapter.connect();
 			logger.info(`Connection to ${privateEnv.DB_NAME} database successful!`);
 			return;
 		} catch (error) {
-			logger.error(`Error connecting to database: ${(error as Error).message}`, { error });
-			retries -= 1;
-			if (retries > 0) {
-				logger.info(`Retrying... Attempts left: ${retries}`);
+			logger.error(`Error connecting to database (attempt ${attempt}/${retries}): ${(error as Error).message}`, { error });
+			if (attempt < retries) {
+				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
 				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
 			} else {
-				const errorMsg = 'Failed to connect to the database after maximum retries';
-				logger.error(errorMsg);
-				throw new Error(errorMsg);
+				throw new Error('Failed to connect to the database after maximum retries');
 			}
 		}
 	}
@@ -111,36 +122,34 @@ async function initializeAdapters(): Promise<void> {
 			throw new Error('No collections found after initialization');
 		}
 
-		if (dbAdapter) {
-			await dbAdapter.setupAuthModels();
-			await dbAdapter.setupMediaModels();
-			await dbAdapter.getCollectionModels();
-		} else {
+		if (!dbAdapter) {
 			throw new Error('Database adapter not initialized');
 		}
 
-		if (authAdapter) {
-			auth = new Auth(authAdapter);
-			logger.debug('Authentication adapter initialized.');
+		await dbAdapter.setupAuthModels();
+		await dbAdapter.setupMediaModels();
+		await dbAdapter.getCollectionModels();
 
-			try {
-				await authAdapter.initializeDefaultRolesAndPermissions();
-				logger.info('Default roles and permissions initialized.');
-			} catch (error) {
-				logger.error(`Error initializing default roles and permissions: ${(error as Error).message}`, { error });
-			}
-
-			try {
-				const roles = await rolesAdapter.getAllRoles();
-				const permissions = await permissionsAdapter.getAllPermissions();
-				const loadedData: LoadedRolesAndPermissions = { roles, permissions };
-				setLoadedRolesAndPermissions(loadedData);
-				logger.info('Roles and permissions loaded.');
-			} catch (error) {
-				logger.error(`Error loading roles and permissions: ${(error as Error).message}`, { error });
-			}
-		} else {
+		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized');
+		}
+
+		auth = new Auth(authAdapter);
+		logger.debug('Authentication adapter initialized.');
+
+		try {
+			await authAdapter.initializeDefaultRolesAndPermissions();
+			logger.info('Default roles and permissions initialized.');
+		} catch (error) {
+			logger.error(`Error initializing default roles and permissions: ${(error as Error).message}`, { error });
+		}
+
+		try {
+			const [roles, permissions] = await Promise.all([authAdapter.getAllRoles(), authAdapter.getAllPermissions()]);
+			setLoadedRolesAndPermissions({ roles, permissions });
+			logger.info('Roles and permissions loaded.');
+		} catch (error) {
+			logger.error(`Error loading roles and permissions: ${(error as Error).message}`, { error });
 		}
 
 		isInitialized = true;
@@ -152,6 +161,7 @@ async function initializeAdapters(): Promise<void> {
 	}
 }
 
+// Initialize the adapter
 initializationPromise = initializeAdapters()
 	.then(() => logger.debug('Initialization completed successfully.'))
 	.catch((error) => {
@@ -161,11 +171,10 @@ initializationPromise = initializeAdapters()
 
 const collectionsModels: { [key: string]: any } = {};
 
+// Export collections
 export async function getCollectionModels() {
 	if (!dbAdapter) {
-		const errorMsg = 'Database adapter not initialized';
-		logger.error(errorMsg);
-		throw new Error(errorMsg);
+		throw new Error('Database adapter not initialized');
 	}
 
 	try {
@@ -180,7 +189,7 @@ export async function getCollectionModels() {
 	}
 }
 
-// Google OAuth2 - optional authentication
+// Google OAuth
 async function googleAuth() {
 	if (privateEnv.GOOGLE_CLIENT_ID && privateEnv.GOOGLE_CLIENT_SECRET) {
 		const { google } = await import('googleapis');
@@ -190,11 +199,12 @@ async function googleAuth() {
 			privateEnv.GOOGLE_CLIENT_SECRET,
 			`${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 		);
-		logger.debug('Google OAuth2 setup complete.');
 		return oauth2Client;
 	} else {
 		logger.warn('Google client ID and secret not provided. Google OAuth will not be available.');
+		return null;
 	}
 }
-// Export collections and auth objects
+
+// Export functions
 export { collectionsModels, auth, googleAuth, initializationPromise, dbAdapter, authAdapter };

@@ -4,8 +4,8 @@ import { UserSchema } from './userAdapter';
 import { PermissionSchema } from './permissionAdapter';
 
 // Types
-import type { Permission, Role, User } from '../types';
-import type { RoleDBInterface } from '../authDBInterface';
+import type { Permission, Role, User, Session, Token, RoleId, PermissionId } from '../types';
+import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
@@ -20,16 +20,14 @@ export const RoleSchema = new Schema(
 	{ timestamps: true }
 );
 
-export class RoleAdapter implements RoleDBInterface {
+export class RoleAdapter implements Partial<authDBInterface> {
 	private RoleModel: Model<Role & Document>;
 	private UserModel: Model<User & Document>;
-	private PermissionModel: Model<Permission & Document>;
 
 	constructor() {
 		// Create the Role model
 		this.RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
 		this.UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
-		this.PermissionModel = mongoose.models.auth_permissions || mongoose.model<Permission & Document>('auth_permissions', PermissionSchema);
 	}
 
 	// Create a new role
@@ -80,17 +78,22 @@ export class RoleAdapter implements RoleDBInterface {
 	}
 
 	// Get all roles
-	async getAllRoles(options?: { limit?: number; skip?: number; sort?: string | { [key: string]: 1 | -1 }; filter?: object }): Promise<Role[]> {
+	async getAllRoles(options?: {
+		limit?: number;
+		skip?: number;
+		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+		filter?: object;
+	}): Promise<Role[]> {
 		try {
-			let query = this.RoleModel.find(options?.filter || {}).populate('permissions');
+			let query = this.RoleModel.find(options?.filter || {});
 
 			if (options?.sort) {
-				query = query.sort(options.sort);
+				query = query.sort(options.sort as any);
 			}
-			if (options?.skip) {
+			if (typeof options?.skip === 'number') {
 				query = query.skip(options.skip);
 			}
-			if (options?.limit) {
+			if (typeof options?.limit === 'number') {
 				query = query.limit(options.limit);
 			}
 
@@ -141,7 +144,7 @@ export class RoleAdapter implements RoleDBInterface {
 	async getPermissionsForRole(role_id: string): Promise<Permission[]> {
 		try {
 			const role = await this.RoleModel.findById(role_id).populate('permissions');
-			return role ? (role.permissions as Permission[]) : [];
+			return role ? (role.permissions as unknown as Permission[]) : [];
 		} catch (error) {
 			logger.error(`Failed to get permissions for role: ${(error as Error).message}`);
 			throw error;

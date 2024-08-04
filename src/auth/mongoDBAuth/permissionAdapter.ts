@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types
 import type { Permission } from '../types';
-import type { PermissionDBInterface } from '../authDBInterface';
+import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
@@ -20,7 +20,7 @@ export const PermissionSchema = new Schema(
 	},
 	{ timestamps: true }
 );
-export class PermissionAdapter implements PermissionDBInterface {
+export class PermissionAdapter implements Partial<authDBInterface> {
 	private PermissionModel: Model<Permission & Document>;
 
 	constructor() {
@@ -76,17 +76,12 @@ export class PermissionAdapter implements PermissionDBInterface {
 	}
 
 	// Get all permissions
-	async getAllPermissions(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: string | { [key: string]: 1 | -1 };
-		filter?: object;
-	}): Promise<Permission[]> {
+	async getAllPermissions(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Permission[]> {
 		try {
 			let query = this.PermissionModel.find(options?.filter || {});
 
 			if (options?.sort) {
-				query = query.sort(options.sort);
+				query = query.sort(options.sort as any);
 			}
 			if (options?.skip) {
 				query = query.skip(options.skip);

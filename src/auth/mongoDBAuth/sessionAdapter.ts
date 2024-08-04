@@ -2,7 +2,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types
 import type { Session, User } from '../types';
-import type { SessionDBInterface } from '../authDBInterface';
+import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
@@ -17,9 +17,9 @@ export const SessionSchema = new Schema(
 	{ timestamps: true }
 );
 
-export class SessionAdapter implements SessionDBInterface {
+export class SessionAdapter implements Partial<authDBInterface> {
 	private SessionModel: Model<Session & Document>;
-	private userAdapter:UserAdapter;
+	private userAdapter: UserAdapter;
 	constructor() {
 		// Create the Session model if it doesn't exist
 		this.SessionModel = mongoose.models.auth_sessions || mongoose.model<Session & Document>('auth_sessions', SessionSchema);
@@ -90,7 +90,7 @@ export class SessionAdapter implements SessionDBInterface {
 				return null;
 			}
 			logger.debug(`Session validated: ${session_id}`);
-			
+
 			return await this.userAdapter.getUserById(session.user_id); // Replace with actual user fetching logic
 		} catch (error) {
 			logger.error(`Failed to validate session: ${(error as Error).message}`);
