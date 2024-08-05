@@ -24,8 +24,8 @@ export async function createNewToken(TokenModel: Model<Token>, user_id: string, 
 		await TokenModel.deleteOne({ user_id });
 	}
 
-	// Generate a random 16-byte token string using crypto.randomBytes
-	const token = crypto.randomBytes(16).toString('hex');
+	// Generate a random token string using crypto.randomBytes
+	const token = crypto.randomBytes(32).toString('hex'); // 256-bit random token
 	const expiresIn = new Date(Date.now() + expires);
 
 	// Insert the new token into the database

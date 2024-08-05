@@ -8,13 +8,9 @@ import type { Unsubscriber } from 'svelte/store';
 import mongoose from 'mongoose';
 import type { dbInterface } from './dbInterface';
 
-// Auth
-// import { UserSchema } from '@src/auth/mongoDBAuth/User';
-// import { SessionSchema } from '@src/auth/mongoDBAuth/Session';
-// import { TokenSchema } from '@src/auth/mongoDBAuth/Token';
-
 // System Logs
 import logger from '@src/utils/logger';
+
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';

@@ -108,7 +108,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 
 	// Token Management Methods
 	async createToken(data: { user_id: string; email: string; expires: number; type: string }): Promise<string> {
-		const tokenString = crypto.randomBytes(16).toString('hex');
+		const tokenString = crypto.randomBytes(32).toString('hex');
 		await db.insert('tokens').values({
 			user_id: data.user_id,
 			token: tokenString,

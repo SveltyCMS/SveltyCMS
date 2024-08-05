@@ -1,9 +1,17 @@
+import { privateEnv } from '@root/config/private';
+
 // Types
 import type { Cookie, User, Session, Token } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 // Cache & Redis
 import { OptionalRedisSessionStore } from './SessionStores';
+
+// Import argon2
+import * as argon2 from 'argon2';
+
+// Default expiration time (1 hour in seconds)
+const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
 // System Logs
 import logger from '@src/utils/logger';
@@ -18,6 +26,15 @@ export interface SessionStore {
 	validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null>;
 	close(): Promise<void>;
 }
+
+// Define Argon2 attributes configuration
+const argon2Attributes = {
+	type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
+	timeCost: 3, // Number of iterations
+	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
+	parallelism: 2, // Number of execution threads
+	saltLength: 16 // Salt length in bytes
+} as const;
 
 // Default Session Store
 export const defaultSessionStore = new OptionalRedisSessionStore();
@@ -39,14 +56,6 @@ export class Auth {
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
-				const argon2 = await import('argon2');
-				const argon2Attributes = {
-					type: argon2.argon2id,
-					timeCost: 2,
-					memoryCost: 2 ** 12,
-					parallelism: 2,
-					saltLength: 16
-				} as const;
 				hashedPassword = await argon2.hash(password, argon2Attributes);
 			}
 			logger.debug(`Creating user with email: ${email}`);
@@ -78,14 +87,6 @@ export class Auth {
 			// Check if password needs updating
 			if (attributes.password) {
 				// Hash the password with argon2
-				const argon2 = await import('argon2');
-				const argon2Attributes = {
-					type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
-					timeCost: 2, // Number of iterations
-					memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
-					parallelism: 2, // Number of execution threads
-					saltLength: 16 // Salt length in bytes
-				} as const;
 				attributes.password = await argon2.hash(attributes.password, argon2Attributes);
 			}
 			// Convert null email to undefined
@@ -117,7 +118,7 @@ export class Auth {
 	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		expires = 60 * 60 * 1000, // 1 hour by default
+		expires = (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000, // Use config value or fallback
 		isExtended = false // Extend session if required
 	}: {
 		user_id: string;
