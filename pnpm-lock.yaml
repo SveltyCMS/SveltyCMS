@@ -90,8 +90,8 @@ importers:
         specifier: ^4.3.1
         version: 4.3.1
       drizzle-orm:
-        specifier: ^0.32.1
-        version: 0.32.1
+        specifier: ^0.32.2
+        version: 0.32.2
       google-auth-library:
         specifier: ^9.13.0
         version: 9.13.0
@@ -2080,8 +2080,8 @@ packages:
     resolution: {integrity: sha512-8WB3Jcas3swSvjIeA2yvCJ+Miyz5l1ZmB6HFb9R1317dt9LCQoswg/BGrmAmkWVEszSrrg4RwmO46qIm2OEnSA==}
     engines: {node: '>=16'}
 
-  caniuse-lite@1.0.30001647:
-    resolution: {integrity: sha512-n83xdNiyeNcHpzWY+1aFbqCK7LuLfBricc4+alSQL2Xb6OR3XpnQAmlDG+pQcdTfiHRuLcQ96VOfrPSGiNJYSg==}
+  caniuse-lite@1.0.30001649:
+    resolution: {integrity: sha512-fJegqZZ0ZX8HOWr6rcafGr72+xcgJKI9oWfDW5DrD7ExUtgZC7a7R7ZYmZqplh7XDocFdGeIFn7roAxhOeYrPQ==}
 
   canvas@2.11.2:
     resolution: {integrity: sha512-ItanGBMrmRV7Py2Z+Xhs7cT+FNt5K0vPL4p9EZ/UX/Mu7hFbkxSjKF2KVtPwX7UYWp7dRKnrTvReflgrItJbdw==}
@@ -2445,8 +2445,8 @@ packages:
   dottie@2.0.6:
     resolution: {integrity: sha512-iGCHkfUc5kFekGiqhe8B/mdaurD+lakO9txNnTvKtA6PISrw86LgqHvRzWYPyoE2Ph5aMIrCw9/uko6XHTKCwA==}
 
-  drizzle-orm@0.32.1:
-    resolution: {integrity: sha512-Wq1J+lL8PzwR5K3a1FfoWsbs8powjr3pGA4+5+2ueN1VTLDNFYEolUyUWFtqy8DVRvYbL2n7sXZkgVmK9dQkng==}
+  drizzle-orm@0.32.2:
+    resolution: {integrity: sha512-3fXKzPzrgZIcnWCSLiERKN5Opf9Iagrag75snfFlKeKSYB1nlgPBshzW3Zn6dQymkyiib+xc4nIz0t8U+Xdpuw==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=3'
@@ -3456,8 +3456,8 @@ packages:
   lexical@0.14.5:
     resolution: {integrity: sha512-ouV7Gyr9+3WT3WTrCgRAD3iZnlJWfs2/kBl2x3J2Q3X9uCWJn/zn21fQ8G1EUHlu0dvXPBmdk9hXb/FjTClt6Q==}
 
-  lib0@0.2.95:
-    resolution: {integrity: sha512-St5XGDh5omvNawGkAOa7CFRjxl4xEKLj9DxgT8Nl7rmrD6l2WRTngvmZGhJKRaniROterT0RDVdnwLlU9PiEOg==}
+  lib0@0.2.96:
+    resolution: {integrity: sha512-xeV9M34+D4HD1sd6xAarnWYgU7pKau64bvmPySibX85G+hx/KonzISpO409K6OS9IVLORWfQZkKBRZV5sQegFQ==}
     engines: {node: '>=16'}
     hasBin: true
 
@@ -7241,7 +7241,7 @@ snapshots:
   autoprefixer@10.4.20(postcss@8.4.40):
     dependencies:
       browserslist: 4.23.3
-      caniuse-lite: 1.0.30001647
+      caniuse-lite: 1.0.30001649
       fraction.js: 4.3.7
       normalize-range: 0.1.2
       picocolors: 1.0.1
@@ -7289,7 +7289,7 @@ snapshots:
 
   browserslist@4.23.3:
     dependencies:
-      caniuse-lite: 1.0.30001647
+      caniuse-lite: 1.0.30001649
       electron-to-chromium: 1.5.4
       node-releases: 2.0.18
       update-browserslist-db: 1.1.0(browserslist@4.23.3)
@@ -7357,7 +7357,7 @@ snapshots:
   camelcase@8.0.0:
     optional: true
 
-  caniuse-lite@1.0.30001647: {}
+  caniuse-lite@1.0.30001649: {}
 
   canvas@2.11.2:
     dependencies:
@@ -7691,7 +7691,7 @@ snapshots:
 
   dottie@2.0.6: {}
 
-  drizzle-orm@0.32.1: {}
+  drizzle-orm@0.32.2: {}
 
   dset@3.1.3: {}
 
@@ -8767,7 +8767,7 @@ snapshots:
 
   lexical@0.14.5: {}
 
-  lib0@0.2.95:
+  lib0@0.2.96:
     dependencies:
       isomorphic.js: 0.2.5
 
@@ -10622,18 +10622,18 @@ snapshots:
   y-leveldb@0.1.2(yjs@13.6.2):
     dependencies:
       level: 6.0.1
-      lib0: 0.2.95
+      lib0: 0.2.96
       yjs: 13.6.2
     optional: true
 
   y-protocols@1.0.6(yjs@13.6.2):
     dependencies:
-      lib0: 0.2.95
+      lib0: 0.2.96
       yjs: 13.6.2
 
   y-websocket@1.5.4(yjs@13.6.2):
     dependencies:
-      lib0: 0.2.95
+      lib0: 0.2.96
       lodash.debounce: 4.0.8
       y-protocols: 1.0.6(yjs@13.6.2)
       yjs: 13.6.2
@@ -10678,7 +10678,7 @@ snapshots:
 
   yjs@13.6.2:
     dependencies:
-      lib0: 0.2.95
+      lib0: 0.2.96
 
   yocto-queue@0.1.0: {}
 

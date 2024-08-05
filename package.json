@@ -125,7 +125,7 @@
 		"chartjs-adapter-date-fns": "^3.0.0",
 		"date-fns": "^3.6.0",
 		"deepmerge": "^4.3.1",
-		"drizzle-orm": "^0.32.1",
+		"drizzle-orm": "^0.32.2",
 		"google-auth-library": "^9.13.0",
 		"googleapis": "^140.0.1",
 		"graphql": "^16.9.0",
