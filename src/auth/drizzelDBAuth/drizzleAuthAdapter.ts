@@ -7,6 +7,54 @@ import crypto from 'crypto';
 // import logger from '@src/utils/logger';
 
 export class DrizzleAuthAdapter implements authDBInterface {
+	// Default roles and permissions
+	async initializeDefaultRolesAndPermissions(): Promise<void> {
+		const defaultRoles: Partial<Role>[] = [
+			{ name: 'admin', description: 'Administrator with all permissions' },
+			{ name: 'developer', description: 'Developer with elevated permissions' },
+			{ name: 'editor', description: 'Content editor' },
+			{ name: 'user', description: 'Regular user' }
+		];
+
+		const defaultPermissions: Partial<Permission>[] = [
+			{
+				name: 'create_content',
+				action: 'create',
+				contextId: 'global',
+				contextType: 'collection',
+				description: 'Create new content',
+				requiredRole: 'user'
+			},
+			{ name: 'read_content', action: 'read', contextId: 'global', contextType: 'collection', description: 'Read content', requiredRole: 'user' },
+			{
+				name: 'update_content',
+				action: 'update',
+				contextId: 'global',
+				contextType: 'collection',
+				description: 'Update existing content',
+				requiredRole: 'editor'
+			},
+			{
+				name: 'delete_content',
+				action: 'delete',
+				contextId: 'global',
+				contextType: 'collection',
+				description: 'Delete content',
+				requiredRole: 'admin'
+			},
+			{ name: 'manage_users', action: 'manage', contextId: 'global', contextType: 'system', description: 'Manage users', requiredRole: 'admin' },
+			{ name: 'manage_roles', action: 'manage', contextId: 'global', contextType: 'system', description: 'Manage roles', requiredRole: 'admin' },
+			{
+				name: 'manage_permissions',
+				action: 'manage',
+				contextId: 'global',
+				contextType: 'system',
+				description: 'Manage permissions',
+				requiredRole: 'admin'
+			}
+		];
+	}
+
 	// User Management Methods
 	async createUser(userData: Partial<User>): Promise<User> {
 		const [user] = await db.insert('users').values(userData).returning('*');
@@ -313,11 +361,6 @@ export class DrizzleAuthAdapter implements authDBInterface {
 			.where(db.raw('JSON_SEARCH(roles, "one", ?)', [role_id]))
 			.returning('*');
 		return users;
-	}
-
-	// Initialization and Utility Methods
-	async initializeDefaultRolesAndPermissions(): Promise<void> {
-		// Initialize default roles and permissions
 	}
 
 	async checkUserPermission(user_id: string, permission_name: string): Promise<boolean> {

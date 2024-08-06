@@ -36,10 +36,13 @@ export function getRoleByName(roleName: string): Role | undefined {
 
 // List of possible permissions for simplicity and type safety.
 export const permissionActions = [
+	// collection
 	'create', // Allows creating new content.
 	'read', // Allows viewing content.
 	'write', // Allows modifying existing content.
 	'delete', // Allows removing content.
+
+	// global
 	'manage_roles', // Allows managing roles.
 	'manage_permissions' // Allows managing permissions.
 ] as const;

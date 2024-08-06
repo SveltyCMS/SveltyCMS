@@ -30,11 +30,22 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions, type LoadedRolesAndPermissions } from '@src/auth/types';
+import { setLoadedRolesAndPermissions } from '@src/auth/types';
 
-// Adapters
+// Adapters Interfaces
 import type { dbInterface } from './dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
+import { initializeDefaultRolesAndPermissions } from '@src/auth/initializeRolesAndPermissions';
+
+// MongoDB Adapters
+import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
+import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
+import { PermissionAdapter } from '@src/auth/mongoDBAuth/permissionAdapter';
+import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+
+// Drizzle Adapters
+// import { DrizzleAuthAdapter } from '@src/auth/drizzelDBAuth/drizzleAuthAdapter';
 
 // System Logs
 import logger from '@src/utils/logger';
@@ -57,9 +68,15 @@ async function loadAdapters() {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const [{ MongoDBAdapter }, { MongoDBAuthAdapter }] = await Promise.all([import('./mongoDBAdapter'), import('@src/auth/authAdapter')]);
+			const { MongoDBAdapter } = await import('./mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
-			authAdapter = new MongoDBAuthAdapter();
+			authAdapter = {
+				...new UserAdapter(),
+				...new RoleAdapter(),
+				...new PermissionAdapter(),
+				...new SessionAdapter(),
+				...new TokenAdapter()
+			} as authDBInterface;
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
@@ -138,7 +155,7 @@ async function initializeAdapters(): Promise<void> {
 		logger.debug('Authentication adapter initialized.');
 
 		try {
-			await authAdapter.initializeDefaultRolesAndPermissions();
+			await initializeDefaultRolesAndPermissions(authAdapter);
 			logger.info('Default roles and permissions initialized.');
 		} catch (error) {
 			logger.error(`Error initializing default roles and permissions: ${(error as Error).message}`, { error });
