@@ -126,7 +126,7 @@ export interface User {
 
 // Session interface represents a session in the system.
 export interface Session {
-	session_id: string; // Unique identifier for the session
+	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }

@@ -32,7 +32,7 @@ import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
 
 // Auth
-import { auth } from '@scr/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 import { getCollections } from '@src/collections';

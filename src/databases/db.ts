@@ -49,6 +49,7 @@ import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // System Logs
 import logger from '@src/utils/logger';
+import { UnifiedAdapter } from '@src/auth/unify';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
@@ -70,13 +71,7 @@ async function loadAdapters() {
 		if (privateEnv.DB_TYPE === 'mongodb') {
 			const { MongoDBAdapter } = await import('./mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
-			authAdapter = {
-				...new UserAdapter(),
-				...new RoleAdapter(),
-				...new PermissionAdapter(),
-				...new SessionAdapter(),
-				...new TokenAdapter()
-			} as authDBInterface;
+			authAdapter = new UnifiedAdapter();
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');

@@ -433,11 +433,11 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 		// Create User Session
 		const session = await auth.createSession({ user_id: user._id, expires: 3600000 });
-		if (!session || !session.session_id) {
+		if (!session || !session._id) {
 			logger.error('Session creation failed');
 			return { status: false, message: 'Failed to create session' };
 		}
-		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user._id}`);
+		logger.info(`Session created with ID: ${session._id} for user ID: ${user._id}`);
 
 		// Create session cookie and set it
 		const sessionCookie = auth.createSessionCookie(session);

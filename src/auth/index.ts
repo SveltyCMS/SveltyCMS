@@ -8,7 +8,7 @@ import type { authDBInterface } from './authDBInterface';
 import { OptionalRedisSessionStore } from './SessionStores';
 
 // Import argon2
-import * as argon2 from 'argon2';
+
 
 // Default expiration time (1 hour in seconds)
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
@@ -28,8 +28,7 @@ export interface SessionStore {
 }
 
 // Define Argon2 attributes configuration
-const argon2Attributes = {
-	type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
+const argon2Attributes = { // Using Argon2id variant for a balance between Argon2i and Argon2d
 	timeCost: 3, // Number of iterations
 	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
 	parallelism: 2, // Number of execution threads
@@ -85,8 +84,11 @@ export class Auth {
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
 			// Check if password needs updating
-			if (attributes.password) {
+			if (attributes.password && typeof window ==='undefined') {
 				// Hash the password with argon2
+
+				const argon2 = await import("argon2");
+				argon2Attributes.type=argon2.argon2d;
 				attributes.password = await argon2.hash(attributes.password, argon2Attributes);
 			}
 			// Convert null email to undefined
@@ -138,13 +140,13 @@ export class Auth {
 		const session = await this.db.createSession({ user_id, expires });
 		const user = await this.db.getUserById(user_id);
 		if (user) {
-			await this.sessionStore.set(session.session_id, user, expires / 1000);
+			await this.sessionStore.set(session._id, user, expires / 1000);
 		} else {
 			logger.error(`User not found for ID: ${user_id}`);
 			throw new Error(`User not found for ID: ${user_id}`);
 		}
 
-		logger.info(`Session created with ID: ${session.session_id} for user ID: ${user_id}`);
+		logger.info(`Session created with ID: ${session._id} for user ID: ${user_id}`);
 		return session;
 	}
 
@@ -241,7 +243,7 @@ export class Auth {
 	createSessionCookie(session: Session): Cookie {
 		return {
 			name: SESSION_COOKIE_NAME,
-			value: session.session_id,
+			value: session._id,
 			attributes: {
 				sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
 				path: '/',

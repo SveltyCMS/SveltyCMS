@@ -182,7 +182,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 	}
 
 	// Get role for a user
-	async getRoleForUser(user_id: string): Promise<string | null> {
+	async getRoleForUser(user_id: string): Promise<string> {
 		try {
 			const user = await this.UserModel.findById(user_id);
 			return user ? user.role : null;
