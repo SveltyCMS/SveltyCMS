@@ -49,14 +49,13 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 async function signOut(cookies: Cookies): Promise<Response> {
 	try {
 		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session found for sign out');
-			return new Response('No session to sign out', { status: 400 });
+		if (session_id) {
+			await auth.destroySession(session_id);
+			cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+			logger.info('User signed out successfully', { session_id });
 		}
 
-		await auth.destroySession(session_id);
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		logger.info('User signed out successfully', { session_id });
+		
 
 		// Set a flag in the response to indicate successful signout
 		return new Response(JSON.stringify({ status: 'success', signedOut: true }), {

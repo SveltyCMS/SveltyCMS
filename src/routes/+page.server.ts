@@ -163,7 +163,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		}
 	} else {
 		// Regular session validation
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		let session_id = cookies.get(SESSION_COOKIE_NAME);
 
 		// If no session ID is found, create a new session
 		if (!session_id) {
