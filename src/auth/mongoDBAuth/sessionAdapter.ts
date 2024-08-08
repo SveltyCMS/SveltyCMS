@@ -1,3 +1,22 @@
+/**
+ * @file src/auth/mongoDBAuth/sessionAdapter.ts
+ * @description MongoDB adapter for session-related operations.
+ *
+ * This module provides functionality to:
+ * - Create, update, delete, and retrieve sessions
+ * - Manage session schemas and models
+ * - Handle session validation and expiration
+ *
+ * Features:
+ * - CRUD operations for sessions
+ * - Session schema definition
+ * - Session expiration handling
+ * - Integration with MongoDB through Mongoose
+ *
+ * Usage:
+ * Utilized by the auth system to manage user sessions in a MongoDB database
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types

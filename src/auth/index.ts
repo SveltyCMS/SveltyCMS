@@ -1,3 +1,23 @@
+/**
+ * @file src/auth/index.ts
+ * @description Main authentication module for the application.
+ *
+ * This module provides core authentication functionality:
+ * - User creation and management
+ * - Session handling
+ * - Password hashing and verification
+ * - Token generation and validation
+ *
+ * Features:
+ * - User authentication and authorization
+ * - Session management with optional Redis support
+ * - Secure password handling with Argon2
+ * - Flexible database adapter integration
+ *
+ * Usage:
+ * Central module for handling all authentication-related operations in the application
+ */
+
 import { privateEnv } from '@root/config/private';
 
 // Types
@@ -7,8 +27,13 @@ import type { authDBInterface } from './authDBInterface';
 // Cache & Redis
 import { OptionalRedisSessionStore } from './SessionStores';
 
-// Import argon2
-
+// Import argon2 conditionally
+let argon2: typeof import('argon2') | null = null;
+if (typeof window === 'undefined') {
+	import('argon2').then((module) => {
+		argon2 = module;
+	});
+}
 
 // Default expiration time (1 hour in seconds)
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
@@ -28,7 +53,7 @@ export interface SessionStore {
 }
 
 // Define Argon2 attributes configuration
-const argon2Attributes = { // Using Argon2id variant for a balance between Argon2i and Argon2d
+const argon2Attributes = {
 	timeCost: 3, // Number of iterations
 	memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
 	parallelism: 2, // Number of execution threads
@@ -55,7 +80,13 @@ export class Auth {
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
-				hashedPassword = await argon2.hash(password, argon2Attributes);
+				if (!argon2) {
+					throw new Error('Argon2 is not available in this environment');
+				}
+				hashedPassword = await argon2.hash(password, {
+					...argon2Attributes,
+					type: argon2.argon2id // Explicitly set the type here
+				});
 			}
 			logger.debug(`Creating user with email: ${email}`);
 			// Create the user in the database
@@ -84,12 +115,15 @@ export class Auth {
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
 			// Check if password needs updating
-			if (attributes.password && typeof window ==='undefined') {
+			if (attributes.password && typeof window === 'undefined') {
+				if (!argon2) {
+					throw new Error('Argon2 is not available in this environment');
+				}
 				// Hash the password with argon2
-
-				const argon2 = await import("argon2");
-				argon2Attributes.type=argon2.argon2d;
-				attributes.password = await argon2.hash(attributes.password, argon2Attributes);
+				attributes.password = await argon2.hash(attributes.password, {
+					...argon2Attributes,
+					type: argon2.argon2id // Explicitly set the type here
+				});
 			}
 			// Convert null email to undefined
 			if (attributes.email === null) {
@@ -154,8 +188,14 @@ export class Auth {
 	async checkUser(fields: { user_id?: string; email?: string }): Promise<User | null> {
 		try {
 			if (fields.email) {
+				if (typeof fields.email !== 'string') {
+					throw new Error('Invalid email format');
+				}
 				return await this.db.getUserByEmail(fields.email);
 			} else if (fields.user_id) {
+				if (typeof fields.user_id !== 'string') {
+					throw new Error('Invalid user_id format');
+				}
 				return await this.db.getUserById(fields.user_id);
 			} else {
 				logger.warn('No user identifier provided.');
@@ -163,7 +203,7 @@ export class Auth {
 			}
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to check user: ${err.message}`);
+			logger.error(`Failed to check user: ${err.message}`, { fields });
 			throw new Error(`Failed to check user: ${err.message}`);
 		}
 	}
@@ -268,7 +308,9 @@ export class Auth {
 		}
 
 		try {
-			const argon2 = await import('argon2');
+			if (!argon2) {
+				throw new Error('Argon2 is not available in this environment');
+			}
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user._id, { failedAttempts: 0, lockoutUntil: null });
 				logger.info(`User logged in: ${user._id}`);
@@ -393,14 +435,9 @@ export class Auth {
 				logger.warn(`Failed to update password: User not found for email: ${email}`);
 				return { status: false, message: 'User not found' };
 			}
-			const argon2 = await import('argon2');
-			const argon2Attributes = {
-				type: argon2.argon2id, // Using Argon2id variant for a balance between Argon2i and Argon2d
-				timeCost: 2, // Number of iterations
-				memoryCost: 2 ** 12, // Using memory cost of 2^12 = 4MB
-				parallelism: 2, // Number of execution threads
-				saltLength: 16 // Salt length in bytes
-			} as const;
+			if (!argon2) {
+				throw new Error('Argon2 is not available in this environment');
+			}
 			const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
 			await this.db.updateUserAttributes(user._id!, { password: hashedPassword });
 			logger.info(`Password updated for user ID: ${user._id}`);

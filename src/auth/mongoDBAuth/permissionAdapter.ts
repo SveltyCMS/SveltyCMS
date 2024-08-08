@@ -1,3 +1,22 @@
+/**
+ * @file src/auth/mongoDBAuth/permissionAdapter.ts
+ * @description MongoDB adapter for permission-related operations.
+ *
+ * This module provides functionality to:
+ * - Create, update, delete, and retrieve permissions
+ * - Manage permission schemas and models
+ * - Interface with the MongoDB database for permission operations
+ *
+ * Features:
+ * - CRUD operations for permissions
+ * - Permission schema definition
+ * - Integration with MongoDB through Mongoose
+ * - Error handling and logging
+ *
+ * Usage:
+ * Utilized by the auth system to manage permissions in a MongoDB database
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types

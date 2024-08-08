@@ -1,3 +1,23 @@
+/**
+ * @file src/auth/mongoDBAuth/userAdapter.ts
+ * @description MongoDB adapter for user-related operations.
+ *
+ * This module provides functionality to:
+ * - Create, update, delete, and retrieve users
+ * - Manage user schemas and models
+ * - Handle user authentication and permissions
+ *
+ * Features:
+ * - CRUD operations for users
+ * - User schema definition
+ * - User-role and user-permission associations
+ * - Password hashing and verification
+ * - Integration with MongoDB through Mongoose
+ *
+ * Usage:
+ * Utilized by the auth system to manage user accounts in a MongoDB database
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Adapter
@@ -181,13 +201,17 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Get role for a user
-	async getRoleForUser(user_id: string): Promise<string> {
+	// Get roles for a user
+	async getRolesForUser(user_id: string): Promise<Role[]> {
 		try {
 			const user = await this.UserModel.findById(user_id);
-			return user ? user.role : null;
+			if (!user) {
+				return [];
+			}
+			const role = await this.RoleModel.findOne({ name: user.role });
+			return role ? [role] : [];
 		} catch (error) {
-			logger.error(`Failed to get role for user: ${(error as Error).message}`);
+			logger.error(`Failed to get roles for user: ${(error as Error).message}`);
 			throw error;
 		}
 	}

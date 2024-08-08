@@ -1,18 +1,19 @@
 /**
  * @file src/utils/logger.ts
- * @description Custom logger with configurable levels and colorized output.
+ * @description Custom logger with configurable levels, colorized output, and sensitive data masking.
  *
  * Features:
  * - Configurable log levels (fatal, error, warn, info, debug, trace)
  * - Colorized console output for better readability
  * - Timestamp prefix for each log entry
+ * - Sensitive data masking (e.g., passwords)
  * - Optional object logging for additional context
  * - Runtime-configurable log levels
  *
  * Usage:
  * import logger from '@src/utils/logger';
  * logger.info('Server started');
- * logger.error('Database connection failed', { dbName: 'main' });
+ * logger.error('Database connection failed', { dbName: 'main', password: 'secret123' });
  *
  * To change log levels at runtime:
  * logger.setLevels(['error', 'warn', 'info']);
@@ -31,7 +32,7 @@ const COLORS: Record<LogLevel, string> = {
 	info: '\x1b[32m', // Green
 	debug: '\x1b[34m', // Blue
 	trace: '\x1b[36m', // Cyan
-	none: '' // No color reset needed
+	none: '\x1b[0m' // Reset to default color
 };
 
 // Logger class for managing and outputting log messages
@@ -48,11 +49,68 @@ class Logger {
 		return this.enabledLevels.has(level);
 	}
 
+	// Mask sensitive data in objects
+	private maskSensitiveData(data: any): any {
+		if (typeof data !== 'object' || data === null) {
+			return data;
+		}
+
+		const maskedData: any = Array.isArray(data) ? [] : {};
+
+		for (const [key, value] of Object.entries(data)) {
+			if (typeof value === 'string') {
+				if (key.toLowerCase().includes('password')) {
+					maskedData[key] = '[REDACTED]';
+				} else if (key.toLowerCase().includes('email')) {
+					maskedData[key] = this.maskEmail(value);
+				} else {
+					maskedData[key] = value;
+				}
+			} else if (typeof value === 'object' && value !== null) {
+				maskedData[key] = this.maskSensitiveData(value);
+			} else {
+				maskedData[key] = value;
+			}
+		}
+
+		return maskedData;
+	}
+
+	// Mask an email address
+	private maskEmail(email: string | undefined): string {
+		if (!email) return '[EMAIL UNDEFINED]';
+
+		const parts = email.split('@');
+		if (parts.length !== 2) return '[INVALID EMAIL FORMAT]';
+
+		const [localPart, domain] = parts;
+		const maskedLocalPart = localPart.length > 2 ? `${localPart[0]}${'*'.repeat(Math.min(localPart.length - 2, 5))}` : '***';
+
+		const domainParts = domain.split('.');
+		if (domainParts.length < 2) return `${maskedLocalPart}@[INVALID DOMAIN]`;
+
+		const tld = domainParts.pop(); // Get the last part as TLD
+		const domainName = domainParts.join('.'); // Join the rest as domain name
+		const maskedDomain = `${'*'.repeat(Math.min(domainName.length, 5))}`;
+
+		return `${maskedLocalPart}@${maskedDomain}.${tld}`;
+	}
+
 	// Format the log message with timestamp, level, and optional object
 	private formatLog(level: LogLevel, message: string, obj?: object): string {
 		const timestamp = `\x1b[2m${new Date().toISOString()}\x1b[0m`; // Gray timestamp
 		const color = COLORS[level];
-		return `${timestamp} ${color}[${level.toUpperCase()}]\x1b[0m: ${message}${obj ? ' ' + JSON.stringify(obj) : ''}`;
+		const levelString = level === 'none' ? '' : `${color}[${level.toUpperCase()}]\x1b[0m: `;
+
+		// Apply masking to the message string
+		const maskedMessage = message
+			.replace(/(?<=email:?\s*).*?(?=,|\s|$)/gi, (match) => this.maskEmail(match))
+			.replace(/(?<=password:?\s*).*?(?=,|\s|$)/gi, '[REDACTED]')
+			// Additional pattern to catch passwords in various formats
+			.replace(/(?<=password['"]?\s*[:=]\s*['"]?).*?(?=['"]?[,}\s])/gi, '[REDACTED]');
+
+		const maskedObj = obj ? this.maskSensitiveData(obj) : undefined;
+		return `${timestamp} ${levelString}${maskedMessage}${maskedObj ? ' ' + JSON.stringify(maskedObj) : ''}`;
 	}
 
 	// Log the message to the console if the level is enabled

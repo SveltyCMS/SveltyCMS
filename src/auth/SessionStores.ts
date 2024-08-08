@@ -1,3 +1,21 @@
+/**
+ * @file src/auth/SessionStores.ts
+ * @description Session store implementations for the auth system.
+ *
+ * This module provides different session store options:
+ * - In-memory session store
+ * - Redis session store (optional)
+ *
+ * Features:
+ * - Flexible session storage options
+ * - In-memory store for development or small-scale use
+ * - Redis store for production and scalable environments
+ * - Consistent interface for different store types
+ *
+ * Usage:
+ * Configurable session storage solution for the authentication system
+ */
+
 import { privateEnv } from '@root/config/private';
 
 // Types

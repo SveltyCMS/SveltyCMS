@@ -1,3 +1,21 @@
+/**
+ * @file src/auth/authDBInterface.ts
+ * @description Interface definition for authentication database operations.
+ *
+ * This module defines the contract for database adapters used in the authentication system:
+ * - User management methods
+ * - Session management methods
+ * - Token management methods
+ * - Role and permission management methods
+ *
+ * Features:
+ * - Comprehensive set of method signatures for auth operations
+ * - Typescript interface for type safety and consistency
+ *
+ * Usage:
+ * Implemented by database adapters to ensure consistent auth operations across different databases
+ */
+
 import type { User, Session, Token, Role, Permission } from './types';
 
 export interface authDBInterface {

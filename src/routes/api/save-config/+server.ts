@@ -41,7 +41,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const encryptedConfigData = {};
 		for (const key in configData) {
 			if (Object.prototype.hasOwnProperty.call(configData, key)) {
-				encryptedConfigData[key] = ''; //await argon2.hash(configData[key]);
+				encryptedConfigData[key] = '';
 			}
 		}
 

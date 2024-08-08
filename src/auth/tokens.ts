@@ -1,3 +1,22 @@
+/**
+ * @file src/auth/tokens.ts
+ * @description Utility functions for token management.
+ *
+ * This module provides functionality to:
+ * - Create new tokens
+ * - Validate existing tokens
+ * - Consume tokens
+ *
+ * Features:
+ * - Secure token generation
+ * - Token validation with expiration checking
+ * - One-time use token consumption
+ * - Integration with the auth database adapter
+ *
+ * Usage:
+ * Utilized for various token-based operations in the authentication system
+ */
+
 import type { Model, Token } from './types';
 import crypto from 'crypto';
 

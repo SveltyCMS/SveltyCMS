@@ -57,9 +57,15 @@ async function signOut(cookies: Cookies): Promise<Response> {
 		await auth.destroySession(session_id);
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		logger.info('User signed out successfully', { session_id });
-		return new Response(JSON.stringify({ status: 'success' }), {
+
+		// Set a flag in the response to indicate successful signout
+		return new Response(JSON.stringify({ status: 'success', signedOut: true }), {
 			status: 200,
-			headers: { 'Content-Type': 'application/json' }
+			headers: {
+				'Content-Type': 'application/json',
+				// Set a header to prevent automatic session creation
+				'X-No-Session': 'true'
+			}
 		});
 	} catch (err) {
 		logger.error('Error signing out user', { error: err.message });

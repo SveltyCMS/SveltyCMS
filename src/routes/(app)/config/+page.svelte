@@ -1,6 +1,11 @@
 <script lang="ts">
 	// Store
 	import { page } from '$app/stores';
+	import { onMount } from 'svelte';
+
+	onMount(() => {
+		console.log('Page data:', $page.data);
+	});
 
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';

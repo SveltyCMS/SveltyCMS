@@ -1,3 +1,21 @@
+/**
+ * @file src/auth/types.ts
+ * @description Type definitions for the authentication system.
+ *
+ * This module defines types and interfaces for:
+ * - Users, roles, and permissions
+ * - Sessions and tokens
+ * - Authentication-related data structures
+ *
+ * Features:
+ * - Comprehensive type definitions for auth entities
+ * - Utility types and helper functions
+ * - Centralized type management for the auth system
+ *
+ * Usage:
+ * Imported throughout the auth system to ensure type consistency and safety
+ */
+
 // Add a function to set loaded roles and permissions
 let loadedRoles: Role[] = [];
 let loadedPermissions: Permission[] = [];

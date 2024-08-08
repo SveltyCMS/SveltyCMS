@@ -361,16 +361,19 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch default theme
 	async getDefaultTheme(): Promise<any> {
 		try {
-			let defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
-			if (!defaultTheme) {
-				logger.warn('No theme with isDefault: true found. Falling back to SveltyCMSTheme.');
-				defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean().exec();
+			let defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean().exec();
+			if (defaultTheme) {
+				return defaultTheme;
 			}
-			if (!defaultTheme) {
-				logger.warn('No default theme found.');
-				return null;
+
+			defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
+			if (defaultTheme) {
+				logger.info(`Default theme found: ${defaultTheme.name}`);
+				return defaultTheme;
 			}
-			return defaultTheme;
+
+			logger.warn('No default theme found.');
+			return null;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error fetching default theme: ${err.message}`);

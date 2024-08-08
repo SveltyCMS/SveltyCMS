@@ -1,3 +1,22 @@
+/**
+ * @file src/auth/RedisSessionStore.ts
+ * @description Redis-based session store implementation.
+ *
+ * This module provides functionality to:
+ * - Store and retrieve session data in Redis
+ * - Handle session encryption and decryption
+ * - Manage session expiration
+ *
+ * Features:
+ * - Redis integration for session storage
+ * - Secure session data handling with encryption
+ * - Configurable session expiration
+ * - Error handling and logging
+ *
+ * Usage:
+ * Used as an optional session store for improved performance and scalability
+ */
+
 import { privateEnv } from '@root/config/private';
 
 // Types

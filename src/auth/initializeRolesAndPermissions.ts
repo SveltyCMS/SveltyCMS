@@ -1,3 +1,21 @@
+/**
+ * @file src/auth/initializeRolesAndPermissions.ts
+ * @description Module for initializing default roles and permissions.
+ *
+ * This module provides functionality to:
+ * - Create default roles (admin, developer, editor, user)
+ * - Create default permissions
+ * - Assign permissions to roles
+ *
+ * Features:
+ * - Automated setup of initial auth structure
+ * - Customizable default roles and permissions
+ * - Idempotent initialization process
+ *
+ * Usage:
+ * Called during application setup to ensure basic auth structure is in place
+ */
+
 import type { Role, Permission, PermissionAction, ContextType } from './types';
 import type { authDBInterface } from './authDBInterface';
 
@@ -78,7 +96,7 @@ export async function initializeDefaultRolesAndPermissions(adapter: authDBInterf
 		const existingRole = await adapter.getRoleByName(roleData.name!);
 		if (!existingRole) {
 			await adapter.createRole(roleData, 'system');
-			logger.info(`Default role created: ${roleData.name}`);
+			logger.debug(`Default role created: ${roleData.name}`);
 		}
 	}
 
@@ -87,7 +105,7 @@ export async function initializeDefaultRolesAndPermissions(adapter: authDBInterf
 		const existingPermission = await adapter.getPermissionByName(permissionData.name!);
 		if (!existingPermission) {
 			await adapter.createPermission(permissionData, 'system');
-			logger.info(`Default permission created: ${permissionData.name}`);
+			logger.debug(`Default permission created: ${permissionData.name}`);
 		}
 	}
 

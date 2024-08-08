@@ -1,3 +1,22 @@
+/**
+ * @file src/auth/mongoDBAuth/tokenAdapter.ts
+ * @description MongoDB adapter for token-related operations.
+ *
+ * This module provides functionality to:
+ * - Create, validate, and consume tokens
+ * - Manage token schemas and models
+ * - Handle token expiration
+ *
+ * Features:
+ * - Token generation and validation
+ * - Token schema definition
+ * - Token expiration handling
+ * - Integration with MongoDB through Mongoose
+ *
+ * Usage:
+ * Used by the auth system to manage authentication tokens in a MongoDB database
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types

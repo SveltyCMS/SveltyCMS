@@ -49,19 +49,24 @@ import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // System Logs
 import logger from '@src/utils/logger';
-import { UnifiedAdapter } from '@src/auth/unify';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
 let authAdapter: authDBInterface | null = null;
 let auth: Auth | null = null;
 
-const MAX_RETRIES = 5;
+const MAX_RETRIES = 5; // Maximum number of DB connection retries
 const RETRY_DELAY = 5000; // 5 seconds
 
 let initializationPromise: Promise<void> | null = null;
 // Flag to track initialization status
 let isInitialized = false;
+
+const DEFAULT_THEME = {
+	name: 'SveltyCMSTheme',
+	path: '/themes/SveltyCMS/SveltyCMSTheme.css',
+	isDefault: true
+};
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -71,7 +76,67 @@ async function loadAdapters() {
 		if (privateEnv.DB_TYPE === 'mongodb') {
 			const { MongoDBAdapter } = await import('./mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
-			authAdapter = new UnifiedAdapter();
+			const userAdapter = new UserAdapter();
+			const roleAdapter = new RoleAdapter();
+			const permissionAdapter = new PermissionAdapter();
+			const sessionAdapter = new SessionAdapter();
+			const tokenAdapter = new TokenAdapter();
+
+			authAdapter = {
+				...userAdapter,
+				...roleAdapter,
+				...permissionAdapter,
+				...sessionAdapter,
+				...tokenAdapter,
+				// Bind all methods explicitly
+				createUser: userAdapter.createUser.bind(userAdapter),
+				updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
+				deleteUser: userAdapter.deleteUser.bind(userAdapter),
+				getUserById: userAdapter.getUserById.bind(userAdapter),
+				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
+				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
+				getUserCount: userAdapter.getUserCount.bind(userAdapter),
+				createRole: roleAdapter.createRole.bind(roleAdapter),
+				updateRole: roleAdapter.updateRole.bind(roleAdapter),
+				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
+				getRoleById: roleAdapter.getRoleById.bind(roleAdapter),
+				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
+				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
+				createPermission: permissionAdapter.createPermission.bind(permissionAdapter),
+				updatePermission: permissionAdapter.updatePermission.bind(permissionAdapter),
+				deletePermission: permissionAdapter.deletePermission.bind(permissionAdapter),
+				getPermissionById: permissionAdapter.getPermissionById.bind(permissionAdapter),
+				getAllPermissions: permissionAdapter.getAllPermissions.bind(permissionAdapter),
+				getPermissionByName: permissionAdapter.getPermissionByName.bind(permissionAdapter),
+				createSession: sessionAdapter.createSession.bind(sessionAdapter),
+				updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
+				destroySession: sessionAdapter.destroySession.bind(sessionAdapter),
+				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
+				createToken: tokenAdapter.createToken.bind(tokenAdapter),
+				validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
+				consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
+				assignPermissionToRole: roleAdapter.assignPermissionToRole.bind(roleAdapter),
+				removePermissionFromRole: roleAdapter.removePermissionFromRole.bind(roleAdapter),
+				getPermissionsForRole: roleAdapter.getPermissionsForRole.bind(roleAdapter),
+				getRolesForPermission: roleAdapter.getRolesForPermission.bind(roleAdapter),
+				assignPermissionToUser: userAdapter.assignPermissionToUser.bind(userAdapter),
+				removePermissionFromUser: userAdapter.removePermissionFromUser.bind(userAdapter),
+				getPermissionsForUser: userAdapter.getPermissionsForUser.bind(userAdapter),
+				getUsersWithPermission: userAdapter.getUsersWithPermission.bind(userAdapter),
+				assignRoleToUser: userAdapter.assignRoleToUser.bind(userAdapter),
+				removeRoleFromUser: userAdapter.removeRoleFromUser.bind(userAdapter),
+				getRolesForUser: userAdapter.getRolesForUser.bind(userAdapter),
+				getUsersWithRole: roleAdapter.getUsersWithRole.bind(roleAdapter),
+				checkUserPermission: userAdapter.checkUserPermission.bind(userAdapter),
+				checkUserRole: userAdapter.checkUserRole.bind(userAdapter),
+				initializeDefaultRolesAndPermissions: roleAdapter.initializeDefaultRoles.bind(roleAdapter),
+				deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
+				invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
+				getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+				getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+				deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter)
+			} as authDBInterface;
+
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
@@ -116,6 +181,40 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 	}
 }
 
+// Initialize Theme
+async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
+	try {
+		logger.debug('Initializing default theme...');
+		const themes = await dbAdapter.getAllThemes();
+		logger.debug(`Found ${themes.length} themes`);
+
+		if (themes.length === 0) {
+			// If no themes exist, create the default SveltyCMS theme
+			await dbAdapter.storeThemes([DEFAULT_THEME]);
+			logger.info('Default SveltyCMS theme created successfully.');
+		} else {
+			// Check if SveltyCMSTheme exists
+			const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
+			if (sveltyCMSTheme) {
+				// Check if the theme is already marked as default
+				if (!sveltyCMSTheme.isDefault) {
+					await dbAdapter.setDefaultTheme(DEFAULT_THEME.name);
+					logger.info('SveltyCMS theme set as default.');
+				} else {
+					logger.info('SveltyCMS theme is already set as default.');
+				}
+			} else {
+				// If SveltyCMS theme doesn't exist, create it
+				await dbAdapter.storeThemes([DEFAULT_THEME]);
+				logger.info('SveltyCMS theme created and set as default.');
+			}
+		}
+	} catch (error) {
+		logger.error(`Error initializing default theme: ${(error as Error).message}`);
+		throw new Error(`Error initializing default theme: ${(error as Error).message}`);
+	}
+}
+
 // Initialize adapters
 async function initializeAdapters(): Promise<void> {
 	if (isInitialized) {
@@ -124,9 +223,12 @@ async function initializeAdapters(): Promise<void> {
 	}
 
 	try {
+		// Load database and authentication adapters
 		await loadAdapters();
+		// Connect to the database
 		await connectToDatabase();
 
+		// Initialize collections and models
 		await updateCollections();
 		const collections = await getCollections();
 
@@ -137,7 +239,9 @@ async function initializeAdapters(): Promise<void> {
 		if (!dbAdapter) {
 			throw new Error('Database adapter not initialized');
 		}
-
+		// Initialize default theme
+		await initializeDefaultTheme(dbAdapter);
+		// Setup auth models and media models
 		await dbAdapter.setupAuthModels();
 		await dbAdapter.setupMediaModels();
 		await dbAdapter.getCollectionModels();

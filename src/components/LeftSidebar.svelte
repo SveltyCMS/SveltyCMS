@@ -1,13 +1,13 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
+	import { invalidateAll } from '$app/navigation';
+
 	import axios from 'axios';
 
 	// Auth
 	const user = $page.data.user;
 	avatarSrc.set(user?.avatar);
-	// console.log(user);
-	// console.log(avatarSrc);
 
 	// Stores
 	import { page } from '$app/stores';
@@ -88,8 +88,8 @@
 
 	// SignOut
 	async function signOut() {
-		const resp = (
-			await axios.post(
+		try {
+			const response = await axios.post(
 				`/api/auth`,
 				{ authType: 'signOut' },
 				{
@@ -97,10 +97,25 @@
 						'content-type': 'multipart/form-data'
 					}
 				}
-			)
-		).data;
-		if (resp.status == 200) {
-			await goto('/login', { invalidateAll: true, noScroll: true, replaceState: true });
+			);
+
+			console.log('Signout response:', response.data);
+
+			if (response.data.status === 'success' && response.data.signedOut) {
+				console.log('Signout successful, invalidating and redirecting...');
+				await invalidateAll();
+
+				// Use a short timeout to allow for any pending operations to complete
+				setTimeout(() => {
+					window.location.href = '/login';
+				}, 100);
+			} else {
+				console.error('Signout failed or incomplete:', response.data);
+				// Optionally, show an error message to the user
+			}
+		} catch (error) {
+			console.error('Error during signout:', error);
+			// Optionally, show an error message to the user
 		}
 	}
 

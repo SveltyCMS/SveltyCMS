@@ -46,39 +46,32 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete
 
+	if (!auth) {
+		logger.error('Authentication system is not initialized');
+		throw redirect(302, '/login');
+	}
+
+	// Secure this page with session cookie
+	const session_id = cookies.get(SESSION_COOKIE_NAME);
+
+	if (!session_id) {
+		logger.debug('No session ID found, redirecting to login');
+		throw redirect(302, '/login');
+	}
+
 	// Fetch the theme
 	let theme;
 	try {
-		const dbTheme = await dbAdapter.getDefaultTheme();
-		if (dbTheme && dbTheme.name && dbTheme.name !== DEFAULT_THEME.name) {
-			theme = {
-				name: dbTheme.name,
-				path: dbTheme.path
-			};
-		} else {
-			theme = DEFAULT_THEME;
-		}
-	} catch (err) {
-		logger.error('Failed to load theme from database:', err);
+		theme = await dbAdapter.getDefaultTheme();
+	} catch (error) {
+		logger.error(`Error fetching default theme: ${(error as Error).message}`);
 		theme = DEFAULT_THEME;
-	}
-
-	if (privateEnv.USE_GOOGLE_OAUTH && !googleAuth) {
-		logger.error('Authentication system is not initialized');
-		throw new Error('Authentication system is not initialized');
-	}
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw new Error('Authentication system is not initialized');
 	}
 
 	const code = url.searchParams.get('code');
 	logger.debug(`Authorization code: ${code}`);
 
-	if (privateEnv.USE_GOOGLE_OAUTH && !code) {
-		logger.error('Authorization code is missing');
-		throw redirect(302, '/login');
-	}
+	// Google OAuth flow
 	if (privateEnv.USE_GOOGLE_OAUTH) {
 		try {
 			const { google } = await import('googleapis');
@@ -169,8 +162,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			throw redirect(302, '/login');
 		}
 	} else {
-		// Secure this page with session cookie
-		let session_id = cookies.get(SESSION_COOKIE_NAME);
+		// Regular session validation
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
 
 		// If no session ID is found, create a new session
 		if (!session_id) {
@@ -195,13 +188,17 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		await auth.validateSession({ session_id });
 		const collections = await getCollections();
 		const firstCollection = Object.keys(collections)[0];
+
+		logger.debug(`First collection: ${firstCollection}`);
+		if (!firstCollection) {
+			logger.error('No collections found');
+			throw error(500, 'No collections found');
+		}
 		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 	}
 
-	// Return the theme along with any other data you're already returning
-	return {
-		theme
-	};
+	// Return the theme along with any other data you're already returning &  will likely never be reached due to the redirects above
+	return { theme };
 };
 
 export const actions: Actions = {

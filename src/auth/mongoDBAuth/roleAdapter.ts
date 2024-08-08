@@ -1,3 +1,23 @@
+/**
+ * @file src/auth/mongoDBAuth/roleAdapter.ts
+ * @description MongoDB adapter for role-related operations.
+ *
+ * This module provides functionality to:
+ * - Create, update, delete, and retrieve roles
+ * - Manage role schemas and models
+ * - Handle role-permission associations
+ *
+ * Features:
+ * - CRUD operations for roles
+ * - Role schema definition
+ * - Permission assignment to roles
+ * - User-role associations
+ * - Integration with MongoDB through Mongoose
+ *
+ * Usage:
+ * Used by the auth system to manage roles and their permissions in a MongoDB database
+ */
+
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 import { UserSchema } from './userAdapter';
@@ -155,7 +175,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	async assignPermissionToRole(role_id: string, permission_id: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndUpdate(role_id, { $addToSet: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} assigned to role ${role_id}`);
+			logger.debug(`Permission ${permission_id} assigned to role ${role_id}`);
 		} catch (error) {
 			logger.error(`Failed to assign permission to role: ${(error as Error).message}`);
 			throw error;
@@ -166,7 +186,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	async removePermissionFromRole(role_id: string, permission_id: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndUpdate(role_id, { $pull: { permissions: permission_id } });
-			logger.info(`Permission ${permission_id} removed from role ${role_id}`);
+			logger.debug(`Permission ${permission_id} removed from role ${role_id}`);
 		} catch (error) {
 			logger.error(`Failed to remove permission from role: ${(error as Error).message}`);
 			throw error;
@@ -188,7 +208,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 				const existingRole = await this.getRoleByName(role.name);
 				if (!existingRole) {
 					await this.createRole(role, 'system');
-					logger.info(`Default role created: ${role.name}`);
+					logger.debug(`Default role created: ${role.name}`);
 				}
 			}
 		} catch (error) {
