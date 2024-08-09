@@ -1,5 +1,6 @@
 import Path from 'path';
 import { readFileSync } from 'fs';
+import { resolve } from 'path';
 
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -78,6 +79,11 @@ export default defineConfig({
 	],
 	server: {
 		fs: { allow: ['static', '.'] }
+	},
+	resolve: {
+		alias: {
+			'@src': resolve(__dirname, './src')
+		}
 	},
 	define: {
 		__VERSION__: JSON.stringify(pkg.version),

@@ -14,7 +14,7 @@ import logger from '@src/utils/logger';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // Theme
-import DEFAULT_THEME from '@src/utils/utils';
+import { DEFAULT_THEME } from '@src/utils/utils';
 
 export async function load({ cookies, route, params }) {
 	const sessionAdapter = new SessionAdapter();
@@ -105,6 +105,7 @@ export async function load({ cookies, route, params }) {
 			});
 		}
 		const { _id, ...rest } = user;
+
 		let theme;
 		try {
 			const dbTheme = await dbAdapter.getDefaultTheme();
@@ -120,6 +121,7 @@ export async function load({ cookies, route, params }) {
 			logger.error('Failed to load theme from database:', err);
 			theme = DEFAULT_THEME;
 		}
+
 		return {
 			user: { _id: _id.toString(), ...rest }
 		};

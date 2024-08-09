@@ -12,14 +12,16 @@
 	let userHasPermission = false;
 	$: {
 		// {rateLimits &&} will add this check later
-		if (user && roles && contextId && action && requiredRole && contextType) {
+		if (user && roles && rateLimits && contextId && action && requiredRole && contextType) {
 			checkUserPermission();
 		}
 	}
+
 	function checkUserPermission() {
 		console.log('PermissionGuard: Checking permission for:', {
 			user,
 			roles,
+			rateLimits,
 			contextId,
 			action,
 			requiredRole,
@@ -41,7 +43,21 @@
 			return;
 		}
 
-		// ... rest of the function ...
+		// Check rate limits
+		const userRateLimit = rateLimits.find((rl) => rl.user_id === user._id && rl.action === action);
+		if (userRateLimit) {
+			const now = new Date();
+			if (userRateLimit.current >= userRateLimit.limit && now.getTime() - userRateLimit.lastActionAt.getTime() < userRateLimit.windowMs) {
+				console.log('PermissionGuard: Rate limit exceeded');
+				userHasPermission = false;
+				return;
+			}
+		}
+
+		// Implement your permission checking logic here
+		// This is a placeholder and should be replaced with actual implementation
+		userHasPermission = user.role === requiredRole;
+		console.log(`PermissionGuard: Permission ${userHasPermission ? 'granted' : 'denied'}`);
 	}
 </script>
 

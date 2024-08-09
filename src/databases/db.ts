@@ -190,7 +190,7 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 			await dbAdapter.storeThemes([DEFAULT_THEME]);
 			logger.info('Default SveltyCMS theme created successfully.');
 		} else {
-			// Check if SveltyCMSTheme exists
+			// Check if SveltyCMS Theme exists
 			const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
 			if (sveltyCMSTheme) {
 				// Check if the theme is already marked as default
