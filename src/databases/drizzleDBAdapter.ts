@@ -1,3 +1,25 @@
+/**
+ * @file src/databases/drizzleDBAdapter.ts
+ * @description Drizzle ORM adapter for SQL databases in the CMS.
+ *
+ * This module provides an implementation of the dbInterface for SQL databases using Drizzle ORM:
+ * - Connects to and manages SQL database connections (MariaDB, PostgreSQL)
+ * - Implements CRUD operations for collections, drafts, and revisions
+ * - Handles user, role, and permission management
+ * - Manages media storage and retrieval
+ *
+ * Features:
+ * - Database connection management with retry mechanism
+ * - Implementation of all dbInterface methods for SQL databases
+ * - Schema creation and management using Drizzle ORM
+ * - Support for transactions and complex queries
+ * - Error handling and logging for all database operations
+ *
+ * Usage:
+ * This adapter is used when the CMS is configured to use a SQL database.
+ * It provides a database-agnostic interface for all database operations in the CMS.
+ */
+
 import { privateEnv } from '@root/config/private';
 import { createRandomID } from '@src/utils/utils';
 import { collections } from '@stores/store';

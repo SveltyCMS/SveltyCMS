@@ -41,12 +41,12 @@ export interface dbInterface {
 
 	// Methods for Draft and Revision Management
 	generateId(): string;
-	createDraft(content: any, originalDocumentId: string, userId: string): Promise<any>;
-	updateDraft(draftId: string, content: any): Promise<any>;
-	publishDraft(draftId: string): Promise<any>;
-	getDraftsByUser(userId: string): Promise<any[]>;
-	createRevision(documentId: string, content: any, userId: string): Promise<any>;
-	getRevisions(documentId: string): Promise<any[]>;
+	createDraft?: (content: any, originalDocumentId: string, userId: string) => Promise<any>;
+	updateDraft?: (draftId: string, content: any) => Promise<any>;
+	publishDraft?: (draftId: string) => Promise<any>;
+	getDraftsByUser?: (userId: string) => Promise<any[]>;
+	createRevision?: (documentId: string, content: any, userId: string) => Promise<any>;
+	getRevisions?: (documentId: string) => Promise<any[]>;
 
 	// Methods for Widget Management
 	installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>;
