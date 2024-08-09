@@ -209,6 +209,10 @@
 		};
 		modalStore.trigger(d);
 	}
+
+	console.log('User data:', user);
+	console.log('Roles:', roles);
+	console.log('Rate limits:', rateLimits);
 </script>
 
 <div class="my-2 flex items-center justify-between">
