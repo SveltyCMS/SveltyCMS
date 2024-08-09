@@ -105,6 +105,7 @@ export async function load({ cookies, route, params }) {
 			});
 		}
 		const { _id, ...rest } = user;
+
 		let theme;
 		try {
 			const dbTheme = await dbAdapter.getDefaultTheme();
@@ -120,6 +121,7 @@ export async function load({ cookies, route, params }) {
 			logger.error('Failed to load theme from database:', err);
 			theme = DEFAULT_THEME;
 		}
+
 		return {
 			user: { _id: _id.toString(), ...rest }
 		};

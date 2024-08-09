@@ -13,8 +13,9 @@
  * await compile();
  */
 
-import fs from 'fs';
+import fs from 'fs/promises';
 import crypto from 'crypto';
+import { join } from 'path';
 
 // Cache for transpiled modules
 const cache = new Map();
@@ -33,34 +34,34 @@ export async function compile({
 	globalThis.__filename = '';
 
 	// If the collections folder for JavaScript does not exist, create it
-	if (!fs.existsSync(collectionsFolderJS)) {
-		// console.log(`Creating directory: ${collectionsFolderJS}`);
-		fs.mkdirSync(collectionsFolderJS);
-	}
+	await fs.mkdir(collectionsFolderJS, { recursive: true });
 
 	// Get the list of TypeScript files from the collections folder, excluding Auth.ts and index.ts
-	const files = fs.readdirSync(collectionsFolderTS).filter((file) => !['index.ts'].includes(file));
+	const files = (await fs.readdir(collectionsFolderTS)).filter((file) => !['index.ts'].includes(file));
 	// console.log(`Files to compile: ${files.join(', ')}`);
 
 	// Loop through each file
 	for (const file of files) {
 		try {
-			const tsFilePath = `${collectionsFolderTS.replace(/\/$/, '')}/${file}`;
-			const jsFilePath = `${collectionsFolderJS.replace(/\/$/, '')}/${file.trim().replace(/\.ts$/g, '.js')}`;
+			const tsFilePath = join(collectionsFolderTS, file);
+			const jsFilePath = join(collectionsFolderJS, file.replace(/\.ts$/, '.js'));
 
 			// console.log(`Compiling ${tsFilePath} to ${jsFilePath}`);
 
 			// Check if JS file exists and if TS file has been modified since last compile
 			let recompile = false;
-			if (fs.existsSync(jsFilePath)) {
-				const tsStats = fs.statSync(tsFilePath);
-				const jsStats = fs.statSync(jsFilePath);
+			try {
+				const tsStats = await fs.stat(tsFilePath);
+				const jsStats = await fs.stat(jsFilePath);
 
 				// Create a hash of the TS file content
-				const contentHash = crypto.createHash('md5').update(fs.readFileSync(tsFilePath)).digest('hex');
+				const contentHash = crypto
+					.createHash('md5')
+					.update(await fs.readFile(tsFilePath))
+					.digest('hex');
 
 				// Read the existing JS file and extract the hash
-				const existingContent = fs.readFileSync(jsFilePath, { encoding: 'utf-8' });
+				const existingContent = await fs.readFile(jsFilePath, { encoding: 'utf-8' });
 				const existingHash = existingContent.split('\n')[0].replace('// ', '');
 
 				// Compare hashes and modification times to determine if recompilation is necessary
@@ -70,12 +71,13 @@ export async function compile({
 				}
 
 				recompile = true;
-			} else {
+			} catch (error) {
+				// If the JS file doesn't exist, we need to recompile
 				recompile = true;
 			}
 
 			// Read the TS file as a string
-			const content = fs.readFileSync(tsFilePath, { encoding: 'utf-8' });
+			const content = await fs.readFile(tsFilePath, { encoding: 'utf-8' });
 
 			// Check if the module is cached
 			let code = cache.get(tsFilePath);
@@ -108,7 +110,7 @@ export async function compile({
 			code = `// ${contentHash}\n${code}`;
 
 			// Write the content to the file
-			fs.writeFileSync(jsFilePath, code);
+			await fs.writeFile(jsFilePath, code);
 			// console.log(`Compiled and wrote ${jsFilePath}`);
 		} catch (error) {
 			console.error(`Error compiling ${file}: ${error}`);
