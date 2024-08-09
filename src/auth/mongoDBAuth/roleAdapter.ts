@@ -21,10 +21,9 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 import { UserSchema } from './userAdapter';
-import { PermissionSchema } from './permissionAdapter';
 
 // Types
-import type { Permission, Role, User, Session, Token, RoleId, PermissionId } from '../types';
+import type { Permission, Role, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging

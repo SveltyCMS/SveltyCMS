@@ -251,6 +251,7 @@ async function initializeAdapters(): Promise<void> {
 		logger.debug('Authentication adapter initialized.');
 
 		try {
+			// Initialize default roles and permissions if needed
 			await initializeDefaultRolesAndPermissions(authAdapter);
 			logger.info('Default roles and permissions initialized.');
 		} catch (error) {

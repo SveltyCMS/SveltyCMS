@@ -32,6 +32,8 @@
 			contextType: 'user'
 		}
 	};
+
+	// Function to execute actions
 	function executeActions() {
 		//console.log('executeActions called');
 		// Get the current value of the triggerActionStore
