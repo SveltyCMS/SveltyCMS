@@ -13,10 +13,9 @@ import { contentLanguage } from '@src/stores/store';
 import logger from '@src/utils/logger';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 
-const DEFAULT_THEME = {
-	name: 'SveltyCMSTheme',
-	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
-};
+// Theme
+import DEFAULT_THEME from '@src/utils/utils';
+
 export async function load({ cookies, route, params }) {
 	const sessionAdapter = new SessionAdapter();
 	if (!auth) {
@@ -42,7 +41,7 @@ export async function load({ cookies, route, params }) {
 		}
 	}
 
-	const user = await sessionAdapter.validateSession(session_id );
+	const user = await sessionAdapter.validateSession(session_id);
 
 	// Redirect to login if no valid User session
 	if (!user) {

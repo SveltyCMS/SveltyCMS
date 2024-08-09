@@ -17,6 +17,8 @@
 
 	// Paraglide JS
 	import ParaglideSvelteKit from '@components/ParaglideSvelteKit.svelte';
+
+	// Theme
 	import { DEFAULT_THEME } from '@src/utils/utils';
 
 	// SEO

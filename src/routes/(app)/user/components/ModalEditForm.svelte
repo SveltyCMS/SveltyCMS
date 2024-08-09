@@ -3,8 +3,6 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 
-	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-
 	// Props
 	/** Exposes parent props to this component. */
 	export let parent: any;
@@ -13,14 +11,27 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
-	const roles = getLoadedRoles();
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import { getLoadedRoles, type User } from '@src/auth/types';
-	const user: User = $page.data.user;
-	console.log('User:', user);
+	import type { PermissionConfig } from '@src/auth/types';
+	const { user, roles, rateLimits } = $page.data;
+
+	// Components
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
+
+	// Define permissions for different contexts
+	const permissions: Record<string, PermissionConfig> = {
+		modaleEditForm: {
+			contextId: '/user/modaleEditForm',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'user'
+		}
+	};
 
 	const isFirstUser = $page.data.isFirstUser;
 
@@ -33,11 +44,11 @@
 	// Form Data
 	const formData = {
 		user_id: isGivenData ? user_id : user?._id,
-		username: isGivenData ? username : user?.username,
-		email: isGivenData ? email : user?.email,
+		username: isGivenData ? (username ?? '') : (user?.username ?? ''),
+		email: isGivenData ? (email ?? '') : (user?.email ?? ''),
 		password: '',
 		confirmPassword: '',
-		role: isGivenData ? role : user?.role
+		role: isGivenData ? (role ?? '') : (user?.role ?? '')
 	};
 
 	let showPassword = false;
@@ -238,30 +249,31 @@
 
 			<!-- admin area -->
 			<!-- TODO:  Self or last first user cannot change role -->
-			{#if user.role === 'admin'}
+			<!-- Admin area -->
+			<!-- svelte-ignore missing-declaration -->
+			<PermissionGuard {user} {roles} {rateLimits} {...permissions.modaleEditForm}>
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#each Object.values(roles) as r}
+							{#each roles as role}
 								<span
-									class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+									class="chip {formData.role === role.name ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 									on:click={() => {
-										// filterRole(r);
-										formData.role = r;
+										formData.role = role.name;
 									}}
 									on:keypress
 									role="button"
 									tabindex="0"
 								>
-									{#if formData.role === r}<span><iconify-icon icon="fa:check" /></span>{/if}
-									<span class="capitalize">{r}</span>
+									{#if formData.role === role.name}<span><iconify-icon icon="fa:check" /></span>{/if}
+									<span class="capitalize">{role.name}</span>
 								</span>
 							{/each}
 						</div>
 					</div>
 				</div>
-			{/if}
+			</PermissionGuard>
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">

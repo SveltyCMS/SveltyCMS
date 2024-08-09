@@ -1,3 +1,25 @@
+/**
+ * @file src/databases/mongoDBAdapter.ts
+ * @description MongoDB adapter for the CMS database operations.
+ *
+ * This module provides an implementation of the dbInterface for MongoDB:
+ * - Manages connection to MongoDB database
+ * - Implements CRUD operations for collections, drafts, and revisions
+ * - Handles user, role, and permission management
+ * - Manages media storage and retrieval
+ *
+ * Features:
+ * - MongoDB connection management with retry mechanism
+ * - Implementation of all dbInterface methods for MongoDB
+ * - Schema creation and management using Mongoose
+ * - Support for complex queries and aggregations
+ * - Error handling and logging for all database operations
+ *
+ * Usage:
+ * This adapter is used when the CMS is configured to use MongoDB.
+ * It provides a database-agnostic interface for all database operations in the CMS.
+ */
+
 import { privateEnv } from '@root/config/private';
 
 // Stores
@@ -14,6 +36,9 @@ import logger from '@src/utils/logger';
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
+
+// Theme
+import { DEFAULT_THEME } from '@src/utils/utils';
 
 // Define the media schema (assuming it's defined similarly to other schemas)
 const mediaSchema = new mongoose.Schema(
@@ -84,6 +109,17 @@ const ThemeSchema = new mongoose.Schema(
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
 
+// Define the interface based on your schema
+interface ITheme {
+	name: string;
+	path: string;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
+// Define the Theme model type
+type ThemeModel = mongoose.Model<ITheme, {}, {}, {}, any>;
+
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
@@ -138,33 +174,23 @@ export class MongoDBAdapter implements dbInterface {
 
 			if (themes.length === 0) {
 				// If no themes exist, create the default SveltyCMS theme
-				const defaultTheme = {
-					name: 'SveltyCMSTheme',
-					path: '/themes/SveltyCMS/SveltyCMSTheme.css',
-					isDefault: true
-				};
-				await this.storeThemes([defaultTheme]);
+				await this.storeThemes([DEFAULT_THEME]);
 				logger.info('Default SveltyCMS theme created successfully.');
 			} else {
 				// Check if SveltyCMSTheme exists
-				const sveltyCMSTheme = themes.find((theme) => theme.name === 'SveltyCMSTheme');
+				const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
 				if (sveltyCMSTheme) {
 					// Check if the theme is already marked as default
 					if (!sveltyCMSTheme.isDefault) {
 						// Update the existing theme to set it as default
-						await Theme.updateOne({ name: 'SveltyCMSTheme' }, { $set: { isDefault: true } });
+						await Theme.updateOne({ name: DEFAULT_THEME.name }, { $set: { isDefault: true } });
 						logger.info('SveltyCMS theme set as default.');
 					} else {
 						logger.info('SveltyCMS theme is already set as default.');
 					}
 				} else {
 					// If SveltyCMS theme doesn't exist, create it
-					const defaultTheme = {
-						name: 'SveltyCMSTheme',
-						path: '/themes/SveltyCMS/SveltyCMSTheme.css',
-						isDefault: true
-					};
-					await this.storeThemes([defaultTheme]);
+					await this.storeThemes([DEFAULT_THEME]);
 					logger.info('SveltyCMS theme created and set as default.');
 				}
 			}
@@ -174,7 +200,6 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error(`Error initializing default theme: ${err.message}`);
 		}
 	}
-
 	// Generate an ID using ObjectId
 	generateId(): string {
 		return new mongoose.Types.ObjectId().toString();
@@ -372,8 +397,8 @@ export class MongoDBAdapter implements dbInterface {
 				return defaultTheme;
 			}
 
-			logger.warn('No default theme found.');
-			return null;
+			logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
+			return DEFAULT_THEME;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error fetching default theme: ${err.message}`);

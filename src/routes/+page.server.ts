@@ -19,10 +19,8 @@ import { getCollections } from '@src/collections';
 // System Logs
 import logger from '@src/utils/logger';
 
-const DEFAULT_THEME = {
-	name: 'SveltyCMSTheme',
-	path: '/themes/SveltyCMS/SveltyCMSTheme.css'
-};
+// Theme
+import { DEFAULT_THEME } from '@src/utils/utils';
 
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
 	try {

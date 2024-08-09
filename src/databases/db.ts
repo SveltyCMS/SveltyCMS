@@ -62,11 +62,8 @@ let initializationPromise: Promise<void> | null = null;
 // Flag to track initialization status
 let isInitialized = false;
 
-const DEFAULT_THEME = {
-	name: 'SveltyCMSTheme',
-	path: '/themes/SveltyCMS/SveltyCMSTheme.css',
-	isDefault: true
-};
+// Theme
+import { DEFAULT_THEME } from '@src/utils/utils';
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -254,6 +251,7 @@ async function initializeAdapters(): Promise<void> {
 		logger.debug('Authentication adapter initialized.');
 
 		try {
+			// Initialize default roles and permissions if needed
 			await initializeDefaultRolesAndPermissions(authAdapter);
 			logger.info('Default roles and permissions initialized.');
 		} catch (error) {
