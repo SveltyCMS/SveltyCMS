@@ -38,7 +38,7 @@
 	};
 
 	// Skeleton
-	import ModalImageEditor from './ModalImageEditor.svelte';
+	// import ModalImageEditor from './ModalImageEditor.svelte';
 	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
@@ -47,44 +47,40 @@
 	// Modal Trigger - Edit Avatar
 	function modalImageEditor(): void {
 		// console.log('Triggered - modalImageEditorr');
-		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
-			ref: ModalImageEditor,
-			props: { _data },
-
-			// Add your props as key/value pairs
-			// props: { background: 'bg-pink-500' },
-			// Provide default slot content as a template literal
-			slot: '<p>Edit Form</p>'
-		};
-		const d: ModalSettings = {
-			type: 'component',
-			// NOTE: title, body, response, etc are supported!
-			title: m.usermodaluser_settingtitle(),
-			body: m.usermodaluser_settingbody(),
-			component: modalComponent,
-			// Pass arbitrary data to the component
-
-			response: (r: { dataURL: string }) => {
-				console.log('ModalImageEditor response:', r);
-				if (r) {
-					// avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
-
-					// Trigger the toast
-					const t = {
-						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-
-						// Provide any utility or variant background style:
-						background: 'gradient-primary',
-						timeout: 3000,
-						// Add your custom classes here:
-						classes: 'border-1 !rounded-md'
-					};
-					toastStore.trigger(t);
-				}
-			}
-		};
-		modalStore.trigger(d);
+		// const modalComponent: ModalComponent = {
+		// 	// Pass a reference to your custom component
+		// 	ref: ModalImageEditor,
+		// 	props: { _data },
+		// 	// Add your props as key/value pairs
+		// 	// props: { background: 'bg-pink-500' },
+		// 	// Provide default slot content as a template literal
+		// 	slot: '<p>Edit Form</p>'
+		// };
+		// const d: ModalSettings = {
+		// 	type: 'component',
+		// 	// NOTE: title, body, response, etc are supported!
+		// 	title: m.usermodaluser_settingtitle(),
+		// 	body: m.usermodaluser_settingbody(),
+		// 	component: modalComponent,
+		// 	// Pass arbitrary data to the component
+		// 	response: (r: { dataURL: string }) => {
+		// 		console.log('ModalImageEditor response:', r);
+		// 		if (r) {
+		// 			// avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
+		// 			// Trigger the toast
+		// 			const t = {
+		// 				message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
+		// 				// Provide any utility or variant background style:
+		// 				background: 'gradient-primary',
+		// 				timeout: 3000,
+		// 				// Add your custom classes here:
+		// 				classes: 'border-1 !rounded-md'
+		// 			};
+		// 			toastStore.trigger(t);
+		// 		}
+		// 	}
+		// };
+		//modalStore.trigger(d);
 	}
 </script>
 
@@ -137,9 +133,9 @@
 					</button>
 
 					<!-- Modal ImageEditor -->
-					<button on:click={modalImageEditor} class="variant-ghost btn-icon">
+					<!-- <button on:click={modalImageEditor} class="variant-ghost btn-icon">
 						<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-					</button>
+					</button> -->
 
 					<!-- Delete -->
 					<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">

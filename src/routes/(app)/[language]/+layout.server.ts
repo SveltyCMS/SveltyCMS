@@ -14,7 +14,7 @@ import logger from '@src/utils/logger';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // Theme
-import DEFAULT_THEME from '@src/utils/utils';
+import {DEFAULT_THEME} from '@src/utils/utils';
 
 export async function load({ cookies, route, params }) {
 	const sessionAdapter = new SessionAdapter();
