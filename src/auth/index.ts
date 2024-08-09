@@ -356,10 +356,10 @@ export class Auth {
 				logger.error('Session ID is undefined');
 				throw new Error('Session ID is undefined');
 			}
-
-			const user = await this.sessionStore.validateWithDB(session_id, async (sid) => {
-				return this.db.validateSession(sid);
-			});
+			const user = await this.db.validateSession(session_id);
+			// const user = await this.sessionStore.validateWithDB(session_id, async (sid) => {
+			// 	return this.db.validateSession(sid);
+			// });
 
 			if (user) {
 				logger.info(`Session is valid for user: ${user.email}`);
