@@ -117,14 +117,12 @@ export class RoleAdapter implements Partial<authDBInterface> {
 			}
 
 			const roles = await query.exec();
-			logger.debug('All roles retrieved');
 			return roles.map((role) => role.toObject() as Role);
 		} catch (error) {
 			logger.error(`Failed to get all roles: ${(error as Error).message}`);
 			throw error;
 		}
 	}
-
 	// Get a role by name
 	async getRoleByName(name: string): Promise<Role | null> {
 		try {

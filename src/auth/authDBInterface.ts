@@ -57,12 +57,16 @@ export interface authDBInterface {
 	updatePermission(permission_id: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
 	deletePermission(permission_id: string, currentUserId: string): Promise<void>;
 	getPermissionById(permission_id: string): Promise<Permission | null>;
-	getAllPermissions(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: object;
-	}): Promise<Permission[]>;
+	getAllPermissions(
+		options?:
+			| {
+					limit?: number;
+					skip?: number;
+					sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+					filter?: object;
+			  }
+			| undefined
+	): Promise<Permission[]>;
 	getPermissionByName(name: string): Promise<Permission | null>;
 
 	// Role-Permissions Linking Methods

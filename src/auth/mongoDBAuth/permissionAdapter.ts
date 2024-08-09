@@ -95,17 +95,22 @@ export class PermissionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Get all permissions
-	async getAllPermissions(options?: { limit?: number; skip?: number; sort?: object; filter?: object }): Promise<Permission[]> {
+	async getAllPermissions(options?: {
+		limit?: number;
+		skip?: number;
+		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+		filter?: object;
+	}): Promise<Permission[]> {
 		try {
 			let query = this.PermissionModel.find(options?.filter || {});
 
 			if (options?.sort) {
 				query = query.sort(options.sort as any);
 			}
-			if (options?.skip) {
+			if (typeof options?.skip === 'number') {
 				query = query.skip(options.skip);
 			}
-			if (options?.limit) {
+			if (typeof options?.limit === 'number') {
 				query = query.limit(options.limit);
 			}
 

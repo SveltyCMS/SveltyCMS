@@ -3,6 +3,7 @@
 	import { writable } from 'svelte/store';
 	import { authAdapter, initializationPromise } from '@src/databases/db';
 	import type { Permission, Role } from '@src/auth/types';
+	import { page } from '$app/stores';
 
 	let permissionsList = writable<Permission[]>([]);
 	let modifiedPermissions = writable<Set<string>>(new Set());
@@ -14,12 +15,13 @@
 	let error = writable<string | null>(null);
 
 	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId.toLowerCase().includes(searchTerm.toLowerCase()));
+	$: currentUserId = $page.data.user?._id || '';
 
 	onMount(async () => {
 		try {
 			await initializationPromise;
-			await loadPermissions();
 			await loadRoles();
+			await loadPermissions();
 		} catch (err) {
 			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
 		} finally {
@@ -29,25 +31,27 @@
 
 	const loadPermissions = async () => {
 		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
+			error.set('Auth adapter is not initialized');
+			return;
 		}
 		try {
 			const permissions = await authAdapter.getAllPermissions();
 			permissionsList.set(permissions);
 		} catch (err) {
-			throw new Error(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
+			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
 	const loadRoles = async () => {
 		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
+			error.set('Auth adapter is not initialized');
+			return;
 		}
 		try {
 			const rolesData = await authAdapter.getAllRoles();
 			roles.set(rolesData);
 		} catch (err) {
-			throw new Error(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
+			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
@@ -72,35 +76,37 @@
 
 	const saveChanges = async () => {
 		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
+			error.set('Auth adapter is not initialized');
+			return;
 		}
 		const modified = Array.from($modifiedPermissions);
 		try {
 			for (const permissionId of modified) {
 				const permission = $permissionsList.find((p) => p.permission_id === permissionId);
 				if (permission) {
-					await authAdapter.updatePermission(permission.permission_id, permission);
+					await authAdapter.updatePermission(permission.permission_id, permission, currentUserId);
 				}
 			}
 			modifiedPermissions.set(new Set());
 			await loadPermissions();
 		} catch (err) {
-			throw new Error(`Failed to save changes: ${err instanceof Error ? err.message : String(err)}`);
+			error.set(`Failed to save changes: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 
 	const bulkDeletePermissions = async () => {
 		if (!authAdapter) {
-			throw new Error('Auth adapter is not initialized');
+			error.set('Auth adapter is not initialized');
+			return;
 		}
 		try {
 			for (const permissionId of $selectedPermissions) {
-				await authAdapter.deletePermission(permissionId);
+				await authAdapter.deletePermission(permissionId, currentUserId);
 			}
 			selectedPermissions.set(new Set());
 			await loadPermissions();
 		} catch (err) {
-			throw new Error(`Failed to delete permissions: ${err instanceof Error ? err.message : String(err)}`);
+			error.set(`Failed to delete permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
 

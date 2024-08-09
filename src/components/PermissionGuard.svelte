@@ -17,27 +17,27 @@
 	}
 
 	function checkUserPermission() {
-		console.log('PermissionGuard: Checking permission for:', {
-			user,
-			roles,
-			rateLimits,
-			contextId,
-			action,
-			requiredRole,
-			contextType
-		});
+		// console.log('PermissionGuard: Checking permission for:', {
+		// 	user,
+		// 	roles,
+		// 	rateLimits,
+		// 	contextId,
+		// 	action,
+		// 	requiredRole,
+		// 	contextType
+		// });
 
 		if (!user) {
-			console.error('PermissionGuard: User object is undefined or null');
+			// console.error('PermissionGuard: User object is undefined or null');
 			userHasPermission = false;
 			return;
 		}
 
-		console.log('PermissionGuard: User role:', user.role);
+		// console.log('PermissionGuard: User role:', user.role);
 
 		// Always allow admin access
 		if (user.role.toLowerCase() === 'admin') {
-			console.log('PermissionGuard: User is admin, granting permission');
+			// console.log('PermissionGuard: User is admin, granting permission');
 			userHasPermission = true;
 			return;
 		}
@@ -48,7 +48,7 @@
 			if (userRateLimit) {
 				const now = new Date();
 				if (userRateLimit.current >= userRateLimit.limit && now.getTime() - userRateLimit.lastActionAt.getTime() < userRateLimit.windowMs) {
-					console.log('PermissionGuard: Rate limit exceeded');
+					// console.log('PermissionGuard: Rate limit exceeded');
 					userHasPermission = false;
 					return;
 				}
@@ -57,7 +57,7 @@
 
 		// Check if user's role matches the required role
 		userHasPermission = user.role.toLowerCase() === requiredRole.toLowerCase();
-		console.log(`PermissionGuard: Permission ${userHasPermission ? 'granted' : 'denied'}`);
+		// console.log(`PermissionGuard: Permission ${userHasPermission ? 'granted' : 'denied'}`);
 	}
 </script>
 
