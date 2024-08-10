@@ -109,17 +109,6 @@ const ThemeSchema = new mongoose.Schema(
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
 
-// Define the interface based on your schema
-interface ITheme {
-	name: string;
-	path: string;
-	createdAt: Date;
-	updatedAt: Date;
-}
-
-// Define the Theme model type
-type ThemeModel = mongoose.Model<ITheme, {}, {}, {}, any>;
-
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
@@ -595,39 +584,57 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Create a new draft
 	async createDraft(content: any, originalDocumentId: string, userId: string) {
-		const draft = new Draft({
-			originalDocumentId,
-			content,
-			createdBy: userId
-		});
-		await draft.save();
-		return draft;
+		try {
+			const draft = new Draft({
+				originalDocumentId,
+				content,
+				createdBy: userId
+			});
+			await draft.save();
+			return draft;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error creating draft: ${err.message}`, { error: err });
+			throw err;
+		}
 	}
 
 	// Update a draft
 	async updateDraft(draftId: string, content: any) {
-		const draft = await Draft.findById(draftId);
-		if (!draft) throw new Error('Draft not found');
-		draft.content = content;
-		draft.updatedAt = new Date();
-		await draft.save();
-		return draft;
+		try {
+			const draft = await Draft.findById(draftId);
+			if (!draft) throw new Error('Draft not found');
+			draft.content = content;
+			draft.updatedAt = new Date();
+			await draft.save();
+			return draft;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating draft: ${err.message}`, { error: err });
+			throw err;
+		}
 	}
 
 	// Get drafts
 	async publishDraft(draftId: string) {
-		const draft = await Draft.findById(draftId);
-		if (!draft) throw new Error('Draft not found');
-		draft.status = 'published';
-		await draft.save();
+		try {
+			const draft = await Draft.findById(draftId);
+			if (!draft) throw new Error('Draft not found');
+			draft.status = 'published';
+			await draft.save();
 
-		const revision = new Revision({
-			documentId: draft.originalDocumentId,
-			content: draft.content,
-			createdBy: draft.createdBy
-		});
-		await revision.save();
-		return draft;
+			const revision = new Revision({
+				documentId: draft.originalDocumentId,
+				content: draft.content,
+				createdBy: draft.createdBy
+			});
+			await revision.save();
+			return draft;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error publishing draft: ${err.message}`, { error: err });
+			throw err;
+		}
 	}
 
 	// Get drafts

@@ -17,6 +17,7 @@
 	import * as m from '@src/paraglide/messages';
 </script>
 
+<!-- Page Title -->
 <div class="my-2 flex items-center justify-between">
 	<PageTitle name="Access Management" icon="mdi:account-key" />
 </div>
@@ -34,7 +35,7 @@
 		<svelte:fragment slot="lead">
 			<iconify-icon icon="mdi:account-group" width="28" class="text-white" />
 		</svelte:fragment>
-		<span>Roles</span>
+		<span>{m.system_roles()}</span>
 	</Tab>
 
 	<!-- User Permissions-->
@@ -42,7 +43,7 @@
 		<svelte:fragment slot="lead">
 			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-white" />
 		</svelte:fragment>
-		<span>Permission</span>
+		<span>{m.system_permission()}</span>
 	</Tab>
 
 	<!-- Tab Panels --->

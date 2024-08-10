@@ -16,59 +16,90 @@ import { zod } from 'sveltekit-superforms/adapters';
 // Logger
 import logger from '@src/utils/logger';
 
-// Import saveAvatarImage from utils/media
+// Utils
 import { saveAvatarImage } from '@src/utils/media';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+
 const userAdapter = new UserAdapter();
 const sessionAdapter = new SessionAdapter();
 const rolesAdapter = new RoleAdapter();
 const tokenAdapter = new TokenAdapter();
-// Check if it's the first user
+
+// Helper: Get first user
 async function getIsFirstUser() {
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
 	const userCount = await userAdapter.getUserCount();
-	logger.debug(`Current user count: ${userCount}`);
 	return userCount === 0;
 }
 
-// Load function that handles authentication and user validation
+// Helper: Validate session and user permissions
+async function validateUserSession(event: any, requiredRole: Role) {
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+	if (!auth) throw error(500, 'Internal Server Error');
+
+	const user = await sessionAdapter.validateSession(session_id);
+	if (!user || (requiredRole && user.role !== requiredRole)) {
+		logger.warn(`Unauthorized access attempt by user: ${user ? user.email : 'unknown'}`);
+		throw redirect(302, `/login`);
+	}
+
+	return user;
+}
+
+// Helper: Permission check
+function checkPermissions(user: any, requiredRole: Role) {
+	if (user.role !== requiredRole) {
+		logger.warn(`Permission denied for user: ${user.email}`);
+		throw fail(403, { message: `You don't have permission to perform this action` });
+	}
+}
+
+// Load function
 export async function load(event) {
-
 	try {
-		// Get the session cookie
-		const session_id = event.cookies.get(SESSION_COOKIE_NAME) as string;
+		const user = await validateUserSession(event, 'admin');
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
+		// Convert MongoDB ObjectId to a string if _id exists for the user
+		if (user && user._id) {
+			user._id = user._id.toString();
 		}
 
-		// Validate the user's session
-		const user = await sessionAdapter.validateSession(session_id);
 		const isFirstUser = await getIsFirstUser();
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
-		if (!user) {
-			logger.warn('Invalid session, redirecting to login');
-			throw redirect(302, `/login`);
-		}
+		// Retrieve roles and convert _id and any non-serializable fields in permissions to strings
 		const roles = await rolesAdapter.getAllRoles();
-		let { _id, ...rest } = user;
-		const _roles = JSON.parse(JSON.stringify(roles));
-		return { user: { _id: _id.toString(), ...rest }, roles: _roles, addUserForm, changePasswordForm, isFirstUser };
+		const serializedRoles = roles.map((role) => ({
+			...role,
+			_id: role._id.toString(),
+			permissions: role.permissions.map((permission) => {
+				// Convert only serializable fields
+				const { buffer, ...serializablePermission } = permission;
+				return {
+					...serializablePermission,
+					_id: permission._id.toString() // Ensure _id is string
+				};
+			})
+		}));
+
+		return {
+			user,
+			roles: serializedRoles,
+			addUserForm,
+			changePasswordForm,
+			isFirstUser,
+			permissions: user.permissions || [] // Ensure that permissions are set correctly
+		};
 	} catch (err) {
 		logger.error('Error during load function:', err as Error);
 		throw redirect(302, `/login`);
 	}
 }
 
+// Actions
 export const actions: Actions = {
 	// Add a new user and token via email
 	addUser: async (event) => {
@@ -108,7 +139,7 @@ export const actions: Actions = {
 				return fail(400, { message: 'Unknown error' });
 			}
 
-			const token = await tokenAdapter.createToken({user_id:newUser._id,email:newUser.email,expires:expirationTime * 1000,type:"user"}); // don't know type is 
+			const token = await tokenAdapter.createToken({ user_id: newUser._id, email: newUser.email, expires: expirationTime * 1000, type: 'user' });
 			await fetch('/api/sendMail', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -191,8 +222,8 @@ export const actions: Actions = {
 		}
 	},
 
-	// Edit user
-	editUser: async (event) => {
+	// Update user attributes
+	updateUserAttributes: async (event) => {
 		try {
 			const { cookies, request } = event;
 			const session_id = cookies.get(SESSION_COOKIE_NAME) as string;
@@ -222,7 +253,7 @@ export const actions: Actions = {
 				}
 			}
 		} catch (err) {
-			logger.error('Error in editUser action:', err);
+			logger.error('Error in updateUserAttributes action:', err);
 			return fail(403, { message: "You don't have permission to edit user" });
 		}
 	},

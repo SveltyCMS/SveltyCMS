@@ -82,7 +82,7 @@
 				<Tab bind:group={tabSet} name="tab2" value={1}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
-						<span>{m.collection_permission()}</span>
+						<span>{m.system_permission()}</span>
 					</div>
 				</Tab>
 

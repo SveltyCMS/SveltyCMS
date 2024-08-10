@@ -6,12 +6,6 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Auth
-	import type { PermissionConfig } from '@src/auth/types';
-
-	const { user, roles, rateLimits } = $page.data;
-	const isFirstUser = $page.data.isFirstUser;
-
 	// Stores
 	import '@stores/store';
 	import { page } from '$app/stores';
@@ -20,53 +14,19 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
+	import PermissionGuard from '@src/components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
-	import PermissionGuard from '@components/PermissionGuard.svelte';
-
-	// Define permissions for different contexts
-	const permissions: Record<string, PermissionConfig> = {
-		adminArea: {
-			contextId: 'user/adminArea',
-			requiredRole: 'admin',
-			action: 'read',
-			contextType: 'user'
-		}
-	};
-
-	// Function to execute actions
-	function executeActions() {
-		//console.log('executeActions called');
-		// Get the current value of the triggerActionStore
-		const actions = $triggerActionStore;
-
-		// Execute the actions
-		if (actions.length === 1) {
-			// Only one action present, directly execute it
-			//console.log('single action', actions[0]);
-			actions[0];
-		} else {
-			// Multiple actions present, iterate and execute each one sequentially
-			//console.log('multiple actions');
-			for (const action of actions) {
-				console.log(action);
-				action;
-			}
-		}
-
-		// Clear the triggerActionStore
-		triggerActionStore.set([]);
-	}
-
-	// Execute actions on mount if triggerActionStore has data
-	document.addEventListener('DOMContentLoaded', () => {
-		// Execute actions on mount if triggerActionStore has data
-		if ($triggerActionStore.length > 0) {
-			//console.log('$triggerActionStore called:', $triggerActionStore);
-			executeActions();
-		}
-	});
 
 	export let data: PageData;
+	const { user, isFirstUser, permissions } = data;
+
+	// Define permissions for different contexts
+	const adminAreaPermissionConfig = {
+		contextId: 'adminArea',
+		requiredRole: 'admin',
+		action: 'read',
+		contextType: 'system'
+	};
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -85,13 +45,36 @@
 	// define password as 'hash-password'
 	let password = 'hash-password';
 
+	// Function to execute actions
+	function executeActions() {
+		const actions = $triggerActionStore;
+
+		if (actions.length === 1) {
+			actions[0]();
+		} else {
+			for (const action of actions) {
+				action();
+			}
+		}
+
+		triggerActionStore.set([]);
+	}
+
+	// Execute actions on mount if triggerActionStore has data
+	onMount(() => {
+		if ($triggerActionStore.length > 0) {
+			executeActions();
+		}
+
+		avatarSrc.subscribe(() => {});
+	});
+
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
 		// console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ModalEditForm,
-
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
@@ -102,17 +85,15 @@
 			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_editbody(),
 			component: modalComponent,
-
 			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
 					console.log('Response:', r);
 
 					// Prepare the data
-					const data = { ...r, user_id: user.id };
-
+					const data = { ...r, user_id: user._id };
 					// Make the POST request using axios
-					const res = await axios.post('?/editUser', data);
+					const res = await axios.post('?/updateUserAttributes', data);
 
 					// Trigger the toast
 					const t = {
@@ -154,16 +135,15 @@
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
 			// Pass arbitrary data to the component
-
 			response: (r: { dataURL: string }) => {
-				console.log('ModalEditAvatar response:', r);
+				// console.log('ModalEditAvatar response:', r);
+
 				if (r) {
 					avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
 
 					// Trigger the toast
 					const t = {
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-
 						// Provide any utility or variant background style:
 						background: 'gradient-primary',
 						timeout: 3000,
@@ -177,17 +157,12 @@
 		modalStore.trigger(d);
 	}
 
-	onMount(() => {
-		avatarSrc.subscribe((value) => {});
-	});
-
 	// Modal Confirm
 	function modalConfirm(): void {
 		const d: ModalSettings = {
 			type: 'confirm',
 			title: m.usermodalconfirmtitle(),
 			body: m.usermodalconfirmbody(),
-
 			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
@@ -209,6 +184,12 @@
 		};
 		modalStore.trigger(d);
 	}
+
+	console.log('Permissions:', permissions);
+
+	const permissionConfigs: Record<string, PermissionConfig> = {
+		userForm: { contextId: 'userForm', requiredRole: 'admin', action: 'write', contextType: 'user' }
+	};
 </script>
 
 <div class="my-2 flex items-center justify-between">
@@ -236,16 +217,16 @@
 
 			<!-- User fields -->
 			<form>
-				<label
-					>{m.form_username()}:
+				<label>
+					{m.form_username()}:
 					<input bind:value={user.username} name="username" type="text" disabled class="input" />
 				</label>
-				<label
-					>{m.form_email()}:
+				<label>
+					{m.form_email()}:
 					<input bind:value={user.email} name="email" type="email" disabled class="input" />
 				</label>
-				<label
-					>{m.form_password()}:
+				<label>
+					{m.form_password()}:
 					<input bind:value={password} name="password" type="password" disabled class="input" />
 				</label>
 
@@ -268,7 +249,7 @@
 	</div>
 
 	<!-- Admin area -->
-	<PermissionGuard {user} {roles} {rateLimits} {...permissions.adminArea}>
+	<PermissionGuard config={adminAreaPermissionConfig}>
 		<div class="wrapper2">
 			<AdminArea {data} />
 		</div>

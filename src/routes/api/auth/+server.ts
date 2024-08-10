@@ -55,8 +55,6 @@ async function signOut(cookies: Cookies): Promise<Response> {
 			logger.info('User signed out successfully', { session_id });
 		}
 
-		
-
 		// Set a flag in the response to indicate successful signout
 		return new Response(JSON.stringify({ status: 'success', signedOut: true }), {
 			status: 200,

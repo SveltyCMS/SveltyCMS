@@ -21,8 +21,12 @@ import type { User, Session, Token, Role, Permission } from './types';
 export interface authDBInterface {
 	// User Management Methods
 	createUser(userData: Partial<User>): Promise<User>;
-	updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User>;
+	updateUserAttributes(userId: string, userData: Partial<User>): Promise<User>;
+	addUser(userData: Partial<User>, expirationTime: number): Promise<{ user: User; token: string }>;
 	deleteUser(user_id: string): Promise<void>;
+	changePassword(userId: string, newPassword: string): Promise<void>;
+	blockUser(userId: string): Promise<void>;
+	unblockUser(userId: string): Promise<void>;
 	getUserById(user_id: string): Promise<User | null>;
 	getUserByEmail(email: string): Promise<User | null>;
 	getAllUsers(options?: { limit?: number; skip?: number; sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][]; filter?: object }): Promise<User[]>;

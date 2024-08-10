@@ -51,6 +51,7 @@
 	}
 </script>
 
+<!-- Page Title -->
 <div class="my-2 flex items-center justify-between">
 	<PageTitle name="Theme Management" icon="ph:layout" />
 </div>

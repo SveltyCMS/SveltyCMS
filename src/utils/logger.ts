@@ -97,24 +97,26 @@ class Logger {
 	}
 
 	// Format the log message with timestamp, level, and optional object
-	private formatLog(level: LogLevel, message: string, obj?: object): string {
-		const timestamp = `\x1b[2m${new Date().toISOString()}\x1b[0m`; // Gray timestamp
+	private formatLog(level: LogLevel, message: any, obj?: object): string {
+		const timestamp = `\x1b[2m${new Date().toISOString()}\x1b[0m`;
 		const color = COLORS[level];
 		const levelString = level === 'none' ? '' : `${color}[${level.toUpperCase()}]\x1b[0m: `;
 
-		// Apply masking to the message string
-		const maskedMessage = message
-			.replace(/(?<=email:?\s*).*?(?=,|\s|$)/gi, (match) => this.maskEmail(match))
-			.replace(/(?<=password:?\s*).*?(?=,|\s|$)/gi, '[REDACTED]')
-			// Additional pattern to catch passwords in various formats
-			.replace(/(?<=password['"]?\s*[:=]\s*['"]?).*?(?=['"]?[,}\s])/gi, '[REDACTED]');
+		// Convert message to string and apply masking
+		let maskedMessage = String(message);
+		if (typeof message === 'string') {
+			maskedMessage = maskedMessage
+				.replace(/(?<=email:?\s*).*?(?=,|\s|$)/gi, (match) => this.maskEmail(match))
+				.replace(/(?<=password:?\s*).*?(?=,|\s|$)/gi, '[REDACTED]')
+				.replace(/(?<=password['"]?\s*[:=]\s*['"]?).*?(?=['"]?[,}\s])/gi, '[REDACTED]');
+		}
 
 		const maskedObj = obj ? this.maskSensitiveData(obj) : undefined;
 		return `${timestamp} ${levelString}${maskedMessage}${maskedObj ? ' ' + JSON.stringify(maskedObj) : ''}`;
 	}
 
 	// Log the message to the console if the level is enabled
-	private log(level: LogLevel, message: string, obj?: object): void {
+	private log(level: LogLevel, message: any, obj?: object): void {
 		if (this.isLevelEnabled(level)) {
 			const logMessage = this.formatLog(level, message, obj);
 			console[level === 'debug' ? 'debug' : level === 'info' ? 'log' : 'error'](logMessage);

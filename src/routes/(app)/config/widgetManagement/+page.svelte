@@ -43,9 +43,9 @@
 		const newStatus = widget.status === 'active' ? 'inactive' : 'active';
 		try {
 			if (newStatus === 'active') {
-				await activateWidget(widget.name); // Replace with actual implementation
+				await activeWidgets(widget.name); // Replace with actual implementation
 			} else {
-				await deactivateWidget(widget.name); // Replace with actual implementation
+				await activeWidgets(widget.name); // Replace with actual implementation
 			}
 			widget.status = newStatus;
 		} catch (error) {
@@ -55,12 +55,13 @@
 	}
 </script>
 
+<!-- Page Title -->
 <div class="my-2 flex items-center justify-between">
-	<PageTitle name="Widget Management" icon="" />
+	<PageTitle name="Widget Management" icon="mdi:widgets" />
 </div>
 
 {#each installedWidgets as widget}
-	<div class="my-4 flex items-center justify-between border-b pb-2">
+	<div class="my- flex items-center justify-between border-b pb-2">
 		<span>{widget.name}</span>
 		<button class="ml-4 rounded border px-4 py-2" on:click={() => toggleWidgetStatus(widget)}>
 			{widget.status === 'active' ? 'Deactivate' : 'Activate'}
@@ -69,7 +70,7 @@
 {/each}
 
 {#if installedWidgets.length === 0}
-	<p class="my-2 text-center">
+	<p class="my-2 text-center text-tertiary-500 dark:text-primary-500">
 		There are currently no widgets available. Visit the SveltyCMS marketplace to find new widgets and extend your system.
 	</p>
 

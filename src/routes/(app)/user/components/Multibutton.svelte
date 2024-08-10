@@ -52,7 +52,7 @@
 			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
-					const res = await fetch('?/editUser', {
+					const res = await fetch('?/updateUserAttributes', {
 						method: 'POST',
 						headers: { 'Content-Type': 'application/json' },
 						body: JSON.stringify({ ...r })

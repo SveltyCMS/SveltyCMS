@@ -28,7 +28,7 @@
 		<div class="flex items-center gap-1">
 			<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
 			<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 1} class:dark:text-primary-500={$tabSet === 1}
-				>{m.collection_permission()}</span
+				>{m.system_permission()}</span
 			>
 		</div>
 	</Tab>

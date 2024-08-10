@@ -23,6 +23,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 // Adapter
 import { RoleSchema } from './roleAdapter';
 import { PermissionSchema } from './permissionAdapter';
+// import { TokenAdapter } from './tokenAdapter';
 
 // Types
 import type { Permission, Role, User } from '../types';
@@ -82,17 +83,67 @@ export class UserAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Update user attributes
-	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<User> {
+	// Edit a user
+	async updateUserAttributes(userId: string, userData: Partial<User>): Promise<User> {
 		try {
-			const user = await this.UserModel.findByIdAndUpdate(user_id, attributes, { new: true });
+			const user = await this.UserModel.findByIdAndUpdate(userId, userData, { new: true });
 			if (!user) {
 				throw new Error('User not found');
 			}
-			logger.debug(`User attributes updated: ${user_id}`);
+			logger.debug(`User attributes updated: ${userId}`);
 			return user.toObject() as User;
 		} catch (error) {
-			logger.error(`Failed to update user attributes: ${(error as Error).message}`);
+			logger.error(`Failed to edit user: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Change user password
+	async changePassword(userId: string, newPassword: string): Promise<void> {
+		try {
+			await this.UserModel.findByIdAndUpdate(userId, { password: newPassword });
+			logger.info(`Password changed for user: ${userId}`);
+		} catch (error) {
+			logger.error(`Failed to change password: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Add a new user
+	async addUser(userData: Partial<User>, expirationTime: number): Promise<{ user: User; token: string }> {
+		try {
+			const user = await this.createUser(userData);
+			const token = await tokenAdapter.createToken({
+				user_id: user._id,
+				email: user.email!,
+				expires: expirationTime,
+				type: 'user'
+			});
+			return { user, token };
+		} catch (error) {
+			logger.error(`Failed to add user: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Block a user
+	async blockUser(userId: string): Promise<void> {
+		try {
+			await this.UserModel.findByIdAndUpdate(userId, { blocked: true });
+			logger.info(`User blocked: ${userId}`);
+		} catch (error) {
+			logger.error(`Failed to block user: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Unblock a user
+	async unblockUser(userId: string): Promise<void> {
+		try {
+			await this.UserModel.findByIdAndUpdate(userId, { blocked: false });
+			logger.info(`User unblocked: ${userId}`);
+		} catch (error) {
+			logger.error(`Failed to unblock user: ${(error as Error).message}`);
 			throw error;
 		}
 	}

@@ -86,36 +86,59 @@ async function loadAdapters() {
 				...sessionAdapter,
 				...tokenAdapter,
 				// Bind all methods explicitly
+
+				// User Management Methods
 				createUser: userAdapter.createUser.bind(userAdapter),
 				updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
+				addUser: userAdapter.addUser.bind(userAdapter),
 				deleteUser: userAdapter.deleteUser.bind(userAdapter),
+				changePassword: userAdapter.changePassword.bind(userAdapter),
+				blockUser: userAdapter.blockUser.bind(userAdapter),
+				unblockUser: userAdapter.unblockUser.bind(userAdapter),
 				getUserById: userAdapter.getUserById.bind(userAdapter),
 				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
 				getUserCount: userAdapter.getUserCount.bind(userAdapter),
+
+				// Session Management Methods
+				createSession: sessionAdapter.createSession.bind(sessionAdapter),
+				updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
+				destroySession: sessionAdapter.destroySession.bind(sessionAdapter),
+				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
+				deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
+				invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
+				getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
+
+				// Token Management Methods
+				createToken: tokenAdapter.createToken.bind(tokenAdapter),
+				validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
+				consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
+				getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
+				deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
+
+				// Role Management Methods
 				createRole: roleAdapter.createRole.bind(roleAdapter),
 				updateRole: roleAdapter.updateRole.bind(roleAdapter),
 				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
 				getRoleById: roleAdapter.getRoleById.bind(roleAdapter),
 				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
+
+				// Permission Management Methods
 				createPermission: permissionAdapter.createPermission.bind(permissionAdapter),
 				updatePermission: permissionAdapter.updatePermission.bind(permissionAdapter),
 				deletePermission: permissionAdapter.deletePermission.bind(permissionAdapter),
 				getPermissionById: permissionAdapter.getPermissionById.bind(permissionAdapter),
 				getAllPermissions: permissionAdapter.getAllPermissions.bind(permissionAdapter),
 				getPermissionByName: permissionAdapter.getPermissionByName.bind(permissionAdapter),
-				createSession: sessionAdapter.createSession.bind(sessionAdapter),
-				updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-				destroySession: sessionAdapter.destroySession.bind(sessionAdapter),
-				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
-				createToken: tokenAdapter.createToken.bind(tokenAdapter),
-				validateToken: tokenAdapter.validateToken.bind(tokenAdapter),
-				consumeToken: tokenAdapter.consumeToken.bind(tokenAdapter),
+
+				// Role-Permissions Linking Methods
 				assignPermissionToRole: roleAdapter.assignPermissionToRole.bind(roleAdapter),
 				removePermissionFromRole: roleAdapter.removePermissionFromRole.bind(roleAdapter),
 				getPermissionsForRole: roleAdapter.getPermissionsForRole.bind(roleAdapter),
 				getRolesForPermission: roleAdapter.getRolesForPermission.bind(roleAdapter),
+
+				// User-Specific Permissions Methods
 				assignPermissionToUser: userAdapter.assignPermissionToUser.bind(userAdapter),
 				removePermissionFromUser: userAdapter.removePermissionFromUser.bind(userAdapter),
 				getPermissionsForUser: userAdapter.getPermissionsForUser.bind(userAdapter),
@@ -126,12 +149,7 @@ async function loadAdapters() {
 				getUsersWithRole: roleAdapter.getUsersWithRole.bind(roleAdapter),
 				checkUserPermission: userAdapter.checkUserPermission.bind(userAdapter),
 				checkUserRole: userAdapter.checkUserRole.bind(userAdapter),
-				initializeDefaultRolesAndPermissions: roleAdapter.initializeDefaultRoles.bind(roleAdapter),
-				deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
-				invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
-				getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
-				getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
-				deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter)
+				initializeDefaultRolesAndPermissions: roleAdapter.initializeDefaultRoles.bind(roleAdapter)
 			} as authDBInterface;
 
 			logger.info('MongoDB adapters loaded successfully.');
