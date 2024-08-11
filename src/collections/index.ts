@@ -1,6 +1,5 @@
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
-
 import { createCategories } from './config';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 
@@ -16,25 +15,28 @@ import type { Schema, CollectionNames } from './types';
 // System logger
 import logger from '@src/utils/logger';
 
-let imports = {} as { [key in CollectionNames]: Schema };
+// Initialize imports correctly
+let imports: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
 let rnd = Math.random();
 let unsubscribe: Unsubscriber | undefined;
 
 // Cache for collection models
-let collectionModelsCache: { [key: string]: any } | null = null;
+let collectionModelsCache: Record<string, any> | null = null;
 
-export async function getCollections() {
+export async function getCollections(): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getCollections');
 
 	initWidgets();
+
 	if (collectionModelsCache) {
 		logger.debug(`Returning cached collections. Number of collections: ${Object.keys(collectionModelsCache).length}`);
 		return collectionModelsCache;
 	}
-	return new Promise<{ [key in CollectionNames]: Schema }>((resolve) => {
+
+	return new Promise<Record<CollectionNames, Schema>>((resolve) => {
 		unsubscribe = collections.subscribe((cols) => {
-			if (Object.keys(cols)?.length > 0) {
-				unsubscribe && unsubscribe();
+			if (Object.keys(cols).length > 0) {
+				unsubscribe?.();
 				unsubscribe = undefined;
 				collectionModelsCache = cols;
 				resolve(cols);
@@ -42,7 +44,8 @@ export async function getCollections() {
 		});
 	});
 }
-export const updateCollections = async (recompile: boolean = false) => {
+
+export const updateCollections = async (recompile: boolean = false): Promise<void> => {
 	logger.debug('Starting updateCollections');
 
 	if (recompile) rnd = Math.random();
@@ -54,10 +57,10 @@ export const updateCollections = async (recompile: boolean = false) => {
 		// If not running in development or building mode
 		if (!dev && !building) {
 			// Define config file name
-			const config = 'config.js?' + rnd;
+			const config = `config.js?${rnd}`;
 			const { createCategories: newCreateCategories } = browser
-				? await import(/* @vite-ignore */ '/api/importCollection/' + config)
-				: await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + config);
+				? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
+				: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
 
 			// Create categories using new version of createCategories function and imports object
 			_categories = newCreateCategories(imports);
@@ -70,17 +73,17 @@ export const updateCollections = async (recompile: boolean = false) => {
 		}));
 
 		// Define categories and collections
-		const _collections = _categories
-			.flatMap((x) => x.collections)
-			.reduce(
-				(acc, x) => {
-					if (x && x.name) {
-						acc[x.name] = x;
+		const _collections = _categories.reduce(
+			(acc, category) => {
+				category.collections.forEach((collection) => {
+					if (collection && collection.name) {
+						acc[collection.name] = collection;
 					}
-					return acc;
-				},
-				{} as { [key in CollectionNames]: Schema }
-			);
+				});
+				return acc;
+			},
+			{} as Record<CollectionNames, Schema>
+		);
 
 		categories.set(_categories);
 		logger.debug('Setting collections:', { collections: Object.keys(_collections) });
@@ -103,11 +106,11 @@ updateCollections().catch((error) => {
 	logger.error('Failed to initialize collections:', error);
 });
 
-async function getImports(recompile: boolean = false): Promise<{ [key in CollectionNames]: Schema }> {
+async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getImports function');
 
 	if (Object.keys(imports).length && !recompile) return imports;
-	imports = {} as { [key in CollectionNames]: Schema };
+	imports = {} as Record<CollectionNames, Schema>;
 
 	try {
 		if (dev || building) {
@@ -136,9 +139,14 @@ async function getImports(recompile: boolean = false): Promise<{ [key in Collect
 			for (const file of files) {
 				const name = file.replace(/.js$/, '') as CollectionNames;
 				let collectionModule: any = null;
-				if (typeof window !== 'undefined') collectionModule = (await axios.get('/api/getCollection?fileName=' + file + '?' + rnd)).data;
-				else collectionModule = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + file + '?' + rnd);
-				const collection = collectionModule.default;
+
+				if (typeof window !== 'undefined') {
+					collectionModule = (await axios.get(`/api/getCollection?fileName=${file}?${rnd}`)).data;
+				} else {
+					collectionModule = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${rnd}`);
+				}
+
+				const collection = collectionModule?.default;
 
 				if (collection) {
 					collection.name = name;

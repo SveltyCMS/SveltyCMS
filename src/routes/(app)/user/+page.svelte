@@ -8,8 +8,8 @@
 
 	// Stores
 	import '@stores/store';
-	import { page } from '$app/stores';
 	import { avatarSrc } from '@stores/store';
+
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Components
@@ -18,10 +18,10 @@
 	import AdminArea from './components/AdminArea.svelte';
 
 	export let data: PageData;
-	const { user, isFirstUser, permissions } = data;
+	const { user, isFirstUser } = data;
 
 	// Define permissions for different contexts
-	const adminAreaPermissionConfig = {
+	const adminAreaPermissionConfig: PermissionConfig = {
 		contextId: 'adminArea',
 		requiredRole: 'admin',
 		action: 'read',
@@ -36,6 +36,7 @@
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 	import { onMount } from 'svelte';
+	import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -184,12 +185,6 @@
 		};
 		modalStore.trigger(d);
 	}
-
-	console.log('Permissions:', permissions);
-
-	const permissionConfigs: Record<string, PermissionConfig> = {
-		userForm: { contextId: 'userForm', requiredRole: 'admin', action: 'write', contextType: 'user' }
-	};
 </script>
 
 <div class="my-2 flex items-center justify-between">

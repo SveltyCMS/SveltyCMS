@@ -196,7 +196,7 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 	}
 }
 
-// Initialize Theme
+// Initialize default theme
 async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	try {
 		logger.debug('Initializing default theme...');
@@ -254,6 +254,7 @@ async function initializeAdapters(): Promise<void> {
 		if (!dbAdapter) {
 			throw new Error('Database adapter not initialized');
 		}
+
 		// Initialize default theme
 		await initializeDefaultTheme(dbAdapter);
 		// Setup auth models and media models

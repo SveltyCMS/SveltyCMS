@@ -34,7 +34,8 @@ export const GET: RequestHandler = async () => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
-		logger.error('Error retrieving collection files', error);
-		return new Response('Internal Server Error', { status: 500 });
+		const err = error as Error;
+		logger.error(`Error retrieving collection files: ${err.message}`);
+		throw new Error(`Error retrieving collection files: ${err.message}`);
 	}
 };

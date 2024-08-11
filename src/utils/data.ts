@@ -1,3 +1,26 @@
+/**
+ * @file src/utils/data.ts
+ * @description Utility functions for handling API requests and data operations.
+ *
+ * This module provides a set of functions to interact with the API:
+ * - handleRequest: Generic function to handle API requests
+ * - getData: Retrieve data from a specified collection
+ * - addData: Add new data to a collection
+ * - updateData: Update existing data in a collection
+ * - deleteData: Remove data from a collection
+ * - setStatus: Set the status of data in a collection
+ *
+ * Features:
+ * - Centralized error handling and logging
+ * - Type-safe collection names using CollectionNames type
+ * - Consistent API request formatting
+ * - Support for pagination, filtering, and sorting in getData
+ *
+ * Usage:
+ * Import and use these functions to perform CRUD operations on collections
+ * via the API endpoint.
+ */
+
 import axios from 'axios';
 import { config, toFormData } from './utils';
 
@@ -31,7 +54,7 @@ export async function getData(query: {
 	const q = toFormData({ method: 'GET', ...query });
 	try {
 		const response = await axios.post('/api/query', q);
-		logger.info('Successfully completed GET request', { data: response.data });
+		logger.debug('Successfully completed GET request', { data: response.data });
 		return response.data as {
 			entryList: [any];
 			pagesCount: number;

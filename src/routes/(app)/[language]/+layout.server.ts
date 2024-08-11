@@ -3,7 +3,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth, dbAdapter } from '@src/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -11,13 +11,11 @@ import { contentLanguage } from '@src/stores/store';
 
 // System Logs
 import logger from '@src/utils/logger';
-import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
 
 export async function load({ cookies, route, params }) {
-	const sessionAdapter = new SessionAdapter();
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -30,8 +28,8 @@ export async function load({ cookies, route, params }) {
 	if (!session_id) {
 		logger.warn('Session ID is missing from cookies, creating a new session.');
 		try {
-			const newSession = await sessionAdapter.createSession({ user_id: 'guestuser_id' });
-			const sessionCookie = sessionAdapter.createSessionCookie(newSession);
+			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
+			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			session_id = sessionCookie.value;
 			logger.debug('New session created:', session_id);
@@ -41,7 +39,7 @@ export async function load({ cookies, route, params }) {
 		}
 	}
 
-	const user = await sessionAdapter.validateSession(session_id);
+	const user = await auth.validateSession({ session_id });
 
 	// Redirect to login if no valid User session
 	if (!user) {
@@ -98,7 +96,6 @@ export async function load({ cookies, route, params }) {
 			hasPermission = false;
 		}
 		if (!hasPermission) {
-			//if (collection?.permissions?.[user.role]?.read === false) {
 			logger.warn('No Access to this collection');
 			throw error(401, {
 				message: 'No Access to this collection'
@@ -108,7 +105,7 @@ export async function load({ cookies, route, params }) {
 
 		let theme;
 		try {
-			const dbTheme = await dbAdapter.getDefaultTheme();
+			const dbTheme = await auth.db.getDefaultTheme();
 			if (dbTheme && dbTheme.name && dbTheme.name !== DEFAULT_THEME.name) {
 				theme = {
 					name: dbTheme.name,

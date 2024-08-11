@@ -109,42 +109,37 @@ export async function initializeDefaultRolesAndPermissions(adapter: authDBInterf
 		}
 	}
 
-	// Assign all permissions to admin role
-	const adminRole = await adapter.getRoleByName('admin');
+	// Fetch all roles and permissions after creation
+	const allRoles = await adapter.getAllRoles();
 	const allPermissions = await adapter.getAllPermissions();
-	if (adminRole) {
-		for (const permission of allPermissions) {
-			await adapter.assignPermissionToRole(adminRole._id!, permission._id!, 'system');
+
+	logger.debug(`All roles: ${JSON.stringify(allRoles)}`);
+	logger.debug(`All permissions: ${JSON.stringify(allPermissions)}`);
+
+	// Assign permissions to roles
+	const rolePermissions = {
+		admin: allPermissions.map((p) => p._id!),
+		developer: allPermissions.filter((p) => p.name !== 'manage_roles' && p.name !== 'manage_permissions').map((p) => p._id!),
+		editor: allPermissions.filter((p) => ['create_content', 'read_content', 'update_content'].includes(p.name!)).map((p) => p._id!),
+		user: allPermissions.filter((p) => ['read_content'].includes(p.name!)).map((p) => p._id!)
+	};
+
+	for (const role of allRoles) {
+		const permissions = rolePermissions[role.name as keyof typeof rolePermissions] || [];
+		for (const permissionId of permissions) {
+			await adapter.assignPermissionToRole(role._id!, permissionId, 'system');
+			logger.debug(`Assigned permission ${permissionId} to role ${role.name}`);
 		}
-		logger.info('All permissions assigned to admin role');
+		logger.info(`Permissions assigned to ${role.name} role`);
 	}
 
-	// Assign appropriate permissions to other roles
-	const developerRole = await adapter.getRoleByName('developer');
-	const editorRole = await adapter.getRoleByName('editor');
-	const userRole = await adapter.getRoleByName('user');
-
-	if (developerRole) {
-		const developerPermissions = allPermissions.filter((p) => p.name !== 'manage_roles' && p.name !== 'manage_permissions');
-		for (const permission of developerPermissions) {
-			await adapter.assignPermissionToRole(developerRole._id!, permission._id!, 'system');
+	// Verify permissions assignment
+	for (const role of allRoles) {
+		const roleWithPermissions = await adapter.getRoleByName(role.name);
+		if (roleWithPermissions && roleWithPermissions.permissions) {
+			logger.info(`${role.name} role has ${roleWithPermissions.permissions.length} permissions: ${JSON.stringify(roleWithPermissions.permissions)}`);
+		} else {
+			logger.warn(`${role.name} role has no permissions or couldn't be retrieved`);
 		}
-		logger.info('Permissions assigned to developer role');
-	}
-
-	if (editorRole) {
-		const editorPermissions = allPermissions.filter((p) => ['create_content', 'read_content', 'update_content'].includes(p.name!));
-		for (const permission of editorPermissions) {
-			await adapter.assignPermissionToRole(editorRole._id!, permission._id!, 'system');
-		}
-		logger.info('Permissions assigned to editor role');
-	}
-
-	if (userRole) {
-		const userPermissions = allPermissions.filter((p) => ['read_content'].includes(p.name!));
-		for (const permission of userPermissions) {
-			await adapter.assignPermissionToRole(userRole._id!, permission._id!, 'system');
-		}
-		logger.info('Permissions assigned to user role');
 	}
 }

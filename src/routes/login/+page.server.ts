@@ -1,3 +1,14 @@
+/**
+ * @file src/routes/login/+page.server.ts
+ * @description Server-side logic for the login page
+ *
+ * This module handles the server-side operations for the login page, including:
+ * - User authentication and session management
+ * - Form validation
+ * - OAuth login
+ *  *
+ */
+
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
 

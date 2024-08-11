@@ -109,6 +109,15 @@ const ThemeSchema = new mongoose.Schema(
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
 
+interface ThemeDocument {
+	_id: string;
+	name: string;
+	path: string;
+	isDefault: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
@@ -133,9 +142,6 @@ export class MongoDBAdapter implements dbInterface {
 				// Inform about successful connection
 				logger.debug(`MongoDB adapter connected successfully to ${privateEnv.DB_NAME}`);
 
-				// Initialize default theme after successful connection
-				await this.initializeDefaultTheme();
-
 				return; // Connection successful, exit loop
 			} catch (error) {
 				attempts--;
@@ -154,41 +160,6 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Initialize default theme
-	async initializeDefaultTheme(): Promise<void> {
-		try {
-			logger.debug('Initializing default theme...');
-			const themes = await this.getAllThemes();
-			logger.debug(`Found ${themes.length} themes`);
-
-			if (themes.length === 0) {
-				// If no themes exist, create the default SveltyCMS theme
-				await this.storeThemes([DEFAULT_THEME]);
-				logger.info('Default SveltyCMS theme created successfully.');
-			} else {
-				// Check if SveltyCMSTheme exists
-				const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
-				if (sveltyCMSTheme) {
-					// Check if the theme is already marked as default
-					if (!sveltyCMSTheme.isDefault) {
-						// Update the existing theme to set it as default
-						await Theme.updateOne({ name: DEFAULT_THEME.name }, { $set: { isDefault: true } });
-						logger.info('SveltyCMS theme set as default.');
-					} else {
-						logger.info('SveltyCMS theme is already set as default.');
-					}
-				} else {
-					// If SveltyCMS theme doesn't exist, create it
-					await this.storeThemes([DEFAULT_THEME]);
-					logger.info('SveltyCMS theme created and set as default.');
-				}
-			}
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error initializing default theme: ${err.message}`);
-			throw new Error(`Error initializing default theme: ${err.message}`);
-		}
-	}
 	// Generate an ID using ObjectId
 	generateId(): string {
 		return new mongoose.Types.ObjectId().toString();
@@ -346,6 +317,29 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
+	// Fetch default theme
+	async getDefaultTheme(): Promise<ThemeDocument> {
+		try {
+			let defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean<ThemeDocument>().exec();
+			if (defaultTheme) {
+				return defaultTheme;
+			}
+
+			defaultTheme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
+			if (defaultTheme) {
+				logger.info(`Default theme found: ${defaultTheme.name}`);
+				return defaultTheme;
+			}
+
+			logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
+			return DEFAULT_THEME as ThemeDocument;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching default theme: ${err.message}`);
+			throw new Error(`Error fetching default theme: ${err.message}`);
+		}
+	}
+
 	// Store themes in the database
 	async storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void> {
 		try {
@@ -362,36 +356,13 @@ export class MongoDBAdapter implements dbInterface {
 					createdAt: new Date(),
 					updatedAt: new Date()
 				})),
-				{ ordered: false } // Use ordered: false to ignore duplicates
-			);
+				{ ordered: false }
+			); // Use ordered: false to ignore duplicates
 			logger.info(`Stored ${themes.length} themes in the database.`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error storing themes: ${err.message}`);
 			throw new Error(`Error storing themes: ${err.message}`);
-		}
-	}
-
-	// Fetch default theme
-	async getDefaultTheme(): Promise<any> {
-		try {
-			let defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean().exec();
-			if (defaultTheme) {
-				return defaultTheme;
-			}
-
-			defaultTheme = await Theme.findOne({ isDefault: true }).lean().exec();
-			if (defaultTheme) {
-				logger.info(`Default theme found: ${defaultTheme.name}`);
-				return defaultTheme;
-			}
-
-			logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
-			return DEFAULT_THEME;
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching default theme: ${err.message}`);
-			throw new Error(`Error fetching default theme: ${err.message}`);
 		}
 	}
 

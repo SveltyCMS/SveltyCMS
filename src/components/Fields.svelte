@@ -3,6 +3,7 @@
 	import { publicEnv } from '@root/config/public';
 
 	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
+	import type { Schema, RolePermissions } from '@src/auth/types';
 
 	// Auth
 	const user = $page.data.user;
@@ -41,6 +42,17 @@
 		// Hide headers only when non-admin and no revision
 		return user.roles !== 'admin' && !$collection.revision;
 	}
+
+	// Function to filter fields based on permissions
+	function filterFieldsByPermission(fields: any[], userRole: string) {
+		return fields.filter((f) => {
+			const permissions = f.permissions as RolePermissions | undefined;
+			return permissions?.[userRole]?.read !== false;
+		});
+	}
+
+	// Assuming you have a `user` object with a `role` property
+	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
 </script>
 
 <TabGroup
@@ -86,7 +98,7 @@
 			<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 			<div class="wrapper">
 				<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-					{#each (fields || $collection.fields).filter((f) => f?.permissions?.[user.role]?.read !== false) as field}
+					{#each filteredFields as field}
 						{#if field.widget}
 							{#key $collection}
 								<div

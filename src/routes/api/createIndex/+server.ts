@@ -23,16 +23,21 @@
 import fs from 'fs/promises';
 import path from 'path';
 import type { RequestHandler } from '@sveltejs/kit';
+
 import { _GET } from '../query/GET';
 import { getFieldName } from '@src/utils/utils';
+
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+
 // Stores
 import { collections } from '@src/stores/store';
 import { get } from 'svelte/store';
+
 // Components
 import widgets from '@src/components/widgets';
+
 // System Logger
 import logger from '@src/utils/logger';
 
@@ -78,7 +83,7 @@ export const GET: RequestHandler = async ({ cookies }) => {
 		logger.debug('Collections retrieved from store.');
 
 		// Process all collections concurrently
-		await Promise.all(Object.values($collections).map(processCollection));
+		await Promise.all(Object.values($collections).map((collection) => processCollection(collection, user)));
 
 		// Return a success response
 		logger.info('Index files creation completed successfully.');
@@ -91,12 +96,19 @@ export const GET: RequestHandler = async ({ cookies }) => {
 };
 
 // Function to process a single collection
-async function processCollection(collection: any) {
+async function processCollection(collection: any, user: any) {
 	try {
 		let text = '';
 
 		// Fetch entry list for the collection
-		const response = await _GET({ schema: collection, user: { role: 'admin' } });
+		const response = await _GET({
+			schema: collection,
+			user: {
+				_id: user._id,
+				email: user.email,
+				role: user.role
+			}
+		});
 		const { entryList } = await response.json();
 		logger.debug(`Entry list fetched for collection: ${collection.name}`);
 

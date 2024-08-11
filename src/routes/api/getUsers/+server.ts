@@ -28,14 +28,9 @@ import { tableHeaders } from '@src/stores/store';
 
 // Auth
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
-import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 
 // System Loggger
 import logger from '@src/utils/logger';
-
-const sessionAdapter = new SessionAdapter();
-const userAdapter = new UserAdapter();
 
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {
@@ -46,20 +41,20 @@ export const GET: RequestHandler = async ({ cookies }) => {
 			return new Response(JSON.stringify({ error: 'Authentication required' }), { status: 401 });
 		}
 
-		// Validate the session by passing an object with the session_id property.
-		const user = await sessionAdapter.validateSession(session_id);
+		// Validate the session
+		const user = await auth.validateSession({ session_id });
 		if (!user) {
 			logger.warn('Invalid session');
 			return new Response(JSON.stringify({ error: 'Invalid session' }), { status: 401 });
 		}
 
 		if (user.role !== 'admin') {
-			logger.warn('Non-admin access attempt', { userId: user.id });
+			logger.warn('Non-admin access attempt', { userId: user._id });
 			return new Response(JSON.stringify({ error: 'Forbidden' }), { status: 403 });
 		}
 
 		// Get all users from the database.
-		const allUsers = await userAdapter.getAllUsers();
+		const allUsers = await auth.getAllUsers();
 		logger.info('Users retrieved successfully', { count: allUsers.length });
 
 		const formattedUsers = allUsers.map((user) => tableHeaders.reduce((acc, header) => ({ ...acc, [header]: user[header] }), {}));

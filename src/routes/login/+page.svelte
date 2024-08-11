@@ -42,6 +42,7 @@
 	export let data: PageData;
 
 	import { onMount } from 'svelte';
+	import { page } from '$app/stores';
 
 	let timeRemaining: { minutes: number; seconds: number } = { minutes: 0, seconds: 0 };
 	let interval: ReturnType<typeof setInterval>;
@@ -79,6 +80,17 @@
 		active = undefined;
 		background = 'white';
 	}
+
+	const pageData = $page.data as PageData;
+	let firstUserExists = pageData.firstUserExists;
+
+	function handleSignInClick() {
+		if (!firstUserExists) {
+			active = 1;
+		} else {
+			active = 0;
+		}
+	}
 </script>
 
 <div class={`flex min-h-lvh w-full overflow-y-auto bg-${background}`}>
@@ -87,7 +99,7 @@
 		FormSchemaLogin={data.loginForm}
 		FormSchemaForgot={data.forgotForm}
 		FormSchemaReset={data.resetForm}
-		on:click={() => (active = 0)}
+		on:click={handleSignInClick}
 		on:pointerenter={() => (background = '#242728')}
 		on:back={resetToInitialState}
 	/>

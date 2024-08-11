@@ -21,7 +21,7 @@
 import { privateEnv } from '@root/config/private';
 
 // Types
-import type { Cookie, User, Session, Token } from './types';
+import type { Cookie, User, Session, Token, Role, Permission } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 // Cache & Redis
@@ -227,6 +227,30 @@ export class Auth {
 			const err = error as Error;
 			logger.error(`Failed to get user by ID: ${err.message}`);
 			throw new Error(`Failed to get user by ID: ${err.message}`);
+		}
+	}
+
+	// Get all roles
+	async getAllRoles(options?: {
+		limit?: number;
+		skip?: number;
+		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+		filter?: object;
+	}): Promise<Role[]> {
+		try {
+			// Fetch roles from the database
+			const roles = await this.db.getAllRoles(options);
+
+			// Convert _id to string and ensure all fields are serializable
+			return roles.map((role) => ({
+				...role,
+				_id: role._id.toString(), // Ensure _id is a string
+				permissions: role.permissions.map((p) => p.toString()) // Map permissions to strings
+			}));
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to get all roles: ${err.message}`);
+			throw new Error(`Failed to get all roles: ${err.message}`);
 		}
 	}
 
