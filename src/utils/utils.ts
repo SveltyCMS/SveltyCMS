@@ -1,3 +1,28 @@
+/**
+ * @file utils.ts
+ * @description A comprehensive utility module for the SvelteKit CMS project.
+ *
+ * This file contains a wide range of utility functions and helpers used throughout the application, including:
+ * - Form data handling and conversion (obj2formData, col2formData)
+ * - File and media operations (sanitize, formatBytes, deleteOldTrashFiles)
+ * - Date and time formatting (convertTimestampToDateString, formatUptime, ReadableExpireIn)
+ * - Data manipulation and validation (extractData, deepCopy, validateZod)
+ * - Internationalization helpers (getTextDirection, updateTranslationProgress)
+ * - Database operations (find, findById, saveFormData, deleteData)
+ * - UI-related utilities (getGuiFields, motion)
+ * - String manipulation (pascalToCamelCase, getEditDistance)
+ * - Cryptographic functions (createRandomID, sha256)
+ * - And various other helper functions
+ *
+ * The module also defines important constants and types used across the application.
+ *
+ * @requires various - Including fs, axios, zod, and custom types/interfaces
+ * @requires @stores/store - For accessing Svelte stores
+ * @requires @root/config/public - For accessing public environment variables
+ *
+ * @exports numerous utility functions and constants
+ */
+
 import { publicEnv } from '@root/config/public';
 
 import fs from 'fs';

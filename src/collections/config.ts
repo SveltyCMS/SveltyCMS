@@ -12,7 +12,7 @@ export function createCategories(collections: { [key in CollectionNames]: Schema
 		{
 			name: 'Menus',
 			icon: 'bi:menu-button-wide',
-			collections: [collections.Menu, collections.Products]
+			collections: [collections.Menu]
 		}
 	];
 }

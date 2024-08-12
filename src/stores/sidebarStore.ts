@@ -1,3 +1,31 @@
+/**
+ * @file sidebarStore.ts
+ * @description Manages the sidebar and responsive layout state for the application using Svelte stores.
+ *
+ * This module provides functionality to:
+ * - Define and manage screen width categories (Mobile, Tablet, Desktop)
+ * - Create and update a store for the current screen width
+ * - Define and manage sidebar states for different parts of the layout
+ * - Handle responsive sidebar behavior based on screen width and application mode
+ *
+ * Key features:
+ * - Responsive design handling with ScreenWidth enum and screenWidth store
+ * - SidebarState interface defining states for various layout components
+ * - sidebarState store for managing the current state of layout components
+ * - Functions for toggling sidebar states and handling responsive behavior
+ * - Integration with application mode for context-aware layout adjustments
+ *
+ * @requires svelte/store - For creating and managing Svelte stores
+ * @requires ./store - For accessing the application mode store
+ *
+ * @exports ScreenWidth - Enum for screen width categories
+ * @exports screenWidth - Writable store for current screen width
+ * @exports SidebarState - Interface for sidebar states
+ * @exports sidebarState - Writable store for current sidebar state
+ * @exports toggleSidebar - Function to toggle individual sidebar components
+ * @exports handleSidebarToggle - Function to handle responsive sidebar behavior
+ */
+
 import { get, writable } from 'svelte/store';
 import { mode } from './store';
 

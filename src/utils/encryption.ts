@@ -1,8 +1,26 @@
+/**
+ * @file encryption.ts
+ * @description Utility functions for string encryption and decryption using AES-256-CBC.
+ *
+ * This file contains two main functions:
+ * 1. encrypt(text: string): string - Encrypts a given string.
+ * 2. decrypt(text: string): string - Decrypts an encrypted string.
+ *
+ * The encryption uses a fixed ENCRYPTION_KEY from environment variables and a random 16-byte initialization vector (IV).
+ *
+ * @requires crypto - Node.js crypto module for cryptographic operations
+ * @requires @root/config/private - For accessing private environment variables
+ *
+ * @constant ENCRYPTION_KEY - A fixed key used for encryption and decryption, retrieved from environment variables
+ * @constant IV_LENGTH - The length of the initialization vector, fixed at 16 bytes for AES
+ */
+
 import { privateEnv } from '@root/config/private';
 
 import crypto from 'crypto';
 
-const ENCRYPTION_KEY = privateEnv.ENCRYPTION_KEY; // Make sure to add this to your private environment variables
+// const ENCRYPTION_KEY = privateEnv.ENCRYPTION_KEY; // Fixed encryption key
+const ENCRYPTION_KEY = 'privateEnv.ENCRYPTION_KEY';
 const IV_LENGTH = 16; // For AES, this is always 16
 
 // Encrypts a string

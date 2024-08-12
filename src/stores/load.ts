@@ -1,3 +1,30 @@
+/**
+ * @file load.ts
+ * @description Initializes and manages global stores for the application's state management.
+ *
+ * This module sets up various Svelte stores for managing:
+ * - System and content languages
+ * - Internationalization messages
+ * - Collection categories and schemas
+ * - Save functionality
+ * - Table headers and UI components
+ *
+ * Key features:
+ * - Initialization of language stores with default values from environment
+ * - Management of collection categories and schemas
+ * - Integration with ParaglideJS for internationalization
+ * - Stores for UI-related data like table headers and action buttons
+ * - Reactive language setting with automatic message updates
+ *
+ * @requires svelte/store - For creating and managing Svelte stores
+ * @requires @root/config/public - For accessing public environment variables
+ * @requires @src/collections/types - For collection-related type definitions
+ * @requires @src/paraglide/messages - For internationalization messages
+ * @requires @src/paraglide/runtime - For language tag management
+ *
+ * @exports various Svelte stores including systemLanguage, contentLanguage, categories, collections, etc.
+ */
+
 import { publicEnv } from '@root/config/public';
 import { writable, type Writable } from 'svelte/store';
 

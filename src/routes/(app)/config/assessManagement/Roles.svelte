@@ -6,14 +6,14 @@
 	import type { Role, Permission } from '@src/auth/types';
 	import { page } from '$app/stores';
 
-	let roles = writable<Role[]>([]);
-	let selectedRoles = writable<Set<string>>(new Set());
+	const roles = writable<Role[]>([]);
+	const selectedRoles = writable<Set<string>>(new Set());
 	let roleName = '';
 	let roleDescription = '';
-	let availablePermissions = writable<Permission[]>([]);
-	let selectedPermissions = writable<Set<string>>(new Set());
-	let isLoading = writable(true);
-	let error = writable<string | null>(null);
+	const availablePermissions = writable<Permission[]>([]);
+	const selectedPermissions = writable<Set<string>>(new Set());
+	const isLoading = writable(true);
+	const error = writable<string | null>(null);
 
 	$: currentUserId = $page.data.user?._id || '';
 

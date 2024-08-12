@@ -1,3 +1,20 @@
+/**
+ * @file collectionUpdater.ts
+ * @description Utility functions for updating collection imports in a SvelteKit CMS project.
+ *
+ * This file contains two main functions:
+ * 1. updateImports(): Updates the imports in the index file of the collections directory.
+ *    It reads the collection files, generates import statements, and updates the allCollections object.
+ * 2. compare(): A helper function to compare two arrays for equality.
+ *
+ * The updateImports function checks for changes in the collections directory and updates the index.ts file accordingly.
+ * It also runs Prettier on the updated file to ensure consistent formatting.
+ *
+ * @requires child_process - For executing shell commands
+ * @requires fs - File system module
+ * @requires @src/utils/logger - Custom logging utility
+ */
+
 import { exec } from 'child_process';
 import fs from 'fs';
 

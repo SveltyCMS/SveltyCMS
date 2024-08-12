@@ -56,6 +56,8 @@
 	],
 	"devDependencies": {
 		"@clack/prompts": "^0.7.0",
+		"@eslint/eslintrc": "^3.1.0",
+		"@eslint/js": "^9.9.0",
 		"@iconify/svelte": "^4.0.2",
 		"@inlang/paraglide-js": "^1.11.2",
 		"@playwright/test": "^1.46.0",
@@ -76,6 +78,7 @@
 		"eslint-config-prettier": "^9.1.0",
 		"eslint-plugin-prettier": "^5.2.1",
 		"eslint-plugin-svelte": "^2.43.0",
+		"globals": "^15.9.0",
 		"postcss": "^8.4.41",
 		"prettier": "^3.3.3",
 		"prettier-plugin-svelte": "^3.2.6",
@@ -148,6 +151,6 @@
 		"svelte-grid-extended": "^1.2.1",
 		"svelte-lexical": "^0.4.1",
 		"svelty-email": "^0.0.10",
-		"tailwind-merge": "^2.5.0"
+		"tailwind-merge": "^2.5.1"
 	}
 }

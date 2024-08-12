@@ -82,7 +82,7 @@
 	}
 
 	const pageData = $page.data as PageData;
-	let firstUserExists = pageData.firstUserExists;
+	const firstUserExists = pageData.firstUserExists;
 
 	function handleSignInClick() {
 		if (!firstUserExists) {

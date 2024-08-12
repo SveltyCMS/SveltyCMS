@@ -1,3 +1,28 @@
+/**
+ * @file formSchemas.ts
+ * @description Defines Zod schemas for various forms used in the application.
+ *
+ * This file contains:
+ * - Reusable schema definitions for common fields like username, email, and password.
+ * - Form-specific schemas for different functionalities such as login, signup, password reset, etc.
+ *
+ * Key schemas include:
+ * - loginFormSchema: For user login
+ * - forgotFormSchema: For initiating password reset
+ * - resetFormSchema: For setting a new password
+ * - signUpFormSchema: For user registration
+ * - changePasswordSchema: For changing user password
+ * - addUserSchema: For adding new users (likely admin functionality)
+ *
+ * The schemas use internationalized error messages from ParaglideJS.
+ *
+ * @requires zod - For schema definition and validation
+ * @requires @root/config/public - For accessing public environment variables
+ * @requires @src/paraglide/messages - For internationalized error messages
+ *
+ * @constant MIN_PASSWORD_LENGTH - Minimum required password length, set from environment or defaulting to 8
+ */
+
 import { publicEnv } from '@root/config/public';
 
 import { z } from 'zod';

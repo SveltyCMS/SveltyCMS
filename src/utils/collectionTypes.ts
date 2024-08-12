@@ -1,3 +1,17 @@
+/**
+ * @file collectionTypes.ts
+ * @description Utility functions for generating TypeScript types for collections in a SvelteKit CMS project.
+ *
+ * This file contains two main functions:
+ * 1. generateCollectionTypes(): Generates a TypeScript union type of collection names.
+ * 2. generateCollectionFieldTypes(): Generates TypeScript types for fields in each collection.
+ *
+ * These functions read from and write to the 'src/collections' directory and update the 'types.ts' file.
+ *
+ * @requires fs - File system module
+ * @requires typescript - TypeScript compiler API
+ */
+
 import fs from 'fs';
 
 import ts from 'typescript';

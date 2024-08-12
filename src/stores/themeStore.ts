@@ -1,3 +1,23 @@
+/**
+ * @file themeStore.ts
+ * @description Manages the theme state for the application using Svelte stores.
+ *
+ * This module provides functionality to:
+ * - Create and manage a writable store for the current theme
+ * - Create a writable store for theme preview
+ * - Initialize the theme based on localStorage or system preferences
+ * - Listen for changes in system color scheme preference
+ * - Persist theme changes to localStorage
+ *
+ * The module handles both 'light' and 'dark' themes, with the ability to switch between them
+ * and preview themes before applying.
+ *
+ * @requires svelte/store - For creating and managing Svelte stores
+ *
+ * @exports theme - A writable store holding the current theme ('light' or 'dark')
+ * @exports previewTheme - A writable store for theme preview functionality
+ */
+
 import { writable } from 'svelte/store';
 
 // create a writable store to hold the current theme

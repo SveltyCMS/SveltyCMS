@@ -5,14 +5,14 @@
 	import type { Permission, Role } from '@src/auth/types';
 	import { page } from '$app/stores';
 
-	let permissionsList = writable<Permission[]>([]);
-	let modifiedPermissions = writable<Set<string>>(new Set());
+	const permissionsList = writable<Permission[]>([]);
+	const modifiedPermissions = writable<Set<string>>(new Set());
 	let searchTerm = '';
-	let selectedPermissions = writable<Set<string>>(new Set());
-	let advancedConditions = writable<{ [key: string]: any }>({});
-	let roles = writable<Role[]>([]);
-	let isLoading = writable(true);
-	let error = writable<string | null>(null);
+	const selectedPermissions = writable<Set<string>>(new Set());
+	const advancedConditions = writable<{ [key: string]: any }>({});
+	const roles = writable<Role[]>([]);
+	const isLoading = writable(true);
+	const error = writable<string | null>(null);
 
 	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId.toLowerCase().includes(searchTerm.toLowerCase()));
 	$: currentUserId = $page.data.user?._id || '';

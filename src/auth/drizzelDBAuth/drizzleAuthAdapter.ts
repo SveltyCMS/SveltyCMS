@@ -322,7 +322,7 @@ export class DrizzleAuthAdapter implements authDBInterface {
 	// Get all tokens
 	async getAllTokens(filter?: object): Promise<Token[]> {
 		try {
-			let query = db.select().from(tokens);
+			const query = db.select().from(tokens);
 			if (filter) {
 				// Implement filtering logic based on your needs
 			}
