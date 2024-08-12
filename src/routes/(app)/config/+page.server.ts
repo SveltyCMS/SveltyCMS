@@ -1,30 +1,3 @@
-/**
- * @file src/routes/(app)/config/+page.server.ts
- * @description Server-side logic for the configuration page, including authentication,
- * permission checks, and optional rate limiting.
- *
- * This file serves as the server-side middleware for the configuration page. It works
- * in conjunction with the PermissionGuard component on the client-side to enforce
- * access controls and optional rate limits.
- *
- * Key responsibilities:
- * 1. Authenticate the user using the session cookie.
- * 2. Perform permission checks for various configuration sections.
- * 3. Apply rate limiting to specific actions when necessary.
- * 4. Provide permission and rate limit data to the client.
- *
- * The permission and rate limit data is passed to the client via the `permissions`
- * property in the returned object. This data is then used by the PermissionGuard
- * component to control access to different parts of the configuration page.
- *
- * Rate limiting is optional and only applied to specific actions that require it.
- *
- * @requires auth - Authentication service
- * @requires checkUserPermission - Function from permissionCheck.ts for checking user permissions
- * @requires SESSION_COOKIE_NAME - Constant for the session cookie name
- * @requires logger - Logging utility
- */
-
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
@@ -82,12 +55,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			permissions[config.contextId] = permissionData;
 		}
 
+		// Construct a serializable user object manually
+		const serializableUser = {
+			_id: user._id.toString(), // Ensures the ID is a string
+			username: user.username, // Add only serializable fields here
+			email: user.email
+			// Include other fields you know are serializable
+		};
+
 		return {
-			user: {
-				_id: user._id.toString(), // Convert ObjectId to string
-				...user,
-				_id: user._id.toString() // Ensure _id is a string
-			},
+			user: serializableUser,
 			permissions
 		};
 	} catch (e) {

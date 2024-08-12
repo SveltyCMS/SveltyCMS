@@ -118,6 +118,7 @@
 		"@typescript-eslint/eslint-plugin": "^8.0.1",
 		"@typescript-eslint/parser": "^8.0.1",
 		"argon2": "^0.40.3",
+		"aws-sdk": "^2.1672.0",
 		"axios": "^1.7.3",
 		"buffer": "^6.0.3",
 		"chart.js": "^4.4.3",
@@ -147,6 +148,6 @@
 		"svelte-grid-extended": "^1.2.1",
 		"svelte-lexical": "^0.4.1",
 		"svelty-email": "^0.0.10",
-		"tailwind-merge": "^2.4.0"
+		"tailwind-merge": "^2.5.0"
 	}
 }

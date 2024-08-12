@@ -1,3 +1,22 @@
+/**
+ * @file scr/routes/(app)/[language]/+layout.server.ts
+ *
+ * @description
+ * This module handles the server-side loading logic for a SvelteKit application,
+ * specifically for routes that include a language parameter. It manages user
+ * authentication and session handling, ensuring that users have valid sessions
+ * before accessing specific collections. The module performs the following tasks:
+ *
+ * - Validates the user's session and creates a new session if none exists.
+ * - Redirects users to the login page if they are not authenticated.
+ * - Ensures that the requested language and collection are available.
+ * - Redirects users based on their permissions and the availability of collections.
+ * - Retrieves the default theme for the user from the database.
+ *
+ * The module utilizes various utilities and configurations for robust error handling
+ * and logging, providing a secure and user-friendly experience.
+ */
+
 import { publicEnv } from '@root/config/public';
 import { error, redirect } from '@sveltejs/kit';
 import { getCollections } from '@collections';
@@ -61,7 +80,7 @@ export async function load({ cookies, route, params }) {
 	const collections = await getCollections();
 	const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
-	// Check if language and collection both set in url
+	// Check if language and collection both set in URL
 	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
 		logger.warn(`The language '${params.language}' is not available.`);
 		throw error(404, {

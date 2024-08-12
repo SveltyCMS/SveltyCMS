@@ -111,6 +111,9 @@ export const createPublicConfig = <const C, S extends AvailableLanguageTag, cons
 	// The sizes of images that the site will generate. eg. { sm: 600, md: 900, lg: 1200 }
 	IMAGE_SIZES: V;
 
+	// MAX_FILE_SIZE:
+	MAX_FILE_SIZE?: number;
+
 	//Define body size limit for your Uploads eg. 100mb
 	BODY_SIZE_LIMIT?: number;
 

@@ -2,18 +2,14 @@ import { publicEnv } from '@root/config/public';
 
 import fs from 'fs';
 import axios from 'axios';
-import Path from 'path';
 
-import type { dbInterface } from '@src/databases/dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { User } from '@src/auth/types';
 
 import { addData, updateData, handleRequest } from '@src/utils/data';
 
-import type { Schema } from '@collections/types';
-import { browser } from '$app/environment';
+import type { CollectionNames, Schema } from '@collections/types';
 import type { z } from 'zod';
-import type { MediaAudio, MediaImage, MediaVideo } from './types';
 
 // Stores
 import { get } from 'svelte/store';
@@ -110,322 +106,9 @@ export function sanitize(str: string) {
 	return str.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '');
 }
 
-// Utility to hash file content
-async function hashFileContent(buffer: Buffer): Promise<string> {
-	return (await sha256(buffer)).slice(0, 20);
-}
-
-// Utility to sanitize and prepare file names
-function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
-	const ext = Path.extname(fileName).toLowerCase();
-	const fileNameWithoutExt = sanitize(Path.basename(fileName, ext));
-	return { fileNameWithoutExt, ext };
-}
-
-export async function saveMedia(type: string, file: File, collectionName: string, dbAdapter: dbInterface) {
-	switch (type) {
-		case 'image':
-			return await saveImage(file, collectionName, dbAdapter);
-		case 'document':
-			return await saveDocument(file, collectionName, dbAdapter);
-		case 'audio':
-			return await saveAudio(file, collectionName, dbAdapter);
-		case 'video':
-			return await saveVideo(file, collectionName, dbAdapter);
-		case 'remote':
-			return await saveRemoteMedia(file, collectionName, dbAdapter);
-		default:
-			throw new Error(`Unsupported media type: ${type}`);
-	}
-}
-
 // Get the environment variables for image sizes
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-// Saves image to disk and returns file information
-export async function saveImage(file: File, collectionName: string, dbAdapter: dbInterface): Promise<{ id: string; fileInfo: MediaImage }> {
-	try {
-		if (typeof window !== 'undefined') return {} as any; // Skip if running in browser
-		const sharp = (await import('sharp')).default;
-		// const _crypto = (await import('crypto')).default;
-
-		let fileInfo: MediaImage = {} as MediaImage;
-
-		const arrayBuffer = await file.arrayBuffer();
-		const buffer = Buffer.from(arrayBuffer);
-		const hash = (await sha256(buffer)).slice(0, 20);
-		const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
-		const path = file.path || 'global'; // 'global' | 'unique' | 'collection'
-		const { name: fileNameWithoutExt, ext } = removeExtension(file.name); // Extract name without extension
-		const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
-
-		if (existingFile) {
-			return { id: existingFile._id, fileInfo: existingFile };
-		}
-
-		// Original image URL construction
-		let url: string;
-		if (path === 'global') {
-			url = `/original/${hash}-${sanitizedBlobName}.${ext}`;
-		} else if (path === 'unique') {
-			url = `/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
-		} else {
-			url = `/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
-		}
-
-		// Prepend MEDIASERVER_URL if it's set
-		if (publicEnv.MEDIASERVER_URL) {
-			url = `${publicEnv.MEDIASERVER_URL}/files/${url}`;
-		}
-
-		const info = await sharp(buffer).metadata();
-		// Construct default file information
-		fileInfo = {
-			hash,
-			original: {
-				name: `${hash}-${file.name}`,
-				url,
-				type: file.type,
-				size: file.size,
-				width: info.width,
-				height: info.height
-			}
-		};
-
-		if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-			fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
-		}
-
-		fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
-
-		for (const size in SIZES) {
-			if (size === 'original') continue;
-
-			const fullName = `${hash}-${sanitizedBlobName}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`;
-			const resizedImage = await sharp(buffer)
-				.rotate() // Rotate image according to EXIF data
-				.resize({ width: SIZES[size] })
-				.toFormat(publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof import('sharp').FormatEnum, {
-					quality: publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.quality
-				})
-				.toBuffer({ resolveWithObject: true });
-
-			// Save resized image URL construction
-			let resizedUrl: string;
-			if (path === 'global') {
-				resizedUrl = `${size}/${fullName}`;
-			} else if (path === 'unique') {
-				resizedUrl = `${collectionName}/${size}/${fullName}`;
-			} else {
-				resizedUrl = `${path}/${size}/${fullName}`;
-			}
-
-			// Prepend MEDIASERVER_URL if it's set
-			if (publicEnv.MEDIASERVER_URL) {
-				resizedUrl = `${publicEnv.MEDIASERVER_URL}/${resizedUrl}`;
-			}
-
-			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`))) {
-				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`), { recursive: true });
-			}
-
-			// Resized images are saved as SIZES
-			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${resizedUrl}`, resizedImage.data);
-			fileInfo[size] = {
-				name: `${fileNameWithoutExt}.${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-				url: resizedUrl,
-				type: `image/${publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}`,
-				size: resizedImage.info.size,
-				width: resizedImage.info.width,
-				height: resizedImage.info.height
-			};
-		}
-
-		await dbAdapter.insertMany('media_images', [fileInfo]);
-
-		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaImage };
-	} catch (error) {
-		console.error('Error saving image:', error);
-		// Handle error appropriately, e.g., return null or throw an error
-		throw error;
-	}
-}
-// Save files and returns file information
-export async function saveDocument(file: File, collectionName: string, dbAdapter: dbInterface) {
-	if (browser) return;
-	const fields: { file: any; replace: (id: string) => void }[] = [];
-	const parseFiles = async (data: any) => {
-		for (const fieldname in data) {
-			if (!(data[fieldname] instanceof File) && typeof data[fieldname] == 'object') {
-				await parseFiles(data[fieldname]);
-				continue;
-			} else if (!(data[fieldname] instanceof File)) {
-				continue;
-			}
-
-			const blob = data[fieldname] as File;
-			const arrayBuffer = await blob.arrayBuffer();
-			const buffer = Buffer.from(arrayBuffer);
-			const hash = (await sha256(buffer)).slice(0, 20);
-			const existingFile = await dbAdapter.findOne('media_images', { hash: hash });
-			if (existingFile) {
-				data[fieldname] = existingFile._id.toString(); // ObjectID to string
-				continue;
-			}
-
-			const path = blob.path; // 'global' | 'unique' | 'collection'
-			const { name: fileNameWithoutExt, ext } = removeExtension(blob.name); // Extract name without extension
-			const sanitizedBlobName = sanitize(fileNameWithoutExt); // Sanitize the name to remove special characters
-
-			// Original file URL construction
-			let url: string;
-			if (path == 'global') {
-				url = `files/original/${hash}-${sanitizedBlobName}.${ext}`;
-			} else if (path == 'unique') {
-				url = `files/${collectionName}/original/${hash}-${sanitizedBlobName}.${ext}`;
-			} else {
-				url = `files/${path}/original/${hash}-${sanitizedBlobName}.${ext}`;
-			}
-
-			// Prepend MEDIASERVER_URL if it's set
-			if (publicEnv.MEDIASERVER_URL) {
-				url = `${publicEnv.MEDIASERVER_URL}/${url}`;
-			}
-
-			data[fieldname] = {
-				hash,
-				original: {
-					name: `${hash}-${blob.name}`,
-					url,
-					type: blob.type,
-					size: blob.size
-					// createdAt: new Date(),
-					// lastModified: new Date(blob.lastModified)
-				}
-			};
-
-			if (!fs.existsSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`))) {
-				fs.mkdirSync(Path.dirname(`${publicEnv.MEDIA_FOLDER}/${url}`), { recursive: true });
-			}
-
-			fs.writeFileSync(`${publicEnv.MEDIA_FOLDER}/${url}`, buffer);
-
-			fields.push({
-				file: data[fieldname],
-				replace: (id) => {
-					data[fieldname] = id; // `id` is an ObjectId
-				}
-			});
-		}
-	};
-
-	await parseFiles(file);
-
-	const res = await dbAdapter.models['media_documents'].insertMany(fields.map((v) => v.file));
-
-	for (const index in res) {
-		const id = res[index]._id;
-		fields[index].replace(id); // `id` is an ObjectId
-	}
-}
-
-// Implement the saveVideo function to handle video files
-export async function saveVideo(file: File, collectionName: string, dbAdapter: dbInterface) {
-	try {
-		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = await hashFileContent(buffer);
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
-		const iconName = 'video-icon.svg'; // Assuming an icon file is stored locally or remotely
-
-		const fileInfo = {
-			name: `${hash}-${fileNameWithoutExt}.${ext}`,
-			type: file.type,
-			size: file.size,
-			icon: iconName // URL to the icon
-			// createdAt: new Date(),
-			// lastModified: new Date(file.lastModified)
-		};
-
-		// Store the file in the appropriate location
-		const filePath = `${publicEnv.MEDIA_FOLDER}/${collectionName}/video/${fileInfo.name}`;
-		if (!fs.existsSync(Path.dirname(filePath))) {
-			fs.mkdirSync(Path.dirname(filePath), { recursive: true });
-		}
-		fs.writeFileSync(filePath, buffer);
-
-		// Save fileInfo to database
-		await dbAdapter.insertMany('media_videos', [fileInfo]);
-		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaVideo };
-	} catch (error) {
-		console.error('Error saving video:', error);
-		throw error;
-	}
-}
-
-// Implement the saveAudio function to handle audio files
-export async function saveAudio(file: File, collectionName: string, dbAdapter: dbInterface) {
-	try {
-		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = await hashFileContent(buffer);
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
-		const iconName = 'audio-icon.svg'; // Assuming an icon file is stored locally or remotely
-
-		const fileInfo = {
-			name: `${hash}-${fileNameWithoutExt}.${ext}`,
-			type: file.type,
-			size: file.size,
-			icon: iconName, // URL to the icon
-			createdAt: new Date(),
-			lastModified: new Date(file.lastModified)
-		};
-
-		// Store the file in the appropriate location
-		const filePath = `${publicEnv.MEDIA_FOLDER}/${collectionName}/audio/${fileInfo.name}`;
-		if (!fs.existsSync(Path.dirname(filePath))) {
-			fs.mkdirSync(Path.dirname(filePath), { recursive: true });
-		}
-		fs.writeFileSync(filePath, buffer);
-
-		// Save fileInfo to database
-		await dbAdapter.insertMany('media_audio', [fileInfo]);
-		return { id: (await createRandomID()).toString(), fileInfo: fileInfo as MediaAudio };
-	} catch (error) {
-		console.error('Error saving audio:', error);
-		throw error;
-	}
-}
-
-// Implement the saveRemoteMedia function to handle remote video files
-export async function saveRemoteMedia(fileUrl: string, collectionName: string, dbAdapter: dbInterface): Promise<{ id: string }> {
-	try {
-		const response = await fetch(fileUrl);
-		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
-
-		const buffer = Buffer.from(await response.arrayBuffer());
-		const hash = await hashFileContent(buffer);
-		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName'); // Safeguard default name
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-
-		// Construct file URL or path where the file will be stored
-		const url = `path_or_url_where_files_are_stored/${hash}-${fileNameWithoutExt}.${ext}`;
-
-		const fileInfo = {
-			name: `${hash}-${fileNameWithoutExt}.${ext}`,
-			url,
-			hash,
-			createdAt: new Date()
-		};
-
-		// Save fileInfo to database using the collectionName
-		const res = await dbAdapter.insertMany(collectionName, [fileInfo]);
-
-		return { id: res[0]._id };
-	} catch (error) {
-		console.error('Error saving remote media:', error);
-		throw error;
-	}
-}
 
 // finds field title that matches the fieldname and returns that field
 function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
@@ -577,82 +260,19 @@ export async function saveFormData({
 	}
 }
 
-// Function to delete image files associated with a content item
-export async function deleteMediaImage(collectionName: string, fileName: string) {
-	const env_sizes = publicEnv.IMAGE_SIZES;
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 320 } as const;
-
-	const collection = get(collections).find((collection) => collection.name === collectionName);
-
-	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
-
-	try {
-		// Delete the original image file from the trash folder
-		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`);
-
-		// Delete resized image files from the trash folder
-		for (const size in SIZES) {
-			fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`);
-		}
-
-		// console.log(`Deleted image files associated with ${fileName}`);
-	} catch (error) {
-		console.error(`Error deleting image files: ${error}`);
-		// Handle the error as needed
-	}
-}
-
 // Move FormData to trash folder and delete trash files older than 30 days
-export async function deleteData(id: any, collectionName: any) {
-	// Fetch the entry data before deleting
-	const entryData = await findById(id, collectionName);
-
-	// Check if the collection has an 'images' field
-	if (entryData && entryData.images) {
-		// Move image files associated with the entry to trash folder
-		for (const fieldName in entryData.images) {
-			const fileName = entryData.images[fieldName]?.original?.name;
-			if (fileName) {
-				await moveMediaImageToTrash(collectionName, fileName);
-			}
-		}
-	}
-
-	// Move the content item to trash folder
-	await fetch(`/api/trash/${collectionName}/${id}`, { method: 'PUT' });
-
-	// Delete trash files older than 30 days
-	await deleteOldTrashFiles();
-}
-
-// Move image files to trash folder
-async function moveMediaImageToTrash(collectionName: string, fileName: string) {
-	const env_sizes = publicEnv.IMAGE_SIZES;
-	const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
-
-	const collection = get(collections).find((collection) => collection.name === collectionName);
-
-	const path = _findFieldByTitle(collection, 'yourFieldName').path; // Replace 'yourFieldName' with the actual field name storing the image file
+export async function deleteData({ data, collectionName }: { data: FormData; collectionName: CollectionNames }) {
+	// Append the collection name and method to the FormData
+	data.append('collectionName', collectionName);
+	data.append('method', 'DELETE');
 
 	try {
-		// Move the original image file to trash folder
-		fs.renameSync(
-			`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/original/${fileName}`,
-			`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/original/${fileName}`
-		);
-
-		// Move resized image files to trash folder
-		for (const size in SIZES) {
-			fs.renameSync(
-				`${publicEnv.MEDIA_FOLDER}/${path}/${collectionName}/${size}/${fileName}`,
-				`${publicEnv.MEDIA_FOLDER}/trash/${path}/${collectionName}/${size}/${fileName}`
-			);
-		}
-
-		console.log(`Moved image files associated with ${fileName} to trash folder`);
+		// Send the delete request to the API
+		const response = await axios.post(`/api/query`, data, config);
+		return response.data;
 	} catch (error) {
-		console.error(`Error moving image files to trash folder: ${error}`);
-		// Handle the error as needed
+		console.error('Error deleting data:', error);
+		throw error; // Re-throw the error for the caller to handle
 	}
 }
 

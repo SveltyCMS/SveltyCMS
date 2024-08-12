@@ -23,11 +23,14 @@
 
 import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
+
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+
 // Import logger
 import logger from '@src/utils/logger';
+
 // Import saveAvatarImage from utils/media
 import { saveAvatarImage } from '@src/utils/media';
 

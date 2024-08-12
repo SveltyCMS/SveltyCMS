@@ -32,6 +32,7 @@ export interface dbInterface {
 	// Additional Methods for Data Operations
 	findOne(collection: string, query: object): Promise<any>;
 	findMany(collection: string, query: object): Promise<any[]>;
+	insertOne(collection: string, doc: object): Promise<any>;
 	insertMany(collection: string, docs: object[]): Promise<any[]>;
 	updateOne(collection: string, query: object, update: object): Promise<any>;
 	updateMany(collection: string, query: object, update: object): Promise<any>;

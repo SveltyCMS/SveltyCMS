@@ -1,3 +1,13 @@
+/**
+ * @file tailwind.config.ts
+ * @description Tailwind CSS configuration for a SvelteKit project.
+ * This file includes:
+ * - Dark mode support via class method
+ * - Custom responsive breakpoints
+ * - Integration of Tailwind plugins for forms and typography
+ * - Configuration of the Skeleton plugin with a custom theme (SveltyCMSTheme)
+ */
+
 import { join } from 'path';
 import type { Config } from 'tailwindcss';
 

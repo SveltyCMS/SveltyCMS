@@ -22,6 +22,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`HOST_PROD: ${pc.red(privateConfigData.HOST_PROD)}\n` +
 			`PASSWORD_STRENGTH: ${pc.red(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
 			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
+			`MAX_FILE_SIZE: ${pc.red(privateConfigData.MAX_FILE_SIZE ? privateConfigData.MAX_FILE_SIZE + 'b' : 'Not set')}\n` + // Added MAX_FILE_SIZE here
 			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
 			`LOG_LEVELS: ${pc.red(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
 			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
@@ -90,6 +91,26 @@ export async function configureSystem(privateConfigData = {}) {
 	});
 
 	if (isCancel(PASSWORD_STRENGTH)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
+	const MAX_FILE_SIZE = await text({
+		message: 'Enter the max file size (default: 10mb):',
+		placeholder: '10mb',
+		initialValue: privateConfigData.MAX_FILE_SIZE ? privateConfigData.MAX_FILE_SIZE.toString() : '10mb',
+		validate(value) {
+			const regex = /^(\d+)(mb|kb|gb|b)$/i;
+			if (!regex.test(value)) {
+				return 'Please enter a valid size format (e.g., 10mb, 2gb, 50kb).';
+			}
+		}
+	});
+
+	// Cancel handling
+	if (isCancel(MAX_FILE_SIZE)) {
 		cancel('Operation cancelled.');
 		console.clear();
 		await configurationPrompt(); // Restart the configuration process
@@ -165,70 +186,69 @@ export async function configureSystem(privateConfigData = {}) {
 	}
 
 	const SESSION_CLEANUP_INTERVAL = await text({
-        message: 'Enter the session cleanup interval in milliseconds (default: 60000):',
-        placeholder: '60000',
-        initialValue: privateConfigData.SESSION_CLEANUP_INTERVAL?.toString() || '60000',
-        validate(value) {
-            if (isNaN(Number(value))) return `Please enter a valid number.`;
-        }
-    });
+		message: 'Enter the session cleanup interval in milliseconds (default: 60000):',
+		placeholder: '60000',
+		initialValue: privateConfigData.SESSION_CLEANUP_INTERVAL?.toString() || '60000',
+		validate(value) {
+			if (isNaN(Number(value))) return `Please enter a valid number.`;
+		}
+	});
 
-    if (isCancel(SESSION_CLEANUP_INTERVAL)) {
-        cancel('Operation cancelled.');
-        console.clear();
-        await configurationPrompt();
-        return;
-    }
+	if (isCancel(SESSION_CLEANUP_INTERVAL)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt();
+		return;
+	}
 
-    const MAX_IN_MEMORY_SESSIONS = await text({
-        message: 'Enter the maximum number of in-memory sessions (default: 10000):',
-        placeholder: '10000',
-        initialValue: privateConfigData.MAX_IN_MEMORY_SESSIONS?.toString() || '10000',
-        validate(value) {
-            if (isNaN(Number(value))) return `Please enter a valid number.`;
-        }
-    });
+	const MAX_IN_MEMORY_SESSIONS = await text({
+		message: 'Enter the maximum number of in-memory sessions (default: 10000):',
+		placeholder: '10000',
+		initialValue: privateConfigData.MAX_IN_MEMORY_SESSIONS?.toString() || '10000',
+		validate(value) {
+			if (isNaN(Number(value))) return `Please enter a valid number.`;
+		}
+	});
 
-    if (isCancel(MAX_IN_MEMORY_SESSIONS)) {
-        cancel('Operation cancelled.');
-        console.clear();
-        await configurationPrompt();
-        return;
-    }
+	if (isCancel(MAX_IN_MEMORY_SESSIONS)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt();
+		return;
+	}
 
 	const DB_VALIDATION_PROBABILITY = await text({
-        message: 'Enter the database validation probability (0-1, default: 0.1):',
-        placeholder: '0.1',
-        initialValue: privateConfigData.DB_VALIDATION_PROBABILITY?.toString() || '0.1',
-        validate(value) {
-            const num = Number(value);
-            if (isNaN(num) || num < 0 || num > 1) return `Please enter a valid number between 0 and 1.`;
-        }
-    });
+		message: 'Enter the database validation probability (0-1, default: 0.1):',
+		placeholder: '0.1',
+		initialValue: privateConfigData.DB_VALIDATION_PROBABILITY?.toString() || '0.1',
+		validate(value) {
+			const num = Number(value);
+			if (isNaN(num) || num < 0 || num > 1) return `Please enter a valid number between 0 and 1.`;
+		}
+	});
 
-    if (isCancel(DB_VALIDATION_PROBABILITY)) {
-        cancel('Operation cancelled.');
-        console.clear();
-        await configurationPrompt();
-        return;
-    }
+	if (isCancel(DB_VALIDATION_PROBABILITY)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt();
+		return;
+	}
 
 	const SESSION_EXPIRATION_SECONDS = await text({
-        message: 'Enter the session expiration time in seconds (default: 3600):',
-        placeholder: '3600',
-        initialValue: privateConfigData.SESSION_EXPIRATION_SECONDS?.toString() || '3600',
-        validate(value) {
-            if (isNaN(Number(value))) return `Please enter a valid number.`;
-        }
-    });
+		message: 'Enter the session expiration time in seconds (default: 3600):',
+		placeholder: '3600',
+		initialValue: privateConfigData.SESSION_EXPIRATION_SECONDS?.toString() || '3600',
+		validate(value) {
+			if (isNaN(Number(value))) return `Please enter a valid number.`;
+		}
+	});
 
-    if (isCancel(SESSION_EXPIRATION_SECONDS)) {
-        cancel('Operation cancelled.');
-        console.clear();
-        await configurationPrompt();
-        return;
-    }
-
+	if (isCancel(SESSION_EXPIRATION_SECONDS)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt();
+		return;
+	}
 
 	const SEASONS = await confirm({
 		message: 'Do you want to enable seasons?',
@@ -267,6 +287,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`PASSWORD_STRENGTH: ${pc.green(PASSWORD_STRENGTH)}\n` +
 			`BODY_SIZE_LIMIT: ${pc.green(BODY_SIZE_LIMIT)}\n` +
 			`EXTRACT_DATA_PATH: ${pc.green(EXTRACT_DATA_PATH)}\n` +
+			`MAX_FILE_SIZE: ${pc.green(MAX_FILE_SIZE)}\n` +
 			`LOG_LEVELS: ${pc.green(LOG_LEVELS.join(', '))}\n` +
 			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
 			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
@@ -334,9 +355,9 @@ export async function configureSystem(privateConfigData = {}) {
 		BODY_SIZE_LIMIT: bodySizeLimitOutput,
 		LOG_LEVELS,
 		SESSION_CLEANUP_INTERVAL: Number(SESSION_CLEANUP_INTERVAL),
-        MAX_IN_MEMORY_SESSIONS: Number(MAX_IN_MEMORY_SESSIONS),
-        DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),
-        SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS)
+		MAX_IN_MEMORY_SESSIONS: Number(MAX_IN_MEMORY_SESSIONS),
+		DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),
+		SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS),
 		SEASONS,
 		SEASONS_REGION
 	};

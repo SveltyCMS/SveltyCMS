@@ -1,4 +1,24 @@
-// Create a Global Search Index
+/**
+ * @file src/utils/globalSearchIndex.ts
+ * @description
+ * This file implements a global search index functionality for a web application.
+ * It provides a centralized search mechanism across various parts of the application.
+ * Key features include:
+ *
+ * - Creation and management of a global search index using Svelte stores
+ * - Predefined search data for common application areas (Home, Marketplace, User Profile, etc.)
+ * - Support for search triggers with associated actions and paths
+ * - Functions to add new items to the search index
+ * - Search functionality to query the global index
+ * - Integration with system logging for tracking search-related activities
+ * - Initialization function for setting up the global search functionality
+ *
+ * The global search index is designed to improve navigation and discoverability
+ * within the application, allowing users to quickly find and access different
+ * features and content areas.
+ *
+ * @module GlobalSearchIndex
+ */
 
 import { writable } from 'svelte/store';
 

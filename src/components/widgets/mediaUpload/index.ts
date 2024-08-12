@@ -1,7 +1,8 @@
 const WIDGET_NAME = 'MediaUpload' as const; // Defines MediaUpload widget Parameters
 
 // import type { MediaFile } from '@src/utils/types';
-import { getFieldName, getGuiFields, get_elements_by_id, meta_data, saveFile } from '@src/utils/utils';
+import { getFieldName, getGuiFields, get_elements_by_id, meta_data } from '@src/utils/utils';
+import { saveMedia, deleteMedia } from '@src/utils/media';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
 import { dbAdapter } from '@src/databases/db';

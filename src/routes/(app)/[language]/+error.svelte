@@ -1,8 +1,24 @@
+<!-- 
+@file src/routes/(app)/[language]/+error.svelte
+@description This Svelte component displays an error page for the application. 
+It provides a user-friendly interface for handling various error states, such as 404 (Not Found). 
+
+Features: 
+- Dynamic display of error status and message based on the error encountered. 
+- Rotating animation effect for the site name to enhance visual appeal. 
+- Clear call-to-action link to return to the homepage.
+
+Usage: 
+This error component is automatically rendered when an error occurs during route handling.  
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
 	import { page } from '$app/stores';
+	import type { Load } from '@sveltejs/kit';
+
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
@@ -21,6 +37,14 @@
 	const combinedString = Array.from({ length: repeat }, () => siteName + separator).join('');
 
 	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
+
+	// Set the error data and SEO information that will be used by the layout
+	export const load: Load = ({ status, error }) => {
+		return {
+			SeoTitle: `Error ${status} - ${publicEnv.SITE_NAME}`,
+			SeoDescription: `An error occurred while trying to access this page. Status: ${status}. ${error?.message || m.error_pagenotfound()}`
+		};
+	};
 </script>
 
 {#if $page}
@@ -46,6 +70,7 @@
 					</div>
 				{/each}
 			</div>
+
 			<!-- Site Logo -->
 			<SveltyCMSLogo fill="red" className="absolute left-1/2 top-1/2 transform -translate-x-1/2 -translate-y-1/2 h-16 mb-2" />
 		</div>

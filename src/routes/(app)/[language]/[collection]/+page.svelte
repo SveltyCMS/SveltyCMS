@@ -14,7 +14,7 @@
 
 	let ForwardBackward: boolean = false; // if using browser history
 
-	// Set the value of the collection store to the collection object from the collections array that has a name property that matches the current page's collection parameter
+	// Set the value of the collection store to the current collection based on the route parameter
 	collection.set($collections[$page.params.collection as string] as Schema); // current collection
 
 	window.onpopstate = async () => {
@@ -22,7 +22,7 @@
 		collection.set($collections[$page.params.collection as string] as Schema);
 	};
 
-	// Subscribe to changes in the collection store and do redirects
+	// Subscribe to changes in the collection store and perform redirects
 	const unsubscribe = collection.subscribe((_) => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
@@ -40,7 +40,16 @@
 			goto(`/${$contentLanguage}/${$collection.name}`);
 		}
 	});
+
+	// Overriding title and description for the page
+	export const title = `${$collection.name} - Your Site Title`;
+	export const description = `View and manage entries for ${$collection.name}.`;
 </script>
+
+/** * @file +page.svelte * @description * This component handles the content and logic for a specific page within * the application that is accessed
+by language parameters. It manages the * display of various components (EntryList, Fields, MediaGallery) based on * the current mode of the
+application. Additionally, it sets the page-specific * title and description to allow for proper SEO and user context. The component * interacts with
+stores to manage collections and user navigation effectively. */
 
 <div class="content">
 	{#if $mode == 'view' || $mode == 'modify'}

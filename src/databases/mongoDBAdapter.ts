@@ -100,6 +100,7 @@ const ThemeSchema = new mongoose.Schema(
 	{
 		name: { type: String, required: true, unique: true }, // Name of the theme
 		path: { type: String, required: true }, // Path to the theme file
+		isDefault: { type: Boolean, default: false }, // Whether the theme is the default theme
 		createdAt: { type: Date, default: Date.now }, // Creation timestamp
 		updatedAt: { type: Date, default: Date.now } // Last updated timestamp
 	},
@@ -322,12 +323,20 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			let defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean<ThemeDocument>().exec();
 			if (defaultTheme) {
+				logger.info(`Default theme found by name: ${defaultTheme.name}`);
+				logger.debug(`Default theme object: ${JSON.stringify(defaultTheme)}`);
 				return defaultTheme;
+			}
+			// Check if Theme collection is empty
+			const count = await Theme.countDocuments();
+			if (count === 0) {
+				logger.warn('Theme collection is empty. Inserting default theme.');
+				await this.storeThemes([DEFAULT_THEME]);
 			}
 
 			defaultTheme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
 			if (defaultTheme) {
-				logger.info(`Default theme found: ${defaultTheme.name}`);
+				logger.info(`Default theme found by isDefault flag: ${defaultTheme.name}`);
 				return defaultTheme;
 			}
 
@@ -493,6 +502,22 @@ export class MongoDBAdapter implements dbInterface {
 			throw new Error(`findMany failed. Collection ${collection} does not exist.`);
 		}
 		return model.find(query).lean().exec();
+	}
+
+	// Implementing insertOne method
+	async insertOne(collection: string, doc: object): Promise<any> {
+		const model = mongoose.models[collection];
+		if (!model) {
+			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
+			throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
+		}
+		try {
+			return await model.create(doc);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error inserting document into ${collection}: ${err.message}`);
+			throw new Error(`Error inserting document into ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing insertMany method

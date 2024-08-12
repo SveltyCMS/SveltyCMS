@@ -108,6 +108,9 @@ export async function createOrUpdateConfigFile(configData) {
             // The sizes of images that the site will generate. (Default: 'sm: 600, md: 900, lg: 1200')
             IMAGE_SIZES: { ${imageSizes} } as const,
 
+            // Define Max File Size (default: 10mb)
+            MAX_FILE_SIZE: ${configData?.MAX_FILE_SIZE || 10485760},
+
             // The folder where the site's media files will be stored. (Default: 'mediaFiles')
             MEDIA_FOLDER: '${configData?.MEDIA_FOLDER || 'mediaFiles'}',
 
