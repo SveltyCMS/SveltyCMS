@@ -22,7 +22,7 @@ import { error, redirect } from '@sveltejs/kit';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth } from '@src/databases/db';
+import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -121,25 +121,34 @@ export async function load({ cookies, route, params }) {
 			});
 		}
 		const { _id, ...rest } = user;
+		let theme = DEFAULT_THEME;
 
-		let theme;
 		try {
-			const dbTheme = await auth.db.getDefaultTheme();
-			if (dbTheme && dbTheme.name && dbTheme.name !== DEFAULT_THEME.name) {
+			// Attempt to fetch the default theme using dbAdapter
+			const fetchedTheme = await dbAdapter.getDefaultTheme();
+			logger.info(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
+
+			// Check if the fetched theme is valid and not equal to the default theme
+			if (fetchedTheme && fetchedTheme.name && fetchedTheme.name !== DEFAULT_THEME.name) {
 				theme = {
-					name: dbTheme.name,
-					path: dbTheme.path
+					name: fetchedTheme.name,
+					path: fetchedTheme.path,
+					isDefault: fetchedTheme.isDefault,
+					createdAt: fetchedTheme.createdAt,
+					updatedAt: fetchedTheme.updatedAt
 				};
-			} else {
-				theme = DEFAULT_THEME;
 			}
 		} catch (err) {
-			logger.error('Failed to load theme from database:', err);
-			theme = DEFAULT_THEME;
+			logger.error('Failed to load theme from database:', err.message);
+			// Fallback to the default theme (already set)
 		}
 
+		// At this point, you have a valid theme variable that you can use in your layout
+		logger.debug(`Using theme: ${JSON.stringify(theme)}`);
+
 		return {
-			user: { _id: _id.toString(), ...rest }
+			user: { _id: _id.toString(), ...rest },
+			theme
 		};
 	}
 }

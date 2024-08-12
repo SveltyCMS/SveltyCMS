@@ -95,6 +95,14 @@ const widgetSchema = new mongoose.Schema(
 // Create Widget model
 const Widget = mongoose.models.Widget || mongoose.model('Widget', widgetSchema);
 
+export interface ThemeDocument extends Document {
+	name: string;
+	path: string;
+	isDefault: boolean;
+	createdAt: Date;
+	updatedAt: Date;
+}
+
 // Define the Theme schema
 const ThemeSchema = new mongoose.Schema(
 	{
@@ -109,15 +117,6 @@ const ThemeSchema = new mongoose.Schema(
 
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
-
-interface ThemeDocument {
-	_id: string;
-	name: string;
-	path: string;
-	isDefault: boolean;
-	createdAt: Date;
-	updatedAt: Date;
-}
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -321,23 +320,24 @@ export class MongoDBAdapter implements dbInterface {
 	// Fetch default theme
 	async getDefaultTheme(): Promise<ThemeDocument> {
 		try {
-			let defaultTheme = await Theme.findOne({ name: 'SveltyCMSTheme' }).lean<ThemeDocument>().exec();
-			if (defaultTheme) {
-				logger.info(`Default theme found by name: ${defaultTheme.name}`);
-				logger.debug(`Default theme object: ${JSON.stringify(defaultTheme)}`);
-				return defaultTheme;
+			logger.debug('Attempting to fetch the default theme from the database...');
+			const theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
+
+			if (theme) {
+				logger.info(`Default theme found: ${theme.name}`);
+				logger.debug(`Default theme object: ${JSON.stringify(theme)}`);
+				return theme;
 			}
+
 			// Check if Theme collection is empty
 			const count = await Theme.countDocuments();
 			if (count === 0) {
 				logger.warn('Theme collection is empty. Inserting default theme.');
 				await this.storeThemes([DEFAULT_THEME]);
-			}
-
-			defaultTheme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
-			if (defaultTheme) {
-				logger.info(`Default theme found by isDefault flag: ${defaultTheme.name}`);
-				return defaultTheme;
+				const insertedTheme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
+				if (insertedTheme) {
+					return insertedTheme;
+				}
 			}
 
 			logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');

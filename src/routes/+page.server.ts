@@ -1,17 +1,16 @@
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
-
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, googleAuth, initializationPromise, dbAdapter } from '@src/databases/db';
-import type { User } from '@src/auth/types';
+import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores
 import { systemLanguage } from '@stores/store';
 
+// Collections
 import { getCollections } from '@src/collections';
 
 // System Logs
@@ -56,15 +55,20 @@ export const load: PageServerLoad = async ({ url, cookies }) => {
 		theme = DEFAULT_THEME;
 	}
 
+	// Set the system language if needed based on the theme
+	if (theme.language) {
+		systemLanguage.set(theme.language);
+	}
+
+	// Fetch collections and redirect to the first one
 	const collections = await getCollections();
 	const firstCollection = Object.keys(collections)[0];
 
-	logger.debug(`First collection: ${firstCollection}`);
 	if (!firstCollection) {
 		logger.error('No collections found');
-		throw error(500, 'No collections found');
+		throw new Error('No collections found');
 	}
 
-	// Redirect to the first collection
+	logger.debug(`First collection: ${firstCollection}`);
 	throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 };
