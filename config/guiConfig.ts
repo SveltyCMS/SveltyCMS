@@ -1,3 +1,45 @@
+/**
+ * @file guiConfig.ts
+ * @description This file defines and organizes configuration categories for a system's
+ * graphical user interface (GUI). The configurations are grouped into private and
+ * public categories, each containing fields with various settings, including database
+ * connections, email settings, third-party service integrations, system properties,
+ * language preferences, and media management.
+ *
+ * @imports
+ * - m: A collection of localized messages imported from '@src/paraglide/messages' used to
+ *   provide descriptions and helper texts for the configuration fields.
+ *
+ * @interfaces
+ * - ConfigField<T>: A generic interface representing a configuration field,
+ *   including its type, default value, helper text, optional allowed values, and an icon.
+ * - ConfigCategory: An interface representing a configuration category that contains a
+ *   description, an icon, and a collection of configuration fields.
+ *
+ * @configurations
+ * - databaseConfig: Configuration settings related to the database, including type, host,
+ *   port, credentials, retry logic, and connection pooling.
+ * - emailConfig: Configuration settings for SMTP email services, including host, port,
+ *   and authentication details.
+ * - googleConfig: Configuration settings for Google OAuth and API integration.
+ * - redisConfig: Configuration settings for Redis, including host, port, and authentication.
+ * - mapboxConfig: Configuration settings for Mapbox API integration.
+ * - tiktokConfig: Configuration settings for TikTok integration.
+ * - openaiConfig: Configuration settings for OpenAI API integration.
+ * - systemConfig: System-wide settings, including site name, server hosts, body size
+ *   limits, password strength, and seasonal features.
+ * - languageConfig: Language-related settings, including default and available content
+ *   and system languages.
+ * - mediaConfig: Media management settings, including image sizes, media folder paths,
+ *   output format quality, and media server URL.
+ *
+ * @exports
+ * - privateConfigCategories: An object containing private configuration categories like
+ *   database, email, and third-party service integrations.
+ * - publicConfigCategories: An object containing public configuration categories like
+ *   system, language, and media settings.
+ */
+
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
 

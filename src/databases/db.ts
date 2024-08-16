@@ -30,12 +30,10 @@ import { privateEnv } from '@root/config/private';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
-import { setLoadedRolesAndPermissions } from '@src/auth/types';
 
 // Adapters Interfaces
 import type { dbInterface } from './dbInterface';
 import type { authDBInterface } from '@src/auth/authDBInterface';
-import { initializeDefaultRolesAndPermissions } from '@src/auth/initializeRolesAndPermissions';
 
 // MongoDB Adapters
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
@@ -149,7 +147,10 @@ async function loadAdapters() {
 				getUsersWithRole: roleAdapter.getUsersWithRole.bind(roleAdapter),
 				checkUserPermission: userAdapter.checkUserPermission.bind(userAdapter),
 				checkUserRole: userAdapter.checkUserRole.bind(userAdapter),
-				initializeDefaultRolesAndPermissions: roleAdapter.initializeDefaultRoles.bind(roleAdapter)
+
+				// Sync Methods
+				syncRolesWithConfig: roleAdapter.syncRolesWithConfig.bind(roleAdapter),
+				syncPermissionsWithConfig: permissionAdapter.syncPermissionsWithConfig.bind(permissionAdapter)
 			} as authDBInterface;
 
 			logger.info('MongoDB adapters loaded successfully.');
@@ -271,22 +272,6 @@ async function initializeAdapters(): Promise<void> {
 
 		auth = new Auth(authAdapter);
 		logger.debug('Authentication adapter initialized.');
-
-		try {
-			// Initialize default roles and permissions if needed
-			await initializeDefaultRolesAndPermissions(authAdapter);
-			logger.info('Default roles and permissions initialized.');
-		} catch (error) {
-			logger.error(`Error initializing default roles and permissions: ${(error as Error).message}`, { error });
-		}
-
-		try {
-			const [roles, permissions] = await Promise.all([authAdapter.getAllRoles(), authAdapter.getAllPermissions()]);
-			setLoadedRolesAndPermissions({ roles, permissions });
-			logger.info('Roles and permissions loaded.');
-		} catch (error) {
-			logger.error(`Error loading roles and permissions: ${(error as Error).message}`, { error });
-		}
 
 		isInitialized = true;
 		logger.info('Adapters initialized successfully');

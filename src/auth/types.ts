@@ -16,23 +16,28 @@
  * Imported throughout the auth system to ensure type consistency and safety
  */
 
-// Add a function to set loaded roles and permissions
-let loadedRoles: Role[] = [];
-let loadedPermissions: Permission[] = [];
+import { roles as configRoles, permissions as configPermissions } from '../../config/permissions';
+import type { Role as ConfigRole, Permission as ConfigPermission } from '../../config/permissions';
 
-// Add a function to get loaded roles
-export type LoadedRolesAndPermissions = {
-	roles: Role[];
-	permissions: Permission[];
-};
+// Type aliases
+export type RoleId = string;
+export type PermissionId = string;
 
-// Add a function to set loaded roles and permissions
-export function setLoadedRolesAndPermissions(data: LoadedRolesAndPermissions) {
-	loadedRoles = data.roles;
-	loadedPermissions = data.permissions;
-}
+export type Role = ConfigRole;
+export type Permission = ConfigPermission;
 
-// Add a function to get loaded roles
+// List of possible permissions for simplicity and type safety.
+export const permissionActions = ['create', 'read', 'write', 'delete', 'manage_roles', 'manage_permissions'] as const;
+
+// List of possible context types for simplicity and type safety.
+export const contextTypes = ['collection', 'widget', 'system'] as const;
+
+export type PermissionAction = (typeof permissionActions)[number];
+export type ContextType = (typeof contextTypes)[number];
+
+const loadedRoles: Role[] = configRoles;
+const loadedPermissions: Permission[] = configPermissions;
+
 export function getLoadedRoles(): Role[] {
 	return loadedRoles;
 }
@@ -50,72 +55,6 @@ export function isAdminRole(roleName: string): boolean {
 // Add a function to get a role by name
 export function getRoleByName(roleName: string): Role | undefined {
 	return loadedRoles.find((role) => role.name.toLowerCase() === roleName.toLowerCase());
-}
-
-// List of possible permissions for simplicity and type safety.
-export const permissionActions = [
-	// collection
-	'create', // Allows creating new content.
-	'read', // Allows viewing content.
-	'write', // Allows modifying existing content.
-	'delete', // Allows removing content.
-
-	// global
-	'manage_roles', // Allows managing roles.
-	'manage_permissions' // Allows managing permissions.
-] as const;
-
-// List of possible context types for simplicity and type safety.
-export const contextTypes = [
-	'collection', // Collection context
-	'widget', // Widget context
-	'system' // System context
-] as const;
-
-// Create type aliases
-export type RoleId = string;
-export type PermissionId = string;
-export type PermissionAction = (typeof permissionActions)[number];
-export type ContextType = (typeof contextTypes)[number];
-
-// Define the type for a PermissionConfig
-export interface PermissionConfig {
-	contextId: string; // This could be a collectionId or widgetId indicating scope
-	requiredRole: RoleId; // The role that is required to perform the action
-	action: PermissionAction; // The action that the role is allowed to perform
-	contextType: ContextType | string; // The type of context that the role is allowed to perform the action in
-}
-
-// Permission interface to define what each permission can do
-export interface Permission {
-	_id: string; // The id of the permission
-	permission_id: PermissionId; // Unique identifier for the permission
-	name: string; // Name of the permission
-	action: PermissionAction; // The action that the role is allowed to perform
-	contextId: string; // This could be a collectionId or widgetId indicating scope
-	description?: string; // Description of the permission
-	contextType: ContextType | string; // Distinguishes between collections and widgets
-	requiredRole: RoleId; // The role that is required to perform the action
-	requires2FA?: boolean; // Indicates if this permission requires two-factor authentication
-}
-
-// Define the type for a Role with dynamically assigned permissions
-export interface Role {
-	_id: string; // Unique identifier for the role
-	role_id: RoleId; // Unique identifier for the role
-	name: string; // Name of the role
-	description?: string; // Description of the role
-	permissions: PermissionId[]; // This includes permission IDs which can be resolved to actual permissions
-}
-
-// Define the type for RateLimit
-export interface RateLimit {
-	user_id: string; // The ID of the user
-	action: PermissionAction; // The action being rate limited
-	limit: number; // Number of allowed actions
-	windowMs: number; // Time window in milliseconds
-	current: number; // Current count of actions
-	lastActionAt: Date; // Time of the last action
 }
 
 // User interface represents a user in the system.
@@ -139,7 +78,6 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
-	permissions?: Permission[]; // Optional user-specific permissions
 }
 
 // Session interface represents a session in the system.
@@ -179,38 +117,23 @@ export type Cookie = {
 	};
 };
 
-// Utility function to check if the action is within the rate limit.
-function checkRateLimit(rateLimits: RateLimit[], user_id: string, action: PermissionAction): boolean {
-	const rateLimit = rateLimits?.find((rl) => rl.user_id === user_id && rl.action === action);
-	if (rateLimit) {
-		const now = new Date();
-		const timePassed = now.getTime() - rateLimit.lastActionAt.getTime();
-		if (timePassed < rateLimit.windowMs) {
-			if (rateLimit.current >= rateLimit.limit) {
-				return false;
-			}
-			rateLimit.current++;
-		} else {
-			rateLimit.current = 1;
-			rateLimit.lastActionAt = now;
-		}
-	}
-	return true;
+// Define the type for RateLimit
+export interface RateLimit {
+	user_id: string;
+	action: PermissionAction;
+	limit: number;
+	windowMs: number;
+	current: number;
+	lastActionAt: Date;
 }
 
-// Main utility function to check if a user has a specific permission in a given context considering both user and role-based permissions.
-export function hasPermission(user: User, roles: Role[], action: PermissionAction, contextId: string, rateLimits: RateLimit[]): boolean {
-	if (!checkRateLimit(rateLimits, user._id!, action)) {
-		return false;
-	}
+// Main utility function to check if a user has a specific permission in a given context.
+export function hasPermission(user: User, action: PermissionAction, contextId: string): boolean {
+	const userRole = getRoleByName(user.role);
+	if (!userRole) return false;
 
-	const userPermissions = user.permissions || [];
-	const rolePermissions = getRoleByName(user.role)?.permissions || [];
-
-	const allPermissions = [...userPermissions, ...rolePermissions];
-
-	return allPermissions.some((permId) => {
-		const perm = loadedPermissions.find((p) => p.permission_id === permId);
+	return userRole.permissions.some((permName) => {
+		const perm = loadedPermissions.find((p) => p.name === permName);
 		return perm && perm.action === action && (perm.contextId === contextId || perm.contextId === 'global');
 	});
 }

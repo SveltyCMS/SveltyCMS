@@ -6,15 +6,18 @@
  * - Create, update, delete, and retrieve permissions
  * - Manage permission schemas and models
  * - Interface with the MongoDB database for permission operations
+ * - Synchronize permissions with the configuration defined in config/permissions.ts
  *
  * Features:
  * - CRUD operations for permissions
  * - Permission schema definition
  * - Integration with MongoDB through Mongoose
+ * - Dynamic permission synchronization with configuration
  * - Error handling and logging
  *
  * Usage:
  * Utilized by the auth system to manage permissions in a MongoDB database
+ * The syncPermissionsWithConfig method ensures that the database reflects the current permission configuration
  */
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
@@ -25,6 +28,9 @@ import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
+
+// Import permissions from config
+import { permissions as configPermissions } from '../../../config/permissions';
 
 // Define the Permission schema
 export const PermissionSchema = new Schema(
@@ -39,6 +45,7 @@ export const PermissionSchema = new Schema(
 	},
 	{ timestamps: true }
 );
+
 export class PermissionAdapter implements Partial<authDBInterface> {
 	private PermissionModel: Model<Permission & Document>;
 
@@ -135,62 +142,33 @@ export class PermissionAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Initialize default permissions
-	async initializeDefaultPermissions(): Promise<void> {
+	// Sync permissions with configuration
+	async syncPermissionsWithConfig(): Promise<void> {
 		try {
-			const defaultPermissions: Partial<Permission>[] = [
-				{
-					name: 'create_content',
-					action: 'create',
-					contextId: 'global',
-					contextType: 'collection',
-					description: 'Create new content',
-					requiredRole: 'user'
-				},
-				{ name: 'read_content', action: 'read', contextId: 'global', contextType: 'collection', description: 'Read content', requiredRole: 'user' },
-				{
-					name: 'update_content',
-					action: 'write',
-					contextId: 'global',
-					contextType: 'collection',
-					description: 'Update existing content',
-					requiredRole: 'user'
-				},
-				{
-					name: 'delete_content',
-					action: 'delete',
-					contextId: 'global',
-					contextType: 'collection',
-					description: 'Delete content',
-					requiredRole: 'admin'
-				},
-				{
-					name: 'manage_users',
-					action: 'manage_roles',
-					contextId: 'global',
-					contextType: 'system',
-					description: 'Manage users',
-					requiredRole: 'admin'
-				},
-				{
-					name: 'manage_roles',
-					action: 'manage_roles',
-					contextId: 'global',
-					contextType: 'system',
-					description: 'Manage roles',
-					requiredRole: 'admin'
-				}
-			];
-
-			for (const permission of defaultPermissions) {
-				const existingPermission = await this.getPermissionByName(permission.name!);
-				if (!existingPermission) {
-					await this.createPermission(permission, 'system');
-					logger.info(`Default permission created: ${permission.name}`);
+			for (const permData of configPermissions) {
+				let perm = await this.getPermissionByName(permData.name);
+				if (!perm) {
+					perm = await this.createPermission(permData, 'system');
+					logger.info(`Permission created from config: ${permData.name}`);
+				} else {
+					// Update existing permission
+					await this.updatePermission(perm._id!, permData, 'system');
+					logger.info(`Permission updated from config: ${permData.name}`);
 				}
 			}
+
+			// Remove permissions not in config
+			const dbPermissions = await this.getAllPermissions();
+			for (const dbPerm of dbPermissions) {
+				if (!configPermissions.some((configPerm) => configPerm.name === dbPerm.name)) {
+					await this.deletePermission(dbPerm._id!, 'system');
+					logger.info(`Permission deleted as it's not in config: ${dbPerm.name}`);
+				}
+			}
+
+			logger.info('Permissions synced with configuration successfully');
 		} catch (error) {
-			logger.error(`Failed to initialize default permissions: ${(error as Error).message}`);
+			logger.error(`Failed to sync permissions with config: ${(error as Error).message}`);
 			throw error;
 		}
 	}

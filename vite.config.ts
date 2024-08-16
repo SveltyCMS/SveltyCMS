@@ -1,3 +1,41 @@
+/**
+ * @file vite.config.ts
+ * @description This configuration file defines the Vite setup for a SvelteKit project,
+ * including custom plugins for dynamic collection handling, Tailwind CSS purging,
+ * and Paraglide integration. It also initializes compilation tasks and sets up
+ * environment variables and alias paths for the project.
+ *
+ * @dependencies
+ * - Path: Node.js module for handling and transforming file paths.
+ * - fs: Node.js file system module used to read the package.json file.
+ * - resolve: Vite utility to resolve file paths.
+ * - sveltekit: Plugin for integrating Vite with SvelteKit.
+ * - purgeCss: Plugin to purge unused Tailwind CSS classes from the final build.
+ * - paraglide: Plugin for integrating the Inlang localization framework.
+ * - compile, generateCollectionTypes, generateCollectionFieldTypes:
+ *   Custom utilities to handle dynamic compilation and type generation for collections.
+ *
+ * @function compile
+ * @description Initializes the compilation of collections using specified folder paths
+ * for JavaScript and TypeScript collections. This is executed at the start to ensure
+ * collections are up-to-date.
+ *
+ * @object export default
+ * @description Exports the Vite configuration object, including:
+ * - Plugins:
+ *   - sveltekit: Integrates SvelteKit with Vite.
+ *   - vite:dynamic-collection-updater: Custom plugin to watch and recompile collections on file changes.
+ *   - purgeCss: Purges unused CSS from the final build using Tailwind's purging mechanism.
+ *   - paraglide: Integrates the Inlang localization project into the SvelteKit app.
+ * - Server:
+ *   - fs: Allows serving files from the specified directories.
+ * - Resolve:
+ *   - alias: Sets up path aliases for easier module resolution.
+ * - Define:
+ *   - __VERSION__: Defines the app version from the package.json file.
+ *   - SUPERFORMS_LEGACY: Enables legacy mode for Superforms.
+ */
+
 import Path from 'path';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
@@ -39,11 +77,16 @@ export default defineConfig({
 				}
 			},
 			configureServer(server) {
-				const handleFileChange = (path: string) => {
+				const handleFileChange = async (path: string) => {
 					if (/src[/\\]collections/.test(path)) {
-						compile({ collectionsFolderJS, collectionsFolderTS });
+						await compile({ collectionsFolderJS, collectionsFolderTS });
 						generateCollectionTypes();
 						generateCollectionFieldTypes();
+					}
+					if (/config[/\\]permissions\.ts/.test(path)) {
+						// Trigger roles and permissions sync
+						const { reloadRolesAndPermissions } = await import('./src/auth/types');
+						reloadRolesAndPermissions();
 					}
 				};
 

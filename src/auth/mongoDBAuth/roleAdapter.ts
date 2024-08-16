@@ -6,6 +6,7 @@
  * - Create, update, delete, and retrieve roles
  * - Manage role schemas and models
  * - Handle role-permission associations
+ * - Synchronize roles with the configuration defined in config/permissions.ts
  *
  * Features:
  * - CRUD operations for roles
@@ -13,13 +14,14 @@
  * - Permission assignment to roles
  * - User-role associations
  * - Integration with MongoDB through Mongoose
+ * - Dynamic role synchronization with configuration
  *
  * Usage:
  * Used by the auth system to manage roles and their permissions in a MongoDB database
+ * The syncRolesWithConfig method ensures that the database reflects the current role configuration
  */
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
-
 import { UserSchema } from './userAdapter';
 
 // Types
@@ -28,6 +30,9 @@ import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
+
+// Import roles from config
+import { roles as configRoles } from '../../../config/permissions';
 
 // Define the Role schema
 export const RoleSchema = new Schema(
@@ -123,6 +128,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 			throw error;
 		}
 	}
+
 	// Get a role by name
 	async getRoleByName(name: string): Promise<Role | null> {
 		try {
@@ -169,10 +175,10 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	}
 
 	// Assign a permission to a role
-	async assignPermissionToRole(role_id: string, permission_id: string): Promise<void> {
+	async assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndUpdate(role_id, { $addToSet: { permissions: permission_id } });
-			logger.debug(`Permission ${permission_id} assigned to role ${role_id}`);
+			logger.debug(`Permission ${permission_id} assigned to role ${role_id} by user ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to assign permission to role: ${(error as Error).message}`);
 			throw error;
@@ -180,37 +186,83 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	}
 
 	// Remove a permission from a role
-	async removePermissionFromRole(role_id: string, permission_id: string): Promise<void> {
+	async removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndUpdate(role_id, { $pull: { permissions: permission_id } });
-			logger.debug(`Permission ${permission_id} removed from role ${role_id}`);
+			logger.debug(`Permission ${permission_id} removed from role ${role_id} by user ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to remove permission from role: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	// Initialize default roles
-	async initializeDefaultRoles(): Promise<void> {
+	// Sync roles with configuration
+	async syncRolesWithConfig(): Promise<void> {
 		try {
-			const defaultRoles = [
-				{ name: 'admin', description: 'Administrator with all permissions' },
-				{ name: 'developer', description: 'Developer with elevated permissions' },
-				{ name: 'editor', description: 'Content editor' },
-				{ name: 'user', description: 'Regular user with basic permissions' }
-			];
+			for (const roleData of configRoles) {
+				let role = await this.getRoleByName(roleData.name);
+				if (!role) {
+					role = await this.createRole(roleData, 'system');
+					logger.info(`Role created from config: ${roleData.name}`);
+				} else {
+					// Update existing role
+					await this.updateRole(role._id!, roleData, 'system');
+					logger.info(`Role updated from config: ${roleData.name}`);
+				}
 
-			for (const role of defaultRoles) {
-				// Check if the role already exists
-				const existingRole = await this.getRoleByName(role.name);
-				if (!existingRole) {
-					await this.createRole(role, 'system');
-					logger.debug(`Default role created: ${role.name}`);
+				// Sync permissions
+				const dbPermissions = await this.getPermissionsForRole(role._id!);
+				const configPermissions = roleData.permissions;
+
+				// Remove permissions not in config
+				for (const dbPerm of dbPermissions) {
+					if (!configPermissions.includes(dbPerm.name)) {
+						await this.removePermissionFromRole(role._id!, dbPerm._id!, 'system');
+					}
+				}
+
+				// Add new permissions from config
+				for (const permName of configPermissions) {
+					if (permName === 'all') {
+						// Assign all permissions
+						const allPerms = await this.getAllPermissions();
+						for (const perm of allPerms) {
+							await this.assignPermissionToRole(role._id!, perm._id!, 'system');
+						}
+					} else if (!dbPermissions.some((dbPerm) => dbPerm.name === permName)) {
+						const perm = await this.getPermissionByName(permName);
+						if (perm) {
+							await this.assignPermissionToRole(role._id!, perm._id!, 'system');
+						}
+					}
 				}
 			}
+
+			// Remove roles not in config
+			const dbRoles = await this.getAllRoles();
+			for (const dbRole of dbRoles) {
+				if (!configRoles.some((configRole) => configRole.name === dbRole.name)) {
+					await this.deleteRole(dbRole._id!, 'system');
+					logger.info(`Role deleted as it's not in config: ${dbRole.name}`);
+				}
+			}
+
+			logger.info('Roles synced with configuration successfully');
 		} catch (error) {
-			logger.error(`Failed to initialize default roles: ${(error as Error).message}`);
+			logger.error(`Failed to sync roles with config: ${(error as Error).message}`);
 			throw error;
 		}
+	}
+
+	// This method needs to be implemented or imported from the PermissionAdapter
+	async getAllPermissions(): Promise<Permission[]> {
+		// Implementation needed
+		throw new Error('Method not implemented');
+	}
+
+	// This method needs to be implemented or imported from the PermissionAdapter
+	async getPermissionByName(name: string): Promise<Permission | null> {
+		// Implementation needed
+		throw new Error('Method not implemented');
 	}
 }

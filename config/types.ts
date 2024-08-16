@@ -1,4 +1,5 @@
 import type { AvailableLanguageTag } from '../src/paraglide/runtime';
+import type { Role, Permission } from './permissions';
 
 /**
  * The PRIVAT configuration for the application,
@@ -63,6 +64,10 @@ export const createPrivateConfig = (arg: {
 	// OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
 	USE_OPEN_AI?: boolean;
 	VITE_OPEN_AI_KEY?: string;
+
+	// Roles and Permissions
+	ROLES: Role[];
+	PERMISSIONS: Permission[];
 }) => arg;
 
 /**
