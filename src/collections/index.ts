@@ -3,13 +3,14 @@ import axios from 'axios';
 import { createCategories } from './config';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 
-// Store
+// Stores
 import { categories, collections, unAssigned } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
 import { initWidgets } from '@components/widgets';
 
+// Types for schemas and collection names
 import type { Schema, CollectionNames } from './types';
 
 // System logger
@@ -17,16 +18,17 @@ import logger from '@src/utils/logger';
 
 // Initialize imports correctly
 let imports: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
-let rnd = Math.random();
-let unsubscribe: Unsubscriber | undefined;
+let rnd = Math.random(); // Random number for cache busting
+let unsubscribe: Unsubscriber | undefined; // Subscription handler
 
 // Cache for collection models
 let collectionModelsCache: Record<string, any> | null = null;
 
+// Function to get collections with cache support
 export async function getCollections(): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getCollections');
 
-	initWidgets();
+	initWidgets(); // Initialize widgets
 
 	if (collectionModelsCache) {
 		logger.debug(`Returning cached collections. Number of collections: ${Object.keys(collectionModelsCache).length}`);
@@ -45,10 +47,11 @@ export async function getCollections(): Promise<Record<CollectionNames, Schema>>
 	});
 }
 
+// Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
 	logger.debug('Starting updateCollections');
 
-	if (recompile) rnd = Math.random();
+	if (recompile) rnd = Math.random(); // Refresh cache if requested
 
 	try {
 		const imports = await getImports(recompile);
@@ -87,12 +90,12 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 		categories.set(_categories);
 		logger.debug('Setting collections:', { collections: Object.keys(_collections) });
-		collections.set(_collections); // returns all collections
+		collections.set(_collections); // Set all collections
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
 		if (typeof window === 'undefined') {
 			const { getCollectionModels } = await import('@src/databases/db');
-			await getCollectionModels();
+			await getCollectionModels(); // Fetch collection models in server-side environment
 		}
 
 		logger.debug(`Collections updated. Number of collections: ${Object.keys(_collections).length}`);
@@ -102,10 +105,12 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 	}
 };
 
+// Initialize collections and handle errors
 updateCollections().catch((error) => {
 	logger.error('Failed to initialize collections:', error);
 });
 
+// Function to get imports based on environment
 async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getImports function');
 
@@ -156,10 +161,6 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 					logger.error(`Error importing collection: ${name}`);
 				}
 			}
-		}
-
-		for (const key in imports) {
-			imports[key].permissions = imports[key].permissions;
 		}
 
 		logger.debug('Imported collections:', { collections: Object.keys(imports) });

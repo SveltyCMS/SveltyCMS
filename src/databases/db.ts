@@ -177,15 +177,18 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 		throw new Error('Database adapter not initialized');
 	}
 
-	logger.info(`Trying to connect to your defined ${privateEnv.DB_NAME} database ...`);
+	// Message for connecting to the database
+	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
 			await dbAdapter.connect();
-			logger.info(`Connection to ${privateEnv.DB_NAME} database successful!`);
+			// Message for successful connection
+			logger.info(`\x1b[32mConnection to ${privateEnv.DB_NAME} database successful!\x1b[0m ===> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`);
 			return;
 		} catch (error) {
-			logger.error(`Error connecting to database (attempt ${attempt}/${retries}): ${(error as Error).message}`, { error });
+			// Message for connection error
+			logger.error(`\x1b[31m Error connecting to database:\x1b[0m (attempt ${attempt}/${retries}): ${(error as Error).message}`, { error });
 			if (attempt < retries) {
 				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
 				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));

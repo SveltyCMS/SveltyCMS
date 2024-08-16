@@ -1,5 +1,5 @@
 import { publicEnv } from '@root/config/public';
-import { privateEnv } from '@root/config/private';
+
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -19,7 +19,7 @@ import logger from '@src/utils/logger';
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
 
-export const load: PageServerLoad = async ({ url, cookies }) => {
+export const load: PageServerLoad = async ({ cookies }) => {
 	await initializationPromise; // Ensure initialization is complete
 
 	if (!auth) {

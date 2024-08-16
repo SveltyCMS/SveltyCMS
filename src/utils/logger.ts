@@ -4,11 +4,10 @@
  *
  * Features:
  * - Configurable log levels (fatal, error, warn, info, debug, trace)
- * - Colorized console output for better readability
+ * - Colorized console output for terminal & browser
  * - Timestamp prefix for each log entry
- * - Sensitive data masking (e.g., passwords)
- * - Optional object logging for additional context
- * - Runtime-configurable log levels
+ * - Sensitive data masking (e.g., passwords, emails)
+ * - Runtime-configurable log levels development / production
  *
  * Usage:
  * import logger from '@src/utils/logger';
@@ -19,12 +18,13 @@
  * logger.setLevels(['error', 'warn', 'info']);
  */
 
-import { publicEnv } from '@root/config/public';
+import { browser } from '$app/environment'; // Detects if the code is running in the browser
+import { publicEnv } from '@root/config/public'; // Import environment configuration
 
 // Define the possible log levels
 type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
 
-// ANSI escape codes for colorizing log output
+// ANSI escape codes for terminal colorizing
 const COLORS: Record<LogLevel, string> = {
 	fatal: '\x1b[35m', // Magenta
 	error: '\x1b[31m', // Red
@@ -32,16 +32,28 @@ const COLORS: Record<LogLevel, string> = {
 	info: '\x1b[32m', // Green
 	debug: '\x1b[34m', // Blue
 	trace: '\x1b[36m', // Cyan
-	none: '\x1b[0m' // Reset to default color
+	none: '\x1b[0m' // Reset color
 };
 
-// Logger class for managing and outputting log messages
+// CSS styles for browser console output
+const BROWSER_STYLES: Record<LogLevel, string> = {
+	fatal: 'color: #800080;', // Magenta
+	error: 'color: #FF0000;', // Red
+	warn: 'color: #FFA500;', // Orange
+	info: 'color: #008000;', // Green
+	debug: 'color: #0000FF;', // Blue
+	trace: 'color: #00FFFF;', // Cyan
+	none: 'color: inherit;' // Reset color
+};
+
+// Logger class definition
 class Logger {
-	private enabledLevels: Set<LogLevel>;
+	private enabledLevels: Set<LogLevel>; // Set to track enabled log levels
+	private defaultLogLevels: LogLevel[] = ['error', 'warn', 'info']; // Default log levels
 
 	// Initialize the logger with an array of enabled log levels
-	constructor(levels: LogLevel[]) {
-		this.enabledLevels = new Set(levels);
+	constructor(levels: LogLevel[] = publicEnv.LOG_LEVELS) {
+		this.enabledLevels = new Set(levels.length > 0 ? levels : this.defaultLogLevels);
 	}
 
 	// Check if a specific log level is enabled
@@ -80,12 +92,10 @@ class Logger {
 	private maskEmail(email: string | undefined): string {
 		if (!email) return '[EMAIL UNDEFINED]';
 
-		const parts = email.split('@');
-		if (parts.length !== 2) return '[INVALID EMAIL FORMAT]';
+		const [localPart, domain] = email.split('@');
+		if (!domain) return '[INVALID EMAIL FORMAT]';
 
-		const [localPart, domain] = parts;
 		const maskedLocalPart = localPart.length > 2 ? `${localPart[0]}${'*'.repeat(Math.min(localPart.length - 2, 5))}` : '***';
-
 		const domainParts = domain.split('.');
 		if (domainParts.length < 2) return `${maskedLocalPart}@[INVALID DOMAIN]`;
 
@@ -98,11 +108,10 @@ class Logger {
 
 	// Format the log message with timestamp, level, and optional object
 	private formatLog(level: LogLevel, message: any, obj?: object): string {
-		const timestamp = `\x1b[2m${new Date().toISOString()}\x1b[0m`;
+		const timestamp = new Date().toISOString();
 		const color = COLORS[level];
 		const levelString = level === 'none' ? '' : `${color}[${level.toUpperCase()}]\x1b[0m: `;
 
-		// Convert message to string and apply masking
 		let maskedMessage = String(message);
 		if (typeof message === 'string') {
 			maskedMessage = maskedMessage
@@ -119,7 +128,13 @@ class Logger {
 	private log(level: LogLevel, message: any, obj?: object): void {
 		if (this.isLevelEnabled(level)) {
 			const logMessage = this.formatLog(level, message, obj);
-			console[level === 'debug' ? 'debug' : level === 'info' ? 'log' : 'error'](logMessage);
+			if (browser) {
+				// Browser environment: Use console styles
+				console[level === 'debug' ? 'debug' : level === 'info' ? 'log' : 'error'](`%c${logMessage}`, BROWSER_STYLES[level]);
+			} else {
+				// Server environment: Use ANSI colors
+				console[level === 'debug' ? 'debug' : level === 'info' ? 'log' : 'error'](logMessage);
+			}
 		}
 	}
 
@@ -155,12 +170,12 @@ class Logger {
 
 	// Update the enabled log levels
 	setLevels(levels: LogLevel[]): void {
-		this.enabledLevels = new Set(levels);
+		this.enabledLevels = new Set(levels.length > 0 ? levels : this.defaultLogLevels);
 	}
 }
 
-// Create a logger instance with log levels from environment variables
-const logger = new Logger(publicEnv.LOG_LEVELS);
+// Create a logger instance with log levels from environment variables or default
+const logger = new Logger(publicEnv.LOG_LEVELS.length ? publicEnv.LOG_LEVELS : ['error', 'warn', 'info']);
 
 // Export the logger instance as the default export
 export default logger;
