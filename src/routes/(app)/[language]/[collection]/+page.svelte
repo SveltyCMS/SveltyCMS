@@ -1,3 +1,13 @@
+<!-- 
+@file +page.svelte 
+@description This component handles the content and logic for a specific page within the application. 
+It fetches data based on the current language (from route parameters) and collection (also from route parameters). 
+The component dynamically displays different components (EntryList, Fields, MediaGallery) based on the current mode 
+of the application (view, edit, create, media). Additionally, it sets the page-specific 
+title and description to allow for proper SEO and user context. 
+The component interacts with stores (like `page`, `collections`, `collection`, `contentLanguage`) to manage collections, user navigation, and data retrieval effectively.  
+-->
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { onDestroy } from 'svelte';
@@ -45,11 +55,6 @@
 	export const title = `${$collection.name} - Your Site Title`;
 	export const description = `View and manage entries for ${$collection.name}.`;
 </script>
-
-/** * @file +page.svelte * @description * This component handles the content and logic for a specific page within * the application that is accessed
-by language parameters. It manages the * display of various components (EntryList, Fields, MediaGallery) based on * the current mode of the
-application. Additionally, it sets the page-specific * title and description to allow for proper SEO and user context. The component * interacts with
-stores to manage collections and user navigation effectively. */
 
 <div class="content">
 	{#if $mode == 'view' || $mode == 'modify'}

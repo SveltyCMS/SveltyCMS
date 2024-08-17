@@ -9,16 +9,48 @@
 	import type { User } from '@src/auth/types';
 	const user: User = $page.data.user;
 
-	// Skeleton
-	import { Autocomplete, popup } from '@skeletonlabs/skeleton';
-	import type { AutocompleteOption, PopupSettings } from '@skeletonlabs/skeleton';
-
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
+	import ScheduleModal from './ScheduleModal.svelte';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
+
+	// Skeleton
+	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
+	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
+	import { roles } from '@root/config/permissions';
+	import { authAdapter, dbAdapter } from '@src/databases/db';
+
+	const modalStore = getModalStore();
+
+	// Modal Trigger - Schedule
+	function openScheduleModal(): void {
+		// console.log('Triggered - modalUserForm');
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ScheduleModal,
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Scheduler',
+			body: 'Set a date and time to schedule this entry.',
+			component: modalComponent,
+			// Pass arbitrary data to the component
+			response: (r: { date: string; action: string } | boolean) => {
+				if (typeof r === 'object') {
+					schedule = r.date;
+					// Handle the scheduled action (r.action) as needed
+				}
+			}
+		};
+		modalStore.trigger(d);
+	}
 
 	let next = () => {};
 	saveLayerStore.subscribe((value) => {
@@ -28,6 +60,8 @@
 
 	// Map the status to boolean
 	let isPublished = $entryData?.status === 'published';
+	let inputPopupUser = '';
+	let schedule = $entryData._scheduled ? new Date($entryData._scheduled).toISOString().slice(0, 16) : '';
 
 	// Function to toggle the status
 	function toggleStatus() {
@@ -45,22 +79,25 @@
 
 	// Save data
 	async function saveData() {
-		await saveFormData({ data: $collectionValue });
+		await saveFormData({
+			data: $collectionValue,
+			_collection: $collection,
+			_mode: $mode,
+			dbAdapter: dbAdapter,
+			authAdapter: authAdapter,
+			user_id: user._id,
+			user: user
+		});
 		mode.set('view');
 		handleSidebarToggle();
 	}
 
-	// TODO: Schedule
-	let schedule = '';
-
 	// TODO: user autocomplete
-	const Userlist: AutocompleteOption<string>[] = [
-		{ label: 'Admin', value: 'admin', keywords: 'plain, basic', meta: { healthy: false } },
-		{ label: 'Guest', value: 'guest', keywords: 'dark, white', meta: { healthy: false } },
-		{ label: 'User', value: 'user', keywords: 'fruit', meta: { healthy: true } }
-	];
-
-	let inputPopupUser: string = '';
+	const Userlist = roles.map((role) => ({
+		label: role.name,
+		value: role.name,
+		keywords: role.description
+	}));
 
 	const popupSettingsUser: PopupSettings = {
 		event: 'focus-click',
@@ -68,7 +105,8 @@
 		placement: 'right'
 	};
 
-	function onPopupUserSelect(e: CustomEvent<AutocompleteOption<string, unknown>>): void {
+	function onPopupUserSelect(event: CustomEvent<any>) {
+		console.log(event.detail);
 		throw new Error('Function not implemented.');
 	}
 </script>
@@ -129,12 +167,6 @@
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete
 					</button>
 				{/if}
-
-				<!-- Promote -->
-				<!-- <label class="flex items-center space-x-2">
-        <p>Promote</p>
-        <input class="checkbox" type="checkbox" checked />
-      </label> -->
 			</header>
 
 			<!-- Publish Options -->
@@ -145,7 +177,6 @@
 				<div class="flex w-full flex-col items-start justify-center">
 					<p class="mb-1">{m.sidebar_authoredby()}</p>
 					<div class="relative z-50 w-full">
-						<!-- add use:popup directive to the element that triggers the popup -->
 						<input
 							class="autocomplete variant-filled-surface w-full text-sm"
 							type="search"
@@ -154,18 +185,18 @@
 							placeholder="Search..."
 							use:popup={popupSettingsUser}
 						/>
-						<!-- popup element should have a data-popup attribute that matches the target property in your popup settings -->
 						<div data-popup="popupAutocomplete">
-							<!-- ensure Autocomplete component is correctly set up -->
 							<Autocomplete bind:input={inputPopupUser} options={Userlist} on:selection={onPopupUserSelect} />
 						</div>
 					</div>
 				</div>
 
-				<!-- Authored on -->
+				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					<p class="mb-1">{m.sidebar_authoredon()}</p>
-					<input type="datetime-local" bind:value={schedule} class="variant-filled-surface w-full text-sm" />
+					<button class="variant-filled-surface w-full p-2 text-left text-sm" on:click={openScheduleModal}>
+						{schedule ? new Date(schedule).toLocaleString() : 'Schedule publication'}
+					</button>
 				</div>
 			</main>
 

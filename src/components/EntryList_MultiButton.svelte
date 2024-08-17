@@ -3,10 +3,45 @@
 	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
 
+	// Components
+	import ScheduleModal from './ScheduleModal.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
+	// Skeleton
+	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+
+	const modalStore = getModalStore();
+
+	// Modal Trigger - Schedule
+	function openScheduleModal(): void {
+		// console.log('Triggered - modalUserForm');
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ScheduleModal,
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Scheduler',
+			body: 'Set a date and time to schedule this entry.',
+			component: modalComponent,
+			// Pass arbitrary data to the component
+			response: (r: boolean) => {
+				if (r) {
+					console.log('Scheduling successful');
+				}
+			}
+		};
+		modalStore.trigger(d);
+	}
+
 	import { createEventDispatcher } from 'svelte';
+
 	const dispatch = createEventDispatcher();
 
 	let dropdownOpen = false;

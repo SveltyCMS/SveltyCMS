@@ -92,7 +92,7 @@
 					console.log('Response:', r);
 
 					// Prepare the data
-					const data = { ...r, user_id: user._id };
+					const data = { ...r, user_id: user_id };
 					// Make the POST request using axios
 					const res = await axios.post('?/updateUserAttributes', data);
 

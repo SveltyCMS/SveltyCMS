@@ -25,7 +25,6 @@
 
 import { publicEnv } from '@root/config/public';
 
-import fs from 'fs';
 import axios from 'axios';
 
 import type { authDBInterface } from '@src/auth/authDBInterface';
@@ -38,7 +37,7 @@ import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, entryData, mode, collections, collection } from '@stores/store';
+import { translationProgress, contentLanguage, entryData, mode, collection } from '@stores/store';
 
 export const config = {
 	headers: {
@@ -135,23 +134,6 @@ export function sanitize(str: string) {
 const env_sizes = publicEnv.IMAGE_SIZES;
 export const SIZES = { ...env_sizes, original: 0, thumbnail: 200 } as const;
 
-// finds field title that matches the fieldname and returns that field
-function _findFieldByTitle(schema: any, fieldname: string, found = { val: false }): any {
-	for (const field of schema.fields) {
-		// console.log('field is ', field.db_fieldName, field.label);
-		if (field.db_fieldName == fieldname || field.label == fieldname) {
-			found.val = true;
-
-			return field;
-		} else if (field.fields && field.fields.length > 0) {
-			return _findFieldByTitle(field, fieldname, found);
-		}
-	}
-	if (!found) {
-		throw new Error('FIELD NOT FOUND');
-	}
-}
-
 // takes an object and recursively parses any values that can be converted to JSON
 export function parse(obj: any) {
 	for (const key in obj) {
@@ -206,7 +188,7 @@ export function getFieldName(field: any, sanitize = false) {
 	return (field?.db_fieldName || field?.label) as string;
 }
 
-//Save Collections data to database
+// Save Collections data to database
 export async function saveFormData({
 	data,
 	_collection,
@@ -299,26 +281,6 @@ export async function deleteData({ data, collectionName }: { data: FormData; col
 		console.error('Error deleting data:', error);
 		throw error; // Re-throw the error for the caller to handle
 	}
-}
-
-// Delete trash files older than 30 days
-async function deleteOldTrashFiles() {
-	// Get the current date
-	const current_date = new Date();
-
-	// Calculate the timestamp for 30 days ago
-	const thirty_days_ago = new Date(current_date.getTime() - 30 * 24 * 60 * 60 * 1000);
-
-	// Find all trash files that were created before the 30-day mark
-	const old_trash_files = fs.readdirSync(`${publicEnv.MEDIA_FOLDER}/trash`).filter((file) => {
-		const stats = fs.statSync(`${publicEnv.MEDIA_FOLDER}/trash/${file}`);
-		return stats.ctime < thirty_days_ago;
-	});
-
-	// Delete the old trash files
-	old_trash_files.forEach((file) => {
-		fs.unlinkSync(`${publicEnv.MEDIA_FOLDER}/trash/${file}`);
-	});
 }
 
 export async function extractData(fieldsData: any): Promise<{ [key: string]: any }> {
