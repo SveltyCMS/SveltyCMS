@@ -7,10 +7,12 @@
  * - Session management methods
  * - Token management methods
  * - Role and permission management methods
+ * - Sync methods for roles and permissions with configuration
  *
  * Features:
  * - Comprehensive set of method signatures for auth operations
  * - Typescript interface for type safety and consistency
+ * - Methods for syncing roles and permissions with configuration
  *
  * Usage:
  * Implemented by database adapters to ensure consistent auth operations across different databases
@@ -91,8 +93,11 @@ export interface authDBInterface {
 	getRolesForUser(user_id: string): Promise<Role[]>;
 	getUsersWithRole(role_id: string): Promise<User[]>;
 
-	// Initialization and Utility Methods
-	initializeDefaultRolesAndPermissions(): Promise<void>;
+	// Sync Methods
+	syncRolesWithConfig(): Promise<void>;
+	syncPermissionsWithConfig(): Promise<void>;
+
+	// Utility Methods
 	checkUserPermission(user_id: string, permission_name: string): Promise<boolean>;
 	checkUserRole(user_id: string, role_name: string): Promise<boolean>;
 }

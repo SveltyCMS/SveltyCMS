@@ -16,21 +16,17 @@ const schema: Schema = {
 	// Admin has all permissions by default
 	permissions: {
 		developer: {
-			create: true,
-			read: true,
-			write: true,
-			delete: true
+			create: false,
+			read: false,
+			write: false,
+			delete: false
 		},
 		editor: {
-			create: true,
-			read: true
+			create: false,
+			read: false
 		},
 		user: {
-			read: true
-		},
-		admin:{
-			read:true,
-			write:true
+			read: false
 		}
 	},
 

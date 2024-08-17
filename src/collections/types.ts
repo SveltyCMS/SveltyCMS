@@ -6,6 +6,7 @@ import type { Permission } from '@src/auth/types';
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
 	name: string; // Make `name` non-optional
+	label?: string;
 	slug?: string;
 	links?: CollectionNames[];
 	icon?: string;
@@ -16,9 +17,6 @@ export interface Schema {
 	strict?: boolean;
 	revision?: boolean; // Make revisions optional
 }
-
-// Define a new `CollectionNames` type that represents the shape of an object with several properties
-
 
 // Define a new `Collection` interface that represents the shape of an object with several properties
 export type CollectionContent = {
@@ -48,4 +46,4 @@ export type CollectionContent = {
 		'RichText'
 	];
 };
-export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Relation'|'WidgetTest';
+export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Relation' | 'WidgetTest';

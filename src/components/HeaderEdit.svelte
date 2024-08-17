@@ -4,6 +4,38 @@
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
+	import ScheduleModal from './ScheduleModal.svelte';
+
+	// Skeleton
+	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
+
+	// Modal Trigger - Schedule
+	function openScheduleModal(): void {
+		// console.log('Triggered - modalUserForm');
+		const modalComponent: ModalComponent = {
+			// Pass a reference to your custom component
+			ref: ScheduleModal,
+			// Provide default slot content as a template literal
+			slot: '<p>Edit Form</p>'
+		};
+
+		const d: ModalSettings = {
+			type: 'component',
+			// NOTE: title, body, response, etc are supported!
+			title: 'Scheduler',
+			body: 'Set a date and time to schedule this entry.',
+			component: modalComponent,
+			// Pass arbitrary data to the component
+			response: (r: { date: string; action: string } | boolean) => {
+				if (typeof r === 'object') {
+					const schedule = r.date;
+					// Handle the scheduled action (r.action) as needed
+				}
+			}
+		};
+		modalStore.trigger(d);
+	}
 
 	// Stores
 	import { get } from 'svelte/store';
@@ -27,6 +59,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { authAdapter, dbAdapter } from '@src/databases/db';
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
@@ -34,9 +67,17 @@
 		// console.log('selectedLanguage', selectedLanguage);
 	}
 
-	// Save Data
+	// Save data
 	async function saveData() {
-		await saveFormData({ data: $collectionValue });
+		await saveFormData({
+			data: $collectionValue,
+			_collection: $collection,
+			_mode: $mode,
+			dbAdapter: dbAdapter,
+			authAdapter: authAdapter,
+			user_id: user._id,
+			user: user
+		});
 		mode.set('view');
 		handleSidebarToggle();
 	}
@@ -185,6 +226,17 @@
 						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 					>
 						<iconify-icon icon="bi:hand-thumbs-up-fill" width="24" />
+					</button>
+				</div>
+
+				<div class="flex flex-col items-center justify-center">
+					<button
+						type="button"
+						on:click={openScheduleModal}
+						disabled={!$collection?.permissions?.[user.role]?.write}
+						class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
+					>
+						<iconify-icon icon="bi:clock" width="24" />
 					</button>
 				</div>
 			{:else}

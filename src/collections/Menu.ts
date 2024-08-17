@@ -13,11 +13,9 @@ const schema: Schema = {
 
 	// Collection Permissions by user Roles. Admin has all permissions by default,
 	permissions: {
-		admin:{read: true,
-			write: true},
 		editor: {
-			read: true,
-			write: true
+			read: false,
+			write: false
 		}
 	},
 
@@ -41,7 +39,14 @@ const schema: Schema = {
 						label: 'Description',
 						placeholder: 'Enter Description Level 1',
 						required: true,
-						translated: true
+						translated: true,
+						// Collection Permissions by user Roles. Admin has all permissions by default,
+						permissions: {
+							editor: {
+								read: false,
+								write: false
+							}
+						}
 					})
 				],
 				//level 2

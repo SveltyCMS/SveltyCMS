@@ -51,6 +51,10 @@ export const targetWidget: Writable<any> = writable({});
 export const collectionValue: any = writable({});
 // entry data of collection
 export const entryData: Writable<any> = writable({});
+
+// selected entries
+export const selectedEntries = writable<string[]>([]);
+
 // collective crud
 export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media'> = writable('view');
 // collective status
