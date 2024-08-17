@@ -25,12 +25,12 @@ import { privateEnv } from '@root/config/private';
 // Types
 import type { User } from '@src/auth/types';
 
-import { createClient } from 'redis';
+// import { createClient } from 'redis';
 
 // System Logs
 import logger from '@src/utils/logger';
 
-let redisClient: ReturnType<typeof createClient> | null = null;
+let redisClient: any = null;// ReturnType<typeof createClient> | null = null;
 
 export async function initializeRedis() {
 	if (!privateEnv.USE_REDIS) {
