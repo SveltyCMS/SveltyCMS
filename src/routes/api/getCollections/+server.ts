@@ -1,10 +1,11 @@
 /**
  * @file src/routes/api/getCollections/+server.ts
- * @description API endpoint for retrieving collection files.
+ * @description
+ * API endpoint for retrieving collection files.
  *
  * This module handles GET requests to fetch collection files:
- * - Uses the getCollectionFiles function to retrieve collection data
- * - Returns the collection files as a JSON response
+ * - Uses the `getCollectionFiles` function to retrieve collection data.
+ * - Returns the collection files as a JSON response.
  *
  * Features:
  * - Error handling and logging
@@ -25,7 +26,7 @@ import logger from '@src/utils/logger';
 export const GET: RequestHandler = async () => {
 	try {
 		// Retrieve the collection files using the getCollectionFiles function
-		const files = getCollectionFiles();
+		const files = await getCollectionFiles(); // Await if getCollectionFiles is asynchronous
 		logger.info('Collection files retrieved successfully');
 
 		// Return the collection files as a JSON response
@@ -36,6 +37,11 @@ export const GET: RequestHandler = async () => {
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Error retrieving collection files: ${err.message}`);
-		throw new Error(`Error retrieving collection files: ${err.message}`);
+
+		// Return an appropriate HTTP error response
+		return new Response(JSON.stringify({ error: 'Failed to retrieve collection files' }), {
+			status: 500,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 };

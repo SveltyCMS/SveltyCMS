@@ -22,7 +22,7 @@ The component interacts with stores (like `page`, `collections`, `collection`, `
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/MediaGallery.svelte';
 
-	let ForwardBackward: boolean = false; // if using browser history
+	let ForwardBackward = false; // if using browser history
 
 	// Set the value of the collection store to the current collection based on the route parameter
 	collection.set($collections[$page.params.collection as string] as Schema); // current collection
@@ -33,7 +33,7 @@ The component interacts with stores (like `page`, `collections`, `collection`, `
 	};
 
 	// Subscribe to changes in the collection store and perform redirects
-	const unsubscribe = collection.subscribe((_) => {
+	const unsubscribe = collection.subscribe(() => {
 		$collectionValue = {};
 		if (!ForwardBackward) {
 			goto(`/${$contentLanguage}/${$collection.name}`);
@@ -54,21 +54,16 @@ The component interacts with stores (like `page`, `collections`, `collection`, `
 	// Overriding title and description for the page
 	export const title = `${$collection.name} - Your Site Title`;
 	export const description = `View and manage entries for ${$collection.name}.`;
-
-	/** * @file +page.svelte * @description * This component handles the content and logic for a specific page within * the application that is accessed
- by language parameters. It manages the * display of various components (EntryList, Fields, MediaGallery) based on * the current mode of the
- application. Additionally, it sets the page-specific * title and description to allow for proper SEO and user context. The component * interacts with
- stores to manage collections and user navigation effectively. */
 </script>
 
 <div class="content">
-	{#if $mode == 'view' || $mode == 'modify'}
+	{#if $mode === 'view' || $mode === 'modify'}
 		<EntryList />
 	{:else if ['edit', 'create'].includes($mode)}
 		<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 			<Fields />
 		</div>
-	{:else if $mode == 'media'}
+	{:else if $mode === 'media'}
 		<MediaGallery />
 	{/if}
 </div>

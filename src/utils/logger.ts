@@ -41,7 +41,7 @@ const BROWSER_STYLES: Record<LogLevel, string> = {
 	error: 'color: #FF0000;', // Red
 	warn: 'color: #FFA500;', // Orange
 	info: 'color: #008000;', // Green
-	debug: 'color: #0000FF;', // Blue
+	debug: 'color: #7ab3f4;', // Blue
 	trace: 'color: #00FFFF;', // Cyan
 	none: 'color: inherit;' // Reset color
 };

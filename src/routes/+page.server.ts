@@ -1,5 +1,19 @@
-import { publicEnv } from '@root/config/public';
+/**
+ * @file +page.server.ts
+ * @description
+ * This server-side module handles the initial page load logic for the root route of the SvelteKit application.
+ * It performs the following tasks:
+ *
+ * - Ensures that the authentication system and any necessary initializations are complete before processing requests.
+ * - Validates the user's session using a session cookie. If the session is invalid or missing, redirects the user to the login page.
+ * - Retrieves the default theme from the database and sets it in the application, falling back to a default theme if retrieval fails.
+ * - Updates the system language based on the retrieved theme if applicable.
+ * - Fetches the available collections and redirects the user to the first available collection. If no collections are found, logs an error and throws an exception.
+ *
+ * This module integrates with authentication, theme management, and collection retrieval systems to ensure that users are directed to appropriate content based on their session and available resources.
+ */
 
+import { publicEnv } from '@root/config/public';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 

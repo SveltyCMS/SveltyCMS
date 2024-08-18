@@ -1,5 +1,5 @@
 /**
- * @file scr/routes/(app)/[language]/+layout.server.ts
+ * @file src/routes/(app)/[language]/+layout.server.ts
  *
  * @description
  * This module handles the server-side loading logic for a SvelteKit application,
@@ -99,19 +99,30 @@ export async function load({ cookies, route, params }) {
 			if (!params.language && !contentLanguage) {
 				// Redirect to the default language with the first accessible collection
 				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-				logger.debug(`Redirecting to first accessible collection with default language.`);
-				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
+				if (_filtered.length > 0) {
+					logger.debug(`Redirecting to first accessible collection with default language.`);
+					throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
+				} else {
+					logger.warn('No accessible collections found.');
+					throw error(404, 'No accessible collections found.');
+				}
 			} else {
 				// Filters collection based on reading permissions and redirects to the first accessible one
 				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-				logger.debug(`Redirecting to first accessible collection with specified language.`);
-				throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
+				if (_filtered.length > 0) {
+					logger.debug(`Redirecting to first accessible collection with specified language.`);
+					throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
+				} else {
+					logger.warn('No accessible collections found.');
+					throw error(404, 'No accessible collections found.');
+				}
 			}
 		}
 		let hasPermission = false;
 		try {
-			hasPermission = collection?.permissions[user.role]['read'];
+			hasPermission = collection?.permissions[user.role]?.read ?? false;
 		} catch (error) {
+			logger.error('Error checking permissions:', error);
 			hasPermission = false;
 		}
 		if (!hasPermission) {

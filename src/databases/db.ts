@@ -1,31 +1,32 @@
 /**
  * @file src/databases/db.ts
- * @description Database and authentication initialization and management module.
+ * @description
+ * Database and authentication initialization and management module.
  *
- * This module handles:
- * - Loading of database and authentication adapters based on the configured DB_TYPE
- * - Database connection with retry mechanism
- * - Initialization of auth models, media models, and collection models
- * - Setup of default roles and permissions
- * - Google OAuth2 client setup
+ * This module is responsible for:
+ * - Loading and initializing database and authentication adapters based on the configured DB_TYPE
+ * - Establishing database connections with a retry mechanism
+ * - Managing initialization of authentication models, media models, and collection models
+ * - Setting up default roles and permissions
+ * - Configuring Google OAuth2 client if credentials are provided
  *
- * Features:
- * - Dynamic adapter loading for different database types (MongoDB, MariaDB, PostgreSQL)
- * - Retry mechanism for database connection
- * - Initialization state management to prevent redundant setups
- * - Asynchronous initialization with promise-based error handling
- * - Collection models management
- * - Google OAuth2 client configuration (when credentials are provided)
+ * Key Features:
+ * - **Dynamic Adapter Loading:** Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
+ * - **Database Connection:** Implements a retry mechanism to handle connection failures and attempts reconnections.
+ * - **Initialization Management:** Manages initialization state to prevent redundant setup processes. Asynchronous initialization with promise-based error handling.
+ * - **Theme Initialization:** Handles default theme setup and ensures it's marked as default if not already.
+ * - **Authentication and Authorization:** Configures and initializes authentication adapters, including user, role, permission, session, and token management.
+ * - **Google OAuth2 Integration:** Optionally sets up Google OAuth2 client if the client ID and secret are provided.
  *
  * Usage:
- * This module is typically imported and used in the application's startup process
- * to ensure database and authentication systems are properly initialized before
- * handling requests.
+ * This module is typically imported and utilized in the startup phase of the application to ensure that database and authentication systems
+ * are properly set up and ready to handle incoming requests.
  */
 
 import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import { browser } from '$app/environment';
 
 // Auth
 import { Auth } from '@src/auth';
@@ -42,10 +43,10 @@ import { PermissionAdapter } from '@src/auth/mongoDBAuth/permissionAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
-// Drizzle Adapters
+// Drizzle Adapters (Commented out for future implementation)
 // import { DrizzleAuthAdapter } from '@src/auth/drizzelDBAuth/drizzleAuthAdapter';
 
-// System Logs
+// System Logger
 import logger from '@src/utils/logger';
 
 // Database and authentication adapters
@@ -244,27 +245,30 @@ async function initializeAdapters(): Promise<void> {
 	try {
 		// Load database and authentication adapters
 		await loadAdapters();
-		// Connect to the database
-		await connectToDatabase();
 
-		// Initialize collections and models
-		await updateCollections();
-		const collections = await getCollections();
+		if (!browser) {
+			// Connect to the database only on the server
+			await connectToDatabase();
 
-		if (Object.keys(collections).length === 0) {
-			throw new Error('No collections found after initialization');
+			// Initialize collections and models
+			await updateCollections();
+			const collections = await getCollections();
+
+			if (Object.keys(collections).length === 0) {
+				throw new Error('No collections found after initialization');
+			}
+
+			if (!dbAdapter) {
+				throw new Error('Database adapter not initialized');
+			}
+
+			// Initialize default theme
+			await initializeDefaultTheme(dbAdapter);
+			// Setup auth models and media models
+			await dbAdapter.setupAuthModels();
+			await dbAdapter.setupMediaModels();
+			await dbAdapter.getCollectionModels();
 		}
-
-		if (!dbAdapter) {
-			throw new Error('Database adapter not initialized');
-		}
-
-		// Initialize default theme
-		await initializeDefaultTheme(dbAdapter);
-		// Setup auth models and media models
-		await dbAdapter.setupAuthModels();
-		await dbAdapter.setupMediaModels();
-		await dbAdapter.getCollectionModels();
 
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized');

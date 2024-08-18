@@ -1,6 +1,7 @@
 <script lang="ts">
 	import type { PageData } from './$types';
 	import axios from 'axios';
+	import { onMount } from 'svelte';
 	import { invalidateAll } from '$app/navigation';
 
 	// ParaglideJS
@@ -19,6 +20,7 @@
 
 	export let data: PageData;
 	const { user, isFirstUser } = data;
+	import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 	// Define permissions for different contexts
 	const adminAreaPermissionConfig: PermissionConfig = {
@@ -35,8 +37,6 @@
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	import { onMount } from 'svelte';
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -92,7 +92,8 @@
 					console.log('Response:', r);
 
 					// Prepare the data
-					const data = { ...r, user_id: user_id };
+					const data = { ...r, user_id: user?._id };
+
 					// Make the POST request using axios
 					const res = await axios.post('?/updateUserAttributes', data);
 
@@ -202,44 +203,46 @@
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>
 				<!-- User ID -->
 				<div class="gradient-secondary badge mt-1 w-full max-w-xs text-white">
-					{m.userpage_user_id()}<span class="ml-2">{user._id}</span>
+					{m.userpage_user_id()}<span class="ml-2">{user?._id || 'N/A'}</span>
 				</div>
 				<!-- Role -->
 				<div class="gradient-tertiary badge w-full max-w-xs text-white">
-					{m.form_role()}:<span class="ml-2">{user.role}</span>
+					{m.form_role()}:<span class="ml-2">{user?.role || 'N/A'}</span>
 				</div>
 			</div>
 
 			<!-- User fields -->
-			<form>
-				<label>
-					{m.form_username()}:
-					<input bind:value={user.username} name="username" type="text" disabled class="input" />
-				</label>
-				<label>
-					{m.form_email()}:
-					<input bind:value={user.email} name="email" type="email" disabled class="input" />
-				</label>
-				<label>
-					{m.form_password()}:
-					<input bind:value={password} name="password" type="password" disabled class="input" />
-				</label>
+			{#if user}
+				<form>
+					<label>
+						{m.form_username()}:
+						<input bind:value={user.username} name="username" type="text" disabled class="input" />
+					</label>
+					<label>
+						{m.form_email()}:
+						<input bind:value={user.email} name="email" type="email" disabled class="input" />
+					</label>
+					<label>
+						{m.form_password()}:
+						<input bind:value={password} name="password" type="password" disabled class="input" />
+					</label>
 
-				<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
-					<!-- Edit Modal Button -->
-					<button on:click={modalUserForm} class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}">
-						<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
-					</button>
-
-					<!-- Delete Modal Button (reverse logic for isFirstUser)-->
-					{#if isFirstUser}
-						<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
-							<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
-							{m.button_delete()}
+					<div class="mt-4 flex flex-col justify-between gap-2 sm:flex-row sm:gap-1">
+						<!-- Edit Modal Button -->
+						<button on:click={modalUserForm} class="gradient-tertiary btn w-full max-w-sm text-white {isFirstUser ? '' : 'mx-auto md:mx-0'}">
+							<iconify-icon icon="bi:pencil-fill" color="white" width="18" class="mr-1" />{m.userpage_edit_usersetting()}
 						</button>
-					{/if}
-				</div>
-			</form>
+
+						<!-- Delete Modal Button (reverse logic for isFirstUser)-->
+						{#if isFirstUser}
+							<button on:click={modalConfirm} class="gradient-error btn w-full max-w-sm text-white">
+								<iconify-icon icon="bi:trash3-fill" color="white" width="18" class="mr-1" />
+								{m.button_delete()}
+							</button>
+						{/if}
+					</div>
+				</form>
+			{/if}
 		</div>
 	</div>
 

@@ -14,28 +14,28 @@
  * - Error handling and logging
  *
  * Usage:
- * Used as an optional session store for improved performance and scalability
+ * Used as an optional session store for improved performance and scalability.
  */
 
 import { privateEnv } from '@root/config/private';
+import { encrypt, decrypt } from '@src/utils/encryption';
 
-// Types
+//Auth
 import type { SessionStore } from './index';
 import type { User } from './types';
+
+// Redis
 import { createClient } from 'redis';
 
 // System Logger
 import logger from '@src/utils/logger';
 
-import { encrypt, decrypt } from '@src/utils/encryption';
-
-// Initialize Redis session store
+// Redis session store
 export class RedisSessionStore implements SessionStore {
 	private redisClient: ReturnType<typeof createClient>;
 
 	constructor() {
 		// Initialize Redis client with configuration from environment variables
-
 		this.redisClient = createClient({
 			url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
 			password: privateEnv.REDIS_PASSWORD || undefined
@@ -61,7 +61,7 @@ export class RedisSessionStore implements SessionStore {
 			logger.info(`Session stored in Redis: ${sessionId}`);
 		} catch (error) {
 			logger.error(`Error storing session in Redis: ${error}`);
-			throw error; // Rethrow the error
+			throw error; // Rethrow to ensure caller is aware of the issue
 		}
 	}
 
@@ -69,8 +69,13 @@ export class RedisSessionStore implements SessionStore {
 	async get(sessionId: string): Promise<User | null> {
 		try {
 			const encryptedUser = await this.redisClient.get(`session:${sessionId}`);
+			if (!encryptedUser) {
+				logger.info(`Session not found in Redis: ${sessionId}`);
+				return null;
+			}
+			const user = JSON.parse(decrypt(encryptedUser));
 			logger.info(`Session retrieved from Redis: ${sessionId}`);
-			return encryptedUser ? JSON.parse(decrypt(encryptedUser)) : null;
+			return user;
 		} catch (error) {
 			logger.error(`Error retrieving session from Redis: ${error}`);
 			return null;
@@ -87,24 +92,33 @@ export class RedisSessionStore implements SessionStore {
 		}
 	}
 
-	// Validate session against the database
+	// Validate session with optional database check
 	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
-		// Randomly validate session against the database based on probability
-		if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
-			const dbUser = await dbValidationFn(sessionId);
-			if (!dbUser) {
-				await this.delete(sessionId);
-				return null;
+		try {
+			// Randomly validate session against the database based on probability
+			if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
+				const dbUser = await dbValidationFn(sessionId);
+				if (!dbUser) {
+					await this.delete(sessionId);
+					return null;
+				}
+				await this.set(sessionId, dbUser, privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600);
+				return dbUser;
 			}
-			await this.set(sessionId, dbUser, privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600);
-			return dbUser;
+			return this.get(sessionId);
+		} catch (error) {
+			logger.error(`Error validating session with DB: ${error}`);
+			return null;
 		}
-		return this.get(sessionId);
 	}
 
-	// Close Redis connection
+	// Close the session store
 	async close() {
-		await this.redisClient.quit();
-		logger.info('Redis connection closed');
+		try {
+			await this.redisClient.quit();
+			logger.info('Redis connection closed');
+		} catch (error) {
+			logger.error(`Error closing Redis connection: ${error}`);
+		}
 	}
 }

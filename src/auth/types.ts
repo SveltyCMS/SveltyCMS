@@ -13,7 +13,7 @@
  * - Centralized type management for the auth system
  *
  * Usage:
- * Imported throughout the auth system to ensure type consistency and safety
+ * Imported throughout the auth system to ensure type consistency and safety.
  */
 
 import { roles as configRoles, permissions as configPermissions } from '../../config/permissions';
@@ -26,10 +26,10 @@ export type PermissionId = string;
 export type Role = ConfigRole;
 export type Permission = ConfigPermission;
 
-// List of possible permissions for simplicity and type safety.
+// List of possible permissions for simplicity and type safety
 export const permissionActions = ['create', 'read', 'write', 'delete', 'manage_roles', 'manage_permissions'] as const;
 
-// List of possible context types for simplicity and type safety.
+// List of possible context types for simplicity and type safety
 export const contextTypes = ['collection', 'widget', 'system'] as const;
 
 export type PermissionAction = (typeof permissionActions)[number];
@@ -42,22 +42,22 @@ export function getLoadedRoles(): Role[] {
 	return loadedRoles;
 }
 
-// Add a function to get loaded permissions
+// Function to get loaded permissions
 export function getLoadedPermissions(): Permission[] {
 	return loadedPermissions;
 }
 
-// Add a function to check if a role is an admin
+// Function to check if a role is an admin
 export function isAdminRole(roleName: string): boolean {
 	return roleName.toLowerCase() === 'admin';
 }
 
-// Add a function to get a role by name
+// Function to get a role by name
 export function getRoleByName(roleName: string): Role | undefined {
 	return loadedRoles.find((role) => role.name.toLowerCase() === roleName.toLowerCase());
 }
 
-// User interface represents a user in the system.
+// User interface represents a user in the system
 export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
@@ -80,14 +80,14 @@ export interface User {
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
 }
 
-// Session interface represents a session in the system.
+// Session interface represents a session in the system
 export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }
 
-// Token interface represents a token in the system.
+// Token interface represents a token in the system
 export interface Token {
 	token_id: string; // Unique identifier for the token
 	user_id: string; // The ID of the user who owns the token
@@ -96,7 +96,7 @@ export interface Token {
 	expires: Date; // When the token expires
 }
 
-// Collection interface to encapsulate permissions specific to collections.
+// Collection interface to encapsulate permissions specific to collections
 export interface Collection {
 	collection_id: string; // Unique identifier for the collection
 	name: string; // Name of the collection
@@ -107,7 +107,6 @@ export interface Collection {
 export type Cookie = {
 	name: string; // Name of the cookie
 	value: string; // Value of the cookie
-	// Attributes of the cookie
 	attributes: {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
@@ -127,7 +126,7 @@ export interface RateLimit {
 	lastActionAt: Date;
 }
 
-// Main utility function to check if a user has a specific permission in a given context.
+// Utility function to check if a user has a specific permission in a given context
 export function hasPermission(user: User, action: PermissionAction, contextId: string): boolean {
 	const userRole = getRoleByName(user.role);
 	if (!userRole) return false;
@@ -197,14 +196,14 @@ export interface Model<T> {
 	countDocuments(query?: Partial<T>): Promise<number>;
 }
 
-// Define the type for a Widgets
+// Define the type for Widgets
 export type WidgetId = string;
 
 // Define the type for Schema
 export interface Schema {
 	icon?: string;
 	status?: string;
-	revision?: boolean;
+	revision?: boolean; // Indicates if the schema supports revisions
 	permissions?: RolePermissions;
 	fields: any[];
 }
@@ -214,4 +213,25 @@ export interface RolePermissions {
 	[role: string]: {
 		[action in PermissionAction]?: boolean;
 	};
+}
+
+// Define the type for Drafts
+export interface Draft {
+	draft_id: string; // Unique identifier for the draft
+	collection_id: string; // ID of the collection the draft belongs to
+	user_id: string; // ID of the user who created the draft
+	data: any; // Data associated with the draft
+	createdAt: Date; // Creation timestamp of the draft
+	updatedAt: Date; // Last update timestamp of the draft
+	status: 'pending' | 'failed'; // Status of the draft
+}
+
+// Define the type for Revisions
+export interface Revision {
+	revision_id: string; // Unique identifier for the revision
+	collection_id: string; // ID of the collection the revision belongs to
+	user_id: string; // ID of the user who made the revision
+	data: any; // Data associated with the revision
+	createdAt: Date; // Creation timestamp of the revision
+	version: number; // Version number of the revision
 }

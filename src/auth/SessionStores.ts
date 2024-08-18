@@ -13,10 +13,11 @@
  * - Consistent interface for different store types
  *
  * Usage:
- * Configurable session storage solution for the authentication system
+ * Configurable session storage solution for the authentication system.
  */
 
 import { privateEnv } from '@root/config/private';
+import { browser } from '$app/environment';
 
 // Types
 import type { SessionStore } from './index';
@@ -31,6 +32,7 @@ export class InMemorySessionStore implements SessionStore {
 	private cleanupInterval: NodeJS.Timeout;
 
 	constructor() {
+		// Initialize cleanup interval for expired sessions
 		this.cleanupInterval = setInterval(() => this.cleanup(), privateEnv.SESSION_CLEANUP_INTERVAL ?? 60000);
 	}
 
@@ -45,7 +47,7 @@ export class InMemorySessionStore implements SessionStore {
 		logger.debug(`Cleaned up expired sessions. Current count: ${this.sessions.size}`);
 	}
 
-	// Get a user by ID
+	// Get a user by session ID
 	async get(sessionId: string): Promise<User | null> {
 		const session = this.sessions.get(sessionId);
 		if (!session || session.expiresAt < Date.now()) {
@@ -54,18 +56,19 @@ export class InMemorySessionStore implements SessionStore {
 		return session.user;
 	}
 
-	// Set a user
+	// Set a user session with expiration
 	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
 		this.sessions.set(sessionId, {
 			user,
 			expiresAt: Date.now() + expirationInSeconds * 1000
 		});
+		// Evict the oldest session if the limit is exceeded
 		if (this.sessions.size > (privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000)) {
 			this.evictOldestSession();
 		}
 	}
 
-	// Delete a user
+	// Evict the oldest session to maintain size limit
 	private evictOldestSession() {
 		let oldestSessionId: string | null = null;
 		let oldestTimestamp = Infinity;
@@ -83,12 +86,12 @@ export class InMemorySessionStore implements SessionStore {
 		}
 	}
 
-	// Delete a user
+	// Delete a session by ID
 	async delete(sessionId: string): Promise<void> {
 		this.sessions.delete(sessionId);
 	}
 
-	// Validate a user by ID
+	// Validate session with optional database check
 	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
 		if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
 			const dbUser = await dbValidationFn(sessionId);
@@ -101,7 +104,7 @@ export class InMemorySessionStore implements SessionStore {
 		return this.get(sessionId);
 	}
 
-	// Close the session store
+	// Close the session store and clear intervals
 	async close() {
 		clearInterval(this.cleanupInterval);
 	}
@@ -112,17 +115,17 @@ export class OptionalRedisSessionStore implements SessionStore {
 	private redisStore: SessionStore | null = null;
 	private fallbackStore: SessionStore;
 
-	// Constructor for Redis session store
 	constructor(fallbackStore: SessionStore = new InMemorySessionStore()) {
 		this.fallbackStore = fallbackStore;
-		if (privateEnv.USE_REDIS) {
+		if (!browser && privateEnv.USE_REDIS) {
 			this.initializeRedis().catch((err) => {
 				logger.error(`Failed to initialize Redis, using fallback session store: ${err.message}`);
 			});
 		} else {
-			logger.info('Redis is disabled in configuration, using fallback session store');
+			logger.info('Redis is disabled or in browser environment, using fallback session store');
 		}
 	}
+
 	// Initialize Redis session store
 	private async initializeRedis() {
 		if (!privateEnv.USE_REDIS) {
@@ -140,40 +143,64 @@ export class OptionalRedisSessionStore implements SessionStore {
 		}
 	}
 
-	// Get a user by ID
+	// Get a user by session ID
 	async get(sessionId: string): Promise<User | null> {
-		return this.redisStore ? this.redisStore.get(sessionId) : this.fallbackStore.get(sessionId);
+		try {
+			return this.redisStore ? this.redisStore.get(sessionId) : this.fallbackStore.get(sessionId);
+		} catch (error) {
+			logger.error(`Error getting session: ${error}`);
+			throw error;
+		}
 	}
 
-	// Set a user
+	// Set a user session with expiration
 	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
-		if (this.redisStore) {
-			await this.redisStore.set(sessionId, user, expirationInSeconds);
+		try {
+			if (this.redisStore) {
+				await this.redisStore.set(sessionId, user, expirationInSeconds);
+			}
+			await this.fallbackStore.set(sessionId, user, expirationInSeconds);
+		} catch (error) {
+			logger.error(`Error setting session: ${error}`);
+			throw error;
 		}
-		await this.fallbackStore.set(sessionId, user, expirationInSeconds);
 	}
 
-	// Delete a user
+	// Delete a session by ID
 	async delete(sessionId: string): Promise<void> {
-		if (this.redisStore) {
-			await this.redisStore.delete(sessionId);
+		try {
+			if (this.redisStore) {
+				await this.redisStore.delete(sessionId);
+			}
+			await this.fallbackStore.delete(sessionId);
+		} catch (error) {
+			logger.error(`Error deleting session: ${error}`);
+			throw error;
 		}
-		await this.fallbackStore.delete(sessionId);
 	}
 
-	// Validate a user by ID
+	// Validate session with optional database check
 	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
-		if (this.redisStore) {
-			return this.redisStore.validateWithDB(sessionId, dbValidationFn);
+		try {
+			if (this.redisStore) {
+				return this.redisStore.validateWithDB(sessionId, dbValidationFn);
+			}
+			return this.fallbackStore.validateWithDB(sessionId, dbValidationFn);
+		} catch (error) {
+			logger.error(`Error validating session: ${error}`);
+			throw error;
 		}
-		return this.fallbackStore.validateWithDB(sessionId, dbValidationFn);
 	}
 
 	// Close the session store
 	async close(): Promise<void> {
-		if (this.redisStore) {
-			await this.redisStore.close();
+		try {
+			if (this.redisStore) {
+				await this.redisStore.close();
+			}
+			await this.fallbackStore.close();
+		} catch (error) {
+			logger.error(`Error closing session store: ${error}`);
 		}
-		await this.fallbackStore.close();
 	}
 }
