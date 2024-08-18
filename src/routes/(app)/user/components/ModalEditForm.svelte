@@ -16,12 +16,15 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Auth
-	import type { PermissionConfig } from '@src/auth/types';
-	const { user, roles, rateLimits } = $page.data;
+	import { getLoadedRoles } from '@src/auth/types';
+	const roles = getLoadedRoles();
+	const { user } = $page.data;
 
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
+
+	import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 	// Define permissions for different contexts
 	const modaleEditFormConfig: PermissionConfig = {
@@ -248,7 +251,8 @@
 						{/if}
 					</div>
 				{/if}
-				<!-- Admin area -->
+
+				<!-- Role Select -->
 				<PermissionGuard config={modaleEditFormConfig}>
 					<div class="flex flex-col gap-2 sm:flex-row">
 						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>

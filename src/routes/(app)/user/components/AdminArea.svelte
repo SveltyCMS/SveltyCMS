@@ -1,5 +1,4 @@
 <script lang="ts">
-	import axios from 'axios';
 	import type { PageData } from '../$types';
 	import { writable } from 'svelte/store';
 	import { asAny, debounce } from '@utils/utils';
@@ -147,94 +146,68 @@
 	const rowsPerPageOptions = [2, 10, 25, 50, 100, 500];
 
 	async function refreshTableData() {
-		// Clear loading timer & show loader
 		loadingTimer && clearTimeout(loadingTimer);
 
-		try {
-			let responseData: any;
-			if (showUserList || showUsertoken) {
-				// Show loader
-				loadingTimer = setTimeout(() => {
-					isLoading = true;
-				}, 400);
+		if (showUserList || showUsertoken) {
+			loadingTimer = setTimeout(() => {
+				isLoading = true;
+			}, 400);
 
-				// Get User/Token data
-				if (showUserList) {
-					responseData = await axios.get('/api/getUsers').then((data) => data.data);
-				} else {
-					responseData = await axios.get('/api/getTokens').then((data) => data.data);
-				}
+			// Use the data provided by the server
+			tableData = showUserList ? data.adminData.users : data.adminData.tokens;
 
-				const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
+			const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 
-				debugger;
-				tableData = responseData.map((item) => {
-					const formattedItem = {};
-					for (const header of tableHeaders) {
-						const { key } = header;
-						//console.log(key, item[key]);
-						// Display avatar image in table
-						if (key === 'avatar') {
-							if (item[key]) {
-								const avatarUrl = `${item[key].thumbnail.url}`;
-								console.log('Avatar URL:', avatarUrl); // Log the constructed URL
-								formattedItem[key] = avatarUrl;
-							} else {
-								formattedItem[key] = '/Default_User.svg';
-							}
-						} else {
-							debugger;
-							formattedItem[key] = item[key] || 'NO DATA';
-
-							// Display CreatedAt/UpdatedAt in table
-							if (key === 'createdAt' || key === 'updatedAt' || key === 'expiresIn') {
-								formattedItem[key] = new Date(item[key]).toLocaleString();
-							}
+			tableData = tableData.map((item) => {
+				const formattedItem = {};
+				for (const header of tableHeaders) {
+					const { key } = header;
+					if (key === 'avatar') {
+						formattedItem[key] = item[key] || '/Default_User.svg';
+					} else {
+						formattedItem[key] = item[key] ?? 'NO DATA';
+						if (['createdAt', 'updatedAt', 'expiresIn'].includes(key) && item[key]) {
+							formattedItem[key] = new Date(item[key]).toLocaleString();
 						}
 					}
-					return formattedItem;
-				});
-
-				filters = {};
-
-				// Set table headers
-				if (userPaginationSettings.displayTableHeaders.length > 0) {
-					displayTableHeaders = userPaginationSettings.displayTableHeaders.map((header) => ({
-						...header,
-						id: crypto.randomUUID()
-					}));
-				} else if (tableData.length > 0) {
-					displayTableHeaders = tableData.map((header) => ({
-						...header,
-						visible: true,
-						id: crypto.randomUUID()
-					}));
 				}
+				return formattedItem;
+			});
 
-				SelectAll = false;
-				const totalRows = tableData.length;
-				pagesCount = Math.ceil(totalRows / rowsPerPage);
+			filters = {};
 
-				// Reset currentPage to 1 if it exceeds the new total pages
-				if (currentPage > pagesCount) {
-					currentPage = 1;
-				}
-
-				// Slice tableData for current page
-				const startIndex = (currentPage - 1) * rowsPerPage;
-				const endIndex = startIndex + rowsPerPage;
-				tableData = tableData.slice(startIndex, endIndex);
-
-				isLoading = false;
-				clearTimeout(loadingTimer);
-			} else {
-				tableData = [];
+			if (userPaginationSettings.displayTableHeaders.length > 0) {
+				displayTableHeaders = userPaginationSettings.displayTableHeaders.map((header) => ({
+					...header,
+					id: crypto.randomUUID()
+				}));
+			} else if (tableData.length > 0) {
+				displayTableHeaders = Object.keys(tableData[0]).map((key) => ({
+					label: key,
+					name: key,
+					visible: true,
+					id: crypto.randomUUID()
+				}));
 			}
-		} catch (error) {
-			console.error('Error fetching data:', error);
+
+			SelectAll = false;
+			const totalRows = tableData.length;
+			pagesCount = Math.ceil(totalRows / rowsPerPage);
+
+			if (currentPage > pagesCount) {
+				currentPage = 1;
+			}
+
+			const startIndex = (currentPage - 1) * rowsPerPage;
+			const endIndex = startIndex + rowsPerPage;
+			tableData = tableData.slice(startIndex, endIndex);
+
+			isLoading = false;
+			clearTimeout(loadingTimer);
+		} else {
+			tableData = [];
 		}
 	}
-
 	refreshTableData();
 
 	$: {

@@ -3,8 +3,12 @@
 	import { invalidateAll } from '$app/navigation';
 
 	// Auth
-	import type { User, roles } from '@src/auth/types';
-	import { consumeToken } from '@src/auth/tokens';
+	import { getLoadedRoles } from '@src/auth/types';
+	import type { User } from '@src/auth/types';
+
+	// Get roles from your auth module
+	const roles = getLoadedRoles(); // Ensure this returns an array of roles
+
 	const user: User = $page.data.user;
 
 	// Props
@@ -143,7 +147,7 @@
 					bind:value={formData.token}
 					on:keydown={() => (errorStatus.token.status = false)}
 					color={errorStatus.token.status ? 'red' : 'base'}
-					type="token"
+					type="text"
 					name="token"
 					class="peer block w-full appearance-none !rounded-none !border-0 !border-b-2 !border-surface-300 !bg-transparent px-6 py-2.5 text-sm text-surface-900 focus:border-tertiary-600 focus:outline-none focus:ring-0 dark:border-surface-600 dark:text-white dark:focus:border-tertiary-500"
 					placeholder=" "
@@ -170,14 +174,10 @@
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#each Object.values(role) as r}
+							{#each roles as r}
 								<span
 									class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-									on:click={() => {
-										// filterRole(r);
-										formData.role = r;
-									}}
-									on:keypress
+									on:click={() => (formData.role = r)}
 									role="button"
 									tabindex="0"
 								>

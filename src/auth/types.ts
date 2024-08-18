@@ -107,6 +107,7 @@ export interface Collection {
 export type Cookie = {
 	name: string; // Name of the cookie
 	value: string; // Value of the cookie
+	// Attributes of the cookie
 	attributes: {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;

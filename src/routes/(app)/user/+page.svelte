@@ -189,7 +189,7 @@
 </script>
 
 <div class="my-2 flex items-center justify-between">
-	<PageTitle name={m.userpage_title()} icon="" />
+	<PageTitle name={m.userpage_title()} icon="mdi:account-circle" />
 </div>
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">

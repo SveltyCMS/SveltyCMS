@@ -19,96 +19,132 @@
  * It prepares data and handles authentication for the client-side rendering.
  */
 
-import { publicEnv } from '@root/config/public';
-import { redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
+import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import type { User, Role } from '@src/auth/types';
 
-// Stores
-import { systemLanguage } from '@stores/store';
+// Superforms
+import { superValidate } from 'sveltekit-superforms/server';
+import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
+import { zod } from 'sveltekit-superforms/adapters';
 
-// Collections
-import { getCollections } from '@src/collections';
-
-// System Logs
+// Logger
 import logger from '@src/utils/logger';
 
-// Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
-
-export const load: PageServerLoad = async ({ cookies }) => {
-	await initializationPromise; // Ensure initialization is complete
-
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw redirect(302, '/login');
-	}
-
-	// Secure this page with session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	if (!session_id) {
-		logger.debug('No session ID found, redirecting to login');
-		throw redirect(302, '/login');
-	}
-
-	// Validate the user's session
-	let user;
+export const load: PageServerLoad = async (event) => {
 	try {
-		user = await auth.validateSession({ session_id });
-		if (!user) {
-			logger.warn('Invalid session, redirecting to login');
-			throw redirect(302, '/login');
-		}
-	} catch (e) {
-		logger.error(`Session validation failed: ${(e as Error).message}`);
-		throw redirect(302, '/login');
-	}
+		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+		logger.debug(`Session ID from cookie: ${session_id}`);
 
-	// Fetch the theme
-	let theme;
-	try {
-		theme = await dbAdapter.getDefaultTheme();
-		// Ensure theme is serializable
-		theme = JSON.parse(JSON.stringify(theme));
-		logger.info(`Theme loaded successfully: ${JSON.stringify(theme)}`);
-	} catch (error) {
-		logger.error(`Error fetching default theme: ${(error as Error).message}`);
-		theme = DEFAULT_THEME;
-	}
-
-	// Set the system language if needed based on the theme
-	if (theme.language) {
-		systemLanguage.set(theme.language);
-	}
-
-	// Fetch collections and redirect to the first one
-	let collections;
-	try {
-		collections = await getCollections();
-		const firstCollection = Object.keys(collections)[0];
-
-		if (!firstCollection) {
-			logger.error('No collections found');
-			throw new Error('No collections found');
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
 		}
 
-		// Check if the user has permission to access the first collection
-		const collectionPermissions = collections[firstCollection].permissions;
-		const userRole = user.role;
+		let user: User | null = null;
+		let roles: Role[] = [];
+		let isFirstUser = false;
+		let allUsers: User[] = [];
+		let allTokens: Token[] = [];
 
-		if (collectionPermissions && collectionPermissions[userRole] && collectionPermissions[userRole].read === false) {
-			logger.warn(`User ${user._id} does not have permission to access collection ${firstCollection}`);
-			throw new Error('No accessible collections found');
+		// Check if this is the first user, regardless of session
+		const userCount = await auth.getUserCount();
+		isFirstUser = userCount === 0;
+		logger.debug(`Is first user: ${isFirstUser}`);
+
+		if (session_id) {
+			try {
+				user = await auth.validateSession({ session_id });
+				logger.debug(`User from session: ${JSON.stringify(user)}`);
+
+				if (user) {
+					roles = await auth.getAllRoles();
+					logger.debug(`Roles retrieved: ${JSON.stringify(roles)}`);
+
+					// If the user is an admin, fetch all users and tokens
+					if (user.role === 'admin') {
+						try {
+							allUsers = await auth.getAllUsers();
+							logger.debug(`Retrieved ${allUsers.length} users for admin`);
+						} catch (userError) {
+							logger.error(`Error fetching all users: ${(userError as Error).message}`);
+						}
+
+						try {
+							allTokens = await auth.getAllTokens();
+							logger.debug(`Retrieved ${allTokens.length} tokens for admin`);
+						} catch (tokenError) {
+							logger.error(`Error fetching all tokens: ${(tokenError as Error).message}`);
+						}
+					}
+				} else {
+					logger.warn('Session is valid but user not found');
+				}
+			} catch (validationError) {
+				logger.error(`Session validation error: ${(validationError as Error).message}`);
+			}
+		} else {
+			logger.warn('No session found');
 		}
 
-		logger.debug(`First accessible collection: ${firstCollection}`);
-		throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
-	} catch (error) {
-		logger.error(`Error fetching or accessing collections: ${(error as Error).message}`);
-		throw redirect(302, '/login');
+		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
+		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
+
+		// Prepare user object for return, ensuring _id is a string
+		const safeUser = user
+			? {
+					...user,
+					_id: user._id.toString(),
+					password: '[REDACTED]' // Ensure password is not sent to client
+				}
+			: null;
+
+		// Format users and tokens for the admin area
+		const formattedUsers = allUsers.map((user) => ({
+			_id: user._id.toString(),
+			blocked: user.blocked || false,
+			avatar: user.avatar || null,
+			email: user.email,
+			username: user.username || null,
+			role: user.role,
+			activeSessions: user.lastActiveAt ? 1 : 0, // This is a placeholder
+			lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
+			createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+			updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
+		}));
+
+		const formattedTokens = allTokens.map((token) => ({
+			user_id: token.user_id,
+			blocked: false, // Assuming tokens don't have a 'blocked' status
+			email: token.email || '',
+			expiresIn: token.expires ? new Date(token.expires).toISOString() : null,
+			createdAt: new Date(token.token_id).toISOString(), // Assuming token_id is a timestamp
+			updatedAt: new Date(token.token_id).toISOString() // Assuming tokens are not updated
+		}));
+
+		return {
+			user: safeUser,
+			roles: roles.map((role) => ({
+				...role,
+				_id: role._id.toString()
+			})),
+			addUserForm,
+			changePasswordForm,
+			isFirstUser,
+			adminData:
+				user?.role === 'admin'
+					? {
+							users: formattedUsers,
+							tokens: formattedTokens
+						}
+					: null
+		};
+	} catch (err) {
+		logger.error('Error during load function:', err);
+		return { user: null, roles: [], addUserForm: null, changePasswordForm: null, isFirstUser: false, adminData: null };
 	}
 };

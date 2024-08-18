@@ -5,7 +5,9 @@
 
 	// Auth
 	import { getLoadedRoles } from '@src/auth/types';
-	const roles = getLoadedRoles();
+	import type { Role } from '@src/auth/types'; // Import Role type
+	const roles: Role[] = getLoadedRoles(); // Ensure correct type
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -13,8 +15,6 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 
 	export let addUserForm: PageData['addUserForm'];
-
-	// Exposes parent props to this component.
 	export let parent: any;
 
 	// Skeleton & Stores
@@ -37,7 +37,7 @@
 			password: '',
 			expiresIn: '',
 			expiresInLabel: ''
-		} as unknown as PageData['addUserForm']; // Ensure typing compatibility
+		} as unknown as PageData['addUserForm'];
 	}
 
 	// Superforms
@@ -56,10 +56,8 @@
 			// Trigger the toast
 			const t = {
 				message: '<iconify-icon icon="mdi:email-fast-outline" color="white" width="24" class="mr-1"></iconify-icon> Email Invite Sent',
-				// Provide any utility or variant background style:
 				background: 'gradient-tertiary',
 				timeout: 3000,
-				// Add your custom classes here:
 				classes: 'border-1 !rounded-md'
 			};
 			toastStore.trigger(t);
@@ -78,7 +76,7 @@
 	});
 
 	// Define default role and token validity options
-	let roleSelected = Object.values(roles)[1];
+	let roleSelected: string = roles[1]?._id || ''; // Ensure the correct type
 	let expiresIn = '2 hrs'; // Set the default validity
 	let expiresInLabel = '';
 	let expirationTime: number | undefined;
@@ -128,32 +126,34 @@
 				{/if}
 			</div>
 
-			<!-- User Role  -->
+			<!-- User Role -->
 			<div class="flex flex-col gap-2 sm:flex-row">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-						{#each Object.values(roles) as r}
+						{#each roles as r (r._id)}
 							<span
-								class="chip {roleSelected === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+								class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
 								on:click={() => {
-									roleSelected = r;
+									roleSelected = r._id;
 								}}
 								on:keypress
 								role="button"
 								tabindex="0"
+								aria-label={`Role: ${r.name}`}
+								aria-pressed={roleSelected === r._id ? 'true' : 'false'}
 							>
-								{#if roleSelected === r}
+								{#if roleSelected === r._id}
 									<span><iconify-icon icon="fa:check" /></span>
 								{/if}
-								<span class="capitalize">{r}</span>
+								<span class="capitalize">{r.name}</span>
 							</span>
 						{/each}
 					</div>
 				</div>
 			</div>
 
-			<!-- Token validity  -->
+			<!-- Token validity -->
 			<div class="flex flex-col gap-1 pb-6 sm:flex-row sm:gap-2">
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.modaltokenuser_tokenvalidity()}</div>
 				<div class="flex-auto">

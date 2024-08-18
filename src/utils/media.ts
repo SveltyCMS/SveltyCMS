@@ -52,7 +52,7 @@ async function getS3Client() {
 			region: process.env.AWS_REGION
 		});
 	} catch (error) {
-		console.warn('AWS SDK is not installed. S3 functionality will not be available.');
+		logger.error('AWS SDK is not installed. S3 functionality will not be available.:', error as Error);
 		return null;
 	}
 }
