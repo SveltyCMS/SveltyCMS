@@ -1,7 +1,7 @@
 <p style="border: none; margin-bottom:0; padding-bottom: 0;" align="center">
       <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
-      <img width="200" alt="SveltyCMS logo" src="https://github.com/Rar9/SveltyCMS/blob/main/static/SveltyCMS.png">
+      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
+      <img width="200" alt="SveltyCMS logo" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/SveltyCMS.png">
     </picture>
  </p>
 
@@ -34,9 +34,9 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/Rar9/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/Rar9/SveltyCMS/actions/workflows/playwright.yml/badge.svg"></a>
-  <a href="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/Rar9/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql"><img alt="CodeQL" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/github-code-scanning/codeql/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/playwright.yml"><img alt="Playwright Tests" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/playwright.yml/badge.svg"></a>
+  <a href="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml"><img alt="Auto Release" src="https://github.com/SveltyCMS/SveltyCMS/actions/workflows/auto-release.yaml/badge.svg"></a>
 </p>
 
 <h2 align="center">A powerful Headless CMS with Sveltekit Power</h2>
@@ -56,7 +56,7 @@ We used [tailwindcss](https://tailwindcss.com/) and a [skeleton UI toolkit](http
 The Backend Data is provided via [GraphQL Yoga](https://the-guild.dev/graphql/yoga-server), to build extremely fast frontends.
 
 <p align="center">
- <img width="100%" alt="SveltyCMS Gui" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
+ <img width="100%" alt="SveltyCMS Gui" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo1.png">
 </p>
 
 ## :toolbox: SveltyCMS & DXP: Your Gateway to Streamlined Digital Experiences
@@ -73,10 +73,10 @@ Footnote: As a headless CMS fortified with GraphQL API, SveltyCMS fully harnesse
 
 ### Clone the repository
 
-To clone our [repository](https://github.com/Rar9/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
+To clone our [repository](https://github.com/SveltyCMS/SveltyCMS.git) you need to be able to use [Git](https://git-scm.com/downloads).
 
 ```bash
-git clone https://github.com/Rar9/SveltyCMS.git
+git clone https://github.com/SveltyCMS/SveltyCMS.git
 
 cd SveltyCMS
 ```
@@ -160,7 +160,7 @@ Build and send emails using [Svelty Email](https://svelte-email.vercel.app/) and
 ## :question: Need help
 
 Contact us if you're struggling installation or other issues via:
-[GitHub Discussions](https://github.com/Rar9/SvelteCMS/discussions)
+[GitHub Discussions](https://github.com/SveltyCMS/SvelteCMS/discussions)
 
 ## :rocket: Semantic Versioning
 
@@ -172,7 +172,7 @@ We use [semantic versioning](https://semver.org/) to manage our releases. This m
 
 When submitting pull requests, please make sure your commit messages follow the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This will help us automatically generate changelogs and release notes.
 
-Please also read our [Code of Conduct](https://github.com/Rar9/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
+Please also read our [Code of Conduct](https://github.com/SveltyCMS/SvelteCMS/blob/main/CODE-OF-CONDUCT.md) before submitting Pull Requests.
 
 If your PR makes a change that should be noted in one or more packages' changelogs, generate a changeset by running pnpm changeset and following the prompts.
 Changesets that add features should be minor and those that fix bugs should be patch.
@@ -185,7 +185,7 @@ Thank you for helping us maintain a consistent and predictable release process! 
 
 # Contributing
 
-We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/Rar9/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
+We welcome all kinds of contributions! Please see our [`CONTRIBUTING.md`](https://github.com/SveltyCMS/SveltyCMS/CONTRIBUTING.md) for details on how to get started with this.
 
 ## :moneybag: Sponsoring
 
@@ -207,6 +207,6 @@ To all our contributors without this would never have been possible
 If you like what we're doing, give us a `star` and share our `SveltyCMS` project with others
 
 <p align="center">
-<img width="100%" alt="SveltyCMS Builder" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
-<img width="100%" alt="SveltyCMS User" src="https://github.com/Rar9/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
+<img width="100%" alt="SveltyCMS Builder" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo2.png">
+<img width="100%" alt="SveltyCMS User" src="https://github.com/SveltyCMS/SveltyCMS/blob/main/static/docs/SveltyCMS-Demo3.png">
 </p>

@@ -1,5 +1,5 @@
 /**
- * @file themeStore.ts
+ * @file src/stores/themeStore.ts
  * @description Manages the theme state for the application using Svelte stores.
  *
  * This module provides functionality to:

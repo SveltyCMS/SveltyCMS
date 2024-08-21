@@ -18,8 +18,13 @@
 </script>
 
 <!-- Page Title -->
-<div class="my-2 flex items-center justify-between">
+<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
 	<PageTitle name="Access Management" icon="mdi:account-key" />
+
+	<!-- Back -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
 </div>
 
 <div class="mb-6 text-center sm:text-left">

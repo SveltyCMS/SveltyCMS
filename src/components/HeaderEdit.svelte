@@ -40,7 +40,9 @@
 	// Stores
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { screenWidth, toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
+
 	import {
 		collection,
 		categories,
@@ -115,7 +117,7 @@
 			<button
 				type="button"
 				on:keydown
-				on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+				on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
 				class="variant-ghost-surface btn-icon mt-1"
 			>
 				<iconify-icon icon="mingcute:menu-fill" width="24" />
@@ -146,7 +148,7 @@
 	<div class="flex items-center justify-end gap-1 sm:gap-2 md:gap-4">
 		<!-- Check if user role has access to collection -->
 		<!-- mobile mode -->
-		{#if $screenWidth !== 'desktop'}
+		{#if $screenSize !== 'lg'}
 			{#if $shouldShowNextButton}
 				<!-- Next Button  -->
 				<button type="button" on:click={next} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">

@@ -39,7 +39,7 @@ import type { authDBInterface } from '@src/auth/authDBInterface';
 // MongoDB Adapters
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
-import { PermissionAdapter } from '@src/auth/mongoDBAuth/permissionAdapter';
+import { PermissionAdapter } from '@src/auth/permissionAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
@@ -70,7 +70,7 @@ async function loadAdapters() {
 		logger.debug(`Loading ${privateEnv.DB_TYPE} adapters...`);
 
 		if (privateEnv.DB_TYPE === 'mongodb') {
-			const { MongoDBAdapter } = await import('./mongoDBAdapter');
+			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
 			const userAdapter = new UserAdapter();
 			const roleAdapter = new RoleAdapter();
@@ -98,6 +98,7 @@ async function loadAdapters() {
 				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
 				getUserCount: userAdapter.getUserCount.bind(userAdapter),
+				getRecentUserActivities: userAdapter.getRecentUserActivities.bind(userAdapter),
 
 				// Session Management Methods
 				createSession: sessionAdapter.createSession.bind(sessionAdapter),

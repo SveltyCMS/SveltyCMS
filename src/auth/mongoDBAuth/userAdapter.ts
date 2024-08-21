@@ -22,7 +22,7 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Adapter
 import { RoleSchema } from './roleAdapter';
-import { PermissionSchema } from './permissionAdapter';
+import { PermissionSchema } from '../permissionAdapter';
 // import { TokenAdapter } from './tokenAdapter';
 
 // Types
@@ -45,7 +45,7 @@ export const UserSchema = new Schema(
 		locale: String, // Locale of the user
 		avatar: String, // URL of the user's avatar, optional field
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
-		lastActiveAt: Date, // Last time the user was active, optional field
+		lastActiveAt: { type: Date, default: Date.now }, // Last time the user was active, optional field
 		expiresAt: Date, // Expiry date for the user, optional field
 		isRegistered: Boolean, // Registration status of the user, optional field
 		failedAttempts: { type: Number, default: 0 }, // Number of failed login attempts, optional field
@@ -345,6 +345,24 @@ export class UserAdapter implements Partial<authDBInterface> {
 			return user?.role === role_name;
 		} catch (error) {
 			logger.error(`Failed to check user role: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Fetch the last 5 users who logged in
+	async getRecentUserActivities(): Promise<User[]> {
+		try {
+			// Fetch users sorted by lastActiveAt in descending order and limit to 5
+			const recentUsers = await this.UserModel.find({ lastActiveAt: { $ne: null } })
+				.sort({ lastActiveAt: -1 })
+				.limit(5)
+				.select('email username lastActiveAt') // Select the fields you want to return
+				.lean();
+
+			logger.debug('Retrieved recent user activities');
+			return recentUsers as User[];
+		} catch (error) {
+			logger.error(`Failed to retrieve recent user activities: ${(error as Error).message}`);
 			throw error;
 		}
 	}

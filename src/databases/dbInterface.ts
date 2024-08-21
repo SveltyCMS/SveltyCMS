@@ -9,6 +9,7 @@
  * - Draft and revision management
  * - Widget management
  * - Theme management
+ * - System preferences management
  *
  * The interface ensures consistency across different database implementations
  * (e.g., MongoDB, MariaDB, PostgreSQL) by defining a common set of methods
@@ -21,6 +22,9 @@
  * It provides a unified API for database operations, allowing for easy
  * swapping of database backends without changing the application logic.
  */
+
+import type { ScreenSize } from '@stores/screenSizeStore';
+import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
 
 export interface dbInterface {
 	// Database Connection and Setup Methods
@@ -42,12 +46,12 @@ export interface dbInterface {
 
 	// Methods for Draft and Revision Management
 	generateId(): string;
-	createDraft?: (content: any, originalDocumentId: string, userId: string) => Promise<any>;
-	updateDraft?: (draftId: string, content: any) => Promise<any>;
-	publishDraft?: (draftId: string) => Promise<any>;
-	getDraftsByUser?: (userId: string) => Promise<any[]>;
-	createRevision?: (documentId: string, content: any, userId: string) => Promise<any>;
-	getRevisions?: (documentId: string) => Promise<any[]>;
+	createDraft?(content: any, originalDocumentId: string, userId: string): Promise<any>;
+	updateDraft?(draftId: string, content: any): Promise<any>;
+	publishDraft?(draftId: string): Promise<any>;
+	getDraftsByUser?(userId: string): Promise<any[]>;
+	createRevision?(documentId: string, content: any, userId: string): Promise<any>;
+	getRevisions?(documentId: string): Promise<any[]>;
 
 	// Methods for Widget Management
 	installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>;
@@ -62,6 +66,14 @@ export interface dbInterface {
 	storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void>;
 	getDefaultTheme(): Promise<any>;
 	getAllThemes(): Promise<any[]>;
+
+	// System Preferences
+	getSystemPreferences(userId: string): Promise<UserPreferences | null>;
+	updateSystemPreferences(userId: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>;
+	clearSystemPreferences(userId: string): Promise<void>;
+
+	// Media Management
+	getLastFiveMedia(): Promise<any[]>;
 
 	// Method for Disconnecting
 	disconnect(): Promise<void>;

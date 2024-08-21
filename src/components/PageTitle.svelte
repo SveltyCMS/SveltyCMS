@@ -1,6 +1,7 @@
 <script lang="ts">
 	// Stores
-	import { toggleSidebar, sidebarState, screenWidth } from '@stores/sidebarStore';
+	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
 	import { get } from 'svelte/store';
 
 	interface PageTitleProps {
@@ -22,7 +23,7 @@
 		<button
 			type="button"
 			on:keydown
-			on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+			on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
 			class="variant-ghost-surface btn-icon mt-1"
 		>
 			<iconify-icon icon="mingcute:menu-fill" width="24" />

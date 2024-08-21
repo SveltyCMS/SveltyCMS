@@ -26,7 +26,8 @@
 	import { onMount } from 'svelte';
 	import type { Schema } from '@collections/types';
 	import { getTextDirection } from '@src/utils/utils';
-	import { screenWidth, sidebarState } from '@stores/sidebarStore';
+	import { sidebarState } from '@stores/sidebarStore';
+	import { screenSize } from '@stores/screenSizeStore';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -199,15 +200,13 @@
 					<div
 						on:keydown={onKeyDown}
 						role="main"
-						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenWidth === 'desktop'
-							? 'mb-2'
-							: 'mb-16'}"
+						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
 					>
 						{#key $page.url}
 							<Toast />
 							<Modal />
 
-							{#if $screenWidth !== 'desktop'}
+							{#if $screenSize !== 'lg'}
 								<FloatingNav buttonInfo />
 							{/if}
 
@@ -225,7 +224,7 @@
 							<slot />
 
 							<!--<div>mode : {$mode}</div>							
-							<div>screenWidth : {$screenWidth}</div>
+							<div>screenSize : {$screenSize}</div>
 							<div>sidebarState.left : {$sidebarState.left}</div>
 							<div>sidebarState.right : {$sidebarState.right}</div>
 							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>

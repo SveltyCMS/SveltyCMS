@@ -1,23 +1,27 @@
 /**
- * @file src/databases/mongoDBAdapter.ts
- * @description MongoDB adapter for the CMS database operations.
+ * @file src/databases/mongodb/mongoDBAdapter.ts
+ * @description MongoDB adapter for CMS database operations and user preferences.
  *
- * This module provides an implementation of the dbInterface for MongoDB:
- * - Manages connection to MongoDB database
- * - Implements CRUD operations for collections, drafts, and revisions
- * - Handles user, role, and permission management
- * - Manages media storage and retrieval
- *
- * Features:
+ * This module provides an implementation of the `dbInterface` for MongoDB, handling:
  * - MongoDB connection management with retry mechanism
- * - Implementation of all dbInterface methods for MongoDB
- * - Schema creation and management using Mongoose
- * - Support for complex queries and aggregations
- * - Error handling and logging for all database operations
+ * - CRUD operations for collections, drafts, revisions, and widgets
+ * - Management of media storage and retrieval
+ * - User, role, and permission management
+ * - Management of system preferences including user screen sizes and layout preferences
+ *
+ * Key Features:
+ * - Automatic reconnection with retry logic for MongoDB
+ * - Schema definitions and model creation for various collections (e.g., Drafts, Revisions, Widgets)
+ * - Handling of media files with a schema for different media types
+ * - Management of authentication-related models (e.g., User, Token, Session)
+ * - Default and custom theme management with database operations
+ * - User preferences storage and retrieval, including layout and screen size information
  *
  * Usage:
- * This adapter is used when the CMS is configured to use MongoDB.
- * It provides a database-agnostic interface for all database operations in the CMS.
+ * This adapter is utilized when the CMS is configured to use MongoDB, providing a
+ * database-agnostic interface for various database operations within the CMS.
+ * The adapter supports complex queries, schema management, and handles error logging
+ * and connection retries.
  */
 
 import { privateEnv } from '@root/config/private';
@@ -25,10 +29,12 @@ import { privateEnv } from '@root/config/private';
 // Stores
 import { collections } from '@stores/store';
 import type { Unsubscriber } from 'svelte/store';
+import type { ScreenSize } from '@stores/screenSizeStore';
+import type { UserPreferences, WidgetPreference } from '@src/stores/userPreferences';
 
 // Database
 import mongoose from 'mongoose';
-import type { dbInterface } from './dbInterface';
+import type { dbInterface } from '../dbInterface';
 
 // System Logs
 import logger from '@src/utils/logger';
@@ -117,6 +123,35 @@ const ThemeSchema = new mongoose.Schema(
 
 // Create Theme model
 const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
+
+// Define the System Preferences schema for user layout and screen size
+const SystemPreferencesSchema = new mongoose.Schema(
+	{
+		userId: String, // User identifier
+		preferences: {
+			type: Map,
+			of: [
+				{
+					id: String, // Component ID
+					component: String, // Component type or name
+					label: String, // Label for the component
+					x: Number, // X position on the screen
+					y: Number, // Y position on the screen
+					w: Number, // Width of the component
+					h: Number, // Height of the component
+					min: { w: Number, h: Number }, // Minimum size constraints
+					max: { w: Number, h: Number }, // Maximum size constraints
+					movable: Boolean, // Whether the component can be moved
+					resizable: Boolean, // Whether the component can be resized
+					screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'] } // Screen size context
+				}
+			]
+		}
+	},
+	{ collection: 'system_preferences' }
+);
+
+const SystemPreferences = mongoose.models.SystemPreferences || mongoose.model('SystemPreferences', SystemPreferencesSchema);
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -219,7 +254,9 @@ export class MongoDBAdapter implements dbInterface {
 						logger.info(`Collection model for ${collection.name} set up successfully.`);
 					}
 
-					this.unsubscribe && this.unsubscribe();
+					if (this.unsubscribe) {
+						this.unsubscribe();
+					}
 					this.unsubscribe = undefined;
 					this.collectionsInitialized = true;
 					logger.info('MongoDB adapter collection models setup complete.');
@@ -321,27 +358,26 @@ export class MongoDBAdapter implements dbInterface {
 	async getDefaultTheme(): Promise<ThemeDocument> {
 		try {
 			logger.debug('Attempting to fetch the default theme from the database...');
-			const theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
+			let theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
 
 			if (theme) {
 				logger.info(`Default theme found: ${theme.name}`);
-				logger.debug(`Default theme object: ${JSON.stringify(theme)}`);
 				return theme;
 			}
 
-			// Check if Theme collection is empty
 			const count = await Theme.countDocuments();
 			if (count === 0) {
 				logger.warn('Theme collection is empty. Inserting default theme.');
 				await this.storeThemes([DEFAULT_THEME]);
-				const insertedTheme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
-				if (insertedTheme) {
-					return insertedTheme;
-				}
+				theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
 			}
 
-			logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
-			return DEFAULT_THEME as ThemeDocument;
+			if (!theme) {
+				logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
+				return DEFAULT_THEME as ThemeDocument;
+			}
+
+			return theme;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error fetching default theme: ${err.message}`);
@@ -695,7 +731,48 @@ export class MongoDBAdapter implements dbInterface {
 		return recentMedia;
 	}
 
-	// Disconnect
+	// Create or update user preferences
+	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
+		logger.debug(`Setting user preferences for userId: ${userId}`);
+
+		await SystemPreferences.updateOne({ userId }, { $set: { preferences } }, { upsert: true });
+	}
+
+	// Retrieves system preferences for a specific user.
+	async getSystemPreferences(userId: string): Promise<UserPreferences | null> {
+		try {
+			const preferences = await SystemPreferences.findOne({ userId }).exec();
+			return preferences ? preferences.preferences : null;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to retrieve system preferences for user ${userId}. Error: ${err.message}`);
+			throw new Error(`Failed to retrieve system preferences: ${err.message}`);
+		}
+	}
+
+	// Updates system preferences for a specific user.
+	async updateSystemPreferences(userId: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
+		try {
+			await SystemPreferences.findOneAndUpdate({ userId }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to update system preferences for user ${userId}. Error: ${err.message}`);
+			throw new Error(`Failed to update system preferences: ${err.message}`);
+		}
+	}
+
+	// Clears system preferences for a specific user
+	async clearSystemPreferences(userId: string): Promise<void> {
+		try {
+			await SystemPreferences.deleteOne({ userId }).exec();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to clear system preferences for user ${userId}. Error: ${err.message}`);
+			throw new Error(`Failed to clear system preferences: ${err.message}`);
+		}
+	}
+
+	// Clean up and disconnect from MongoDB
 	async disconnect(): Promise<void> {
 		try {
 			await mongoose.disconnect();

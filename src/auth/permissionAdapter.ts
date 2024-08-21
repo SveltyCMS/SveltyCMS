@@ -23,14 +23,14 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
 
 // Types
-import type { Permission } from '../types';
-import type { authDBInterface } from '../authDBInterface';
+import type { Permission } from './types';
+import type { authDBInterface } from './authDBInterface';
 
 // System Logging
 import logger from '@utils/logger';
 
 // Import permissions from config
-import { permissions as configPermissions } from '../../../config/permissions';
+import { permissions as configPermissions } from '../../config/permissions';
 
 // Define the Permission schema
 export const PermissionSchema = new Schema(

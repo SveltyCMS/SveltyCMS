@@ -118,7 +118,7 @@
 			<Section style={btnContainer}>
 				<Link href={tokenLink}>
 					<Img
-						src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png"
+						src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png"
 						alt="{publicEnv.SITE_NAME} logo"
 						width="150"
 						height="auto"

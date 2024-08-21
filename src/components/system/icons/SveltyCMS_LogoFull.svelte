@@ -9,7 +9,7 @@
 
 <!-- CSS Logo -->
 <a
-	href="https://github.com/Rar9/SveltyCMS"
+	href="https://github.com/SveltyCMS/SveltyCMS"
 	target="_blank"
 	rel="noopener"
 	class="absolute left-1/2 top-1/3 flex -translate-x-1/2 -translate-y-1/2 transform items-center justify-center border"

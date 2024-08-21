@@ -13,7 +13,8 @@
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
-	import { screenWidth, toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
+	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -81,7 +82,7 @@
 			handleSidebarToggle();
 			goto(`/user`);
 		}
-		if (get(screenWidth) === 'mobile') {
+		if (get(screenSize) === 'sm') {
 			toggleSidebar('left', 'hidden'); // Hide the left sidebar on mobile
 		}
 	};
@@ -291,7 +292,7 @@
 					on:click={() => {
 						mode.set('view');
 						handleSidebarToggle();
-						if (get(screenWidth) === 'mobile') {
+						if (get(screenSize) === 'sm') {
 							toggleSidebar('left', 'hidden');
 						}
 					}}
@@ -310,7 +311,7 @@
 
 			<!-- Github discussions -->
 			<div class="{$sidebarState.left === 'full' ? 'order-7' : 'order-7 hidden'} ">
-				<a href="https://github.com/Rar9/SveltyCMS/discussions" target="blank">
+				<a href="https://github.com/SveltyCMS/SveltyCMS/discussions" target="blank">
 					<button use:popup={GithubTooltip} class="btn-icon hover:bg-surface-500 hover:text-white">
 						<iconify-icon icon="grommet-icons:github" width="30" />
 					</button>
@@ -325,7 +326,7 @@
 
 			<!-- CMS Version -->
 			<div class={$sidebarState.left === 'full' ? 'order-6' : 'order-5'}>
-				<a href="https://github.com/Rar9/SveltyCMS/" target="blank">
+				<a href="https://github.com/SveltyCMS/SveltyCMS/" target="blank">
 					<span class="{$sidebarState.left === 'full' ? 'py-1' : 'py-0'} {$pkgBgColor} badge rounded-xl text-black hover:text-white"
 						>{#if $sidebarState.left === 'full'}{m.applayout_version()}{/if}
 						{pkg}

@@ -56,7 +56,7 @@
 	<Section style={main}>
 		<Container style={container}>
 			<Link href={tokenLink}>
-				<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
+				<Img src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png" alt="{publicEnv.SITE_NAME} logo" width="150" height="auto" />
 			</Link>
 			<Text style={paragraph}>{m.updatedpassword_hello({ username })}</Text>
 			<Text style={paragraph}>You have successfully changed your Password for {publicEnv.SITE_NAME}</Text>

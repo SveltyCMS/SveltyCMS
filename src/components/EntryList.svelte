@@ -6,7 +6,8 @@
 	// Stores
 	import { get } from 'svelte/store';
 	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
-	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -392,7 +393,7 @@
 				<button
 					type="button"
 					on:keydown
-					on:click={() => toggleSidebar('left', get(screenWidth) === 'desktop' ? 'full' : 'collapsed')}
+					on:click={() => toggleSidebar('left', get(screenSize) === 'lg' ? 'full' : 'collapsed')}
 					class="variant-ghost-surface btn-icon mt-1"
 				>
 					<iconify-icon icon="mingcute:menu-fill" width="24" />

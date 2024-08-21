@@ -56,8 +56,13 @@
 </script>
 
 <!-- Page Title -->
-<div class="my-2 flex items-center justify-between">
+<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
 	<PageTitle name="Widget Management" icon="mdi:widgets" />
+
+	<!-- Back -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
 </div>
 
 {#each installedWidgets as widget}

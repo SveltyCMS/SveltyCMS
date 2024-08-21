@@ -4,7 +4,8 @@
 	// Stores
 	import { page } from '$app/stores';
 	import { mode, collection, categories, shouldShowNextButton } from '@stores/store';
-	import { handleSidebarToggle, screenWidth, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
+	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
 	import { get } from 'svelte/store';
 
 	// Auth
@@ -92,7 +93,7 @@
 		<button
 			type="button"
 			on:click={() => {
-				if (get(screenWidth) === 'mobile') {
+				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
 				} else {
 					sidebarState.update((state) => ({ ...state, left: 'full' }));
@@ -142,8 +143,8 @@
 		{#each filteredCategories as category}
 			<AccordionItem
 				bind:open={category.open}
-				regionPanel={`divide-y dark:divide-black my-0  overflow-y-auto`}
-				class="divide-y rounded-md bg-surface-300 dark:divide-black "
+				regionPanel={`divide-y dark:divide-black my-0 overflow-y-auto`}
+				class="divide-y rounded-md bg-surface-300 dark:divide-black"
 			>
 				<svelte:fragment slot="lead">
 					<!-- TODO: Tooltip not fully working -->
@@ -234,7 +235,7 @@
 				// Navigate to the media gallery route
 				goto('/mediagallery');
 				// Optionally, close the sidebar if it's on mobile
-				if (get(screenWidth) === 'mobile') {
+				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
 				}
 			}}
@@ -252,7 +253,7 @@
 				goto('/mediagallery');
 				// Optionally, close the sidebar if it's on mobile
 				handleSidebarToggle();
-				if (get(screenWidth) === 'mobile') {
+				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
 				}
 			}}

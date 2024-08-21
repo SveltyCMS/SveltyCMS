@@ -86,6 +86,7 @@ export interface authDBInterface {
 	removePermissionFromUser(user_id: string, permission_id: string): Promise<void>;
 	getPermissionsForUser(user_id: string): Promise<Permission[]>;
 	getUsersWithPermission(permission_id: string): Promise<User[]>;
+	getRecentUserActivities(user_id: string): Promise<any[]>;
 
 	// User-Role Methods
 	assignRoleToUser(user_id: string, role_id: string): Promise<void>;

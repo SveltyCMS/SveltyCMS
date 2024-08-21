@@ -169,7 +169,7 @@
 
 		<!-- CMS Version -->
 		<a
-			href="https://github.com/Rar9/SveltyCMS"
+			href="https://github.com/SveltyCMS/SveltyCMS"
 			target="_blank"
 			rel="noopener"
 			class="absolute bottom-5 left-1/2 right-1/3 flex min-w-[100px] max-w-[250px] -translate-x-1/2 -translate-y-1/2 transform justify-center gap-6 rounded-full bg-gradient-to-r from-surface-50/20 to-[#242728]/20"

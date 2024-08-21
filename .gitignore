@@ -42,3 +42,10 @@ yarn-error.log*
 /data.json
 /indexes
 /*.bin
+src/routes/(app)/dashboard/widgets/CPUWidget.svelte
+src/routes/(app)/dashboard/widgets/DiskWidget.svelte
+src/routes/(app)/dashboard/widgets/Last5ContentWidget.svelte
+src/routes/(app)/dashboard/widgets/Last5MediaWidget.svelte
+src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
+src/routes/(app)/dashboard/widgets/SystemMessagesWidget.svelte
+src/routes/(app)/dashboard/widgets/UserActivityWidget.svelte

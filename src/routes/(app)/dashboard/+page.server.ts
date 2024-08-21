@@ -1,4 +1,6 @@
+// src/routes/(app)/dashboard/+page.server.ts
 import { redirect, error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
 // Auth
 import { auth, initializationPromise } from '@src/databases/db';
@@ -7,7 +9,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // System Logger
 import logger from '@src/utils/logger';
 
-export async function load({ cookies }) {
+export const load: PageServerLoad = async ({ cookies }) => {
 	await initializationPromise;
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
@@ -19,23 +21,15 @@ export async function load({ cookies }) {
 
 	// If no session ID is found, create a new session
 	if (!session_id) {
-		// console.log('Session ID is missing from cookies, creating a new session.');
 		try {
 			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
 			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			session_id = sessionCookie.value;
-			// console.log('New session created:', session_id);
 		} catch (e) {
 			logger.error('Failed to create a new session:', e);
 			throw error(500, 'Internal Server Error');
 		}
-	}
-
-	// Check if `auth` is initialized
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
 	}
 
 	// Validate the user's session
@@ -45,11 +39,14 @@ export async function load({ cookies }) {
 	if (!user) {
 		throw redirect(302, `/login`);
 	}
+
 	const { _id, ...rest } = user;
-	logger.debug(rest);
-	// Return user data
+
+	// Return user data with proper typing
 	return {
-		_id: _id.toString(),
-		...rest
+		user: {
+			id: _id.toString(),
+			...rest
+		}
 	};
-}
+};

@@ -55,7 +55,7 @@
 		<Container>
 			<Section style={btnContainer}>
 				<Link href={hostLink}>
-					<Img src="https://github.com/Rar9/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
+					<Img src="https://github.com/SveltyCMS/SveltyCMS/raw/main/static/SveltyCMS.png" alt={publicEnv.SITE_NAME} width="150" height="auto" />
 				</Link>
 			</Section>
 			<Text>{m.welcomeuser_username({ username })}</Text>
@@ -63,7 +63,7 @@
 			<Text>{m.welcomeuser_headless()}</Text>
 			<Text>
 				{m.welcomeuser_discussion1()}
-				<Link href="https://github.com/Rar9/SveltyCMS/discussions">{m.welcomeuser_discussion2()}</Link>
+				<Link href="https://github.com/SveltyCMS/SveltyCMS/discussions">{m.welcomeuser_discussion2()}</Link>
 			</Text>
 			<Text>{m.welcomeuser_thanks()}</Text>
 
