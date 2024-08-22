@@ -1,5 +1,5 @@
 /**
- * @file utils.ts
+ * @file src/utils/utils.ts
  * @description A comprehensive utility module for the SvelteKit CMS project.
  *
  * This file contains a wide range of utility functions and helpers used throughout the application, including:
@@ -27,7 +27,6 @@ import { publicEnv } from '@root/config/public';
 
 import axios from 'axios';
 
-import type { authDBInterface } from '@src/auth/authDBInterface';
 import type { User } from '@src/auth/types';
 
 import { addData, updateData, handleRequest } from '@src/utils/data';
@@ -38,6 +37,9 @@ import type { z } from 'zod';
 // Stores
 import { get } from 'svelte/store';
 import { translationProgress, contentLanguage, entryData, mode, collection } from '@stores/store';
+
+// System Logger
+import logger from './logger';
 
 export const config = {
 	headers: {
@@ -146,7 +148,7 @@ export function parse(obj: any) {
 				obj[key] = JSON.parse(obj[key]);
 			}
 		} catch (e) {
-			console.error(e);
+			logger.error(e as string);
 		}
 
 		if (typeof obj[key] != 'string') {
@@ -194,21 +196,15 @@ export async function saveFormData({
 	_collection,
 	_mode,
 	id,
-	authAdapter,
-	user_id,
 	user
 }: {
 	data: any;
 	_collection?: Schema;
-	_mode?: 'edit' | 'create';
+	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
-	dbAdapter: any;
-	authAdapter: authDBInterface;
-	user_id: string;
 	user?: User | undefined;
 }) {
-	// debugger;
-	//console.log('saveFormData was called');
+	logger.debug('saveFormData was called');
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);
@@ -220,50 +216,61 @@ export async function saveFormData({
 
 	if (!formData) return;
 
-	if (!meta_data.is_empty()) formData.append('_meta_data', JSON.stringify(meta_data.get()));
+	if (!meta_data.is_empty()) {
+		formData.append('_meta_data', JSON.stringify(meta_data.get()));
+	}
 
 	// Define status for each collection
 	formData.append('status', $collection.status || 'unpublished');
 
 	// Retrieve the user from the auth adapter
-	//const user: User | null = await authAdapter.getUserById(user_id);
 	const username = user ? user.username : 'Unknown';
 
-	switch ($mode) {
-		// Create a new Collection
-		case 'create':
-			return await addData({ data: formData, collectionName: $collection.name as any });
+	try {
+		switch ($mode) {
+			// Create a new Collection
+			case 'create':
+				return await addData({ data: formData, collectionName: $collection.name as any });
 
-		// Edit an existing Collection
-		case 'edit':
-			formData.append('_id', id || $entryData._id);
-			formData.append('updatedAt', new Date().getTime().toString());
+			// Edit an existing Collection
+			case 'edit':
+				formData.append('_id', id || $entryData._id);
+				formData.append('updatedAt', new Date().getTime().toString());
 
-			if ($collection.revision) {
-				// Create a new revision of the Collection
-				const newRevision = {
-					...$entryData,
-					_id: await createRandomID(),
-					__v: [
-						...($entryData.__v || []),
-						{
-							revisionNumber: $entryData.__v ? $entryData.__v.length : 0, // Fixed potential error if __v is undefined
-							editedAt: new Date().getTime().toString(),
-							editedBy: { username },
-							changes: {}
-						}
-					]
-				};
+				if ($collection.revision) {
+					// Create a new revision of the Collection
+					const newRevision = {
+						...$entryData,
+						_id: await createRandomID(),
+						__v: [
+							...($entryData.__v || []),
+							{
+								revisionNumber: $entryData.__v ? $entryData.__v.length : 0,
+								editedAt: new Date().getTime().toString(),
+								editedBy: { username },
+								changes: {}
+							}
+						]
+					};
 
-				// Append the new revision to the existing revisions
-				const revisionFormData = new FormData();
-				revisionFormData.append('data', JSON.stringify(newRevision));
-				revisionFormData.append('collectionName', $collection.name as any);
+					// Append the new revision to the existing revisions
+					const revisionFormData = new FormData();
+					revisionFormData.append('data', JSON.stringify(newRevision));
+					revisionFormData.append('collectionName', $collection.name as any);
 
-				await handleRequest(revisionFormData, 'POST');
-			}
+					await handleRequest(revisionFormData, 'POST');
+				}
 
-			return await updateData({ data: formData, collectionName: $collection.name as any });
+				return await updateData({ data: formData, collectionName: $collection.name as any });
+
+			// Add more cases as needed (delete, modify, media, etc.)
+			default:
+				throw new Error(`Unhandled mode: ${$mode}`);
+		}
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Failed to save data in mode: ${err.message}`);
+		throw new Error(`Failed to save data in mode: ${err.message}`);
 	}
 }
 
@@ -278,8 +285,9 @@ export async function deleteData({ data, collectionName }: { data: FormData; col
 		const response = await axios.post(`/api/query`, data, config);
 		return response.data;
 	} catch (error) {
-		console.error('Error deleting data:', error);
-		throw error; // Re-throw the error for the caller to handle
+		const err = error as Error;
+		logger.error(`Error deleting data: ${err.message}`);
+		throw new Error(`Error deleting data: ${err.message}`);
 	}
 }
 
@@ -526,12 +534,22 @@ export function getEditDistance(a: string, b: string): number | undefined {
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	const $translationProgress = get(translationProgress);
+
 	for (const lang of languages) {
-		!$translationProgress[lang] && ($translationProgress[lang] = { total: new Set(), translated: new Set() });
-		if (field?.translated) $translationProgress[lang].total.add(field);
-		if (field?.translated && data[lang]) $translationProgress[lang].translated.add(field);
-		else $translationProgress[lang].translated.delete(field);
+		if (!$translationProgress[lang]) {
+			$translationProgress[lang] = { total: new Set(), translated: new Set() };
+		}
+
+		if (field?.translated) {
+			$translationProgress[lang].total.add(field);
+			if (data[lang]) {
+				$translationProgress[lang].translated.add(field);
+			} else {
+				$translationProgress[lang].translated.delete(field);
+			}
+		}
 	}
+
 	translationProgress.set($translationProgress);
 }
 

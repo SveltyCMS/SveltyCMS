@@ -1,6 +1,5 @@
 /**
  * @file src/routes/(app)/[language]/+layout.server.ts
- *
  * @description
  * This module handles the server-side loading logic for a SvelteKit application,
  * specifically for routes that include a language parameter. It manages user
@@ -118,19 +117,33 @@ export async function load({ cookies, route, params }) {
 				}
 			}
 		}
-		let hasPermission = false;
+
+		let hasPermission = true; // Default to true
 		try {
-			hasPermission = collection?.permissions[user.role]?.read ?? false;
+			// Admin always has permission
+			if (user.role === 'admin') {
+				hasPermission = true;
+			} else if (collection?.permissions) {
+				// Check if the role is explicitly defined in the collection permissions
+				if (collection.permissions[user.role]) {
+					// If 'read' is explicitly set to false, deny permission
+					hasPermission = collection.permissions[user.role].read !== false;
+				}
+				// If the role is not defined in permissions, it defaults to true (already set)
+			}
+			logger.debug(`User role: ${user.role}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
 		} catch (error) {
 			logger.error('Error checking permissions:', error);
-			hasPermission = false;
+			hasPermission = false; // Set to false on error as a safety measure
 		}
+
 		if (!hasPermission) {
-			logger.warn('No Access to this collection');
+			logger.warn(`No access to collection ${collection?.name} for role ${user.role}`);
 			throw error(401, {
 				message: 'No Access to this collection'
 			});
 		}
+
 		const { _id, ...rest } = user;
 		let theme = DEFAULT_THEME;
 

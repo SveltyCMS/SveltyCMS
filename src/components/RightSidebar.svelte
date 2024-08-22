@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/RightSidebar.svelte
+@description RightSidebar component. 
+-->
+
 <script lang="ts">
 	// Stores
 	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData } from '@stores/store';

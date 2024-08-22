@@ -270,22 +270,29 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get permissions for a user
 	async getPermissionsForUser(user_id: string): Promise<Permission[]> {
 		try {
-			const user = await this.UserModel.findById(user_id).populate('permissions');
+			// Fetch the user by ID and populate the permissions
+			const user = await this.UserModel.findById(user_id).populate<{ permissions: Permission[] }>('permissions');
 			if (!user) return [];
 
-			const directPermissions = (user.permissions as Permission[]) || [];
-			const role = await this.RoleModel.findOne({ name: user.role }).populate({
-				path: 'permissions',
-				model: this.PermissionModel
-			});
-			const rolePermissions = (role?.permissions as unknown as Permission[]) || [];
+			// Ensure permissions are properly typed after population
+			const directPermissions = user.permissions || [];
 
+			// Fetch the role and its associated permissions
+			const role = await this.RoleModel.findOne({ name: user.role }).populate<{ permissions: Permission[] }>('permissions');
+			const rolePermissions = role?.permissions || [];
+
+			// Combine permissions and ensure uniqueness
 			const allPermissions = [...directPermissions, ...rolePermissions];
-			const uniquePermissions = Array.from(new Set(allPermissions.map((p) => p._id.toString())))
-				.map((_id) => allPermissions.find((p) => p._id.toString() === _id))
-				.filter((p): p is Permission => p !== undefined);
+			const uniquePermissionsMap = new Map<string, Permission>();
 
-			return uniquePermissions;
+			for (const permission of allPermissions) {
+				if (permission._id) {
+					uniquePermissionsMap.set(permission._id.toString(), permission);
+				}
+			}
+
+			// Return the unique permissions as an array
+			return Array.from(uniquePermissionsMap.values());
 		} catch (error) {
 			logger.error(`Failed to get permissions for user: ${(error as Error).message}`);
 			throw error;

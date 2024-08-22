@@ -1,3 +1,6 @@
+<!-- @file src/routes/login/components/SignUp.svelte
+@description SignUp component. -->
+
 <script lang="ts">
 	import { privateEnv } from '@root/config/private';
 	import type { PageData } from '../$types';
@@ -47,8 +50,8 @@
 		invalidateAll: false,
 		// other options
 		applyAction: true,
-		taintedMessage: '',
-		multipleSubmits: 'prevent',
+		taintedMessage: '', // prevent multiple submits
+		multipleSubmits: 'prevent', // prevent multiple submits
 
 		onSubmit: ({ cancel }) => {
 			// handle login form submission

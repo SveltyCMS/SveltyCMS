@@ -6,16 +6,17 @@ import type { Permission } from '@src/auth/types';
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
 	name: string; // Make `name` non-optional
-	label?: string;
-	slug?: string;
-	links?: CollectionNames[];
-	icon?: string;
-	description?: string;
+	label?: string; // optional label that will display instead of name if used
+	slug?: string; // Optional Slug for the collection
+	links?: CollectionNames[]; // optional links for the collection
+	icon?: string; // optional icon for the collection
+	description?: string; // optional description for the collection
 	status?: 'draft' | 'published' | 'unpublished' | 'schedule' | 'cloned';
-	permissions?: Permission;
-	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[];
-	strict?: boolean;
-	revision?: boolean; // Make revisions optional
+	permissions?: Permission; // optional permission restrictions
+	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[]; // array of fields
+	strict?: boolean; // optional strict mode
+	revision?: boolean; // optional revisions
+	livePreview?: boolean; // optional  live preview
 }
 
 // Define a new `Collection` interface that represents the shape of an object with several properties

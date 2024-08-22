@@ -1,5 +1,5 @@
 /**
- * @file +page.server.ts
+ * @file src/routes/+page.server.ts
  * @description
  * This server-side module handles the initial page load logic for the root route of the SvelteKit application.
  * It performs the following tasks:
@@ -34,55 +34,65 @@ import logger from '@src/utils/logger';
 import { DEFAULT_THEME } from '@src/utils/utils';
 
 export const load: PageServerLoad = async ({ cookies }) => {
-	await initializationPromise; // Ensure initialization is complete
-
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw redirect(302, '/login');
-	}
-
-	// Secure this page with session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	if (!session_id) {
-		logger.debug('No session ID found, redirecting to login');
-		throw redirect(302, '/login');
-	}
-
-	// Validate the user's session
 	try {
-		await auth.validateSession({ session_id });
-	} catch (e) {
-		logger.error(`Session validation failed: ${(e as Error).message}`);
-		throw redirect(302, '/login');
-	}
+		// Ensure initialization is complete
+		await initializationPromise;
 
-	// Fetch the theme
-	let theme;
-	try {
-		theme = await dbAdapter.getDefaultTheme();
-		// Ensure theme is serializable
-		theme = JSON.parse(JSON.stringify(theme));
-		logger.info(`Theme loaded successfully: ${JSON.stringify(theme)}`);
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw redirect(302, '/login');
+		}
+
+		// Secure this page with session cookie
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
+
+		if (!session_id) {
+			logger.debug('No session ID found, redirecting to login');
+			throw redirect(302, '/login');
+		}
+
+		// Validate the user's session
+		try {
+			await auth.validateSession({ session_id });
+			logger.debug('Session validated successfully');
+		} catch (e) {
+			logger.error(`Session validation failed: ${(e as Error).message}`);
+			throw redirect(302, '/login');
+		}
+
+		// Fetch the theme
+		let theme;
+		try {
+			theme = await dbAdapter.getDefaultTheme();
+			// Ensure theme is serializable
+			theme = JSON.parse(JSON.stringify(theme));
+			logger.info(`Theme loaded successfully: ${JSON.stringify(theme)}`);
+		} catch (error) {
+			logger.error(`Error fetching default theme: ${(error as Error).message}`);
+			theme = DEFAULT_THEME;
+		}
+
+		// Set the system language if needed based on the theme
+		if (theme.language) {
+			systemLanguage.set(theme.language);
+			logger.debug(`System language set to: ${theme.language}`);
+		}
+
+		// Fetch collections and redirect to the first one
+		const collections = await getCollections();
+
+		if (collections && Object.keys(collections).length > 0) {
+			const firstCollection = Object.keys(collections)[0];
+			logger.debug(`First collection: ${firstCollection}`);
+
+			// Redirect to the first collection
+			throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
+		} else {
+			logger.error('No collections found');
+			throw new Error('No collections found');
+		}
 	} catch (error) {
-		logger.error(`Error fetching default theme: ${(error as Error).message}`);
-		theme = DEFAULT_THEME;
+		logger.error(`Unexpected error in load function: ${(error as Error).message}`);
+		throw error; // Re-throw the error to handle it in SvelteKit's load system
 	}
-
-	// Set the system language if needed based on the theme
-	if (theme.language) {
-		systemLanguage.set(theme.language);
-	}
-
-	// Fetch collections and redirect to the first one
-	const collections = await getCollections();
-	const firstCollection = Object.keys(collections)[0];
-
-	if (!firstCollection) {
-		logger.error('No collections found');
-		throw new Error('No collections found');
-	}
-
-	logger.debug(`First collection: ${firstCollection}`);
-	throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
 };

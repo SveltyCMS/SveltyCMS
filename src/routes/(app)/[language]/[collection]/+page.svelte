@@ -1,6 +1,6 @@
 <!-- 
-@file +page.svelte 
-@description This component handles the content and logic for a specific page within the application. 
+@ file src/routes/(app)/[language]/[collection]/+page.svelte  
+@ description This component handles the content and logic for a specific page within the application. 
 It fetches data based on the current language (from route parameters) and collection (also from route parameters). 
 The component dynamically displays different components (EntryList, Fields, MediaGallery) based on the current mode 
 of the application (view, edit, create, media). Additionally, it sets the page-specific 

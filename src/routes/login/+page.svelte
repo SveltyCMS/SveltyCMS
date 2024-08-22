@@ -1,3 +1,6 @@
+<!-- @files src/routes/login/+page.svelte
+@description Login page -->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import type { PageData } from './$types';

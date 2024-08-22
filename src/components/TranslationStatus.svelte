@@ -1,3 +1,7 @@
+<!-- 
+ @file src/components/TranslationStatus.svelte 
+ @description Translation status component. -->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { getFieldName } from '@src/utils/utils';

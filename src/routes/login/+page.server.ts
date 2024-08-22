@@ -14,6 +14,8 @@ import { privateEnv } from '@root/config/private';
 
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
+// import { RateLimiter } from 'sveltekit-rate-limiter/server';
+
 import type { Actions, PageServerLoad } from './$types';
 
 // Superforms
@@ -33,111 +35,128 @@ import { get } from 'svelte/store';
 // System Logs
 import logger from '@src/utils/logger';
 
+// const limiter = new RateLimiter({
+//   IP: [10, 'h'], // IP address limiter
+//   IPUA: [5, 'm'], // IP + User Agent limiter
+// });
+
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
-	await initializationPromise; // Ensure initialization is complete
-	const code = url.searchParams.get('code');
-	logger.debug(`Authorization code: ${code}`);
+	try {
+		await initializationPromise; // Ensure initialization is complete
 
-	if (privateEnv.USE_GOOGLE_OAUTH && code) {
-		// Google OAuth flow
-		logger.debug('Entering OAuth flow in load function');
-		try {
-			if (!auth || !googleAuth) {
-				throw new Error('Authentication system is not initialized');
-			}
-
-			logger.debug('Fetching tokens using authorization code...');
-			const { tokens } = await (await googleAuth()).getToken(code);
-			logger.debug(`Received tokens: ${JSON.stringify(tokens)}`);
-			googleAuth.setCredentials(tokens);
-			const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
-			const { data: googleUser } = await oauth2.userinfo.get();
-			logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
-
-			const getUser = async (): Promise<[User | null, boolean]> => {
-				const email = googleUser.email;
-				if (!email) {
-					throw new Error('Google did not return an email address.');
-				}
-
-				const existingUser = await auth!.checkUser({ email });
-				if (existingUser) return [existingUser, false];
-
-				const username = googleUser.name ?? '';
-				const isFirst = (await auth!.getUserCount()) === 0;
-
-				if (isFirst) {
-					const user = await auth!.createUser({
-						email,
-						username,
-						role: 'admin',
-						blocked: false
-					});
-
-					// Send Welcome email
-					await fetch('/api/sendMail', {
-						method: 'POST',
-						headers: { 'Content-Type': 'application/json' },
-						body: JSON.stringify({
-							email,
-							subject: `New registration ${googleUser.name}`,
-							message: `New registration ${googleUser.name}`,
-							templateName: 'welcomeUser',
-							lang: get(systemLanguage),
-							props: { username: googleUser.name || '', email }
-						})
-					});
-
-					return [user, false];
-				} else {
-					return [null, true];
-				}
-			};
-
-			const [user, needSignIn] = await getUser();
-
-			if (!needSignIn && user && user._id) {
-				// Create session and set cookie
-				const session = await auth!.createSession({ user_id: user._id!, expires: 3600000 });
-				const sessionCookie = auth!.createSessionCookie(session);
-				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-				await auth!.updateUserAttributes(user._id!, { lastAuthMethod: 'google' });
-
-				throw redirect(303, '/');
-			}
-
-			return { needSignIn };
-		} catch (err) {
-			logger.error('Error during login process:', err);
-			return { error: 'An error occurred during the login process. Please try again.' };
+		if (!auth) {
+			throw new Error('Authentication system is not initialized');
 		}
+
+		const code = url.searchParams.get('code');
+		logger.debug(`Authorization code: ${code}`);
+
+		if (privateEnv.USE_GOOGLE_OAUTH && code) {
+			// Google OAuth flow
+			logger.debug('Entering OAuth flow in load function');
+			try {
+				if (!googleAuth) {
+					throw new Error('Google OAuth is not initialized');
+				}
+
+				logger.debug('Fetching tokens using authorization code...');
+				const { tokens } = await (await googleAuth()).getToken(code);
+				logger.debug(`Received tokens: ${JSON.stringify(tokens)}`);
+				googleAuth.setCredentials(tokens);
+				const oauth2 = google.oauth2({ auth: googleAuth, version: 'v2' });
+				const { data: googleUser } = await oauth2.userinfo.get();
+				logger.debug(`Google user information: ${JSON.stringify(googleUser)}`);
+
+				const getUser = async (): Promise<[User | null, boolean]> => {
+					const email = googleUser.email;
+					if (!email) {
+						throw new Error('Google did not return an email address.');
+					}
+
+					const existingUser = await auth.checkUser({ email });
+					if (existingUser) return [existingUser, false];
+
+					const username = googleUser.name ?? '';
+					const isFirst = (await auth.getUserCount()) === 0;
+
+					if (isFirst) {
+						const user = await auth.createUser({
+							email,
+							username,
+							role: 'admin',
+							blocked: false
+						});
+
+						// Send Welcome email
+						await fetch('/api/sendMail', {
+							method: 'POST',
+							headers: { 'Content-Type': 'application/json' },
+							body: JSON.stringify({
+								email,
+								subject: `New registration ${googleUser.name}`,
+								message: `New registration ${googleUser.name}`,
+								templateName: 'welcomeUser',
+								lang: get(systemLanguage),
+								props: { username: googleUser.name || '', email }
+							})
+						});
+
+						return [user, false];
+					} else {
+						return [null, true];
+					}
+				};
+
+				const [user, needSignIn] = await getUser();
+
+				if (!needSignIn && user && user._id) {
+					// Create session and set cookie
+					const session = await auth.createSession({ user_id: user._id, expires: 3600000 });
+					const sessionCookie = auth.createSessionCookie(session);
+					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
+
+					throw redirect(303, '/');
+				}
+
+				return { needSignIn };
+			} catch (err) {
+				logger.error('Error during login process:', err);
+				return { error: 'An error occurred during the login process. Please try again.' };
+			}
+		}
+
+		// Check if first user exists
+		const firstUserExists = (await auth.getUserCount()) !== 0;
+
+		// SignIn
+		const loginForm = await superValidate(zod(loginFormSchema));
+		const forgotForm = await superValidate(zod(forgotFormSchema));
+		const resetForm = await superValidate(zod(resetFormSchema));
+		const signUpForm = firstUserExists
+			? await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })))
+			: await superValidate(zod(signUpFormSchema));
+
+		// Always return Data & all Forms in load and form actions.
+		return {
+			firstUserExists,
+			loginForm,
+			forgotForm,
+			resetForm,
+			signUpForm
+		};
+	} catch (err) {
+		logger.error('Error in load function:', err);
+		// Return a minimal set of data to allow the page to render
+		return {
+			firstUserExists: false,
+			loginForm: await superValidate(zod(loginFormSchema)),
+			forgotForm: await superValidate(zod(forgotFormSchema)),
+			resetForm: await superValidate(zod(resetFormSchema)),
+			signUpForm: await superValidate(zod(signUpFormSchema)),
+			error: 'Authentication system is not available. Please try again later.'
+		};
 	}
-
-	// Default email/password authentication flow
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw new Error('Internal Server Error');
-	}
-
-	// Check if first user exists
-	const firstUserExists = (await auth.getUserCount()) !== 0;
-
-	// SignIn
-	const loginForm = await superValidate(zod(loginFormSchema));
-	const forgotForm = await superValidate(zod(forgotFormSchema));
-	const resetForm = await superValidate(zod(resetFormSchema));
-	const signUpForm = firstUserExists
-		? await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })))
-		: await superValidate(zod(signUpFormSchema));
-
-	// Always return Data & all Forms in load and form actions.
-	return {
-		firstUserExists,
-		loginForm,
-		forgotForm,
-		resetForm,
-		signUpForm
-	};
 };
 
 // Actions for SignIn and SignUp a user with form data
@@ -190,7 +209,6 @@ export const actions: Actions = {
 					subject: `New registration for ${username}`,
 					message: `Welcome ${username} to ${publicEnv.SITE_NAME}`,
 					templateName: 'welcomeUser',
-
 					props: {
 						username,
 						email

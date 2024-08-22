@@ -1,3 +1,4 @@
+<!-- src/components/LeftSidebar.svelte -->
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
@@ -6,6 +7,7 @@
 	import axios from 'axios';
 
 	// Auth
+	import { SESSION_COOKIE_NAME } from '@src/auth';
 	const user = $page.data.user;
 	avatarSrc.set(user?.avatar);
 
@@ -14,7 +16,7 @@
 	import { get } from 'svelte/store';
 	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
-	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@stores/screenSizeStore';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
@@ -90,33 +92,23 @@
 	// SignOut
 	async function signOut() {
 		try {
-			const response = await axios.post(
-				`/api/auth`,
-				{ authType: 'signOut' },
-				{
-					headers: {
-						'content-type': 'multipart/form-data'
-					}
-				}
-			);
+			console.log('Starting sign-out process...');
 
-			console.log('Signout response:', response.data);
+			// Clear the session cookie
+			document.cookie = `${SESSION_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+			console.log('Session cookie cleared');
 
-			if (response.data.status === 'success' && response.data.signedOut) {
-				console.log('Signout successful, invalidating and redirecting...');
-				await invalidateAll();
+			// Invalidate all data
+			await invalidateAll();
+			console.log('All data invalidated');
 
-				// Use a short timeout to allow for any pending operations to complete
-				setTimeout(() => {
-					window.location.href = '/login';
-				}, 100);
-			} else {
-				console.error('Signout failed or incomplete:', response.data);
-				// Optionally, show an error message to the user
-			}
-		} catch (error) {
-			console.error('Error during signout:', error);
+			// Navigate to the login page
+			await goto('/login');
+			console.log('Redirected to login page');
+		} catch (error: unknown) {
+			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
 			// Optionally, show an error message to the user
+			// You might want to use a toast or alert component here
 		}
 	}
 

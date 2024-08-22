@@ -1,4 +1,11 @@
+<!-- 
+ @files src/components/EntryList_MultiButton.svelte
+@description EntryList_MultiButton component. 
+-->
+
 <script lang="ts">
+	import { createEventDispatcher } from 'svelte';
+
 	// Stores
 	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
@@ -12,7 +19,10 @@
 	// Skeleton
 	import { getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 
+	export let isCollectionEmpty: boolean;
+
 	const modalStore = getModalStore();
+	const dispatch = createEventDispatcher();
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
@@ -23,8 +33,7 @@
 			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
-
-		const d: ModalSettings = {
+		const modalSettings: ModalSettings = {
 			type: 'component',
 			// NOTE: title, body, response, etc are supported!
 			title: 'Scheduler',
@@ -32,17 +41,11 @@
 			component: modalComponent,
 			// Pass arbitrary data to the component
 			response: (r: boolean) => {
-				if (r) {
-					console.log('Scheduling successful');
-				}
+				if (r) console.log('Scheduling successful');
 			}
 		};
-		modalStore.trigger(d);
+		modalStore.trigger(modalSettings);
 	}
-
-	import { createEventDispatcher } from 'svelte';
-
-	const dispatch = createEventDispatcher();
 
 	let dropdownOpen = false;
 	let actionname: string;
@@ -108,6 +111,10 @@
 	$: {
 		[actionname, buttonClass, iconValue] = buttonMap[$storeListboxValue] || ['', '', '', ''];
 		buttonClass = `btn ${buttonClass} rounded-none w-36 justify-between`;
+	}
+
+	$: if (isCollectionEmpty && $storeListboxValue !== 'create') {
+		storeListboxValue.set('create');
 	}
 </script>
 

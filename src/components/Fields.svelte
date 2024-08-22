@@ -1,9 +1,21 @@
+<!--
+@file src/components/Fields.svelte
+@description: This component renders form fields for a collection, handles field editing,
+revision management, live preview, and API data display. 
+
+Key features:
+- Dynamic field rendering based on collection schema
+- Tab-based interface for different views (Edit, Revision, Live Preview, API)
+- Real-time translation progress updates
+- Permission-based field filtering
+- Integration with various widget types
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-
 	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
-	import type { Schema, RolePermissions } from '@src/auth/types';
+	import type { RolePermissions } from '@src/auth/types';
 
 	// Auth
 	const user = $page.data.user;
@@ -53,13 +65,18 @@
 
 	// Assuming you have a `user` object with a `role` property
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
+
+	function getLivePreviewContent() {
+		// Implement your live preview logic here
+		return `<div>Live Preview Content for ${$collection.name}</div>`;
+	}
 </script>
 
 <TabGroup
-	justify=" {$collection.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
+	justify="{$collection.revision === true ? 'justify-between md:justify-around' : 'justify-center '} items-center"
 	rounded="rounded-tl-container-token rounded-tr-container-token"
 	flex="flex-1 items-center"
-	active="border-b border-tertiary-500 dark:order-primary-500 variant-soft-secondary"
+	active="border-b border-tertiary-500 dark:border-primary-500 variant-soft-secondary"
 	hover="hover:variant-soft-secondary"
 	regionList={getTabHeaderVisibility() ? 'hidden' : ''}
 >
@@ -81,9 +98,19 @@
 		</Tab>
 	{/if}
 
+	<!-- Live Preview -->
+	{#if $collection.livePreview === true}
+		<Tab bind:group={$tabSet} name="tab3" value={2}>
+			<div class="flex items-center gap-1">
+				<iconify-icon icon="mdi:eye-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
+				<p>Preview</p>
+			</div>
+		</Tab>
+	{/if}
+
 	<!-- API JSON -->
 	{#if user.roles === 'admin'}
-		<Tab bind:group={$tabSet} name="tab3" value={2}>
+		<Tab bind:group={$tabSet} name="tab4" value={3}>
 			<div class="flex items-center gap-1">
 				<iconify-icon icon="ant-design:api-outlined" width="24" class="text-tertiary-500 dark:text-primary-500" />
 				<p>API</p>
@@ -114,9 +141,7 @@
 											{:else}
 												{field.db_fieldName}
 											{/if}
-
-											<!-- TODO: fix required -->
-											{#if field.required === true}
+											{#if field.required}
 												<span class="text-error-500">*</span>
 											{/if}
 										</p>
@@ -198,7 +223,15 @@
 					/>
 				</div>
 			</div>
-		{:else if $tabSet === 2}
+		{:else if $tabSet === 2 && $collection.livePreview === true}
+			<!-- Live Preview -->
+			<div class="wrapper">
+				<h2 class="mb-4 text-center text-xl font-bold text-tertiary-500 dark:text-primary-500">Live Preview</h2>
+				<div class="card variant-glass-secondary mb-4 p-1 sm:p-4">
+					{@html getLivePreviewContent()}
+				</div>
+			</div>
+		{:else if $tabSet === 3}
 			<!-- API Json -->
 			{#if $entryData == null}
 				<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
@@ -222,7 +255,7 @@
 					text="text-xs w-full"
 					buttonLabel="Copy"
 					code={JSON.stringify($entryData, null, 2)}
-				></CodeBlock>
+				/>
 			{/if}
 		{/if}
 	</svelte:fragment>

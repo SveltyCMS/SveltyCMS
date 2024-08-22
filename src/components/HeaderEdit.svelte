@@ -1,5 +1,10 @@
+<!-- 
+ @file  src/components/HeaderEdit.svelte
+ @description  HeaderEdit component.
+ -->
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
+
 	import { saveFormData } from '@utils/utils';
 
 	// Components
@@ -41,7 +46,7 @@
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
 	import { toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
-	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@stores/screenSizeStore';
 
 	import {
 		collection,
@@ -52,12 +57,17 @@
 		contentLanguage,
 		saveLayerStore,
 		headerActionButton,
-		shouldShowNextButton
+		shouldShowNextButton,
+		tabSet
 	} from '@stores/store';
 
 	// Auth
 	import type { User } from '@src/auth/types';
 	const user: User = $page.data.user;
+
+	let previousLanguage = get(contentLanguage);
+	let previousTabSet = get(tabSet);
+	let tempData = {};
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -65,8 +75,27 @@
 
 	function handleChange(event: any) {
 		const selectedLanguage = event.target.value.toLowerCase();
+		tempData[previousLanguage] = get(collectionValue);
 		contentLanguage.set(selectedLanguage);
-		// console.log('selectedLanguage', selectedLanguage);
+		if (tempData[selectedLanguage]) {
+			collectionValue.set(tempData[selectedLanguage]);
+		} else {
+			collectionValue.set({});
+		}
+		previousLanguage = selectedLanguage;
+	}
+
+	$: {
+		if ($tabSet !== previousTabSet) {
+			tempData[previousLanguage] = get(collectionValue);
+			previousTabSet = $tabSet;
+		}
+	}
+
+	$: {
+		if ($mode === 'view') {
+			tempData = {};
+		}
 	}
 
 	// Save data
@@ -160,8 +189,8 @@
 				<div class=" flex-col items-center justify-center md:flex">
 					<TranslationStatus />
 				</div>
+
 				<!-- Save Content -->
-				<!-- disabled={!$collection?.permissions?.[userRole]?.write} -->
 				<button type="button" on:click={saveData} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:btn">
 					<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 					<span class="hidden md:block">Save</span>
@@ -188,9 +217,6 @@
 			<div class="hidden flex-col items-center justify-center md:flex">
 				<TranslationStatus />
 			</div>
-			<!-- <div class="relative mr-2 h-full w-[80px]">
-				<LanguageSelector />
-			</div> -->
 		{/if}
 
 		<!-- TODO: fix button icon switch -->

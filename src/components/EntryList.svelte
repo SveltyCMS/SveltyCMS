@@ -1,3 +1,4 @@
+<!-- /src/components/EntryList.svelte -->
 <script lang="ts">
 	// Utils
 	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
@@ -7,7 +8,7 @@
 	import { get } from 'svelte/store';
 	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
-	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@stores/screenSizeStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -378,6 +379,8 @@
 			handleConfirmation(true);
 		}
 	};
+
+	$: isCollectionEmpty = tableData.length === 0;
 </script>
 
 <!--Table -->
@@ -433,7 +436,7 @@
 			<TranslationStatus />
 		</div>
 		<!-- MultiButton -->
-		<EntryListMultiButton />
+		<EntryListMultiButton {isCollectionEmpty} />
 	</div>
 
 	<!-- Table -->

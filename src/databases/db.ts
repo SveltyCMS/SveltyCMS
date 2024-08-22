@@ -295,6 +295,7 @@ initializationPromise = initializeAdapters()
 		initializationPromise = null;
 	});
 
+// Export collections
 const collectionsModels: { [key: string]: any } = {};
 
 // Export collections

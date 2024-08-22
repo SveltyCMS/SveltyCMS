@@ -1,3 +1,7 @@
+<!-- 
+ @files src/components/widgets/text/Text.svelte 
+ @description Text field. 
+-->
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
@@ -56,17 +60,20 @@
 	});
 
 	function validateInput() {
-		if (_data[_language] !== '') {
+		if (field.required && !_data[_language]) {
+			validationError = 'This field is required';
+			validationStore.setError(fieldName, validationError);
+		} else if (_data[_language] !== '') {
 			try {
 				const { minlength, maxlength } = field; // Access schema properties
 				validateSchema.parse(_data); // Validate against schema
 
 				if (minlength && _data[_language].length < minlength) {
 					validationError = `Minimum length is ${minlength}`;
-					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
+					validationStore.setError(fieldName, validationError);
 				} else if (maxlength && _data[_language].length > maxlength) {
 					validationError = `Maximum length is ${maxlength}`;
-					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
+					validationStore.setError(fieldName, validationError);
 				} else {
 					validationError = null;
 					validationStore.clearError(fieldName); // Clear error from validationStore if no validation issues
@@ -78,8 +85,8 @@
 				}
 			}
 		} else {
-			validationError = ''; // Clear error if empty string
-			validationStore.clearError(fieldName); // Clear error from validationStore if no validation issues
+			validationError = null; // Clear the error message
+			validationStore.clearError(fieldName);
 		}
 	}
 </script>
@@ -151,5 +158,5 @@
 
 <!-- Error Message -->
 {#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+	<p class="text-center text-xs text-error-500">{validationError}</p>
 {/if}

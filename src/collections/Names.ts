@@ -1,3 +1,6 @@
+// @file src/collections/Names.ts
+// @description Collection file for Names
+
 import widgets from '@components/widgets';
 import type { Schema } from './types';
 
@@ -9,6 +12,7 @@ const schema: Schema = {
 	icon: 'fluent:rename-28-filled',
 	status: 'unpublished',
 	revision: true,
+	livePreview: true,
 
 	// Collection Permissions by user Roles
 	permissions: {
@@ -35,7 +39,7 @@ const schema: Schema = {
 			width: 2,
 			required: true,
 			permissions: {
-				developer: {
+				user: {
 					read: false
 				}
 			}
