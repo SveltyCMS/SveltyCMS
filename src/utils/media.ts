@@ -21,12 +21,16 @@
  * @module MediaUtils
  */
 
+import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 import fs from 'fs';
-import path from 'path';
+import Path from 'path';
 import { browser } from '$app/environment';
 import { sha256, removeExtension, sanitize } from '@src/utils/utils';
 import mime from 'mime-types';
+import crypto from 'crypto';
+
+import type sharp from 'sharp';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
@@ -37,13 +41,13 @@ import { getCache, setCache, clearCache } from '@src/databases/redis';
 
 // System Logger
 import logger from '@src/utils/logger';
-import type sharp from 'sharp';
 
 // Default max file size (100MB) if not specified in publicEnv
 const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
 // Optional dynamically imports AWS SDK
 async function getS3Client() {
+	// Dynamically imports the AWS SDK for interacting with S3
 	try {
 		const AWS = await import('aws-sdk');
 		return new AWS.S3({
@@ -57,6 +61,7 @@ async function getS3Client() {
 	}
 }
 
+// Define media types
 interface MediaVersion {
 	version: number;
 	url: string;
@@ -75,6 +80,7 @@ interface MediaBase {
 	_id?: string;
 	hash: string;
 	name: string;
+	path: string;
 	url: string;
 	type: string;
 	size: number;
@@ -88,30 +94,26 @@ interface MediaBase {
 	access: MediaAccess[];
 }
 
-// Define media types
 interface MediaImage extends MediaBase {
+	name: string;
 	width: number;
 	height: number;
 	thumbnails: Record<string, { url: string; width: number; height: number }>;
 }
 
-// Define MediaDocument
 interface MediaDocument extends MediaBase {
 	pageCount?: number;
 }
 
-// Define MediaAudio
 interface MediaAudio extends MediaBase {
 	duration?: number;
 }
 
-// Define MediaVideo
 interface MediaVideo extends MediaBase {
 	duration?: number;
 	thumbnailUrl?: string;
 }
 
-// Define MediaRemoteVideo
 interface MediaRemoteVideo extends MediaBase {
 	provider: string;
 	externalId: string;
@@ -121,135 +123,13 @@ type MediaType = MediaImage | MediaDocument | MediaAudio | MediaVideo | MediaRem
 
 const SIZES = { ...publicEnv.IMAGE_SIZES, original: 0, thumbnail: 200 } as const;
 
-async function hashFileContent(buffer: Buffer): Promise<string> {
-	return (await sha256(buffer)).slice(0, 20);
-}
+/**
+ * Media File Handling Functions
+ */
 
-function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
-	const { name, ext } = removeExtension(fileName);
-	return { fileNameWithoutExt: sanitize(name), ext };
-}
-
-function constructUrl(path: string, hash: string, fileName: string, ext: string, collectionName: string): string {
-	let url: string;
-	switch (path) {
-		case 'global':
-			url = `/original/${hash}-${fileName}.${ext}`;
-			break;
-		case 'unique':
-			url = `/${collectionName}/original/${hash}-${fileName}.${ext}`;
-			break;
-		default:
-			url = `/${path}/original/${hash}-${fileName}.${ext}`;
-	}
-	return publicEnv.MEDIASERVER_URL ? `${publicEnv.MEDIASERVER_URL}/files/${url}` : url;
-}
-
-// Helper function to get all file paths for a media item
-async function getMediaFilePaths(mediaItem: MediaType): Promise<string[]> {
-	const paths = [path.join(publicEnv.MEDIA_FOLDER, mediaItem.url)];
-
-	if ('thumbnails' in mediaItem) {
-		for (const thumbnail of Object.values(mediaItem.thumbnails)) {
-			paths.push(path.join(publicEnv.MEDIA_FOLDER, thumbnail.url));
-		}
-	}
-
-	return paths;
-}
-
-// Move media to trash
-export async function moveMediaToTrash(id: string, collection: string): Promise<void> {
-	try {
-		const mediaItem = await getMediaById(id, collection);
-		if (!mediaItem) {
-			throw new Error('Media not found');
-		}
-
-		const trashFolder = path.join(publicEnv.MEDIA_FOLDER, 'trash', collection);
-
-		// Create trash folder if it doesn't exist
-		await new Promise<void>((resolve, reject) => {
-			fs.mkdir(trashFolder, { recursive: true }, (err) => {
-				if (err && err.code !== 'EEXIST') reject(err);
-				else resolve();
-			});
-		});
-
-		const filePaths = await getMediaFilePaths(mediaItem);
-
-		for (const filePath of filePaths) {
-			const fileName = path.basename(filePath);
-			const trashPath = path.join(trashFolder, fileName);
-			await new Promise<void>((resolve, reject) => {
-				fs.rename(filePath, trashPath, (err) => {
-					if (err) reject(err);
-					else resolve();
-				});
-			});
-		}
-
-		// Update database record to mark as trashed
-		if (dbAdapter) {
-			await dbAdapter.updateOne(collection, { _id: id }, { $set: { trashed: true, trashedAt: new Date() } });
-		} else {
-			logger.warn('dbAdapter is not available. Database not updated for trashed media.');
-		}
-
-		logger.info(`Moved media to trash: ${id}`, { collection });
-	} catch (error) {
-		logger.error('Error moving media to trash:', error as Error);
-		throw error;
-	}
-}
-
-// Function to clean up old trashed files
-export async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
-	const trashFolder = path.join(publicEnv.MEDIA_FOLDER, 'trash');
-	const now = new Date();
-
-	try {
-		const collections = await fs.promises.readdir(trashFolder);
-		for (const collection of collections) {
-			const collectionPath = path.join(trashFolder, collection);
-			const files = await fs.promises.readdir(collectionPath);
-
-			for (const file of files) {
-				const filePath = path.join(collectionPath, file);
-				const stats = await fs.promises.stat(filePath);
-
-				const daysInTrash = (now.getTime() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
-
-				if (daysInTrash > daysOld) {
-					await fs.promises.unlink(filePath);
-					logger.info(`Deleted old trashed file: ${filePath}`);
-				}
-			}
-		}
-
-		// Clean up database records
-		if (dbAdapter) {
-			const cutoffDate = new Date(now.getTime() - daysOld * 24 * 60 * 60 * 1000);
-			const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-
-			for (const collection of mediaCollections) {
-				await dbAdapter.deleteMany(collection, { trashed: true, trashedAt: { $lt: cutoffDate } });
-			}
-
-			logger.info('Cleanup of trashed media completed');
-		} else {
-			logger.warn('dbAdapter is not available. Database cleanup skipped.');
-		}
-	} catch (error) {
-		logger.error('Error during trash cleanup:', error as Error);
-		throw error;
-	}
-}
-
-// Helper function to save file to disk
+// Saves a file to local disk or cloud storage.
 async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	if (publicEnv.MEDIASERVER_URL) {
-		// Save to cloud storage
 		const s3 = await getS3Client();
 		if (s3) {
 			await s3
@@ -264,17 +144,16 @@ async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 			throw new Error('S3 client is not available. Unable to save file to cloud storage.');
 		}
 	} else {
-		// Save to local storage
 		const fullPath = `${publicEnv.MEDIA_FOLDER}/${url}`;
-		if (!fs.existsSync(path.dirname(fullPath))) {
-			fs.mkdirSync(path.dirname(fullPath), { recursive: true });
+		if (!fs.existsSync(Path.dirname(fullPath))) {
+			fs.mkdirSync(Path.dirname(fullPath), { recursive: true });
 		}
 		await fs.promises.writeFile(fullPath, buffer);
 	}
 	logger.info('File saved', { url });
 }
 
-// Helper function to save resized images
+// Saves resized versions of an image to disk or cloud storage.
 async function saveResizedImages(
 	buffer: Buffer,
 	hash: string,
@@ -318,286 +197,50 @@ async function saveResizedImages(
 	return thumbnails;
 }
 
-async function extractMetadata(file: File, buffer: Buffer): Promise<Record<string, any>> {
-	const metadata: Record<string, any> = {};
-	const fileType = mime.lookup(file.name);
-
-	if (fileType && fileType.startsWith('image/')) {
-		const sharp = (await import('sharp')).default;
-		const imageInfo = await sharp(buffer).metadata();
-		metadata.width = imageInfo.width;
-		metadata.height = imageInfo.height;
-		metadata.format = imageInfo.format;
-	} else if (fileType && fileType.startsWith('video/')) {
-		// For video metadata, you might want to use a library like fluent-ffmpeg
-		// This is a placeholder for video metadata extraction
-		metadata.duration = 0; // Replace with actual duration
-		// You can add more video-specific metadata here
-	} else if (fileType && fileType.startsWith('audio/')) {
-		// For audio metadata, you might want to use a library like music-metadata
-		// This is a placeholder for audio metadata extraction
-		metadata.duration = 0; // Replace with actual duration
-		// You can add more audio-specific metadata here
-	} else if (fileType && fileType.startsWith('application/')) {
-		// For document metadata
-		if (fileType === 'application/pdf') {
-			// Extract PDF metadata (you might want to use a library like pdf-parse)
-			metadata.pageCount = 0; // Replace with actual page count
-		} else if (fileType.includes('word')) {
-			// Extract Word document metadata
-			metadata.pageCount = 0; // Replace with actual page count
-		}
-		// Add more document types as needed
-	}
-
-	// Add common metadata
-	metadata.size = buffer.length;
-	metadata.mimeType = fileType || 'application/octet-stream';
-	metadata.lastModified = new Date().toISOString();
-
-	return metadata;
-}
-// Helper function to save media to database
-async function saveMediaToDb(collection: string, fileInfo: MediaType): Promise<string> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	const result = await dbAdapter.insertMany(collection, [fileInfo]);
-	return result[0]._id.toString();
-}
-
-// Small function to save different types of media
-export async function saveMedia(
-	file: File,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaType }> {
-	if (browser) return {} as any;
-
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not available');
-	}
-
-	const fileType = mime.lookup(file.name);
-
-	if (!fileType) {
-		throw new Error('Unable to determine file type');
-	}
+// Cleans up old files from the trash directory.
+async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
+	const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash');
+	const now = new Date();
 
 	try {
-		const buffer = Buffer.from(await file.arrayBuffer());
-		const hash = await hashFileContent(buffer);
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
-		const pathValue = 'global'; // or determine path based on your logic
-		const url = constructUrl(pathValue, hash, fileNameWithoutExt, ext, collectionName);
-		const metadata = await extractMetadata(file, buffer);
+		const collections = await fs.promises.readdir(trashFolder);
+		for (const collection of collections) {
+			const collectionPath = Path.join(trashFolder, collection);
+			const files = await fs.promises.readdir(collectionPath);
 
-		// Determine the correct media type and collection
-		let mediaCollection: string;
-		let handleResizing = false;
-		if (fileType.startsWith('image/')) {
-			mediaCollection = 'media_images';
-			handleResizing = true;
-		} else if (fileType === 'application/pdf' || fileType.includes('word')) {
-			mediaCollection = 'media_documents';
-		} else if (fileType.startsWith('video/')) {
-			mediaCollection = 'media_videos';
-		} else if (fileType.startsWith('audio/')) {
-			mediaCollection = 'media_audio';
+			for (const file of files) {
+				const filePath = Path.join(collectionPath, file);
+				const stats = await fs.promises.stat(filePath);
+
+				const daysInTrash = (now.getTime() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
+
+				if (daysInTrash > daysOld) {
+					await fs.promises.unlink(filePath);
+					logger.info(`Deleted old trashed file: ${filePath}`);
+				}
+			}
+		}
+
+		// Clean up database records
+		if (dbAdapter) {
+			const cutoffDate = new Date(now.getTime() - daysOld * 24 * 60 * 60 * 1000);
+			const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+
+			for (const collection of mediaCollections) {
+				await dbAdapter.deleteMany(collection, { trashed: true, trashedAt: { $lt: cutoffDate } });
+			}
+
+			logger.info('Cleanup of trashed media completed');
 		} else {
-			throw new Error(`Unsupported file type: ${fileType}`);
+			logger.warn('dbAdapter is not available. Database cleanup skipped.');
 		}
-
-		// Check if file already exists
-		const existingFile = await dbAdapter.findOne(mediaCollection, { hash });
-		if (existingFile) {
-			logger.info('File already exists in the database', { fileId: existingFile._id, mediaCollection });
-			return { id: existingFile._id, fileInfo: existingFile as MediaType };
-		}
-
-		// Prepare file info
-		const fileInfo: MediaBase = {
-			hash,
-			name: file.name,
-			url,
-			type: file.type,
-			size: file.size,
-			user: user_id,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			metadata,
-			versions: [
-				{
-					version: 1,
-					url,
-					createdAt: new Date(),
-					createdBy: user_id
-				}
-			],
-			access: [
-				{ userId: user_id, permissions: ['read', 'write', 'delete'] },
-				...access,
-				...roles.map((role) => ({ roleId: role._id, permissions: ['read'] as ('read' | 'write' | 'delete')[] }))
-			]
-		};
-
-		// Save file to disk
-		await saveFileToDisk(buffer, url);
-
-		// Handle image resizing
-		if (handleResizing && !file.type.includes('svg')) {
-			const thumbnails = await saveResizedImages(buffer, hash, fileNameWithoutExt, collectionName, ext, pathValue);
-			(fileInfo as MediaImage).thumbnails = thumbnails;
-			(fileInfo as MediaImage).width = metadata.width || 0;
-			(fileInfo as MediaImage).height = metadata.height || 0;
-		}
-
-		// Save to database
-		logger.info(`Saving media to db: ${mediaCollection}`, { fileInfo });
-		const id = await saveMediaToDb(mediaCollection, fileInfo as MediaType);
-
-		// Cache the media info
-		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
-
-		return { id, fileInfo: fileInfo as MediaType };
 	} catch (error) {
-		logger.error('Error saving media:', error as Error);
+		logger.error('Error during trash cleanup:', error as Error);
 		throw error;
 	}
 }
 
-// TODO: Add support for image thumbnails
-export async function saveImage(
-	file: File,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaImage }> {
-	const result = await saveMedia(file, collectionName, user_id, access, roles);
-	return {
-		id: result.id,
-		fileInfo: result.fileInfo as MediaImage
-	};
-}
-
-// TODO: Add support for document thumbnails
-export async function saveDocument(
-	file: File,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaDocument }> {
-	const result = await saveMedia(file, collectionName, user_id, access, roles);
-	return {
-		id: result.id,
-		fileInfo: result.fileInfo as MediaDocument
-	};
-}
-
-// TODO: Add support for video thumbnails
-export async function saveVideo(
-	file: File,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaVideo }> {
-	const result = await saveMedia(file, collectionName, user_id, access, roles);
-	return {
-		id: result.id,
-		fileInfo: result.fileInfo as MediaVideo
-	};
-}
-
-export async function saveAudio(
-	file: File,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaAudio }> {
-	const result = await saveMedia(file, collectionName, user_id, access, roles);
-	return {
-		id: result.id,
-		fileInfo: result.fileInfo as MediaAudio
-	};
-}
-
-export async function saveRemoteMedia(
-	fileUrl: string,
-	collectionName: string,
-	user_id: string,
-	access: MediaAccess[] = [],
-	roles: Role[] = []
-): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
-	try {
-		const response = await fetch(fileUrl);
-		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
-
-		const buffer = Buffer.from(await response.arrayBuffer());
-		const hash = await hashFileContent(buffer);
-		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
-		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
-		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
-
-		const fileInfo: MediaRemoteVideo = {
-			hash,
-			name: fileName,
-			url,
-			type: response.headers.get('content-type') || 'unknown',
-			size: parseInt(response.headers.get('content-length') || '0'),
-			user: user_id,
-			createdAt: new Date(),
-			updatedAt: new Date(),
-			provider: new URL(fileUrl).hostname,
-			externalId: fileUrl,
-			versions: [
-				{
-					version: 1,
-					url,
-					createdAt: new Date(),
-					createdBy: user_id
-				}
-			],
-			access: [
-				{ userId: user_id, permissions: ['read', 'write', 'delete'] },
-				...access,
-				...roles.map((role) => ({ roleId: role._id, permissions: ['read'] as ('read' | 'write' | 'delete')[] }))
-			]
-		};
-
-		if (!dbAdapter) {
-			const errorMessage = 'Database adapter is not initialized';
-			logger.error(errorMessage);
-			throw new Error(errorMessage);
-		}
-
-		// Check if file already exists
-		const existingFile = await dbAdapter.findOne('media_remote_videos', { hash });
-		if (existingFile) {
-			logger.info('Remote file already exists in the database', { fileId: existingFile._id, collection: 'media_remote_videos' });
-			return { id: existingFile._id, fileInfo: existingFile as MediaRemoteVideo };
-		}
-
-		// Save to database
-		const id = await saveMediaToDb('media_remote_videos', fileInfo);
-
-		// Cache the media info
-		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
-
-		logger.info('Remote media saved to database', { collectionName, fileInfo });
-		return { id, fileInfo };
-	} catch (error) {
-		logger.error('Error saving remote media:', error as Error);
-		throw error;
-	}
-}
-
-// Save avatar image function
+// Saves an avatar image to disk and database.
 export async function saveAvatarImage(file: File, path: 'avatars' | string): Promise<string> {
 	try {
 		const arrayBuffer = await file.arrayBuffer();
@@ -627,6 +270,8 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 			resizedBuffer = buffer;
 			info = { width: null, height: null };
 		} else {
+			const sharp = (await import('sharp')).default;
+
 			const result = await sharp(buffer)
 				.rotate()
 				.resize({ width: 300 })
@@ -679,9 +324,66 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 	}
 }
 
-// Get media by id
+// Moves media to the trash directory.
+export async function moveMediaToTrash(id: string, collection: string): Promise<void> {
+	try {
+		const mediaItem = await getMediaById(id, collection);
+		if (!mediaItem) {
+			throw new Error('Media not found');
+		}
+
+		const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash', collection);
+
+		// Create trash folder if it doesn't exist
+		await new Promise<void>((resolve, reject) => {
+			fs.mkdir(trashFolder, { recursive: true }, (err) => {
+				if (err && err.code !== 'EEXIST') reject(err);
+				else resolve();
+			});
+		});
+
+		const filePaths = await getMediaFilePaths(mediaItem);
+
+		for (const filePath of filePaths) {
+			const fileName = Path.basename(filePath);
+			const trashPath = Path.join(trashFolder, fileName);
+			await new Promise<void>((resolve, reject) => {
+				fs.rename(filePath, trashPath, (err) => {
+					if (err) reject(err);
+					else resolve();
+				});
+			});
+		}
+
+		// Update database record to mark as trashed
+		if (dbAdapter) {
+			await dbAdapter.updateOne(collection, { _id: id }, { $set: { trashed: true, trashedAt: new Date() } });
+		} else {
+			logger.warn('dbAdapter is not available. Database not updated for trashed media.');
+		}
+
+		logger.info(`Moved media to trash: ${id}`, { collection });
+	} catch (error) {
+		logger.error('Error moving media to trash:', error as Error);
+		throw error;
+	}
+}
+
+/**
+ * Media Database Operations
+ */
+
+// Saves media information to the database.
+async function saveMediaToDb(collection: string, fileInfo: MediaType): Promise<string> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	const result = await dbAdapter.insertMany(collection, [fileInfo]);
+	return result[0]._id.toString();
+}
+
+// Retrieves a media item from the database by its ID.
 export async function getMediaById(id: string, collection: string): Promise<MediaType | null> {
-	// Try to get from cache first
 	const cachedMedia = await getCache<MediaType>(`media:${id}`);
 	if (cachedMedia) {
 		return cachedMedia;
@@ -692,7 +394,6 @@ export async function getMediaById(id: string, collection: string): Promise<Medi
 	}
 	const media = await dbAdapter.findOne(collection, { _id: id });
 
-	// Cache the result for future requests
 	if (media) {
 		await setCache(`media:${id}`, media, 3600); // Cache for 1 hour
 	}
@@ -700,7 +401,7 @@ export async function getMediaById(id: string, collection: string): Promise<Medi
 	return media;
 }
 
-// Delete media
+// Deletes a media item from the disk and database.
 export async function deleteMedia(id: string, collection: string): Promise<void> {
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
@@ -710,23 +411,20 @@ export async function deleteMedia(id: string, collection: string): Promise<void>
 		throw new Error('Media not found');
 	}
 
-	// Delete file from disk
 	const fullPath = `${publicEnv.MEDIA_FOLDER}/${media.url}`;
 	await fs.promises.unlink(fullPath);
 
-	// Delete thumbnails if they exist
 	if ('thumbnails' in media) {
 		for (const thumbnail of Object.values(media.thumbnails)) {
 			await fs.promises.unlink(`${publicEnv.MEDIA_FOLDER}/${thumbnail.url}`);
 		}
 	}
 
-	// Remove from database
 	await dbAdapter.deleteOne(collection, { _id: id });
 	logger.info('Media deleted', { id, collection });
 }
 
-// Update media version
+// Updates a media item by adding a new version to it.
 export async function updateMediaVersion(id: string, collection: string, newBuffer: Buffer, user_id: string): Promise<void> {
 	const media = await getMediaById(id, collection);
 	if (!media) {
@@ -738,7 +436,7 @@ export async function updateMediaVersion(id: string, collection: string, newBuff
 		media.url.split('/')[1],
 		media.hash,
 		`${removeExtension(media.name).name}-v${newVersion}`,
-		path.extname(media.name),
+		Path.extname(media.name),
 		collection
 	);
 
@@ -750,25 +448,72 @@ export async function updateMediaVersion(id: string, collection: string, newBuff
 		createdAt: new Date(),
 		createdBy: user_id
 	};
+
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+
 	await dbAdapter.updateOne(collection, { _id: id }, { $push: { versions: newVersionInfo }, $set: { updatedAt: new Date() } });
 
-	// Clear the cache for this media
 	await clearCache(`media:${id}`);
 
 	logger.info('Media version updated', { id, collection, version: newVersion });
 }
 
-// Add Media Access
+// Soft deletes a media item in the database.
+export async function softDeleteMedia(id: string, collection: string): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { isDeleted: true, deletedAt: new Date() } });
+	logger.info('Media soft deleted', { id, collection });
+}
+
+// Restores a soft-deleted media item in the database.
+export async function restoreMedia(id: string, collection: string): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	await dbAdapter.updateOne(collection, { _id: id }, { $unset: { isDeleted: '', deletedAt: '' } });
+	logger.info('Media restored', { id, collection });
+}
+
+// Updates metadata of a media item in the database.
+export async function updateMediaMetadata(id: string, collection: string, metadata: Record<string, any>): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { metadata, updatedAt: new Date() } });
+	logger.info('Media metadata updated', { id, collection, metadata });
+}
+
+// Updates basic information of a media item in the database.
+export async function updateMediaInfo(id: string, collection: string, updates: Partial<MediaBase>): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { ...updates, updatedAt: new Date() } });
+	logger.info('Media info updated', { id, collection, updates });
+}
+
+/**
+ * Media Access Control Functions
+ */
+
+// Sets access permissions for a media item.
 export async function setMediaAccess(id: string, collection: string, userId: string, permissions: ('read' | 'write' | 'delete')[]): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
+	}
+
 	await dbAdapter.updateOne(collection, { _id: id }, { $push: { access: { userId, permissions } }, $set: { updatedAt: new Date() } });
 
-	// Clear the cache for this media
 	await clearCache(`media:${id}`);
 
 	logger.info('Media access updated', { id, collection, userId, permissions });
 }
 
-// Check Media Access
+// Checks if a user has the required access to a media item.
 export async function checkMediaAccess(
 	id: string,
 	collection: string,
@@ -781,13 +526,11 @@ export async function checkMediaAccess(
 		return false;
 	}
 
-	// Check user-specific access
 	const userAccess = media.access.find((access) => access.userId === userId);
 	if (userAccess && userAccess.permissions.includes(requiredPermission)) {
 		return true;
 	}
 
-	// Check role-based access
 	for (const roleId of userRoles) {
 		const roleAccess = media.access.find((access) => access.roleId === roleId);
 		if (roleAccess && roleAccess.permissions.includes(requiredPermission)) {
@@ -798,109 +541,356 @@ export async function checkMediaAccess(
 	return false;
 }
 
-// Update Media Metadata
-export async function updateMediaMetadata(id: string, collection: string, metadata: Record<string, any>): Promise<void> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { metadata, updatedAt: new Date() } });
-	logger.info('Media metadata updated', { id, collection, metadata });
-}
-
-// Soft delete media (used for trashed media)
-export async function softDeleteMedia(id: string, collection: string): Promise<void> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { isDeleted: true, deletedAt: new Date() } });
-	logger.info('Media soft deleted', { id, collection });
-}
-
-// Restore media (used for trashed media)
-export async function restoreMedia(id: string, collection: string): Promise<void> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $unset: { isDeleted: '', deletedAt: '' } });
-	logger.info('Media restored', { id, collection });
-}
-
-// Update Media Info
-export async function updateMediaInfo(id: string, collection: string, updates: Partial<MediaBase>): Promise<void> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { ...updates, updatedAt: new Date() } });
-	logger.info('Media info updated', { id, collection, updates });
-}
-
-// List all Media
-export async function listMedia(collection: string, page: number = 1, limit: number = 20): Promise<{ media: MediaType[]; total: number }> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	const skip = (page - 1) * limit;
-	const [media, total] = await Promise.all([
-		dbAdapter.findMany(collection, { isDeleted: { $ne: true } }),
-		dbAdapter.countDocuments(collection, { isDeleted: { $ne: true } })
-	]);
-	return { media: media.slice(skip, skip + limit), total };
-}
-
-// Bulk delete media
-export async function bulkDeleteMedia(ids: string[], collection: string): Promise<void> {
-	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
-	}
-	await dbAdapter.updateMany(collection, { _id: { $in: ids } }, { $set: { isDeleted: true, deletedAt: new Date() } });
-	logger.info('Bulk media soft deleted', { ids, collection });
-}
-
-// Generate Signed URL for Media
+// Generates a signed URL for accessing a media item.
 export async function generateSignedUrl(id: string, collection: string, expiresIn: number = 3600): Promise<string> {
 	const media = await getMediaById(id, collection);
 	if (!media) {
 		throw new Error('Media not found');
 	}
 
-	// This is a simplified example. In a real-world scenario, you'd use a more secure method
-	// of generating and verifying signed URLs.
 	const timestamp = Date.now() + expiresIn * 1000;
-	const signature = await sha256(Buffer.from(`${id}:${timestamp}:${publicEnv.SECRET_KEY}`));
+	const signature = await sha256(Buffer.from(`${id}:${timestamp}:${privateEnv.JWT_SECRET_KEY}`));
 	return `${media.url}?signature=${signature}&expires=${timestamp}`;
 }
 
-//	Search Media Items
-export async function searchMedia(collection: string, query: string, metadata?: Record<string, any>): Promise<MediaType[]> {
+/**
+ * Media Processing Functions
+ */
+
+// Saves media to disk and database, handles different media types.
+export async function saveMedia(
+	file: File,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaType }> {
+	if (browser) return {} as any;
+
 	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized');
+		throw new Error('Database adapter is not available');
 	}
 
-	const searchCriteria: any = {
-		$and: [
-			{ isDeleted: { $ne: true } },
-			{
-				$or: [{ name: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
-			}
-		]
-	};
-	// Add metadata search criteria
-	if (metadata) {
-		Object.entries(metadata).forEach(([key, value]) => {
-			searchCriteria.$and.push({ [`metadata.${key}`]: value });
-		});
+	const fileType = mime.lookup(file.name);
+
+	if (!fileType) {
+		throw new Error('Unable to determine file type');
 	}
 
-	return await dbAdapter.findMany(collection, searchCriteria);
+	try {
+		const buffer = Buffer.from(await file.arrayBuffer());
+		const hash = await hashFileContent(buffer);
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
+		const pathValue = 'global'; // or determine path based on your logic
+		const url = constructUrl(pathValue, hash, fileNameWithoutExt, ext, collectionName);
+		const metadata = await extractMetadata(file, buffer);
+
+		let mediaCollection: string;
+		let handleResizing = false;
+		if (fileType.startsWith('image/')) {
+			mediaCollection = 'media_images';
+			handleResizing = true;
+		} else if (fileType === 'application/pdf' || fileType.includes('word')) {
+			mediaCollection = 'media_documents';
+		} else if (fileType.startsWith('video/')) {
+			mediaCollection = 'media_videos';
+		} else if (fileType.startsWith('audio/')) {
+			mediaCollection = 'media_audio';
+		} else {
+			throw new Error(`Unsupported file type: ${fileType}`);
+		}
+
+		const existingFile = await dbAdapter.findOne(mediaCollection, { hash });
+		if (existingFile) {
+			logger.info('File already exists in the database', { fileId: existingFile._id, mediaCollection });
+			return { id: existingFile._id, fileInfo: existingFile as MediaType };
+		}
+
+		const fileInfo: MediaBase = {
+			hash,
+			name: file.name,
+			url,
+			path: pathValue,
+			type: file.type,
+			size: file.size,
+			user: user_id,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			metadata,
+			versions: [
+				{
+					version: 1,
+					url,
+					createdAt: new Date(),
+					createdBy: user_id
+				}
+			],
+			access: [
+				{ userId: user_id, permissions: ['read', 'write', 'delete'] },
+				...access,
+				...roles.map((role) => ({ roleId: role._id, permissions: ['read'] as ('read' | 'write' | 'delete')[] }))
+			]
+		};
+
+		await saveFileToDisk(buffer, url);
+
+		if (handleResizing && !file.type.includes('svg')) {
+			const thumbnails = await saveResizedImages(buffer, hash, fileNameWithoutExt, collectionName, ext, pathValue);
+			(fileInfo as MediaImage).thumbnails = thumbnails;
+			(fileInfo as MediaImage).width = metadata.width || 0;
+			(fileInfo as MediaImage).height = metadata.height || 0;
+		}
+
+		logger.info(`Saving media to db: ${mediaCollection}`, { fileInfo });
+		const id = await saveMediaToDb(mediaCollection, fileInfo as MediaType);
+
+		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
+
+		return { id, fileInfo: fileInfo as MediaType };
+	} catch (error) {
+		logger.error('Error saving media:', error as Error);
+		throw error;
+	}
 }
 
-// Invalidates the cache for a specific media item
+// Saves an image to disk and database.
+export async function saveImage(
+	file: File,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaImage }> {
+	const result = await saveMedia(file, collectionName, user_id, access, roles);
+	return {
+		id: result.id,
+		fileInfo: result.fileInfo as MediaImage
+	};
+}
+
+// Saves a document to disk and database.
+export async function saveDocument(
+	file: File,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaDocument }> {
+	const result = await saveMedia(file, collectionName, user_id, access, roles);
+	return {
+		id: result.id,
+		fileInfo: result.fileInfo as MediaDocument
+	};
+}
+
+// Saves a video to disk and database.
+export async function saveVideo(
+	file: File,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaVideo }> {
+	const result = await saveMedia(file, collectionName, user_id, access, roles);
+	return {
+		id: result.id,
+		fileInfo: result.fileInfo as MediaVideo
+	};
+}
+
+// Saves an audio file to disk and database.
+export async function saveAudio(
+	file: File,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaAudio }> {
+	const result = await saveMedia(file, collectionName, user_id, access, roles);
+	return {
+		id: result.id,
+		fileInfo: result.fileInfo as MediaAudio
+	};
+}
+
+// Saves a remote media file to the database.
+export async function saveRemoteMedia(
+	fileUrl: string,
+	collectionName: string,
+	user_id: string,
+	access: MediaAccess[] = [],
+	roles: Role[] = []
+): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
+	try {
+		const response = await fetch(fileUrl);
+		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+
+		const buffer = Buffer.from(await response.arrayBuffer());
+		const hash = await hashFileContent(buffer);
+		const fileName = decodeURI(fileUrl.split('/').pop() ?? 'defaultName');
+		const { fileNameWithoutExt, ext } = getSanitizedFileName(fileName);
+		const url = `remote_media/${hash}-${fileNameWithoutExt}.${ext}`;
+
+		const fileInfo: MediaRemoteVideo = {
+			hash,
+			name: fileName,
+			path: 'remote_media',
+			url,
+			type: response.headers.get('content-type') || 'unknown',
+			size: parseInt(response.headers.get('content-length') || '0'),
+			user: user_id,
+			createdAt: new Date(),
+			updatedAt: new Date(),
+			provider: new URL(fileUrl).hostname,
+			externalId: fileUrl,
+			versions: [
+				{
+					version: 1,
+					url,
+					createdAt: new Date(),
+					createdBy: user_id
+				}
+			],
+			access: [
+				{ userId: user_id, permissions: ['read', 'write', 'delete'] },
+				...access,
+				...roles.map((role) => ({ roleId: role._id, permissions: ['read'] as ('read' | 'write' | 'delete')[] }))
+			]
+		};
+
+		if (!dbAdapter) {
+			const errorMessage = 'Database adapter is not initialized';
+			logger.error(errorMessage);
+			throw new Error(errorMessage);
+		}
+
+		const existingFile = await dbAdapter.findOne('media_remote_videos', { hash });
+		if (existingFile) {
+			logger.info('Remote file already exists in the database', { fileId: existingFile._id, collection: 'media_remote_videos' });
+			return { id: existingFile._id, fileInfo: existingFile as MediaRemoteVideo };
+		}
+
+		const id = await saveMediaToDb('media_remote_videos', fileInfo);
+
+		await setCache(`media:${id}`, fileInfo, 3600); // Cache for 1 hour
+
+		logger.info('Remote media saved to database', { collectionName, fileInfo });
+		return { id, fileInfo };
+	} catch (error) {
+		logger.error('Error saving remote media:', error as Error);
+		throw error;
+	}
+}
+
+/**
+ * Utility Functions
+ */
+
+// Hashes the content of a file.
+async function hashFileContent(buffer: Buffer): Promise<string> {
+	return (await sha256(buffer)).slice(0, 20);
+}
+
+// Sanitizes the filename by removing unsafe characters.
+function getSanitizedFileName(fileName: string): { fileNameWithoutExt: string; ext: string } {
+	const { name, ext } = removeExtension(fileName);
+	return { fileNameWithoutExt: sanitize(name), ext };
+}
+
+// Constructs a URL for a media item based on its path and type.
+function constructUrl(pathType: string, hash: string, fileName: string, ext: string, collectionName: string, size?: keyof typeof SIZES): string {
+	let url: string;
+	switch (pathType) {
+		case 'global':
+			url = `/original/${hash}-${fileName}${size ? `-${size}` : ''}.${ext}`;
+			break;
+		case 'unique':
+			url = `/${collectionName}/original/${hash}-${fileName}${size ? `-${size}` : ''}.${ext}`;
+			break;
+		default:
+			url = `/${pathType}/original/${hash}-${fileName}${size ? `-${size}` : ''}.${ext}`;
+	}
+
+	if (publicEnv.MEDIASERVER_URL) {
+		return `${publicEnv.MEDIASERVER_URL}/files/${url}`;
+	} else {
+		return Path.join(publicEnv.MEDIA_FOLDER, url);
+	}
+}
+
+// Returns the URL for accessing a media item.
+export function getMediaUrl(mediaItem: MediaBase, collectionName: string, size?: keyof typeof SIZES): string {
+	return constructUrl(mediaItem.path, mediaItem.hash, mediaItem.name, Path.extname(mediaItem.name).slice(1), collectionName, size);
+}
+
+// Constructs the full media URL based on the environment.
+export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof SIZES): string {
+	if (publicEnv.MEDIASERVER_URL) {
+		return `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
+	} else {
+		const basePath = Path.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
+		if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
+			return mediaItem.thumbnails[size].url;
+		}
+		return basePath;
+	}
+}
+
+// Extracts metadata from a file, such as size, format, and dimensions.
+async function extractMetadata(file: File, buffer: Buffer): Promise<Record<string, any>> {
+	const metadata: Record<string, any> = {};
+	const fileType = mime.lookup(file.name);
+
+	if (fileType && fileType.startsWith('image/')) {
+		const sharp = (await import('sharp')).default;
+		const imageInfo = await sharp(buffer).metadata();
+		metadata.width = imageInfo.width;
+		metadata.height = imageInfo.height;
+		metadata.format = imageInfo.format;
+	} else if (fileType && fileType.startsWith('video/')) {
+		// Estimate video duration by checking file size and a rough bitrate
+		metadata.duration = Math.floor(buffer.length / (1000 * 500)); // Assuming a rough bitrate of 500 kbps
+	} else if (fileType && fileType.startsWith('audio/')) {
+		// Estimate audio duration by checking file size and a rough bitrate
+		metadata.duration = Math.floor(buffer.length / (1000 * 128)); // Assuming a rough bitrate of 128 kbps
+	} else if (fileType && fileType.startsWith('application/')) {
+		if (fileType === 'application/pdf') {
+			// Basic PDF metadata (assume 1 page if unknown)
+			metadata.pageCount = 1;
+		} else if (fileType.includes('word')) {
+			// Basic Word document metadata (assume 1 page if unknown)
+			metadata.pageCount = 1;
+		}
+	}
+
+	// Add common metadata
+	metadata.size = buffer.length;
+	metadata.mimeType = fileType || 'application/octet-stream';
+	metadata.lastModified = new Date().toISOString();
+
+	return metadata;
+}
+
+// Gets all file paths for a media item.
+async function getMediaFilePaths(mediaItem: MediaType): Promise<string[]> {
+	const paths = [Path.join(publicEnv.MEDIA_FOLDER, mediaItem.url)];
+
+	if ('thumbnails' in mediaItem) {
+		for (const thumbnail of Object.values(mediaItem.thumbnails)) {
+			paths.push(Path.join(publicEnv.MEDIA_FOLDER, thumbnail.url));
+		}
+	}
+
+	return paths;
+}
+
+// Invalidates the cache for a specific media item.
 export async function invalidateMediaCache(id: string): Promise<void> {
 	await clearCache(`media:${id}`);
 	logger.info(`Cache invalidated for media: ${id}`);
 }
 
-// Prefetches a media item to cache
+// Prefetches a media item to cache.
 export async function prefetchMediaToCache(id: string, collection: string): Promise<void> {
 	if (!dbAdapter) {
 		logger.warn('Database adapter is not initialized');
@@ -915,38 +905,53 @@ export async function prefetchMediaToCache(id: string, collection: string): Prom
 	}
 }
 
-// Constructs a URL for a media item
-export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof SIZES): string {
-	if (publicEnv.MEDIASERVER_URL) {
-		return `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
-	} else {
-		const basePath = path.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
-		if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
-			return mediaItem.thumbnails[size].url;
-		}
-		return basePath;
+/**
+ * Search and List Media Functions
+ */
+
+// Searches for media items in the database based on a query.
+export async function searchMedia(collection: string, query: string, metadata?: Record<string, any>): Promise<MediaType[]> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
 	}
+
+	const searchCriteria: any = {
+		$and: [
+			{ isDeleted: { $ne: true } },
+			{
+				$or: [{ name: { $regex: query, $options: 'i' } }, { 'metadata.tags': { $regex: query, $options: 'i' } }]
+			}
+		]
+	};
+	if (metadata) {
+		Object.entries(metadata).forEach(([key, value]) => {
+			searchCriteria.$and.push({ [`metadata.${key}`]: value });
+		});
+	}
+
+	return await dbAdapter.findMany(collection, searchCriteria);
 }
 
-// Validates a media file
-export function validateMediaFile(file: File, allowedTypes: string[]): { isValid: boolean; message: string } {
-	const fileType = mime.lookup(file.name);
-	if (!fileType || !allowedTypes.includes(fileType)) {
-		return {
-			isValid: false,
-			message: `Invalid file type. Allowed types are: ${allowedTypes.join(', ')}`
-		};
+// Lists media items in the database with pagination.
+export async function listMedia(collection: string, page: number = 1, limit: number = 20): Promise<{ media: MediaType[]; total: number }> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
 	}
+	const skip = (page - 1) * limit;
+	const [media, total] = await Promise.all([
+		dbAdapter.findMany(collection, { isDeleted: { $ne: true } }),
+		dbAdapter.countDocuments(collection, { isDeleted: { $ne: true } })
+	]);
+	return { media: media.slice(skip, skip + limit), total };
+}
 
-	const maxFileSize = publicEnv.MAX_FILE_SIZE !== undefined ? publicEnv.MAX_FILE_SIZE : DEFAULT_MAX_FILE_SIZE;
-
-	if (file.size > maxFileSize) {
-		return {
-			isValid: false,
-			message: `File size exceeds the limit of ${publicEnv.MAX_FILE_SIZE} bytes`
-		};
+// Bulk deletes media items by soft deleting them in the database.
+export async function bulkDeleteMedia(ids: string[], collection: string): Promise<void> {
+	if (!dbAdapter) {
+		throw new Error('Database adapter is not initialized');
 	}
-	return { isValid: true, message: 'File is valid' };
+	await dbAdapter.updateMany(collection, { _id: { $in: ids } }, { $set: { isDeleted: true, deletedAt: new Date() } });
+	logger.info('Bulk media soft deleted', { ids, collection });
 }
 
 export default {
@@ -968,9 +973,9 @@ export default {
 	restoreMedia,
 
 	// Update operations
+	updateMediaVersion,
 	updateMediaMetadata,
 	updateMediaInfo,
-	updateMediaVersion,
 
 	// Search and retrieve operations
 	listMedia,
@@ -982,11 +987,30 @@ export default {
 	setMediaAccess,
 	checkMediaAccess,
 
-	// Caching operations (if you want to expose these)
+	// Caching operations
 	invalidateMediaCache,
 	prefetchMediaToCache,
 
 	// Utility functions
+	getMediaUrl,
 	constructMediaUrl,
-	validateMediaFile
+	validateMediaFile: (file: File, allowedTypes: string[]): { isValid: boolean; message: string } => {
+		const fileType = mime.lookup(file.name);
+		if (!fileType || !allowedTypes.includes(fileType)) {
+			return {
+				isValid: false,
+				message: `Invalid file type. Allowed types are: ${allowedTypes.join(', ')}`
+			};
+		}
+
+		const maxFileSize = publicEnv.MAX_FILE_SIZE !== undefined ? publicEnv.MAX_FILE_SIZE : DEFAULT_MAX_FILE_SIZE;
+
+		if (file.size > maxFileSize) {
+			return {
+				isValid: false,
+				message: `File size exceeds the limit of ${publicEnv.MAX_FILE_SIZE} bytes`
+			};
+		}
+		return { isValid: true, message: 'File is valid' };
+	}
 };

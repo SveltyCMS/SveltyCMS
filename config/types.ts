@@ -68,6 +68,9 @@ export const createPrivateConfig = (arg: {
 	// Roles and Permissions
 	ROLES: Role[];
 	PERMISSIONS: Permission[];
+
+	// Secret key for signing and verifying JSON Web Tokens (JWTs)
+	JWT_SECRET_KEY?: string;
 }) => arg;
 
 /**

@@ -1,3 +1,6 @@
+// @file cli-installer/startOrInstallPrompt.js
+// @description Start or Install Prompt
+
 import { select, isCancel, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';

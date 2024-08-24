@@ -1,3 +1,6 @@
+// @file cli-installer/config/email.js
+// @description Configuration prompts for the Email section
+
 import { Title } from '../cli-installer.js';
 import { isCancel, text, select, confirm, note, cancel } from '@clack/prompts';
 import pc from 'picocolors';

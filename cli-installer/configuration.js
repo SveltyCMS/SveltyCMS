@@ -1,3 +1,6 @@
+// @file cli-installer/configuration.js
+// @description Configuration prompts
+
 import { isCancel, select, confirm, note, outro } from '@clack/prompts';
 import pc from 'picocolors';
 import fs from 'fs';

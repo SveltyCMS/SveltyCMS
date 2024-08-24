@@ -1,3 +1,6 @@
+// @file cli-installer/config/database.js
+// @description Configuration prompts for the Database section
+
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';

@@ -1,3 +1,9 @@
+<!-- 
+@files src/routes/(app)/config/assessManagement/+page.svelte
+@description This file sets up and displays the assess management page. 
+It provides a user-friendly interface for searching, filtering, and navigating through roles and permissions. 
+-->
+
 <script lang="ts">
 	// Store
 	import { page } from '$app/stores';

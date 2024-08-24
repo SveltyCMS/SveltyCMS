@@ -93,11 +93,13 @@
 	}
 </script>
 
+<!-- PageTitle -->
 <div class="mb-4 flex items-center justify-between">
 	<PageTitle name={m.uploadMedia_title()} icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-	<button class="variant-filled-secondary btn" on:click={() => goto('/mediagallery')}>
-		<iconify-icon icon="material-symbols:arrow-back-rounded" width="24" class="rtl:rotate-180" />
-		{m.button_back()}
+
+	<!-- Back -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
 	</button>
 </div>
 

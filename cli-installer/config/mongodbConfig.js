@@ -1,3 +1,6 @@
+// @file cli-installer/config/mongodbConfig.js
+// @description Configuration prompts for the MongoDB section
+
 import { text, note, isCancel, cancel, select, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';

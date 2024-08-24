@@ -57,6 +57,50 @@ export function getRoleByName(roleName: string): Role | undefined {
 	return loadedRoles.find((role) => role.name.toLowerCase() === roleName.toLowerCase());
 }
 
+// Utility function to check if a user has a specific permission in a given context
+export function hasPermission(user: User, action: PermissionAction, contextId: string): boolean {
+	const userRole = getRoleByName(user.role);
+	if (!userRole) return false;
+
+	return userRole.permissions.some((permName) => {
+		const perm = loadedPermissions.find((p) => p.name === permName);
+		return perm && perm.action === action && (perm.contextId === contextId || perm.contextId === 'global');
+	});
+}
+
+// Function to get permissions by role
+export function getPermissionsByRole(roleName: string): Permission[] | undefined {
+	const role = getRoleByName(roleName);
+	if (!role) return undefined;
+	return role.permissions.map((permName) => loadedPermissions.find((p) => p.name === permName)).filter(Boolean) as Permission[];
+}
+
+// Utility function to check if a user has a specific role
+export function hasRole(user: User, roleName: string): boolean {
+	return user.role.toLowerCase() === roleName.toLowerCase();
+}
+
+// Function to add a new role
+export function addRole(newRole: Role): void {
+	loadedRoles.push(newRole);
+}
+
+// Function to remove a role
+export function removeRole(roleId: RoleId): void {
+	const index = loadedRoles.findIndex((role) => role._id === roleId);
+	if (index !== -1) {
+		loadedRoles.splice(index, 1);
+	}
+}
+
+// Function to update a role
+export function updateRole(roleId: RoleId, updatedRole: Partial<Role>): void {
+	const role = loadedRoles.find((r) => r._id === roleId);
+	if (role) {
+		Object.assign(role, updatedRole);
+	}
+}
+
 // User interface represents a user in the system
 export interface User {
 	_id: string; // Unique identifier for the user
@@ -125,17 +169,6 @@ export interface RateLimit {
 	windowMs: number;
 	current: number;
 	lastActionAt: Date;
-}
-
-// Utility function to check if a user has a specific permission in a given context
-export function hasPermission(user: User, action: PermissionAction, contextId: string): boolean {
-	const userRole = getRoleByName(user.role);
-	if (!userRole) return false;
-
-	return userRole.permissions.some((permName) => {
-		const perm = loadedPermissions.find((p) => p.name === permName);
-		return perm && perm.action === action && (perm.contextId === contextId || perm.contextId === 'global');
-	});
 }
 
 // Icons for permissions

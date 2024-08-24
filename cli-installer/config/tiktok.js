@@ -1,3 +1,6 @@
+// @file cli-installer/config/tiktok.js
+// @description Configuration prompts for the TikTok section
+
 import { confirm, text, note, select, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';

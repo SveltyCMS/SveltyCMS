@@ -236,6 +236,24 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	}
 }
 
+// Initialize virtual folders
+async function initializeVirtualFolders() {
+	if (!dbAdapter) {
+		throw new Error('Database adapter not initialized');
+	}
+
+	try {
+		// Check if root folder exists, if not, create it
+		const rootFolder = await dbAdapter.getVirtualFolders();
+		if (rootFolder.length === 0) {
+			await dbAdapter.createVirtualFolder({ name: 'Root' });
+			logger.info('Root virtual folder created');
+		}
+	} catch (error) {
+		logger.error('Error initializing virtual folders:', error);
+	}
+}
+
 // Initialize adapters
 async function initializeAdapters(): Promise<void> {
 	if (isInitialized) {
@@ -265,6 +283,8 @@ async function initializeAdapters(): Promise<void> {
 
 			// Initialize default theme
 			await initializeDefaultTheme(dbAdapter);
+			// Initialize virtual folders
+			await initializeVirtualFolders();
 			// Setup auth models and media models
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();

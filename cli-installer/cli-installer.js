@@ -1,3 +1,6 @@
+// @file cli-installer/cli-installer.js
+// @description SveltyCMS CLI Installer
+
 import { intro, outro, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 

@@ -1,3 +1,6 @@
+// @file cli-installer/config/google.js
+// @description Configuration prompts for the Google section
+
 import { confirm, select, note, text, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';

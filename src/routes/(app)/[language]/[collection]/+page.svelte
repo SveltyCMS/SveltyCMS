@@ -1,11 +1,8 @@
 <!-- 
-@ file src/routes/(app)/[language]/[collection]/+page.svelte  
-@ description This component handles the content and logic for a specific page within the application. 
-It fetches data based on the current language (from route parameters) and collection (also from route parameters). 
-The component dynamically displays different components (EntryList, Fields, MediaGallery) based on the current mode 
-of the application (view, edit, create, media). Additionally, it sets the page-specific 
-title and description to allow for proper SEO and user context. 
-The component interacts with stores (like `page`, `collections`, `collection`, `contentLanguage`) to manage collections, user navigation, and data retrieval effectively.  
+@file src/routes/(app)/[language]/[collection]/+page.svelte  
+@description This component handles the content and logic for a specific page within the application. 
+It dynamically fetches and displays data based on the current language and collection route parameters. 
+It also handles navigation, mode switching (view, edit, create, media), and SEO metadata for the page.
 -->
 
 <script lang="ts">
@@ -20,50 +17,76 @@ The component interacts with stores (like `page`, `collections`, `collection`, `
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
-	import MediaGallery from '@src/routes/(app)/mediagallery/MediaGallery.svelte';
+	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
 
-	let ForwardBackward = false; // if using browser history
+	let forwardBackward = false; // Track if using browser history
+	let initialLoadComplete = false; // Track initial load
 
-	// Set the value of the collection store to the current collection based on the route parameter
-	collection.set($collections[$page.params.collection as string] as Schema); // current collection
+	// Reactive re-computation for setting collection based on route parameters
+	$: if ($collections && $page.params.collection) {
+		const selectedCollection = $collections[$page.params.collection as string];
+		if (selectedCollection) {
+			collection.set(selectedCollection as Schema);
+			initialLoadComplete = true;
+		} else if (initialLoadComplete) {
+			console.error('Collection not found:', $page.params.collection);
+			goto('/404'); // Redirect to a 404 page or handle error appropriately
+		}
+	}
 
-	window.onpopstate = async () => {
-		ForwardBackward = true;
-		collection.set($collections[$page.params.collection as string] as Schema);
+	// Handle browser history navigation
+	window.onpopstate = () => {
+		forwardBackward = true;
+		const selectedCollection = $collections[$page.params.collection as string];
+		if (selectedCollection) {
+			collection.set(selectedCollection as Schema);
+		} else {
+			console.error('Collection not found during browser navigation:', $page.params.collection);
+			goto('/404'); // Handle error or redirect
+		}
 	};
 
-	// Subscribe to changes in the collection store and perform redirects
-	const unsubscribe = collection.subscribe(() => {
-		$collectionValue = {};
-		if (!ForwardBackward) {
-			goto(`/${$contentLanguage}/${$collection.name}`);
+	// Subscribe and handle collection changes
+	const unsubscribe = collection.subscribe(($collection) => {
+		if ($collection && $collection.name) {
+			//console.log('Collection changed:', $collection);
+			$collectionValue = {}; // Reset collection value
+			if (!forwardBackward) {
+				goto(`/${$contentLanguage}/${$collection.name}`);
+			}
 		}
-		ForwardBackward = false;
+		forwardBackward = false;
 	});
 
 	onDestroy(() => {
-		unsubscribe();
+		unsubscribe(); // Clean up subscription
 	});
 
-	contentLanguage.subscribe(() => {
-		if (!ForwardBackward) {
-			goto(`/${$contentLanguage}/${$collection.name}`);
-		}
-	});
+	// Handle language changes reactively
+	$: if (!forwardBackward && $collection && $collection.name) {
+		goto(`/${$contentLanguage}/${$collection.name}`);
+	} else if (!forwardBackward && initialLoadComplete) {
+		console.error('Collection or collection name is undefined after language change.');
+		goto('/404'); // Handle error or redirect
+	}
 
-	// Overriding title and description for the page
-	export const title = `${$collection.name} - Your Site Title`;
-	export const description = `View and manage entries for ${$collection.name}.`;
+	// Reactive SEO metadata
+	$: document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
+	$: document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
 </script>
 
 <div class="content">
-	{#if $mode === 'view' || $mode === 'modify'}
-		<EntryList />
-	{:else if ['edit', 'create'].includes($mode)}
-		<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-			<Fields />
-		</div>
-	{:else if $mode === 'media'}
-		<MediaGallery />
+	{#if $collection}
+		{#if $mode === 'view' || $mode === 'modify'}
+			<EntryList />
+		{:else if ['edit', 'create'].includes($mode)}
+			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
+				<Fields />
+			</div>
+		{:else if $mode === 'media'}
+			<MediaGallery />
+		{/if}
+	{:else}
+		<div class="error">Error: Collection data not available.</div>
 	{/if}
 </div>

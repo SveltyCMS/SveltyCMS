@@ -1,3 +1,6 @@
+// @file cli-installer/startProcess.js
+// @description Start Process for the CLI Installer
+
 import { select, isCancel, spinner, note } from '@clack/prompts';
 import { spawnSync } from 'child_process';
 import { Title } from './cli-installer.js';

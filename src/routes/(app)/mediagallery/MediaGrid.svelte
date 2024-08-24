@@ -1,6 +1,19 @@
+<!--
+@file src/routes/(app)/mediagallery/MediaGrid.svelte
+@description Grid view component for the media gallery. Displays media items in a responsive grid layout with file information and actions.
+Key features:
+- Responsive grid layout for media items
+- Display of file name, size, and type
+- Thumbnail preview for images
+- Actions for file info, edit, and delete
+- Uses formatBytes for human-readable file sizes
+- Implements constructMediaUrl for proper URL handling
+-->
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { formatBytes } from '@src/utils/utils';
+	import { getMediaUrl } from '@src/utils/media';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
 	export let filteredFiles;
@@ -88,14 +101,16 @@
 
 				<section class="p-2">
 					<img
-						src={file.thumbnail.url}
-						alt={file.thumbnail.name}
+						src={getMediaUrl(file, 'thumbnail')}
+						alt={file.name}
 						class={`relative -top-4 left-0 ${gridSize === 'small' ? 'h-26 w-26' : gridSize === 'medium' ? 'h-48 w-48' : 'h-80 w-80'}`}
 					/>
 				</section>
 
-				<footer class={`-mt-1 mb-3 text-center ${gridSize === 'small' ? 'text-xs' : 'text-base'}`}>
-					{file.thumbnail.name}
+				<footer class="p-2 text-sm">
+					<p class="truncate">{file.name}</p>
+					<p class="text-xs text-gray-500">{formatBytes(file.size)}</p>
+					<p class="text-xs text-gray-500">{file.type || 'Unknown Type'}</p>
 				</footer>
 			</div>
 		{/each}

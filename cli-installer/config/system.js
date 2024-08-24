@@ -1,7 +1,14 @@
+// @file cli-installer/config/system.js
+// @description Configuration prompts for the System section
+
 import { confirm, text, note, select, isCancel, cancel, multiselect } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
+import crypto from 'crypto';
+function generateRandomJWTSecret(length = 32) {
+	return crypto.randomBytes(length).toString('hex');
+}
 
 export async function configureSystem(privateConfigData = {}) {
 	// SveltyCMS Title
@@ -22,14 +29,17 @@ export async function configureSystem(privateConfigData = {}) {
 			`HOST_PROD: ${pc.red(privateConfigData.HOST_PROD)}\n` +
 			`PASSWORD_STRENGTH: ${pc.red(privateConfigData.PASSWORD_STRENGTH?.toString())}\n` +
 			`BODY_SIZE_LIMIT: ${pc.red(privateConfigData.BODY_SIZE_LIMIT ? privateConfigData.BODY_SIZE_LIMIT + 'b' : 'Not set')}\n` +
-			`MAX_FILE_SIZE: ${pc.red(privateConfigData.MAX_FILE_SIZE ? privateConfigData.MAX_FILE_SIZE + 'b' : 'Not set')}\n` + // Added MAX_FILE_SIZE here
+			`MAX_FILE_SIZE: ${pc.red(privateConfigData.MAX_FILE_SIZE ? privateConfigData.MAX_FILE_SIZE + 'b' : 'Not set')}\n` +
 			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
 			`LOG_LEVELS: ${pc.red(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
 			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
 			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
 			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
-			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}`,
-		`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` + `SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}`,
+			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}n` +
+			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
+			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}\n` +
+			`JWT_SECRET_KEY: ${pc.red(privateConfigData.JWT_SECRET)}`,
+
 		pc.red('Existing System Configuration:')
 	);
 
@@ -95,6 +105,17 @@ export async function configureSystem(privateConfigData = {}) {
 		console.clear();
 		await configurationPrompt(); // Restart the configuration process
 		return;
+	}
+
+	let maxFileSizeOutput = 0;
+	if (MAX_FILE_SIZE.endsWith('gb')) {
+		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('gb')[0]) * 1024 * 1024 * 1024;
+	} else if (MAX_FILE_SIZE.endsWith('mb')) {
+		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('mb')[0]) * 1024 * 1024;
+	} else if (MAX_FILE_SIZE.endsWith('kb')) {
+		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('kb')[0]) * 1024;
+	} else if (MAX_FILE_SIZE.endsWith('b')) {
+		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('b')[0]);
 	}
 
 	const MAX_FILE_SIZE = await text({
@@ -279,6 +300,22 @@ export async function configureSystem(privateConfigData = {}) {
 		}
 	}
 
+	const JWT_SECRET_KEY = await text({
+		message: 'Enter the secret key for signing and verifying JWTs:',
+		placeholder: generateRandomJWTSecret,
+		initialValue: privateConfigData.JWT_SECRET_KEY || 'generateRandomJWTSecret',
+		validate(value) {
+			if (value.length === 0) return `JWT secret key is required!`;
+		}
+	});
+
+	if (isCancel(JWT_SECRET_KEY)) {
+		cancel('Operation cancelled.');
+		console.clear();
+		await configurationPrompt(); // Restart the configuration process
+		return;
+	}
+
 	// Summary
 	note(
 		`SITE_NAME: ${pc.green(SITE_NAME)}\n` +
@@ -292,9 +329,11 @@ export async function configureSystem(privateConfigData = {}) {
 			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
 			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
 			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
-			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}`,
+			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}\n` +
+			`JWT_SECRET_KEY: ${pc.green(JWT_SECRET_KEY)}`,
 
 		`SEASONS: ${pc.green(SEASONS)}\n` + `SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
+
 		pc.green('Review your System configuration:')
 	);
 
@@ -353,12 +392,15 @@ export async function configureSystem(privateConfigData = {}) {
 		HOST_PROD,
 		PASSWORD_STRENGTH,
 		BODY_SIZE_LIMIT: bodySizeLimitOutput,
+		MAX_FILE_SIZE: maxFileSizeOutput,
+		EXTRACT_DATA_PATH,
 		LOG_LEVELS,
 		SESSION_CLEANUP_INTERVAL: Number(SESSION_CLEANUP_INTERVAL),
 		MAX_IN_MEMORY_SESSIONS: Number(MAX_IN_MEMORY_SESSIONS),
 		DB_VALIDATION_PROBABILITY: Number(DB_VALIDATION_PROBABILITY),
 		SESSION_EXPIRATION_SECONDS: Number(SESSION_EXPIRATION_SECONDS),
 		SEASONS,
-		SEASONS_REGION
+		SEASONS_REGION,
+		JWT_SECRET_KEY
 	};
 }

@@ -82,11 +82,15 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const collections = await getCollections();
 
 		if (collections && Object.keys(collections).length > 0) {
-			const firstCollection = Object.keys(collections)[0];
-			logger.debug(`First collection: ${firstCollection}`);
-
-			// Redirect to the first collection
-			throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${collections[firstCollection].name}`);
+			const firstCollectionKey = Object.keys(collections)[0];
+			const firstCollection = collections[firstCollectionKey];
+			if (firstCollection && firstCollection.name) {
+				logger.debug(`First collection: ${firstCollection.name}`);
+				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
+			} else {
+				logger.error('First collection is invalid or missing a name');
+				throw new Error('Invalid first collection');
+			}
 		} else {
 			logger.error('No collections found');
 			throw new Error('No collections found');

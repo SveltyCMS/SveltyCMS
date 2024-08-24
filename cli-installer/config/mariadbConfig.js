@@ -1,3 +1,6 @@
+// @file cli-installer/config/media.js
+// @description Configuration prompts for the Media section
+
 import { text, confirm, note, isCancel, cancel, select } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';

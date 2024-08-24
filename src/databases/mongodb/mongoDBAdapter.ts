@@ -153,6 +153,15 @@ const SystemPreferencesSchema = new mongoose.Schema(
 
 const SystemPreferences = mongoose.models.SystemPreferences || mongoose.model('SystemPreferences', SystemPreferencesSchema);
 
+// Define the VirtualFolder schema 
+const VirtualFolderSchema = new mongoose.Schema({
+    name: { type: String, required: true },
+    parent: { type: mongoose.Schema.Types.ObjectId, ref: 'VirtualFolder' },
+    path: { type: String, required: true }
+});
+
+const VirtualFolder = mongoose.model('VirtualFolder', VirtualFolderSchema);
+
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
 	private collectionsInitialized = false;
@@ -772,6 +781,74 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
+  // Create a virtual folder in database
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any> {
+    const { name, parent, path } = folderData;
+    const folder = new VirtualFolder({ name, parent, path });
+    return await folder.save();
+}
+
+	async getVirtualFolders(): Promise<any[]> {
+		return await VirtualFolder.find().lean();
+	}
+
+	async getVirtualFolderContents(folderId: string): Promise<any[]> {
+		const folder = await VirtualFolder.findById(folderId);
+		if (!folder) throw new Error('Folder not found');
+
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: folder._id }).lean());
+		const results = await Promise.all(mediaPromises);
+		return results.flat();
+	}
+
+	async updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any> {
+		return await VirtualFolder.findByIdAndUpdate(folderId, updateData, { new: true });
+	}
+
+	async deleteVirtualFolder(folderId: string): Promise<boolean> {
+		const result = await VirtualFolder.findByIdAndDelete(folderId);
+		return !!result;
+	}
+
+	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+		for (const type of mediaTypes) {
+			const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId });
+			if (result) return true;
+		}
+		return false;
+	}
+
+	async getAllMedia(): Promise<any[]> {
+		// Implement fetching all media files
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const mediaPromises = mediaTypes.map((type) => this.findMany(type, {}));
+		const results = await Promise.all(mediaPromises);
+		return results.flat().map((item) => ({
+			...item,
+			_id: item._id.toString(),
+			type: item.type || 'unknown'
+		}));
+	}
+
+	async deleteMedia(mediaId: string): Promise<boolean> {
+		// Implement media deletion logic
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		for (const type of mediaTypes) {
+			const result = await this.deleteOne(type, { _id: mediaId });
+			if (result > 0) return true;
+		}
+		return false;
+	}
+
+	async getMediaInFolder(folderId: string): Promise<any[]> {
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId }).lean());
+		const results = await Promise.all(mediaPromises);
+		return results.flat();
+	}
+	
 	// Clean up and disconnect from MongoDB
 	async disconnect(): Promise<void> {
 		try {

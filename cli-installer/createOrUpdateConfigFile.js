@@ -1,5 +1,14 @@
+// @files cli-installer/createOrUpdateConfigFile.js
+// @description Create or Update Config File
+
 import fs from 'fs/promises';
 import path from 'path';
+import crypto from 'crypto';
+
+// Generate a random JWT secret key
+function generateRandomJWTSecret(length = 32) {
+	return crypto.randomBytes(length).toString('hex');
+}
 
 // Create or Update Config File
 export async function createOrUpdateConfigFile(configData) {
@@ -68,7 +77,14 @@ export async function createOrUpdateConfigFile(configData) {
 
             // OpenAI - Chat GPT - to be added to Lexical - See https://beta.openai.com/docs/api-reference/authentication
             USE_OPEN_AI: ${configData?.USE_OPEN_AI || 'false'},
-            VITE_OPEN_AI_KEY: '${configData?.VITE_OPEN_AI_KEY || ''}'
+            VITE_OPEN_AI_KEY: '${configData?.VITE_OPEN_AI_KEY || ''}',
+           
+            // Secret key for signing and verifying JSON Web Tokens (JWTs)
+            JWT_SECRET_KEY: '${configData?.JWT_SECRET_KEY || generateRandomJWTSecret()}',
+
+            // Roles & Permissions
+            ROLES: [],
+            PERMISSIONS: [],
         });
     `;
 

@@ -72,7 +72,18 @@ export interface dbInterface {
 	updateSystemPreferences(userId: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>;
 	clearSystemPreferences(userId: string): Promise<void>;
 
+	// Virtual Folder Methods
+	createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any>;
+	getVirtualFolders(): Promise<any[]>;
+	getVirtualFolderContents(folderId: string): Promise<any[]>;
+	updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any>;
+	deleteVirtualFolder(folderId: string): Promise<boolean>;
+
 	// Media Management
+	moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean>;
+	getAllMedia(): Promise<any[]>;
+	getMediaInFolder(folderId: string): Promise<any[]>;
+	deleteMedia(mediaId: string): Promise<boolean>;
 	getLastFiveMedia(): Promise<any[]>;
 
 	// Method for Disconnecting

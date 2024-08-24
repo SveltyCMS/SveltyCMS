@@ -1,45 +1,92 @@
+/**
+ * @file src/routes/(app)/mediagallery/+page.server.ts
+ * @description Server-side logic for the media gallery page.
+ *
+ * This module handles:
+ * - User authentication and session validation
+ * - Fetching media files from various collections (images, documents, audio, video)
+ * - File upload processing for different media types
+ * - Error handling and logging
+ *
+ * The load function prepares data for the media gallery, including user information
+ * and a list of all media files. The actions object defines the server-side logic
+ * for handling file uploads.
+ */
+
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { saveImage, saveDocument, saveAudio, saveVideo, saveRemoteMedia } from '@src/utils/media';
+import { saveImage, saveDocument, saveAudio, saveVideo, constructUrl } from '@src/utils/media';
 
 // Auth
 import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
+// Theme
+import { DEFAULT_THEME } from '@src/utils/utils';
+
+// System Logs
+import logger from '@src/utils/logger';
+
 export const load: PageServerLoad = async ({ cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) throw redirect(302, `/login`);
+	if (!session_id) {
+		logger.warn('No session ID found, redirecting to login');
+		throw redirect(302, `/login`);
+	}
 
 	if (!auth || !dbAdapter) {
-		console.error('Authentication system or database adapter is not initialized');
+		logger.error('Authentication system or database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
-	const user = await auth.validateSession({ session_id });
-	if (!user) throw redirect(302, `/login`);
+	try {
+		const user = await auth.validateSession({ session_id });
+		if (!user) {
+			logger.warn('Invalid session, redirecting to login');
+			throw redirect(302, `/login`);
+		}
 
-	// Fetch all media types concurrently
-	const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-	const mediaPromises = mediaTypes.map((type) => dbAdapter.findMany(type, {}));
-	let results = await Promise.all(mediaPromises);
+		// Convert MongoDB ObjectId to string to avoid serialization issues
+		if (user._id) {
+			user._id = user._id.toString();
+		}
 
-	results = results.map((arr, index) => arr.map((item) => ({ ...item, _id: item._id.toString(), type: mediaTypes[index].split('_')[1] })));
-	const media = results.flat();
-	console.log(media);
-	return { user, media };
-};
+		// Fetch all media types concurrently
+		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const mediaPromises = mediaTypes.map((type) => dbAdapter.findMany(type, {}));
+		let results = await Promise.all(mediaPromises);
 
-const saveMediaFile = {
-	application: saveDocument,
-	audio: saveAudio,
-	font: saveDocument,
-	example: saveDocument,
-	image: saveImage,
-	message: saveDocument,
-	model: saveDocument,
-	multipart: saveDocument,
-	text: saveDocument,
-	video: saveVideo
+		results = results.map((arr, index) =>
+			arr.map(
+				(item): MediaImage => ({
+					// Explicitly cast to MediaImage
+					...item,
+					_id: item._id.toString(),
+					type: mediaTypes[index].split('_')[1],
+					url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), mediaTypes[index]),
+					thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), mediaTypes[index])
+				})
+			)
+		);
+
+		const media = results.flat();
+
+		// Fetch theme
+		let theme;
+		try {
+			theme = await dbAdapter.getDefaultTheme();
+			theme = JSON.parse(JSON.stringify(theme)); // Ensure theme is serializable
+		} catch (error) {
+			logger.error('Error fetching default theme:', error);
+			theme = DEFAULT_THEME;
+		}
+
+		logger.info('Media gallery data loaded successfully');
+		return { user, media, theme };
+	} catch (error) {
+		logger.error('Error in media gallery load function:', error);
+		throw error;
+	}
 };
 
 // Collection name for media files
@@ -59,29 +106,56 @@ const collectionNames = {
 export const actions: Actions = {
 	default: async ({ request, cookies }) => {
 		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) throw redirect(302, `/login`);
+		if (!session_id) {
+			logger.warn('No session ID found during file upload, redirecting to login');
+			throw redirect(302, `/login`);
+		}
 
 		if (!auth || !dbAdapter) {
-			console.error('Authentication system or database adapter is not initialized');
-			throw error(500, 'Internal Server Error');
+			logger.error('Authentication system or database adapter is not initialized');
+			throw error(500, 'Internal server error: Database adapter not initialized');
 		}
 
-		const user = await auth.validateSession({ session_id });
-		if (!user) throw redirect(302, `/login`);
-
-		const formData = await request.formData();
-		const files = formData.getAll('files');
-
-		for (const file of files) {
-			try {
-				const type = file.type.split('/')[0];
-				const { fileInfo } = await saveMediaFile[type](file, collectionNames[type], user.id);
-				await dbAdapter.insertMany(collectionNames[type], [{ ...fileInfo, user: user.id }]);
-			} catch (e) {
-				console.error(e);
+		try {
+			const user = await auth.validateSession({ session_id });
+			if (!user) {
+				logger.warn('Invalid session during file upload, redirecting to login');
+				throw redirect(302, `/login`);
 			}
-		}
 
-		return { success: true };
+			const formData = await request.formData();
+			const files = formData.getAll('files');
+
+			const saveMediaFile = {
+				application: saveDocument,
+				audio: saveAudio,
+				font: saveDocument,
+				example: saveDocument,
+				image: saveImage,
+				message: saveDocument,
+				model: saveDocument,
+				multipart: saveDocument,
+				text: saveDocument,
+				video: saveVideo
+			};
+
+			for (const file of files) {
+				if (file instanceof File) {
+					const type = file.type.split('/')[0] as keyof typeof saveMediaFile;
+					if (type in saveMediaFile) {
+						const { fileInfo } = await saveMediaFile[type](file, collectionNames[type], user.id);
+						await dbAdapter.insertMany(collectionNames[type], [{ ...fileInfo, user: user.id }]);
+						logger.info(`File uploaded successfully: ${file.name}`);
+					} else {
+						logger.warn(`Unsupported file type: ${file.type}`);
+					}
+				}
+			}
+
+			return { success: true };
+		} catch (error) {
+			logger.error('Error during file upload:', error);
+			return { success: false, error: 'File upload failed' };
+		}
 	}
 };
