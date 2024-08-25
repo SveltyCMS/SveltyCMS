@@ -4,7 +4,7 @@
  *
  * This module handles the server-side operations for the login page, including:
  * - User authentication and session management
- * - Form validation
+ * - Form validation with superforms rate limiting
  * - OAuth login
  *  *
  */
@@ -14,9 +14,10 @@ import { privateEnv } from '@root/config/private';
 
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
-// import { RateLimiter } from 'sveltekit-rate-limiter/server';
-
 import type { Actions, PageServerLoad } from './$types';
+
+// Rate Limiter
+import { RateLimiter } from 'sveltekit-rate-limiter/server';
 
 // Superforms
 import { fail, message, superValidate } from 'sveltekit-superforms';
@@ -35,18 +36,31 @@ import { get } from 'svelte/store';
 // System Logs
 import logger from '@src/utils/logger';
 
-// const limiter = new RateLimiter({
-//   IP: [10, 'h'], // IP address limiter
-//   IPUA: [5, 'm'], // IP + User Agent limiter
-// });
+const limiter = new RateLimiter({
+	IP: [100, 'h'], // 100 requests per hour per IP
+	IPUA: [50, 'm'], // 50 requests per minute per IP+User-Agent
+	cookie: {
+		name: 'sveltycms_ratelimit',
+		secret: privateEnv.JWT_SECRET_KEY,
+		rate: [25, 'm'], // 25 requests per minute per cookie
+		preflight: true
+	}
+});
 
-export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
+	if (limiter.cookieLimiter?.preflight) {
+		await limiter.cookieLimiter.preflight({ request, cookies });
+	}
+
 	try {
 		await initializationPromise; // Ensure initialization is complete
 
 		if (!auth) {
 			throw new Error('Authentication system is not initialized');
 		}
+
+		// Check if the first user exists in the database
+		const firstUserExists = (await auth.getUserCount()) !== 0;
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code: ${code}`);
@@ -126,9 +140,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			}
 		}
 
-		// Check if first user exists
-		const firstUserExists = (await auth.getUserCount()) !== 0;
-
 		// SignIn
 		const loginForm = await superValidate(zod(loginFormSchema));
 		const forgotForm = await superValidate(zod(forgotFormSchema));
@@ -163,6 +174,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 export const actions: Actions = {
 	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
@@ -229,6 +244,10 @@ export const actions: Actions = {
 	OAuth: async (event) => {
 		logger.debug('OAuth action called');
 
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
 		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
 		logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
 
@@ -260,6 +279,10 @@ export const actions: Actions = {
 
 	// Function for handling the SignIn form submission and user authentication
 	signIn: async (event) => {
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
 		const signInForm = await superValidate(event, zod(loginFormSchema));
 
 		// Validate
@@ -285,6 +308,10 @@ export const actions: Actions = {
 
 	// Function for handling the Forgotten Password
 	forgotPW: async (event) => {
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
 		const pwforgottenForm = await superValidate(event, zod(forgotFormSchema));
 		logger.debug(`pwforgottenForm: ${JSON.stringify(pwforgottenForm)}`);
 
@@ -344,7 +371,12 @@ export const actions: Actions = {
 
 	// Function for handling the RESET
 	resetPW: async (event) => {
-		logger.debug('resetPW');
+		logger.debug('resetPW call');
+
+		if (await limiter.isLimited(event)) {
+			return fail(429, { message: 'Too many requests. Please try again later.' });
+		}
+
 		const pwresetForm = await superValidate(event, zod(resetFormSchema));
 
 		// Validate
@@ -437,7 +469,7 @@ async function signIn(
 	}
 }
 
-// Function create a new OTHER USER account and creating a session.
+// Function create First admin USER account and creating a session.
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}`);
 	if (!auth) {

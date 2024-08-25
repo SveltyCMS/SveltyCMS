@@ -276,7 +276,6 @@ async function initializeAdapters(): Promise<void> {
 			if (Object.keys(collections).length === 0) {
 				throw new Error('No collections found after initialization');
 			}
-
 			if (!dbAdapter) {
 				throw new Error('Database adapter not initialized');
 			}
@@ -291,19 +290,20 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.getCollectionModels();
 		}
 
+		// Initialize the authentication system
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized');
 		}
-
 		auth = new Auth(authAdapter);
 		logger.debug('Authentication adapter initialized.');
 
+		// Mark the system as initialized only after all steps are complete
 		isInitialized = true;
 		logger.info('Adapters initialized successfully');
 	} catch (error) {
 		logger.error(`Error initializing adapters: ${(error as Error).message}`, { error });
 		initializationPromise = null;
-		throw error;
+		throw error; // Rethrow to ensure the error is propagated
 	}
 }
 

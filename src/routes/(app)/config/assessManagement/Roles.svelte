@@ -1,10 +1,23 @@
+<!--
+@file src/routes/(app)/config/assessManagement/Roles.svelte
+@description This component manages user roles in the access management system. It provides functionality to:
+- Display existing roles
+- Add new roles
+- Delete selected roles
+- Assign permissions to roles
+- Handle role selection for bulk actions
+The component interacts with the authAdapter to perform CRUD operations on roles and fetch available permissions.
+-->
+
 <script lang="ts">
+	import { page } from '$app/stores';
+
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { authAdapter, initializationPromise } from '@src/databases/db';
 
+	// Auth
 	import type { Role, Permission } from '@src/auth/types';
-	import { page } from '$app/stores';
 
 	const roles = writable<Role[]>([]);
 	const selectedRoles = writable<Set<string>>(new Set());
@@ -38,7 +51,6 @@
 			return;
 		}
 		try {
-			// Pass an empty object as options
 			const rolesData = await authAdapter.getAllRoles({});
 			roles.set(rolesData);
 		} catch (err) {
@@ -133,12 +145,12 @@
 			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
 			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
 			<div class="flex flex-wrap gap-2">
-				{#each $availablePermissions as permission (permission.permission_id)}
+				{#each $availablePermissions as permission (permission.name)}
 					<label class="flex items-center">
 						<input
 							type="checkbox"
-							checked={$selectedPermissions.has(permission.permission_id)}
-							on:change={() => togglePermissionSelection(permission.permission_id)}
+							checked={$selectedPermissions.has(permission.name)}
+							on:change={() => togglePermissionSelection(permission.name)}
 							class="mr-2"
 						/>
 						<span>{permission.name}</span>
@@ -155,13 +167,13 @@
 				<p>No roles defined yet.</p>
 			{:else}
 				<ul class="list-disc pl-5">
-					{#each $roles as role (role.role_id)}
+					{#each $roles as role (role._id)}
 						<li class="flex items-center">
-							<input type="checkbox" checked={$selectedRoles.has(role.role_id)} on:change={() => toggleRoleSelection(role.role_id)} class="mr-2" />
+							<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
 							{role.name} - {role.description}
 							<ul class="ml-4">
-								{#each role.permissions as permissionId}
-									<li>{$availablePermissions.find((p) => p.permission_id === permissionId)?.name || permissionId}</li>
+								{#each role.permissions as permissionName}
+									<li>{permissionName}</li>
 								{/each}
 							</ul>
 						</li>

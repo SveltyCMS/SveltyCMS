@@ -256,13 +256,23 @@ export class RoleAdapter implements Partial<authDBInterface> {
 
 	// This method needs to be implemented or imported from the PermissionAdapter
 	async getAllPermissions(): Promise<Permission[]> {
-		// Implementation needed
-		throw new Error('Method not implemented');
+		try {
+			const permissions = await mongoose.models.auth_permissions.find().exec();
+			return permissions.map((perm) => perm.toObject() as Permission);
+		} catch (error) {
+			logger.error(`Failed to get all permissions: ${(error as Error).message}`);
+			throw error;
+		}
 	}
 
 	// This method needs to be implemented or imported from the PermissionAdapter
 	async getPermissionByName(name: string): Promise<Permission | null> {
-		// Implementation needed
-		throw new Error('Method not implemented');
+		try {
+			const permission = await mongoose.models.auth_permissions.findOne({ name }).exec();
+			return permission ? (permission.toObject() as Permission) : null;
+		} catch (error) {
+			logger.error(`Failed to get permission by name: ${(error as Error).message}`);
+			throw error;
+		}
 	}
 }

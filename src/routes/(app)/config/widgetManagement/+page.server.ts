@@ -1,3 +1,18 @@
+/**
+ * @file src/routes/(app)/config/widgetManagement/+page.server.ts
+ * @description Server-side logic for Access Management page authentication and authorization.
+ *
+ * Handles session validation, user authentication, and role-based access control for the Access Management page.
+ * Redirects unauthenticated users to the login page and restricts access based on user permissions.
+ *
+ * Responsibilities:
+ * - Checks for a valid session cookie.
+ * - Validates the user's session using the authentication service.
+ * - Checks user permissions using RBAC middleware.
+ * - Returns user data if authentication and authorization are successful.
+ * - Handles session expiration, invalid session cases, and insufficient permissions.
+ */
+
 import { redirect, error } from '@sveltejs/kit';
 
 // Auth

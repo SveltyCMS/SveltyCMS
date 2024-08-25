@@ -35,11 +35,12 @@
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
 
+	const pageData = $page.data as PageData;
+	let firstUserExists = pageData.firstUserExists;
+
 	let tabIndex = 1;
 	const activeOauth = false;
 	let response: any;
-	const pageData = $page.data as PageData;
-	let firstUserExists = pageData.firstUserExists;
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
 		id: 'signup',
@@ -77,22 +78,11 @@
 
 	if (params.has('regToken')) {
 		active = 1;
-		firstUserExists = false;
-		// update token value
-
 		$form.token = params.get('regToken')!;
 	}
 
 	let formElement: HTMLFormElement;
 	let showPassword = false;
-
-	// Function to handle the "Back" button click
-	function goBack() {
-		active = undefined;
-	}
-
-	$: passwordStrength = $form.password || '';
-	$: confirmPasswordStrength = $form.confirm_password || '';
 </script>
 
 <!-- svelte-ignore a11y-no-static-element-interactions -->

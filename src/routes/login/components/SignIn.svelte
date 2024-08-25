@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { privateEnv } from '@root/config/private';
+	import { page } from '$app/stores';
 	import type { PageData } from '../$types';
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -38,6 +39,9 @@
 	export const show = false;
 	export let PWforgot: boolean = false;
 	export let PWreset: boolean = false;
+
+	const pageData = $page.data as PageData;
+	const firstUserExists = pageData.firstUserExists;
 
 	// Redirect from email to restore password page
 	const current_url = window.location.href;
@@ -328,227 +332,231 @@
 				</button>
 			</div>
 
-			<!-- Sign In -->
-			{#if !PWforgot && !PWreset}
-				<!-- <SuperDebug data={$form} display={dev} /> -->
-				<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active != 0}>
-					<!-- Email field -->
-					<FloatingInput
-						id="emailsignIn"
-						name="email"
-						type="email"
-						bind:value={$form.email}
-						label={m.form_emailaddress()}
-						{...$constraints.email}
-						icon="mdi:email"
-						iconColor="black"
-						textColor="black"
-					/>
-					{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
+			{#if firstUserExists}
+				<!-- Sign In -->
+				{#if !PWforgot && !PWreset}
+					<!-- <SuperDebug data={$form} display={dev} /> -->
+					<form method="post" action="?/signIn" use:enhance bind:this={formElement} class="flex w-full flex-col gap-3" class:hide={active != 0}>
+						<!-- Email field -->
+						<FloatingInput
+							id="emailsignIn"
+							name="email"
+							type="email"
+							bind:value={$form.email}
+							label={m.form_emailaddress()}
+							{...$constraints.email}
+							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $errors.email}<span class="invalid text-xs text-error-500">{$errors.email}</span>{/if}
 
-					<!-- Password field -->
-					<FloatingInput
-						id="passwordsignIn"
-						name="password"
-						type="password"
-						bind:value={$form.password}
-						{...$constraints.password}
-						bind:showPassword
-						label={m.form_password()}
-						icon="mdi:lock"
-						iconColor="black"
-						textColor="black"
-					/>
-					{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
+						<!-- Password field -->
+						<FloatingInput
+							id="passwordsignIn"
+							name="password"
+							type="password"
+							bind:value={$form.password}
+							{...$constraints.password}
+							bind:showPassword
+							label={m.form_password()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $errors.password}<span class="invalid text-xs text-error-500">{$errors.password}</span>{/if}
 
-					<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-						<!-- Row 1 -->
-						<div class="flex w-full justify-between gap-2 sm:w-auto">
-							<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
-								{m.form_signin()}
+						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+							<!-- Row 1 -->
+							<div class="flex w-full justify-between gap-2 sm:w-auto">
+								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
+									{m.form_signin()}
+									<!-- Loading indicators -->
+									{#if $delayed}
+										<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+									{/if}
+								</button>
+
+								{#if privateEnv.USE_GOOGLE_OAUTH == true}
+									<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
+										<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
+											<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+											<p>OAuth</p>
+										</button>
+									</form>
+								{/if}
+							</div>
+
+							<!-- Row 2 -->
+							<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
+								<button
+									type="button"
+									class="variant-ringed-surface btn w-full text-black sm:w-auto"
+									on:click={() => {
+										PWforgot = true;
+										PWreset = false;
+									}}
+									>{m.signin_forgottenpassword()}
+								</button>
+							</div>
+						</div>
+					</form>
+				{/if}
+
+				<!-- Forgotten Password -->
+				{#if PWforgot && !PWreset}
+					<!-- <SuperDebug data={$forgotForm} display={dev} /> -->
+					<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
+						<div class="mb-2 text-center text-sm text-black">
+							<p class="mb-2 text-xs text-tertiary-500">{m.signin_forgottenpasswordtext()}</p>
+						</div>
+						<!-- Email field -->
+						<FloatingInput
+							id="emailforgotPW"
+							name="email"
+							type="email"
+							bind:value={$forgotForm.email}
+							required
+							label={m.form_emailaddress()}
+							icon="mdi:email"
+							iconColor="black"
+							textColor="black"
+						/>
+						{#if $forgotErrors.email}
+							<span class="invalid text-xs text-error-500">
+								{$forgotErrors.email}
+							</span>
+						{/if}
+
+						{#if $forgotAllErrors && !$forgotErrors.email}
+							<span class="invalid text-xs text-error-500">
+								{$forgotAllErrors}
+							</span>
+						{/if}
+
+						<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
+
+						<div class="mt-4 flex items-center justify-between">
+							<button type="submit" class="variant-filled-surface btn">
+								{m.form_resetpassword()}
+							</button>
+
+							<!-- Loading indicators -->
+							{#if $forgotDelayed}
+								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
+							{/if}
+
+							<!-- Back button  -->
+							<button
+								type="button"
+								class="variant-filled-surface btn-icon"
+								on:click={() => {
+									PWforgot = false;
+									PWreset = false;
+								}}
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width="38" />
+							</button>
+						</div>
+					</form>
+				{/if}
+
+				<!-- Reset Password -->
+				{#if PWforgot && PWreset}
+					<!-- <SuperDebug data={$resetForm} /> -->
+					<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
+						<!-- Password field -->
+
+						<FloatingInput
+							id="passwordresetPW"
+							name="password"
+							type="password"
+							bind:value={$resetForm.password}
+							bind:showPassword
+							label={m.form_password()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+							required
+						/>
+						{#if $resetErrors.password}
+							<span class="invalid text-xs text-error-500">
+								{$resetErrors.password}
+							</span>
+						{/if}
+
+						<!-- Password  Confirm field -->
+						<FloatingInput
+							id="confirm_passwordresetPW"
+							name="confirm_password"
+							type="password"
+							bind:value={$resetForm.confirm_password}
+							bind:showPassword
+							label={m.form_confirmpassword()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+							required
+						/>
+						{#if $resetErrors.confirm_password}
+							<span class="invalid text-xs text-error-500">
+								{$resetErrors.confirm_password}
+							</span>
+						{/if}
+
+						<!-- Registration Token -->
+						<FloatingInput
+							id="tokenresetPW"
+							name="token"
+							type="password"
+							bind:value={$resetForm.token}
+							bind:showPassword
+							label={m.signin_registrationtoken()}
+							icon="mdi:lock"
+							iconColor="black"
+							textColor="black"
+							required
+						/>
+
+						{#if $resetErrors.token}
+							<span class="invalid text-xs text-error-500">
+								{$resetErrors.token}
+							</span>
+						{/if}
+
+						{#if $resetAllErrors && !$resetErrors}
+							<span class="invalid text-xs text-error-500">
+								{$resetAllErrors}
+							</span>
+						{/if}
+
+						<input type="email" name="email" bind:value={$resetForm.email} hidden />
+
+						<div class="mt-4 flex items-center justify-between">
+							<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
+								{m.signin_savenewpassword()}
 								<!-- Loading indicators -->
-								{#if $delayed}
+								{#if $resetDelayed}
 									<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
 								{/if}
 							</button>
 
-							{#if privateEnv.USE_GOOGLE_OAUTH == true}
-								<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
-									<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
-										<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
-										<p>OAuth</p>
-									</button>
-								</form>
-							{/if}
-						</div>
-
-						<!-- Row 2 -->
-						<div class="mt-4 flex w-full justify-between sm:mt-0 sm:w-auto">
+							<!-- Back button  -->
 							<button
 								type="button"
-								class="variant-ringed-surface btn w-full text-black sm:w-auto"
+								class="variant-filled-surface btn-icon"
 								on:click={() => {
-									PWforgot = true;
+									PWforgot = false;
 									PWreset = false;
 								}}
-								>{m.signin_forgottenpassword()}
+							>
+								<iconify-icon icon="mdi:arrow-left-circle" width="38" />
 							</button>
 						</div>
-					</div>
-				</form>
-			{/if}
-
-			<!-- Forgotten Password -->
-			{#if PWforgot && !PWreset}
-				<!-- <SuperDebug data={$forgotForm} display={dev} /> -->
-				<form method="post" action="?/forgotPW" use:forgotEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
-					<div class="mb-2 text-center text-sm text-black">
-						<p class="mb-2 text-xs text-tertiary-500">{m.signin_forgottenpasswordtext()}</p>
-					</div>
-					<!-- Email field -->
-					<FloatingInput
-						id="emailforgotPW"
-						name="email"
-						type="email"
-						bind:value={$forgotForm.email}
-						required
-						label={m.form_emailaddress()}
-						icon="mdi:email"
-						iconColor="black"
-						textColor="black"
-					/>
-					{#if $forgotErrors.email}
-						<span class="invalid text-xs text-error-500">
-							{$forgotErrors.email}
-						</span>
-					{/if}
-
-					{#if $forgotAllErrors && !$forgotErrors.email}
-						<span class="invalid text-xs text-error-500">
-							{$forgotAllErrors}
-						</span>
-					{/if}
-
-					<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
-
-					<div class="mt-4 flex items-center justify-between">
-						<button type="submit" class="variant-filled-surface btn">
-							{m.form_resetpassword()}
-						</button>
-
-						<!-- Loading indicators -->
-						{#if $forgotDelayed}
-							<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
-						{/if}
-
-						<!-- Back button  -->
-						<button
-							type="button"
-							class="variant-filled-surface btn-icon"
-							on:click={() => {
-								PWforgot = false;
-								PWreset = false;
-							}}
-						>
-							<iconify-icon icon="mdi:arrow-left-circle" width="38" />
-						</button>
-					</div>
-				</form>
-			{/if}
-
-			<!-- Reset Password -->
-			{#if PWforgot && PWreset}
-				<!-- <SuperDebug data={$resetForm} /> -->
-				<form method="post" action="?/resetPW" use:resetEnhance bind:this={formElement} class="flex w-full flex-col gap-3">
-					<!-- Password field -->
-
-					<FloatingInput
-						id="passwordresetPW"
-						name="password"
-						type="password"
-						bind:value={$resetForm.password}
-						bind:showPassword
-						label={m.form_password()}
-						icon="mdi:lock"
-						iconColor="black"
-						textColor="black"
-						required
-					/>
-					{#if $resetErrors.password}
-						<span class="invalid text-xs text-error-500">
-							{$resetErrors.password}
-						</span>
-					{/if}
-
-					<!-- Password  Confirm field -->
-					<FloatingInput
-						id="confirm_passwordresetPW"
-						name="confirm_password"
-						type="password"
-						bind:value={$resetForm.confirm_password}
-						bind:showPassword
-						label={m.form_confirmpassword()}
-						icon="mdi:lock"
-						iconColor="black"
-						textColor="black"
-						required
-					/>
-					{#if $resetErrors.confirm_password}
-						<span class="invalid text-xs text-error-500">
-							{$resetErrors.confirm_password}
-						</span>
-					{/if}
-
-					<!-- Registration Token -->
-					<FloatingInput
-						id="tokenresetPW"
-						name="token"
-						type="password"
-						bind:value={$resetForm.token}
-						bind:showPassword
-						label={m.signin_registrationtoken()}
-						icon="mdi:lock"
-						iconColor="black"
-						textColor="black"
-						required
-					/>
-
-					{#if $resetErrors.token}
-						<span class="invalid text-xs text-error-500">
-							{$resetErrors.token}
-						</span>
-					{/if}
-
-					{#if $resetAllErrors && !$resetErrors}
-						<span class="invalid text-xs text-error-500">
-							{$resetAllErrors}
-						</span>
-					{/if}
-
-					<input type="email" name="email" bind:value={$resetForm.email} hidden />
-
-					<div class="mt-4 flex items-center justify-between">
-						<button type="submit" class="variant-filled-surface btn ml-2 mt-6">
-							{m.signin_savenewpassword()}
-							<!-- Loading indicators -->
-							{#if $resetDelayed}
-								<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />
-							{/if}
-						</button>
-
-						<!-- Back button  -->
-						<button
-							type="button"
-							class="variant-filled-surface btn-icon"
-							on:click={() => {
-								PWforgot = false;
-								PWreset = false;
-							}}
-						>
-							<iconify-icon icon="mdi:arrow-left-circle" width="38" />
-						</button>
-					</div>
-				</form>
+					</form>
+				{/if}
+			{:else}
+				<p class="text-center text-lg text-gray-600">No users exist yet. Please sign up to create the first admin account.</p>
 			{/if}
 		</div>
 	{/if}

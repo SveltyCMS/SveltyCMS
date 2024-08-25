@@ -39,8 +39,13 @@
 	// @ts-expect-error reading from vite.config.js
 	const pkg = __VERSION__;
 
-	let active: undefined | 0 | 1 = undefined;
-	let background: 'white' | '#242728' = 'white';
+	// Set initial FirstUserExists state
+	const pageData = $page.data as PageData;
+	const firstUserExists = pageData.firstUserExists;
+
+	// Set initial active state based on firstUserExists
+	let active: undefined | 0 | 1 = firstUserExists ? undefined : 1;
+	let background: 'white' | '#242728' = firstUserExists ? 'white' : '#242728';
 
 	export let data: PageData;
 
@@ -80,18 +85,16 @@
 
 	// Function to reset to initial state
 	function resetToInitialState() {
-		active = undefined;
-		background = 'white';
+		active = firstUserExists ? undefined : 1;
+		background = firstUserExists ? 'white' : '#242728';
 	}
 
-	const pageData = $page.data as PageData;
-	const firstUserExists = pageData.firstUserExists;
-
+	// Special case for the first user on fresh installation
 	function handleSignInClick() {
 		if (!firstUserExists) {
-			active = 1;
+			active = 1; // Show SignUp for fresh installation
 		} else {
-			active = 0;
+			active = 0; // Show SignIn for existing users
 		}
 	}
 </script>

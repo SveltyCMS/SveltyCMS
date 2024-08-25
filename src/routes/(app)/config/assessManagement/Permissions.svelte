@@ -1,3 +1,14 @@
+<!--
+@file src/routes/(app)/config/assessManagement/Permissions.svelte
+@description This component manages permissions in the access management system. It provides functionality to:
+- Display existing permissions
+- Search and filter permissions
+- Modify permission settings, including role assignments
+- Bulk delete selected permissions
+- Handle advanced permission conditions
+The component interacts with the authAdapter to perform CRUD operations on permissions and fetch available roles.
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
@@ -57,7 +68,7 @@
 
 	const toggleRole = (permission: Permission, role: string) => {
 		permissionsList.update((list) => {
-			const perm = list.find((p) => p.permission_id === permission.permission_id);
+			const perm = list.find((p) => p.name === permission.name);
 			if (perm) {
 				const currentRoles = perm.requiredRole.split(',').map((r) => r.trim());
 				if (currentRoles.includes(role)) {
@@ -66,7 +77,7 @@
 					perm.requiredRole = [...currentRoles, role].join(',');
 				}
 				modifiedPermissions.update((set) => {
-					set.add(permission.permission_id);
+					set.add(permission.name);
 					return set;
 				});
 			}
@@ -81,10 +92,10 @@
 		}
 		const modified = Array.from($modifiedPermissions);
 		try {
-			for (const permissionId of modified) {
-				const permission = $permissionsList.find((p) => p.permission_id === permissionId);
+			for (const permissionName of modified) {
+				const permission = $permissionsList.find((p) => p.name === permissionName);
 				if (permission) {
-					await authAdapter.updatePermission(permission.permission_id, permission, currentUserId);
+					await authAdapter.updatePermission(permission.name, permission, currentUserId);
 				}
 			}
 			modifiedPermissions.set(new Set());
@@ -100,8 +111,8 @@
 			return;
 		}
 		try {
-			for (const permissionId of $selectedPermissions) {
-				await authAdapter.deletePermission(permissionId, currentUserId);
+			for (const permissionName of $selectedPermissions) {
+				await authAdapter.deletePermission(permissionName, currentUserId);
 			}
 			selectedPermissions.set(new Set());
 			await loadPermissions();
@@ -110,12 +121,12 @@
 		}
 	};
 
-	const togglePermissionSelection = (permissionId: string) => {
+	const togglePermissionSelection = (permissionName: string) => {
 		selectedPermissions.update((selected) => {
-			if (selected.has(permissionId)) {
-				selected.delete(permissionId);
+			if (selected.has(permissionName)) {
+				selected.delete(permissionName);
 			} else {
-				selected.add(permissionId);
+				selected.add(permissionName);
 			}
 			return selected;
 		});
@@ -179,15 +190,15 @@
 								<input
 									type="text"
 									placeholder="Conditions"
-									bind:value={$advancedConditions[permission.permission_id]}
+									bind:value={$advancedConditions[permission.name]}
 									class="rounded border border-gray-300 p-1"
 								/>
 							</td>
 							<td class="px-4 py-2 text-center">
 								<input
 									type="checkbox"
-									checked={$selectedPermissions.has(permission.permission_id)}
-									on:change={() => togglePermissionSelection(permission.permission_id)}
+									checked={$selectedPermissions.has(permission.name)}
+									on:change={() => togglePermissionSelection(permission.name)}
 									class="form-checkbox"
 								/>
 							</td>
