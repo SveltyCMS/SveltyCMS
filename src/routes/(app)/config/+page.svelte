@@ -14,7 +14,12 @@
 
 	// Define permissions for different contexts
 	const permissionConfigs: Record<string, PermissionConfig> = {
-		collectionbuilder: { contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
+		collectionbuilder: {
+			contextId: 'config/collectionbuilder',
+			requiredRole: 'admin',
+			action: 'read',
+			contextType: 'system'
+		},
 		graphql: { contextId: 'config/graphql', requiredRole: 'admin', action: 'read', contextType: 'system' },
 		imageeditor: { contextId: 'config/imageeditor', requiredRole: 'admin', action: 'write', contextType: 'system' },
 		dashboard: { contextId: 'config/dashboard', requiredRole: 'admin', action: 'read', contextType: 'system' },

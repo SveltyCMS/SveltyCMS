@@ -119,6 +119,14 @@ export const permissions: Permission[] = [
 		contextType: 'system',
 		description: 'Permission to access the admin area',
 		requiredRole: 'admin'
+	},
+	{
+		name: 'read_collectionbuilder',
+		action: 'read',
+		contextId: 'config/collectionbuilder',
+		contextType: 'system',
+		description: 'Permission to read the collection builder configuration',
+		requiredRole: 'admin'
 	}
 ];
 

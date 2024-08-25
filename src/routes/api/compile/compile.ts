@@ -22,23 +22,14 @@ const cache = new Map();
 
 // This function compiles TypeScript files from the collections folder into JavaScript files
 export async function compile({
-	// The default values for the folders are taken from the environment variables
 	collectionsFolderJS = import.meta.env.collectionsFolderJS,
 	collectionsFolderTS = import.meta.env.collectionsFolderTS
 } = {}) {
-	// console.log('Starting compilation...');
-	// console.log(`collectionsFolderJS: ${collectionsFolderJS}`);
-	// console.log(`collectionsFolderTS: ${collectionsFolderTS}`);
-
-	// This global variable is used to store the current file name
-	globalThis.__filename = '';
-
-	// If the collections folder for JavaScript does not exist, create it
+	// Ensure the output directory exists
 	await fs.mkdir(collectionsFolderJS, { recursive: true });
 
-	// Get the list of TypeScript files from the collections folder, excluding Auth.ts and index.ts
+	// Get list of TypeScript files to compile
 	const files = (await fs.readdir(collectionsFolderTS)).filter((file) => !['index.ts'].includes(file));
-	// console.log(`Files to compile: ${files.join(', ')}`);
 
 	// Loop through each file
 	for (const file of files) {
@@ -46,37 +37,36 @@ export async function compile({
 			const tsFilePath = join(collectionsFolderTS, file);
 			const jsFilePath = join(collectionsFolderJS, file.replace(/\.ts$/, '.js'));
 
-			// console.log(`Compiling ${tsFilePath} to ${jsFilePath}`);
-
 			// Check if JS file exists and if TS file has been modified since last compile
 			let recompile = false;
+			const tsStats = await fs.stat(tsFilePath);
+			let jsStats;
 			try {
-				const tsStats = await fs.stat(tsFilePath);
-				const jsStats = await fs.stat(jsFilePath);
+				jsStats = await fs.stat(jsFilePath);
+			} catch {
+				// If the JS file doesn't exist, we need to recompile
+				recompile = true;
+			}
 
-				// Create a hash of the TS file content
-				const contentHash = crypto
-					.createHash('md5')
-					.update(await fs.readFile(tsFilePath))
-					.digest('hex');
+			// Create a hash of the TypeScript file content
+			const contentHash = crypto
+				.createHash('md5')
+				.update(await fs.readFile(tsFilePath))
+				.digest('hex');
 
-				// Read the existing JS file and extract the hash
+			if (jsStats) {
+				// Read the existing JavaScript file and extract the hash
 				const existingContent = await fs.readFile(jsFilePath, { encoding: 'utf-8' });
 				const existingHash = existingContent.split('\n')[0].replace('// ', '');
 
 				// Compare hashes and modification times to determine if recompilation is necessary
 				if (contentHash === existingHash && tsStats.mtime <= jsStats.mtime) {
-					// console.log(`Skipping compilation for ${file}, no changes detected.`);
+					console.debug(`Skipping compilation for ${file}, no changes detected.`);
 					continue; // No need to recompile
 				}
-
-				recompile = true;
-			} catch (error) {
-				// If the JS file doesn't exist, we need to recompile
-				recompile = true;
 			}
 
-			// Read the TS file as a string
+			// Read the TypeScript file
 			const content = await fs.readFile(tsFilePath, { encoding: 'utf-8' });
 
 			// Check if the module is cached
@@ -86,7 +76,7 @@ export async function compile({
 				// Import TypeScript dynamically
 				const ts = (await import('typescript')).default;
 
-				// Transpile the TypeScript code into JavaScript code using the ESNext target
+				// Transpile the TypeScript code into JavaScript code
 				code = ts.transpileModule(content, {
 					compilerOptions: {
 						target: ts.ScriptTarget.ESNext
@@ -106,16 +96,21 @@ export async function compile({
 			}
 
 			// Prepend the content hash to the JS file
-			const contentHash = crypto.createHash('md5').update(content).digest('hex');
-			code = `// ${contentHash}\n${code}`;
+			const contentHashUpdated = crypto.createHash('md5').update(content).digest('hex');
+			code = `// ${contentHashUpdated}\n${code}`;
 
-			// Write the content to the file
+			// Write the content to the JS file
 			await fs.writeFile(jsFilePath, code);
-			// console.log(`Compiled and wrote ${jsFilePath}`);
+
+			// Log successful compilation
+			console.debug(`Compiled and wrote ${jsFilePath}`);
 		} catch (error) {
-			console.error(`Error compiling ${file}: ${error}`);
-			// Handle the error appropriately
+			// Always use the error object, so the variable is not unused
+			if (error instanceof Error) {
+				console.error(`Error compiling ${file}: ${error.message}`, error.stack);
+			} else {
+				console.error(`Unknown error compiling ${file}: ${String(error)}`);
+			}
 		}
 	}
-	// console.log('Compilation complete.');
 }

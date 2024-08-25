@@ -50,7 +50,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		logger.debug(`User session validated successfully for user: ${user._id}`);
 
 		const permissionConfigs: PermissionConfig[] = [
-			{ contextId: 'config/systembuilder', requiredRole: 'editor', action: 'read', contextType: 'system' },
+			{ contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
 			{ contextId: 'config/graphql', requiredRole: 'developer', action: 'read', contextType: 'system' },
 			{ contextId: 'config/imageeditor', requiredRole: 'editor', action: 'write', contextType: 'system' },
 			{ contextId: 'config/dashboard', requiredRole: 'user', action: 'read', contextType: 'system' },
