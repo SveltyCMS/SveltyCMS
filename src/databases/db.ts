@@ -98,7 +98,7 @@ async function loadAdapters() {
 				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
 				getUserCount: userAdapter.getUserCount.bind(userAdapter),
-				getRecentUserActivities: userAdapter.getRecentUserActivities.bind(userAdapter),
+				getRecentUserActivities: userAdapter.getRecentUserActivities?.bind(userAdapter),
 
 				// Session Management Methods
 				createSession: sessionAdapter.createSession.bind(sessionAdapter),
@@ -139,16 +139,20 @@ async function loadAdapters() {
 				getRolesForPermission: roleAdapter.getRolesForPermission.bind(roleAdapter),
 
 				// User-Specific Permissions Methods
-				assignPermissionToUser: userAdapter.assignPermissionToUser.bind(userAdapter),
-				removePermissionFromUser: userAdapter.removePermissionFromUser.bind(userAdapter),
-				getPermissionsForUser: userAdapter.getPermissionsForUser.bind(userAdapter),
-				getUsersWithPermission: userAdapter.getUsersWithPermission.bind(userAdapter),
-				assignRoleToUser: userAdapter.assignRoleToUser.bind(userAdapter),
-				removeRoleFromUser: userAdapter.removeRoleFromUser.bind(userAdapter),
-				getRolesForUser: userAdapter.getRolesForUser.bind(userAdapter),
+				assignPermissionToUser: userAdapter.assignPermissionToUser?.bind(userAdapter),
+				removePermissionFromUser: userAdapter.removePermissionFromUser?.bind(userAdapter),
+				getPermissionsForUser: userAdapter.getPermissionsForUser?.bind(userAdapter),
+				getUsersWithPermission: userAdapter.getUsersWithPermission?.bind(userAdapter),
+
+				// User-Role Methods
+				assignRoleToUser: userAdapter.assignRoleToUser?.bind(userAdapter),
+				removeRoleFromUser: userAdapter.removeRoleFromUser?.bind(userAdapter),
+				getRolesForUser: userAdapter.getRolesForUser?.bind(userAdapter),
 				getUsersWithRole: roleAdapter.getUsersWithRole.bind(roleAdapter),
-				checkUserPermission: userAdapter.checkUserPermission.bind(userAdapter),
-				checkUserRole: userAdapter.checkUserRole.bind(userAdapter),
+
+				// Utility Methods
+				checkUserPermission: userAdapter.checkUserPermission?.bind(userAdapter),
+				checkUserRole: userAdapter.checkUserRole?.bind(userAdapter),
 
 				// Sync Methods
 				syncRolesWithConfig: roleAdapter.syncRolesWithConfig.bind(roleAdapter),
@@ -244,13 +248,18 @@ async function initializeVirtualFolders() {
 
 	try {
 		// Check if root folder exists, if not, create it
-		const rootFolder = await dbAdapter.getVirtualFolders();
-		if (rootFolder.length === 0) {
-			await dbAdapter.createVirtualFolder({ name: 'Root' });
+		const rootFolders = await dbAdapter.getVirtualFolders();
+		if (rootFolders.length === 0) {
+			await dbAdapter.createVirtualFolder({
+				name: 'Root',
+				path: '/Root', // Explicit path for the root folder
+				parent: undefined // Root has no parent
+			});
 			logger.info('Root virtual folder created');
 		}
 	} catch (error) {
-		logger.error('Error initializing virtual folders:', error);
+		logger.error(`Error initializing virtual folders: ${(error as Error).message}`);
+		throw error; // Re-throw the error
 	}
 }
 

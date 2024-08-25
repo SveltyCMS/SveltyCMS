@@ -21,56 +21,65 @@
  * The syncRolesWithConfig method ensures that the database reflects the current role configuration
  */
 
-import mongoose, { Schema, Document, Model } from 'mongoose';
-import { UserSchema } from './userAdapter';
+import mongoose, { Schema } from 'mongoose';
+import fs from 'fs/promises';
+import path from 'path';
 
 // Types
-import type { Permission, Role, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
+import type { Permission, Role } from '../types';
+
+// Import roles from config
+import { roles as configRoles, permissions as configPermissions } from '../../../config/permissions';
 
 // System Logging
 import logger from '@utils/logger';
 
-// Import roles from config
-import { roles as configRoles } from '../../../config/permissions';
-
 // Define the Role schema
 export const RoleSchema = new Schema(
 	{
-		name: { type: String, required: true }, // Name of the role, required field
-		description: String, // Description of the role, optional field
-		permissions: [{ type: Schema.Types.ObjectId, ref: 'auth_permissions' }] // Permissions associated with the role, optional field
+		name: { type: String, required: true },
+		description: String,
+		permissions: [{ type: String }] // Store permission names as strings
 	},
 	{ timestamps: true }
 );
 
+// Define the Role adapter
 export class RoleAdapter implements Partial<authDBInterface> {
-	private RoleModel: Model<Role & Document>;
-	private UserModel: Model<User & Document>;
+	private roles: Role[];
+	private permissions: Permission[];
+	private RoleModel: mongoose.Model<Role & mongoose.Document>;
 
 	constructor() {
-		// Create the Role model
-		this.RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
-		this.UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
+		this.roles = [...configRoles];
+		this.permissions = [...configPermissions];
+		this.RoleModel = mongoose.models.auth_roles || mongoose.model<Role & mongoose.Document>('auth_roles', RoleSchema);
 	}
 
-	// Create a new role
+	// Role Management Methods
 	async createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role> {
-		try {
-			const role = new this.RoleModel(roleData);
-			await role.save();
-			logger.info(`Role created: ${role.name} by user: ${currentUserId}`);
-			return role.toObject() as Role;
-		} catch (error) {
-			logger.error(`Failed to create role: ${(error as Error).message}`);
-			throw error;
-		}
+		const newRole: Role = {
+			_id: Date.now().toString(),
+			name: roleData.name!,
+			description: roleData.description || '',
+			permissions: roleData.permissions || []
+		};
+		this.roles.push(newRole);
+		await this.syncConfigFile();
+		logger.info(`Role created: ${newRole.name} by user: ${currentUserId}`);
+		return newRole;
 	}
 
-	// Update a role
+	// Update role
 	async updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndUpdate(role_id, roleData);
+			const index = this.roles.findIndex((r) => r._id === role_id);
+			if (index !== -1) {
+				this.roles[index] = { ...this.roles[index], ...roleData };
+			}
+			await this.syncConfigFile();
 			logger.debug(`Role updated: ${role_id} by user: ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to update role: ${(error as Error).message}`);
@@ -78,10 +87,12 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Delete a role
+	// Delete role
 	async deleteRole(role_id: string, currentUserId: string): Promise<void> {
 		try {
 			await this.RoleModel.findByIdAndDelete(role_id);
+			this.roles = this.roles.filter((r) => r._id !== role_id);
+			await this.syncConfigFile();
 			logger.info(`Role deleted: ${role_id} by user: ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to delete role: ${(error as Error).message}`);
@@ -89,12 +100,11 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Get a role by ID
+	// Get role by ID
 	async getRoleById(role_id: string): Promise<Role | null> {
 		try {
-			const role = await this.RoleModel.findById(role_id).populate('permissions');
-			logger.debug(`Role retrieved by ID: ${role_id}`);
-			return role ? (role.toObject() as Role) : null;
+			const role = await this.RoleModel.findById(role_id);
+			return role ? role.toObject() : null;
 		} catch (error) {
 			logger.error(`Failed to get role by ID: ${(error as Error).message}`);
 			throw error;
@@ -102,63 +112,28 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	}
 
 	// Get all roles
-	async getAllRoles(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: object;
-	}): Promise<Role[]> {
-		try {
-			let query = this.RoleModel.find(options?.filter || {});
-
-			if (options?.sort) {
-				query = query.sort(options.sort as any);
-			}
-			if (typeof options?.skip === 'number') {
-				query = query.skip(options.skip);
-			}
-			if (typeof options?.limit === 'number') {
-				query = query.limit(options.limit);
-			}
-
-			const roles = await query.exec();
-			return roles.map((role) => role.toObject() as Role);
-		} catch (error) {
-			logger.error(`Failed to get all roles: ${(error as Error).message}`);
-			throw error;
-		}
+	async getAllRoles(): Promise<Role[]> {
+		return this.roles;
 	}
 
-	// Get a role by name
+	// Get role by name
 	async getRoleByName(name: string): Promise<Role | null> {
 		try {
-			const role = await this.RoleModel.findOne({ name }).populate('permissions');
-			logger.debug(`Role retrieved by name: ${name}`);
-			return role ? (role.toObject() as Role) : null;
+			const role = await this.RoleModel.findOne({ name });
+			return role ? role.toObject() : null;
 		} catch (error) {
 			logger.error(`Failed to get role by name: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	// Get all roles for a permission
-	async getRolesForPermission(permission_id: string): Promise<Role[]> {
+	// Get roles for a permission
+	async getRolesForPermission(permission_name: string): Promise<Role[]> {
 		try {
-			const roles = await this.RoleModel.find({ permissions: permission_id });
-			return roles.map((role) => role.toObject() as Role);
+			const roles = await this.RoleModel.find({ permissions: permission_name });
+			return roles.map((r) => r.toObject());
 		} catch (error) {
 			logger.error(`Failed to get roles for permission: ${(error as Error).message}`);
-			throw error;
-		}
-	}
-
-	// Get users with a role
-	async getUsersWithRole(role_id: string): Promise<User[]> {
-		try {
-			const users = await this.UserModel.find({ roles: role_id });
-			return users.map((user) => user.toObject() as User);
-		} catch (error) {
-			logger.error(`Failed to get users with role: ${(error as Error).message}`);
 			throw error;
 		}
 	}
@@ -166,19 +141,48 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	// Get permissions for a role
 	async getPermissionsForRole(role_id: string): Promise<Permission[]> {
 		try {
-			const role = await this.RoleModel.findById(role_id).populate('permissions');
-			return role ? (role.permissions as unknown as Permission[]) : [];
+			const role = await this.RoleModel.findById(role_id);
+			if (!role) {
+				return [];
+			}
+			return role.permissions
+				.map((permissionName) => {
+					const permission = this.permissions.find((p) => p.name === permissionName);
+					if (!permission) {
+						logger.warn(`Permission ${permissionName} not found for role ${role_id}`);
+						return null;
+					}
+					return permission;
+				})
+				.filter((p): p is Permission => p !== null);
 		} catch (error) {
 			logger.error(`Failed to get permissions for role: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
+	// Get users with role
+	async getUsersWithRole(role_id: string): Promise<any[]> {
+		// This is a placeholder implementation
+		// In a real scenario, you would query the user collection to find users with this role
+		logger.warn(`getUsersWithRole called for role ${role_id}. This method needs to be implemented properly.`);
+		return [];
+	}
+
 	// Assign a permission to a role
-	async assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
+	async assignPermissionToRole(role_id: string, permission_name: string, currentUserId: string): Promise<void> {
 		try {
-			await this.RoleModel.findByIdAndUpdate(role_id, { $addToSet: { permissions: permission_id } });
-			logger.debug(`Permission ${permission_id} assigned to role ${role_id} by user ${currentUserId}`);
+			const permission = this.permissions.find((p) => p.name === permission_name);
+			if (!permission) {
+				throw new Error(`Permission ${permission_name} not found`);
+			}
+			await this.RoleModel.findByIdAndUpdate(role_id, { $addToSet: { permissions: permission_name } });
+			const roleIndex = this.roles.findIndex((r) => r._id === role_id);
+			if (roleIndex !== -1 && !this.roles[roleIndex].permissions.includes(permission_name)) {
+				this.roles[roleIndex].permissions.push(permission_name);
+			}
+			await this.syncConfigFile();
+			logger.debug(`Permission ${permission_name} assigned to role ${role_id} by user ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to assign permission to role: ${(error as Error).message}`);
 			throw error;
@@ -186,66 +190,46 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	}
 
 	// Remove a permission from a role
-	async removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void> {
+	async removePermissionFromRole(role_id: string, permission_name: string, currentUserId: string): Promise<void> {
 		try {
-			await this.RoleModel.findByIdAndUpdate(role_id, { $pull: { permissions: permission_id } });
-			logger.debug(`Permission ${permission_id} removed from role ${role_id} by user ${currentUserId}`);
+			await this.RoleModel.findByIdAndUpdate(role_id, { $pull: { permissions: permission_name } });
+			const roleIndex = this.roles.findIndex((r) => r._id === role_id);
+			if (roleIndex !== -1) {
+				this.roles[roleIndex].permissions = this.roles[roleIndex].permissions.filter((p) => p !== permission_name);
+			}
+			await this.syncConfigFile();
+			logger.debug(`Permission ${permission_name} removed from role ${role_id} by user ${currentUserId}`);
 		} catch (error) {
 			logger.error(`Failed to remove permission from role: ${(error as Error).message}`);
 			throw error;
 		}
 	}
 
-	// Sync roles with configuration
+	// Sync the roles with the config file
 	async syncRolesWithConfig(): Promise<void> {
 		try {
-			for (const roleData of configRoles) {
-				let role = await this.getRoleByName(roleData.name);
-				if (!role) {
-					role = await this.createRole(roleData, 'system');
-					logger.info(`Role created from config: ${roleData.name}`);
+			// Update the database with roles from the config
+			for (const configRole of configRoles) {
+				let dbRole = await this.RoleModel.findOne({ name: configRole.name });
+				if (!dbRole) {
+					dbRole = new this.RoleModel(configRole);
 				} else {
-					// Update existing role
-					await this.updateRole(role._id!, roleData, 'system');
-					logger.info(`Role updated from config: ${roleData.name}`);
+					dbRole.description = configRole.description;
+					dbRole.permissions = configRole.permissions;
 				}
-
-				// Sync permissions
-				const dbPermissions = await this.getPermissionsForRole(role._id!);
-				const configPermissions = roleData.permissions;
-
-				// Remove permissions not in config
-				for (const dbPerm of dbPermissions) {
-					if (!configPermissions.includes(dbPerm.name)) {
-						await this.removePermissionFromRole(role._id!, dbPerm._id!, 'system');
-					}
-				}
-
-				// Add new permissions from config
-				for (const permName of configPermissions) {
-					if (permName === 'all') {
-						// Assign all permissions
-						const allPerms = await this.getAllPermissions();
-						for (const perm of allPerms) {
-							await this.assignPermissionToRole(role._id!, perm._id!, 'system');
-						}
-					} else if (!dbPermissions.some((dbPerm) => dbPerm.name === permName)) {
-						const perm = await this.getPermissionByName(permName);
-						if (perm) {
-							await this.assignPermissionToRole(role._id!, perm._id!, 'system');
-						}
-					}
-				}
+				await dbRole.save();
 			}
 
-			// Remove roles not in config
-			const dbRoles = await this.getAllRoles();
+			// Remove roles from the database that are not in the config
+			const dbRoles = await this.RoleModel.find();
 			for (const dbRole of dbRoles) {
-				if (!configRoles.some((configRole) => configRole.name === dbRole.name)) {
-					await this.deleteRole(dbRole._id!, 'system');
-					logger.info(`Role deleted as it's not in config: ${dbRole.name}`);
+				if (!configRoles.some((r) => r.name === dbRole.name)) {
+					await this.RoleModel.deleteOne({ _id: dbRole._id });
 				}
 			}
+
+			// Update the in-memory roles
+			this.roles = await this.getAllRoles();
 
 			logger.info('Roles synced with configuration successfully');
 		} catch (error) {
@@ -254,25 +238,33 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// This method needs to be implemented or imported from the PermissionAdapter
-	async getAllPermissions(): Promise<Permission[]> {
+	// Sync the config file with the default roles and permission
+	private async syncConfigFile(): Promise<void> {
+		const configPath = path.resolve(__dirname, '../../../config/permissions.ts');
+		const content = `
+import type { Permission, Role } from '../src/auth/types';
+
+export const permissions: Permission[] = ${JSON.stringify(this.permissions, null, 2)};
+
+export const roles: Role[] = ${JSON.stringify(this.roles, null, 2)};
+        `;
+
 		try {
-			const permissions = await mongoose.models.auth_permissions.find().exec();
-			return permissions.map((perm) => perm.toObject() as Permission);
+			await fs.writeFile(configPath, content, 'utf8');
+			logger.info('Config file updated with new roles and permissions');
 		} catch (error) {
-			logger.error(`Failed to get all permissions: ${(error as Error).message}`);
-			throw error;
+			logger.error(`Failed to update config file: ${(error as Error).message}`);
+			throw new Error('Failed to update config file');
 		}
 	}
 
-	// This method needs to be implemented or imported from the PermissionAdapter
+	// Get all permissions
+	async getAllPermissions(): Promise<Permission[]> {
+		return this.permissions;
+	}
+
+	// Get a permission by name
 	async getPermissionByName(name: string): Promise<Permission | null> {
-		try {
-			const permission = await mongoose.models.auth_permissions.findOne({ name }).exec();
-			return permission ? (permission.toObject() as Permission) : null;
-		} catch (error) {
-			logger.error(`Failed to get permission by name: ${(error as Error).message}`);
-			throw error;
-		}
+		return this.permissions.find((p) => p.name === name) || null;
 	}
 }

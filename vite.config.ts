@@ -84,9 +84,19 @@ export default defineConfig({
 						generateCollectionFieldTypes();
 					}
 					if (/config[/\\]permissions\.ts/.test(path)) {
-						// Trigger roles and permissions sync
-						const { reloadRolesAndPermissions } = await import('./src/auth/types');
-						reloadRolesAndPermissions();
+						// Invalidate the module cache for permissions.ts
+						const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
+						delete require.cache[require.resolve(permissionsPath)];
+
+						// Reload the roles and permissions
+						const { roles, permissions } = await import('./config/permissions');
+
+						// Update the loaded roles and permissions in auth/types.ts
+						const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
+						setLoadedRoles(roles);
+						setLoadedPermissions(permissions);
+
+						console.log('Roles and permissions reloaded from config');
 					}
 				};
 

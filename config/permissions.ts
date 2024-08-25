@@ -7,7 +7,7 @@
  *
  * @imports
  * - PermissionAction: Type imported from `../src/auth/types` representing possible
- *   actions associated with a permission (e.g., create, read, update, delete).
+ *   actions associated with a permission (e.g., create, read, update, delete, manage_roles, manage_permissions).
  * - ContextType: Type imported from `../src/auth/types` representing the context
  *   in which a permission applies (e.g., collection, system).
  *
@@ -28,58 +28,34 @@
 
 import type { PermissionAction, ContextType } from '../src/auth/types';
 
+/**
+ * @interface Permission
+ * Represents the structure of a permission object.
+ */
 export interface Permission {
-	name: string;
-	action: PermissionAction;
-	contextId: string;
-	contextType: ContextType;
-	description?: string;
-	requiredRole: string;
+	name: string; // Unique name of the permission
+	action: PermissionAction; // Action associated with the permission (e.g., create, read)
+	contextId: string; // ID of the context where this permission applies
+	contextType: ContextType; // Type of context (e.g., collection, system)
+	description?: string; // Optional description of the permission
+	requiredRole: string; // Role required to have this permission
 }
 
+/**
+ * @interface Role
+ * Represents the structure of a role object.
+ */
 export interface Role {
 	_id: string; // Unique identifier for the role
-	name: string;
-	description?: string;
-	permissions: string[];
+	name: string; // Name of the role
+	description?: string; // Optional description of the role
+	permissions: string[]; // List of permission names associated with the role
 }
 
-export const roles: Role[] = [
-	{
-		_id: '1',
-		name: 'admin',
-		description: 'Administrator with all permissions',
-		permissions: [
-			'create_content',
-			'read_content',
-			'update_content',
-			'delete_content',
-			'manage_users',
-			'manage_roles',
-			'manage_permissions',
-			'access_admin_area'
-		]
-	},
-	{
-		_id: '2',
-		name: 'developer',
-		description: 'Developer with elevated permissions',
-		permissions: ['create_content', 'read_content', 'update_content', 'delete_content']
-	},
-	{
-		_id: '3',
-		name: 'editor',
-		description: 'Content editor with permissions to create, read, and update content',
-		permissions: ['create_content', 'read_content', 'update_content']
-	},
-	{
-		_id: '4',
-		name: 'user',
-		description: 'Regular user with permission to read content',
-		permissions: ['read_content']
-	}
-];
-
+/**
+ * @constant permissions
+ * Predefined permissions available in the system.
+ */
 export const permissions: Permission[] = [
 	{
 		name: 'create_content',
@@ -136,5 +112,48 @@ export const permissions: Permission[] = [
 		contextType: 'system',
 		description: 'Permission to manage permissions in the system',
 		requiredRole: 'admin'
+	},
+	{
+		name: 'access_admin_area',
+		action: 'read',
+		contextId: 'admin',
+		contextType: 'system',
+		description: 'Permission to access the admin area',
+		requiredRole: 'admin'
+	}
+];
+
+/**
+ * @constant roles
+ * Predefined roles within the system, each associated with a set of permissions.
+ */
+export const roles: Role[] = [
+	{
+		_id: '1',
+		name: 'admin',
+		description: 'Administrator with all permissions',
+		permissions: permissions.map((permission) => permission.name) // Assign all permissions
+	},
+	{
+		_id: '2',
+		name: 'developer',
+		description: 'Developer with elevated permissions',
+		permissions: permissions
+			.filter((permission) => ['create_content', 'read_content', 'update_content', 'delete_content'].includes(permission.name))
+			.map((permission) => permission.name) // Assign relevant permissions
+	},
+	{
+		_id: '3',
+		name: 'editor',
+		description: 'Content editor with permissions to create, read, and update content',
+		permissions: permissions
+			.filter((permission) => ['create_content', 'read_content', 'update_content'].includes(permission.name))
+			.map((permission) => permission.name) // Assign relevant permissions
+	},
+	{
+		_id: '4',
+		name: 'user',
+		description: 'Regular user with permission to read content',
+		permissions: ['read_content'] // Assign only the read_content permission
 	}
 ];

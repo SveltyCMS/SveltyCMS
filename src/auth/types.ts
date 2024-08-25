@@ -35,8 +35,8 @@ export const contextTypes = ['collection', 'widget', 'system'] as const;
 export type PermissionAction = (typeof permissionActions)[number];
 export type ContextType = (typeof contextTypes)[number];
 
-const loadedRoles: Role[] = configRoles;
-const loadedPermissions: Permission[] = configPermissions;
+let loadedRoles: Role[] = [...configRoles];
+let loadedPermissions: Permission[] = [...configPermissions];
 
 export function getLoadedRoles(): Role[] {
 	return loadedRoles;
@@ -45,6 +45,16 @@ export function getLoadedRoles(): Role[] {
 // Function to get loaded permissions
 export function getLoadedPermissions(): Permission[] {
 	return loadedPermissions;
+}
+
+// Function to set loaded roles
+export function setLoadedRoles(roles: Role[]): void {
+	loadedRoles = roles;
+}
+
+// Function to set loaded permissions
+export function setLoadedPermissions(permissions: Permission[]): void {
+	loadedPermissions = permissions;
 }
 
 // Function to check if a role is an admin

@@ -38,11 +38,11 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	</p>
 </div>
 
-<TabGroup justify="justify-center">
+<TabGroup justify="justify-center text-tertiary-500 dark:text-primary-500">
 	<!-- User Roles -->
 	<Tab bind:group={$tabSet} name="roles" value={0}>
 		<svelte:fragment slot="lead">
-			<iconify-icon icon="mdi:account-group" width="28" class="text-white" />
+			<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
 		<span>{m.system_roles()}</span>
 	</Tab>
@@ -50,7 +50,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	<!-- User Permissions-->
 	<Tab bind:group={$tabSet} name="permissions" value={1}>
 		<svelte:fragment slot="lead">
-			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-white" />
+			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
 		<span>{m.system_permission()}</span>
 	</Tab>

@@ -52,15 +52,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		await limiter.cookieLimiter.preflight({ request, cookies });
 	}
 
+	// Check if the first user exists in the database
+	const firstUserExists = (await auth.getUserCount()) !== 0;
+	logger.debug(`First user exists: ${firstUserExists}`);
+
 	try {
 		await initializationPromise; // Ensure initialization is complete
 
 		if (!auth) {
 			throw new Error('Authentication system is not initialized');
 		}
-
-		// Check if the first user exists in the database
-		const firstUserExists = (await auth.getUserCount()) !== 0;
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code: ${code}`);

@@ -153,11 +153,11 @@ const SystemPreferencesSchema = new mongoose.Schema(
 
 const SystemPreferences = mongoose.models.SystemPreferences || mongoose.model('SystemPreferences', SystemPreferencesSchema);
 
-// Define the VirtualFolder schema 
+// Define the VirtualFolder schema
 const VirtualFolderSchema = new mongoose.Schema({
-    name: { type: String, required: true },
-    parent: { type: mongoose.Schema.Types.ObjectId, ref: 'VirtualFolder' },
-    path: { type: String, required: true }
+	name: { type: String, required: true },
+	parent: { type: mongoose.Schema.Types.ObjectId, ref: 'VirtualFolder' },
+	path: { type: String, required: true }
 });
 
 const VirtualFolder = mongoose.model('VirtualFolder', VirtualFolderSchema);
@@ -781,12 +781,11 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-  // Create a virtual folder in database
+	// Create a virtual folder in database
 	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any> {
-    const { name, parent, path } = folderData;
-    const folder = new VirtualFolder({ name, parent, path });
-    return await folder.save();
-}
+		const folder = new VirtualFolder(folderData);
+		return await folder.save();
+	}
 
 	async getVirtualFolders(): Promise<any[]> {
 		return await VirtualFolder.find().lean();
@@ -848,7 +847,7 @@ export class MongoDBAdapter implements dbInterface {
 		const results = await Promise.all(mediaPromises);
 		return results.flat();
 	}
-	
+
 	// Clean up and disconnect from MongoDB
 	async disconnect(): Promise<void> {
 		try {
