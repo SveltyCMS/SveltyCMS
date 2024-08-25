@@ -52,53 +52,47 @@ export interface authDBInterface {
 
 	// Role Management Methods
 	createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role>;
-	updateRole(role_id: string, roleData: Partial<Role>, currentUserId: string): Promise<void>;
-	deleteRole(role_id: string, currentUserId: string): Promise<void>;
-	getRoleById(role_id: string): Promise<Role | null>;
-	getAllRoles(options?: { limit?: number; skip?: number; sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][]; filter?: object }): Promise<Role[]>;
+	updateRole(roleName: string, roleData: Partial<Role>, currentUserId: string): Promise<void>;
+	deleteRole(roleName: string, currentUserId: string): Promise<void>;
 	getRoleByName(name: string): Promise<Role | null>;
+	getAllRoles(options?: { limit?: number; skip?: number; sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][]; filter?: object }): Promise<Role[]>;
 
 	// Permission Management Methods
 	createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission>;
-	updatePermission(permission_id: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
-	deletePermission(permission_id: string, currentUserId: string): Promise<void>;
-	getPermissionById(permission_id: string): Promise<Permission | null>;
-	getAllPermissions(
-		options?:
-			| {
-					limit?: number;
-					skip?: number;
-					sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-					filter?: object;
-			  }
-			| undefined
-	): Promise<Permission[]>;
+	updatePermission(permissionName: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
+	deletePermission(permissionName: string, currentUserId: string): Promise<void>;
 	getPermissionByName(name: string): Promise<Permission | null>;
+	getAllPermissions(options?: {
+		limit?: number;
+		skip?: number;
+		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+		filter?: object;
+	}): Promise<Permission[]>;
 
 	// Role-Permissions Linking Methods
-	assignPermissionToRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;
-	removePermissionFromRole(role_id: string, permission_id: string, currentUserId: string): Promise<void>;
-	getPermissionsForRole(role_id: string): Promise<Permission[]>;
-	getRolesForPermission(permission_id: string): Promise<Role[]>;
+	assignPermissionToRole(roleName: string, permissionName: string, currentUserId: string): Promise<void>;
+	removePermissionFromRole(roleName: string, permissionName: string, currentUserId: string): Promise<void>;
+	getPermissionsForRole(roleName: string): Promise<Permission[]>;
+	getRolesForPermission(permissionName: string): Promise<Role[]>;
 
 	// User-Specific Permissions Methods
-	assignPermissionToUser(user_id: string, permission_id: string): Promise<void>;
-	removePermissionFromUser(user_id: string, permission_id: string): Promise<void>;
+	assignPermissionToUser(user_id: string, permissionName: string): Promise<void>;
+	removePermissionFromUser(user_id: string, permissionName: string): Promise<void>;
 	getPermissionsForUser(user_id: string): Promise<Permission[]>;
-	getUsersWithPermission(permission_id: string): Promise<User[]>;
-	getRecentUserActivities(user_id: string): Promise<any[]>;
+	getUsersWithPermission(permissionName: string): Promise<User[]>;
+	getRecentUserActivities(): Promise<any[]>;
 
 	// User-Role Methods
-	assignRoleToUser(user_id: string, role_id: string): Promise<void>;
-	removeRoleFromUser(user_id: string, role_id: string): Promise<void>;
+	assignRoleToUser(user_id: string, roleName: string): Promise<void>;
+	removeRoleFromUser(user_id: string, roleName: string): Promise<void>;
 	getRolesForUser(user_id: string): Promise<Role[]>;
-	getUsersWithRole(role_id: string): Promise<User[]>;
+	getUsersWithRole(roleName: string): Promise<User[]>;
 
 	// Sync Methods
 	syncRolesWithConfig(): Promise<void>;
 	syncPermissionsWithConfig(): Promise<void>;
 
 	// Utility Methods
-	checkUserPermission(user_id: string, permission_name: string): Promise<boolean>;
-	checkUserRole(user_id: string, role_name: string): Promise<boolean>;
+	checkUserPermission(user_id: string, permissionName: string): Promise<boolean>;
+	checkUserRole(user_id: string, roleName: string): Promise<boolean>;
 }

@@ -120,7 +120,6 @@ async function loadAdapters() {
 				createRole: roleAdapter.createRole.bind(roleAdapter),
 				updateRole: roleAdapter.updateRole.bind(roleAdapter),
 				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
-				getRoleById: roleAdapter.getRoleById.bind(roleAdapter),
 				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
 
@@ -128,7 +127,6 @@ async function loadAdapters() {
 				createPermission: permissionAdapter.createPermission.bind(permissionAdapter),
 				updatePermission: permissionAdapter.updatePermission.bind(permissionAdapter),
 				deletePermission: permissionAdapter.deletePermission.bind(permissionAdapter),
-				getPermissionById: permissionAdapter.getPermissionById.bind(permissionAdapter),
 				getAllPermissions: permissionAdapter.getAllPermissions.bind(permissionAdapter),
 				getPermissionByName: permissionAdapter.getPermissionByName.bind(permissionAdapter),
 

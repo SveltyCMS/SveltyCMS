@@ -1,8 +1,8 @@
 /**
- * @file src/routes/(app)/config/AccessManagement/+page.server.ts
- * @description Server-side logic for Access Management page authentication and authorization.
+ * @file src/routes/(app)/config/assessManagement/+page.server.ts
+ * @description Server-side logic for Assess Management page authentication and authorization.
  *
- * Handles session validation, user authentication, and role-based access control for the Access Management page.
+ * Handles session validation, user authentication, and role-based access control for the Assess Management page.
  * Redirects unauthenticated users to the login page and restricts access based on user permissions.
  *
  * Responsibilities:
@@ -12,11 +12,12 @@
  * - Returns user data if authentication and authorization are successful.
  * - Handles session expiration, invalid session cases, and insufficient permissions.
  */
+
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, authAdapter } from '@src/databases/db';
+import { auth, authAdapter, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
 
@@ -24,24 +25,27 @@ import { checkUserPermission, type PermissionConfig } from '@src/auth/permission
 import logger from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ cookies }) => {
-	logger.debug('Starting load function for access management page');
-
-	if (!auth || !authAdapter) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error: Auth system not initialized');
-	}
-
-	logger.debug('Auth adapter methods:', Object.keys(authAdapter));
-
-	// Secure this page with session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	if (!session_id) {
-		logger.warn('No session ID found, redirecting to login');
-		throw redirect(302, `/login`);
-	}
+	logger.debug('Starting load function for assess management page');
 
 	try {
+		// Wait for the initialization promise to resolve
+		await initializationPromise;
+
+		if (!auth || !authAdapter) {
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error: Auth system not initialized');
+		}
+
+		logger.debug('Auth adapter methods:', Object.keys(authAdapter));
+
+		// Secure this page with session cookie
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
+
+		if (!session_id) {
+			logger.warn('No session ID found, redirecting to login');
+			throw redirect(302, `/login`);
+		}
+
 		// Validate the session and retrieve the associated user
 		const user = await auth.validateSession({ session_id });
 
@@ -54,25 +58,20 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		logger.debug('User details:', user);
 
 		// Check user permission
-		logger.debug('Checking user permission for access management');
+		logger.debug('Checking user permission for assess management');
+
 		const permissionConfig: PermissionConfig = {
-			contextId: 'config/accessManagement',
+			contextId: 'config/assessManagement',
 			requiredRole: 'admin',
 			action: 'read',
 			contextType: 'system'
 		};
 
-		let hasPermission;
-		try {
-			hasPermission = await checkUserPermission(user, permissionConfig);
-			logger.debug(`User permission check result: ${hasPermission}`);
-		} catch (permError) {
-			logger.error('Error checking user permission:', permError);
-			hasPermission = false;
-		}
+		const hasPermission = await checkUserPermission(user, permissionConfig);
+		logger.debug(`User permission check result: ${hasPermission}`);
 
 		if (!hasPermission) {
-			logger.warn(`User ${user._id} does not have permission to access Access Management`);
+			logger.warn(`User ${user._id} does not have permission to access Assess Management`);
 			throw error(403, "You don't have permission to access this page");
 		}
 
@@ -81,32 +80,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		let permissions = [];
 
 		logger.debug('Attempting to fetch roles');
-		if (typeof authAdapter.getAllRoles === 'function') {
-			try {
-				roles = await authAdapter.getAllRoles();
-				console.log('Raw roles data:', roles);
-				console.log(`Fetched ${roles.length} roles`);
-				console.table(roles);
-			} catch (roleError) {
-				logger.error('Error fetching roles:', roleError);
-			}
-		} else {
-			logger.warn('getAllRoles method is not available on authAdapter');
-		}
+		roles = await authAdapter.getAllRoles();
+		logger.debug(`Fetched ${roles.length} roles`);
 
 		logger.debug('Attempting to fetch permissions');
-		if (typeof authAdapter.getAllPermissions === 'function') {
-			try {
-				permissions = await authAdapter.getAllPermissions();
-				console.log('Raw permissions data:', permissions);
-				console.log(`Fetched ${permissions.length} permissions`);
-				console.table(permissions);
-			} catch (permError) {
-				console.error('Error fetching permissions:', permError);
-			}
-		} else {
-			logger.warn('getAllPermissions method is not available on authAdapter');
-		}
+		permissions = await authAdapter.getAllPermissions();
+		logger.debug(`Fetched ${permissions.length} permissions`);
 
 		logger.debug('Preparing data to return to the client');
 		return {
@@ -119,7 +98,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			permissions
 		};
 	} catch (err) {
-		logger.error('Error in access management load function:', err);
+		logger.error('Error in assess management load function:', err);
 		if (err instanceof Error) {
 			throw error(500, `Internal Server Error: ${err.message}`);
 		} else {

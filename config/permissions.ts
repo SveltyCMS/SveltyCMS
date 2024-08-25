@@ -46,7 +46,6 @@ export interface Permission {
  * Represents the structure of a role object.
  */
 export interface Role {
-	_id: string; // Unique identifier for the role
 	name: string; // Name of the role
 	description?: string; // Optional description of the role
 	permissions: string[]; // List of permission names associated with the role
@@ -129,13 +128,11 @@ export const permissions: Permission[] = [
  */
 export const roles: Role[] = [
 	{
-		_id: '1',
 		name: 'admin',
 		description: 'Administrator with all permissions',
 		permissions: permissions.map((permission) => permission.name) // Assign all permissions
 	},
 	{
-		_id: '2',
 		name: 'developer',
 		description: 'Developer with elevated permissions',
 		permissions: permissions
@@ -143,7 +140,6 @@ export const roles: Role[] = [
 			.map((permission) => permission.name) // Assign relevant permissions
 	},
 	{
-		_id: '3',
 		name: 'editor',
 		description: 'Content editor with permissions to create, read, and update content',
 		permissions: permissions
@@ -151,7 +147,6 @@ export const roles: Role[] = [
 			.map((permission) => permission.name) // Assign relevant permissions
 	},
 	{
-		_id: '4',
 		name: 'user',
 		description: 'Regular user with permission to read content',
 		permissions: ['read_content'] // Assign only the read_content permission

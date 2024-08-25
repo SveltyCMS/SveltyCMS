@@ -4,7 +4,6 @@
 It provides a user-friendly interface for searching, filtering, and navigating through roles and permissions. 
 -->
 <script lang="ts">
-	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
 
 	// Auth
