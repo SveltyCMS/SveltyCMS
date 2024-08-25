@@ -1,3 +1,8 @@
+<!-- 
+ @files src/routes/(app)/config/collection/ModalSelectWidget.svelte
+@description This component displays a modal for selecting a widget.
+-->
+
 <script lang="ts">
 	// Components
 	import widgets from '@components/widgets';

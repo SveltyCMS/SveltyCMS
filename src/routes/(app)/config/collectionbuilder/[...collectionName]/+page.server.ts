@@ -1,3 +1,25 @@
+/**
+ * @file src/routes/(app)/config/collection/[...collectionName]/+page.server.ts
+ * @description Server-side logic for collection management in the CMS.
+ *
+ * This module handles:
+ * - Authentication and authorization for collection management
+ * - CRUD operations for collections (Create, Read, Update, Delete)
+ * - Processing and saving collection schemas
+ * - Managing collection configurations
+ * - Compiling and updating collections
+ *
+ * Key features:
+ * - Role-based access control (admin, editor, editor2)
+ * - Dynamic field processing for widgets
+ * - Permission management for collections
+ * - File system operations for collection storage
+ * - Integration with collection compilation and update processes
+ *
+ * The module uses SvelteKit's load and actions functions to handle
+ * server-side operations and data preparation for the client.
+ */
+
 import fs from 'fs';
 import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
@@ -11,53 +33,46 @@ import type { WidgetType } from '@components/widgets';
 import { auth, getCollectionModels } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
+// System Loggger
+import logger from '@src/utils/logger';
+
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 
 // Define load function as async function that takes an event parameter
 export async function load({ cookies }) {
 	if (!auth) {
-		console.error('Authentication system is not initialized');
+		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
 	// Get session cookie value
-	let session_id = cookies.get(SESSION_COOKIE_NAME);
+	const session_id = cookies.get(SESSION_COOKIE_NAME);
 
-	// If no session ID is found, create a new session
 	if (!session_id) {
-		// console.log('Session ID is missing from cookies, creating a new session.');
-		try {
-			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
-			const sessionCookie = auth.createSessionCookie(newSession);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			session_id = sessionCookie.value;
-			// console.log('New session created:', session_id);
-		} catch (e) {
-			console.error('Failed to create a new session:', e);
-			throw error(500, 'Internal Server Error');
-		}
-	}
-
-	if (!auth) {
-		console.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
-
-	// Validate user using auth and session value
-	const user = await auth.validateSession({ session_id });
-
-	// If user status is 200, return user object
-	if (!user) {
-		console.error('User not authenticated, redirecting to login.');
+		logger.error('No session ID found, redirecting to login.');
 		throw redirect(302, '/login');
 	}
 
-	if (user.role !== 'admin') {
-		console.error('User does not have administrative access.');
-		throw error(403, "You don't have access to this page");
-	}
+	try {
+		// Validate user using auth and session value
+		const user = await auth.validateSession({ session_id });
 
-	return { user };
+		// If user status is 200, return user object
+		if (!user) {
+			logger.error('User not authenticated, redirecting to login.');
+			throw redirect(302, '/login');
+		}
+
+		if (user.role !== 'admin' && user.role !== 'editor' && user.role !== 'editor2') {
+			logger.error('User does not have sufficient permissions.');
+			throw error(403, "You don't have access to this page");
+		}
+
+		return { user };
+	} catch (e) {
+		logger.error('Error validating session:', e);
+		throw redirect(302, '/login');
+	}
 }
 
 // Create or Update Collection
@@ -72,57 +87,51 @@ export const actions: Actions = {
 		const collectionSlug = JSON.parse(formData.get('slug') as string);
 		const collectionDescription = JSON.parse(formData.get('description') as string);
 		const collectionStatus = JSON.parse(formData.get('status') as string);
+
 		// Permissions
 		const permissionsData = JSON.parse(formData.get('permissions') as string);
-		permissionsData ? removeFalseValues(permissionsData) : {};
+		const cleanedPermissions = removeFalseValues(permissionsData);
+
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields, fieldsData);
 
 		// Generate fields as formatted string
 		let content = `${imports}
-			import widgets from '@components/widgets';
-			import type { Schema } from './types';
-			const schema: Schema = {
+            import widgets from '@components/widgets';
+            import type { Schema } from './types';
+            const schema: Schema = {
 				// Collection Name coming from filename so not needed
 
 				// Optional & Icon, status, slug
 				// See for possible Icons https://icon-sets.iconify.design/
-				icon: '${collectionIcon}',
-				status: '${collectionStatus}',
-				description: '${collectionDescription}',
-				slug: '${collectionSlug}',
-
-				// Collection Permissions by user Roles
-				permissions : ${permissionsData ? JSON.stringify(permissionsData, null, 2) : '{}'},
-
-				// Defined Fields that are used in your Collection
+                icon: '${collectionIcon}',
+                status: '${collectionStatus}',
+                description: '${collectionDescription}',
+                slug: '${collectionSlug}',
+                // Collection Permissions by user Roles
+				permissions: ${JSON.stringify(cleanedPermissions, null, 2)},
+                // Defined Fields that are used in your Collection
 				// Widget fields can be inspected for individual options
 				fields: ${JSON.stringify(fields)}
-			};
-			export default schema;`;
+            };
+            export default schema;`;
 
 		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
-
 		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
-
 		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
+
 		try {
-			if (originalName && originalName != collectionName) {
+			if (originalName && originalName !== collectionName) {
 				fs.renameSync(`${import.meta.env.collectionsFolderTS}/${originalName}.ts`, `${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
 			}
 			fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`, content);
 			await compile();
 			await updateCollections(true);
 			await getCollectionModels();
-			return {
-				status: 200
-			};
+			return { status: 200 };
 		} catch (e) {
-			return {
-				status: 500,
-				error: e
-			};
+			return { status: 500, error: e };
 		}
 	},
 
@@ -130,11 +139,10 @@ export const actions: Actions = {
 		const formData = await request.formData();
 		const categories = formData.get('categories') as string;
 		let config = `
-		export function createCategories(collections) {
-			return ${categories}
-
-		}
-		`;
+        export function createCategories(collections) {
+            return ${categories}
+        }
+        `;
 		config = config.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 		config = await prettier.format(config, { ...(prettierConfig as any), parser: 'typescript' });
 		fs.writeFileSync(`${import.meta.env.collectionsFolderTS}/config.ts`, config);
@@ -145,15 +153,12 @@ export const actions: Actions = {
 
 	deleteCollections: async ({ request }) => {
 		const formData = await request.formData();
-		// const fieldsData = formData.get('fields') as string;
 		const collectionName = JSON.parse(formData.get('collectionName') as string);
 		fs.unlinkSync(`${import.meta.env.collectionsFolderTS}/${collectionName}.ts`);
 		await compile();
 		await updateCollections(true);
 		await getCollectionModels();
-		return {
-			status: 200
-		};
+		return { status: 200 };
 	}
 };
 
@@ -206,13 +211,19 @@ async function goThrough(object: any, fields): Promise<string> {
 	return Array.from(imports).join('\n');
 }
 
-function removeFalseValues(obj) {
-	Object.keys(obj).forEach((key) => {
-		if (obj[key] && typeof obj[key] === 'object') {
-			removeFalseValues(obj[key]);
-		} else if (obj[key] === false) {
-			delete obj[key];
-		}
-	});
-	return obj;
+// Remove false values from an object
+function removeFalseValues(obj: any): any {
+	if (typeof obj !== 'object' || obj === null) {
+		return obj;
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map(removeFalseValues).filter(Boolean);
+	}
+
+	return Object.fromEntries(
+		Object.entries(obj)
+			.map(([key, value]) => [key, removeFalseValues(value)])
+			.filter(([, value]) => value !== false)
+	);
 }

@@ -1,3 +1,7 @@
+<!-- 
+ @files src/routes/(app)/config/collection/ModalCategory.svelte
+@description This component displays a modal for editing a category.
+-->
 <script lang="ts">
 	// Props
 	/** Exposes parent props to this component. */

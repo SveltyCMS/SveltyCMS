@@ -1,3 +1,8 @@
+<!-- 
+ @file src/routes/(app)/config/collection/+page.svelte
+ @description This component sets up and displays the collection page. It provides a user-friendly interface for creating, editing, and deleting collections.
+-->
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
@@ -17,6 +22,9 @@
 	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
+
+	// Export the data prop
+	export let data;
 
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
@@ -61,7 +69,7 @@
 			fields: []
 		});
 		// Navigate to the route where you handle creating new collections
-		goto('/collection/new');
+		goto('/config/collectionbuilder/new');
 	}
 
 	// Define the structure of an unassigned collection
@@ -100,7 +108,7 @@
 		UnassignedCollections = newItems;
 	}
 
-	//Saving changes to the config.ts
+	// Saving changes to the config.ts
 	async function handleSaveClick() {
 		try {
 			const response = await fetch('/api/updateConfig', {

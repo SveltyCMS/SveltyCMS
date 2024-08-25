@@ -1,3 +1,7 @@
+<!-- 
+ @files src/routes/(app)/config/collection/Column.svelte
+@description This component displays a column of collections.
+-->
 <script lang="ts">
 	// Stores
 	import { mode, categories } from '@stores/store';

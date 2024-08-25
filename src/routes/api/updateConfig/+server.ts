@@ -26,6 +26,7 @@ import fs from 'fs/promises';
 import path from 'path';
 import crypto from 'crypto';
 import type { RequestHandler } from './$types';
+
 // System Logs
 import logger from '@src/utils/logger';
 
@@ -89,7 +90,7 @@ async function readExistingConfig(filePath: string): Promise<string> {
 	try {
 		return await fs.readFile(filePath, 'utf8');
 	} catch (error) {
-		logger.info('Config file does not exist, will create a new one');
+		logger.error('Config file does not exist, will create a new one:', error);
 		return '';
 	}
 }

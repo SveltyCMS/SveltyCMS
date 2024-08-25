@@ -26,14 +26,10 @@
  * const hasPermission = await checkUserPermission(user, permissionConfig);
  */
 
-// Auth
-import type { User, PermissionAction, ContextType, Role, Permission } from './types';
+import type { User, PermissionAction, ContextType, Permission } from './types';
 import { authAdapter } from '@src/databases/db';
-
-// System Logger
 import logger from '@src/utils/logger';
 
-// Define the type for a PermissionConfig
 export interface PermissionConfig {
 	contextId: string;
 	requiredRole: string;
@@ -41,7 +37,6 @@ export interface PermissionConfig {
 	contextType: ContextType | string;
 }
 
-// Check if a user has permission to perform an action on a specific resource
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<boolean> {
 	// Admins have all permissions
 	if (user.role === 'admin') {
@@ -49,19 +44,17 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 	}
 
 	try {
-		// Retrieve user roles
-		const roles: Role[] = await authAdapter!.getRolesForUser(user._id);
-		// Find the user's role in the retrieved roles
-		const userRole = roles.find((role) => role.name === user.role);
+		// Get the user's role
+		const userRole = await authAdapter!.getRoleByName(user.role);
 
 		// If the role does not exist, return false
 		if (!userRole) {
-			logger.warn(`Role ${user.role} not found for user ${user._id}`);
+			logger.warn(`Role ${user.role} not found for user ${user.email}`);
 			return false;
 		}
 
-		// Retrieve permissions for the found role
-		const permissions: Permission[] = await authAdapter!.getPermissionsForRole(userRole._id);
+		// Retrieve permissions for the role
+		const permissions: Permission[] = await authAdapter!.getPermissionsForRole(userRole.name);
 
 		// Check if any of the permissions match the required configuration
 		const hasPermission = permissions.some(
@@ -69,17 +62,17 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 				permission.contextId === config.contextId &&
 				permission.action === config.action &&
 				permission.contextType === config.contextType &&
-				permission.requiredRole === config.requiredRole
+				userRole.name === config.requiredRole
 		);
 
 		if (!hasPermission) {
-			logger.info(`User ${user._id} lacks required permission for ${config.contextId}`);
+			logger.info(`User ${user.email} lacks required permission for ${config.contextId}`);
 		}
 
 		return hasPermission;
 	} catch (error) {
 		const err = error as Error;
-		logger.error(`Error checking user permission:: ${err.message}`);
+		logger.error(`Error checking user permission: ${err.message}`);
 		return false;
 	}
 }

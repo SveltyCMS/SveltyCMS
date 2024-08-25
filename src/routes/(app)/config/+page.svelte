@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/+page.svelte
+@description This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings. 
+-->
+
 <script lang="ts">
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';
@@ -9,7 +14,7 @@
 
 	// Define permissions for different contexts
 	const permissionConfigs: Record<string, PermissionConfig> = {
-		systembuilder: { contextId: 'config/systembuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
+		collectionbuilder: { contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
 		graphql: { contextId: 'config/graphql', requiredRole: 'admin', action: 'read', contextType: 'system' },
 		imageeditor: { contextId: 'config/imageeditor', requiredRole: 'admin', action: 'write', contextType: 'system' },
 		dashboard: { contextId: 'config/dashboard', requiredRole: 'admin', action: 'read', contextType: 'system' },
@@ -29,10 +34,14 @@
 	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
 	<div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
 		<!-- Collection -->
-		<PermissionGuard config={permissionConfigs.systembuilder}>
-			<a href="/collection" class="config-btn variant-outline-tertiary dark:variant-outline-secondary" aria-label={m.config_systembuilder()}>
+		<PermissionGuard config={permissionConfigs.collectionbuilder}>
+			<a
+				href="/config/collectionbuilder"
+				class="config-btn variant-outline-tertiary dark:variant-outline-secondary"
+				aria-label={m.config_collectionbuilder()}
+			>
 				<iconify-icon icon="fluent-mdl2:build-definition" class="config-icon text-tertiary-600" />
-				<p class="config-text">{m.config_systembuilder()}</p>
+				<p class="config-text">{m.config_collectionbuilder()}</p>
 			</a>
 		</PermissionGuard>
 
