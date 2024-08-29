@@ -1,24 +1,18 @@
-<!--
-@file src/routes/(app)/config/assessManagement/Roles.svelte
-@description This component manages user roles in the access management system. It provides functionality to:
-- Display existing roles
-- Add new roles
-- Delete selected roles
-- Assign permissions to roles
-- Handle role selection for bulk actions
-The component interacts with the authAdapter to perform CRUD operations on roles and fetch available permissions.
--->
-
 <script lang="ts">
-	import { page } from '$app/stores';
-
 	import { onMount } from 'svelte';
+
+	// Stores
+	import { page } from '$app/stores';
 	import { writable } from 'svelte/store';
-	import { authAdapter, initializationPromise } from '@src/databases/db';
 
 	// Auth
 	import type { Role, Permission } from '@src/auth/types';
+	import { authAdapter, initializationPromise } from '@src/databases/db';
 
+	// Components
+	import Loading from '@components/Loading.svelte';
+
+	// Define the roles and permissions store
 	const roles = writable<Role[]>([]);
 	const selectedRoles = writable<Set<string>>(new Set());
 	let roleName = '';
@@ -33,9 +27,12 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 	onMount(async () => {
 		try {
 			await initializationPromise;
+
+			// Check if authAdapter is initialized
 			if (!authAdapter) {
 				throw new Error('Auth adapter is not initialized');
 			}
+
 			await loadRoles();
 			await loadPermissions();
 		} catch (err) {
@@ -46,12 +43,13 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 	});
 
 	const loadRoles = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
-			const rolesData = await authAdapter.getAllRoles({});
+			// Ensure authAdapter is initialized
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
+
+			const rolesData = await authAdapter.getAllRoles();
 			roles.set(rolesData);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
@@ -59,11 +57,12 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 	};
 
 	const loadPermissions = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
+			// Ensure authAdapter is initialized
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
+
 			const permissionsData = await authAdapter.getAllPermissions();
 			availablePermissions.set(permissionsData);
 		} catch (err) {
@@ -72,19 +71,20 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 	};
 
 	const addRole = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		if (!roleName) return;
 
 		const roleData: Partial<Role> = {
 			name: roleName,
 			description: roleDescription,
-			permissions: Array.from($selectedPermissions)
+			permissions: new Set($selectedPermissions) // Correctly use $ to access the store's value
 		};
 
 		try {
+			// Ensure authAdapter is initialized
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
+
 			await authAdapter.createRole(roleData, currentUserId);
 			roleName = '';
 			roleDescription = '';
@@ -96,12 +96,14 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 	};
 
 	const deleteSelectedRoles = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
+			// Ensure authAdapter is initialized
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
+
 			for (const roleId of $selectedRoles) {
+				// Use $ to access the store's value
 				await authAdapter.deleteRole(roleId, currentUserId);
 			}
 			selectedRoles.set(new Set());
@@ -135,7 +137,7 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 </script>
 
 {#if $isLoading}
-	<p>Loading...</p>
+	<Loading customTopText="Loading Roles..." customBottomText="Please wait while roles are being loaded." />
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
@@ -167,10 +169,12 @@ The component interacts with the authAdapter to perform CRUD operations on roles
 				<p>No roles defined yet.</p>
 			{:else}
 				<ul class="list-disc pl-5">
-					{#each $roles as role (role._id)}
+					{#each $roles as role (role.id)}
+						<!-- Assuming 'id' is the correct property -->
 						<li class="flex items-center">
-							<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
+							<input type="checkbox" checked={$selectedRoles.has(role.id)} on:change={() => toggleRoleSelection(role.id)} class="mr-2" />
 							{role.name} - {role.description}
+							{#if role.name.toLowerCase() === 'admin'}<strong>(Admin)</strong>{/if}
 							<ul class="ml-4">
 								{#each role.permissions as permissionName}
 									<li>{permissionName}</li>

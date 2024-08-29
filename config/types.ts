@@ -1,5 +1,10 @@
-import type { AvailableLanguageTag } from '../src/paraglide/runtime';
-import type { Role, Permission } from './permissions';
+/**
+ * @file config/types.ts
+ * @description Configuration prompts for the Application section
+ */
+
+import type { AvailableLanguageTag } from '@src/paraglide/runtime';
+import type { Role, Permission } from '@src/auth/types'; // Import Role and Permission types from the centralized types file
 
 /**
  * The PRIVAT configuration for the application,

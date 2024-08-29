@@ -13,48 +13,42 @@
 	// Auth
 	import type { User } from '@src/auth/types';
 	const user: User = $page.data.user;
+	import { roles } from '@root/config/roles';
+	import { authAdapter, dbAdapter } from '@src/databases/db';
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';
 	import ScheduleModal from './ScheduleModal.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
 	// Skeleton
 	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
-	import { roles } from '@root/config/permissions';
-	import { authAdapter, dbAdapter } from '@src/databases/db';
 
 	const modalStore = getModalStore();
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		// console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ScheduleModal,
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 
-		const d: ModalSettings = {
+		const modalSettings: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: 'Scheduler',
 			body: 'Set a date and time to schedule this entry.',
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: (r: { date: string; action: string } | boolean) => {
 				if (typeof r === 'object') {
 					schedule = r.date;
-					// Handle the scheduled action (r.action) as needed
 				}
 			}
 		};
-		modalStore.trigger(d);
+		modalStore.trigger(modalSettings);
 	}
 
 	let next = () => {};
@@ -76,29 +70,29 @@
 		$entryData.save();
 	}
 
-	// Convert timestamp to Date string
+	// Convert timestamps to date strings
 	$: dates = {
 		created: convertTimestampToDateString($entryData.createdAt),
 		updated: convertTimestampToDateString($entryData.updatedAt)
 	};
 
-	// Save data
+	// Save form data
 	async function saveData() {
 		await saveFormData({
 			data: $collectionValue,
 			_collection: $collection,
 			_mode: $mode,
-			dbAdapter: dbAdapter,
-			authAdapter: authAdapter,
-			user_id: user._id,
-			user: user
+			dbAdapter,
+			authAdapter,
+			user
 		});
+
 		mode.set('view');
 		handleSidebarToggle();
 	}
 
-	// TODO: user autocomplete
-	const Userlist = roles.map((role) => ({
+	// Autocomplete user list
+	const userList: AutocompleteOption[] = roles.map((role) => ({
 		label: role.name,
 		value: role.name,
 		keywords: role.description
@@ -110,7 +104,7 @@
 		placement: 'right'
 	};
 
-	function onPopupUserSelect(event: CustomEvent<any>) {
+	function onPopupUserSelect(event: CustomEvent) {
 		console.log(event.detail);
 		throw new Error('Function not implemented.');
 	}
@@ -118,7 +112,7 @@
 
 <!-- Desktop Right Sidebar -->
 <!-- Check if user has create or write permission -->
-{#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write == false}
+{#if ['edit', 'create'].includes($mode) || $collection.permissions?.[user.role]?.write !== false}
 	<div class="flex h-full w-full flex-col justify-between px-1 py-2">
 		{#if $shouldShowNextButton && $mode === 'create'}
 			<button type="button" on:click={next} class="variant-filled-primary btn w-full gap-2">
@@ -131,8 +125,9 @@
 				<button
 					type="button"
 					on:click={saveData}
-					disabled={$collection?.permissions?.[user.role]?.write == false}
+					disabled={$collection?.permissions?.[user.role]?.write === false}
 					class="variant-filled-primary btn w-full gap-2"
+					aria-label="Save entry"
 				>
 					<iconify-icon icon="material-symbols:save" width="24" class="font-extrabold text-white" />
 					Save
@@ -150,24 +145,25 @@
 					/>
 				</div>
 
-				{#if $mode == 'edit'}
-					<!--Clone -->
+				{#if $mode === 'edit'}
+					<!-- Clone button -->
 					<button
 						type="button"
 						on:click={() => $modifyEntry('clone')}
-						disabled={$collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create}
+						disabled={!$collection?.permissions?.[user.role]?.write || !$collection?.permissions?.[user.role]?.create}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
+						aria-label="Clone entry"
 					>
 						<iconify-icon icon="bi:clipboard-data-fill" width="24" />Clone<span class="text-primary-500">{$collection?.name}</span>
 					</button>
-				{/if}
 
-				{#if $mode == 'edit'}
+					<!-- Delete button -->
 					<button
 						type="button"
 						on:click={() => $modifyEntry('delete')}
-						disabled={$collection?.permissions?.[user.role]?.delete}
+						disabled={$collection?.permissions?.[user.role]?.delete === false}
 						class="variant-filled-error btn w-full"
+						aria-label="Delete entry"
 					>
 						<iconify-icon icon="icomoon-free:bin" width="24" />Delete
 					</button>
@@ -189,9 +185,10 @@
 							bind:value={inputPopupUser}
 							placeholder="Search..."
 							use:popup={popupSettingsUser}
+							aria-label="Search user"
 						/>
 						<div data-popup="popupAutocomplete">
-							<Autocomplete bind:input={inputPopupUser} options={Userlist} on:selection={onPopupUserSelect} />
+							<Autocomplete bind:input={inputPopupUser} options={userList} on:selection={onPopupUserSelect} />
 						</div>
 					</div>
 				</div>
@@ -199,13 +196,13 @@
 				<!-- Scheduled on -->
 				<div class="mt-2 flex w-full flex-col items-start justify-center">
 					<p class="mb-1">{m.sidebar_authoredon()}</p>
-					<button class="variant-filled-surface w-full p-2 text-left text-sm" on:click={openScheduleModal}>
+					<button class="variant-filled-surface w-full p-2 text-left text-sm" on:click={openScheduleModal} aria-label="Schedule publication">
 						{schedule ? new Date(schedule).toLocaleString() : 'Schedule publication'}
 					</button>
 				</div>
 			</main>
 
-			{#if $mode == 'create'}
+			{#if $mode === 'create'}
 				<p class="mb-2 text-center text-tertiary-500 dark:text-primary-500">
 					{new Date().toLocaleString(languageTag(), { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
 				</p>

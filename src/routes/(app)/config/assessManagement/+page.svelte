@@ -1,14 +1,10 @@
-<!-- 
-@files src/routes/(app)/config/assessManagement/+page.svelte
-@description This file sets up and displays the assess management page. 
-It provides a user-friendly interface for searching, filtering, and navigating through roles and permissions. 
--->
 <script lang="ts">
 	import { tabSet } from '@stores/store';
 
 	// Auth
 	import Roles from './Roles.svelte';
 	import Permissions from './Permissions.svelte';
+	import AdminRole from './AdminRole.svelte'; // New admin role management component
 
 	// Skeleton
 	import { TabGroup, Tab } from '@skeletonlabs/skeleton';
@@ -38,6 +34,14 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 </div>
 
 <TabGroup justify="justify-center text-tertiary-500 dark:text-primary-500">
+	<!-- User Permissions -->
+	<Tab bind:group={$tabSet} name="permissions" value={0}>
+		<svelte:fragment slot="lead">
+			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
+		</svelte:fragment>
+		<span>{m.system_permission()}</span>
+	</Tab>
+
 	<!-- User Roles -->
 	<Tab bind:group={$tabSet} name="roles" value={0}>
 		<svelte:fragment slot="lead">
@@ -46,20 +50,22 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		<span>{m.system_roles()}</span>
 	</Tab>
 
-	<!-- User Permissions-->
-	<Tab bind:group={$tabSet} name="permissions" value={1}>
+	<!-- Admin Role -->
+	<Tab bind:group={$tabSet} name="admin" value={1}>
 		<svelte:fragment slot="lead">
-			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
+			<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
-		<span>{m.system_permission()}</span>
+		<span>Admin Role</span>
 	</Tab>
 
-	<!-- Tab Panels --->
+	<!-- Tab Panels -->
 	<svelte:fragment slot="panel">
 		{#if $tabSet === 0}
+			<Permissions />
+		{:else if $tabSet === 1}
 			<Roles />
 		{:else}
-			<Permissions />
+			<AdminRole />
 		{/if}
 	</svelte:fragment>
 </TabGroup>

@@ -39,17 +39,17 @@ export class InMemorySessionStore implements SessionStore {
 	// Cleanup expired sessions
 	private cleanup() {
 		const now = Date.now();
-		for (const [sessionId, session] of this.sessions) {
+		for (const [session_id, session] of this.sessions) {
 			if (session.expiresAt < now) {
-				this.sessions.delete(sessionId);
+				this.sessions.delete(session_id);
 			}
 		}
 		logger.debug(`Cleaned up expired sessions. Current count: ${this.sessions.size}`);
 	}
 
 	// Get a user by session ID
-	async get(sessionId: string): Promise<User | null> {
-		const session = this.sessions.get(sessionId);
+	async get(session_id: string): Promise<User | null> {
+		const session = this.sessions.get(session_id);
 		if (!session || session.expiresAt < Date.now()) {
 			return null;
 		}
@@ -57,8 +57,8 @@ export class InMemorySessionStore implements SessionStore {
 	}
 
 	// Set a user session with expiration
-	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
-		this.sessions.set(sessionId, {
+	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
+		this.sessions.set(session_id, {
 			user,
 			expiresAt: Date.now() + expirationInSeconds * 1000
 		});
@@ -73,10 +73,10 @@ export class InMemorySessionStore implements SessionStore {
 		let oldestSessionId: string | null = null;
 		let oldestTimestamp = Infinity;
 
-		for (const [sessionId, session] of this.sessions) {
+		for (const [session_id, session] of this.sessions) {
 			if (session.expiresAt < oldestTimestamp) {
 				oldestTimestamp = session.expiresAt;
-				oldestSessionId = sessionId;
+				oldestSessionId = session_id;
 			}
 		}
 
@@ -87,21 +87,21 @@ export class InMemorySessionStore implements SessionStore {
 	}
 
 	// Delete a session by ID
-	async delete(sessionId: string): Promise<void> {
-		this.sessions.delete(sessionId);
+	async delete(session_id: string): Promise<void> {
+		this.sessions.delete(session_id);
 	}
 
 	// Validate session with optional database check
-	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
+	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
 		if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
-			const dbUser = await dbValidationFn(sessionId);
+			const dbUser = await dbValidationFn(session_id);
 			if (!dbUser) {
-				this.delete(sessionId);
+				this.delete(session_id);
 				return null;
 			}
 			return dbUser;
 		}
-		return this.get(sessionId);
+		return this.get(session_id);
 	}
 
 	// Close the session store and clear intervals
@@ -144,9 +144,9 @@ export class OptionalRedisSessionStore implements SessionStore {
 	}
 
 	// Get a user by session ID
-	async get(sessionId: string): Promise<User | null> {
+	async get(session_id: string): Promise<User | null> {
 		try {
-			return this.redisStore ? this.redisStore.get(sessionId) : this.fallbackStore.get(sessionId);
+			return this.redisStore ? this.redisStore.get(session_id) : this.fallbackStore.get(session_id);
 		} catch (error) {
 			logger.error(`Error getting session: ${error}`);
 			throw error;
@@ -154,12 +154,12 @@ export class OptionalRedisSessionStore implements SessionStore {
 	}
 
 	// Set a user session with expiration
-	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
+	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
 		try {
 			if (this.redisStore) {
-				await this.redisStore.set(sessionId, user, expirationInSeconds);
+				await this.redisStore.set(session_id, user, expirationInSeconds);
 			}
-			await this.fallbackStore.set(sessionId, user, expirationInSeconds);
+			await this.fallbackStore.set(session_id, user, expirationInSeconds);
 		} catch (error) {
 			logger.error(`Error setting session: ${error}`);
 			throw error;
@@ -167,12 +167,12 @@ export class OptionalRedisSessionStore implements SessionStore {
 	}
 
 	// Delete a session by ID
-	async delete(sessionId: string): Promise<void> {
+	async delete(session_id: string): Promise<void> {
 		try {
 			if (this.redisStore) {
-				await this.redisStore.delete(sessionId);
+				await this.redisStore.delete(session_id);
 			}
-			await this.fallbackStore.delete(sessionId);
+			await this.fallbackStore.delete(session_id);
 		} catch (error) {
 			logger.error(`Error deleting session: ${error}`);
 			throw error;
@@ -180,12 +180,12 @@ export class OptionalRedisSessionStore implements SessionStore {
 	}
 
 	// Validate session with optional database check
-	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
+	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
 		try {
 			if (this.redisStore) {
-				return this.redisStore.validateWithDB(sessionId, dbValidationFn);
+				return this.redisStore.validateWithDB(session_id, dbValidationFn);
 			}
-			return this.fallbackStore.validateWithDB(sessionId, dbValidationFn);
+			return this.fallbackStore.validateWithDB(session_id, dbValidationFn);
 		} catch (error) {
 			logger.error(`Error validating session: ${error}`);
 			throw error;

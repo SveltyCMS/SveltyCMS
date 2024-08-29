@@ -13,8 +13,9 @@
 	import Loading from '@components/Loading.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@src/components/system/table/TablePagination.svelte';
+	import PermissionGuard from '@src/components/PermissionGuard.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Skeleton
@@ -26,6 +27,9 @@
 	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
 
 	export let data: PageData;
+
+	// Use data.manageUsersPermissionConfig directly
+	const manageUsersPermissionConfig = data.manageUsersPermissionConfig;
 
 	// Modal Trigger - Generate User Registration email Token
 	function modalTokenUser(): void {
@@ -154,7 +158,7 @@
 			}, 400);
 
 			// Use the data provided by the server
-			tableData = showUserList ? data.adminData.users : data.adminData.tokens;
+			tableData = showUserList ? data.adminData!.users : data.adminData!.tokens;
 
 			const tableHeaders = showUserList ? tableHeadersUser : tableHeaderToken;
 
@@ -263,24 +267,27 @@
 	<p class="h2 mb-2 text-center text-3xl font-bold dark:text-white">
 		{m.adminarea_adminarea()}
 	</p>
-	<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
-		<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
-			<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />
-			<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
-		</button>
 
-		{#if tableDataUserToken}
-			<button on:click={toggleUserToken} class="gradient-secondary btn w-full text-white sm:max-w-xs">
-				<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
-				<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
+	<PermissionGuard config={manageUsersPermissionConfig}>
+		<div class="flex flex-col flex-wrap items-center justify-evenly gap-2 sm:flex-row xl:justify-between">
+			<button on:click={modalTokenUser} class="gradient-primary btn w-full text-white sm:max-w-xs">
+				<iconify-icon icon="material-symbols:mail" color="white" width="18" class="mr-1" />
+				<span class="whitespace-normal break-words">{m.adminarea_emailtoken()}</span>
 			</button>
-		{/if}
 
-		<button on:click={toggleUserList} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
-			<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1" />
-			<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
-		</button>
-	</div>
+			{#if tableDataUserToken}
+				<button on:click={toggleUserToken} class="gradient-secondary btn w-full text-white sm:max-w-xs">
+					<iconify-icon icon="material-symbols:key-outline" color="white" width="18" class="mr-1" />
+					<span>{showUsertoken ? m.adminarea_hideusertoken() : m.adminarea_showtoken()}</span>
+				</button>
+			{/if}
+
+			<button on:click={toggleUserList} class="gradient-tertiary btn w-full text-white sm:max-w-xs">
+				<iconify-icon icon="mdi:account-circle" color="white" width="18" class="mr-1" />
+				<span>{showUserList ? m.adminarea_hideuserlist() : m.adminarea_showuserlist()}</span>
+			</button>
+		</div>
+	</PermissionGuard>
 
 	{#if isLoading}
 		<Loading />

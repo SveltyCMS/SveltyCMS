@@ -1,44 +1,38 @@
 /**
  * @file src/auth/authDBInterface.ts
- * @description Interface definition for authentication database operations.
+ * @description Interface definition for basic CRUD operations in an authentication system.
  *
- * This module defines the contract for database adapters used in the authentication system:
- * - User management methods
- * - Session management methods
- * - Token management methods
- * - Role and permission management methods
- * - Sync methods for roles and permissions with configuration
- *
- * Features:
- * - Comprehensive set of method signatures for auth operations
- * - Typescript interface for type safety and consistency
- * - Methods for syncing roles and permissions with configuration
+ * This module defines the essential CRUD operations for database adapters:
+ * - User management
+ * - Session management
+ * - Role management
+ * - Token management
  *
  * Usage:
- * Implemented by database adapters to ensure consistent auth operations across different databases
+ * Implemented by database adapters to ensure consistent operations across different databases.
  */
 
 import type { User, Session, Token, Role, Permission } from './types';
 
+// Pagination and Sorting Options Types
+type SortOption = { [key: string]: 1 | -1 } | [string, 1 | -1][];
+type PaginationOption = { limit?: number; skip?: number; sort?: SortOption; filter?: object };
+
 export interface authDBInterface {
 	// User Management Methods
 	createUser(userData: Partial<User>): Promise<User>;
-	updateUserAttributes(userId: string, userData: Partial<User>): Promise<User>;
-	addUser(userData: Partial<User>, expirationTime: number): Promise<{ user: User; token: string }>;
+	updateUserAttributes(user_id: string, userData: Partial<User>): Promise<User>;
 	deleteUser(user_id: string): Promise<void>;
-	changePassword(userId: string, newPassword: string): Promise<void>;
-	blockUser(userId: string): Promise<void>;
-	unblockUser(userId: string): Promise<void>;
 	getUserById(user_id: string): Promise<User | null>;
 	getUserByEmail(email: string): Promise<User | null>;
-	getAllUsers(options?: { limit?: number; skip?: number; sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][]; filter?: object }): Promise<User[]>;
+	getAllUsers(options?: PaginationOption): Promise<User[]>;
 	getUserCount(filter?: object): Promise<number>;
 
 	// Session Management Methods
-	createSession(sessionData: { user_id: string; expires: number }): Promise<Session>;
-	updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session>;
-	destroySession(session_id: string): Promise<void>;
-	deleteExpiredSessions(): Promise<number>;
+	createSession(sessionData: { user_id: string; expires: Date }): Promise<Session>;
+	updateSessionExpiry(session_id: string, newExpiry: Date): Promise<Session>;
+	deleteSession(session_id: string): Promise<void>;
+	deleteExpiredSessions(): Promise<number>; // Return number of deleted sessions
 	validateSession(session_id: string): Promise<User | null>;
 	invalidateAllUserSessions(user_id: string): Promise<void>;
 	getActiveSessions(user_id: string): Promise<Session[]>;
@@ -51,48 +45,19 @@ export interface authDBInterface {
 	deleteExpiredTokens(): Promise<number>;
 
 	// Role Management Methods
-	createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role>;
-	updateRole(roleName: string, roleData: Partial<Role>, currentUserId: string): Promise<void>;
-	deleteRole(roleName: string, currentUserId: string): Promise<void>;
-	getRoleByName(name: string): Promise<Role | null>;
-	getAllRoles(options?: { limit?: number; skip?: number; sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][]; filter?: object }): Promise<Role[]>;
+	createRole(roleData: Partial<Role>, current_user_id: string): Promise<Role>;
+	updateRole(role_name: string, roleData: Partial<Role>, current_user_id: string): Promise<void>;
+	deleteRole(role_name: string, current_user_id: string): Promise<void>;
+	getRoleByName(role_name: string): Promise<Role | null>;
+	getAllRoles(options?: PaginationOption): Promise<Role[]>;
 
 	// Permission Management Methods
-	createPermission(permissionData: Partial<Permission>, currentUserId: string): Promise<Permission>;
-	updatePermission(permissionName: string, permissionData: Partial<Permission>, currentUserId: string): Promise<void>;
-	deletePermission(permissionName: string, currentUserId: string): Promise<void>;
-	getPermissionByName(name: string): Promise<Permission | null>;
-	getAllPermissions(options?: {
-		limit?: number;
-		skip?: number;
-		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
-		filter?: object;
-	}): Promise<Permission[]>;
+	getAllPermissions(options?: PaginationOption): Promise<Permission[]>;
+	getPermissionByName(permission_name: string): Promise<Permission | null>;
+	updatePermission(permission_name: string, permissionData: Permission, current_user_id: string): Promise<void>;
+	deletePermission(permission_name: string, current_user_id: string): Promise<void>;
 
-	// Role-Permissions Linking Methods
-	assignPermissionToRole(roleName: string, permissionName: string, currentUserId: string): Promise<void>;
-	removePermissionFromRole(roleName: string, permissionName: string, currentUserId: string): Promise<void>;
-	getPermissionsForRole(roleName: string): Promise<Permission[]>;
-	getRolesForPermission(permissionName: string): Promise<Role[]>;
-
-	// User-Specific Permissions Methods
-	assignPermissionToUser(user_id: string, permissionName: string): Promise<void>;
-	removePermissionFromUser(user_id: string, permissionName: string): Promise<void>;
-	getPermissionsForUser(user_id: string): Promise<Permission[]>;
-	getUsersWithPermission(permissionName: string): Promise<User[]>;
-	getRecentUserActivities(): Promise<any[]>;
-
-	// User-Role Methods
-	assignRoleToUser(user_id: string, roleName: string): Promise<void>;
-	removeRoleFromUser(user_id: string, roleName: string): Promise<void>;
-	getRolesForUser(user_id: string): Promise<Role[]>;
-	getUsersWithRole(roleName: string): Promise<User[]>;
-
-	// Sync Methods
+	// Basic Sync Methods
 	syncRolesWithConfig(): Promise<void>;
 	syncPermissionsWithConfig(): Promise<void>;
-
-	// Utility Methods
-	checkUserPermission(user_id: string, permissionName: string): Promise<boolean>;
-	checkUserRole(user_id: string, roleName: string): Promise<boolean>;
 }

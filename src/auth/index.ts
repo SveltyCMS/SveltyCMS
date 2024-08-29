@@ -21,7 +21,7 @@
 import { privateEnv } from '@root/config/private';
 
 // Types
-import type { Cookie, User, Session, Token, Role, Permission } from './types';
+import type { Cookie, User, Session, Token, Role } from './types';
 import type { authDBInterface } from './authDBInterface';
 
 // Cache & Redis
@@ -45,10 +45,10 @@ export const SESSION_COOKIE_NAME = 'auth_sessions';
 
 // Session Store Interface
 export interface SessionStore {
-	get(sessionId: string): Promise<User | null>;
-	set(sessionId: string, user: User, expirationInSeconds: number): Promise<void>;
-	delete(sessionId: string): Promise<void>;
-	validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null>;
+	get(session_id: string): Promise<User | null>;
+	set(session_id: string, user: User, expirationInSeconds: number): Promise<void>;
+	delete(session_id: string): Promise<void>;
+	validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null>;
 	close(): Promise<void>;
 }
 
@@ -69,6 +69,11 @@ export class Auth {
 	private sessionStore: SessionStore;
 
 	constructor(dbAdapter: authDBInterface, sessionStore: SessionStore = defaultSessionStore) {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
+			throw new Error('Database adapter is required but was not initialized');
+		}
+
 		this.db = dbAdapter;
 		this.sessionStore = sessionStore;
 	}
@@ -77,6 +82,11 @@ export class Auth {
 	async createUser(userData: Omit<Partial<User>, '_id'>): Promise<User> {
 		try {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
+
+			if (!email || !password) {
+				throw new Error('Email and password are required to create a user');
+			}
+
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
@@ -85,9 +95,10 @@ export class Auth {
 				}
 				hashedPassword = await argon2.hash(password, {
 					...argon2Attributes,
-					type: argon2.argon2id // Explicitly set the type here
+					type: argon2.argon2id
 				});
 			}
+
 			logger.debug(`Creating user with email: ${email}`);
 			// Create the user in the database
 			const user = await this.db.createUser({
@@ -97,8 +108,9 @@ export class Auth {
 				role,
 				lastAuthMethod,
 				isRegistered,
-				failedAttempts: 0 // Initialize failedAttempts to 0
+				failedAttempts: 0
 			});
+
 			if (!user || !user._id) {
 				throw new Error('User creation failed: No user ID returned');
 			}
@@ -106,7 +118,7 @@ export class Auth {
 			return user;
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to create user: ${err.message}`);
+			logger.error(`Failed to create user: ${err.message}`, { userData });
 			throw new Error(`Failed to create user: ${err.message}`);
 		}
 	}
@@ -114,7 +126,6 @@ export class Auth {
 	// Update user attributes
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
-			// Check if password needs updating
 			if (attributes.password && typeof window === 'undefined') {
 				if (!argon2) {
 					throw new Error('Argon2 is not available in this environment');
@@ -122,14 +133,12 @@ export class Auth {
 				// Hash the password with argon2
 				attributes.password = await argon2.hash(attributes.password, {
 					...argon2Attributes,
-					type: argon2.argon2id // Explicitly set the type here
+					type: argon2.argon2id
 				});
 			}
-			// Convert null email to undefined
 			if (attributes.email === null) {
 				attributes.email = undefined;
 			}
-			// Update the user attributes
 			await this.db.updateUserAttributes(user_id, attributes);
 			logger.info(`User attributes updated for user ID: ${user_id}`);
 		} catch (error) {
@@ -154,8 +163,8 @@ export class Auth {
 	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		expires = (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000, // Use config value or fallback
-		isExtended = false // Extend session if required
+		expires = (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000,
+		isExtended = false
 	}: {
 		user_id: string;
 		expires?: number;
@@ -168,7 +177,6 @@ export class Auth {
 
 		logger.debug(`Creating session for user ID: ${user_id}`);
 
-		// If no existing session, create a new one
 		expires = isExtended ? expires * 2 : expires;
 		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires}`);
 		const session = await this.db.createSession({ user_id, expires });
@@ -238,14 +246,11 @@ export class Auth {
 		filter?: object;
 	}): Promise<Role[]> {
 		try {
-			// Fetch roles from the database
 			const roles = await this.db.getAllRoles(options);
-
-			// Convert _id to string and ensure all fields are serializable
 			return roles.map((role) => ({
 				...role,
-				_id: role._id.toString(), // Ensure _id is a string
-				permissions: role.permissions.map((p) => p.toString()) // Map permissions to strings
+				_id: role._id.toString(),
+				permissions: new Set(role.permissions)
 			}));
 		} catch (error) {
 			const err = error as Error;
@@ -281,7 +286,7 @@ export class Auth {
 	// Delete a user session
 	async destroySession(session_id: string): Promise<void> {
 		try {
-			await this.db.destroySession(session_id);
+			await this.db.deleteSession(session_id);
 			await this.sessionStore.delete(session_id);
 			logger.info(`Session destroyed: ${session_id}`);
 		} catch (error) {
@@ -309,11 +314,11 @@ export class Auth {
 			name: SESSION_COOKIE_NAME,
 			value: session._id,
 			attributes: {
-				sameSite: 'lax', // Set 'SameSite' to 'Lax' or 'Strict' depending on your requirements
+				sameSite: 'lax',
 				path: '/',
 				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365), // Set cookie to 1-year expiration
-				secure: process.env.NODE_ENV === 'production' // Secure flag based on environment
+				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+				secure: process.env.NODE_ENV === 'production'
 			}
 		};
 	}
@@ -362,8 +367,8 @@ export class Auth {
 	// Log out a user by destroying their session
 	async logOut(session_id: string): Promise<void> {
 		try {
-			await this.db.destroySession(session_id);
-			await this.sessionStore.delete(session_id); // Also remove from session store if applicable
+			await this.db.deleteSession(session_id);
+			await this.sessionStore.delete(session_id);
 			logger.info(`User logged out: ${session_id}`);
 		} catch (error) {
 			const err = error as Error;
@@ -381,9 +386,6 @@ export class Auth {
 				throw new Error('Session ID is undefined');
 			}
 			const user = await this.db.validateSession(session_id);
-			// const user = await this.sessionStore.validateWithDB(session_id, async (sid) => {
-			// 	return this.db.validateSession(sid);
-			// });
 
 			if (user) {
 				logger.info(`Session is valid for user: ${user.email}`);
@@ -392,9 +394,10 @@ export class Auth {
 			}
 			return user;
 		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to validate session: ${err.message}`);
-			throw new Error(`Failed to validate session: ${err.message}`);
+			// Convert error to a readable format
+			const err = error instanceof Error ? error.message : JSON.stringify(error);
+			logger.error(`Failed to validate session: ${err}`);
+			throw new Error(`Failed to validate session: ${err}`);
 		}
 	}
 
@@ -403,6 +406,7 @@ export class Auth {
 		try {
 			const user = await this.db.getUserById(user_id);
 			if (!user) throw new Error('User not found');
+
 			const token = await this.db.createToken({ user_id, email: user.email, expires, type });
 			logger.info(`Token created for user ID: ${user_id}`);
 			return token;

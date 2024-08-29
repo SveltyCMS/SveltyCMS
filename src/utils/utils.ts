@@ -190,7 +190,7 @@ export function getFieldName(field: any, sanitize = false) {
 	return (field?.db_fieldName || field?.label) as string;
 }
 
-// Save Collections data to database
+// Save Collections data to the database
 export async function saveFormData({
 	data,
 	_collection,
@@ -202,7 +202,9 @@ export async function saveFormData({
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
-	user?: User | undefined;
+	user?: User;
+	dbAdapter?: any; // Adjust type based on your actual dbAdapter implementation
+	authAdapter?: any; // Adjust type based on your actual authAdapter implementation
 }) {
 	logger.debug('saveFormData was called');
 	const $mode = _mode || get(mode);
@@ -594,9 +596,6 @@ function getRandomHex(size) {
 export const createRandomID = async (id?: string) => {
 	if (id) return id;
 	return getRandomHex(16);
-	// const { randomBytes } = await import('crypto');
-	// const _randomBytes = (await import('crypto')).default.randomBytes;
-	// return _randomBytes(16).toString('hex');
 };
 
 // Meta data

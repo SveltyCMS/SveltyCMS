@@ -1,117 +1,128 @@
 /**
  * @file src/auth/types.ts
- * @description Type definitions for the authentication system.
+ * @description Type definitions and utility functions for the authentication system.
  *
- * This module defines types and interfaces for:
+ * This module defines types, interfaces, and helper functions for:
  * - Users, roles, and permissions
  * - Sessions and tokens
- * - Authentication-related data structures
- *
- * Features:
- * - Comprehensive type definitions for auth entities
- * - Utility types and helper functions
- * - Centralized type management for the auth system
+ * - Authentication-related data structures and operations
  *
  * Usage:
  * Imported throughout the auth system to ensure type consistency and safety.
  */
 
-import { roles as configRoles, permissions as configPermissions } from '../../config/permissions';
-import type { Role as ConfigRole, Permission as ConfigPermission } from '../../config/permissions';
+import { PermissionAction as ConfigPermissionAction, PermissionType } from '../../config/permissions';
 
-// Type aliases
+// Type aliases for identifiers
 export type RoleId = string;
 export type PermissionId = string;
 
-export type Role = ConfigRole;
-export type Permission = ConfigPermission;
+// Role Interface
+export interface Role {
+	_id: RoleId;
+	name: string;
+	description?: string;
+	permissions: Set<PermissionId>;
+}
 
-// List of possible permissions for simplicity and type safety
+// Permission Interface
+export interface Permission {
+	_id: string; // Use _id for a unique identifier to match MongoDB conventions
+	name: string; // Display name of the permission
+	action: ConfigPermissionAction; // Use the imported alias
+	type: PermissionType; // Type of the permission context, e.g., "system", "collection"
+	contextId?: string; // Identifier for the context in which the permission is used (optional)
+	contextType?: string; // Type of context, e.g., "system", "configuration" (optional)
+	requiredRole?: string; // Role required to use this permission, e.g., "admin", "user" (optional)
+	description?: string; // Optional description for the permission
+}
+
+// Constants for Permission Actions and Context Types
 export const permissionActions = ['create', 'read', 'write', 'delete', 'manage_roles', 'manage_permissions'] as const;
-
-// List of possible context types for simplicity and type safety
 export const contextTypes = ['collection', 'widget', 'system'] as const;
 
 export type PermissionAction = (typeof permissionActions)[number];
 export type ContextType = (typeof contextTypes)[number];
 
-let loadedRoles: Role[] = [...configRoles];
-let loadedPermissions: Permission[] = [...configPermissions];
+// Default roles and permissions loaded from configuration
+let loadedRoles: Role[] = [];
+let loadedPermissions: Permission[] = [];
 
-export function getLoadedRoles(): Role[] {
-	return loadedRoles;
-}
+// Functions to Manage Loaded Roles and Permissions
 
-// Function to get loaded permissions
-export function getLoadedPermissions(): Permission[] {
-	return loadedPermissions;
-}
+// Retrieves the loaded roles
+export const getLoadedRoles = (): Role[] => Array.from(loadedRoles.values());
 
-// Function to set loaded roles
+// Retrieves the loaded permissions
+export const getLoadedPermissions = (): Permission[] => Array.from(loadedPermissions.values());
+
+// Sets the loaded roles
 export function setLoadedRoles(roles: Role[]): void {
 	loadedRoles = roles;
 }
 
-// Function to set loaded permissions
+// Sets the loaded permissions
 export function setLoadedPermissions(permissions: Permission[]): void {
 	loadedPermissions = permissions;
 }
 
-// Function to check if a role is an admin
+// Checks if a given role is an admin role
 export function isAdminRole(roleName: string): boolean {
 	return roleName.toLowerCase() === 'admin';
 }
 
-// Function to get a role by name
+// Retrieves a role by its name
 export function getRoleByName(roleName: string): Role | undefined {
 	return loadedRoles.find((role) => role.name.toLowerCase() === roleName.toLowerCase());
 }
 
-// Utility function to check if a user has a specific permission in a given context
-export function hasPermission(user: User, action: PermissionAction, contextId: string): boolean {
+// Checks if a user has a specific permission in a given context
+export function hasPermission(user: User, action: PermissionAction, type: PermissionType): boolean {
 	const userRole = getRoleByName(user.role);
 	if (!userRole) return false;
 
-	return userRole.permissions.some((permName) => {
-		const perm = loadedPermissions.find((p) => p.name === permName);
-		return perm && perm.action === action && (perm.contextId === contextId || perm.contextId === 'global');
+	return Array.from(userRole.permissions).some((permId) => {
+		const perm = loadedPermissions.find((p) => p._id === permId);
+		return perm && perm.action === action && (perm.type === type || perm.type === PermissionType.SYSTEM);
 	});
 }
 
-// Function to get permissions by role
+// Retrieves permissions by role
 export function getPermissionsByRole(roleName: string): Permission[] | undefined {
 	const role = getRoleByName(roleName);
 	if (!role) return undefined;
-	return role.permissions.map((permName) => loadedPermissions.find((p) => p.name === permName)).filter(Boolean) as Permission[];
+	return Array.from(role.permissions)
+		.map((permissionId) => loadedPermissions.find((p) => p._id === permissionId))
+		.filter((permission): permission is Permission => !!permission);
 }
 
-// Utility function to check if a user has a specific role
+// Checks if a user has a specific role
 export function hasRole(user: User, roleName: string): boolean {
 	return user.role.toLowerCase() === roleName.toLowerCase();
 }
 
-// Function to add a new role
+// Adds a new role to the loaded roles
 export function addRole(newRole: Role): void {
 	loadedRoles.push(newRole);
 }
 
-// Function to remove a role
+// Removes a role by its ID
 export function removeRole(roleId: RoleId): void {
-	const index = loadedRoles.findIndex((role) => role._id === roleId);
-	if (index !== -1) {
-		loadedRoles.splice(index, 1);
-	}
+	loadedRoles = loadedRoles.filter((role) => role._id !== roleId);
 }
 
-// Function to update a role
+// Updates a role by its ID
 export function updateRole(roleId: RoleId, updatedRole: Partial<Role>): void {
-	const role = loadedRoles.find((r) => r._id === roleId);
-	if (role) {
-		Object.assign(role, updatedRole);
+	const index = loadedRoles.findIndex((r) => r._id === roleId);
+	if (index !== -1) {
+		loadedRoles[index] = { ...loadedRoles[index], ...updatedRole };
+		if (updatedRole.permissions) {
+			loadedRoles[index].permissions = new Set(updatedRole.permissions);
+		}
 	}
 }
 
-// User interface represents a user in the system
+// User Interface
 export interface User {
 	_id: string; // Unique identifier for the user
 	email: string; // Email address of the user
@@ -132,37 +143,38 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
+	permissions: Set<string>; // Set of permissions associated with the user
 }
 
-// Session interface represents a session in the system
+// Session Interface
 export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
 	expires: Date; // When the session expires
 }
 
-// Token interface represents a token in the system
+// Token Interface
 export interface Token {
-	token_id: string; // Unique identifier for the token
+	_id: string; // Unique identifier for the token
 	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email?: string; // Email associated with the token
 	expires: Date; // When the token expires
 }
 
-// Collection interface to encapsulate permissions specific to collections
+// Collection Interface
 export interface Collection {
 	collection_id: string; // Unique identifier for the collection
 	name: string; // Name of the collection
 	permissions: PermissionId[]; // Permissions specific to this collection
 }
 
-// Define the type for a Cookie
+// Cookie Type
 export type Cookie = {
 	name: string; // Name of the cookie
 	value: string; // Value of the cookie
-	// Attributes of the cookie
 	attributes: {
+		// Attributes of the cookie
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
 		httpOnly: boolean;
@@ -171,37 +183,39 @@ export type Cookie = {
 	};
 };
 
-// Define the type for RateLimit
+// RateLimit Interface
 export interface RateLimit {
-	user_id: string;
-	action: PermissionAction;
-	limit: number;
-	windowMs: number;
-	current: number;
-	lastActionAt: Date;
+	user_id: string; // User ID the rate limit applies to
+	action: PermissionAction; // Action being rate-limited
+	limit: number; // Maximum allowed actions
+	windowMs: number; // Time window in milliseconds
+	current: number; // Current count of actions performed
+	lastActionAt: Date; // Last action timestamp
 }
 
-// Icons for permissions
+// Icon and Color Mapping for Permissions
 export const icon = {
 	create: 'bi:plus-circle-fill',
 	read: 'bi:eye-fill',
 	write: 'bi:pencil-fill',
-	delete: 'bi:trash-fill'
+	delete: 'bi:trash-fill',
+	share: 'bi:share-fill'
 } as const;
 
-// Color coding for permissions
 export const color = {
 	disabled: {
 		create: 'variant-outline-primary',
 		read: 'variant-outline-tertiary',
 		write: 'variant-outline-warning',
-		delete: 'variant-outline-error'
+		delete: 'variant-outline-error',
+		share: 'variant-outline-secondary'
 	},
 	enabled: {
 		create: 'variant-filled-primary',
 		read: 'variant-filled-tertiary',
 		write: 'variant-filled-warning',
-		delete: 'variant-filled-error'
+		delete: 'variant-filled-error',
+		share: 'variant-filled-secondary'
 	}
 } as const;
 
@@ -230,36 +244,47 @@ export const sanitizePermissions = (permissions: Record<string, Record<string, b
 	return Object.keys(res).length === 0 ? undefined : res;
 };
 
-// Define the type for a Model
+// Model Interface for Generic CRUD Operations
 export interface Model<T> {
+	// Creates a new document
 	create(data: Partial<T>): Promise<T>;
+
+	// Finds a single document matching the query
 	findOne(query: Partial<T>): Promise<T | null>;
+
+	// Finds multiple documents matching the query
 	find(query: Partial<T>): Promise<T[]>;
+
+	// Updates a single document matching the query
 	updateOne(query: Partial<T>, update: Partial<T>): Promise<void>;
+
+	// Deletes a single document matching the query
 	deleteOne(query: Partial<T>): Promise<void>;
+
+	// Counts the number of documents matching the query
 	countDocuments(query?: Partial<T>): Promise<number>;
 }
 
-// Define the type for Widgets
-export type WidgetId = string;
+// Additional Types
+export type WidgetId = string; // Unique identifier for a widget
 
-// Define the type for Schema
+// Schema Interface
 export interface Schema {
-	icon?: string;
-	status?: string;
+	icon?: string; // Optional icon representing the schema
+	status?: string; // Optional status of the schema
 	revision?: boolean; // Indicates if the schema supports revisions
-	permissions?: RolePermissions;
-	fields: any[];
+	permissions?: RolePermissions; // Role-based permissions associated with the schema
+	fields: any[]; // Array of fields defined in the schema
 }
 
-// Define the type for role-based permissions
+// RolePermissions Interface
 export interface RolePermissions {
 	[role: string]: {
-		[action in PermissionAction]?: boolean;
+		[action in PermissionAction]?: boolean; // Defines actions permitted for each role
 	};
 }
 
-// Define the type for Drafts
+// Draft Interface
 export interface Draft {
 	draft_id: string; // Unique identifier for the draft
 	collection_id: string; // ID of the collection the draft belongs to
@@ -270,7 +295,7 @@ export interface Draft {
 	status: 'pending' | 'failed'; // Status of the draft
 }
 
-// Define the type for Revisions
+// Revision Interface
 export interface Revision {
 	revision_id: string; // Unique identifier for the revision
 	collection_id: string; // ID of the collection the revision belongs to

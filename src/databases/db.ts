@@ -31,6 +31,7 @@ import { browser } from '$app/environment';
 // Auth
 import { Auth } from '@src/auth';
 import { getCollections, updateCollections } from '@src/collections';
+import { getPermissionByName, getAllPermissions, syncPermissions } from '@src/auth/permissionManager';
 
 // Adapters Interfaces
 import type { dbInterface } from './dbInterface';
@@ -39,12 +40,8 @@ import type { authDBInterface } from '@src/auth/authDBInterface';
 // MongoDB Adapters
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
 import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
-import { PermissionAdapter } from '@src/auth/permissionAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-
-// Drizzle Adapters (Commented out for future implementation)
-// import { DrizzleAuthAdapter } from '@src/auth/drizzelDBAuth/drizzleAuthAdapter';
 
 // System Logger
 import logger from '@src/utils/logger';
@@ -58,8 +55,7 @@ const MAX_RETRIES = 5; // Maximum number of DB connection retries
 const RETRY_DELAY = 5000; // 5 seconds
 
 let initializationPromise: Promise<void> | null = null;
-// Flag to track initialization status
-let isInitialized = false;
+let isInitialized = false; // Flag to track initialization status
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
@@ -74,38 +70,25 @@ async function loadAdapters() {
 			dbAdapter = new MongoDBAdapter();
 			const userAdapter = new UserAdapter();
 			const roleAdapter = new RoleAdapter();
-			const permissionAdapter = new PermissionAdapter();
 			const sessionAdapter = new SessionAdapter();
 			const tokenAdapter = new TokenAdapter();
 
 			authAdapter = {
-				...userAdapter,
-				...roleAdapter,
-				...permissionAdapter,
-				...sessionAdapter,
-				...tokenAdapter,
-				// Bind all methods explicitly
-
 				// User Management Methods
 				createUser: userAdapter.createUser.bind(userAdapter),
 				updateUserAttributes: userAdapter.updateUserAttributes.bind(userAdapter),
-				addUser: userAdapter.addUser.bind(userAdapter),
 				deleteUser: userAdapter.deleteUser.bind(userAdapter),
-				changePassword: userAdapter.changePassword.bind(userAdapter),
-				blockUser: userAdapter.blockUser.bind(userAdapter),
-				unblockUser: userAdapter.unblockUser.bind(userAdapter),
 				getUserById: userAdapter.getUserById.bind(userAdapter),
 				getUserByEmail: userAdapter.getUserByEmail.bind(userAdapter),
 				getAllUsers: userAdapter.getAllUsers.bind(userAdapter),
 				getUserCount: userAdapter.getUserCount.bind(userAdapter),
-				getRecentUserActivities: userAdapter.getRecentUserActivities?.bind(userAdapter),
 
 				// Session Management Methods
 				createSession: sessionAdapter.createSession.bind(sessionAdapter),
 				updateSessionExpiry: sessionAdapter.updateSessionExpiry.bind(sessionAdapter),
-				destroySession: sessionAdapter.destroySession.bind(sessionAdapter),
-				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
+				deleteSession: sessionAdapter.deleteSession.bind(sessionAdapter),
 				deleteExpiredSessions: sessionAdapter.deleteExpiredSessions.bind(sessionAdapter),
+				validateSession: sessionAdapter.validateSession.bind(sessionAdapter),
 				invalidateAllUserSessions: sessionAdapter.invalidateAllUserSessions.bind(sessionAdapter),
 				getActiveSessions: sessionAdapter.getActiveSessions.bind(sessionAdapter),
 
@@ -124,49 +107,20 @@ async function loadAdapters() {
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
 
 				// Permission Management Methods
-				createPermission: permissionAdapter.createPermission.bind(permissionAdapter),
-				updatePermission: permissionAdapter.updatePermission.bind(permissionAdapter),
-				deletePermission: permissionAdapter.deletePermission.bind(permissionAdapter),
-				getAllPermissions: permissionAdapter.getAllPermissions.bind(permissionAdapter),
-				getPermissionByName: permissionAdapter.getPermissionByName.bind(permissionAdapter),
-
-				// Role-Permissions Linking Methods
-				assignPermissionToRole: roleAdapter.assignPermissionToRole.bind(roleAdapter),
-				removePermissionFromRole: roleAdapter.removePermissionFromRole.bind(roleAdapter),
-				getPermissionsForRole: roleAdapter.getPermissionsForRole.bind(roleAdapter),
-				getRolesForPermission: roleAdapter.getRolesForPermission.bind(roleAdapter),
-
-				// User-Specific Permissions Methods
-				assignPermissionToUser: userAdapter.assignPermissionToUser?.bind(userAdapter),
-				removePermissionFromUser: userAdapter.removePermissionFromUser?.bind(userAdapter),
-				getPermissionsForUser: userAdapter.getPermissionsForUser?.bind(userAdapter),
-				getUsersWithPermission: userAdapter.getUsersWithPermission?.bind(userAdapter),
-
-				// User-Role Methods
-				assignRoleToUser: userAdapter.assignRoleToUser?.bind(userAdapter),
-				removeRoleFromUser: userAdapter.removeRoleFromUser?.bind(userAdapter),
-				getRolesForUser: userAdapter.getRolesForUser?.bind(userAdapter),
-				getUsersWithRole: roleAdapter.getUsersWithRole.bind(roleAdapter),
-
-				// Utility Methods
-				checkUserPermission: userAdapter.checkUserPermission?.bind(userAdapter),
-				checkUserRole: userAdapter.checkUserRole?.bind(userAdapter),
+				getAllPermissions,
+				getPermissionByName,
+				updatePermission: roleAdapter.updatePermission.bind(roleAdapter),
+				deletePermission: roleAdapter.deletePermission.bind(roleAdapter),
 
 				// Sync Methods
 				syncRolesWithConfig: roleAdapter.syncRolesWithConfig.bind(roleAdapter),
-				syncPermissionsWithConfig: permissionAdapter.syncPermissionsWithConfig.bind(permissionAdapter)
+				syncPermissionsWithConfig: syncPermissions
 			} as authDBInterface;
 
 			logger.info('MongoDB adapters loaded successfully.');
 		} else if (privateEnv.DB_TYPE === 'mariadb' || privateEnv.DB_TYPE === 'postgresql') {
 			logger.debug('Implement & Loading SQL adapters...');
 			// Implement SQL adapters loading here
-			// const [{ DrizzleDBAdapter }, { DrizzleAuthAdapter }] = await Promise.all([
-			// 	import('./drizzleDBAdapter'),
-			// 	import('@src/auth/drizzelDBAuth/drizzleAuthAdapter')
-			// ]);
-			// dbAdapter = new DrizzleDBAdapter();
-			// authAdapter = new DrizzleAuthAdapter();
 		} else {
 			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
@@ -182,17 +136,14 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 		throw new Error('Database adapter not initialized');
 	}
 
-	// Message for connecting to the database
 	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
 
 	for (let attempt = 1; attempt <= retries; attempt++) {
 		try {
 			await dbAdapter.connect();
-			// Message for successful connection
 			logger.info(`\x1b[32mConnection to ${privateEnv.DB_NAME} database successful!\x1b[0m ===> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`);
 			return;
 		} catch (error) {
-			// Message for connection error
 			logger.error(`\x1b[31m Error connecting to database:\x1b[0m (attempt ${attempt}/${retries}): ${(error as Error).message}`, { error });
 			if (attempt < retries) {
 				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
@@ -212,14 +163,11 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 		logger.debug(`Found ${themes.length} themes`);
 
 		if (themes.length === 0) {
-			// If no themes exist, create the default SveltyCMS theme
 			await dbAdapter.storeThemes([DEFAULT_THEME]);
 			logger.info('Default SveltyCMS theme created successfully.');
 		} else {
-			// Check if SveltyCMS Theme exists
 			const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
 			if (sveltyCMSTheme) {
-				// Check if the theme is already marked as default
 				if (!sveltyCMSTheme.isDefault) {
 					await dbAdapter.setDefaultTheme(DEFAULT_THEME.name);
 					logger.info('SveltyCMS theme set as default.');
@@ -227,7 +175,6 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 					logger.info('SveltyCMS theme is already set as default.');
 				}
 			} else {
-				// If SveltyCMS theme doesn't exist, create it
 				await dbAdapter.storeThemes([DEFAULT_THEME]);
 				logger.info('SveltyCMS theme created and set as default.');
 			}
@@ -245,19 +192,18 @@ async function initializeVirtualFolders() {
 	}
 
 	try {
-		// Check if root folder exists, if not, create it
 		const rootFolders = await dbAdapter.getVirtualFolders();
 		if (rootFolders.length === 0) {
 			await dbAdapter.createVirtualFolder({
 				name: 'Root',
-				path: '/Root', // Explicit path for the root folder
-				parent: undefined // Root has no parent
+				path: '/Root',
+				parent: undefined
 			});
 			logger.info('Root virtual folder created');
 		}
 	} catch (error) {
 		logger.error(`Error initializing virtual folders: ${(error as Error).message}`);
-		throw error; // Re-throw the error
+		throw error;
 	}
 }
 
@@ -269,14 +215,10 @@ async function initializeAdapters(): Promise<void> {
 	}
 
 	try {
-		// Load database and authentication adapters
 		await loadAdapters();
 
 		if (!browser) {
-			// Connect to the database only on the server
 			await connectToDatabase();
-
-			// Initialize collections and models
 			await updateCollections();
 			const collections = await getCollections();
 
@@ -287,34 +229,29 @@ async function initializeAdapters(): Promise<void> {
 				throw new Error('Database adapter not initialized');
 			}
 
-			// Initialize default theme
 			await initializeDefaultTheme(dbAdapter);
-			// Initialize virtual folders
 			await initializeVirtualFolders();
-			// Setup auth models and media models
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
 			await dbAdapter.getCollectionModels();
 		}
 
-		// Initialize the authentication system
 		if (!authAdapter) {
 			throw new Error('Authentication adapter not initialized');
 		}
+
 		auth = new Auth(authAdapter);
 		logger.debug('Authentication adapter initialized.');
 
-		// Mark the system as initialized only after all steps are complete
 		isInitialized = true;
 		logger.info('Adapters initialized successfully');
 	} catch (error) {
 		logger.error(`Error initializing adapters: ${(error as Error).message}`, { error });
 		initializationPromise = null;
-		throw error; // Rethrow to ensure the error is propagated
+		throw error;
 	}
 }
 
-// Initialize the adapter
 initializationPromise = initializeAdapters()
 	.then(() => logger.debug('Initialization completed successfully.'))
 	.catch((error) => {

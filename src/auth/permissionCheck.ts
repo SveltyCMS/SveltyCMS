@@ -2,28 +2,7 @@
  * @file src/auth/permissionCheck.ts
  * @description User permission checking utility for server-side routes.
  *
- * This module provides a function to check user permissions based on their role
- * and the required permissions for a specific action or resource. It's designed
- * to be used in +page.server.ts files or other server-side logic where
- * fine-grained permission checks are needed.
- *
- * Features:
- * - Checks user roles against required permissions
- * - Supports context-based permissions (e.g., different permissions for different resources)
- * - Automatically grants all permissions to admin users
- * - Integrates with the existing auth system
- *
- * Usage:
- * import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
- *
- * // In a +page.server.ts load function:
- * const permissionConfig: PermissionConfig = {
- *   contextId: 'resource/action',
- *   requiredRole: 'editor',
- *   action: 'read',
- *   contextType: 'collection'
- * };
- * const hasPermission = await checkUserPermission(user, permissionConfig);
+ * Provides a function to check user permissions based on their role and the required permissions for a specific action or resource.
  */
 
 import type { User, PermissionAction, ContextType, Permission } from './types';
@@ -37,42 +16,66 @@ export interface PermissionConfig {
 	contextType: ContextType | string;
 }
 
-export async function checkUserPermission(user: User, config: PermissionConfig): Promise<boolean> {
-	// Admins have all permissions
-	if (user.role === 'admin') {
-		return true;
-	}
+// Cache to store roles and permissions temporarily
+const rolePermissionCache: Record<string, Permission[]> = {};
 
+// Function to check user permissions
+export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		// Get the user's role
-		const userRole = await authAdapter!.getRoleByName(user.role);
-
-		// If the role does not exist, return false
-		if (!userRole) {
-			logger.warn(`Role ${user.role} not found for user ${user.email}`);
-			return false;
+		// Automatically grant permissions to admin users
+		if (user.role === 'admin') {
+			return { hasPermission: true, isRateLimited: false };
 		}
 
-		// Retrieve permissions for the role
-		const permissions: Permission[] = await authAdapter!.getPermissionsForRole(userRole.name);
+		// Check if authAdapter is initialized
+		if (!authAdapter) {
+			logger.error('Authentication adapter is not initialized.');
+			return { hasPermission: false, isRateLimited: false };
+		}
 
-		// Check if any of the permissions match the required configuration
-		const hasPermission = permissions.some(
+		// Retrieve cached role permissions or fetch from adapter if not cached
+		let userPermissions: Permission[] = rolePermissionCache[user.role];
+		if (!userPermissions) {
+			const userRole = await authAdapter.getRoleByName(user.role);
+			if (!userRole) {
+				logger.warn(`Role ${user.role} not found for user ${user.email}`);
+				return { hasPermission: false, isRateLimited: false };
+			}
+
+			// Fetch all permissions and filter by the user's role permissions
+			const allPermissions = await authAdapter.getAllPermissions();
+			userPermissions = allPermissions.filter((permission) => userRole.permissions.has(permission.id));
+
+			rolePermissionCache[user.role] = userPermissions; // Cache the result
+		}
+
+		// Check for self-lockout attempt
+		if (config.requiredRole !== 'admin' && user.role === config.requiredRole) {
+			const hasSelfLockout = userPermissions.every(
+				(permission) => permission.id !== config.contextId || permission.action !== config.action || permission.type !== config.contextType
+			);
+
+			if (hasSelfLockout) {
+				logger.error(`User ${user.email} attempted a self-lockout by role change`);
+				return { hasPermission: false, isRateLimited: false };
+			}
+		}
+
+		// Check if the user has the required permission
+		const hasPermission = userPermissions.some(
 			(permission) =>
-				permission.contextId === config.contextId &&
+				permission.id === config.contextId &&
 				permission.action === config.action &&
-				permission.contextType === config.contextType &&
-				userRole.name === config.requiredRole
+				(permission.type === config.contextType || permission.type === 'system')
 		);
 
 		if (!hasPermission) {
 			logger.info(`User ${user.email} lacks required permission for ${config.contextId}`);
 		}
 
-		return hasPermission;
+		return { hasPermission, isRateLimited: false };
 	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error checking user permission: ${err.message}`);
-		return false;
+		logger.error(`Error checking user permission: ${(error as Error).message}`);
+		return { hasPermission: false, isRateLimited: false };
 	}
 }

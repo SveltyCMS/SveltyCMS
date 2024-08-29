@@ -18,12 +18,11 @@
  */
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import crypto from 'crypto';
 
 // Types
 import type { Token } from '../types';
 import type { authDBInterface } from '../authDBInterface';
-
-import crypto from 'crypto';
 
 // System Logging
 import logger from '@utils/logger';
@@ -34,10 +33,21 @@ export const TokenSchema = new Schema(
 		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
 		email: { type: String, required: true }, // Email associated with the token, required field
-		expires: { type: Date, required: true } // Expiry date of the token, required field
+		expires: { type: Date, required: true }, // Expiry date of the token, required field
+		type: { type: String, required: true } // Type of the token, required field
 	},
 	{ timestamps: true }
 );
+
+/**
+ * Custom Error class for Token-related errors.
+ */
+class TokenError extends Error {
+	constructor(message: string) {
+		super(message);
+		this.name = 'TokenError';
+	}
+}
 
 export class TokenAdapter implements Partial<authDBInterface> {
 	private TokenModel: Model<Token & Document>;
@@ -47,79 +57,84 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		this.TokenModel = mongoose.models.auth_tokens || mongoose.model<Token & Document>('auth_tokens', TokenSchema);
 	}
 
+	// Helper function for centralized logging
+	private log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additionalInfo: any = {}) {
+		logger[level](`${message} ${JSON.stringify(additionalInfo)}`);
+	}
+
 	// Create a new token
 	async createToken(data: { user_id: string; email: string; expires: number; type: string }): Promise<string> {
 		try {
-			const token = crypto.randomBytes(32).toString('hex'); // Generate a secure token string
+			const token = crypto.randomBytes(32).toString('hex');
 			const newToken = new this.TokenModel({
 				user_id: data.user_id,
 				token,
 				email: data.email,
 				type: data.type,
-				expires: new Date(Date.now() + data.expires) // Calculate the expiration time from the current time
+				expires: new Date(Date.now() + data.expires)
 			});
 			await newToken.save();
-			logger.debug(`Token created for user: ${data.user_id}`);
-			return token; // Return the newly created token
+			this.log('debug', 'Token created', { user_id: data.user_id });
+			return token;
 		} catch (error) {
-			logger.error(`Failed to create token: ${(error as Error).message}`);
-			throw error;
+			this.log('error', 'Failed to create token', { error: (error as Error).message });
+			throw new TokenError('Failed to create token');
 		}
 	}
 
 	// Validate a token
 	async validateToken(token: string, user_id: string, type: string): Promise<{ success: boolean; message: string }> {
 		try {
-			const tokenDoc = await this.TokenModel.findOne({ token, user_id, type });
+			const tokenDoc = await this.TokenModel.findOne({ token, user_id, type }).lean();
 			if (tokenDoc) {
 				if (tokenDoc.expires > new Date()) {
-					logger.debug(`Token validated for user: ${user_id}`);
+					this.log('debug', 'Token validated', { user_id });
 					return { success: true, message: 'Token is valid' };
 				} else {
-					logger.warn(`Expired token for user: ${user_id}`);
+					this.log('warn', 'Expired token', { user_id });
 					return { success: false, message: 'Token is expired' };
 				}
 			} else {
-				logger.warn(`Invalid token for user: ${user_id}`);
+				this.log('warn', 'Invalid token', { user_id });
 				return { success: false, message: 'Token is invalid' };
 			}
 		} catch (error) {
-			logger.error(`Failed to validate token: ${(error as Error).message}`);
-			throw error;
+			this.log('error', 'Failed to validate token', { error: (error as Error).message });
+			throw new TokenError('Failed to validate token');
 		}
 	}
 
 	// Consume a token
 	async consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }> {
 		try {
-			const tokenDoc = await this.TokenModel.findOneAndDelete({ token, user_id, type });
+			const tokenDoc = await this.TokenModel.findOneAndDelete({ token, user_id, type }).lean();
 			if (tokenDoc) {
 				if (tokenDoc.expires > new Date()) {
-					logger.debug(`Token consumed for user: ${user_id}`);
+					this.log('debug', 'Token consumed', { user_id });
 					return { status: true, message: 'Token is valid and consumed' };
 				} else {
-					logger.warn(`Expired token consumed for user: ${user_id}`);
+					this.log('warn', 'Expired token consumed', { user_id });
 					return { status: false, message: 'Token is expired' };
 				}
 			} else {
-				logger.warn(`Invalid token attempted to consume for user: ${user_id}`);
+				this.log('warn', 'Invalid token consumption attempt', { user_id });
 				return { status: false, message: 'Token is invalid' };
 			}
 		} catch (error) {
-			logger.error(`Failed to consume token: ${(error as Error).message}`);
-			throw error;
+			this.log('error', 'Failed to consume token', { error: (error as Error).message });
+			throw new TokenError('Failed to consume token');
 		}
 	}
 
 	// Get all tokens
 	async getAllTokens(filter?: object): Promise<Token[]> {
 		try {
-			const tokens = await this.TokenModel.find(filter || {});
-			logger.debug('All tokens retrieved');
-			return tokens.map((token) => token.toObject() as Token);
+			const tokens = await this.TokenModel.find(filter || {}).lean();
+			this.log('debug', 'All tokens retrieved');
+			return tokens;
 		} catch (error) {
-			logger.error(`Failed to get all tokens: ${(error as Error).message}`);
-			throw error;
+			this.log('error', 'Failed to get all tokens', { error: (error as Error).message });
+			throw new TokenError('Failed to get all tokens');
 		}
 	}
 
@@ -127,11 +142,11 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	async deleteExpiredTokens(): Promise<number> {
 		try {
 			const result = await this.TokenModel.deleteMany({ expires: { $lte: new Date() } });
-			logger.info(`Deleted ${result.deletedCount} expired tokens`);
+			this.log('info', 'Expired tokens deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
 		} catch (error) {
-			logger.error(`Failed to delete expired tokens: ${(error as Error).message}`);
-			throw error;
+			this.log('error', 'Failed to delete expired tokens', { error: (error as Error).message });
+			throw new TokenError('Failed to delete expired tokens');
 		}
 	}
 }

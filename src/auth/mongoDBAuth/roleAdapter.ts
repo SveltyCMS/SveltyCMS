@@ -17,8 +17,8 @@
  * - Dynamic role synchronization with configuration
  *
  * Usage:
- * Used by the auth system to manage roles and their permissions in a MongoDB database
- * The syncRolesWithConfig method ensures that the database reflects the current role configuration
+ * Used by the auth system to manage roles and their permissions in a MongoDB database.
+ * The syncRolesWithConfig method ensures that the database reflects the current role configuration.
  */
 
 import { Schema } from 'mongoose';
@@ -27,10 +27,15 @@ import path from 'path';
 
 // Types
 import type { authDBInterface } from '../authDBInterface';
-import type { Permission, Role } from '../types';
+import type { Role, Permission } from '../types';
+
+// Import permission manager functions
+import { getPermissionByName, getAllPermissions } from '../permissionManager';
 
 // Import roles from config
-import { roles as configRoles, permissions as configPermissions } from '../../../config/permissions';
+import { roles as configRoles } from '@root/config/roles';
+
+import { createRandomID } from '@utils/utils';
 
 // System Logging
 import logger from '@utils/logger';
@@ -47,118 +52,160 @@ export const RoleSchema = new Schema(
 
 // Define the Role adapter
 export class RoleAdapter implements Partial<authDBInterface> {
-	private roles: Role[];
-	private permissions: Permission[];
+	private roles: Map<string, Role>; // Use a Map for faster lookups
 
 	constructor() {
-		this.roles = [...configRoles];
-		this.permissions = [...configPermissions];
+		this.roles = new Map(configRoles.map((role) => [role._id, role])); // Initialize roles using Map
 	}
 
-	// Role Management Methods
-	async createRole(roleData: Partial<Role>, currentUserId: string): Promise<Role> {
-		if (!roleData.name) {
-			throw new Error('Role name is required');
-		}
-		if (this.roles.some((r) => r.name === roleData.name)) {
-			throw new Error('Role with this name already exists');
-		}
+	// Create a new role
+	async createRole(roleData: Partial<Role>, current_user_id: string): Promise<Role> {
+		if (!roleData.name) throw new Error('Role name is required');
+
+		if (this.roles.has(roleData.name)) throw new Error('Role with this name already exists');
+
 		const newRole: Role = {
+			_id: await createRandomID(),
 			name: roleData.name,
 			description: roleData.description || '',
-			permissions: roleData.permissions || []
+			permissions: new Set(roleData.permissions || [])
 		};
-		this.roles.push(newRole);
+
+		this.roles.set(newRole._id, newRole);
 		await this.syncConfigFile();
-		logger.info(`Role created: ${newRole.name} by user: ${currentUserId}`);
+		logger.info(`Role created: ${newRole.name} by user: ${current_user_id}`);
 		return newRole;
 	}
 
 	// Update role
-	async updateRole(roleName: string, roleData: Partial<Role>, currentUserId: string): Promise<void> {
-		const index = this.roles.findIndex((r) => r.name === roleName);
-		if (index === -1) {
-			throw new Error('Role not found');
-		}
-		this.roles[index] = { ...this.roles[index], ...roleData, name: roleName };
+	async updateRole(role_id: string, roleData: Partial<Role>, current_user_id: string): Promise<void> {
+		const role = this.roles.get(role_id);
+		if (!role) throw new Error('Role not found');
+
+		this.roles.set(role_id, { ...role, ...roleData });
 		await this.syncConfigFile();
-		logger.debug(`Role updated: ${roleName} by user: ${currentUserId}`);
+		logger.debug(`Role updated: ${role.name} by user: ${current_user_id}`);
 	}
 
 	// Delete role
-	async deleteRole(roleName: string, currentUserId: string): Promise<void> {
-		const index = this.roles.findIndex((r) => r.name === roleName);
-		if (index === -1) {
-			throw new Error('Role not found');
-		}
-		this.roles.splice(index, 1);
+	async deleteRole(role_id: string, current_user_id: string): Promise<void> {
+		if (!this.roles.has(role_id)) throw new Error('Role not found');
+
+		this.roles.delete(role_id);
 		await this.syncConfigFile();
-		logger.info(`Role deleted: ${roleName} by user: ${currentUserId}`);
+		logger.info(`Role deleted: ${role_id} by user: ${current_user_id}`);
+	}
+
+	// Update permission
+	async updatePermission(permission_name: string, updateData: Partial<Permission>, current_user_id: string): Promise<void> {
+		const permission = await getPermissionByName(permission_name);
+		if (!permission) throw new Error('Permission not found');
+
+		Object.assign(permission, updateData);
+		await this.syncConfigFile();
+		logger.info(`Permission updated: ${permission_name} by user: ${current_user_id}`);
+	}
+
+	// Delete permission
+	async deletePermission(permission_name: string, current_user_id: string): Promise<void> {
+		const permissionIndex = [...this.roles.values()].findIndex((role) => role.permissions.has(permission_name));
+
+		if (permissionIndex === -1) throw new Error('Permission not found');
+
+		this.roles.forEach((role) => role.permissions.delete(permission_name));
+		await this.syncConfigFile();
+		logger.info(`Permission deleted: ${permission_name} by user: ${current_user_id}`);
+	}
+
+	// Get role by id
+	async getRoleById(role_id: string): Promise<Role | null> {
+		const role = this.roles.get(role_id) || null;
+		if (!role) logger.warn(`Role not found: ${role_id}`);
+		return role;
 	}
 
 	// Get all roles
-	async getAllRoles(): Promise<Role[]> {
-		return this.roles;
+	async getAllRoles(options?: {
+		limit?: number;
+		skip?: number;
+		sort?: { [key: string]: 1 | -1 } | [string, 1 | -1][];
+		filter?: object;
+	}): Promise<Role[]> {
+		let filteredRoles = [...this.roles.values()];
+
+		// Apply filtering, sorting, and pagination if options are provided
+		if (options?.filter) {
+			filteredRoles = filteredRoles.filter((role) => Object.entries(options.filter!).every(([key, value]) => (role as any)[key] === value));
+		}
+
+		if (options?.sort) {
+			const sortKeys = Object.keys(options.sort);
+			filteredRoles.sort((a, b) =>
+				sortKeys.reduce((acc, key) => acc || ((a as any)[key] > (b as any)[key] ? 1 : -1) * (options.sort![key] as number), 0)
+			);
+		}
+
+		if (typeof options?.skip === 'number') filteredRoles = filteredRoles.slice(options.skip);
+		if (typeof options?.limit === 'number') filteredRoles = filteredRoles.slice(0, options.limit);
+
+		logger.debug('All roles retrieved with options applied');
+		return filteredRoles;
 	}
 
 	// Get role by name
 	async getRoleByName(name: string): Promise<Role | null> {
-		return this.roles.find((r) => r.name === name) || null;
+		const role = [...this.roles.values()].find((r) => r.name === name) || null;
+		if (!role) logger.warn(`Role not found: ${name}`);
+		return role;
 	}
 
 	// Get permissions for a role
-	async getPermissionsForRole(roleName: string): Promise<Permission[]> {
-		const role = this.roles.find((r) => r.name === roleName);
-		if (!role) {
-			return [];
-		}
-		return this.permissions.filter((p) => role.permissions.includes(p.name));
-	}
+	async getPermissionsForRole(role_name: string): Promise<Permission[]> {
+		const role = [...this.roles.values()].find((r) => r.name === role_name);
+		if (!role) return [];
 
-	// Get users with role
-	async getUsersWithRole(role_id: string): Promise<any[]> {
-		// This is a placeholder implementation
-		// In a real scenario, you would query the user collection to find users with this role
-		logger.warn(`getUsersWithRole called for role ${role_id}. This method needs to be implemented properly.`);
-		return [];
+		const allPermissions = await getAllPermissions();
+		const rolePermissions = allPermissions.filter((p) => role.permissions.has(p.name));
+		logger.debug(`Permissions for role ${role_name} retrieved`);
+		return rolePermissions;
 	}
 
 	// Assign a permission to a role
-	async assignPermissionToRole(roleName: string, permissionName: string, currentUserId: string): Promise<void> {
-		const role = this.roles.find((r) => r.name === roleName);
-		if (!role) {
-			throw new Error('Role not found');
-		}
-		if (!role.permissions.includes(permissionName)) {
-			role.permissions.push(permissionName);
+	async assignPermissionToRole(role_name: string, permission_name: string, current_user_id: string): Promise<void> {
+		const role = [...this.roles.values()].find((r) => r.name === role_name);
+		if (!role) throw new Error('Role not found');
+
+		const permission = await getPermissionByName(permission_name);
+		if (!permission) throw new Error('Permission not found');
+
+		if (!role.permissions.has(permission_name)) {
+			role.permissions.add(permission_name);
 			await this.syncConfigFile();
-			logger.debug(`Permission ${permissionName} assigned to role ${roleName} by user ${currentUserId}`);
+			logger.debug(`Permission ${permission_name} assigned to role ${role_name} by user ${current_user_id}`);
 		}
 	}
 
 	// Remove a permission from a role
-	async removePermissionFromRole(roleName: string, permissionName: string, currentUserId: string): Promise<void> {
-		const role = this.roles.find((r) => r.name === roleName);
-		if (!role) {
-			throw new Error('Role not found');
-		}
-		role.permissions = role.permissions.filter((p) => p !== permissionName);
+	async deletePermissionFromRole(role_name: string, permission_name: string, current_user_id: string): Promise<void> {
+		const role = [...this.roles.values()].find((r) => r.name === role_name);
+		if (!role) throw new Error('Role not found');
+
+		role.permissions.delete(permission_name);
 		await this.syncConfigFile();
-		logger.debug(`Permission ${permissionName} removed from role ${roleName} by user ${currentUserId}`);
+		logger.debug(`Permission ${permission_name} deleted from role ${role_name} by user ${current_user_id}`);
 	}
 
 	// Get roles for a permission
-	async getRolesForPermission(permissionName: string): Promise<Role[]> {
-		return this.roles.filter((role) => role.permissions.includes(permissionName));
+	async getRolesForPermission(permission_name: string): Promise<Role[]> {
+		const rolesWithPermission = [...this.roles.values()].filter((role) => role.permissions.has(permission_name));
+		logger.debug(`Roles with permission ${permission_name} retrieved`);
+		return rolesWithPermission;
 	}
 
 	// Sync the roles with the config file
 	async syncRolesWithConfig(): Promise<void> {
 		try {
-			// Reset roles to the configuration
-			this.roles = [...configRoles];
-
-			// Optionally, you might want to perform some validation or additional processing here
+			this.roles = new Map(configRoles.map((role) => [role._id, role]));
 
 			await this.syncConfigFile();
 			logger.info('Roles synced with configuration successfully');
@@ -168,16 +215,14 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
-	// Sync the config file with the default roles and permission
+	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
-		const configPath = path.resolve(__dirname, '../../../config/permissions.ts');
+		const configPath = path.resolve(__dirname, '../../config/permissions.ts');
 		const content = `
 import type { Permission, Role } from '../src/auth/types';
 
-export const permissions: Permission[] = ${JSON.stringify(this.permissions, null, 2)};
-
-export const roles: Role[] = ${JSON.stringify(this.roles, null, 2)};
-        `;
+export const roles: Role[] = ${JSON.stringify([...this.roles.values()], null, 2)};
+`;
 
 		try {
 			await fs.writeFile(configPath, content, 'utf8');
@@ -186,15 +231,5 @@ export const roles: Role[] = ${JSON.stringify(this.roles, null, 2)};
 			logger.error(`Failed to update config file: ${(error as Error).message}`);
 			throw new Error('Failed to update config file');
 		}
-	}
-
-	// Get all permissions
-	async getAllPermissions(): Promise<Permission[]> {
-		return this.permissions;
-	}
-
-	// Get a permission by name
-	async getPermissionByName(name: string): Promise<Permission | null> {
-		return this.permissions.find((p) => p.name === name) || null;
 	}
 }

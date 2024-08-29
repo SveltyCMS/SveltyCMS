@@ -46,12 +46,12 @@ export interface dbInterface {
 
 	// Methods for Draft and Revision Management
 	generateId(): string;
-	createDraft?(content: any, originalDocumentId: string, userId: string): Promise<any>;
-	updateDraft?(draftId: string, content: any): Promise<any>;
-	publishDraft?(draftId: string): Promise<any>;
-	getDraftsByUser?(userId: string): Promise<any[]>;
-	createRevision?(documentId: string, content: any, userId: string): Promise<any>;
-	getRevisions?(documentId: string): Promise<any[]>;
+	createDraft?(content: any, original_document_id: string, user_id: string): Promise<any>;
+	updateDraft?(draft_id: string, content: any): Promise<any>;
+	publishDraft?(draft_id: string): Promise<any>;
+	getDraftsByUser?(user_id: string): Promise<any[]>;
+	createRevision?(document_id: string, content: any, user_id: string): Promise<any>;
+	getRevisions?(document_id: string): Promise<any[]>;
 
 	// Methods for Widget Management
 	installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>;
@@ -68,22 +68,22 @@ export interface dbInterface {
 	getAllThemes(): Promise<any[]>;
 
 	// System Preferences
-	getSystemPreferences(userId: string): Promise<UserPreferences | null>;
-	updateSystemPreferences(userId: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>;
-	clearSystemPreferences(userId: string): Promise<void>;
+	getSystemPreferences(user_id: string): Promise<UserPreferences | null>;
+	updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>;
+	clearSystemPreferences(user_id: string): Promise<void>;
 
 	// Virtual Folder Methods
 	createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any>;
 	getVirtualFolders(): Promise<any[]>;
-	getVirtualFolderContents(folderId: string): Promise<any[]>;
-	updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any>;
-	deleteVirtualFolder(folderId: string): Promise<boolean>;
+	getVirtualFolderContents(folder_id: string): Promise<any[]>;
+	updateVirtualFolder(folder_id: string, updateData: { name?: string; parent?: string }): Promise<any>;
+	deleteVirtualFolder(folder_id: string): Promise<boolean>;
 
 	// Media Management
-	moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean>;
+	moveMediaToFolder(media_id: string, folder_id: string): Promise<boolean>;
 	getAllMedia(): Promise<any[]>;
-	getMediaInFolder(folderId: string): Promise<any[]>;
-	deleteMedia(mediaId: string): Promise<boolean>;
+	getMediaInFolder(folder_id: string): Promise<any[]>;
+	deleteMedia(media_id: string): Promise<boolean>;
 	getLastFiveMedia(): Promise<any[]>;
 
 	// Method for Disconnecting

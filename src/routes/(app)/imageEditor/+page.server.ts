@@ -21,7 +21,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 
 	if (!session_id) {
 		logger.warn('No session ID found, redirecting to login');
-		throw redirect(302, `/login`);
+		throw redirect(302, '/login');
 	}
 
 	// Validate the user's session
@@ -29,7 +29,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 
 	if (!user) {
 		logger.warn('Invalid session, redirecting to login');
-		throw redirect(302, `/login`);
+		throw redirect(302, '/login');
 	}
 
 	// Image loading logic
@@ -44,6 +44,7 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 		const stats = await fs.stat(filePath);
 
 		if (stats.isFile()) {
+			logger.info(`Image loaded successfully: ${imageName}`);
 			return {
 				user, // Include user data in the return object
 				imageData: {
@@ -54,10 +55,11 @@ export const load: PageServerLoad = async ({ params, cookies }) => {
 				}
 			};
 		} else {
+			logger.warn(`Requested path is not a file: ${filePath}`);
 			throw error(404, 'Not a file');
 		}
 	} catch (err) {
-		logger.error('Error loading file:', err);
+		logger.error(`Error loading file: ${(err as Error).message}`);
 		throw error(404, 'File not found');
 	}
 };

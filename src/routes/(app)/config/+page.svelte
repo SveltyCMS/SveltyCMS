@@ -2,32 +2,32 @@
 @files src/routes/(app)/config/+page.svelte
 @description This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings. 
 -->
-
 <script lang="ts">
-	// Component
+	// Component imports
 	import PageTitle from '@components/PageTitle.svelte';
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-	// Auth
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
+	import { page } from '$app/stores'; // Import SvelteKit's page store to access data from the server
 
-	// Define permissions for different contexts
-	const permissionConfigs: Record<string, PermissionConfig> = {
-		collectionbuilder: {
-			contextId: 'config/collectionbuilder',
-			requiredRole: 'admin',
-			action: 'read',
-			contextType: 'system'
-		},
-		graphql: { contextId: 'config/graphql', requiredRole: 'admin', action: 'read', contextType: 'system' },
-		imageeditor: { contextId: 'config/imageeditor', requiredRole: 'admin', action: 'write', contextType: 'system' },
-		dashboard: { contextId: 'config/dashboard', requiredRole: 'admin', action: 'read', contextType: 'system' },
-		widgetManagement: { contextId: 'config/widgetManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-		themeManagement: { contextId: 'config/themeManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-		settings: { contextId: 'config/settings', requiredRole: 'admin', action: 'write', contextType: 'system' },
-		accessManagement: { contextId: 'config/accessManagement', requiredRole: 'admin', action: 'write', contextType: 'system' }
-	};
+	// ParaglideJS imports
+	import * as m from '@src/paraglide/messages';
+
+	// Get server-side data
+	$: user = $page.data.user; // User information from server
+	$: permissions = $page.data.permissions; // Permission data from server
+	$: dynamicPermissions = $page.data.dynamicPermissions; // Dynamically loaded permissions
+
+	// Create a mapping from contextId to dynamic permissions for easier access
+	$: permissionConfigs = Object.fromEntries(
+		dynamicPermissions.map((permission) => [
+			permission.id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
+			{
+				contextId: permission.id,
+				requiredRole: permission.name, // Assuming `name` holds the required role. Adjust if necessary.
+				action: permission.action,
+				contextType: permission.type
+			}
+		])
+	);
 </script>
 
 <!-- Page Title -->

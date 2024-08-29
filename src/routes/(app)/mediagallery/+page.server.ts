@@ -31,7 +31,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
 	if (!session_id) {
 		logger.warn('No session ID found, redirecting to login');
-		throw redirect(302, `/login`);
+		throw redirect(302, '/login');
 	}
 
 	if (!auth || !dbAdapter) {
@@ -43,7 +43,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const user = await auth.validateSession({ session_id });
 		if (!user) {
 			logger.warn('Invalid session, redirecting to login');
-			throw redirect(302, `/login`);
+			throw redirect(302, '/login');
 		}
 
 		// Convert MongoDB ObjectId to string to avoid serialization issues
@@ -52,21 +52,19 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		}
 
 		// Fetch all media types concurrently
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const mediaPromises = mediaTypes.map((type) => dbAdapter.findMany(type, {}));
-		let results = await Promise.all(mediaPromises);
+		const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const media_promises = media_types.map((type) => dbAdapter.findMany(type, {}));
+		let results = await Promise.all(media_promises);
 
 		results = results.map((arr, index) =>
-			arr.map(
-				(item): MediaImage => ({
-					// Explicitly cast to MediaImage
-					...item,
-					_id: item._id.toString(),
-					type: mediaTypes[index].split('_')[1],
-					url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), mediaTypes[index]),
-					thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), mediaTypes[index])
-				})
-			)
+			arr.map((item) => ({
+				// Explicitly cast to MediaImage
+				...item,
+				_id: item._id.toString(),
+				type: media_types[index].split('_')[1],
+				url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), media_types[index]),
+				thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), media_types[index])
+			}))
 		);
 
 		const media = results.flat();
@@ -76,21 +74,21 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		try {
 			theme = await dbAdapter.getDefaultTheme();
 			theme = JSON.parse(JSON.stringify(theme)); // Ensure theme is serializable
-		} catch (error) {
-			logger.error('Error fetching default theme:', error);
+		} catch (err) {
+			logger.error('Error fetching default theme:', (err as Error).message);
 			theme = DEFAULT_THEME;
 		}
 
 		logger.info('Media gallery data loaded successfully');
 		return { user, media, theme };
-	} catch (error) {
-		logger.error('Error in media gallery load function:', error);
-		throw error;
+	} catch (err) {
+		logger.error('Error in media gallery load function:', (err as Error).message);
+		throw error(500, 'Internal Server Error');
 	}
 };
 
 // Collection name for media files
-const collectionNames = {
+const collection_names = {
 	application: 'media_documents',
 	audio: 'media_audio',
 	font: 'media_documents',
@@ -108,25 +106,25 @@ export const actions: Actions = {
 		const session_id = cookies.get(SESSION_COOKIE_NAME);
 		if (!session_id) {
 			logger.warn('No session ID found during file upload, redirecting to login');
-			throw redirect(302, `/login`);
+			throw redirect(302, '/login');
 		}
 
 		if (!auth || !dbAdapter) {
 			logger.error('Authentication system or database adapter is not initialized');
-			throw error(500, 'Internal server error: Database adapter not initialized');
+			throw error(500, 'Internal Server Error');
 		}
 
 		try {
 			const user = await auth.validateSession({ session_id });
 			if (!user) {
 				logger.warn('Invalid session during file upload, redirecting to login');
-				throw redirect(302, `/login`);
+				throw redirect(302, '/login');
 			}
 
 			const formData = await request.formData();
 			const files = formData.getAll('files');
 
-			const saveMediaFile = {
+			const save_media_file = {
 				application: saveDocument,
 				audio: saveAudio,
 				font: saveDocument,
@@ -141,10 +139,10 @@ export const actions: Actions = {
 
 			for (const file of files) {
 				if (file instanceof File) {
-					const type = file.type.split('/')[0] as keyof typeof saveMediaFile;
-					if (type in saveMediaFile) {
-						const { fileInfo } = await saveMediaFile[type](file, collectionNames[type], user.id);
-						await dbAdapter.insertMany(collectionNames[type], [{ ...fileInfo, user: user.id }]);
+					const type = file.type.split('/')[0] as keyof typeof save_media_file;
+					if (type in save_media_file) {
+						const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id);
+						await dbAdapter.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
 						logger.info(`File uploaded successfully: ${file.name}`);
 					} else {
 						logger.warn(`Unsupported file type: ${file.type}`);
@@ -153,8 +151,8 @@ export const actions: Actions = {
 			}
 
 			return { success: true };
-		} catch (error) {
-			logger.error('Error during file upload:', error);
+		} catch (err) {
+			logger.error('Error during file upload:', (err as Error).message);
 			return { success: false, error: 'File upload failed' };
 		}
 	}

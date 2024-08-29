@@ -18,9 +18,10 @@
  * Imported by the Drizzle auth adapter to create and interact with the database schema
  */
 
-import { sqliteTable, text, integer, primaryKey } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, primaryKey, index } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
 
+// Define the Users table
 export const users = sqliteTable('users', {
 	id: text('id').primaryKey(),
 	email: text('email').notNull().unique(),
@@ -45,6 +46,7 @@ export const users = sqliteTable('users', {
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Define the Roles table
 export const roles = sqliteTable('roles', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull().unique(),
@@ -53,6 +55,7 @@ export const roles = sqliteTable('roles', {
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Define the Permissions table
 export const permissions = sqliteTable('permissions', {
 	id: text('id').primaryKey(),
 	name: text('name').notNull().unique(),
@@ -66,6 +69,7 @@ export const permissions = sqliteTable('permissions', {
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Define the RolePermissions junction table
 export const rolePermissions = sqliteTable(
 	'role_permissions',
 	{
@@ -79,10 +83,11 @@ export const rolePermissions = sqliteTable(
 		updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 	},
 	(table) => ({
-		pk: primaryKey(table.roleId, table.permissionId)
+		pk: primaryKey(table.roleId, table.permissionId) // Composite primary key for role-permission mapping
 	})
 );
 
+// Define the Sessions table
 export const sessions = sqliteTable('sessions', {
 	id: text('id').primaryKey(),
 	userId: text('user_id')
@@ -93,6 +98,7 @@ export const sessions = sqliteTable('sessions', {
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });
 
+// Define the Tokens table
 export const tokens = sqliteTable('tokens', {
 	id: text('id').primaryKey(),
 	userId: text('user_id')
@@ -104,3 +110,12 @@ export const tokens = sqliteTable('tokens', {
 	createdAt: integer('created_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`),
 	updatedAt: integer('updated_at', { mode: 'timestamp' }).default(sql`CURRENT_TIMESTAMP`)
 });
+
+// Create indexes for optimizing queries
+export const indexes = {
+	userIndex: index(users, ['email']),
+	roleIndex: index(roles, ['name']),
+	permissionIndex: index(permissions, ['name']),
+	sessionUserIdIndex: index(sessions, ['userId']),
+	tokenUserIdIndex: index(tokens, ['userId'])
+};

@@ -6,16 +6,23 @@
 - Modify permission settings, including role assignments
 - Bulk delete selected permissions
 - Handle advanced permission conditions
-The component interacts with the authAdapter to perform CRUD operations on permissions and fetch available roles.
 -->
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+
+	// Stores
 	import { writable } from 'svelte/store';
-	import { authAdapter, initializationPromise } from '@src/databases/db';
-	import type { Permission, Role } from '@src/auth/types';
 	import { page } from '$app/stores';
 
+	// Auth
+	import { authAdapter, initializationPromise } from '@src/databases/db';
+	import type { Permission, Role } from '@src/auth/types';
+
+	// Components
+	import Loading from '@components/Loading.svelte';
+
+	// Define writable stores
 	const permissionsList = writable<Permission[]>([]);
 	const modifiedPermissions = writable<Set<string>>(new Set());
 	let searchTerm = '';
@@ -25,12 +32,17 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
 
+	// Reactive statements for filtered permissions and current user ID
 	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId.toLowerCase().includes(searchTerm.toLowerCase()));
 	$: currentUserId = $page.data.user?._id || '';
 
+	// Load data on component mount
 	onMount(async () => {
 		try {
 			await initializationPromise;
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
 			await loadRoles();
 			await loadPermissions();
 		} catch (err) {
@@ -40,12 +52,12 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		}
 	});
 
+	// Function to load permissions
 	const loadPermissions = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
 			const permissions = await authAdapter.getAllPermissions();
 			permissionsList.set(permissions);
 		} catch (err) {
@@ -53,12 +65,12 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		}
 	};
 
+	// Function to load roles
 	const loadRoles = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
 			const rolesData = await authAdapter.getAllRoles();
 			roles.set(rolesData);
 		} catch (err) {
@@ -66,6 +78,7 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		}
 	};
 
+	// Toggle role assignment for a permission
 	const toggleRole = (permission: Permission, role: string) => {
 		permissionsList.update((list) => {
 			const perm = list.find((p) => p.name === permission.name);
@@ -85,13 +98,13 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		});
 	};
 
+	// Save changes to permissions
 	const saveChanges = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
-		const modified = Array.from($modifiedPermissions);
 		try {
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
+			const modified = Array.from($modifiedPermissions);
 			for (const permissionName of modified) {
 				const permission = $permissionsList.find((p) => p.name === permissionName);
 				if (permission) {
@@ -105,12 +118,12 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		}
 	};
 
+	// Bulk delete selected permissions
 	const bulkDeletePermissions = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
 		try {
+			if (!authAdapter) {
+				throw new Error('Auth adapter is not initialized');
+			}
 			for (const permissionName of $selectedPermissions) {
 				await authAdapter.deletePermission(permissionName, currentUserId);
 			}
@@ -121,6 +134,7 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 		}
 	};
 
+	// Toggle permission selection
 	const togglePermissionSelection = (permissionName: string) => {
 		selectedPermissions.update((selected) => {
 			if (selected.has(permissionName)) {
@@ -134,7 +148,7 @@ The component interacts with the authAdapter to perform CRUD operations on permi
 </script>
 
 {#if $isLoading}
-	<p>Loading...</p>
+	<Loading customTopText="Loading Permissions..." customBottomText="Please wait while permissions are being loaded." />
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}

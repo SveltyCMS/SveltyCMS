@@ -191,18 +191,18 @@ export async function clearCache(key: string): Promise<void> {
 }
 
 // Retrieves a user session from Redis.
-export async function getCachedSession(sessionId: string): Promise<User | null> {
-	return getCache<User>(`session:${sessionId}`);
+export async function getCachedSession(session_id: string): Promise<User | null> {
+	return getCache<User>(`session:${session_id}`);
 }
 
 // Stores a user session in Redis with an expiration time.
-export async function setCachedSession(sessionId: string, user: User, expirationInSeconds: number = 3600): Promise<void> {
-	await setCache(`session:${sessionId}`, user, expirationInSeconds);
+export async function setCachedSession(session_id: string, user: User, expirationInSeconds: number = 3600): Promise<void> {
+	await setCache(`session:${session_id}`, user, expirationInSeconds);
 }
 
 // Deletes a user session from Redis.
-export async function clearCachedSession(sessionId: string): Promise<void> {
-	await clearCache(`session:${sessionId}`);
+export async function clearCachedSession(session_id: string): Promise<void> {
+	await clearCache(`session:${session_id}`);
 }
 
 // Closes the Redis client connection gracefully.

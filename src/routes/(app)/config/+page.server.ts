@@ -1,16 +1,6 @@
 /**
  * @file src/routes/(app)/config/+page.server.ts
  * @description Server-side logic for Access Management page authentication and authorization.
- *
- * Handles session validation, user authentication, and role-based access control for the Access Management page.
- * Redirects unauthenticated users to the login page and restricts access based on user permissions.
- *
- * Responsibilities:
- * - Checks for a valid session cookie.
- * - Validates the user's session using the authentication service.
- * - Checks user permissions using RBAC middleware.
- * - Returns user data if authentication and authorization are successful.
- * - Handles session expiration, invalid session cases, and insufficient permissions.
  */
 
 import { redirect, error } from '@sveltejs/kit';
@@ -20,12 +10,72 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
+import { registerPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
 
-// System Loggger
+// System Logger
 import logger from '@src/utils/logger';
 
-// Define actions that require rate limiting
-const rateLimitedActions = ['config/imageeditor', 'config/widgetManagement'];
+// Register new permissions dynamically
+const dynamicPermissions = [
+	{
+		id: 'config:collectionbuilder',
+		name: 'Access Collection Builder',
+		action: PermissionAction.READ,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows access to the collection builder.'
+	},
+	{
+		id: 'config:graphql',
+		name: 'Access GraphQL',
+		action: PermissionAction.READ,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows access to GraphQL settings.'
+	},
+	{
+		id: 'config:imageeditor',
+		name: 'Use Image Editor',
+		action: PermissionAction.WRITE,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows using the image editor.'
+	},
+	{
+		id: 'config:widgetManagement',
+		name: 'Manage Widgets',
+		action: PermissionAction.WRITE,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows management of widgets.'
+	},
+	{
+		id: 'config:themeManagement',
+		name: 'Manage Themes',
+		action: PermissionAction.WRITE,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows managing themes.'
+	},
+	{
+		id: 'config:settings',
+		name: 'Manage Settings',
+		action: PermissionAction.WRITE,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows managing system settings.'
+	},
+	{
+		id: 'config:accessManagement',
+		name: 'Manage Access',
+		action: PermissionAction.WRITE,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows managing user access and roles.'
+	},
+	{
+		id: 'config:dashboard',
+		name: 'Access Dashboard',
+		action: PermissionAction.READ,
+		type: PermissionType.CONFIGURATION,
+		description: 'Allows access to the dashboard.'
+	}
+];
+
+registerPermissions(dynamicPermissions); // Register dynamic permissions
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	if (!auth) {
@@ -49,46 +99,57 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		logger.debug(`User session validated successfully for user: ${user._id}`);
 
-		const permissionConfigs: PermissionConfig[] = [
-			{ contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
-			{ contextId: 'config/graphql', requiredRole: 'developer', action: 'read', contextType: 'system' },
-			{ contextId: 'config/imageeditor', requiredRole: 'editor', action: 'write', contextType: 'system' },
-			{ contextId: 'config/dashboard', requiredRole: 'user', action: 'read', contextType: 'system' },
-			{ contextId: 'config/widgetManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			{ contextId: 'config/themeManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			{ contextId: 'config/settings', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			{ contextId: 'config/accessManagement', requiredRole: 'admin', action: 'write', contextType: 'system' }
-		];
-
-		const permissions = {};
-		for (const config of permissionConfigs) {
-			const hasPermission = await checkUserPermission(user, config);
-			const permissionData: { hasPermission: boolean; isRateLimited?: boolean } = { hasPermission };
-
-			// Only check and include rate limiting for specified actions
-			if (rateLimitedActions.includes(config.contextId)) {
-				// Implement your rate limiting logic here
-				const isRateLimited = false; // Placeholder for actual rate limit check
-				permissionData.isRateLimited = isRateLimited;
-			}
-
-			permissions[config.contextId] = permissionData;
+		// Make sure to include the role in the user object
+		const userRole = user.role;
+		if (!userRole) {
+			logger.warn(`User role is missing for user ${user.email}`);
+			throw error(403, 'User role is missing');
 		}
 
-		// Construct a serializable user object manually
 		const serializableUser = {
-			_id: user._id.toString(), // Ensures the ID is a string
-			username: user.username, // Add only serializable fields here
-			email: user.email
-			// Include other fields you know are serializable
+			_id: user._id.toString(),
+			username: user.username,
+			email: user.email,
+			role: userRole,
+			permissions: user.permissions
 		};
+
+		const permissionConfigs: Record<string, PermissionConfig> = {
+			collectionbuilder: { contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
+			graphql: { contextId: 'config/graphql', requiredRole: 'developer', action: 'read', contextType: 'system' },
+			imageeditor: { contextId: 'config/imageeditor', requiredRole: 'editor', action: 'write', contextType: 'system' },
+			dashboard: { contextId: 'config/dashboard', requiredRole: 'user', action: 'read', contextType: 'system' },
+			widgetManagement: { contextId: 'config/widgetManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
+			themeManagement: { contextId: 'config/themeManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
+			settings: { contextId: 'config/settings', requiredRole: 'admin', action: 'write', contextType: 'system' },
+			accessManagement: { contextId: 'config/accessManagement', requiredRole: 'admin', action: 'write', contextType: 'system' }
+		};
+
+		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
+
+		for (const key in permissionConfigs) {
+			let hasPermission = false;
+			const config = permissionConfigs[key];
+
+			if (userRole.toLowerCase() === 'admin') {
+				hasPermission = true; // Admins should always have permission
+			} else {
+				// Check user permission for non-admin roles
+				const permissionCheck = await checkUserPermission(serializableUser, config);
+				hasPermission = permissionCheck.hasPermission;
+			}
+
+			permissions[config.contextId] = { hasPermission };
+		}
 
 		return {
 			user: serializableUser,
-			permissions
+			permissions,
+			permissionConfigs,
+			dynamicPermissions
 		};
-	} catch (e) {
-		logger.error('Error validating session:', e);
+	} catch (error) {
+		logger.error('Error validating session:', error);
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 		throw redirect(302, '/login');
 	}

@@ -1,69 +1,68 @@
-<!-- src/components/LeftSidebar.svelte -->
+<!-- 
+ @file src/components/LeftSidebar.svelte 
+ @description LeftSidebar component
+ -->
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { goto } from '$app/navigation';
-	import { invalidateAll } from '$app/navigation';
-
+	import { goto, invalidateAll } from '$app/navigation';
 	import axios from 'axios';
 
-	// Auth
+	// Import necessary utilities and types
 	import { SESSION_COOKIE_NAME } from '@src/auth';
-	const user = $page.data.user;
-	avatarSrc.set(user?.avatar);
-
-	// Stores
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
-	// Components
+	// Import correct types from the source types file
+	import type { Role, Permission } from '@src/auth/types'; // Correct import
+
+	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SiteName from '@components/SiteName.svelte';
 	import Collections from '@components/Collections.svelte';
 
-	// Skeleton
+	// Skeleton components and utilities
 	import { Avatar, popup, modeCurrent, type PopupSettings, setModeUserPrefers, setModeCurrent } from '@skeletonlabs/skeleton';
 
-	// Popup Tooltips
+	// Define user data and state variables
+	const user = $page.data.user;
+	avatarSrc.set(user?.avatar);
+
+	// Tooltip settings
 	const UserTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'User',
 		placement: 'right'
 	};
-
 	const GithubTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Github',
 		placement: 'right'
 	};
-
 	const SwitchThemeTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SwitchTheme',
 		placement: 'right'
 	};
-
 	const SignOutTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SignOutButton',
 		placement: 'right'
 	};
-
 	const ConfigTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'Config',
 		placement: 'right'
 	};
-
 	const SystemLanguageTooltip: PopupSettings = {
 		event: 'hover',
 		target: 'SystemLanguage',
 		placement: 'right'
 	};
 
-	// ParaglideJS
+	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
 
@@ -77,7 +76,6 @@
 
 	let handleClick: any;
 
-	// Update the handleClick function when the systemLanguage store value changes
 	$: handleClick = () => {
 		if (!$page.url.href.includes('user')) {
 			mode.set('view');
@@ -89,39 +87,29 @@
 		}
 	};
 
-	// SignOut
+	// SignOut function
 	async function signOut() {
 		try {
 			console.log('Starting sign-out process...');
-
-			// Clear the session cookie
 			document.cookie = `${SESSION_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
 			console.log('Session cookie cleared');
-
-			// Invalidate all data
 			await invalidateAll();
 			console.log('All data invalidated');
-
-			// Navigate to the login page
 			await goto('/login');
 			console.log('Redirected to login page');
 		} catch (error: unknown) {
 			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
-			// Optionally, show an error message to the user
-			// You might want to use a toast or alert component here
 		}
 	}
 
-	// @ts-expect-error reading from vite.config.js
+	// GitHub version and theme toggle
 	const pkg = __VERSION__;
 	let githubVersion = '';
 
-	// Fetch the latest release from GitHub
 	axios
 		.get('https://api.github.com/repos/Rar9/SveltyCMS/releases/latest')
 		.then((response) => {
-			githubVersion = response.data.tag_name.slice(1); // Remove the 'v' from the version tag
-
+			githubVersion = response.data.tag_name.slice(1);
 			const [localMajor, localMinor] = pkg.split('.').map(Number);
 			const [githubMajor, githubMinor] = githubVersion.split('.').map(Number);
 
@@ -132,17 +120,14 @@
 			}
 		})
 		.catch((error) => {
-			// Log the error to the console
 			console.error('Error von Github Release found:', error);
-
-			// Handle the error silently and use the current package.json version
 			githubVersion = pkg;
 			$pkgBgColor = 'variant-filled-tertiary';
 		});
 
 	const toggleTheme = () => {
-		const currentMode = get(modeCurrent); // get the current value of the store
-		const newMode = !currentMode; // toggle the mode
+		const currentMode = get(modeCurrent);
+		const newMode = !currentMode;
 		setModeUserPrefers(newMode);
 		setModeCurrent(newMode);
 		localStorage.setItem('theme', newMode ? 'light' : 'dark');

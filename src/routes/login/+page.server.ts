@@ -6,7 +6,6 @@
  * - User authentication and session management
  * - Form validation with superforms rate limiting
  * - OAuth login
- *  *
  */
 
 import { publicEnv } from '@root/config/public';
@@ -29,7 +28,7 @@ import { auth, googleAuth, initializationPromise } from '@src/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
 
-// Store
+// Stores
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
@@ -48,26 +47,42 @@ const limiter = new RateLimiter({
 });
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
-	if (limiter.cookieLimiter?.preflight) {
-		await limiter.cookieLimiter.preflight({ request, cookies });
-	}
-
-	// Check if the first user exists in the database
-	const firstUserExists = (await auth.getUserCount()) !== 0;
-	logger.debug(`First user exists: ${firstUserExists}`);
-
 	try {
-		await initializationPromise; // Ensure initialization is complete
+		// Ensure initialization is complete
+		await initializationPromise;
 
+		// Check if the auth object is initialized
 		if (!auth) {
-			throw new Error('Authentication system is not initialized');
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error: Authentication system is not initialized');
 		}
+
+		// Rate limiter preflight check
+		if (limiter.cookieLimiter?.preflight) {
+			await limiter.cookieLimiter.preflight({ request, cookies });
+		}
+
+		// Check if the getUserCount method is available and callable
+		if (typeof auth.getUserCount !== 'function') {
+			logger.warn('getUserCount method is not available on auth object');
+			throw error(500, 'Authentication system is not available');
+		}
+
+		// Check if the first user exists in the database
+		let firstUserExists = false;
+		try {
+			firstUserExists = (await auth.getUserCount()) !== 0;
+		} catch (err) {
+			logger.error('Error fetching user count:', err);
+			throw error(500, 'Could not verify user count');
+		}
+		logger.debug(`First user exists: ${firstUserExists}`);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code: ${code}`);
 
+		// Handle Google OAuth flow if code is present
 		if (privateEnv.USE_GOOGLE_OAUTH && code) {
-			// Google OAuth flow
 			logger.debug('Entering OAuth flow in load function');
 			try {
 				if (!googleAuth) {
@@ -126,7 +141,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 				if (!needSignIn && user && user._id) {
 					// Create session and set cookie
-					const session = await auth.createSession({ user_id: user._id, expires: 3600000 });
+					const expires = new Date(Date.now() + 3600000); // 1 hour from now
+					const session = await auth.createSession({ user_id: user._id, expires });
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
@@ -142,6 +158,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		}
 
 		// SignIn
+
 		const loginForm = await superValidate(zod(loginFormSchema));
 		const forgotForm = await superValidate(zod(forgotFormSchema));
 		const resetForm = await superValidate(zod(resetFormSchema));
@@ -149,7 +166,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			? await superValidate(zod(signUpFormSchema.innerType().omit({ token: true })))
 			: await superValidate(zod(signUpFormSchema));
 
-		// Always return Data & all Forms in load and form actions.
+		// Return Data & Forms in load
 		return {
 			firstUserExists,
 			loginForm,
@@ -159,6 +176,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		};
 	} catch (err) {
 		logger.error('Error in load function:', err);
+
 		// Return a minimal set of data to allow the page to render
 		return {
 			firstUserExists: false,
@@ -173,7 +191,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 // Actions for SignIn and SignUp a user with form data
 export const actions: Actions = {
-	// Handling the Sign-Up form submission and user creation
 	signUp: async (event) => {
 		if (await limiter.isLimited(event)) {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
@@ -261,7 +278,7 @@ export const actions: Actions = {
 			const redirectUrl = googleAuth!.generateAuthUrl({
 				access_type: 'offline',
 				scope: scopes,
-				redirect_uri: 'http://localhost:5173/login/oauth' // Make sure this matches your Google OAuth settings
+				redirect_uri: 'http://localhost:5173/login/oauth'
 			});
 			logger.debug(`Generated redirect URL: ${redirectUrl}`);
 
@@ -424,10 +441,11 @@ async function signIn(
 			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
 			return { status: false, message: 'Invalid credentials' };
 		}
+
 		// Create User Session
 		try {
-			logger.debug(`Attempting to create session for user_id: ${user._id}`);
-			const session = await auth.createSession({ user_id: user._id });
+			const expires = new Date(Date.now() + 3600000); // 1 hour from now
+			const session = await auth.createSession({ user_id: user._id, expires });
 			logger.debug(`Session created: ${JSON.stringify(session)}`);
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -456,8 +474,9 @@ async function signIn(
 		const result = await auth.consumeToken(token, user._id);
 
 		if (result.status) {
+			const expires = new Date(Date.now() + 3600000); // 1 hour from now
 			// Create User Session
-			const session = await auth.createSession({ user_id: user._id });
+			const session = await auth.createSession({ user_id: user._id, expires });
 
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -493,8 +512,9 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Failed to create user' };
 		}
 
+		const expires = new Date(Date.now() + 3600000); // 1 hour from now
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id, expires: 3600000 });
+		const session = await auth.createSession({ user_id: user._id, expires });
 		if (!session || !session._id) {
 			logger.error('Session creation failed');
 			return { status: false, message: 'Failed to create session' };
@@ -534,8 +554,9 @@ async function finishRegistration(username: string, email: string, password: str
 			isRegistered: true
 		});
 
+		const expires = new Date(Date.now() + 3600000); // 1 hour from now
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id.toString() });
+		const session = await auth.createSession({ user_id: user._id.toString(), expires });
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
@@ -563,7 +584,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 			throw error(500, 'Internal Server Error');
 		}
 
-		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hours
+		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hour
 		const user = await auth.checkUser({ email });
 
 		// The email address does not exist

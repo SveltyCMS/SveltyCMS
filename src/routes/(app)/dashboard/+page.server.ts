@@ -1,4 +1,5 @@
 // src/routes/(app)/dashboard/+page.server.ts
+
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
@@ -26,6 +27,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			const sessionCookie = auth.createSessionCookie(newSession);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			session_id = sessionCookie.value;
+			logger.info(`New session created: ${session_id}`);
 		} catch (e) {
 			logger.error('Failed to create a new session:', e);
 			throw error(500, 'Internal Server Error');
@@ -37,7 +39,8 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 	// If validation fails, redirect the user to the login page
 	if (!user) {
-		throw redirect(302, `/login`);
+		logger.warn(`Invalid session for session_id: ${session_id}, redirecting to login.`);
+		throw redirect(302, '/login');
 	}
 
 	const { _id, ...rest } = user;

@@ -7,6 +7,7 @@
  * - Role retrieval
  * - Form validation for adding users and changing passwords
  * - First user detection
+ * - Dynamic permission registration
  *
  * Features:
  * - Session validation using cookies
@@ -26,6 +27,14 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User, Role } from '@src/auth/types';
+import { registerPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
+
+// Dynamically register permissions for user management
+const userManagementPermissions = [
+	{ id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
+];
+
+registerPermissions(userManagementPermissions); // Register dynamic permissions
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
@@ -34,6 +43,9 @@ import { zod } from 'sveltekit-superforms/adapters';
 
 // Logger
 import logger from '@src/utils/logger';
+
+// Import the checkUserPermission function to check permissions
+import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
 
 export const load: PageServerLoad = async (event) => {
 	try {
@@ -65,8 +77,19 @@ export const load: PageServerLoad = async (event) => {
 					roles = await auth.getAllRoles();
 					logger.debug(`Roles retrieved: ${JSON.stringify(roles)}`);
 
-					// If the user is an admin, fetch all users and tokens
-					if (user.role === 'admin') {
+					// Define permission configuration for user management
+					const manageUsersPermissionConfig: PermissionConfig = {
+						contextId: 'config/userManagement',
+						requiredRole: 'admin',
+						action: 'manage',
+						contextType: 'system'
+					};
+
+					// Check if the user has the required permissions
+					const hasManageUsersPermission = await checkUserPermission(user, manageUsersPermissionConfig);
+
+					// If the user is an admin or has permission, fetch all users and tokens
+					if (user.role === 'admin' || hasManageUsersPermission) {
 						try {
 							allUsers = await auth.getAllUsers();
 							logger.debug(`Retrieved ${allUsers.length} users for admin`);
@@ -111,7 +134,7 @@ export const load: PageServerLoad = async (event) => {
 			email: user.email,
 			username: user.username || null,
 			role: user.role,
-			activeSessions: user.lastActiveAt ? 1 : 0, // This is a placeholder
+			activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
 			lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
 			createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
 			updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
@@ -126,6 +149,14 @@ export const load: PageServerLoad = async (event) => {
 			updatedAt: new Date(token.token_id).toISOString() // Assuming tokens are not updated
 		}));
 
+		// Provide manageUsersPermissionConfig to the client
+		const manageUsersPermissionConfig: PermissionConfig = {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		};
+
 		return {
 			user: safeUser,
 			roles: roles.map((role) => ({
@@ -135,8 +166,9 @@ export const load: PageServerLoad = async (event) => {
 			addUserForm,
 			changePasswordForm,
 			isFirstUser,
+			manageUsersPermissionConfig: manageUsersPermissionConfig,
 			adminData:
-				user?.role === 'admin'
+				user?.role === 'admin' || hasManageUsersPermission
 					? {
 							users: formattedUsers,
 							tokens: formattedTokens

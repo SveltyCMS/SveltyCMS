@@ -1,9 +1,9 @@
 /**
  * @file vite.config.ts
  * @description This configuration file defines the Vite setup for a SvelteKit project,
- * including custom plugins for dynamic collection handling, Tailwind CSS purging,
- * and Paraglide integration. It also initializes compilation tasks and sets up
- * environment variables and alias paths for the project.
+ * including custom plugins for dynamic role and permission handling, collection handling,
+ * Tailwind CSS purging, and Paraglide integration. It also initializes compilation tasks
+ * and sets up environment variables and alias paths for the project.
  *
  * @dependencies
  * - Path: Node.js module for handling and transforming file paths.
@@ -25,7 +25,7 @@ import { sveltekit } from '@sveltejs/kit/vite';
 import { defineConfig } from 'vite';
 import { paraglide } from '@inlang/paraglide-vite';
 // Gets package.json version info on app start
-// https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs';
+// https://kit.svelte.dev/faq#read-package-jsonimport { readFileSync } from 'fs'
 import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
 import { generateCollectionFieldTypes, generateCollectionTypes } from './src/utils/collectionTypes';
@@ -49,17 +49,21 @@ export default defineConfig({
 	plugins: [
 		sveltekit(),
 		{
-			name: 'vite:dynamic-collection-updater',
+			name: 'vite:dynamic-config-updater',
 			async handleHotUpdate({ file, server }) {
-				if (/config[/\\]permissions\.ts$/.test(file)) {
+				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
 					// Clear module cache
 					const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
+					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
+
 					delete require.cache[require.resolve(permissionsPath)];
+					delete require.cache[require.resolve(rolesPath)];
 
-					// Reimport updated permissions
-					const { roles, permissions } = await import('./config/permissions');
+					// Dynamically reimport updated roles & permissions
+					const { roles } = await import('./config/roles');
+					const { permissions } = await import('./config/permissions');
 
-					// Update roles and permissions
+					// Update roles and permissions in the application
 					const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
 					setLoadedRoles(roles);
 					setLoadedPermissions(permissions);
@@ -97,7 +101,8 @@ export default defineConfig({
 	},
 	resolve: {
 		alias: {
-			'@src': resolve(__dirname, './src')
+			'@src': resolve(__dirname, './src'),
+			'@root': resolve(__dirname, './')
 		}
 	},
 	define: {

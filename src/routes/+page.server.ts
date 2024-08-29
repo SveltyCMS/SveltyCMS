@@ -43,7 +43,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			throw redirect(302, '/login');
 		}
 
-		// Secure this page with session cookie
 		const session_id = cookies.get(SESSION_COOKIE_NAME);
 
 		if (!session_id) {
@@ -51,42 +50,38 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			throw redirect(302, '/login');
 		}
 
-		// Validate the user's session
-		try {
-			await auth.validateSession({ session_id });
-			logger.debug('Session validated successfully');
-		} catch (e) {
-			logger.error(`Session validation failed: ${(e as Error).message}`);
+		// Validate the session and retrieve the associated user
+		const user = await auth.validateSession({ session_id });
+		if (!user) {
+			logger.warn(`Invalid session or user not found for session ID: ${session_id}`);
 			throw redirect(302, '/login');
 		}
+		logger.debug(`Session validation result: ${user ? 'Valid' : 'Invalid'}`);
 
-		// Fetch the theme
+		// Fetch the default theme from the database
 		let theme;
 		try {
 			theme = await dbAdapter.getDefaultTheme();
-			// Ensure theme is serializable
-			theme = JSON.parse(JSON.stringify(theme));
+			theme = JSON.parse(JSON.stringify(theme)); // Ensure the theme object is serializable
 			logger.info(`Theme loaded successfully: ${JSON.stringify(theme)}`);
 		} catch (error) {
 			logger.error(`Error fetching default theme: ${(error as Error).message}`);
 			theme = DEFAULT_THEME;
 		}
 
-		// Set the system language if needed based on the theme
 		if (theme.language) {
 			systemLanguage.set(theme.language);
 			logger.debug(`System language set to: ${theme.language}`);
 		}
 
-		// Fetch collections and redirect to the first one
 		const collections = await getCollections();
 
 		if (collections && Object.keys(collections).length > 0) {
-			const firstCollectionKey = Object.keys(collections)[0];
-			const firstCollection = collections[firstCollectionKey];
-			if (firstCollection && firstCollection.name) {
-				logger.debug(`First collection: ${firstCollection.name}`);
-				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
+			const first_collection_key = Object.keys(collections)[0];
+			const first_collection = collections[first_collection_key];
+			if (first_collection && first_collection.name) {
+				logger.debug(`First collection: ${first_collection.name}`);
+				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
 			} else {
 				logger.error('First collection is invalid or missing a name');
 				throw new Error('Invalid first collection');
@@ -96,7 +91,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			throw new Error('No collections found');
 		}
 	} catch (error) {
-		logger.error(`Unexpected error in load function: ${(error as Error).message}`);
-		throw error; // Re-throw the error to handle it in SvelteKit's load system
+		logger.error(`Unexpected error in load function: ${error instanceof Error ? error.message : String(error)}`);
+		throw error;
 	}
 };

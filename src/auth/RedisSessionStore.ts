@@ -20,7 +20,7 @@
 import { privateEnv } from '@root/config/private';
 import { encrypt, decrypt } from '@src/utils/encryption';
 
-//Auth
+// Auth
 import type { SessionStore } from './index';
 import type { User } from './types';
 
@@ -51,14 +51,14 @@ export class RedisSessionStore implements SessionStore {
 	}
 
 	// Set session in Redis
-	async set(sessionId: string, user: User, expirationInSeconds: number): Promise<void> {
+	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
 		try {
 			// Encrypt and store user data in Redis with expiration
 			const encryptedUser = encrypt(JSON.stringify(user));
-			await this.redisClient.set(`session:${sessionId}`, encryptedUser, {
+			await this.redisClient.set(`session:${session_id}`, encryptedUser, {
 				EX: expirationInSeconds
 			});
-			logger.info(`Session stored in Redis: ${sessionId}`);
+			logger.info(`Session stored in Redis: ${session_id}`);
 		} catch (error) {
 			logger.error(`Error storing session in Redis: ${error}`);
 			throw error; // Rethrow to ensure caller is aware of the issue
@@ -66,15 +66,15 @@ export class RedisSessionStore implements SessionStore {
 	}
 
 	// Get session from Redis
-	async get(sessionId: string): Promise<User | null> {
+	async get(session_id: string): Promise<User | null> {
 		try {
-			const encryptedUser = await this.redisClient.get(`session:${sessionId}`);
+			const encryptedUser = await this.redisClient.get(`session:${session_id}`);
 			if (!encryptedUser) {
-				logger.info(`Session not found in Redis: ${sessionId}`);
+				logger.info(`Session not found in Redis: ${session_id}`);
 				return null;
 			}
 			const user = JSON.parse(decrypt(encryptedUser));
-			logger.info(`Session retrieved from Redis: ${sessionId}`);
+			logger.info(`Session retrieved from Redis: ${session_id}`);
 			return user;
 		} catch (error) {
 			logger.error(`Error retrieving session from Redis: ${error}`);
@@ -83,9 +83,9 @@ export class RedisSessionStore implements SessionStore {
 	}
 
 	// Delete session from Redis
-	async delete(sessionId: string): Promise<void> {
+	async delete(session_id: string): Promise<void> {
 		try {
-			await this.redisClient.del(`session:${sessionId}`);
+			await this.redisClient.del(`session:${session_id}`);
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error clearing session from Redis: ${err.message}`);
@@ -93,19 +93,19 @@ export class RedisSessionStore implements SessionStore {
 	}
 
 	// Validate session with optional database check
-	async validateWithDB(sessionId: string, dbValidationFn: (sessionId: string) => Promise<User | null>): Promise<User | null> {
+	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
 		try {
 			// Randomly validate session against the database based on probability
 			if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
-				const dbUser = await dbValidationFn(sessionId);
+				const dbUser = await dbValidationFn(session_id);
 				if (!dbUser) {
-					await this.delete(sessionId);
+					await this.delete(session_id);
 					return null;
 				}
-				await this.set(sessionId, dbUser, privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600);
+				await this.set(session_id, dbUser, privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600);
 				return dbUser;
 			}
-			return this.get(sessionId);
+			return this.get(session_id);
 		} catch (error) {
 			logger.error(`Error validating session with DB: ${error}`);
 			return null;

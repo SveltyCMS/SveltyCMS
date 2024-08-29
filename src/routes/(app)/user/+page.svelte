@@ -24,7 +24,7 @@
 
 	// Define permissions for different contexts
 	const adminAreaPermissionConfig: PermissionConfig = {
-		contextId: 'adminArea',
+		contextId: 'config/accessManagement',
 		requiredRole: 'admin',
 		action: 'read',
 		contextType: 'system'
@@ -43,7 +43,7 @@
 
 	avatarSrc.set(user?.avatar || '/Default_User.svg');
 
-	// define password as 'hash-password'
+	// Define password as 'hash-password'
 	let password = 'hash-password';
 
 	// Function to execute actions
@@ -72,38 +72,26 @@
 
 	// Modal Trigger - User Form
 	function modalUserForm(): void {
-		// console.log('Triggered - modalUserForm');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ModalEditForm,
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: m.usermodaluser_edittitle(),
 			body: m.usermodaluser_editbody(),
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: async (r: any) => {
 				if (r) {
 					console.log('Response:', r);
-
-					// Prepare the data
 					const data = { ...r, user_id: user?._id };
-
-					// Make the POST request using axios
 					const res = await axios.post('?/updateUserAttributes', data);
 
-					// Trigger the toast
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',
-						// Provide any utility or variant background style:
 						background: 'gradient-tertiary',
 						timeout: 3000,
-						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
@@ -119,37 +107,23 @@
 
 	// Modal Trigger - Edit Avatar
 	function modalEditAvatar(): void {
-		// console.log('Triggered - modalEditAvatar');
 		const modalComponent: ModalComponent = {
-			// Pass a reference to your custom component
 			ref: ModalEditAvatar,
 			props: { avatarSrc },
-
-			// Add your props as key/value pairs
-			// props: { background: 'bg-pink-500' },
-			// Provide default slot content as a template literal
 			slot: '<p>Edit Form</p>'
 		};
 		const d: ModalSettings = {
 			type: 'component',
-			// NOTE: title, body, response, etc are supported!
 			title: m.usermodaluser_settingtitle(),
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
-			// Pass arbitrary data to the component
 			response: (r: { dataURL: string }) => {
-				// console.log('ModalEditAvatar response:', r);
-
 				if (r) {
-					avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
-
-					// Trigger the toast
+					avatarSrc.set(r.dataURL);
 					const t = {
 						message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-						// Provide any utility or variant background style:
 						background: 'gradient-primary',
 						timeout: 3000,
-						// Add your custom classes here:
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
@@ -165,7 +139,6 @@
 			type: 'confirm',
 			title: m.usermodalconfirmtitle(),
 			body: m.usermodalconfirmbody(),
-			// TRUE if confirm pressed, FALSE if cancel pressed
 			response: async (r: boolean) => {
 				if (!r) return;
 				const res = await fetch(`/api/user/deleteUsers`, {
@@ -178,9 +151,6 @@
 					await invalidateAll();
 				}
 			},
-			// Optionally override the button text
-			// TODO: fix light background and change Delete button to red
-			//backdropClasses: 'bg-white',
 			buttonTextCancel: m.button_cancel(),
 			buttonTextConfirm: m.usermodalconfirmdeleteuser()
 		};
