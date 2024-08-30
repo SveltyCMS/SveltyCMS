@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte
+@description The ModalWidgetForm component is used to display the form for the selected widget. It is used in the CollectionWidget component. 
+-->
+
 <script lang="ts">
 	import { type SvelteComponent } from 'svelte';
 
@@ -21,21 +26,20 @@
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
 
-	// Get the keys of the widgets object
+	// Local variables
+	let modalData = $modalStore[0];
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
-	guiSchema = widgets[$modalStore[0].value] ? widgets[$modalStore[0].value].GuiSchema : widgets;
+	let guiSchema = widgets[modalData?.value]?.GuiSchema || widgets;
 
-	// All options of the widget
-	const options = Object.keys(guiSchema[$modalStore[0].value.widget.Name].GuiSchema);
+	const options = guiSchema[modalData?.value?.widget?.Name]?.GuiSchema ? Object.keys(guiSchema[modalData.value.widget.Name].GuiSchema) : [];
 	const specificOptions = options.filter(
 		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);
 
 	// We've created a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
-		if ($modalStore[0].response) {
-			await $modalStore[0].response($targetWidget);
+		if (modalData?.response) {
+			await modalData.response($targetWidget);
 		}
 		modalStore.close();
 	}
@@ -45,7 +49,7 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			const updatedFields = $collectionValue.fields.filter((field: any) => field.id !== $modalStore[0].value.id);
+			const updatedFields = $collectionValue.fields.filter((field: any) => field.id !== modalData?.value.id);
 			collectionValue.update((c) => {
 				c.fields = updatedFields;
 				return c;
@@ -60,12 +64,14 @@
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-{#if $modalStore[0]}
+{#if modalData}
 	<div class={cBase}>
-		<header class={`${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
+		<header class={cHeader}>
+			{modalData?.title ?? '(title missing)'}
 		</header>
-		<article class="text-center">{$modalStore[0].body ?? '(body missing)'}</article>
+		<article class="text-center">
+			{modalData?.body ?? '(body missing)'}
+		</article>
 
 		<!-- Tabs Headers -->
 		<form class={cForm}>
@@ -87,7 +93,7 @@
 				</Tab>
 
 				<!-- Specific -->
-				{#if specificOptions && specificOptions.length > 0}
+				{#if specificOptions.length > 0}
 					<Tab bind:group={tabSet} name="tab3" value={2}>
 						<div class="flex items-center gap-1">
 							<iconify-icon icon="ph:star-fill" width="24" class="text-tertiary-500 dark:text-primary-500" />
@@ -95,12 +101,10 @@
 						</div>
 					</Tab>
 				{/if}
-
-				<!-- Tab Panels --->
-				<svelte:fragment slot="panel">
-					<svelte:component this={tabSet === 0 ? Default : tabSet === 1 ? Permission : Specific} bind:guiSchema bind:tabSet />
-				</svelte:fragment>
 			</TabGroup>
+
+			<!-- Tab Panels -->
+			<svelte:component this={tabSet === 0 ? Default : tabSet === 1 ? Permission : Specific} bind:guiSchema bind:tabSet />
 		</form>
 
 		<footer class="{parent.regionFooter} justify-between">
@@ -111,8 +115,8 @@
 
 			<!-- Cancel & Save Button -->
 			<div class="flex justify-between gap-4">
-				<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+				<button type="button" class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
+				<button type="button" class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 			</div>
 		</footer>
 	</div>

@@ -157,7 +157,7 @@
 <!-- Wait for dynamic Collection import -->
 <!-- TODO: Optimize this as this is not needed for ever page -->
 {#await getCollections()}
-	<div class="flex h-lvh items-center justify-center">
+	<div class="flex h-lvh items-center justify-between lg:justify-start">
 		<Loading />
 	</div>
 {:then}

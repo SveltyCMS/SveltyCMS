@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionPermission.svelte
+@description This component displays the collection permission.
+-->
+
 <script lang="ts">
 	// Stores
 	import { collectionValue, tabSet } from '@stores/store';

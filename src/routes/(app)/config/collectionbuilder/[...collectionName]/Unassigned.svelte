@@ -1,5 +1,5 @@
 <!-- 
- @files src/routes/(app)/config/collection/Unassigned.svelte
+@files src/routes/(app)/config/collection/Unassigned.svelte
 @description This component displays a list of unassigned collections.
 -->
 <script lang="ts">

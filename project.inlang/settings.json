@@ -1,3 +1,5 @@
+//npx @inlang/cli machine translate --project ./project.inlang
+
 {
 	"$schema": "https://inlang.com/schema/project-settings",
 	"sourceLanguageTag": "en",

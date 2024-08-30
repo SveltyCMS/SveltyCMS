@@ -149,26 +149,37 @@
 	}
 </script>
 
-<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
+<!-- Page Title -->
+<div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" />
-	<div class="mt-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
-		<!-- add new Category-->
-		<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded">
-			<iconify-icon icon="bi:collection" width="18" class="text-white" />
-			{m.collection_addcategory()}
-		</button>
 
-		<!-- add new Collection-->
-		<button on:click={handleAddCollectionClick} type="button" class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded">
-			<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
-			{m.collection_addcollection()}
-		</button>
+	<!-- Back -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
+</div>
 
-		<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary lg:ml-4">
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-			{m.button_save()}
-		</button>
-	</div>
+<div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
+	<!-- add new Category-->
+	<button on:click={modalAddCategory} type="button" class="variant-filled-tertiary btn-sm flex items-center justify-between gap-1 rounded font-bold">
+		<iconify-icon icon="bi:collection" width="18" class="text-white" />
+		{m.collection_addcategory()}
+	</button>
+
+	<!-- add new Collection-->
+	<button
+		on:click={handleAddCollectionClick}
+		type="button"
+		class="variant-filled-success btn-sm flex items-center justify-between gap-1 rounded font-bold"
+	>
+		<iconify-icon icon="material-symbols:category" width="18" class="text-white" />
+		{m.collection_addcollection()}
+	</button>
+
+	<button type="button" on:click={handleSaveClick} class="variant-filled-tertiary btn gap-2 !text-white dark:variant-filled-primary lg:ml-4">
+		<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+		{m.button_save()}
+	</button>
 </div>
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">

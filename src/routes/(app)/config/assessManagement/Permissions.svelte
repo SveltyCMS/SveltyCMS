@@ -33,7 +33,7 @@
 	const error = writable<string | null>(null);
 
 	// Reactive statements for filtered permissions and current user ID
-	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId.toLowerCase().includes(searchTerm.toLowerCase()));
+	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
 	$: currentUserId = $page.data.user?._id || '';
 
 	// Load data on component mount
@@ -83,7 +83,7 @@
 		permissionsList.update((list) => {
 			const perm = list.find((p) => p.name === permission.name);
 			if (perm) {
-				const currentRoles = perm.requiredRole.split(',').map((r) => r.trim());
+				const currentRoles = perm.requiredRole?.split(',').map((r) => r.trim()) || [];
 				if (currentRoles.includes(role)) {
 					perm.requiredRole = currentRoles.filter((r) => r !== role).join(',');
 				} else {
@@ -191,7 +191,7 @@
 								<td class="px-4 py-2 text-center">
 									<input
 										type="checkbox"
-										checked={permission.requiredRole
+										checked={(permission.requiredRole ?? '')
 											.split(',')
 											.map((r) => r.trim())
 											.includes(role.name)}

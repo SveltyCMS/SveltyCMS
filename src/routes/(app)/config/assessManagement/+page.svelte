@@ -17,7 +17,7 @@
 </script>
 
 <!-- Page Title -->
-<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
+<div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name="Access Management" icon="mdi:account-key" />
 
 	<!-- Back -->
@@ -33,29 +33,29 @@
 	</p>
 </div>
 
-<TabGroup justify="justify-center text-tertiary-500 dark:text-primary-500">
+<TabGroup justify="justify-around text-tertiary-500 dark:text-primary-500">
 	<!-- User Permissions -->
 	<Tab bind:group={$tabSet} name="permissions" value={0}>
 		<svelte:fragment slot="lead">
 			<iconify-icon icon="mdi:shield-lock-outline" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
-		<span>{m.system_permission()}</span>
+		<span class={$tabSet === 0 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_permission()}</span>
 	</Tab>
 
 	<!-- User Roles -->
-	<Tab bind:group={$tabSet} name="roles" value={0}>
+	<Tab bind:group={$tabSet} name="roles" value={1}>
 		<svelte:fragment slot="lead">
 			<iconify-icon icon="mdi:account-group" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
-		<span>{m.system_roles()}</span>
+		<span class={$tabSet === 1 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>{m.system_roles()}</span>
 	</Tab>
 
 	<!-- Admin Role -->
-	<Tab bind:group={$tabSet} name="admin" value={1}>
+	<Tab bind:group={$tabSet} name="admin" value={2}>
 		<svelte:fragment slot="lead">
 			<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
 		</svelte:fragment>
-		<span>Admin Role</span>
+		<span class={$tabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin Role</span>
 	</Tab>
 
 	<!-- Tab Panels -->

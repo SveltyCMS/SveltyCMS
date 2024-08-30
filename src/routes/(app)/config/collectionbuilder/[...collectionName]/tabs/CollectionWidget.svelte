@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget.svelte
+@description This component displays the collection widget.
+-->
+
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
@@ -18,8 +23,8 @@
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
-	import ModalWidgetForm from '@src/routes/(app)/config/collection/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte';
-	import ModalSelectWidget from '../ModalSelectWidget.svelte';
+	import ModalWidgetForm from './CollectionWidget/ModalWidgetForm.svelte';
+	import ModalSelectWidget from './CollectionWidget/ModalSelectWidget.svelte';
 	const modalStore = getModalStore();
 
 	// Extract the collection name from the URL

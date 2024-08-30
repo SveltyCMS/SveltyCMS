@@ -1,5 +1,5 @@
 <!-- 
- @files src/routes/(app)/config/collection/ModalSelectWidget.svelte
+ @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/ModalSelectWidget.svelte
 @description This component displays a modal for selecting a widget.
 -->
 

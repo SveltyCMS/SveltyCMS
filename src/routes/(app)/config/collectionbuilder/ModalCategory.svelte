@@ -1,5 +1,5 @@
 <!-- 
- @files src/routes/(app)/config/collection/ModalCategory.svelte
+@files src/routes/(app)/config/collection/ModalCategory.svelte
 @description This component displays a modal for editing a category.
 -->
 <script lang="ts">

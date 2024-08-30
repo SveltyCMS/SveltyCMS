@@ -1,12 +1,12 @@
 <!-- 
- @files src/routes/(app)/config/collection/Column.svelte
+@files src/routes/(app)/config/collection/Column.svelte
 @description This component displays a column of collections.
 -->
 <script lang="ts">
 	// Stores
 	import { mode, categories } from '@stores/store';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Svelte DND-actions
@@ -15,21 +15,21 @@
 	import { dndzone } from 'svelte-dnd-action';
 
 	const flipDurationMs = 200;
+
 	function handleDndConsiderCards(e: any) {
-		//console.warn('got', name);
 		items = e.detail.items;
 	}
 
 	function handleDndFinalizeCards(e: any) {
-		//console.warn('drop', name);
 		onDrop(e.detail.items);
 	}
 
 	function handleCollectionClick(item: any) {
-		// Define the logic for handling the click on a collection
+		// Set the mode to edit when clicking on a collection
 		mode.set('edit');
-		// collection.set(item.collections);
-		goto(`/collection/${item.name}`);
+
+		// Navigate to the route for viewing the collection's details
+		goto(`/config/collectionbuilder/${item.name}`);
 	}
 
 	export let currentCategories: any;
@@ -107,8 +107,8 @@
 
 				<span class="break-word flex items-center gap-2">
 					<iconify-icon icon={item.icon} width="18" class="text-error-500" />
-					{item.name}</span
-				>
+					{item.name}
+				</span>
 
 				<button class="btn" on:click={() => handleCollectionClick(item)}>
 					<iconify-icon icon="mdi:pen" width="18" class="text-surface-500 hover:text-error-500" />

@@ -116,9 +116,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		const permissionConfigs: Record<string, PermissionConfig> = {
 			collectionbuilder: { contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
-			graphql: { contextId: 'config/graphql', requiredRole: 'developer', action: 'read', contextType: 'system' },
-			imageeditor: { contextId: 'config/imageeditor', requiredRole: 'editor', action: 'write', contextType: 'system' },
-			dashboard: { contextId: 'config/dashboard', requiredRole: 'user', action: 'read', contextType: 'system' },
+			graphql: { contextId: 'config/graphql', requiredRole: 'admin', action: 'read', contextType: 'system' },
+			imageeditor: { contextId: 'config/imageeditor', requiredRole: 'admin', action: 'write', contextType: 'system' },
+			dashboard: { contextId: 'config/dashboard', requiredRole: 'admin', action: 'read', contextType: 'system' },
 			widgetManagement: { contextId: 'config/widgetManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
 			themeManagement: { contextId: 'config/themeManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
 			settings: { contextId: 'config/settings', requiredRole: 'admin', action: 'write', contextType: 'system' },

@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Default.svelte
+@description This component displays the default tab fields.
+-->
+
 <script lang="ts">
 	import { asAny } from '@utils/utils';
 

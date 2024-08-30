@@ -1,5 +1,5 @@
 <!-- 
- @files src/routes/(app)/config/collection/Board.svelte
+@files src/routes/(app)/config/collection/Board.svelte
 @description Board component for managing collections. 
 -->
 <script lang="ts">

@@ -1,5 +1,7 @@
-//  @files src/routes/(app)/config/collectionbuilder/+page.server.ts
-//  @description Server-side logic for Collection Builder page authentication and authorization.
+/**
+ *  @files src/routes/(app)/config/collectionbuilder/+page.server.ts
+ *  @description Server-side logic for Collection Builder page authentication and authorization.
+ */
 
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';

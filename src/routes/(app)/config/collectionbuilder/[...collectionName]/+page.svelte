@@ -1,3 +1,7 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/+page.svelte
+@description  This component sets up and displays the collection page. It provides a user-friendly interface for creating, editing, and deleting collections.
+-->
 <script lang="ts">
 	import axios from 'axios';
 	import { onMount } from 'svelte';
@@ -12,14 +16,13 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import TopTabs from './tabs/TopTabs.svelte';
 	import CollectionPermission from './tabs/CollectionPermission.svelte';
 	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
 
 	// Skeleton
-	import { TabGroup, getToastStore } from '@skeletonlabs/skeleton';
+	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 
 	const modalStore = getModalStore();
@@ -138,9 +141,16 @@
 	});
 </script>
 
-<div class="align-center mb-2 mt-2 flex w-full justify-between dark:text-white">
+<!-- Page Title -->
+<div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name={pageTitle} icon="ic:baseline-build" />
+
+	<!-- Back -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
 </div>
+
 {#if $mode == 'edit'}
 	<div class="flex justify-end gap-3">
 		<button
@@ -160,8 +170,35 @@
 <div class="wrapper">
 	<p class="mb-2 hidden text-center text-tertiary-500 dark:text-primary-500 sm:block">{m.collection_helptext()}</p>
 
-	<TabGroup bind:group={$tabSet} justify="justify-between lg:justify-start">
-		<TopTabs />
+	<TabGroup bind:group={$tabSet} justify="justify-around">
+		<!-- User Permissions -->
+		{#if $page.data.user && $page.data.user.role === 'admin'}
+			<!-- Edit -->
+			<Tab bind:group={$tabSet} name="default" value={0}>
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="ic:baseline-edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.button_edit()}</span>
+				</div>
+			</Tab>
+			<!-- Permissions -->
+			<Tab bind:group={$tabSet} name="permission" value={1}>
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 1} class:dark:text-primary-500={$tabSet === 1}
+						>{m.system_permission()}</span
+					>
+				</div>
+			</Tab>
+			<!-- Widget Fields -->
+			<Tab bind:group={$tabSet} name="widget" value={2}>
+				<div class="flex items-center gap-1">
+					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
+					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 2} class:text-primary-500={$tabSet === 2}
+						>{m.collection_widgetfields()}</span
+					>
+				</div>
+			</Tab>
+		{/if}
 
 		<svelte:fragment slot="panel">
 			{#if $tabSet === 0}

@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/tabsFields/Permission.svelte
+@description This component displays the permission tab fields.
+-->
+
 <script lang="ts">
 	// Components
 	import widgets from '@components/widgets';

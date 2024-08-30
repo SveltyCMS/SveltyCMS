@@ -25,7 +25,6 @@ import prettier from 'prettier';
 import prettierConfig from '@root/.prettierrc.json';
 import { updateCollections } from '@collections';
 import { compile } from '@api/compile/compile';
-
 import { redirect, type Actions, error } from '@sveltejs/kit';
 import type { WidgetType } from '@components/widgets';
 
@@ -33,7 +32,7 @@ import type { WidgetType } from '@components/widgets';
 import { auth, getCollectionModels } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// System Loggger
+// System Logger
 import logger from '@src/utils/logger';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
@@ -68,14 +67,18 @@ export async function load({ cookies }) {
 			throw error(403, "You don't have access to this page");
 		}
 
-		return { user };
+		// Ensure the user._id is converted to a string
+		const { _id, ...rest } = user;
+		const userSerializable = { id: _id.toString(), ...rest };
+
+		return { user: userSerializable };
 	} catch (e) {
 		logger.error('Error validating session:', e);
 		throw redirect(302, '/login');
 	}
 }
 
-// Create or Update Collection
+// Actions for creating or updating collections
 export const actions: Actions = {
 	// Save Collection
 	saveCollection: async ({ request }) => {
@@ -162,12 +165,12 @@ export const actions: Actions = {
 	}
 };
 
-// Recursively goes through an collection fields.
+// Recursively goes through a collection's fields
 async function goThrough(object: any, fields): Promise<string> {
 	const widgets = (await import('@components/widgets')).default;
 	const imports = new Set<string>();
 
-	//Asynchronously processes a field recursively.
+	// Asynchronously processes a field recursively
 	async function processField(field: any, fields?: any) {
 		if (field instanceof Object) {
 			for (const key in field) {
