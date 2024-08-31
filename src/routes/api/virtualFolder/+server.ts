@@ -23,6 +23,8 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
+
+// System Logger
 import logger from '@src/utils/logger';
 
 // POST: Create a new virtual folder

@@ -17,7 +17,7 @@
  * Used by the auth system to manage authentication tokens in a MongoDB database
  */
 
-import mongoose, { Schema, Document, Model } from 'mongoose';
+import mongoose, { Schema, Document, Model, type FilterQuery } from 'mongoose';
 import crypto from 'crypto';
 
 // Types
@@ -33,7 +33,7 @@ export const TokenSchema = new Schema(
 		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
 		token: { type: String, required: true }, // Token string, required field
 		email: { type: String, required: true }, // Email associated with the token, required field
-		expires: { type: Date, required: true }, // Expiry date of the token, required field
+		expires: { type: Number, required: true }, // Expiry timestamp of the token in seconds, required field
 		type: { type: String, required: true } // Type of the token, required field
 	},
 	{ timestamps: true }
@@ -71,7 +71,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 				token,
 				email: data.email,
 				type: data.type,
-				expires: new Date(Date.now() + data.expires)
+				expires: Math.floor(Date.now() / 1000) + data.expires // Store as Unix timestamp in seconds
 			});
 			await newToken.save();
 			this.log('debug', 'Token created', { user_id: data.user_id });
@@ -85,9 +85,11 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	// Validate a token
 	async validateToken(token: string, user_id: string, type: string): Promise<{ success: boolean; message: string }> {
 		try {
-			const tokenDoc = await this.TokenModel.findOne({ token, user_id, type }).lean();
+			// Ensure 'type' exists in your Token schema
+			const tokenDoc = await this.TokenModel.findOne({ token, user_id, type } as any).lean();
 			if (tokenDoc) {
-				if (tokenDoc.expires > new Date()) {
+				if (tokenDoc.expires > Math.floor(Date.now() / 1000)) {
+					// Compare using Unix timestamp in seconds
 					this.log('debug', 'Token validated', { user_id });
 					return { success: true, message: 'Token is valid' };
 				} else {
@@ -107,9 +109,14 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	// Consume a token
 	async consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }> {
 		try {
-			const tokenDoc = await this.TokenModel.findOneAndDelete({ token, user_id, type }).lean();
+			// Create a query filter with explicit casting
+			const query = { token, user_id, type } as FilterQuery<Token & Document>;
+
+			const tokenDoc = await this.TokenModel.findOneAndDelete(query).lean();
+
 			if (tokenDoc) {
-				if (tokenDoc.expires > new Date()) {
+				if (tokenDoc.expires > Math.floor(Date.now() / 1000)) {
+					// Compare using Unix timestamp in seconds
 					this.log('debug', 'Token consumed', { user_id });
 					return { status: true, message: 'Token is valid and consumed' };
 				} else {
@@ -127,7 +134,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	}
 
 	// Get all tokens
-	async getAllTokens(filter?: object): Promise<Token[]> {
+	async getAllTokens(filter?: FilterQuery<Token>): Promise<Token[]> {
 		try {
 			const tokens = await this.TokenModel.find(filter || {}).lean();
 			this.log('debug', 'All tokens retrieved');
@@ -141,7 +148,7 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	// Delete expired tokens
 	async deleteExpiredTokens(): Promise<number> {
 		try {
-			const result = await this.TokenModel.deleteMany({ expires: { $lte: new Date() } });
+			const result = await this.TokenModel.deleteMany({ expires: { $lte: Math.floor(Date.now() / 1000) } });
 			this.log('info', 'Expired tokens deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
 		} catch (error) {

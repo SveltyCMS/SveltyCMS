@@ -12,6 +12,7 @@
  * and a list of all media files. The actions object defines the server-side logic
  * for handling file uploads.
  */
+import { publicEnv } from '@root/config/public';
 
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
@@ -46,21 +47,25 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			throw redirect(302, '/login');
 		}
 
-		// Convert MongoDB ObjectId to string to avoid serialization issues
-		if (user._id) {
+		// Convert user._id to a string to ensure it's serializable
+		if (user._id && typeof user._id !== 'string') {
 			user._id = user._id.toString();
 		}
 
-		// Fetch all media types concurrently
+		const folderIdentifier = publicEnv.MEDIA_FOLDER;
+
 		const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const media_promises = media_types.map((type) => dbAdapter.findMany(type, {}));
+		const media_promises = media_types.map((type) => {
+			const query = type === 'media_remote' ? { folder: folderIdentifier } : {};
+			return dbAdapter.findMany(type, query);
+		});
+
 		let results = await Promise.all(media_promises);
 
 		results = results.map((arr, index) =>
 			arr.map((item) => ({
-				// Explicitly cast to MediaImage
 				...item,
-				_id: item._id.toString(),
+				_id: item._id?.toString(), // Ensure _id is treated as a string for any database
 				type: media_types[index].split('_')[1],
 				url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), media_types[index]),
 				thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), media_types[index])
@@ -69,7 +74,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		const media = results.flat();
 
-		// Fetch theme
 		let theme;
 		try {
 			theme = await dbAdapter.getDefaultTheme();

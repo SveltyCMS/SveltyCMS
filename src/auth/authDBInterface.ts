@@ -29,8 +29,8 @@ export interface authDBInterface {
 	getUserCount(filter?: object): Promise<number>;
 
 	// Session Management Methods
-	createSession(sessionData: { user_id: string; expires: Date }): Promise<Session>;
-	updateSessionExpiry(session_id: string, newExpiry: Date): Promise<Session>;
+	createSession(sessionData: { user_id: string; expires: number }): Promise<Session>; // Expires is now Unix timestamp (number)
+	updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session>; // Expires is now Unix timestamp (number)
 	deleteSession(session_id: string): Promise<void>;
 	deleteExpiredSessions(): Promise<number>; // Return number of deleted sessions
 	validateSession(session_id: string): Promise<User | null>;

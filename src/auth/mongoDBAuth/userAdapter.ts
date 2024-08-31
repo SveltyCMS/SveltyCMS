@@ -44,14 +44,14 @@ export const UserSchema = new Schema(
 		locale: String, // Locale of the user
 		avatar: String, // URL of the user's avatar, optional field
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
-		lastActiveAt: { type: Date, default: Date.now }, // Last time the user was active, optional field
-		expiresAt: Date, // Expiry date for the user, optional field
+		lastActiveAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Last time the user was active as Unix timestamp, optional field
+		expiresAt: { type: Number }, // Expiry timestamp for the user in seconds, optional field
 		isRegistered: Boolean, // Registration status of the user, optional field
 		failedAttempts: { type: Number, default: 0 }, // Number of failed login attempts, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
-		resetRequestedAt: Date, // Last time the user requested a password reset, optional field
+		resetRequestedAt: { type: Number }, // Last time the user requested a password reset as Unix timestamp, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
-		lockoutUntil: Date, // Lockout date for the user, optional field
+		lockoutUntil: { type: Number }, // Lockout timestamp for the user as Unix timestamp, optional field
 		is2FAEnabled: Boolean // Whether the user has 2FA enabled, optional field
 	},
 	{ timestamps: true }

@@ -65,7 +65,7 @@ async function getS3Client() {
 interface MediaVersion {
 	version: number;
 	url: string;
-	createdAt: Date;
+	createdAt: number; // Unix timestamp
 	createdBy: string;
 }
 
@@ -85,11 +85,11 @@ interface MediaBase {
 	type: string;
 	size: number;
 	user: string;
-	createdAt: Date;
-	updatedAt: Date;
+	createdAt: number; // Unix timestamp
+	updatedAt: number; // Unix timestamp
 	metadata?: Record<string, any>;
 	isDeleted?: boolean;
-	deletedAt?: Date;
+	deletedAt?: number; // Unix timestamp
 	versions: MediaVersion[];
 	access: MediaAccess[];
 }
@@ -200,7 +200,7 @@ async function saveResizedImages(
 // Cleans up old files from the trash directory.
 async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 	const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash');
-	const now = new Date();
+	const now = Math.floor(Date.now() / 1000); // Unix timestamp
 
 	try {
 		const collections = await fs.promises.readdir(trashFolder);
@@ -212,7 +212,7 @@ async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 				const filePath = Path.join(collectionPath, file);
 				const stats = await fs.promises.stat(filePath);
 
-				const daysInTrash = (now.getTime() - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
+				const daysInTrash = (now - Math.floor(stats.mtime.getTime() / 1000)) / (60 * 60 * 24);
 
 				if (daysInTrash > daysOld) {
 					await fs.promises.unlink(filePath);
@@ -223,7 +223,7 @@ async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 
 		// Clean up database records
 		if (dbAdapter) {
-			const cutoffDate = new Date(now.getTime() - daysOld * 24 * 60 * 60 * 1000);
+			const cutoffDate = now - daysOld * 24 * 60 * 60; // Unix timestamp
 			const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
 
 			for (const collection of mediaCollections) {
@@ -357,7 +357,7 @@ export async function moveMediaToTrash(id: string, collection: string): Promise<
 
 		// Update database record to mark as trashed
 		if (dbAdapter) {
-			await dbAdapter.updateOne(collection, { _id: id }, { $set: { trashed: true, trashedAt: new Date() } });
+			await dbAdapter.updateOne(collection, { _id: id }, { $set: { trashed: true, trashedAt: Math.floor(Date.now() / 1000) } });
 		} else {
 			logger.warn('dbAdapter is not available. Database not updated for trashed media.');
 		}
@@ -445,7 +445,7 @@ export async function updateMediaVersion(id: string, collection: string, newBuff
 	const newVersionInfo: MediaVersion = {
 		version: newVersion,
 		url: newUrl,
-		createdAt: new Date(),
+		createdAt: Math.floor(Date.now() / 1000), // Unix timestamp
 		createdBy: user_id
 	};
 
@@ -453,7 +453,7 @@ export async function updateMediaVersion(id: string, collection: string, newBuff
 		throw new Error('Database adapter is not initialized');
 	}
 
-	await dbAdapter.updateOne(collection, { _id: id }, { $push: { versions: newVersionInfo }, $set: { updatedAt: new Date() } });
+	await dbAdapter.updateOne(collection, { _id: id }, { $push: { versions: newVersionInfo }, $set: { updatedAt: Math.floor(Date.now() / 1000) } });
 
 	await clearCache(`media:${id}`);
 
@@ -465,7 +465,7 @@ export async function softDeleteMedia(id: string, collection: string): Promise<v
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { isDeleted: true, deletedAt: new Date() } });
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { isDeleted: true, deletedAt: Math.floor(Date.now() / 1000) } });
 	logger.info('Media soft deleted', { id, collection });
 }
 
@@ -474,7 +474,11 @@ export async function restoreMedia(id: string, collection: string): Promise<void
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $unset: { isDeleted: '', deletedAt: '' } });
+	await dbAdapter.updateOne(
+		collection,
+		{ _id: id },
+		{ $unset: { isDeleted: '', deletedAt: '' }, $set: { updatedAt: Math.floor(Date.now() / 1000) } }
+	);
 	logger.info('Media restored', { id, collection });
 }
 
@@ -483,7 +487,7 @@ export async function updateMediaMetadata(id: string, collection: string, metada
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { metadata, updatedAt: new Date() } });
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { metadata, updatedAt: Math.floor(Date.now() / 1000) } });
 	logger.info('Media metadata updated', { id, collection, metadata });
 }
 
@@ -492,7 +496,7 @@ export async function updateMediaInfo(id: string, collection: string, updates: P
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
-	await dbAdapter.updateOne(collection, { _id: id }, { $set: { ...updates, updatedAt: new Date() } });
+	await dbAdapter.updateOne(collection, { _id: id }, { $set: { ...updates, updatedAt: Math.floor(Date.now() / 1000) } });
 	logger.info('Media info updated', { id, collection, updates });
 }
 
@@ -506,7 +510,11 @@ export async function setMediaAccess(id: string, collection: string, userId: str
 		throw new Error('Database adapter is not initialized');
 	}
 
-	await dbAdapter.updateOne(collection, { _id: id }, { $push: { access: { userId, permissions } }, $set: { updatedAt: new Date() } });
+	await dbAdapter.updateOne(
+		collection,
+		{ _id: id },
+		{ $push: { access: { userId, permissions } }, $set: { updatedAt: Math.floor(Date.now() / 1000) } }
+	);
 
 	await clearCache(`media:${id}`);
 
@@ -548,7 +556,7 @@ export async function generateSignedUrl(id: string, collection: string, expiresI
 		throw new Error('Media not found');
 	}
 
-	const timestamp = Date.now() + expiresIn * 1000;
+	const timestamp = Math.floor(Date.now() / 1000) + expiresIn;
 	const signature = await sha256(Buffer.from(`${id}:${timestamp}:${privateEnv.JWT_SECRET_KEY}`));
 	return `${media.url}?signature=${signature}&expires=${timestamp}`;
 }
@@ -614,14 +622,14 @@ export async function saveMedia(
 			type: file.type,
 			size: file.size,
 			user: user_id,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			createdAt: Math.floor(Date.now() / 1000), // Unix timestamp
+			updatedAt: Math.floor(Date.now() / 1000), // Unix timestamp
 			metadata,
 			versions: [
 				{
 					version: 1,
 					url,
-					createdAt: new Date(),
+					createdAt: Math.floor(Date.now() / 1000), // Unix timestamp
 					createdBy: user_id
 				}
 			],
@@ -739,15 +747,15 @@ export async function saveRemoteMedia(
 			type: response.headers.get('content-type') || 'unknown',
 			size: parseInt(response.headers.get('content-length') || '0'),
 			user: user_id,
-			createdAt: new Date(),
-			updatedAt: new Date(),
+			createdAt: Math.floor(Date.now() / 1000), // Unix timestamp
+			updatedAt: Math.floor(Date.now() / 1000), // Unix timestamp
 			provider: new URL(fileUrl).hostname,
 			externalId: fileUrl,
 			versions: [
 				{
 					version: 1,
 					url,
-					createdAt: new Date(),
+					createdAt: Math.floor(Date.now() / 1000), // Unix timestamp
 					createdBy: user_id
 				}
 			],
@@ -818,6 +826,9 @@ function constructUrl(pathType: string, hash: string, fileName: string, ext: str
 	}
 }
 
+// Export the function so it can be used elsewhere
+export { constructUrl };
+
 // Returns the URL for accessing a media item.
 export function getMediaUrl(mediaItem: MediaBase, collectionName: string, size?: keyof typeof SIZES): string {
 	return constructUrl(mediaItem.path, mediaItem.hash, mediaItem.name, Path.extname(mediaItem.name).slice(1), collectionName, size);
@@ -866,7 +877,7 @@ async function extractMetadata(file: File, buffer: Buffer): Promise<Record<strin
 	// Add common metadata
 	metadata.size = buffer.length;
 	metadata.mimeType = fileType || 'application/octet-stream';
-	metadata.lastModified = new Date().toISOString();
+	metadata.lastModified = Math.floor(Date.now() / 1000); // Unix timestamp
 
 	return metadata;
 }
@@ -950,7 +961,7 @@ export async function bulkDeleteMedia(ids: string[], collection: string): Promis
 	if (!dbAdapter) {
 		throw new Error('Database adapter is not initialized');
 	}
-	await dbAdapter.updateMany(collection, { _id: { $in: ids } }, { $set: { isDeleted: true, deletedAt: new Date() } });
+	await dbAdapter.updateMany(collection, { _id: { $in: ids } }, { $set: { isDeleted: true, deletedAt: Math.floor(Date.now() / 1000) } });
 	logger.info('Bulk media soft deleted', { ids, collection });
 }
 

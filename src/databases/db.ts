@@ -270,9 +270,17 @@ export async function getCollectionModels() {
 
 	try {
 		logger.debug('Fetching collection models...');
+
+		// Fetch all collection models
 		const models = await dbAdapter.getCollectionModels();
+
+		// Assign the models to collectionsModels object
 		Object.assign(collectionsModels, models);
-		logger.debug('Collection models fetched successfully', { modelCount: Object.keys(models).length });
+
+		// Log the correct count after all collections have been fetched and assigned
+		const modelCount = Object.keys(collectionsModels).length;
+		logger.debug('Collection models fetched successfully', { modelCount });
+
 		return collectionsModels;
 	} catch (error) {
 		logger.error(`Error fetching collection models: ${(error as Error).message}`, { error });

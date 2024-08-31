@@ -159,7 +159,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Fetch media files
 	async function fetchMediaFiles() {
 		try {
-			const response = currentFolder ? await fetch(`/api/virtualFolder/${currentFolder}`) : await fetch('/api/media/all');
+			const response = currentFolder
+				? await fetch(`/api/virtualFolder/${currentFolder}`)
+				: await fetch(`/api/virtualFolder/${publicEnv.MEDIA_FOLDER}`);
 			const result = await response.json();
 
 			if (result.success) {

@@ -109,6 +109,7 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered,
 				failedAttempts: 0
+				// No need to set createdAt or updatedAt
 			});
 
 			if (!user || !user._id) {
@@ -139,6 +140,7 @@ export class Auth {
 			if (attributes.email === null) {
 				attributes.email = undefined;
 			}
+			// No need to manually set updatedAt, MongoDB will handle this automatically
 			await this.db.updateUserAttributes(user_id, attributes);
 			logger.info(`User attributes updated for user ID: ${user_id}`);
 		} catch (error) {
@@ -163,7 +165,7 @@ export class Auth {
 	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		expires = (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000,
+		expires = Math.floor(Date.now() / 1000) + (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS),
 		isExtended = false
 	}: {
 		user_id: string;
@@ -177,12 +179,19 @@ export class Auth {
 
 		logger.debug(`Creating session for user ID: ${user_id}`);
 
+		// Adjust expiration time if the session is extended
 		expires = isExtended ? expires * 2 : expires;
 		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires}`);
-		const session = await this.db.createSession({ user_id, expires });
+
+		const session = await this.db.createSession({
+			user_id,
+			expires // Passes the Unix timestamp for expiration
+		});
+
 		const user = await this.db.getUserById(user_id);
 		if (user) {
-			await this.sessionStore.set(session._id, user, expires / 1000);
+			// Store the session with the same expiry in the session store
+			await this.sessionStore.set(session._id, user, expires);
 		} else {
 			logger.error(`User not found for ID: ${user_id}`);
 			throw new Error(`User not found for ID: ${user_id}`);
@@ -317,7 +326,7 @@ export class Auth {
 				sameSite: 'lax',
 				path: '/',
 				httpOnly: true,
-				expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+				expires: new Date(session.expires * 1000), // Convert seconds to milliseconds and create a Date object
 				secure: process.env.NODE_ENV === 'production'
 			}
 		};
@@ -347,7 +356,7 @@ export class Auth {
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
 				if (failedAttempts >= 5) {
-					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000);
+					const lockoutUntil = Math.floor(Date.now() / 1000) + 30 * 60; // lockout for 30 minutes
 					await this.db.updateUserAttributes(user._id, { failedAttempts, lockoutUntil });
 					logger.warn(`User locked out due to too many failed attempts: ${user._id}`);
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
@@ -407,7 +416,12 @@ export class Auth {
 			const user = await this.db.getUserById(user_id);
 			if (!user) throw new Error('User not found');
 
-			const token = await this.db.createToken({ user_id, email: user.email, expires, type });
+			const token = await this.db.createToken({
+				user_id,
+				email: user.email,
+				expires: Math.floor(Date.now() / 1000) + expires / 1000, // Store as Unix timestamp in seconds
+				type
+			});
 			logger.info(`Token created for user ID: ${user_id}`);
 			return token;
 		} catch (error) {

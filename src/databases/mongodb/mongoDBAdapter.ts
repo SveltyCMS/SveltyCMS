@@ -33,7 +33,7 @@ import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@src/stores/userPreferences';
 
 // Database
-import mongoose from 'mongoose';
+import mongoose, { Schema, Model, type FilterQuery, type UpdateQuery } from 'mongoose';
 import type { dbInterface } from '../dbInterface';
 
 // System Logs
@@ -42,126 +42,141 @@ import logger from '@src/utils/logger';
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
+import type { MediaType } from '@src/utils/media';
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
 
-// Define the media schema (assuming it's defined similarly to other schemas)
-const mediaSchema = new mongoose.Schema(
+// Define the media schema for different media types
+const mediaSchema = new Schema(
 	{
-		url: String, // The URL of the media
-		altText: String, // The alt text for the media
-		createdAt: { type: Date, default: Date.now }, // The date the media was created
-		updatedAt: { type: Date, default: Date.now } // The date the media was last updated
+		url: { type: String, required: true }, // The URL of the media
+		altText: { type: String, required: true }, // The alt text for the media
+		createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the media was created
+		updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // The date the media was last updated
 	},
-	{ timestamps: true, collection: 'media' } // Explicitly set the collection name
+	{ timestamps: false, collection: 'media' } // Explicitly set the collection name
 );
 
-// Define the Draft schema
-const DraftSchema = new mongoose.Schema(
-	{
-		originalDocumentId: mongoose.Schema.Types.ObjectId, // The ID of the original document
-		content: mongoose.Schema.Types.Mixed, // The content of the draft
-		createdAt: { type: Date, default: Date.now }, // The date the draft was created
-		updatedAt: { type: Date, default: Date.now }, // The date the draft was last updated
-		status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
-		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the draft
-	},
-	{ collection: 'collection_drafts' } // Explicitly set the collection name
-);
+// Define the Draft model if it doesn't exist already
+const Draft =
+	mongoose.models.Draft ||
+	mongoose.model(
+		'Draft',
+		new Schema(
+			{
+				originalDocumentId: { type: Schema.Types.ObjectId, required: true }, // The ID of the original document
+				content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the draft was created
+				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the draft was last updated
+				status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
+				createdBy: { type: Schema.Types.ObjectId, ref: 'auth_users', required: true } // The user who created the draft
+			},
+			{ timestamps: false, collection: 'collection_drafts' } // Explicitly set the collection name
+		)
+	);
 
-// Create Draft model
-const Draft = mongoose.models.Draft || mongoose.model('Draft', DraftSchema);
+// Define the Revision model if it doesn't exist already
+const Revision =
+	mongoose.models.Revision ||
+	mongoose.model(
+		'Revision',
+		new Schema(
+			{
+				documentId: { type: Schema.Types.ObjectId, required: true }, // The ID of the document
+				content: { type: Schema.Types.Mixed, required: true }, // The content of the revision
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the revision was created
+				createdBy: { type: Schema.Types.ObjectId, ref: 'auth_users', required: true } // The user who created the revision
+			},
+			{ timestamps: false, collection: 'collection_revisions' } // Explicitly set the collection name
+		)
+	);
 
-// Define the Revision schema
-const RevisionSchema = new mongoose.Schema(
-	{
-		documentId: mongoose.Schema.Types.ObjectId, // The ID of the document
-		content: mongoose.Schema.Types.Mixed, // The content of the revision
-		createdAt: { type: Date, default: Date.now }, // The date the revision was created
-		createdBy: { type: mongoose.Schema.Types.ObjectId, ref: 'auth_users' } // The user who created the revision
-	},
-	{ collection: 'collection_revisions' } // Explicitly set the collection name
-);
+// Create the Widget model if it doesn't exist already
+const Widget =
+	mongoose.models.Widget ||
+	mongoose.model(
+		'Widget',
+		new Schema(
+			{
+				name: { type: String, required: true, unique: true }, // Name of the widget
+				isActive: { type: Boolean, default: true }, // Whether the widget is active or not
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // When the widget was created
+				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // When the widget was last updated
+			},
+			{ timestamps: false, collection: 'system_widgets' } // Explicitly set the collection name
+		)
+	);
 
-// Create Revision model
-const Revision = mongoose.models.Revision || mongoose.model('Revision', RevisionSchema);
-
-// Define the Widget schema
-const widgetSchema = new mongoose.Schema(
-	{
-		name: { type: String, required: true, unique: true }, // Name of the widget
-		isActive: { type: Boolean, default: true }, // Whether the widget is active or not
-		createdAt: { type: Date, default: Date.now }, // When the widget was created
-		updatedAt: { type: Date, default: Date.now } // When the widget was last updated
-	},
-	{ timestamps: true, collection: 'system_widgets' } // Explicitly set the collection name
-);
-
-// Create Widget model
-const Widget = mongoose.models.Widget || mongoose.model('Widget', widgetSchema);
-
+// Create the Theme model if it doesn't exist already
 export interface ThemeDocument extends Document {
 	name: string;
 	path: string;
 	isDefault: boolean;
-	createdAt: Date;
-	updatedAt: Date;
+	createdAt: number;
+	updatedAt: number;
 }
 
 // Define the Theme schema
-const ThemeSchema = new mongoose.Schema(
-	{
-		name: { type: String, required: true, unique: true }, // Name of the theme
-		path: { type: String, required: true }, // Path to the theme file
-		isDefault: { type: Boolean, default: false }, // Whether the theme is the default theme
-		createdAt: { type: Date, default: Date.now }, // Creation timestamp
-		updatedAt: { type: Date, default: Date.now } // Last updated timestamp
-	},
-	{ collection: 'system_themes' } // Explicitly set the collection name
-);
-
-// Create Theme model
-const Theme = mongoose.models.Theme || mongoose.model('Theme', ThemeSchema);
+const Theme =
+	mongoose.models.Theme ||
+	mongoose.model(
+		'Theme',
+		new Schema(
+			{
+				name: { type: String, required: true, unique: true }, // Name of the theme
+				path: { type: String, required: true }, // Path to the theme file
+				isDefault: { type: Boolean, default: false }, // Whether the theme is the default theme
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
+				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // Last updated timestamp
+			},
+			{ timestamps: false, collection: 'system_themes' } // Explicitly set the collection name
+		)
+	);
 
 // Define the System Preferences schema for user layout and screen size
-const SystemPreferencesSchema = new mongoose.Schema(
-	{
-		userId: String, // User identifier
-		preferences: {
-			type: Map,
-			of: [
-				{
-					id: String, // Component ID
-					component: String, // Component type or name
-					label: String, // Label for the component
-					x: Number, // X position on the screen
-					y: Number, // Y position on the screen
-					w: Number, // Width of the component
-					h: Number, // Height of the component
-					min: { w: Number, h: Number }, // Minimum size constraints
-					max: { w: Number, h: Number }, // Maximum size constraints
-					movable: Boolean, // Whether the component can be moved
-					resizable: Boolean, // Whether the component can be resized
-					screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'] } // Screen size context
+const SystemPreferences =
+	mongoose.models.SystemPreferences ||
+	mongoose.model(
+		'SystemPreferences',
+		new Schema(
+			{
+				userId: { type: String, required: true }, // User identifier
+				preferences: {
+					type: Map,
+					of: [
+						{
+							id: { type: String, required: true }, // Component ID
+							component: { type: String, required: true }, // Component type or name
+							label: { type: String, required: true }, // Label for the component
+							x: { type: Number, required: true }, // X position on the screen
+							y: { type: Number, required: true }, // Y position on the screen
+							w: { type: Number, required: true }, // Width of the component
+							h: { type: Number, required: true }, // Height of the component
+							min: { w: { type: Number }, h: { type: Number } }, // Minimum size constraints
+							max: { w: { type: Number }, h: { type: Number } }, // Maximum size constraints
+							movable: { type: Boolean, default: true }, // Whether the component can be moved
+							resizable: { type: Boolean, default: true }, // Whether the component can be resized
+							screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'], required: true } // Screen size context
+						}
+					]
 				}
-			]
-		}
-	},
-	{ collection: 'system_preferences' }
-);
+			},
+			{ timestamps: false, collection: 'system_preferences' } // Explicitly set the collection name
+		)
+	);
 
-const SystemPreferences = mongoose.models.SystemPreferences || mongoose.model('SystemPreferences', SystemPreferencesSchema);
-
-// Define the VirtualFolder schema
-const VirtualFolderSchema = new mongoose.Schema({
-	name: { type: String, required: true },
-	parent: { type: mongoose.Schema.Types.ObjectId, ref: 'VirtualFolder' },
-	path: { type: String, required: true }
-});
-
-// Create the VirtualFolder model only if it doesn't already exist
-const VirtualFolder = mongoose.models.VirtualFolder || mongoose.model('VirtualFolder', VirtualFolderSchema);
+// Define the VirtualFolder model only if it doesn't already exist
+const VirtualFolder =
+	mongoose.models.VirtualFolder ||
+	mongoose.model(
+		'VirtualFolder',
+		new Schema({
+			name: { type: String, required: true },
+			parent: { type: Schema.Types.ObjectId, ref: 'VirtualFolder' },
+			path: { type: String, required: true }
+		})
+	);
 
 export class MongoDBAdapter implements dbInterface {
 	private unsubscribe: Unsubscriber | undefined;
@@ -171,37 +186,43 @@ export class MongoDBAdapter implements dbInterface {
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		logger.debug('Attempting to connect to MongoDB...');
 		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv');
+
 		// Construct the connection string
 		const connectionString = isAtlas
-			? privateEnv.DB_HOST // Use DB_HOST as full connection string for Atlas
+			? privateEnv.DB_HOST // Use full connection string for Atlas
 			: `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`; // Local/Docker connection
-		while (attempts > 0) {
-			try {
-				await mongoose.connect(connectionString, {
-					authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
-					user: privateEnv.DB_USER,
-					pass: privateEnv.DB_PASSWORD,
-					dbName: privateEnv.DB_NAME,
-					maxPoolSize: privateEnv.DB_POOL_SIZE || 5
-				});
-				// Inform about successful connection
-				logger.debug(`MongoDB adapter connected successfully to ${privateEnv.DB_NAME}`);
 
-				return; // Connection successful, exit loop
-			} catch (error) {
-				attempts--;
-				const err = error as Error;
-				logger.error(`MongoDB adapter failed to connect. Attempts left: ${attempts}. Error: ${err.message}`);
+		// Set connection options
+		const options = {
+			authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
+			user: privateEnv.DB_USER,
+			pass: privateEnv.DB_PASSWORD,
+			dbName: privateEnv.DB_NAME,
+			maxPoolSize: privateEnv.DB_POOL_SIZE || 5,
+			retryWrites: true,
+			serverSelectionTimeoutMS: 5000 // 5 seconds timeout for server selection
+		};
 
-				if (attempts <= 0) {
-					const errorMsg = 'Failed to connect to the database after maximum retries.';
-					logger.error(errorMsg);
-					throw new Error(`MongoDB adapter failed to connect after maximum retries. Error: ${err.message}`);
-				}
+		// Use Mongoose's built-in retry logic
+		mongoose.connection.on('connected', () => {
+			logger.info('MongoDB connection established successfully.');
+		});
 
-				// Wait before retrying only if more attempts remain
-				await new Promise((resolve) => setTimeout(resolve, privateEnv.DB_RETRY_DELAY || 3000));
-			}
+		mongoose.connection.on('disconnected', () => {
+			logger.warn('MongoDB connection lost. Attempting to reconnect...');
+		});
+
+		mongoose.connection.on('error', (err) => {
+			logger.error(`MongoDB connection error: ${err.message}`);
+		});
+
+		try {
+			await mongoose.connect(connectionString, options);
+			logger.info(`Successfully connected to MongoDB database: ${privateEnv.DB_NAME}`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to connect to MongoDB after ${attempts} attempts: ${err.message}`);
+			throw new Error(`MongoDB connection failed: ${err.message}`);
 		}
 	}
 
@@ -222,7 +243,7 @@ export class MongoDBAdapter implements dbInterface {
 		return new Promise<any>((resolve, reject) => {
 			this.unsubscribe = collections.subscribe(async (collections) => {
 				if (collections) {
-					const collectionsModels: { [key: string]: mongoose.Model<any> } = {};
+					const collectionsModels: { [key: string]: Model<any> } = {};
 					// Map to collection names only
 					const collectionNames = Object.values(collections).map((collection) => collection.name);
 					logger.debug('Collections found:', { collectionNames });
@@ -237,16 +258,16 @@ export class MongoDBAdapter implements dbInterface {
 
 						const schemaObject = new mongoose.Schema(
 							{
-								createdAt: Date,
-								updatedAt: Date,
-								createdBy: String,
-								revisionsEnabled: Boolean,
-								translationStatus: {}
+								createdAt: { type: Number }, // Unix timestamp in seconds
+								updatedAt: { type: Number }, // Unix timestamp in seconds
+								createdBy: { type: String }, // ID of the user who created the document
+								revisionsEnabled: { type: Boolean }, // Flag indicating if revisions are enabled
+								translationStatus: { type: Schema.Types.Mixed, default: {} } // Translation status, mixed type allows any structure
 							},
 							{
 								typeKey: '$type',
 								strict: true, // Enable strict mode
-								timestamps: true,
+								timestamps: false,
 								collection: collection.name.toLowerCase() // Explicitly set the collection name to avoid duplicates
 							}
 						);
@@ -282,26 +303,9 @@ export class MongoDBAdapter implements dbInterface {
 	// Set up authentication models
 	setupAuthModels(): void {
 		try {
-			if (!mongoose.models['auth_tokens']) {
-				mongoose.model('auth_tokens', TokenSchema);
-				logger.debug('Auth tokens model created.');
-			} else {
-				logger.debug('Auth tokens model already exists.');
-			}
-
-			if (!mongoose.models['auth_users']) {
-				mongoose.model('auth_users', UserSchema);
-				logger.debug('Auth users model created.');
-			} else {
-				logger.debug('Auth users model already exists.');
-			}
-
-			if (!mongoose.models['auth_sessions']) {
-				mongoose.model('auth_sessions', SessionSchema);
-				logger.debug('Auth sessions model created.');
-			} else {
-				logger.debug('Auth sessions model already exists.');
-			}
+			this.setupModel('auth_tokens', TokenSchema);
+			this.setupModel('auth_users', UserSchema);
+			this.setupModel('auth_sessions', SessionSchema);
 			logger.info('Authentication models set up successfully.');
 		} catch (error) {
 			const err = error as Error;
@@ -310,25 +314,33 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
+	// Helper method to set up models if they don't already exist
+	private setupModel(name: string, schema: Schema) {
+		if (!mongoose.models[name]) {
+			mongoose.model(name, schema);
+			logger.debug(`${name} model created.`);
+		} else {
+			logger.debug(`${name} model already exists.`);
+		}
+	}
+
 	// Set up media models
 	setupMediaModels(): void {
 		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		mediaSchemas.forEach((schemaName) => {
-			if (!mongoose.models[schemaName]) {
-				mongoose.model(schemaName, mediaSchema);
-				logger.debug(`Media model for ${schemaName} created.`);
-			}
+			this.setupModel(schemaName, mediaSchema);
 		});
 		logger.info('Media models set up successfully.');
 	}
 
 	// Set up widget models
 	setupWidgetModels(): void {
-		if (!mongoose.models['system_widgets']) {
-			mongoose.model('system_widgets', widgetSchema);
-			logger.debug('Widget model for system_widgets created.');
+		// This will ensure that the Widget model is created or reused
+		if (!mongoose.models.Widget) {
+			mongoose.model('Widget', Widget.schema);
+			logger.info('Widget model created.');
 		} else {
-			logger.debug('Widget model already exists.');
+			logger.info('Widget model already exists.');
 		}
 		logger.info('Widget models set up successfully.');
 	}
@@ -348,7 +360,6 @@ export class MongoDBAdapter implements dbInterface {
 		try {
 			// First, unset the current default theme
 			await Theme.updateMany({}, { $set: { isDefault: false } });
-
 			// Then, set the new default theme
 			const result = await Theme.updateOne({ name: themeName }, { $set: { isDefault: true } });
 
@@ -408,8 +419,8 @@ export class MongoDBAdapter implements dbInterface {
 					name: theme.name,
 					path: theme.path,
 					isDefault: theme.isDefault || false,
-					createdAt: new Date(),
-					updatedAt: new Date()
+					createdAt: Math.floor(Date.now() / 1000),
+					updatedAt: Math.floor(Date.now() / 1000)
 				})),
 				{ ordered: false }
 			); // Use ordered: false to ignore duplicates
@@ -438,8 +449,8 @@ export class MongoDBAdapter implements dbInterface {
 			const widget = new Widget({
 				...widgetData,
 				isActive: widgetData.isActive ?? false,
-				createdAt: new Date(),
-				updatedAt: new Date()
+				createdAt: Math.floor(Date.now() / 1000),
+				updatedAt: Math.floor(Date.now() / 1000)
 			});
 			await widget.save();
 			logger.info(`Widget ${widgetData.name} installed successfully.`);
@@ -476,7 +487,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Activate a widget
 	async activateWidget(widgetName: string): Promise<void> {
 		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: new Date() } }).exec();
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
 
 			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or already active.`);
@@ -493,7 +504,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Deactivate a widget
 	async deactivateWidget(widgetName: string): Promise<void> {
 		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: new Date() } }).exec();
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
 
 			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
@@ -510,7 +521,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Update a widget
 	async updateWidget(widgetName: string, updateData: any): Promise<void> {
 		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: new Date() } }).exec();
+			const result = await Widget.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
 
 			if (result.modifiedCount === 0) {
 				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
@@ -525,14 +536,15 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing findOne method
-	async findOne(collection: string, query: object): Promise<any> {
+	async findOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T | null> {
 		try {
-			const model = mongoose.models[collection];
+			const model = mongoose.models[collection] as Model<T>;
 			if (!model) {
 				logger.error(`Collection ${collection} does not exist.`);
 				throw new Error(`Collection ${collection} does not exist.`);
 			}
-			return await model.findOne(query).lean().exec();
+			const result = await model.findOne(query).lean().exec();
+			return result as T | null; // Explicitly cast to T
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error in findOne for collection ${collection}: ${err.message}`, { error: err });
@@ -541,24 +553,26 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing findMany method
-	async findMany(collection: string, query: object): Promise<any[]> {
-		const model = mongoose.models[collection];
+	async findMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<T[]> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`findMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`findMany failed. Collection ${collection} does not exist.`);
 		}
-		return model.find(query).lean().exec();
+		const results = await model.find(query).lean().exec();
+		return results as T[]; // Explicitly cast to T[]
 	}
 
 	// Implementing insertOne method
-	async insertOne(collection: string, doc: object): Promise<any> {
-		const model = mongoose.models[collection];
+	async insertOne<T extends Document>(collection: string, doc: T): Promise<T> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
 			throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
 		}
 		try {
-			return await model.create(doc);
+			const result = await model.create(doc);
+			return result as T; // Explicitly cast to T
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error inserting document into ${collection}: ${err.message}`);
@@ -577,8 +591,8 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateOne method
-	async updateOne(collection: string, query: object, update: object): Promise<any> {
-		const model = mongoose.models[collection];
+	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
@@ -587,8 +601,8 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing updateMany method
-	async updateMany(collection: string, query: object, update: object): Promise<any> {
-		const model = mongoose.models[collection];
+	async updateMany<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
@@ -597,26 +611,26 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing deleteOne method
-	async deleteOne(collection: string, query: object): Promise<number> {
-		const model = mongoose.models[collection];
+	async deleteOne<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			throw new Error(`Collection ${collection} not found`);
 		}
-		return model.deleteOne(query).then((result) => result.deletedCount);
+		return model.deleteOne(query).then((result) => result.deletedCount || 0);
 	}
 
 	// Implementing deleteMany method
-	async deleteMany(collection: string, query: object): Promise<number> {
-		const model = mongoose.models[collection];
+	async deleteMany<T extends Document>(collection: string, query: FilterQuery<T>): Promise<number> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			throw new Error(`Collection ${collection} not found`);
 		}
-		return model.deleteMany(query).then((result) => result.deletedCount);
+		return model.deleteMany(query).then((result) => result.deletedCount || 0);
 	}
 
 	// Implementing countDocuments method
-	async countDocuments(collection: string, query?: object): Promise<number> {
-		const model = mongoose.models[collection];
+	async countDocuments<T extends Document>(collection: string, query?: FilterQuery<T>): Promise<number> {
+		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
 			throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
@@ -647,7 +661,7 @@ export class MongoDBAdapter implements dbInterface {
 			const draft = await Draft.findById(draftId);
 			if (!draft) throw new Error('Draft not found');
 			draft.content = content;
-			draft.updatedAt = new Date();
+			draft.updatedAt = Math.floor(Date.now() / 1000);
 			await draft.save();
 			return draft;
 		} catch (error) {
@@ -826,15 +840,15 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Get all media
-	async getAllMedia(): Promise<any[]> {
+	async getAllMedia(): Promise<MediaType[]> {
 		// Implement fetching all media files
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const mediaPromises = mediaTypes.map((type) => this.findMany(type, {}));
+		const mediaPromises = mediaTypes.map((type) => this.findMany<MediaType>(type, {}));
 		const results = await Promise.all(mediaPromises);
 		return results.flat().map((item) => ({
 			...item,
-			_id: item._id.toString(),
-			type: item.type || 'unknown'
+			_id: item._id.toString(), // Ensuring _id is a string
+			type: item.type || 'unknown' // Handle the type property
 		}));
 	}
 

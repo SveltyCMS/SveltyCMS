@@ -1,13 +1,3 @@
-/**
- * @file src/routes/login/+page.server.ts
- * @description Server-side logic for the login page
- *
- * This module handles the server-side operations for the login page, including:
- * - User authentication and session management
- * - Form validation with superforms rate limiting
- * - OAuth login
- */
-
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
 
@@ -141,8 +131,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 				if (!needSignIn && user && user._id) {
 					// Create session and set cookie
-					const expires = new Date(Date.now() + 3600000); // 1 hour from now
+					const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 					const session = await auth.createSession({ user_id: user._id, expires });
+					logger.debug(`Session created: ${JSON.stringify(session)}`);
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
@@ -403,7 +394,7 @@ export const actions: Actions = {
 		const email = pwresetForm.data.email;
 
 		// Define expiresIn
-		const expiresIn = 1 * 60 * 60; // expiration in 1 hours
+		const expiresIn = 1 * 60 * 60; // expiration in 1 hour
 
 		const resp = await resetPWCheck(password, token, email, expiresIn);
 		logger.debug(`resetPW resp: ${JSON.stringify(resp)}`);
@@ -444,7 +435,7 @@ async function signIn(
 
 		// Create User Session
 		try {
-			const expires = new Date(Date.now() + 3600000); // 1 hour from now
+			const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 			const session = await auth.createSession({ user_id: user._id, expires });
 			logger.debug(`Session created: ${JSON.stringify(session)}`);
 			const sessionCookie = auth.createSessionCookie(session);
@@ -474,10 +465,10 @@ async function signIn(
 		const result = await auth.consumeToken(token, user._id);
 
 		if (result.status) {
-			const expires = new Date(Date.now() + 3600000); // 1 hour from now
 			// Create User Session
+			const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 			const session = await auth.createSession({ user_id: user._id, expires });
-
+			logger.debug(`Session created: ${JSON.stringify(session)}`);
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
@@ -512,7 +503,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Failed to create user' };
 		}
 
-		const expires = new Date(Date.now() + 3600000); // 1 hour from now
+		const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 		// Create User Session
 		const session = await auth.createSession({ user_id: user._id, expires });
 		if (!session || !session._id) {
@@ -554,7 +545,7 @@ async function finishRegistration(username: string, email: string, password: str
 			isRegistered: true
 		});
 
-		const expires = new Date(Date.now() + 3600000); // 1 hour from now
+		const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 		// Create User Session
 		const session = await auth.createSession({ user_id: user._id.toString(), expires });
 		const sessionCookie = auth.createSessionCookie(session);
@@ -584,7 +575,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 			throw error(500, 'Internal Server Error');
 		}
 
-		const expiresIn = 1 * 60 * 60 * 1000; // expiration in 1 hour
+		const expiresIn = 1 * 60 * 60; // expiration in 1 hour
 		const user = await auth.checkUser({ email });
 
 		// The email address does not exist
@@ -620,9 +611,8 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 
 		if (validate.status) {
 			// Check token expiration
-			const currentTime = Date.now();
-			const tokenExpiryTime = currentTime + expiresIn * 1000; // Convert expiresIn to milliseconds
-			if (currentTime >= tokenExpiryTime) {
+			const currentTime = Math.floor(Date.now() / 1000);
+			if (currentTime >= expiresIn) {
 				logger.warn('Token has expired');
 				return { status: false, message: 'Token has expired' };
 			}

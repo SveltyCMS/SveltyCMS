@@ -134,14 +134,14 @@ export interface User {
 	locale?: string; // Locale of the user
 	avatar?: string; // URL of the user's avatar image
 	lastAuthMethod?: string; // The last authentication method used by the user
-	lastActiveAt?: Date; // The last time the user was active
-	expiresAt?: Date; // When the reset token expires
+	lastActiveAt?: number; // The last time the user was active (Unix timestamp in seconds)
+	expiresAt?: number; // When the reset token expires (Unix timestamp in seconds)
 	isRegistered?: boolean; // Indicates if the user has completed registration
 	failedAttempts?: number; // Tracks the number of consecutive failed login attempts
 	blocked?: boolean; // Indicates if the user is blocked
-	resetRequestedAt?: Date; // The last time the user requested a password reset
+	resetRequestedAt?: number; // The last time the user requested a password reset (Unix timestamp in seconds)
 	resetToken?: string; // Token for resetting the user's password
-	lockoutUntil?: Date | null; // Time until which the user is locked out of their account
+	lockoutUntil?: number | null; // Time until which the user is locked out of their account (Unix timestamp in seconds)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
 	permissions: Set<string>; // Set of permissions associated with the user
 }
@@ -150,7 +150,7 @@ export interface User {
 export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
-	expires: Date; // When the session expires
+	expires: number; // When the session expires (Unix timestamp in seconds)
 }
 
 // Token Interface
@@ -159,7 +159,7 @@ export interface Token {
 	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email?: string; // Email associated with the token
-	expires: Date; // When the token expires
+	expires: number; // When the token expires (Unix timestamp in seconds)
 }
 
 // Collection Interface
@@ -178,7 +178,7 @@ export type Cookie = {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
 		httpOnly: boolean;
-		expires: Date;
+		expires: number; // Expiration date of the cookie as a Unix timestamp in seconds
 		secure: boolean;
 	};
 };
@@ -190,7 +190,7 @@ export interface RateLimit {
 	limit: number; // Maximum allowed actions
 	windowMs: number; // Time window in milliseconds
 	current: number; // Current count of actions performed
-	lastActionAt: Date; // Last action timestamp
+	lastActionAt: number; // Last action timestamp (Unix timestamp in seconds)
 }
 
 // Icon and Color Mapping for Permissions
@@ -268,6 +268,13 @@ export interface Model<T> {
 // Additional Types
 export type WidgetId = string; // Unique identifier for a widget
 
+// RolePermissions Interface
+export interface RolePermissions {
+	[role: string]: {
+		[action in PermissionAction]?: boolean; // Defines actions permitted for each role
+	};
+}
+
 // Schema Interface
 export interface Schema {
 	icon?: string; // Optional icon representing the schema
@@ -277,21 +284,14 @@ export interface Schema {
 	fields: any[]; // Array of fields defined in the schema
 }
 
-// RolePermissions Interface
-export interface RolePermissions {
-	[role: string]: {
-		[action in PermissionAction]?: boolean; // Defines actions permitted for each role
-	};
-}
-
 // Draft Interface
 export interface Draft {
 	draft_id: string; // Unique identifier for the draft
 	collection_id: string; // ID of the collection the draft belongs to
 	user_id: string; // ID of the user who created the draft
 	data: any; // Data associated with the draft
-	createdAt: Date; // Creation timestamp of the draft
-	updatedAt: Date; // Last update timestamp of the draft
+	createdAt: number; // Creation timestamp of the draft (Unix timestamp in seconds)
+	updatedAt: number; // Last update timestamp of the draft (Unix timestamp in seconds)
 	status: 'pending' | 'failed'; // Status of the draft
 }
 
@@ -301,6 +301,6 @@ export interface Revision {
 	collection_id: string; // ID of the collection the revision belongs to
 	user_id: string; // ID of the user who made the revision
 	data: any; // Data associated with the revision
-	createdAt: Date; // Creation timestamp of the revision
+	createdAt: number; // Creation timestamp of the revision (Unix timestamp in seconds)
 	version: number; // Version number of the revision
 }

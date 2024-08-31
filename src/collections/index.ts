@@ -61,7 +61,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		let _categories = createCategories(imports);
 
 		if (!dev && !building) {
-			const config = `config.js?${Date.now()}`; // Unique identifier for caching
+			const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Unique identifier for caching
 			const { createCategories: newCreateCategories } = browser
 				? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
 				: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
@@ -137,8 +137,8 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 				const name = file.replace(/.js$/, '') as CollectionNames;
 				const collectionModule =
 					typeof window !== 'undefined'
-						? (await axios.get(`/api/getCollection?fileName=${file}?${Date.now()}`)).data
-						: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${Date.now()}`);
+						? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
+						: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${Math.floor(Date.now() / 1000)}`);
 
 				const collection = (collectionModule as { default: Schema })?.default; // Ensure proper typing
 				if (collection) {

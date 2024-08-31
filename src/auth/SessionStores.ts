@@ -38,7 +38,7 @@ export class InMemorySessionStore implements SessionStore {
 
 	// Cleanup expired sessions
 	private cleanup() {
-		const now = Date.now();
+		const now = Math.floor(Date.now() / 1000); // Use Unix timestamp in seconds
 		for (const [session_id, session] of this.sessions) {
 			if (session.expiresAt < now) {
 				this.sessions.delete(session_id);
@@ -50,7 +50,7 @@ export class InMemorySessionStore implements SessionStore {
 	// Get a user by session ID
 	async get(session_id: string): Promise<User | null> {
 		const session = this.sessions.get(session_id);
-		if (!session || session.expiresAt < Date.now()) {
+		if (!session || session.expiresAt < Math.floor(Date.now() / 1000)) {
 			return null;
 		}
 		return session.user;
@@ -60,7 +60,7 @@ export class InMemorySessionStore implements SessionStore {
 	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
 		this.sessions.set(session_id, {
 			user,
-			expiresAt: Date.now() + expirationInSeconds * 1000
+			expiresAt: Math.floor(Date.now() / 1000) + expirationInSeconds // Unix timestamp in seconds
 		});
 		// Evict the oldest session if the limit is exceeded
 		if (this.sessions.size > (privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000)) {

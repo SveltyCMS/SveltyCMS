@@ -1,5 +1,7 @@
-// @file src/collections/Names.ts
-// @description Collection file for Names
+/**
+ * @file src/collections/Names.ts
+ * @description Collection file for Names
+ */
 
 import widgets from '@components/widgets';
 import type { Schema } from './types';
@@ -17,8 +19,9 @@ const schema: Schema = {
 	// Collection Permissions by user Roles
 	permissions: {
 		developer: {
-			read: false
+			read: false // Developer cannot read, other roles default to true
 		}
+		// You can add more roles with specific restrictions if needed
 	},
 
 	// Defined Fields that are used in your Collection
@@ -39,8 +42,8 @@ const schema: Schema = {
 			width: 2,
 			required: true,
 			permissions: {
-				user: {
-					read: false
+				developer: {
+					read: false // User cannot read, other roles default to true
 				}
 			}
 		})

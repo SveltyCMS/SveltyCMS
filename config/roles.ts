@@ -15,6 +15,12 @@ export const roles: Role[] = [
 		permissions: new Set(permissions.map((p) => p._id)) // Admin gets all permissions, using _id as the identifier
 	},
 	{
+		_id: 'developer',
+		name: 'Developer',
+		description: 'Can create, read, update, and delete content',
+		permissions: new Set(['collection:create', 'collection:read', 'collection:update', 'collection:delete'])
+	},
+	{
 		_id: 'editor',
 		name: 'Editor',
 		description: 'Can create, read, and update content',
