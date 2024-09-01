@@ -26,8 +26,6 @@
 	const permissionsList = writable<Permission[]>([]);
 	const modifiedPermissions = writable<Set<string>>(new Set());
 	let searchTerm = '';
-	const selectedPermissions = writable<Set<string>>(new Set());
-	const advancedConditions = writable<{ [key: string]: any }>({});
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
@@ -120,32 +118,9 @@
 		}
 	};
 
-	// Bulk delete selected permissions
-	const bulkDeletePermissions = async () => {
-		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-			for (const permissionName of $selectedPermissions) {
-				await authAdapter.deletePermission(permissionName, currentUserId);
-			}
-			selectedPermissions.set(new Set());
-			await loadPermissions();
-		} catch (err) {
-			error.set(`Failed to delete permissions: ${err instanceof Error ? err.message : String(err)}`);
-		}
-	};
-
-	// Toggle permission selection
-	const togglePermissionSelection = (permissionName: string) => {
-		selectedPermissions.update((selected) => {
-			if (selected.has(permissionName)) {
-				selected.delete(permissionName);
-			} else {
-				selected.add(permissionName);
-			}
-			return selected;
-		});
+	// Reset changes to permissions
+	const resetChanges = () => {
+		modifiedPermissions.set(new Set());
 	};
 </script>
 
@@ -154,33 +129,34 @@
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<div class="card mt-8 p-4">
-		<h3 class="mb-4 text-lg font-semibold">Existing Permissions</h3>
-		<div class="mb-4">
-			<input
-				type="text"
-				bind:value={searchTerm}
-				placeholder="Search permissions..."
-				class="w-full rounded border border-gray-300 p-2"
-				aria-label="Search permissions"
-			/>
+	<div class="wrapper">
+		<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
+			<input type="text" bind:value={searchTerm} placeholder="Search permissions..." class="input mr-4 flex-grow" aria-label="Search permissions" />
+			<div class="flex space-x-2">
+				{#if $modifiedPermissions.size > 0}
+					<button on:click={saveChanges} class="variant-filled-tertiary btn">
+						Save Changes ({$modifiedPermissions.size})
+					</button>
+					<button on:click={resetChanges} class="variant-filled-secondary btn">Reset</button>
+				{/if}
+			</div>
 		</div>
+		<!-- TODO: Make Titke dynamic -->
+		<h2 class="mb-4 text-lg font-semibold">Default Permissions:</h2>
 		{#if filteredPermissions.length === 0}
 			<p class="text-tertiary-500 dark:text-primary-500">
 				{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 			</p>
 		{:else}
 			<table class="compact w-full table-auto border-collapse border border-gray-200">
-				<thead class="bg-gray-50">
-					<tr class="divide-x">
-						<th class="px-4 py-2">Permission ID</th>
-						<th class="px-4 py-2">Action</th>
+				<thead class="">
+					<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
 						<th class="px-4 py-2">Type</th>
+						<th class="px-4 py-2">Action</th>
+
 						{#each $roles as role}
 							<th class="px-4 py-2">{role.name}</th>
 						{/each}
-						<th class="px-4 py-2">Advanced Conditions</th>
-						<th class="px-4 py-2">Select</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -188,7 +164,7 @@
 						<tr class="divide-x">
 							<td class="px-4 py-2">{permission._id}</td>
 							<td class="px-4 py-2">{permission.action}</td>
-							<td class="px-4 py-2">{permission.contextType}</td>
+
 							{#each $roles as role}
 								<td class="px-4 py-2 text-center">
 									<input
@@ -202,38 +178,10 @@
 									/>
 								</td>
 							{/each}
-							<td class="px-4 py-2 text-center">
-								<input
-									type="text"
-									placeholder="Conditions"
-									bind:value={$advancedConditions[permission.name]}
-									class="rounded border border-gray-300 p-1"
-								/>
-							</td>
-							<td class="px-4 py-2 text-center">
-								<input
-									type="checkbox"
-									checked={$selectedPermissions.has(permission.name)}
-									on:change={() => togglePermissionSelection(permission.name)}
-									class="form-checkbox"
-								/>
-							</td>
 						</tr>
 					{/each}
 				</tbody>
 			</table>
 		{/if}
-
-		{#if $modifiedPermissions.size > 0}
-			<div class="mt-4 text-right">
-				<button on:click={saveChanges} class="rounded bg-blue-500 px-4 py-2 text-white">
-					Save Changes ({$modifiedPermissions.size})
-				</button>
-			</div>
-		{/if}
-
-		<div class="mt-4 text-right">
-			<button on:click={bulkDeletePermissions} class="rounded bg-red-500 px-4 py-2 text-white"> Delete Selected Permissions </button>
-		</div>
 	</div>
 {/if}

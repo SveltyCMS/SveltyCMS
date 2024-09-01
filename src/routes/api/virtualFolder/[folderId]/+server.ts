@@ -34,6 +34,10 @@ export const GET: RequestHandler = async ({ params }) => {
 
 	try {
 		const contents = await dbAdapter.getVirtualFolderContents(folderId);
+		if (!contents || contents.length === 0) {
+			logger.info('No contents found for folder:', folderId);
+			return json({ success: true, contents: [] }); // Return empty array if no contents
+		}
 		return json({ success: true, contents });
 	} catch (error) {
 		logger.error('Error fetching folder contents:', error);

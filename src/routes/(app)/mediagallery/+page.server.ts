@@ -44,7 +44,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const user = await auth.validateSession({ session_id });
 		if (!user) {
 			logger.warn('Invalid session, redirecting to login');
-			throw redirect(302, '/login');
+			throw redirect(302, '/login'); // Correct use of redirect
 		}
 
 		// Convert user._id to a string to ensure it's serializable
@@ -79,14 +79,14 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			theme = await dbAdapter.getDefaultTheme();
 			theme = JSON.parse(JSON.stringify(theme)); // Ensure theme is serializable
 		} catch (err) {
-			logger.error('Error fetching default theme:', (err as Error).message);
+			logger.error('Error fetching default theme:', err instanceof Error ? err.message : String(err));
 			theme = DEFAULT_THEME;
 		}
 
 		logger.info('Media gallery data loaded successfully');
 		return { user, media, theme };
 	} catch (err) {
-		logger.error('Error in media gallery load function:', (err as Error).message);
+		logger.error('Error in media gallery load function:', err instanceof Error ? err.message : String(err));
 		throw error(500, 'Internal Server Error');
 	}
 };

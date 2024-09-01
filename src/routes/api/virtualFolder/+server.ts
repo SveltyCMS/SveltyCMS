@@ -49,6 +49,10 @@ export const POST: RequestHandler = async ({ request }) => {
 export const GET: RequestHandler = async () => {
 	try {
 		const folders = await dbAdapter.getVirtualFolders();
+		if (!folders || folders.length === 0) {
+			logger.info('No virtual folders found.');
+			return json({ success: true, folders: [] }); // Return an empty list
+		}
 		return json({ success: true, folders });
 	} catch (error) {
 		logger.error('Error fetching folders:', error);

@@ -7,7 +7,7 @@
 
 	// Auth
 	import type { Role, Permission } from '@src/auth/types';
-	import { authAdapter, initializationPromise } from '@src/databases/db';
+	import { authAdapter } from '@src/databases/db';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -149,7 +149,7 @@
 			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
 			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
 			<div class="flex flex-wrap gap-2">
-				{#each $availablePermissions as permission (permission.name)}
+				{#each $availablePermissions as permission (permission._id)}
 					<label class="flex items-center">
 						<input
 							type="checkbox"

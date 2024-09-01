@@ -1,16 +1,20 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { writable } from 'svelte/store';
-	import { page } from '$app/stores';
-	import { authAdapter, initializationPromise } from '@src/databases/db';
-	import type { Role } from '@src/auth/types';
-	import Loading from '@components/Loading.svelte'; // Import the Loading component
 
-	// Stores to hold roles, loading status, error message, and selected admin role
+	// Stores
+	import { page } from '$app/stores';
+	import { writable } from 'svelte/store';
+
+	// Auth
+	import type { Role } from '@src/auth/types';
+
+	// Components
+	import Loading from '@components/Loading.svelte';
+
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
-	const selectedAdminRole = writable<string | null>(null); // Corrected to a writable store
+	const selectedAdminRole = writable<string | null>(null);
 
 	// Fetch roles on component mount
 	onMount(async () => {
@@ -53,10 +57,10 @@
 	<p class="error">{$error}</p>
 {:else}
 	<div class="my-4">
-		<h3 class="text-lg font-semibold">Admin Role Management</h3>
-		<!-- Existing admin role management UI -->
+		<h2 class="text-lg font-semibold">Admin Role Management</h2>
+
 		<!-- Display selected admin role -->
-		<p>Selected Admin Role ID: {$selectedAdminRole}</p>
+		<p>Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$selectedAdminRole}</span></p>
 		<!-- Additional code remains unchanged... -->
 	</div>
 {/if}

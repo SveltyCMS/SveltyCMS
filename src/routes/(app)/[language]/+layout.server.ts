@@ -15,13 +15,13 @@
  * The module utilizes various utilities and configurations for robust error handling
  * and logging, providing a secure and user-friendly experience.
  */
-
 import { publicEnv } from '@root/config/public';
 import { error, redirect } from '@sveltejs/kit';
+import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth, dbAdapter } from '@src/databases/db';
+import { auth, dbAdapter, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -33,109 +33,78 @@ import logger from '@src/utils/logger';
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
 
-export async function load({ cookies, route, params }) {
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
+export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
+	try {
+		// Ensure initialization is complete
+		await initializationPromise;
 
-	// Secure this page with session cookie
-	let session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	// If no session ID is found, create a new session
-	if (!session_id) {
-		logger.warn('Session ID is missing from cookies, creating a new session.');
-		try {
-			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
-			const sessionCookie = auth.createSessionCookie(newSession);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			session_id = sessionCookie.value;
-			logger.debug('New session created:', session_id);
-		} catch (e) {
-			logger.error('Failed to create a new session:', e);
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
-	}
 
-	const user = await auth.validateSession({ session_id });
+		// Secure this page with session cookie
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
 
-	// Redirect to login if no valid User session
-	if (!user) {
-		logger.warn('No valid user session found, redirecting to login.');
-		return redirect(302, '/login');
-	}
+		if (!session_id) {
+			logger.debug('No session ID found, redirecting to login');
+			throw redirect(302, '/login');
+		}
 
-	// Convert MongoDB ObjectId to string to avoid serialization issues
-	if (user._id) {
-		user._id = user._id.toString();
-	}
+		const user = await auth.validateSession({ session_id });
 
-	// Redirect to user page if lastAuthMethod token
-	if (user?.lastAuthMethod === 'token') {
-		logger.debug('User authenticated with token, redirecting to user page.');
-		throw redirect(302, `/user`);
-	}
+		// Redirect to login if no valid User session
+		if (!user) {
+			logger.warn('No valid user session found, redirecting to login.');
+			throw redirect(302, '/login');
+		}
 
-	const collections = await getCollections();
-	const collection = Object.values(collections).find((c: any) => c.name === params.collection);
+		// Convert MongoDB ObjectId to string to avoid serialization issues
+		if (user._id) {
+			user._id = user._id.toString();
+		}
 
-	// Check if language and collection both set in URL
-	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
-		logger.warn(`The language '${params.language}' is not available.`);
-		throw error(404, {
-			message: `The language '${params.language}' is not available.`
-		});
-	} else if (!collection && params.collection) {
-		logger.warn(`The collection '${params.collection}' does not exist.`);
-		throw error(404, {
-			message: `The collection '${params.collection}' does not exist.`
-		});
-	}
+		// Redirect to user page if lastAuthMethod token
+		if (user?.lastAuthMethod === 'token') {
+			logger.debug('User authenticated with token, redirecting to user page.');
+			throw redirect(302, `/user`);
+		}
 
-	if (user) {
+		const collections = await getCollections();
+		const collection = Object.values(collections).find((c: any) => c.name === params.collection);
+
+		// Check if language and collection both set in URL
+		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
+			logger.warn(`The language '${params.language}' is not available.`);
+			throw error(404, {
+				message: `The language '${params.language}' is not available.`
+			});
+		} else if (!collection && params.collection) {
+			logger.warn(`The collection '${params.collection}' does not exist.`);
+			throw error(404, {
+				message: `The collection '${params.collection}' does not exist.`
+			});
+		}
+
 		if (route.id !== '/(app)/[language]/[collection]') {
-			// If the route does not have a language parameter and the contentLanguage store is not set
-			if (!params.language && !contentLanguage) {
-				// Redirect to the default language with the first accessible collection
-				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-				if (_filtered.length > 0) {
-					logger.debug(`Redirecting to first accessible collection with default language.`);
-					throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${_filtered[0].name}`);
-				} else {
-					logger.warn('No accessible collections found.');
-					throw error(404, 'No accessible collections found.');
-				}
-			} else {
-				// Filters collection based on reading permissions and redirects to the first accessible one
-				const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-				if (_filtered.length > 0) {
-					logger.debug(`Redirecting to first accessible collection with specified language.`);
-					throw redirect(302, `/${params.language || contentLanguage}/${_filtered[0].name}`);
-				} else {
-					logger.warn('No accessible collections found.');
-					throw error(404, 'No accessible collections found.');
-				}
+			const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
+
+			if (_filtered.length === 0) {
+				logger.warn('No accessible collections found.');
+				throw error(404, 'No accessible collections found.');
 			}
+
+			const redirectLanguage = params.language || contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
+			logger.debug(`Redirecting to first accessible collection with language: ${redirectLanguage}`);
+			throw redirect(302, `/${redirectLanguage}/${_filtered[0].name}`);
 		}
 
-		let hasPermission = true; // Default to true
-		try {
-			// Admin always has permission
-			if (user.role === 'admin') {
-				hasPermission = true;
-			} else if (collection?.permissions) {
-				// Check if the role is explicitly defined in the collection permissions
-				if (collection.permissions[user.role]) {
-					// If 'read' is explicitly set to false, deny permission
-					hasPermission = collection.permissions[user.role].read !== false;
-				}
-				// If the role is not defined in permissions, it defaults to true (already set)
-			}
-			logger.debug(`User role: ${user.role}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
-		} catch (error) {
-			logger.error('Error checking permissions:', error);
-			hasPermission = false; // Set to false on error as a safety measure
+		let hasPermission = user.role === 'admin';
+		if (!hasPermission && collection?.permissions) {
+			hasPermission = collection.permissions[user.role]?.read !== false;
 		}
+
+		logger.debug(`User role: ${user.role}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
 
 		if (!hasPermission) {
 			logger.warn(`No access to collection ${collection?.name} for role ${user.role}`);
@@ -148,11 +117,9 @@ export async function load({ cookies, route, params }) {
 		let theme = DEFAULT_THEME;
 
 		try {
-			// Attempt to fetch the default theme using dbAdapter
 			const fetchedTheme = await dbAdapter.getDefaultTheme();
 			logger.info(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
 
-			// Check if the fetched theme is valid and not equal to the default theme
 			if (fetchedTheme && fetchedTheme.name && fetchedTheme.name !== DEFAULT_THEME.name) {
 				theme = {
 					name: fetchedTheme.name,
@@ -163,16 +130,18 @@ export async function load({ cookies, route, params }) {
 				};
 			}
 		} catch (err) {
-			logger.error('Failed to load theme from database:', err.message);
+			logger.error('Failed to load theme from database:', err instanceof Error ? err.message : String(err));
 			// Fallback to the default theme (already set)
 		}
 
-		// At this point, you have a valid theme variable that you can use in your layout
 		logger.debug(`Using theme: ${JSON.stringify(theme)}`);
 
 		return {
 			user: { _id: _id.toString(), ...rest },
 			theme
 		};
+	} catch (err) {
+		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);
+		throw err;
 	}
-}
+};
