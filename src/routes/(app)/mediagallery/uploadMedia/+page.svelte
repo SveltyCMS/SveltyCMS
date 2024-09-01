@@ -1,6 +1,9 @@
-<script lang="ts">
-	import { goto } from '$app/navigation';
+<!-- 
+@files src/routes/(app)/mediagallery/uploadMedia/+page.svelte
+@description This page is used to upload media to the media gallery.
+-->
 
+<script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -9,8 +12,8 @@
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab, Modal, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import type { ModalSettings, ModalComponent, ModalStore } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
+	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 	let tabSet: number = 0;
 

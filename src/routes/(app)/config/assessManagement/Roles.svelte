@@ -7,7 +7,7 @@
 
 	// Auth
 	import type { Role, Permission } from '@src/auth/types';
-	import { authAdapter, initializationPromise } from '@src/databases/db';
+	import { authAdapter } from '@src/databases/db';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -26,13 +26,6 @@
 
 	onMount(async () => {
 		try {
-			await initializationPromise;
-
-			// Check if authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-
 			await loadRoles();
 			await loadPermissions();
 		} catch (err) {
@@ -44,13 +37,7 @@
 
 	const loadRoles = async () => {
 		try {
-			// Ensure authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-
-			const rolesData = await authAdapter.getAllRoles();
-			roles.set(rolesData);
+			roles.set($page.data.roles);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -58,13 +45,7 @@
 
 	const loadPermissions = async () => {
 		try {
-			// Ensure authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-
-			const permissionsData = await authAdapter.getAllPermissions();
-			availablePermissions.set(permissionsData);
+			availablePermissions.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -147,7 +128,7 @@
 			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
 			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
 			<div class="flex flex-wrap gap-2">
-				{#each $availablePermissions as permission (permission.name)}
+				{#each $availablePermissions as permission (permission._id)}
 					<label class="flex items-center">
 						<input
 							type="checkbox"
@@ -169,12 +150,12 @@
 				<p>No roles defined yet.</p>
 			{:else}
 				<ul class="list-disc pl-5">
-					{#each $roles as role (role.id)}
+					{#each $roles as role (role._id)}
 						<!-- Assuming 'id' is the correct property -->
 						<li class="flex items-center">
-							<input type="checkbox" checked={$selectedRoles.has(role.id)} on:change={() => toggleRoleSelection(role.id)} class="mr-2" />
+							<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
 							{role.name} - {role.description}
-							{#if role.name.toLowerCase() === 'admin'}<strong>(Admin)</strong>{/if}
+							{#if role._id.toLowerCase() === 'admin'}<strong class="ml-2 text-tertiary-500 dark:text-primary-500">(Admin)</strong>{/if}
 							<ul class="ml-4">
 								{#each role.permissions as permissionName}
 									<li>{permissionName}</li>

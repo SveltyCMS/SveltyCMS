@@ -6,13 +6,16 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import type { MediaImage } from '@src/utils/types';
+	import type { Media, MediaImage } from '@src/utils/types';
+	import { SIZES } from '@src/utils/utils';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { dbAdapter } from '@src/databases/db';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
+	import Breadcrumb from '@components/Breadcrumb.svelte';
+	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
 
@@ -26,8 +29,11 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	const modalStore = getModalStore();
 
 	let files: MediaImage[] = [];
-	let folders: any[] = [];
-	let currentFolder: string | null = null;
+
+	let breadcrumb: string[] = [];
+	let folders: { _id: string; name: string; path: string[]; parent?: string | null }[] = [];
+	let currentFolder: { _id: string; name: string; path: string[] } | null = null;
+
 	let globalSearchValue = '';
 	let selectedMediaType = 'All';
 	let view: 'grid' | 'table' = 'grid';
@@ -47,19 +53,14 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 		// Check if the currentFolder is set (i.e., the user is in a subfolder)
 		if (currentFolder) {
-			const folder = folders.find((f) => f._id === currentFolder);
-			if (folder && folder.path) {
-				currentFolderPath = folder.path; // Update the path to the current folder's path
-			}
+			currentFolderPath = currentFolder.path.join('/'); // Update the path to the current folder's path
 		}
-
-		console.log('Current Folder Path:', currentFolderPath);
 
 		const modal: ModalSettings = {
 			type: 'prompt',
 			title: 'Add Folder',
-			body: `Creating subfolder in: ${currentFolderPath}`, // Display the current folder path in the modal
-			placeholder: 'New Folder Name',
+			// Apply inline style or use a CSS class to make the current folder path display in a different color
+			body: `Creating subfolder in: <span class="text-tertiary-500 dark:text-primary-500">${currentFolderPath}</span>`, // Display the current folder path in a different color
 			response: (r: string) => {
 				if (r) createFolder(r); // Pass the new folder name to createFolder function
 			}
@@ -74,16 +75,20 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const response = await fetch('/api/virtualFolder');
 			const result = await response.json();
 
-			if (result.success && result.folders) {
-				folders = result.folders;
-				console.log('Fetched folders:', folders);
-			} else {
-				throw new Error(result.error || 'Failed to fetch folders');
-			}
+			console.log('API Response:', result); // Log the entire response for inspection
 
-			// Check if the folder exists
-			if (folders.length === 0) {
-				await createFolder('Root');
+			if (result.success && result.folders) {
+				// Transform the path string to an array for easier handling in the UI
+				folders = result.folders.map((folder) => ({
+					...folder,
+					path: folder.path.split('/') // Convert path string to an array for easier handling
+				}));
+				console.log('Transformed Folders:', folders); // Log the transformed folders
+
+				updateBreadcrumb();
+			} else {
+				console.log('Error or no folders:', result.error || 'No folders returned');
+				throw new Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
@@ -159,13 +164,12 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Fetch media files
 	async function fetchMediaFiles() {
 		try {
-			const response = currentFolder
-				? await fetch(`/api/virtualFolder/${currentFolder}`)
-				: await fetch(`/api/virtualFolder/${publicEnv.MEDIA_FOLDER}`);
+			const response = await fetch(`/api/virtualFolder/${currentFolder ? currentFolder._id : ''}`);
 			const result = await response.json();
 
+			// Handle potential null or undefined result.contents
 			if (result.success) {
-				files = result.contents || [];
+				files = result.contents ? result.contents : [];
 			} else {
 				throw new Error(result.error);
 			}
@@ -180,18 +184,29 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 	}
 
-	// Create virtual folder
+	// Create virtual folder with existence check
 	async function createFolder(name: string) {
 		try {
-			const parentFolder = folders.find((f) => f._id === currentFolder);
-			const newPath = parentFolder ? `${parentFolder.path}/${name}` : `${publicEnv.MEDIASERVER_URL || publicEnv.MEDIA_FOLDER}/${name}`;
+			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder._id) : null;
+			const newPath = parentFolder ? `${parentFolder.path.join('/')}/${name}` : `${publicEnv.MEDIA_FOLDER}/${name}`;
+
+			// Check if the folder already exists
+			const existingFolder = folders.find((folder) => folder.path.join('/') === newPath);
+			if (existingFolder) {
+				toastStore.trigger({
+					message: 'Folder already exists.',
+					background: 'variant-filled-warning',
+					timeout: 3000
+				});
+				return;
+			}
 
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
 					name,
-					parent: currentFolder && currentFolder !== 'Root' ? currentFolder : undefined,
+					parent: currentFolder ? currentFolder._id : undefined,
 					path: newPath
 				})
 			});
@@ -199,14 +214,12 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
-				console.log('New folder created:', result.folder);
-				folders = [...folders, result.folder];
 				toastStore.trigger({
 					message: 'Folder created successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
-				await fetchFolders(); // Fetch folders again to ensure everything is up to date
+				await fetchFolders(); // Refresh folder list
 			} else {
 				throw new Error(result.error);
 			}
@@ -221,16 +234,30 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	}
 
 	// Open virtual folder
-	async function openFolder(folderId: string) {
-		currentFolder = folderId;
+	async function openFolder(folderId: string | null) {
+		if (folderId === null) {
+			currentFolder = null;
+		} else {
+			currentFolder = folders.find((f) => f._id === folderId) || null;
+		}
+		updateBreadcrumb();
 		await fetchMediaFiles();
 	}
 
+	// Update breadcrumb
+	function updateBreadcrumb() {
+		if (currentFolder) {
+			breadcrumb = [publicEnv.MEDIA_FOLDER, ...currentFolder.path];
+		} else {
+			breadcrumb = [publicEnv.MEDIA_FOLDER];
+		}
+	}
+
 	// Handle delete image
-	async function handleDeleteImage(event: CustomEvent<MediaImage>) {
+	async function handleDeleteImage(event: CustomEvent<Media>) {
 		const image = event.detail;
 
-		if (!image || !image._id) {
+		if (!image || !image.id) {
 			console.error('Invalid image data received');
 			return;
 		}
@@ -246,7 +273,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 
 		try {
-			const success = await dbAdapter.deleteMedia(image._id);
+			const success = await dbAdapter.deleteMedia(image.id.toString());
 
 			if (success) {
 				toastStore.trigger({
@@ -286,6 +313,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		tableSize = preferredTableSize as 'small' | 'medium' | 'large';
 	}
 
+	// Handle view change
 	function handleClick() {
 		if (view === 'grid') {
 			gridSize = gridSize === 'small' ? 'medium' : gridSize === 'medium' ? 'large' : 'small';
@@ -306,9 +334,21 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	];
 
 	// Reactive statement to filter files
-	$: filteredFiles = files.filter(
-		(file) => file.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType)
-	);
+	$: filteredFiles = files.filter((file) => {
+		if (file.type === 'Image') {
+			const sizeKey = Object.keys(SIZES).find((size) => file[size]?.name);
+
+			if (sizeKey && file[sizeKey]?.name) {
+				return (
+					file[sizeKey].name.toLowerCase().includes(globalSearchValue.toLowerCase()) &&
+					(selectedMediaType === 'All' || file.type === selectedMediaType)
+				);
+			}
+			return false;
+		} else {
+			return file.name.toLowerCase().includes(globalSearchValue.toLowerCase()) && (selectedMediaType === 'All' || file.type === selectedMediaType);
+		}
+	});
 </script>
 
 <!-- PageTitle -->
@@ -329,26 +369,38 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	</div>
 </div>
 
-<!-- Folders -->
-<div class="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-	{#if currentFolder !== null && currentFolder !== 'Root'}
-		<button on:click={() => openFolder('Root')} class="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-100">
-			<iconify-icon icon="mdi:arrow-up-bold" width="48" class="text-blue-500" />
-			<span class="mt-2 text-center">Back to Root</span>
-		</button>
-	{/if}
+<!-- Breadcrumb Navigation -->
+<Breadcrumb {breadcrumb} {folders} {openFolder} />
 
-	{#each folders.filter((f) => f.parent === currentFolder) as folder (folder._id)}
-		<div class="flex items-center justify-between">
-			<button on:click={() => openFolder(folder._id)} class="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-100">
-				<iconify-icon icon="mdi:folder" width="48" class="text-yellow-500" />
-				<span class="mt-2 text-center">{folder.name}</span>
-			</button>
-			<button on:click={() => updateFolder(folder._id, 'New Folder Name')} class="text-blue-500">Rename</button>
-			<button on:click={() => deleteFolder(folder._id)} class="text-red-500">Delete</button>
-		</div>
-	{/each}
-</div>
+<!-- <Filter {globalSearchValue} {selectedMediaType} {mediaTypes} /> -->
+
+<!-- Folders Section -->
+{#if folders.length > 0}
+	showing {folders.length} folders
+	<div class="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+		{#each folders.filter((f) => f.parent === (currentFolder ? currentFolder._id : null)) as folder (folder._id)}
+			<div class="flex flex-col items-center">
+				<button on:click={() => openFolder(folder._id)} class="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-100">
+					<iconify-icon icon="mdi:folder" width="48" class="text-yellow-500" />
+					<span class="mt-2 text-center">{folder.name}</span>
+				</button>
+				<div class="mt-2 flex gap-2">
+					<button on:click={() => updateFolder(folder._id, 'New Folder Name')} class="text-blue-500">
+						<iconify-icon icon="mdi:pencil" width="20" />
+					</button>
+					<button on:click={() => deleteFolder(folder._id)} class="text-red-500">
+						<iconify-icon icon="mdi:delete" width="20" />
+					</button>
+				</div>
+			</div>
+		{/each}
+	</div>
+{:else}
+	<!-- No Folders Found Message -->
+	<div class="py-10 text-center">
+		<p class="text-lg text-gray-600 dark:text-gray-300">No folders found.</p>
+	</div>
+{/if}
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">

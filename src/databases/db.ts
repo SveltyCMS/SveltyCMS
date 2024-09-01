@@ -185,21 +185,17 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	}
 }
 
-// Initialize virtual folders
+// Initialize virtual folders// Initialize virtual folders
 async function initializeVirtualFolders() {
 	if (!dbAdapter) {
 		throw new Error('Database adapter not initialized');
 	}
 
 	try {
-		const rootFolders = await dbAdapter.getVirtualFolders();
-		if (rootFolders.length === 0) {
-			await dbAdapter.createVirtualFolder({
-				name: 'Root',
-				path: '/Root',
-				parent: undefined
-			});
-			logger.info('Root virtual folder created');
+		const virtualFolders = await dbAdapter.getVirtualFolders();
+		if (virtualFolders.length === 0) {
+			// Optionally log that no virtual folders exist, but do not create any automatically
+			logger.info('No virtual folders found. Users can create virtual folders as needed.');
 		}
 	} catch (error) {
 		logger.error(`Error initializing virtual folders: ${(error as Error).message}`);

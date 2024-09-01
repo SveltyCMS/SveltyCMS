@@ -809,11 +809,14 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Get virtual folder contents
 	async getVirtualFolderContents(folderId: string): Promise<any[]> {
-		const folder = await VirtualFolder.findById(folderId);
+		// Convert the folderId to ObjectId if it's a string
+		const objectId = new mongoose.Types.ObjectId(folderId);
+
+		const folder = await VirtualFolder.findById(objectId);
 		if (!folder) throw new Error('Folder not found');
 
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: folder._id }).lean());
+		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
 		const results = await Promise.all(mediaPromises);
 		return results.flat();
 	}
@@ -831,9 +834,10 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Move media to folder
 	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
+		const objectId = new mongoose.Types.ObjectId(folderId);
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
 		for (const type of mediaTypes) {
-			const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId });
+			const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId: objectId });
 			if (result) return true;
 		}
 		return false;

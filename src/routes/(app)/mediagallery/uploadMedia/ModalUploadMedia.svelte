@@ -1,3 +1,8 @@
+<!-- 
+@files src/routes/(app)/mediagallery/uploadMedia/ModalUploadMedia.svelte
+@description This page is used to upload media to the media gallery. 
+-->
+
 <script lang="ts">
 	// Props
 	/** Exposes parent props to this component. */
