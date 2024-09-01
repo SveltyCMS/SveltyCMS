@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
+	import { page } from '$app/stores';
 	import { authAdapter, initializationPromise } from '@src/databases/db';
 	import type { Role } from '@src/auth/types';
 	import Loading from '@components/Loading.svelte'; // Import the Loading component
@@ -14,7 +15,7 @@
 	// Fetch roles on component mount
 	onMount(async () => {
 		try {
-			await initializationPromise; // Wait for initialization
+			// await initializationPromise; // Wait for initialization
 			await loadRoles(); // Load roles after initialization
 		} catch (err) {
 			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
@@ -25,16 +26,18 @@
 
 	// Function to load roles from the authAdapter
 	const loadRoles = async () => {
-		if (!authAdapter) {
-			error.set('Auth adapter is not initialized');
-			return;
-		}
+		// if (!authAdapter) {
+		// 	error.set('Auth adapter is not initialized');
+		// 	return;
+		// }
 		try {
-			const rolesData = await authAdapter.getAllRoles(); // Fetch all roles
+			// const rolesData = await authAdapter.getAllRoles(); // Fetch all roles
+			// roles.set(rolesData);
+			const rolesData = $page.data.roles;
 			roles.set(rolesData);
 
 			// Set the current admin role if it exists
-			const currentAdmin = rolesData.find((role) => role.name.toLowerCase() === 'admin');
+			const currentAdmin = rolesData.find((role) => role._id.toLowerCase() === 'admin');
 			if (currentAdmin) {
 				selectedAdminRole.set(currentAdmin._id); // Correctly set the selected admin role
 			}

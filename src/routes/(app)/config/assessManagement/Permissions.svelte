@@ -33,16 +33,16 @@
 	const error = writable<string | null>(null);
 
 	// Reactive statements for filtered permissions and current user ID
-	$: filteredPermissions = $permissionsList.filter((permission) => permission.contextId?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+	$: filteredPermissions = $permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
 	$: currentUserId = $page.data.user?._id || '';
 
 	// Load data on component mount
 	onMount(async () => {
 		try {
-			await initializationPromise;
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
+			// await initializationPromise;
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
 			await loadRoles();
 			await loadPermissions();
 		} catch (err) {
@@ -55,11 +55,12 @@
 	// Function to load permissions
 	const loadPermissions = async () => {
 		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-			const permissions = await authAdapter.getAllPermissions();
-			permissionsList.set(permissions);
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
+			// const permissions = await authAdapter.getAllPermissions();
+			// permissionsList.set(permissions);
+			permissionsList.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -68,11 +69,12 @@
 	// Function to load roles
 	const loadRoles = async () => {
 		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-			const rolesData = await authAdapter.getAllRoles();
-			roles.set(rolesData);
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
+			// const rolesData = await authAdapter.getAllRoles();
+			// roles.set(rolesData);
+			roles.set($page.data.roles);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -184,7 +186,7 @@
 				<tbody>
 					{#each filteredPermissions as permission}
 						<tr class="divide-x">
-							<td class="px-4 py-2">{permission.contextId}</td>
+							<td class="px-4 py-2">{permission._id}</td>
 							<td class="px-4 py-2">{permission.action}</td>
 							<td class="px-4 py-2">{permission.contextType}</td>
 							{#each $roles as role}

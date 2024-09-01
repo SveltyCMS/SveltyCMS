@@ -26,12 +26,12 @@
 
 	onMount(async () => {
 		try {
-			await initializationPromise;
+			// await initializationPromise;
 
-			// Check if authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
+			// // Check if authAdapter is initialized
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
 
 			await loadRoles();
 			await loadPermissions();
@@ -45,12 +45,13 @@
 	const loadRoles = async () => {
 		try {
 			// Ensure authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
 
-			const rolesData = await authAdapter.getAllRoles();
-			roles.set(rolesData);
+			// const rolesData = await authAdapter.getAllRoles();
+			// roles.set(rolesData);
+			roles.set($page.data.roles);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -59,12 +60,13 @@
 	const loadPermissions = async () => {
 		try {
 			// Ensure authAdapter is initialized
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
 
-			const permissionsData = await authAdapter.getAllPermissions();
-			availablePermissions.set(permissionsData);
+			// const permissionsData = await authAdapter.getAllPermissions();
+			// availablePermissions.set(permissionsData);
+			availablePermissions.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -169,12 +171,12 @@
 				<p>No roles defined yet.</p>
 			{:else}
 				<ul class="list-disc pl-5">
-					{#each $roles as role (role.id)}
+					{#each $roles as role (role._id)}
 						<!-- Assuming 'id' is the correct property -->
 						<li class="flex items-center">
-							<input type="checkbox" checked={$selectedRoles.has(role.id)} on:change={() => toggleRoleSelection(role.id)} class="mr-2" />
+							<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
 							{role.name} - {role.description}
-							{#if role.name.toLowerCase() === 'admin'}<strong>(Admin)</strong>{/if}
+							{#if role._id.toLowerCase() === 'admin'}<strong>(Admin)</strong>{/if}
 							<ul class="ml-4">
 								{#each role.permissions as permissionName}
 									<li>{permissionName}</li>
