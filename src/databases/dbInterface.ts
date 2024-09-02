@@ -72,15 +72,15 @@ export interface dbInterface {
 	updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void>;
 	clearSystemPreferences(user_id: string): Promise<void>;
 
-	// Virtual Folder Methods
+	// Virtual Folder Methods for direct database interactions
 	createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any>;
 	getVirtualFolders(): Promise<any[]>;
-	getVirtualFolderContents(folder_id: string): Promise<any[]>;
-	updateVirtualFolder(folder_id: string, updateData: { name?: string; parent?: string }): Promise<any>;
-	deleteVirtualFolder(folder_id: string): Promise<boolean>;
+	getVirtualFolderContents(folderId: string): Promise<any[]>;
+	updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any>;
+	deleteVirtualFolder(folderId: string): Promise<boolean>;
+	moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean>;
 
 	// Media Management
-	moveMediaToFolder(media_id: string, folder_id: string): Promise<boolean>;
 	getAllMedia(): Promise<any[]>;
 	getMediaInFolder(folder_id: string): Promise<any[]>;
 	deleteMedia(media_id: string): Promise<boolean>;

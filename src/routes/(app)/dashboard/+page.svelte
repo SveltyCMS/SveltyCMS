@@ -139,8 +139,19 @@
 	$: canAddMoreWidgets = availableWidgets.length > 0 && items.length < cols * Math.floor(gridElement?.clientHeight / itemSize.height || 0);
 </script>
 
+<div class="my-2 flex items-center justify-between gap-2">
+	<!-- Page Title -->
+	<div class="flex items-center">
+		<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
+	</div>
+
+	<!-- Back Button -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
+</div>
+
 <div class="my-2 flex flex-col items-start justify-between gap-2 sm:flex-row sm:items-center">
-	<PageTitle name="Dashboard" icon="bi:bar-chart-line" />
 	<div class="mt-2 flex w-full justify-around gap-2 sm:ml-auto sm:mt-0 sm:w-auto sm:flex-row">
 		{#if canAddMoreWidgets}
 			<div class="relative">
@@ -173,9 +184,6 @@
 			</div>
 		{/if}
 		<button class="variant-filled-warning btn" on:click={resetGrid}>Reset All</button>
-		<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-			<iconify-icon icon="ri:arrow-left-line" width="20" />
-		</button>
 	</div>
 </div>
 

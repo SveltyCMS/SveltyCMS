@@ -26,6 +26,8 @@
 import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import fs from 'fs/promises';
+import path from 'path';
 import { browser } from '$app/environment';
 
 // Auth
@@ -103,8 +105,8 @@ async function loadAdapters() {
 				createRole: roleAdapter.createRole.bind(roleAdapter),
 				updateRole: roleAdapter.updateRole.bind(roleAdapter),
 				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
-				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
+				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
 
 				// Permission Management Methods
 				getAllPermissions,
@@ -185,6 +187,22 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 	}
 }
 
+// Initialize the media folder
+async function initializeMediaFolder() {
+	const mediaFolderPath = path.resolve(publicEnv.MEDIA_FOLDER);
+
+	try {
+		// Check if the media folder exists
+		await fs.access(mediaFolderPath);
+		logger.info(`Media folder already exists: ${mediaFolderPath}`);
+	} catch {
+		// If the folder does not exist, create it
+		logger.info(`Media folder not found. Creating new folder: ${mediaFolderPath}`);
+		await fs.mkdir(mediaFolderPath, { recursive: true });
+		logger.info(`Media folder created successfully: ${mediaFolderPath}`);
+	}
+}
+
 // Initialize virtual folders// Initialize virtual folders
 async function initializeVirtualFolders() {
 	if (!dbAdapter) {
@@ -214,6 +232,7 @@ async function initializeAdapters(): Promise<void> {
 		await loadAdapters();
 
 		if (!browser) {
+			await initializeMediaFolder();
 			await connectToDatabase();
 			await updateCollections();
 			const collections = await getCollections();

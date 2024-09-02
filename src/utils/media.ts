@@ -45,22 +45,6 @@ import logger from '@src/utils/logger';
 // Default max file size (100MB) if not specified in publicEnv
 const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
 
-// Optional dynamically imports AWS SDK
-async function getS3Client() {
-	// Dynamically imports the AWS SDK for interacting with S3
-	try {
-		const AWS = await import('aws-sdk');
-		return new AWS.S3({
-			accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-			secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-			region: process.env.AWS_REGION
-		});
-	} catch (error) {
-		logger.error('AWS SDK is not installed. S3 functionality will not be available.:', error as Error);
-		return null;
-	}
-}
-
 // Define media types
 interface MediaVersion {
 	version: number;
@@ -127,9 +111,25 @@ const SIZES = { ...publicEnv.IMAGE_SIZES, original: 0, thumbnail: 200 } as const
  * Media File Handling Functions
  */
 
+// Optional dynamically imports AWS SDK
+async function getS3Client() {
+	try {
+		const AWS = await import('aws-sdk');
+		return new AWS.S3({
+			accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+			secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+			region: process.env.AWS_REGION
+		});
+	} catch (error) {
+		logger.error('AWS SDK is not installed. S3 functionality will not be available.', error as Error);
+		return null;
+	}
+}
+
 // Saves a file to local disk or cloud storage.
 async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 	if (publicEnv.MEDIASERVER_URL) {
+		// Save to cloud storage (e.g., S3)
 		const s3 = await getS3Client();
 		if (s3) {
 			await s3
@@ -144,10 +144,14 @@ async function saveFileToDisk(buffer: Buffer, url: string): Promise<void> {
 			throw new Error('S3 client is not available. Unable to save file to cloud storage.');
 		}
 	} else {
-		const fullPath = `${publicEnv.MEDIA_FOLDER}/${url}`;
-		if (!fs.existsSync(Path.dirname(fullPath))) {
-			fs.mkdirSync(Path.dirname(fullPath), { recursive: true });
+		// Save to local storage
+		const fullPath = Path.join(publicEnv.MEDIA_FOLDER, url);
+		const dir = Path.dirname(fullPath);
+
+		if (!fs.existsSync(dir)) {
+			fs.mkdirSync(dir, { recursive: true });
 		}
+
 		await fs.promises.writeFile(fullPath, buffer);
 	}
 	logger.info('File saved', { url });
