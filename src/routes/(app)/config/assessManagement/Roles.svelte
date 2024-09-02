@@ -7,7 +7,7 @@
 
 	// Auth
 	import type { Role, Permission } from '@src/auth/types';
-	import { authAdapter } from '@src/databases/db';
+	import { initializationPromise, authAdapter } from '@src/databases/db';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
@@ -26,7 +26,8 @@
 
 	onMount(async () => {
 		try {
-			// await initializationPromise;
+			await initializationPromise;
+			console.log(authAdapter);
 
 			// // Check if authAdapter is initialized
 			// if (!authAdapter) {
@@ -146,8 +147,8 @@
 	<div class="my-4">
 		<h3 class="text-lg font-semibold">Roles Management</h3>
 		<div class="mb-4">
-			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
-			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
+			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2 text-black" />
+			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2 text-black"></textarea>
 			<div class="flex flex-wrap gap-2">
 				{#each $availablePermissions as permission (permission._id)}
 					<label class="flex items-center">
