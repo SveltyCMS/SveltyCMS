@@ -42,25 +42,32 @@
 	}
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between">
-	<PageTitle name="Image Editor" icon="tdesign:image-edit" />
-
-	<div class="mb-2 flex items-center gap-2">
-		{#if imageFile}
-			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-			</button>
-			<button type="button" on:click={handleSave} class="variant-filled-tertiary btn hidden dark:variant-filled-primary md:inline-flex">
-				<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-				<p class="hidden md:block">Save</p>
-			</button>
-		{/if}
-
-		<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
-			<iconify-icon icon="material-symbols:close" width="24" />
-		</button>
+<div class="my-2 flex items-center justify-between gap-2">
+	<!-- Page Title -->
+	<div class="flex items-center">
+		<PageTitle name="Image Editor" icon="tdesign:image-edit" />
 	</div>
+
+	<!-- Back Button -->
+	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
+</div>
+
+<div class="mb-2 flex items-center justify-between gap-2">
+	{#if imageFile}
+		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden">
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+		</button>
+		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn hidden dark:variant-filled-primary md:inline-flex">
+			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
+			<p class="hidden md:block">Save</p>
+		</button>
+	{/if}
+
+	<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
+		<iconify-icon icon="material-symbols:close" width="24" />
+	</button>
 </div>
 
 <input class="input my-2" type="file" accept="image/*" on:change={handleImageUpload} />

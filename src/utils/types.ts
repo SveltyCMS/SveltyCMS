@@ -1,5 +1,5 @@
 /**
- * @file types.ts
+ * @file src/utils/types.ts
  * @description Defines TypeScript types for media-related data structures used in the application.
  *
  * This file contains:

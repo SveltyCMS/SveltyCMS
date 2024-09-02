@@ -51,11 +51,13 @@
 	}
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex flex-col items-start justify-between gap-2 lg:flex-row lg:items-center">
-	<PageTitle name="Theme Management" icon="ph:layout" />
+<div class="my-2 flex items-center justify-between gap-2">
+	<!-- Page Title -->
+	<div class="flex items-center">
+		<PageTitle name="Theme Management" icon="ph:layout" />
+	</div>
 
-	<!-- Back -->
+	<!-- Back Button -->
 	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
 		<iconify-icon icon="ri:arrow-left-line" width="20" />
 	</button>

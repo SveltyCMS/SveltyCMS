@@ -1,4 +1,7 @@
-// src/routes/(app)/dashboard/+page.server.ts
+/**
+@files src/routes/(app)/dashboard/+page.server.ts
+@description Server-side logic for the dashboard page.
+ */
 
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';

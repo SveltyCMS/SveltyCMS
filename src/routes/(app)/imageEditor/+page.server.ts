@@ -1,4 +1,7 @@
-// src/routes/(app)/imageEditor/+page.server.ts
+/**
+@files src/routes/(app)/imageEditor/+page.server.ts
+@description Server-side logic for the image editor page.
+ */
 
 import { error, redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
