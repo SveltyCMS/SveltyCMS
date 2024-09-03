@@ -68,7 +68,8 @@ export class RoleAdapter implements Partial<authDBInterface> {
 			_id: await createRandomID(),
 			name: roleData.name,
 			description: roleData.description || '',
-			permissions: new Set(roleData.permissions || [])
+			// permissions: roleData.permissions || [],
+			permissions: roleData.permissions || []
 		};
 
 		this.roles.set(newRole._id, newRole);
@@ -79,6 +80,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 
 	// Update role
 	async updateRole(role_id: string, roleData: Partial<Role>, current_user_id: string): Promise<void> {
+		console.log(this.roles, role_id);
 		const role = this.roles.get(role_id);
 		if (!role) throw new Error('Role not found');
 
@@ -217,11 +219,24 @@ export class RoleAdapter implements Partial<authDBInterface> {
 
 	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
-		const configPath = path.resolve(__dirname, '../../config/permissions.ts');
+		const configPath = path.resolve('./config/roles.ts');
 		const content = `
 import type { Permission, Role } from '../src/auth/types';
 
 export const roles: Role[] = ${JSON.stringify([...this.roles.values()], null, 2)};
+// Function to register a new role
+export function registerRole(newRole: Role): void {
+	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
+	if (!exists) {
+		roles.push(newRole);
+	}
+}
+
+// Function to register multiple roles
+export function registerRoles(newRoles: Role[]): void {
+	newRoles.forEach(registerRole);
+}
+
 `;
 
 		try {

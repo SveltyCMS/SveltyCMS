@@ -223,12 +223,10 @@ async function initializeVirtualFolders() {
 
 // Initialize adapters
 async function initializeAdapters(): Promise<void> {
-	console.log('---------------ADAPTERS INITIALIZING------------------', isInitialized);
 	if (isInitialized) {
 		logger.info('Adapters already initialized, skipping initialization.');
 		return;
 	}
-	console.log('---------------ADAPTERS INITIALIZING------------------');
 
 	try {
 		await loadAdapters();
