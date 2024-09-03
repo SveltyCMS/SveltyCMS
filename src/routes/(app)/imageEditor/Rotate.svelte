@@ -1,4 +1,3 @@
-<!-- Rotate.svelte -->
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import Konva from 'konva';
@@ -9,12 +8,14 @@
 
 	const dispatch = createEventDispatcher();
 
+	// Rotate image left by 90 degrees
 	function rotateLeft() {
 		imageNode.rotate(-90);
 		layer.draw();
 		dispatch('rotate', { angle: -90 });
 	}
 
+	// Rotate image right by 90 degrees
 	function rotateRight() {
 		imageNode.rotate(90);
 		layer.draw();

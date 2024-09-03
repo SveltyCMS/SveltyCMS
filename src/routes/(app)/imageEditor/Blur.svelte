@@ -1,32 +1,52 @@
 <script lang="ts">
 	import Konva from 'konva';
+	import { onMount } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
 	export let imageNode: Konva.Image;
 
 	let blurAmount = 10;
-	let overlayType = 'circle'; // Can be 'circle' or 'rectangle'
+	let overlayType = 'circle';
 	let overlayNodes: Konva.Shape[] = [];
+	let transformer: Konva.Transformer;
 
-	// Create a new blur overlay
+	onMount(() => {
+		transformer = new Konva.Transformer({
+			nodes: [],
+			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+			rotateEnabled: false,
+			boundBoxFunc: (oldBox, newBox) => {
+				if (newBox.width < 10 || newBox.height < 10) {
+					return oldBox;
+				}
+				return newBox;
+			}
+		});
+		layer.add(transformer);
+	});
+
 	function addBlurOverlay() {
+		// Ensure only one blur overlay at a time.
+		clearBlurs();
+
 		let overlayNode: Konva.Shape;
 
 		const overlayOptions: Konva.ShapeConfig = {
-			x: stage.width() / 2,
-			y: stage.height() / 2,
-			width: 100,
-			height: 100,
+			x: stage.width() / 4,
+			y: stage.height() / 4,
+			width: stage.width() / 2,
+			height: stage.height() / 2,
 			draggable: true,
-			stroke: 'red',
-			strokeWidth: 2
+			stroke: 'white',
+			strokeWidth: 2,
+			name: 'blurOverlay'
 		};
 
 		if (overlayType === 'circle') {
 			overlayNode = new Konva.Circle({
 				...overlayOptions,
-				radius: 50
+				radius: Math.min(stage.width(), stage.height()) / 4
 			});
 		} else if (overlayType === 'rectangle') {
 			overlayNode = new Konva.Rect(overlayOptions);
@@ -41,42 +61,42 @@
 			}
 		});
 
+		overlayNode.on('click', () => {
+			transformer.nodes([overlayNode]);
+			layer.draw();
+		});
+
 		layer.add(overlayNode);
 		overlayNodes.push(overlayNode);
+		transformer.nodes([overlayNode]);
 		layer.draw();
 	}
 
-	// Apply blur to all overlay regions
 	function applyBlur() {
 		overlayNodes.forEach((overlayNode) => {
 			const blurArea = overlayNode.getClientRect();
 			const canvas = document.createElement('canvas');
-			canvas.width = blurArea.width;
-			canvas.height = blurArea.height;
+			canvas.width = stage.width();
+			canvas.height = stage.height();
 			const context = canvas.getContext('2d');
 
 			if (context && imageNode.image()) {
-				context.drawImage(
-					imageNode.image() as CanvasImageSource,
-					blurArea.x,
-					blurArea.y,
-					blurArea.width,
-					blurArea.height,
-					0,
-					0,
-					blurArea.width,
-					blurArea.height
-				);
+				context.drawImage(imageNode.image() as CanvasImageSource, 0, 0, stage.width(), stage.height());
 
 				context.filter = `blur(${blurAmount}px)`;
+				context.globalCompositeOperation = 'source-in';
+
 				if (overlayNode instanceof Konva.Circle) {
-					context.globalCompositeOperation = 'destination-in';
 					context.beginPath();
-					context.arc(blurArea.width / 2, blurArea.height / 2, blurArea.width / 2, 0, Math.PI * 2);
+					context.arc(overlayNode.x(), overlayNode.y(), overlayNode.radius(), 0, Math.PI * 2);
 					context.closePath();
-					context.fill();
+				} else if (overlayNode instanceof Konva.Rect) {
+					context.beginPath();
+					context.rect(overlayNode.x(), overlayNode.y(), overlayNode.width() * overlayNode.scaleX(), overlayNode.height() * overlayNode.scaleY());
+					context.closePath();
 				}
-				// For rectangles, no additional clipping is necessary
+
+				context.fill();
 
 				const blurredImage = new Image();
 				blurredImage.src = canvas.toDataURL();
@@ -84,57 +104,77 @@
 				blurredImage.onload = () => {
 					const blurOverlay = new Konva.Image({
 						image: blurredImage,
-						x: blurArea.x,
-						y: blurArea.y,
-						width: blurArea.width,
-						height: blurArea.height
+						x: 0,
+						y: 0,
+						width: stage.width(),
+						height: stage.height()
 					});
 					layer.add(blurOverlay);
+					blurOverlay.moveToTop();
 					layer.draw();
 				};
 			}
 		});
 	}
 
-	// Remove all overlays (reset)
 	function clearBlurs() {
 		overlayNodes.forEach((node) => node.destroy());
+		layer.find('.blurOverlay').forEach((node) => node.destroy());
 		overlayNodes = [];
+		transformer.nodes([]);
 		layer.draw();
+	}
+
+	function updateBlurStrength() {
+		applyBlur();
 	}
 </script>
 
-<div class="blur-controls absolute bottom-0 left-0 right-0 top-0 z-50 flex flex-col items-center rounded-md bg-gray-800 p-4 text-white">
-	<div class="mb-4">
-		<button class="gradient-tertiary btn w-full max-w-xs text-white" on:click={addBlurOverlay}>
-			<iconify-icon icon="mdi:blur" color="white" width="18" class="mr-1" />Add Blur
-		</button>
+<div class="blur-controls">
+	<button on:click={addBlurOverlay} class="btn">Add Blur</button>
+	<div>
+		<label>Blur Strength:</label>
+		<input type="range" min="0" max="40" bind:value={blurAmount} on:input={updateBlurStrength} />
 	</div>
-	<div class="mb-4">
-		<label for="blur">Blur Strength:</label>
-		<input id="blur" type="range" min="0" max="40" bind:value={blurAmount} class="w-full max-w-xs" />
-		<span>{blurAmount}</span>
-	</div>
-	<div class="mb-4">
-		<label for="overlay-type">Shape:</label>
-		<select id="overlay-type" bind:value={overlayType} class="w-full max-w-xs">
+	<div>
+		<label>Shape:</label>
+		<select bind:value={overlayType}>
 			<option value="circle">Circle</option>
 			<option value="rectangle">Rectangle</option>
 		</select>
 	</div>
-	<div class="mt-auto flex gap-4">
-		<button class="gradient-tertiary btn text-white" on:click={applyBlur}>Apply</button>
-		<button class="btn bg-red-600 text-white" on:click={clearBlurs}>Clear</button>
-	</div>
+	<button on:click={applyBlur} class="btn">Apply</button>
+	<button on:click={clearBlurs} class="btn-danger btn">Clear</button>
 </div>
 
 <style>
 	.blur-controls {
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
 		background-color: rgba(0, 0, 0, 0.8);
-		display: none;
+		padding: 10px;
+		border-radius: 5px;
 	}
 
-	.blur-controls.active {
-		display: flex;
+	.btn {
+		background-color: #4caf50;
+		color: white;
+		padding: 10px;
+		border: none;
+		border-radius: 5px;
+		cursor: pointer;
+	}
+
+	.btn-danger {
+		background-color: #e74c3c;
+	}
+
+	.btn:hover {
+		background-color: #45a049;
+	}
+
+	.btn-danger:hover {
+		background-color: #c0392b;
 	}
 </style>

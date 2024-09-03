@@ -169,9 +169,13 @@
 		}
 	}
 
-	// Toggle the visibility of the blur controls
-	function toggleBlurControls() {
-		blurActive = !blurActive;
+	function toggleTool(tool: string) {
+		if (activeState === tool) {
+			activeState = '';
+		} else {
+			activeState = tool;
+		}
+		blurActive = activeState === 'blur';
 	}
 </script>
 
@@ -189,18 +193,12 @@
 	{#if imageFile}
 		<button on:click={handleUndo} disabled={!canUndo} class="variant-outline-tertiary dark:variant-outline-secondary" aria-label="Undo">
 			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600" />
-			<p class="text-sm">Undo</p>
 		</button>
 		<button on:click={handleRedo} disabled={!canRedo} class="variant-outline-tertiary dark:variant-outline-secondary" aria-label="Redo">
 			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600" />
-			<p class="text-sm">Redo</p>
 		</button>
-		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary md:hidden" aria-label="Save">
+		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary" aria-label="Save">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-		</button>
-		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn hidden dark:variant-filled-primary md:inline-flex">
-			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
-			<p class="hidden md:block">Save</p>
 		</button>
 	{/if}
 </div>
@@ -223,7 +221,7 @@
 			{:else if activeState === 'watermark'}
 				<Watermark {stage} {layer} {imageNode} />
 			{:else if activeState === 'filter'}
-				<Filter {stage} {layer} {imageNode} on:filter={handleFilter} />
+				<Filter {stage} {layer} {imageNode} />
 			{:else if activeState === 'textoverlay'}
 				<TextOverlay {stage} {layer} {imageNode} />
 			{:else if activeState === 'shapeoverlay'}
@@ -237,98 +235,51 @@
 	</div>
 
 	<!-- Tool Controls -->
-	<div class="flex flex-wrap justify-around bg-surface-300 p-2 dark:bg-surface-700">
-		<button
-			on:click={() => (activeState = 'rotate')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Rotate"
-		>
-			<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
-			<p class="config-text">Rotate</p>
-		</button>
-		<button on:click={toggleBlurControls} disabled={!imageFile} class="variant-outline-tertiary dark:variant-outline-secondary" aria-label="Blur">
-			<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600" />
-			<p class="config-text">Blur</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'crop')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Crop"
-		>
-			<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600" />
-			<p class="config-text">Crop</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'zoom')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Zoom"
-		>
-			<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600" />
-			<p class="config-text">Zoom</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'focalpoint')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Focal Point"
-		>
-			<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600" />
-			<p class="config-text">Focal Point</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'watermark')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Watermark"
-		>
-			<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600" />
-			<p class="config-text">Watermark</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'filter')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Filter"
-		>
-			<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600" />
-			<p class="config-text">Filter</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'textoverlay')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Add Text"
-		>
-			<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600" />
-			<p class="config-text">Add Text</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'shapeoverlay')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Add Shape"
-		>
-			<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
-			<p class="config-text">Add Shape</p>
-		</button>
-		<button
-			on:click={() => (activeState = 'resize')}
-			disabled={!imageFile}
-			class="variant-outline-tertiary dark:variant-outline-secondary"
-			aria-label="Resize"
-		>
-			<iconify-icon icon="mdi:resize" width="24" class="text-tertiary-600" />
-			<p class="config-text">Resize</p>
-		</button>
+	<div class="tool-controls-container">
+		<div class="tool-buttons-row">
+			<button on:click={() => toggleTool('rotate')} disabled={!imageFile} aria-label="Rotate">
+				<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
+				Rotate
+			</button>
+			<button on:click={() => toggleTool('blur')} disabled={!imageFile} aria-label="Blur">
+				<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600" />
+				Blur
+			</button>
+			<button on:click={() => toggleTool('crop')} disabled={!imageFile} aria-label="Crop">
+				<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600" />
+				Crop
+			</button>
+			<button on:click={() => toggleTool('zoom')} disabled={!imageFile} aria-label="Zoom">
+				<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600" />
+				Zoom
+			</button>
+			<button on:click={() => toggleTool('focalpoint')} disabled={!imageFile} aria-label="Focal Point">
+				<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600" />
+				Focal Point
+			</button>
+			<button on:click={() => toggleTool('watermark')} disabled={!imageFile} aria-label="Watermark">
+				<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600" />
+				Watermark
+			</button>
+			<button on:click={() => toggleTool('filter')} disabled={!imageFile} aria-label="Filter">
+				<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600" />
+				Filter
+			</button>
+			<button on:click={() => toggleTool('textoverlay')} disabled={!imageFile} aria-label="Add Text">
+				<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600" />
+				Add Text
+			</button>
+			<button on:click={() => toggleTool('shapeoverlay')} disabled={!imageFile} aria-label="Add Shape">
+				<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
+				Add Shape
+			</button>
+			<button on:click={() => toggleTool('resize')} disabled={!imageFile} aria-label="Resize">
+				<iconify-icon icon="mdi:resize" width="24" class="text-tertiary-600" />
+				Resize
+			</button>
+		</div>
 	</div>
 </div>
-
-{#if blurActive}
-	<Blur {stage} {layer} {imageNode} />
-{/if}
 
 {#if $saveEditedImage}
 	<div class="success-message" role="alert">Image saved successfully!</div>
@@ -349,21 +300,31 @@
 		overflow: hidden;
 	}
 
-	button {
-		padding: 10px 20px;
-		background-color: #4caf50;
+	.tool-controls-container {
+		background-color: var(--surface-300);
+		padding: 8px;
+		overflow-x: auto;
+		white-space: nowrap;
+	}
+
+	.tool-buttons-row {
+		display: flex;
+		gap: 8px;
+	}
+
+	.tool-buttons-row button {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		padding: 8px;
+		background-color: var(--tertiary);
 		color: white;
 		border: none;
 		border-radius: 5px;
 		cursor: pointer;
-		margin: 5px;
 	}
 
-	button:hover:not(:disabled) {
-		background-color: #45a049;
-	}
-
-	button:disabled {
+	.tool-buttons-row button:disabled {
 		background-color: #cccccc;
 		cursor: not-allowed;
 	}
@@ -383,5 +344,23 @@
 		border-radius: 5px;
 		text-align: center;
 		margin-top: 10px;
+	}
+
+	/* Styles for Undo/Redo buttons on mobile */
+	@media (max-width: 768px) {
+		.mb-2 button[aria-label='Undo'],
+		.mb-2 button[aria-label='Redo'] {
+			padding: 8px;
+			width: 40px;
+			height: 40px;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+		}
+
+		.mb-2 button[aria-label='Undo'] p,
+		.mb-2 button[aria-label='Redo'] p {
+			display: none;
+		}
 	}
 </style>

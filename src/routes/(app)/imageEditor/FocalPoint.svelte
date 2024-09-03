@@ -1,31 +1,129 @@
-<!-- FocalPoint.svelte -->
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
 	export let imageNode: Konva.Image;
 
-	let focalPoint: Konva.Circle;
+	let focalPoint: Konva.Group | null = null;
+	let focalPointActive = false;
+	const dispatch = createEventDispatcher();
 
 	onMount(() => {
-		focalPoint = new Konva.Circle({
+		setupEventListeners();
+		createFocalPoint(); // Ensure focal point is created as soon as the component mounts
+	});
+
+	function createFocalPoint() {
+		// Ensure only one focal point exists by destroying the previous one if it exists
+		if (focalPoint) {
+			focalPoint.destroy();
+		}
+
+		focalPoint = new Konva.Group({
 			x: stage.width() / 2,
 			y: stage.height() / 2,
-			radius: 10,
-			fill: 'red',
 			draggable: true
 		});
 
+		const outerCircle = new Konva.Circle({
+			radius: 20,
+			stroke: 'white',
+			strokeWidth: 2,
+			dash: [5, 5]
+		});
+
+		const innerCircle = new Konva.Circle({
+			radius: 5,
+			fill: 'red'
+		});
+
+		const crosshairVertical = new Konva.Line({
+			points: [0, -15, 0, 15],
+			stroke: 'white',
+			strokeWidth: 2
+		});
+
+		const crosshairHorizontal = new Konva.Line({
+			points: [-15, 0, 15, 0],
+			stroke: 'white',
+			strokeWidth: 2
+		});
+
+		focalPoint.add(outerCircle, innerCircle, crosshairVertical, crosshairHorizontal);
 		layer.add(focalPoint);
 		layer.draw();
 
-		focalPoint.on('dragmove', () => {
-			// You can use the focal point position for further processing
-			console.log('Focal point:', focalPoint.x(), focalPoint.y());
+		updateFocalPoint();
+		focalPointActive = true; // Ensure the focal point is marked as active
+	}
+
+	function setupEventListeners() {
+		stage.on('click', (e) => {
+			if (e.target === stage || e.target === imageNode) {
+				if (!focalPointActive || !focalPoint) {
+					return;
+				}
+				const position = stage.getPointerPosition();
+				if (position && focalPoint) {
+					focalPoint.position({
+						x: position.x,
+						y: position.y
+					});
+					updateFocalPoint();
+				}
+			}
 		});
-	});
+
+		focalPoint?.on('dragmove', () => {
+			updateFocalPoint();
+		});
+
+		focalPoint?.on('mouseenter', () => {
+			document.body.style.cursor = 'move';
+		});
+
+		focalPoint?.on('mouseleave', () => {
+			document.body.style.cursor = 'default';
+		});
+	}
+
+	function updateFocalPoint() {
+		if (!focalPoint) return;
+
+		const imageRect = imageNode.getClientRect();
+		const focalPointPos = focalPoint.position();
+
+		const relativeX = (focalPointPos.x - imageRect.x) / imageRect.width;
+		const relativeY = (focalPointPos.y - imageRect.y) / imageRect.height;
+
+		dispatch('focalPointChange', { x: relativeX, y: relativeY });
+		layer.draw();
+	}
+
+	function toggleFocalPoint() {
+		if (focalPointActive) {
+			// If the focal point is active, remove it
+			focalPoint?.destroy();
+			focalPoint = null;
+			focalPointActive = false;
+		} else {
+			// If the focal point is not active, create it
+			createFocalPoint();
+		}
+		layer.draw();
+	}
 </script>
 
-<div>Drag the red circle to set the focal point</div>
+<div class="focal-point-controls absolute bottom-4 right-4 z-50 rounded-md bg-gray-800 p-2 text-white">
+	<button class="gradient-tertiary btn" on:click={toggleFocalPoint}>
+		{focalPointActive ? 'Remove' : 'Reset'} Focal Point
+	</button>
+</div>
+
+<style>
+	.focal-point-controls {
+		background-color: rgba(0, 0, 0, 0.6);
+	}
+</style>
