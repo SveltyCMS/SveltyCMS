@@ -5,7 +5,11 @@
 	import { writable } from 'svelte/store';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
+	// Auth
 	import type { Role, Permission } from '@src/auth/types';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -19,11 +23,6 @@
 	export let selectedPermissions = [];
 
 	const modalStore = getModalStore();
-
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	const saveRole = () => {
 		if ($modalStore[0].response) {
@@ -44,32 +43,47 @@
 			selectedPermissions.push(permissionId);
 		}
 	};
+
+	// Base Classes
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
+	const cHeader = 'text-2xl font-bold';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
 
 {#if $modalStore[0]}
-	<div class={cBase}>
-		<header class={cHeader}>{isEditMode ? 'Edit Role' : 'Add Role'}</header>
-		<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2 text-black" />
-		<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2 text-black"></textarea>
-		<input type="text" bind:value={currentGroupName} placeholder="Group Name" class="mb-2 w-full rounded border p-2 text-black" />
-		<div class="flex flex-wrap gap-2">
-			{#each $availablePermissions as permission (permission._id)}
-				<label class="flex items-center">
-					<input
-						type="checkbox"
-						checked={selectedPermissions.findIndex((cur) => cur === permission._id) > -1}
-						on:change={() => togglePermissionSelection(permission._id)}
-						class="mr-2 text-black"
-					/>
-					<span>{permission.name}</span>
-				</label>
-			{/each}
-		</div>
-		<div class="footer flex justify-end">
+	<div class="modal-avatar {cBase}">
+		<header class={`text-center text-primary-500 ${cHeader}`}>
+			{$modalStore[0]?.title ?? '(title missing)'}
+		</header>
+		<article class="text-center text-sm">
+			{$modalStore[0]?.body ?? '(body missing)'}
+		</article>
+
+		<form class="modal-form {cForm}">
+			<input type="text" bind:value={roleName} placeholder="Role Name" class="input" />
+			<textarea bind:value={roleDescription} placeholder="Role Description" class="input"></textarea>
+			<input type="text" bind:value={currentGroupName} placeholder="Group Name" class="input" />
+			<div class="flex flex-wrap gap-2">
+				{#each $availablePermissions as permission (permission._id)}
+					<label class="flex items-center">
+						<input
+							type="checkbox"
+							checked={selectedPermissions.findIndex((cur) => cur === permission._id) > -1}
+							on:change={() => togglePermissionSelection(permission._id)}
+							class="checkbox mr-2"
+						/>
+						<span>{permission.name}</span>
+					</label>
+				{/each}
+			</div>
+		</form>
+		<footer class="modal-footer {parent.regionFooter} justify-between">
+			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
+				{m.button_cancel()}
+			</button>
 			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Save Changes' : 'Create Role'}</button>
-			<button on:click={closeModal} class="variant-filled-secondary btn ml-2">Cancel</button>
-		</div>
+		</footer>
 	</div>
 {/if}

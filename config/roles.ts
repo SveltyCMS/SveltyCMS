@@ -12,7 +12,8 @@ export const roles: Role[] = [
       "collection:update",
       "collection:delete",
       "user:manage"
-    ]
+    ],
+    "groupName": "Ungrouped"
   },
   {
     "_id": "developer",

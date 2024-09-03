@@ -127,6 +127,7 @@ It provides the following functionality:
 			type: 'component',
 			component: modalComponent,
 			title: isEditMode ? 'Edit Role' : 'Create Role',
+			body: isEditMode ? 'Edit an existing Role' : 'Create and describe a new Role',
 			response: (role) => {
 				saveRole(role);
 			}

@@ -68,7 +68,6 @@ export class RoleAdapter implements Partial<authDBInterface> {
 			_id: await createRandomID(),
 			name: roleData.name,
 			description: roleData.description || '',
-			// permissions: roleData.permissions || [],
 			permissions: roleData.permissions || []
 		};
 
@@ -80,7 +79,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 
 	// Update role
 	async updateRole(role_id: string, roleData: Partial<Role>, current_user_id: string): Promise<void> {
-		console.log(this.roles, role_id);
+		logger.debug(this.roles, role_id);
 		const role = this.roles.get(role_id);
 		if (!role) throw new Error('Role not found');
 
