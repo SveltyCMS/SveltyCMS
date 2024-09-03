@@ -276,9 +276,7 @@ export class MongoDBAdapter implements dbInterface {
 							logger.debug(`Collection model for ${collection.name} already exists.`);
 						} else {
 							logger.debug(`Creating new collection model for ${collection.name}.`);
-							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
-
-							await mongoose.connection.createCollection(collection.name.toLowerCase());
+							collectionsModels[collection.name] = await mongoose.model(collection.name, schemaObject);
 							logger.info(`Collection ${collection.name} created.`);
 						}
 

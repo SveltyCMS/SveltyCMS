@@ -224,7 +224,7 @@ async function initializeVirtualFolders() {
 // Initialize adapters
 async function initializeAdapters(): Promise<void> {
 	if (isInitialized) {
-		logger.debug('Adapters already initialized, skipping initialization.');
+		logger.info('Adapters already initialized, skipping initialization.');
 		return;
 	}
 

@@ -160,7 +160,7 @@
 											.map((r) => r.trim())
 											.includes(role.name)}
 										on:change={() => toggleRole(permission, role.name)}
-										class="form-checkbox"
+										class="checkbox"
 									/>
 								</td>
 							{/each}

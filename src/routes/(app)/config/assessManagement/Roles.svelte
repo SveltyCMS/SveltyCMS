@@ -30,15 +30,19 @@ It provides the following functionality:
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { Modal } from '@skeletonlabs/skeleton';
+	import RoleModal from './RoleModal.svelte';
+	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+
+	const toastStore = getToastStore();
 
 	// State stores
 	const roleGroups = writable<{ groupName: string; roles: Role[]; uniqueKey: string }[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
 	const selectedRoles = writable<Set<string>>(new Set());
-	const selectedPermissions = writable<Set<string>>(new Set());
+	let selectedPermissions = [];
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
+	const modalStore = getModalStore();
 
 	// Modal state and form inputs
 	let isModalOpen = false;
@@ -86,6 +90,13 @@ It provides the following functionality:
 
 	const loadPermissions = async () => {
 		try {
+			// Ensure authAdapter is initialized
+			// if (!authAdapter) {
+			// 	throw new Error('Auth adapter is not initialized');
+			// }
+
+			// const permissionsData = await authAdapter.getAllPermissions();
+			// availablePermissions.set(permissionsData);
 			availablePermissions.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
@@ -98,8 +109,31 @@ It provides the following functionality:
 		roleName = role ? role.name : '';
 		roleDescription = role ? role.description || '' : ''; // Provide a default empty string
 		currentGroupName = groupName || ''; // Ensure groupName is a string
-		selectedPermissions.set(new Set(role?.permissions || [])); // Ensure it's a Set
+		selectedPermissions = role?.permissions || []; // Ensure it's a Set
 		isModalOpen = true;
+		const modalComponent: ModalComponent = {
+			ref: RoleModal,
+			props: {
+				isEditMode,
+				currentRoleId,
+				roleName,
+				roleDescription,
+				currentGroupName,
+				selectedPermissions,
+				availablePermissions
+			}
+		};
+		const modal: ModalSettings = {
+			type: 'component',
+			component: modalComponent,
+			title: isEditMode ? 'Edit Role' : 'Create Role',
+			body: isEditMode ? 'Edit an existing Role' : 'Create and describe a new Role',
+			response: (role) => {
+				saveRole(role);
+			}
+		};
+		modalStore.trigger(modal);
+		console.log(isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions, availablePermissions, isModalOpen);
 	};
 
 	const closeModal = () => {
@@ -107,50 +141,109 @@ It provides the following functionality:
 		roleName = '';
 		roleDescription = '';
 		currentGroupName = '';
-		selectedPermissions.set(new Set());
+		selectedPermissions = [];
+		modalStore.close();
 	};
 
-	const saveRole = async () => {
+	const saveRole = async (role) => {
+		console.log(role);
+		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
-		const roleData: Partial<Role> = {
+		const roleData: Role = {
 			name: roleName,
 			description: roleDescription,
 			groupName: currentGroupName,
 			permissions: selectedPermissions
 		};
 
-		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
+		if (!isEditMode) {
+			try {
+				const response = await fetch('/api/role/create', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ roleData, currentUserId })
+				});
 
-			if (isEditMode && currentRoleId) {
-				await authAdapter.updateRole(currentRoleId, roleData, currentUserId);
-			} else {
-				await authAdapter.createRole(roleData, currentUserId);
+				if (response.status === 200) {
+					showToast('Config file updated successfully', 'success');
+				} else if (response.status === 304) {
+					// Provide a custom message for 304 status
+					showToast('No changes detected, config file not updated', 'info');
+				} else {
+					const responseText = await response.text();
+					showToast(`Error updating config file: ${responseText}`, 'error');
+				}
+			} catch (error) {
+				showToast('Network error occurred while updating config file', 'error');
 			}
+		} else {
+			try {
+				const response = await fetch('/api/role/update', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ currentRoleId, roleData, currentUserId })
+				});
 
-			closeModal();
-			await loadRoleGroups();
-		} catch (err) {
-			error.set(`Failed to ${isEditMode ? 'update' : 'create'} role: ${err instanceof Error ? err.message : String(err)}`);
+				if (response.status === 200) {
+					showToast('Config file updated successfully', 'success');
+				} else if (response.status === 304) {
+					// Provide a custom message for 304 status
+					showToast('No changes detected, config file not updated', 'info');
+				} else {
+					const responseText = await response.text();
+					showToast(`Error updating config file: ${responseText}`, 'error');
+				}
+			} catch (error) {
+				showToast('Network error occurred while updating config file', 'error');
+			}
 		}
 	};
 
+	// Show corresponding Toast messages
+	function showToast(message, type) {
+		const backgrounds = {
+			success: 'variant-filled-primary',
+			info: 'variant-filled-tertiary',
+			error: 'variant-filled-error'
+		};
+		toastStore.trigger({
+			message: message,
+			background: backgrounds[type],
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		});
+	}
+
 	const deleteSelectedRoles = async () => {
 		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-
 			for (const roleId of $selectedRoles) {
-				await authAdapter.deleteRole(roleId, currentUserId);
+				const response = await fetch('/api/role/delete', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ roleId, currentUserId })
+				});
+
+				if (response.status === 200) {
+					showToast('Config file updated successfully', 'success');
+				} else if (response.status === 304) {
+					// Provide a custom message for 304 status
+					showToast('No changes detected, config file not updated', 'info');
+				} else {
+					const responseText = await response.text();
+					showToast(`Error updating config file: ${responseText}`, 'error');
+				}
 			}
 			selectedRoles.set(new Set());
 			await loadRoleGroups();
 		} catch (err) {
-			error.set(`Failed to delete roles: ${err instanceof Error ? err.message : String(err)}`);
+			showToast('Network error occurred while updating config file', 'error');
 		}
 	};
 
@@ -160,17 +253,6 @@ It provides the following functionality:
 				selected.delete(roleId);
 			} else {
 				selected.add(roleId);
-			}
-			return selected;
-		});
-	};
-
-	const togglePermissionSelection = (permissionId: string) => {
-		selectedPermissions.update((selected) => {
-			if (selected.has(permissionId)) {
-				selected.delete(permissionId);
-			} else {
-				selected.add(permissionId);
 			}
 			return selected;
 		});
@@ -191,7 +273,7 @@ It provides the following functionality:
 			{/if}
 		</div>
 
-		<div class="mt-4">
+		<div class="mt-4 overflow-auto" style="height: calc(100vh - 320px)">
 			{#if $roleGroups.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
@@ -222,8 +304,7 @@ It provides the following functionality:
 			{/if}
 		</div>
 	</div>
-
-	<Modal bind:isOpen={isModalOpen} title={isEditMode ? 'Edit Role' : 'Create Role'}>
+	<!-- <Modal title={isEditMode ? 'Edit Role' : 'Create Role'}>
 		<div class="p-4">
 			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
 			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
@@ -246,5 +327,5 @@ It provides the following functionality:
 				<button on:click={closeModal} class="variant-filled-secondary btn ml-2">Cancel</button>
 			</div>
 		</div>
-	</Modal>
+	</Modal> -->
 {/if}

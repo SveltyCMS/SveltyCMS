@@ -22,7 +22,7 @@ export interface Role {
 	_id: RoleId;
 	name: string;
 	description?: string;
-	permissions: Set<PermissionId>;
+	permissions: PermissionId[];
 }
 
 // Permission Interface
