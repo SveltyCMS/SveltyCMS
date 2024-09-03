@@ -24,68 +24,108 @@
 
 	const dispatch = createEventDispatcher();
 
+	let watermarkPreview: string | null = null;
+
 	function handleChange() {
-		dispatch('change');
+		dispatch('change', {
+			watermarkFile,
+			position,
+			opacity,
+			scale,
+			offsetX,
+			offsetY,
+			rotation
+		});
 	}
 
 	function handleFileChange(event: Event) {
 		const target = event.target as HTMLInputElement;
 		if (target.files && target.files.length > 0) {
 			watermarkFile = target.files[0];
+			const reader = new FileReader();
+			reader.onload = (e) => {
+				watermarkPreview = e.target?.result as string;
+			};
+			reader.readAsDataURL(watermarkFile);
 			handleChange();
 		}
 	}
+
+	function removeWatermark() {
+		watermarkFile = null;
+		watermarkPreview = null;
+		handleChange();
+	}
+
+	function formatValue(value: number, suffix: string = ''): string {
+		return `${value.toFixed(2)}${suffix}`;
+	}
 </script>
 
-<div class="watermark-controls">
-	<input type="file" accept="image/*" on:change={handleFileChange} />
+<div class="watermark-controls absolute bottom-4 left-4 z-50 rounded-md bg-gray-800 p-4 text-white">
+	<h3 class="mb-4 text-lg font-bold">Watermark Settings</h3>
 
-	<select bind:value={position} on:change={handleChange}>
-		{#each Object.entries(WATERMARK_POSITION) as [key, value]}
-			<option {value}>{key}</option>
-		{/each}
-	</select>
+	<div class="mb-4">
+		{#if watermarkPreview}
+			<div class="relative mb-2 h-32 w-32">
+				<img src={watermarkPreview} alt="Watermark preview" class="h-full w-full object-contain" />
+				<button class="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-xs" on:click={removeWatermark}> X </button>
+			</div>
+		{:else}
+			<label class="gradient-tertiary btn mb-2 cursor-pointer">
+				Upload Watermark
+				<input type="file" accept="image/*" on:change={handleFileChange} class="hidden" />
+			</label>
+		{/if}
+	</div>
 
-	<label>
-		Opacity:
-		<input type="range" min="0" max="1" step="0.1" bind:value={opacity} on:input={handleChange} />
-	</label>
+	<div class="mb-4 grid grid-cols-2 gap-4">
+		<label class="flex flex-col">
+			<span class="mb-1">Position:</span>
+			<select bind:value={position} on:change={handleChange} class="rounded px-2 py-1 text-black">
+				{#each Object.entries(WATERMARK_POSITION) as [key, value]}
+					<option {value}>{key}</option>
+				{/each}
+			</select>
+		</label>
 
-	<label>
-		Scale:
-		<input type="range" min="10" max="200" step="1" bind:value={scale} on:input={handleChange} />
-	</label>
+		<label class="flex flex-col">
+			<span class="mb-1">Opacity: {formatValue(opacity)}</span>
+			<input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleChange} />
+		</label>
 
-	<label>
-		Offset X:
-		<input type="number" bind:value={offsetX} on:input={handleChange} />
-	</label>
+		<label class="flex flex-col">
+			<span class="mb-1">Scale: {formatValue(scale, '%')}</span>
+			<input type="range" min="10" max="200" step="1" bind:value={scale} on:input={handleChange} />
+		</label>
 
-	<label>
-		Offset Y:
-		<input type="number" bind:value={offsetY} on:input={handleChange} />
-	</label>
+		<label class="flex flex-col">
+			<span class="mb-1">Rotation: {formatValue(rotation, '°')}</span>
+			<input type="range" min="0" max="360" step="1" bind:value={rotation} on:input={handleChange} />
+		</label>
+	</div>
 
-	<label>
-		Rotation:
-		<input type="range" min="0" max="360" step="1" bind:value={rotation} on:input={handleChange} />
-	</label>
+	<div class="mb-4 grid grid-cols-2 gap-4">
+		<label class="flex flex-col">
+			<span class="mb-1">Offset X: {offsetX}px</span>
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetX} on:input={handleChange} />
+		</label>
+
+		<label class="flex flex-col">
+			<span class="mb-1">Offset Y: {offsetY}px</span>
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetY} on:input={handleChange} />
+		</label>
+	</div>
 </div>
 
 <style>
 	.watermark-controls {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-	}
-
-	label {
-		display: flex;
-		justify-content: space-between;
-		align-items: center;
+		background-color: rgba(0, 0, 0, 0.6);
+		max-width: 400px;
 	}
 
 	input[type='range'] {
-		width: 200px;
+		width: 100%;
+		margin: 0;
 	}
 </style>
