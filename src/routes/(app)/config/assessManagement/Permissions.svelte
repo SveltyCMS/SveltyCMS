@@ -70,10 +70,6 @@
 	// Load data on component mount
 	onMount(async () => {
 		try {
-			// await initializationPromise;
-			// if (!authAdapter) {
-			// 	throw new Error('Auth adapter is not initialized');
-			// }
 			await loadRoles();
 			await loadPermissions();
 		} catch (err) {
@@ -86,11 +82,6 @@
 	// Function to load permissions
 	const loadPermissions = async () => {
 		try {
-			// if (!authAdapter) {
-			// 	throw new Error('Auth adapter is not initialized');
-			// }
-			// const permissions = await authAdapter.getAllPermissions();
-			// permissionsList.set(permissions);
 			permissionsList.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
@@ -100,11 +91,6 @@
 	// Function to load roles
 	const loadRoles = async () => {
 		try {
-			// if (!authAdapter) {
-			// 	throw new Error('Auth adapter is not initialized');
-			// }
-			// const rolesData = await authAdapter.getAllRoles();
-			// roles.set(rolesData);
 			roles.set($page.data.roles);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);

@@ -33,7 +33,6 @@ It provides functionality to:
 	// Fetch roles on component mount
 	onMount(async () => {
 		try {
-			// await initializationPromise; // Wait for initialization
 			await loadRoles(); // Load roles after initialization
 		} catch (err) {
 			error.set(`Failed to initialize: ${err instanceof Error ? err.message : String(err)}`);
@@ -44,13 +43,7 @@ It provides functionality to:
 
 	// Function to load roles from the authAdapter
 	const loadRoles = async () => {
-		// if (!authAdapter) {
-		// 	error.set('Auth adapter is not initialized');
-		// 	return;
-		// }
 		try {
-			// const rolesData = await authAdapter.getAllRoles(); // Fetch all roles
-			// roles.set(rolesData);
 			const rolesData = $page.data.roles;
 			const currentAdmin = rolesData.find((role) => role._id.toLowerCase() === 'admin');
 

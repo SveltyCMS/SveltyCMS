@@ -5,7 +5,11 @@
 	import { writable } from 'svelte/store';
 	import { getModalStore } from '@skeletonlabs/skeleton';
 
+	// Auth
 	import type { Role, Permission } from '@src/auth/types';
+
+	//ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Props
 	/** Exposes parent props to this component. */
@@ -19,11 +23,6 @@
 	export let selectedPermissions = [];
 
 	const modalStore = getModalStore();
-
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 
 	const saveRole = () => {
 		if ($modalStore[0].response) {
@@ -44,6 +43,11 @@
 			selectedPermissions.push(permissionId);
 		}
 	};
+
+	// Base Classes
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4';
+	const cHeader = 'text-2xl font-bold';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -69,7 +73,6 @@
 		</div> -->
 		<div class="footer flex justify-end">
 			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Save Changes' : 'Create Role'}</button>
-			<button on:click={closeModal} class="variant-filled-secondary btn ml-2">Cancel</button>
 		</div>
 	</div>
 {/if}
