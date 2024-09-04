@@ -1,5 +1,9 @@
+<!-- 
+@file src/routes/(app)/imageEditor/Crop.svelte
+@description This component provides cropping functionality for an image within a Konva stage, allowing users to define a crop area and apply the crop.
+-->
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 	import Konva from 'konva';
 
 	export let stage: Konva.Stage;
@@ -8,139 +12,145 @@
 
 	const dispatch = createEventDispatcher();
 
-	let cropShape: 'square' | 'circular' = 'square';
-	let cropBox: Konva.Rect;
-	let cropCircle: Konva.Circle;
+	let cropShape: 'rectangle' | 'square' | 'circular' = 'rectangle';
+	let cropTool: Konva.Rect | Konva.Circle;
+	let transformer: Konva.Transformer;
+	let cropOverlay: Konva.Rect;
+
+	onMount(() => {
+		initCropTool();
+	});
 
 	function initCropTool() {
+		// Clear previous crop tool and transformer
+		if (cropTool) cropTool.destroy();
+		if (transformer) transformer.destroy();
+		if (cropOverlay) cropOverlay.destroy();
+
 		const imageWidth = imageNode.width();
 		const imageHeight = imageNode.height();
 		const size = Math.min(imageWidth, imageHeight) / 2;
 
-		// Remove any existing crop tools
-		if (cropBox) cropBox.destroy();
-		if (cropCircle) cropCircle.destroy();
+		// Create an overlay to dim the area outside the crop region
+		cropOverlay = new Konva.Rect({
+			x: 0,
+			y: 0,
+			width: imageWidth,
+			height: imageHeight,
+			fill: 'rgba(0, 0, 0, 0.5)',
+			globalCompositeOperation: 'destination-over',
+			listening: false
+		});
 
-		if (cropShape === 'square') {
-			cropBox = new Konva.Rect({
-				x: (imageWidth - size) / 2,
-				y: (imageHeight - size) / 2,
-				width: size,
-				height: size,
-				stroke: 'white',
-				strokeWidth: 2,
-				draggable: true,
-				resizeEnabled: true
-			});
-			layer.add(cropBox);
+		layer.add(cropOverlay);
 
-			// Enable resizing of the rectangle
-			cropBox.on('transform', () => {
-				cropBox.width(cropBox.width() * cropBox.scaleX());
-				cropBox.height(cropBox.height() * cropBox.scaleY());
-				cropBox.scaleX(1);
-				cropBox.scaleY(1);
-			});
-		} else {
-			cropCircle = new Konva.Circle({
+		// Initialize the crop tool
+		if (cropShape === 'circular') {
+			cropTool = new Konva.Circle({
 				x: imageWidth / 2,
 				y: imageHeight / 2,
 				radius: size / 2,
 				stroke: 'white',
-				strokeWidth: 2,
-				draggable: true
+				strokeWidth: 3, // Consistent stroke width
+				draggable: true,
+				name: 'cropTool'
 			});
-			layer.add(cropCircle);
-
-			// Enable resizing of the circle
-			cropCircle.on('transform', () => {
-				const radius = cropCircle.radius() * cropCircle.scaleX();
-				cropCircle.radius(radius);
-				cropCircle.scaleX(1);
-				cropCircle.scaleY(1);
+		} else {
+			cropTool = new Konva.Rect({
+				x: (imageWidth - size) / 2,
+				y: (imageHeight - size) / 2,
+				width: size,
+				height: cropShape === 'square' ? size : size * 0.75,
+				stroke: 'white',
+				strokeWidth: 3, // Consistent stroke width
+				draggable: true,
+				name: 'cropTool'
 			});
 		}
+
+		layer.add(cropTool);
+
+		// Configure the transformer tool
+		transformer = new Konva.Transformer({
+			nodes: [cropTool],
+			keepRatio: cropShape !== 'rectangle',
+			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+			anchorStrokeWidth: 2,
+			anchorSize: 10,
+			borderStrokeWidth: 2,
+			boundBoxFunc: (oldBox, newBox) => {
+				// Limit resize
+				if (newBox.width < 30 || newBox.height < 30) {
+					return oldBox;
+				}
+				return newBox;
+			}
+		});
+
+		layer.add(transformer);
+
+		cropTool.on('transform', () => {
+			if (cropTool instanceof Konva.Circle) {
+				const scaleX = cropTool.scaleX();
+				cropTool.radius(cropTool.radius() * scaleX);
+				cropTool.scaleX(1);
+				cropTool.scaleY(1);
+			}
+		});
 
 		layer.draw();
 	}
 
 	function applyCrop() {
-		let x, y, width, height;
-		if (cropShape === 'square') {
-			x = cropBox.x();
-			y = cropBox.y();
-			width = cropBox.width();
-			height = cropBox.height();
+		let crop;
+		if (cropTool instanceof Konva.Circle) {
+			crop = {
+				x: cropTool.x() - cropTool.radius(),
+				y: cropTool.y() - cropTool.radius(),
+				width: cropTool.radius() * 2,
+				height: cropTool.radius() * 2,
+				shape: 'circular'
+			};
 		} else {
-			x = cropCircle.x() - cropCircle.radius();
-			y = cropCircle.y() - cropCircle.radius();
-			width = cropCircle.radius() * 2;
-			height = cropCircle.radius() * 2;
+			crop = {
+				x: cropTool.x(),
+				y: cropTool.y(),
+				width: cropTool.width() * cropTool.scaleX(),
+				height: cropTool.height() * cropTool.scaleY(),
+				shape: cropShape
+			};
 		}
 
-		dispatch('crop', { x, y, width, height, shape: cropShape });
+		dispatch('crop', crop);
+	}
+
+	function cancelCrop() {
+		dispatch('cancelCrop');
 	}
 
 	$: {
-		if (stage && layer && imageNode) {
+		if (cropShape) {
 			initCropTool();
 		}
 	}
 </script>
 
-<div class="crop-controls rounded-md bg-surface-300 p-2 dark:bg-surface-700">
-	<div class="flex items-center justify-between">
-		<label for="cropShape" class="text-sm text-gray-700 dark:text-gray-300">Crop Shape:</label>
-		<select id="cropShape" bind:value={cropShape} on:change={initCropTool} class="input-select">
+<!-- Crop Controls UI -->
+<div class="crop-controls bg-base-800 absolute left-4 top-4 z-50 flex flex-col space-y-4 rounded-md p-4 text-white shadow-lg">
+	<div class="control-group">
+		<label for="cropShape" class="text-sm font-medium">Crop Shape:</label>
+		<select id="cropShape" bind:value={cropShape} class="select-bordered select text-black">
+			<option value="rectangle">Rectangle</option>
 			<option value="square">Square</option>
 			<option value="circular">Circular</option>
 		</select>
 	</div>
-	<button on:click={applyCrop} class="variant-outline-tertiary mt-4 w-full dark:variant-outline-secondary">
-		<iconify-icon icon="mdi:crop" width="24" class="mb-1 text-tertiary-600" />
-		<p class="config-text">Apply Crop</p>
-	</button>
+	<p class="instructions text-sm">Drag the corners to resize the crop area</p>
+	<div class="button-group flex justify-between gap-4">
+		<button on:click={applyCrop} class="btn-primary btn">
+			<iconify-icon icon="mdi:crop" width="20" />
+			Apply Crop
+		</button>
+		<button on:click={cancelCrop} class="btn-secondary btn">Cancel</button>
+	</div>
 </div>
-
-<style>
-	.crop-controls {
-		background-color: var(--surface-300);
-		padding: 16px;
-		border-radius: 8px;
-	}
-
-	.input-select {
-		width: 100%;
-		padding: 8px;
-		margin-top: 8px;
-		border-radius: 4px;
-		border: 1px solid var(--border);
-		background-color: var(--background);
-		color: var(--text-primary);
-	}
-
-	.input-select:focus {
-		outline: none;
-		border-color: var(--primary);
-	}
-
-	button {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		justify-content: center;
-		padding: 12px;
-		border-radius: 8px;
-	}
-
-	button p.config-text {
-		margin-top: 4px;
-		font-size: 12px;
-		color: var(--tertiary-600);
-	}
-
-	button .iconify-icon {
-		margin-bottom: 4px;
-		color: var(--tertiary-600);
-	}
-</style>

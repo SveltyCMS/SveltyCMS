@@ -1,4 +1,7 @@
-<!-- Filter.svelte -->
+<!-- 
+@file src/routes/(app)/imageEditor/Filter.svelte
+@description This component allows users to apply various filters to an image, such as brightness, contrast, saturation, hue, blur, and more.
+-->
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import Konva from 'konva';
@@ -44,7 +47,7 @@
 	}
 </script>
 
-<div class="filter-controls absolute right-4 top-4 z-50 rounded-md bg-gray-800 p-4 text-white">
+<div class="filter-controls bg-base-800 absolute right-4 top-4 z-50 rounded-md p-4 text-white shadow-lg">
 	<h3 class="mb-4 text-lg font-bold">Image Filters</h3>
 
 	<div class="mb-4 grid grid-cols-2 gap-4">
@@ -57,11 +60,20 @@
 				step="0.05"
 				bind:value={filters.brightness}
 				on:input={() => applyFilter('brightness', filters.brightness)}
+				class="range range-primary"
 			/>
 		</label>
 		<label class="flex flex-col">
 			<span class="mb-1">Contrast: {formatValue(filters.contrast, '%')}</span>
-			<input type="range" min="-100" max="100" step="5" bind:value={filters.contrast} on:input={() => applyFilter('contrast', filters.contrast)} />
+			<input
+				type="range"
+				min="-100"
+				max="100"
+				step="5"
+				bind:value={filters.contrast}
+				on:input={() => applyFilter('contrast', filters.contrast)}
+				class="range range-primary"
+			/>
 		</label>
 		<label class="flex flex-col">
 			<span class="mb-1">Saturation: {formatValue(filters.saturation)}</span>
@@ -72,48 +84,64 @@
 				step="0.1"
 				bind:value={filters.saturation}
 				on:input={() => applyFilter('saturation', filters.saturation)}
+				class="range range-primary"
 			/>
 		</label>
 		<label class="flex flex-col">
 			<span class="mb-1">Hue: {formatValue(filters.hue, '°')}</span>
-			<input type="range" min="0" max="360" step="5" bind:value={filters.hue} on:input={() => applyFilter('hue', filters.hue)} />
+			<input
+				type="range"
+				min="0"
+				max="360"
+				step="5"
+				bind:value={filters.hue}
+				on:input={() => applyFilter('hue', filters.hue)}
+				class="range range-primary"
+			/>
 		</label>
 		<label class="flex flex-col">
 			<span class="mb-1">Blur: {formatValue(filters.blur, 'px')}</span>
-			<input type="range" min="0" max="40" step="1" bind:value={filters.blur} on:input={() => applyFilter('blur', filters.blur)} />
+			<input
+				type="range"
+				min="0"
+				max="40"
+				step="1"
+				bind:value={filters.blur}
+				on:input={() => applyFilter('blur', filters.blur)}
+				class="range range-primary"
+			/>
 		</label>
 	</div>
 
 	<div class="mb-4 grid grid-cols-3 gap-4">
 		<label class="flex items-center">
-			<input type="checkbox" bind:checked={filters.sepia} on:change={() => applyFilter('sepia', filters.sepia)} class="mr-2" />
+			<input
+				type="checkbox"
+				bind:checked={filters.sepia}
+				on:change={() => applyFilter('sepia', filters.sepia)}
+				class="checkbox-primary checkbox mr-2"
+			/>
 			Sepia
 		</label>
 		<label class="flex items-center">
-			<input type="checkbox" bind:checked={filters.invert} on:change={() => applyFilter('invert', filters.invert)} class="mr-2" />
+			<input
+				type="checkbox"
+				bind:checked={filters.invert}
+				on:change={() => applyFilter('invert', filters.invert)}
+				class="checkbox-primary checkbox mr-2"
+			/>
 			Invert
 		</label>
 		<label class="flex items-center">
-			<input type="checkbox" bind:checked={filters.grayscale} on:change={() => applyFilter('grayscale', filters.grayscale)} class="mr-2" />
+			<input
+				type="checkbox"
+				bind:checked={filters.grayscale}
+				on:change={() => applyFilter('grayscale', filters.grayscale)}
+				class="checkbox-primary checkbox mr-2"
+			/>
 			Grayscale
 		</label>
 	</div>
 
-	<button on:click={resetFilters} class="gradient-tertiary btn w-full"> Reset Filters </button>
+	<button on:click={resetFilters} class="btn-secondary btn w-full">Reset Filters</button>
 </div>
-
-<style>
-	.filter-controls {
-		background-color: rgba(0, 0, 0, 0.6);
-		max-width: 400px;
-	}
-
-	input[type='range'] {
-		width: 100%;
-		margin: 0;
-	}
-
-	input[type='checkbox'] {
-		accent-color: #4ade80;
-	}
-</style>

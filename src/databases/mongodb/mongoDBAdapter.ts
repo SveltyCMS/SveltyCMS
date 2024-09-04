@@ -561,32 +561,32 @@ export class MongoDBAdapter implements dbInterface {
 		return results as T[]; // Explicitly cast to T[]
 	}
 
-	// Implementing insertOne method
-	async insertOne<T extends Document>(collection: string, doc: T): Promise<T> {
-		const model = mongoose.models[collection] as Model<T>;
-		if (!model) {
-			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
-			throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
-		}
-		try {
-			const result = await model.create(doc);
-			return result as T; // Explicitly cast to T
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error inserting document into ${collection}: ${err.message}`);
-			throw new Error(`Error inserting document into ${collection}: ${err.message}`);
-		}
-	}
+// Implementing insertOne method
+async insertOne<T extends Document>(collection: string, doc: T): Promise<T> {
+    const model = mongoose.models[collection] as Model<T>;
+    if (!model) {
+        logger.error(`insertOne failed. Collection ${collection} does not exist.`);
+        throw new Error(`insertOne failed. Collection ${collection} does not exist.`);
+    }
+    try {
+        const result = await model.create(doc);
+        return result as T; // Explicitly cast to T
+    } catch (error) {
+        const err = error as Error;
+        logger.error(`Error inserting document into ${collection}: ${err.message}`);
+        throw new Error(`Error inserting document into ${collection}: ${err.message}`);
+    }
+}
 
-	// Implementing insertMany method
-	async insertMany(collection: string, docs: object[]): Promise<any[]> {
-		const model = mongoose.models[collection];
-		if (!model) {
-			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
-			throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
-		}
-		return model.insertMany(docs);
-	}
+// Implementing insertMany method
+async insertMany(collection: string, docs: object[]): Promise<any[]> {
+    const model = mongoose.models[collection];
+    if (!model) {
+        logger.error(`insertMany failed. Collection ${collection} does not exist.`);
+        throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
+    }
+    return model.insertMany(docs);
+}
 
 	// Implementing updateOne method
 	async updateOne<T extends Document>(collection: string, query: FilterQuery<T>, update: UpdateQuery<T>): Promise<any> {
