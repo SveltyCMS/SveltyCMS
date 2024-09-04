@@ -32,8 +32,9 @@ import logger from '@src/utils/logger';
 export const POST: RequestHandler = async ({ request }) => {
     try {
         await initializationPromise;
-        const { currentRoleId, roleData, currentUserId } = await request.json();
-        await authAdapter?.updateRole(currentRoleId, roleData, currentUserId);
+        const { roles } = await request.json();
+        console.log(roles);
+        await authAdapter?.setAllRoles(roles);
         return json({ sucess: true }, { status: 200 });
     } catch (error: any) {
         console.log(error);

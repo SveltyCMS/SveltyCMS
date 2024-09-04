@@ -30,7 +30,7 @@ import type { authDBInterface } from '../authDBInterface';
 import type { Role, Permission } from '../types';
 
 // Import permission manager functions
-import { getPermissionByName, getAllPermissions } from '../permissionManager';
+import { getPermissionByName, getAllPermissions, syncPermissions } from '../permissionManager';
 
 // Import roles from config
 import { roles as configRoles } from '@root/config/roles';
@@ -217,13 +217,31 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	async setAllRoles(roles: Role[]): Promise<void> {
+		try {
+			this.roles = roles;
+			await this.syncConfigFile();
+			logger.info('Roles synced with configuration successfully');
+		} catch (error) {
+			logger.error(`Failed to sync roles with config: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
 	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
 		const configPath = path.resolve('./config/roles.ts');
-		const content = `
+		const roles = [...this.roles.values()].map(cur => {
+			if (cur._id === 'admin') {
+				return { ...cur, permissions: `permissions.map((p) => p._id)` };
+			}
+			return cur;
+		});
+		let content = `
 import type { Permission, Role } from '../src/auth/types';
+import { permissions } from './permissions'; // Import the permissions list
 
-export const roles: Role[] = ${JSON.stringify([...this.roles.values()], null, 2)};
+export const roles: Role[] = ${JSON.stringify([...roles], null, 2)};
 // Function to register a new role
 export function registerRole(newRole: Role): void {
 	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
@@ -238,9 +256,14 @@ export function registerRoles(newRoles: Role[]): void {
 }
 
 `;
+		const search = "permissions.map((p) => p._id)";
+		const startIndex = content.search("permissions.map");
+		let newContent = content.substring(0, startIndex - 1);
+		newContent = newContent + content.substring(startIndex, startIndex + search.length);
+		newContent = newContent + content.substring(startIndex + search.length + 1);
 
 		try {
-			await fs.writeFile(configPath, content, 'utf8');
+			await fs.writeFile(configPath, newContent, 'utf8');
 			logger.info('Config file updated with new roles and permissions');
 		} catch (error) {
 			logger.error(`Failed to update config file: ${(error as Error).message}`);
