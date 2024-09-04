@@ -10,72 +10,11 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
-import { registerPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
+import { permissions as allPermissions } from '@root/config/permissions';
 
 // System Logger
 import logger from '@src/utils/logger';
 
-// Register new permissions dynamically
-const dynamicPermissions = [
-	{
-		id: 'config:collectionbuilder',
-		name: 'Access Collection Builder',
-		action: PermissionAction.READ,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows access to the collection builder.'
-	},
-	{
-		id: 'config:graphql',
-		name: 'Access GraphQL',
-		action: PermissionAction.READ,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows access to GraphQL settings.'
-	},
-	{
-		id: 'config:imageeditor',
-		name: 'Use Image Editor',
-		action: PermissionAction.WRITE,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows using the image editor.'
-	},
-	{
-		id: 'config:widgetManagement',
-		name: 'Manage Widgets',
-		action: PermissionAction.WRITE,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows management of widgets.'
-	},
-	{
-		id: 'config:themeManagement',
-		name: 'Manage Themes',
-		action: PermissionAction.WRITE,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows managing themes.'
-	},
-	{
-		id: 'config:settings',
-		name: 'Manage Settings',
-		action: PermissionAction.WRITE,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows managing system settings.'
-	},
-	{
-		id: 'config:accessManagement',
-		name: 'Manage Access',
-		action: PermissionAction.WRITE,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows managing user access and roles.'
-	},
-	{
-		id: 'config:dashboard',
-		name: 'Access Dashboard',
-		action: PermissionAction.READ,
-		type: PermissionType.CONFIGURATION,
-		description: 'Allows access to the dashboard.'
-	}
-];
-
-registerPermissions(dynamicPermissions); // Register dynamic permissions
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	if (!auth) {
@@ -146,7 +85,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			user: serializableUser,
 			permissions,
 			permissionConfigs,
-			dynamicPermissions
+			allPermissions
 		};
 	} catch (error) {
 		logger.error('Error validating session:', error);

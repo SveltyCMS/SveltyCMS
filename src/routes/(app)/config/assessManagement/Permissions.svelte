@@ -21,6 +21,9 @@
 
 	// Components
 	import Loading from '@components/Loading.svelte';
+	import { PermissionType } from '@root/config/permissions';
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 
 	// Define writable stores
 	const permissionsList = writable<Permission[]>([]);
@@ -32,7 +35,37 @@
 
 	// Reactive statements for filtered permissions and current user ID
 	$: filteredPermissions = $permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+	$: groups = getGroups(filteredPermissions);
 	$: currentUserId = $page.data.user?._id || '';
+
+	const getGroups = (filteredPermissions) => {
+		const groups = [];
+		Array.isArray(filteredPermissions) &&
+			filteredPermissions.map((cur) => {
+				let group;
+				if (cur.type === PermissionType.COLLECTION) {
+					group = cur._id.split(':')[0];
+				} else if (cur.type === PermissionType.USER) {
+					group = 'User Management';
+				} else if (cur.type === PermissionType.CONFIGURATION) {
+					group = 'Configuration';
+				}
+				if (!groups.includes(group)) {
+					groups.push(group);
+				}
+			});
+		return groups;
+	};
+
+	const filterGroups = (permissions, group) => {
+		if (group === 'User Management') {
+			return permissions.filter((cur) => cur.type === PermissionType.USER);
+		} else if (group === 'Configuration') {
+			return permissions.filter((cur) => cur.type === PermissionType.CONFIGURATION);
+		} else {
+			return permissions.filter((cur) => cur._id.split(':')[0] === group);
+		}
+	};
 
 	// Load data on component mount
 	onMount(async () => {
@@ -65,21 +98,21 @@
 	};
 
 	// Toggle role assignment for a permission
-	const toggleRole = (permission: Permission, role: string) => {
-		permissionsList.update((list) => {
-			const perm = list.find((p) => p.name === permission.name);
-			if (perm) {
-				const currentRoles = perm.requiredRole?.split(',').map((r) => r.trim()) || [];
-				if (currentRoles.includes(role)) {
-					perm.requiredRole = currentRoles.filter((r) => r !== role).join(',');
-				} else {
-					perm.requiredRole = [...currentRoles, role].join(',');
-				}
-				modifiedPermissions.update((set) => {
-					set.add(permission.name);
-					return set;
-				});
+	const toggleRole = (permission: string, role: string) => {
+		roles.update((list) => {
+			const index = list.findIndex((cur) => cur._id === role);
+			const permissions = list[index].permissions;
+			const pIndex = permissions.findIndex((cur) => cur === permission);
+			if (pIndex === -1) {
+				permissions.push(permission);
+			} else {
+				permissions.splice(pIndex, 1);
 			}
+			list.splice(index, 1, { ...list[index], permissions });
+			modifiedPermissions.update((per) => {
+				per.add(permission);
+				return per;
+			});
 			return list;
 		});
 	};
@@ -87,22 +120,49 @@
 	// Save changes to permissions
 	const saveChanges = async () => {
 		try {
-			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
-			}
-			const modified = Array.from($modifiedPermissions);
-			for (const permissionName of modified) {
-				const permission = $permissionsList.find((p) => p.name === permissionName);
-				if (permission) {
-					await authAdapter.updatePermission(permission.name, permission, currentUserId);
+			try {
+				const response = await fetch('/api/permission/update', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ roles: $roles })
+				});
+
+				if (response.status === 200) {
+					showToast('Config file updated successfully', 'success');
+				} else if (response.status === 304) {
+					// Provide a custom message for 304 status
+					showToast('No changes detected, config file not updated', 'info');
+				} else {
+					const responseText = await response.text();
+					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+
+				modifiedPermissions.set(new Set());
+			} catch (error) {
+				showToast('Network error occurred while updating config file', 'error');
 			}
-			modifiedPermissions.set(new Set());
 			await loadPermissions();
 		} catch (err) {
 			error.set(`Failed to save changes: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	};
+
+	// Show corresponding Toast messages
+	function showToast(message, type) {
+		const backgrounds = {
+			success: 'variant-filled-primary',
+			info: 'variant-filled-tertiary',
+			error: 'variant-filled-error'
+		};
+		toastStore.trigger({
+			message: message,
+			background: backgrounds[type],
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		});
+	}
 
 	// Reset changes to permissions
 	const resetChanges = () => {
@@ -128,46 +188,51 @@
 			</div>
 		</div>
 		<!-- TODO: Make Titke dynamic -->
-		<h2 class="mb-4 text-lg font-semibold">Default Permissions:</h2>
 		{#if filteredPermissions.length === 0}
 			<p class="text-tertiary-500 dark:text-primary-500">
 				{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 			</p>
 		{:else}
-			<table class="compact w-full table-auto border-collapse border border-gray-200">
-				<thead class="">
-					<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
-						<th class="px-4 py-2">Type</th>
-						<th class="px-4 py-2">Action</th>
-
-						{#each $roles as role}
-							<th class="px-4 py-2">{role.name}</th>
-						{/each}
-					</tr>
-				</thead>
-				<tbody>
-					{#each filteredPermissions as permission}
-						<tr class="divide-x">
-							<td class="px-4 py-2">{permission._id}</td>
-							<td class="px-4 py-2">{permission.action}</td>
+			<div class="overflow-auto" style="height: calc(100vh - 330px)">
+				<table class="compact w-full table-auto border-separate border border-gray-200">
+					<thead class="sticky top-0 border border-gray-200 bg-black">
+						<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
+							<th class="px-4 py-2">Type</th>
+							<th class="px-4 py-2">Action</th>
 
 							{#each $roles as role}
-								<td class="px-4 py-2 text-center">
-									<input
-										type="checkbox"
-										checked={(permission.requiredRole ?? '')
-											.split(',')
-											.map((r) => r.trim())
-											.includes(role.name)}
-										on:change={() => toggleRole(permission, role.name)}
-										class="checkbox"
-									/>
-								</td>
+								{#if role._id !== 'admin'}
+									<th class="px-4 py-2">{role.name}</th>
+								{/if}
 							{/each}
 						</tr>
-					{/each}
-				</tbody>
-			</table>
+					</thead>
+					<tbody>
+						{#each groups as group}
+							<h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group}</h5>
+							{#each filterGroups(filteredPermissions, group) as permission}
+								<tr class="divide-x">
+									<td class="px-4 py-2">{permission._id}</td>
+									<td class="px-4 py-2">{permission.action}</td>
+
+									{#each $roles as role}
+										{#if role._id !== 'admin'}
+											<td class="px-4 py-2 text-center">
+												<input
+													type="checkbox"
+													checked={role.permissions.includes(permission._id)}
+													on:change={() => toggleRole(permission._id, role._id)}
+													class="form-checkbox"
+												/>
+											</td>
+										{/if}
+									{/each}
+								</tr>
+							{/each}
+						{/each}
+					</tbody>
+				</table>
+			</div>
 		{/if}
 	</div>
 {/if}

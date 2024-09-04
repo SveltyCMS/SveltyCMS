@@ -107,6 +107,7 @@ async function loadAdapters() {
 				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
 				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
+				setAllRoles: roleAdapter.setAllRoles.bind(roleAdapter),
 
 				// Permission Management Methods
 				getAllPermissions,
@@ -249,6 +250,8 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
 			await dbAdapter.getCollectionModels();
+
+			await syncPermissions();
 		}
 
 		if (!authAdapter) {

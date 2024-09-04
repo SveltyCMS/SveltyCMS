@@ -50,6 +50,7 @@ export interface authDBInterface {
 	deleteRole(role_name: string, current_user_id: string): Promise<void>;
 	getRoleByName(role_name: string): Promise<Role | null>;
 	getAllRoles(options?: PaginationOption): Promise<Role[]>;
+	setAllRoles(roles: Role[]): Promise<void>;
 
 	// Permission Management Methods
 	getAllPermissions(options?: PaginationOption): Promise<Permission[]>;

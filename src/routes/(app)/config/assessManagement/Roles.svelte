@@ -279,7 +279,7 @@ It provides the following functionality:
 			{:else}
 				{#each $roleGroups as group, groupIndex (group.uniqueKey)}
 					<div class="mb-4">
-						<h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5>
+						<!-- <h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5> -->
 						<ul class="list-none space-y-2">
 							{#each group.roles as role (role._id)}
 								<li class="rounded border p-4">
@@ -291,11 +291,11 @@ It provides the following functionality:
 										<button on:click={() => openModal(role, group.groupName)} class="variant-filled-secondary btn">Edit</button>
 									</div>
 									<p>{role.description}</p>
-									<ul class="ml-4">
+									<!-- <ul class="ml-4">
 										{#each role.permissions as permissionName}
 											<li>{permissionName}</li>
 										{/each}
-									</ul>
+									</ul> -->
 								</li>
 							{/each}
 						</ul>

@@ -14,14 +14,14 @@
 	// Get server-side data
 	$: user = $page.data.user; // User information from server
 	$: permissions = $page.data.permissions; // Permission data from server
-	$: dynamicPermissions = $page.data.dynamicPermissions; // Dynamically loaded permissions
+	$: dynamicPermissions = $page.data.allPermissions; // Dynamically loaded permissions
 
 	// Create a mapping from contextId to dynamic permissions for easier access
 	$: permissionConfigs = Object.fromEntries(
 		dynamicPermissions.map((permission) => [
-			permission.id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
+			permission._id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
 			{
-				contextId: permission.id,
+				contextId: permission._id,
 				requiredRole: permission.name, // Assuming `name` holds the required role. Adjust if necessary.
 				action: permission.action,
 				contextType: permission.type
