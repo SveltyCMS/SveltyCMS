@@ -19,12 +19,15 @@ It provides functionality to:
 
 	// Components
 	import Loading from '@components/Loading.svelte';
+	import { getToastStore } from '@skeletonlabs/skeleton';
+	const toastStore = getToastStore();
 
 	// State stores
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
 	const currentAdminRole = writable<string | null>(null);
+	const currentAdminName = writable<string | null>(null);
 	const selectedAdminRole = writable<string | null>(null);
 	const hasChanges = writable(false);
 	const isSaving = writable(false);
@@ -49,6 +52,7 @@ It provides functionality to:
 
 			if (currentAdmin) {
 				currentAdminRole.set(currentAdmin._id); // Set the current admin role
+				currentAdminName.set(currentAdmin.name);
 				selectedAdminRole.set(currentAdmin._id); // Initially set the selected admin role to the current admin role
 				// Remove the current admin role from the dropdown options
 				roles.set(rolesData.filter((role) => role._id !== currentAdmin._id));
@@ -67,6 +71,21 @@ It provides functionality to:
 		hasChanges.set(selectedRoleId !== $currentAdminRole); // Check if the selected role is different from the current role
 	};
 
+	// Show corresponding Toast messages
+	function showToast(message, type) {
+		const backgrounds = {
+			success: 'variant-filled-primary',
+			info: 'variant-filled-tertiary',
+			error: 'variant-filled-error'
+		};
+		toastStore.trigger({
+			message: message,
+			background: backgrounds[type],
+			timeout: 3000,
+			classes: 'border-1 !rounded-md'
+		});
+	}
+
 	// Function to save the new admin role
 	const saveAdminRole = async () => {
 		try {
@@ -78,6 +97,29 @@ It provides functionality to:
 			// Implement the logic to save the new admin role here
 
 			currentAdminRole.set($selectedAdminRole);
+			try {
+				const response = await fetch('/api/role/admin', {
+					method: 'POST',
+					headers: {
+						'Content-Type': 'application/json'
+					},
+					body: JSON.stringify({ roleId: $selectedAdminRole })
+				});
+
+				if (response.status === 200) {
+					showToast('Config file updated successfully', 'success');
+				} else if (response.status === 304) {
+					// Provide a custom message for 304 status
+					showToast('No changes detected, config file not updated', 'info');
+				} else {
+					const responseText = await response.text();
+					showToast(`Error updating config file: ${responseText}`, 'error');
+				}
+
+				isLoading.set(true);
+			} catch (error) {
+				showToast('Network error occurred while updating config file', 'error');
+			}
 			hasChanges.set(false);
 			notification.set('Admin role updated successfully.');
 		} catch (err) {
@@ -95,7 +137,7 @@ It provides functionality to:
 </script>
 
 {#if $isLoading}
-	<Loading customTopText="Loading Admin Role..." customBottomText="Please wait while the admin role is being loaded." />
+	<Loading customTopText="Loading Admin Role..." customBottomText="" />
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
@@ -107,7 +149,7 @@ It provides functionality to:
 
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
-			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$currentAdminRole}</span>
+			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$currentAdminName}</span>
 		</p>
 
 		<!-- Dropdown to select admin role -->

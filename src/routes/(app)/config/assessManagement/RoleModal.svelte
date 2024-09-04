@@ -55,7 +55,9 @@
 {#if $modalStore[0]}
 	<div class={cBase}>
 		<header class={cHeader}>{isEditMode ? 'Edit Role' : 'Add Role'}</header>
+		<span> Role Name </span>
 		<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2 text-black" />
+		<span> Role Description </span>
 		<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2 text-black"></textarea>
 		<!-- <input type="text" bind:value={currentGroupName} placeholder="Group Name" class="mb-2 w-full rounded border p-2 text-black" /> -->
 		<!-- <div class="flex flex-wrap gap-2">
@@ -71,7 +73,8 @@
 				</label>
 			{/each}
 		</div> -->
-		<div class="footer flex justify-end">
+		<div class="footer flex justify-end gap-4">
+			<button on:click={closeModal} class="variant-filled-secondary btn">Cancel</button>
 			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Save Changes' : 'Create Role'}</button>
 		</div>
 	</div>

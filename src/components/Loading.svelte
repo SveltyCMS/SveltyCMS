@@ -35,7 +35,7 @@
 	});
 </script>
 
-<div class="absolute inset-0 flex items-center justify-center shadow-2xl" role="status" aria-live="polite">
+<div class="absolute inset-0 flex items-center justify-center bg-black shadow-2xl" role="status" aria-live="polite">
 	{#if isAnimating}
 		<div class="relative h-[150px] w-[150px] rounded-full border-[7px] border-error-500 border-x-transparent" id="loader" />
 		<div class="absolute h-[170px] w-[170px] rounded-full border-[6px] border-success-400 border-x-transparent" id="loader2" />
