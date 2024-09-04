@@ -1,3 +1,7 @@
+<!-- 
+@file src/routes/(app)/imageEditor/FocalPoint.svelte
+@description This component allows users to set or reset a focal point on the image.
+-->
 <script lang="ts">
 	import Konva from 'konva';
 	import { onMount, createEventDispatcher } from 'svelte';
@@ -11,8 +15,8 @@
 	const dispatch = createEventDispatcher();
 
 	onMount(() => {
+		createFocalPoint(); // Ensure focal point is created at the center when component mounts
 		setupEventListeners();
-		createFocalPoint(); // Ensure focal point is created as soon as the component mounts
 	});
 
 	function createFocalPoint() {
@@ -104,26 +108,20 @@
 
 	function toggleFocalPoint() {
 		if (focalPointActive) {
-			// If the focal point is active, remove it
+			// Remove the focal point
 			focalPoint?.destroy();
 			focalPoint = null;
 			focalPointActive = false;
 		} else {
-			// If the focal point is not active, create it
+			// Reset focal point to center
 			createFocalPoint();
 		}
 		layer.draw();
 	}
 </script>
 
-<div class="focal-point-controls absolute bottom-4 right-4 z-50 rounded-md bg-gray-800 p-2 text-white">
-	<button class="gradient-tertiary btn" on:click={toggleFocalPoint}>
+<div class="focal-point-controls bg-base-800 absolute bottom-4 right-4 z-50 rounded-md p-2 text-white shadow-lg">
+	<button class="btn-secondary btn" on:click={toggleFocalPoint}>
 		{focalPointActive ? 'Remove' : 'Reset'} Focal Point
 	</button>
 </div>
-
-<style>
-	.focal-point-controls {
-		background-color: rgba(0, 0, 0, 0.6);
-	}
-</style>

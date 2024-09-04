@@ -1,4 +1,9 @@
-<!-- Watermark.svelte -->
+<!-- 
+@file: /src/routes/(app)/imageEditor/Watermark.svelte
+@description: This component allows users to add, position, and customize a watermark overlay on an image.
+              Users can adjust the watermark's position, opacity, scale, rotation, and offsets.
+-->
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 
@@ -62,17 +67,17 @@
 	}
 </script>
 
-<div class="watermark-controls absolute bottom-4 left-4 z-50 rounded-md bg-gray-800 p-4 text-white">
+<div class="bg-base-200 absolute bottom-4 left-4 z-50 rounded-md p-4 shadow-lg">
 	<h3 class="mb-4 text-lg font-bold">Watermark Settings</h3>
 
 	<div class="mb-4">
 		{#if watermarkPreview}
 			<div class="relative mb-2 h-32 w-32">
-				<img src={watermarkPreview} alt="Watermark preview" class="h-full w-full object-contain" />
-				<button class="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-xs" on:click={removeWatermark}> X </button>
+				<img src={watermarkPreview} alt="Watermark preview" class="border-base-300 h-full w-full rounded border object-contain" />
+				<button class="bg-error absolute -right-2 -top-2 rounded-full p-1 text-xs text-white" on:click={removeWatermark}> X </button>
 			</div>
 		{:else}
-			<label class="gradient-tertiary btn mb-2 cursor-pointer">
+			<label class="btn-primary btn mb-2">
 				Upload Watermark
 				<input type="file" accept="image/*" on:change={handleFileChange} class="hidden" />
 			</label>
@@ -82,7 +87,7 @@
 	<div class="mb-4 grid grid-cols-2 gap-4">
 		<label class="flex flex-col">
 			<span class="mb-1">Position:</span>
-			<select bind:value={position} on:change={handleChange} class="rounded px-2 py-1 text-black">
+			<select bind:value={position} on:change={handleChange} class="input-bordered input">
 				{#each Object.entries(WATERMARK_POSITION) as [key, value]}
 					<option {value}>{key}</option>
 				{/each}
@@ -91,41 +96,29 @@
 
 		<label class="flex flex-col">
 			<span class="mb-1">Opacity: {formatValue(opacity)}</span>
-			<input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleChange} />
+			<input type="range" min="0" max="1" step="0.05" bind:value={opacity} on:input={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Scale: {formatValue(scale, '%')}</span>
-			<input type="range" min="10" max="200" step="1" bind:value={scale} on:input={handleChange} />
+			<input type="range" min="10" max="200" step="1" bind:value={scale} on:input={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Rotation: {formatValue(rotation, '°')}</span>
-			<input type="range" min="0" max="360" step="1" bind:value={rotation} on:input={handleChange} />
+			<input type="range" min="0" max="360" step="1" bind:value={rotation} on:input={handleChange} class="range" />
 		</label>
 	</div>
 
 	<div class="mb-4 grid grid-cols-2 gap-4">
 		<label class="flex flex-col">
-			<span class="mb-1">Offset X: {offsetX}px</span>
-			<input type="range" min="-100" max="100" step="1" bind:value={offsetX} on:input={handleChange} />
+			<span class="mb-1">Offset X: {formatValue(offsetX, 'px')}</span>
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetX} on:input={handleChange} class="range" />
 		</label>
 
 		<label class="flex flex-col">
-			<span class="mb-1">Offset Y: {offsetY}px</span>
-			<input type="range" min="-100" max="100" step="1" bind:value={offsetY} on:input={handleChange} />
+			<span class="mb-1">Offset Y: {formatValue(offsetY, 'px')}</span>
+			<input type="range" min="-100" max="100" step="1" bind:value={offsetY} on:input={handleChange} class="range" />
 		</label>
 	</div>
 </div>
-
-<style>
-	.watermark-controls {
-		background-color: rgba(0, 0, 0, 0.6);
-		max-width: 400px;
-	}
-
-	input[type='range'] {
-		width: 100%;
-		margin: 0;
-	}
-</style>

@@ -1,6 +1,11 @@
+<!-- 
+@file src/routes/(app)/imageEditor/Blur.svelte
+@description This component allows users to apply a blur effect to a specific region of an image within a Konva stage.
+-->
+
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
@@ -8,29 +13,30 @@
 
 	let blurAmount = 10;
 	let overlayType = 'circle';
-	let overlayNodes: Konva.Shape[] = [];
+	let overlayNode: Konva.Shape | null = null;
 	let transformer: Konva.Transformer;
+	let isBlurActive = false;
+
+	const dispatch = createEventDispatcher();
 
 	onMount(() => {
 		transformer = new Konva.Transformer({
-			nodes: [],
 			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
 			rotateEnabled: false,
 			boundBoxFunc: (oldBox, newBox) => {
-				if (newBox.width < 10 || newBox.height < 10) {
+				if (newBox.width < 30 || newBox.height < 30) {
 					return oldBox;
 				}
 				return newBox;
 			}
 		});
 		layer.add(transformer);
+		layer.draw();
 	});
 
 	function addBlurOverlay() {
-		// Ensure only one blur overlay at a time.
 		clearBlurs();
-
-		let overlayNode: Konva.Shape;
+		isBlurActive = true;
 
 		const overlayOptions: Konva.ShapeConfig = {
 			x: stage.width() / 4,
@@ -48,133 +54,103 @@
 				...overlayOptions,
 				radius: Math.min(stage.width(), stage.height()) / 4
 			});
-		} else if (overlayType === 'rectangle') {
+		} else {
 			overlayNode = new Konva.Rect(overlayOptions);
 		}
 
 		overlayNode.on('transform', () => {
-			if (overlayNode instanceof Konva.Circle) {
-				const scale = overlayNode.scaleX();
-				overlayNode.radius(overlayNode.radius() * scale);
-				overlayNode.scaleX(1);
-				overlayNode.scaleY(1);
-			}
-		});
-
-		overlayNode.on('click', () => {
-			transformer.nodes([overlayNode]);
-			layer.draw();
+			applyBlur(true);
 		});
 
 		layer.add(overlayNode);
-		overlayNodes.push(overlayNode);
 		transformer.nodes([overlayNode]);
+		layer.add(transformer);
 		layer.draw();
 	}
 
-	function applyBlur() {
-		overlayNodes.forEach((overlayNode) => {
-			const blurArea = overlayNode.getClientRect();
-			const canvas = document.createElement('canvas');
-			canvas.width = stage.width();
-			canvas.height = stage.height();
-			const context = canvas.getContext('2d');
+	function applyBlur(preview = false) {
+		if (!overlayNode) return;
 
-			if (context && imageNode.image()) {
-				context.drawImage(imageNode.image() as CanvasImageSource, 0, 0, stage.width(), stage.height());
+		const canvas = document.createElement('canvas');
+		canvas.width = stage.width();
+		canvas.height = stage.height();
+		const context = canvas.getContext('2d');
 
-				context.filter = `blur(${blurAmount}px)`;
-				context.globalCompositeOperation = 'source-in';
+		if (context && imageNode.image()) {
+			context.drawImage(imageNode.image() as CanvasImageSource, 0, 0, stage.width(), stage.height());
 
-				if (overlayNode instanceof Konva.Circle) {
-					context.beginPath();
-					context.arc(overlayNode.x(), overlayNode.y(), overlayNode.radius(), 0, Math.PI * 2);
-					context.closePath();
-				} else if (overlayNode instanceof Konva.Rect) {
-					context.beginPath();
-					context.rect(overlayNode.x(), overlayNode.y(), overlayNode.width() * overlayNode.scaleX(), overlayNode.height() * overlayNode.scaleY());
-					context.closePath();
-				}
+			context.filter = `blur(${blurAmount}px)`;
+			context.globalCompositeOperation = 'source-in';
 
-				context.fill();
-
-				const blurredImage = new Image();
-				blurredImage.src = canvas.toDataURL();
-
-				blurredImage.onload = () => {
-					const blurOverlay = new Konva.Image({
-						image: blurredImage,
-						x: 0,
-						y: 0,
-						width: stage.width(),
-						height: stage.height()
-					});
-					layer.add(blurOverlay);
-					blurOverlay.moveToTop();
-					layer.draw();
-				};
+			if (overlayType === 'circle' && overlayNode instanceof Konva.Circle) {
+				context.beginPath();
+				context.arc(overlayNode.x(), overlayNode.y(), overlayNode.radius(), 0, Math.PI * 2);
+				context.closePath();
+			} else if (overlayType === 'rectangle' && overlayNode instanceof Konva.Rect) {
+				context.beginPath();
+				context.rect(overlayNode.x(), overlayNode.y(), overlayNode.width() * overlayNode.scaleX(), overlayNode.height() * overlayNode.scaleY());
+				context.closePath();
 			}
-		});
+
+			context.fill();
+
+			const blurredImage = new Image();
+			blurredImage.src = canvas.toDataURL();
+
+			blurredImage.onload = () => {
+				const blurOverlay = new Konva.Image({
+					image: blurredImage,
+					x: 0,
+					y: 0,
+					width: stage.width(),
+					height: stage.height(),
+					opacity: preview ? 0.5 : 1
+				});
+
+				layer.add(blurOverlay);
+				if (!preview) {
+					layer.draw();
+					dispatch('blurApplied');
+					isBlurActive = false;
+				}
+			};
+		}
 	}
 
 	function clearBlurs() {
-		overlayNodes.forEach((node) => node.destroy());
+		if (overlayNode) {
+			overlayNode.destroy();
+			transformer.nodes([]);
+		}
 		layer.find('.blurOverlay').forEach((node) => node.destroy());
-		overlayNodes = [];
-		transformer.nodes([]);
 		layer.draw();
+		isBlurActive = false;
 	}
 
 	function updateBlurStrength() {
-		applyBlur();
+		applyBlur(true);
 	}
 </script>
 
-<div class="blur-controls">
-	<button on:click={addBlurOverlay} class="btn">Add Blur</button>
-	<div>
-		<label>Blur Strength:</label>
-		<input type="range" min="0" max="40" bind:value={blurAmount} on:input={updateBlurStrength} />
-	</div>
-	<div>
-		<label>Shape:</label>
-		<select bind:value={overlayType}>
-			<option value="circle">Circle</option>
-			<option value="rectangle">Rectangle</option>
-		</select>
-	</div>
-	<button on:click={applyBlur} class="btn">Apply</button>
-	<button on:click={clearBlurs} class="btn-danger btn">Clear</button>
+<!-- Blur Controls UI -->
+<div class="blur-controls bg-base-800 absolute left-4 top-4 z-50 flex items-center space-x-4 rounded-md p-4 text-white shadow-lg">
+	{#if isBlurActive}
+		<div class="flex flex-col space-y-2">
+			<label for="blur-strength" class="text-sm font-medium">Blur Strength:</label>
+			<input id="blur-strength" type="range" min="0" max="40" bind:value={blurAmount} on:input={updateBlurStrength} class="range" />
+		</div>
+		<div class="flex flex-col space-y-2">
+			<label for="blur-shape" class="text-sm font-medium">Shape:</label>
+			<select id="blur-shape" bind:value={overlayType} on:change={addBlurOverlay} class="select-bordered select text-black">
+				<option value="circle">Circle</option>
+				<option value="rectangle">Rectangle</option>
+			</select>
+		</div>
+		<div class="flex space-x-2">
+			<button on:click={() => applyBlur(false)} class="btn-primary btn">Apply</button>
+			<button on:click={clearBlurs} class="btn-error btn">Cancel</button>
+		</div>
+	{:else}
+		<button on:click={addBlurOverlay} class="btn-primary btn">Add Blur</button>
+	{/if}
 </div>
-
-<style>
-	.blur-controls {
-		display: flex;
-		flex-direction: column;
-		gap: 10px;
-		background-color: rgba(0, 0, 0, 0.8);
-		padding: 10px;
-		border-radius: 5px;
-	}
-
-	.btn {
-		background-color: #4caf50;
-		color: white;
-		padding: 10px;
-		border: none;
-		border-radius: 5px;
-		cursor: pointer;
-	}
-
-	.btn-danger {
-		background-color: #e74c3c;
-	}
-
-	.btn:hover {
-		background-color: #45a049;
-	}
-
-	.btn-danger:hover {
-		background-color: #c0392b;
-	}
-</style>

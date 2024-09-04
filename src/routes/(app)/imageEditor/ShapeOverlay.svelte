@@ -1,4 +1,9 @@
-<!-- ShapeOverlay.svelte -->
+<!-- 
+@file: /src/routes/(app)/imageEditor/ShapeOverlay.svelte
+@description: This component allows users to overlay shapes (rectangles, circles, ellipses) onto an image. 
+              Users can adjust the fill color, stroke color, stroke width, opacity, and manage the shape's position on the canvas.
+-->
+
 <script lang="ts">
 	import Konva from 'konva';
 	import { onMount } from 'svelte';
@@ -7,8 +12,8 @@
 	export let layer: Konva.Layer;
 
 	let shapeType = 'rectangle';
-	let fillColor = '#ffffff';
-	let strokeColor = '#000000';
+	let fillColor: string = '#ffffff';
+	let strokeColor: string = '#000000';
 	let strokeWidth = 2;
 	let opacity = 1;
 
@@ -26,8 +31,8 @@
 	function addShape() {
 		let shape: Konva.Shape;
 		const commonProps = {
-			fill: fillColor,
-			stroke: strokeColor,
+			fill: fillColor as string, // Cast as string
+			stroke: strokeColor as string, // Cast as string
 			strokeWidth: strokeWidth,
 			opacity: opacity,
 			draggable: true
@@ -57,7 +62,6 @@
 				...commonProps
 			});
 		} else {
-			// Default to rectangle if an unknown shape type is selected
 			shape = new Konva.Rect({
 				x: stage.width() / 2 - 50,
 				y: stage.height() / 2 - 25,
@@ -83,8 +87,8 @@
 		selectedShape = shape;
 		if (shape) {
 			shape.strokeEnabled(false);
-			fillColor = shape.fill();
-			strokeColor = shape.stroke();
+			fillColor = shape.fill() as string;
+			strokeColor = shape.stroke() as string;
 			strokeWidth = shape.strokeWidth();
 			opacity = shape.opacity();
 		}
@@ -93,8 +97,8 @@
 
 	function updateSelectedShape() {
 		if (selectedShape) {
-			selectedShape.fill(fillColor);
-			selectedShape.stroke(strokeColor);
+			selectedShape.fill(fillColor as string);
+			selectedShape.stroke(strokeColor as string);
 			selectedShape.strokeWidth(strokeWidth);
 			selectedShape.opacity(opacity);
 			layer.draw();
@@ -125,7 +129,7 @@
 	}
 </script>
 
-<div class="shape-overlay-controls absolute bottom-4 right-4 z-50 rounded-md bg-gray-800 p-4 text-white">
+<div class="absolute bottom-4 right-4 z-50 rounded-md bg-gray-800 p-4 text-white">
 	<h3 class="mb-4 text-lg font-bold">Shape Overlay</h3>
 
 	<div class="mb-4 grid grid-cols-2 gap-4">
@@ -160,49 +164,9 @@
 	</div>
 
 	<div class="flex flex-wrap gap-2">
-		<button on:click={addShape} class="gradient-primary btn">Add Shape</button>
-		<button on:click={deleteSelectedShape} class="gradient-danger btn" disabled={!selectedShape}>Delete</button>
-		<button on:click={bringToFront} class="gradient-secondary btn" disabled={!selectedShape}>Bring to Front</button>
-		<button on:click={sendToBack} class="gradient-tertiary btn" disabled={!selectedShape}>Send to Back</button>
+		<button on:click={addShape} class="rounded bg-blue-500 px-4 py-2 text-white">Add Shape</button>
+		<button on:click={deleteSelectedShape} class="rounded bg-red-500 px-4 py-2 text-white" disabled={!selectedShape}>Delete</button>
+		<button on:click={bringToFront} class="rounded bg-green-500 px-4 py-2 text-white" disabled={!selectedShape}>Bring to Front</button>
+		<button on:click={sendToBack} class="rounded bg-yellow-500 px-4 py-2 text-white" disabled={!selectedShape}>Send to Back</button>
 	</div>
 </div>
-
-<style>
-	.shape-overlay-controls {
-		background-color: rgba(0, 0, 0, 0.6);
-		max-width: 400px;
-	}
-
-	input[type='range'] {
-		width: 100%;
-		margin: 0;
-	}
-
-	.btn {
-		padding: 0.5rem 1rem;
-		border-radius: 0.25rem;
-		font-weight: bold;
-		cursor: pointer;
-	}
-
-	.btn:disabled {
-		opacity: 0.5;
-		cursor: not-allowed;
-	}
-
-	.gradient-primary {
-		background: linear-gradient(to right, #4f46e5, #818cf8);
-	}
-
-	.gradient-secondary {
-		background: linear-gradient(to right, #059669, #34d399);
-	}
-
-	.gradient-tertiary {
-		background: linear-gradient(to right, #d97706, #fbbf24);
-	}
-
-	.gradient-danger {
-		background: linear-gradient(to right, #dc2626, #f87171);
-	}
-</style>

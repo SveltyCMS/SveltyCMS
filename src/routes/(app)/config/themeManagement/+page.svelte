@@ -74,11 +74,17 @@
 
 <div class="mt-4">
 	<h3 class="font-bold">Available Themes:</h3>
-	{#each customThemes as { name }}
-		<button on:mouseover={() => previewThemeChange(name)} on:mouseout={resetPreview} class="variant-outline-tertiary btn mt-2">
-			Preview {name}
-		</button>
-	{/each}
+{#each customThemes as { name }}
+  <button 
+    on:mouseover={() => previewThemeChange(name)} 
+    on:focus={() => previewThemeChange(name)} 
+    on:mouseout={resetPreview} 
+    on:blur={resetPreview} 
+    class="variant-outline-tertiary btn mt-2"
+  >
+    Preview {name}
+  </button>
+{/each}
 </div>
 
 {#if customThemes.length === 0}

@@ -1,9 +1,16 @@
+<!-- 
+@file: /src/routes/(app)/imageEditor/+page.svelte
+@description: This is the main page component for the image editor. It handles uploading images, applying various editing tools (crop, blur, rotate, zoom, focal point, watermark, filters, text overlay, and shape overlay), and saving the edited image.
+-->
 <script lang="ts">
 	import { onMount } from 'svelte';
+
+	// Store
 	import { page } from '$app/stores';
 	import { saveEditedImage } from '@stores/store';
+
+	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import Konva from 'konva';
 
 	// Import individual tool components
 	import Crop from './Crop.svelte';
@@ -15,7 +22,9 @@
 	import Filter from './Filter.svelte';
 	import TextOverlay from './TextOverlay.svelte';
 	import ShapeOverlay from './ShapeOverlay.svelte';
-	import Resize from './Resize.svelte';
+
+	// Konva
+	import Konva from 'konva';
 
 	let imageFile: File | null = null;
 	let selectedImage: string = '';
@@ -82,9 +91,8 @@
 
 	function handleRotate(event: CustomEvent) {
 		const { angle } = event.detail;
-		imageNode.rotate(angle);
+		imageNode.rotation(angle);
 		layer.batchDraw();
-		applyEdit();
 	}
 
 	function handleZoom(event: CustomEvent) {
@@ -95,10 +103,24 @@
 	}
 
 	function handleCrop(event: CustomEvent) {
-		const { x, y, width, height } = event.detail;
-		imageNode.crop({ x, y, width, height });
-		imageNode.size({ width, height });
+		const { x, y, width, height, shape } = event.detail;
+
+		// Apply the crop to the image
+		imageNode.setAttrs({
+			x,
+			y,
+			width,
+			height,
+			clip:
+				shape === 'circular'
+					? (ctx: CanvasRenderingContext2D) => {
+							ctx.arc(width / 2, height / 2, Math.min(width, height) / 2, 0, Math.PI * 2);
+						}
+					: null
+		});
+
 		layer.batchDraw();
+		activeState = '';
 		applyEdit();
 	}
 
@@ -170,12 +192,25 @@
 	}
 
 	function toggleTool(tool: string) {
-		if (activeState === tool) {
-			activeState = '';
-		} else {
-			activeState = tool;
+		activeState = activeState === tool ? '' : tool;
+		updateToolUI();
+	}
+
+	function updateToolUI() {
+		// Implement logic to show or hide the tool controls based on `activeState`.
+		const toolbars = document.querySelectorAll(
+			'.tool-controls-container .blur-controls, .tool-controls-container .crop-controls, .tool-controls-container .rotate-controls'
+		);
+		toolbars.forEach((toolbar) => {
+			toolbar.classList.add('hidden');
+		});
+
+		if (activeState) {
+			const activeToolbar = document.querySelector(`.${activeState}-controls`);
+			if (activeToolbar) {
+				activeToolbar.classList.remove('hidden');
+			}
 		}
-		blurActive = activeState === 'blur';
 	}
 </script>
 
@@ -209,11 +244,39 @@
 		{#if stage && layer && imageNode}
 			<!-- Conditionally display the tool components based on the active state -->
 			{#if activeState === 'rotate'}
-				<Rotate {stage} {layer} {imageNode} on:rotate={handleRotate} />
+				<Rotate
+					{stage}
+					{layer}
+					{imageNode}
+					on:rotate={handleRotate}
+					on:rotateApplied={() => {
+						activeState = '';
+						applyEdit();
+					}}
+					on:rotateCancelled={() => {
+						activeState = '';
+					}}
+				/>
 			{:else if activeState === 'blur'}
-				<Blur {stage} {layer} {imageNode} />
+				<Blur
+					{stage}
+					{layer}
+					{imageNode}
+					on:blurApplied={() => {
+						activeState = '';
+						blurActive = false;
+					}}
+				/>
 			{:else if activeState === 'crop'}
-				<Crop {stage} {layer} {imageNode} on:crop={handleCrop} />
+				<Crop
+					{stage}
+					{layer}
+					{imageNode}
+					on:crop={handleCrop}
+					on:cancelCrop={() => {
+						activeState = '';
+					}}
+				/>
 			{:else if activeState === 'zoom'}
 				<Zoom {stage} {layer} {imageNode} on:zoom={handleZoom} />
 			{:else if activeState === 'focalpoint'}
@@ -225,9 +288,7 @@
 			{:else if activeState === 'textoverlay'}
 				<TextOverlay {stage} {layer} {imageNode} />
 			{:else if activeState === 'shapeoverlay'}
-				<ShapeOverlay {stage} {layer} {imageNode} />
-			{:else if activeState === 'resize'}
-				<Resize {stage} {layer} {imageNode} />
+				<ShapeOverlay {stage} {layer} />
 			{/if}
 		{:else if !imageFile}
 			<p class="no-image-message">Please upload an image to start editing.</p>
@@ -273,10 +334,6 @@
 				<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
 				Add Shape
 			</button>
-			<button on:click={() => toggleTool('resize')} disabled={!imageFile} aria-label="Resize">
-				<iconify-icon icon="mdi:resize" width="24" class="text-tertiary-600" />
-				Resize
-			</button>
 		</div>
 	</div>
 </div>
@@ -284,83 +341,3 @@
 {#if $saveEditedImage}
 	<div class="success-message" role="alert">Image saved successfully!</div>
 {/if}
-
-<style>
-	.image-editor-wrapper {
-		display: flex;
-		flex-direction: column;
-		position: relative;
-	}
-
-	.image-editor {
-		flex-grow: 1;
-		width: 100%;
-		position: relative;
-		border: 1px solid #ccc;
-		overflow: hidden;
-	}
-
-	.tool-controls-container {
-		background-color: var(--surface-300);
-		padding: 8px;
-		overflow-x: auto;
-		white-space: nowrap;
-	}
-
-	.tool-buttons-row {
-		display: flex;
-		gap: 8px;
-	}
-
-	.tool-buttons-row button {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		padding: 8px;
-		background-color: var(--tertiary);
-		color: white;
-		border: none;
-		border-radius: 5px;
-		cursor: pointer;
-	}
-
-	.tool-buttons-row button:disabled {
-		background-color: #cccccc;
-		cursor: not-allowed;
-	}
-
-	.no-image-message {
-		position: absolute;
-		top: 50%;
-		left: 50%;
-		transform: translate(-50%, -50%);
-		text-align: center;
-	}
-
-	.success-message {
-		padding: 10px;
-		background-color: #4caf50;
-		color: white;
-		border-radius: 5px;
-		text-align: center;
-		margin-top: 10px;
-	}
-
-	/* Styles for Undo/Redo buttons on mobile */
-	@media (max-width: 768px) {
-		.mb-2 button[aria-label='Undo'],
-		.mb-2 button[aria-label='Redo'] {
-			padding: 8px;
-			width: 40px;
-			height: 40px;
-			display: flex;
-			justify-content: center;
-			align-items: center;
-		}
-
-		.mb-2 button[aria-label='Undo'] p,
-		.mb-2 button[aria-label='Redo'] p {
-			display: none;
-		}
-	}
-</style>
