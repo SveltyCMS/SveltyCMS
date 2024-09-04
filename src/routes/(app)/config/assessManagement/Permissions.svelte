@@ -139,6 +139,7 @@
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
 
+				isLoading.set(true);
 				modifiedPermissions.set(new Set());
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
@@ -171,7 +172,7 @@
 </script>
 
 {#if $isLoading}
-	<Loading customTopText="Loading Permissions..." customBottomText="Please wait while permissions are being loaded." />
+	<Loading customTopText="Loading Permissions..." customBottomText="" />
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
@@ -193,7 +194,7 @@
 				{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 			</p>
 		{:else}
-			<div class="overflow-auto" style="height: calc(100vh - 330px)">
+			<div class="permission overflow-auto">
 				<table class="compact w-full table-auto border-separate border border-gray-200">
 					<thead class="sticky top-0 border border-gray-200 bg-black">
 						<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
@@ -236,3 +237,14 @@
 		{/if}
 	</div>
 {/if}
+
+<style>
+	.permission {
+		height: calc(100vh - 330px);
+	}
+	@media screen and (max-width: 625px) {
+		.permission {
+			height: 250px;
+		}
+	}
+</style>

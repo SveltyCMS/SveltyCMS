@@ -32,11 +32,16 @@ It provides the following functionality:
 	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';
 	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
-
 	const toastStore = getToastStore();
 
+	// Svelte DND-actions
+	import { flip } from 'svelte/animate';
+	import { dndzone } from 'svelte-dnd-action';
+
+	const flipDurationMs = 100;
+
 	// State stores
-	const roleGroups = writable<{ groupName: string; roles: Role[]; uniqueKey: string }[]>([]);
+	const roles = writable<Role[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
 	const selectedRoles = writable<Set<string>>(new Set());
 	let selectedPermissions = [];
@@ -53,6 +58,7 @@ It provides the following functionality:
 	let currentGroupName: string = ''; // Ensure it's always a string
 
 	$: currentUserId = $page.data.user?._id || '';
+	$: items = [...$roles];
 
 	// Fetch roles and permissions on mount
 	onMount(async () => {
@@ -69,20 +75,7 @@ It provides the following functionality:
 	const loadRoleGroups = async () => {
 		try {
 			const rolesData = $page.data.roles;
-			const groups = rolesData.reduce((acc, role, index) => {
-				const group = acc.find((g) => g.groupName === role.groupName);
-				if (group) {
-					group.roles.push(role);
-				} else {
-					acc.push({
-						groupName: role.groupName || 'Ungrouped',
-						roles: [role],
-						uniqueKey: `${role.groupName || 'Ungrouped'}-${index}`
-					});
-				}
-				return acc;
-			}, []);
-			roleGroups.set(groups);
+			roles.set(rolesData.map((cur) => ({ ...cur, id: cur._id })));
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -146,7 +139,6 @@ It provides the following functionality:
 	};
 
 	const saveRole = async (role) => {
-		console.log(role);
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
@@ -176,6 +168,7 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+				isLoading.set(true);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
@@ -198,6 +191,7 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+				isLoading.set(true);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
@@ -241,6 +235,7 @@ It provides the following functionality:
 				}
 			}
 			selectedRoles.set(new Set());
+			isLoading.set(true);
 			await loadRoleGroups();
 		} catch (err) {
 			showToast('Network error occurred while updating config file', 'error');
@@ -257,10 +252,15 @@ It provides the following functionality:
 			return selected;
 		});
 	};
+
+	function handleSort(e) {
+		items = [...e.detail.items];
+		roles.set(items);
+	}
 </script>
 
 {#if $isLoading}
-	<Loading customTopText="Loading Roles..." customBottomText="Please wait while roles are being loaded." />
+	<Loading customTopText="Loading Roles..." customBottomText="" />
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
@@ -273,34 +273,39 @@ It provides the following functionality:
 			{/if}
 		</div>
 
-		<div class="mt-4 overflow-auto" style="height: calc(100vh - 320px)">
-			{#if $roleGroups.length === 0}
+		<div class="role mt-4 overflow-auto">
+			{#if $roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
-				{#each $roleGroups as group, groupIndex (group.uniqueKey)}
-					<div class="mb-4">
-						<!-- <h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5> -->
-						<ul class="list-none space-y-2">
-							{#each group.roles as role (role._id)}
-								<li class="rounded border p-4">
-									<div class="flex items-center justify-between">
-										<div class="flex items-center">
+				<div class="rounded-8 mb-4 border p-4">
+					<!-- <h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5> -->
+					<section
+						class="list-none space-y-2"
+						use:dndzone={{ items: items, flipDurationMs, type: 'column' }}
+						on:consider={handleSort}
+						on:finalize={handleSort}
+					>
+						{#each items as role (role.id)}
+							<div class="rounded border p-4" animate:flip={{ duration: flipDurationMs }}>
+								<div class="flex items-center justify-between">
+									<div class="flex items-center">
+										{#if role._id !== 'admin'}
 											<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
-											<span>{role.name}</span>
-										</div>
-										<button on:click={() => openModal(role, group.groupName)} class="variant-filled-secondary btn">Edit</button>
+										{/if}
+										<span>{role.name}</span>
 									</div>
-									<p>{role.description}</p>
-									<!-- <ul class="ml-4">
-										{#each role.permissions as permissionName}
-											<li>{permissionName}</li>
-										{/each}
-									</ul> -->
-								</li>
-							{/each}
-						</ul>
-					</div>
-				{/each}
+									<button on:click={() => openModal(role)} class="variant-filled-secondary btn">Edit</button>
+								</div>
+								<p>{role.description}</p>
+								<!-- <ul class="ml-4">
+									{#each role.permissions as permissionName}
+										<li>{permissionName}</li>
+									{/each}
+								</ul> -->
+							</div>
+						{/each}
+					</section>
+				</div>
 			{/if}
 		</div>
 	</div>
@@ -329,3 +334,14 @@ It provides the following functionality:
 		</div>
 	</Modal> -->
 {/if}
+
+<style>
+	.role {
+		height: calc(100vh - 320px);
+	}
+	@media screen and (max-width: 625px) {
+		.role {
+			height: 250px;
+		}
+	}
+</style>
