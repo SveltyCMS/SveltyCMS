@@ -198,6 +198,31 @@ It provides the following functionality:
 		}
 	};
 
+	const saveAllRoles = async () => {
+		try {
+			const response = await fetch('/api/permission/update', {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ roles: $roles })
+			});
+
+			if (response.status === 200) {
+				showToast('Config file updated successfully', 'success');
+			} else if (response.status === 304) {
+				// Provide a custom message for 304 status
+				showToast('No changes detected, config file not updated', 'info');
+			} else {
+				const responseText = await response.text();
+				showToast(`Error updating config file: ${responseText}`, 'error');
+			}
+			isLoading.set(true);
+		} catch (error) {
+			showToast('Network error occurred while updating config file', 'error');
+		}
+	};
+
 	// Show corresponding Toast messages
 	function showToast(message, type) {
 		const backgrounds = {
@@ -257,6 +282,12 @@ It provides the following functionality:
 		items = [...e.detail.items];
 		roles.set(items);
 	}
+
+	function handleFinalize(e) {
+		items = [...e.detail.items];
+		roles.set(items);
+		saveAllRoles();
+	}
 </script>
 
 {#if $isLoading}
@@ -283,7 +314,7 @@ It provides the following functionality:
 						class="list-none space-y-2"
 						use:dndzone={{ items: items, flipDurationMs, type: 'column' }}
 						on:consider={handleSort}
-						on:finalize={handleSort}
+						on:finalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
 							<div class="rounded border p-4" animate:flip={{ duration: flipDurationMs }}>
