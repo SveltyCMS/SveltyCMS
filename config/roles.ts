@@ -4,6 +4,13 @@ import { permissions } from './permissions'; // Import the permissions list
 
 export const roles: Role[] = [
   {
+    "_id": "admin",
+    "name": "Developer",
+    "description": "Can create, read, update, and delete content",
+    "permissions": permissions.map((p) => p._id),
+    "id": "admin"
+  },
+  {
     "_id": "administrator",
     "name": "Administrator",
     "description": "Full access to all system features",
@@ -46,13 +53,8 @@ export const roles: Role[] = [
       "WidgetTest:update",
       "WidgetTest:delete"
     ],
-    "groupName": ""
-  },
-  {
-    "_id": "admin",
-    "name": "Developer",
-    "description": "Can create, read, update, and delete content",
-    "permissions": permissions.map((p) => p._id)
+    "groupName": "",
+    "id": "administrator"
   },
   {
     "_id": "editor",
@@ -64,7 +66,8 @@ export const roles: Role[] = [
       "ImageArray:create",
       "ImageArray:update",
       "ImageArray:read"
-    ]
+    ],
+    "id": "editor"
   },
   {
     "_id": "user",
@@ -72,19 +75,20 @@ export const roles: Role[] = [
     "description": "Can only read content",
     "permissions": [
       "config:collectionbuilder"
-    ]
+    ],
+    "id": "user"
   }
 ];
 // Function to register a new role
 export function registerRole(newRole: Role): void {
-	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
-	if (!exists) {
-		roles.push(newRole);
-	}
+  const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
+  if (!exists) {
+    roles.push(newRole);
+  }
 }
 
 // Function to register multiple roles
 export function registerRoles(newRoles: Role[]): void {
-	newRoles.forEach(registerRole);
+  newRoles.forEach(registerRole);
 }
 
