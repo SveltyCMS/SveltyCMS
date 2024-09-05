@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/system/table/Status.svelte
+@description Status component for table 
+-->
+
 <script lang="ts">
 	// The status value to display
 	export let value: string;

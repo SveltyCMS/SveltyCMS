@@ -52,7 +52,7 @@ let loadedPermissions: Permission[] = [];
 // Functions to Manage Loaded Roles and Permissions
 
 // Retrieves the loaded roles
-export const getLoadedRoles = (): Role[] => Array.from(loadedRoles.values());
+export const getLoadedRoles = (): Role[] => loadedRoles;
 
 // Retrieves the loaded permissions
 export const getLoadedPermissions = (): Permission[] => Array.from(loadedPermissions.values());
@@ -116,10 +116,13 @@ export function removeRole(roleId: RoleId): void {
 export function updateRole(roleId: RoleId, updatedRole: Partial<Role>): void {
 	const index = loadedRoles.findIndex((r) => r._id === roleId);
 	if (index !== -1) {
-		loadedRoles[index] = { ...loadedRoles[index], ...updatedRole };
-		if (updatedRole.permissions) {
-			loadedRoles[index].permissions = new Set(updatedRole.permissions);
-		}
+		// Spread the original role and the updated properties into a new object
+		loadedRoles[index] = {
+			...loadedRoles[index],
+			...updatedRole,
+			// Ensure permissions remain an array
+			permissions: updatedRole.permissions ? [...updatedRole.permissions] : loadedRoles[index].permissions
+		};
 	}
 }
 

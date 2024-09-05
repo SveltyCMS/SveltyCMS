@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/system/table/TablePagination.svelte
+@description Table pagination component
+-->
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 

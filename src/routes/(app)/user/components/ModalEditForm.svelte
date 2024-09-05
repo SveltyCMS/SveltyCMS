@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/ModalEditForm.svelte
+@description A modal for editing user data.
+-->
+
 <script lang="ts">
 	import axios from 'axios';
 	import { page } from '$app/stores';
@@ -15,11 +20,13 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Auth
-	import { getLoadedRoles } from '@src/auth/types';
-	const roles = getLoadedRoles();
-	const { user } = $page.data;
+	// Get data from page store
+	const { roles, user } = $page.data;
 
+	// Function to check if a role is active
+	const isRoleActive = (roleName: string): boolean => {
+		return user?.role?.toLowerCase() === roleName.toLowerCase();
+	};
 	// Components
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
@@ -42,7 +49,7 @@
 	export let role: string | null = null;
 	export let user_id: string | null = null;
 
-	// Form Data
+	// Form Data Initialization
 	const formData = {
 		user_id: isGivenData ? user_id : user?._id,
 		username: isGivenData ? (username ?? '') : (user?.username ?? ''),
@@ -63,7 +70,7 @@
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
-		// console.log('modal submitted.');
+		console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 
 		if ((isGivenData && user_id != user?._id) || (formData.password !== null && formData.password === formData.confirmPassword)) {
@@ -258,20 +265,25 @@
 						<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 						<div class="flex-auto">
 							<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-								{#each roles as role}
-									<span
-										class="chip {formData.role === role.name ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-										on:click={() => {
-											formData.role = role.name;
-										}}
-										on:keypress
-										role="button"
-										tabindex="0"
-									>
-										{#if formData.role === role.name}<span><iconify-icon icon="fa:check" /></span>{/if}
-										<span class="capitalize">{role.name}</span>
-									</span>
-								{/each}
+								{#if roles && roles.length > 0}
+									{#each roles as role}
+										<button
+											type="button"
+											class="chip {isRoleActive(role._id) ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+											on:click={() => {
+												formData.role = role._id;
+												console.log('Selected Role:', formData.role);
+											}}
+										>
+											{#if isRoleActive(role._id)}
+												<span><iconify-icon icon="fa:check" /></span>
+											{/if}
+											<span class="capitalize">{role.name}</span>
+										</button>
+									{/each}
+								{:else}
+									<p class="text-tertiary-500 dark:text-primary-500">Loading roles...</p>
+								{/if}
 							</div>
 						</div>
 					</div>
@@ -293,7 +305,7 @@
 					<!-- Empty div when isFirstUser -->
 				{/if}
 
-				<div class="flex justify-between gap-2">
+				<div class="flex justify-between gap-4">
 					<button class="variant-outline-secondary btn" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
 					<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 				</div>

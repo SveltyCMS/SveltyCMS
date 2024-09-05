@@ -47,6 +47,7 @@ export interface authDBInterface {
 	// Role Management Methods
 	createRole(roleData: Partial<Role>, current_user_id: string): Promise<Role>;
 	updateRole(role_name: string, roleData: Partial<Role>, current_user_id: string): Promise<void>;
+	updateUserRole(user_id: string, newRole: RoleId): Promise<void>;
 	deleteRole(role_name: string, current_user_id: string): Promise<void>;
 	getRoleByName(role_name: string): Promise<Role | null>;
 	getAllRoles(options?: PaginationOption): Promise<Role[]>;

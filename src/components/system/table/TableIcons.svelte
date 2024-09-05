@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/system/table/TableIcons.svelte
+@description Icon component for table 
+-->
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	// Stores

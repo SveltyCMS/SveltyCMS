@@ -35,8 +35,10 @@ export const roles: Role[] = [
 ];
 // Function to register a new role
 export function registerRole(newRole: Role): void {
-	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
+	const exists = roles.some((role) => role._id === newRole._id);
 	if (!exists) {
+		// Ensure permissions are always an array
+		newRole.permissions = newRole.permissions || [];
 		roles.push(newRole);
 	}
 }

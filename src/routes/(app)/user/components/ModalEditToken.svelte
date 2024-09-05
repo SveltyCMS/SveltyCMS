@@ -2,17 +2,12 @@
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 
-	// Auth
-	import { getLoadedRoles } from '@src/auth/types';
-	import type { User } from '@src/auth/types';
+	// Get data from page store
+	const { roles, user } = $page.data;
 
-	// Get roles from your auth module
-	const roles = getLoadedRoles(); // Ensure this returns an array of roles
-
-	const user: User = $page.data.user;
+	console.log('Roles:', roles); // Add this line to log roles
 
 	// Props
-	/** Exposes parent props to this component. */
 	export let parent: any;
 	let formElement: HTMLFormElement;
 
@@ -42,7 +37,7 @@
 		token: { status: false, msg: '' }
 	};
 
-	// We've created a custom submit function to pass the response and close the modal.
+	// Custom submit function to pass the response and close the modal
 	function onFormSubmit(): void {
 		console.log('modal submitted.');
 		if ($modalStore[0].response) $modalStore[0].response(formData);
@@ -168,25 +163,28 @@
 				{/if}
 			</div>
 
-			<!-- admin area -->
+			<!-- Admin area -->
 			{#if user.role == 'admin'}
 				<div class="flex flex-col gap-2 sm:flex-row">
 					<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}:</div>
 					<div class="flex-auto">
 						<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-							{#each roles as r}
-								<span
-									class="chip {formData.role === r ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-									on:click={() => (formData.role = r)}
-									role="button"
-									tabindex="0"
-								>
-									{#if formData.role === r}
-										<span><iconify-icon icon="fa:check" /></span>
-									{/if}
-									<span class="capitalize">{r}</span>
-								</span>
-							{/each}
+							{#if roles && roles.length > 0}
+								{#each roles as r}
+									<button
+										type="button"
+										class="chip {formData.role === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+										on:click={() => (formData.role = r._id)}
+									>
+										{#if formData.role === r._id}
+											<span><iconify-icon icon="fa:check" /></span>
+										{/if}
+										<span class="capitalize">{r.name}</span>
+									</button>
+								{/each}
+							{:else}
+								<p class="text-tertiary-500 dark:text-primary-500">Loading roles...</p>
+							{/if}
 						</div>
 					</div>
 				</div>

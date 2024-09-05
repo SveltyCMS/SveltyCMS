@@ -17,8 +17,8 @@
  * This endpoint should be secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { json, error, type RequestHandler } from '@sveltejs/kit';
+
 // Auth
 import { auth } from '@src/databases/db';
 // System Logger
@@ -27,23 +27,24 @@ import logger from '@src/utils/logger';
 export const PUT: RequestHandler = async ({ request }) => {
 	try {
 		const { user_id, newUserData } = await request.json();
+		logger.info(`Received data: user_id=${user_id}, newUserData=${JSON.stringify(newUserData)}`);
 
+		// Validate that user_id and newUserData are provided
 		if (!user_id || !newUserData) {
 			logger.warn('Edit user attempt with missing data');
-			return new Response(JSON.stringify({ success: false, message: 'User ID and new user data are required' }), { status: 400 });
+			throw error(400, 'User ID and new user data are required');
 		}
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
+		// Update the user attributes using your auth adapter
+		const updatedUser = await auth.updateUserAttributes(user_id, newUserData);
 
-		await auth.updateUserAttributes(user_id, newUserData);
 		logger.info(`User edited successfully with user ID: ${user_id}`);
-		return new Response(JSON.stringify({ success: true, message: 'User updated successfully' }), { status: 200 });
+
+		// Return the updated user data or a success message
+		return json({ success: true, message: 'User updated successfully', user: updatedUser });
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
 		logger.error(`Failed to edit user: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to edit user' }), { status: 500 });
+		throw error(500, 'Failed to edit user');
 	}
 };

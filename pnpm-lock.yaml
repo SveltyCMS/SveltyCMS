@@ -72,8 +72,8 @@ importers:
         specifier: ^0.41.1
         version: 0.41.1
       aws-sdk:
-        specifier: ^2.1689.0
-        version: 2.1689.0
+        specifier: ^2.1690.0
+        version: 2.1690.0
       axios:
         specifier: ^1.7.7
         version: 1.7.7
@@ -205,8 +205,8 @@ importers:
         specifier: ^3.1.2
         version: 3.1.2(svelte@4.2.19)(vite@5.4.3(@types/node@22.5.4))
       '@tailwindcss/forms':
-        specifier: ^0.5.8
-        version: 0.5.8(tailwindcss@3.4.10)
+        specifier: ^0.5.9
+        version: 0.5.9(tailwindcss@3.4.10)
       '@tailwindcss/typography':
         specifier: ^0.5.15
         version: 0.5.15(tailwindcss@3.4.10)
@@ -1525,8 +1525,8 @@ packages:
     resolution: {integrity: sha512-4BAffykYOgO+5nzBWYwE3W90sBgLJoUPRWWcL8wlyiM8IB8ipJz3UMJ9KXQd1RKQXpKp8Tutn80HZtWsu2u76w==}
     engines: {node: '>=10'}
 
-  '@tailwindcss/forms@0.5.8':
-    resolution: {integrity: sha512-DJs7B7NPD0JH7BVvdHWNviWmunlFhuEkz7FyFxE4japOWYMLl9b1D6+Z9mivJJPWr6AEbmlPqgiFRyLwFB1SgQ==}
+  '@tailwindcss/forms@0.5.9':
+    resolution: {integrity: sha512-tM4XVr2+UVTxXJzey9Twx48c1gcxFStqn1pQz0tRsX8o3DvxhN5oY5pvyAbUx7VTaZxpej4Zzvc6h+1RJBzpIg==}
     peerDependencies:
       tailwindcss: '>=3.0.0 || >= 3.0.0-alpha.1 || >= 4.0.0-alpha.20'
 
@@ -1978,8 +1978,8 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
-  aws-sdk@2.1689.0:
-    resolution: {integrity: sha512-+HjbDRzkMrqgQ78BplI7enfO84gSX0wXWnpalzrG7vjH6jFUjuWmRuki6GQhNzrSPQZu1zUi3gPud+3xUxXp3Q==}
+  aws-sdk@2.1690.0:
+    resolution: {integrity: sha512-R8iaPaJzqmkw2vXVIDLrVsc9YDEdsqVjPBBbnoaxb4CgtmoDuSAPH9G3E2ttpYMX4pdwXNapzUvQUu3YNuhKvw==}
     engines: {node: '>= 10.0.0'}
 
   axios@1.7.7:
@@ -2565,8 +2565,8 @@ packages:
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
 
-  electron-to-chromium@1.5.14:
-    resolution: {integrity: sha512-bEfPECb3fJ15eaDnu9LEJ2vPGD6W1vt7vZleSVyFhYuMIKm3vz/g9lt7IvEzgdwj58RjbPKUF2rXTCN/UW47tQ==}
+  electron-to-chromium@1.5.15:
+    resolution: {integrity: sha512-Z4rIDoImwEJW+YYKnPul4DzqsWVqYetYVN3XqDmRpgV0mjz0hYTaeeh+8/9CL1bk3AHYmF4freW/NTiVoXA2gA==}
 
   emoji-regex@8.0.0:
     resolution: {integrity: sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A==}
@@ -6770,7 +6770,7 @@ snapshots:
     dependencies:
       defer-to-connect: 2.0.1
 
-  '@tailwindcss/forms@0.5.8(tailwindcss@3.4.10)':
+  '@tailwindcss/forms@0.5.9(tailwindcss@3.4.10)':
     dependencies:
       mini-svg-data-uri: 1.4.4
       tailwindcss: 3.4.10
@@ -7283,7 +7283,7 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.0.0
 
-  aws-sdk@2.1689.0:
+  aws-sdk@2.1690.0:
     dependencies:
       buffer: 4.9.2
       events: 1.1.1
@@ -7338,7 +7338,7 @@ snapshots:
   browserslist@4.23.3:
     dependencies:
       caniuse-lite: 1.0.30001657
-      electron-to-chromium: 1.5.14
+      electron-to-chromium: 1.5.15
       node-releases: 2.0.18
       update-browserslist-db: 1.1.0(browserslist@4.23.3)
 
@@ -7766,7 +7766,7 @@ snapshots:
 
   ee-first@1.1.1: {}
 
-  electron-to-chromium@1.5.14: {}
+  electron-to-chromium@1.5.15: {}
 
   emoji-regex@8.0.0: {}
 
