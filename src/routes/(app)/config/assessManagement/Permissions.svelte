@@ -16,44 +16,39 @@
 	import { page } from '$app/stores';
 
 	// Auth
-	import { authAdapter, initializationPromise } from '@src/databases/db';
 	import type { Permission, Role } from '@src/auth/types';
+	import { PermissionType } from '@root/config/permissions';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
-	import { PermissionType } from '@root/config/permissions';
+
+	//Skeleton
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
 
 	// Define writable stores
+	let searchTerm = '';
 	const permissionsList = writable<Permission[]>([]);
 	const modifiedPermissions = writable<Set<string>>(new Set());
-	let searchTerm = '';
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
 
-	// Reactive statements for filtered permissions and current user ID
-	$: filteredPermissions = $permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
-	$: groups = getGroups(filteredPermissions);
-	$: currentUserId = $page.data.user?._id || '';
-
-	const getGroups = (filteredPermissions) => {
-		const groups = [];
-		Array.isArray(filteredPermissions) &&
-			filteredPermissions.map((cur) => {
-				let group;
-				if (cur.type === PermissionType.COLLECTION) {
-					group = cur._id.split(':')[0];
-				} else if (cur.type === PermissionType.USER) {
-					group = 'User Management';
-				} else if (cur.type === PermissionType.CONFIGURATION) {
-					group = 'Configuration';
-				}
-				if (!groups.includes(group)) {
-					groups.push(group);
-				}
-			});
+	const getGroups = (filteredPermissions: Permission[]) => {
+		const groups: string[] = [];
+		filteredPermissions.forEach((cur) => {
+			let group = '';
+			if (cur.type === PermissionType.COLLECTION) {
+				group = cur._id.split(':')[0];
+			} else if (cur.type === PermissionType.USER) {
+				group = 'User Management';
+			} else if (cur.type === PermissionType.CONFIGURATION) {
+				group = 'Configuration';
+			}
+			if (!groups.includes(group)) {
+				groups.push(group);
+			}
+		});
 		return groups;
 	};
 
@@ -169,6 +164,14 @@
 	const resetChanges = () => {
 		modifiedPermissions.set(new Set());
 	};
+
+	// Reactive statements for filtered permissions and current user ID
+	$: filteredPermissions = $permissionsList.filter((permission) => permission._id?.toLowerCase().includes(searchTerm.toLowerCase()) ?? false);
+	$: groups = getGroups(filteredPermissions);
+
+	// Reactive statements and variables
+	$: adminRole = $roles.find((role) => role.isAdmin);
+	$: nonAdminRolesCount = $roles.filter((role) => !role.isAdmin).length;
 </script>
 
 {#if $isLoading}
@@ -176,9 +179,13 @@
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
+	<h3 class="text-center text-xl font-bold lg:text-left">Permission Management:</h3>
+	<p class="text-center text-sm text-gray-500 dark:text-gray-400">
+		Manage permissions and assign roles to users. You can create, edit, or delete permissions and assign roles to them.
+	</p>
 	<div class="wrapper">
 		<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
-			<input type="text" bind:value={searchTerm} placeholder="Search permissions..." class="input mr-4 flex-grow" aria-label="Search permissions" />
+			<input type="text" bind:value={searchTerm} placeholder="Search Permissions..." class="input mr-4 flex-grow" aria-label="Search permissions" />
 			<div class="flex space-x-2">
 				{#if $modifiedPermissions.size > 0}
 					<button on:click={saveChanges} class="variant-filled-tertiary btn">
@@ -188,36 +195,52 @@
 				{/if}
 			</div>
 		</div>
-		<!-- TODO: Make Titke dynamic -->
+
 		{#if filteredPermissions.length === 0}
 			<p class="text-tertiary-500 dark:text-primary-500">
 				{searchTerm ? 'No permissions match your search.' : 'No permissions defined yet.'}
 			</p>
 		{:else}
+			<!-- Admin Notice -->
+			{#if adminRole}
+				<p class="text-center">
+					*
+					<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
+					Role has all permissions
+				</p>
+			{/if}
 			<div class="permission overflow-auto">
-				<table class="compact w-full table-auto border-separate border border-gray-200">
-					<thead class="sticky top-0 border border-gray-200 bg-black">
+				<table class="compact w-full table-auto border-separate rounded border border-surface-200">
+					<!-- Header -->
+					<thead class="sticky top-0 border border-b border-surface-200">
 						<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
 							<th class="px-4 py-2">Type</th>
 							<th class="px-4 py-2">Action</th>
 
+							<!-- List only non-admin roles -->
 							{#each $roles as role}
-								{#if role._id !== 'admin'}
-									<th class="px-4 py-2">{role.name}</th>
+								{#if !role.isAdmin}
+									<th class="px-4 py-2 text-center">{role.name}</th>
 								{/if}
 							{/each}
 						</tr>
 					</thead>
 					<tbody>
+						<!-- Permission Groups -->
 						{#each groups as group}
-							<h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group}</h5>
+							<tr>
+								<td
+									colSpan={nonAdminRolesCount + 2}
+									class="bg-gray-800 px-4 py-2 text-center font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left">{group}</td
+								>
+							</tr>
 							{#each filterGroups(filteredPermissions, group) as permission}
-								<tr class="divide-x">
+								<tr class="divide-x border-b">
 									<td class="px-4 py-2">{permission._id}</td>
-									<td class="px-4 py-2">{permission.action}</td>
+									<td class="px-4 py-2 text-center">{permission.action}</td>
 
 									{#each $roles as role}
-										{#if role._id !== 'admin'}
+										{#if !role.isAdmin}
 											<td class="px-4 py-2 text-center">
 												<input
 													type="checkbox"
@@ -237,14 +260,3 @@
 		{/if}
 	</div>
 {/if}
-
-<style>
-	.permission {
-		height: calc(100vh - 330px);
-	}
-	@media screen and (max-width: 625px) {
-		.permission {
-			height: 250px;
-		}
-	}
-</style>

@@ -12,24 +12,6 @@ const schema: Schema = {
 	description: 'Posts Collection',
 	revision: true,
 
-	// Collection Permissions by user Roles
-	// Admin has all permissions by default
-	permissions: {
-		developer: {
-			create: false,
-			read: false,
-			write: false,
-			delete: false
-		},
-		editor: {
-			create: false,
-			read: false
-		},
-		user: {
-			read: false
-		}
-	},
-
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [

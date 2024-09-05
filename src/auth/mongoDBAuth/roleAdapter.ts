@@ -230,7 +230,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
 		const configPath = path.resolve('./config/roles.ts');
-		const roles = [...this.roles.values()].map(cur => {
+		const roles = [...this.roles.values()].map((cur) => {
 			if (cur._id === 'admin') {
 				return { ...cur, permissions: `permissions.map((p) => p._id)` };
 			}
@@ -255,8 +255,8 @@ export function registerRoles(newRoles: Role[]): void {
 }
 
 `;
-		const search = "permissions.map((p) => p._id)";
-		const startIndex = content.search("permissions.map");
+		const search = 'permissions.map((p) => p._id)';
+		const startIndex = content.search('permissions.map');
 		let newContent = content.substring(0, startIndex - 1);
 		newContent = newContent + content.substring(startIndex, startIndex + search.length);
 		newContent = newContent + content.substring(startIndex + search.length + 1);

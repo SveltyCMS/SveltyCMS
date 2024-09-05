@@ -23,22 +23,22 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json } from "@sveltejs/kit";
+import { json } from '@sveltejs/kit';
 
 // System Logs
 import { initializationPromise, authAdapter } from '@src/databases/db';
 import logger from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
-    try {
-        await initializationPromise;
-        const { roleData, currentUserId } = await request.json();
-        await authAdapter?.createRole(roleData, currentUserId);
-        console.log(roleData, currentUserId);
-        return json({ sucess: true }, { status: 200 });
-    } catch (error: any) {
-        console.log(error);
-        logger.error('Error updating config file:', error);
-        return new Response(`Error updating config file: ${error.message}`, { status: 500 });
-    }
+	try {
+		await initializationPromise;
+		const { roleData, currentUserId } = await request.json();
+		await authAdapter?.createRole(roleData, currentUserId);
+		console.log(roleData, currentUserId);
+		return json({ sucess: true }, { status: 200 });
+	} catch (error: any) {
+		console.log(error);
+		logger.error('Error updating config file:', error);
+		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
+	}
 };

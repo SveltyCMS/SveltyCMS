@@ -199,16 +199,21 @@ export async function saveFormData({
 	authAdapter?: any;
 }) {
 	logger.debug('saveFormData was called');
+
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);
 	const formData = data instanceof FormData ? data : await col2formData(data);
 
 	if (_mode === 'edit' && !id) {
+		logger.error('ID is required for edit mode.');
 		throw new Error('ID is required for edit mode.');
 	}
 
-	if (!formData) return;
+	if (!formData) {
+		logger.error('FormData is empty, unable to save.');
+		return;
+	}
 
 	if (!meta_data.is_empty()) {
 		formData.append('_meta_data', JSON.stringify(meta_data.get()));
@@ -221,13 +226,16 @@ export async function saveFormData({
 	try {
 		switch ($mode) {
 			case 'create':
+				logger.debug('Saving data in create mode.');
 				return await addData({ data: formData, collectionName: $collection.name as any });
 
 			case 'edit':
+				logger.debug('Saving data in edit mode.');
 				formData.append('_id', id || $entryData._id);
 				formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
 
 				if ($collection.revision) {
+					logger.debug('Creating new revision.');
 					const newRevision = {
 						...$entryData,
 						_id: await createRandomID(),
@@ -252,6 +260,7 @@ export async function saveFormData({
 				return await updateData({ data: formData, collectionName: $collection.name as any });
 
 			default:
+				logger.error(`Unhandled mode: ${$mode}`);
 				throw new Error(`Unhandled mode: ${$mode}`);
 		}
 	} catch (error) {

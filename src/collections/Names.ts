@@ -16,13 +16,6 @@ const schema: Schema = {
 	revision: true,
 	livePreview: true,
 
-	// Collection Permissions by user Roles
-	permissions: {
-		developer: {
-			read: false // Developer cannot read, other roles default to true
-		}
-		// You can add more roles with specific restrictions if needed
-	},
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options

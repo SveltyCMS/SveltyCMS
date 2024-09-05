@@ -15,7 +15,6 @@ import { permissions as allPermissions } from '@root/config/permissions';
 // System Logger
 import logger from '@src/utils/logger';
 
-
 export const load: PageServerLoad = async ({ cookies }) => {
 	if (!auth) {
 		logger.error('Authentication system is not initialized');

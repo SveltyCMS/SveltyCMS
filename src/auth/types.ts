@@ -19,15 +19,16 @@ export type PermissionId = string;
 
 // Role Interface
 export interface Role {
-	_id: RoleId;
-	name: string;
-	description?: string;
-	permissions: PermissionId[];
+	_id: RoleId; // Use _id for a unique identifier
+	name: string; // Display name of the role
+	description?: string; // Optional description
+	isAdmin?: boolean; // Whether the role has admin privileges
+	permissions: PermissionId[]; // Permissions associated with the role
 }
 
 // Permission Interface
 export interface Permission {
-	_id: string; // Use _id for a unique identifier to match MongoDB conventions
+	_id: string; // Use _id for a unique identifier
 	name: string; // Display name of the permission
 	action: ConfigPermissionAction; // Use the imported alias
 	type: PermissionType; // Type of the permission context, e.g., "system", "collection"
