@@ -81,14 +81,14 @@ export const roles: Role[] = [
 ];
 // Function to register a new role
 export function registerRole(newRole: Role): void {
-	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
-	if (!exists) {
-		roles.push(newRole);
-	}
+  const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
+  if (!exists) {
+    roles.push(newRole);
+  }
 }
 
 // Function to register multiple roles
 export function registerRoles(newRoles: Role[]): void {
-	newRoles.forEach(registerRole);
+  newRoles.forEach(registerRole);
 }
 
