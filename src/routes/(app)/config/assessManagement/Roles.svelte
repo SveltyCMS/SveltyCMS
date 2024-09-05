@@ -23,6 +23,7 @@ It provides the following functionality:
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
+	import { invalidateAll } from '$app/navigation';
 	import { authAdapter } from '@src/databases/db';
 
 	// Types
@@ -37,6 +38,7 @@ It provides the following functionality:
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { createRandomID } from '@src/utils/utils';
 
 	const flipDurationMs = 100;
 
@@ -58,7 +60,7 @@ It provides the following functionality:
 	let currentGroupName: string = ''; // Ensure it's always a string
 
 	$: currentUserId = $page.data.user?._id || '';
-	$: items = [...$roles];
+	let items;
 
 	// Fetch roles and permissions on mount
 	onMount(async () => {
@@ -76,6 +78,7 @@ It provides the following functionality:
 		try {
 			const rolesData = $page.data.roles;
 			roles.set(rolesData.map((cur) => ({ ...cur, id: cur._id })));
+			items = rolesData.map((cur) => ({ ...cur, id: cur._id }));
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -156,7 +159,7 @@ It provides the following functionality:
 					headers: {
 						'Content-Type': 'application/json'
 					},
-					body: JSON.stringify({ roleData, currentUserId })
+					body: JSON.stringify({ roleData: { ...roleData, _id: await createRandomID() }, currentUserId })
 				});
 
 				if (response.status === 200) {
@@ -168,7 +171,10 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
-				isLoading.set(true);
+				items.push(roleData);
+				roles.set(items);
+				// isLoading.set(true);
+				invalidateAll();
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
@@ -191,9 +197,15 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+				const index = items.findIndex((cur) => cur._id === currentRoleId);
+				items.splice(index, 1);
+				roles.set(items);
 				isLoading.set(true);
+				invalidateAll().then(() => {
+					isLoading.set(false);
+				});
 			} catch (error) {
-				showToast('Network error occurred while updating config file', 'error');
+				showToast(`Network error occurred while updating config file ${error}`, 'error');
 			}
 		}
 	};
@@ -218,6 +230,9 @@ It provides the following functionality:
 				showToast(`Error updating config file: ${responseText}`, 'error');
 			}
 			isLoading.set(true);
+			invalidateAll().then(() => {
+				isLoading.set(false);
+			});
 		} catch (error) {
 			showToast('Network error occurred while updating config file', 'error');
 		}
@@ -258,10 +273,15 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+				const index = items.findIndex((cur) => cur._id === roleId);
+				items.splice(index, 1);
+				roles.set(items);
+				isLoading.set(true);
+				invalidateAll().then(() => {
+					isLoading.set(false);
+				});
 			}
 			selectedRoles.set(new Set());
-			isLoading.set(true);
-			await loadRoleGroups();
 		} catch (err) {
 			showToast('Network error occurred while updating config file', 'error');
 		}
@@ -297,7 +317,7 @@ It provides the following functionality:
 {:else}
 	<h3 class="text-center text-xl font-bold lg:text-left">Roles Management:</h3>
 
-	<p class="text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="hidden w-full justify-center text-center text-sm text-gray-500 dark:text-gray-400 md:flex">
 		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
 	</p>
 
@@ -309,29 +329,46 @@ It provides the following functionality:
 			{/if}
 		</div>
 
-		<div class="mt-4 flex-1 overflow-auto">
+		<div class="role mt-4 flex-1 overflow-auto">
 			{#if $roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
-				<div class="space-y-4" use:dndzone={{ items: items, flipDurationMs, type: 'column' }} on:consider={handleSort} on:finalize={handleFinalize}>
-					{#each items as role (role._id)}
-						<div class="animate-flip rounded border p-4">
-							<div class="flex items-center justify-between">
-								<div class="flex items-center">
-									{#if !role.isAdmin}
-										<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
-									{/if}
-									<span class="text-xl font-semibold text-tertiary-500 dark:text-primary-500">{role.name}</span>
+				<div class="rounded-8 mb-4 border p-4">
+					<!-- <h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5> -->
+					<section
+						class="list-none space-y-2"
+						use:dndzone={{ items: items, flipDurationMs, type: 'column' }}
+						on:consider={handleSort}
+						on:finalize={handleFinalize}
+					>
+						{#each items as role (role.id)}
+							<div class="rounded border p-4" animate:flip={{ duration: flipDurationMs }}>
+								<div class="flex items-center justify-between">
+									<div class="flex items-center">
+										{#if !role.isAdmin}
+											<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
+										{/if}
+										<span>{role.name}</span>
+									</div>
+									<button on:click={() => openModal(role)} class="variant-filled-secondary btn">Edit</button>
 								</div>
-								<div class="flex items-center">
-									<button on:click={() => openModal(role)} class="variant-filled-secondary btn ml-4">Edit</button>
-								</div>
+								<p>{role.description}</p>
 							</div>
-							<p>{role.description}</p>
-						</div>
-					{/each}
+						{/each}
+					</section>
 				</div>
 			{/if}
 		</div>
 	</div>
 {/if}
+
+<style>
+	.role {
+		height: calc(100vh - 350px);
+	}
+	@media screen and (max-width: 625px) {
+		.role {
+			height: 280px;
+		}
+	}
+</style>

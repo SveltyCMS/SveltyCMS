@@ -19,7 +19,7 @@
 	// Create a mapping from contextId to dynamic permissions for easier access
 	$: permissionConfigs = Object.fromEntries(
 		dynamicPermissions.map((permission) => [
-			permission._id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
+			console.log(permission) || permission._id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
 			{
 				contextId: permission._id,
 				requiredRole: permission.name, // Assuming `name` holds the required role. Adjust if necessary.

@@ -65,7 +65,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		if (this.roles.has(roleData.name)) throw new Error('Role with this name already exists');
 
 		const newRole: Role = {
-			_id: await createRandomID(),
+			_id: roleData._id,
 			name: roleData.name,
 			description: roleData.description || '',
 			permissions: roleData.permissions || []
@@ -79,7 +79,6 @@ export class RoleAdapter implements Partial<authDBInterface> {
 
 	// Update role
 	async updateRole(role_id: string, roleData: Partial<Role>, current_user_id: string): Promise<void> {
-		logger.debug(this.roles, role_id);
 		const role = this.roles.get(role_id);
 		if (!role) throw new Error('Role not found');
 
@@ -254,7 +253,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 	private async syncConfigFile(): Promise<void> {
 		const configPath = path.resolve('./config/roles.ts');
 		const roles = [...this.roles.values()].map((cur) => {
-			if (cur._id === 'admin') {
+			if (cur.isAdmin) {
 				return { ...cur, permissions: `permissions.map((p) => p._id)` };
 			}
 			return cur;
