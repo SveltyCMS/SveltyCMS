@@ -168,7 +168,6 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
-				isLoading.set(true);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
@@ -191,7 +190,9 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
-				isLoading.set(true);
+				const index = items.findIndex(cur => cur._id === roleId);
+				items.splice(index, 1);
+				roles.set(items);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}
@@ -217,7 +218,6 @@ It provides the following functionality:
 				const responseText = await response.text();
 				showToast(`Error updating config file: ${responseText}`, 'error');
 			}
-			isLoading.set(true);
 		} catch (error) {
 			showToast('Network error occurred while updating config file', 'error');
 		}
@@ -258,10 +258,11 @@ It provides the following functionality:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
+				const index = items.findIndex(cur => cur._id === roleId);
+				items.splice(index, 1);
+				roles.set(items);
 			}
 			selectedRoles.set(new Set());
-			isLoading.set(true);
-			await loadRoleGroups();
 		} catch (err) {
 			showToast('Network error occurred while updating config file', 'error');
 		}
