@@ -8,8 +8,6 @@ const schema: Schema = {
 	// See for possible Icons https://icon-sets.iconify.design/
 	icon: 'carbon:rule-test',
 
-	// Collection Permissions by user Roles
-
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 	fields: [

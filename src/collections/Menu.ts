@@ -11,14 +11,6 @@ const schema: Schema = {
 	status: 'published',
 	slug: 'menu',
 
-	// Collection Permissions by user Roles. Admin has all permissions by default,
-	permissions: {
-		editor: {
-			read: false,
-			write: false
-		}
-	},
-
 	// Defined Fields that are used in Collection
 	// Widget fields can be inspected for individual options
 

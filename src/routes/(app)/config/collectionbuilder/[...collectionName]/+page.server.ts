@@ -91,10 +91,6 @@ export const actions: Actions = {
 		const collectionDescription = JSON.parse(formData.get('description') as string);
 		const collectionStatus = JSON.parse(formData.get('status') as string);
 
-		// Permissions
-		const permissionsData = JSON.parse(formData.get('permissions') as string);
-		const cleanedPermissions = removeFalseValues(permissionsData);
-
 		// Widgets Fields
 		const fields = JSON.parse(fieldsData) as Array<fields>;
 		const imports = await goThrough(fields, fieldsData);
@@ -112,8 +108,7 @@ export const actions: Actions = {
                 status: '${collectionStatus}',
                 description: '${collectionDescription}',
                 slug: '${collectionSlug}',
-                // Collection Permissions by user Roles
-				permissions: ${JSON.stringify(cleanedPermissions, null, 2)},
+               
                 // Defined Fields that are used in your Collection
 				// Widget fields can be inspected for individual options
 				fields: ${JSON.stringify(fields)}

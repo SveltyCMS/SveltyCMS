@@ -92,7 +92,7 @@ function isSame(arr: AuthPermission[], arr1: AuthPermission[]) {
 		return false;
 	}
 	for (let i = 0; i < arr.length; i++) {
-		if (arr1.findIndex(cur => cur._id === arr[i]._id) === -1) {
+		if (arr1.findIndex((cur) => cur._id === arr[i]._id) === -1) {
 			return false;
 		}
 	}
@@ -167,8 +167,9 @@ export async function syncPermissions(): Promise<void> {
 			action: PermissionAction.MANAGE,
 			type: PermissionType.USER,
 			description: 'Allows managing users.'
-		}];
-	collections.map(ed => {
+		}
+	];
+	collections.map((ed) => {
 		const cur = ed.slice(0, ed.length - 3);
 		permissions.push({
 			_id: `${cur}:create`,
@@ -198,7 +199,7 @@ export async function syncPermissions(): Promise<void> {
 			type: PermissionType.COLLECTION,
 			description: `Allows deleting ${cur}`
 		});
-	})
+	});
 	if (isSame(configPermissions, permissions)) {
 		return;
 	}

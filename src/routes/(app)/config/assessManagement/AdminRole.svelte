@@ -141,12 +141,11 @@ It provides functionality to:
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<div class="my-4">
-		<h2 class="text-center text-lg font-semibold lg:text-left">Admin Role Management</h2>
-		<p class="mt-1 text-sm text-surface-300">
-			Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
-		</p>
-
+	<h3 class="text-center text-xl font-bold lg:text-left">Admin Role Management:</h3>
+	<p class="mt-1 text-sm text-surface-300">
+		Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
+	</p>
+	<div class="wrapper my-4">
 		<!-- Display current admin role-->
 		<p class="my-4 text-center lg:text-left">
 			Current Admin Role: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$currentAdminName}</span>
@@ -167,6 +166,10 @@ It provides functionality to:
 				Selected Admin Role ID: <span class="ml-2 text-tertiary-500 dark:text-primary-500">{$selectedAdminRole}</span>
 			</p>
 			<div class="mt-4 flex justify-between">
+				<!-- cancel -->
+				<button on:click={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
+
+				<!-- Save -->
 				<button on:click={saveAdminRole} class="variant-filled-tertiary btn" disabled={$isSaving}>
 					{#if $isSaving}
 						Saving...
@@ -174,7 +177,6 @@ It provides functionality to:
 						Save Changes
 					{/if}
 				</button>
-				<button on:click={cancelChanges} class="variant-filled-secondary btn"> Cancel </button>
 			</div>
 		{/if}
 

@@ -23,32 +23,32 @@
  */
 
 import type { RequestHandler } from './$types';
-import { json } from "@sveltejs/kit";
+import { json } from '@sveltejs/kit';
 
 // System Logs
 import { initializationPromise, authAdapter } from '@src/databases/db';
 import logger from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
-    try {
-        await initializationPromise;
-        const { roleId } = await request.json();
-        let roles = await authAdapter?.getAllRoles();
-        roles = roles.map(cur => {
-            if (cur._id === roleId) {
-                return { ...cur, _id: 'admin' };
-            }
-            if (cur._id === 'admin') {
-                return { ...cur, _id: cur.name.toLowerCase() };
-            }
-            return cur;
-        });
-        console.log(roles, roleId);
-        await authAdapter?.setAllRoles(roles);
-        return json({ sucess: true }, { status: 200 });
-    } catch (error: any) {
-        console.log(error);
-        logger.error('Error updating config file:', error);
-        return new Response(`Error updating config file: ${error.message}`, { status: 500 });
-    }
+	try {
+		await initializationPromise;
+		const { roleId } = await request.json();
+		let roles = await authAdapter?.getAllRoles();
+		roles = roles.map((cur) => {
+			if (cur._id === roleId) {
+				return { ...cur, _id: 'admin' };
+			}
+			if (cur._id === 'admin') {
+				return { ...cur, _id: cur.name.toLowerCase() };
+			}
+			return cur;
+		});
+		console.log(roles, roleId);
+		await authAdapter?.setAllRoles(roles);
+		return json({ sucess: true }, { status: 200 });
+	} catch (error: any) {
+		console.log(error);
+		logger.error('Error updating config file:', error);
+		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
+	}
 };

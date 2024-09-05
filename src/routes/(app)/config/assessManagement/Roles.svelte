@@ -296,16 +296,21 @@ It provides the following functionality:
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<div class="my-4">
-		<h3 class=":lg:text-left text-center text-lg font-semibold">Roles Management</h3>
+	<h3 class="text-center text-xl font-bold lg:text-left">Roles Management:</h3>
+
+	<p class="text-center text-sm text-gray-500 dark:text-gray-400">
+		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
+	</p>
+
+	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
 			<button on:click={() => openModal(null, '')} class="variant-filled-primary btn">Create New Role</button>
 			{#if $selectedRoles.size > 0}
-				<button on:click={deleteSelectedRoles} class="variant-filled-danger btn">Delete Selected Roles ({$selectedRoles.size})</button>
+				<button on:click={deleteSelectedRoles} class="variant-filled-error btn">Delete Selected Roles ({$selectedRoles.size})</button>
 			{/if}
 		</div>
 
-		<div class="role mt-4 overflow-auto">
+		<div class="mt-4 flex-1 overflow-auto">
 			{#if $roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
@@ -328,52 +333,12 @@ It provides the following functionality:
 									</div>
 									<button on:click={() => openModal(role)} class="variant-filled-secondary btn">Edit</button>
 								</div>
-								<p>{role.description}</p>
-								<!-- <ul class="ml-4">
-									{#each role.permissions as permissionName}
-										<li>{permissionName}</li>
-									{/each}
-								</ul> -->
 							</div>
-						{/each}
-					</section>
+							<p>{role.description}</p>
+						</div>
+					{/each}
 				</div>
 			{/if}
 		</div>
 	</div>
-	<!-- <Modal title={isEditMode ? 'Edit Role' : 'Create Role'}>
-		<div class="p-4">
-			<input type="text" bind:value={roleName} placeholder="Role Name" class="mb-2 w-full rounded border p-2" />
-			<textarea bind:value={roleDescription} placeholder="Role Description" class="mb-2 w-full rounded border p-2"></textarea>
-			<input type="text" bind:value={currentGroupName} placeholder="Group Name" class="mb-2 w-full rounded border p-2" />
-			<div class="flex flex-wrap gap-2">
-				{#each $availablePermissions as permission (permission._id)}
-					<label class="flex items-center">
-						<input
-							type="checkbox"
-							checked={$selectedPermissions.has(permission.name)}
-							on:change={() => togglePermissionSelection(permission.name)}
-							class="mr-2"
-						/>
-						<span>{permission.name}</span>
-					</label>
-				{/each}
-			</div>
-			<div class="footer flex justify-end">
-				<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Save Changes' : 'Create Role'}</button>
-				<button on:click={closeModal} class="variant-filled-secondary btn ml-2">Cancel</button>
-			</div>
-		</div>
-	</Modal> -->
 {/if}
-
-<style>
-	.role {
-		height: calc(100vh - 320px);
-	}
-	@media screen and (max-width: 625px) {
-		.role {
-			height: 250px;
-		}
-	}
-</style>
