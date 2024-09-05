@@ -31,7 +31,7 @@ import { registerPermissions, PermissionAction, PermissionType } from '@root/con
 
 // Dynamically register permissions for user management
 const userManagementPermissions = [
-	{ id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
+	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
 ];
 
 registerPermissions(userManagementPermissions); // Register dynamic permissions
@@ -120,10 +120,10 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
-					...user,
-					_id: user._id.toString(),
-					password: '[REDACTED]' // Ensure password is not sent to client
-				}
+				...user,
+				_id: user._id.toString(),
+				password: '[REDACTED]' // Ensure password is not sent to client
+			}
 			: null;
 
 		// Format users and tokens for the admin area
@@ -170,9 +170,9 @@ export const load: PageServerLoad = async (event) => {
 			adminData:
 				user?.role === 'admin' || hasManageUsersPermission
 					? {
-							users: formattedUsers,
-							tokens: formattedTokens
-						}
+						users: formattedUsers,
+						tokens: formattedTokens
+					}
 					: null
 		};
 	} catch (err) {

@@ -36,10 +36,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		let roles = await authAdapter?.getAllRoles();
 		roles = roles.map((cur) => {
 			if (cur._id === roleId) {
-				return { ...cur, _id: 'admin' };
+				return { ...cur, isAdmin: true };
 			}
-			if (cur._id === 'admin') {
-				return { ...cur, _id: cur.name.toLowerCase() };
+			if (cur.isAdmin) {
+				return { ...cur, isAdmin: false };
 			}
 			return cur;
 		});

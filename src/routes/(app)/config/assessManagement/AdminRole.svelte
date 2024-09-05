@@ -12,6 +12,7 @@ It provides functionality to:
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
+	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 
 	// Types
@@ -48,7 +49,7 @@ It provides functionality to:
 	const loadRoles = async () => {
 		try {
 			const rolesData = $page.data.roles;
-			const currentAdmin = rolesData.find((role) => role._id.toLowerCase() === 'admin');
+			const currentAdmin = rolesData.find((role) => role.isAdmin === true);
 
 			if (currentAdmin) {
 				currentAdminRole.set(currentAdmin._id); // Set the current admin role
@@ -115,8 +116,10 @@ It provides functionality to:
 					const responseText = await response.text();
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
-
 				isLoading.set(true);
+				invalidateAll().then(() => {
+					isLoading.set(false);
+				});
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}

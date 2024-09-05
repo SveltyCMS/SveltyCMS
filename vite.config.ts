@@ -51,33 +51,34 @@ export default defineConfig({
 		{
 			name: 'vite:dynamic-config-updater',
 			async handleHotUpdate({ file, server }) {
-				// if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
-				// 	// Clear module cache
-				// 	const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
-				// 	const rolesPath = resolve(__dirname, 'config', 'roles.ts');
+				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
+					// Clear module cache
+					const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
+					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
 
-				// 	delete require.cache[require.resolve(permissionsPath)];
-				// 	delete require.cache[require.resolve(rolesPath)];
+					delete require.cache[require.resolve(permissionsPath)];
+					delete require.cache[require.resolve(rolesPath)];
 
-				// 	// Dynamically reimport updated roles & permissions
-				// 	const { roles } = await import('./config/roles');
-				// 	const { permissions } = await import('./config/permissions');
+					// Dynamically reimport updated roles & permissions
+					const { roles } = await import('./config/roles');
+					const { permissions } = await import('./config/permissions');
 
-				// 	// Update roles and permissions in the application
-				// 	const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
-				// 	setLoadedRoles(roles);
-				// 	setLoadedPermissions(permissions);
+					// Update roles and permissions in the application
+					const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
+					setLoadedRoles(roles);
+					setLoadedPermissions(permissions);
 
-				// 	console.log('Roles and permissions reloaded from config');
+					console.log('Roles and permissions reloaded from config');
 
-				// 	// Trigger HMR for affected modules
-				// 	server.ws.send({ type: 'full-reload' });
-				// } else if (/src[/\\]collections/.test(file)) {
-				if (/src[/\\]collections/.test(file)) {
-					// Recompile collections and update types
-					await compile({ collectionsFolderJS, collectionsFolderTS });
-					generateCollectionTypes();
-					generateCollectionFieldTypes();
+					// Trigger HMR for affected modules
+					// server.ws.send({ type: 'full-reload' });
+				} else if (/src[/\\]collections/.test(file)) {
+					if (/src[/\\]collections/.test(file)) {
+						// Recompile collections and update types
+						await compile({ collectionsFolderJS, collectionsFolderTS });
+						generateCollectionTypes();
+						generateCollectionFieldTypes();
+					}
 				}
 			},
 			config() {
@@ -98,7 +99,10 @@ export default defineConfig({
 		})
 	],
 	server: {
-		fs: { allow: ['static', '.'] }
+		fs: { allow: ['static', '.'] },
+		watch: {
+			ignored: /config[/\\](permissions|roles)\.ts$/
+		}
 	},
 	resolve: {
 		alias: {

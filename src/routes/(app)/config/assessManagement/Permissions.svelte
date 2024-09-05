@@ -14,6 +14,7 @@
 	// Stores
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
+	import { invalidateAll } from '$app/navigation';
 
 	// Auth
 	import type { Permission, Role } from '@src/auth/types';
@@ -134,10 +135,13 @@
 					showToast(`Error updating config file: ${responseText}`, 'error');
 				}
 
-				isLoading.set(true);
 				modifiedPermissions.set(new Set());
+				isLoading.set(true);
+				invalidateAll().then(() => {
+					isLoading.set(false);
+				});
 			} catch (error) {
-				showToast('Network error occurred while updating config file', 'error');
+				showToast(`Network error occurred while updating config file: ${error}`, 'error');
 			}
 			await loadPermissions();
 		} catch (err) {
@@ -180,7 +184,7 @@
 	<p class="error">{$error}</p>
 {:else}
 	<h3 class="text-center text-xl font-bold lg:text-left">Permission Management:</h3>
-	<p class="text-center text-sm text-gray-500 dark:text-gray-400">
+	<p class="justify-center text-center text-sm text-gray-500 dark:text-gray-400">
 		Manage permissions and assign roles to users. You can create, edit, or delete permissions and assign roles to them.
 	</p>
 	<div class="wrapper">
@@ -203,7 +207,7 @@
 		{:else}
 			<!-- Admin Notice -->
 			{#if adminRole}
-				<p class="text-center">
+				<p class="w-full overflow-auto text-nowrap text-center">
 					*
 					<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
 					Role has all permissions
@@ -212,7 +216,7 @@
 			<div class="permission overflow-auto">
 				<table class="compact w-full table-auto border-separate rounded border border-surface-200">
 					<!-- Header -->
-					<thead class="sticky top-0 border border-b border-surface-200">
+					<thead class="sticky top-0 border border-b border-surface-200 bg-black">
 						<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
 							<th class="px-4 py-2">Type</th>
 							<th class="px-4 py-2">Action</th>
@@ -260,3 +264,14 @@
 		{/if}
 	</div>
 {/if}
+
+<style>
+	.permission {
+		height: calc(100vh - 400px);
+	}
+	@media screen and (max-width: 625px) {
+		.permission {
+			height: 250px;
+		}
+	}
+</style>

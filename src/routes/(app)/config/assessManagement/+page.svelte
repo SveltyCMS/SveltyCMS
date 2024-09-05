@@ -27,7 +27,7 @@
 </div>
 
 <div class="mb-6 text-center sm:text-left">
-	<p class="text-tertiary-500 dark:text-primary-500">
+	<p class="md:text-wraptext-tertiary-500 w-full overflow-auto text-nowrap text-center dark:text-primary-500">
 		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 		can perform in the system.
 	</p>
