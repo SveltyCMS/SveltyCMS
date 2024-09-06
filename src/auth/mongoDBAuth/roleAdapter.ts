@@ -231,9 +231,9 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		const configPath = path.resolve('./config/roles.ts');
 		const roles = [...this.roles.values()].map((cur) => {
 			if (cur.isAdmin) {
-				return { ...cur, permissions: `permissions.map((p) => p._id)` };
+				return { _id: cur._id, name: cur.name, description: cur.description, isAdmin: true, permissions: `permissions.map((p) => p._id)` };
 			}
-			return cur;
+			return { _id: cur._id, name: cur.name, description: cur.description, permissions: cur.permissions };
 		});
 		let content = `
 import type { Permission, Role } from '../src/auth/types';
