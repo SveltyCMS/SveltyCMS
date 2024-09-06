@@ -2263,7 +2263,7 @@ export const collection_permission_addpermission = () => `Agregar permisos`
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `Funciones:`
+export const system_roles = () => `Funciones`
 
 
 /**

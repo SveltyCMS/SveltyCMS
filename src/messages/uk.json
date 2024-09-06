@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Визначте дозволи користувача, щоб дозволити доступ:",
 	"collection_permission_admin_helper": "Користувач адміністратора має всі дозволи",
 	"collection_permission_addpermission": "Додати дозволи",
-	"system_roles": "ролі:",
+	"system_roles": "ролі",
 	"collection_widgetfield_drag": "Перетягніть створені поля, щоб відсортувати їх.",
 	"collection_widgetfield_addrequired": "Додайте обов’язкове поле віджета, щоб створити свій",
 	"collection_widgetfield_addFields": "Додати більше полів",

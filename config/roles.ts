@@ -4,21 +4,6 @@ import { permissions } from './permissions'; // Import the permissions list
 
 export const roles: Role[] = [
   {
-    "_id": "developer",
-    "name": "Developer",
-    "description": "Developer with some access",
-    "permissions": [],
-    "isAdmin": false,
-    "id": "developer"
-  },
-  {
-    "_id": "editor",
-    "name": "Editor",
-    "description": "Can create, read, and update content",
-    "permissions": [],
-    "id": "editor"
-  },
-  {
     "_id": "admin",
     "name": "Administrator",
     "description": "Full access to all system features",
@@ -28,11 +13,27 @@ export const roles: Role[] = [
     "id": "admin"
   },
   {
+    "_id": "developer",
+    "name": "Developer",
+    "description": "Developer with some access",
+    "permissions": [],
+    "isAdmin": false,
+    "id": "developer"
+  },
+  {
     "_id": "user",
     "name": "User",
     "description": "Can only read content",
     "permissions": [],
     "id": "user"
+  },
+  {
+    "_id": "editor",
+    "name": "Editor",
+    "description": "Can create, read, and update content",
+    "permissions": [],
+    "id": "editor",
+    "isAdmin": false
   },
   {
     "_id": "bbfe53b0c663e3f5ad5069423296e4eb",
@@ -45,10 +46,8 @@ export const roles: Role[] = [
 ];
 // Function to register a new role
 export function registerRole(newRole: Role): void {
-	const exists = roles.some((role) => role._id === newRole._id);
+	const exists = roles.some((role) => role._id === newRole._id); // Use _id for consistency
 	if (!exists) {
-		// Ensure permissions are always an array
-		newRole.permissions = newRole.permissions || [];
 		roles.push(newRole);
 	}
 }

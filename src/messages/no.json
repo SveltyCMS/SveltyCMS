@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Definer brukertillatelser for å tillate tilgang:",
 	"collection_permission_admin_helper": "Admin Bruker har alle tillatelser",
 	"collection_permission_addpermission": "Legg til tillatelser",
-	"system_roles": "Roller:",
+	"system_roles": "Roller",
 	"collection_widgetfield_drag": "Dra og slipp de opprettede feltene for å sortere dem.",
 	"collection_widgetfield_addrequired": "Legg til det nødvendige widgetfeltet for å lage ditt",
 	"collection_widgetfield_addFields": "Legg til flere felt",

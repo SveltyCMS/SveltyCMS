@@ -1,17 +1,7 @@
 <!--
 @file src/routes/(app)/config/accessManagement/Roles.svelte
 @description This component manages roles within the application's access management system. 
-It provides the following functionality:
-- Load and display roles and their associated permissions.
-- Allow users to create, edit, and delete roles through a modal interface.
-- Implement drag-and-drop reordering of roles using svelte-dnd-action.
-- Allow bulk deletion of selected roles.
-- Display a skeleton.dev modal for creating or editing roles with an intuitive UI for selecting associated permissions.
--->
 
-<!--
-@file src/routes/(app)/config/accessManagement/Roles.svelte
-@description This component manages roles within the application's access management system. 
 It provides the following functionality:
 - Load and display roles and their associated permissions.
 - Allow users to create, edit, and delete roles through a modal interface.
@@ -21,10 +11,11 @@ It provides the following functionality:
 
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { invalidateAll } from '$app/navigation';
+
+	// Store
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { invalidateAll } from '$app/navigation';
-	import { authAdapter } from '@src/databases/db';
 
 	// Types
 	import type { Role, Permission } from '@src/auth/types';
@@ -32,24 +23,25 @@ It provides the following functionality:
 	// Components
 	import Loading from '@components/Loading.svelte';
 	import RoleModal from './RoleModal.svelte';
+
+	// Skeleton
 	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+
 	const toastStore = getToastStore();
+	const modalStore = getModalStore();
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { createRandomID } from '@src/utils/utils';
 
 	const flipDurationMs = 100;
 
-	// State stores
 	const roles = writable<Role[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
-	const selectedRoles = writable<Set<string>>(new Set());
 	let selectedPermissions = [];
+	const selectedRoles = writable<Set<string>>(new Set());
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
-	const modalStore = getModalStore();
 
 	// Modal state and form inputs
 	let isModalOpen = false;
@@ -60,7 +52,7 @@ It provides the following functionality:
 	let currentGroupName: string = ''; // Ensure it's always a string
 
 	$: currentUserId = $page.data.user?._id || '';
-	let items;
+	let items: any;
 
 	// Fetch roles and permissions on mount
 	onMount(async () => {
@@ -86,13 +78,6 @@ It provides the following functionality:
 
 	const loadPermissions = async () => {
 		try {
-			// Ensure authAdapter is initialized
-			// if (!authAdapter) {
-			// 	throw new Error('Auth adapter is not initialized');
-			// }
-
-			// const permissionsData = await authAdapter.getAllPermissions();
-			// availablePermissions.set(permissionsData);
 			availablePermissions.set($page.data.permissions);
 		} catch (err) {
 			error.set(`Failed to load permissions: ${err instanceof Error ? err.message : String(err)}`);
@@ -315,26 +300,27 @@ It provides the following functionality:
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<h3 class="text-center text-xl font-bold lg:text-left">Roles Management:</h3>
+	<h3 class="mb-2 text-center text-xl font-bold">Roles Management:</h3>
 
-	<p class="hidden w-full justify-center text-center text-sm text-gray-500 dark:text-gray-400 md:flex">
+	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
 		Manage user roles and their access permissions. You can create, edit, or delete roles and assign specific permissions to them.
 	</p>
 
 	<div class="wrapper my-4">
 		<div class="mb-4 flex items-center justify-between">
-			<button on:click={() => openModal(null, '')} class="variant-filled-primary btn">Create New Role</button>
-			{#if $selectedRoles.size > 0}
-				<button on:click={deleteSelectedRoles} class="variant-filled-error btn">Delete Selected Roles ({$selectedRoles.size})</button>
-			{/if}
+			<!-- Create -->
+			<button on:click={() => openModal(null, '')} class="variant-filled-primary btn">Create Role</button>
+			<!-- Delete -->
+			<button on:click={deleteSelectedRoles} class="variant-filled-error btn" disabled={$selectedRoles.size === 0}>
+				Delete Roles ({$selectedRoles.size})
+			</button>
 		</div>
 
 		<div class="role mt-4 flex-1 overflow-auto">
 			{#if $roles.length === 0}
 				<p>No roles defined yet.</p>
 			{:else}
-				<div class="rounded-8 mb-4 border p-4">
-					<!-- <h5 class=":lg-text-left text-center font-semibold text-tertiary-500 dark:text-primary-500">{group.groupName}</h5> -->
+				<div class="rounded-8">
 					<section
 						class="list-none space-y-2"
 						use:dndzone={{ items: items, flipDurationMs, type: 'column' }}
@@ -348,7 +334,7 @@ It provides the following functionality:
 										{#if !role.isAdmin}
 											<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
 										{/if}
-										<span>{role.name}</span>
+										<span class="text-xl font-semibold text-tertiary-500 dark:text-primary-500">{role.name}</span>
 									</div>
 									<button on:click={() => openModal(role)} class="variant-filled-secondary btn">Edit</button>
 								</div>
@@ -361,14 +347,3 @@ It provides the following functionality:
 		</div>
 	</div>
 {/if}
-
-<style>
-	.role {
-		height: calc(100vh - 350px);
-	}
-	@media screen and (max-width: 625px) {
-		.role {
-			height: 280px;
-		}
-	}
-</style>

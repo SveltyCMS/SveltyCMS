@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `Lisää käyttöoikeud
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `Roolit:`
+export const system_roles = () => `Roolit`
 
 
 /**

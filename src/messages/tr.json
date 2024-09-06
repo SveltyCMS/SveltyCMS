@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Erişime izin vermek için Kullanıcı İzinlerini tanımlayın:",
 	"collection_permission_admin_helper": "Yönetici Kullanıcı tüm izinlere sahiptir",
 	"collection_permission_addpermission": "İzin Ekle",
-	"system_roles": "Roller:",
+	"system_roles": "Roller",
 	"collection_widgetfield_drag": "Oluşturduğunuz alanları sıralamak için Sürükleyip Bırakın.",
 	"collection_widgetfield_addrequired": "Oluşturmak için gerekli widget alanınızı ekleyin",
 	"collection_widgetfield_addFields": "Daha fazla Alan ekle",

@@ -144,8 +144,8 @@ It provides functionality to:
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<h3 class="text-center text-xl font-bold lg:text-left">Admin Role Management:</h3>
-	<p class="mt-1 text-sm text-surface-300">
+	<h3 class="mb-2 text-center text-xl font-bold">Admin Role Management:</h3>
+	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
 		Please select a new role for the administrator from the dropdown below. Your changes will take effect after you click "Save Changes".
 	</p>
 	<div class="wrapper my-4">

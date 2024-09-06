@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Definieren Sie Benutzerberechtigungen, um den Zugriff zu ermöglichen:",
 	"collection_permission_admin_helper": "Der Admin-Benutzer verfügt über alle Berechtigungen",
 	"collection_permission_addpermission": "Berechtigungen hinzufügen",
-	"system_roles": "Rollen:",
+	"system_roles": "Rollen",
 	"collection_widgetfield_drag": "Ziehen Sie Ihre erstellten Felder per Drag &amp; Drop, um sie zu sortieren.",
 	"collection_widgetfield_addrequired": "Fügen Sie Ihr erforderliches Widget-Feld hinzu, um Ihr zu erstellen",
 	"collection_widgetfield_addFields": "Fügen Sie weitere Felder hinzu",

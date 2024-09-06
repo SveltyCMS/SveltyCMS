@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "पहुँच की अनुमति देने के लिए उपयोगकर्ता अनुमतियाँ परिभाषित करें:",
 	"collection_permission_admin_helper": "व्यवस्थापक उपयोगकर्ता के पास सभी अनुमतियाँ हैं",
 	"collection_permission_addpermission": "अनुमतियाँ जोड़ें",
-	"system_roles": "भूमिकाएँ:",
+	"system_roles": "भूमिकाएँ",
 	"collection_widgetfield_drag": "अपने बनाए गए फ़ील्ड को क्रमबद्ध करने के लिए खींचें और छोड़ें।",
 	"collection_widgetfield_addrequired": "अपना बनाने के लिए अपना आवश्यक विजेट फ़ील्ड जोड़ें",
 	"collection_widgetfield_addFields": "अधिक फ़ील्ड जोड़ें",

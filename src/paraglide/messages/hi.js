@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `अनुमतिय�
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `भूमिकाएँ:`
+export const system_roles = () => `भूमिकाएँ`
 
 
 /**
