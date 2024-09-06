@@ -11,7 +11,7 @@ import logger from '@src/utils/logger';
 
 export interface PermissionConfig {
 	contextId: string;
-	requiredRole: string;
+	name: string;
 	action: PermissionAction;
 	contextType: ContextType | string;
 }

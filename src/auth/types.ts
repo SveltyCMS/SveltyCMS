@@ -39,7 +39,7 @@ export interface Permission {
 }
 
 // Constants for Permission Actions and Context Types
-export const permissionActions = ['create', 'read', 'write', 'delete', 'manage_roles', 'manage_permissions'] as const;
+export const permissionActions = ['create', 'read', 'update', 'delete', 'manage_roles', 'manage_permissions'] as const;
 export const contextTypes = ['collection', 'widget', 'system'] as const;
 
 export type PermissionAction = (typeof permissionActions)[number];

@@ -13,8 +13,9 @@
 import fs from 'fs/promises';
 import path from 'path';
 
-import { permissions as configPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
+import { permissions as configPermissions, PermissionAction, PermissionType, setPermissions } from '@root/config/permissions';
 import type { Permission as AuthPermission, PermissionAction as AuthPermissionAction } from './types';
+import type { PermissionConfig } from './permissionCheck';
 
 // System Logger
 import logger from '@src/utils/logger';
@@ -92,82 +93,42 @@ function isSame(arr: AuthPermission[], arr1: AuthPermission[]) {
 		return false;
 	}
 	for (let i = 0; i < arr.length; i++) {
-		if (arr1.findIndex((cur) => cur._id === arr[i]._id) === -1) {
+		if (arr1.findIndex((cur) => cur._id === arr[i]._id && cur.name === arr[i].name && cur.action === arr[i].action && cur.type === arr[i].type) === -1) {
 			return false;
 		}
 	}
 	return true;
 }
 
+export const permissionConfigs: Record<string, PermissionConfig> = {
+	collectionbuilder: { contextId: 'config/collectionbuilder', name: 'Collection Builder Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	graphql: { contextId: 'config/graphql', name: 'GraphQL Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	imageeditor: { contextId: 'config/imageeditor', name: 'ImageEditor Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	dashboard: { contextId: 'config/dashboard', name: 'Dashboard Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	widgetManagement: { contextId: 'config/widgetManagement', name: 'Widget Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	themeManagement: { contextId: 'config/themeManagement', name: 'Theme Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	settings: { contextId: 'config/settings', name: 'Settings Management', action: PermissionAction.MANAGE, contextType: 'system' },
+	accessManagement: { contextId: 'config/accessManagement', name: 'Access Management', action: PermissionAction.MANAGE, contextType: 'system' }
+} as const;
+
+export const userManagementPermissions = [
+	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
+];
+
 // Synchronizes permissions if needed
 export async function syncPermissions(): Promise<void> {
 	// Placeholder for sync logic. Add code if the app dynamically updates permissions.
 	const configPath = path.resolve('./config/permissions.ts');
 	const collections = await getCollectionFiles();
+	const configs = Object.values(permissionConfigs).map(cur => ({
+		_id: cur.contextId,
+		action: cur.action,
+		name: cur.name,
+		type: PermissionType.CONFIGURATION,
+	}));
 	const permissions: AuthPermission[] = [
-		{
-			_id: 'config:collectionbuilder',
-			name: 'Access Collection Builder',
-			action: PermissionAction.READ,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows access to the collection builder.'
-		},
-		{
-			_id: 'config:graphql',
-			name: 'Access GraphQL',
-			action: PermissionAction.READ,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows access to GraphQL settings.'
-		},
-		{
-			_id: 'config:imageeditor',
-			name: 'Use Image Editor',
-			action: PermissionAction.UPDATE,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows using the image editor.'
-		},
-		{
-			_id: 'config:widgetManagement',
-			name: 'Manage Widgets',
-			action: PermissionAction.UPDATE,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows management of widgets.'
-		},
-		{
-			_id: 'config:themeManagement',
-			name: 'Manage Themes',
-			action: PermissionAction.UPDATE,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows managing themes.'
-		},
-		{
-			_id: 'config:settings',
-			name: 'Manage Settings',
-			action: PermissionAction.UPDATE,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows managing system settings.'
-		},
-		{
-			_id: 'config:accessManagement',
-			name: 'Manage Access',
-			action: PermissionAction.UPDATE,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows managing user access and roles.'
-		},
-		{
-			_id: 'config:dashboard',
-			name: 'Access Dashboard',
-			action: PermissionAction.READ,
-			type: PermissionType.CONFIGURATION,
-			description: 'Allows access to the dashboard.'
-		},
-		{
-			_id: 'user:manage',
-			name: 'Manage Users',
-			action: PermissionAction.MANAGE,
-			type: PermissionType.USER,
-			description: 'Allows managing users.'
-		}
+		...configs,
+		...userManagementPermissions,
 	];
 	collections.map((ed) => {
 		const cur = ed.slice(0, ed.length - 3);
@@ -200,57 +161,8 @@ export async function syncPermissions(): Promise<void> {
 			description: `Allows deleting ${cur}`
 		});
 	});
-	if (isSame(configPermissions, permissions)) {
-		return;
-	}
-	const content = `
-/**
- * @file config/permissions.ts
- * @description Configuration prompts for the Permissions section
- */
 
-import type { Permission } from '@src/auth/types'; // Import Permission type from the centralized types file
+	setPermissions(permissions);
 
-export enum PermissionType {
-	COLLECTION = 'collection',
-	USER = 'user',
-	CONFIGURATION = 'configuration',
-	SYSTEM = 'system'
-	// Add more types as needed
-}
-
-export enum PermissionAction {
-	CREATE = 'create',
-	READ = 'read',
-	UPDATE = 'update',
-	DELETE = 'delete',
-	MANAGE = 'manage'
-	// Add more actions as needed
-}
-
-// List of all permissions available in the CMS
-
-export const permissions: Permission[] = ${JSON.stringify([...permissions.values()], null, 2)};
-// Function to register new permissions
-export function registerPermission(newPermission: Permission): void {
-	const exists = permissions.some((permission) => permission._id === newPermission._id); // Use _id for consistency
-	if (!exists) {
-		permissions.push(newPermission);
-	}
-}
-
-// Function to register multiple permissions
-export function registerPermissions(newPermissions: Permission[]): void {
-	newPermissions.forEach(registerPermission);
-}
-
-`;
-	try {
-		await fs.writeFile(configPath, content, 'utf8');
-		logger.info('Config file updated with new roles and permissions');
-	} catch (error) {
-		logger.error(`Failed to update config file: ${(error as Error).message}`);
-		throw new Error('Failed to update config file');
-	}
 	logger.info('Permissions synchronized from configuration');
 }

@@ -9,8 +9,9 @@ import type { PageServerLoad } from './$types';
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissions as allPermissions } from '@root/config/permissions';
+import { permissionConfigs } from "@src/auth/permissionManager";
 
 // System Logger
 import logger from '@src/utils/logger';
@@ -52,17 +53,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			permissions: user.permissions
 		};
 
-		const permissionConfigs: Record<string, PermissionConfig> = {
-			collectionbuilder: { contextId: 'config/collectionbuilder', requiredRole: 'admin', action: 'read', contextType: 'system' },
-			graphql: { contextId: 'config/graphql', requiredRole: 'admin', action: 'read', contextType: 'system' },
-			imageeditor: { contextId: 'config/imageeditor', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			dashboard: { contextId: 'config/dashboard', requiredRole: 'admin', action: 'read', contextType: 'system' },
-			widgetManagement: { contextId: 'config/widgetManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			themeManagement: { contextId: 'config/themeManagement', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			settings: { contextId: 'config/settings', requiredRole: 'admin', action: 'write', contextType: 'system' },
-			accessManagement: { contextId: 'config/accessManagement', requiredRole: 'admin', action: 'write', contextType: 'system' }
-		};
-
 		const permissions: Record<string, { hasPermission: boolean; isRateLimited?: boolean }> = {};
 
 		for (const key in permissionConfigs) {
@@ -79,6 +69,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 			permissions[config.contextId] = { hasPermission };
 		}
+		console.log(permissionConfigs);
 
 		return {
 			user: serializableUser,

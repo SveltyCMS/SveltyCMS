@@ -99,7 +99,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			permissions
 		};
 	} catch (err) {
-		logger.error('Error in assess management load function:', err);
+		logger.error('Error in access management load function:', err);
 
 		// Handle redirects separately
 		if (err instanceof redirect) {

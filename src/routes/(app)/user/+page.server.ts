@@ -27,14 +27,6 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User, Role } from '@src/auth/types';
-import { registerPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
-
-// Dynamically register permissions for user management
-const userManagementPermissions = [
-	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
-];
-
-registerPermissions(userManagementPermissions); // Register dynamic permissions
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';

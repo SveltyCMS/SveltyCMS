@@ -99,10 +99,7 @@ export default defineConfig({
 		})
 	],
 	server: {
-		fs: { allow: ['static', '.'] },
-		watch: {
-			ignored: /config[/\\](permissions|roles)\.ts$/
-		}
+		fs: { allow: ['static', '.'] }
 	},
 	resolve: {
 		alias: {

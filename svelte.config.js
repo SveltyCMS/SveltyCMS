@@ -47,7 +47,6 @@ const config = {
       // inspector position
       toggleButtonPos: "bottom-right",
     },
-    exclude: ["./config/roles.ts", "./config/permissions.ts"],
     // experimental options
     experimental: {},
   },

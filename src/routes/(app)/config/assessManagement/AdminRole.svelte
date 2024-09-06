@@ -11,8 +11,6 @@ It provides functionality to:
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { writable } from 'svelte/store';
-	import { page } from '$app/stores';
-	import { invalidateAll } from '$app/navigation';
 	import { tick } from 'svelte';
 
 	// Types
@@ -22,6 +20,9 @@ It provides functionality to:
 	import Loading from '@components/Loading.svelte';
 	import { getToastStore } from '@skeletonlabs/skeleton';
 	const toastStore = getToastStore();
+
+	export let roleData;
+	export let setRoleData;
 
 	// State stores
 	const roles = writable<Role[]>([]);
@@ -48,7 +49,7 @@ It provides functionality to:
 	// Function to load roles from the authAdapter
 	const loadRoles = async () => {
 		try {
-			const rolesData = $page.data.roles;
+			const rolesData = roleData;
 			const currentAdmin = rolesData.find((role) => role.isAdmin === true);
 
 			if (currentAdmin) {
@@ -99,27 +100,18 @@ It provides functionality to:
 
 			currentAdminRole.set($selectedAdminRole);
 			try {
-				const response = await fetch('/api/role/admin', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ roleId: $selectedAdminRole })
+				const result = roleData.map((cur) => {
+					if (cur._id === $selectedAdminRole) {
+						currentAdminName.set(cur.name);
+						return { ...cur, isAdmin: true };
+					}
+					if (cur.isAdmin === true) {
+						return { ...cur, isAdmin: false };
+					}
+					return cur;
 				});
-
-				if (response.status === 200) {
-					showToast('Config file updated successfully', 'success');
-				} else if (response.status === 304) {
-					// Provide a custom message for 304 status
-					showToast('No changes detected, config file not updated', 'info');
-				} else {
-					const responseText = await response.text();
-					showToast(`Error updating config file: ${responseText}`, 'error');
-				}
-				isLoading.set(true);
-				invalidateAll().then(() => {
-					isLoading.set(false);
-				});
+				roles.set(result.filter((cur) => !cur.isAdmin));
+				setRoleData(result);
 			} catch (error) {
 				showToast('Network error occurred while updating config file', 'error');
 			}

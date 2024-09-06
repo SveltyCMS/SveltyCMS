@@ -28,6 +28,10 @@
 	const toastStore = getToastStore();
 
 	// Define writable stores
+
+	export let roleData;
+	export let setRoleData;
+
 	let searchTerm = '';
 	const permissionsList = writable<Permission[]>([]);
 	const modifiedPermissions = writable<Set<string>>(new Set());
@@ -87,7 +91,7 @@
 	// Function to load roles
 	const loadRoles = async () => {
 		try {
-			roles.set($page.data.roles);
+			roles.set(roleData);
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -115,38 +119,9 @@
 
 	// Save changes to permissions
 	const saveChanges = async () => {
-		try {
-			try {
-				const response = await fetch('/api/permission/update', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ roles: $roles })
-				});
-
-				if (response.status === 200) {
-					showToast('Config file updated successfully', 'success');
-				} else if (response.status === 304) {
-					// Provide a custom message for 304 status
-					showToast('No changes detected, config file not updated', 'info');
-				} else {
-					const responseText = await response.text();
-					showToast(`Error updating config file: ${responseText}`, 'error');
-				}
-
-				modifiedPermissions.set(new Set());
-				isLoading.set(true);
-				invalidateAll().then(() => {
-					isLoading.set(false);
-				});
-			} catch (error) {
-				showToast(`Network error occurred while updating config file: ${error}`, 'error');
-			}
-			await loadPermissions();
-		} catch (err) {
-			error.set(`Failed to save changes: ${err instanceof Error ? err.message : String(err)}`);
-		}
+		setRoleData($roles);
+		modifiedPermissions.set(new Set());
+		showToast('Permissions updated successfully', 'success');
 	};
 
 	// Show corresponding Toast messages
@@ -242,7 +217,7 @@
 							{#each filterGroups(filteredPermissions, group) as permission}
 								<tr class="divide-x border-b">
 									<!-- Type -->
-									<td class="px-1 py-1">{permission._id}</td>
+									<td class="px-1 py-1">{permission.name}</td>
 									<!-- Action -->
 									<td class="px-1 py-1 text-center">{permission.action}</td>
 
