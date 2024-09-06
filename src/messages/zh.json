@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "定义用户权限以允许访问：",
 	"collection_permission_admin_helper": "管理员用户拥有所有权限",
 	"collection_permission_addpermission": "添加权限",
-	"system_roles": "角色：",
+	"system_roles": "角色",
 	"collection_widgetfield_drag": "拖放您创建的字段来对其进行排序。",
 	"collection_widgetfield_addrequired": "添加所需的小部件字段以创建您的",
 	"collection_widgetfield_addFields": "添加更多字段",

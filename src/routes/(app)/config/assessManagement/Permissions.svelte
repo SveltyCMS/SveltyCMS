@@ -183,8 +183,8 @@
 {:else if $error}
 	<p class="error">{$error}</p>
 {:else}
-	<h3 class="text-center text-xl font-bold lg:text-left">Permission Management:</h3>
-	<p class="justify-center text-center text-sm text-gray-500 dark:text-gray-400">
+	<h3 class="mb-2 text-center text-xl font-bold">Permission Management:</h3>
+	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
 		Manage permissions and assign roles to users. You can create, edit, or delete permissions and assign roles to them.
 	</p>
 	<div class="wrapper">
@@ -235,17 +235,21 @@
 							<tr>
 								<td
 									colSpan={nonAdminRolesCount + 2}
-									class="bg-gray-800 px-4 py-2 text-center font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left">{group}</td
+									class="bg-gray-800 px-4 py-2 font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left lg:text-center"
+									>{group}</td
 								>
 							</tr>
 							{#each filterGroups(filteredPermissions, group) as permission}
 								<tr class="divide-x border-b">
-									<td class="px-4 py-2">{permission._id}</td>
-									<td class="px-4 py-2 text-center">{permission.action}</td>
+									<!-- Type -->
+									<td class="px-1 py-1">{permission._id}</td>
+									<!-- Action -->
+									<td class="px-1 py-1 text-center">{permission.action}</td>
 
+									<!-- Roles -->
 									{#each $roles as role}
 										{#if !role.isAdmin}
-											<td class="px-4 py-2 text-center">
+											<td class="px-1 py-1 text-center">
 												<input
 													type="checkbox"
 													checked={role.permissions.includes(permission._id)}

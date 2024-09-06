@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/system/table/TableFilter.svelte
+@description Filter component for table
+-->
+
 <script lang="ts">
 	// Stores
 	import { translationStatusOpen } from '@stores/store';

@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Define User Permissions to allow access:",
 	"collection_permission_admin_helper": "Admin User has all permissions",
 	"collection_permission_addpermission": "Add Permissions",
-	"system_roles": "Roles:",
+	"system_roles": "Roles",
 	"collection_widgetfield_drag": "Drag & Drop your created fields to sort them.",
 	"collection_widgetfield_addrequired": "Add your required widget field to create your",
 	"collection_widgetfield_addFields": "Add more Fields",

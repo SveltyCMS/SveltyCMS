@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `Tilføj tilladelser`
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `Roller:`
+export const system_roles = () => `Roller`
 
 
 /**

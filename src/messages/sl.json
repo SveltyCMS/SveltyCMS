@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Določite uporabniška dovoljenja, da omogočite dostop:",
 	"collection_permission_admin_helper": "Skrbniški uporabnik ima vsa dovoljenja",
 	"collection_permission_addpermission": "Dodajte dovoljenja",
-	"system_roles": "Vloge:",
+	"system_roles": "Vloge",
 	"collection_widgetfield_drag": "Povlecite in spustite ustvarjena polja, da jih razvrstite.",
 	"collection_widgetfield_addrequired": "Dodajte zahtevano polje pripomočka, da ustvarite svojega",
 	"collection_widgetfield_addFields": "Dodajte več polj",

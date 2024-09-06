@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `Aggiungi autorizzazion
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `Ruoli:`
+export const system_roles = () => `Ruoli`
 
 
 /**

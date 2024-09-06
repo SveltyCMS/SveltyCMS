@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Definire le autorizzazioni utente per consentire l'accesso:",
 	"collection_permission_admin_helper": "L'utente amministratore dispone di tutte le autorizzazioni",
 	"collection_permission_addpermission": "Aggiungi autorizzazioni",
-	"system_roles": "Ruoli:",
+	"system_roles": "Ruoli",
 	"collection_widgetfield_drag": "Trascina e rilascia i campi creati per ordinarli.",
 	"collection_widgetfield_addrequired": "Aggiungi il campo widget richiesto per creare il tuo",
 	"collection_widgetfield_addFields": "Aggiungi più campi",

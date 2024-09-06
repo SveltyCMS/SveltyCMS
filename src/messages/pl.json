@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Zdefiniuj uprawnienia użytkownika, aby umożliwić dostęp:",
 	"collection_permission_admin_helper": "Użytkownik Admin ma wszystkie uprawnienia",
 	"collection_permission_addpermission": "Dodaj uprawnienia",
-	"system_roles": "Role:",
+	"system_roles": "Role",
 	"collection_widgetfield_drag": "Przeciągnij i upuść utworzone pola, aby je posortować.",
 	"collection_widgetfield_addrequired": "Dodaj wymagane pole widżetu, aby utworzyć swój",
 	"collection_widgetfield_addFields": "Dodaj więcej pól",

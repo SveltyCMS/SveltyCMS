@@ -104,6 +104,7 @@ async function loadAdapters() {
 				// Role Management Methods
 				createRole: roleAdapter.createRole.bind(roleAdapter),
 				updateRole: roleAdapter.updateRole.bind(roleAdapter),
+				updateUserRole: roleAdapter.updateUserRole.bind(roleAdapter),
 				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
 				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
 				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),

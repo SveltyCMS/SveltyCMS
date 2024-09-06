@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `Додај дозво�
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `Улоге:`
+export const system_roles = () => `Улоге`
 
 
 /**

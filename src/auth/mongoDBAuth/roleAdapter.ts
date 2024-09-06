@@ -30,7 +30,7 @@ import type { authDBInterface } from '../authDBInterface';
 import type { Role, Permission } from '../types';
 
 // Import permission manager functions
-import { getPermissionByName, getAllPermissions, syncPermissions } from '../permissionManager';
+import { getPermissionByName, getAllPermissions } from '../permissionManager';
 
 // Import roles from config
 import { roles as configRoles } from '@root/config/roles';
@@ -226,6 +226,29 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		}
 	}
 
+	// Method to update a user's role
+	async updateUserRole(user_id: string, newRole: RoleId): Promise<void> {
+		// Assuming there's a User model or collection to update the user's role
+		const UserModel = mongoose.model('User'); // Replace with actual User model if necessary
+
+		const user = await UserModel.findById(user_id);
+		if (!user) {
+			throw new Error('User not found');
+		}
+
+		// Admin protection: Make sure the first/only admin user can't change their role unintentionally
+		const adminUsersCount = await UserModel.countDocuments({ role: 'admin' });
+		if (user.role === 'admin' && adminUsersCount === 1 && newRole !== 'admin') {
+			throw new Error('The only admin user cannot change their role to a non-admin role');
+		}
+
+		// Update the user's role
+		user.role = newRole;
+		await user.save();
+
+		logger.info(`User role updated: ${user.email} -> ${newRole}`);
+	}
+
 	// Sync the config file with the default roles and permissions
 	private async syncConfigFile(): Promise<void> {
 		const configPath = path.resolve('./config/roles.ts');
@@ -235,7 +258,7 @@ export class RoleAdapter implements Partial<authDBInterface> {
 			}
 			return { _id: cur._id, name: cur.name, description: cur.description, permissions: cur.permissions };
 		});
-		let content = `
+		const content = `
 import type { Permission, Role } from '../src/auth/types';
 import { permissions } from './permissions'; // Import the permissions list
 

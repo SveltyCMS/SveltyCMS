@@ -2264,7 +2264,7 @@ export const collection_permission_addpermission = () => `اجازتیں شام�
  * @returns {string}
  */
 /* @__NO_SIDE_EFFECTS__ */
-export const system_roles = () => `کردار:`
+export const system_roles = () => `کردار`
 
 
 /**

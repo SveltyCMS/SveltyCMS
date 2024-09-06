@@ -17,7 +17,7 @@
 
 	// Modal Trigger - Schedule
 	function openScheduleModal(): void {
-		// console.log('Triggered - modalUserForm');
+		// console.log('Triggered - modalScheduleForm');
 		const modalComponent: ModalComponent = {
 			// Pass a reference to your custom component
 			ref: ScheduleModal,

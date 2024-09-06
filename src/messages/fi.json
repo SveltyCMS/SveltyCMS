@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Määritä käyttöoikeudet salliaksesi pääsyn:",
 	"collection_permission_admin_helper": "Järjestelmänvalvojalla on kaikki käyttöoikeudet",
 	"collection_permission_addpermission": "Lisää käyttöoikeudet",
-	"system_roles": "Roolit:",
+	"system_roles": "Roolit",
 	"collection_widgetfield_drag": "Lajittele luomasi kentät vetämällä ja pudottamalla.",
 	"collection_widgetfield_addrequired": "Lisää vaadittu widget-kenttä luodaksesi",
 	"collection_widgetfield_addFields": "Lisää kenttiä",

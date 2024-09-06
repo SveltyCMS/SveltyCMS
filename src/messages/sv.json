@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "Definiera användarbehörigheter för att tillåta åtkomst:",
 	"collection_permission_admin_helper": "Admin Användare har alla behörigheter",
 	"collection_permission_addpermission": "Lägg till behörigheter",
-	"system_roles": "Roller:",
+	"system_roles": "Roller",
 	"collection_widgetfield_drag": "Dra och släpp dina skapade fält för att sortera dem.",
 	"collection_widgetfield_addrequired": "Lägg till ditt obligatoriska widgetfält för att skapa ditt",
 	"collection_widgetfield_addFields": "Lägg till fler fält",

@@ -281,7 +281,7 @@
 	"collection_permission_helper1": "განსაზღვრეთ მომხმარებლის ნებართვები წვდომის დასაშვებად:",
 	"collection_permission_admin_helper": "ადმინისტრატორის მომხმარებელს აქვს ყველა ნებართვა",
 	"collection_permission_addpermission": "ნებართვების დამატება",
-	"system_roles": "როლები:",
+	"system_roles": "როლები",
 	"collection_widgetfield_drag": "გადაათრიეთ და ჩამოაგდეთ შექმნილი ველები მათ დასალაგებლად.",
 	"collection_widgetfield_addrequired": "დაამატეთ თქვენი საჭირო ვიჯეტის ველი თქვენი შესაქმნელად",
 	"collection_widgetfield_addFields": "დაამატეთ მეტი ველი",
