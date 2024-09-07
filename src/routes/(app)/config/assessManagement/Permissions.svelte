@@ -1,7 +1,6 @@
 <!--
 @file src/routes/(app)/config/assessManagement/Permissions.svelte
 @description This component manages permissions in the access management system. It provides functionality to:
-
 - Display existing permissions
 - Search and filter permissions
 - Modify permission settings, including role assignments
@@ -11,33 +10,27 @@
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-
 	// Stores
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
-
-	// Auth
 	import type { Permission, Role } from '@src/auth/types';
 	import { PermissionType } from '@root/config/permissions';
 
 	// Components
 	import Loading from '@components/Loading.svelte';
 
-	//Skeleton
-	import { getToastStore } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
-
-	// Define writable stores
-
+	// Props passed from +page.svelte
 	export let roleData;
 	export let setRoleData;
+	export let updateModifiedCount;
 
-	let searchTerm = '';
 	const permissionsList = writable<Permission[]>([]);
-	const modifiedPermissions = writable<Set<string>>(new Set());
 	const roles = writable<Role[]>([]);
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
+
+	let searchTerm = '';
+	let modifiedPermissions = new Set<string>();
 
 	const getGroups = (filteredPermissions: Permission[]) => {
 		const groups: string[] = [];
@@ -109,39 +102,16 @@
 				permissions.splice(pIndex, 1);
 			}
 			list.splice(index, 1, { ...list[index], permissions });
-			modifiedPermissions.update((per) => {
-				per.add(permission);
-				return per;
-			});
+
+			// Track modified permissions
+			modifiedPermissions.add(permission);
+
+			// Update role data and notify parent component
+			setRoleData(list);
+			updateModifiedCount(modifiedPermissions.size); // Notify parent about the number of changes
+
 			return list;
 		});
-	};
-
-	// Save changes to permissions
-	const saveChanges = async () => {
-		setRoleData($roles);
-		modifiedPermissions.set(new Set());
-		showToast('Permissions updated successfully', 'success');
-	};
-
-	// Show corresponding Toast messages
-	function showToast(message, type) {
-		const backgrounds = {
-			success: 'variant-filled-primary',
-			info: 'variant-filled-tertiary',
-			error: 'variant-filled-error'
-		};
-		toastStore.trigger({
-			message: message,
-			background: backgrounds[type],
-			timeout: 3000,
-			classes: 'border-1 !rounded-md'
-		});
-	}
-
-	// Reset changes to permissions
-	const resetChanges = () => {
-		modifiedPermissions.set(new Set());
 	};
 
 	// Reactive statements for filtered permissions and current user ID
@@ -165,14 +135,6 @@
 	<div class="wrapper">
 		<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
 			<input type="text" bind:value={searchTerm} placeholder="Search Permissions..." class="input mr-4 flex-grow" aria-label="Search permissions" />
-			<div class="flex space-x-2">
-				{#if $modifiedPermissions.size > 0}
-					<button on:click={saveChanges} class="variant-filled-tertiary btn">
-						Save Changes ({$modifiedPermissions.size})
-					</button>
-					<button on:click={resetChanges} class="variant-filled-secondary btn">Reset</button>
-				{/if}
-			</div>
 		</div>
 
 		{#if filteredPermissions.length === 0}
@@ -182,24 +144,24 @@
 		{:else}
 			<!-- Admin Notice -->
 			{#if adminRole}
-				<p class="w-full overflow-auto text-nowrap text-center">
+				<p class="mb-2 w-full overflow-auto text-nowrap text-center">
 					*
 					<span class="text-tertiary-500 dark:text-primary-500">{adminRole.name}</span>
 					Role has all permissions
 				</p>
 			{/if}
 			<div class="permission overflow-auto">
-				<table class="compact w-full table-auto border-separate rounded border border-surface-200">
+				<table class="compact w-full table-auto border">
 					<!-- Header -->
-					<thead class="sticky top-0 border border-b border-surface-200 bg-black">
-						<tr class="divide-x border-b text-tertiary-500 dark:text-primary-500">
-							<th class="px-4 py-2">Type</th>
-							<th class="px-4 py-2">Action</th>
+					<thead class="sticky top-0 border bg-surface-800">
+						<tr class="divide-x text-tertiary-500 dark:text-primary-500">
+							<th class="py-2">Type</th>
+							<th>Action</th>
 
 							<!-- List only non-admin roles -->
 							{#each $roles as role}
 								{#if !role.isAdmin}
-									<th class="px-4 py-2 text-center">{role.name}</th>
+									<th>{role.name}</th>
 								{/if}
 							{/each}
 						</tr>
@@ -207,35 +169,39 @@
 					<tbody>
 						<!-- Permission Groups -->
 						{#each groups as group}
-							<tr>
-								<td
-									colSpan={nonAdminRolesCount + 2}
-									class="bg-gray-800 px-4 py-2 font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left lg:text-center"
-									>{group}</td
-								>
-							</tr>
-							{#each filterGroups(filteredPermissions, group) as permission}
-								<tr class="divide-x border-b">
-									<!-- Type -->
-									<td class="px-1 py-1">{permission.name}</td>
-									<!-- Action -->
-									<td class="px-1 py-1 text-center">{permission.action}</td>
-
-									<!-- Roles -->
-									{#each $roles as role}
-										{#if !role.isAdmin}
-											<td class="px-1 py-1 text-center">
-												<input
-													type="checkbox"
-													checked={role.permissions.includes(permission._id)}
-													on:change={() => toggleRole(permission._id, role._id)}
-													class="form-checkbox"
-												/>
-											</td>
-										{/if}
-									{/each}
+							{#if filterGroups(filteredPermissions, group).length > 0}
+								<!-- Group Name -->
+								<tr>
+									<td
+										colspan={nonAdminRolesCount + 2}
+										class="border-b bg-surface-500 px-1 py-2 font-semibold text-tertiary-500 text-white dark:text-primary-500 lg:text-left lg:text-center"
+									>
+										{group}:
+									</td>
 								</tr>
-							{/each}
+								<!-- Permissions within the Group -->
+								{#each filterGroups(filteredPermissions, group) as permission}
+									<tr class="divide-x border-b text-center hover:bg-surface-50 dark:hover:bg-surface-600">
+										<!-- Type -->
+										<td class="px-1 py-1 md:text-left">{permission.name}</td>
+										<!-- Action -->
+										<td class="px-1 py-1">{permission.action}</td>
+										<!-- Roles -->
+										{#each $roles as role}
+											{#if !role.isAdmin}
+												<td class="px-1 py-1">
+													<input
+														type="checkbox"
+														checked={role.permissions.includes(permission._id)}
+														on:change={() => toggleRole(permission._id, role._id)}
+														class="form-checkbox"
+													/>
+												</td>
+											{/if}
+										{/each}
+									</tr>
+								{/each}
+							{/if}
 						{/each}
 					</tbody>
 				</table>
@@ -244,7 +210,7 @@
 	</div>
 {/if}
 
-<style>
+<style lang="postcss">
 	.permission {
 		height: calc(100vh - 400px);
 	}

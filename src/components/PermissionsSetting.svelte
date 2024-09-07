@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { createEventDispatcher, onMount } from 'svelte';
-	import { icon, permissionActions, type PermissionAction } from '@src/auth/types';
+	import { icon } from '@src/auth/types';
+	import { PermissionAction } from '@root/config/permissions';
 	import { authAdapter, initializationPromise } from '@src/databases/db';
 
 	import Loading from '@components/Loading.svelte';
@@ -16,6 +17,9 @@
 		name: string;
 		permissions: { [key in PermissionAction]?: boolean };
 	}
+
+	// Create a list of permission actions based on the enum
+	const permissionActions = Object.values(PermissionAction);
 
 	// Permissions are assumed to be passed in or fetched dynamically
 	export let permissions: { [key: string]: { [key in PermissionAction]?: boolean } } = {};

@@ -11,12 +11,10 @@ It provides the following functionality:
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invalidate, invalidateAll } from '$app/navigation';
 
 	// Store
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { authAdapter } from '@src/databases/db';
 
 	// Types
 	import type { Role, Permission } from '@src/auth/types';
@@ -26,10 +24,18 @@ It provides the following functionality:
 	import RoleModal from './RoleModal.svelte';
 
 	// Skeleton
-	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings } from '@skeletonlabs/skeleton';
+	import { getToastStore, getModalStore, type ModalComponent, type ModalSettings, type PopupSettings, popup } from '@skeletonlabs/skeleton';
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
+
+	// Popup Tooltips setup for each role's description
+	const getTooltipSettings = (description: string): PopupSettings => ({
+		event: 'hover',
+		content: description, // Set the tooltip content to the role's description
+		placement: 'right',
+		trigger: 'hover focus'
+	});
 
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
@@ -56,7 +62,6 @@ It provides the following functionality:
 	let currentRoleId: string | null = null;
 	let currentGroupName: string = ''; // Ensure it's always a string
 
-	$: currentUserId = $page.data.user?._id || '';
 	let items: any;
 
 	// Fetch roles and permissions on mount
@@ -229,17 +234,38 @@ It provides the following functionality:
 						on:finalize={handleFinalize}
 					>
 						{#each items as role (role.id)}
-							<div class="rounded border p-4" animate:flip={{ duration: flipDurationMs }}>
-								<div class="flex items-center justify-between">
-									<div class="flex items-center">
-										{#if !role.isAdmin}
-											<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
-										{/if}
-										<span class="text-xl font-semibold text-tertiary-500 dark:text-primary-500">{role.name}</span>
-									</div>
-									<button on:click={() => openModal(role)} class="variant-filled-secondary btn">Edit</button>
+							<div class=" animate-flip flex items-center justify-between rounded border p-4 hover:bg-surface-500 md:flex-row">
+								<div class="flex items-center gap-2">
+									<!-- Drag Icon -->
+									<iconify-icon icon="mdi:drag" width="18" class="cursor-move text-gray-500 dark:text-gray-300" />
+
+									{#if !role.isAdmin}
+										<input type="checkbox" checked={$selectedRoles.has(role._id)} on:change={() => toggleRoleSelection(role._id)} class="mr-2" />
+									{/if}
+
+									<!-- Role Name with Tooltip -->
+									<span class="flex items-center text-xl font-semibold text-tertiary-500 dark:text-primary-500">
+										{role.name}
+
+										<iconify-icon
+											icon="material-symbols:info"
+											width="18"
+											class="ml-1 text-tertiary-500 dark:text-primary-500"
+											use:popup={getTooltipSettings(role.description)}
+										/>
+									</span>
 								</div>
-								<p>{role.description}</p>
+
+								<!-- Description for larger screens -->
+								<p class="mt-2 hidden text-sm text-gray-600 dark:text-gray-400 md:ml-4 md:mt-0 md:block">
+									{role.description}
+								</p>
+
+								<!-- Edit Button: changes layout depending on screen size -->
+								<button on:click={() => openModal(role)} class="variant-filled-secondary btn">
+									<iconify-icon icon="mdi:pencil" class="text-white" width="18" />
+									<span class="hidden md:block">Edit</span>
+								</button>
 							</div>
 						{/each}
 					</section>
@@ -249,7 +275,7 @@ It provides the following functionality:
 	</div>
 {/if}
 
-<style>
+<style lang="postcss">
 	.role {
 		height: calc(100vh - 350px);
 	}

@@ -34,8 +34,18 @@ It provides an interface for users to:
 	let roles = $page.data.roles;
 	const isLoading = writable(false);
 
+	// Track the number of modified permissions
+	const modifiedCount = writable(0);
+	const modifiedPermissions = writable(false);
+
 	const setRoleData = (data) => {
 		roles = data;
+		modifiedPermissions.set(true);
+	};
+
+	const updateModifiedCount = (count) => {
+		modifiedCount.set(count);
+		modifiedPermissions.set(count > 0);
 	};
 
 	const saveAllRoles = async () => {
@@ -50,6 +60,8 @@ It provides an interface for users to:
 
 			if (response.status === 200) {
 				showToast('Config file updated successfully', 'success');
+				modifiedPermissions.set(false);
+				modifiedCount.set(0);
 			} else if (response.status === 304) {
 				// Provide a custom message for 304 status
 				showToast('No changes detected, config file not updated', 'info');
@@ -77,15 +89,25 @@ It provides an interface for users to:
 			classes: 'border-1 !rounded-md'
 		});
 	}
+
+	const resetChanges = () => {
+		modifiedPermissions.set(false);
+		modifiedCount.set(0);
+	};
 </script>
 
 <!-- Page Title -->
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name="Access Management" icon="mdi:account-key" />
 
-	<!-- Back -->
-	<div class="justify-right flex gap-8">
-		<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn"> Save Changes </button>
+	<div class="justify-right flex gap-2">
+		<!-- Save with changes -->
+		<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
+			Save ({$modifiedCount})
+		</button>
+		<!-- Reset -->
+		<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
+		<!-- Back -->
 		<button on:click={() => history.back()} aria-label="Go back" class="variant-outline-primary btn-icon">
 			<iconify-icon icon="ri:arrow-left-line" width="20" />
 		</button>
@@ -143,7 +165,7 @@ It provides an interface for users to:
 	</div>
 {/if}
 
-<style>
+<style lang="postcss">
 	/* Ensure full height utilization with responsiveness */
 	.flex-grow {
 		flex: 1 1 auto;
