@@ -1,5 +1,7 @@
-// @file cli-installer/config/language.js
-// @description Configuration prompts for the Language section
+/** 
+@file cli-installer/config/language.js
+@description Configuration prompts for the Language section
+*/
 
 import { confirm, multiselect, select, isCancel, cancel, note } from '@clack/prompts';
 import pc from 'picocolors';

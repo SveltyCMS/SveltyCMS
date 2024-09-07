@@ -1,5 +1,7 @@
-// @file cli-installer/config/redis.js
-// @description Configuration prompts for the Redis section
+/** 
+@file cli-installer/config/redis.js
+@description Configuration prompts for the Redis section
+*/
 
 import { confirm, select, text, note, isCancel, cancel } from '@clack/prompts';
 import pc from 'picocolors';

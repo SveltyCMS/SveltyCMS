@@ -1,5 +1,7 @@
-// @file cli-installer/backupRestore.js
-// @description Backup and Restore Configuration Files
+/** 
+@file cli-installer/backupRestore.js
+@description Backup and Restore Configuration Files
+*/
 
 import fs from 'fs/promises';
 import path from 'path';

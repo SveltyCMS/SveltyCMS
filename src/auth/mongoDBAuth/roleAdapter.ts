@@ -35,8 +35,6 @@ import { getPermissionByName, getAllPermissions } from '../permissionManager';
 // Import roles from config
 import { roles as configRoles } from '@root/config/roles';
 
-import { createRandomID } from '@utils/utils';
-
 // System Logging
 import logger from '@utils/logger';
 
@@ -254,9 +252,9 @@ export class RoleAdapter implements Partial<authDBInterface> {
 		const configPath = path.resolve('./config/roles.ts');
 		const roles = [...this.roles.values()].map((cur) => {
 			if (cur.isAdmin) {
-				return { ...cur, permissions: `permissions.map((p) => p._id)` };
+				return { _id: cur._id, name: cur.name, description: cur.description, isAdmin: true, permissions: `permissions.map((p) => p._id)` };
 			}
-			return cur;
+			return { _id: cur._id, name: cur.name, description: cur.description, permissions: cur.permissions };
 		});
 		const content = `
 import type { Permission, Role } from '../src/auth/types';

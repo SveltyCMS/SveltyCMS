@@ -1,5 +1,7 @@
-// @file cli-installer/config/mongodbConfig.js
-// @description Configuration prompts for the MongoDB section
+/** 
+@file cli-installer/config/mongodbConfig.js
+@description Configuration prompts for the MongoDB section
+*/
 
 import { text, note, isCancel, cancel, select, confirm } from '@clack/prompts';
 import pc from 'picocolors';
@@ -146,8 +148,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 		// Database Host
 		dbHost = await text({
 			message: 'Enter the MongoDB host:',
-			placeholder: 'localhost',
-			initialValue: privateConfigData.DB_HOST || 'localhost',
+			placeholder: 'mongodb://localhost', // Updated placeholder to include the scheme
+			initialValue: privateConfigData.DB_HOST || 'mongodb://localhost', // Updated initialValue to match the placeholder
 			required: true
 		});
 

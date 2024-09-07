@@ -11,11 +11,12 @@ It provides the following functionality:
 
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { invalidateAll } from '$app/navigation';
+	import { invalidate, invalidateAll } from '$app/navigation';
 
 	// Store
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
+	import { authAdapter } from '@src/databases/db';
 
 	// Types
 	import type { Role, Permission } from '@src/auth/types';
@@ -33,12 +34,16 @@ It provides the following functionality:
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { createRandomID } from '@src/utils/utils';
 
 	const flipDurationMs = 100;
 
+	export let roleData;
+	export let setRoleData;
 	const roles = writable<Role[]>([]);
+	// const roles = writable<Role[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
-	let selectedPermissions = [];
+	let selectedPermissions: string[] = [];
 	const selectedRoles = writable<Set<string>>(new Set());
 	const isLoading = writable(true);
 	const error = writable<string | null>(null);
@@ -68,9 +73,9 @@ It provides the following functionality:
 
 	const loadRoleGroups = async () => {
 		try {
-			const rolesData = $page.data.roles;
-			roles.set(rolesData.map((cur) => ({ ...cur, id: cur._id })));
-			items = rolesData.map((cur) => ({ ...cur, id: cur._id }));
+			// const rolesData = $page.data.roles;
+			roles.set(roleData.map((cur) => ({ ...cur, id: cur._id })));
+			items = roleData.map((cur) => ({ ...cur, id: cur._id }));
 		} catch (err) {
 			error.set(`Failed to load roles: ${err instanceof Error ? err.message : String(err)}`);
 		}
@@ -114,23 +119,13 @@ It provides the following functionality:
 			}
 		};
 		modalStore.trigger(modal);
-		console.log(isEditMode, currentRoleId, roleName, roleDescription, currentGroupName, selectedPermissions, availablePermissions, isModalOpen);
-	};
-
-	const closeModal = () => {
-		isModalOpen = false;
-		roleName = '';
-		roleDescription = '';
-		currentGroupName = '';
-		selectedPermissions = [];
-		modalStore.close();
 	};
 
 	const saveRole = async (role) => {
 		const { roleName, roleDescription, currentGroupName, selectedPermissions, currentRoleId } = role;
 		if (!roleName) return;
 
-		const roleData: Role = {
+		const newRole: Role = {
 			name: roleName,
 			description: roleDescription,
 			groupName: currentGroupName,
@@ -138,89 +133,20 @@ It provides the following functionality:
 		};
 
 		if (!isEditMode) {
-			try {
-				const response = await fetch('/api/role/create', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ roleData: { ...roleData, _id: await createRandomID() }, currentUserId })
-				});
-
-				if (response.status === 200) {
-					showToast('Config file updated successfully', 'success');
-				} else if (response.status === 304) {
-					// Provide a custom message for 304 status
-					showToast('No changes detected, config file not updated', 'info');
-				} else {
-					const responseText = await response.text();
-					showToast(`Error updating config file: ${responseText}`, 'error');
-				}
-				items.push(roleData);
-				roles.set(items);
-				// isLoading.set(true);
-				invalidateAll();
-			} catch (error) {
-				showToast('Network error occurred while updating config file', 'error');
-			}
+			const id = createRandomID();
+			items.push({ ...newRole, _id: id, id });
+			items = [...items];
+			roles.set(items);
+			setRoleData(items);
 		} else {
-			try {
-				const response = await fetch('/api/role/update', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ currentRoleId, roleData, currentUserId })
-				});
-
-				if (response.status === 200) {
-					showToast('Config file updated successfully', 'success');
-				} else if (response.status === 304) {
-					// Provide a custom message for 304 status
-					showToast('No changes detected, config file not updated', 'info');
-				} else {
-					const responseText = await response.text();
-					showToast(`Error updating config file: ${responseText}`, 'error');
-				}
-				const index = items.findIndex((cur) => cur._id === currentRoleId);
-				items.splice(index, 1);
-				roles.set(items);
-				isLoading.set(true);
-				invalidateAll().then(() => {
-					isLoading.set(false);
-				});
-			} catch (error) {
-				showToast(`Network error occurred while updating config file ${error}`, 'error');
-			}
+			const index = items.findIndex((cur) => cur._id === currentRoleId);
+			const item = items[index];
+			items.splice(index, 1, { ...item, ...newRole });
+			items = [...items];
+			roles.set(items);
+			setRoleData(items);
 		}
-	};
-
-	const saveAllRoles = async () => {
-		try {
-			const response = await fetch('/api/permission/update', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({ roles: $roles })
-			});
-
-			if (response.status === 200) {
-				showToast('Config file updated successfully', 'success');
-			} else if (response.status === 304) {
-				// Provide a custom message for 304 status
-				showToast('No changes detected, config file not updated', 'info');
-			} else {
-				const responseText = await response.text();
-				showToast(`Error updating config file: ${responseText}`, 'error');
-			}
-			isLoading.set(true);
-			invalidateAll().then(() => {
-				isLoading.set(false);
-			});
-		} catch (error) {
-			showToast('Network error occurred while updating config file', 'error');
-		}
+		showToast('Role saved successfully', 'success');
 	};
 
 	// Show corresponding Toast messages
@@ -239,37 +165,12 @@ It provides the following functionality:
 	}
 
 	const deleteSelectedRoles = async () => {
-		try {
-			for (const roleId of $selectedRoles) {
-				const response = await fetch('/api/role/delete', {
-					method: 'POST',
-					headers: {
-						'Content-Type': 'application/json'
-					},
-					body: JSON.stringify({ roleId, currentUserId })
-				});
-
-				if (response.status === 200) {
-					showToast('Config file updated successfully', 'success');
-				} else if (response.status === 304) {
-					// Provide a custom message for 304 status
-					showToast('No changes detected, config file not updated', 'info');
-				} else {
-					const responseText = await response.text();
-					showToast(`Error updating config file: ${responseText}`, 'error');
-				}
-				const index = items.findIndex((cur) => cur._id === roleId);
-				items.splice(index, 1);
-				roles.set(items);
-				isLoading.set(true);
-				invalidateAll().then(() => {
-					isLoading.set(false);
-				});
-			}
-			selectedRoles.set(new Set());
-		} catch (err) {
-			showToast('Network error occurred while updating config file', 'error');
+		for (const roleId of $selectedRoles) {
+			const index = items.findIndex((cur) => cur._id === roleId);
+			items.splice(index, 1);
+			roles.set(items);
 		}
+		selectedRoles.set(new Set());
 	};
 
 	const toggleRoleSelection = (roleId: string) => {
@@ -291,7 +192,7 @@ It provides the following functionality:
 	function handleFinalize(e) {
 		items = [...e.detail.items];
 		roles.set(items);
-		saveAllRoles();
+		setRoleData(items);
 	}
 </script>
 
@@ -347,3 +248,14 @@ It provides the following functionality:
 		</div>
 	</div>
 {/if}
+
+<style>
+	.role {
+		height: calc(100vh - 350px);
+	}
+	@media screen and (max-width: 625px) {
+		.role {
+			height: 280px;
+		}
+	}
+</style>

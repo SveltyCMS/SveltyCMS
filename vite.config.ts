@@ -17,8 +17,9 @@
  */
 
 import Path from 'path';
-import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { execSync } from 'child_process';
 
 import { purgeCss } from 'vite-plugin-tailwind-purgecss';
 import { sveltekit } from '@sveltejs/kit/vite';
@@ -37,6 +38,36 @@ const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);
+
+// Check if the config files exist
+const configDir = resolve(__dirname, 'config');
+const privateConfigPath = resolve(configDir, 'private.ts');
+const publicConfigPath = resolve(configDir, 'public.ts');
+
+if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
+	console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
+	// Optionally, you could automatically run the installer:
+	try {
+		execSync('npm run installer', { stdio: 'inherit' });
+		console.log('Installer completed successfully.');
+	} catch (error) {
+		console.error('Error running the installer:', error);
+		process.exit(1);
+	}
+}
+
+// Check if the config files exist
+if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
+	console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
+	// Optionally, you could automatically run the installer:
+	try {
+		execSync('npm run installer', { stdio: 'inherit' });
+		console.log('Installer completed successfully.');
+	} catch (error) {
+		console.error('Error running the installer:', error);
+		process.exit(1);
+	}
+}
 
 // Define paths for collections
 const collectionsFolderJS = '/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/collections/';
@@ -71,7 +102,7 @@ export default defineConfig({
 					console.log('Roles and permissions reloaded from config');
 
 					// Trigger HMR for affected modules
-					// server.ws.send({ type: 'full-reload' });
+					server.ws.send({ type: 'full-reload' });
 				} else if (/src[/\\]collections/.test(file)) {
 					if (/src[/\\]collections/.test(file)) {
 						// Recompile collections and update types
@@ -99,10 +130,7 @@ export default defineConfig({
 		})
 	],
 	server: {
-		fs: { allow: ['static', '.'] },
-		watch: {
-			ignored: /config[/\\](permissions|roles)\.ts$/
-		}
+		fs: { allow: ['static', '.'] }
 	},
 	resolve: {
 		alias: {

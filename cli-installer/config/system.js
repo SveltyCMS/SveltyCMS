@@ -1,11 +1,14 @@
-// @file cli-installer/config/system.js
-// @description Configuration prompts for the System section
+/** 
+@file cli-installer/config/system.js
+@description Configuration prompts for the System section
+*/
 
 import { confirm, text, note, select, isCancel, cancel, multiselect } from '@clack/prompts';
 import pc from 'picocolors';
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import crypto from 'crypto';
+
 function generateRandomJWTSecret(length = 32) {
 	return crypto.randomBytes(length).toString('hex');
 }
@@ -32,14 +35,13 @@ export async function configureSystem(privateConfigData = {}) {
 			`MAX_FILE_SIZE: ${pc.red(privateConfigData.MAX_FILE_SIZE ? privateConfigData.MAX_FILE_SIZE + 'b' : 'Not set')}\n` +
 			`EXTRACT_DATA_PATH:${pc.red(privateConfigData.EXTRACT_DATA_PATH)}\n` +
 			`LOG_LEVELS: ${pc.red(privateConfigData.LOG_LEVELS ? privateConfigData.LOG_LEVELS.join(', ') : 'Not set')}\n` +
-			`SESSION_CLEANUP_INTERVAL: ${pc.green(SESSION_CLEANUP_INTERVAL)}\n` +
-			`MAX_IN_MEMORY_SESSIONS: ${pc.green(MAX_IN_MEMORY_SESSIONS)}\n` +
-			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
-			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}n` +
+			`SESSION_CLEANUP_INTERVAL: ${pc.green(privateConfigData.SESSION_CLEANUP_INTERVAL)}\n` +
+			`MAX_IN_MEMORY_SESSIONS: ${pc.green(privateConfigData.MAX_IN_MEMORY_SESSIONS)}\n` +
+			`DB_VALIDATION_PROBABILITY: ${pc.green(privateConfigData.DB_VALIDATION_PROBABILITY)}\n` +
+			`SESSION_EXPIRATION_SECONDS: ${pc.green(privateConfigData.SESSION_EXPIRATION_SECONDS)}n` +
 			`SEASONS: ${pc.red(privateConfigData.SEASONS ? 'true' : 'false')}\n` +
 			`SEASONS_REGION: ${pc.red(privateConfigData.SEASONS_REGION)}\n` +
 			`JWT_SECRET_KEY: ${pc.red(privateConfigData.JWT_SECRET)}`,
-
 		pc.red('Existing System Configuration:')
 	);
 
@@ -108,14 +110,14 @@ export async function configureSystem(privateConfigData = {}) {
 	}
 
 	let maxFileSizeOutput = 0;
-	if (MAX_FILE_SIZE.endsWith('gb')) {
-		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('gb')[0]) * 1024 * 1024 * 1024;
-	} else if (MAX_FILE_SIZE.endsWith('mb')) {
-		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('mb')[0]) * 1024 * 1024;
-	} else if (MAX_FILE_SIZE.endsWith('kb')) {
-		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('kb')[0]) * 1024;
-	} else if (MAX_FILE_SIZE.endsWith('b')) {
-		maxFileSizeOutput = Number(MAX_FILE_SIZE.split('b')[0]);
+	if (privateConfigData.MAX_FILE_SIZE && privateConfigData.MAX_FILE_SIZE.endsWith('gb')) {
+		maxFileSizeOutput = Number(privateConfigData.MAX_FILE_SIZE.split('gb')[0]) * 1024 * 1024 * 1024;
+	} else if (privateConfigData.MAX_FILE_SIZE && privateConfigData.MAX_FILE_SIZE.endsWith('mb')) {
+		maxFileSizeOutput = Number(privateConfigData.MAX_FILE_SIZE.split('mb')[0]) * 1024 * 1024;
+	} else if (privateConfigData.MAX_FILE_SIZE && privateConfigData.MAX_FILE_SIZE.endsWith('kb')) {
+		maxFileSizeOutput = Number(privateConfigData.MAX_FILE_SIZE.split('kb')[0]) * 1024;
+	} else if (privateConfigData.MAX_FILE_SIZE && privateConfigData.MAX_FILE_SIZE.endsWith('b')) {
+		maxFileSizeOutput = Number(privateConfigData.MAX_FILE_SIZE.split('b')[0]);
 	}
 
 	const MAX_FILE_SIZE = await text({
@@ -187,6 +189,7 @@ export async function configureSystem(privateConfigData = {}) {
 		return;
 	}
 
+	// Prompt for log levels using multiselect
 	const LOG_LEVELS = await multiselect({
 		message: 'Select log levels to be outputted:',
 		options: [
@@ -331,9 +334,7 @@ export async function configureSystem(privateConfigData = {}) {
 			`DB_VALIDATION_PROBABILITY: ${pc.green(DB_VALIDATION_PROBABILITY)}\n` +
 			`SESSION_EXPIRATION_SECONDS: ${pc.green(SESSION_EXPIRATION_SECONDS)}\n` +
 			`JWT_SECRET_KEY: ${pc.green(JWT_SECRET_KEY)}`,
-
 		`SEASONS: ${pc.green(SEASONS)}\n` + `SEASONS_REGION: ${pc.green(SEASONS && SEASONS_REGION ? SEASONS_REGION : 'Not enabled')}`,
-
 		pc.green('Review your System configuration:')
 	);
 

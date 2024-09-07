@@ -19,18 +19,19 @@ export type PermissionId = string;
 
 // Role Interface
 export interface Role {
-	_id: RoleId; // Use _id for a unique identifier
-	name: string; // Display name of the role
-	description?: string; // Optional description
-	isAdmin?: boolean; // Whether the role has admin privileges
-	permissions: PermissionId[]; // Permissions associated with the role
+	_id: string; // Unique identifier for the role
+	name: string; // Name of the role
+	description?: string; // Optional description of the role
+	isAdmin?: boolean; // Indicates if the role has admin privileges
+	permissions: string[]; // Array of permission IDs associated with the role
+	groupName?: string; // Optional group name associated with the role
 }
 
 // Permission Interface
 export interface Permission {
 	_id: string; // Use _id for a unique identifier
 	name: string; // Display name of the permission
-	action: ConfigPermissionAction; // Use the imported alias
+	action: ConfigPermissionAction; // Use the imported PermissionAction enum
 	type: PermissionType; // Type of the permission context, e.g., "system", "collection"
 	contextId?: string; // Identifier for the context in which the permission is used (optional)
 	contextType?: string; // Type of context, e.g., "system", "configuration" (optional)
@@ -38,11 +39,8 @@ export interface Permission {
 	description?: string; // Optional description for the permission
 }
 
-// Constants for Permission Actions and Context Types
-export const permissionActions = ['create', 'read', 'write', 'delete', 'manage_roles', 'manage_permissions'] as const;
+// Constants for Context Types
 export const contextTypes = ['collection', 'widget', 'system'] as const;
-
-export type PermissionAction = (typeof permissionActions)[number];
 export type ContextType = (typeof contextTypes)[number];
 
 // Default roles and permissions loaded from configuration
@@ -78,7 +76,7 @@ export function getRoleByName(roleName: string): Role | undefined {
 }
 
 // Checks if a user has a specific permission in a given context
-export function hasPermission(user: User, action: PermissionAction, type: PermissionType): boolean {
+export function hasPermission(user: User, action: ConfigPermissionAction, type: PermissionType): boolean {
 	const userRole = getRoleByName(user.role);
 	if (!userRole) return false;
 
@@ -190,7 +188,7 @@ export type Cookie = {
 // RateLimit Interface
 export interface RateLimit {
 	user_id: string; // User ID the rate limit applies to
-	action: PermissionAction; // Action being rate-limited
+	action: ConfigPermissionAction; // Action being rate-limited
 	limit: number; // Maximum allowed actions
 	windowMs: number; // Time window in milliseconds
 	current: number; // Current count of actions performed
@@ -275,7 +273,7 @@ export type WidgetId = string; // Unique identifier for a widget
 // RolePermissions Interface
 export interface RolePermissions {
 	[role: string]: {
-		[action in PermissionAction]?: boolean; // Defines actions permitted for each role
+		[action in ConfigPermissionAction]?: boolean; // Defines actions permitted for each role
 	};
 }
 

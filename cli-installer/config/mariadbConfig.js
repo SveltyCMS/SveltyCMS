@@ -1,5 +1,7 @@
-// @file cli-installer/config/media.js
-// @description Configuration prompts for the Media section
+/** 
+@file cli-installer\config\mariadbConfig.js
+@description Configuration prompts for the mariadbConfig section
+*/
 
 import { text, confirm, note, isCancel, cancel, select } from '@clack/prompts';
 import pc from 'picocolors';

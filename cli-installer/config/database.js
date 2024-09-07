@@ -1,6 +1,3 @@
-// @file cli-installer/config/database.js
-// @description Configuration prompts for the Database section
-
 import { Title } from '../cli-installer.js';
 import { configurationPrompt } from '../configuration.js';
 import { configureMongoDB } from './mongodbConfig.js';
@@ -18,13 +15,14 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 			if (host.includes('mongodb.net')) {
 				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
 			} else {
-				// Use mongodb:// for local or Docker
-				connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${database}?retryWrites=true&w=majority`;
+				// Use the provided host directly
+				connectionString =
+					user && password ? `${host}:${port}/${database}?retryWrites=true&w=majority` : `${host}:${port}/${database}?retryWrites=true&w=majority`;
 			}
-
 			console.log('Connecting to MongoDB with connection string:', connectionString);
 
-			await mongoose.default.connect(connectionString, { useNewUrlParser: true, useUnifiedTopology: true });
+			// Connect to MongoDB
+			await mongoose.default.connect(connectionString);
 			await mongoose.default.connection.db.admin().ping();
 			return true;
 		} catch (error) {
@@ -97,6 +95,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			pc.green('Database Option Not Available Yet')
 		);
 		await configurationPrompt(); // Restart the configuration process
+		return;
 	}
 
 	// Advanced Database Settings
@@ -170,8 +169,7 @@ export async function configureDatabase(privateConfigData = {}) {
 			port: dbConfig.DB_PORT,
 			user: dbConfig.DB_USER,
 			password: dbConfig.DB_PASSWORD,
-			database: dbConfig.DB_NAME,
-			connectionString: dbConfig.connectionString
+			database: dbConfig.DB_NAME
 		});
 		s.stop();
 	} catch (error) {
@@ -207,8 +205,8 @@ export async function configureDatabase(privateConfigData = {}) {
 			`DB_HOST: ${pc.green(dbConfig.DB_HOST)}\n` +
 			`DB_PORT: ${pc.green(dbConfig.DB_PORT)}\n` +
 			`DB_NAME: ${pc.green(dbConfig.DB_NAME)}\n` +
-			`DB_USER: ${pc.green(dbConfig.DB_USER)}\n` +
-			`DB_PASSWORD: ${pc.green(dbConfig.DB_PASSWORD)}\n` +
+			(dbConfig.DB_USER ? `DB_USER: ${pc.green(dbConfig.DB_USER)}\n` : '') +
+			(dbConfig.DB_PASSWORD ? `DB_PASSWORD: ${pc.green(dbConfig.DB_PASSWORD)}\n` : '') +
 			`\nAdvanced Configuration:\n` +
 			`DB_RETRY_ATTEMPTS: ${pc.green(privateConfigData.DB_RETRY_ATTEMPTS)}\n` +
 			`DB_RETRY_DELAY: ${pc.green(privateConfigData.DB_RETRY_DELAY)}\n` +

@@ -11,23 +11,30 @@
 	// ParaglideJS imports
 	import * as m from '@src/paraglide/messages';
 
+	// Import PermissionConfig type from the correct file
+	import type { PermissionConfig } from '@src/auth/permissionCheck';
+
+	// Define the structure of dynamicPermissions
+	type DynamicPermissions = Record<string, PermissionConfig>;
+
 	// Get server-side data
 	$: user = $page.data.user; // User information from server
-	$: permissions = $page.data.permissions; // Permission data from server
-	$: dynamicPermissions = $page.data.allPermissions; // Dynamically loaded permissions
+	$: dynamicPermissions = $page.data.permissionConfigs as DynamicPermissions; // Dynamically loaded permissions
 
 	// Create a mapping from contextId to dynamic permissions for easier access
 	$: permissionConfigs = Object.fromEntries(
-		dynamicPermissions.map((permission) => [
-			console.log(permission) || permission._id.split(':')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
+		Object.values(dynamicPermissions).map((permission) => [
+			permission.contextId.split('/')[1], // Extract the contextId from permission id (e.g., 'collectionbuilder' from 'config:collectionbuilder')
 			{
-				contextId: permission._id,
-				requiredRole: permission.name, // Assuming `name` holds the required role. Adjust if necessary.
+				contextId: permission.contextId,
+				name: permission.name, // Ensure the `name` property is included
 				action: permission.action,
-				contextType: permission.type
+				contextType: permission.contextType // Ensure this matches the expected type
 			}
 		])
-	);
+	) as Record<string, PermissionConfig>;
+
+	$: console.log(permissionConfigs);
 </script>
 
 <!-- Page Title -->

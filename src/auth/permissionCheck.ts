@@ -5,13 +5,16 @@
  * Provides a function to check user permissions based on their role and the required permissions for a specific action or resource.
  */
 
-import type { User, PermissionAction, ContextType, Permission } from './types';
+import type { User, ContextType, Permission } from './types';
+import { PermissionAction } from '../../config/permissions';
 import { authAdapter } from '@src/databases/db';
+
+// System Logger
 import logger from '@src/utils/logger';
 
 export interface PermissionConfig {
 	contextId: string;
-	requiredRole: string;
+	name: string;
 	action: PermissionAction;
 	contextType: ContextType | string;
 }
@@ -22,7 +25,7 @@ const rolePermissionCache: Record<string, Permission[]> = {};
 // Function to check user permissions
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		// Automatically grant permissions to admin users
+		// Automatically grant permissions to users with the 'admin' role
 		if (user.role === 'admin') {
 			return { hasPermission: true, isRateLimited: false };
 		}
@@ -44,15 +47,16 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 
 			// Fetch all permissions and filter by the user's role permissions
 			const allPermissions = await authAdapter.getAllPermissions();
-			userPermissions = allPermissions.filter((permission) => userRole.permissions.has(permission.id));
+			userPermissions = allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 
-			rolePermissionCache[user.role] = userPermissions; // Cache the result
+			// Cache the result
+			rolePermissionCache[user.role] = userPermissions;
 		}
 
-		// Check for self-lockout attempt
-		if (config.requiredRole !== 'admin' && user.role === config.requiredRole) {
+		// Prevent self-lockout attempt
+		if (user.role === config.name) {
 			const hasSelfLockout = userPermissions.every(
-				(permission) => permission.id !== config.contextId || permission.action !== config.action || permission.type !== config.contextType
+				(permission) => permission._id !== config.contextId || permission.action !== config.action || permission.type !== config.contextType
 			);
 
 			if (hasSelfLockout) {
@@ -64,7 +68,7 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 		// Check if the user has the required permission
 		const hasPermission = userPermissions.some(
 			(permission) =>
-				permission.id === config.contextId &&
+				permission._id === config.contextId &&
 				permission.action === config.action &&
 				(permission.type === config.contextType || permission.type === 'system')
 		);

@@ -27,14 +27,6 @@ import type { PageServerLoad } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User, Role } from '@src/auth/types';
-import { registerPermissions, PermissionAction, PermissionType } from '@root/config/permissions';
-
-// Dynamically register permissions for user management
-const userManagementPermissions = [
-	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
-];
-
-registerPermissions(userManagementPermissions); // Register dynamic permissions
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
@@ -120,10 +112,10 @@ export const load: PageServerLoad = async (event) => {
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
-				...user,
-				_id: user._id.toString(),
-				password: '[REDACTED]' // Ensure password is not sent to client
-			}
+					...user,
+					_id: user._id.toString(),
+					password: '[REDACTED]' // Ensure password is not sent to client
+				}
 			: null;
 
 		// Format users and tokens for the admin area
@@ -170,9 +162,9 @@ export const load: PageServerLoad = async (event) => {
 			adminData:
 				user?.role === 'admin' || hasManageUsersPermission
 					? {
-						users: formattedUsers,
-						tokens: formattedTokens
-					}
+							users: formattedUsers,
+							tokens: formattedTokens
+						}
 					: null
 		};
 	} catch (err) {
