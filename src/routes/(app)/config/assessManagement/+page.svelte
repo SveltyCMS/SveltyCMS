@@ -49,6 +49,7 @@ It provides an interface for users to:
 	};
 
 	const saveAllRoles = async () => {
+		isLoading.set(true);
 		try {
 			const response = await fetch('/api/permission/update', {
 				method: 'POST',
@@ -69,9 +70,10 @@ It provides an interface for users to:
 				const responseText = await response.text();
 				showToast(`Error updating config file: ${responseText}`, 'error');
 			}
-			isLoading.set(true);
 		} catch (error) {
 			showToast('Network error occurred while updating config file', 'error');
+		} finally {
+			isLoading.set(false); // Ensure that loading is stopped regardless of success or error
 		}
 	};
 
@@ -100,22 +102,37 @@ It provides an interface for users to:
 <div class="my-2 flex items-center justify-between gap-2">
 	<PageTitle name="Access Management" icon="mdi:account-key" />
 
-	<div class="justify-right flex gap-2">
+	<div class="justify-right flex hidden items-center md:block">
 		<!-- Save with changes -->
 		<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
 			Save ({$modifiedCount})
 		</button>
+
 		<!-- Reset -->
 		<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
+
 		<!-- Back -->
 		<button on:click={() => history.back()} aria-label="Go back" class="variant-outline-primary btn-icon">
 			<iconify-icon icon="ri:arrow-left-line" width="20" />
 		</button>
 	</div>
+	<!-- Back -->
+	<button on:click={() => history.back()} aria-label="Go back" class="variant-outline-primary btn-icon md:hidden">
+		<iconify-icon icon="ri:arrow-left-line" width="20" />
+	</button>
+</div>
+
+<div class="flex justify-center gap-2 md:hidden">
+	<!-- Save with changes -->
+	<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
+		Save ({$modifiedCount})
+	</button>
+	<!-- Reset -->
+	<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
 </div>
 
 <div class="mb-6 text-center sm:text-left">
-	<p class=" text-center text-tertiary-500 dark:text-primary-500">
+	<p class="text-center text-tertiary-500 dark:text-primary-500">
 		Here you can create and manage user roles and permissions. Each role defines a set of permissions that determine what actions users with that role
 		can perform in the system.
 	</p>
@@ -147,16 +164,16 @@ It provides an interface for users to:
 			<Tab bind:group={$tabSet} name="admin" value={2}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:account-cog" width="28" class="text-black dark:text-white" />
-					<span class={$tabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin Role</span>
+					<span class={$tabSet === 2 ? 'text-secondary-500 dark:text-tertiary-500' : ''}>Admin</span>
 				</div>
 			</Tab>
 
 			<!-- Tab Panels -->
 			<svelte:fragment slot="panel">
 				{#if $tabSet === 0}
-					<Permissions roleData={roles} {setRoleData} />
+					<Permissions roleData={roles} {setRoleData} {updateModifiedCount} />
 				{:else if $tabSet === 1}
-					<Roles roleData={roles} {setRoleData} />
+					<Roles roleData={roles} {setRoleData} {updateModifiedCount} />
 				{:else}
 					<AdminRole roleData={roles} {setRoleData} />
 				{/if}
@@ -164,19 +181,3 @@ It provides an interface for users to:
 		</TabGroup>
 	</div>
 {/if}
-
-<style lang="postcss">
-	/* Ensure full height utilization with responsiveness */
-	.flex-grow {
-		flex: 1 1 auto;
-	}
-	.h-full {
-		height: 100%;
-	}
-	.overflow-auto {
-		overflow: auto;
-	}
-	.p-4 {
-		padding: 1rem;
-	}
-</style>

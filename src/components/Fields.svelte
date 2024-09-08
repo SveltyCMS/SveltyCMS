@@ -150,7 +150,7 @@ Key features:
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
 				<div class="wrapper">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
-						{#each filteredFields as field (field.db_fieldName)}
+						{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 							{#if field.widget}
 								<div
 									class="mx-auto text-center {!field?.width ? 'w-full ' : 'max-md:!w-full'}"

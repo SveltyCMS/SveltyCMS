@@ -1,6 +1,7 @@
 <!--
 @file src/routes/(app)/config/assessManagement/Permissions.svelte
 @description This component manages permissions in the access management system. It provides functionality to:
+
 - Display existing permissions
 - Search and filter permissions
 - Modify permission settings, including role assignments
@@ -130,7 +131,7 @@
 {:else}
 	<h3 class="mb-2 text-center text-xl font-bold">Permission Management:</h3>
 	<p class="mb-4 justify-center text-center text-sm text-gray-500 dark:text-gray-400">
-		Manage permissions and assign roles to users. You can create, edit, or delete permissions and assign roles to them.
+		Select the roles for each permission and click 'Save' to apply your changes.
 	</p>
 	<div class="wrapper">
 		<div class="sticky top-0 z-10 mb-4 flex items-center justify-between">
@@ -213,10 +214,5 @@
 <style lang="postcss">
 	.permission {
 		height: calc(100vh - 400px);
-	}
-	@media screen and (max-width: 625px) {
-		.permission {
-			height: 250px;
-		}
 	}
 </style>

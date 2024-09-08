@@ -1,6 +1,7 @@
 <!-- 
  @file src/components/TranslationStatus.svelte 
- @description Translation status component. -->
+ @description Translation status component. 
+ -->
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
@@ -15,6 +16,11 @@
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
 
+	let isOpen = false;
+	let translations = {};
+	let completionStatus = 0;
+
+	// Handles the language change
 	function handleChange(event) {
 		const selectedLanguage = event.target.value.toLowerCase();
 		contentLanguage.set(selectedLanguage);
@@ -27,8 +33,7 @@
 		translationStatusOpen.set(true);
 	}
 
-	let isOpen = false;
-
+	// Function to toggle the dropdown
 	function toggleDropdown() {
 		isOpen = !isOpen;
 	}
@@ -44,16 +49,7 @@
 		}
 	}
 
-	mode.subscribe(() => {
-		if ($mode != 'view') $translationProgress = { show: true };
-		else {
-			$translationProgress = { show: false };
-		}
-	});
-
-	let translations = {};
-	let completionStatus = 0;
-
+	// Function to determine the color based on the value
 	async function checkTranslations() {
 		translations = {};
 
@@ -61,51 +57,55 @@
 		let totalEntries = 0;
 
 		for (const key in $collectionValue) {
-			const data = await $collectionValue[key]();
-			// Check if data is not null and contains the language key
+			const data = $collectionValue[key]; // Access data directly, assuming it's not a function
+
 			if (data && typeof data === 'object') {
 				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-					const field = $collection.fields.find((x) => getFieldName(x) == key);
+					const field = $collection.fields.find((x) => getFieldName(x) === key);
 					if (!field || ('translated' in field && !field.translated)) continue;
 					if (!translations[lang]) translations[lang] = { total: 0, translated: 0 };
+
 					// Check if the language key exists in data
-					if (data[lang] === undefined) {
+					if (data[lang] === undefined || data[lang] === null) {
 						translations[lang].total++;
 					} else {
 						translations[lang].translated++;
 						translations[lang].total++;
 					}
-					totalTranslated += translations[lang].translated;
-					totalEntries += translations[lang].total;
 				}
+			}
+		}
+
+		// Calculate the overall completion status
+		for (const lang in translations) {
+			const langData = translations[lang];
+			totalTranslated += langData.translated;
+			totalEntries += langData.total;
+			if (langData.total > 0) {
+				langData.completion = Math.round((langData.translated / langData.total) * 100);
+			} else {
+				langData.completion = 0;
 			}
 		}
 
 		if (totalEntries > 0) {
 			completionStatus = Math.round((totalTranslated / totalEntries) * 100);
 		} else {
-			completionStatus = 0; // Handle division by zero if no entries are found
+			completionStatus = 0;
 		}
 	}
+
 	$: {
 		checkTranslations();
-		$translationProgress;
-		$collectionValue;
 	}
 
-	// Reactive statement to calculate the completion percentage for each language
-	$: {
-		for (const lang in translations) {
-			if (translations[lang].total > 0) {
-				translations[lang].completion = Math.round((translations[lang].translated / translations[lang].total) * 100);
-			} else {
-				translations[lang].completion = 0;
-			}
+	mode.subscribe(() => {
+		if ($mode !== 'view') {
+			$translationProgress = { show: true };
+		} else {
+			$translationProgress = { show: false };
 		}
-	}
-
-	// $: console.log(translations);
-	// $: console.log(`Overall completion status: ${completionStatus}%`);
+	});
 </script>
 
 {#if $mode == 'edit' && $collection}

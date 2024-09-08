@@ -16,7 +16,7 @@ It provides the following functionality:
 	import { writable } from 'svelte/store';
 	import { page } from '$app/stores';
 
-	// Types
+	// Auth
 	import type { Role, Permission } from '@src/auth/types';
 
 	// Components
@@ -29,10 +29,10 @@ It provides the following functionality:
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Popup Tooltips setup for each role's description
+	// Define the getTooltipSettings function here
 	const getTooltipSettings = (description: string): PopupSettings => ({
 		event: 'hover',
-		content: description, // Set the tooltip content to the role's description
+		content: description,
 		placement: 'right',
 		trigger: 'hover focus'
 	});
@@ -46,8 +46,9 @@ It provides the following functionality:
 
 	export let roleData;
 	export let setRoleData;
+	export let updateModifiedCount;
+
 	const roles = writable<Role[]>([]);
-	// const roles = writable<Role[]>([]);
 	const availablePermissions = writable<Permission[]>([]);
 	let selectedPermissions: string[] = [];
 	const selectedRoles = writable<Set<string>>(new Set());
@@ -58,9 +59,9 @@ It provides the following functionality:
 	let isModalOpen = false;
 	let isEditMode = false;
 	let roleName: string = '';
-	let roleDescription: string = ''; // Ensure it's always a string
+	let roleDescription: string = '';
 	let currentRoleId: string | null = null;
-	let currentGroupName: string = ''; // Ensure it's always a string
+	let currentGroupName: string = '';
 
 	let items: any;
 
@@ -78,7 +79,6 @@ It provides the following functionality:
 
 	const loadRoleGroups = async () => {
 		try {
-			// const rolesData = $page.data.roles;
 			roles.set(roleData.map((cur) => ({ ...cur, id: cur._id })));
 			items = roleData.map((cur) => ({ ...cur, id: cur._id }));
 		} catch (err) {
@@ -98,9 +98,9 @@ It provides the following functionality:
 		isEditMode = !!role;
 		currentRoleId = role ? role._id : null;
 		roleName = role ? role.name : '';
-		roleDescription = role ? role.description || '' : ''; // Provide a default empty string
-		currentGroupName = groupName || ''; // Ensure groupName is a string
-		selectedPermissions = role?.permissions || []; // Ensure it's a Set
+		roleDescription = role ? role.description || '' : '';
+		currentGroupName = groupName || '';
+		selectedPermissions = role?.permissions || [];
 		isModalOpen = true;
 		const modalComponent: ModalComponent = {
 			ref: RoleModal,
@@ -131,6 +131,7 @@ It provides the following functionality:
 		if (!roleName) return;
 
 		const newRole: Role = {
+			_id: currentRoleId ?? createRandomID(), // Ensure _id is provided
 			name: roleName,
 			description: roleDescription,
 			groupName: currentGroupName,
@@ -151,6 +152,12 @@ It provides the following functionality:
 			roles.set(items);
 			setRoleData(items);
 		}
+
+		// Notify the parent about the number of changes
+		if (updateModifiedCount) {
+			updateModifiedCount(items.length);
+		}
+
 		showToast('Role saved successfully', 'success');
 	};
 
@@ -176,6 +183,11 @@ It provides the following functionality:
 			roles.set(items);
 		}
 		selectedRoles.set(new Set());
+
+		// Notify the parent about the number of changes
+		if (updateModifiedCount) {
+			updateModifiedCount(items.length);
+		}
 	};
 
 	const toggleRoleSelection = (roleId: string) => {
@@ -192,12 +204,22 @@ It provides the following functionality:
 	function handleSort(e) {
 		items = [...e.detail.items];
 		roles.set(items);
+
+		// Notify the parent about the number of changes
+		if (updateModifiedCount) {
+			updateModifiedCount(items.length);
+		}
 	}
 
 	function handleFinalize(e) {
 		items = [...e.detail.items];
 		roles.set(items);
 		setRoleData(items);
+
+		// Notify the parent about the number of changes
+		if (updateModifiedCount) {
+			updateModifiedCount(items.length);
+		}
 	}
 </script>
 
@@ -278,10 +300,5 @@ It provides the following functionality:
 <style lang="postcss">
 	.role {
 		height: calc(100vh - 350px);
-	}
-	@media screen and (max-width: 625px) {
-		.role {
-			height: 280px;
-		}
 	}
 </style>
