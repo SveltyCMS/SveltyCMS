@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/colorPicker/index.ts
+@description - colorPicker index file.
+*/
+
 const WIDGET_NAME = 'ColorPicker' as const;
 
 import { publicEnv } from '@root/config/public';

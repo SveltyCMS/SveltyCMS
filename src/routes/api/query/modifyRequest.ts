@@ -73,6 +73,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 
 						logger.debug(`Modifying entry with ID: ${entry._id}, field: ${fieldName}`);
 
+						// Perform the widget-specific modification
 						await widget.modifyRequest({
 							collection,
 							field,
@@ -93,7 +94,7 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 		return data; // Return the modified data
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error('Error in modifyRequest:', { error: errorMessage });
+		logger.error(`Error in modifyRequest: ${errorMessage}`);
 		throw new Error(`ModifyRequest failed: ${errorMessage}`);
 	}
 }

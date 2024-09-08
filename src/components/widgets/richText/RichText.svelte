@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/richText/RichText.svelte
+@description - RichText TipTap widget
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { onMount, onDestroy, tick } from 'svelte';

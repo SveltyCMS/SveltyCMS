@@ -38,6 +38,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 	try {
 		logger.debug(`PATCH request received for schema: ${schema.name}, user_id: ${user._id}`);
 
+		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
@@ -69,6 +70,8 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 					return value;
 				});
 			} catch (e) {
+				const error = e as Error;
+				logger.error(`Error parsing form data for key: ${key}`, error);
 				body[key] = data.get(key) as string;
 			}
 		}

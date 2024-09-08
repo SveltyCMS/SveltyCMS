@@ -44,7 +44,6 @@ export async function load({ cookies }) {
 		throw error(500, 'Internal Server Error');
 	}
 
-	// Get session cookie value
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
 
 	if (!session_id) {
@@ -56,18 +55,11 @@ export async function load({ cookies }) {
 		// Validate user using auth and session value
 		const user = await auth.validateSession({ session_id });
 
-		// If user status is 200, return user object
 		if (!user) {
 			logger.error('User not authenticated, redirecting to login.');
 			throw redirect(302, '/login');
 		}
 
-		if (user.role !== 'admin' && user.role !== 'editor' && user.role !== 'editor2') {
-			logger.error('User does not have sufficient permissions.');
-			throw error(403, "You don't have access to this page");
-		}
-
-		// Ensure the user._id is converted to a string
 		const { _id, ...rest } = user;
 		const userSerializable = { id: _id.toString(), ...rest };
 
@@ -96,25 +88,32 @@ export const actions: Actions = {
 		const imports = await goThrough(fields, fieldsData);
 
 		// Generate fields as formatted string
-		let content = `${imports}
-            import widgets from '@components/widgets';
-            import type { Schema } from './types';
-            const schema: Schema = {
-				// Collection Name coming from filename so not needed
+		let content = `
+		/**
+		 * @file src/collections/${collectionName}.ts
+		 * @description Collection file for ${collectionName}
+		 */
 
-				// Optional & Icon, status, slug
-				// See for possible Icons https://icon-sets.iconify.design/
-                icon: '${collectionIcon}',
-                status: '${collectionStatus}',
-                description: '${collectionDescription}',
-                slug: '${collectionSlug}',
-               
-                // Defined Fields that are used in your Collection
-				// Widget fields can be inspected for individual options
-				fields: ${JSON.stringify(fields)}
-            };
-            export default schema;`;
+		${imports}
+		import widgets from '@components/widgets';
+		import type { Schema } from '@src/collections/types';
+		const schema: Schema = {
+			// Collection Name coming from filename so not needed
 
+			// Optional & Icon, status, slug
+			// See for possible Icons https://icon-sets.iconify.design/
+			icon: '${collectionIcon}',
+			status: '${collectionStatus}',
+			description: '${collectionDescription}',
+			slug: '${collectionSlug}',
+
+			// Defined Fields that are used in your Collection
+			// Widget fields can be inspected for individual options
+			fields: ${JSON.stringify(fields)}
+		};
+		export default schema;`;
+
+		// Clean up the content string
 		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');
 		content = content.replace(/["']🗑️|🗑️["']/g, '').replace(/🗑️/g, '');
 		content = await prettier.format(content, { ...(prettierConfig as any), parser: 'typescript' });
@@ -133,6 +132,7 @@ export const actions: Actions = {
 		}
 	},
 
+	// Save config
 	saveConfig: async ({ request }) => {
 		const formData = await request.formData();
 		const categories = formData.get('categories') as string;
@@ -149,6 +149,7 @@ export const actions: Actions = {
 		await getCollectionModels();
 	},
 
+	// Delete collection
 	deleteCollections: async ({ request }) => {
 		const formData = await request.formData();
 		const collectionName = JSON.parse(formData.get('collectionName') as string);

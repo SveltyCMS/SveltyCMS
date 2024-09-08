@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/address/types.ts
+@description - address widget types
+*/
+
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';

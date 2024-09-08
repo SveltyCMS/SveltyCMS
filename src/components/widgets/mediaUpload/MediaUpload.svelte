@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/mediaUpload/MediaUpload.svelte
+@description - MediaUpload widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { convertTimestampToDateString, getFieldName, meta_data } from '@src/utils/utils';

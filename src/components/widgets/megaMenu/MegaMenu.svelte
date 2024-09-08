@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/megaMenu/MegaMenu.svelte
+@description - MegaMenu widget
+-->
+
 <script lang="ts">
 	// Stores
 	import { entryData, mode, saveFunction, translationProgress, shouldShowNextButton } from '@stores/store';

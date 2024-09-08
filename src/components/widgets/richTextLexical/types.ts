@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/richTextLexical/types.ts
+@description - Richtext Lexical widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

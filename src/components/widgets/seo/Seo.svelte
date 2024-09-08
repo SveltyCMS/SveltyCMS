@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/seo/Seo.svelte
+@description - Seo widget
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { fade } from 'svelte/transition';

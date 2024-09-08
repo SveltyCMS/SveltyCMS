@@ -1,3 +1,8 @@
+/**
+ * @file config/roles.ts
+ * @description  Role configuration file
+ */
+
 import type { Role } from '../src/auth/types';
 import { permissions } from './permissions'; // Import the permissions list
 

@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/imageArray/ImageArray.svelte
+@description - ImageArray widget
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { saveFormData, getFieldName } from '@src/utils/utils';

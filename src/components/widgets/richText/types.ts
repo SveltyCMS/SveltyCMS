@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/richText/types.ts
+@description - Richtext TipTap widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 import { toStringHelper } from '@src/utils/utils';

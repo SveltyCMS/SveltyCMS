@@ -22,23 +22,35 @@
 	// Define the search term variable
 	let searchTerm: string = '';
 
-	// get all the widgets
-	type WidgetType = keyof typeof widgets | null;
+	// Define the widget type
+	type WidgetType = keyof typeof widgets;
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as WidgetType[];
 
 	// Define the selected widget variable
-	let selected: WidgetType = null;
+	let selected: WidgetType | null = null;
+
+	// Debugging: Log the initial widget keys and search term
+	console.log('Initial widget keys:', widget_keys);
+	console.log('Search term:', searchTerm);
 
 	// We've created a custom submit function to pass the response and close the modal.
 	function onFormSubmit(): void {
-		if ($modalStore[0].response) {
-			// Set the selected widget in the form data and update the modalStore
-			$modalStore[0].response({ selectedWidget: selected });
+		if (selected !== null) {
+			console.log('Submitting form...');
+			console.log('Selected widget:', selected);
+			console.log('GuiSchema for selected widget:', widgets[selected]?.GuiSchema);
+
+			if ($modalStore[0].response) {
+				// Set the selected widget in the form data and update the modalStore
+				$modalStore[0].response({ selectedWidget: selected });
+			}
+			// close the modal
+			modalStore.close();
+		} else {
+			console.error('No widget selected');
 		}
-		// close the modal
-		modalStore.close();
 	}
 
 	// Base Classes
@@ -68,13 +80,14 @@
 
 			<div class="grid grid-cols-1 items-center justify-center gap-2 sm:grid-cols-2 md:grid-cols-3 md:gap-3">
 				{#each widget_keys.filter((item) => item !== null) as item}
-					{#if item}
+					{#if item && widgets[item]?.GuiSchema}
 						{#if item.toLowerCase().includes(searchTerm.toLowerCase())}
 							<button
 								class="variant-outline-warning btn relative flex items-center justify-start gap-1 {selected === item
 									? 'bg-primary-500'
 									: ' variant-outline-warning hover:variant-ghost-warning'}"
 								on:click={() => {
+									console.log('Widget selected:', item);
 									selected = item;
 									onFormSubmit();
 								}}

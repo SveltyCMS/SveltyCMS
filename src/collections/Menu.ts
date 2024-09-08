@@ -1,5 +1,9 @@
+/**
+ * @file src/collections/Menu.ts
+ * @description Collection file for Menu
+ */
 import widgets from '@components/widgets';
-import type { Schema } from './types';
+import type { Schema } from '@src/collections/types';
 
 const schema: Schema = {
 	// Collection Name comming from filename

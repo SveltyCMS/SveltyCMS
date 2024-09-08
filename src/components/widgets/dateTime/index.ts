@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/dateTime/index.ts
+@description - dateTime index file.
+*/
+
 const WIDGET_NAME = 'DateTime' as const;
 
 import { publicEnv } from '@root/config/public';

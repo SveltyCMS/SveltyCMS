@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/phoneNumber/PhoneNumber.svelte
+@description - PhoneNumber widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

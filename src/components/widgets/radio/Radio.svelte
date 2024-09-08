@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/radio/Radio.svelte
+@description - Radio widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

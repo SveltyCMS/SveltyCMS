@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/checkbox/Checkbox.svelte
+@description - Checkbox widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

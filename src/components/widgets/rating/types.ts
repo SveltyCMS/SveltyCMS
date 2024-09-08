@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/rating/types.ts
+@description - rating widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/richText/index.ts
+@description - richText TipTap index file.
+*/
+
 const WIDGET_NAME = 'RichText' as const;
 
 import { publicEnv } from '@root/config/public';

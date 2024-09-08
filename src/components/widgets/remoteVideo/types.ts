@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/remoteVideo/types.ts
+@description - RemoteVideo widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

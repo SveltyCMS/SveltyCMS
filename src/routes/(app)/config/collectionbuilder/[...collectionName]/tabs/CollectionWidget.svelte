@@ -105,6 +105,8 @@
 			body: 'Select your widget and then press submit.',
 			value: selected, // Pass the selected widget as the initial value
 			response: (r: any) => {
+				console.log('Modal response:', r); // Debugging line
+
 				if (!r) return;
 				const { selectedWidget } = r;
 				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
@@ -116,24 +118,28 @@
 
 	// Function to save data by sending a POST request
 	async function handleCollectionSave() {
-		fields = fields.map((field) => {
-			const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
-			for (const [property, value] of Object.entries(field)) {
-				if (typeof value !== 'object' && property !== 'id') {
-					GuiFields[property] = field[property];
+		try {
+			fields = fields.map((field) => {
+				const GuiFields = getGuiFields({ key: field.widget.Name }, widgets[field.widget.Name].GuiSchema);
+				for (const [property, value] of Object.entries(field)) {
+					if (typeof value !== 'object' && property !== 'id') {
+						GuiFields[property] = field[property];
+					}
 				}
-			}
-			field.widget.GuiFields = GuiFields;
-			return field;
-		});
+				field.widget.GuiFields = GuiFields;
+				return field;
+			});
 
-		// Update the collection fields
-		collectionValue.update((c) => {
-			c.fields = fields;
-			return c;
-		});
+			// Update the collection fields
+			collectionValue.update((c) => {
+				c.fields = fields;
+				return c;
+			});
 
-		dispatch('save');
+			dispatch('save');
+		} catch (error) {
+			console.error('Error saving collection:', error);
+		}
 	}
 
 	$: {

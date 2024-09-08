@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/fileUpload/FileUpload.svelte
+@description - FileUpload widget
+-->
+
 <script lang="ts">
 	import axios from 'axios';
 	import type { FieldType } from '.';

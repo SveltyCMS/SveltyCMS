@@ -29,6 +29,7 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 	try {
 		logger.debug(`SETSTATUS request received for schema: ${schema.name}`);
 
+		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
@@ -62,7 +63,7 @@ export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Sch
 		logger.debug(`Updating status to '${status}' for ${ids.length} documents`);
 
 		// Update the status of the documents with the specified IDs
-		const result = await dbAdapter.updateMany(schema.name, { _id: { $in: ids } }, { $set: { status } });
+		const result = await collection.updateMany({ _id: { $in: ids } }, { $set: { status } });
 		logger.info(`Status updated for ${result.modifiedCount} documents in ${schema.name}`);
 
 		return new Response(JSON.stringify(result), {

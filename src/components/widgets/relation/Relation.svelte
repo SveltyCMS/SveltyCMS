@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/relation/Relation.svelte
+@description - Relation widget
+-->
+
 <script lang="ts">
 	// Stores
 	import { entryData, mode, contentLanguage, collection, collections, saveFunction } from '@stores/store';

@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/megaMenu/index.ts
+@description - megaMenu index file.
+*/
+
 const WIDGET_NAME = 'MegaMenu' as const;
 import Text from '../text';
 

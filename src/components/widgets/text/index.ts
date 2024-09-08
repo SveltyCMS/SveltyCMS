@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/text/index.ts
+@description - text index file.
+*/
+
 const WIDGET_NAME = 'Text' as const;
 
 import { publicEnv } from '@root/config/public';

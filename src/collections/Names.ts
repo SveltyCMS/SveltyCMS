@@ -4,7 +4,7 @@
  */
 
 import widgets from '@components/widgets';
-import type { Schema } from './types';
+import type { Schema } from '@src/collections/types';
 
 const schema: Schema = {
 	// Collection Name coming from filename so not needed
@@ -15,7 +15,6 @@ const schema: Schema = {
 	status: 'unpublished',
 	revision: true,
 	livePreview: true,
-
 
 	// Defined Fields that are used in your Collection
 	// Widget fields can be inspected for individual options

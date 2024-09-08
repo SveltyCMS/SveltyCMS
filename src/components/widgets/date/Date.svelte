@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/date/Date.svelte
+@description - Date widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

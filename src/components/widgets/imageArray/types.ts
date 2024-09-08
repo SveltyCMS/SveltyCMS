@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/imageArray/types.ts
+@description - imageArray widget types
+*/
+
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';

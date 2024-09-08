@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/fileUpload/index.ts
+@description - fileUpload index file.
+*/
+
 import { getFieldName, getGuiFields, get_elements_by_id } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { ModifyRequestParams } from '..';

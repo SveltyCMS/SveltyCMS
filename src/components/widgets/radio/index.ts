@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/radio/index.ts
+@description - radio index file.
+*/
+
 const WIDGET_NAME = 'Radio' as const;
 
 import { publicEnv } from '@root/config/public';

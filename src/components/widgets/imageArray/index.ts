@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/imageArray/index.ts
+@description - imageArray index file.
+*/
+
 const WIDGET_NAME = 'ImageArray' as const;
 
 import ImageUpload from '../imageUpload';

@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/remoteVideo/RemoteVideo.svelte
+@description - RemoteVideo widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { getFieldName } from '@utils/utils';

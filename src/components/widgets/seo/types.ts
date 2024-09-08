@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/seo/types.ts
+@description - Seo widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

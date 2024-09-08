@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/checkbox/index.ts
+@description - checkbox index file.
+*/
+
 const WIDGET_NAME = 'Checkbox' as const;
 
 import { publicEnv } from '@root/config/public';

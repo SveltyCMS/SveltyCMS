@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/currency/index.ts
+@description - currency index file.
+*/
+
 const WIDGET_NAME = 'Currency' as const;
 
 import { publicEnv } from '@root/config/public';

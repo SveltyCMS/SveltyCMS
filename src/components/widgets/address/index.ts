@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/address/index.ts
+@description - Address index file.
+*/
+
 const WIDGET_NAME = 'Address' as const;
 
 import { publicEnv } from '@root/config/public';

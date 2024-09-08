@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/number/types.ts
+@description - number widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

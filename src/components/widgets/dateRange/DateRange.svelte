@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/dateRange/DateRange.svelte
+@description - DateRange widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

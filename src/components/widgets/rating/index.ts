@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/rating/index.ts
+@description - rating index file.
+*/
+
 const WIDGET_NAME = 'Rating' as const;
 
 import { publicEnv } from '@root/config/public';

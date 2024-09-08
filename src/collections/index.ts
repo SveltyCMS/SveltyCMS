@@ -1,3 +1,8 @@
+/** 
+@file src/collections/index.ts
+@description - Index file for collections.
+*/
+
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
 import { createCategories } from './config';

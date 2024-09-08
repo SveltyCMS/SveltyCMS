@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/checkbox/types.ts
+@description - checkbox widget types
+*/
+
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';

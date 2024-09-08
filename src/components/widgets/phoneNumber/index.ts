@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/phoneNumber/index.ts
+@description - phoneNumber index file.
+*/
+
 const WIDGET_NAME = 'PhoneNumber' as const;
 
 import { publicEnv } from '@root/config/public';

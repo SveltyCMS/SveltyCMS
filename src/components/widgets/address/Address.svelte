@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/address/Address.svelte
+@description - Address widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { privateEnv } from '@root/config/private';

@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/email/Email.svelte
+@description - Email widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

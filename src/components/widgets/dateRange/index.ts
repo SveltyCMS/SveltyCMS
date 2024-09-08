@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/dateRange/index.ts
+@description - dateRange index file.
+*/
+
 const WIDGET_NAME = 'DateRange' as const;
 
 import { publicEnv } from '@root/config/public';

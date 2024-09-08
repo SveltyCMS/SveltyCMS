@@ -231,6 +231,11 @@ export class MongoDBAdapter implements dbInterface {
 		return new mongoose.Types.ObjectId().toString();
 	}
 
+	// Convert a string ID to a MongoDB ObjectId
+	convertId(id: string): mongoose.Types.ObjectId {
+		return new mongoose.Types.ObjectId(id);
+	}
+
 	// Get collection models
 	async getCollectionModels(): Promise<any> {
 		logger.debug('getCollectionModels called');

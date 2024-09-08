@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/text/types.ts
+@description - Text widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 import { toStringHelper } from '@src/utils/utils';
 

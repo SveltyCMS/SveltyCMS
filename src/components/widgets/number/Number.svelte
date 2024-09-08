@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/number/Number.svelte
+@description - Number widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

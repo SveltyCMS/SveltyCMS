@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/email/index.ts
+@description - email index file.
+*/
+
 const WIDGET_NAME = 'Email' as const;
 
 import { publicEnv } from '@root/config/public';

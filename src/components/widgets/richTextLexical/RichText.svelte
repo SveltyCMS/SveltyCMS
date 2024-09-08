@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/richTextLexical/RichText.svelte
+@description - RichText Lexical widget
+-->
+
 <script lang="ts">
 	import type { Rich_Text } from './types';
 

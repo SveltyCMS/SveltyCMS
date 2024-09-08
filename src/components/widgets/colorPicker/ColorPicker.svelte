@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/colorPicker/ColorPicker.svelte
+@description - ColorPicker widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { getFieldName } from '@utils/utils';

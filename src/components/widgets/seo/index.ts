@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/seo/index.ts
+@description - seo index file.
+*/
+
 const WIDGET_NAME = 'Seo' as const;
 
 import { publicEnv } from '@root/config/public';

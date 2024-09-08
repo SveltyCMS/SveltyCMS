@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/richTextLexical/index.ts
+@description - richText Lexical index file.
+*/
+
 const WIDGET_NAME = 'RichText' as const;
 
 import { publicEnv } from '@root/config/public';

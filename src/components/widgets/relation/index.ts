@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/relation/index.ts
+@description - relation index file.
+*/
+
 const WIDGET_NAME = 'Relation' as const;
 
 import { getFieldName, getGuiFields } from '@src/utils/utils';

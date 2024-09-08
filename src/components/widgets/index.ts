@@ -1,7 +1,12 @@
+/**
+@file src/components/widgets/index.ts
+@description - Widgets index file.
+*/
+
 import type { Model, User, WidgetId } from '@src/auth/types';
 // import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
 
-// // System logger
+// System logger
 // import logger from '@src/utils/logger';
 
 // Widgets

@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/imageUpload/types.ts
+@description - imageUpload widget types
+*/
+
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
 import Input from '@src/components/system/inputs/Input.svelte';

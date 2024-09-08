@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/mediaUpload/index.ts
+@description - mediaUpload index file.
+*/
+
 const WIDGET_NAME = 'MediaUpload' as const; // Defines MediaUpload widget Parameters
 
 // import type { MediaFile } from '@src/utils/types';

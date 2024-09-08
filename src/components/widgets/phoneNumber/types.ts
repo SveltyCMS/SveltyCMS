@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/phoneNumber/types.ts
+@description - phoneNumber widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

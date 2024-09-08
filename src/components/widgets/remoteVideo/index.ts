@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/remoteVideo/index.ts
+@description - remoteVideo index file.
+*/
+
 const WIDGET_NAME = 'RemoteVideo' as const;
 
 import { publicEnv } from '@root/config/public';

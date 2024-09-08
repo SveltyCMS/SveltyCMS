@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/currency/Currency.svelte
+@description - Currency widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';

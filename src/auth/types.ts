@@ -80,7 +80,10 @@ export function hasPermission(user: User, action: ConfigPermissionAction, type: 
 	const userRole = getRoleByName(user.role);
 	if (!userRole) return false;
 
-	return Array.from(userRole.permissions).some((permId) => {
+	// Short-circuit for admin role
+	if (userRole.isAdmin) return true;
+
+	return userRole.permissions.some((permId) => {
 		const perm = loadedPermissions.find((p) => p._id === permId);
 		return perm && perm.action === action && (perm.type === type || perm.type === PermissionType.SYSTEM);
 	});

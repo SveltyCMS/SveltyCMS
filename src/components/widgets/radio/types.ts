@@ -1,3 +1,8 @@
+/**
+@file src/components/widgets/radio/types.ts
+@description - radio widget types
+*/
+
 import { publicEnv } from '@root/config/public';
 
 // Components

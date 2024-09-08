@@ -39,6 +39,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 	try {
 		logger.debug(`POST request received for schema: ${schema.name}, user_id: ${user._id}`);
 
+		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
@@ -51,6 +52,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		const collection = collections[schema.name];
 		const fileIDS: string[] = [];
 
+		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
 			return new Response('Collection not found', { status: 404 });
@@ -85,19 +87,21 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		logger.debug(`Request modified for document ID: ${body._id}`);
 
 		// Handle links if any
-		for (const _collection in body._links) {
-			const linkedCollection = collections[_collection];
-			if (!linkedCollection) continue;
+		if (body._links) {
+			for (const _collection in body._links) {
+				const linkedCollection = collections[_collection];
+				if (!linkedCollection) continue;
 
-			const newLinkId = dbAdapter.generateId();
-			await dbAdapter.insertMany(_collection, [
-				{
-					_id: newLinkId,
-					_link_id: body._id,
-					_linked_collection: schema.name
-				}
-			]);
-			body._links[_collection] = newLinkId;
+				const newLinkId = dbAdapter.generateId();
+				await dbAdapter.insertMany(_collection, [
+					{
+						_id: newLinkId,
+						_link_id: body._id,
+						_linked_collection: schema.name
+					}
+				]);
+				body._links[_collection] = newLinkId;
+			}
 		}
 
 		// Insert the new document into the collection

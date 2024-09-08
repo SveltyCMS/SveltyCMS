@@ -35,67 +35,80 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 	try {
 		logger.debug(`DELETE request received for schema: ${schema.name}, user_id: ${user._id}`);
 
+		// Ensure the database adapter is initialized
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized.');
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		const collections = await getCollectionModels(); // Get collection models from the database
-		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
+		// Fetch collection models via the dbAdapter
+		const collectionsModels = await getCollectionModels();
+		logger.debug(`Collection models retrieved: ${Object.keys(collectionsModels).join(', ')}`);
 
-		const collection = collections[schema.name];
-
-		// Check if the collection exists
+		const collection = collectionsModels[schema.name];
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
 			return new Response('Collection not found', { status: 404 });
 		}
 
-		// Parse the IDs from the form data
+		// Parse and validate the IDs from the form data
 		const ids = data.get('ids');
 		if (!ids) {
 			logger.error('No IDs provided for deletion');
 			return new Response('No IDs provided for deletion', { status: 400 });
 		}
 
-		const idsArray: string[] = JSON.parse(ids as string);
-		logger.debug(`IDs to delete: ${idsArray.join(', ')}`);
-
-		// Modify request for each ID
-		for (const id of idsArray) {
-			await modifyRequest({
-				collection,
-				data: [{ _id: id }],
-				user,
-				fields: schema.fields,
-				type: 'DELETE'
-			});
-			logger.debug(`Request modified for ID: ${id}`);
-
-			// Handle link deletions for each ID
-			for (const link of schema.links || []) {
-				await dbAdapter.deleteMany(link, {
-					_link_id: id,
-					_linked_collection: schema.name
-				});
-				logger.debug(`Links deleted for ID: ${id} in collection: ${link}`);
+		// Convert IDs using the dbAdapter, ensuring it's non-null
+		const idsArray = JSON.parse(ids as string).map((id: string) => {
+			if (dbAdapter) {
+				return dbAdapter.convertId(id);
 			}
+			throw new Error('Database adapter is not initialized.');
+		});
+
+		if (!idsArray.length) {
+			logger.error('No valid IDs provided for deletion');
+			return new Response('No valid IDs provided for deletion', { status: 400 });
 		}
 
-		// Delete the documents with the specified IDs
-		const result = await collection.deleteMany({
-			_id: { $in: idsArray }
-		});
+		// Modify request for each ID and handle associated link deletions
+		await Promise.all(
+			idsArray.map(async (id: any) => {
+				await modifyRequest({
+					collection,
+					data: [{ _id: id }],
+					user,
+					fields: schema.fields,
+					type: 'DELETE'
+				});
+				logger.debug(`Request modified for ID: ${id}`);
+
+				const linkedDeletions = (schema.links || []).map((link) =>
+					dbAdapter!.deleteMany(link, {
+						_link_id: id,
+						_linked_collection: schema.name
+					})
+				);
+				await Promise.all(linkedDeletions);
+				logger.debug(`Links deleted for ID: ${id} in related collections`);
+			})
+		);
+
+		// Perform the deletion in the main collection
+		const result = await collection.deleteMany({ _id: { $in: idsArray } });
 		logger.info(`Documents deleted: ${result.deletedCount} for schema: ${schema.name}`);
 
 		// Return the result as a JSON response
 		return new Response(JSON.stringify(result), {
 			status: 200,
-			headers: { 'Content-Type': 'application/json' }
+			headers: {
+				'Content-Type': 'application/json',
+				'X-Content-Type-Options': 'nosniff'
+			}
 		});
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during DELETE request: ${errorMessage}`);
+		logger.error(`Error occurred during DELETE request for schema: ${schema.name}, user_id: ${user._id}: ${errorMessage}`);
 		return new Response(errorMessage, { status: 500 });
 	}
 };

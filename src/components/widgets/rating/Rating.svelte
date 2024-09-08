@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/rating/Rating.svelte
+@description - Rating widget
+-->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { getFieldName } from '@utils/utils';

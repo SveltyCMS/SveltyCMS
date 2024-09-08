@@ -16,7 +16,6 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Components
-	import CollectionPermission from './tabs/CollectionPermission.svelte';
 	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
 	import PageTitle from '@src/components/PageTitle.svelte';
@@ -180,17 +179,9 @@
 					<span class:active={$tabSet === 0} class:text-tertiary-500={$tabSet === 0} class:text-primary-500={$tabSet === 0}>{m.button_edit()}</span>
 				</div>
 			</Tab>
-			<!-- Permissions -->
-			<Tab bind:group={$tabSet} name="permission" value={1}>
-				<div class="flex items-center gap-1">
-					<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
-					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 1} class:dark:text-primary-500={$tabSet === 1}
-						>{m.system_permission()}</span
-					>
-				</div>
-			</Tab>
+
 			<!-- Widget Fields -->
-			<Tab bind:group={$tabSet} name="widget" value={2}>
+			<Tab bind:group={$tabSet} name="widget" value={1}>
 				<div class="flex items-center gap-1">
 					<iconify-icon icon="mdi:widgets-outline" width="24" class="text-tertiary-500 dark:text-primary-500" />
 					<span class:active={$tabSet === 1} class:text-tertiary-500={$tabSet === 2} class:text-primary-500={$tabSet === 2}
@@ -204,8 +195,6 @@
 			{#if $tabSet === 0}
 				<CollectionForm on:updatePageTitle={handlePageTitleUpdate} />
 			{:else if $tabSet === 1}
-				<CollectionPermission />
-			{:else if $tabSet === 2}
 				<CollectionWidget on:save={handleCollectionSave} />
 			{/if}
 		</svelte:fragment>
