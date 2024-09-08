@@ -11,7 +11,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { entryData, mode } from '@stores/store';
+	import { entryData, mode, validationStore } from '@stores/store';
 
 	// Components
 	import type { MediaImage } from '@src/utils/types';
@@ -23,8 +23,57 @@
 	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
 
 	let _data: File | MediaImage | undefined = value;
+	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	$: updated = _data !== value;
+
+	// Define the validation schema for this widget
+	import * as z from 'zod';
+
+	const widgetSchema = z.union([
+		z
+			.instanceof(File)
+			.refine(
+				(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
+				'Invalid file format'
+			),
+		z.object({
+			_id: z.string(),
+			name: z.string(),
+			type: z.string(),
+			size: z.number(),
+			path: z.string(),
+			thumbnail: z.object({
+				url: z.string()
+			}),
+			lastModified: z.number()
+		})
+	]);
+
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(getFieldName(field));
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(getFieldName(field), errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
+		}
+	}
+
+	// Validate the input with debounce
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, _data);
+		}, 300);
+	}
 
 	export const WidgetData = async () => {
 		if (_data) {
@@ -33,65 +82,26 @@
 			}
 		}
 
-		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && $mode == 'edit') {
-			//send replaced media's id so we can remove it from media_images usage
+		if (!(value instanceof File) && !(_data instanceof File) && _data?._id !== value?._id && value?._id && $mode === 'edit') {
 			meta_data.add('media_images_remove', [value._id.toString()]);
 		}
 
-		//if not updated value is not changed and is MediaImage type so send back only id
-		return updated || $mode == 'create' ? _data : { _id: (value as MediaImage)?._id };
+		validateInput();
+
+		// If not updated value is not changed and is MediaImage type so send back only id
+		return updated || $mode === 'create' ? _data : { _id: (value as MediaImage)?._id };
 	};
-
-	// Skeleton
-	// import ModalImageEditor from './ModalImageEditor.svelte';
-	import { getModalStore, getToastStore } from '@skeletonlabs/skeleton';
-	import type { ModalComponent, ModalSettings } from '@skeletonlabs/skeleton';
-	const toastStore = getToastStore();
-	const modalStore = getModalStore();
-
-	// Modal Trigger - Edit Avatar
-	function modalImageEditor(): void {
-		// console.log('Triggered - modalImageEditorr');
-		// const modalComponent: ModalComponent = {
-		// 	// Pass a reference to your custom component
-		// 	ref: ModalImageEditor,
-		// 	props: { _data },
-		// 	// Add your props as key/value pairs
-		// 	// props: { background: 'bg-pink-500' },
-		// 	// Provide default slot content as a template literal
-		// 	slot: '<p>Edit Form</p>'
-		// };
-		// const d: ModalSettings = {
-		// 	type: 'component',
-		// 	// NOTE: title, body, response, etc are supported!
-		// 	title: m.usermodaluser_settingtitle(),
-		// 	body: m.usermodaluser_settingbody(),
-		// 	component: modalComponent,
-		// 	// Pass arbitrary data to the component
-		// 	response: (r: { dataURL: string }) => {
-		// 		console.log('ModalImageEditor response:', r);
-		// 		if (r) {
-		// 			// avatarSrc.set(r.dataURL); // Update the avatarSrc store with the new URL
-		// 			// Trigger the toast
-		// 			const t = {
-		// 				message: '<iconify-icon icon="radix-icons:avatar" color="white" width="26" class="mr-1"></iconify-icon> Avatar Updated',
-		// 				// Provide any utility or variant background style:
-		// 				background: 'gradient-primary',
-		// 				timeout: 3000,
-		// 				// Add your custom classes here:
-		// 				classes: 'border-1 !rounded-md'
-		// 			};
-		// 			toastStore.trigger(t);
-		// 		}
-		// 	}
-		// };
-		//modalStore.trigger(d);
-	}
 </script>
 
 {#if !_data}
 	<!-- File Input -->
-	<FileInput bind:value={_data} bind:multiple={field.multiupload} />
+	<FileInput
+		bind:value={_data}
+		bind:multiple={field.multiupload}
+		on:change={validateInput}
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${getFieldName(field)}-error` : undefined}
+	/>
 {:else}
 	<div class="flex w-full max-w-full flex-col border-2 border-dashed border-surface-600 bg-surface-200 dark:border-surface-500 dark:bg-surface-700">
 		<!-- Preview -->
@@ -104,9 +114,8 @@
 					{m.widget_ImageUpload_Size()} <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span>
 				</p>
 			</div>
-			<!-- Image-->
+			<!-- Image -->
 			<div class="flex items-center justify-between">
-				<!-- <img src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url} alt="" /> -->
 				{#if !isFlipped}
 					<img
 						src={_data instanceof File ? URL.createObjectURL(_data) : _data.thumbnail.url}
@@ -137,11 +146,6 @@
 						/>
 					</button>
 
-					<!-- Modal ImageEditor -->
-					<!-- <button on:click={modalImageEditor} class="variant-ghost btn-icon">
-						<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-					</button> -->
-
 					<!-- Delete -->
 					<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
 						<iconify-icon icon="material-symbols:delete-outline" width="30" class="text-error-500" />
@@ -150,4 +154,11 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- Error Message -->
+{#if validationError}
+	<p id={`${getFieldName(field)}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

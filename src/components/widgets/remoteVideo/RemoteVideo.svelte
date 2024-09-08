@@ -8,21 +8,60 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData } from '@stores/store';
+	import { mode, entryData, validationStore } from '@stores/store';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || '';
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
 
 	export let myData: any = null;
 	$: myData;
 
+	// zod validation
+	import * as z from 'zod';
+
+	// Define the validation schema for the remote video URL input
+	const widgetSchema = z.object({
+		value: z.string().url('Invalid URL format').min(1, 'Video URL is required').optional(),
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional()
+	});
+
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
+		}
+	}
+
+	// Validate the input using the generic validateSchema function with debounce
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, { value });
+		}, 300);
+	}
+
+	// Handle video URL submission
 	async function handleSubmit() {
 		if (!value.trim()) return; // Don't fetch data if input is empty
 
@@ -41,32 +80,6 @@
 			console.log('Error fetching video data', error as Error); // Log the error
 		}
 	}
-
-	// zod validation
-	import * as z from 'zod';
-
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional()
-
-		// Widget Specfic
-	});
-
-	function validateInput() {
-		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
-			}
-		}
-	}
 </script>
 
 <input
@@ -79,11 +92,15 @@
 	placeholder={field?.placeholder || field?.db_fieldName}
 	required={field?.required}
 	class="input text-black dark:text-primary-500"
+	aria-invalid={!!validationError}
+	aria-describedby={validationError ? `${fieldName}-error` : undefined}
 />
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}
 
 {#if myData?.videoUrl}

@@ -29,9 +29,9 @@
 	// Local variables
 	let modalData = $modalStore[0];
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	let guiSchema = widgets[modalData?.value]?.GuiSchema || widgets;
+	let guiSchema = widgets[modalData?.value?.widget?.key]?.GuiSchema || widgets;
 
-	const options = guiSchema[modalData?.value?.widget?.Name]?.GuiSchema ? Object.keys(guiSchema[modalData.value.widget.Name].GuiSchema) : [];
+	const options = guiSchema ? Object.keys(guiSchema) : [];
 	const specificOptions = options.filter(
 		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);

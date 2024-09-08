@@ -8,7 +8,7 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData } from '@stores/store';
+	import { mode, entryData, validationStore } from '@stores/store';
 
 	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
@@ -25,48 +25,71 @@
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 	let validationError: string | null = null;
-
-	function iconClick(event: CustomEvent<{ index: number }>): void {
-		value.current = event.detail.index;
-	}
+	let debounceTimeout: number | undefined;
 
 	// zod validation
 	import * as z from 'zod';
 
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
+	// Define the validation schema for the rating widget
+	const widgetSchema = z.object({
+		value: z.number().min(1, 'Rating must be at least 1 star').max(maxRating, `Rating cannot exceed ${maxRating} stars`).optional(),
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
 		width: z.number().optional(),
 		required: z.boolean().optional()
-
-		// Widget Specfic
 	});
 
-	function validateInput() {
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
 		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
 			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
 			}
+			return 'Invalid input';
 		}
+	}
+
+	// Handle rating click with debounce
+	function handleIconClick(event: CustomEvent<{ index: number }>): void {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			_data.value = event.detail.index;
+			validateInput();
+		}, 300);
+	}
+
+	// Validate the input using the generic validateSchema function
+	function validateInput() {
+		validationError = validateSchema(widgetSchema, { value: _data.value });
 	}
 </script>
 
 <!-- Ratings -->
-<Ratings bind:value={_data.value} on:input={validateInput} max={maxRating} interactive on:icon={iconClick}>
+<Ratings
+	bind:value={_data.value}
+	max={maxRating}
+	interactive
+	on:icon={handleIconClick}
+	aria-invalid={!!validationError}
+	aria-describedby={validationError ? `${fieldName}-error` : undefined}
+>
 	<svelte:fragment slot="empty"><iconify-icon icon={iconEmpty} width={size} {color}></iconify-icon></svelte:fragment>
 	<svelte:fragment slot="half"><iconify-icon icon={iconHalf} width={size} {color}></iconify-icon></svelte:fragment>
 	<svelte:fragment slot="full"><iconify-icon icon={iconFull} width={size} {color}></iconify-icon></svelte:fragment>
 </Ratings>
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

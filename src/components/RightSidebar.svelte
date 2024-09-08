@@ -5,10 +5,10 @@
 
 <script lang="ts">
 	// Stores
-	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData } from '@stores/store';
+	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData, validationStore } from '@stores/store';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { page } from '$app/stores';
-	import { saveFormData, convertTimestampToDateString } from '@utils/utils';
+	import { saveFormData, convertTimestampToDateString, getFieldName } from '@utils/utils';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -76,19 +76,40 @@
 		updated: convertTimestampToDateString($entryData.updatedAt)
 	};
 
-	// Save form data
+	// Save form data with validation
 	async function saveData() {
-		await saveFormData({
-			data: $collectionValue,
-			_collection: $collection,
-			_mode: $mode,
-			dbAdapter,
-			authAdapter,
-			user
+		let validationPassed = true;
+
+		// Access the fields property of the collection
+		const fields = $collection.fields;
+
+		// Validate all fields
+		fields.forEach(async (field) => {
+			if (field.widget && typeof field.widget.validateWidget === 'function') {
+				const error = await field.widget.validateWidget();
+				if (error) {
+					validationStore.setError(getFieldName(field), error);
+					validationPassed = false;
+				} else {
+					validationStore.clearError(getFieldName(field));
+				}
+			}
 		});
 
-		mode.set('view');
-		handleSidebarToggle();
+		// If validation passed, save the data
+		if (validationPassed) {
+			await saveFormData({
+				data: $collectionValue,
+				_collection: $collection,
+				_mode: $mode,
+				dbAdapter,
+				authAdapter,
+				user_id: user._id,
+				user: user
+			});
+
+			mode.set('view');
+		}
 	}
 
 	// Autocomplete user list

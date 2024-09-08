@@ -1,7 +1,8 @@
 <!-- 
- @files src/components/widgets/text/Text.svelte 
+ @file src/components/widgets/text/Text.svelte 
  @description Text field. 
 -->
+
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
@@ -15,18 +16,17 @@
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
-
 	$: updateTranslationProgress(_data, field);
 
 	let validationError: string | null = null;
-
-	export const WidgetData = async () => _data;
+	let debounceTimeout: number | undefined;
 
 	// Reactive statement to update count
 	$: count = _data[_language]?.length ?? 0;
+
 	const getBadgeClass = (length: number) => {
 		if (field?.minlength && length < field?.minlength) {
 			return 'bg-red-600';
@@ -46,54 +46,48 @@
 	// zod validation
 	import * as z from 'zod';
 
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
+	// Define the validation schema for the text field
+	const widgetSchema = z.object({
+		value: z
+			.string()
+			.min(field?.minlength || 0, `Minimum length is ${field?.minlength}`)
+			.max(field?.maxlength || Infinity, `Maximum length is ${field?.maxlength}`)
+			.optional(),
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
 		width: z.number().optional(),
-		required: z.boolean().optional(),
-
-		// Widget Specific
-		minlength: z.number().optional(),
-		maxlength: z.number().optional()
+		required: z.boolean().optional()
 	});
 
-	function validateInput() {
-		if (field.required && !_data[_language]) {
-			validationError = 'This field is required';
-			validationStore.setError(fieldName, validationError);
-		} else if (_data[_language] !== '') {
-			try {
-				const { minlength, maxlength } = field; // Access schema properties
-				validateSchema.parse(_data); // Validate against schema
-
-				if (minlength && _data[_language].length < minlength) {
-					validationError = `Minimum length is ${minlength}`;
-					validationStore.setError(fieldName, validationError);
-				} else if (maxlength && _data[_language].length > maxlength) {
-					validationError = `Maximum length is ${maxlength}`;
-					validationStore.setError(fieldName, validationError);
-				} else {
-					validationError = null;
-					validationStore.clearError(fieldName); // Clear error from validationStore if no validation issues
-				}
-			} catch (error: unknown) {
-				if (error instanceof z.ZodError) {
-					validationError = error.errors[0].message;
-					validationStore.setError(fieldName, validationError); // Inform validationStore about the error
-				}
-			}
-		} else {
-			validationError = null; // Clear the error message
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
 			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
 		}
+	}
+
+	// Debounced validation function
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, { value: _data[_language] });
+		}, 300);
 	}
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
 	{#if field?.prefix}
-		<button class=" !px-2">{field?.prefix}</button>
+		<button class="!px-2">{field?.prefix}</button>
 	{/if}
 
 	<input
@@ -109,6 +103,8 @@
 		minlength={field?.minlength}
 		maxlength={field?.maxlength}
 		class="input w-full flex-1 rounded-none text-black dark:text-primary-500"
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${fieldName}-error` : undefined}
 	/>
 
 	<!-- suffix -->
@@ -157,6 +153,6 @@
 </div>
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-xs text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${fieldName}-error`} class="text-center text-xs text-error-500">{validationError}</p>
 {/if}

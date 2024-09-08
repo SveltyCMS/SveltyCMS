@@ -2,10 +2,9 @@
  @file  src/components/HeaderEdit.svelte
  @description  HeaderEdit component.
  -->
-<script lang="ts">
-	import { publicEnv } from '@root/config/public';
 
-	import { saveFormData } from '@utils/utils';
+<script lang="ts">
+	import { getFieldName, saveFormData } from '@utils/utils';
 
 	// Components
 	import TranslationStatus from './TranslationStatus.svelte';
@@ -58,7 +57,8 @@
 		saveLayerStore,
 		headerActionButton,
 		shouldShowNextButton,
-		tabSet
+		tabSet,
+		validationStore
 	} from '@stores/store';
 
 	// Auth
@@ -102,19 +102,40 @@
 		}
 	}
 
-	// Save data
+	// Save form data with validation
 	async function saveData() {
-		await saveFormData({
-			data: $collectionValue,
-			_collection: $collection,
-			_mode: $mode,
-			dbAdapter: dbAdapter,
-			authAdapter: authAdapter,
-			user_id: user._id,
-			user: user
+		let validationPassed = true;
+
+		// Access the fields property of the collection
+		const fields = $collection.fields;
+
+		// Validate all fields
+		fields.forEach(async (field) => {
+			if (field.widget && typeof field.widget.validateWidget === 'function') {
+				const error = await field.widget.validateWidget();
+				if (error) {
+					validationStore.setError(getFieldName(field), error);
+					validationPassed = false;
+				} else {
+					validationStore.clearError(getFieldName(field));
+				}
+			}
 		});
-		mode.set('view');
-		handleSidebarToggle();
+
+		// If validation passed, save the data
+		if (validationPassed) {
+			await saveFormData({
+				data: $collectionValue,
+				_collection: $collection,
+				_mode: $mode,
+				dbAdapter,
+				authAdapter,
+				user
+			});
+
+			mode.set('view');
+			handleSidebarToggle();
+		}
 	}
 
 	// function to undo the changes made by handleButtonClick

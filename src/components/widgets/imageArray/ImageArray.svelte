@@ -9,14 +9,15 @@
 	import type { FieldType } from '.';
 
 	// Stores
-	import { loadingProgress, mode } from '@stores/store';
+	import { loadingProgress, mode, validationStore } from '@stores/store';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
 	import VerticalList from '@src/components/VerticalList.svelte';
-
-	// Sveltekit
 	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
+
+	// zod validation
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
@@ -24,11 +25,11 @@
 	const _fieldsValue: any = [];
 	let name: any;
 	const optimizedFileName: string | undefined = undefined;
-	//let optimizedFileSize: number | undefined = undefined;
 	const optimizedMimeType: string | undefined = undefined;
-	let hashValue: string | undefined; // Explicitly define the type
-	let selectedFiles: string[] = []; // Array to store selected file names
+	let hashValue: string | undefined;
+	let selectedFiles: string[] = [];
 	let collapsedAll = false;
+	let validationError: string | null = null;
 
 	if (field.db_fieldName) {
 		name = getFieldName(field);
@@ -36,8 +37,36 @@
 		name = 'defaultName';
 	}
 
+	// Define the validation schema for this widget
+	const widgetSchema = z.array(
+		z.object({
+			file: z
+				.instanceof(File)
+				.refine((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB')
+				.refine(
+					(file) => ['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/avif', 'image/svg+xml'].includes(file.type),
+					'Invalid file format'
+				)
+		})
+	);
+
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(name);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(name, errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
+		}
+	}
+
 	export const WidgetData = async () => {
-		//console.log('files:', files);
 		for (let i = 0; i < files.length; i++) {
 			const fieldsData = _fieldsValue[i];
 
@@ -45,88 +74,66 @@
 				console.log(await fieldsData[key]());
 			}
 
-			// Generate UUID for each file
 			fieldsData.id = crypto.randomUUID();
 
-			//console.log('fieldsData:', fieldsData);
 			await saveFormData(fieldsData);
 		}
 		if (!files.length) {
-			// If no files are currently being chosen, which means we are editing, we should update.
 			const fieldsData = _fieldsValue;
 			await saveFormData({ data: fieldsData });
 		}
 	};
+
 	// update added files
 	function onDropzoneChangeHandler(e: Event): void {
 		const input = e.target as HTMLInputElement;
-		const newFiles = Array.from(input.files || []); // Handle null FileList
-		selectedFiles = newFiles.map((file) => file.name); // Store only file names
+		const newFiles = Array.from(input.files || []);
+		selectedFiles = newFiles.map((file) => file.name);
 		files = newFiles;
+		validateInput();
 	}
 
-	const items = [
-		{ id: 1, collectionName: 'First', DBName: 'first', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 2, collectionName: 'Last', DBName: 'last', widget: 'Text', icon: 'ic:baseline-text-fields' },
-		{ id: 3, collectionName: 'Email', DBName: 'email', widget: 'Email', icon: 'ic:baseline-email' },
-		{ id: 4, collectionName: 'Image', DBName: 'image', widget: 'ImageUpload', icon: 'ic:baseline-image' }
-	];
+	// Validate the input using the generic validateSchema function
+	function validateInput() {
+		validationError = validateSchema(
+			widgetSchema,
+			files.map((file: File) => ({ file }))
+		);
+	}
 
 	const flipDurationMs = 200;
 	const handleDndConsider = (e) => {
-		// Get the updated items from the event
 		const updatedItems = e.detail.items;
-
-		// Update the `files` array with the new order
 		files = updatedItems.map((item) => item.data);
 	};
 
 	const handleDndFinalize = (e) => {
-		// Get the updated items from the event
 		const updatedItems = e.detail.items;
-
-		// Update the `files` array with the new order
 		files = updatedItems.map((item) => item.data);
 	};
 
-	// Function to toggle collapse all images
 	function toggleCollapseAll() {
-		// Keep track of the current state of collapsedAll
 		collapsedAll = !collapsedAll;
 
 		if (Array.isArray(files)) {
 			files.forEach((file) => {
-				// If collapsedAll is true, expand all images
-				if (collapsedAll) {
-					file.collapsed = false;
-				}
-				// If collapsedAll is false, toggle the collapse state for each file
-				else {
-					file.collapsed = !file.collapsed;
-				}
+				file.collapsed = collapsedAll ? false : !file.collapsed;
 			});
 		}
 	}
 
-	// Function to toggle collapse for specific image
 	function toggleCollapse(index: number) {
 		files[index].collapsed = !files[index].collapsed;
 	}
 
-	// Function to delete image
 	function deleteImage(index: number) {
-		// console.log('deleteImage:', index);
-
-		// Convert files to an array if it is not already one
 		if (!Array.isArray(files)) {
 			files = Array.from(files);
 		}
 
-		// Check if index is valid
 		if (index >= 0 && index < files.length) {
 			files.splice(index, 1);
 
-			// Update collapsedAll based on whether there are any images left or if all images are collapsed
 			if (files.length === 0 || files.every((file) => file.collapsed)) {
 				collapsedAll = false;
 			}
@@ -135,7 +142,6 @@
 		}
 	}
 
-	// Function to more image
 	function addMoreImages() {
 		console.log('addMoreImages:');
 	}
@@ -160,63 +166,50 @@
 		</div>
 	</div>
 
-	<VerticalList {items} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
+	<VerticalList {files} {flipDurationMs} {handleDndConsider} {handleDndFinalize}>
 		{#each files as file, index}
 			<div class="relative my-2 rounded border-2 border-surface-300 p-2">
-				{#if $loadingProgress != 100}
-					<div class="flex w-full items-center justify-between {file.collapsed || collapsedAll ? '' : 'border-b pb-2'}">
-						<!-- Right Name -->
-						<div class="flex items-center gap-2">
-							<p class="variant-ghost-primary badge rounded-full">{index}.</p>
-							{#if collapsedAll || file.collapsed}
-								<Avatar src={URL.createObjectURL(file)} width="w-10" rounded="rounded" />
-							{/if}
-							<p class="flex-auto font-bold text-primary-500">{file.name}</p>
-						</div>
-
-						<!-- Left Icons -->
-						<div class="flex items-center gap-2">
-							<button class="variant-outline btn-icon" on:click={() => toggleCollapse(index)}>
-								<iconify-icon icon="bxs:up-arrow" width="18" class:rotate-180={file.collapsed || collapsedAll} />
-							</button>
-
-							<button class="variant-outline btn-icon" on:click={() => deleteImage(index)}>
-								<iconify-icon icon="mdi:delete" width="18" class="text-error-500" />
-							</button>
-
-							<iconify-icon icon="mdi:drag" width="18" class="ml-2 cursor-move" />
-						</div>
+				<div class="flex w-full items-center justify-between {file.collapsed || collapsedAll ? '' : 'border-b pb-2'}">
+					<div class="flex items-center gap-2">
+						<p class="variant-ghost-primary badge rounded-full">{index}.</p>
+						{#if collapsedAll || file.collapsed}
+							<Avatar src={URL.createObjectURL(file)} width="w-10" rounded="rounded" />
+						{/if}
+						<p class="flex-auto font-bold text-primary-500">{file.name}</p>
 					</div>
-					{#if $loadingProgress}
-						<ProgressBar label="Image Optimization" value={$loadingProgress} max={100} meter="bg-surface-900-50-token" />
-					{/if}
 
-					{#if !file.collapsed && !collapsedAll}
-						<div class="flex justify-around gap-2 md:mr-4">
-							<img src={URL.createObjectURL(file)} alt="" class="mt-4 h-60 rounded-md border" />
+					<div class="flex items-center gap-2">
+						<button class="variant-outline btn-icon" on:click={() => toggleCollapse(index)}>
+							<iconify-icon icon="bxs:up-arrow" width="18" class:rotate-180={file.collapsed || collapsedAll} />
+						</button>
 
-							<div>
-								<!-- Optimized as  -->
-								<p class="text-lg font-semibold text-primary-500">
-									{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
-									{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}: </span>{/if}
-								</p>
-								<!-- Image data  -->
-								<p>File size: <span class="text-primary-500">{(file.size / 1024).toFixed(2)} KB</span></p>
-								<p>MIME type: <span class="text-primary-500">{optimizedMimeType || file.type}</span></p>
-								<p>Hash: <span class="text-primary-500">{hashValue}</span></p>
-							</div>
-						</div>
-					{/if}
-				{:else if optimizedFileName}
-					<p>File Name: <span class="text-primary-500">{optimizedFileName}</span></p>
-					<p>File size: <span class="text-primary-500">{(file.size / 1024).toFixed(2)} KB</span></p>
-					<p>MIME type: <span class="text-primary-500">{optimizedMimeType}</span></p>
-					<p>Hash: <span class="text-primary-500">{hashValue}</span></p>
+						<button class="variant-outline btn-icon" on:click={() => deleteImage(index)}>
+							<iconify-icon icon="mdi:delete" width="18" class="text-error-500" />
+						</button>
+
+						<iconify-icon icon="mdi:drag" width="18" class="ml-2 cursor-move" />
+					</div>
+				</div>
+
+				{#if $loadingProgress}
+					<ProgressBar label="Image Optimization" value={$loadingProgress} max={100} meter="bg-surface-900-50-token" />
 				{/if}
 
 				{#if !file.collapsed && !collapsedAll}
-					<!-- TODO: Use normal Input no FileDropzone -->
+					<div class="flex justify-around gap-2 md:mr-4">
+						<img src={URL.createObjectURL(file)} alt="" class="mt-4 h-60 rounded-md border" />
+
+						<div>
+							<p class="text-lg font-semibold text-primary-500">
+								{#if optimizedFileName}Uploaded File: <span class="text-primary-500">{optimizedFileName}</span>{/if}
+								{#if $loadingProgress != 100}Optimized as <span class="uppercase">{publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format}: </span>{/if}
+							</p>
+							<p>File size: <span class="text-primary-500">{(file.size / 1024).toFixed(2)} KB</span></p>
+							<p>MIME type: <span class="text-primary-500">{optimizedMimeType || file.type}</span></p>
+							<p>Hash: <span class="text-primary-500">{hashValue}</span></p>
+						</div>
+					</div>
+
 					<Fields root={false} fields={field.fields} bind:fieldsData={_fieldsValue[index]} value={file} />
 				{/if}
 			</div>
@@ -230,7 +223,6 @@
 		</li>
 	</ol>
 {:else}
-	<!-- initial file upload Dropzone -->
 	<FileDropzone {name} bind:files accept="image/*" type="file" multiple on:change={onDropzoneChangeHandler}>
 		<svelte:fragment slot="lead"><iconify-icon icon="fa6-solid:file-arrow-up" width="45"></iconify-icon></svelte:fragment>
 		<svelte:fragment slot="message"
@@ -238,4 +230,11 @@
 		>
 		<svelte:fragment slot="meta">PNG, JPG, GIF, WEBP, AVIF, and SVG allowed.</svelte:fragment>
 	</FileDropzone>
+{/if}
+
+<!-- Error Message -->
+{#if validationError}
+	<p id={`${name}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

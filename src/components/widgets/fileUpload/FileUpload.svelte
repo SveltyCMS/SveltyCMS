@@ -9,8 +9,7 @@
 	import type { MediaFiles } from '@src/utils/types';
 
 	// Stores
-	import { entryData, mode, loadingProgress } from '@stores/store';
-
+	import { entryData, mode, loadingProgress, validationStore } from '@stores/store';
 	import { asAny, getFieldName } from '@utils/utils';
 
 	// Components
@@ -29,15 +28,64 @@
 		return updated ? _data : null;
 	};
 
-	export let value: File = $entryData[getFieldName(field)]; // pass file directly from imageArray
+	export let value: File = $entryData[getFieldName(field)];
 
 	const fieldName = getFieldName(field);
+
+	let validationError: string | null = null;
+
+	// Define the validation schema for this widget
+	import * as z from 'zod';
+
+	const widgetSchema = z.object({
+		file: z
+			.instanceof(File)
+			.refine((file) => file.size <= 10 * 1024 * 1024, 'File size must be less than 10MB')
+			.refine(
+				(file) =>
+					[
+						'application/pdf',
+						'application/msword',
+						'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+						'application/vnd.ms-excel',
+						'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+						'text/plain',
+						'application/vnd.ms-powerpoint',
+						'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+					].includes(file.type),
+				'Invalid file format'
+			)
+	});
+
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
+		}
+	}
+
+	// Validate the input using the generic validateSchema function
+	function validateInput() {
+		if (_data instanceof File) {
+			validationError = validateSchema(widgetSchema, { file: _data });
+		}
+	}
 
 	function setFile(node: HTMLInputElement) {
 		node.onchange = (e) => {
 			if ((e.target as HTMLInputElement).files?.length == 0) return;
 			updated = true;
 			_data = (e.target as HTMLInputElement).files?.[0] as File;
+			validateInput();
 		};
 
 		if (value instanceof File) {
@@ -46,6 +94,7 @@
 			node.files = fileList.files;
 			_data = node.files[0];
 			updated = true;
+			validateInput();
 		}
 	}
 
@@ -54,17 +103,25 @@
 		updated = true;
 		showMedia = false;
 		_data = data;
+		validateInput();
 	};
 </script>
 
-<input use:setFile bind:this={input} accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.ppt,.pptx" name={fieldName} type="file" hidden />
+<input
+	use:setFile
+	bind:this={input}
+	accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.ppt,.pptx"
+	name={fieldName}
+	type="file"
+	hidden
+	aria-invalid={!!validationError}
+	aria-describedby={validationError ? `${fieldName}-error` : undefined}
+/>
 
 {#if _data}
 	<div class="mx-2 flex items-center justify-between gap-2">
 		<p class="text-left">Name: <span class="text-tertiary-500 dark:text-primary-500">{_data.name}</span></p>
-		<p class="text-left">
-			Size: <span class="text-tertiary-500 dark:text-primary-500">{(_data.Size / 1024).toFixed(2)} KB</span>
-		</p>
+		<p class="text-left">Size: <span class="text-tertiary-500 dark:text-primary-500">{(_data.size / 1024).toFixed(2)} KB</span></p>
 
 		<!-- Delete -->
 		<button on:click={() => (_data = undefined)} class="variant-ghost btn-icon">
@@ -76,6 +133,7 @@
 		on:drop|preventDefault={(e) => {
 			updated = true;
 			_data = e?.dataTransfer?.files[0];
+			validateInput();
 		}}
 		on:dragover|preventDefault={(e) => {
 			asAny(e.target).style.borderColor = '#6bdfff';
@@ -102,4 +160,11 @@
 			</div>
 		</div>
 	</div>
+{/if}
+
+<!-- Error Message -->
+{#if validationError}
+	<p id={`${fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

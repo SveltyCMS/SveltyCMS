@@ -52,6 +52,31 @@
 		fields = e.detail.items;
 	};
 
+	// Modal 1 to choose a widget
+	function modalSelectWidget(selected: any): void {
+		const c: ModalComponent = { ref: ModalSelectWidget };
+		const modal: ModalSettings = {
+			type: 'component',
+			component: c,
+			title: 'Select a Widget',
+			body: 'Select your widget and then press submit.',
+			value: selected, // Pass the selected widget as the initial value
+			response: (r: any) => {
+				console.log('Modal response:', r); // Debugging line
+
+				if (!r) return;
+				const { selectedWidget } = r;
+				if (selectedWidget) {
+					// Update the targetWidget store
+					targetWidget.set({ widget: { key: selectedWidget, Name: selectedWidget } });
+					// Call modalWidgetForm with the updated targetWidget
+					modalWidgetForm($targetWidget);
+				}
+			}
+		};
+		modalStore.trigger(modal);
+	}
+
 	// Modal 2 to Edit a selected widget
 	function modalWidgetForm(selectedWidget: any): void {
 		const c: ModalComponent = { ref: ModalWidgetForm };
@@ -90,27 +115,6 @@
 						return c;
 					});
 				}
-			}
-		};
-		modalStore.trigger(modal);
-	}
-
-	// Modal 1 to choose a widget
-	function modalSelectWidget(selected: any): void {
-		const c: ModalComponent = { ref: ModalSelectWidget };
-		const modal: ModalSettings = {
-			type: 'component',
-			component: c,
-			title: 'Select a Widget',
-			body: 'Select your widget and then press submit.',
-			value: selected, // Pass the selected widget as the initial value
-			response: (r: any) => {
-				console.log('Modal response:', r); // Debugging line
-
-				if (!r) return;
-				const { selectedWidget } = r;
-				modalWidgetForm({ widget: { key: selectedWidget } }); // Use selectedWidget directly
-				targetWidget.set({ widget: { key: selectedWidget } });
 			}
 		};
 		modalStore.trigger(modal);
@@ -186,7 +190,7 @@
 			<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" on:click={() => ($tabSet = 1)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
+			<button type="button" on:click={() => ($tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
 			<button
 				type="button"
 				on:click={handleCollectionSave}

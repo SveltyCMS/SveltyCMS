@@ -14,16 +14,16 @@ Key features:
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
-	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
-	import type { RolePermissions } from '@src/auth/types';
 	import { onMount, afterUpdate } from 'svelte';
+	import { asAny, getFieldName, pascalToCamelCase } from '@utils/utils';
 
 	// Auth
 	import { page } from '$app/stores';
+	import type { RolePermissions } from '@src/auth/types';
 	const user = $page.data.user;
 
 	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet } from '@stores/store';
+	import { collectionValue, contentLanguage, collection, entryData, tabSet, validationStore } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -61,12 +61,11 @@ Key features:
 		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection.name}/${id}`;
 	}
 
-	// Functions
+	// Functions and helpers
 	async function loadTranslationProgress() {
-		// Implement logic to fetch translation progress
-		// This is a placeholder and should be replaced with actual API call
 		translationProgress = {};
 		fields?.forEach((field) => {
+			// Ensure the field has the translated property
 			if (field.translated) {
 				translationProgress[getFieldName(field)] = Math.random(); // Simulated progress
 			}
@@ -94,7 +93,6 @@ Key features:
 		return `<div>Live Preview Content for ${$collection.name}</div>`;
 	}
 
-	// Computed values
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
 </script>
 
@@ -168,11 +166,11 @@ Key features:
 												<div class="flex items-center gap-1 px-2">
 													<iconify-icon icon="bi:translate" color="dark" width="18" class="text-sm" />
 													<div class="text-xs font-normal text-error-500">
-														{$contentLanguage.toUpperCase()}
+														{$contentLanguage?.toUpperCase() ?? 'EN'}
 													</div>
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
-														({Math.round(translationProgress[getFieldName(field)] * 100)}%)
+														({Math.round((translationProgress[getFieldName(field)] ?? 0) * 100)}%)
 													</div>
 												</div>
 											{/if}
@@ -192,6 +190,11 @@ Key features:
 											value={customData[getFieldName(field)]}
 											{...$$props}
 										/>
+
+										<!-- Display validation error below the widget if any -->
+										{#if $validationStore?.getError?.(getFieldName(field)) ?? false}
+											<p class="text-center text-sm text-error-500">{$validationStore.getError(getFieldName(field))}</p>
+										{/if}
 									{/await}
 								</div>
 							{/if}

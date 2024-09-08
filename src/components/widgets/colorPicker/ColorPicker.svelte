@@ -8,9 +8,12 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData } from '@stores/store';
+	import { mode, entryData, validationStore } from '@stores/store';
 
-	//ParaglideJS
+	// zod validation
+	import * as z from 'zod';
+
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	export let field: FieldType;
@@ -18,57 +21,75 @@
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
 
-	// zod validation
-	import * as z from 'zod';
-
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
+	// Define the validation schema for this widget
+	const widgetSchema = z.object({
+		color: z.string().regex(/^#[0-9A-F]{6}$/i, 'Invalid color format, must be a valid HEX code'),
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
-		color: z.string().optional(),
 		size: z.string().optional(),
 		width: z.number().optional(),
-		required: z.boolean().optional(),
-
-		// Widget Specfic
-		checked: z.boolean(),
-		label: z.string().min(1, 'Label cannot be empty')
+		required: z.boolean().optional()
 	});
 
-	function validateInput() {
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
 		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data.value);
-			validationError = '';
-		} catch (error: unknown) {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
 			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
 			}
+			return 'Invalid input';
 		}
+	}
+
+	// Debounced validation function
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, _data);
+		}, 300);
 	}
 </script>
 
 <div class="flex w-full items-center gap-2">
 	<!-- Color picker -->
-	<!-- TODO: improve thinner border -->
-	<input type="color" bind:value={_data.value} class="h-11 w-11 rounded border-0" />
+	<input
+		type="color"
+		bind:value={_data.color}
+		class="h-11 w-11 rounded border-0"
+		on:input={validateInput}
+		aria-label="Color picker"
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+	/>
 
 	<!-- Hex Value -->
 	<input
 		type="text"
-		bind:value={_data.value}
+		bind:value={_data.color}
 		on:input={validateInput}
 		placeholder={m.colorPicker_hex()}
 		class="input text-black dark:text-primary-500"
+		aria-label="Hex color value"
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
 	/>
 </div>
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

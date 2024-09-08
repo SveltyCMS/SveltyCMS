@@ -9,51 +9,72 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData } from '@stores/store';
+	import { mode, entryData, validationStore } from '@stores/store';
+
+	// zod validation
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	export const WidgetData = async () => _data;
 
-	// zod validation
-	import * as z from 'zod';
-
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
+	// Define the validation schema for this widget
+	const widgetSchema = z.object({
+		value: z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/, 'Invalid date-time format, must be YYYY-MM-DDTHH:MM'),
 		db_fieldName: z.string(),
 		icon: z.string().optional(),
 		color: z.string().optional(),
 		size: z.string().optional(),
 		width: z.number().optional(),
 		required: z.boolean().optional()
-
-		// Widget Specfic
 	});
 
-	function validateInput() {
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
 		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data[_language]);
-			validationError = '';
-		} catch (error: unknown) {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
 			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
 			}
+			return 'Invalid input';
 		}
+	}
+
+	// Debounced validation function
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, { value: _data[_language] });
+		}, 300);
 	}
 </script>
 
-<!--Date/Time -->
-<input type="datetime-local" bind:value={_data[_language]} on:input={validateInput} class="input text-black dark:text-primary-500" />
+<!-- Date/Time Input -->
+<input
+	type="datetime-local"
+	bind:value={_data[_language]}
+	on:input|preventDefault={validateInput}
+	class="input text-black dark:text-primary-500"
+	aria-invalid={!!validationError}
+	aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+/>
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

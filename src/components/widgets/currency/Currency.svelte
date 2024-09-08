@@ -9,16 +9,20 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, contentLanguage } from '@stores/store';
+	import { mode, entryData, contentLanguage, validationStore } from '@stores/store';
+
+	// zod validation
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data = $mode === 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	let validationError: string | null = null;
+	let debounceTimeout: number | undefined;
 
 	let numberInput: HTMLInputElement;
 	const language = $contentLanguage;
@@ -55,6 +59,41 @@
 		}
 	}
 
+	// Define the validation schema for this widget
+	const widgetSchema = z.object({
+		value: z.string().regex(/^\d+(\.\d{1,2})?$/, 'Invalid currency format, must be a valid number with up to 2 decimal places'),
+		db_fieldName: z.string(),
+		icon: z.string().optional(),
+		color: z.string().optional(),
+		size: z.string().optional(),
+		width: z.number().optional(),
+		required: z.boolean().optional()
+	});
+
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
+			}
+			return 'Invalid input';
+		}
+	}
+
+	// Debounced validation function
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			validationError = validateSchema(widgetSchema, _data[_language]);
+		}, 300);
+	}
+
 	// Reactive statement to update count
 	$: count = _data[_language]?.length ?? 0;
 	const getBadgeClass = (length: number) => {
@@ -72,40 +111,11 @@
 			return '!variant-ghost-surface';
 		}
 	};
-
-	// zod validation
-	import * as z from 'zod';
-
-	// Customize the error messages for each rule
-	const validateSchema = z.object({
-		db_fieldName: z.string(),
-		icon: z.string().optional(),
-		color: z.string().optional(),
-		size: z.string().optional(),
-		width: z.number().optional(),
-		required: z.boolean().optional(),
-
-		// Widget Specfic
-		checked: z.boolean(),
-		label: z.string().min(1, 'Label cannot be empty')
-	});
-
-	function validateInput() {
-		try {
-			// Change .parseAsync to .parse
-			validateSchema.parse(_data[_language]);
-			validationError = '';
-		} catch (error: unknown) {
-			if (error instanceof z.ZodError) {
-				validationError = error.errors[0].message;
-			}
-		}
-	}
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
 	{#if field?.prefix}
-		<button class=" !px-2">{field?.prefix}</button>
+		<button class="!px-2">{field?.prefix}</button>
 	{/if}
 
 	<input
@@ -121,6 +131,9 @@
 		maxlength={field?.maxlength}
 		step={field?.step}
 		class="input text-black dark:text-primary-500"
+		aria-invalid={!!validationError}
+		aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
+		on:blur={validateInput}
 	/>
 
 	<!-- suffix -->
@@ -153,6 +166,8 @@
 </div>
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

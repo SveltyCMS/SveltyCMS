@@ -7,6 +7,7 @@
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
+
 	// Stores
 	import { mode, entryData, validationStore } from '@stores/store';
 
@@ -18,81 +19,64 @@
 	const fieldName = getFieldName(field);
 	export let value = $entryData[fieldName] || {};
 
-	const _data = $mode == 'create' ? {} : value;
+	const _data: Record<string, string> = $mode === 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
+
 	$: updateTranslationProgress(_data, field);
 
 	let validationError: string | null = null;
-	// let apiKey: string | null = null;
-	// let trialExpired = false;
-
-	export const WidgetData = async () => _data;
-
-	// Create a branded schema for email
-	const Email = z.string().email().brand('Email');
-
-	// Customize the error messages for each rule
-	const validateSchema = Email.refine((value) => value.includes('@'), {
-		message: 'Please enter a valid email address',
-		path: ['email']
-	});
-
+	let debounceTimeout: number | undefined;
 	let initialRender = true;
 
-	// async function fetchApiKey() {
-	// 	const response = await fetch(`/api/getApiKey/email`);
-	// 	if (response.ok) {
-	// 		const data = await response.json();
-	// 		apiKey = data.apiKey;
-	// 	} else {
-	// 		const data = await response.json();
-	// 		if (data.error === 'Trial period expired') {
-	// 			trialExpired = true;
-	// 		} else {
-	// 			console.error('Failed to fetch API key:', data.error);
-	// 		}
-	// 	}
-	// }
+	// Define the validation schema for this widget
+	const widgetSchema = z.string().email({ message: 'Please enter a valid email address' });
 
-	// fetchApiKey();
-
-	async function validateInput() {
-		if (initialRender) {
-			initialRender = false;
-		} else if (_data[_language] !== '') {
-			try {
-				validateSchema.parse(_data);
-				validationError = ''; // Set error to null on successful validation
-
-				// if (apiKey) {
-				// 	console.log('Using API key:', apiKey);
-				// } else if (trialExpired) {
-				// 	validationError = 'Trial period expired';
-				// } else {
-				// 	console.error('API key is missing');
-				// }
-			} catch (error: unknown) {
-				if (error instanceof z.ZodError) {
-					validationError = error.errors[0].message;
-				}
+	// Generic validation function that uses the provided schema to validate the input
+	function validateSchema(schema: z.ZodSchema, data: any): string | null {
+		try {
+			schema.parse(data);
+			validationStore.clearError(fieldName);
+			return null; // No error
+		} catch (error) {
+			if (error instanceof z.ZodError) {
+				const errorMessage = error.errors[0]?.message || 'Invalid input';
+				validationStore.setError(fieldName, errorMessage);
+				return errorMessage;
 			}
-		} else {
-			validationError = ''; // Clear error if empty string
+			return 'Invalid input';
 		}
+	}
+
+	// Debounced validation function
+	function validateInput() {
+		if (debounceTimeout) clearTimeout(debounceTimeout);
+		debounceTimeout = window.setTimeout(() => {
+			if (!initialRender) {
+				validationError = validateSchema(widgetSchema, _data[_language]);
+			} else {
+				initialRender = false;
+			}
+		}, 300);
 	}
 </script>
 
+<!-- Email Input -->
 <input
 	type="email"
+	aria-label={field?.label || field?.db_fieldName}
 	bind:value={_data[_language]}
 	on:change={validateInput}
-	name={field?.db_fieldName}
-	id={field?.db_fieldName}
-	placeholder={field?.placeholder && field?.placeholder !== '' ? field?.placeholder : field?.db_fieldName}
+	name={field.db_fieldName}
+	id={field.db_fieldName}
+	placeholder={field.placeholder || field.db_fieldName}
 	class="input text-black dark:text-primary-500"
+	aria-invalid={!!validationError}
+	aria-describedby={validationError ? `${field.db_fieldName}-error` : undefined}
 />
 
 <!-- Error Message -->
-{#if validationError !== null}
-	<p class="text-center text-sm text-error-500">{validationError}</p>
+{#if validationError}
+	<p id={`${field.db_fieldName}-error`} class="text-center text-sm text-error-500">
+		{validationError}
+	</p>
 {/if}

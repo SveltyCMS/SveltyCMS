@@ -12,7 +12,7 @@
 	// Stores
 	import { mode, entryData, contentLanguage } from '@stores/store';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
 	// Mapbox
@@ -84,7 +84,6 @@
 	function searchCountry(event: any) {
 		// Get the search query from the input field
 		const query = event.target.value.toLowerCase();
-
 		// Filter the countries array based on the search query
 		filteredCountries = countries.filter((country) =>
 			Object.values(country).some((value) => typeof value === 'string' && value.toLowerCase().includes(query))
@@ -147,7 +146,6 @@
 	});
 
 	let map: any;
-
 	function initMap(container: any) {
 		map = new mapboxgl.Map({
 			container: 'map', // container ID
@@ -200,7 +198,6 @@
 			})
 		);
 	}
-
 	var widgetValueObject = {
 		db_fieldName: field.db_fieldName,
 		icon: field.icon,
@@ -224,8 +221,6 @@
 		size: z.string().optional(),
 		width: z.number().optional(),
 		required: z.boolean().optional()
-
-		// Widget Specfic
 	});
 
 	function validateInput() {
@@ -243,14 +238,14 @@
 
 {#if privateEnv.MAPBOX_API_TOKEN}
 	<address class="w-full">
-		<div class=" mb-1 flex justify-between gap-2">
-			<button class="variant-filled-primary btn btn-base rounded-md text-white"
-				><iconify-icon icon="bi:map" width="16" class="mr-2" />{m.widget_address_getfromaddress()}</button
-			>
+		<div class="mb-1 flex justify-between gap-2">
+			<button class="variant-filled-primary btn btn-base rounded-md text-white" aria-label={m.widget_address_getfromaddress()}>
+				<iconify-icon icon="bi:map" width="16" class="mr-2" />
+				{m.widget_address_getfromaddress()}
+			</button>
 		</div>
-		<!-- <div use:initMap class="h-[360px] sm:h-[450px] md:h-[300px] w-full" id="map" /> -->
 
-		<label for="name">{m.widget_address_geocoordinates()}</label>
+		<label for="latitude">{m.widget_address_geocoordinates()}</label>
 		<div class="flex justify-center gap-2">
 			<input
 				required
@@ -260,6 +255,7 @@
 				placeholder={m.widget_address_latitude()}
 				class="input rounded-md"
 				bind:value={value.latitude}
+				aria-label={m.widget_address_latitude()}
 			/>
 
 			<input
@@ -270,6 +266,7 @@
 				placeholder={m.widget_address_longitude()}
 				class="input rounded-md"
 				bind:value={value.longitude}
+				aria-label={m.widget_address_longitude()}
 			/>
 		</div>
 		<br />
@@ -285,6 +282,7 @@
 				placeholder={m.widget_address_name()}
 				class="input rounded-md"
 				bind:value={value.name}
+				aria-label={m.widget_address_name()}
 			/>
 
 			<label for="street-address">{m.widget_address_street()}</label>
@@ -298,6 +296,7 @@
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.street}
+				aria-label={m.widget_address_street()}
 			/>
 
 			<label for="postal-code">{m.widget_address_zip()}</label>
@@ -311,6 +310,7 @@
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.zip}
+				aria-label={m.widget_address_zip()}
 			/>
 
 			<label for="city">{m.widget_address_city()}</label>
@@ -319,10 +319,11 @@
 				type="text"
 				id="city"
 				name="city"
-				placeholder="m.widget_address_city()}"
+				placeholder={m.widget_address_city()}
 				enterkeyhint="next"
 				class="input rounded-md"
 				bind:value={value.city}
+				aria-label={m.widget_address_city()}
 			/>
 
 			<!-- Country with search Combobox -->
