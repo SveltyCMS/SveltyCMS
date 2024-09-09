@@ -39,10 +39,10 @@ This error component is automatically rendered when an error occurs during route
 	const array: string[] = combinedString.split('').filter((char) => char !== ' ');
 
 	// Set the error data and SEO information that will be used by the layout
-	export const load: Load = ({ status, error }) => {
+	export const load: Load = () => {
 		return {
-			SeoTitle: `Error ${status} - ${publicEnv.SITE_NAME}`,
-			SeoDescription: `An error occurred while trying to access this page. Status: ${status}. ${error?.message || m.error_pagenotfound()}`
+			SeoTitle: `Error ${$page.status} - ${publicEnv.SITE_NAME}`,
+			SeoDescription: `An error occurred while trying to access this page. Status: ${$page.status}. ${$page.error?.message || m.error_pagenotfound()}`
 		};
 	};
 </script>

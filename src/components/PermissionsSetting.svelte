@@ -24,7 +24,7 @@
 		permissions: Partial<Record<PermissionAction, boolean>>;
 	}
 
-	export let permissions: Record<string, Partial<Record<PermissionAction, boolean>>> = {};
+	export const permissions: Record<string, Partial<Record<PermissionAction, boolean>>> = {};
 
 	let rolesArray: RoleWithPermissions[] = [];
 	let allRoles: string[] = [];

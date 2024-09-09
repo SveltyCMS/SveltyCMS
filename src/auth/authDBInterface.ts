@@ -5,14 +5,13 @@
  * This module defines the essential CRUD operations for database adapters:
  * - User management
  * - Session management
- * - Role management
  * - Token management
  *
  * Usage:
- * Implemented by database adapters to ensure consistent operations across different databases.
+ * Implemented by database adapters to ensure consistent operations across different databases or file-based systems.
  */
 
-import type { User, Session, Token, Role, Permission } from './types';
+import type { User, Session, Token } from './types';
 
 // Pagination and Sorting Options Types
 type SortOption = { [key: string]: 1 | -1 } | [string, 1 | -1][];
@@ -43,23 +42,4 @@ export interface authDBInterface {
 	consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }>;
 	getAllTokens(filter?: object): Promise<Token[]>;
 	deleteExpiredTokens(): Promise<number>;
-
-	// Role Management Methods
-	createRole(roleData: Partial<Role>, current_user_id: string): Promise<Role>;
-	updateRole(role_name: string, roleData: Partial<Role>, current_user_id: string): Promise<void>;
-	updateUserRole(user_id: string, newRole: RoleId): Promise<void>;
-	deleteRole(role_name: string, current_user_id: string): Promise<void>;
-	getRoleByName(role_name: string): Promise<Role | null>;
-	getAllRoles(options?: PaginationOption): Promise<Role[]>;
-	setAllRoles(roles: Role[]): Promise<void>;
-
-	// Permission Management Methods
-	getAllPermissions(options?: PaginationOption): Promise<Permission[]>;
-	getPermissionByName(permission_name: string): Promise<Permission | null>;
-	updatePermission(permission_name: string, permissionData: Permission, current_user_id: string): Promise<void>;
-	deletePermission(permission_name: string, current_user_id: string): Promise<void>;
-
-	// Basic Sync Methods
-	syncRolesWithConfig(): Promise<void>;
-	syncPermissionsWithConfig(): Promise<void>;
 }

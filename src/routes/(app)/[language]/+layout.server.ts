@@ -99,7 +99,7 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 			throw redirect(302, `/${redirectLanguage}/${_filtered[0].name}`);
 		}
 
-		let hasPermission = user.role === 'admin';
+		let hasPermission = user.isAdmin;
 		if (!hasPermission && collection?.permissions) {
 			hasPermission = collection.permissions[user.role]?.read !== false;
 		}

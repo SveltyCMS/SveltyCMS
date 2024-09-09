@@ -7,10 +7,10 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, authAdapter, initializationPromise } from '@src/databases/db';
+import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
-import { PermissionAction } from '@root/config/permissions';
+import { roles as configRoles } from '@root/config/roles';
+import { getAllPermissions } from '@src/auth/permissionManager';
 
 // System Logs
 import logger from '@src/utils/logger';
@@ -23,7 +23,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		await initializationPromise;
 		logger.debug('Initialization complete.');
 
-		if (!auth || !authAdapter) {
+		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Auth system not initialized');
 		}
@@ -55,31 +55,18 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			throw error(403, 'User role is missing');
 		}
 
-		// Check user permission for Assess Management
-		logger.debug('Checking user permission for assess management');
-
-		const permissionConfig: PermissionConfig = {
-			contextId: 'config/assessManagement',
-			requiredRole: 'admin',
-			action: PermissionAction.READ, // Correctly set the action using PermissionAction enum
-			contextType: 'system'
-		};
-
 		// Always allow access for admins
-		if (userRole.toLowerCase() === 'admin') {
+		const roleConfig = configRoles.find((role) => role._id === userRole);
+		if (roleConfig?.isAdmin) {
 			logger.debug(`User ${user._id} has admin access to Assess Management`);
 		} else {
-			// Check user permission for non-admin roles
-			const permissionResult = await checkUserPermission(user, permissionConfig);
-			if (!permissionResult.hasPermission) {
-				logger.warn(`User ${user._id} does not have permission to access Assess Management`);
-				throw error(403, "You don't have permission to access this page");
-			}
+			logger.warn(`User ${user._id} does not have permission to access Assess Management`);
+			throw error(403, "You don't have permission to access this page");
 		}
 
 		// Fetch roles and permissions in parallel
 		logger.debug('Fetching roles and permissions...');
-		const [roles, permissions] = await Promise.all([authAdapter.getAllRoles(), authAdapter.getAllPermissions()]);
+		const [roles, permissions] = await Promise.all([Promise.resolve(configRoles), getAllPermissions()]);
 
 		logger.debug(`Roles fetched: ${roles.length}`);
 		roles.forEach((role) => logger.debug(`Role: ${JSON.stringify(role)}`));

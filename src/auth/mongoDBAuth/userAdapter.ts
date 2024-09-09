@@ -19,9 +19,9 @@
  */
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { roles as configRoles } from '@root/config/roles';
 
 // Adapter
-import { RoleSchema } from './roleAdapter';
 import { getPermissionByName, getAllPermissions } from '../permissionManager';
 
 // Types
@@ -59,11 +59,9 @@ export const UserSchema = new Schema(
 
 export class UserAdapter implements Partial<authDBInterface> {
 	private UserModel: Model<User & Document>;
-	private RoleModel: Model<Role & Document>;
 
 	constructor() {
 		this.UserModel = mongoose.models.auth_users || mongoose.model<User & Document>('auth_users', UserSchema);
-		this.RoleModel = mongoose.models.auth_roles || mongoose.model<Role & Document>('auth_roles', RoleSchema);
 	}
 
 	// Create a new user
@@ -132,19 +130,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			const directPermissions = new Set(user.permissions || []);
 			const allPermissions = await getAllPermissions();
-			const userPermissions = allPermissions.filter((perm) => directPermissions.has(perm.name));
+			const userPermissions = allPermissions.filter((perm) => directPermissions.has(perm._id));
 
-			if (user.role) {
-				const role = await this.RoleModel.findOne({ name: user.role }).lean();
-				if (role) {
-					const rolePermissions = new Set(role.permissions || []);
-					const roleBasedPermissions = allPermissions.filter((perm) => rolePermissions.has(perm.name));
-					userPermissions.push(...roleBasedPermissions);
-				}
-			}
-
-			const uniquePermissions = Array.from(new Set(userPermissions.map((p) => p.name))).map((name) =>
-				userPermissions.find((p) => p.name === name)
+			const uniquePermissions = Array.from(new Set(userPermissions.map((p) => p._id))).map((id) =>
+				userPermissions.find((p) => p._id === id)
 			) as Permission[];
 
 			logger.debug(`Permissions retrieved for user: ${user_id}`);
@@ -168,16 +157,6 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const hasDirectPermission = directPermissions.has(permissionName);
 			if (hasDirectPermission) {
 				return true;
-			}
-
-			if (user.role) {
-				const role = await this.RoleModel.findOne({ name: user.role }).lean();
-				if (role) {
-					const rolePermissions = new Set(role.permissions || []);
-					if (rolePermissions.has(permissionName)) {
-						return true;
-					}
-				}
 			}
 
 			logger.debug(`User ${user_id} does not have permission: ${permissionName}`);
@@ -335,11 +314,20 @@ export class UserAdapter implements Partial<authDBInterface> {
 	async getRolesForUser(user_id: string): Promise<Role[]> {
 		try {
 			const user = await this.UserModel.findById(user_id).lean();
-			if (!user) {
+			if (!user || !user.role) {
+				logger.warn(`User or role not found for user ID: ${user_id}`);
 				return [];
 			}
-			const role = await this.RoleModel.findOne({ name: user.role }).lean();
-			return role ? [role] : [];
+
+			// Fetch the role from the file-based roles configuration
+			const role = configRoles.find((r) => r._id === user.role);
+			if (!role) {
+				logger.warn(`Role not found: ${user.role} for user ID: ${user_id}`);
+				return [];
+			}
+
+			logger.debug(`Roles retrieved for user ID: ${user_id}`);
+			return [role];
 		} catch (error) {
 			logger.error(`Failed to get roles for user: ${(error as Error).message}`);
 			throw error;

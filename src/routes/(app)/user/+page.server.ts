@@ -26,7 +26,7 @@ import type { PageServerLoad } from './$types';
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import type { User, Role } from '@src/auth/types';
+import type { User, Role, Token } from '@src/auth/types';
 
 // Superforms
 import { superValidate } from 'sveltekit-superforms/server';
@@ -58,7 +58,7 @@ export const load: PageServerLoad = async (event) => {
 		// Check if this is the first user, regardless of session
 		const userCount = await auth.getUserCount();
 		isFirstUser = userCount === 0;
-		logger.debug(`Is first user: ${isFirstUser}`);
+		logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
 
 		if (session_id) {
 			try {
@@ -66,6 +66,7 @@ export const load: PageServerLoad = async (event) => {
 				logger.debug(`User from session: ${JSON.stringify(user)}`);
 
 				if (user) {
+					logger.debug(`Fetching all roles for user: ${user.email}`);
 					roles = await auth.getAllRoles();
 					logger.debug(`Roles retrieved: ${JSON.stringify(roles)}`);
 
@@ -79,22 +80,25 @@ export const load: PageServerLoad = async (event) => {
 
 					// Check if the user has the required permissions
 					const hasManageUsersPermission = await checkUserPermission(user, manageUsersPermissionConfig);
+					logger.debug(`User ${user.email} has manage users permission: ${hasManageUsersPermission.hasPermission}`);
 
 					// If the user is an admin or has permission, fetch all users and tokens
-					if (user.role === 'admin' || hasManageUsersPermission) {
+					if (user.isAdmin || hasManageUsersPermission.hasPermission) {
 						try {
 							allUsers = await auth.getAllUsers();
-							logger.debug(`Retrieved ${allUsers.length} users for admin`);
+							logger.debug(`Retrieved ${allUsers.length} users for admin: ${JSON.stringify(allUsers)}`);
 						} catch (userError) {
 							logger.error(`Error fetching all users: ${(userError as Error).message}`);
 						}
 
 						try {
 							allTokens = await auth.getAllTokens();
-							logger.debug(`Retrieved ${allTokens.length} tokens for admin`);
+							logger.debug(`Retrieved ${allTokens.length} tokens for admin: ${JSON.stringify(allTokens)}`);
 						} catch (tokenError) {
 							logger.error(`Error fetching all tokens: ${(tokenError as Error).message}`);
 						}
+					} else {
+						logger.warn(`User ${user.email} does not have permission to manage users.`);
 					}
 				} else {
 					logger.warn('Session is valid but user not found');
@@ -131,6 +135,7 @@ export const load: PageServerLoad = async (event) => {
 			createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
 			updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
 		}));
+		logger.debug(`Formatted users: ${JSON.stringify(formattedUsers)}`);
 
 		const formattedTokens = allTokens.map((token) => ({
 			user_id: token.user_id,
@@ -140,6 +145,7 @@ export const load: PageServerLoad = async (event) => {
 			createdAt: new Date(token.token_id).toISOString(), // Assuming token_id is a timestamp
 			updatedAt: new Date(token.token_id).toISOString() // Assuming tokens are not updated
 		}));
+		logger.debug(`Formatted tokens: ${JSON.stringify(formattedTokens)}`);
 
 		// Provide manageUsersPermissionConfig to the client
 		const manageUsersPermissionConfig: PermissionConfig = {
@@ -148,6 +154,9 @@ export const load: PageServerLoad = async (event) => {
 			action: 'manage',
 			contextType: 'system'
 		};
+		logger.debug(
+			`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify({ users: formattedUsers, tokens: formattedTokens })}`
+		);
 
 		return {
 			user: safeUser,
@@ -160,7 +169,7 @@ export const load: PageServerLoad = async (event) => {
 			isFirstUser,
 			manageUsersPermissionConfig: manageUsersPermissionConfig,
 			adminData:
-				user?.role === 'admin' || hasManageUsersPermission
+				user?.role === 'admin' || hasManageUsersPermission.hasPermission
 					? {
 							users: formattedUsers,
 							tokens: formattedTokens

@@ -18,17 +18,11 @@
 	import PermissionGuard from '@src/components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
 
+	// Import the permissionConfigs
+	import { permissionConfigs } from '@src/auth/permissionManager';
+
 	export let data: PageData;
 	const { user, isFirstUser } = data;
-	import type { PermissionConfig } from '@src/auth/permissionCheck';
-
-	// Define permissions for different contexts
-	const adminAreaPermissionConfig: PermissionConfig = {
-		contextId: 'config/accessManagement',
-		requiredRole: 'admin',
-		action: 'read',
-		contextType: 'system'
-	};
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -222,7 +216,7 @@
 	</div>
 
 	<!-- Admin area -->
-	<PermissionGuard config={adminAreaPermissionConfig}>
+	<PermissionGuard config={permissionConfigs.adminAreaPermissionConfig}>
 		<div class="wrapper2">
 			<AdminArea {data} />
 		</div>

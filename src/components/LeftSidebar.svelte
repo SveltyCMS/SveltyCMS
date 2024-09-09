@@ -1,7 +1,8 @@
 <!-- 
- @file src/components/LeftSidebar.svelte 
- @description LeftSidebar component
- -->
+@file src/components/LeftSidebar.svelte 
+@description LeftSidebar component
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
@@ -14,9 +15,6 @@
 	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
-
-	// Import correct types from the source types file
-	import type { Role, Permission } from '@src/auth/types'; // Correct import
 
 	// Import components and utilities
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';

@@ -41,7 +41,6 @@ import type { authDBInterface } from '@src/auth/authDBInterface';
 
 // MongoDB Adapters
 import { UserAdapter } from '@src/auth/mongoDBAuth/userAdapter';
-import { RoleAdapter } from '@src/auth/mongoDBAuth/roleAdapter';
 import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
@@ -71,7 +70,6 @@ async function loadAdapters() {
 			const { MongoDBAdapter } = await import('./mongodb/mongoDBAdapter');
 			dbAdapter = new MongoDBAdapter();
 			const userAdapter = new UserAdapter();
-			const roleAdapter = new RoleAdapter();
 			const sessionAdapter = new SessionAdapter();
 			const tokenAdapter = new TokenAdapter();
 
@@ -101,24 +99,9 @@ async function loadAdapters() {
 				getAllTokens: tokenAdapter.getAllTokens.bind(tokenAdapter),
 				deleteExpiredTokens: tokenAdapter.deleteExpiredTokens.bind(tokenAdapter),
 
-				// Role Management Methods
-				createRole: roleAdapter.createRole.bind(roleAdapter),
-				updateRole: roleAdapter.updateRole.bind(roleAdapter),
-				updateUserRole: roleAdapter.updateUserRole.bind(roleAdapter),
-				deleteRole: roleAdapter.deleteRole.bind(roleAdapter),
-				getRoleByName: roleAdapter.getRoleByName.bind(roleAdapter),
-				getAllRoles: roleAdapter.getAllRoles.bind(roleAdapter),
-				setAllRoles: roleAdapter.setAllRoles.bind(roleAdapter),
-
 				// Permission Management Methods
 				getAllPermissions,
-				getPermissionByName,
-				updatePermission: roleAdapter.updatePermission.bind(roleAdapter),
-				deletePermission: roleAdapter.deletePermission.bind(roleAdapter),
-
-				// Sync Methods
-				syncRolesWithConfig: roleAdapter.syncRolesWithConfig.bind(roleAdapter),
-				syncPermissionsWithConfig: syncPermissions
+				getPermissionByName
 			} as authDBInterface;
 
 			logger.info('MongoDB adapters loaded successfully.');

@@ -8,9 +8,11 @@
 import type { User, ContextType, Permission } from './types';
 import { PermissionAction } from '../../config/permissions';
 import { authAdapter } from '@src/databases/db';
+import { roles as configRoles } from '@root/config/roles';
+import { getAllPermissions } from './permissionManager';
 
 // System Logger
-import logger from '@src/utils/logger';
+import logger from '@utils/logger';
 
 export interface PermissionConfig {
 	contextId: string;
@@ -25,8 +27,19 @@ const rolePermissionCache: Record<string, Permission[]> = {};
 // Function to check user permissions
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
-		// Automatically grant permissions to users with the 'admin' role
-		if (user.role === 'admin') {
+		logger.debug(`Starting permission check for user: ${user.email}, role: ${user.role}, config: ${JSON.stringify(config)}`);
+
+		// Retrieve the user's role from the configuration
+		const userRole = configRoles.find((role) => role._id === user.role);
+
+		if (!userRole) {
+			logger.warn(`Role ${user.role} not found for user ${user.email}`);
+			return { hasPermission: false, isRateLimited: false };
+		}
+
+		// Automatically grant permissions to users with the 'isAdmin' role property
+		if (userRole.isAdmin) {
+			logger.info(`User ${user.email} is an admin (role: ${user.role}), automatically granting permission.`);
 			return { hasPermission: true, isRateLimited: false };
 		}
 
@@ -36,40 +49,27 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 			return { hasPermission: false, isRateLimited: false };
 		}
 
-		// Retrieve cached role permissions or fetch from adapter if not cached
+		// Retrieve cached role permissions or fetch from the configuration if not cached
 		let userPermissions: Permission[] = rolePermissionCache[user.role];
 		if (!userPermissions) {
-			const userRole = await authAdapter.getRoleByName(user.role);
-			if (!userRole) {
-				logger.warn(`Role ${user.role} not found for user ${user.email}`);
-				return { hasPermission: false, isRateLimited: false };
-			}
+			logger.debug(`No cached permissions found for role: ${user.role}. Fetching from configuration.`);
 
 			// Fetch all permissions and filter by the user's role permissions
-			const allPermissions = await authAdapter.getAllPermissions();
+			const allPermissions = await getAllPermissions();
 			userPermissions = allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 
 			// Cache the result
 			rolePermissionCache[user.role] = userPermissions;
-		}
-
-		// Prevent self-lockout attempt
-		if (user.role === config.name) {
-			const hasSelfLockout = userPermissions.every(
-				(permission) => permission._id !== config.contextId || permission.action !== config.action || permission.type !== config.contextType
-			);
-
-			if (hasSelfLockout) {
-				logger.error(`User ${user.email} attempted a self-lockout by role change`);
-				return { hasPermission: false, isRateLimited: false };
-			}
+			logger.debug(`Permissions for role ${user.role} have been cached: ${JSON.stringify(userPermissions)}`);
+		} else {
+			logger.debug(`Using cached permissions for role: ${user.role}`);
 		}
 
 		// Check if the user has the required permission
 		const hasPermission = userPermissions.some(
 			(permission) =>
 				permission._id === config.contextId &&
-				permission.action === config.action &&
+				(permission.action === config.action || permission.action === PermissionAction.MANAGE) &&
 				(permission.type === config.contextType || permission.type === 'system')
 		);
 
@@ -82,4 +82,16 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 		logger.error(`Error checking user permission: ${(error as Error).message}`);
 		return { hasPermission: false, isRateLimited: false };
 	}
+}
+
+// Function to load user permissions
+export async function loadUserPermissions(user: User): Promise<Permission[]> {
+	const userRole = configRoles.find((role) => role._id === user.role);
+	if (!userRole) {
+		logger.warn(`Role ${user.role} not found for user ${user.email}`);
+		return [];
+	}
+
+	const allPermissions = await getAllPermissions();
+	return allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 }

@@ -19,7 +19,7 @@
 	export let roleName: string;
 	export let roleDescription: string;
 	export let currentGroupName: string;
-	export let availablePermissions = writable<Permission[]>([]);
+	// export let availablePermissions = writable<Permission[]>([]);
 	export let selectedPermissions = [];
 
 	const modalStore = getModalStore();
@@ -76,7 +76,7 @@
 			<button class="variant-outline-secondary btn" on:click={parent.onClose}>
 				{m.button_cancel()}
 			</button>
-			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Save Changes' : 'Create Role'}</button>
+			<button on:click={saveRole} class="variant-filled-primary btn">{isEditMode ? 'Update' : 'Create Role'}</button>
 		</footer>
 	</div>
 {/if}

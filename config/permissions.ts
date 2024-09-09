@@ -28,7 +28,10 @@ export enum PermissionAction {
 // List of all permissions available in the CMS
 export let permissions: Permission[] = [];
 
-// Function to register new permissions
-export function setPermissions(newPermission: Permission[]): void {
-	permissions = [...newPermission];
+// Function to register new permissions, ensuring only unique permissions are added
+export function setPermissions(newPermissions: Permission[]): void {
+	const uniquePermissions = newPermissions.filter(
+		(newPermission) => !permissions.some((existingPermission) => existingPermission._id === newPermission._id)
+	);
+	permissions = [...permissions, ...uniquePermissions];
 }

@@ -171,7 +171,7 @@
 
 	<TabGroup bind:group={$tabSet} justify="justify-around">
 		<!-- User Permissions -->
-		{#if $page.data.user && $page.data.user.role === 'admin'}
+		{#if $page.data.user && $page.data.user.isAdmin}
 			<!-- Edit -->
 			<Tab bind:group={$tabSet} name="default" value={0}>
 				<div class="flex items-center gap-1">

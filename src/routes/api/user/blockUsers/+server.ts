@@ -45,11 +45,11 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		const allUsers = await auth.getAllUsers();
-		const adminCount = allUsers.filter((user) => user.role === 'admin').length;
+		const adminCount = allUsers.filter((user) => user.isAdmin).length;
 		let remainingAdminCount = adminCount;
 
 		for (const user of users) {
-			if (user.role === 'admin') {
+			if (user.isAdmin) {
 				remainingAdminCount--;
 				if (remainingAdminCount === 0) {
 					logger.warn('Attempt to block the last remaining admin.');

@@ -12,7 +12,7 @@ import type { User } from '@src/auth/types';
 // Only display if user is allowed to access
 function hasFilePermission(user: User, file: string): boolean {
 	// allow admin role
-	if (user.role === 'admin') {
+	if (user.isAdmin) {
 		return true;
 	}
 

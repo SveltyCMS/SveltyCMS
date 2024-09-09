@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/LeftSidebar.svelte
+@description Collections component.
+-->
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
@@ -5,7 +10,7 @@
 	import { page } from '$app/stores';
 	import { mode, collection, categories, shouldShowNextButton } from '@stores/store';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
-	import { screenSize, type ScreenSize } from '@stores/screenSizeStore';
+	import { screenSize } from '@stores/screenSizeStore';
 	import { get } from 'svelte/store';
 
 	// Auth

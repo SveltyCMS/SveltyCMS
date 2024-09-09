@@ -10,6 +10,7 @@ import type { Permission } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
+	name: string; // Make `name` non-optional
 	label?: string; // optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	links?: CollectionNames[]; // optional links for the collection
@@ -52,4 +53,5 @@ export type CollectionContent = {
 	];
 };
 
-export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Relation' | 'WidgetTest';
+
+export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Relation'|'WidgetTest';

@@ -68,11 +68,92 @@ export async function updatePermission(permissionName: string, permissionData: A
 	}
 }
 
+// Modularized function to sync collection permissions
+async function syncCollectionPermissions(collections: string[]): Promise<AuthPermission[]> {
+	const permissions: AuthPermission[] = [];
+	collections.forEach((collection) => {
+		const baseId = collection.slice(0, collection.length - 3);
+		permissions.push({
+			_id: `${baseId}:create`,
+			name: `Create ${baseId}`,
+			action: PermissionAction.CREATE,
+			type: PermissionType.COLLECTION,
+			description: `Allows creating new ${baseId}`
+		});
+		permissions.push({
+			_id: `${baseId}:read`,
+			name: `Read ${baseId}`,
+			action: PermissionAction.READ,
+			type: PermissionType.COLLECTION,
+			description: `Allows reading ${baseId}`
+		});
+		permissions.push({
+			_id: `${baseId}:update`,
+			name: `Update ${baseId}`,
+			action: PermissionAction.UPDATE,
+			type: PermissionType.COLLECTION,
+			description: `Allows updating ${baseId}`
+		});
+		permissions.push({
+			_id: `${baseId}:delete`,
+			name: `Delete ${baseId}`,
+			action: PermissionAction.DELETE,
+			type: PermissionType.COLLECTION,
+			description: `Allows deleting ${baseId}`
+		});
+	});
+	return permissions;
+}
+
+// Synchronizes permissions if needed
+export async function syncPermissions(): Promise<void> {
+	try {
+		const collections = await getCollectionFiles();
+		const configs = Object.values(permissionConfigs).map((cur) => ({
+			_id: cur.contextId,
+			action: cur.action,
+			name: cur.name,
+			type: PermissionType.CONFIGURATION
+		}));
+
+		const collectionPermissions = await syncCollectionPermissions(collections);
+
+		const permissions: AuthPermission[] = [...configs, ...userManagementPermissions, ...collectionPermissions];
+
+		// Expand permissions based on dependencies (e.g., MANAGE -> READ, UPDATE, DELETE)
+		const expandedPermissions = expandPermissions(permissions);
+
+		setPermissions(expandedPermissions);
+
+		logger.info('Permissions synchronized from configuration');
+	} catch (error) {
+		logger.error(`Failed to synchronize permissions: ${(error as Error).message}`);
+		throw error;
+	}
+}
+
+// Expands permissions to include dependent actions (e.g., MANAGE implies READ, UPDATE, DELETE)
+function expandPermissions(permissions: AuthPermission[]): AuthPermission[] {
+	const expandedPermissions: AuthPermission[] = [...permissions];
+	permissions.forEach((permission) => {
+		if (permission.action === PermissionAction.MANAGE) {
+			// Add associated actions like READ, UPDATE, DELETE
+			expandedPermissions.push(
+				{ ...permission, action: PermissionAction.READ },
+				{ ...permission, action: PermissionAction.UPDATE },
+				{ ...permission, action: PermissionAction.DELETE }
+			);
+		}
+	});
+	return expandedPermissions;
+}
+
 export const permissionConfigs: Record<string, PermissionConfig> = {
+	// Config Permissions
 	collectionbuilder: {
 		contextId: 'config/collectionbuilder',
 		name: 'Collection Builder Management',
-		action: PermissionAction.MANAGE, // Use PermissionAction enum
+		action: PermissionAction.MANAGE,
 		contextType: 'system'
 	},
 	graphql: { contextId: 'config/graphql', name: 'GraphQL Management', action: PermissionAction.MANAGE, contextType: 'system' },
@@ -81,58 +162,17 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 	widgetManagement: { contextId: 'config/widgetManagement', name: 'Widget Management', action: PermissionAction.MANAGE, contextType: 'system' },
 	themeManagement: { contextId: 'config/themeManagement', name: 'Theme Management', action: PermissionAction.MANAGE, contextType: 'system' },
 	settings: { contextId: 'config/settings', name: 'Settings Management', action: PermissionAction.MANAGE, contextType: 'system' },
-	accessManagement: { contextId: 'config/accessManagement', name: 'Access Management', action: PermissionAction.MANAGE, contextType: 'system' }
+	accessManagement: { contextId: 'config/accessManagement', name: 'Access Management', action: PermissionAction.MANAGE, contextType: 'system' },
+
+	// User Permissions
+	adminAreaPermissionConfig: {
+		contextId: 'config/adminArea',
+		name: 'Admin Area Management',
+		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	}
 } as const;
 
 export const userManagementPermissions = [
 	{ _id: 'user:manage', name: 'Manage Users', action: PermissionAction.MANAGE, type: PermissionType.USER, description: 'Allows management of users.' }
 ];
-
-// Synchronizes permissions if needed
-export async function syncPermissions(): Promise<void> {
-	const collections = await getCollectionFiles();
-	const configs = Object.values(permissionConfigs).map((cur) => ({
-		_id: cur.contextId,
-		action: cur.action,
-		name: cur.name,
-		type: PermissionType.CONFIGURATION
-	}));
-
-	const permissions: AuthPermission[] = [...configs, ...userManagementPermissions];
-
-	collections.map((ed) => {
-		const cur = ed.slice(0, ed.length - 3);
-		permissions.push({
-			_id: `${cur}:create`,
-			name: `Create ${cur}`,
-			action: PermissionAction.CREATE,
-			type: PermissionType.COLLECTION,
-			description: `Allows creating new ${cur}`
-		});
-		permissions.push({
-			_id: `${cur}:read`,
-			name: `Read ${cur}`,
-			action: PermissionAction.READ,
-			type: PermissionType.COLLECTION,
-			description: `Allows reading ${cur}`
-		});
-		permissions.push({
-			_id: `${cur}:update`,
-			name: `Update ${cur}`,
-			action: PermissionAction.UPDATE,
-			type: PermissionType.COLLECTION,
-			description: `Allows updating ${cur}`
-		});
-		permissions.push({
-			_id: `${cur}:delete`,
-			name: `Delete ${cur}`,
-			action: PermissionAction.DELETE,
-			type: PermissionType.COLLECTION,
-			description: `Allows deleting ${cur}`
-		});
-	});
-
-	setPermissions(permissions);
-
-	logger.info('Permissions synchronized from configuration');
-}
