@@ -102,6 +102,11 @@
 		}
 	}
 
+	// Type guard to check if the widget has a validateWidget method
+	function hasValidateWidget(widget: any): widget is { validateWidget: () => Promise<string | null> } {
+		return typeof widget?.validateWidget === 'function';
+	}
+
 	// Save form data with validation
 	async function saveData() {
 		let validationPassed = true;
@@ -110,8 +115,8 @@
 		const fields = $collection.fields;
 
 		// Validate all fields
-		fields.forEach(async (field) => {
-			if (field.widget && typeof field.widget.validateWidget === 'function') {
+		for (const field of fields) {
+			if (hasValidateWidget(field.widget)) {
 				const error = await field.widget.validateWidget();
 				if (error) {
 					validationStore.setError(getFieldName(field), error);
@@ -120,21 +125,23 @@
 					validationStore.clearError(getFieldName(field));
 				}
 			}
-		});
+		}
 
 		// If validation passed, save the data
 		if (validationPassed) {
-			await saveFormData({
-				data: $collectionValue,
-				_collection: $collection,
-				_mode: $mode,
-				dbAdapter,
-				authAdapter,
-				user
-			});
+			try {
+				await saveFormData({
+					data: $collectionValue,
+					_collection: $collection,
+					_mode: $mode,
+					user
+				});
 
-			mode.set('view');
-			handleSidebarToggle();
+				mode.set('view');
+				handleSidebarToggle();
+			} catch (err) {
+				console.error('Failed to save data:', err);
+			}
 		}
 	}
 

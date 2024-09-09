@@ -1,5 +1,5 @@
 /**
- * @file load.ts
+ * @file src/stores/store.ts
  * @description Initializes and manages global stores for the application's state management.
  *
  * This module sets up various Svelte stores for managing:

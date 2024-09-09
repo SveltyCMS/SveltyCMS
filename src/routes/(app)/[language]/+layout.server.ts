@@ -15,13 +15,14 @@
  * The module utilizes various utilities and configurations for robust error handling
  * and logging, providing a secure and user-friendly experience.
  */
+
 import { publicEnv } from '@root/config/public';
 import { error, redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth, dbAdapter, initializationPromise } from '@src/databases/db';
+import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -32,6 +33,7 @@ import logger from '@src/utils/logger';
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
+import { roles as configRoles } from '@root/config/roles';
 
 export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 	try {
@@ -99,12 +101,16 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 			throw redirect(302, `/${redirectLanguage}/${_filtered[0].name}`);
 		}
 
-		let hasPermission = user.isAdmin;
+		// Check if user has admin privileges based on their role
+		const userRole = configRoles.find((role) => role._id === user.role);
+		let hasPermission = userRole?.isAdmin;
+
 		if (!hasPermission && collection?.permissions) {
+			// Check if the user has permission to access the collection
 			hasPermission = collection.permissions[user.role]?.read !== false;
 		}
 
-		logger.debug(`User role: ${user.role}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
+		logger.debug(`User role: ${user.role}, Role isAdmin: ${userRole?.isAdmin}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
 
 		if (!hasPermission) {
 			logger.warn(`No access to collection ${collection?.name} for role ${user.role}`);
@@ -117,6 +123,7 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 		let theme = DEFAULT_THEME;
 
 		try {
+			// Assuming dbAdapter is used for theme management only
 			const fetchedTheme = await dbAdapter.getDefaultTheme();
 			logger.info(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
 

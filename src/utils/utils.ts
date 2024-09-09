@@ -203,6 +203,11 @@ export async function saveFormData({
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
 	const $entryData = get(entryData);
+
+	// Debugging: Log the incoming data
+	logger.debug('Incoming data:', data);
+
+	// Convert the collection data to FormData if not already an instance of FormData
 	const formData = data instanceof FormData ? data : await col2formData(data);
 
 	if (_mode === 'edit' && !id) {
@@ -213,6 +218,11 @@ export async function saveFormData({
 	if (!formData) {
 		logger.error('FormData is empty, unable to save.');
 		return;
+	}
+
+	// Debugging: Log the generated FormData
+	for (const [key, value] of formData.entries()) {
+		logger.debug(`FormData key: ${key}, value: ${value}`);
 	}
 
 	if (!meta_data.is_empty()) {

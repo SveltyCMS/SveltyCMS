@@ -7,7 +7,6 @@
 
 import type { User, ContextType, Permission } from './types';
 import { PermissionAction } from '../../config/permissions';
-import { authAdapter } from '@src/databases/db';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
 
@@ -39,23 +38,17 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 
 		// Automatically grant permissions to users with the 'isAdmin' role property
 		if (userRole.isAdmin) {
-			logger.info(`User ${user.email} is an admin (role: ${user.role}), automatically granting permission.`);
+			logger.info(`User ${user.email} has an admin role (role: ${user.role}), automatically granting permission.`);
 			return { hasPermission: true, isRateLimited: false };
 		}
 
-		// Check if authAdapter is initialized
-		if (!authAdapter) {
-			logger.error('Authentication adapter is not initialized.');
-			return { hasPermission: false, isRateLimited: false };
-		}
-
-		// Retrieve cached role permissions or fetch from the configuration if not cached
+		// Retrieve cached role permissions or fetch them if not cached
 		let userPermissions: Permission[] = rolePermissionCache[user.role];
 		if (!userPermissions) {
-			logger.debug(`No cached permissions found for role: ${user.role}. Fetching from configuration.`);
+			logger.debug(`No cached permissions found for role: ${user.role}. Fetching from in-memory configuration.`);
 
 			// Fetch all permissions and filter by the user's role permissions
-			const allPermissions = await getAllPermissions();
+			const allPermissions = await getAllPermissions(); // In-memory permissions
 			userPermissions = allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
 
 			// Cache the result

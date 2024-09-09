@@ -32,8 +32,17 @@ import logger from '@src/utils/logger';
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string) {
 	data.append('method', method);
+
+	// Log the FormData entries before sending
+	for (const [key, value] of data.entries()) {
+		logger.debug(`FormData key: ${key}, value: ${value}`);
+	}
+
 	try {
-		const response = await axios.post('/api/query', data, config);
+		const response = await axios.post('/api/query', data, {
+			...config,
+			withCredentials: true // Ensure cookies are sent with the request
+		});
 		logger.info(`Successfully completed ${method} request`, { data: response.data });
 		return response.data;
 	} catch (error) {
@@ -53,7 +62,10 @@ export async function getData(query: {
 }) {
 	const q = toFormData({ method: 'GET', ...query });
 	try {
-		const response = await axios.post('/api/query', q);
+		const response = await axios.post('/api/query', q, {
+			...config,
+			withCredentials: true // This ensures cookies are sent with the request
+		});
 		logger.debug('Successfully completed GET request', { data: response.data });
 		return response.data as {
 			entryList: [any];
