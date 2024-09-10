@@ -2,6 +2,7 @@
 @file src/routes/(app)/imageEditor/FocalPoint.svelte
 @description This component allows users to set or reset a focal point on the image.
 -->
+
 <script lang="ts">
 	import Konva from 'konva';
 	import { onMount, createEventDispatcher } from 'svelte';
@@ -12,10 +13,12 @@
 
 	let focalPoint: Konva.Group | null = null;
 	let focalPointActive = false;
+	let relativeX: number = 0;
+	let relativeY: number = 0;
 	const dispatch = createEventDispatcher();
 
 	onMount(() => {
-		createFocalPoint(); // Ensure focal point is created at the center when component mounts
+		createFocalPoint(); // Create focal point at the center of the image when the component mounts
 		setupEventListeners();
 	});
 
@@ -25,9 +28,13 @@
 			focalPoint.destroy();
 		}
 
+		// Create focal point in the center of the image
+		const imageCenterX = stage.width() / 2;
+		const imageCenterY = stage.height() / 2;
+
 		focalPoint = new Konva.Group({
-			x: stage.width() / 2,
-			y: stage.height() / 2,
+			x: imageCenterX,
+			y: imageCenterY,
 			draggable: true
 		});
 
@@ -59,8 +66,9 @@
 		layer.add(focalPoint);
 		layer.draw();
 
+		// Update focal point coordinates to (0, 0) at the center
 		updateFocalPoint();
-		focalPointActive = true; // Ensure the focal point is marked as active
+		focalPointActive = true;
 	}
 
 	function setupEventListeners() {
@@ -99,29 +107,49 @@
 		const imageRect = imageNode.getClientRect();
 		const focalPointPos = focalPoint.position();
 
-		const relativeX = (focalPointPos.x - imageRect.x) / imageRect.width;
-		const relativeY = (focalPointPos.y - imageRect.y) / imageRect.height;
+		// Calculate the relative position where (0,0) is the center of the image
+		relativeX = (focalPointPos.x - imageRect.x) / imageRect.width - 0.5;
+		relativeY = (focalPointPos.y - imageRect.y) / imageRect.height - 0.5;
+
+		// Trigger reactivity manually
+		relativeX = Number(relativeX.toFixed(2));
+		relativeY = Number(relativeY.toFixed(2));
 
 		dispatch('focalPointChange', { x: relativeX, y: relativeY });
 		layer.draw();
 	}
 
-	function toggleFocalPoint() {
-		if (focalPointActive) {
-			// Remove the focal point
-			focalPoint?.destroy();
+	function resetFocalPoint() {
+		// Reset focal point to the center of the image
+		createFocalPoint();
+		layer.draw();
+	}
+
+	function removeFocalPoint() {
+		// Remove the focal point
+		if (focalPoint) {
+			focalPoint.destroy();
 			focalPoint = null;
 			focalPointActive = false;
-		} else {
-			// Reset focal point to center
-			createFocalPoint();
+			relativeX = 0;
+			relativeY = 0;
+			dispatch('focalPointRemoved');
 		}
 		layer.draw();
 	}
 </script>
 
-<div class="focal-point-controls bg-base-800 absolute bottom-4 right-4 z-50 rounded-md p-2 text-white shadow-lg">
-	<button class="btn-secondary btn" on:click={toggleFocalPoint}>
-		{focalPointActive ? 'Remove' : 'Reset'} Focal Point
-	</button>
+<!-- Focal Point Controls UI -->
+<div class="wrapper bg-base-800 fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4 text-white shadow-lg">
+	<div class="flex flex-col items-center justify-around space-y-2">
+		<p class="text-sm font-medium">Focal Point Position:</p>
+		<div class="flex space-x-4">
+			<p class="text-sm">X: <span class="text-tertiary-500 dark:text-primary-500">{relativeX.toFixed(2)}</span></p>
+			<p class="text-sm">Y: <span class="text-tertiary-500 dark:text-primary-500">{relativeY.toFixed(2)}</span></p>
+		</div>
+	</div>
+	<div class="mt-4 flex justify-around gap-4">
+		<button on:click={removeFocalPoint} class="variant-filled-error btn"> Remove Focal Point </button>
+		<button on:click={resetFocalPoint} class="variant-filled-primary btn"> Reset Focal Point </button>
+	</div>
 </div>

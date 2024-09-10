@@ -5,7 +5,8 @@
 -->
 
 <script lang="ts">
-	import { createEventDispatcher } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
+	import type Konva from 'konva';
 
 	enum WATERMARK_POSITION {
 		'top-left' = 'top-left',
@@ -19,19 +20,110 @@
 		'bottom-right' = 'bottom-right'
 	}
 
-	export let watermarkFile: File | null = null;
-	export let position: WATERMARK_POSITION = WATERMARK_POSITION.center;
-	export let opacity = 1;
-	export let scale = 100;
-	export let offsetX = 0;
-	export let offsetY = 0;
-	export let rotation = 0;
+	export let stage: Konva.Stage;
+	export let layer: Konva.Layer;
+	export let imageNode: Konva.Image;
+
+	let watermarkFile: File | null = null;
+	let position: WATERMARK_POSITION = WATERMARK_POSITION.center;
+	let opacity = 1;
+	let scale = 100;
+	let offsetX = 0;
+	let offsetY = 0;
+	let rotation = 0;
 
 	const dispatch = createEventDispatcher();
 
 	let watermarkPreview: string | null = null;
+	let watermarkNode: Konva.Image | null = null;
+
+	onMount(() => {
+		return () => {
+			if (watermarkNode) {
+				watermarkNode.destroy();
+			}
+		};
+	});
+
+	function applyWatermark() {
+		if (!watermarkPreview) return;
+
+		if (watermarkNode) {
+			watermarkNode.destroy();
+		}
+
+		const watermarkImage = new Image();
+		watermarkImage.src = watermarkPreview;
+		watermarkImage.onload = () => {
+			watermarkNode = new Konva.Image({
+				image: watermarkImage,
+				opacity: opacity,
+				scaleX: scale / 100,
+				scaleY: scale / 100,
+				rotation: rotation
+			});
+
+			const { x, y } = calculateWatermarkPosition();
+			watermarkNode.position({ x: x + offsetX, y: y + offsetY });
+
+			layer.add(watermarkNode);
+			layer.batchDraw();
+		};
+	}
+
+	function calculateWatermarkPosition() {
+		const stageWidth = stage.width();
+		const stageHeight = stage.height();
+		const imageWidth = imageNode.width() * imageNode.scaleX();
+		const imageHeight = imageNode.height() * imageNode.scaleY();
+
+		let x = 0;
+		let y = 0;
+
+		switch (position) {
+			case WATERMARK_POSITION['top-left']:
+				x = 0;
+				y = 0;
+				break;
+			case WATERMARK_POSITION['top-center']:
+				x = imageWidth / 2;
+				y = 0;
+				break;
+			case WATERMARK_POSITION['top-right']:
+				x = imageWidth;
+				y = 0;
+				break;
+			case WATERMARK_POSITION['center-left']:
+				x = 0;
+				y = imageHeight / 2;
+				break;
+			case WATERMARK_POSITION.center:
+				x = imageWidth / 2;
+				y = imageHeight / 2;
+				break;
+			case WATERMARK_POSITION['center-right']:
+				x = imageWidth;
+				y = imageHeight / 2;
+				break;
+			case WATERMARK_POSITION['bottom-left']:
+				x = 0;
+				y = imageHeight;
+				break;
+			case WATERMARK_POSITION['bottom-center']:
+				x = imageWidth / 2;
+				y = imageHeight;
+				break;
+			case WATERMARK_POSITION['bottom-right']:
+				x = imageWidth;
+				y = imageHeight;
+				break;
+		}
+
+		return { x, y };
+	}
 
 	function handleChange() {
+		applyWatermark();
 		dispatch('change', {
 			watermarkFile,
 			position,
@@ -50,15 +142,20 @@
 			const reader = new FileReader();
 			reader.onload = (e) => {
 				watermarkPreview = e.target?.result as string;
+				applyWatermark();
 			};
 			reader.readAsDataURL(watermarkFile);
-			handleChange();
 		}
 	}
 
 	function removeWatermark() {
 		watermarkFile = null;
 		watermarkPreview = null;
+		if (watermarkNode) {
+			watermarkNode.destroy();
+			watermarkNode = null;
+			layer.batchDraw();
+		}
 		handleChange();
 	}
 

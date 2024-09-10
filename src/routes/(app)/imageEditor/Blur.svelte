@@ -15,7 +15,7 @@
 	let overlayType = 'circle';
 	let overlayNode: Konva.Shape | null = null;
 	let transformer: Konva.Transformer;
-	let isBlurActive = false;
+	let isBlurActive = true;
 
 	const dispatch = createEventDispatcher();
 
@@ -32,6 +32,9 @@
 		});
 		layer.add(transformer);
 		layer.draw();
+
+		// Add initial blur overlay
+		addBlurOverlay();
 	});
 
 	function addBlurOverlay() {
@@ -39,10 +42,10 @@
 		isBlurActive = true;
 
 		const overlayOptions: Konva.ShapeConfig = {
-			x: stage.width() / 4,
-			y: stage.height() / 4,
-			width: stage.width() / 2,
-			height: stage.height() / 2,
+			x: stage.width() / 2 - 50, // Center the overlay
+			y: stage.height() / 2 - 50, // Center the overlay
+			width: 100, // Reduced initial size
+			height: 100, // Reduced initial size
 			draggable: true,
 			stroke: 'white',
 			strokeWidth: 2,
@@ -52,7 +55,7 @@
 		if (overlayType === 'circle') {
 			overlayNode = new Konva.Circle({
 				...overlayOptions,
-				radius: Math.min(stage.width(), stage.height()) / 4
+				radius: 50 // Reduced initial radius
 			});
 		} else {
 			overlayNode = new Konva.Rect(overlayOptions);
@@ -66,6 +69,8 @@
 		transformer.nodes([overlayNode]);
 		layer.add(transformer);
 		layer.draw();
+
+		applyBlur(true); // Apply initial blur
 	}
 
 	function applyBlur(preview = false) {
@@ -130,27 +135,40 @@
 	function updateBlurStrength() {
 		applyBlur(true);
 	}
+
+	function resetBlur() {
+		clearBlurs();
+		addBlurOverlay(); // Start fresh with a new blur overlay
+		dispatch('blurReset');
+	}
 </script>
 
 <!-- Blur Controls UI -->
-<div class="blur-controls bg-base-800 absolute left-4 top-4 z-50 flex items-center space-x-4 rounded-md p-4 text-white shadow-lg">
-	{#if isBlurActive}
+<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4">
+	<div class="flex items-center justify-around space-x-4">
 		<div class="flex flex-col space-y-2">
 			<label for="blur-strength" class="text-sm font-medium">Blur Strength:</label>
-			<input id="blur-strength" type="range" min="0" max="40" bind:value={blurAmount} on:input={updateBlurStrength} class="range" />
+			<input
+				id="blur-strength"
+				type="range"
+				min="0"
+				max="40"
+				bind:value={blurAmount}
+				on:input={updateBlurStrength}
+				class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
+			/>
 		</div>
 		<div class="flex flex-col space-y-2">
-			<label for="blur-shape" class="text-sm font-medium">Shape:</label>
-			<select id="blur-shape" bind:value={overlayType} on:change={addBlurOverlay} class="select-bordered select text-black">
+			<label for="blur-shape" class="text-center text-sm font-medium">Shape:</label>
+			<select id="blur-shape" bind:value={overlayType} on:change={addBlurOverlay} class="select-bordered select">
 				<option value="circle">Circle</option>
 				<option value="rectangle">Rectangle</option>
 			</select>
 		</div>
-		<div class="flex space-x-2">
-			<button on:click={() => applyBlur(false)} class="btn-primary btn">Apply</button>
-			<button on:click={clearBlurs} class="btn-error btn">Cancel</button>
-		</div>
-	{:else}
-		<button on:click={addBlurOverlay} class="btn-primary btn">Add Blur</button>
-	{/if}
+	</div>
+	<div class="mt-4 flex justify-around gap-4">
+		<button on:click={clearBlurs} class="variant-filled-error btn">Cancel</button>
+		<button on:click={resetBlur} class="variant-outline btn">Reset</button>
+		<button on:click={() => applyBlur(false)} class="variant-filled-primary btn">Apply</button>
+	</div>
 </div>

@@ -2,6 +2,7 @@
 @file src/routes/(app)/imageEditor/Filter.svelte
 @description This component allows users to apply various filters to an image, such as brightness, contrast, saturation, hue, blur, and more.
 -->
+
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import Konva from 'konva';
@@ -45,14 +46,20 @@
 	function formatValue(value: number, suffix: string = ''): string {
 		return `${value.toFixed(2)}${suffix}`;
 	}
+
+	function exitFilters() {
+		dispatch('exitFilters');
+	}
 </script>
 
-<div class="filter-controls bg-base-800 absolute right-4 top-4 z-50 rounded-md p-4 text-white shadow-lg">
-	<h3 class="mb-4 text-lg font-bold">Image Filters</h3>
+<!-- Filter Controls UI -->
+<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-2">
+	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h3>
 
-	<div class="mb-4 grid grid-cols-2 gap-4">
+	<button on:click={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
-			<span class="mb-1">Brightness: {formatValue(filters.brightness)}</span>
+			<span class="mb-1">Brightness: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.brightness)} </span></span>
 			<input
 				type="range"
 				min="-1"
@@ -64,7 +71,7 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Contrast: {formatValue(filters.contrast, '%')}</span>
+			<span class="mb-1">Contrast: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.contrast, '%')}</span></span>
 			<input
 				type="range"
 				min="-100"
@@ -76,7 +83,7 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Saturation: {formatValue(filters.saturation)}</span>
+			<span class="mb-1">Saturation: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.saturation)}</span></span>
 			<input
 				type="range"
 				min="-2"
@@ -88,7 +95,7 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Hue: {formatValue(filters.hue, '°')}</span>
+			<span class="mb-1">Hue: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.hue, '°')}</span></span>
 			<input
 				type="range"
 				min="0"
@@ -100,7 +107,7 @@
 			/>
 		</label>
 		<label class="flex flex-col">
-			<span class="mb-1">Blur: {formatValue(filters.blur, 'px')}</span>
+			<span class="mb-1">Blur: <span class="text-tertiary-500 dark:text-primary-500">{formatValue(filters.blur, 'px')}</span></span>
 			<input
 				type="range"
 				min="0"
@@ -113,7 +120,7 @@
 		</label>
 	</div>
 
-	<div class="mb-4 grid grid-cols-3 gap-4">
+	<div class="mt-4 grid grid-cols-3 gap-4">
 		<label class="flex items-center">
 			<input
 				type="checkbox"
@@ -143,5 +150,8 @@
 		</label>
 	</div>
 
-	<button on:click={resetFilters} class="btn-secondary btn w-full">Reset Filters</button>
+	<div class="mt-4 flex justify-between space-x-2">
+		<button on:click={resetFilters} class="variant-filled-error btn w-full">Reset Filters</button>
+		<button on:click={exitFilters} class="variant-filled-primary btn w-full">Apply</button>
+	</div>
 </div>

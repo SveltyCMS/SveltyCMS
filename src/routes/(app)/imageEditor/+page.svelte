@@ -34,7 +34,7 @@
 	let containerRef: HTMLDivElement;
 	let activeState = '';
 	let blurActive = false;
-
+	let updatedImageFile: File | null = null;
 	let stateHistory: string[] = [];
 	let currentStateIndex = -1;
 	let canUndo = false;
@@ -44,45 +44,63 @@
 		const { params } = $page;
 		if (params.image) {
 			selectedImage = params.image;
+			loadImageAndSetupKonva(selectedImage);
 		}
 	});
 
-	$: if (imageFile) {
-		setupKonvaStage();
-	}
-
-	function setupKonvaStage() {
-		if (!imageFile || !containerRef) return;
+	function loadImageAndSetupKonva(imageSrc: string) {
+		if (!containerRef) {
+			console.error('Container reference is not set');
+			return;
+		}
 
 		const img = new Image();
-		img.src = URL.createObjectURL(imageFile);
+		img.src = imageSrc;
 		img.onload = () => {
-			const containerWidth = containerRef.offsetWidth;
-			const containerHeight = containerRef.offsetHeight;
-			const scale = Math.min(containerWidth / img.width, containerHeight / img.height);
-
-			stage = new Konva.Stage({
-				container: containerRef,
-				width: containerWidth,
-				height: containerHeight
-			});
-
-			layer = new Konva.Layer();
-			stage.add(layer);
-
-			imageNode = new Konva.Image({
-				image: img,
-				x: (containerWidth - img.width * scale) / 2,
-				y: (containerHeight - img.height * scale) / 2,
-				width: img.width * scale,
-				height: img.height * scale
-			});
-
-			layer.add(imageNode);
-			layer.draw();
-
-			saveState();
+			if (img.width > 0 && img.height > 0) {
+				console.log('Image loaded successfully with dimensions:', img.width, img.height);
+				setupKonvaStage(img);
+			} else {
+				console.error('Image has invalid dimensions:', img.width, img.height);
+			}
 		};
+		img.onerror = () => {
+			console.error('Failed to load image:', imageSrc);
+		};
+	}
+
+	function setupKonvaStage(img: HTMLImageElement) {
+		if (!containerRef) return;
+
+		const containerWidth = Math.max(1, containerRef.offsetWidth);
+		const containerHeight = Math.max(1, containerRef.offsetHeight);
+		const scale = Math.min(containerWidth / img.width, containerHeight / img.height);
+
+		// Ensure non-zero dimensions
+		const stageWidth = Math.max(1, containerWidth);
+		const stageHeight = Math.max(1, containerHeight);
+
+		stage = new Konva.Stage({
+			container: containerRef,
+			width: stageWidth,
+			height: stageHeight
+		});
+
+		layer = new Konva.Layer();
+		stage.add(layer);
+
+		imageNode = new Konva.Image({
+			image: img,
+			x: (stageWidth - img.width * scale) / 2,
+			y: (stageHeight - img.height * scale) / 2,
+			width: Math.max(1, img.width * scale),
+			height: Math.max(1, img.height * scale)
+		});
+
+		layer.add(imageNode);
+		layer.draw();
+
+		saveState();
 	}
 
 	function applyEdit() {
@@ -109,8 +127,8 @@
 		imageNode.setAttrs({
 			x,
 			y,
-			width,
-			height,
+			width: Math.max(1, width),
+			height: Math.max(1, height),
 			clip:
 				shape === 'circular'
 					? (ctx: CanvasRenderingContext2D) => {
@@ -177,6 +195,7 @@
 		if (target.files && target.files.length > 0) {
 			imageFile = target.files[0];
 			selectedImage = URL.createObjectURL(imageFile);
+			loadImageAndSetupKonva(selectedImage);
 		}
 	}
 
@@ -185,8 +204,9 @@
 			const dataURL = stage.toDataURL();
 			const response = await fetch(dataURL);
 			const blob = await response.blob();
-			const updatedImageFile = new File([blob], imageFile.name, { type: 'image/png' });
+			updatedImageFile = new File([blob], imageFile.name, { type: 'image/png' });
 
+			// You can now use updatedImageFile for other operations, such as uploading
 			saveEditedImage.set(true);
 		}
 	}
@@ -224,118 +244,118 @@
 </div>
 
 <div class="mb-2 flex items-center justify-between gap-2">
-	<input class="input my-2" type="file" accept="image/*" on:change={handleImageUpload} aria-label="Upload image file" />
+	<input class="input my-2 h-10" type="file" accept="image/*" on:change={handleImageUpload} aria-label="Upload image file" />
 	{#if imageFile}
-		<button on:click={handleUndo} disabled={!canUndo} class="variant-outline-tertiary dark:variant-outline-secondary" aria-label="Undo">
+		<button on:click={handleUndo} disabled={!canUndo} class="variant-outline-tertiary btn-icon dark:variant-outline-secondary" aria-label="Undo">
 			<iconify-icon icon="mdi:undo" width="24" class="text-tertiary-600" />
 		</button>
-		<button on:click={handleRedo} disabled={!canRedo} class="variant-outline-tertiary dark:variant-outline-secondary" aria-label="Redo">
+		<button on:click={handleRedo} disabled={!canRedo} class="variant-outline-tertiary btn-icon dark:variant-outline-secondary" aria-label="Redo">
 			<iconify-icon icon="mdi:redo" width="24" class="text-tertiary-600" />
 		</button>
-		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon dark:variant-filled-primary" aria-label="Save">
+		<button type="button" on:click={handleSave} class="variant-filled-tertiary btn-icon btn-icon dark:variant-filled-primary" aria-label="Save">
 			<iconify-icon icon="material-symbols:save" width="24" class="text-white" />
 		</button>
 	{/if}
 </div>
 
 <!-- Image Editor Container -->
-<div class="image-editor-wrapper mb-2 h-[calc(100vh-225px)] overflow-hidden">
-	<div class="image-editor" bind:this={containerRef}>
-		{#if stage && layer && imageNode}
-			<!-- Conditionally display the tool components based on the active state -->
-			{#if activeState === 'rotate'}
-				<Rotate
-					{stage}
-					{layer}
-					{imageNode}
-					on:rotate={handleRotate}
-					on:rotateApplied={() => {
-						activeState = '';
-						applyEdit();
-					}}
-					on:rotateCancelled={() => {
-						activeState = '';
-					}}
-				/>
-			{:else if activeState === 'blur'}
-				<Blur
-					{stage}
-					{layer}
-					{imageNode}
-					on:blurApplied={() => {
-						activeState = '';
-						blurActive = false;
-					}}
-				/>
-			{:else if activeState === 'crop'}
-				<Crop
-					{stage}
-					{layer}
-					{imageNode}
-					on:crop={handleCrop}
-					on:cancelCrop={() => {
-						activeState = '';
-					}}
-				/>
-			{:else if activeState === 'zoom'}
-				<Zoom {stage} {layer} {imageNode} on:zoom={handleZoom} />
-			{:else if activeState === 'focalpoint'}
-				<FocalPoint {stage} {layer} {imageNode} on:focalpoint={handleFocalPoint} />
-			{:else if activeState === 'watermark'}
-				<Watermark {stage} {layer} {imageNode} />
-			{:else if activeState === 'filter'}
-				<Filter {stage} {layer} {imageNode} />
-			{:else if activeState === 'textoverlay'}
-				<TextOverlay {stage} {layer} {imageNode} />
-			{:else if activeState === 'shapeoverlay'}
-				<ShapeOverlay {stage} {layer} />
-			{/if}
-		{:else if !imageFile}
-			<p class="no-image-message">Please upload an image to start editing.</p>
-		{/if}
-	</div>
+<div class="mb-2 flex h-[calc(100vh-225px)] flex-col items-center justify-center overflow-hidden" bind:this={containerRef}>
+	{#if !imageFile}
+		<p class="mb-4 text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
+	{/if}
 
-	<!-- Tool Controls -->
-	<div class="tool-controls-container">
-		<div class="tool-buttons-row">
-			<button on:click={() => toggleTool('rotate')} disabled={!imageFile} aria-label="Rotate">
-				<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
-				Rotate
-			</button>
-			<button on:click={() => toggleTool('blur')} disabled={!imageFile} aria-label="Blur">
-				<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600" />
-				Blur
-			</button>
-			<button on:click={() => toggleTool('crop')} disabled={!imageFile} aria-label="Crop">
-				<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600" />
-				Crop
-			</button>
-			<button on:click={() => toggleTool('zoom')} disabled={!imageFile} aria-label="Zoom">
-				<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600" />
-				Zoom
-			</button>
-			<button on:click={() => toggleTool('focalpoint')} disabled={!imageFile} aria-label="Focal Point">
-				<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600" />
-				Focal Point
-			</button>
-			<button on:click={() => toggleTool('watermark')} disabled={!imageFile} aria-label="Watermark">
-				<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600" />
-				Watermark
-			</button>
-			<button on:click={() => toggleTool('filter')} disabled={!imageFile} aria-label="Filter">
-				<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600" />
-				Filter
-			</button>
-			<button on:click={() => toggleTool('textoverlay')} disabled={!imageFile} aria-label="Add Text">
-				<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600" />
-				Add Text
-			</button>
-			<button on:click={() => toggleTool('shapeoverlay')} disabled={!imageFile} aria-label="Add Shape">
-				<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
-				Add Shape
-			</button>
-		</div>
-	</div>
+	{#if stage && layer && imageNode && imageFile}
+		<!-- Conditionally display the tool components based on the active state -->
+		{#if activeState === 'rotate'}
+			<Rotate
+				{stage}
+				{layer}
+				{imageNode}
+				on:rotate={handleRotate}
+				on:rotateApplied={() => {
+					activeState = '';
+					applyEdit();
+				}}
+				on:rotateCancelled={() => {
+					activeState = '';
+				}}
+			/>
+		{:else if activeState === 'blur'}
+			<Blur
+				{stage}
+				{layer}
+				{imageNode}
+				on:blurApplied={() => {
+					activeState = '';
+					blurActive = false;
+				}}
+			/>
+		{:else if activeState === 'crop'}
+			<Crop
+				{stage}
+				{layer}
+				{imageNode}
+				on:crop={handleCrop}
+				on:cancelCrop={() => {
+					activeState = '';
+				}}
+			/>
+		{:else if activeState === 'zoom'}
+			<Zoom {stage} {layer} {imageNode} on:zoom={handleZoom} />
+		{:else if activeState === 'focalpoint'}
+			<FocalPoint {stage} {layer} {imageNode} on:focalpoint={handleFocalPoint} />
+		{:else if activeState === 'watermark'}
+			<Watermark {stage} {layer} {imageNode} />
+		{:else if activeState === 'filter'}
+			<Filter {stage} {layer} {imageNode} />
+		{:else if activeState === 'textoverlay'}
+			<TextOverlay {stage} {layer} {imageNode} />
+		{:else if activeState === 'shapeoverlay'}
+			<ShapeOverlay {stage} {layer} />
+		{/if}
+
+		<!-- Tool Controls -->
+		{#if activeState === ''}
+			<div class="wrapper mt-4 flex flex-wrap items-center justify-center gap-2">
+				<button on:click={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
+					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
+					Rotate
+				</button>
+				<button on:click={() => toggleTool('blur')} aria-label="Blur" class="mx-2">
+					<iconify-icon icon="mdi:blur" width="24" class="text-tertiary-600" />
+					Blur
+				</button>
+				<button on:click={() => toggleTool('crop')} aria-label="Crop" class="mx-2">
+					<iconify-icon icon="mdi:crop" width="24" class="text-tertiary-600" />
+					Crop
+				</button>
+				<button on:click={() => toggleTool('zoom')} aria-label="Zoom" class="mx-2">
+					<iconify-icon icon="mdi:magnify" width="24" class="text-tertiary-600" />
+					Zoom
+				</button>
+				<button on:click={() => toggleTool('focalpoint')} aria-label="Focal Point" class="mx-2">
+					<iconify-icon icon="mdi:focus-field" width="24" class="text-tertiary-600" />
+					Focal Point
+				</button>
+				<button on:click={() => toggleTool('watermark')} aria-label="Watermark" class="mx-2">
+					<iconify-icon icon="mdi:watermark" width="24" class="text-tertiary-600" />
+					Watermark
+				</button>
+				<button on:click={() => toggleTool('filter')} aria-label="Filter" class="mx-2">
+					<iconify-icon icon="mdi:filter-variant" width="24" class="text-tertiary-600" />
+					Filter
+				</button>
+				<button on:click={() => toggleTool('textoverlay')} aria-label="Add Text" class="mx-2">
+					<iconify-icon icon="mdi:format-text" width="24" class="text-tertiary-600" />
+					Add Text
+				</button>
+				<button on:click={() => toggleTool('shapeoverlay')} aria-label="Add Shape" class="mx-2">
+					<iconify-icon icon="mdi:shape" width="24" class="text-tertiary-600" />
+					Add Shape
+				</button>
+			</div>
+		{/if}
+	{/if}
 </div>
 
 {#if $saveEditedImage}

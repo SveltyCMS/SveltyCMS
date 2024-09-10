@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
@@ -19,6 +19,8 @@
 	let maxScale = 5;
 	let maintainAspectRatio = true;
 	let zoomSpeed = 0.1;
+
+	const dispatch = createEventDispatcher();
 
 	onMount(() => {
 		centerImage();
@@ -100,32 +102,42 @@
 		}
 		resize();
 	}
+
+	function exitZoomResize() {
+		dispatch('exitZoomResize');
+	}
 </script>
 
+<!-- Zoom Controls -->
 <div
-	class="controls-container bg-base-900/75 border-base-100 absolute bottom-4 left-1/2 z-50 flex -translate-x-1/2 transform items-center space-x-4 rounded-full border p-2 shadow-lg"
+	class="variant-filled-surface btn-group btn-group absolute bottom-32 left-1/2 z-50 -translate-x-1/2 transform items-center space-x-4 rounded-full border p-2 opacity-90"
 >
-	<button class="btn-circle btn" on:click={() => zoom(-zoomSpeed)} aria-label="Zoom Out">-</button>
-	<span class="min-w-[60px] text-center text-sm font-semibold">{Math.round(scale * 100)}%</span>
-	<button class="btn-circle btn" on:click={() => zoom(zoomSpeed)} aria-label="Zoom In">+</button>
-	<button class="btn btn-sm ml-2" on:click={resetZoom} aria-label="Reset Zoom">Reset</button>
+	<button class="btn-icon" on:click={() => zoom(-zoomSpeed)} aria-label="Zoom Out">-</button>
+	<span class="min-w-[20px] text-center text-sm font-semibold text-tertiary-500 dark:text-primary-500">{Math.round(scale * 100)}%</span>
+	<button class="btn-icon" on:click={() => zoom(zoomSpeed)} aria-label="Zoom In">+</button>
+	<button class="btn rounded-none border-l border-surface-200" on:click={resetZoom} aria-label="Reset Zoom">Reset</button>
 </div>
 
-<div class="resize-controls bg-base-800 absolute right-4 top-4 z-50 rounded-md p-4 text-white shadow-lg">
-	<h3 class="mb-4 text-lg font-bold">Resize Image</h3>
-	<div class="flex flex-col space-y-2">
-		<label class="label">
+<!-- Resize and Exit Controls -->
+<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4">
+	<div class="flex items-center justify-around space-x-2">
+		<label class="label text-center">
 			Width:
-			<input type="number" bind:value={width} on:input={() => updateDimensions('width')} class="input-bordered input w-full" />
+			<input type="number" bind:value={width} on:input={() => updateDimensions('width')} class=" input text-center" />
 		</label>
-		<label class="label">
+		<label class="label text-center">
 			Height:
-			<input type="number" bind:value={height} on:input={() => updateDimensions('height')} class="input-bordered input w-full" />
+			<input type="number" bind:value={height} on:input={() => updateDimensions('height')} class="input text-center" />
 		</label>
-		<label class="flex items-center space-x-2">
+	</div>
+	<div class="flex items-center justify-around space-x-2">
+		<label class="flex space-x-2">
 			<input type="checkbox" bind:checked={maintainAspectRatio} class="checkbox-primary checkbox" />
 			<span>Maintain Aspect Ratio</span>
 		</label>
 	</div>
-	<button on:click={resize} class="btn-primary btn mt-4 w-full">Apply Resize</button>
+	<div class="mt-4 flex justify-between space-x-2">
+		<button on:click={resize} class="variant-filled-primary btn w-full">Apply Resize</button>
+		<button on:click={exitZoomResize} class="variant-outline btn w-full">Exit</button>
+	</div>
 </div>

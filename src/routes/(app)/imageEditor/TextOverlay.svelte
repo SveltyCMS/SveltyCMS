@@ -7,7 +7,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { createEventDispatcher, onMount } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
@@ -20,6 +20,8 @@
 	let textAlign = 'left';
 	let fontStyle = 'normal';
 	let selectedText: Konva.Text | null = null;
+
+	const dispatch = createEventDispatcher();
 
 	onMount(() => {
 		stage.on('click', (e) => {
@@ -118,44 +120,66 @@
 				transformer.destroy();
 			}
 
-			// Redraw the layer to reflect the changes
+			// Find and destroy the transformer
 			layer.draw();
-
 			// Clear the selected text reference
 			selectedText = null;
 		}
 	}
+
+	function resetTextOverlay() {
+		layer.find('Text').each((textNode) => textNode.destroy());
+		layer.find('Transformer').each((transformer) => transformer.destroy());
+		layer.draw();
+
+		text = '';
+		fontSize = 24;
+		textColor = '#ffffff';
+		fontFamily = 'Arial';
+		textAlign = 'left';
+		fontStyle = 'normal';
+		selectedText = null;
+	}
+
+	function exitTextOverlay() {
+		dispatch('exitTextOverlay');
+	}
 </script>
 
-<div class="text-overlay-controls bg-base-800 absolute left-4 top-4 z-50 rounded-md p-4 text-white">
-	<div class="mb-2">
-		<input type="text" bind:value={text} on:keydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input w-full" />
-	</div>
-	<div class="mb-2 flex space-x-2">
+<!-- Text Overlay Controls UI -->
+<div class="wrapper bg-base-800 fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4 text-white shadow-lg">
+	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay</h3>
+
+	<button on:click={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+
+	<input type="text" bind:value={text} on:keydown={(e) => e.key === 'Enter' && addText()} placeholder="Enter text" class="input" />
+
+	<div class="flex items-center justify-between space-x-2">
 		<input type="number" bind:value={fontSize} on:input={updateSelectedText} min="8" max="72" class="input w-16" />
 		<input type="color" bind:value={textColor} on:input={updateSelectedText} class="h-8 w-8" />
-		<select bind:value={fontFamily} on:change={updateSelectedText} class="input">
+		<select bind:value={fontFamily} on:change={updateSelectedText} class="input select">
 			<option value="Arial">Arial</option>
 			<option value="Helvetica">Helvetica</option>
 			<option value="Times New Roman">Times New Roman</option>
 			<option value="Courier New">Courier New</option>
 		</select>
 	</div>
-	<div class="mb-2 flex space-x-2">
-		<select bind:value={textAlign} on:change={updateSelectedText} class="input">
+	<div class="flex items-center justify-between space-x-2">
+		<select bind:value={textAlign} on:change={updateSelectedText} class="input select">
 			<option value="left">Left</option>
 			<option value="center">Center</option>
 			<option value="right">Right</option>
 		</select>
-		<select bind:value={fontStyle} on:change={updateSelectedText} class="input">
+		<select bind:value={fontStyle} on:change={updateSelectedText} class="input select">
 			<option value="normal">Normal</option>
 			<option value="bold">Bold</option>
 			<option value="italic">Italic</option>
 			<option value="bold italic">Bold Italic</option>
 		</select>
 	</div>
-	<div class="flex space-x-2">
-		<button on:click={addText} class="btn-secondary btn">Add Text</button>
-		<button on:click={deleteSelectedText} class="btn-secondary btn" disabled={!selectedText}>Delete Selected</button>
+	<div class="flex justify-between space-x-2">
+		<button on:click={deleteSelectedText} class="variant-filled-error btn" disabled={!selectedText}> Delete Selected </button>
+		<button on:click={resetTextOverlay} class="variant-outline btn"> Reset </button>
+		<button on:click={addText} class="variant-filled-primary btn"> Add Text </button>
 	</div>
 </div>

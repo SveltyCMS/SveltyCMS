@@ -6,7 +6,7 @@
 
 <script lang="ts">
 	import Konva from 'konva';
-	import { onMount } from 'svelte';
+	import { onMount, createEventDispatcher } from 'svelte';
 
 	export let stage: Konva.Stage;
 	export let layer: Konva.Layer;
@@ -20,6 +20,8 @@
 	let shapes: Konva.Shape[] = [];
 	let selectedShape: Konva.Shape | null = null;
 
+	const dispatch = createEventDispatcher();
+
 	onMount(() => {
 		stage.on('click tap', (e) => {
 			if (e.target === stage) {
@@ -31,8 +33,8 @@
 	function addShape() {
 		let shape: Konva.Shape;
 		const commonProps = {
-			fill: fillColor as string, // Cast as string
-			stroke: strokeColor as string, // Cast as string
+			fill: fillColor as string,
+			stroke: strokeColor as string,
 			strokeWidth: strokeWidth,
 			opacity: opacity,
 			draggable: true
@@ -127,46 +129,55 @@
 			layer.draw();
 		}
 	}
+
+	function exitShapeOverlay() {
+		dispatch('exitShapeOverlay');
+	}
 </script>
 
-<div class="absolute bottom-4 right-4 z-50 rounded-md bg-gray-800 p-4 text-white">
-	<h3 class="mb-4 text-lg font-bold">Shape Overlay</h3>
+<!-- Shape Overlay Controls UI -->
+<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4">
+	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Shape Overlay</h3>
 
-	<div class="mb-4 grid grid-cols-2 gap-4">
+	<button on:click={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
+
+	<div class="grid grid-cols-2 gap-2">
 		<label class="flex flex-col">
 			<span class="mb-1">Shape Type:</span>
-			<select bind:value={shapeType} class="rounded px-2 py-1 text-black">
+			<select bind:value={shapeType} class="input">
 				<option value="rectangle">Rectangle</option>
 				<option value="circle">Circle</option>
 				<option value="ellipse">Ellipse</option>
 			</select>
 		</label>
 
-		<label class="flex flex-col">
-			<span class="mb-1">Fill Color:</span>
-			<input type="color" bind:value={fillColor} on:input={updateSelectedShape} class="h-8" />
-		</label>
+		<div class="flex items-center justify-around gap-2">
+			<label class="flex flex-col">
+				<span class="mb-1">Fill Color:</span>
+				<input type="color" bind:value={fillColor} on:input={updateSelectedShape} class="input" />
+			</label>
 
-		<label class="flex flex-col">
-			<span class="mb-1">Stroke Color:</span>
-			<input type="color" bind:value={strokeColor} on:input={updateSelectedShape} class="h-8" />
-		</label>
+			<label class="flex flex-col">
+				<span class="mb-1">Stroke Color:</span>
+				<input type="color" bind:value={strokeColor} on:input={updateSelectedShape} class="input" />
+			</label>
+		</div>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Stroke Width: {strokeWidth}px</span>
-			<input type="range" min="0" max="20" step="1" bind:value={strokeWidth} on:input={updateSelectedShape} />
+			<input type="range" min="0" max="20" step="1" bind:value={strokeWidth} on:input={updateSelectedShape} class="input" />
 		</label>
 
 		<label class="flex flex-col">
 			<span class="mb-1">Opacity: {opacity.toFixed(2)}</span>
-			<input type="range" min="0" max="1" step="0.01" bind:value={opacity} on:input={updateSelectedShape} />
+			<input type="range" min="0" max="1" step="0.01" bind:value={opacity} on:input={updateSelectedShape} class=" input" />
 		</label>
 	</div>
 
-	<div class="flex flex-wrap gap-2">
-		<button on:click={addShape} class="rounded bg-blue-500 px-4 py-2 text-white">Add Shape</button>
-		<button on:click={deleteSelectedShape} class="rounded bg-red-500 px-4 py-2 text-white" disabled={!selectedShape}>Delete</button>
-		<button on:click={bringToFront} class="rounded bg-green-500 px-4 py-2 text-white" disabled={!selectedShape}>Bring to Front</button>
-		<button on:click={sendToBack} class="rounded bg-yellow-500 px-4 py-2 text-white" disabled={!selectedShape}>Send to Back</button>
+	<div class="mt-4 flex justify-between space-x-2">
+		<button on:click={addShape} class="variant-filled-primary btn w-full">Add Shape</button>
+		<button on:click={deleteSelectedShape} class="variant-filled-error btn w-full" disabled={!selectedShape}>Delete</button>
+		<button on:click={bringToFront} class="variant-outline btn w-full" disabled={!selectedShape}>Bring to Front</button>
+		<button on:click={sendToBack} class="variant-outline btn w-full" disabled={!selectedShape}>Send to Back</button>
 	</div>
 </div>
