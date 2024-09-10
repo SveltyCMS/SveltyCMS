@@ -14,7 +14,6 @@
 	import type { User } from '@src/auth/types';
 	const user: User = $page.data.user;
 	import { roles } from '@root/config/roles';
-	import { authAdapter, dbAdapter } from '@src/databases/db';
 
 	// Components
 	import Toggles from './system/inputs/Toggles.svelte';

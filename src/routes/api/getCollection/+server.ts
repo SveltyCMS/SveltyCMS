@@ -10,7 +10,7 @@
  * Features:
  * - Retrieves the file name from query parameters
  * - Dynamically imports the specified file
- * - Returns the file contents as a JSON response with 'application/javascript' content type
+ * - Returns the file contents as a JSON response with 'application/json' content type
  * - Handles errors for missing query parameters
  *
  * Usage:
@@ -23,17 +23,20 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 // Define the GET request handler
 export const GET: RequestHandler = async ({ url }) => {
 	const fileNameQuery = url.searchParams.get('fileName');
-	if (!fileNameQuery) return error(500, 'Query parameter "fileName" not found');
+	if (!fileNameQuery) {
+		return error(400, 'Query parameter "fileName" not found');
+	}
+
 	const fileName = fileNameQuery.split('?')[0];
+
 	try {
 		// Dynamically import the specified collection file
-		const result = await import(/* @vite-ignore */ import.meta.env.collectionsFolderJS + fileName);
-		const reqInit = {
+		const result = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${fileName}`);
+		return json(result, {
 			headers: {
-				'Content-Type': 'application/javascript'
+				'Content-Type': 'application/json'
 			}
-		};
-		return json(result, { ...reqInit });
+		});
 	} catch (err) {
 		return error(500, `Failed to import the file: ${(err as Error).message}`);
 	}

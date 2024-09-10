@@ -10,18 +10,18 @@ import type { Permission } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
-	name: string; // Make `name` non-optional
-	label?: string; // optional label that will display instead of name if used
+	name?: keyof CollectionNames; // Ensure name matches a key in CollectionNames
+	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
-	links?: CollectionNames[]; // optional links for the collection
-	icon?: string; // optional icon for the collection
-	description?: string; // optional description for the collection
+	links?: Array<keyof CollectionNames>; // Ensure links are valid collection names
+	icon?: string; // Optional icon for the collection
+	description?: string; // Optional description for the collection
 	status?: 'draft' | 'published' | 'unpublished' | 'schedule' | 'cloned';
-	permissions?: Permission; // optional permission restrictions
-	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[]; // array of fields
-	strict?: boolean; // optional strict mode
-	revision?: boolean; // optional revisions
-	livePreview?: boolean; // optional  live preview
+	permissions?: Permission; // Optional permission restrictions
+	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[]; // Array of fields
+	strict?: boolean; // Optional strict mode
+	revision?: boolean; // Optional revisions
+	livePreview?: boolean; // Optional live preview
 }
 
 // Define a new `Collection` interface that represents the shape of an object with several properties
@@ -53,5 +53,4 @@ export type CollectionContent = {
 	];
 };
 
-
-export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Relation'|'WidgetTest';
+export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Relation' | 'WidgetTest';

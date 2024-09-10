@@ -148,7 +148,7 @@ export const validationStore = (() => {
 		});
 	};
 
-	const getError = (fieldName: string) => {
+	const getError = (fieldName: string): string | null => {
 		let error: string | null = null;
 		subscribe((errors) => {
 			error = errors[fieldName] || null;
@@ -156,7 +156,7 @@ export const validationStore = (() => {
 		return error;
 	};
 
-	const hasError = (fieldName: string) => {
+	const hasError = (fieldName: string): boolean => {
 		let hasError = false;
 		subscribe((errors) => {
 			hasError = !!errors[fieldName];

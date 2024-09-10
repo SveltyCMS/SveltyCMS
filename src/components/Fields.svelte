@@ -58,15 +58,16 @@ Key features:
 	// Reactive statements
 	$: if ($entryData) {
 		const id = $entryData._id;
-		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${$collection.name}/${id}`;
+		// Convert $collection.name to a string if it's a symbol
+		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection.name)}/${id}`;
 	}
 
 	// Functions and helpers
 	async function loadTranslationProgress() {
 		translationProgress = {};
 		fields?.forEach((field) => {
-			// Ensure the field has the translated property
-			if (field.translated) {
+			if ((field as any).translated) {
+				// Type assertion
 				translationProgress[getFieldName(field)] = Math.random(); // Simulated progress
 			}
 		});
@@ -89,8 +90,8 @@ Key features:
 	}
 
 	function getLivePreviewContent() {
-		// Implement live preview logic
-		return `<div>Live Preview Content for ${$collection.name}</div>`;
+		// Ensure $collection.name is a string
+		return `<div>Live Preview Content for ${String($collection.name)}</div>`;
 	}
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
@@ -192,8 +193,8 @@ Key features:
 										/>
 
 										<!-- Display validation error below the widget if any -->
-										{#if $validationStore?.getError?.(getFieldName(field)) ?? false}
-											<p class="text-center text-sm text-error-500">{$validationStore.getError(getFieldName(field))}</p>
+										{#if $validationStore[getFieldName(field)]}
+											<p class="text-center text-sm text-error-500">{$validationStore[getFieldName(field)]}</p>
 										{/if}
 									{/await}
 								</div>

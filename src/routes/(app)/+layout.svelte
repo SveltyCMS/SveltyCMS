@@ -1,3 +1,14 @@
+<!--
+@file src/routes/(app)/+layout.svelte
+@description: This component renders the entire app.
+
+Key features:
+-     Skeleton UI framework for SvelteKit
+-     Dynamic theme management based on user preferences or defaults
+-     SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
+-     Initialization of Skeleton stores for UI components
+-->
+
 <script lang="ts">
 	// Your selected Skeleton theme:
 	import '../../app.postcss';
@@ -59,7 +70,7 @@
 
 		if (!ForwardBackward && initial != true) {
 			// If ForwardBackward is false and the current route is a collection route
-			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${$collection.name}`);
+			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String($collection.name)}`);
 		}
 		initial = false;
 		// Reset ForwardBackward to false
