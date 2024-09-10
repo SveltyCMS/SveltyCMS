@@ -305,8 +305,8 @@ export async function configureSystem(privateConfigData = {}) {
 
 	const JWT_SECRET_KEY = await text({
 		message: 'Enter the secret key for signing and verifying JWTs:',
-		placeholder: generateRandomJWTSecret,
-		initialValue: privateConfigData.JWT_SECRET_KEY || 'generateRandomJWTSecret',
+		placeholder: generateRandomJWTSecret(), // Ensure this is executed correctly
+		initialValue: privateConfigData.JWT_SECRET_KEY || generateRandomJWTSecret(),
 		validate(value) {
 			if (value.length === 0) return `JWT secret key is required!`;
 		}
