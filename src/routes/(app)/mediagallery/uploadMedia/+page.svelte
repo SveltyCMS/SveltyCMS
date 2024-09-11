@@ -12,9 +12,10 @@
 	import ModalUploadMedia from './ModalUploadMedia.svelte';
 
 	// Skeleton
-	import { TabGroup, Tab, getModalStore } from '@skeletonlabs/skeleton';
+	import { TabGroup, Tab, getModalStore, getToastStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings, ModalComponent } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+	const toastStore = getToastStore();
 	let tabSet: number = 0;
 
 	// Modal Upload preview
@@ -24,7 +25,7 @@
 			ref: ModalUploadMedia,
 			// Provide default slot content as a template literal
 			slot: '<p>add Media</p>',
-			props: { mediaType: 'image', sectionName: 'Gallery', files, onDelete }
+			props: { mediaType: 'image', sectionName: 'Gallery', files, onDelete, uploadFiles }
 		};
 		const d: ModalSettings = {
 			type: 'component',
@@ -34,6 +35,7 @@
 			response: (r: any) => {
 				if (r) {
 					console.log('response:', r);
+					uploadFiles();
 				}
 			}
 		};
@@ -94,6 +96,50 @@
 	function onDelete(file: File) {
 		files = files.filter((f) => f !== file);
 	}
+
+	async function uploadFiles() {
+		if (files.length === 0) {
+			toastStore.trigger({
+				message: 'No files selected for upload',
+				background: 'variant-filled-warning'
+			});
+			return;
+		}
+
+		const formData = new FormData();
+		files.forEach((file) => {
+			formData.append('files', file);
+		});
+
+		try {
+			const response = await fetch('/api/media/saveMedia', {
+				method: 'POST',
+				body: formData
+			});
+
+			if (!response.ok) {
+				throw new Error('Upload failed');
+			}
+
+			const result = await response.json();
+
+			if (result.success) {
+				toastStore.trigger({
+					message: 'Files uploaded successfully',
+					background: 'variant-filled-success'
+				});
+				files = []; // Clear the files array after successful upload
+			} else {
+				throw new Error(result.error || 'Upload failed');
+			}
+		} catch (error) {
+			console.error('Error uploading files:', error);
+			toastStore.trigger({
+				message: 'Error uploading files: ' + (error.message || 'Unknown error'),
+				background: 'variant-filled-error'
+			});
+		}
+	}
 </script>
 
 <!-- PageTitle -->
@@ -121,7 +167,7 @@
 			<svelte:fragment slot="lead">
 				<div class="flex items-center justify-between gap-2">
 					<iconify-icon icon="arcticons:tautulli-remote" width="28"></iconify-icon>
-					<p class="text-tertiary-500 dark:text-primary-500">Remote Uploa</p>
+					<p class="text-tertiary-500 dark:text-primary-500">Remote Upload</p>
 				</div>
 			</svelte:fragment>
 		</Tab>

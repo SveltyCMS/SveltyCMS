@@ -5,12 +5,13 @@
  * This module handles:
  * - User authentication and session validation
  * - Fetching media files from various collections (images, documents, audio, video)
+ * - Fetching virtual folders
  * - File upload processing for different media types
  * - Error handling and logging
  *
- * The load function prepares data for the media gallery, including user information
- * and a list of all media files. The actions object defines the server-side logic
- * for handling file uploads.
+ * The load function prepares data for the media gallery, including user information,
+ * a list of all media files, and virtual folders. The actions object defines the
+ * server-side logic for handling file uploads.
  */
 import { publicEnv } from '@root/config/public';
 
@@ -28,6 +29,31 @@ import { DEFAULT_THEME } from '@src/utils/utils';
 // System Logs
 import logger from '@src/utils/logger';
 
+// Helper function to convert _id and other nested objects to string
+function convertIdToString(obj: any): any {
+	if (obj === null || typeof obj !== 'object') {
+		return obj;
+	}
+
+	if (Array.isArray(obj)) {
+		return obj.map(convertIdToString);
+	}
+
+	const result: any = {};
+	for (const key in obj) {
+		if (key === '_id' || key === 'parent') {
+			result[key] = obj[key].toString(); // Ensure ObjectId is converted to string
+		} else if (Buffer.isBuffer(obj[key])) {
+			result[key] = obj[key].toString('hex'); // Convert Buffer to hex string
+		} else if (typeof obj[key] === 'object') {
+			result[key] = convertIdToString(obj[key]); // Recursively convert nested objects
+		} else {
+			result[key] = obj[key];
+		}
+	}
+	return result;
+}
+
 export const load: PageServerLoad = async ({ cookies }) => {
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
 	if (!session_id) {
@@ -44,16 +70,15 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const user = await auth.validateSession({ session_id });
 		if (!user) {
 			logger.warn('Invalid session, redirecting to login');
-			throw redirect(302, '/login'); // Correct use of redirect
+			throw redirect(302, '/login');
 		}
 
 		// Convert user._id to a string to ensure it's serializable
-		if (user._id && typeof user._id !== 'string') {
-			user._id = user._id.toString();
-		}
+		const serializedUser = convertIdToString(user);
 
 		const folderIdentifier = publicEnv.MEDIA_FOLDER;
 
+		// Fetch media files
 		const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		const media_promises = media_types.map((type) => {
 			const query = type === 'media_remote' ? { folder: folderIdentifier } : {};
@@ -63,16 +88,23 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		let results = await Promise.all(media_promises);
 
 		results = results.map((arr, index) =>
-			arr.map((item) => ({
-				...item,
-				_id: item._id?.toString(), // Ensure _id is treated as a string for any database
-				type: media_types[index].split('_')[1],
-				url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), media_types[index]),
-				thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), media_types[index])
-			}))
+			arr.map((item) =>
+				convertIdToString({
+					...item,
+					type: media_types[index].split('_')[1],
+					url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), media_types[index]),
+					thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), media_types[index])
+				})
+			)
 		);
 
 		const media = results.flat();
+
+		// Fetch virtual folders and ensure they are serializable
+		const virtualFolders = await dbAdapter.getVirtualFolders();
+		const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
+
+		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
 		let theme;
 		try {
@@ -83,26 +115,14 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			theme = DEFAULT_THEME;
 		}
 
-		logger.info('Media gallery data loaded successfully');
-		return { user, media, theme };
+		logger.info('Media gallery data and virtual folders loaded successfully');
+		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders, theme };
+
+		return returnData;
 	} catch (err) {
 		logger.error('Error in media gallery load function:', err instanceof Error ? err.message : String(err));
 		throw error(500, 'Internal Server Error');
 	}
-};
-
-// Collection name for media files
-const collection_names = {
-	application: 'media_documents',
-	audio: 'media_audio',
-	font: 'media_documents',
-	example: 'media_documents',
-	image: 'media_images',
-	message: 'media_documents',
-	model: 'media_documents',
-	multipart: 'media_documents',
-	text: 'media_documents',
-	video: 'media_videos'
 };
 
 export const actions: Actions = {

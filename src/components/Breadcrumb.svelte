@@ -13,10 +13,16 @@
 		<li class="crumb flex items-center">
 			<button
 				class="anchor flex items-center gap-1 rounded px-2 py-1 text-gray-800 hover:bg-gray-200 dark:text-gray-200 dark:hover:bg-gray-700"
-				on:click={() =>
-					index === 0
-						? openFolder(null)
-						: openFolder(folders.find((f) => f.path.join('/') === breadcrumb.slice(1, index + 1).join('/'))?._id || null)}
+				on:click={() => {
+					if (index === 0) {
+						openFolder(null); // Root folder
+					} else {
+						// Find the folder matching the current breadcrumb path
+						const pathUpToThisPoint = breadcrumb.slice(1, index + 1).join('/');
+						const folder = folders.find((f) => f.path.join('/') === pathUpToThisPoint);
+						openFolder(folder ? folder._id : null);
+					}
+				}}
 			>
 				{#if index === 0}
 					<iconify-icon icon="mdi:home" width="18" class="text-gray-600 dark:text-gray-400" />

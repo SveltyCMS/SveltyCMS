@@ -28,6 +28,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
+	// Prop to receive data from the server
+	export let data;
+
 	let files: MediaImage[] = [];
 
 	let breadcrumb: string[] = [];
@@ -40,10 +43,27 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	let gridSize: 'small' | 'medium' | 'large' = 'small';
 	let tableSize: 'small' | 'medium' | 'large' = 'small';
 
-	onMount(async () => {
+	onMount(() => {
 		mode.set('media');
-		await fetchFolders();
-		await fetchMediaFiles();
+		console.log('Received data:', data); // Ensure this logs a valid structure
+
+		if (data && data.virtualFolders) {
+			folders = data.virtualFolders.map((folder) => ({
+				...folder,
+				path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+			}));
+			console.log('Processed folders:', folders); // Ensure the structure is as expected
+		} else {
+			console.error('Virtual folders data is missing or in unexpected format');
+			toastStore.trigger({
+				message: 'Error loading folder structure',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+		}
+
+		fetchMediaFiles();
+		updateBreadcrumb();
 	});
 
 	// Open add virtual folder modal
@@ -69,40 +89,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		modalStore.trigger(modal); // Trigger the modal to open
 	}
 
-	// Fetch virtual folders
-	async function fetchFolders() {
-		try {
-			const response = await fetch('/api/virtualFolder');
-			const result = await response.json();
-
-			console.log('API Response:', result); // Log the entire response for inspection
-
-			if (result.success && result.folders) {
-				// Transform the path string to an array for easier handling in the UI
-				folders = result.folders.map((folder) => ({
-					...folder,
-					path: folder.path.split('/') // Convert path string to an array for easier handling
-				}));
-				console.log('Transformed Folders:', folders); // Log the transformed folders
-
-				updateBreadcrumb();
-			} else {
-				console.log('Error or no folders:', result.error || 'No folders returned');
-				throw new Error(result.error || 'Failed to fetch folders');
-			}
-		} catch (error) {
-			console.error('Error fetching folders:', error);
-			toastStore.trigger({
-				message: 'Error fetching folders',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-			folders = [];
-		}
-	}
-
 	async function updateFolder(folderId: string, newName: string, newParentId?: string) {
 		try {
+			console.log(`Updating folder: ${folderId} with new name: ${newName}`);
 			const response = await fetch('/api/virtualFolder', {
 				method: 'PATCH',
 				headers: { 'Content-Type': 'application/json' },
@@ -112,12 +101,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
+				console.log('Folder updated successfully:', result);
 				toastStore.trigger({
 					message: 'Folder updated successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
-				await fetchFolders(); // Refresh the folders list
+				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
 				throw new Error(result.error);
 			}
@@ -131,45 +121,18 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 	}
 
-	async function deleteFolder(folderId: string) {
-		try {
-			const response = await fetch('/api/virtualFolder', {
-				method: 'DELETE',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ folderId })
-			});
-
-			const result = await response.json();
-
-			if (result.success) {
-				toastStore.trigger({
-					message: 'Folder deleted successfully',
-					background: 'variant-filled-success',
-					timeout: 3000
-				});
-				await fetchFolders(); // Refresh the folders list
-			} else {
-				throw new Error(result.error);
-			}
-		} catch (error) {
-			console.error('Error deleting folder:', error);
-			toastStore.trigger({
-				message: 'Failed to delete folder',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-		}
-	}
-
 	// Fetch media files
 	async function fetchMediaFiles() {
 		try {
-			const response = await fetch(`/api/virtualFolder/${currentFolder ? currentFolder._id : ''}`);
+			const folderId = currentFolder ? currentFolder._id : 'root';
+			console.log(`Fetching media files for folder: ${folderId}`);
+
+			const response = await fetch(`/api/virtualFolder/${folderId}`);
 			const result = await response.json();
 
-			// Handle potential null or undefined result.contents
 			if (result.success) {
 				files = result.contents ? result.contents : [];
+				console.log('Fetched media files:', files);
 			} else {
 				throw new Error(result.error);
 			}
@@ -193,6 +156,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			// Check if the folder already exists
 			const existingFolder = folders.find((folder) => folder.path.join('/') === newPath);
 			if (existingFolder) {
+				console.log('Folder already exists:', existingFolder);
 				toastStore.trigger({
 					message: 'Folder already exists.',
 					background: 'variant-filled-warning',
@@ -201,6 +165,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				return;
 			}
 
+			console.log(`Creating new folder: ${name} with path: ${newPath}`);
 			const response = await fetch('/api/virtualFolder', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
@@ -214,12 +179,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
+				console.log('Folder created successfully:', result);
 				toastStore.trigger({
 					message: 'Folder created successfully',
 					background: 'variant-filled-success',
 					timeout: 3000
 				});
-				await fetchFolders(); // Refresh folder list
+				folders = await fetchUpdatedFolders(); // Refresh folder list
 			} else {
 				throw new Error(result.error);
 			}
@@ -235,22 +201,105 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	// Open virtual folder
 	async function openFolder(folderId: string | null) {
+		console.log(`Opening folder: ${folderId}`);
+
 		if (folderId === null) {
+			// Navigate to root
 			currentFolder = null;
 		} else {
+			// Set current folder to the selected one
 			currentFolder = folders.find((f) => f._id === folderId) || null;
 		}
+
+		console.log('Current folder set to:', currentFolder);
+
+		// Update breadcrumb based on the current folder
 		updateBreadcrumb();
+
+		// Fetch and display subfolders immediately after setting currentFolder
+		if (currentFolder) {
+			folders = await fetchUpdatedFolders();
+		}
+
+		// Fetch media files for the current folder
 		await fetchMediaFiles();
+	}
+
+	// Fetch updated folders
+	async function fetchUpdatedFolders() {
+		try {
+			console.log('Fetching updated folders');
+			const response = await fetch('/api/virtualFolder');
+			const result = await response.json();
+
+			if (result.success && result.folders) {
+				const updatedFolders = result.folders.map((folder) => ({
+					...folder,
+					path: Array.isArray(folder.path) ? folder.path : folder.path.split('/') // Ensure path is always an array
+				}));
+				console.log('Updated folders:', updatedFolders);
+				return updatedFolders;
+			} else {
+				throw new Error(result.error || 'Failed to fetch folders');
+			}
+		} catch (error) {
+			console.error('Error fetching folders:', error);
+			toastStore.trigger({
+				message: 'Error fetching folders',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+			return [];
+		}
+	}
+
+	async function deleteFolder(folderId: string) {
+		try {
+			console.log(`Deleting folder: ${folderId}`);
+			const response = await fetch('/api/virtualFolder', {
+				method: 'DELETE',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ folderId })
+			});
+
+			const result = await response.json();
+
+			if (result.success) {
+				console.log('Folder deleted successfully:', result);
+				toastStore.trigger({
+					message: 'Folder deleted successfully',
+					background: 'variant-filled-success',
+					timeout: 3000
+				});
+				folders = await fetchUpdatedFolders(); // Refresh the folders list
+			} else {
+				throw new Error(result.error);
+			}
+		} catch (error) {
+			console.error('Error deleting folder:', error);
+			toastStore.trigger({
+				message: 'Failed to delete folder',
+				background: 'variant-filled-error',
+				timeout: 3000
+			});
+		}
 	}
 
 	// Update breadcrumb
 	function updateBreadcrumb() {
 		if (currentFolder) {
-			breadcrumb = [publicEnv.MEDIA_FOLDER, ...currentFolder.path];
+			// Start with the root folder
+			breadcrumb = [publicEnv.MEDIA_FOLDER];
+
+			// Add the rest of the path
+			if (currentFolder.path) {
+				breadcrumb = breadcrumb.concat(currentFolder.path.slice(1));
+			}
 		} else {
+			// Only show the root folder if no current folder is selected
 			breadcrumb = [publicEnv.MEDIA_FOLDER];
 		}
+		console.log('Updated breadcrumb:', breadcrumb);
 	}
 
 	// Handle delete image
@@ -273,9 +322,11 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 
 		try {
+			console.log(`Deleting image: ${image.id}`);
 			const success = await dbAdapter.deleteMedia(image.id.toString());
 
 			if (success) {
+				console.log('Image deleted successfully');
 				toastStore.trigger({
 					message: 'Image deleted successfully.',
 					background: 'variant-filled-success',
@@ -375,22 +426,79 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 <!-- <Filter {globalSearchValue} {selectedMediaType} {mediaTypes} /> -->
 
 <!-- Folders Section -->
+
 {#if folders.length > 0}
-	showing {folders.length} folders
-	<div class="mb-4 grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
-		{#each folders.filter((f) => f.parent === (currentFolder ? currentFolder._id : null)) as folder (folder._id)}
-			<div class="flex flex-col items-center">
-				<button on:click={() => openFolder(folder._id)} class="flex flex-col items-center justify-center rounded border p-4 hover:bg-gray-100">
-					<iconify-icon icon="mdi:folder" width="48" class="text-yellow-500" />
-					<span class="mt-2 text-center">{folder.name}</span>
+	<div class="mb-4 flex flex-col space-y-2">
+		<!-- Root Level Folders -->
+		{#each folders.filter((f) => !currentFolder || f.parent === currentFolder._id) as folder (folder._id)}
+			<div class="relative flex flex-col space-y-2">
+				<!-- Folder Button -->
+				<button
+					on:click={() => openFolder(folder._id)}
+					class="flex items-center space-x-2 rounded-lg border p-4 transition hover:bg-gray-200 dark:hover:bg-gray-700"
+				>
+					<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
+					<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm font-medium">{folder.name}</span>
 				</button>
-				<div class="mt-2 flex gap-2">
-					<button on:click={() => updateFolder(folder._id, 'New Folder Name')} class="text-blue-500">
+
+				<!-- Action Buttons -->
+				<div class="absolute right-2 top-2 flex gap-2">
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							updateFolder(folder._id, 'New Folder Name');
+						}}
+						class="text-blue-500 hover:text-blue-700"
+					>
 						<iconify-icon icon="mdi:pencil" width="20" />
 					</button>
-					<button on:click={() => deleteFolder(folder._id)} class="text-red-500">
+					<button
+						on:click={(e) => {
+							e.stopPropagation();
+							deleteFolder(folder._id);
+						}}
+						class="text-red-500 hover:text-red-700"
+					>
 						<iconify-icon icon="mdi:delete" width="20" />
 					</button>
+				</div>
+
+				<!-- Subfolders (Indented) -->
+				<div class="pl-8">
+					{#each folders.filter((sub) => sub.parent === folder._id) as subfolder (subfolder._id)}
+						<div class="relative flex flex-col space-y-2">
+							<!-- Subfolder Button -->
+							<button
+								on:click={() => openFolder(subfolder._id)}
+								class="flex items-center space-x-2 rounded-lg border p-4 transition hover:bg-gray-200 dark:hover:bg-gray-700"
+							>
+								<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
+								<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm font-medium">{subfolder.name}</span>
+							</button>
+
+							<!-- Subfolder Action Buttons -->
+							<div class="absolute right-2 top-2 flex gap-2">
+								<button
+									on:click={(e) => {
+										e.stopPropagation();
+										updateFolder(subfolder._id, 'New Folder Name');
+									}}
+									class="text-blue-500 hover:text-blue-700"
+								>
+									<iconify-icon icon="mdi:pencil" width="20" />
+								</button>
+								<button
+									on:click={(e) => {
+										e.stopPropagation();
+										deleteFolder(subfolder._id);
+									}}
+									class="text-red-500 hover:text-red-700"
+								>
+									<iconify-icon icon="mdi:delete" width="20" />
+								</button>
+							</div>
+						</div>
+					{/each}
 				</div>
 			</div>
 		{/each}
