@@ -18,7 +18,7 @@
 
 	let isAnimating = true;
 	let animationTimeout: ReturnType<typeof setTimeout> | null = null;
-	const animationDuration = 10000; // 10 seconds
+	const animationDuration = 20000; // 20 seconds
 
 	onMount(() => {
 		// Stop animations after the specified duration

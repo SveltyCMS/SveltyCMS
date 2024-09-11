@@ -22,7 +22,7 @@ import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
 
 // Auth
-import { auth, initializationPromise } from '@src/databases/db';
+import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Paraglide JS
@@ -123,9 +123,9 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 		let theme = DEFAULT_THEME;
 
 		try {
-			// Assuming dbAdapter is used for theme management only
+			// Use dbAdapter for theme management
 			const fetchedTheme = await dbAdapter.getDefaultTheme();
-			logger.info(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
+			logger.debug(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
 
 			if (fetchedTheme && fetchedTheme.name && fetchedTheme.name !== DEFAULT_THEME.name) {
 				theme = {
