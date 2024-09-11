@@ -11,12 +11,10 @@
  */
 
 import { getCollectionFiles } from '@src/routes/api/getCollections/getCollectionFiles';
-
 // Permissions
 import { permissions as configPermissions, PermissionAction, PermissionType, setPermissions } from '@root/config/permissions';
 import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
-
 // System Logger
 import logger from '@src/utils/logger';
 
@@ -169,6 +167,14 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 		contextId: 'config/adminArea',
 		name: 'Admin Area Management',
 		action: PermissionAction.MANAGE,
+		contextType: 'system'
+	},
+
+	// Exporting API Data
+	exportData: {
+		contextId: 'api/exportData',
+		name: 'Export Api Data',
+		action: PermissionAction.EXECUTE,
 		contextType: 'system'
 	}
 } as const;

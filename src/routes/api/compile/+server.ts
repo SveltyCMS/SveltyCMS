@@ -19,23 +19,22 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
-
 // System Logs
 import logger from '@src/utils/logger';
 
-// Define the GET request handler
+// Handles GET requests to the `/compile` endpoint.
 export const GET: RequestHandler = async () => {
 	try {
 		// Log the start of the compilation process
 		logger.debug('Starting compilation...');
 
-		// Execute the compile function
+		// Execute the compile function to initiate compilation
 		await compile();
 
-		// Execute the updateCollections function with the parameter 'true'
+		// Update the collections after compilation
 		await updateCollections(true);
 
-		// Log the completion of the collections update
+		// Log the successful update of collections
 		logger.debug('Collections updated.');
 
 		// Return a successful response with status 200

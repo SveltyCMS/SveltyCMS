@@ -65,12 +65,12 @@ export function setLoadedPermissions(permissions: Permission[]): void {
 	loadedPermissions = permissions;
 }
 
-// Checks if a given role is an admin role
-export function isAdminRole(roleName: string): boolean {
-	return roleName.toLowerCase() === 'admin';
+// Checks if a given role is an admin role based on the isAdmin property
+export function isAdminRole(role: Role): boolean {
+	return role.isAdmin === true;
 }
 
-// Retrieves a role by its name
+// Retrieves a role by its name (case insensitive)
 export function getRoleByName(roleName: string): Role | undefined {
 	return loadedRoles.find((role) => role.name.toLowerCase() === roleName.toLowerCase());
 }
@@ -80,9 +80,10 @@ export function hasPermission(user: User, action: ConfigPermissionAction, type: 
 	const userRole = getRoleByName(user.role);
 	if (!userRole) return false;
 
-	// Short-circuit for admin role
-	if (userRole.isAdmin) return true;
+	// Automatically grant all permissions to admin roles
+	if (isAdminRole(userRole)) return true;
 
+	// Check if the user has the specific permission
 	return userRole.permissions.some((permId) => {
 		const perm = loadedPermissions.find((p) => p._id === permId);
 		return perm && perm.action === action && (perm.type === type || perm.type === PermissionType.SYSTEM);
@@ -98,7 +99,7 @@ export function getPermissionsByRole(roleName: string): Permission[] | undefined
 		.filter((permission): permission is Permission => !!permission);
 }
 
-// Checks if a user has a specific role
+// Checks if a user has a specific role (case insensitive)
 export function hasRole(user: User, roleName: string): boolean {
 	return user.role.toLowerCase() === roleName.toLowerCase();
 }

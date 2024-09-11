@@ -1,22 +1,20 @@
 /**
  * @file src/routes/api/role/create/+server.ts
- * @description API endpoint for updating the CMS configuration file.
+ * @description API endpoint for creating or updating roles in the CMS.
  *
  * This module provides functionality to:
- * - Update the collections configuration file based on API input
- * - Validate and transform incoming configuration data
- * - Compare new configuration with existing to avoid unnecessary updates
- * - Handle file operations for reading and writing the config file
+ * - Update the roles configuration file based on API input
+ * - Validate and transform incoming roles data
+ * - Handle file operations for saving roles configuration
  *
  * Features:
- * - Dynamic configuration update without manual file editing
+ * - Dynamic role creation or update without manual file editing
  * - Data transformation from API format to config file format
- * - Hash-based comparison to prevent redundant file writes
  * - Error handling and logging for file operations
  *
  * Usage:
  * POST /api/role/create
- * Body: JSON array of category objects with collections
+ * Body: JSON array of role objects
  *
  * Note: This endpoint modifies a crucial configuration file.
  * Ensure proper access controls and input validation are in place.
@@ -29,16 +27,43 @@ import { json } from '@sveltejs/kit';
 import { initializationPromise, authAdapter } from '@src/databases/db';
 import logger from '@src/utils/logger';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// Authorization check (example, ensure you have proper authentication in place)
+	const user = locals.user;
+	if (!user || !user.isAdmin) {
+		logger.warn('Unauthorized attempt to create/update roles');
+		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+	}
+
 	try {
 		await initializationPromise;
+
 		const { roles } = await request.json();
-		console.log(roles);
+
+		// Validate roles data
+		if (!Array.isArray(roles) || !roles.every(validateRole)) {
+			logger.warn('Invalid role data provided');
+			return json({ success: false, error: 'Invalid role data' }, { status: 400 });
+		}
+
 		await authAdapter?.setAllRoles(roles);
-		return json({ sucess: true }, { status: 200 });
+
+		logger.info('Roles updated successfully');
+		return json({ success: true }, { status: 200 });
 	} catch (error: any) {
-		console.log(error);
-		logger.error('Error updating config file:', error);
-		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
+		logger.error('Error creating/updating roles:', error);
+		return json({ success: false, error: `Error creating/updating roles: ${error.message}` }, { status: 500 });
 	}
 };
+
+// Validates the structure of a role object
+function validateRole(role: any): boolean {
+	return (
+		typeof role._id === 'string' &&
+		typeof role.name === 'string' &&
+		Array.isArray(role.permissions) &&
+		role.permissions.every((perm: any) => typeof perm === 'string') &&
+		(role.isAdmin === undefined || typeof role.isAdmin === 'boolean') &&
+		(role.description === undefined || typeof role.description === 'string')
+	);
+}

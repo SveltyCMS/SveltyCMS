@@ -25,6 +25,7 @@
 
 import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
+
 // System Loggger
 import logger from '@src/utils/logger';
 
@@ -34,16 +35,17 @@ const MAX_DATA_POINTS = 100;
 const cpuData: number[] = [];
 const timeStamps: string[] = [];
 
-// Function to fetch CPU usage information
+// Fetches CPU usage information and tracks it over time
 const fetchCPUInfo = async () => {
 	try {
 		const cpuUsage = await cpu.usage();
 		const timeStamp = new Date().toISOString();
 
+		// Store the CPU usage and timestamp
 		cpuData.push(cpuUsage);
 		timeStamps.push(timeStamp);
 
-		// Store the CPU usage and timestamp
+		// Maintain a fixed size for the data arrays
 		if (cpuData.length > MAX_DATA_POINTS) {
 			cpuData.shift();
 			timeStamps.shift();
@@ -56,7 +58,7 @@ const fetchCPUInfo = async () => {
 	}
 };
 
-// Function to fetch disk usage information
+// Fetches disk usage information
 const fetchDiskInfo = async () => {
 	try {
 		const diskUsage = await drive.info('/');
@@ -77,7 +79,8 @@ const fetchDiskInfo = async () => {
 	}
 };
 
-// Function to fetch memory usage information
+// Fetches memory usage information
+
 const fetchMemoryInfo = async () => {
 	try {
 		const memoryInfo = await mem.info();
@@ -94,7 +97,7 @@ const fetchMemoryInfo = async () => {
 	}
 };
 
-// Function to fetch overall system information
+//Collects overall system information including CPU, disk, memory, and OS details.
 const getSystemInfo = async () => {
 	try {
 		const [cpuInfo, diskInfo, memoryInfo] = await Promise.all([fetchCPUInfo(), fetchDiskInfo(), fetchMemoryInfo()]);
@@ -115,7 +118,7 @@ const getSystemInfo = async () => {
 	}
 };
 
-// Define the GET request handler
+// Fetches and returns system information including CPU, disk, memory, and OS details.
 export const GET: RequestHandler = async () => {
 	try {
 		// Fetch system information
@@ -129,6 +132,7 @@ export const GET: RequestHandler = async () => {
 		});
 	} catch (error) {
 		logger.error('Error fetching system info:', error);
+
 		// Return an error response in case of failure
 		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {
 			status: 500,

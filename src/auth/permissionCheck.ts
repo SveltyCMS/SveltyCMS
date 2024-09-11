@@ -9,7 +9,6 @@ import type { User, ContextType, Permission } from './types';
 import { PermissionAction } from '../../config/permissions';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
-
 // System Logger
 import logger from '@utils/logger';
 
@@ -23,7 +22,7 @@ export interface PermissionConfig {
 // Cache to store roles and permissions temporarily
 const rolePermissionCache: Record<string, Permission[]> = {};
 
-// Function to check user permissions
+//Checks if the user has the necessary permissions based on their role and the required permission configuration.
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
 		logger.debug(`Starting permission check for user: ${user.email}, role: ${user.role}, config: ${JSON.stringify(config)}`);
@@ -77,7 +76,7 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 	}
 }
 
-// Function to load user permissions
+// Loads all permissions for the specified user based on their role.
 export async function loadUserPermissions(user: User): Promise<Permission[]> {
 	const userRole = configRoles.find((role) => role._id === user.role);
 	if (!userRole) {

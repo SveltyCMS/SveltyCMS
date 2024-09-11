@@ -1,3 +1,8 @@
+/**
+ * @file src/collections/ImageArray.ts
+ * @description Collection file for ImageArray
+ */
+
 import widgets from '@components/widgets';
 import type { Schema } from './types';
 

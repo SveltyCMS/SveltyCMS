@@ -58,7 +58,19 @@ if (privateEnv.USE_REDIS === true) {
 	redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
 }
 
-// GraphQL
+// Ensure Redis client is properly disconnected on shutdown
+async function cleanupRedis() {
+	if (redisClient) {
+		try {
+			await redisClient.quit();
+			logger.info('Redis client disconnected gracefully');
+		} catch (err) {
+			logger.error('Error disconnecting Redis client: ', err);
+		}
+	}
+}
+
+// Setup GraphQL schema and resolvers
 async function setupGraphQL() {
 	try {
 		logger.info('Setting up GraphQL schema and resolvers');
@@ -122,6 +134,12 @@ const handler = async (event: RequestEvent) => {
 		return new Response('Internal Server Error', { status: 500 });
 	}
 };
+
+// Ensure Redis is disconnected when the server shuts down
+if (typeof process !== 'undefined') {
+	process.on('SIGINT', cleanupRedis);
+	process.on('SIGTERM', cleanupRedis);
+}
 
 // Export the handlers for GET and POST requests
 export { handler as GET, handler as POST };

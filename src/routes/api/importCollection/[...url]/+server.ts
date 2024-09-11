@@ -25,12 +25,12 @@ import { promises as fsPromises } from 'fs';
 import mime from 'mime-types';
 import type { RequestHandler } from './$types';
 import { join } from 'path';
-
 // System Logger
 import logger from '@src/utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async ({ params }) => {
+	// Construct the file path from the base directory and the URL parameter
 	const filePath = join(import.meta.env.collectionsFolderJS, params.url);
 	logger.debug(`Attempting to read file: ${filePath}`);
 
@@ -49,10 +49,12 @@ export const GET: RequestHandler = async ({ params }) => {
 			}
 		});
 	} catch (error) {
+		// Handle the case where the file is not found
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			logger.warn('File not found:', { filePath });
 			return new Response('File not found', { status: 404 });
 		} else {
+			// Log and respond with a generic error message for other issues
 			logger.error('Error reading file:', error);
 			return new Response('Internal Server Error', { status: 500 });
 		}

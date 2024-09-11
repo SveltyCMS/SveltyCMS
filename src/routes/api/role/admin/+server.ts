@@ -1,22 +1,20 @@
 /**
  * @file src/routes/api/role/create/+server.ts
- * @description API endpoint for updating the CMS configuration file.
+ * @description API endpoint for setting a role as an admin in the CMS.
  *
  * This module provides functionality to:
- * - Update the collections configuration file based on API input
- * - Validate and transform incoming configuration data
- * - Compare new configuration with existing to avoid unnecessary updates
- * - Handle file operations for reading and writing the config file
+ * - Retrieve all roles from the database
+ * - Set a specific role as an admin based on API input
+ * - Ensure only one role can be set as an admin at a time
+ * - Update the roles configuration in the database
  *
  * Features:
- * - Dynamic configuration update without manual file editing
- * - Data transformation from API format to config file format
- * - Hash-based comparison to prevent redundant file writes
- * - Error handling and logging for file operations
+ * - Dynamic role update without manual file editing
+ * - Error handling and logging for database operations
  *
  * Usage:
  * POST /api/role/create
- * Body: JSON array of category objects with collections
+ * Body: JSON object with 'roleId'
  *
  * Note: This endpoint modifies a crucial configuration file.
  * Ensure proper access controls and input validation are in place.
@@ -24,16 +22,36 @@
 
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
+import { initializationPromise, authAdapter } from '@src/databases/db';
 
 // System Logs
-import { initializationPromise, authAdapter } from '@src/databases/db';
 import logger from '@src/utils/logger';
 
-export const POST: RequestHandler = async ({ request }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
+	// Authorization check (example, ensure you have proper authentication in place)
+	const user = locals.user;
+	if (!user || !user.isAdmin) {
+		logger.warn('Unauthorized attempt to update roles');
+		return json({ success: false, error: 'Unauthorized' }, { status: 403 });
+	}
+
 	try {
 		await initializationPromise;
 		const { roleId } = await request.json();
+
+		// Validate roleId
+		if (!roleId || typeof roleId !== 'string') {
+			logger.warn('Invalid roleId provided');
+			return json({ success: false, error: 'Invalid roleId' }, { status: 400 });
+		}
+
 		let roles = await authAdapter?.getAllRoles();
+
+		if (!roles) {
+			logger.error('Failed to retrieve roles from the database');
+			return json({ success: false, error: 'Failed to retrieve roles' }, { status: 500 });
+		}
+
 		roles = roles.map((cur) => {
 			if (cur._id === roleId) {
 				return { ...cur, isAdmin: true };
@@ -43,12 +61,13 @@ export const POST: RequestHandler = async ({ request }) => {
 			}
 			return cur;
 		});
-		console.log(roles, roleId);
+
 		await authAdapter?.setAllRoles(roles);
-		return json({ sucess: true }, { status: 200 });
+
+		logger.info(`Role ${roleId} set as admin successfully`);
+		return json({ success: true }, { status: 200 });
 	} catch (error: any) {
-		console.log(error);
-		logger.error('Error updating config file:', error);
-		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
+		logger.error('Error updating role configuration:', error);
+		return json({ success: false, error: `Error updating role configuration: ${error.message}` }, { status: 500 });
 	}
 };

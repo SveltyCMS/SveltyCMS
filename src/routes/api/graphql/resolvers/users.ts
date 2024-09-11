@@ -82,19 +82,28 @@ export function userTypeDefs() {
 	return generateGraphQLTypeDefsFromType(userTypeSample, 'User');
 }
 
-// Resolvers
+// Resolvers with pagination support
 export function userResolvers(dbAdapter: dbInterface) {
-	return {
-		users: async () => {
-			logger.info('Fetching users from the database');
-			try {
-				const users = await dbAdapter.findMany('auth_users', {});
-				logger.info('Users retrieved successfully', { count: users.length });
-				return users;
-			} catch (error) {
-				logger.error('Error fetching users:', { error: error instanceof Error ? error.message : String(error) });
-				throw new Error('Failed to fetch users');
-			}
+	const fetchWithPagination = async (collectionName: string, pagination: { page: number; limit: number }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
+			throw new Error('Database adapter is not initialized');
 		}
+
+		const { page = 1, limit = 10 } = pagination || {};
+		const skip = (page - 1) * limit;
+
+		try {
+			const users = await dbAdapter.findMany(collectionName, {}, { sort: { lastActiveAt: -1 }, skip, limit });
+			logger.info(`Fetched ${collectionName}`, { count: users.length });
+			return users;
+		} catch (error) {
+			logger.error(`Error fetching data for ${collectionName}:`, error);
+			throw new Error(`Failed to fetch data for ${collectionName}`);
+		}
+	};
+
+	return {
+		users: async (_: any, args: { pagination: { page: number; limit: number } }) => await fetchWithPagination('auth_users', args.pagination)
 	};
 }

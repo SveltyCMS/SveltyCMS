@@ -31,7 +31,7 @@ import { fileURLToPath } from 'url';
 import { compile } from './src/routes/api/compile/compile';
 import { generateCollectionFieldTypes, generateCollectionTypes } from './src/utils/collectionTypes';
 
-// Gets package.json version info on app start
+// Get package.json version info on app start
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
 // Get current file and directory info
@@ -39,39 +39,30 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = Path.dirname(__filename);
 const parsed = Path.parse(__dirname);
 
-// Check if the config files exist
+// Define paths for collections, ensuring cross-platform compatibility
+const collectionsFolderJS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'collections/');
+const collectionsFolderTS = Path.posix.join('/', __dirname.replace(parsed.root, ''), 'src/collections/');
+
+// Define the directory where config files should reside
 const configDir = resolve(__dirname, 'config');
 const privateConfigPath = resolve(configDir, 'private.ts');
 const publicConfigPath = resolve(configDir, 'public.ts');
 
-if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
-	console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
-	// Optionally, you could automatically run the installer:
-	try {
-		execSync('npm run installer', { stdio: 'inherit' });
-		console.log('Installer completed successfully.');
-	} catch (error) {
-		console.error('Error running the installer:', error);
-		process.exit(1);
-	}
-}
+// Check if the config files exist, if not, run the installer script
+const configPaths = [privateConfigPath, publicConfigPath];
 
-// Check if the config files exist
-if (!existsSync(privateConfigPath) || !existsSync(publicConfigPath)) {
-	console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
-	// Optionally, you could automatically run the installer:
-	try {
-		execSync('npm run installer', { stdio: 'inherit' });
-		console.log('Installer completed successfully.');
-	} catch (error) {
-		console.error('Error running the installer:', error);
-		process.exit(1);
+configPaths.forEach((path) => {
+	if (!existsSync(path)) {
+		console.error('Config files missing: Please run the CLI installer via `npm run installer`.');
+		try {
+			execSync('npm run installer', { stdio: 'inherit' });
+			console.log('Installer completed successfully.');
+		} catch (error) {
+			console.error('Error running the installer:', error);
+			process.exit(1);
+		}
 	}
-}
-
-// Define paths for collections
-const collectionsFolderJS = '/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/collections/';
-const collectionsFolderTS = '/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/') + '/src/collections/';
+});
 
 // Initial compilation of collections
 compile({ collectionsFolderJS, collectionsFolderTS });
@@ -81,9 +72,10 @@ export default defineConfig({
 		sveltekit(),
 		{
 			name: 'vite:dynamic-config-updater',
+			// Handles hot module reloads (HMR) for config and collection files,
 			async handleHotUpdate({ file, server }) {
 				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
-					// Clear module cache
+					// Clear module cache to force re-import
 					const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
 					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
 
@@ -91,8 +83,8 @@ export default defineConfig({
 					delete require.cache[require.resolve(rolesPath)];
 
 					// Dynamically reimport updated roles & permissions
-					const { roles } = await import('./config/roles');
-					const { permissions } = await import('./config/permissions');
+					const { roles } = await import(rolesPath);
+					const { permissions } = await import(permissionsPath);
 
 					// Update roles and permissions in the application
 					const { setLoadedRoles, setLoadedPermissions } = await import('./src/auth/types');
@@ -104,12 +96,10 @@ export default defineConfig({
 					// Trigger HMR for affected modules
 					server.ws.send({ type: 'full-reload' });
 				} else if (/src[/\\]collections/.test(file)) {
-					if (/src[/\\]collections/.test(file)) {
-						// Recompile collections and update types
-						await compile({ collectionsFolderJS, collectionsFolderTS });
-						generateCollectionTypes();
-						generateCollectionFieldTypes();
-					}
+					// Recompile collections and update types if collections are modified
+					await compile({ collectionsFolderJS, collectionsFolderTS });
+					generateCollectionTypes();
+					generateCollectionFieldTypes();
 				}
 			},
 			config() {
@@ -117,20 +107,20 @@ export default defineConfig({
 					define: {
 						'import.meta.env.collectionsFolderJS': JSON.stringify(collectionsFolderJS),
 						'import.meta.env.collectionsFolderTS': JSON.stringify(collectionsFolderTS),
-						'import.meta.env.root': JSON.stringify('/' + __dirname.replace(parsed.root, '').replaceAll('\\', '/'))
+						'import.meta.env.root': JSON.stringify(Path.posix.join('/', __dirname.replace(parsed.root, '')))
 					}
 				};
 			},
 			enforce: 'post'
 		},
-		purgeCss(),
+		purgeCss(), // Purge unused Tailwind CSS classes
 		paraglide({
 			project: './project.inlang', // Path to your inlang project
 			outdir: './src/paraglide' // Output directory for generated files
 		})
 	],
 	server: {
-		fs: { allow: ['static', '.'] }
+		fs: { allow: ['static', '.'] } // Allow serving files from specific directories
 	},
 	resolve: {
 		alias: {
@@ -139,7 +129,7 @@ export default defineConfig({
 		}
 	},
 	define: {
-		__VERSION__: JSON.stringify(pkg.version),
-		SUPERFORMS_LEGACY: true
+		__VERSION__: JSON.stringify(pkg.version), // Define global version variable from package.json
+		SUPERFORMS_LEGACY: true // Legacy flag for SuperForms (if needed)
 	}
 });
