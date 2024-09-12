@@ -1,4 +1,7 @@
-<!-- /src/components/EntryList.svelte -->
+<!-- 
+@file  src/components/EntryList.svelte
+@description  EntryList component to display collections.
+-->
 <script lang="ts">
 	// Utils
 	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';

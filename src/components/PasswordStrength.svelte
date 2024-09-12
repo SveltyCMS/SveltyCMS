@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/PasswordStrength.svelte
+@description PasswordStrength component
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { signUpFormSchema } from '@src/utils/formSchemas';

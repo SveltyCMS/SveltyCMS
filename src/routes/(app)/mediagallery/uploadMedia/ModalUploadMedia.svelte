@@ -4,27 +4,24 @@
 -->
 
 <script lang="ts">
-	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
-	export let mediaType: string;
-	export let sectionName: string;
-	export let files: File[] = [];
-	export let onDelete: (file: File) => void;
-
-	import { enhance } from '$app/forms';
-	//ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
-	// Stores
+	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';
-	import type { SubmitFunction } from '../$types';
 	const modalStore = getModalStore();
 
-	// Form Data
-	const formData = {
-		File: null
-	};
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
+
+	export let parent: any;
+	export let sectionName: string;
+	export let files: File[] = []; // This holds all files, both initially provided and newly added
+	export let onDelete: (file: File) => void;
+	export let uploadFiles: Function;
+
+	let fileSet = new Set<string>(); // To track unique files by name and size
+	let duplicateWarning = '';
+
+	// Initialize fileSet to prevent duplicates
+	$: fileSet = new Set(files.map((file) => `${file.name}-${file.size}`));
 
 	// Generate thumbnail URL or icon based on file type
 	function generateThumbnail(file: File): string {
@@ -54,7 +51,7 @@
 	}
 
 	function formatMimeType(mimeType?: string): string {
-		if (typeof mimeType === 'undefined') {
+		if (!mimeType) {
 			return 'Unknown Type';
 		}
 		const typeMapping: { [key: string]: string } = {
@@ -65,40 +62,52 @@
 			'application/vnd.ms-excel': 'Excel',
 			'text/plain': 'Text',
 			'application/zip': 'Archive'
-			// Add more mappings as needed
 		};
-		return typeMapping[mimeType] || mimeType.split('/').pop().toUpperCase();
+		return typeMapping[mimeType] || mimeType.split('/').pop()?.toUpperCase() || 'UNKNOWN';
 	}
 
-	// Specific function to generate icons for types badge
-	function getTypeIcon(file: File): string {
-		if (file.type?.startsWith('image/')) return 'carbon:image';
-		return generateThumbnail(file);
-	}
-
-	function handleEdit(file: File) {
-		// Handle the edit action here
-		console.log('Edited file:', file);
-	}
-
+	// Handle the delete action here
 	function handleDelete(file: File) {
-		// Handle the delete action here
 		files = files.filter((f) => f !== file);
+		fileSet.delete(`${file.name}-${file.size}`);
 		onDelete(file);
+
+		// Update the files array and fileSet after deletion
+		if (files.length === 0) {
+			handleCancel(); // Close the modal if no files are left
+		}
 	}
 
-	// We've created a custom submit function to pass the response and close the modal.
-	const onFormSubmit: SubmitFunction = ({ formData }) => {
-		files.forEach(async (file, index) => {
-			formData.append('files', file);
-		});
+	// Handle the file input here
+	function handleFileInputChange(event: Event) {
+		const input = event.target as HTMLInputElement;
+		if (input.files) {
+			const newFilesArray = Array.from(input.files);
+			newFilesArray.forEach((file) => {
+				const fileKey = `${file.name}-${file.size}`;
+				if (fileSet.has(fileKey)) {
+					duplicateWarning = `The file "${file.name}" already exists.`;
+				} else {
+					duplicateWarning = '';
+					files.push(file);
+					fileSet.add(fileKey);
+				}
+			});
+		}
+	}
 
-		modalStore.close();
+	function handleCancel() {
+		// Clear the files array and fileSet
+		files = [];
+		fileSet.clear();
+		modalStore.close(); // Close the modal
+	}
 
-		return ({ result }) => {
-			console.log(result);
-			console.log('Form returned.');
-		};
+	const onFormSubmit = () => {
+		uploadFiles(files); // Ensure files are passed back to the parent
+
+		// Clear files and close the modal
+		handleCancel();
 	};
 
 	// Base Classes
@@ -108,23 +117,20 @@
 </script>
 
 {#if $modalStore[0]}
-	<div class=" {cBase}">
-		<header class={`${cHeader}`}>
-			{$modalStore[0]?.title ?? '(title missing)'}
+	<div class={cBase}>
+		<header class={cHeader}>
+			{sectionName}
 		</header>
 		<article class="hidden text-center sm:block">{$modalStore[0]?.body ?? '(body missing)'}</article>
 		<!-- Enable for debugging: -->
 
-		<form id="upload-form" class=" {cForm}" action="/mediagallery" method="post" use:enhance={onFormSubmit}>
-			<!-- Show all media as card with delete button and edit button -->
+		<form id="upload-form" class={cForm} action="/mediagallery" method="post" on:submit|preventDefault={onFormSubmit}>
+			<!-- Show all media as cards with delete buttons -->
 			<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-				{#each files as file}
+				{#each files as file (file.name + file.size)}
 					<div class="card card-hover relative">
-						<!-- Edit and delete buttons -->
-						<div class="absolute left-0 top-2 flex w-full justify-between px-2 opacity-0 hover:opacity-100">
-							<button on:click={() => handleEdit(file)} class="variant-ghost-surface btn-icon">
-								<iconify-icon icon="material-symbols:edit" width="24" class="text-tertiary-500 dark:text-primary-500" />
-							</button>
+						<!-- Delete buttons -->
+						<div class="absolute right-0 top-2 flex w-full justify-end px-2 opacity-0 hover:opacity-100">
 							<button on:click={() => handleDelete(file)} class="variant-ghost-surface btn-icon">
 								<iconify-icon icon="material-symbols:delete" width="24" class="text-error-500" />
 							</button>
@@ -136,8 +142,8 @@
 								{#if file.type?.startsWith('image/')}
 									<img src={generateThumbnail(file)} alt={file.name} class="max-h-full max-w-full" />
 								{:else if file.type?.startsWith('audio/')}
+									<!-- Audio player -->
 									<audio controls class="max-h-full max-w-full">
-										<!-- audio player -->
 										<source src={URL.createObjectURL(file)} type={file.type} />
 										Your browser does not support the audio element.
 									</audio>
@@ -151,7 +157,9 @@
 
 						<!-- Media name -->
 						<div class="label mt-1 flex h-16 items-center justify-center bg-gray-100 p-2 dark:bg-surface-600">
-							<p class="overflow-hidden overflow-ellipsis whitespace-normal text-center text-tertiary-500 dark:text-primary-500">{file.name}</p>
+							<p class="overflow-hidden overflow-ellipsis whitespace-normal text-center text-tertiary-500 dark:text-primary-500">
+								{file.name}
+							</p>
 						</div>
 
 						<!-- Media Type & Size -->
@@ -165,11 +173,22 @@
 					</div>
 				{/each}
 			</div>
+
+			<!-- File input for adding more files -->
+			<div class="mb-4 mt-2 flex items-center justify-between border-t border-surface-400 p-4">
+				<div class="mb-4 mt-2 flex items-center gap-2">
+					<label for="file-input" class="block text-tertiary-500 dark:text-primary-500">Add more files:</label>
+					<input id="file-input" type="file" multiple on:change={handleFileInputChange} />
+				</div>
+				{#if duplicateWarning}
+					<p class="variant-filled-error rounded px-2 py-4">{duplicateWarning}</p>
+				{/if}
+			</div>
 		</form>
 
 		<footer class="modal-footer m-4 flex w-full justify-between {parent.regionFooter}">
-			<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-			<button type="submit" form="upload-form" class="btn {parent.buttonPositive}">{m.button_save()}</button>
+			<button class="variant-outline-secondary btn" on:click={handleCancel}>{m.button_cancel()}</button>
+			<button type="submit" form="upload-form" class="variant-filled-primary btn {parent.buttonPositive}">{m.button_save()}</button>
 		</footer>
 	</div>
 {/if}

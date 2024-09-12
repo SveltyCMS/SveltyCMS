@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/SiteName.svelte
+@description SiteName component
+-->
+
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 

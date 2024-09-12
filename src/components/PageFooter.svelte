@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/PageFooter.svelte
+@description PageFooter component
+-->
+
 <script lang="ts">
 	import { collection, entryData } from '@src/stores/store';
 	import { convertTimestampToDateString } from '@src/utils/utils';

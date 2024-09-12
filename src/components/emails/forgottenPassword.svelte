@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/emails/forgottenPassword.svelte
+@description forgottenPassword Email component
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';

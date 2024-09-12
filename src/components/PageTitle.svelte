@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/PageTitle.svelte
+@description PageTitle component
+-->
+
 <script lang="ts">
 	// Stores
 	import { toggleSidebar, sidebarState } from '@stores/sidebarStore';

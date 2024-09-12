@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/HighlightedText.svelte
+@description HighlightedText component
+-->
+
 <script lang="ts">
 	export let text = '';
 	export let term = '';

@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/ScheduleModal.svelte
+@description  ScheduleModal component 
+-->
+
 <script lang="ts">
 	import { modifyEntry, selectedEntries, entryData, collection } from '@stores/store';
 	import { saveFormData } from '@src/utils/utils';

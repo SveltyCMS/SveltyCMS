@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/emails/updatedPassword.svelte
+@description updatedPassword Email component
+-->
+
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';

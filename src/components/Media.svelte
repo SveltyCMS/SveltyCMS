@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/Media.svelte
+@description Media component
+-->
+
 <script lang="ts">
 	import type { MediaImage } from '@src/utils/types';
 	import { SIZES, formatBytes, debounce } from '@src/utils/utils';

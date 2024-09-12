@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/VerticalList.svelte
+@description  VerticalList component 
+-->
+
 <script lang="ts">
 	import { dndzone } from 'svelte-dnd-action';
 	import type { DndEvent } from 'svelte-dnd-action';

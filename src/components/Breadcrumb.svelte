@@ -1,7 +1,8 @@
 <!-- 
- @files src/components/Breadcrumb.svelte
+@files src/components/Breadcrumb.svelte
 @description Breadcrumb component 
 -->
+
 <script lang="ts">
 	export let breadcrumb: string[];
 	export let openFolder: (folderId: string | null) => void;

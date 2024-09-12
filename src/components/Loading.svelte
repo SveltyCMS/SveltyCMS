@@ -1,5 +1,5 @@
 <!-- 
- @files src/components/Loading.svelte
+@files src/components/Loading.svelte
 @description Loading component. 
 -->
 

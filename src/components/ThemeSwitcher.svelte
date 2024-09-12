@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/ThemeSwitcher.svelte
+@description  ThemeSwitcher component 
+-->
+
 <script lang="ts">
 	import { onDestroy } from 'svelte';
 	import { theme } from '@stores/themeStore';

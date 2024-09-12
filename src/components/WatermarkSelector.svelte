@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/WatermarkSelector.svelte
+@description  WatermarkSelector component 
+-->
+
 <script lang="ts">
 	type MediaItem = {
 		url: string;

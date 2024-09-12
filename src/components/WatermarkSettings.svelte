@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/WatermarkSettings.svelte
+@description  WatermarkSettings component 
+-->
+
 <script lang="ts">
 	export let size = '100%';
 	export let opacity = 1;

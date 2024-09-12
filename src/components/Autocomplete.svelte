@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/Autocomplete.svelte
+@description Autocomplete component 
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	export let options: string[] = [];

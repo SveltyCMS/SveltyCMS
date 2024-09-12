@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/ParaglideSvelteKit.svelte
+@description ParaglideSvelteKit component
+-->
+
 <script lang="ts">
 	// Stores
 	import { systemLanguage } from '@stores/store';
