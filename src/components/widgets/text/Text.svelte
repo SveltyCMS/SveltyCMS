@@ -18,6 +18,8 @@
 
 	const _data = $mode === 'create' ? {} : value;
 
+	export const WidgetData = _data;
+
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 	$: updateTranslationProgress(_data, field);
 

@@ -123,15 +123,15 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 
 			if (links[_collection]) continue;
 
-			const newLinkId = dbAdapter.generateId();
-			await dbAdapter.insertMany(_collection, [
-				{
-					_id: newLinkId,
-					_link_id: body._id,
-					_linked_collection: body._is_link ? body._linked_collection : schema.name
-				}
-			]);
-			body._links[_collection] = newLinkId;
+			// const newLinkId = dbAdapter.generateId();
+			// await dbAdapter.insertMany(_collection, [
+			// 	{
+			// 		_id: newLinkId,
+			// 		_link_id: body._id,
+			// 		_linked_collection: body._is_link ? body._linked_collection : schema.name
+			// 	}
+			// ]);
+			// body._links[_collection] = newLinkId;
 		}
 
 		// Clean up body
@@ -139,6 +139,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 		delete body._linked_collection;
 
 		// Update the document in the collection
+		console.log(_id, body);
 		const result = await dbAdapter.updateOne(schema.name, { _id }, { $set: body });
 		logger.debug(`Document updated: ${JSON.stringify(result)}`);
 

@@ -24,7 +24,7 @@
 	let numberInput: HTMLInputElement;
 	const language = $contentLanguage;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	// Define the validation schema for this widget
 	import * as z from 'zod';

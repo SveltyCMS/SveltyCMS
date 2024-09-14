@@ -71,7 +71,9 @@
 		validationError = validateSchema(widgetSchema, _data);
 	}
 
-	export const WidgetData = async () => {
+	export const WidgetData = returnWidgetData();
+
+	async function returnWidgetData() {
 		if (_data) {
 			if (_data instanceof File) {
 				_data.path = field.path;
@@ -86,7 +88,7 @@
 
 		//if not updated value is not changed and is MediaImage type so send back only id
 		return updated || $mode == 'create' ? _data : { _id: (value as MediaImage)?._id };
-	};
+	}
 </script>
 
 {#if !_data}

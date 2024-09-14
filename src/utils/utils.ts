@@ -100,7 +100,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	};
 
 	for (const key in getData) {
-		const value = await getData[key]();
+		const value = getData[key];
 		if (!value) continue;
 		data[key] = value;
 	}
@@ -210,7 +210,7 @@ export async function saveFormData({
 	// Convert the collection data to FormData if not already an instance of FormData
 	const formData = data instanceof FormData ? data : await col2formData(data);
 
-	if (_mode === 'edit' && !id) {
+	if (_mode === 'edit' && !$entryData._id) {
 		logger.error('ID is required for edit mode.');
 		throw new Error('ID is required for edit mode.');
 	}
@@ -242,31 +242,32 @@ export async function saveFormData({
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
 				formData.append('_id', id || $entryData._id);
-				formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
+				formData.append('updatedAt', Date.now());
 
-				if ($collection.revision) {
-					logger.debug('Creating new revision.');
-					const newRevision = {
-						...$entryData,
-						_id: await createRandomID(),
-						__v: [
-							...($entryData.__v || []),
-							{
-								revisionNumber: $entryData.__v ? $entryData.__v.length : 0,
-								editedAt: Math.floor(Date.now() / 1000).toString(),
-								editedBy: { username },
-								changes: {}
-							}
-						]
-					};
+				// if ($collection.revision) {
+				// 	logger.debug('Creating new revision.');
+				// 	const newRevision = {
+				// 		...$entryData,
+				// 		_id: await createRandomID(),
+				// 		__v: [
+				// 			...($entryData.__v || []),
+				// 			{
+				// 				revisionNumber: $entryData.__v ? $entryData.__v.length : 0,
+				// 				editedAt: Date.now(),
+				// 				editedBy: { username },
+				// 				changes: {}
+				// 			}
+				// 		]
+				// 	};
 
-					const revisionFormData = new FormData();
-					revisionFormData.append('data', JSON.stringify(newRevision));
-					revisionFormData.append('collectionName', $collection.name as any);
+				// 	const revisionFormData = new FormData();
+				// 	revisionFormData.append('data', JSON.stringify(newRevision));
+				// 	revisionFormData.append('collectionName', $collection.name as any);
 
-					await handleRequest(revisionFormData, 'POST');
-				}
+				// 	await handleRequest(revisionFormData, 'POST');
+				// }
 
+				console.log(formData);
 				return await updateData({ data: formData, collectionName: $collection.name as any });
 
 			default:

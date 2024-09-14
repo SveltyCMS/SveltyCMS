@@ -23,7 +23,7 @@
 	$translationProgress.show = false;
 
 	export let value = $entryData[fieldName];
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	let MENU_CONTAINER: HTMLUListElement;
 	let showFields = false;

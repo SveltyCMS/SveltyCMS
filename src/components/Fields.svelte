@@ -23,7 +23,7 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet, validationStore } from '@stores/store';
+	import { collectionValue, contentLanguage, collection, entryData, tabSet, validationStore, mode } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -47,16 +47,19 @@ Key features:
 
 	// Lifecycle
 	onMount(async () => {
+		console.log($entryData, fieldsData, $mode);
 		await loadTranslationProgress();
 		isLoading = false;
 	});
 
 	afterUpdate(() => {
+		console.log($entryData, fieldsData);
 		if (root) $collectionValue = fieldsData;
 	});
 
 	// Reactive statements
 	$: if ($entryData) {
+		console.log($entryData);
 		const id = $entryData._id;
 		// Convert $collection.name to a string if it's a symbol
 		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection.name)}/${id}`;

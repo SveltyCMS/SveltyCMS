@@ -26,7 +26,7 @@
 
 	let endDateValue: string | null = null;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	// Define the validation schema for this widget
 	const widgetSchema = z.object({

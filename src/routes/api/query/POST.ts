@@ -105,8 +105,13 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		}
 
 		// Insert the new document into the collection
-		const result = await collection.insertMany([body]);
-		logger.info(`Document inserted with ID: ${result[0]._id}`);
+		body.createdAt = Date.now();
+		body.updatedAt = Date.now();
+		const result = new collection(body);
+		result.save();
+		// const result = await collection.insertMany([body]);
+		// logger.info(`Document inserted with ID: ${result[0]._id}`);
+		logger.info(`Document inserted with ID: ${result._Id}`);
 
 		// Return the result as a JSON response
 		return new Response(JSON.stringify(result), {

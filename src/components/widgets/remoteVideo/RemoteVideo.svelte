@@ -19,7 +19,7 @@
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	export let myData: any = null;
 	$: myData;

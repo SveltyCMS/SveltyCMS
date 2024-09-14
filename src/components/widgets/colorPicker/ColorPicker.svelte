@@ -25,7 +25,7 @@
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	// Define the validation schema for this widget
 	const widgetSchema = z.object({

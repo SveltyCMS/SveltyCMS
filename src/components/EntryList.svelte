@@ -650,10 +650,15 @@
 							{#each tableHeaders as header}
 								<td
 									on:click={() => {
-										entryData.set(data?.entryList[index]);
+										console.log($entryData);
+										const entry = { ...data?.entryList[index] };
+										console.log($entryData);
 										// logger.debug(data);
 										mode.set('edit');
+										entryData.set({ ...entry });
+										console.log($entryData);
 										handleSidebarToggle();
+										console.log($entryData);
 									}}
 									class="text-center font-bold"
 								>

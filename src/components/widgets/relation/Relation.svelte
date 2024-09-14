@@ -66,7 +66,9 @@
 		}, 300);
 	}
 
-	export const WidgetData = async () => {
+	export const WidgetData = returnWidgetData();
+
+	async function returnWidgetData() {
 		let relation_id = '';
 		if (!field) return;
 		if (entryMode === 'create') {
@@ -85,7 +87,7 @@
 		}
 		validateInput();
 		return validationError ? null : relation_id;
-	};
+	}
 
 	async function openDropDown() {
 		if (!field) return;

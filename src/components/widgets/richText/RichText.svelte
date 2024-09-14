@@ -35,7 +35,6 @@
 	import Youtube from '@tiptap/extension-youtube'; // adds support for <a> tags
 
 	export let field: FieldType;
-	export const WidgetData = async () => ({ images, data: _data });
 
 	const fieldName = getFieldName(field);
 	let element;
@@ -44,6 +43,8 @@
 	let showVideoDialog = false;
 	const images = {};
 	let active_dropDown = '';
+
+	export const WidgetData = { images, data: _data };
 
 	export let value = $entryData[fieldName] || { content: {}, header: {} };
 	console.log($entryData);

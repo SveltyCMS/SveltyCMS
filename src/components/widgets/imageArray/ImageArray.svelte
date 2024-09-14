@@ -66,7 +66,9 @@
 		}
 	}
 
-	export const WidgetData = async () => {
+	export const WidgetData = returnWidgetData();
+
+	async function returnWidgetData() {
 		for (let i = 0; i < files.length; i++) {
 			const fieldsData = _fieldsValue[i];
 
@@ -82,7 +84,7 @@
 			const fieldsData = _fieldsValue;
 			await saveFormData({ data: fieldsData });
 		}
-	};
+	}
 
 	// update added files
 	function onDropzoneChangeHandler(e: Event): void {

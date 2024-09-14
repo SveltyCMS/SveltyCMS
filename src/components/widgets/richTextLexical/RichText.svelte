@@ -25,7 +25,7 @@
 	$: updateTranslationProgress(_data, field);
 
 	const valid = true;
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	//@ts-ignore
 	import { RichTextComposer, PlainTextPlugin } from 'svelte-lexical';

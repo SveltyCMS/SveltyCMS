@@ -66,7 +66,8 @@
 		isPublished = !isPublished;
 		$entryData.status = isPublished ? 'published' : 'unpublished';
 		$entryData.updatedAt = new Date();
-		$entryData.save();
+		$collectionValue.status = isPublished ? 'published' : 'unpublished';
+		$collectionValue.updatedAt = Date.now();
 	}
 
 	// Convert timestamps to date strings
@@ -99,7 +100,6 @@
 				}
 			}
 		}
-
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {

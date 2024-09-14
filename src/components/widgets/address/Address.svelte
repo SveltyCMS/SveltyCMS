@@ -122,7 +122,7 @@
 
 	let validationError: string | null = null;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	$: widgetValue = {
 		latitude: value.latitude,

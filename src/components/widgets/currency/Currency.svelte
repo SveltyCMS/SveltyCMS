@@ -27,7 +27,7 @@
 	let numberInput: HTMLInputElement;
 	const language = $contentLanguage;
 
-	export const WidgetData = async () => _data;
+	export const WidgetData = _data;
 
 	function handleInput(event: Event) {
 		const target = event.target as HTMLInputElement;

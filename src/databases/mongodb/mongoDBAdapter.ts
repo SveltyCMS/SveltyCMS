@@ -241,7 +241,7 @@ export class MongoDBAdapter implements dbInterface {
 		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
-			logger.debug('Collections already initialized, skipping reinitialization.');
+			logger.info('Collections already initialized, skipping reinitialization.');
 			return mongoose.models;
 		}
 
@@ -251,7 +251,7 @@ export class MongoDBAdapter implements dbInterface {
 					const collectionsModels: { [key: string]: Model<any> } = {};
 					// Map to collection names only
 					const collectionNames = Object.values(collections).map((collection) => collection.name);
-					logger.debug('Collections found:', { collectionNames });
+					logger.info('Collections found:', { collectionNames });
 
 					for (const collection of Object.values(collections)) {
 						if (!collection.name) {
@@ -259,20 +259,24 @@ export class MongoDBAdapter implements dbInterface {
 							continue;
 						}
 
-						logger.debug(`Setting up collection model for ${collection.name}`);
+						logger.info(`Setting up collection model for ${collection.name}`);
+						const schema: any = {
+							createdAt: { type: Number }, // Unix timestamp in seconds
+							updatedAt: { type: Number }, // Unix timestamp in seconds
+							createdBy: { type: String }, // ID of the user who created the document
+							revisionsEnabled: { type: Boolean }, // Flag indicating if revisions are enabled
+							translationStatus: { type: Schema.Types.Mixed, default: {} }, // Translation status, mixed type allows any structure
+							status: { type: String },
+						}
+						collection.fields.map(cur => {
+							const key = cur?.db_fieldName || cur?.label;
+							schema[key] = { type: Schema.Types.Mixed };
+						});
 
 						const schemaObject = new mongoose.Schema(
+							schema,
 							{
-								createdAt: { type: Number }, // Unix timestamp in seconds
-								updatedAt: { type: Number }, // Unix timestamp in seconds
-								createdBy: { type: String }, // ID of the user who created the document
-								revisionsEnabled: { type: Boolean }, // Flag indicating if revisions are enabled
-								translationStatus: { type: Schema.Types.Mixed, default: {} } // Translation status, mixed type allows any structure
-							},
-							{
-								typeKey: '$type',
-								strict: true, // Enable strict mode
-								timestamps: false,
+								validateBeforeSave: false,
 								collection: collection.name.toLowerCase() // Explicitly set the collection name to avoid duplicates
 							}
 						);

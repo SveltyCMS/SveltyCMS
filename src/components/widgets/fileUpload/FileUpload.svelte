@@ -20,13 +20,15 @@
 	let input: HTMLInputElement;
 
 	export let field: FieldType;
-	export const WidgetData = async () => {
+
+	function returnWidgetData() {
 		if (_data && _data instanceof File) {
 			_data.path = field.path;
 		}
 
 		return updated ? _data : null;
-	};
+	}
+	export const WidgetData = returnWidgetData();
 
 	export let value: File = $entryData[getFieldName(field)];
 
