@@ -8,10 +8,13 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, validationStore } from '@stores/store';
+	import { mode, collectionValue, validationStore } from '@stores/store';
 
 	// Skeleton
 	import { Ratings } from '@skeletonlabs/skeleton';
+
+	// zod validation
+	import * as z from 'zod';
 
 	export let field: FieldType;
 
@@ -23,14 +26,13 @@
 	export let iconFull = 'material-symbols:star';
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
+	// Initialize _data based on mode
 	const _data = $mode === 'create' ? {} : value;
+
 	let validationError: string | null = null;
 	let debounceTimeout: number | undefined;
-
-	// zod validation
-	import * as z from 'zod';
 
 	// Define the validation schema for the rating widget
 	const widgetSchema = z.object({
@@ -71,6 +73,9 @@
 	function validateInput() {
 		validationError = validateSchema(widgetSchema, { value: _data.value });
 	}
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => _data;
 </script>
 
 <!-- Ratings -->

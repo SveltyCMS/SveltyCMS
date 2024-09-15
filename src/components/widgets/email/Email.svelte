@@ -9,7 +9,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, validationStore } from '@stores/store';
+	import { mode, collectionValue, validationStore } from '@stores/store';
 
 	// zod validation
 	import * as z from 'zod';
@@ -17,7 +17,7 @@
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	const _data: Record<string, string> = $mode === 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;
@@ -58,6 +58,9 @@
 			}
 		}, 300);
 	}
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => _data;
 </script>
 
 <!-- Email Input -->
@@ -65,7 +68,7 @@
 	type="email"
 	aria-label={field?.label || field?.db_fieldName}
 	bind:value={_data[_language]}
-	on:change={validateInput}
+	on:input={validateInput}
 	name={field.db_fieldName}
 	id={field.db_fieldName}
 	placeholder={field.placeholder || field.db_fieldName}

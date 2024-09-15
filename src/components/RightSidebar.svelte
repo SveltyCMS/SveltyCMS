@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	// Stores
-	import { collection, collectionValue, mode, modifyEntry, saveLayerStore, shouldShowNextButton, entryData, validationStore } from '@stores/store';
+	import { collection, mode, modifyEntry, saveLayerStore, shouldShowNextButton, collectionValue, validationStore } from '@stores/store';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { page } from '$app/stores';
 	import { saveFormData, convertTimestampToDateString, getFieldName } from '@utils/utils';
@@ -57,22 +57,22 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $entryData?.status === 'published';
+	let isPublished = $collectionValue?.status === 'published';
 	let inputPopupUser = '';
-	let schedule = $entryData._scheduled ? new Date($entryData._scheduled).toISOString().slice(0, 16) : '';
+	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
 
 	// Function to toggle the status
 	function toggleStatus() {
 		isPublished = !isPublished;
-		$entryData.status = isPublished ? 'published' : 'unpublished';
-		$entryData.updatedAt = new Date();
-		$entryData.save();
+		$collectionValue.status = isPublished ? 'published' : 'unpublished';
+		$collectionValue.updatedAt = new Date();
+		$collectionValue.save();
 	}
 
 	// Convert timestamps to date strings
 	$: dates = {
-		created: convertTimestampToDateString($entryData.createdAt),
-		updated: convertTimestampToDateString($entryData.updatedAt)
+		created: convertTimestampToDateString($collectionValue.createdAt),
+		updated: convertTimestampToDateString($collectionValue.updatedAt)
 	};
 
 	// Type guard to check if the widget has a validateWidget method

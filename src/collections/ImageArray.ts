@@ -6,7 +6,7 @@
 import widgets from '@components/widgets';
 import type { Schema } from './types';
 
-const schema: Schema = {
+export const schema: Schema = {
 	// Collection Name comming from filename
 
 	// Optional & Icon, status, slug
@@ -38,4 +38,3 @@ const schema: Schema = {
 		})
 	]
 };
-export default schema;

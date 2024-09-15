@@ -1,22 +1,38 @@
+<!-- 
+@file src/components/widgets/seo/TitleInput.svelte
+@description - Title widget for SEO Widget
+-->
+
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	export let title;
-	export let titleCharacterWidth;
-	export let handleTitleChange;
+	export let title: string;
+	export let titleCharacterWidth: number;
+	export let handleTitleChange: (event: Event) => void;
+
+	// Compute class based on title length
+	$: computedClass =
+		title.length >= 50 && title.length <= 60
+			? 'input-label green'
+			: title.length >= 30 && title.length <= 49
+				? 'input-label orange'
+				: title.length < 30
+					? 'input-label'
+					: 'input-label red';
+
+	// Compute status message based on title length
+	$: titleStatus =
+		title.length >= 50 && title.length <= 60
+			? 'Optimal length'
+			: title.length >= 30 && title.length <= 49
+				? 'Length is acceptable'
+				: title.length < 30
+					? 'Too short'
+					: 'Too long';
 </script>
 
-<label
-	for="title-input"
-	class={title.length >= 50 && title.length <= 60
-		? 'input-label green'
-		: title.length >= 30 && title.length <= 49
-			? 'input-label orange'
-			: title.length < 30
-				? 'input-label'
-				: 'input-label red'}
->
+<label for="title-input" class={computedClass}>
 	<div class="flex items-center justify-between">
 		<div class="text-black dark:text-white">{m.widget_seo_suggestiontitle()}</div>
 		<div class="flex flex-col text-xs sm:flex-row sm:text-base">
@@ -26,11 +42,14 @@
 			</div>
 			<div>
 				{m.widget_seo_suggestionwidthdesktop()}
-				<span class="text-primary-500">{titleCharacterWidth}</span>/600px {m.widget_seo_suggestionwidthmobile()}
+				<span class="text-primary-500">{titleCharacterWidth}</span>/600px
+				{m.widget_seo_suggestionwidthmobile()}
 				<span class="text-primary-500">{titleCharacterWidth}</span>/654px
 			</div>
 		</div>
 	</div>
+	<!-- Status message for accessibility -->
+	<div id="title-status" class="status-message" aria-live="polite">{titleStatus}</div>
 </label>
 
 <input
@@ -41,4 +60,24 @@
 	required
 	bind:value={title}
 	on:input={handleTitleChange}
+	aria-describedby="title-status"
 />
+
+<style lang="postcss">
+	.input-label {
+		color: gray;
+	}
+	.input-label.green {
+		color: green;
+	}
+	.input-label.orange {
+		color: orange;
+	}
+	.input-label.red {
+		color: red;
+	}
+	.status-message {
+		font-size: 0.875rem;
+		margin-top: 0.25rem;
+	}
+</style>

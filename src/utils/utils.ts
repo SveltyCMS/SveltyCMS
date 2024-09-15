@@ -36,7 +36,7 @@ import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, entryData, mode, collection } from '@stores/store';
+import { translationProgress, contentLanguage, collectionValue, mode, collection } from '@stores/store';
 
 // System Logger
 import logger from './logger';
@@ -202,7 +202,7 @@ export async function saveFormData({
 
 	const $mode = _mode || get(mode);
 	const $collection = _collection || get(collection);
-	const $entryData = get(entryData);
+	const $collectionValue = get(collectionValue);
 
 	// Debugging: Log the incoming data
 	logger.debug('Incoming data:', data);
@@ -241,18 +241,18 @@ export async function saveFormData({
 
 			case 'edit':
 				logger.debug('Saving data in edit mode.');
-				formData.append('_id', id || $entryData._id);
+				formData.append('_id', id || $collectionValue._id);
 				formData.append('updatedAt', Math.floor(Date.now() / 1000).toString());
 
 				if ($collection.revision) {
 					logger.debug('Creating new revision.');
 					const newRevision = {
-						...$entryData,
+						...$collectionValue,
 						_id: await createRandomID(),
 						__v: [
-							...($entryData.__v || []),
+							...($collectionValue.__v || []),
 							{
-								revisionNumber: $entryData.__v ? $entryData.__v.length : 0,
+								revisionNumber: $collectionValue.__v ? $collectionValue.__v.length : 0,
 								editedAt: Math.floor(Date.now() / 1000).toString(),
 								editedBy: { username },
 								changes: {}

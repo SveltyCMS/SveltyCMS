@@ -10,7 +10,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, contentLanguage } from '@stores/store';
+	import { mode, collectionValue, contentLanguage } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

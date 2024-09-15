@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	// Stores
-	import { entryData, mode, saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
+	import { collectionValue, mode, saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
 
 	// Components
 	import Fields from '@components/Fields.svelte';
@@ -22,7 +22,7 @@
 
 	$translationProgress.show = false;
 
-	export let value = $entryData[fieldName];
+	export let value = $collectionValue[fieldName];
 	export const WidgetData = async () => _data;
 
 	let MENU_CONTAINER: HTMLUListElement;

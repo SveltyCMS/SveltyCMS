@@ -8,7 +8,7 @@
 	import { getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, entryData, validationStore } from '@stores/store';
+	import { mode, collectionValue, validationStore } from '@stores/store';
 
 	// zod validation
 	import * as z from 'zod';
@@ -19,7 +19,7 @@
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	const _data = $mode === 'create' ? {} : value;
 	let validationError: string | null = null;

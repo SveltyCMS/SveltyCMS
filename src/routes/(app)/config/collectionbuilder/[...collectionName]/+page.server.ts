@@ -97,7 +97,7 @@ export const actions: Actions = {
 		${imports}
 		import widgets from '@components/widgets';
 		import type { Schema } from '@src/collections/types';
-		const schema: Schema = {
+		export const schema: Schema = {
 			// Collection Name coming from filename so not needed
 
 			// Optional & Icon, status, slug
@@ -110,8 +110,7 @@ export const actions: Actions = {
 			// Defined Fields that are used in your Collection
 			// Widget fields can be inspected for individual options
 			fields: ${JSON.stringify(fields)}
-		};
-		export default schema;`;
+		};`;
 
 		// Clean up the content string
 		content = content.replace(/\\n|\\t/g, '').replace(/\\/g, '');

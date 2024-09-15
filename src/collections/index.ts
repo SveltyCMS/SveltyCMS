@@ -28,6 +28,11 @@ let unsubscribe: Unsubscriber | undefined; // Store unsubscriber handler
 // Cache for collection models
 let collectionModelsCache: Record<string, any> | null = null;
 
+// Type Guard Function to validate collection names
+function isCollectionName(name: string): name is CollectionNames {
+	return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
+}
+
 // Function to get collections with cache support
 export async function getCollections(): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getCollections');
@@ -81,7 +86,7 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 		const _collections = _categories.reduce(
 			(acc, category) => {
 				category.collections.forEach((collection) => {
-					if (collection && collection.name) {
+					if (collection && collection.name && isCollectionName(collection.name)) {
 						acc[collection.name] = collection;
 					}
 				});
@@ -122,12 +127,19 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 			logger.debug('Running in dev or building mode');
 			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./Auth.ts', '!./config.ts']);
 			for (const [modulePath, moduleImport] of Object.entries(modules)) {
-				const name = modulePath.replace(/.ts$/, '').replace('./', '') as CollectionNames;
+				const rawName = modulePath.replace(/\.ts$/, '').replace('./', '');
+				const name = rawName; // 'name' is a string
+
+				if (!isCollectionName(name)) {
+					logger.error(`Invalid collection name: ${name}`);
+					continue; // Skip this module
+				}
+
 				const module = await moduleImport();
-				const collection = (module as { default: Schema }).default ?? {}; // Ensure typing of imported modules
+				const collection = (module as { schema: Schema }).schema ?? {}; // Access the named export 'schema'
 
 				if (collection) {
-					collection.name = name;
+					collection.name = name; // Assigning string to collection.name
 					collection.icon = collection.icon || 'iconoir:info-empty';
 					importsCache[name] = collection;
 				} else {
@@ -139,15 +151,23 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 			const files = browser ? (await axios.get('/api/getCollections')).data : getCollectionFiles();
 
 			for (const file of files) {
-				const name = file.replace(/.js$/, '') as CollectionNames;
+				const rawName = file.replace(/\.js$/, '');
+				const name = rawName; // 'name' is a string
+
+				if (!isCollectionName(name)) {
+					logger.error(`Invalid collection name: ${name}`);
+					continue; // Skip this module
+				}
+
 				const collectionModule =
 					typeof window !== 'undefined'
 						? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
 						: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${Math.floor(Date.now() / 1000)}`);
 
-				const collection = (collectionModule as { default: Schema })?.default; // Ensure proper typing
+				const collection = (collectionModule as { schema: Schema })?.schema; // Access the named export 'schema'
+
 				if (collection) {
-					collection.name = name;
+					collection.name = name; // Assigning string to collection.name
 					collection.icon = collection.icon || 'iconoir:info-empty';
 					importsCache[name] = collection;
 				} else {

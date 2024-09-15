@@ -9,12 +9,12 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { contentLanguage, mode, entryData, validationStore } from '@stores/store';
+	import { contentLanguage, mode, collectionValue, validationStore } from '@stores/store';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	const _data = $mode === 'create' ? {} : value;
 
@@ -83,6 +83,9 @@
 			validationError = validateSchema(widgetSchema, { value: _data[_language] });
 		}, 300);
 	}
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => _data;
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">

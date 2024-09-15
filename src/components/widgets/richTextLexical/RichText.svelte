@@ -12,12 +12,12 @@
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
-	import { mode, entryData } from '@stores/store';
+	import { mode, collectionValue } from '@stores/store';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	const _data = $mode == 'create' ? {} : value;
 
