@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { asAny } from '@src/utils/utils';
-	import type { MediaImage } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/media/mediaModels';
 	import { createEventDispatcher } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 

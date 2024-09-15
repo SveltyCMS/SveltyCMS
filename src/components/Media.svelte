@@ -4,7 +4,8 @@
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@src/utils/types';
+	// Import the updated MediaImage type
+	import type { MediaImage } from '@src/utils/media/mediaModels';
 	import { SIZES, formatBytes, debounce } from '@src/utils/utils';
 	import axios from 'axios';
 
@@ -37,7 +38,7 @@
 	</div>
 {:else}
 	<div class="header flex items-center gap-2">
-		<label for="search" class=" ext-tertiary-500 font-bold dark:text-primary-500">Media</label>
+		<label for="search" class="font-bold text-tertiary-500 dark:text-primary-500">Media</label>
 		<input type="text" bind:value={search} placeholder="Search" class="input" />
 	</div>
 	<div class="flex max-h-[calc(100%-55px)] flex-wrap items-center justify-center overflow-auto">
@@ -47,10 +48,10 @@
 					<button class="ml-[2px] mt-[2px] block w-[30px]" on:click|stopPropagation={() => (showInfo[index] = !showInfo[index])}>
 						<iconify-icon icon="raphael:info" width="25" class="text-tertiary-500"></iconify-icon>
 					</button>
-					<p class="mx-auto pr-[30px] text-white">{file.thumbnail.name}</p>
+					<p class="mx-auto pr-[30px] text-white">{file.name}</p>
 				</div>
 				{#if !showInfo[index]}
-					<img src={file.thumbnail.url} alt={file.thumbnail.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
+					<img src={file.thumbnails.sm.url} alt={file.name} class="mx-auto mt-auto max-h-[calc(100%-35px)] rounded-md" />
 				{:else}
 					<table class="mt-[30px] min-h-[calc(100%-30px)] w-full">
 						<tbody class="table-compact">
@@ -60,10 +61,10 @@
 										{size}
 									</td>
 									<td>
-										{file[size].width}x{file[size].height}
+										{file.thumbnails[size].width}x{file.thumbnails[size].height}
 									</td>
 									<td>
-										{formatBytes(file[size].size)}
+										{formatBytes(file.thumbnails[size].size)}
 									</td>
 								</tr>
 							{/each}

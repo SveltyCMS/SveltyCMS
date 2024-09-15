@@ -31,8 +31,8 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 // Import logger
 import logger from '@src/utils/logger';
 
-// Import saveAvatarImage from utils/media
-import { saveAvatarImage } from '@src/utils/media';
+// Import saveAvatarImage function
+import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {

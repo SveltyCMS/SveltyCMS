@@ -188,7 +188,7 @@ async function initializeMediaFolder() {
 	}
 }
 
-// Initialize virtual folders// Initialize virtual folders
+// Initialize virtual folders
 async function initializeVirtualFolders() {
 	if (!dbAdapter) {
 		throw new Error('Database adapter not initialized');
@@ -197,8 +197,15 @@ async function initializeVirtualFolders() {
 	try {
 		const virtualFolders = await dbAdapter.getVirtualFolders();
 		if (virtualFolders.length === 0) {
-			// Optionally log that no virtual folders exist, but do not create any automatically
-			logger.info('No virtual folders found. Users can create virtual folders as needed.');
+			// Create a default root folder
+			const rootFolder = await dbAdapter.createVirtualFolder({
+				name: publicEnv.MEDIA_FOLDER,
+				parent: null,
+				path: publicEnv.MEDIA_FOLDER
+			});
+			logger.info('Default root virtual folder created:', rootFolder);
+		} else {
+			logger.info(`Found ${virtualFolders.length} virtual folders.`);
 		}
 	} catch (error) {
 		logger.error(`Error initializing virtual folders: ${(error as Error).message}`);
@@ -230,7 +237,7 @@ async function initializeAdapters(): Promise<void> {
 			}
 
 			await initializeDefaultTheme(dbAdapter);
-			await initializeVirtualFolders();
+			await initializeVirtualFolders(); // Ensure this is called
 			await dbAdapter.setupAuthModels();
 			await dbAdapter.setupMediaModels();
 			await dbAdapter.getCollectionModels();
@@ -254,12 +261,15 @@ async function initializeAdapters(): Promise<void> {
 	}
 }
 
-initializationPromise = initializeAdapters()
-	.then(() => logger.debug('Initialization completed successfully.'))
-	.catch((error) => {
-		logger.error(`Initialization promise rejected with error: ${(error as Error).message}`, { error });
-		initializationPromise = null;
-	});
+// Ensure initialization runs once
+if (!initializationPromise) {
+	initializationPromise = initializeAdapters()
+		.then(() => logger.debug('Initialization completed successfully.'))
+		.catch((error) => {
+			logger.error(`Initialization promise rejected with error: ${(error as Error).message}`, { error });
+			initializationPromise = null;
+		});
+}
 
 // Export collections
 const collectionsModels: { [key: string]: any } = {};

@@ -35,7 +35,7 @@ import type { Schema } from '@src/collections/types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-import { getCollections } from '@src/collections';
+import { getCollections, isCollectionName } from '@src/collections';
 import { _GET } from './GET';
 import { _POST } from './POST';
 import { _PATCH } from './PATCH';
@@ -57,9 +57,7 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	}
 
 	// Authenticate user based on user ID or session ID
-	const user = user_id
-		? ((await auth.checkUser({ _id: user_id })) as User) // Check user with user ID
-		: ((await auth.validateSession({ session_id })) as User); // Validate session with session ID
+	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession({ session_id })) as User);
 
 	if (!user) {
 		throw new Error('Unauthorized');
@@ -67,7 +65,12 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 	// Retrieve the collection name from the form data
 	const collectionName = data.get('collectionName') as string;
+
 	// Get the schema for the specified collection
+	if (!isCollectionName(collectionName)) {
+		throw new Error('Invalid collection name');
+	}
+
 	const collection_schema = (await getCollections())[collectionName] as Schema;
 
 	if (!collection_schema) {
@@ -93,7 +96,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 	try {
 		// Check user permissions
 		const { user, collection_schema, has_read_access, has_write_access } = await checkUserPermissions(data, cookies);
-		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access });
+		logger.debug('User permissions checked', { user: user._id, has_read_access, has_write_access, collectionName: collection_schema.name });
 
 		// If user does not have read access, return 403 Forbidden response
 		if (!has_read_access) {
@@ -108,7 +111,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		const sort = JSON.parse((data.get('sort') as string) || '{}');
 		const contentLanguage = (data.get('contentLanguage') as string) || publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
-		logger.debug('Request parameters parsed', { page, limit, filter, sort, contentLanguage });
+		logger.debug('Request parameters parsed', { page, limit, filter, sort, contentLanguage, collectionName: collection_schema.name });
 
 		// Handle different methods
 		switch (method) {
@@ -131,6 +134,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 					logger.warn('Forbidden write access attempt', { user: user._id });
 					return new Response('Forbidden', { status: 403 });
 				}
+
 				// Select the appropriate handler based on the method
 				const handler = {
 					POST: _POST,
@@ -154,8 +158,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 	} catch (error) {
 		// Handle error by checking its type
+		const status = error.message === 'Unauthorized' ? 401 : error.message.includes('Forbidden') ? 403 : 500;
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		logger.error('Error processing request', { error: errorMessage });
-		return new Response(errorMessage, { status: error instanceof Error ? 403 : 500 });
+		return new Response(errorMessage, { status });
 	}
 };

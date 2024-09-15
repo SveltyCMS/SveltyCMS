@@ -85,6 +85,10 @@ export const obj2formData = (obj: any) => {
 export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	const formData = new FormData();
 	const data = {};
+
+	// Debugging: Log the initial object state
+	console.log('Initial data object:', getData);
+
 	const parseFiles = async (object: any) => {
 		for (const key in object) {
 			if (!(object[key] instanceof File) && typeof object[key] == 'object') {
@@ -107,6 +111,9 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 
 	await parseFiles(data);
 
+	// Debugging: Log the parsed data
+	console.log('Parsed data:', data);
+
 	for (const key in data) {
 		if (typeof data[key] === 'object') {
 			formData.append(key, JSON.stringify(data[key]));
@@ -114,6 +121,13 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 			formData.append(key, data[key]);
 		}
 	}
+
+	// Debugging: Log FormData entries
+	console.log('FormData entries:');
+	for (const [key, value] of formData.entries()) {
+		console.log(`FormData key: ${key}, value: ${value}`);
+	}
+
 	if (!formData.entries().next().value) {
 		return null;
 	}
@@ -308,7 +322,7 @@ export async function extractData(fieldsData: any): Promise<{ [key: string]: any
  * @param sizeInBytes - The size of the file in bytes.
  * @returns The formatted file size as a string.
  */
-export function formatBytes(bytes: number) {
+export function formatBytes(bytes: number): string {
 	if (bytes < 0) {
 		throw new Error('Input size cannot be negative');
 	}

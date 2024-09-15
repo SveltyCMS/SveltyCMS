@@ -26,6 +26,7 @@
 
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
+import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 import type { User } from '@src/auth/types';
 import type { Schema } from '@src/collections/types';
@@ -44,11 +45,17 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
+		// Validate the collection name using the type guard
+		if (!schema.name || !isCollectionName(schema.name)) {
+			logger.error('Invalid or undefined schema name.');
+			return new Response('Invalid or undefined schema name.', { status: 400 });
+		}
+
 		const body: { [key: string]: any } = {};
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
-		let collection = collections[schema.name as string]; // Get the specific collection based on the schema name
+		let collection = collections[schema.name]; // Get the specific collection based on the schema name
 		const _id = data.get('_id') as string; // Get the document ID from the form data
 		const fileIDS: string[] = [];
 
@@ -106,7 +113,7 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 		}
 
 		for (const _collection in body._links) {
-			const linkedCollection = collections[_collection as string];
+			const linkedCollection = collections[_collection];
 			if (!linkedCollection) continue;
 
 			if (!body._links[_collection] && links[_collection]) {

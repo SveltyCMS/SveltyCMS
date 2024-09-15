@@ -6,9 +6,10 @@
  */
 
 import type { User, ContextType, Permission } from './types';
-import { PermissionAction } from '../../config/permissions';
+import { PermissionAction, PermissionType } from '../../config/permissions';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
+
 // System Logger
 import logger from '@utils/logger';
 
@@ -22,7 +23,7 @@ export interface PermissionConfig {
 // Cache to store roles and permissions temporarily
 const rolePermissionCache: Record<string, Permission[]> = {};
 
-//Checks if the user has the necessary permissions based on their role and the required permission configuration.
+// Checks if the user has the necessary permissions based on their role and the required permission configuration.
 export async function checkUserPermission(user: User, config: PermissionConfig): Promise<{ hasPermission: boolean; isRateLimited: boolean }> {
 	try {
 		logger.debug(`Starting permission check for user: ${user.email}, role: ${user.role}, config: ${JSON.stringify(config)}`);
@@ -57,16 +58,20 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 			logger.debug(`Using cached permissions for role: ${user.role}`);
 		}
 
+		logger.debug(`User permissions: ${JSON.stringify(userPermissions)}`);
+
 		// Check if the user has the required permission
 		const hasPermission = userPermissions.some(
 			(permission) =>
 				permission._id === config.contextId &&
 				(permission.action === config.action || permission.action === PermissionAction.MANAGE) &&
-				(permission.type === config.contextType || permission.type === 'system')
+				(permission.type === config.contextType || permission.type === PermissionType.SYSTEM)
 		);
 
 		if (!hasPermission) {
 			logger.info(`User ${user.email} lacks required permission for ${config.contextId}`);
+		} else {
+			logger.info(`User ${user.email} has required permission for ${config.contextId}`);
 		}
 
 		return { hasPermission, isRateLimited: false };

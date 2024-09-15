@@ -19,7 +19,6 @@ import DateTime from './dateTime';
 import DateRange from './dateRange';
 import Email from './email';
 // import Group from './group';
-import FileUpload from './fileUpload';
 import ImageArray from './imageArray';
 // import ImageEditor from './imageEditor';
 // import ImageEditorPage from './imageEditorPage';
@@ -47,7 +46,6 @@ const widgets = {
 	DateRange, // DateRange - date with start / Finish timestamps
 	Email, // Email - validates the entry is a properly formatted email
 	// Group, // Group - nest fields within an object with condition & tabs
-	FileUpload, // FileUpload - allows File uploading
 	ImageUpload, // ImageUpload - allows image upload with editor
 	ImageArray, // ImageArray - allows multiple image upload with editor
 	MegaMenu, // MegaMenu - Flexible Menu with possible hierarchy
