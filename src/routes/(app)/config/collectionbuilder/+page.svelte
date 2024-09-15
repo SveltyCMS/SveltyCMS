@@ -149,15 +149,8 @@
 	}
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" />
-
-	<!-- Back -->
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
-</div>
+<!-- Page Title with Back Button -->
+<PageTitle name={m.collection_pagetitle()} icon="fluent-mdl2:build-definition" showBackButton={true} backUrl="/config" />
 
 <div class="my-2 flex w-full justify-around gap-2 lg:ml-auto lg:mt-0 lg:w-auto lg:flex-row">
 	<!-- add new Category-->

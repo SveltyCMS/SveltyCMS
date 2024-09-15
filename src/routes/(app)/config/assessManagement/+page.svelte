@@ -98,11 +98,13 @@ It provides an interface for users to:
 	};
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name="Access Management" icon="mdi:account-key" />
+<!-- Page Title and Actions -->
+<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
+	<PageTitle name="Access Management" icon="mdi:account-key" showBackButton={true} backUrl="/config" />
 
-	<div class="justify-right flex hidden items-center md:block">
+	<!-- Row 2 (on mobile): Save and Reset Buttons -->
+	<div class="lgd:mt-0 mt-2 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Save with changes -->
 		<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
 			Save ({$modifiedCount})
@@ -110,25 +112,7 @@ It provides an interface for users to:
 
 		<!-- Reset -->
 		<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
-
-		<!-- Back -->
-		<button on:click={() => history.back()} aria-label="Go back" class="variant-outline-primary btn-icon">
-			<iconify-icon icon="ri:arrow-left-line" width="20" />
-		</button>
 	</div>
-	<!-- Back -->
-	<button on:click={() => history.back()} aria-label="Go back" class="variant-outline-primary btn-icon md:hidden">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
-</div>
-
-<div class="flex justify-center gap-2 md:hidden">
-	<!-- Save with changes -->
-	<button on:click={() => saveAllRoles()} aria-label="Save" class="variant-filled-tertiary btn" disabled={!$modifiedPermissions}>
-		Save ({$modifiedCount})
-	</button>
-	<!-- Reset -->
-	<button on:click={resetChanges} aria-label="Reset" class="variant-filled-secondary btn" disabled={!$modifiedPermissions}> Reset </button>
 </div>
 
 <div class="mb-6 text-center sm:text-left">

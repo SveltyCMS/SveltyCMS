@@ -2,11 +2,14 @@
 @files src/routes/(app)/config/+page.svelte
 @description This file sets up and displays the config page. It provides a user-friendly interface for managing configuration settings. 
 -->
+
 <script lang="ts">
-	// Component imports
+	// Stores
+	import { page } from '$app/stores'; // Import SvelteKit's page store to access data from the server
+
+	// Component
 	import PageTitle from '@components/PageTitle.svelte';
 	import PermissionGuard from '@components/PermissionGuard.svelte';
-	import { page } from '$app/stores'; // Import SvelteKit's page store to access data from the server
 
 	// ParaglideJS imports
 	import * as m from '@src/paraglide/messages';
@@ -33,14 +36,10 @@
 			}
 		])
 	) as Record<string, PermissionConfig>;
-
-	$: console.log(permissionConfigs);
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between">
-	<PageTitle name={m.config_pagetitle()} icon="" />
-</div>
+<!-- Page Title with Back Button -->
+<PageTitle name={m.config_pagetitle()} showBackButton={true} icon="material-symbols:build-circle" />
 
 <div class="wrapper mb-2 max-h-[calc(100vh-65px)] overflow-auto">
 	<h2 class="mb-4 text-center text-tertiary-600 dark:text-primary-500">{m.config_body()}</h2>
