@@ -55,17 +55,8 @@
 	}
 </script>
 
-<div class="my-2 flex items-center justify-between gap-2">
-	<!-- Page Title -->
-	<div class="flex items-center">
-		<PageTitle name="Widget Management" icon="mdi:widgets" />
-	</div>
-
-	<!-- Back Button -->
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
-</div>
+<!-- Page Title with Back Button -->
+<PageTitle name="Widget Management" icon="mdi:widgets" showBackButton={true} backUrl="/config" />
 
 {#each installedWidgets as widget}
 	<div class="my- flex items-center justify-between border-b pb-2">

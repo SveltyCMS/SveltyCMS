@@ -8,14 +8,14 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { mode, entryData, validationStore } from '@stores/store';
+	import { mode, collectionValue, validationStore } from '@stores/store';
 
 	import { getFieldName } from '@utils/utils';
 
 	export let field: FieldType;
 
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	const _data = $mode === 'create' ? {} : value;
 	const _language = publicEnv.DEFAULT_CONTENT_LANGUAGE;

@@ -51,17 +51,8 @@
 	}
 </script>
 
-<div class="my-2 flex items-center justify-between gap-2">
-	<!-- Page Title -->
-	<div class="flex items-center">
-		<PageTitle name="Theme Management" icon="ph:layout" />
-	</div>
-
-	<!-- Back Button -->
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
-</div>
+<!-- Page Title with Back Button -->
+<PageTitle name="Theme Management" icon="ph:layout" showBackButton={true} backUrl="/config" />
 
 <div class="mb-4">
 	<label for="theme-select" class="mb-2 block font-bold">Current System Theme:</label>

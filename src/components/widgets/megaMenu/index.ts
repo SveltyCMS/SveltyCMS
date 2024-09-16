@@ -13,7 +13,7 @@ import widgets, { type ModifyRequestParams } from '..';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
-import { entryData, mode, headerActionButton2 } from '@src/stores/store';
+import { collectionValue, mode, headerActionButton2 } from '@src/stores/store';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -53,7 +53,7 @@ const widget = (params: Params) => {
 
 	// Define the callback
 	const callback = ({ data }) => {
-		entryData.set(data?.entryList[0]);
+		collectionValue.set(data?.entryList[0]);
 		mode.set('edit');
 		headerActionButton2.set('fa:refresh');
 	};
@@ -183,5 +183,5 @@ widget.aggregations = {
 } as Aggregations;
 
 // Export FieldType interface and widget function
-export interface FieldType extends ReturnType<typeof widget> {}
+export interface FieldType extends ReturnType<typeof widget> { }
 export default widget;

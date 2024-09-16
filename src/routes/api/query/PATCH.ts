@@ -139,7 +139,6 @@ export const _PATCH = async ({ data, schema, user }: { data: FormData; schema: S
 		delete body._linked_collection;
 
 		// Update the document in the collection
-		console.log(_id, body);
 		const result = await dbAdapter.updateOne(schema.name, { _id }, { $set: body });
 		logger.debug(`Document updated: ${JSON.stringify(result)}`);
 

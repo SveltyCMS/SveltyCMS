@@ -1,32 +1,36 @@
+<!-- 
+@file src/components/widgets/seo/Heatmap.svelte
+@description - Heatmap widget for SEO Widget
+-->
+
 <script lang="ts">
 	import { onMount, createEventDispatcher } from 'svelte';
 	import { fade } from 'svelte/transition';
+	import { tick } from 'svelte';
 
 	export let content: string = '';
 	export let language: string = 'en';
 	export let keywords: string[] = [];
 
-	let contentElement: HTMLDivElement;
 	let heatmapData: { word: string; heatLevel: number; isKeyword: boolean }[] = [];
 	let keywordDensity: { [key: string]: number } = {};
 	const dispatch = createEventDispatcher();
-	let debounceTimer: number;
+	let debounceTimer: number | undefined;
 
-	$: if (content || language || keywords) {
-		debounce(generateHeatmap, 300);
-	}
-
-	onMount(() => {
-		generateHeatmap();
-	});
-
-	function debounce(func: () => void, delay: number) {
+	$: {
 		clearTimeout(debounceTimer);
-		debounceTimer = window.setTimeout(func, delay);
+		debounceTimer = window.setTimeout(() => {
+			generateHeatmap();
+		}, 300);
 	}
 
-	function generateHeatmap() {
-		if (!content) return;
+	async function generateHeatmap() {
+		if (!content) {
+			heatmapData = [];
+			keywordDensity = {};
+			dispatch('heatmapGenerated', { heatmapData, keywordDensity });
+			return;
+		}
 
 		const words = content.split(/\s+/);
 
@@ -37,11 +41,11 @@
 		}));
 
 		analyzeKeywordDensity(words);
-		applyHeatmap();
 		dispatch('heatmapGenerated', { heatmapData, keywordDensity });
+		await tick();
 	}
 
-	function calculateHeatLevel(word: string, index: number, totalWords: number, lang: string) {
+	function calculateHeatLevel(word: string, index: number, totalWords: number, lang: string): number {
 		let score = 0;
 
 		// Position-based scoring
@@ -72,48 +76,39 @@
 			{} as { [key: string]: number }
 		);
 	}
-
-	function applyHeatmap() {
-		if (contentElement) {
-			contentElement.innerHTML = heatmapData
-				.map(
-					({ word, heatLevel, isKeyword }) =>
-						`<span 
-			class="heat-${heatLevel} ${isKeyword ? 'keyword' : ''}"
-			tabindex="0" 
-			role="textbox" 
-			aria-label="Heat level ${heatLevel}: ${word}${isKeyword ? ', keyword' : ''}"
-			data-tooltip="Heat: ${heatLevel}, ${isKeyword ? 'Keyword' : 'Regular word'}"
-		  >${word}</span>`
-				)
-				.join(' ');
-		}
-	}
 </script>
 
-<div bind:this={contentElement} class="heatmap-content">
-	{#each heatmapData as { word, heatLevel, isKeyword }}
-		<span
-			class="heat-{heatLevel} {isKeyword ? 'keyword' : ''}"
-			tabindex="0"
-			role="textbox"
-			aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
-			data-tooltip="Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}"
-			transition:fade={{ duration: 200 }}>{word}</span
-		>
-	{/each}
+<div class="heatmap-content">
+	{#if heatmapData.length > 0}
+		{#each heatmapData as { word, heatLevel, isKeyword }}
+			<span
+				class="heat-{heatLevel} {isKeyword ? 'keyword' : ''}"
+				tabindex="0"
+				role="textbox"
+				aria-label="Heat level {heatLevel}: {word}{isKeyword ? ', keyword' : ''}"
+				data-tooltip="Heat: {heatLevel}, {isKeyword ? 'Keyword' : 'Regular word'}"
+				transition:fade={{ duration: 200 }}>{word}</span
+			>
+		{/each}
+	{:else}
+		<p>No content available for heatmap.</p>
+	{/if}
 </div>
 
 <div class="keyword-density">
 	<h4>Keyword Density</h4>
-	<ul>
-		{#each Object.entries(keywordDensity) as [keyword, density]}
-			<li>{keyword}: {density.toFixed(2)}%</li>
-		{/each}
-	</ul>
+	{#if Object.keys(keywordDensity).length > 0}
+		<ul>
+			{#each Object.entries(keywordDensity) as [keyword, density]}
+				<li>{keyword}: {density.toFixed(2)}%</li>
+			{/each}
+		</ul>
+	{:else}
+		<p>No keywords provided or no matching keywords found in content.</p>
+	{/if}
 </div>
 
-<style>
+<style lang="postcss">
 	.heatmap-content {
 		line-height: 1.5;
 		word-wrap: break-word;

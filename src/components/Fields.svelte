@@ -23,7 +23,7 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { collectionValue, contentLanguage, collection, entryData, tabSet, validationStore, mode } from '@stores/store';
+	import { contentLanguage, collection, collectionValue, tabSet, validationStore, mode } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -47,20 +47,18 @@ Key features:
 
 	// Lifecycle
 	onMount(async () => {
-		console.log($entryData, fieldsData, $mode);
+		customData = $collectionValue;
 		await loadTranslationProgress();
 		isLoading = false;
 	});
 
 	afterUpdate(() => {
-		console.log($entryData, fieldsData);
-		if (root) $collectionValue = fieldsData;
+		if (root) $collectionValue = { ...$collectionValue, ...fieldsData };
 	});
 
 	// Reactive statements
-	$: if ($entryData) {
-		console.log($entryData);
-		const id = $entryData._id;
+	$: if ($collectionValue) {
+		const id = $collectionValue._id;
 		// Convert $collection.name to a string if it's a symbol
 		apiUrl = `${dev ? 'http://localhost:5173' : publicEnv.SITE_NAME}/api/${String($collection.name)}/${id}`;
 	}
@@ -190,8 +188,8 @@ Key features:
 										<svelte:component
 											this={asAny(widget).default}
 											field={asAny(field)}
-											bind:WidgetData={fieldsData[getFieldName(field)]}
 											value={customData[getFieldName(field)]}
+											bind:WidgetData={fieldsData[getFieldName(field)]}
 											{...$$props}
 										/>
 
@@ -227,7 +225,7 @@ Key features:
 							lineNumbers={true}
 							text="text-xs text-left w-full"
 							buttonLabel=""
-							code={JSON.stringify($entryData, null, 2)}
+							code={JSON.stringify($collectionValue, null, 2)}
 						/>
 					</div>
 					<div
@@ -242,7 +240,7 @@ Key features:
 							lineNumbers={true}
 							text="text-xs text-left text-white dark:text-tertiary-500"
 							buttonLabel=""
-							code={JSON.stringify($entryData, null, 2)}
+							code={JSON.stringify($collectionValue, null, 2)}
 						/>
 					</div>
 				</div>
@@ -256,7 +254,7 @@ Key features:
 				</div>
 			{:else if $tabSet === 3}
 				<!-- API Json tab content -->
-				{#if $entryData == null}
+				{#if $collectionValue == null}
 					<div class="variant-ghost-error mb-4 py-2 text-center font-bold">{m.fields_api_nodata()}</div>
 				{:else}
 					<div class="wrapper relative z-0 mb-4 flex w-full items-center justify-start gap-1">
@@ -275,7 +273,7 @@ Key features:
 						lineNumbers={true}
 						text="text-xs w-full"
 						buttonLabel="Copy"
-						code={JSON.stringify($entryData, null, 2)}
+						code={JSON.stringify($collectionValue, null, 2)}
 					/>
 				{/if}
 			{/if}

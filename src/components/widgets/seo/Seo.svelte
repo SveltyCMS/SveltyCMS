@@ -1,6 +1,6 @@
 <!-- 
 @file src/components/widgets/seo/Seo.svelte
-@description - Seo widget
+@description - SEO widget
 -->
 
 <script lang="ts">
@@ -10,8 +10,7 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage } from '@stores/store';
-	import { mode, entryData } from '@stores/store';
+	import { contentLanguage, mode, collectionValue } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -28,52 +27,64 @@
 
 	export let field;
 	const fieldName = getFieldName(field);
-	export let value = $entryData[fieldName] || {};
+	export let value = $collectionValue[fieldName] || {};
 
 	interface Suggestion {
 		text: string;
 		impact: number;
 	}
 
-	const _data = $mode == 'create' ? {} : value;
-	let title = '';
-	let description = '';
-	let titleCharacterWidth = 0;
-	let descriptionCharacterWidth = 0;
-	let SeoPreviewToggle = false;
-	const score = 0;
-	let progress = 0;
-	let suggestions: Suggestion[] = [];
-	let hostUrl;
-	let showHeatmap = false;
-	const seoContent = '';
-	let seoKeywords: string[] = [];
-	const validationError: string | null = null;
+	const _data = $mode === 'create' ? {} : value;
 
-	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
-	$: updateTranslationProgress(_data, field);
-	$: progress = Math.round((score / (8 * 3)) * 100);
+	let _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
 
+	// Initialize _data for the current language
 	if (!_data[_language]) {
 		_data[_language] = {};
 	}
 
-	_data[_language] = {
-		...value,
-		title: _data[_language].title || '',
-		description: _data[_language].description || '',
-		robotsMeta: _data[_language].robotsMeta || 'index, follow'
-	};
+	// Initialize title, description, and robotsMeta from _data
+	let title = _data[_language].title || '';
+	let description = _data[_language].description || '';
+	let robotsMeta = _data[_language].robotsMeta || 'index, follow';
+
+	let titleCharacterWidth = 0;
+	let descriptionCharacterWidth = 0;
+	let SeoPreviewToggle: boolean = false;
+	let score = 0;
+	let progress = 0;
+	let suggestions: Suggestion[] = [];
+	let hostUrl = '';
+	let showHeatmap: boolean = false;
+	let seoContent = '';
+	let seoKeywords: string[] = [];
+	let validationError: string | null = null;
+
+	// Reactive statement to update progress
+	$: progress = Math.round((score / (8 * 3)) * 100);
+
+	// Update _data whenever title, description, or robotsMeta change
+	$: {
+		_data[_language] = {
+			..._data[_language],
+			title,
+			description,
+			robotsMeta
+		};
+	}
+
+	// Update translation progress
+	$: updateTranslationProgress(_data, field);
 
 	onMount(() => {
 		hostUrl = window.location.origin;
 	});
 
-	function calculateCharacterWidth(character: string, fontSize: number, fontFamily: string) {
+	function calculateCharacterWidth(text: string, fontSize: number, fontFamily: string) {
 		const span = document.createElement('span');
 		span.style.fontSize = `${fontSize}px`;
 		span.style.fontFamily = fontFamily;
-		span.innerHTML = character;
+		span.innerHTML = text;
 		document.body.appendChild(span);
 		const characterWidth = span.offsetWidth;
 		document.body.removeChild(span);
@@ -114,18 +125,23 @@
 	function togglePreview() {
 		SeoPreviewToggle = !SeoPreviewToggle;
 	}
+
+	// Export WidgetData for data binding with Fields.svelte
+	export const WidgetData = async () => _data;
 </script>
 
 <div class="input-container">
+	<!-- Pass handleTitleChange as a prop -->
 	<TitleInput {title} {titleCharacterWidth} {handleTitleChange} />
 </div>
 
 <div class="input-container mt-2">
+	<!-- Pass handleDescriptionChange as a prop -->
 	<DescriptionInput {description} {descriptionCharacterWidth} {handleDescriptionChange} />
 </div>
 
 <div class="input-container mt-2">
-	<RobotsMetaInput bind:value={_data[_language].robotsMeta} />
+	<RobotsMetaInput bind:value={robotsMeta} />
 </div>
 
 <button class="toggle-heatmap" on:click={toggleHeatmap}>
@@ -139,11 +155,12 @@
 			<label for="seo-keywords">Enter keywords (comma-separated):</label>
 			<input id="seo-keywords" type="text" on:input={handleKeywordsInput} placeholder="keyword1, keyword2, ..." />
 		</div>
+		<!-- Corrected prop name to 'keywords' -->
 		<Heatmap content={seoContent} language={$contentLanguage} keywords={seoKeywords} on:heatmapGenerated={handleHeatmapGenerated} />
 	</div>
 {/if}
 
-<SeoPreview {title} {description} {hostUrl} {SeoPreviewToggle} {togglePreview} />
+<SeoPreview {title} {description} {hostUrl} {SeoPreviewToggle} on:togglePreview={togglePreview} />
 
 <!-- Mobile ProgressRadial display -->
 <div class="md:hidden">

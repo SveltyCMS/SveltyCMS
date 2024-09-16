@@ -9,7 +9,7 @@
 	import type { MediaFiles } from '@src/utils/types';
 
 	// Stores
-	import { entryData, mode, loadingProgress, validationStore } from '@stores/store';
+	import { collectionValue, mode, loadingProgress, validationStore } from '@stores/store';
 	import { asAny, getFieldName } from '@utils/utils';
 
 	// Components
@@ -30,7 +30,7 @@
 	}
 	export const WidgetData = returnWidgetData();
 
-	export let value: File = $entryData[getFieldName(field)];
+	export let value: File = $collectionValue[getFieldName(field)];
 
 	const fieldName = getFieldName(field);
 

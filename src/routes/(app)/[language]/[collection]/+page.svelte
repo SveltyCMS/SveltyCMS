@@ -50,7 +50,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	const unsubscribe = collection.subscribe(($collection) => {
 		if ($collection && $collection.name) {
 			//console.log('Collection changed:', $collection);
-			$collectionValue = {}; // Reset collection value
+			if (!$collectionValue) {
+				$collectionValue = {};
+			}
 			if (!forwardBackward) {
 				goto(`/${$contentLanguage}/${$collection.name}`);
 			}

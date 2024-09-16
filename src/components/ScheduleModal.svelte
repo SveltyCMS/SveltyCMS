@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { modifyEntry, selectedEntries, entryData, collection } from '@stores/store';
+	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/store';
 	import { saveFormData } from '@src/utils/utils';
 	import { page } from '$app/stores';
 
@@ -46,7 +46,7 @@
 		const scheduledTime = new Date(scheduleDate).getTime();
 
 		for (const entryId of $selectedEntries) {
-			const entry = $entryData[entryId];
+			const entry = $collectionValue[entryId];
 			if (!entry) continue;
 
 			let updateData: any = {

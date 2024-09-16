@@ -151,15 +151,8 @@
 	}
 </script>
 
-<!-- Page Title -->
-<div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name={m.userpage_title()} icon="mdi:account-circle" />
-
-	<!-- Back -->
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
-</div>
+<!-- Page Title with Back Button -->
+<PageTitle name={m.userpage_title()} icon="mdi:account-circle" showBackButton={true} backUrl="/config" />
 
 <div class="max-h-[calc(100vh-65px)] overflow-auto">
 	<div class="wrapper mb-2">

@@ -66,7 +66,9 @@ Key features:
 		if (!$collection) return;
 
 		// Reset the value of the collectionValue store
-		$collectionValue = {};
+		if (!$collectionValue) {
+			$collectionValue = {};
+		}
 
 		if (!ForwardBackward && initial != true) {
 			// If ForwardBackward is false and the current route is a collection route

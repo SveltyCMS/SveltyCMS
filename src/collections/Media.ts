@@ -6,7 +6,7 @@
 import widgets from '@components/widgets';
 import type { Schema } from '@src/collections/types';
 
-const schema: Schema = {
+export const schema: Schema = {
 	// Collection Name comming from filename
 	// Optional & Icon, status, slug
 	// See for possible Icons https://icon-sets.iconify.design/
@@ -21,5 +21,3 @@ const schema: Schema = {
 		})
 	]
 };
-
-export default schema;

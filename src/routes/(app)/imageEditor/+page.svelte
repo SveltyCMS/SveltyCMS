@@ -234,13 +234,14 @@
 	}
 </script>
 
-<div class="my-2 flex items-center justify-between gap-2">
-	<div class="flex items-center">
-		<PageTitle name="Image Editor" icon="tdesign:image-edit" />
+<!-- Page Title with Back Button -->
+<PageTitle name="Image Editor" icon="tdesign:image-edit" showBackButton={true} backUrl="/config" />
+
+<div class="my-4">
+	<div class="wrapper !bg-error-500 text-center">
+		<p>Current in Development!!! For testing purposes only</p>
+		<p>Environment Data is only shown to role admin</p>
 	</div>
-	<button on:click={() => history.back()} class="variant-outline-primary btn-icon" aria-label="Go back">
-		<iconify-icon icon="ri:arrow-left-line" width="20" />
-	</button>
 </div>
 
 <div class="mb-2 flex items-center justify-between gap-2">

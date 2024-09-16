@@ -10,7 +10,7 @@ import type { Permission } from '@src/auth/types';
 
 // Define a new `Schema` interface that represents the shape of an object with several properties
 export interface Schema {
-	name?: keyof CollectionNames; // Ensure name matches a key in CollectionNames
+	name?: CollectionNames; // Ensure name matches a key in CollectionNames
 	label?: string; // Optional label that will display instead of name if used
 	slug?: string; // Optional Slug for the collection
 	links?: Array<keyof CollectionNames>; // Ensure links are valid collection names

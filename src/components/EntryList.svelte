@@ -9,7 +9,7 @@
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { mode, entryData, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
+	import { mode, collectionValue, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
@@ -289,11 +289,11 @@
 	// Update Tick Single Row
 	$: Object.values(selectedMap).includes(true) ? mode.set('modify') : mode.set('view');
 
-	// Reset entryData when mode changes
+	// Reset collectionValue when mode changes
 	mode.subscribe(() => {
 		meta_data.clear();
 		if ($mode == 'view') {
-			entryData.set({});
+			collectionValue.set({});
 		}
 	});
 
@@ -650,15 +650,10 @@
 							{#each tableHeaders as header}
 								<td
 									on:click={() => {
-										console.log($entryData);
-										const entry = { ...data?.entryList[index] };
-										console.log($entryData);
 										// logger.debug(data);
 										mode.set('edit');
-										entryData.set({ ...entry });
-										console.log($entryData);
+										collectionValue.set(data?.entryList[index]);
 										handleSidebarToggle();
-										console.log($entryData);
 									}}
 									class="text-center font-bold"
 								>

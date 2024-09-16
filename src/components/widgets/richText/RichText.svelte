@@ -11,7 +11,7 @@
 	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@src/utils/utils';
 
 	// Stores
-	import { entryData, mode, contentLanguage } from '@src/stores/store';
+	import { collectionValue, mode, contentLanguage } from '@src/stores/store';
 
 	// Components
 	import DropDown from './components/DropDown.svelte';
@@ -44,10 +44,7 @@
 	const images = {};
 	let active_dropDown = '';
 
-	export const WidgetData = { images, data: _data };
-
-	export let value = $entryData[fieldName] || { content: {}, header: {} };
-	console.log($entryData);
+	export let value = $collectionValue[fieldName] || { content: {}, header: {} };
 
 	const _data = $mode == 'create' ? { content: {}, header: {} } : value;
 	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;

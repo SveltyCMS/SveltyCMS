@@ -2,7 +2,7 @@
 	import type { FieldType } from '.';
 
 	// Stores
-	import { contentLanguage, collection, entryData } from '@stores/store';
+	import { contentLanguage, collection, collectionValue } from '@stores/store';
 
 	export let dropDownData: any[] = [];
 	export let selected: { display: any; _id: any } | undefined = undefined;
@@ -17,7 +17,7 @@
 
 	$: Promise.all(
 		dropDownData.map(async (item) => ({
-			display: await field?.display({ data: item, collection: $collection, field, entry: $entryData, contentLanguage: $contentLanguage }),
+			display: await field?.display({ data: item, collection: $collection, field, entry: $collectionValue, contentLanguage: $contentLanguage }),
 			_id: item._id
 		}))
 	).then((res) => (options = res));

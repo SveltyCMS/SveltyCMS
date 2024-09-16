@@ -46,11 +46,8 @@ export const unAssigned: Writable<Array<Schema>> = writable();
 export const collection: Writable<Schema> = writable();
 export const targetWidget: Writable<any> = writable({});
 
-//  Collections
-// collective data of collection
-export const collectionValue: any = writable({});
-// entry data of collection
-export const entryData: Writable<any> = writable({});
+//  Collections data of collection
+export const collectionValue: Writable<any> = writable({});
 
 // selected entries
 export const selectedEntries = writable<string[]>([]);

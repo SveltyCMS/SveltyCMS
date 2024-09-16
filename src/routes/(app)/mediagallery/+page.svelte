@@ -402,10 +402,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	});
 </script>
 
-<!-- PageTitle -->
-<div class="my-2 flex flex-col items-start justify-between gap-2 md:flex-row md:items-center">
-	<PageTitle name="Media Gallery" icon="bi:images" iconColor="text-tertiary-500 dark:text-primary-500" />
-	<div class="mt-2 flex w-full justify-around gap-2 md:ml-auto md:mt-0 md:w-auto md:flex-row">
+<!-- Page Title and Actions -->
+<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+	<!-- Row 1: Page Title and Back Button (Handled by PageTitle component) -->
+	<PageTitle name="Media Gallery" icon="bi:images" showBackButton={true} />
+
+	<!-- Row 2 (on mobile): Save and Reset Buttons -->
+	<div class="lgd:mt-0 mt-2 flex items-center justify-center gap-4 lg:justify-end">
 		<!-- Add folder -->
 		<button class="variant-filled-tertiary btn gap-2" on:click={openAddFolderModal}>
 			<iconify-icon icon="mdi:folder-add-outline" width="24" />

@@ -11,7 +11,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { entryData, mode, validationStore } from '@stores/store';
+	import { collectionValue, mode, validationStore } from '@stores/store';
 
 	// Components
 	import type { MediaImage } from '@src/utils/types';
@@ -20,7 +20,7 @@
 	let isFlipped = false; // State variable to track flip button
 
 	export let field: FieldType;
-	export let value: File | MediaImage = $entryData[getFieldName(field)]; // pass file directly from imageArray
+	export let value: File | MediaImage = $collectionValue[getFieldName(field)]; // pass file directly from imageArray
 
 	let _data: File | MediaImage | undefined = value;
 	let validationError: string | null = null;

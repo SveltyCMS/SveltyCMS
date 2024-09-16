@@ -4,13 +4,13 @@
 -->
 
 <script lang="ts">
-	import { collection, entryData } from '@src/stores/store';
+	import { collection, collectionValue } from '@src/stores/store';
 	import { convertTimestampToDateString } from '@src/utils/utils';
 
 	// Convert timestamp to Date string
 	$: dates = {
-		created: convertTimestampToDateString($entryData.createdAt),
-		updated: convertTimestampToDateString($entryData.updatedAt)
+		created: convertTimestampToDateString($collectionValue.createdAt),
+		updated: convertTimestampToDateString($collectionValue.updatedAt)
 	};
 </script>
 

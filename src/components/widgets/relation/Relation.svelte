@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	// Stores
-	import { entryData, mode, contentLanguage, collection, collections, saveFunction, validationStore } from '@stores/store';
+	import { collectionValue, mode, contentLanguage, collection, collections, saveFunction, validationStore } from '@stores/store';
 
 	// Components
 	import DropDown from './DropDown.svelte';
@@ -19,7 +19,7 @@
 
 	export let field: FieldType;
 	const fieldName = getFieldName(field);
-	export const value = $entryData[fieldName];
+	export const value = $collectionValue[fieldName];
 	export let expanded = false;
 
 	let dropDownData: any;
@@ -127,7 +127,7 @@
 			data,
 			field,
 			collection: $collection,
-			entry: $entryData,
+			entry: $collectionValue,
 			contentLanguage: $contentLanguage
 		});
 	})(expanded);

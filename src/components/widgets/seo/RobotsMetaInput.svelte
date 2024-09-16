@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/widgets/seo/RobotsMetaInput.svelte
+@description - Robots Meta widget for SEO Widget
+-->
+
 <script lang="ts">
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
