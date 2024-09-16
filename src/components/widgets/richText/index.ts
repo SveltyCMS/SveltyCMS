@@ -1,19 +1,21 @@
 /**
-@file src/components/widgets/richText/index.ts
-@description - richText TipTap index file.
-*/
+ * @file src/components/widgets/richText/index.ts
+ * @description - richText TipTap index file.
+ */
 
 const WIDGET_NAME = 'RichText' as const;
 
 import { publicEnv } from '@root/config/public';
 import { getFieldName, getGuiFields } from '@src/utils/utils';
-import { saveImage } from '@src/utils/media';
+import { MediaService } from '@src/utils/media/MediaService'; // Import the MediaService class
 import { GuiSchema, toString, GraphqlSchema, type Params } from './types';
 import type { ModifyRequestParams } from '..';
 import { dbAdapter } from '@src/databases/db'; // Import your database adapter
 
 // ParaglideJS
 import * as m from '@src/paraglide/messages';
+
+const mediaService = new MediaService(); // Initialize MediaService instance
 
 /**
  * Defines RichText widget Parameters
@@ -81,9 +83,9 @@ widget.modifyRequest = async ({ data, type, collection, id, meta_data, user }: M
 			for (const img_id in images) {
 				if (images[img_id] instanceof File) {
 					// Locally selected new images
-					const res = await saveImage(images[img_id], collection.name, user._id); // Include user_id argument
+					const res = await mediaService.saveMedia(images[img_id], user._id); // Use MediaService to save image
 					const fileInfo = res.fileInfo;
-					_id = res.id;
+					_id = res._id;
 					for (const lang in _data.content) {
 						_data.content[lang] = _data.content[lang].replace(`src="${img_id}"`, `src="${fileInfo.original.url}" media_image="${_id}"`);
 					}

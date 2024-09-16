@@ -42,10 +42,10 @@ import logger from '@src/utils/logger';
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
-import type { MediaType } from '@src/utils/media';
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
+import type { MediaType } from '@src/utils/media/mediaModels';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(
@@ -172,8 +172,9 @@ const VirtualFolder =
 	mongoose.model(
 		'VirtualFolder',
 		new Schema({
+			_id: { type: String, required: true },
 			name: { type: String, required: true },
-			parent: { type: Schema.Types.ObjectId, ref: 'VirtualFolder' },
+			parent: { type: Schema.Types.ObjectId, ref: 'VirtualFolder', default: null }, // Allow null
 			path: { type: String, required: true }
 		})
 	);
@@ -813,7 +814,6 @@ export class MongoDBAdapter implements dbInterface {
 	async getVirtualFolders(): Promise<any[]> {
 		return await VirtualFolder.find().lean();
 	}
-
 	// Get virtual folder contents
 	async getVirtualFolderContents(folderId: string): Promise<any[]> {
 		// Convert the folderId to ObjectId if it's a string

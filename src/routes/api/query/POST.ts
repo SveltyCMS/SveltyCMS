@@ -30,6 +30,7 @@ import type { User } from '@src/auth/types';
 
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
+import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
 import logger from '@src/utils/logger';
@@ -45,18 +46,24 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		const body: { [key: string]: any } = {};
-		const collections = await getCollectionModels();
+		// Validate the collection name using the type guard
+		if (!schema.name || !isCollectionName(schema.name)) {
+			logger.error('Invalid or undefined schema name.');
+			return new Response('Invalid or undefined schema name.', { status: 400 });
+		}
+
+		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
-		const collection = collections[schema.name];
-		const fileIDS: string[] = [];
-
+		const collection = collections[schema.name]; // Get the specific collection based on the schema name
 		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
 			return new Response('Collection not found', { status: 404 });
 		}
+
+		const body: { [key: string]: any } = {};
+		const fileIDS: string[] = [];
 
 		// Parse the form data and build the body object
 		for (const [key, value] of data.entries()) {

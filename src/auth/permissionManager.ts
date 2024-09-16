@@ -11,18 +11,30 @@
  */
 
 import { getCollectionFiles } from '@src/routes/api/getCollections/getCollectionFiles';
+
 // Permissions
 import { permissions as configPermissions, PermissionAction, PermissionType, setPermissions } from '@root/config/permissions';
 import type { Permission as AuthPermission } from './types';
 import type { PermissionConfig } from './permissionCheck';
+
 // System Logger
 import logger from '@src/utils/logger';
+
+// Centralized and Decentralized Permissions
+let decentralizedPermissions: AuthPermission[] = [];
+
+// Function to register decentralized permissions
+export function registerDecentralizedPermissions(newPermissions: AuthPermission[]): void {
+	const uniquePermissions = newPermissions.filter((newPermission) => !decentralizedPermissions.some((p) => p._id === newPermission._id));
+	decentralizedPermissions = [...decentralizedPermissions, ...uniquePermissions];
+	logger.debug(`Registered decentralized permissions: ${JSON.stringify(uniquePermissions)}`);
+}
 
 // Converts a config permission to an auth permission type
 function convertToAuthPermission(permission: any): AuthPermission {
 	return {
 		...permission,
-		action: permission.action // Ensure this is already a PermissionAction enum
+		action: permission.action as PermissionAction
 	};
 }
 
@@ -38,7 +50,11 @@ export async function getPermissionByName(name: string): Promise<AuthPermission 
 
 // Retrieves all permissions from the configuration
 export async function getAllPermissions(): Promise<AuthPermission[]> {
-	return configPermissions.map((permission) => convertToAuthPermission(permission));
+	const centralized = configPermissions.map(convertToAuthPermission);
+	const decentralized = decentralizedPermissions.map(convertToAuthPermission);
+	const allPermissions = [...centralized, ...decentralized];
+	logger.debug(`All aggregated permissions: ${JSON.stringify(allPermissions)}`);
+	return allPermissions;
 }
 
 // Checks if a permission exists in the configuration
@@ -100,6 +116,7 @@ async function syncCollectionPermissions(collections: string[]): Promise<AuthPer
 			description: `Allows deleting ${baseId}`
 		});
 	});
+	//logger.debug(`Synchronized collection permissions: ${JSON.stringify(permissions)}`);
 	return permissions;
 }
 
@@ -116,34 +133,18 @@ export async function syncPermissions(): Promise<void> {
 
 		const collectionPermissions = await syncCollectionPermissions(collections);
 
-		const permissions: AuthPermission[] = [...configs, ...userManagementPermissions, ...collectionPermissions];
+		const centralizedPermissions: AuthPermission[] = [...configs, ...userManagementPermissions, ...collectionPermissions];
 
-		// Expand permissions based on dependencies (e.g., MANAGE -> READ, UPDATE, DELETE)
-		const expandedPermissions = expandPermissions(permissions);
+		const allPermissions: AuthPermission[] = [...centralizedPermissions, ...decentralizedPermissions];
 
-		setPermissions(expandedPermissions);
+		// Directly set permissions without expansion
+		setPermissions(allPermissions);
 
 		logger.info('Permissions synchronized from configuration');
 	} catch (error) {
 		logger.error(`Failed to synchronize permissions: ${(error as Error).message}`);
 		throw error;
 	}
-}
-
-// Expands permissions to include dependent actions (e.g., MANAGE implies READ, UPDATE, DELETE)
-function expandPermissions(permissions: AuthPermission[]): AuthPermission[] {
-	const expandedPermissions: AuthPermission[] = [...permissions];
-	permissions.forEach((permission) => {
-		if (permission.action === PermissionAction.MANAGE) {
-			// Add associated actions like READ, UPDATE, DELETE
-			expandedPermissions.push(
-				{ ...permission, action: PermissionAction.READ },
-				{ ...permission, action: PermissionAction.UPDATE },
-				{ ...permission, action: PermissionAction.DELETE }
-			);
-		}
-	});
-	return expandedPermissions;
 }
 
 export const permissionConfigs: Record<string, PermissionConfig> = {
@@ -169,13 +170,12 @@ export const permissionConfigs: Record<string, PermissionConfig> = {
 		action: PermissionAction.MANAGE,
 		contextType: 'system'
 	},
-
 	// Exporting API Data
 	exportData: {
 		contextId: 'api/exportData',
 		name: 'Export Api Data',
 		action: PermissionAction.EXECUTE,
-		contextType: 'system'
+		contextType: PermissionType.SYSTEM
 	}
 } as const;
 

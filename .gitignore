@@ -26,6 +26,11 @@ collections/
 logs/
 .node-version
 
+# Ensure src/utils/media and its contents are not ignored
+!src/utils/media/
+!src/utils/media/*.ts
+
+
 # debug
 npm-debug.log*
 pnpm-debug.log*

@@ -14,7 +14,7 @@
 	import { collectionValue, mode, validationStore } from '@stores/store';
 
 	// Components
-	import type { MediaImage } from '@src/utils/types';
+	import type { MediaImage } from '@src/utils/media/mediaModels';
 	import FileInput from '@src/components/system/inputs/FileInput.svelte';
 
 	let isFlipped = false; // State variable to track flip button

@@ -41,8 +41,10 @@ function convertIdToString(obj: any): any {
 
 	const result: any = {};
 	for (const key in obj) {
-		if (key === '_id' || key === 'parent') {
-			result[key] = obj[key].toString(); // Ensure ObjectId is converted to string
+		if (obj[key] === null) {
+			result[key] = null;
+		} else if (key === '_id' || key === 'parent') {
+			result[key] = obj[key]?.toString() || null; // Use optional chaining and provide a fallback
 		} else if (Buffer.isBuffer(obj[key])) {
 			result[key] = obj[key].toString('hex'); // Convert Buffer to hex string
 		} else if (typeof obj[key] === 'object') {
@@ -75,7 +77,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		// Convert user._id to a string to ensure it's serializable
 		const serializedUser = convertIdToString(user);
-
 		const folderIdentifier = publicEnv.MEDIA_FOLDER;
 
 		// Fetch media files
@@ -86,7 +87,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		});
 
 		let results = await Promise.all(media_promises);
-
 		results = results.map((arr, index) =>
 			arr.map((item) =>
 				convertIdToString({
@@ -100,12 +100,13 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		const media = results.flat();
 
-		// Fetch virtual folders and ensure they are serializable
+		// Fetch virtual folders
 		const virtualFolders = await dbAdapter.getVirtualFolders();
 		const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
 
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
+		// Fetch theme
 		let theme;
 		try {
 			theme = await dbAdapter.getDefaultTheme();
@@ -117,6 +118,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		logger.info('Media gallery data and virtual folders loaded successfully');
 		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders, theme };
+
+		// Added Debugging: Log the returnData
+		logger.debug('Returning data from load function:', returnData);
 
 		return returnData;
 	} catch (err) {

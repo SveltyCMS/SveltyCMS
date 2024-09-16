@@ -6,11 +6,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import type { Media, MediaImage } from '@src/utils/types';
-	import { SIZES } from '@src/utils/utils';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 	import { dbAdapter } from '@src/databases/db';
+
+	// Media
+	import { MediaTypeEnum, type MediaImage, type MediaType } from '@src/utils/media/mediaModels';
+	import { SIZES } from '@src/utils/utils';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -18,6 +20,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
+	import VirtualFolders from '@components/VirtualFolders.svelte';
 
 	// Stores
 	import { mode } from '@src/stores/store';
@@ -131,10 +134,11 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const result = await response.json();
 
 			if (result.success) {
-				files = result.contents ? result.contents : [];
+				// Correctly assign mediaFiles to files
+				files = Array.isArray(result.contents.mediaFiles) ? result.contents.mediaFiles : [];
 				console.log('Fetched media files:', files);
 			} else {
-				throw new Error(result.error);
+				throw new Error(result.error || 'Unknown error');
 			}
 		} catch (error) {
 			console.error('Error fetching media files:', error);
@@ -303,10 +307,10 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	}
 
 	// Handle delete image
-	async function handleDeleteImage(event: CustomEvent<Media>) {
+	async function handleDeleteImage(event: CustomEvent<MediaType>) {
 		const image = event.detail;
 
-		if (!image || !image.id) {
+		if (!image || !image._id) {
 			console.error('Invalid image data received');
 			return;
 		}
@@ -322,8 +326,8 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		}
 
 		try {
-			console.log(`Deleting image: ${image.id}`);
-			const success = await dbAdapter.deleteMedia(image.id.toString());
+			console.log(`Deleting image: ${image._id}`);
+			const success = await dbAdapter.deleteMedia(image._id.toString());
 
 			if (success) {
 				console.log('Image deleted successfully');
@@ -386,7 +390,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	// Reactive statement to filter files
 	$: filteredFiles = files.filter((file) => {
-		if (file.type === 'Image') {
+		if (file.type === MediaTypeEnum.Image) {
 			const sizeKey = Object.keys(SIZES).find((size) => file[size]?.name);
 
 			if (sizeKey && file[sizeKey]?.name) {
@@ -427,91 +431,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 <Breadcrumb {breadcrumb} {folders} {openFolder} />
 
 <!-- <Filter {globalSearchValue} {selectedMediaType} {mediaTypes} /> -->
-
-<!-- Folders Section -->
-
-{#if folders.length > 0}
-	<div class="mb-4 flex flex-col space-y-2">
-		<!-- Root Level Folders -->
-		{#each folders.filter((f) => !currentFolder || f.parent === currentFolder._id) as folder (folder._id)}
-			<div class="relative flex flex-col space-y-2">
-				<!-- Folder Button -->
-				<button
-					on:click={() => openFolder(folder._id)}
-					class="flex items-center space-x-2 rounded-lg border p-4 transition hover:bg-gray-200 dark:hover:bg-gray-700"
-				>
-					<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
-					<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm font-medium">{folder.name}</span>
-				</button>
-
-				<!-- Action Buttons -->
-				<div class="absolute right-2 top-2 flex gap-2">
-					<button
-						on:click={(e) => {
-							e.stopPropagation();
-							updateFolder(folder._id, 'New Folder Name');
-						}}
-						class="text-blue-500 hover:text-blue-700"
-					>
-						<iconify-icon icon="mdi:pencil" width="20" />
-					</button>
-					<button
-						on:click={(e) => {
-							e.stopPropagation();
-							deleteFolder(folder._id);
-						}}
-						class="text-red-500 hover:text-red-700"
-					>
-						<iconify-icon icon="mdi:delete" width="20" />
-					</button>
-				</div>
-
-				<!-- Subfolders (Indented) -->
-				<div class="pl-8">
-					{#each folders.filter((sub) => sub.parent === folder._id) as subfolder (subfolder._id)}
-						<div class="relative flex flex-col space-y-2">
-							<!-- Subfolder Button -->
-							<button
-								on:click={() => openFolder(subfolder._id)}
-								class="flex items-center space-x-2 rounded-lg border p-4 transition hover:bg-gray-200 dark:hover:bg-gray-700"
-							>
-								<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
-								<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm font-medium">{subfolder.name}</span>
-							</button>
-
-							<!-- Subfolder Action Buttons -->
-							<div class="absolute right-2 top-2 flex gap-2">
-								<button
-									on:click={(e) => {
-										e.stopPropagation();
-										updateFolder(subfolder._id, 'New Folder Name');
-									}}
-									class="text-blue-500 hover:text-blue-700"
-								>
-									<iconify-icon icon="mdi:pencil" width="20" />
-								</button>
-								<button
-									on:click={(e) => {
-										e.stopPropagation();
-										deleteFolder(subfolder._id);
-									}}
-									class="text-red-500 hover:text-red-700"
-								>
-									<iconify-icon icon="mdi:delete" width="20" />
-								</button>
-							</div>
-						</div>
-					{/each}
-				</div>
-			</div>
-		{/each}
-	</div>
-{:else}
-	<!-- No Folders Found Message -->
-	<div class="py-10 text-center">
-		<p class="text-lg text-gray-600 dark:text-gray-300">No folders found.</p>
-	</div>
-{/if}
 
 <div class="wrapper overflow-auto">
 	<div class="mb-8 flex w-full flex-col justify-center gap-1 md:hidden">

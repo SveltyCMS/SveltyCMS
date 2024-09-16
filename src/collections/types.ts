@@ -53,4 +53,5 @@ export type CollectionContent = {
 	];
 };
 
-export type CollectionNames = 'ImageArray' | 'Media' | 'Menu' | 'Names' | 'Posts' | 'Relation' | 'WidgetTest';
+
+export type CollectionNames = 'ImageArray'|'Media'|'Menu'|'Names'|'Posts'|'Relation'|'WidgetTest';
