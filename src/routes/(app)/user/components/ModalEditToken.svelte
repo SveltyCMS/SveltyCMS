@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/user/ModalTokenUser.svelte
+@description Modal for generating user registration email token
+-->
+
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
@@ -5,7 +10,7 @@
 	// Get data from page store
 	const { roles, user } = $page.data;
 
-	console.log('Roles:', roles); // Add this line to log roles
+	//console.log('Roles:', roles); // Add this line to log roles
 
 	// Props
 	export let parent: any;
@@ -192,13 +197,18 @@
 		</form>
 
 		<footer class="{parent.regionFooter} flex items-center justify-between">
+			<!-- Delete -->
 			<button type="button" on:click={deleteToken} class="variant-filled-error btn">
 				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 
 			<div class="flex justify-between gap-2">
+				<!-- Cancel -->
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+				<!-- Save -->
+				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary{parent.buttonPositive}" on:click={onFormSubmit}
+					>{m.button_save()}</button
+				>
 			</div>
 		</footer>
 	</div>

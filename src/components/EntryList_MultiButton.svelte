@@ -1,6 +1,6 @@
-<!-- 
+<!--
  @files src/components/EntryList_MultiButton.svelte
-@description EntryList_MultiButton component. 
+@description EntryList_MultiButton component.
 -->
 
 <script lang="ts">
@@ -141,7 +141,9 @@
 	</button>
 
 	{#if dropdownOpen}
-		<ul class="drops absolute right-2 top-14 mt-1 divide-y divide-white rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto">
+		<ul
+			class="drops absolute right-2 top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
+		>
 			{#each Object.keys(buttonMap) as type}
 				{#if $storeListboxValue !== type}
 					<li class={`hover:text-white gradient-${buttonMap[type][1]}-hover gradient-${buttonMap[type][1]}-focus`}>

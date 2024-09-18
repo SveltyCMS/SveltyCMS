@@ -1,12 +1,16 @@
+<!-- 
+@files src/components/user/ModalTokenUser.svelte 
+@description Modal for generating user registration email token 
+-->
+
 <script lang="ts">
 	import type { PageData } from '../$types';
+	import { page } from '$app/stores';
 	import { invalidateAll } from '$app/navigation';
 	import '@stores/store';
 
-	// Auth
-	import { getLoadedRoles } from '@src/auth/types';
-	import type { Role } from '@src/auth/types'; // Import Role type
-	const roles: Role[] = getLoadedRoles(); // Ensure correct type
+	// Get data from page store
+	const { roles } = $page.data;
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -22,13 +26,6 @@
 
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
-
-	// Base Classes
-	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
-	const cHeader = 'text-2xl font-bold';
-	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
-
-	let response: any;
 
 	if (!addUserForm) {
 		addUserForm = {
@@ -94,6 +91,11 @@
 		$form.expiresIn = expiresIn;
 		$form.expiresInLabel = expiresInLabel;
 	}
+
+	// Base Classes
+	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
+	const cHeader = 'text-2xl font-bold';
+	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
 <!-- @component This example creates a simple form modal. -->
@@ -131,24 +133,29 @@
 				<div class="border-b text-center sm:w-1/4 sm:border-0 sm:text-left">{m.form_userrole()}</div>
 				<div class="flex-auto">
 					<div class="flex flex-wrap justify-center gap-2 space-x-2 sm:justify-start">
-						{#each roles as r (r._id)}
-							<span
-								class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
-								on:click={() => {
-									roleSelected = r._id;
-								}}
-								on:keypress
-								role="button"
-								tabindex="0"
-								aria-label={`Role: ${r.name}`}
-								aria-pressed={roleSelected === r._id ? 'true' : 'false'}
-							>
-								{#if roleSelected === r._id}
-									<span><iconify-icon icon="fa:check" /></span>
-								{/if}
-								<span class="capitalize">{r.name}</span>
-							</span>
-						{/each}
+						{#if roles && roles.length > 0}
+							{#each roles as r (r._id)}
+								<button
+									type="button"
+									class="chip {roleSelected === r._id ? 'variant-filled-tertiary' : 'variant-ghost-secondary'}"
+									on:click={() => {
+										roleSelected = r._id;
+										console.log('Selected Role:', roleSelected);
+									}}
+									role="button"
+									tabindex="0"
+									aria-label={`Role: ${r.name}`}
+									aria-pressed={roleSelected === r._id ? 'true' : 'false'}
+								>
+									{#if roleSelected === r._id}
+										<span><iconify-icon icon="fa:check" /></span>
+									{/if}
+									<span class="capitalize">{r.name}</span>
+								</button>
+							{/each}
+						{:else}
+							<p class="text-tertiary-500 dark:text-primary-500">Loading roles...</p>
+						{/if}
 					</div>
 				</div>
 			</div>
@@ -186,8 +193,10 @@
 			</div>
 
 			<footer class="flex items-center justify-between {parent.regionFooter}">
+				<!-- Cancel -->
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-				<button type="submit" class="btn {parent.buttonPositive}">{m.button_send()}</button>
+				<!-- Send -->
+				<button type="submit" class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}">{m.button_send()}</button>
 			</footer>
 		</form>
 	</div>

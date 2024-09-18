@@ -42,7 +42,9 @@ import logger from '@src/utils/logger';
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
-import type { MediaType } from '@src/utils/media';
+
+// Media
+import type { MediaType } from '@src/utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/utils/utils';
@@ -166,16 +168,19 @@ const SystemPreferences =
 		)
 	);
 
-// Define the VirtualFolder model only if it doesn't already exist
-const VirtualFolder =
-	mongoose.models.VirtualFolder ||
+// Define the SystemVirtualFolder model only if it doesn't already exist
+const SystemVirtualFolder =
+	mongoose.models.SystemVirtualFolder ||
 	mongoose.model(
-		'VirtualFolder',
-		new Schema({
-			name: { type: String, required: true },
-			parent: { type: Schema.Types.ObjectId, ref: 'VirtualFolder' },
-			path: { type: String, required: true }
-		})
+		'SystemVirtualFolder',
+		new Schema(
+			{
+				name: { type: String, required: true },
+				parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
+				path: { type: String, required: true }
+			},
+			{ collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
+		)
 	);
 
 export class MongoDBAdapter implements dbInterface {
@@ -801,21 +806,23 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Create a virtual folder in database
 	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any> {
-		const folder = new VirtualFolder(folderData);
+		const folder = new SystemVirtualFolder({
+			_id: this.generateId(),
+			...folderData
+		});
 		return await folder.save();
 	}
 
 	// Get virtual folders
 	async getVirtualFolders(): Promise<any[]> {
-		return await VirtualFolder.find().lean();
+		return await SystemVirtualFolder.find().lean();
 	}
-
 	// Get virtual folder contents
 	async getVirtualFolderContents(folderId: string): Promise<any[]> {
 		// Convert the folderId to ObjectId if it's a string
 		const objectId = new mongoose.Types.ObjectId(folderId);
 
-		const folder = await VirtualFolder.findById(objectId);
+		const folder = await SystemVirtualFolder.findById(objectId);
 		if (!folder) throw new Error('Folder not found');
 
 		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
@@ -826,12 +833,12 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Update virtual folder
 	async updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any> {
-		return await VirtualFolder.findByIdAndUpdate(folderId, updateData, { new: true });
+		return await SystemVirtualFolder.findByIdAndUpdate(folderId, updateData, { new: true });
 	}
 
 	// Delete virtual folder
 	async deleteVirtualFolder(folderId: string): Promise<boolean> {
-		const result = await VirtualFolder.findByIdAndDelete(folderId);
+		const result = await SystemVirtualFolder.findByIdAndDelete(folderId);
 		return !!result;
 	}
 

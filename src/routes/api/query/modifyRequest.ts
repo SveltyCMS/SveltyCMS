@@ -56,45 +56,50 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
-			logger.debug(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);
-
-			if ('modifyRequest' in widget) {
-				// Widget can modify its own portion of entryList
+			if (widget && 'modifyRequest' in widget) {
 				data = await Promise.all(
 					data.map(async (entry: any) => {
-						const dataAccessor = {
-							get() {
-								return entry[fieldName];
-							},
-							update(newData: any) {
-								entry[fieldName] = newData;
-							}
-						};
+						try {
+							const entryCopy = { ...entry };
+							const dataAccessor = {
+								get() {
+									return entryCopy[fieldName];
+								},
+								update(newData: any) {
+									entryCopy[fieldName] = newData;
+								}
+							};
 
-						logger.debug(`Modifying entry with ID: ${entry._id}, field: ${fieldName}`);
+							await widget.modifyRequest({
+								collection,
+								field,
+								data: dataAccessor,
+								user,
+								type,
+								id: entryCopy._id,
+								meta_data: entryCopy.meta_data
+							});
 
-						// Perform the widget-specific modification
-						await widget.modifyRequest({
-							collection,
-							field,
-							data: dataAccessor,
-							user,
-							type,
-							id: entry._id,
-							meta_data: entry.meta_data
-						});
-
-						return entry;
+							return entryCopy;
+						} catch (error) {
+							const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+							const errorStack = error instanceof Error ? error.stack : '';
+							logger.error(`Error modifying entry: ${errorMessage}`, { stack: errorStack });
+							return entry;
+						}
 					})
 				);
+			} else {
+				logger.warn(`No widget or modifyRequest function found for field: ${field.widget.Name}`);
 			}
 		}
 
 		logger.debug(`ModifyRequest completed for ${data.length} entries`);
-		return data; // Return the modified data
+		return data;
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error in modifyRequest: ${errorMessage}`);
-		throw new Error(`ModifyRequest failed: ${errorMessage}`);
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`Error in modifyRequest: ${errorMessage}`, { stack: errorStack });
+		throw new Error(errorMessage);
 	}
 }

@@ -1,4 +1,4 @@
-<!-- 
+<!--
 @file  src/components/EntryList.svelte
 @description  EntryList component to display collections.
 -->
@@ -439,7 +439,9 @@
 			<TranslationStatus />
 		</div>
 		<!-- MultiButton -->
-		<EntryListMultiButton {isCollectionEmpty} />
+		<div class="mt-2 w-full sm:mt-0 sm:w-auto">
+			<EntryListMultiButton {isCollectionEmpty} />
+		</div>
 	</div>
 
 	<!-- Table -->

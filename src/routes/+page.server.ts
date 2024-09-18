@@ -5,10 +5,9 @@
  * It performs the following tasks:
  *
  * - Ensures that the authentication system and any necessary initializations are complete before processing requests.
- * - Validates the user's session using a session cookie. If the session is invalid or missing, redirects the user to the login page.
- * - Retrieves the default theme from the database and sets it in the application, falling back to a default theme if retrieval fails.
- * - Updates the system language based on the retrieved theme if applicable.
- * - Fetches the available collections and redirects the user to the first available collection. If no collections are found, logs an error and throws an exception.
+ * - Retrieves user session and permissions from locals (set by hooks.server.ts).
+ * - Fetches the available collections and redirects the user to the first available collection.
+ * - Uses the theme set by hooks.server.ts.
  *
  * This module integrates with authentication, theme management, and collection retrieval systems to ensure that users are directed to appropriate content based on their session and available resources.
  */
@@ -17,12 +16,8 @@ import { publicEnv } from '@root/config/public';
 import { redirect } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
-// Auth
-import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-
-// Stores
-import { systemLanguage } from '@stores/store';
+// Databases
+import { initializationPromise } from '@src/databases/db';
 
 // Collections
 import { getCollections } from '@src/collections';
@@ -30,57 +25,51 @@ import { getCollections } from '@src/collections';
 // System Logs
 import logger from '@src/utils/logger';
 
-// Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
+// Stores
+import { systemLanguage } from '@stores/store';
 
-export const load: PageServerLoad = async ({ cookies }) => {
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
+		logger.debug('Load function started');
+
 		// Ensure initialization is complete
 		await initializationPromise;
+		logger.debug('Initialization complete');
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw redirect(302, '/login');
-		}
+		// User and permissions are now set by hooks.server.ts
+		const user = locals.user;
+		const permissions = locals.permissions;
+		const theme = locals.theme;
 
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
+		logger.debug(`Permissions loaded: ${permissions ? 'Yes' : 'No'}`);
+		logger.debug(`Theme loaded: ${theme ? JSON.stringify(theme) : 'No'}`);
 
-		if (!session_id) {
-			logger.debug('No session ID found, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		// Validate the session and retrieve the associated user
-		const user = await auth.validateSession({ session_id });
-		if (!user) {
-			logger.warn(`Invalid session or user not found for session ID: ${session_id}`);
-			throw redirect(302, '/login');
-		}
-		logger.debug(`Session validation result: ${user ? 'Valid' : 'Invalid'}`);
-
-		// Fetch the default theme from the database
-		let theme;
-		try {
-			theme = await dbAdapter.getDefaultTheme();
-			theme = JSON.parse(JSON.stringify(theme)); // Ensure the theme object is serializable
-			logger.info(`Theme loaded successfully: ${JSON.stringify(theme)}`);
-		} catch (error) {
-			logger.error(`Error fetching default theme: ${(error as Error).message}`);
-			theme = DEFAULT_THEME;
-		}
-
-		if (theme.language) {
+		if (theme && theme.language) {
 			systemLanguage.set(theme.language);
 			logger.debug(`System language set to: ${theme.language}`);
 		}
 
+		// Fetch collections
+		logger.debug('Fetching collections');
 		const collections = await getCollections();
+		logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
+
+		if (!collection) {
+			logger.warn(`The collection '${params.collection}' does not exist.`);
+			throw error(404, {
+				message: `The collection '${params.collection}' does not exist.`
+			});
+		}
 
 		if (collections && Object.keys(collections).length > 0) {
 			const first_collection_key = Object.keys(collections)[0];
 			const first_collection = collections[first_collection_key];
+			logger.debug(`First collection key: ${first_collection_key}`);
+			logger.debug(`First collection: ${JSON.stringify(first_collection)}`);
+
 			if (first_collection && first_collection.name) {
-				logger.debug(`First collection: ${first_collection.name}`);
+				logger.debug(`Redirecting to first collection: ${first_collection.name}`);
 				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
 			} else {
 				logger.error('First collection is invalid or missing a name');

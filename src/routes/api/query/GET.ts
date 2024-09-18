@@ -23,17 +23,16 @@
  * Note: This handler assumes that user authentication and authorization
  * have already been performed by the calling function.
  */
-
 import { publicEnv } from '@root/config/public';
 
 // Types
 import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
-
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
 import widgets from '@src/components/widgets';
 import { getFieldName, get_elements_by_id } from '@src/utils/utils';
+import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System Logger
 import logger from '@src/utils/logger';
@@ -65,18 +64,24 @@ export async function _GET({
 			return new Response('Internal server error: Database adapter not initialized', { status: 500 });
 		}
 
-		const aggregations: any[] = [];
+		// Validate the collection name using the type guard
+		if (!schema.name || !isCollectionName(schema.name)) {
+			logger.error('Invalid or undefined schema name.');
+			return new Response('Invalid or undefined schema name.', { status: 400 });
+		}
+
 		const collections = await getCollectionModels(); // Get collection models from the database
 		logger.debug(`Collection models retrieved: ${Object.keys(collections).join(', ')}`);
 
-		const collection = collections[schema.name as string]; // Get the specific collection based on the schema name
-		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
-
+		const collection = collections[schema.name]; // Get the specific collection based on the schema name
 		// Check if the collection exists
 		if (!collection) {
 			logger.error(`Collection not found for schema: ${schema.name}`);
 			return new Response('Collection not found', { status: 404 });
 		}
+
+		const aggregations: any[] = [];
+		const skip = (page - 1) * limit; // Calculate the number of documents to skip for pagination
 
 		// Build aggregation pipelines for sorting and filtering
 		for (const field of schema.fields) {
@@ -138,7 +143,8 @@ export async function _GET({
 		return new Response(JSON.stringify({ entryList: entries, pagesCount }), { headers: { 'Content-Type': 'application/json' } });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error occurred during GET request: ${errorMessage}`);
+		const errorStack = error instanceof Error ? error.stack : '';
+		logger.error(`Error occurred during GET request: ${errorMessage}`, { stack: errorStack });
 		return new Response(errorMessage, { status: 500 });
 	}
 }

@@ -48,6 +48,8 @@ interface WidgetSchema {
 // Registers collection schemas dynamically.
 export async function registerCollections() {
 	const collections = await getCollections();
+	logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
+
 	const typeDefsSet = new Set<string>();
 	const resolvers: { [key: string]: any } = { Query: {} };
 	const collectionSchemas: string[] = [];

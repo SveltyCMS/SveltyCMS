@@ -1,4 +1,7 @@
 <!-- 
+ @file src/components/system/inputs/floatingInput.svelte
+ @description FloatingInput component
+
 This FloatingInput component has the following properties:
 
 - type: The type of the input element. Can be either 'text' or 'password'.

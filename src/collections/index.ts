@@ -29,7 +29,7 @@ let unsubscribe: Unsubscriber | undefined; // Store unsubscriber handler
 let collectionModelsCache: Record<string, any> | null = null;
 
 // Type Guard Function to validate collection names
-function isCollectionName(name: string): name is CollectionNames {
+export function isCollectionName(name: string): name is CollectionNames {
 	return ['ImageArray', 'Media', 'Menu', 'Names', 'Posts', 'Relation', 'WidgetTest'].includes(name);
 }
 

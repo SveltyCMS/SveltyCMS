@@ -19,7 +19,7 @@
 	// // Notes: Use `w-screen h-screen` to fit the visible canvas size.
 	// const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
-	// import type { MediaImage } from '@src/utils/types';
+	// import type { MediaImage } from '@src/utils/media/mediaModels';
 	// import { meta_data, getFieldName } from '@src/utils/utils';
 	// import { mode } from '@src/stores/store';
 	// import axios from 'axios';

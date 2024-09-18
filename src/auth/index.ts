@@ -30,7 +30,7 @@ import { roles as configRoles } from '@root/config/roles';
 import { getPermissionByName, getAllPermissions } from './permissionManager';
 
 // Cache & Redis
-import { OptionalRedisSessionStore } from './SessionStores';
+import { OptionalRedisSessionStore } from './InMemoryCacheStore';
 
 // Import argon2 conditionally
 let argon2: typeof import('argon2') | null = null;
@@ -521,7 +521,7 @@ export class Auth {
 				path: '/',
 				httpOnly: true,
 				expires: new Date(session.expires * 1000), // Convert seconds to milliseconds and create a Date object
-				secure: process.env.NODE_ENV === 'production'
+				secure: process.env.NODE_ENV === 'production' // This should already be correct
 			}
 		};
 	}

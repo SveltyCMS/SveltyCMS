@@ -13,7 +13,7 @@ Key features:
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
 	import { formatBytes } from '@src/utils/utils';
-	import { getMediaUrl } from '@src/utils/media';
+	import { getMediaUrl } from '@src/utils/media/mediaUtils';
 	import { popup, type PopupSettings } from '@skeletonlabs/skeleton';
 
 	export let filteredFiles;

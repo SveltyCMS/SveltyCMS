@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/user/ModalEditAvatar.svelte
+@description Modal for editing user avatar.
+-->
+
 <script lang="ts">
 	import axios from 'axios';
 	import { page } from '$app/stores';
@@ -199,6 +204,7 @@
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter} justify-between">
+			<!-- Delete Avatar -->
 			{#if $avatarSrc !== '/Default_User.svg'}
 				<button type="button" on:click={deleteAvatar} class="variant-filled-error btn">
 					<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
@@ -208,10 +214,14 @@
 				<!-- Empty div when using the default avatar -->
 			{/if}
 			<div class="flex justify-between gap-2">
+				<!-- Cancel -->
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>
 					{m.button_cancel()}
 				</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+				<!-- Save -->
+				<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" on:click={onFormSubmit}
+					>{m.button_save()}
+				</button>
 			</div>
 		</footer>
 	</div>

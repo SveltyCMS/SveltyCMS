@@ -1,3 +1,8 @@
+<!-- 
+@files src/components/user/Multibutton.svelte
+@description A multibutton component for user management.
+-->
+
 <script lang="ts">
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';

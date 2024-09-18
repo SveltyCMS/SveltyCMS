@@ -1,3 +1,8 @@
+<!--
+@file src/components/SearchComponent.svelte
+@description - Search Component
+-->
+
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { getEditDistance } from '@utils/utils';
@@ -8,6 +13,8 @@
 
 	//Stores
 	import { isSearchVisible, globalSearchIndex, triggerActionStore } from '@utils/globalSearchIndex';
+	import { file } from 'googleapis/build/src/apis/file';
+	import { desc } from 'drizzle-orm';
 
 	// Define the searchResults array and searchQuery variable
 	let searchResults: any[] = [];

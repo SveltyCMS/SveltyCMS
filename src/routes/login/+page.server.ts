@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/login/+page.server.ts
+ * @description Server-side logic for the login page.
+ */
+
 import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
 
@@ -63,7 +68,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		try {
 			firstUserExists = (await auth.getUserCount()) !== 0;
 		} catch (err) {
-			logger.error('Error fetching user count:', err);
+			logger.error('Error fetching user count:', err instanceof Error ? err.message : JSON.stringify(err));
 			throw error(500, 'Could not verify user count');
 		}
 		logger.debug(`First user exists: ${firstUserExists}`);
@@ -143,7 +148,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 
 				return { needSignIn };
 			} catch (err) {
-				logger.error('Error during login process:', err);
+				logger.error('Error during login process:', err instanceof Error ? err.message : JSON.stringify(err));
 				return { error: 'An error occurred during the login process. Please try again.' };
 			}
 		}
@@ -166,7 +171,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			signUpForm
 		};
 	} catch (err) {
-		logger.error('Error in load function:', err);
+		logger.error('Error in load function:', err instanceof Error ? err.message : JSON.stringify(err));
 
 		// Return a minimal set of data to allow the page to render
 		return {
@@ -193,7 +198,14 @@ export const actions: Actions = {
 		}
 
 		logger.debug('action signUp');
-		const isFirst = (await auth.getUserCount()) == 0;
+		let isFirst = false;
+		try {
+			isFirst = (await auth.getUserCount()) === 0;
+		} catch (err) {
+			logger.error('Error fetching user count:', err);
+			return fail(500, { message: 'An error occurred while processing your request.' });
+		}
+
 		const signUpForm = await superValidate(event, zod(signUpFormSchema));
 
 		// Validate
@@ -303,13 +315,13 @@ export const actions: Actions = {
 
 		const resp = await signIn(email, password, isToken, event.cookies);
 
-		if (resp && resp.status) {
+		if (resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
 			throw redirect(303, '/');
 		} else {
 			// Handle the case when resp is undefined or when status is false
-			const errorMessage = resp?.message || 'An error occurred during sign-in.';
+			const errorMessage = resp.message || 'An error occurred during sign-in.';
 			logger.warn(`Sign-in failed: ${errorMessage}`);
 			return { form: signInForm, message: errorMessage };
 		}
@@ -411,30 +423,25 @@ export const actions: Actions = {
 };
 
 // SignIn user with email and password, create session and set cookie
-async function signIn(
-	email: string,
-	password: string,
-	isToken: boolean,
-	cookies: Cookies
-): Promise<{ status: true } | { status: false; message: string }> {
-	logger.debug(`signIn called with email: ${email}, password: ${password}, isToken: ${isToken}`);
+async function signIn(email: string, password: string, isToken: boolean, cookies: Cookies): Promise<{ status: boolean; message?: string }> {
+	logger.debug(`signIn called with email: ${email}, isToken: ${isToken}`);
+
+	if (!auth) {
+		logger.error('Authentication system is not initialized');
+		throw error(500, 'Internal Server Error');
+	}
 
 	if (!isToken) {
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
-		const user = await auth.login(email, password);
-		logger.debug(`User returned from login: ${JSON.stringify(user)}`);
-
-		if (!user || !user._id) {
-			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
-			return { status: false, message: 'Invalid credentials' };
-		}
-
-		// Create User Session
 		try {
+			const user = await auth.login(email, password);
+			logger.debug(`User returned from login: ${JSON.stringify(user)}`);
+
+			if (!user || !user._id) {
+				logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
+				return { status: false, message: 'Invalid credentials' };
+			}
+
+			// Create User Session
 			const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
 			const session = await auth.createSession({ user_id: user._id, expires });
 			logger.debug(`Session created: ${JSON.stringify(session)}`);
@@ -448,11 +455,6 @@ async function signIn(
 			return { status: false, message: 'Failed to create session' };
 		}
 	} else {
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
 		// User is registered, and credentials are provided as a token
 		const token = password;
 		const user = await auth.checkUser({ email });
@@ -465,24 +467,29 @@ async function signIn(
 		const result = await auth.consumeToken(token, user._id);
 
 		if (result.status) {
-			// Create User Session
-			const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
-			const session = await auth.createSession({ user_id: user._id, expires });
-			logger.debug(`Session created: ${JSON.stringify(session)}`);
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
-			return { status: true };
+			try {
+				// Create User Session
+				const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+				const session = await auth.createSession({ user_id: user._id, expires });
+				logger.debug(`Session created: ${JSON.stringify(session)}`);
+				const sessionCookie = auth.createSessionCookie(session);
+				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+				await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
+				return { status: true };
+			} catch (error) {
+				logger.error(`Failed to create session: ${error}`);
+				return { status: false, message: 'Failed to create session' };
+			}
 		} else {
 			logger.warn(`Token consumption failed: ${result.message}`);
-			return result;
+			return { status: false, message: result.message };
 		}
 	}
 }
 
 // Function create First admin USER account and creating a session.
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
-	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}, password: ${password}`);
+	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
@@ -526,7 +533,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 
 // Function create a new OTHER USER account and creating a session.
 async function finishRegistration(username: string, email: string, password: string, token: string, cookies: Cookies) {
-	logger.debug(`finishRegistration called with username: ${username}, email: ${email}, password: ${password}`);
+	logger.debug(`finishRegistration called with username: ${username}, email: ${email}`);
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');

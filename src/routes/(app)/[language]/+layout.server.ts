@@ -2,15 +2,13 @@
  * @file src/routes/(app)/[language]/+layout.server.ts
  * @description
  * This module handles the server-side loading logic for a SvelteKit application,
- * specifically for routes that include a language parameter. It manages user
- * authentication and session handling, ensuring that users have valid sessions
- * before accessing specific collections. The module performs the following tasks:
+ * specifically for routes that include a language parameter. It manages collection access
+ * and language-specific routing. The module performs the following tasks:
  *
- * - Validates the user's session and creates a new session if none exists.
- * - Redirects users to the login page if they are not authenticated.
- * - Ensures that the requested language and collection are available.
+ * - Ensures that the requested language is available.
+ * - Manages collection access based on user permissions.
  * - Redirects users based on their permissions and the availability of collections.
- * - Retrieves the default theme for the user from the database.
+ * - Uses authentication and theme information set by hooks.server.ts.
  *
  * The module utilizes various utilities and configurations for robust error handling
  * and logging, providing a secure and user-friendly experience.
@@ -21,49 +19,74 @@ import { error, redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
 
-// Auth
-import { auth, initializationPromise, dbAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-
 // Paraglide JS
 import { contentLanguage } from '@src/stores/store';
 
 // System Logs
 import logger from '@src/utils/logger';
 
-// Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
+// Config
 import { roles as configRoles } from '@root/config/roles';
 
-export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
+// Helper function to convert MongoDB document to plain object
+function toPlainObject(obj: any): any {
+	if (obj === null || typeof obj !== 'object') {
+		return obj;
+	}
+	if (Array.isArray(obj)) {
+		return obj.map(toPlainObject);
+	}
+	const plainObj: Record<string, any> = {};
+	for (const key in obj) {
+		if (Object.prototype.hasOwnProperty.call(obj, key)) {
+			if (key === '_id' && typeof obj[key].toHexString === 'function') {
+				plainObj[key] = obj[key].toHexString();
+			} else {
+				plainObj[key] = toPlainObject(obj[key]);
+			}
+		}
+	}
+	return plainObj;
+}
+
+// Helper function to debounce any async function
+function debounceAsync(func: (...args: any[]) => Promise<any>, delay: number) {
+	let timeout: NodeJS.Timeout;
+	let pendingPromise: Promise<any> | null = null;
+
+	return (...args: any[]) => {
+		if (pendingPromise) {
+			return pendingPromise;
+		}
+
+		return new Promise((resolve, reject) => {
+			if (timeout) clearTimeout(timeout);
+
+			timeout = setTimeout(async () => {
+				try {
+					pendingPromise = func(...args);
+					const result = await pendingPromise;
+					resolve(result);
+				} catch (err) {
+					reject(err);
+				} finally {
+					pendingPromise = null;
+				}
+			}, delay);
+		});
+	};
+}
+
+// Debounce getCollections with a 300ms delay
+const getCollectionsDebounced = debounceAsync(getCollections, 300);
+
+export const load: LayoutServerLoad = async ({ locals, route, params }) => {
 	try {
-		// Ensure initialization is complete
-		await initializationPromise;
+		const { user, theme } = locals;
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
-		// Secure this page with session cookie
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-
-		if (!session_id) {
-			logger.debug('No session ID found, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		const user = await auth.validateSession({ session_id });
-
-		// Redirect to login if no valid User session
 		if (!user) {
 			logger.warn('No valid user session found, redirecting to login.');
 			throw redirect(302, '/login');
-		}
-
-		// Convert MongoDB ObjectId to string to avoid serialization issues
-		if (user._id) {
-			user._id = user._id.toString();
 		}
 
 		// Redirect to user page if lastAuthMethod token
@@ -72,7 +95,7 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 			throw redirect(302, `/user`);
 		}
 
-		const collections = await getCollections();
+		const collections = await getCollectionsDebounced();
 		const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
 		// Check if language and collection both set in URL
@@ -119,33 +142,15 @@ export const load: LayoutServerLoad = async ({ cookies, route, params }) => {
 			});
 		}
 
-		const { _id, ...rest } = user;
-		let theme = DEFAULT_THEME;
-
-		try {
-			// Use dbAdapter for theme management
-			const fetchedTheme = await dbAdapter.getDefaultTheme();
-			logger.debug(`Theme loaded successfully: ${JSON.stringify(fetchedTheme)}`);
-
-			if (fetchedTheme && fetchedTheme.name && fetchedTheme.name !== DEFAULT_THEME.name) {
-				theme = {
-					name: fetchedTheme.name,
-					path: fetchedTheme.path,
-					isDefault: fetchedTheme.isDefault,
-					createdAt: fetchedTheme.createdAt,
-					updatedAt: fetchedTheme.updatedAt
-				};
-			}
-		} catch (err) {
-			logger.error('Failed to load theme from database:', err instanceof Error ? err.message : String(err));
-			// Fallback to the default theme (already set)
-		}
-
 		logger.debug(`Using theme: ${JSON.stringify(theme)}`);
 
+		// Convert user and theme to plain objects
+		const plainUser = toPlainObject(user);
+		const plainTheme = toPlainObject(theme);
+
 		return {
-			user: { _id: _id.toString(), ...rest },
-			theme
+			user: plainUser,
+			theme: plainTheme
 		};
 	} catch (err) {
 		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);

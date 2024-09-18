@@ -291,6 +291,7 @@
 			</form>
 
 			<footer class="modal-footer {parent.regionFooter} justify-between">
+				<!-- Delete User -->
 				{#if isFirstUser}
 					<button
 						type="button"
@@ -306,8 +307,12 @@
 				{/if}
 
 				<div class="flex justify-between gap-4">
+					<!-- Cancel -->
 					<button class="variant-outline-secondary btn" on:click={() => parent.onClose()}>{m.button_cancel()}</button>
-					<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+					<!-- Save -->
+					<button class="variant-filled-tertiary btn btn dark:variant-filled-primary {parent.buttonPositive}" on:click={onFormSubmit}
+						>{m.button_save()}</button
+					>
 				</div>
 			</footer>
 		</form>

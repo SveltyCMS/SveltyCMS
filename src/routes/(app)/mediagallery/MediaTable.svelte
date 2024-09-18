@@ -12,7 +12,7 @@ Key features:
 
 <script lang="ts">
 	import { formatBytes } from '@src/utils/utils';
-	import { getMediaUrl } from '@src/utils/media';
+	import { getMediaUrl } from '@src/utils/media/mediaUtils';
 	import { createEventDispatcher } from 'svelte';
 
 	export let filteredFiles;

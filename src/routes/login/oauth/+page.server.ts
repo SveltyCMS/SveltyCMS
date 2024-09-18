@@ -1,3 +1,8 @@
+/**
+ * @file src/routes/login/oauth/+page.server.ts
+ * @description Server-side logic for the OAuth page.
+ */
+
 import { redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -12,8 +17,8 @@ import { systemLanguage } from '@stores/store';
 // System Logs
 import logger from '@src/utils/logger';
 
-// Import saveAvatarImage from utils/media
-import { saveAvatarImage } from '@src/utils/media';
+// Import saveAvatarImage
+import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
 	try {
