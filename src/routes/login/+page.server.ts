@@ -2,9 +2,8 @@
  * @file src/routes/login/+page.server.ts
  * @description Server-side logic for the login page.
  */
-
-import { publicEnv } from '@root/config/public';
 import { privateEnv } from '@root/config/private';
+import { publicEnv } from '@root/config/public';
 
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
@@ -31,12 +30,12 @@ import { get } from 'svelte/store';
 import logger from '@src/utils/logger';
 
 const limiter = new RateLimiter({
-	IP: [100, 'h'], // 100 requests per hour per IP
-	IPUA: [50, 'm'], // 50 requests per minute per IP+User-Agent
+	IP: [200, 'h'], // 200 requests per hour per IP
+	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'sveltycms_ratelimit',
 		secret: privateEnv.JWT_SECRET_KEY,
-		rate: [25, 'm'], // 25 requests per minute per cookie
+		rate: [50, 'm'], // 50 requests per minute per cookie
 		preflight: true
 	}
 });
@@ -154,7 +153,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		}
 
 		// SignIn
-
 		const loginForm = await superValidate(zod(loginFormSchema));
 		const forgotForm = await superValidate(zod(forgotFormSchema));
 		const resetForm = await superValidate(zod(resetFormSchema));

@@ -2,52 +2,30 @@
  * @file src/routes/(app)/[language]/+layout.server.ts
  * @description
  * This module handles the server-side loading logic for a SvelteKit application,
- * specifically for routes that include a language parameter. It manages collection access
- * and language-specific routing. The module performs the following tasks:
+ * specifically for routes that include a language parameter. It manages collection access,
+ * language-specific routing, and utilizes the centralized theme. The module performs the following tasks:
  *
  * - Ensures that the requested language is available.
  * - Manages collection access based on user permissions.
- * - Redirects users based on their permissions and the availability of collections.
- * - Uses authentication and theme information set by hooks.server.ts.
+ * - Uses authentication information set by hooks.server.ts.
+ * - Utilizes the theme provided by event.locals.theme.
  *
  * The module utilizes various utilities and configurations for robust error handling
  * and logging, providing a secure and user-friendly experience.
  */
 
 import { publicEnv } from '@root/config/public';
-import { error, redirect } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
-
-// Paraglide JS
-import { contentLanguage } from '@src/stores/store';
+// Theme
+import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logs
 import logger from '@src/utils/logger';
 
 // Config
 import { roles as configRoles } from '@root/config/roles';
-
-// Helper function to convert MongoDB document to plain object
-function toPlainObject(obj: any): any {
-	if (obj === null || typeof obj !== 'object') {
-		return obj;
-	}
-	if (Array.isArray(obj)) {
-		return obj.map(toPlainObject);
-	}
-	const plainObj: Record<string, any> = {};
-	for (const key in obj) {
-		if (Object.prototype.hasOwnProperty.call(obj, key)) {
-			if (key === '_id' && typeof obj[key].toHexString === 'function') {
-				plainObj[key] = obj[key].toHexString();
-			} else {
-				plainObj[key] = toPlainObject(obj[key]);
-			}
-		}
-	}
-	return plainObj;
-}
 
 // Helper function to debounce any async function
 function debounceAsync(func: (...args: any[]) => Promise<any>, delay: number) {
@@ -77,16 +55,19 @@ function debounceAsync(func: (...args: any[]) => Promise<any>, delay: number) {
 	};
 }
 
-// Debounce getCollections with a 300ms delay
+// Debounce getCollections with a 300ms delay to prevent excessive database calls
 const getCollectionsDebounced = debounceAsync(getCollections, 300);
 
-export const load: LayoutServerLoad = async ({ locals, route, params }) => {
+// Server-side load function for the layout
+export const load: LayoutServerLoad = async ({ locals, params }) => {
 	try {
 		const { user, theme } = locals;
+		const activeTheme = theme || DEFAULT_THEME;
 
+		// Ensure the user is authenticated
 		if (!user) {
-			logger.warn('No valid user session found, redirecting to login.');
-			throw redirect(302, '/login');
+			logger.warn('No valid user session found.');
+			throw error(401, 'Unauthorized');
 		}
 
 		// Redirect to user page if lastAuthMethod token
@@ -95,10 +76,11 @@ export const load: LayoutServerLoad = async ({ locals, route, params }) => {
 			throw redirect(302, `/user`);
 		}
 
+		// Fetch collections with debounce to optimize performance
 		const collections = await getCollectionsDebounced();
 		const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
-		// Check if language and collection both set in URL
+		// Validate the requested language
 		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
 			logger.warn(`The language '${params.language}' is not available.`);
 			throw error(404, {
@@ -111,20 +93,7 @@ export const load: LayoutServerLoad = async ({ locals, route, params }) => {
 			});
 		}
 
-		if (route.id !== '/(app)/[language]/[collection]') {
-			const _filtered = Object.values(collections).filter((c: any) => c?.permissions?.[user.role]?.read !== false);
-
-			if (_filtered.length === 0) {
-				logger.warn('No accessible collections found.');
-				throw error(404, 'No accessible collections found.');
-			}
-
-			const redirectLanguage = params.language || contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE;
-			logger.debug(`Redirecting to first accessible collection with language: ${redirectLanguage}`);
-			throw redirect(302, `/${redirectLanguage}/${_filtered[0].name}`);
-		}
-
-		// Check if user has admin privileges based on their role
+		// Determine user permissions based on role
 		const userRole = configRoles.find((role) => role._id === user.role);
 		let hasPermission = userRole?.isAdmin;
 
@@ -135,6 +104,7 @@ export const load: LayoutServerLoad = async ({ locals, route, params }) => {
 
 		logger.debug(`User role: ${user.role}, Role isAdmin: ${userRole?.isAdmin}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
 
+		// Deny access if the user lacks necessary permissions
 		if (!hasPermission) {
 			logger.warn(`No access to collection ${collection?.name} for role ${user.role}`);
 			throw error(401, {
@@ -142,15 +112,9 @@ export const load: LayoutServerLoad = async ({ locals, route, params }) => {
 			});
 		}
 
-		logger.debug(`Using theme: ${JSON.stringify(theme)}`);
-
-		// Convert user and theme to plain objects
-		const plainUser = toPlainObject(user);
-		const plainTheme = toPlainObject(theme);
-
 		return {
-			user: plainUser,
-			theme: plainTheme
+			user,
+			theme: activeTheme
 		};
 	} catch (err) {
 		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);

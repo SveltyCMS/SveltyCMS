@@ -29,10 +29,7 @@ import { dbAdapter } from '@src/databases/db';
 import logger from '@src/utils/logger';
 import { publicEnv } from '@root/config/public';
 
-/**
- * Interface representing a Virtual Folder.
- * Adjust or import this interface based on your actual implementation.
- */
+// Interface representing a Virtual Folder
 interface VirtualFolder {
 	_id: string;
 	name: string;
@@ -44,7 +41,7 @@ export const GET: RequestHandler = async ({ params }) => {
 	let { folderId } = params;
 
 	try {
-		// Handle 'root' as a special case by fetching the root folder based on MEDIA_FOLDER and parent: null
+		// Handle 'root' as a special case by fetching the root folder based on MEDIA_FOLDER from config
 		if (folderId === 'root') {
 			const rootFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
 				name: publicEnv.MEDIA_FOLDER,
@@ -77,7 +74,7 @@ export const GET: RequestHandler = async ({ params }) => {
 
 // POST: Create a subfolder within the specified virtual folder
 export const POST: RequestHandler = async ({ params, request }) => {
-	const { folderId } = params;
+	let { folderId } = params;
 
 	try {
 		const { name } = await request.json();
@@ -218,8 +215,6 @@ export const PATCH: RequestHandler = async ({ params, request }) => {
 		// Update the path of the current folder
 		await dbAdapter.updateVirtualFolder(folderId, { path: newPath });
 
-		// Optionally, update paths of all subfolders recursively
-		// This depends on whether your adapter supports recursive updates
 		// For simplicity, this example does not handle recursive path updates
 
 		logger.info(`Folder with ID ${folderId} updated successfully`);

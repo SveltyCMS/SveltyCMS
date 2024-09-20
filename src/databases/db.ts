@@ -59,7 +59,7 @@ const MAX_RETRIES = 5; // Maximum number of DB connection retries
 const RETRY_DELAY = 5000; // 5 seconds
 
 // Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
+import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // Load database and authentication adapters
 async function loadAdapters() {

@@ -1,8 +1,15 @@
-// See https://kit.svelte.dev/docs/types#app
-// for information about these interfaces
-// and what to do when importing types
+/**
+ * @file src/app.d.ts
+ * @description This file defines the types for the app.
+ *
+ * See https://kit.svelte.dev/docs/types#app
+ * for information about these interfaces
+ * and what to do when importing types
+ */
 
 import type { PipelineStage } from 'mongoose';
+import type { Theme } from '@src/databases/dbInterface'; // Ensure correct import path
+
 declare global {
 	/// <reference path="./types/**/*.d.ts" />
 	declare type Item = import('svelte-dnd-action').Item;
@@ -16,13 +23,22 @@ declare global {
 
 	namespace App {
 		// interface Error {}
-		// interface Locals {}
 		// interface PageData {}
 		// interface Platform {}
+		interface Locals {
+			user?: {
+				id: string;
+				role: string;
+				// Add other relevant user properties here
+			};
+			permissions?: any[]; // Replace 'any' with your actual Permissions type if available
+			theme: Theme | null; // Ensure 'theme' is correctly typed
+		}
 	}
+
 	type tokenTypes = 'register' | 'resetPassword' | 'emailVerification';
 
-	// Defines the Result type, which represents an object with an errors, success, message, and data properties.
+	// Defines the Result type, which represents an object with errors, success, message, and data properties.
 	type Result = {
 		errors: string[];
 		success: boolean;
@@ -34,7 +50,7 @@ declare global {
 	type DISPLAY = (({ data: any, collection: any, field: any, entry: any, contentLanguage: string }) => Promise<any>) & { default?: boolean };
 
 	// Defines a type for the GraphqlSchema function, which takes an object with field, label, and collection properties and returns an object with typeName, graphql, and optional resolver properties.
-	type GraphqlSchema = ({ field, label, collection }) => {
+	type GraphqlSchema = ({ field, label, collection }: { field: any; label: string; collection: any }) => {
 		typeName: string | null;
 		graphql: string;
 		resolver?: { [key: string]: any };
@@ -61,4 +77,5 @@ declare global {
 }
 
 // THIS IS IMPORTANT!!!
+// Export an empty object to ensure this file is treated as a module
 export {};

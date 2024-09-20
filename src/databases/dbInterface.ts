@@ -26,6 +26,28 @@
 import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
 
+// Define a Theme type for better type safety
+export interface Theme {
+	name: string;
+	path: string;
+	isDefault: boolean;
+	createdAt: number;
+	updatedAt: number;
+}
+
+// Define a generic Collection type to be used by database adapters
+export interface CollectionModel {
+	modelName: string;
+	find(query: object): Promise<any[]>;
+	updateOne(query: object, update: object): Promise<any>;
+	updateMany(query: object, update: object): Promise<any>;
+	insertMany(docs: object[]): Promise<any[]>;
+	deleteOne(query: object): Promise<number>;
+	deleteMany(query: object): Promise<number>;
+	countDocuments(query?: object): Promise<number>;
+}
+
+// Define the dbInterface with specific return types
 export interface dbInterface {
 	// Database Connection and Setup Methods
 	connect(): Promise<void>; // Connect to the database and return a promise that resolves when connected.
@@ -64,9 +86,9 @@ export interface dbInterface {
 
 	// Theme-related methods
 	setDefaultTheme(themeName: string): Promise<void>; // Set the default theme.
-	storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void>; // Store a list of themes.
-	getDefaultTheme(): Promise<any>; // Get the default theme.
-	getAllThemes(): Promise<any[]>; // Get all themes.
+	storeThemes(themes: Theme[]): Promise<void>; // Store a list of themes.
+	getDefaultTheme(): Promise<Theme | null>; // Get the default theme.
+	getAllThemes(): Promise<Theme[]>; // Get all themes.
 
 	// System Preferences
 	getSystemPreferences(user_id: string): Promise<UserPreferences | null>; // Get system preferences.
@@ -89,16 +111,4 @@ export interface dbInterface {
 
 	// Method for Disconnecting
 	disconnect(): Promise<void>; // Disconnect from server.
-}
-
-// Define a generic Collection type to be used by database adapters
-export interface CollectionModel {
-	modelName: string;
-	find(query: object): Promise<any[]>;
-	updateOne(query: object, update: object): Promise<any>;
-	updateMany(query: object, update: object): Promise<any>;
-	insertMany(docs: object[]): Promise<any[]>;
-	deleteOne(query: object): Promise<number>;
-	deleteMany(query: object): Promise<number>;
-	countDocuments(query?: object): Promise<number>;
 }

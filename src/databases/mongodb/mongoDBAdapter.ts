@@ -47,7 +47,7 @@ import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 import type { MediaType } from '@src/utils/media/mediaModels';
 
 // Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
+import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // Define the media schema for different media types
 const mediaSchema = new Schema(

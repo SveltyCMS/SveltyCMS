@@ -13,7 +13,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { redirect } from '@sveltejs/kit';
+import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Databases
@@ -22,11 +22,14 @@ import { initializationPromise } from '@src/databases/db';
 // Collections
 import { getCollections } from '@src/collections';
 
+// Theme
+// import { DEFAULT_THEME } from '@src/databases/themeManager';
+
 // System Logs
 import logger from '@src/utils/logger';
 
 // Stores
-import { systemLanguage } from '@stores/store';
+// import { systemLanguage } from '@stores/store';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -39,28 +42,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 		// User and permissions are now set by hooks.server.ts
 		const user = locals.user;
 		const permissions = locals.permissions;
-		const theme = locals.theme;
 
 		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
 		logger.debug(`Permissions loaded: ${permissions ? 'Yes' : 'No'}`);
-		logger.debug(`Theme loaded: ${theme ? JSON.stringify(theme) : 'No'}`);
 
-		if (theme && theme.language) {
-			systemLanguage.set(theme.language);
-			logger.debug(`System language set to: ${theme.language}`);
-		}
+		// Use the theme from locals, which is set by hooks.server.ts
+		// const theme = locals.theme || DEFAULT_THEME;
+		// logger.info(`Theme loaded: ${theme.name}`);
+
+		// if (theme.language) {
+		// 	systemLanguage.set(theme.language);
+		// 	logger.debug(`System language set to: ${theme.language}`);
+		// }
 
 		// Fetch collections
 		logger.debug('Fetching collections');
 		const collections = await getCollections();
 		logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
-
-		if (!collection) {
-			logger.warn(`The collection '${params.collection}' does not exist.`);
-			throw error(404, {
-				message: `The collection '${params.collection}' does not exist.`
-			});
-		}
 
 		if (collections && Object.keys(collections).length > 0) {
 			const first_collection_key = Object.keys(collections)[0];
@@ -70,17 +68,17 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			if (first_collection && first_collection.name) {
 				logger.debug(`Redirecting to first collection: ${first_collection.name}`);
-				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+				return redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
 			} else {
 				logger.error('First collection is invalid or missing a name');
-				throw new Error('Invalid first collection');
+				throw error(500, 'Invalid first collection');
 			}
 		} else {
 			logger.error('No collections found');
-			throw new Error('No collections found');
+			throw error(404, 'No collections found');
 		}
-	} catch (error) {
-		logger.error(`Unexpected error in load function: ${error instanceof Error ? error.message : String(error)}`);
-		throw error;
+	} catch (err) {
+		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);
+		throw error(500, 'An unexpected error occurred');
 	}
 };

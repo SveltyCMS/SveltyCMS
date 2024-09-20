@@ -1,3 +1,8 @@
+/**
+ * @file src/themes/SveltyCMS/SveltyCMSTheme.ts
+ * @description SveltyCMS theme configuration.
+ */
+
 import type { CustomThemeConfig } from '@skeletonlabs/tw-plugin';
 
 export const SveltyCMSTheme: CustomThemeConfig = {

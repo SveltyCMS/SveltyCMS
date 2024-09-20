@@ -17,14 +17,15 @@ import { publicEnv } from '@root/config/public';
 
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { saveImage, saveDocument, saveAudio, saveVideo, constructUrl } from '@src/utils/media';
+import { saveImage, saveDocument, saveAudio, saveVideo } from '@src/utils/media/mediaProcessing';
+import { constructUrl } from '@src/utils/media/mediaUtils';
 
 // Auth
 import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Theme
-import { DEFAULT_THEME } from '@src/utils/utils';
+import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logs
 import logger from '@src/utils/logger';

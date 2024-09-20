@@ -20,7 +20,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
-	import VirtualFolders from '@components/VirtualFolders.svelte';
 
 	// Stores
 	import { mode } from '@src/stores/store';

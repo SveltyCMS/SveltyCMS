@@ -13,13 +13,10 @@
   -->
 
 <script lang="ts">
-	import { onMount } from 'svelte';
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
 	import { page } from '$app/stores';
-	import { theme, previewTheme } from '../stores/themeStore';
-
 	import type { PageData } from './$types';
 
 	// Icons from https://icon-sets.iconify.design/
@@ -35,41 +32,8 @@
 	import { initializeStores } from '@skeletonlabs/skeleton';
 	initializeStores();
 
-	// Default theme constant for the application
-	import { DEFAULT_THEME } from '@src/utils/utils';
-
-	// Reactive variables for managing themes
-	let currentTheme: string;
-	let currentPreviewTheme: string | null;
-
 	// Exporting PageData for use in the component
 	export let data: PageData;
-
-	// Lifecycle method to set the theme on component mount
-	onMount(async () => {
-		if (!data || !data.theme) {
-			data.theme = DEFAULT_THEME; // Default to the default theme if none is provided
-		}
-		theme.set(data.theme);
-		await import(/* @vite-ignore */ data.theme.path);
-		console.log(`Theme '${data.theme.name}' loaded.`);
-	});
-
-	// Subscribe to theme changes
-	theme.subscribe((value) => {
-		currentTheme = value;
-		document.documentElement.setAttribute('data-theme', currentTheme);
-	});
-
-	// Subscribe to preview theme changes
-	previewTheme.subscribe((value) => {
-		currentPreviewTheme = value;
-		if (currentPreviewTheme) {
-			document.documentElement.setAttribute('data-preview-theme', currentPreviewTheme);
-		} else {
-			document.documentElement.removeAttribute('data-preview-theme');
-		}
-	});
 
 	// Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
