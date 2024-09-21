@@ -242,6 +242,9 @@ async function initializeAdapters(): Promise<void> {
 			await dbAdapter.setupMediaModels();
 			await dbAdapter.getCollectionModels();
 
+			// Ensure revision handling is initialized
+			await initializeRevisions();
+
 			await syncPermissions();
 		}
 
@@ -259,6 +262,16 @@ async function initializeAdapters(): Promise<void> {
 		initializationPromise = null;
 		throw error;
 	}
+}
+
+// Initialize revisions
+async function initializeRevisions() {
+	if (!dbAdapter) {
+		throw new Error('Database adapter not initialized');
+	}
+
+	// Implement any revision-specific initialization logic here
+	logger.info('Revisions initialized successfully');
 }
 
 // Ensure initialization runs once

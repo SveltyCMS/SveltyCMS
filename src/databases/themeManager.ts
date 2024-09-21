@@ -2,7 +2,6 @@
  * @file src/databases/themeManager.ts
  * @description Theme manager for the CMS, utilizing a database-agnostic interface.
  */
-
 import type { Theme } from './dbInterface';
 import type { dbInterface } from './dbInterface';
 
@@ -11,6 +10,7 @@ import logger from '@src/utils/logger';
 
 // Default theme
 export const DEFAULT_THEME: Theme = {
+	_id: 'default_theme_id',
 	name: 'SveltyCMSTheme',
 	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
 	isDefault: true,
@@ -18,7 +18,7 @@ export const DEFAULT_THEME: Theme = {
 	updatedAt: Math.floor(Date.now() / 1000)
 };
 
-class ThemeManager {
+export class ThemeManager {
 	private static instance: ThemeManager;
 	private currentTheme: Theme | null = null;
 	private db: dbInterface | null = null;
@@ -26,9 +26,7 @@ class ThemeManager {
 
 	private constructor() {}
 
-	/**
-	 * Get the singleton instance of ThemeManager.
-	 */
+	// Get the singleton instance of ThemeManager
 	public static getInstance(): ThemeManager {
 		if (!ThemeManager.instance) {
 			ThemeManager.instance = new ThemeManager();
@@ -36,10 +34,7 @@ class ThemeManager {
 		return ThemeManager.instance;
 	}
 
-	/**
-	 * Initialize the theme manager with a database adapter.
-	 * @param db - The database adapter implementing dbInterface.
-	 */
+	// Initialize the ThemeManager with a database adapter
 	public async initialize(db: dbInterface): Promise<void> {
 		if (this.initialized) {
 			logger.warn('ThemeManager is already initialized.');
@@ -52,9 +47,7 @@ class ThemeManager {
 		logger.info('ThemeManager initialized successfully.');
 	}
 
-	/**
-	 * Load the default theme from the database or use the fallback.
-	 */
+	// Load default theme from database or use fallback
 	private async loadDefaultTheme(): Promise<void> {
 		if (!this.db) {
 			throw new Error('Database adapter not initialized. Call initialize() first.');
@@ -70,13 +63,27 @@ class ThemeManager {
 			} else {
 				logger.warn('No valid default theme found in database. Using fallback.');
 				this.currentTheme = DEFAULT_THEME;
-				await this.db.saveTheme(this.currentTheme);
+				await this.db.storeThemes([this.currentTheme]); // Using storeThemes
 				logger.info('Fallback theme saved to database.');
 			}
 		} catch (error) {
-			logger.error('Error loading default theme:', error);
+			if (error instanceof Error) {
+				logger.error('Error loading default theme:', error);
+			} else {
+				logger.error('Error loading default theme:', new Error('Unknown error'));
+			}
 			this.currentTheme = DEFAULT_THEME;
 			logger.info('Using fallback theme due to error.');
+			try {
+				await this.db.storeThemes([this.currentTheme]); // Using storeThemes
+				logger.info('Fallback theme saved to database.');
+			} catch (saveError) {
+				if (saveError instanceof Error) {
+					logger.error('Failed to save fallback theme:', saveError);
+				} else {
+					logger.error('Failed to save fallback theme:', new Error('Unknown error'));
+				}
+			}
 		}
 
 		if (!this.currentTheme) {
@@ -85,10 +92,7 @@ class ThemeManager {
 		}
 	}
 
-	/**
-	 * Get the current active theme.
-	 * @returns The current theme or DEFAULT_THEME if not set.
-	 */
+	// Get the current theme as a serialized object
 	public getTheme(): Theme {
 		if (!this.initialized) {
 			logger.warn('ThemeManager is not initialized. Call initialize() first.');
@@ -96,24 +100,23 @@ class ThemeManager {
 		return this.currentTheme || DEFAULT_THEME;
 	}
 
-	/**
-	 * Update the current theme.
-	 * @param theme - The new theme to set as active.
-	 */
+	// Update the current theme
 	public async setTheme(theme: Theme): Promise<void> {
 		if (!this.initialized || !this.db) {
 			throw new Error('ThemeManager is not initialized. Call initialize() first.');
 		}
 
 		try {
-			await this.db.saveTheme(theme);
+			await this.db.storeThemes(theme);
 			this.currentTheme = theme;
 			logger.info(`Theme updated to: ${theme.name}`);
 		} catch (error) {
-			logger.error('Error setting new theme:', error);
+			if (error instanceof Error) {
+				logger.error('Error setting new theme:', error);
+			} else {
+				logger.error('Error setting new theme:', new Error('Unknown error'));
+			}
 			throw error;
 		}
 	}
 }
-
-export { ThemeManager };

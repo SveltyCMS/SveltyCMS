@@ -149,7 +149,7 @@ export interface User {
 	resetToken?: string; // Token for resetting the user's password
 	lockoutUntil?: number | null; // Time until which the user is locked out of their account (Unix timestamp in seconds)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
-	permissions: Set<string>; // Set of permissions associated with the user
+	permissions: string[]; // Set of permissions associated with the user
 }
 
 // Session Interface
@@ -288,25 +288,4 @@ export interface Schema {
 	revision?: boolean; // Indicates if the schema supports revisions
 	permissions?: RolePermissions; // Role-based permissions associated with the schema
 	fields: any[]; // Array of fields defined in the schema
-}
-
-// Draft Interface
-export interface Draft {
-	draft_id: string; // Unique identifier for the draft
-	collection_id: string; // ID of the collection the draft belongs to
-	user_id: string; // ID of the user who created the draft
-	data: any; // Data associated with the draft
-	createdAt: number; // Creation timestamp of the draft (Unix timestamp in seconds)
-	updatedAt: number; // Last update timestamp of the draft (Unix timestamp in seconds)
-	status: 'pending' | 'failed'; // Status of the draft
-}
-
-// Revision Interface
-export interface Revision {
-	revision_id: string; // Unique identifier for the revision
-	collection_id: string; // ID of the collection the revision belongs to
-	user_id: string; // ID of the user who made the revision
-	data: any; // Data associated with the revision
-	createdAt: number; // Creation timestamp of the revision (Unix timestamp in seconds)
-	version: number; // Version number of the revision
 }

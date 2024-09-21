@@ -28,14 +28,53 @@ import type { UserPreferences, WidgetPreference } from '@stores/userPreferences'
 
 // Define a Theme type for better type safety
 export interface Theme {
-	name: string;
-	path: string;
-	isDefault: boolean;
-	createdAt: number;
-	updatedAt: number;
+	_id: string; // The ID of the theme
+	name: string; // The name of the theme
+	path: string; // The path to the theme file
+	isDefault: boolean; // Whether the theme is the default theme
+	createdAt: number; // Creation timestamp of the theme (Unix timestamp in seconds)
+	updatedAt: number; // Last update timestamp of the theme (Unix timestamp in seconds)
 }
 
-// Define a generic Collection type to be used by database adapters
+export interface Widget {
+	_id: string; // The ID of the widget
+	name: string; // The name of the widget
+	isActive: boolean; // Whether the widget is active
+	createdAt: number; // Creation timestamp of the widget (Unix timestamp in seconds)
+	updatedAt: number; // Last update timestamp of the widget (Unix timestamp in seconds)
+}
+
+export interface SystemVirtualFolder {
+	_id: string; // The ID of the virtual folder
+	name: string; // The name of the virtual folder
+	parent: string; // The ID of the parent folder
+	path: string; // The path of the virtual folder
+}
+
+// Draft Interface
+export interface Draft {
+	_id: string; // Unique identifier for the draft
+	originalDocumentId: string; // ID of the original document
+	collectionId: string; // ID of the collection the draft belongs to
+	createdBy: string; // ID of the user who created the draft
+	content: any; // Content of the draft
+	createdAt: number; // Creation timestamp of the draft (Unix timestamp in seconds)
+	updatedAt: number; // Last update timestamp of the draft (Unix timestamp in seconds)
+	status: 'draft' | 'published'; // Status of the draft
+}
+
+// Revision Interface
+export interface Revision {
+	_id: string; // Unique identifier for the revision
+	collectionId: string; // ID of the collection
+	documentId: string; // ID of the document
+	createdBy: string; // ID of the user who created the revision
+	content: any; // Content of the revision
+	createdAt: number; // Creation timestamp of the revision (Unix timestamp in seconds)
+	version: number; // Version number of the revision
+}
+
+// Collection interface
 export interface CollectionModel {
 	modelName: string;
 	find(query: object): Promise<any[]>;
@@ -68,13 +107,14 @@ export interface dbInterface {
 	convertId(id: string): any; // Convert mongo ObjectId to string
 
 	// Methods for Draft and Revision Management
-	generateId(): string; // Generate a unique id for each
-	createDraft?(content: any, original_document_id: string, user_id: string): Promise<any>; // Create a draft of a document
-	updateDraft?(draft_id: string, content: any): Promise<any>; // Update a draft of a document
-	publishDraft?(draft_id: string): Promise<any>; // Publish a draft of a document
-	getDraftsByUser?(user_id: string): Promise<any[]>; // Get drafts of a user
-	createRevision?(document_id: string, content: any, user_id: string): Promise<any>; // Create a revision of a document
-	getRevisions?(document_id: string): Promise<any[]>; // Get revisions of a document
+	createDraft?(content: any, collectionId: string, original_document_id: string, user_id: string): Promise<Draft>; // Create a new draft
+	updateDraft?(draft_id: string, content: any): Promise<Draft>; // Update an existing draft
+	publishDraft?(draft_id: string): Promise<Draft>; // Publish a draft
+	getDraftsByUser?(user_id: string): Promise<Draft[]>; // Get drafts by user
+	createRevision(collectionId: string, documentId: string, userId: string, data: any): Promise<Revision>; // Create a new revision
+	getRevisions(collectionId: string, documentId: string): Promise<Revision[]>; // Get revisions for a document
+	restoreRevision(collectionId: string, revisionId: string): Promise<void>; // Restore a specific revision
+	deleteRevision(revisionId: string): Promise<void>; // Delete a specific revision
 
 	// Methods for Widget Management
 	installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void>; // Install a widget from a URL or a local file.

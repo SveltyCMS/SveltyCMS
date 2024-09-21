@@ -29,23 +29,12 @@ export const theme = writable<Theme | null>(null);
 // Create a writable store for theme preview functionality
 export const previewTheme = writable<Theme | null>(null);
 
-/**
- * Initialize the theme store with data fetched from the server.
- * This function should be called once during the application's initialization phase.
- * Typically, you'd call this in a root layout's load function.
- *
- * @param initialTheme - The initial theme object fetched from the server
- */
+// Initialize the theme store with data fetched from the server
 export function initializeThemeStore(initialTheme: Theme) {
 	theme.set(initialTheme);
 }
 
-/**
- * Function to update the theme by communicating with the server.
- * It sends a request to change the theme and updates the store upon success.
- *
- * @param themeName - The name of the theme to switch to
- */
+// Function to update the theme by communicating with the server/
 export async function updateTheme(themeName: string): Promise<void> {
 	try {
 		const response = await fetch('/api/change-theme', {

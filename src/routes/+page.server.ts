@@ -22,14 +22,8 @@ import { initializationPromise } from '@src/databases/db';
 // Collections
 import { getCollections } from '@src/collections';
 
-// Theme
-// import { DEFAULT_THEME } from '@src/databases/themeManager';
-
 // System Logs
 import logger from '@src/utils/logger';
-
-// Stores
-// import { systemLanguage } from '@stores/store';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {
@@ -46,15 +40,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
 		logger.debug(`Permissions loaded: ${permissions ? 'Yes' : 'No'}`);
 
-		// Use the theme from locals, which is set by hooks.server.ts
-		// const theme = locals.theme || DEFAULT_THEME;
-		// logger.info(`Theme loaded: ${theme.name}`);
-
-		// if (theme.language) {
-		// 	systemLanguage.set(theme.language);
-		// 	logger.debug(`System language set to: ${theme.language}`);
-		// }
-
 		// Fetch collections
 		logger.debug('Fetching collections');
 		const collections = await getCollections();
@@ -68,7 +53,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 			if (first_collection && first_collection.name) {
 				logger.debug(`Redirecting to first collection: ${first_collection.name}`);
-				return redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+				throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
 			} else {
 				logger.error('First collection is invalid or missing a name');
 				throw error(500, 'Invalid first collection');
@@ -78,7 +63,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(404, 'No collections found');
 		}
 	} catch (err) {
-		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);
+		// Check if the error is a redirect
+		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
+			// It's a redirect, rethrow it to let SvelteKit handle it
+			throw err;
+		}
+
+		// Handle other types of errors
+		logger.error(`Unexpected error in load function: +page.server: ${err instanceof Error ? err.message : 'Unknown error'}`);
+		logger.error(`Error details: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
 		throw error(500, 'An unexpected error occurred');
 	}
 };

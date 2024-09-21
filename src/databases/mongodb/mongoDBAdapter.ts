@@ -33,18 +33,18 @@ import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@src/stores/userPreferences';
 
 // Database
-import mongoose, { Schema, Model, type FilterQuery, type UpdateQuery } from 'mongoose';
-import type { dbInterface } from '../dbInterface';
-
-// System Logs
-import logger from '@src/utils/logger';
+import mongoose, { Schema, Model, Document, type FilterQuery, type UpdateQuery } from 'mongoose';
+import type { dbInterface, Draft, Revision, Theme, Widget, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
+// System Logs
+import logger from '@src/utils/logger';
+
 // Media
-import type { MediaType } from '@src/utils/media/mediaModels';
+import type { MediaBase, MediaType } from '@src/utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
@@ -61,68 +61,46 @@ const mediaSchema = new Schema(
 );
 
 // Define the Draft model if it doesn't exist already
-const Draft =
+const DraftModel =
 	mongoose.models.Draft ||
-	mongoose.model(
+	mongoose.model<Draft>(
 		'Draft',
 		new Schema(
 			{
-				originalDocumentId: { type: Schema.Types.ObjectId, required: true }, // The ID of the original document
+				originalDocumentId: { type: Schema.Types.Mixed, required: true }, // Or Schema.Types.String
+				collectionId: { type: Schema.Types.Mixed, required: true }, // The ID of the collection
 				content: { type: Schema.Types.Mixed, required: true }, // The content of the draft
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the draft was created
-				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the draft was last updated
-				status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // The status of the draft
-				createdBy: { type: Schema.Types.ObjectId, ref: 'auth_users', required: true } // The user who created the draft
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
+				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Last update timestamp
+				status: { type: String, enum: ['draft', 'published'], default: 'draft' }, // Status of the draft
+				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true } // The user who created the draft
 			},
-			{ timestamps: false, collection: 'collection_drafts' } // Explicitly set the collection name
+			{ timestamps: false, collection: 'collection_drafts' }
 		)
 	);
 
 // Define the Revision model if it doesn't exist already
-const Revision =
+const RevisionModel =
 	mongoose.models.Revision ||
-	mongoose.model(
+	mongoose.model<Revision>(
 		'Revision',
 		new Schema(
 			{
-				documentId: { type: Schema.Types.ObjectId, required: true }, // The ID of the document
-				content: { type: Schema.Types.Mixed, required: true }, // The content of the revision
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the revision was created
-				createdBy: { type: Schema.Types.ObjectId, ref: 'auth_users', required: true } // The user who created the revision
+				collectionId: { type: Schema.Types.Mixed, required: true, ref: 'collections' }, // ID of the collection
+				documentId: { type: Schema.Types.Mixed, required: true }, // ID of the document
+				createdBy: { type: Schema.Types.Mixed, ref: 'auth_users', required: true }, // ID of the user who created the revision
+				content: { type: Schema.Types.Mixed, required: true }, // Content of the revision
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
+				version: { type: Number, required: true } // Version number of the revision
 			},
-			{ timestamps: false, collection: 'collection_revisions' } // Explicitly set the collection name
-		)
-	);
-
-// Create the Widget model if it doesn't exist already
-const Widget =
-	mongoose.models.Widget ||
-	mongoose.model(
-		'Widget',
-		new Schema(
-			{
-				name: { type: String, required: true, unique: true }, // Name of the widget
-				isActive: { type: Boolean, default: true }, // Whether the widget is active or not
-				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // When the widget was created
-				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // When the widget was last updated
-			},
-			{ timestamps: false, collection: 'system_widgets' } // Explicitly set the collection name
+			{ timestamps: false, collection: 'collection_revisions' }
 		)
 	);
 
 // Create the Theme model if it doesn't exist already
-export interface ThemeDocument extends Document {
-	name: string;
-	path: string;
-	isDefault: boolean;
-	createdAt: number;
-	updatedAt: number;
-}
-
-// Define the Theme schema
-const Theme =
+const ThemeModel =
 	mongoose.models.Theme ||
-	mongoose.model(
+	mongoose.model<Theme>(
 		'Theme',
 		new Schema(
 			{
@@ -132,21 +110,37 @@ const Theme =
 				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
 				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // Last updated timestamp
 			},
-			{ timestamps: false, collection: 'system_themes' } // Explicitly set the collection name
+			{ timestamps: false, collection: 'system_themes' }
+		)
+	);
+
+// Create the Widget model if it doesn't exist already
+const WidgetModel =
+	mongoose.models.Widget ||
+	mongoose.model<Widget>(
+		'Widget',
+		new Schema(
+			{
+				name: { type: String, required: true, unique: true }, // Name of the widget
+				isActive: { type: Boolean, default: true }, // Whether the widget is active
+				createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Creation timestamp
+				updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // Last update timestamp
+			},
+			{ timestamps: false, collection: 'system_widgets' }
 		)
 	);
 
 // Define the System Preferences schema for user layout and screen size
-const SystemPreferences =
+const SystemPreferencesModel =
 	mongoose.models.SystemPreferences ||
-	mongoose.model(
+	mongoose.model<SystemPreferences>(
 		'SystemPreferences',
 		new Schema(
 			{
-				userId: { type: String, required: true }, // User identifier
+				userId: { type: String, required: true, unique: true }, // User identifier
+				screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'], required: true }, // Screen size context
 				preferences: {
-					type: Map,
-					of: [
+					type: [
 						{
 							id: { type: String, required: true }, // Component ID
 							component: { type: String, required: true }, // Component type or name
@@ -161,7 +155,8 @@ const SystemPreferences =
 							resizable: { type: Boolean, default: true }, // Whether the component can be resized
 							screenSize: { type: String, enum: ['mobile', 'tablet', 'desktop'], required: true } // Screen size context
 						}
-					]
+					],
+					default: []
 				}
 			},
 			{ timestamps: false, collection: 'system_preferences' } // Explicitly set the collection name
@@ -169,14 +164,14 @@ const SystemPreferences =
 	);
 
 // Define the SystemVirtualFolder model only if it doesn't already exist
-const SystemVirtualFolder =
+const SystemVirtualFolderModel =
 	mongoose.models.SystemVirtualFolder ||
-	mongoose.model(
+	mongoose.model<SystemVirtualFolder>(
 		'SystemVirtualFolder',
 		new Schema(
 			{
 				name: { type: String, required: true },
-				parent: { type: Schema.Types.ObjectId, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
+				parent: { type: String, ref: 'SystemVirtualFolder', default: null }, // Allow null for root folders
 				path: { type: String, required: true }
 			},
 			{ collection: 'system_virtualfolders' } // Explicitly set the collection name to system_virtualfolders
@@ -198,7 +193,7 @@ export class MongoDBAdapter implements dbInterface {
 			: `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`; // Local/Docker connection
 
 		// Set connection options
-		const options = {
+		const options: mongoose.ConnectOptions = {
 			authSource: isAtlas ? undefined : 'admin', // Only use authSource for local connection
 			user: privateEnv.DB_USER,
 			pass: privateEnv.DB_PASSWORD,
@@ -242,23 +237,23 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Get collection models
-	async getCollectionModels(): Promise<any> {
+	async getCollectionModels(): Promise<Record<string, Model<any>>> {
 		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
 			logger.debug('Collections already initialized, skipping reinitialization.');
-			return mongoose.models;
+			return mongoose.models as Record<string, Model<any>>;
 		}
 
-		return new Promise<any>((resolve, reject) => {
-			this.unsubscribe = collections.subscribe(async (collections) => {
-				if (collections) {
+		return new Promise<Record<string, Model<any>>>((resolve, reject) => {
+			this.unsubscribe = collections.subscribe(async (collectionsData) => {
+				if (collectionsData) {
 					const collectionsModels: { [key: string]: Model<any> } = {};
 					// Map to collection names only
-					const collectionNames = Object.values(collections).map((collection) => collection.name);
+					const collectionNames = Object.values(collectionsData).map((collection) => collection.name);
 					logger.debug('Collections found:', { collectionNames });
 
-					for (const collection of Object.values(collections)) {
+					for (const collection of Object.values(collectionsData)) {
 						if (!collection.name) {
 							logger.warn('Collection without a name encountered:', { collection });
 							continue;
@@ -284,9 +279,10 @@ export class MongoDBAdapter implements dbInterface {
 
 						if (mongoose.models[collection.name]) {
 							logger.debug(`Collection model for ${collection.name} already exists.`);
+							collectionsModels[collection.name] = mongoose.models[collection.name];
 						} else {
 							logger.debug(`Creating new collection model for ${collection.name}.`);
-							collectionsModels[collection.name] = await mongoose.model(collection.name, schemaObject);
+							collectionsModels[collection.name] = mongoose.model(collection.name, schemaObject);
 							logger.info(`Collection ${collection.name} created.`);
 						}
 
@@ -345,202 +341,12 @@ export class MongoDBAdapter implements dbInterface {
 	setupWidgetModels(): void {
 		// This will ensure that the Widget model is created or reused
 		if (!mongoose.models.Widget) {
-			mongoose.model('Widget', Widget.schema);
+			mongoose.model('Widget', WidgetModel.schema);
 			logger.info('Widget model created.');
 		} else {
 			logger.info('Widget model already exists.');
 		}
 		logger.info('Widget models set up successfully.');
-	}
-
-	async getAllWidgets(): Promise<any[]> {
-		try {
-			return await Widget.find().lean().exec();
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching all widgets: ${err.message}`);
-			throw new Error(`Error fetching all widgets: ${err.message}`);
-		}
-	}
-
-	// Set default theme
-	async setDefaultTheme(themeName: string): Promise<void> {
-		try {
-			// First, unset the current default theme
-			await Theme.updateMany({}, { $set: { isDefault: false } });
-			// Then, set the new default theme
-			const result = await Theme.updateOne({ name: themeName }, { $set: { isDefault: true } });
-
-			if (result.modifiedCount === 0) {
-				throw new Error(`Theme with name ${themeName} not found.`);
-			}
-
-			logger.info(`Theme ${themeName} set as default successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error setting default theme: ${err.message}`);
-			throw new Error(`Error setting default theme: ${err.message}`);
-		}
-	}
-
-	// Fetch default theme
-	async getDefaultTheme(): Promise<ThemeDocument> {
-		try {
-			logger.debug('Attempting to fetch the default theme from the database...');
-			let theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
-
-			if (theme) {
-				logger.info(`Default theme found: ${theme.name}`);
-				return theme;
-			}
-
-			const count = await Theme.countDocuments();
-			if (count === 0) {
-				logger.warn('Theme collection is empty. Inserting default theme.');
-				await this.storeThemes([DEFAULT_THEME]);
-				theme = await Theme.findOne({ isDefault: true }).lean<ThemeDocument>().exec();
-			}
-
-			if (!theme) {
-				logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
-				return DEFAULT_THEME as ThemeDocument;
-			}
-
-			return theme;
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching default theme: ${err.message}`);
-			throw new Error(`Error fetching default theme: ${err.message}`);
-		}
-	}
-
-	// Store themes in the database
-	async storeThemes(themes: { name: string; path: string; isDefault?: boolean }[]): Promise<void> {
-		try {
-			// If there's a default theme in the new themes, unset the current default
-			if (themes.some((theme) => theme.isDefault)) {
-				await Theme.updateMany({}, { $set: { isDefault: false } });
-			}
-
-			await Theme.insertMany(
-				themes.map((theme) => ({
-					name: theme.name,
-					path: theme.path,
-					isDefault: theme.isDefault || false,
-					createdAt: Math.floor(Date.now() / 1000),
-					updatedAt: Math.floor(Date.now() / 1000)
-				})),
-				{ ordered: false }
-			); // Use ordered: false to ignore duplicates
-			logger.info(`Stored ${themes.length} themes in the database.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error storing themes: ${err.message}`);
-			throw new Error(`Error storing themes: ${err.message}`);
-		}
-	}
-
-	// Fetch all themes
-	async getAllThemes(): Promise<any[]> {
-		try {
-			return await Theme.find().lean().exec();
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching all themes: ${err.message}`);
-			throw new Error(`Error fetching all themes: ${err.message}`);
-		}
-	}
-
-	// Install a new widget
-	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
-		try {
-			const widget = new Widget({
-				...widgetData,
-				isActive: widgetData.isActive ?? false,
-				createdAt: Math.floor(Date.now() / 1000),
-				updatedAt: Math.floor(Date.now() / 1000)
-			});
-			await widget.save();
-			logger.info(`Widget ${widgetData.name} installed successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error installing widget: ${err.message}`);
-			throw new Error(`Error installing widget: ${err.message}`);
-		}
-	}
-
-	// Fetch all widgets
-	async getWidgets(): Promise<any[]> {
-		try {
-			return await Widget.find().lean().exec();
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching widgets: ${err.message}`);
-			throw new Error(`Error fetching widgets: ${err.message}`);
-		}
-	}
-
-	// Fetch active widgets
-	async getActiveWidgets(): Promise<string[]> {
-		try {
-			const widgets = await Widget.find({ isActive: true }).lean().exec();
-			return widgets.map((widget) => widget.name);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error fetching active widgets: ${err.message}`);
-			throw new Error(`Error fetching active widgets: ${err.message}`);
-		}
-	}
-
-	// Activate a widget
-	async activateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
-
-			if (result.modifiedCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or already active.`);
-			}
-
-			logger.info(`Widget ${widgetName} activated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error activating widget: ${err.message}`);
-			throw new Error(`Error activating widget: ${err.message}`);
-		}
-	}
-
-	// Deactivate a widget
-	async deactivateWidget(widgetName: string): Promise<void> {
-		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { isActive: false, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
-
-			if (result.modifiedCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
-			}
-
-			logger.info(`Widget ${widgetName} deactivated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error deactivating widget: ${err.message}`);
-			throw new Error(`Error deactivating widget: ${err.message}`);
-		}
-	}
-
-	// Update a widget
-	async updateWidget(widgetName: string, updateData: any): Promise<void> {
-		try {
-			const result = await Widget.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
-
-			if (result.modifiedCount === 0) {
-				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
-			}
-
-			logger.info(`Widget ${widgetName} updated successfully.`);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error updating widget: ${err.message}`);
-			throw new Error(`Error updating widget: ${err.message}`);
-		}
 	}
 
 	// Implementing findOne method
@@ -572,7 +378,7 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing insertOne method
-	async insertOne<T extends Document>(collection: string, doc: T): Promise<T> {
+	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
 		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
@@ -589,13 +395,20 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Implementing insertMany method
-	async insertMany(collection: string, docs: object[]): Promise<any[]> {
+	async insertMany(collection: string, docs: Partial<Document>[]): Promise<any[]> {
 		const model = mongoose.models[collection];
 		if (!model) {
 			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
 		}
-		return model.insertMany(docs);
+		try {
+			const result = await model.insertMany(docs);
+			return result;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error inserting many documents into ${collection}: ${err.message}`);
+			throw new Error(`Error inserting many documents into ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing updateOne method
@@ -605,7 +418,14 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`updateOne failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateOne failed. Collection ${collection} does not exist.`);
 		}
-		return model.updateOne(query, update).exec();
+		try {
+			const result = await model.updateOne(query, update).exec();
+			return result;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating document in ${collection}: ${err.message}`);
+			throw new Error(`Error updating document in ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing updateMany method
@@ -615,7 +435,14 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`updateMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`updateMany failed. Collection ${collection} does not exist.`);
 		}
-		return model.updateMany(query, update).exec();
+		try {
+			const result = await model.updateMany(query, update).exec();
+			return result;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating many documents in ${collection}: ${err.message}`);
+			throw new Error(`Error updating many documents in ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing deleteOne method
@@ -624,7 +451,14 @@ export class MongoDBAdapter implements dbInterface {
 		if (!model) {
 			throw new Error(`Collection ${collection} not found`);
 		}
-		return model.deleteOne(query).then((result) => result.deletedCount || 0);
+		try {
+			const result = await model.deleteOne(query).exec();
+			return result.deletedCount ?? 0;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deleting document from ${collection}: ${err.message}`);
+			throw new Error(`Error deleting document from ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing deleteMany method
@@ -633,7 +467,14 @@ export class MongoDBAdapter implements dbInterface {
 		if (!model) {
 			throw new Error(`Collection ${collection} not found`);
 		}
-		return model.deleteMany(query).then((result) => result.deletedCount || 0);
+		try {
+			const result = await model.deleteMany(query).exec();
+			return result.deletedCount ?? 0;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deleting many documents from ${collection}: ${err.message}`);
+			throw new Error(`Error deleting many documents from ${collection}: ${err.message}`);
+		}
 	}
 
 	// Implementing countDocuments method
@@ -643,19 +484,30 @@ export class MongoDBAdapter implements dbInterface {
 			logger.error(`countDocuments failed. Collection ${collection} does not exist.`);
 			throw new Error(`countDocuments failed. Collection ${collection} does not exist.`);
 		}
-		return model.countDocuments(query).exec();
+		try {
+			const count = await model.countDocuments(query).exec();
+			return count;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error counting documents in ${collection}: ${err.message}`);
+			throw new Error(`Error counting documents in ${collection}: ${err.message}`);
+		}
 	}
 
+	// Methods for Draft and Revision Management
+
 	// Create a new draft
-	async createDraft(content: any, originalDocumentId: string, userId: string) {
+	async createDraft(content: any, collectionId: string, original_document_id: string, user_id: string): Promise<Draft> {
 		try {
-			const draft = new Draft({
-				originalDocumentId,
+			const draft = new DraftModel({
+				originalDocumentId: this.convertId(original_document_id),
+				collectionId: this.convertId(collectionId),
 				content,
-				createdBy: userId
+				createdBy: this.convertId(user_id)
 			});
 			await draft.save();
-			return draft;
+			logger.info(`Draft created successfully for document ID: ${original_document_id}`);
+			return draft.toObject() as Draft;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error creating draft: ${err.message}`, { error: err });
@@ -664,14 +516,20 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Update a draft
-	async updateDraft(draftId: string, content: any) {
+	async updateDraft(draft_id: string, content: any): Promise<Draft> {
 		try {
-			const draft = await Draft.findById(draftId);
+			const draft = await DraftModel.findById(draft_id);
 			if (!draft) throw new Error('Draft not found');
+
+			// Update the draft content and timestamp
 			draft.content = content;
 			draft.updatedAt = Math.floor(Date.now() / 1000);
 			await draft.save();
-			return draft;
+
+			logger.info(`Draft ${draft_id} updated successfully.`);
+
+			// Return the updated draft as a plain JavaScript object and cast it to Draft
+			return draft.toObject() as Draft;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error updating draft: ${err.message}`, { error: err });
@@ -680,20 +538,22 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Publish a draft
-	async publishDraft(draftId: string) {
+	async publishDraft(draft_id: string): Promise<Draft> {
 		try {
-			const draft = await Draft.findById(draftId);
+			const draft = await DraftModel.findById(draft_id);
 			if (!draft) throw new Error('Draft not found');
 			draft.status = 'published';
 			await draft.save();
 
-			const revision = new Revision({
+			const revision = new RevisionModel({
+				collectionId: draft.collectionId,
 				documentId: draft.originalDocumentId,
 				content: draft.content,
 				createdBy: draft.createdBy
 			});
 			await revision.save();
-			return draft;
+			logger.info(`Draft ${draft_id} published and revision created successfully.`);
+			return draft.toObject() as Draft;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error publishing draft: ${err.message}`, { error: err });
@@ -701,191 +561,607 @@ export class MongoDBAdapter implements dbInterface {
 		}
 	}
 
-	// Get drafts
-	async getDraftsByUser(userId: string) {
-		return await Draft.find({ createdBy: userId }).lean().exec();
+	// Get drafts by user
+	async getDraftsByUser(user_id: string): Promise<Draft[]> {
+		try {
+			const drafts = await DraftModel.find({ createdBy: this.convertId(user_id) })
+
+				.exec();
+			logger.info(`Retrieved ${drafts.length} drafts for user ID: ${user_id}`);
+			return drafts;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error retrieving drafts for user ${user_id}: ${err.message}`, { error: err });
+			throw err;
+		}
 	}
 
 	// Create a new revision
-	async createRevision(documentId: string, content: any, userId: string) {
-		const revision = new Revision({
-			documentId,
-			content,
-			createdBy: userId
-		});
-		await revision.save();
-		return revision;
-	}
-
-	// Get revisions
-	async getRevisions(documentId: string) {
-		return await Revision.find({ documentId }).sort({ createdAt: -1 }).lean().exec();
-	}
-
-	// Get recent last 5 collections
-	async getLastFiveCollections(): Promise<any[]> {
-		const collections = Object.keys(mongoose.models);
-		const recentCollections: any[] = [];
-
-		for (const collectionName of collections) {
-			const model = mongoose.models[collectionName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-			recentCollections.push({ collectionName, recentDocs });
+	async createRevision(collectionId: string, documentId: string, userId: string, data: any): Promise<Revision> {
+		try {
+			const revision = new RevisionModel({
+				collectionId: this.convertId(collectionId),
+				documentId: this.convertId(documentId),
+				content: data,
+				createdBy: this.convertId(userId)
+			});
+			await revision.save();
+			logger.info(`Revision created successfully for document ID: ${documentId} in collection ID: ${collectionId}`);
+			return revision;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error creating revision: ${err.message}`, { error: err });
+			throw new Error(`Error creating revision: ${err.message}`);
 		}
-
-		return recentCollections;
 	}
 
-	// Get logged in users
-	async getLoggedInUsers(): Promise<any[]> {
-		const sessionModel = mongoose.models['auth_sessions'];
-		return await sessionModel.find({ active: true }).lean().exec();
-	}
+	// Get revisions for a document
+	async getRevisions(collectionId: string, documentId: string): Promise<Revision[]> {
+		try {
+			const revisions = await RevisionModel.find({
+				collectionId: this.convertId(collectionId),
+				documentId: this.convertId(documentId)
+			})
+				.sort({ createdAt: -1 })
+				.exec();
 
-	// Get CMS data
-	async getCMSData(): Promise<any> {
-		// Implement your CMS data fetching logic here
-		// This is a placeholder and should be replaced with actual implementation
-		return {};
-	}
-
-	// Get recent last 5 media documents
-	async getLastFiveMedia(): Promise<any[]> {
-		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const recentMedia: any[] = [];
-
-		for (const schemaName of mediaSchemas) {
-			const model = mongoose.models[schemaName];
-			const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
-			recentMedia.push({ schemaName, recentDocs });
-			logger.debug(`Fetched recent media documents for ${schemaName}`);
+			logger.info(`Revisions retrieved for document ID: ${documentId} in collection ID: ${collectionId}`);
+			return revisions;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error retrieving revisions for document ID ${documentId} in collection ID ${collectionId}: ${err.message}`);
+			throw new Error(`Failed to retrieve revisions: ${err.message}`);
 		}
-		return recentMedia;
 	}
 
-	// Create or update user preferences
+	// Delete a specific revision
+	async deleteRevision(revisionId: string): Promise<void> {
+		try {
+			const result = await RevisionModel.deleteOne({ _id: revisionId });
+			if (result.deletedCount === 0) {
+				throw new Error(`Revision not found with ID: ${revisionId}`);
+			}
+
+			logger.info(`Revision ${revisionId} deleted successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deleting revision ${revisionId}: ${err.message}`, { error: err });
+			throw new Error(`Failed to delete revision: ${err.message}`);
+		}
+	}
+
+	// Restore a specific revision to its original document
+	async restoreRevision(collectionId: string, revisionId: string): Promise<void> {
+		try {
+			// Fetch the revision with the correct typing
+			const revision = await RevisionModel.findOne({ _id: revisionId }).exec();
+
+			if (!revision) {
+				throw new Error(`Revision not found with ID: ${revisionId}`);
+			}
+
+			// Destructure the necessary properties
+			const { documentId, content } = revision;
+
+			if (!documentId || !content) {
+				throw new Error(`Revision ${revisionId} is missing required fields.`);
+			}
+
+			// Convert IDs to ObjectId if necessary
+			const documentObjectId = this.convertId(documentId);
+
+			// Update the original document with the revision content
+			const updateResult = await this.updateOne(collectionId, { _id: documentObjectId }, { $set: content });
+
+			// Check if the document was modified
+			if (updateResult.modifiedCount === 0) {
+				throw new Error(`Failed to restore revision: Document not found or no changes applied.`);
+			}
+
+			logger.info(`Revision ${revisionId} restored successfully to document ID: ${documentId}`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error restoring revision ${revisionId}: ${err.message}`, { error: err });
+			throw new Error(`Failed to restore revision: ${err.message}`);
+		}
+	}
+
+	// Methods for Widget Management
+
+	// Install a new widget
+	async installWidget(widgetData: { name: string; isActive?: boolean }): Promise<void> {
+		try {
+			const widget = new WidgetModel({
+				...widgetData,
+				isActive: widgetData.isActive ?? false,
+				createdAt: Math.floor(Date.now() / 1000),
+				updatedAt: Math.floor(Date.now() / 1000)
+			});
+			await widget.save();
+			logger.info(`Widget ${widgetData.name} installed successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error installing widget: ${err.message}`);
+			throw new Error(`Error installing widget: ${err.message}`);
+		}
+	}
+
+	// Fetch all widgets
+	async getAllWidgets(): Promise<Widget[]> {
+		try {
+			const widgets = await WidgetModel.find().exec();
+			logger.info(`Fetched ${widgets.length} widgets.`);
+			return widgets;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching all widgets: ${err.message}`);
+			throw new Error(`Error fetching all widgets: ${err.message}`);
+		}
+	}
+
+	// Fetch active widgets
+	async getActiveWidgets(): Promise<string[]> {
+		try {
+			const widgets = await WidgetModel.find({ isActive: true }).lean().exec();
+			const activeWidgetNames = widgets.map((widget) => widget.name);
+			logger.info(`Fetched ${activeWidgetNames.length} active widgets.`);
+			return activeWidgetNames;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching active widgets: ${err.message}`);
+			throw new Error(`Error fetching active widgets: ${err.message}`);
+		}
+	}
+
+	// Activate a widget
+	async activateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { isActive: true, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
+			if (result.modifiedCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already active.`);
+			}
+			logger.info(`Widget ${widgetName} activated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error activating widget: ${err.message}`);
+			throw new Error(`Error activating widget: ${err.message}`);
+		}
+	}
+
+	// Deactivate a widget
+	async deactivateWidget(widgetName: string): Promise<void> {
+		try {
+			const result = await WidgetModel.updateOne(
+				{ name: widgetName },
+				{ $set: { isActive: false, updatedAt: Math.floor(Date.now() / 1000) } }
+			).exec();
+			if (result.modifiedCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or already inactive.`);
+			}
+			logger.info(`Widget ${widgetName} deactivated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deactivating widget: ${err.message}`);
+			throw new Error(`Error deactivating widget: ${err.message}`);
+		}
+	}
+
+	// Update a widget
+	async updateWidget(widgetName: string, updateData: any): Promise<void> {
+		try {
+			const result = await WidgetModel.updateOne({ name: widgetName }, { $set: { ...updateData, updatedAt: Math.floor(Date.now() / 1000) } }).exec();
+			if (result.modifiedCount === 0) {
+				throw new Error(`Widget with name ${widgetName} not found or no changes applied.`);
+			}
+			logger.info(`Widget ${widgetName} updated successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating widget: ${err.message}`);
+			throw new Error(`Error updating widget: ${err.message}`);
+		}
+	}
+
+	// Methods for Theme Management
+
+	// Set the default theme
+	async setDefaultTheme(themeName: string): Promise<void> {
+		try {
+			// First, unset the current default theme
+			await ThemeModel.updateMany({}, { $set: { isDefault: false } });
+			// Then, set the new default theme
+			const result = await ThemeModel.updateOne({ name: themeName }, { $set: { isDefault: true } });
+
+			if (result.modifiedCount === 0) {
+				throw new Error(`Theme with name ${themeName} not found.`);
+			}
+
+			logger.info(`Theme ${themeName} set as default successfully.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error setting default theme: ${err.message}`);
+			throw new Error(`Error setting default theme: ${err.message}`);
+		}
+	}
+
+	// Fetch the default theme
+	async getDefaultTheme(): Promise<Theme | null> {
+		try {
+			logger.debug('Attempting to fetch the default theme from the database...');
+			let theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
+
+			if (theme) {
+				logger.info(`Default theme found: ${theme.name}`);
+				return theme;
+			}
+
+			const count = await ThemeModel.countDocuments();
+			if (count === 0) {
+				logger.warn('Theme collection is empty. Inserting default theme.');
+				await this.storeThemes([DEFAULT_THEME]);
+				theme = await ThemeModel.findOne({ isDefault: true }).lean<Theme>().exec();
+			}
+
+			if (!theme) {
+				logger.warn('No default theme found in database. Using DEFAULT_THEME constant.');
+				return DEFAULT_THEME as Theme;
+			}
+
+			return theme;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching default theme: ${err.message}`);
+			throw new Error(`Error fetching default theme: ${err.message}`);
+		}
+	}
+
+	// Store themes in the database
+	async storeThemes(themes: Theme[]): Promise<void> {
+		try {
+			// If there's a default theme in the new themes, unset the current default
+			if (themes.some((theme) => theme.isDefault)) {
+				await ThemeModel.updateMany({}, { $set: { isDefault: false } });
+			}
+
+			await ThemeModel.insertMany(
+				themes.map((theme) => ({
+					_id: this.convertId(theme._id),
+					name: theme.name,
+					path: theme.path,
+					isDefault: theme.isDefault ?? false,
+					createdAt: theme.createdAt ?? Math.floor(Date.now() / 1000),
+					updatedAt: theme.updatedAt ?? Math.floor(Date.now() / 1000)
+				})),
+				{ ordered: false }
+			); // Use ordered: false to ignore duplicates
+			logger.info(`Stored ${themes.length} themes in the database.`);
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error storing themes: ${err.message}`);
+			throw new Error(`Error storing themes: ${err.message}`);
+		}
+	}
+
+	// Fetch all themes
+	async getAllThemes(): Promise<Theme[]> {
+		try {
+			const themes = await ThemeModel.find().exec();
+			logger.info(`Fetched ${themes.length} themes.`);
+			return themes;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching all themes: ${err.message}`);
+			throw new Error(`Error fetching all themes: ${err.message}`);
+		}
+	}
+
+	// Methods for System Preferences Management
+
+	// Set user preferences
 	async setUserPreferences(userId: string, preferences: UserPreferences): Promise<void> {
 		logger.debug(`Setting user preferences for userId: ${userId}`);
 
-		await SystemPreferences.updateOne({ userId }, { $set: { preferences } }, { upsert: true });
-	}
-
-	// Retrieves system preferences for a specific user.
-	async getSystemPreferences(userId: string): Promise<UserPreferences | null> {
 		try {
-			const preferences = await SystemPreferences.findOne({ userId }).exec();
-			return preferences ? preferences.preferences : null;
+			await SystemPreferencesModel.updateOne({ userId }, { $set: { preferences, screenSize: preferences.screenSize } }, { upsert: true }).exec();
+			logger.info(`User preferences set successfully for userId: ${userId}`);
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to retrieve system preferences for user ${userId}. Error: ${err.message}`);
+			logger.error(`Failed to set user preferences for user ${userId}. Error: ${err.message}`);
+			throw new Error(`Failed to set user preferences: ${err.message}`);
+		}
+	}
+
+	//Retrieve system preferences for a user
+	async getSystemPreferences(user_id: string): Promise<UserPreferences | null> {
+		try {
+			const preferencesDoc = await SystemPreferencesModel.findOne({ userId: user_id }).exec();
+			if (preferencesDoc) {
+				logger.info(`Retrieved system preferences for userId: ${user_id}`);
+				return preferencesDoc.preferences as UserPreferences;
+			}
+			logger.info(`No system preferences found for userId: ${user_id}`);
+			return null;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Failed to retrieve system preferences for user ${user_id}. Error: ${err.message}`);
 			throw new Error(`Failed to retrieve system preferences: ${err.message}`);
 		}
 	}
 
-	// Updates system preferences for a specific user.
-	async updateSystemPreferences(userId: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
+	// Update system preferences for a user
+	async updateSystemPreferences(user_id: string, screenSize: ScreenSize, preferences: WidgetPreference[]): Promise<void> {
 		try {
-			await SystemPreferences.findOneAndUpdate({ userId }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
+			await SystemPreferencesModel.findOneAndUpdate({ userId: user_id }, { $set: { screenSize, preferences } }, { new: true, upsert: true }).exec();
+			logger.info(`System preferences updated for userId: ${user_id}`);
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to update system preferences for user ${userId}. Error: ${err.message}`);
+			logger.error(`Failed to update system preferences for user ${user_id}. Error: ${err.message}`);
 			throw new Error(`Failed to update system preferences: ${err.message}`);
 		}
 	}
 
-	// Clears system preferences for a specific user
-	async clearSystemPreferences(userId: string): Promise<void> {
+	// Clear system preferences for a user
+	async clearSystemPreferences(user_id: string): Promise<void> {
 		try {
-			await SystemPreferences.deleteOne({ userId }).exec();
+			const result = await SystemPreferencesModel.deleteOne({ userId: user_id }).exec();
+			if (result.deletedCount === 0) {
+				logger.warn(`No system preferences found to delete for userId: ${user_id}`);
+			} else {
+				logger.info(`System preferences cleared for userId: ${user_id}`);
+			}
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Failed to clear system preferences for user ${userId}. Error: ${err.message}`);
+			logger.error(`Failed to clear system preferences for user ${user_id}. Error: ${err.message}`);
 			throw new Error(`Failed to clear system preferences: ${err.message}`);
 		}
 	}
 
-	// Create a virtual folder in database
-	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<any> {
-		const folder = new SystemVirtualFolder({
-			_id: this.generateId(),
-			...folderData
-		});
-		return await folder.save();
-	}
+	// Methods for Virtual Folder Management
 
-	// Get virtual folders
-	async getVirtualFolders(): Promise<any[]> {
-		return await SystemVirtualFolder.find().lean();
-	}
-	// Get virtual folder contents
-	async getVirtualFolderContents(folderId: string): Promise<any[]> {
-		// Convert the folderId to ObjectId if it's a string
-		const objectId = new mongoose.Types.ObjectId(folderId);
-
-		const folder = await SystemVirtualFolder.findById(objectId);
-		if (!folder) throw new Error('Folder not found');
-
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
-		const results = await Promise.all(mediaPromises);
-		return results.flat();
-	}
-
-	// Update virtual folder
-	async updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<any> {
-		return await SystemVirtualFolder.findByIdAndUpdate(folderId, updateData, { new: true });
-	}
-
-	// Delete virtual folder
-	async deleteVirtualFolder(folderId: string): Promise<boolean> {
-		const result = await SystemVirtualFolder.findByIdAndDelete(folderId);
-		return !!result;
-	}
-
-	// Move media to folder
-	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
-		const objectId = new mongoose.Types.ObjectId(folderId);
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-		for (const type of mediaTypes) {
-			const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId: objectId });
-			if (result) return true;
+	// Create a virtual folder in the database
+	async createVirtualFolder(folderData: { name: string; parent?: string; path: string }): Promise<Document> {
+		try {
+			const folder = new SystemVirtualFolderModel({
+				_id: this.generateId(),
+				name: folderData.name,
+				parent: folderData.parent ? this.convertId(folderData.parent) : null,
+				path: folderData.path
+			});
+			await folder.save();
+			logger.info(`Virtual folder '${folderData.name}' created successfully.`);
+			return folder;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error creating virtual folder: ${err.message}`, { error: err });
+			throw err;
 		}
-		return false;
 	}
 
-	// Get all media
+	// Get all virtual folders
+	async getVirtualFolders(): Promise<Document[]> {
+		try {
+			const folders = await SystemVirtualFolderModel.find().exec();
+			logger.info(`Fetched ${folders.length} virtual folders.`);
+			return folders;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching virtual folders: ${err.message}`);
+			throw new Error(`Error fetching virtual folders: ${err.message}`);
+		}
+	}
+
+	// Get contents of a virtual folder
+	async getVirtualFolderContents(folderId: string): Promise<any[]> {
+		try {
+			const objectId = this.convertId(folderId);
+			const folder = await SystemVirtualFolderModel.findById(objectId);
+			if (!folder) throw new Error('Folder not found');
+
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const results = await Promise.all(mediaPromises);
+			logger.info(`Fetched contents for virtual folder ID: ${folderId}`);
+			return results.flat();
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching contents for virtual folder ${folderId}: ${err.message}`);
+			throw new Error(`Failed to fetch virtual folder contents: ${err.message}`);
+		}
+	}
+
+	// Update a virtual folder
+	async updateVirtualFolder(folderId: string, updateData: { name?: string; parent?: string }): Promise<Document | null> {
+		try {
+			const updatePayload: any = { ...updateData };
+			if (updateData.parent) {
+				updatePayload.parent = this.convertId(updateData.parent);
+			}
+
+			const updatedFolder = await SystemVirtualFolderModel.findByIdAndUpdate(folderId, updatePayload, { new: true }).exec();
+			if (!updatedFolder) {
+				throw new Error(`Virtual folder with ID ${folderId} not found.`);
+			}
+
+			logger.info(`Virtual folder ${folderId} updated successfully.`);
+			return updatedFolder;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error updating virtual folder ${folderId}: ${err.message}`);
+			throw new Error(`Failed to update virtual folder: ${err.message}`);
+		}
+	}
+
+	// Delete a virtual folder
+	async deleteVirtualFolder(folderId: string): Promise<boolean> {
+		try {
+			const result = await SystemVirtualFolderModel.findByIdAndDelete(folderId).exec();
+			if (!result) {
+				logger.warn(`Virtual folder with ID ${folderId} not found.`);
+				return false;
+			}
+
+			logger.info(`Virtual folder ${folderId} deleted successfully.`);
+			return true;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deleting virtual folder ${folderId}: ${err.message}`);
+			throw new Error(`Failed to delete virtual folder: ${err.message}`);
+		}
+	}
+
+	// Move media to a virtual folder
+	async moveMediaToFolder(mediaId: string, folderId: string): Promise<boolean> {
+		try {
+			const objectId = this.convertId(folderId);
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			for (const type of mediaTypes) {
+				const result = await mongoose.model(type).findByIdAndUpdate(mediaId, { folderId: objectId }).exec();
+				if (result) {
+					logger.info(`Media ${mediaId} moved to folder ${folderId} successfully.`);
+					return true;
+				}
+			}
+			logger.warn(`Media ${mediaId} not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error moving media ${mediaId} to folder ${folderId}: ${err.message}`);
+			throw new Error(`Failed to move media to folder: ${err.message}`);
+		}
+	}
+
+	// Methods for Media Management
+
+	// Fetch all media
 	async getAllMedia(): Promise<MediaType[]> {
-		// Implement fetching all media files
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		const mediaPromises = mediaTypes.map((type) => this.findMany<MediaType>(type, {}));
-		const results = await Promise.all(mediaPromises);
-		return results.flat().map((item) => ({
-			...item,
-			_id: item._id.toString(), // Ensuring _id is a string
-			type: item.type || 'unknown' // Handle the type property
-		}));
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			const mediaPromises = mediaTypes.map((type) => this.findMany<Document & MediaBase>(type, {}));
+			const results = await Promise.all(mediaPromises);
+			const allMedia = results.flat().map((item) => ({
+				...item,
+				_id: item._id?.toString(), // Safe access using optional chaining
+				type: item.type || 'unknown' // Handle the type property
+			}));
+			logger.info(`Fetched all media, total count: ${allMedia.length}`);
+			return allMedia as MediaType[];
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching all media: ${err.message}`);
+			throw new Error(`Error fetching all media: ${err.message}`);
+		}
 	}
 
 	// Delete media
 	async deleteMedia(mediaId: string): Promise<boolean> {
-		// Implement media deletion logic
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
-		for (const type of mediaTypes) {
-			const result = await this.deleteOne(type, { _id: mediaId });
-			if (result > 0) return true;
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			for (const type of mediaTypes) {
+				const result = await this.deleteOne(type, { _id: this.convertId(mediaId) });
+				if (result > 0) {
+					logger.info(`Media ${mediaId} deleted successfully from ${type}.`);
+					return true;
+				}
+			}
+			logger.warn(`Media ${mediaId} not found in any media type collections.`);
+			return false;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error deleting media ${mediaId}: ${err.message}`);
+			throw new Error(`Error deleting media: ${err.message}`);
 		}
-		return false;
 	}
 
-	// Get media in folder
-	async getMediaInFolder(folderId: string): Promise<any[]> {
-		const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-		const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId }).lean());
-		const results = await Promise.all(mediaPromises);
-		return results.flat();
+	// Fetch media in a specific folder
+	async getMediaInFolder(folder_id: string): Promise<any[]> {
+		try {
+			const mediaTypes = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
+			const objectId = this.convertId(folder_id);
+			const mediaPromises = mediaTypes.map((type) => mongoose.model(type).find({ folderId: objectId }).lean());
+			const results = await Promise.all(mediaPromises);
+			const mediaInFolder = results.flat();
+			logger.info(`Fetched ${mediaInFolder.length} media items in folder ID: ${folder_id}`);
+			return mediaInFolder;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching media in folder ${folder_id}: ${err.message}`);
+			throw new Error(`Failed to fetch media in folder: ${err.message}`);
+		}
 	}
 
-	// Clean up and disconnect from MongoDB
+	// Fetch the last five collections
+	async getLastFiveCollections(): Promise<any[]> {
+		try {
+			const collectionNames = Object.keys(mongoose.models);
+			const recentCollections: any[] = [];
+
+			for (const collectionName of collectionNames) {
+				const model = mongoose.models[collectionName];
+				const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+				recentCollections.push({ collectionName, recentDocs });
+			}
+
+			logger.info(`Fetched last five documents from ${recentCollections.length} collections.`);
+			return recentCollections;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching last five collections: ${err.message}`);
+			throw new Error(`Failed to fetch last five collections: ${err.message}`);
+		}
+	}
+
+	// Fetch logged-in users
+	async getLoggedInUsers(): Promise<any[]> {
+		try {
+			const sessionModel = mongoose.models['auth_sessions'];
+			if (!sessionModel) {
+				throw new Error('auth_sessions collection does not exist.');
+			}
+			const activeSessions = await sessionModel.find({ active: true }).lean().exec();
+			logger.info(`Fetched ${activeSessions.length} active sessions.`);
+			return activeSessions;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching logged-in users: ${err.message}`);
+			throw new Error(`Failed to fetch logged-in users: ${err.message}`);
+		}
+	}
+
+	// Fetch CMS data
+	async getCMSData(): Promise<any> {
+		// Implement your CMS data fetching logic here
+		// This is a placeholder and should be replaced with actual implementation
+		logger.debug('Fetching CMS data...');
+		return {};
+	}
+
+	// Fetch the last five media documents
+	async getLastFiveMedia(): Promise<any[]> {
+		try {
+			const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+			const recentMedia: any[] = [];
+
+			for (const schemaName of mediaSchemas) {
+				const model = mongoose.models[schemaName];
+				if (model) {
+					const recentDocs = await model.find().sort({ createdAt: -1 }).limit(5).lean().exec();
+					recentMedia.push(...recentDocs);
+					logger.debug(`Fetched ${recentDocs.length} recent media documents for ${schemaName}`);
+				} else {
+					logger.warn(`Media schema ${schemaName} does not exist.`);
+				}
+			}
+			logger.info(`Fetched last five media documents across schemas.`);
+			return recentMedia;
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching last five media documents: ${err.message}`);
+			throw new Error(`Failed to fetch last five media documents: ${err.message}`);
+		}
+	}
+
+	// Methods for Disconnecting
+
+	// Disconnect from MongoDB
 	async disconnect(): Promise<void> {
 		try {
 			await mongoose.disconnect();
