@@ -51,21 +51,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Authentication system is not initialized');
 		}
-		
-// Check if user is already authenticated
-        if (locals.user) {
-            logger.debug('User is already authenticated, redirecting to collection');
-            const collections = await getCollections();
-            if (collections && Object.keys(collections).length > 0) {
-                const first_collection_key = Object.keys(collections)[0];
-                const first_collection = collections[first_collection_key];
-                if (first_collection && first_collection.name) {
-                    throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
-                }
-            }
-            // If no collections are found, redirect to the root
-            throw redirect(302, '/');
-        }
+
+		// Check if user is already authenticated
+		if (locals.user) {
+			logger.debug('User is already authenticated, redirecting to collection');
+			const collections = await getCollections();
+			if (collections && Object.keys(collections).length > 0) {
+				const first_collection_key = Object.keys(collections)[0];
+				const first_collection = collections[first_collection_key];
+				if (first_collection && first_collection.name) {
+					throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+				}
+			}
+			// If no collections are found, redirect to the root
+			throw redirect(302, '/');
+		}
 
 		// Rate limiter preflight check
 		if (limiter.cookieLimiter?.preflight) {
@@ -82,6 +82,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 		let firstUserExists = false;
 		try {
 			firstUserExists = (await auth.getUserCount()) !== 0;
+			logger.debug(`First user exists: ${firstUserExists}`);
 		} catch (err) {
 			logger.error('Error fetching user count:', err instanceof Error ? err.message : JSON.stringify(err));
 			throw error(500, 'Could not verify user count');

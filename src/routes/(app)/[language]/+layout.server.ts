@@ -15,16 +15,11 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getCollections } from '@collections';
-// Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';
-
-// System Logs
 import logger from '@src/utils/logger';
-
-// Config
 import { roles as configRoles } from '@root/config/roles';
 
 // Helper function to debounce any async function
@@ -61,8 +56,7 @@ const getCollectionsDebounced = debounceAsync(getCollections, 300);
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	try {
-		const { user, theme } = locals;
-		const activeTheme = theme || DEFAULT_THEME;
+		const { user, permissions, theme } = locals;
 
 		// Ensure the user is authenticated
 		if (!user) {
@@ -70,10 +64,10 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			throw error(401, 'Unauthorized');
 		}
 
-		// Redirect to user page if lastAuthMethod token
-		if (user?.lastAuthMethod === 'token') {
+		// Redirect to user page if lastAuthMethod is token
+		if (user.lastAuthMethod === 'token') {
 			logger.debug('User authenticated with token, redirecting to user page.');
-			throw redirect(302, `/user`);
+			throw redirect(302, '/user');
 		}
 
 		// Fetch collections with debounce to optimize performance
@@ -81,25 +75,21 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		const collection = Object.values(collections).find((c: any) => c.name === params.collection);
 
 		// Validate the requested language
-		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language as any)) {
+		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(params.language)) {
 			logger.warn(`The language '${params.language}' is not available.`);
-			throw error(404, {
-				message: `The language '${params.language}' is not available.`
-			});
+			throw error(404, `The language '${params.language}' is not available.`);
 		} else if (!collection && params.collection) {
 			logger.warn(`The collection '${params.collection}' does not exist.`);
-			throw error(404, {
-				message: `The collection '${params.collection}' does not exist.`
-			});
+			throw error(404, `The collection '${params.collection}' does not exist.`);
 		}
 
-		// Determine user permissions based on role
+		// Determine user permissions based on role and collection
 		const userRole = configRoles.find((role) => role._id === user.role);
 		let hasPermission = userRole?.isAdmin;
 
 		if (!hasPermission && collection?.permissions) {
 			// Check if the user has permission to access the collection
-			hasPermission = collection.permissions[user.role]?.read !== false;
+			hasPermission = permissions.includes(collection.permissions[user.role]?.read !== false);
 		}
 
 		logger.debug(`User role: ${user.role}, Role isAdmin: ${userRole?.isAdmin}, Collection: ${collection?.name}, Has permission: ${hasPermission}`);
@@ -107,14 +97,12 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		// Deny access if the user lacks necessary permissions
 		if (!hasPermission) {
 			logger.warn(`No access to collection ${collection?.name} for role ${user.role}`);
-			throw error(401, {
-				message: 'No Access to this collection'
-			});
+			throw error(403, 'No Access to this collection');
 		}
 
 		return {
 			user,
-			theme: activeTheme
+			theme: theme || DEFAULT_THEME // Use theme from locals or fall back to default
 		};
 	} catch (err) {
 		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);

@@ -1,5 +1,10 @@
+<!-- 
+@file src/routes/(app)/config/themeManagement/+page.svelte
+@description This file manages the theme management page. It provides a user-friendly interface for managing themes and custom themes. 
+-->
+
 <script lang="ts">
-	import { theme, previewTheme } from '@stores/themeStore';
+	import { theme } from '@stores/themeStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

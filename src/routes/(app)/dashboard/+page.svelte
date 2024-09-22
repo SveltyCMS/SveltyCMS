@@ -1,3 +1,8 @@
+<!-- 
+@file src/routes/(app)/dashboard/+page.svelte
+@description This file sets up and displays the dashboard page. It provides a user-friendly interface for managing system resources and system messages.
+-->
+
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { userPreferences, type WidgetPreference } from '@stores/userPreferences';

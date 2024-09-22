@@ -153,21 +153,10 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 			await dbAdapter.storeThemes([DEFAULT_THEME]);
 			logger.info('Default SveltyCMS theme created successfully.');
 		} else {
-			const sveltyCMSTheme = themes.find((theme) => theme.name === DEFAULT_THEME.name);
-			if (sveltyCMSTheme) {
-				if (!sveltyCMSTheme.isDefault) {
-					await dbAdapter.setDefaultTheme(DEFAULT_THEME.name);
-					logger.info('SveltyCMS theme set as default.');
-				} else {
-					logger.info('SveltyCMS theme is already set as default.');
-				}
-			} else {
-				await dbAdapter.storeThemes([DEFAULT_THEME]);
-				logger.info('SveltyCMS theme created and set as default.');
-			}
+			logger.info('Themes already exist in the database. Skipping default theme initialization.');
 		}
 	} catch (error) {
-		logger.error(`Error initializing default theme: ${(error as Error).message}`);
+		logger.error(`Error initializing default theme: ${(error as Error).message}`, { error });
 		throw new Error(`Error initializing default theme: ${(error as Error).message}`);
 	}
 }

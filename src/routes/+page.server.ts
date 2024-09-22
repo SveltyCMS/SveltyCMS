@@ -38,18 +38,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const permissions = locals.permissions;
 
 		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
-		logger.debug(`Permissions loaded: ${permissions ? 'Yes' : 'No'}`);
+		logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
 
-		// Fetch collections
-		logger.debug('Fetching collections');
-		const collections = await getCollections();
-		logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
+		// Fetch collections only if needed
+		if (!locals.collections) {
+			logger.debug('Fetching collections');
+			const collections = await getCollections();
+			logger.debug(`Collections fetched: ${Object.keys(collections).join(', ')}`);
+			locals.collections = collections;
+		}
 
-		if (collections && Object.keys(collections).length > 0) {
-			const first_collection_key = Object.keys(collections)[0];
-			const first_collection = collections[first_collection_key];
+		if (locals.collections && Object.keys(locals.collections).length > 0) {
+			const first_collection_key = Object.keys(locals.collections)[0];
+			const first_collection = locals.collections[first_collection_key];
 			logger.debug(`First collection key: ${first_collection_key}`);
-			logger.debug(`First collection: ${JSON.stringify(first_collection)}`);
 
 			if (first_collection && first_collection.name) {
 				logger.debug(`Redirecting to first collection: ${first_collection.name}`);
@@ -63,15 +65,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(404, 'No collections found');
 		}
 	} catch (err) {
-		// Check if the error is a redirect
-		if (err && typeof err === 'object' && 'status' in err && 'location' in err) {
-			// It's a redirect, rethrow it to let SvelteKit handle it
-			throw err;
-		}
-
-		// Handle other types of errors
+		// Handle errors as in your original code
 		logger.error(`Unexpected error in load function: +page.server: ${err instanceof Error ? err.message : 'Unknown error'}`);
-		logger.error(`Error details: ${JSON.stringify(err, Object.getOwnPropertyNames(err))}`);
 		throw error(500, 'An unexpected error occurred');
 	}
 };
