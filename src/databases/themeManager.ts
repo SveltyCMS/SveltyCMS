@@ -10,7 +10,7 @@ import logger from '@src/utils/logger';
 
 // Default theme
 export const DEFAULT_THEME: Theme = {
-	_id: 'default_theme_id',
+	_id: '62f2d6fd1234567890abcdef', // A valid 24-character hex string
 	name: 'SveltyCMSTheme',
 	path: '/src/themes/SveltyCMS/SveltyCMSTheme.css',
 	isDefault: true,

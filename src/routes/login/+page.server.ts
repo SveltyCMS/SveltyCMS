@@ -8,6 +8,7 @@ import { publicEnv } from '@root/config/public';
 import { dev } from '$app/environment';
 import { error, redirect, type Cookies } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+import { getCollections } from '@src/collections';
 
 // Rate Limiter
 import { RateLimiter } from 'sveltekit-rate-limiter/server';
@@ -50,6 +51,21 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error: Authentication system is not initialized');
 		}
+		
+// Check if user is already authenticated
+        if (locals.user) {
+            logger.debug('User is already authenticated, redirecting to collection');
+            const collections = await getCollections();
+            if (collections && Object.keys(collections).length > 0) {
+                const first_collection_key = Object.keys(collections)[0];
+                const first_collection = collections[first_collection_key];
+                if (first_collection && first_collection.name) {
+                    throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+                }
+            }
+            // If no collections are found, redirect to the root
+            throw redirect(302, '/');
+        }
 
 		// Rate limiter preflight check
 		if (limiter.cookieLimiter?.preflight) {

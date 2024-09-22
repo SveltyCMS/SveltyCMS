@@ -5,7 +5,6 @@
 
 import mime from 'mime-types';
 import Path from 'path';
-import urlJoin from 'url-join';
 import { publicEnv } from '@root/config/public';
 import { sanitize, formatBytes, SIZES } from '@src/utils/utils';
 import type { MediaBase } from '@utils/media/mediaModels';
@@ -15,7 +14,7 @@ export function constructMediaUrl(mediaItem: MediaBase, size?: keyof typeof SIZE
 	if (publicEnv.MEDIASERVER_URL) {
 		return `${publicEnv.MEDIASERVER_URL}/${mediaItem.url}`;
 	} else {
-		const basePath = Path.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
+		const basePath = Path.posix.join(publicEnv.MEDIA_FOLDER, mediaItem.url);
 		if (size && 'thumbnails' in mediaItem && mediaItem.thumbnails && mediaItem.thumbnails[size]) {
 			return mediaItem.thumbnails[size].url;
 		}
@@ -39,13 +38,13 @@ export function constructUrl(path: string, hash: string, fileName: string, forma
 	}
 
 	if (publicEnv.MEDIASERVER_URL) {
-		return urlJoin(publicEnv.MEDIASERVER_URL, 'files', urlPath);
+		return `${publicEnv.MEDIASERVER_URL}/files/${urlPath}`;
 	} else {
 		// If MEDIA_FOLDER is intended to be a URL path
-		return urlJoin(publicEnv.MEDIA_FOLDER, urlPath);
+		return Path.posix.join(publicEnv.MEDIA_FOLDER, urlPath);
 
 		// If MEDIA_FOLDER is a filesystem path and you need a file path instead:
-		// return path.join(publicEnv.MEDIA_FOLDER, urlPath);
+		// return Path.join(publicEnv.MEDIA_FOLDER, urlPath);
 	}
 }
 

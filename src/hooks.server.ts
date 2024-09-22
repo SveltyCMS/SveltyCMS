@@ -47,6 +47,9 @@ let themeInitializationPromise: Promise<void>;
 
 // Handle authentication, session management, and theme initialization
 const handleAuthAndTheme: Handle = async ({ event, resolve }) => {
+	event.locals.theme = event.locals.theme || DEFAULT_THEME; // Ensure theme is always defined
+	event.locals.user = event.locals.user || null; // Ensure user is always defined
+
 	try {
 		// Ensure database initialization
 		await initializationPromise;

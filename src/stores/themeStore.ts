@@ -34,9 +34,12 @@ export function initializeThemeStore(initialTheme: Theme) {
 	theme.set(initialTheme);
 }
 
-// Function to update the theme by communicating with the server/
+// Function to update the theme by communicating with the server
 export async function updateTheme(themeName: string): Promise<void> {
 	try {
+		// Optimistic UI update
+		theme.update((current) => ({ ...current, name: themeName }));
+
 		const response = await fetch('/api/change-theme', {
 			method: 'POST',
 			headers: { 'Content-Type': 'application/json' },
@@ -52,12 +55,22 @@ export async function updateTheme(themeName: string): Promise<void> {
 				theme.set(updatedTheme);
 			} else {
 				console.warn('Failed to fetch the updated theme.');
+				throw new Error('Failed to fetch the updated theme.');
 			}
 		} else {
 			alert('Failed to change theme: ' + result.error);
+			throw new Error(result.error);
 		}
 	} catch (error) {
 		console.error('Error changing theme:', error);
 		alert('An error occurred while changing the theme.');
+		// Revert the optimistic update in case of an error
+		const currentThemeResponse = await fetch('/api/get-current-theme');
+		if (currentThemeResponse.ok) {
+			const currentTheme: Theme = await currentThemeResponse.json();
+			theme.set(currentTheme);
+		} else {
+			console.warn('Failed to revert to the current theme.');
+		}
 	}
 }
