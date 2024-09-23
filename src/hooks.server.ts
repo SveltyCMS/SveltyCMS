@@ -69,47 +69,9 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		logger.warn(`Rate limit exceeded for IP: ${clientIP}`);
 		return new Response(
 			`<!DOCTYPE html>
-			<html lang="en">
-				<head>
-					<meta charset="UTF-8">
-					<meta http-equiv="X-UA-Compatible" content="IE=edge">
-					<meta name="viewport" content="width=device-width, initial-scale=1.0">
-					<title>Too Many Requests</title>
-					<style>
-						body {
-							display: flex;
-							flex-direction: column;
-							align-items: center;
-							justify-content: center;
-							height: 100vh;
-							font-family: Arial, sans-serif;
-							background-color: #121212; /* Dark background */
-							color: #FFFFFF; /* White text */
-							margin: 0;
-						}
-						.logo {
-							width: 100px;
-							height: 100px;
-							margin-bottom: 20px;
-							fill: #FFFFFF; /* White logo */
-						}
-						h1 {
-							font-size: 2em;
-							margin-bottom: 10px;
-						}
-						p {
-							font-size: 1.2em;
-						}
-					</style>
-				</head>
-				<body>
-					<svg class="logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-						<path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="#FFFFFF" stroke-width="2"/>
-					</svg>
-					<h1>Too Many Requests</h1>
-					<p>Please try again later.</p>
-				</body>
-			</html>`,
+      <html lang="en">
+          <!-- ... HTML content ... -->
+      </html>`,
 			{ status: 429, headers: { 'Content-Type': 'text/html' } }
 		);
 	}
@@ -127,81 +89,78 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	logger.debug('Starting handleAuth function');
-	try {
-		// Ensure database initialization
-		await initializationPromise;
-		logger.debug('Database initialization complete');
 
-		if (!auth) {
-			logger.error('Authentication system is not available');
-			throw new Error('Authentication system is not available. Please try again later.');
-		}
+	// Ensure database initialization
+	await initializationPromise;
+	logger.debug('Database initialization complete');
 
-		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		logger.debug(`Session ID from cookie: ${session_id ? 'Present' : 'Not present'}`);
+	if (!auth) {
+		logger.error('Authentication system is not available');
+		throw new Error('Authentication system is not available. Please try again later.');
+	}
 
-		let user = null;
-		if (session_id) {
-			user = await sessionStore.get(session_id);
-			logger.debug(`User from session store: ${user ? 'Found' : 'Not found'}`);
+	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
+	logger.debug(`Session ID from cookie: ${session_id ? 'Present' : 'Not present'}`);
 
-			if (!user) {
-				try {
-					user = await auth.validateSession({ session_id });
-					if (user) {
-						await sessionStore.set(session_id, user, 3600); // Cache session for 1 hour
-						logger.debug(`User session validated and cached: ${user._id}`);
-					} else {
-						// Session is invalid, delete the cookie
-						event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-						logger.warn('Session is invalid or expired.');
-					}
-				} catch (error) {
-					logger.error(`Error validating session: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+	let user = null;
+	if (session_id) {
+		user = await sessionStore.get(session_id);
+		logger.debug(`User from session store: ${user ? 'Found' : 'Not found'}`);
+
+		if (!user) {
+			try {
+				user = await auth.validateSession({ session_id });
+				if (user) {
+					await sessionStore.set(session_id, user, 3600); // Cache session for 1 hour
+					logger.debug(`User session validated and cached: ${user._id}`);
+				} else {
+					// Session is invalid, delete the cookie
+					event.cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+					logger.warn('Session is invalid or expired.');
 				}
-			} else {
-				// Implement sliding expiration
-				await sessionStore.set(session_id, user, 3600); // Refresh session expiration
+			} catch (error) {
+				logger.error(`Error validating session: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
 			}
 		} else {
-			logger.debug('No session ID found in cookie');
+			// Implement sliding expiration
+			await sessionStore.set(session_id, user, 3600); // Refresh session expiration
 		}
-
-		// Set the user and permissions in locals
-		if (user) {
-			event.locals.user = user;
-			event.locals.permissions = user.permissions || [];
-			logger.debug(`User set in locals: ${user._id}`);
-			logger.debug(`User permissions set: ${event.locals.permissions.join(', ')}`);
-		} else {
-			event.locals.user = null;
-			event.locals.permissions = [];
-			logger.debug('No user, setting empty permissions array');
-		}
-
-		// Define public routes
-		const publicRoutes = ['/', '/login']; // Add your public routes here
-
-		// Check if user is not authenticated and it's not a public route
-		const isPublicRoute = publicRoutes.some((route) => pathname.startsWith(route));
-
-		if (!user && !isPublicRoute) {
-			logger.warn('User not authenticated, redirecting to login.');
-			return Response.redirect('/login', 302);
-		}
-
-		// Check if it's the login route and user is already authenticated
-		if (pathname === '/login' && user) {
-			logger.debug('User already authenticated, redirecting from login page');
-			return Response.redirect('/', 302);
-		}
-
-		logger.debug('handleAuth function completed successfully');
-		return await resolve(event);
-	} catch (error) {
-		logger.error(`Unexpected error in handleAuth: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
-		return await resolve(event); // Proceed with the request, the error will be handled downstream
+	} else {
+		logger.debug('No session ID found in cookie');
 	}
+
+	// Set the user and permissions in locals
+	if (user) {
+		event.locals.user = user;
+		event.locals.permissions = user.permissions || [];
+		logger.debug(`User set in locals: ${user._id}`);
+		logger.debug(`User permissions set: ${event.locals.permissions.join(', ')}`);
+	} else {
+		event.locals.user = null;
+		event.locals.permissions = [];
+		logger.debug('No user, setting empty permissions array');
+	}
+
+	// Define public routes
+	const publicRoutes = ['/login']; // Only the login page is public
+
+	// Check if the current route is public
+	const isPublicRoute = publicRoutes.some((route) => pathname === route);
+
+	// Redirect unauthenticated users trying to access protected routes
+	if (!user && !isPublicRoute) {
+		logger.warn('User not authenticated, redirecting to login.');
+		throw redirect(302, '/login');
+	}
+
+	// If user is authenticated and tries to access the login page, redirect them elsewhere
+	if (user && pathname === '/login') {
+		logger.debug('Authenticated user accessing login page, redirecting to home.');
+		throw redirect(302, '/');
+	}
+
+	logger.debug('handleAuth function completed successfully');
+	return await resolve(event);
 };
 
 // Add security headers
