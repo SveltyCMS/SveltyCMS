@@ -6,8 +6,8 @@ import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 
 import { dev } from '$app/environment';
-import { error, redirect, type Cookies } from '@sveltejs/kit';
-import type { Actions, PageServerLoad } from './$types';
+import { error, redirect } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 import { getCollections } from '@src/collections';
 
 // Rate Limiter
@@ -41,7 +41,7 @@ const limiter = new RateLimiter({
 	}
 });
 
-export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
 		// Ensure initialization is complete
 		await initializationPromise;
@@ -52,18 +52,34 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request }) => 
 			throw error(500, 'Internal Server Error: Authentication system is not initialized');
 		}
 
+		// Check if locals is defined
+		if (!locals) {
+			logger.warn('Locals object is not defined');
+			locals = {}; // Initialize locals if it's undefined
+		}
+
 		// Check if user is already authenticated
 		if (locals.user) {
-			logger.debug('User is already authenticated, redirecting to collection');
-			const collections = await getCollections();
-			if (collections && Object.keys(collections).length > 0) {
-				const first_collection_key = Object.keys(collections)[0];
-				const first_collection = collections[first_collection_key];
-				if (first_collection && first_collection.name) {
-					throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+			logger.debug('User is already authenticated, attempting to redirect to collection');
+			try {
+				const collections = await getCollections();
+				if (collections && Object.keys(collections).length > 0) {
+					const first_collection_key = Object.keys(collections)[0];
+					const first_collection = collections[first_collection_key];
+					if (first_collection && first_collection.name) {
+						logger.debug(`Redirecting to first collection: ${first_collection.name}`);
+						throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
+					} else {
+						logger.warn('First collection found but name is missing');
+					}
+				} else {
+					logger.warn('No collections found');
 				}
+			} catch (err) {
+				logger.error('Error while fetching collections:', err instanceof Error ? err.message : JSON.stringify(err));
 			}
-			// If no collections are found, redirect to the root
+			// If no collections are found or an error occurred, redirect to the root
+			logger.debug('Redirecting to root');
 			throw redirect(302, '/');
 		}
 

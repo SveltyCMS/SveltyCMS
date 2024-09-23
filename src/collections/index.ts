@@ -68,14 +68,24 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 
 	try {
 		const imports = await getImports(recompile);
+		logger.debug(`Imports fetched successfully. Number of imports: ${Object.keys(imports).length}`);
+
 		let _categories = createCategories(imports);
+		logger.debug('Categories created');
 
 		if (!dev && !building) {
+			logger.debug('Fetching new createCategories function');
 			const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Unique identifier for caching
-			const { createCategories: newCreateCategories } = browser
-				? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
-				: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
-			_categories = newCreateCategories(imports);
+			try {
+				const { createCategories: newCreateCategories } = browser
+					? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
+					: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
+				_categories = newCreateCategories(imports);
+				logger.debug('New categories created successfully');
+			} catch (importError) {
+				logger.error('Error importing new createCategories function:', importError);
+				// Fallback to using the original categories
+			}
 		}
 
 		_categories = _categories.map((category) => ({
@@ -95,19 +105,28 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 			{} as Record<CollectionNames, Schema>
 		);
 
+		logger.debug(`Collections processed. Number of collections: ${Object.keys(_collections).length}`);
+
 		categories.set(_categories);
 		collections.set(_collections);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
 		if (typeof window === 'undefined') {
-			const { getCollectionModels } = await import('@src/databases/db');
-			await getCollectionModels(); // Fetch collection models in server-side environment
+			logger.debug('Fetching collection models in server-side environment');
+			try {
+				const { getCollectionModels } = await import('@src/databases/db');
+				await getCollectionModels();
+				logger.debug('Collection models fetched successfully');
+			} catch (dbError) {
+				logger.error('Error fetching collection models:', dbError);
+				throw new Error('Failed to fetch collection models');
+			}
 		}
 
-		logger.debug(`Collections updated. Number of collections: ${Object.keys(_collections).length}`);
+		logger.info(`Collections updated successfully. Number of collections: ${Object.keys(_collections).length}`);
 	} catch (error) {
-		logger.error('Error updating collections:', error as Error);
-		throw error;
+		logger.error('Error updating collections:', error);
+		throw new Error(`Failed to update collections: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 };
 
@@ -179,8 +198,8 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
 	} catch (error) {
-		logger.error('Error in getImports:', error as Error);
-		throw error;
+		logger.error('Error in getImports:', error);
+		throw new Error(`Failed to get imports: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 }
 

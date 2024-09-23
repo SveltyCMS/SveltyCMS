@@ -24,9 +24,6 @@ import { constructUrl } from '@src/utils/media/mediaUtils';
 import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
-// Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
-
 // System Logs
 import logger from '@src/utils/logger';
 
@@ -106,16 +103,6 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const serializedVirtualFolders = virtualFolders.map((folder) => convertIdToString(folder));
 
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
-
-		// Fetch theme
-		let theme;
-		try {
-			theme = await dbAdapter.getDefaultTheme();
-			theme = JSON.parse(JSON.stringify(theme)); // Ensure theme is serializable
-		} catch (err) {
-			logger.error('Error fetching default theme:', err instanceof Error ? err.message : String(err));
-			theme = DEFAULT_THEME;
-		}
 
 		logger.info('Media gallery data and virtual folders loaded successfully');
 		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders, theme };

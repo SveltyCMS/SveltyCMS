@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+	import SiteName from '@components/SiteName.svelte';
 
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
@@ -148,7 +149,7 @@
 				<Button pX={12} pY={12} style={button} href={resetLink}>{m.forgottenpassword_resetbutton()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
+			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
 	</Section>
 </Html>

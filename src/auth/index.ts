@@ -32,13 +32,8 @@ import { getPermissionByName, getAllPermissions } from './permissionManager';
 // Cache & Redis
 import { OptionalRedisSessionStore } from './InMemoryCacheStore';
 
-// Import argon2 conditionally
-let argon2: typeof import('argon2') | null = null;
-if (typeof window === 'undefined') {
-	import('argon2').then((module) => {
-		argon2 = module;
-	});
-}
+// Import argon2
+import argon2 from 'argon2';
 
 // Default expiration time (1 hour in seconds)
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
@@ -69,6 +64,7 @@ const argon2Attributes = {
 export const defaultSessionStore = new OptionalRedisSessionStore();
 
 // Auth class to handle user and session management
+// Auth class to handle user and session management
 export class Auth {
 	private db: authDBInterface;
 	private sessionStore: SessionStore;
@@ -97,9 +93,6 @@ export class Auth {
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
-				if (!argon2) {
-					throw new Error('Argon2 is not available in this environment');
-				}
 				hashedPassword = await argon2.hash(password, {
 					...argon2Attributes,
 					type: argon2.argon2id
@@ -130,14 +123,10 @@ export class Auth {
 			throw new Error(`Failed to create user: ${err.message}`);
 		}
 	}
-
 	// Update user attributes
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {
-			if (attributes.password && typeof window === 'undefined') {
-				if (!argon2) {
-					throw new Error('Argon2 is not available in this environment');
-				}
+			if (attributes.password) {
 				// Hash the password with argon2
 				attributes.password = await argon2.hash(attributes.password, {
 					...argon2Attributes,
@@ -540,9 +529,6 @@ export class Auth {
 		}
 
 		try {
-			if (!argon2) {
-				throw new Error('Argon2 is not available in this environment');
-			}
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user._id, { failedAttempts: 0, lockoutUntil: null });
 				logger.info(`User logged in: ${user._id}`);

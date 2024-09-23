@@ -8,6 +8,8 @@
 	import { publicEnv } from '@root/config/public';
 	import { systemLanguage } from '@src/stores/store';
 
+	import SiteName from '@components/SiteName.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
@@ -17,7 +19,6 @@
 
 	// Svelty-email
 	import { Button, Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
-	import SiteName from '@components/SiteName.svelte';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 
@@ -73,10 +74,10 @@
 			<Text>{m.welcomeuser_thanks()}</Text>
 
 			<Section style={btnContainer}>
-				<Button pX={12} pY={12} style={button} href={hostLink}>Go to <SiteName /></Button>
+				<Button pX={12} pY={12} style={button} href={hostLink}>Go   to <SiteName /></Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your <SiteName /> team</Text>
+			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
 	</Section>
 </Html>

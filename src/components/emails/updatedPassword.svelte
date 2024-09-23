@@ -6,6 +6,7 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+	import SiteName from '@components/SiteName.svelte';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -67,7 +68,7 @@
 			<Text style={paragraph}>You have successfully changed your Password for {publicEnv.SITE_NAME}</Text>
 			<Text style={paragraph}>{m.updatedpassword_contact()}</Text>
 			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
+			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
 	</Section>
 </Html>

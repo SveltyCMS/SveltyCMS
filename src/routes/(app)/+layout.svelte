@@ -218,7 +218,7 @@ Key features:
 							<Modal />
 
 							{#if $screenSize !== 'lg'}
-								<FloatingNav buttonInfo />
+								<FloatingNav />
 							{/if}
 
 							<!-- Show globalSearchIndex  -->

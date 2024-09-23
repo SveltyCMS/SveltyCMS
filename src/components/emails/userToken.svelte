@@ -7,6 +7,8 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
+	import SiteName from '@components/SiteName.svelte';
+
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 	import { systemLanguage } from '@src/stores/store';
@@ -155,7 +157,7 @@
 				<Button pX={12} pY={12} style={button} href={tokenLink}>{m.usertoken_createuser()}</Button>
 			</Section>
 			<Hr style={hr} />
-			<Text style={footer}>Your {publicEnv.SITE_NAME} Team</Text>
+			<Link style={footer} href="https://www.sveltycms.com">Your <SiteName /> team</Link>
 		</Container>
 	</Section>
 </Html>

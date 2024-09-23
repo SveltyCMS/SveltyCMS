@@ -1,7 +1,7 @@
 <!-- 
  @file src/routes/+layout.svelte
  @description This Svelte component serves as the layout for the entire application. 
- It sets up the global theme, manages SEO metadata, and initializes required stores for the Skeleton UI framework.
+ It sets up the global w, manages SEO metadata, and initializes required stores for the Skeleton UI framework.
  
  Features:
  - Dynamic theme management based on user preferences or defaults.
@@ -17,7 +17,6 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import type { PageData } from './$types';
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
@@ -31,9 +30,6 @@
 	// Initializing Skeleton stores
 	import { initializeStores } from '@skeletonlabs/skeleton';
 	initializeStores();
-
-	// Exporting PageData for use in the component
-	export let data: PageData;
 
 	// Default SEO variables for the website's title and description
 	const defaultTitle = `${publicEnv.SITE_NAME} - The Ultimate Headless CMS Powered by SvelteKit`;
