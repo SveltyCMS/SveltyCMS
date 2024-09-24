@@ -64,7 +64,6 @@ const argon2Attributes = {
 export const defaultSessionStore = new OptionalRedisSessionStore();
 
 // Auth class to handle user and session management
-// Auth class to handle user and session management
 export class Auth {
 	private db: authDBInterface;
 	private sessionStore: SessionStore;
@@ -123,6 +122,7 @@ export class Auth {
 			throw new Error(`Failed to create user: ${err.message}`);
 		}
 	}
+
 	// Update user attributes
 	async updateUserAttributes(user_id: string, attributes: Partial<User>): Promise<void> {
 		try {

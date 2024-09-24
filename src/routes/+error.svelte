@@ -47,7 +47,7 @@ This error component is automatically rendered when an error occurs during route
 	};
 </script>
 
-{#if $page}
+{#if $page}src/routes/+error.svelte
 	<main class="flex h-screen w-full flex-col items-center justify-center bg-gradient-to-t from-surface-900 via-surface-700 to-surface-900 text-white">
 		<div class="relative">
 			<!-- Rotating SiteName -->

@@ -53,7 +53,9 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			const session = new this.SessionModel(sessionData);
 			await session.save();
 			logger.info(`Session created for user: ${sessionData.user_id}`);
-			return session.toObject() as Session;
+			const savedSession = session.toObject();
+			savedSession._id = savedSession._id.toString();
+			return savedSession as Session;
 		} catch (error) {
 			logger.error('Failed to create session', { error: (error as Error).message });
 			throw error; // Rethrow the original error after logging
@@ -69,8 +71,9 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				logger.warn('Session not found', { session_id });
 				throw new Error('Session not found');
 			}
+			session._id = session._id.toString();
 			logger.debug('Session expiry updated', { session_id });
-			return session;
+			return session as Session;
 		} catch (error) {
 			logger.error('Failed to update session expiry', { session_id, error: (error as Error).message });
 			throw error; // Rethrow the original error after logging
@@ -109,6 +112,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				return null;
 			}
 
+			session._id = session._id.toString();
 			const currentTimestamp = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds
 
 			if (session.expires <= currentTimestamp) {
@@ -144,7 +148,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				expires: { $gt: Math.floor(Date.now() / 1000) } // Compare with current timestamp
 			}).lean();
 			logger.debug('Active sessions retrieved for user', { user_id });
-			return sessions;
+			return sessions.map((session) => {
+				session._id = session._id.toString();
+				return session as Session;
+			});
 		} catch (error) {
 			logger.error('Failed to get active sessions', { user_id, error: (error as Error).message });
 			throw error; // Rethrow the original error after logging

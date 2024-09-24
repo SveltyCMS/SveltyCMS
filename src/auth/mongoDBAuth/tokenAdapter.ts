@@ -138,7 +138,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 		try {
 			const tokens = await this.TokenModel.find(filter || {}).lean();
 			this.log('debug', 'All tokens retrieved');
-			return tokens;
+			return tokens.map((token) => {
+				token._id = token._id.toString();
+				return token;
+			});
 		} catch (error) {
 			this.log('error', 'Failed to get all tokens', { error: (error as Error).message });
 			throw new TokenError('Failed to get all tokens');

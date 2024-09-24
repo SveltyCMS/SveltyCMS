@@ -17,17 +17,18 @@ import logger from '@src/utils/logger';
 export const load: PageServerLoad = async ({ locals }) => {
 	logger.debug('Load function started in +page.server.ts');
 
-	// User and permissions are now set by hooks.server.ts
 	const user = locals.user;
 	const permissions = locals.permissions;
 
 	logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
 	logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
 
-	// Declare collections variable
+	if (!locals.user) {
+		throw redirect(302, '/login');
+	}
+
 	let collections;
 
-	// Fetch collections only if needed
 	if (!locals.collections) {
 		try {
 			collections = await getCollections();
@@ -45,6 +46,11 @@ export const load: PageServerLoad = async ({ locals }) => {
 	if (collections && typeof collections === 'object' && Object.keys(collections).length > 0) {
 		const firstCollectionKey = Object.keys(collections)[0];
 		const firstCollection = collections[firstCollectionKey];
+
+		if (!firstCollection || !firstCollection.name) {
+			logger.error('First collection or its name is undefined');
+			throw error(500, 'Invalid collection data');
+		}
 
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
 		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;

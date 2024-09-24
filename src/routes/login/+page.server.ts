@@ -30,6 +30,9 @@ import { get } from 'svelte/store';
 // System Logs
 import logger from '@src/utils/logger';
 
+// Import roles
+import { roles } from '@root/config/roles';
+
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
 	IPUA: [100, 'm'], // 100 requests per minute per IP+User-Agent
@@ -40,6 +43,19 @@ const limiter = new RateLimiter({
 		preflight: true
 	}
 });
+
+// Password strength configuration
+const MIN_PASSWORD_LENGTH = publicEnv.PASSWORD_STRENGTH || 8;
+const YELLOW_LENGTH = MIN_PASSWORD_LENGTH + 3;
+const GREEN_LENGTH = YELLOW_LENGTH + 4;
+
+// Function to calculate password strength (matches the logic in PasswordStrength.svelte)
+function calculatePasswordStrength(password: string): number {
+	if (password.length >= GREEN_LENGTH) return 3;
+	if (password.length >= YELLOW_LENGTH) return 2;
+	if (password.length >= MIN_PASSWORD_LENGTH) return 1;
+	return 0;
+}
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
@@ -137,10 +153,16 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					const isFirst = (await auth.getUserCount()) === 0;
 
 					if (isFirst) {
+						const adminRole = roles.find((role) => role._id === 'admin');
+						if (!adminRole) {
+							throw new Error('Admin role not found in roles configuration');
+						}
+
 						const user = await auth.createUser({
 							email,
 							username,
-							role: 'admin',
+							role: adminRole._id,
+							permissions: adminRole.permissions,
 							blocked: false
 						});
 
@@ -241,13 +263,13 @@ export const actions: Actions = {
 
 		// Validate
 		const username = signUpForm.data.username;
-		const email = signUpForm.data.email.toLowerCase();
+		const email = signUpForm.data.email.toLowerCase().trim();
 		const password = signUpForm.data.password;
 		const token = signUpForm.data.token;
 
 		const user = await auth.checkUser({ email });
 
-		let resp: { status: boolean; message?: string } = { status: false };
+		let resp: { status: boolean; message?: string; user?: User } = { status: false };
 
 		if (user && user.isRegistered) {
 			// Finished account exists
@@ -262,7 +284,7 @@ export const actions: Actions = {
 			resp = { status: false, message: 'This user was not defined by admin' };
 		}
 
-		if (resp.status) {
+		if (resp.status && resp.user) {
 			logger.debug(`resp: ${JSON.stringify(resp)}`);
 
 			// Send welcome email
@@ -283,9 +305,14 @@ export const actions: Actions = {
 				})
 			});
 
+			// Ensure the session is created and the cookie is set
+			const session = await auth.createSession({ user_id: resp.user._id, expires: new Date(Date.now() + 3600 * 1000) });
+			const sessionCookie = auth.createSessionCookie(session);
+			event.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
 			// Return message if form is submitted successfully
 			message(signUpForm, 'SignUp User form submitted');
-			throw redirect(303, '/');
+			throw redirect(303, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
 		} else {
 			logger.warn(`Sign-up failed: ${resp.message}`);
 			return { form: signUpForm, message: resp.message || 'Unknown error' };
@@ -458,8 +485,8 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 	logger.debug(`signIn called with email: ${email}, isToken: ${isToken}`);
 
 	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
+		logger.error('Auth system not initialized');
+		return { status: false, message: 'Authentication system unavailable' };
 	}
 
 	if (!isToken) {
@@ -480,10 +507,22 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'password' });
 
-			return { status: true };
+			// Fetch collections and redirect to the first available collection
+			const collections = await getCollections();
+			if (collections && Object.keys(collections).length > 0) {
+				const firstCollectionKey = Object.keys(collections)[0];
+				const firstCollection = collections[firstCollectionKey];
+				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+				const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+				logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+				throw redirect(303, redirectUrl);
+			} else {
+				logger.error('No collections found to redirect');
+				throw error(404, 'No collections found');
+			}
 		} catch (error) {
-			logger.error(`Failed to create session: ${error}`);
-			return { status: false, message: 'Failed to create session' };
+			logger.error(`Failed to create session or redirect: ${error}`);
+			return { status: false, message: 'Failed to create session or redirect' };
 		}
 	} else {
 		// User is registered, and credentials are provided as a token
@@ -526,18 +565,38 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		throw error(500, 'Internal Server Error');
 	}
 	try {
+		// Check if a user already exists
+		const userCount = await auth.getUserCount();
+		if (userCount > 0) {
+			logger.warn('Attempted to create first user when users already exist');
+			return { status: false, message: 'An admin user already exists' };
+		}
+
+		const adminRole = roles.find((role) => role.isAdmin === true);
+		if (!adminRole) {
+			logger.error('Admin role not found in roles configuration');
+			throw new Error('Admin role not found in roles configuration');
+		}
+
+		// Check password strength
+		const passwordStrength = calculatePasswordStrength(password);
+		if (passwordStrength < 1) {
+			return { status: false, message: 'Password is too weak. Please choose a stronger password.' };
+		}
+
 		const user = await auth.createUser({
-			password,
 			email,
 			username,
-			role: 'admin',
+			password,
+			role: adminRole._id,
+			permissions: adminRole.permissions,
 			lastAuthMethod: 'password',
 			isRegistered: true,
 			failedAttempts: 0
 		});
 
 		if (!user || !user._id) {
-			logger.error('User creation failed: No user ID returned');
+			logger.error('User creation failed: No user returned or missing _id');
 			return { status: false, message: 'Failed to create user' };
 		}
 
@@ -554,7 +613,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		const sessionCookie = auth.createSessionCookie(session);
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
-		return { status: true };
+		return { status: true, message: 'User created successfully', user: user };
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Failed to create first user: ${err.message}`);
@@ -653,6 +712,12 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			if (currentTime >= expiresIn) {
 				logger.warn('Token has expired');
 				return { status: false, message: 'Token has expired' };
+			}
+
+			// Check password strength
+			const passwordStrength = calculatePasswordStrength(password);
+			if (passwordStrength < 1) {
+				return { status: false, message: 'Password is too weak. Please choose a stronger password.' };
 			}
 
 			// Token is valid and not expired, proceed with password update

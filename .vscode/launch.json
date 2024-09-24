@@ -5,11 +5,18 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"type": "chrome",
+			"command": "bun devv",
+			"name": "Run bun start",
 			"request": "launch",
-			"name": "Launch Chrome against localhost",
-			"url": "http://localhost:5173",
-			"webRoot": "${workspaceFolder}"
+			"type": "node-terminal"
 		}
+		// {
+		// 	"type": "chrome",
+		// 	"request": "launch",
+		// 	"name": "Launch Chrome against localhost",
+		// 	"url": "http://localhost:5173",
+		// 	"webRoot": "${workspaceFolder}",
+		// 	"preLaunchTask": "bun devv"
+		// }
 	]
 }

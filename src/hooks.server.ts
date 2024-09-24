@@ -69,9 +69,47 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		logger.warn(`Rate limit exceeded for IP: ${clientIP}`);
 		return new Response(
 			`<!DOCTYPE html>
-      <html lang="en">
-          <!-- ... HTML content ... -->
-      </html>`,
+            <html lang="en">
+                <head>
+                    <meta charset="UTF-8">
+                    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <title>Too Many Requests</title>
+                    <style>
+                        body {
+                            display: flex;
+                            flex-direction: column;
+                            align-items: center;
+                            justify-content: center;
+                            height: 100vh;
+                            font-family: Arial, sans-serif;
+                            background-color: #121212;
+                            color: #FFFFFF;
+                            margin: 0;
+                        }
+                        .logo {
+                            width: 100px;
+                            height: 100px;
+                            margin-bottom: 20px;
+                            fill: #FFFFFF;
+                        }
+                        h1 {
+                            font-size: 2em;
+                            margin-bottom: 10px;
+                        }
+                        p {
+                            font-size: 1.2em;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <svg class="logo" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" fill="none" stroke="#FFFFFF" stroke-width="2"/>
+                    </svg>
+                    <h1>Too Many Requests</h1>
+                    <p>Please try again later.</p>
+                </body>
+            </html>`,
 			{ status: 429, headers: { 'Content-Type': 'text/html' } }
 		);
 	}
@@ -103,6 +141,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	logger.debug(`Session ID from cookie: ${session_id ? 'Present' : 'Not present'}`);
 
 	let user = null;
+
 	if (session_id) {
 		user = await sessionStore.get(session_id);
 		logger.debug(`User from session store: ${user ? 'Found' : 'Not found'}`);
@@ -125,8 +164,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 			// Implement sliding expiration
 			await sessionStore.set(session_id, user, 3600); // Refresh session expiration
 		}
-	} else {
-		logger.debug('No session ID found in cookie');
 	}
 
 	// Set the user and permissions in locals
@@ -145,17 +182,17 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const publicRoutes = ['/login']; // Only the login page is public
 
 	// Check if the current route is public
-	const isPublicRoute = publicRoutes.some((route) => pathname === route);
+	const isPublicRoute = publicRoutes.some((route) => event.url.pathname.startsWith(route));
 
 	// Redirect unauthenticated users trying to access protected routes
 	if (!user && !isPublicRoute) {
 		logger.warn('User not authenticated, redirecting to login.');
-		throw redirect(302, '/login');
+		return Response.redirect(`${event.url.origin}/login`, 302);
 	}
 
 	// If user is authenticated and tries to access the login page, redirect them elsewhere
-	if (user && pathname === '/login') {
-		logger.debug('Authenticated user accessing login page, redirecting to home.');
+	if (user && event.url.pathname.startsWith('/login')) {
+		logger.debug('Authenticated user accessing login page, redirecting to root.');
 		throw redirect(302, '/');
 	}
 

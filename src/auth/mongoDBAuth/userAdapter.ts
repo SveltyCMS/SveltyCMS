@@ -17,7 +17,6 @@
  * Usage:
  * Utilized by the auth system to manage user accounts in a MongoDB database
  */
-
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { roles as configRoles } from '@root/config/roles';
 
@@ -55,27 +54,7 @@ export const UserSchema = new Schema(
 		is2FAEnabled: Boolean // Whether the user has 2FA enabled, optional field
 	},
 	{
-		timestamps: true, // Automatically adds `createdAt` and `updatedAt` fields
-		toJSON: {
-			virtuals: true, // Include virtuals
-			versionKey: false, // Exclude the __v key
-			transform: (doc, ret) => {
-				ret._id = ret._id.toString(); // Convert MongoDB ObjectId to string
-				delete ret.password; // Remove sensitive data (password) from the JSON output
-				delete ret.__v; // Remove the version key (__v)
-				return ret;
-			}
-		},
-		toObject: {
-			virtuals: true, // Include virtuals
-			versionKey: false, // Exclude the __v key
-			transform: (doc, ret) => {
-				ret._id = ret._id.toString(); // Convert MongoDB ObjectId to string
-				delete ret.password; // Remove sensitive data (password) from the object output
-				delete ret.__v; // Remove the version key (__v)
-				return ret;
-			}
-		}
+		timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
 	}
 );
 
@@ -92,7 +71,9 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const user = new this.UserModel(userData);
 			await user.save();
 			logger.info(`User created: ${user.email}`);
-			return user.toJSON() as User;
+			const savedUser = user.toObject();
+			savedUser._id = savedUser._id.toString();
+			return savedUser as User;
 		} catch (error) {
 			logger.error(`Failed to create user: ${userData.email}`, { error });
 			throw new Error(`Failed to create user: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
@@ -102,12 +83,13 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Edit a user
 	async updateUserAttributes(user_id: string, userData: Partial<User>): Promise<User> {
 		try {
-			const user = await this.UserModel.findByIdAndUpdate(user_id, userData, { new: true });
+			const user = await this.UserModel.findByIdAndUpdate(user_id, userData, { new: true }).lean();
 			if (!user) {
 				throw new Error(`User not found for ID: ${user_id}`);
 			}
+			user._id = user._id.toString();
 			logger.debug(`User attributes updated: ${user_id}`);
-			return user.toJSON() as User;
+			return user as User;
 		} catch (error) {
 			logger.error(`Failed to update user attributes for user ID: ${user_id}`, { error });
 			throw new Error(`Failed to update user attributes: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
@@ -150,6 +132,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 				return [];
 			}
 
+			user._id = user._id.toString();
 			const directPermissions = new Set(user.permissions || []);
 			const allPermissions = await getAllPermissions();
 			const userPermissions = allPermissions.filter((perm) => directPermissions.has(perm._id));
@@ -175,6 +158,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 				return false;
 			}
 
+			user._id = user._id.toString();
 			const directPermissions = new Set(user.permissions || []);
 			const hasDirectPermission = directPermissions.has(permissionName);
 			if (hasDirectPermission) {
@@ -236,9 +220,14 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get a user by ID
 	async getUserById(user_id: string): Promise<User | null> {
 		try {
-			const user = await this.UserModel.findById(user_id);
-			logger.debug(`User retrieved by ID: ${user_id}`);
-			return user ? (user.toJSON() as User) : null;
+			const user = await this.UserModel.findById(user_id).lean();
+			if (user) {
+				user._id = user._id.toString();
+				logger.debug(`User retrieved by ID: ${user_id}`);
+				return user as User;
+			} else {
+				return null;
+			}
 		} catch (error) {
 			logger.error(`Failed to get user by ID: ${(error as Error).message}`);
 			throw error;
@@ -248,9 +237,14 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get a user by email
 	async getUserByEmail(email: string): Promise<User | null> {
 		try {
-			const user = await this.UserModel.findOne({ email });
-			logger.debug(`User retrieved by email: ${email}`);
-			return user ? (user.toJSON() as User) : null;
+			const user = await this.UserModel.findOne({ email }).lean();
+			if (user) {
+				user._id = user._id.toString();
+				logger.debug(`User retrieved by email: ${email}`);
+				return user as User;
+			} else {
+				return null;
+			}
 		} catch (error) {
 			logger.error(`Failed to get user by email: ${(error as Error).message}`);
 			throw error;
@@ -265,7 +259,7 @@ export class UserAdapter implements Partial<authDBInterface> {
 		filter?: Record<string, unknown>;
 	}): Promise<User[]> {
 		try {
-			let query = this.UserModel.find(options?.filter || {});
+			let query = this.UserModel.find(options?.filter || {}).lean();
 
 			if (options?.sort) {
 				query = query.sort(options.sort as any);
@@ -279,7 +273,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			const users = await query.exec();
 			logger.debug('All users retrieved');
-			return users.map((user) => user.toJSON() as User);
+			return users.map((user) => {
+				user._id = user._id.toString();
+				return user as User;
+			});
 		} catch (error) {
 			logger.error(`Failed to get all users: ${(error as Error).message}`);
 			throw error;
@@ -301,9 +298,12 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get users with a permission
 	async getUsersWithPermission(permissionName: string): Promise<User[]> {
 		try {
-			const users = await this.UserModel.find({ permissions: permissionName });
+			const users = await this.UserModel.find({ permissions: permissionName }).lean();
 			logger.debug(`Users with permission ${permissionName} retrieved`);
-			return users.map((user) => user.toJSON() as User);
+			return users.map((user) => {
+				user._id = user._id.toString();
+				return user as User;
+			});
 		} catch (error) {
 			logger.error(`Failed to get users with permission: ${(error as Error).message}`);
 			throw error;
@@ -335,12 +335,13 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Get roles for a user
 	async getRolesForUser(user_id: string): Promise<Role[]> {
 		try {
-			const user = await this.UserModel.findById(user_id);
+			const user = await this.UserModel.findById(user_id).lean();
 			if (!user || !user.role) {
 				logger.warn(`User or role not found for user ID: ${user_id}`);
 				return [];
 			}
 
+			user._id = user._id.toString();
 			// Fetch the role from the file-based roles configuration
 			const role = configRoles.find((r) => r._id === user.role);
 			if (!role) {
@@ -362,10 +363,14 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const recentUsers = await this.UserModel.find({ lastActiveAt: { $ne: null } })
 				.sort({ lastActiveAt: -1 })
 				.limit(5)
-				.select('email username lastActiveAt');
+				.select('email username lastActiveAt')
+				.lean();
 
 			logger.debug('Retrieved recent user activities');
-			return recentUsers.map((user) => user.toJSON() as User);
+			return recentUsers.map((user) => {
+				user._id = user._id.toString();
+				return user as User;
+			});
 		} catch (error) {
 			logger.error(`Failed to retrieve recent user activities: ${(error as Error).message}`);
 			throw error;
@@ -375,8 +380,12 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Check user role
 	async checkUserRole(user_id: string, role_name: string): Promise<boolean> {
 		try {
-			const user = await this.UserModel.findById(user_id);
-			return user?.role === role_name;
+			const user = await this.UserModel.findById(user_id).lean();
+			if (user) {
+				user._id = user._id.toString();
+				return user.role === role_name;
+			}
+			return false;
 		} catch (error) {
 			logger.error(`Failed to check user role: ${(error as Error).message}`);
 			throw error;

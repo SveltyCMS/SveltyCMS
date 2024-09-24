@@ -31,6 +31,8 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		const { user, permissions, theme } = locals;
 		const { language, collection: collectionName } = params;
 
+		logger.debug(`Layout server load started. Language: ${language}, Collection: ${collectionName}`);
+
 		// Ensure the user is authenticated
 		if (!user) {
 			logger.warn('User not authenticated, redirecting to login.');
@@ -51,11 +53,9 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 
 		// Fetch collections
 		const collections = await getCollections();
-
 		// Log available collection names for debugging
 		const collectionNames = Object.values(collections).map((c) => c.name);
 		logger.debug(`Available collections: ${collectionNames.join(', ')}`);
-
 		// Log the requested collection name
 		logger.debug(`Requested collection name: ${collectionName}`);
 
@@ -101,12 +101,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			throw error(403, 'No Access to this collection');
 		}
 
-		return {
-			user,
-			theme: theme || DEFAULT_THEME,
-			collection,
-			language
-		};
+		return { theme: theme || DEFAULT_THEME, language };
 	} catch (err) {
 		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);
 		throw err;
