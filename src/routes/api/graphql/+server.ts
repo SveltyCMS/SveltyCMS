@@ -6,17 +6,14 @@
  * - Collection-specific schemas and resolvers
  * - User-related schemas and resolvers
  * - Media-related schemas and resolvers
- *
- * It also handles:
- * - Redis client initialization (if enabled)
- * - GraphQL Yoga server setup
- * - Request handling for both GET and POST methods
+ * - Access management permission definition and checking
  *
  * Features:
  * - Dynamic schema generation based on registered collections
  * - Integration with Redis for caching (optional)
  * - Error handling and logging
  * - Support for various query types (collections, users, media)
+ * - Permission-based access control for access management
  *
  * Usage:
  * This endpoint handles GraphQL queries at /api/graphql
@@ -36,109 +33,148 @@ import { dbAdapter } from '@src/databases/db';
 // Redis
 import { createClient } from 'redis';
 
+// Permission Management
+import { registerPermission, checkUserPermission, PermissionConfig } from '@src/auth/permissionManager';
+import { PermissionAction, PermissionType } from '@root/config/permissions';
+
 // System Logger
 import logger from '@src/utils/logger';
+
+// Define and register the access management permission
+const accessManagementPermission: PermissionConfig = {
+  contextId: 'config/accessManagement',
+  name: 'Access Management',
+  action: PermissionAction.MANAGE,
+  contextType: PermissionType.CONFIGURATION,
+  description: 'Allows management of user access and permissions'
+};
+registerPermission(accessManagementPermission);
 
 // Initialize Redis client if needed
 let redisClient: ReturnType<typeof createClient> | null = null;
 
 if (privateEnv.USE_REDIS === true) {
-	logger.info('Initializing Redis client');
-	// Create Redis client
-	redisClient = createClient({
-		url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
-		password: privateEnv.REDIS_PASSWORD
-	});
+  logger.info('Initializing Redis client');
+  // Create Redis client
+  redisClient = createClient({
+    url: `redis://${privateEnv.REDIS_HOST}:${privateEnv.REDIS_PORT}`,
+    password: privateEnv.REDIS_PASSWORD
+  });
 
-	// Connect to Redis
-	redisClient.on('error', (err: Error) => {
-		logger.error('Redis error: ', err);
-	});
+  // Connect to Redis
+  redisClient.on('error', (err: Error) => {
+    logger.error('Redis error: ', err);
+  });
 
-	redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
+  redisClient.connect().catch((err) => logger.error('Redis connection error: ', err));
 }
 
 // Ensure Redis client is properly disconnected on shutdown
 async function cleanupRedis() {
-	if (redisClient) {
-		try {
-			await redisClient.quit();
-			logger.info('Redis client disconnected gracefully');
-		} catch (err) {
-			logger.error('Error disconnecting Redis client: ', err);
-		}
-	}
+  if (redisClient) {
+    try {
+      await redisClient.quit();
+      logger.info('Redis client disconnected gracefully');
+    } catch (err) {
+      logger.error('Error disconnecting Redis client: ', err);
+    }
+  }
 }
 
 // Setup GraphQL schema and resolvers
 async function setupGraphQL() {
-	try {
-		logger.info('Setting up GraphQL schema and resolvers');
-		const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
+  try {
+    logger.info('Setting up GraphQL schema and resolvers');
+    const { typeDefs: collectionsTypeDefs, collections } = await registerCollections();
 
-		const typeDefs = `
-            ${collectionsTypeDefs}
-            ${userTypeDefs()}
-            ${mediaTypeDefs()}
-            type Query {
-                ${Object.values(collections)
-									.map((collection) => `${collection.name}: [${collection.name}]`)
-									.join('\n')}
-                users: [User]
-                mediaImages: [MediaImage]
-                mediaDocuments: [MediaDocument]
-                mediaAudio: [MediaAudio]
-                mediaVideos: [MediaVideo]
-                mediaRemote: [MediaRemote]
-            }
-        `;
+    const typeDefs = `
+      ${collectionsTypeDefs}
+      ${userTypeDefs()}
+      ${mediaTypeDefs()}
+      
+      type AccessManagementPermission {
+        contextId: String!
+        name: String!
+        action: String!
+        contextType: String!
+        description: String
+      }
+      
+      type Query {
+        ${Object.values(collections)
+          .map((collection) => `${collection.name}: [${collection.name}]`)
+          .join('\n')}
+        users: [User]
+        mediaImages: [MediaImage]
+        mediaDocuments: [MediaDocument]
+        mediaAudio: [MediaAudio]
+        mediaVideos: [MediaVideo]
+        mediaRemote: [MediaRemote]
+        accessManagementPermission: AccessManagementPermission
+      }
+    `;
 
-		const resolvers = {
-			Query: {
-				...(await collectionsResolvers(redisClient, privateEnv)),
-				...userResolvers(dbAdapter),
-				...mediaResolvers(dbAdapter)
-			}
-		};
+    const resolvers = {
+      Query: {
+        ...(await collectionsResolvers(redisClient, privateEnv)),
+        ...userResolvers(dbAdapter),
+        ...mediaResolvers(dbAdapter),
+        accessManagementPermission: async (_, __, context) => {
+          const { user } = context;
+          if (!user) {
+            throw new Error('Unauthorized');
+          }
+          const { hasPermission } = await checkUserPermission(user, accessManagementPermission);
+          if (!hasPermission) {
+            throw new Error('Forbidden');
+          }
+          return accessManagementPermission;
+        }
+      }
+    };
 
-		const yogaApp = createYoga<RequestEvent>({
-			schema: createSchema({
-				typeDefs,
-				resolvers
-			}),
-			graphqlEndpoint: '/api/graphql',
-			fetchAPI: globalThis
-		});
+    const yogaApp = createYoga<RequestEvent>({
+      schema: createSchema({
+        typeDefs,
+        resolvers
+      }),
+      graphqlEndpoint: '/api/graphql',
+      fetchAPI: globalThis,
+      context: async (event: RequestEvent) => {
+        // Assuming user is added to event.locals during authentication
+        return { user: event.locals.user };
+      }
+    });
 
-		logger.info('GraphQL setup completed successfully');
-		return yogaApp;
-	} catch (error) {
-		logger.error('Error setting up GraphQL: ', error);
-		throw error;
-	}
+    logger.info('GraphQL setup completed successfully');
+    return yogaApp;
+  } catch (error) {
+    logger.error('Error setting up GraphQL: ', error);
+    throw error;
+  }
 }
 
 const yogaAppPromise = setupGraphQL();
 
 const handler = async (event: RequestEvent) => {
-	try {
-		const yogaApp = await yogaAppPromise;
-		const response = await yogaApp.handleRequest(event.request, event);
-		logger.info('GraphQL request handled successfully', { status: response.status });
-		return new Response(response.body, {
-			status: response.status,
-			headers: response.headers
-		});
-	} catch (error) {
-		logger.error('Error handling GraphQL request: ', error);
-		return new Response('Internal Server Error', { status: 500 });
-	}
+  try {
+    const yogaApp = await yogaAppPromise;
+    const response = await yogaApp.handleRequest(event.request, event);
+    logger.info('GraphQL request handled successfully', { status: response.status });
+    return new Response(response.body, {
+      status: response.status,
+      headers: response.headers
+    });
+  } catch (error) {
+    logger.error('Error handling GraphQL request: ', error);
+    return new Response('Internal Server Error', { status: 500 });
+  }
 };
 
 // Ensure Redis is disconnected when the server shuts down
 if (typeof process !== 'undefined') {
-	process.on('SIGINT', cleanupRedis);
-	process.on('SIGTERM', cleanupRedis);
+  process.on('SIGINT', cleanupRedis);
+  process.on('SIGTERM', cleanupRedis);
 }
 
 // Export the handlers for GET and POST requests
