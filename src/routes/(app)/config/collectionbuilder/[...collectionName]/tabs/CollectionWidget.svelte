@@ -67,10 +67,13 @@
 				if (!r) return;
 				const { selectedWidget } = r;
 				if (selectedWidget) {
-					// Update the targetWidget store
-					targetWidget.set({ widget: { key: selectedWidget, Name: selectedWidget } });
-					// Call modalWidgetForm with the updated targetWidget
-					modalWidgetForm($targetWidget);
+					// Create a new widget object with the selected widget data
+					const newWidget = {
+						widget: { key: selectedWidget, Name: selectedWidget },
+						GuiFields: getGuiFields({ key: selectedWidget }, widgets[selectedWidget].GuiSchema)
+					};
+					// Call modalWidgetForm with the new widget object
+					modalWidgetForm(newWidget);
 				}
 			}
 		};
@@ -86,7 +89,7 @@
 			component: c,
 			title: 'Define your Widget',
 			body: 'Setup your widget and then press Save.',
-			value: selectedWidget, // Pass the selected widget	as the initial value
+			value: selectedWidget, // Pass the selected widget as the initial value
 			response: (r: any) => {
 				if (!r) return;
 				// Find the index of the existing widget based on its ID
@@ -99,10 +102,6 @@
 						{ ...r }, // Update the existing widget
 						...fields.slice(existingIndex + 1) // Copy widgets after the updated one
 					];
-					collectionValue.update((c) => {
-						c.fields = fields;
-						return c;
-					});
 				} else {
 					// If the existing widget is not found, add it as a new widget
 					const newField = {
@@ -110,11 +109,12 @@
 						...r
 					};
 					fields = [...fields, newField];
-					collectionValue.update((c) => {
-						c.fields = fields;
-						return c;
-					});
 				}
+				// Update the collectionValue store
+				collectionValue.update((c) => {
+					c.fields = fields;
+					return c;
+				});
 			}
 		};
 		modalStore.trigger(modal);
@@ -187,7 +187,7 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button on:click={modalSelectWidget} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
+			<button on:click={() => modalSelectWidget(null)} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
 		</div>
 		<div class=" flex items-center justify-between">
 			<button type="button" on:click={() => ($tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>

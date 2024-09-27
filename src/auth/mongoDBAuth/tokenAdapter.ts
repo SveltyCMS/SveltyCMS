@@ -39,9 +39,7 @@ export const TokenSchema = new Schema(
 	{ timestamps: true }
 );
 
-/**
- * Custom Error class for Token-related errors.
- */
+// Custom Error class for Token-related errors
 class TokenError extends Error {
 	constructor(message: string) {
 		super(message);
@@ -70,11 +68,11 @@ export class TokenAdapter implements Partial<authDBInterface> {
 				user_id: data.user_id,
 				token,
 				email: data.email,
-				type: data.type,
-				expires: Math.floor(Date.now() / 1000) + data.expires // Store as Unix timestamp in seconds
+				expires: Math.floor(Date.now() / 1000) + data.expires,
+				type: data.type
 			});
 			await newToken.save();
-			this.log('debug', 'Token created', { user_id: data.user_id });
+			this.log('debug', 'Token created', { user_id: data.user_id, type: data.type });
 			return token;
 		} catch (error) {
 			this.log('error', 'Failed to create token', { error: (error as Error).message });
@@ -83,21 +81,24 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	}
 
 	// Validate a token
-	async validateToken(token: string, user_id: string, type: string): Promise<{ success: boolean; message: string }> {
+	async validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }> {
 		try {
-			// Ensure 'type' exists in your Token schema
-			const tokenDoc = await this.TokenModel.findOne({ token, user_id, type } as any).lean();
+			const query: FilterQuery<Token & Document> = { token };
+			if (user_id) query.user_id = user_id;
+			if (type) query.type = type;
+
+			const tokenDoc = await this.TokenModel.findOne(query).lean();
 			if (tokenDoc) {
 				if (tokenDoc.expires > Math.floor(Date.now() / 1000)) {
 					// Compare using Unix timestamp in seconds
-					this.log('debug', 'Token validated', { user_id });
-					return { success: true, message: 'Token is valid' };
+					this.log('debug', 'Token validated', { user_id: tokenDoc.user_id, type: tokenDoc.type });
+					return { success: true, message: 'Token is valid', email: tokenDoc.email };
 				} else {
-					this.log('warn', 'Expired token', { user_id });
+					this.log('warn', 'Expired token', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 					return { success: false, message: 'Token is expired' };
 				}
 			} else {
-				this.log('warn', 'Invalid token', { user_id });
+				this.log('warn', 'Invalid token', { token });
 				return { success: false, message: 'Token is invalid' };
 			}
 		} catch (error) {
@@ -107,24 +108,25 @@ export class TokenAdapter implements Partial<authDBInterface> {
 	}
 
 	// Consume a token
-	async consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }> {
+	async consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }> {
 		try {
-			// Create a query filter with explicit casting
-			const query = { token, user_id, type } as FilterQuery<Token & Document>;
+			const query: FilterQuery<Token & Document> = { token };
+			if (user_id) query.user_id = user_id;
+			if (type) query.type = type;
 
 			const tokenDoc = await this.TokenModel.findOneAndDelete(query).lean();
 
 			if (tokenDoc) {
 				if (tokenDoc.expires > Math.floor(Date.now() / 1000)) {
 					// Compare using Unix timestamp in seconds
-					this.log('debug', 'Token consumed', { user_id });
+					this.log('debug', 'Token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 					return { status: true, message: 'Token is valid and consumed' };
 				} else {
-					this.log('warn', 'Expired token consumed', { user_id });
+					this.log('warn', 'Expired token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 					return { status: false, message: 'Token is expired' };
 				}
 			} else {
-				this.log('warn', 'Invalid token consumption attempt', { user_id });
+				this.log('warn', 'Invalid token consumption attempt', { token });
 				return { status: false, message: 'Token is invalid' };
 			}
 		} catch (error) {

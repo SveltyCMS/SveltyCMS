@@ -107,7 +107,9 @@
 
 			<div class="flex gap-2">
 				<button class="variant-outline-secondary btn" on:click={parent.onClose}>{m.button_cancel()}</button>
-				<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+				<button class="variant-filled-tertiary btn dark:variant-filled-primary {parent.buttonPositive}" on:click={onFormSubmit}
+					>{m.button_save()}
+				</button>
 			</div>
 		</footer>
 	</div>

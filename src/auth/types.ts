@@ -164,8 +164,10 @@ export interface Token {
 	_id: string; // Unique identifier for the token
 	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
-	email?: string; // Email associated with the token
+	email: string; // Email associated with the token
 	expires: number; // When the token expires (Unix timestamp in seconds)
+	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
+
 }
 
 // Collection Interface

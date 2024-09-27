@@ -196,7 +196,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 				headers: { 'Content-Type': 'application/json' }
 			});
 		}
-		return redirect(302, `/login?redirect=${encodeURIComponent(pathname)}`);
+		return redirect(302, '/login');
 	}
 
 	// Redirect authenticated users away from public routes

@@ -248,8 +248,8 @@ async function initializeAdapters(): Promise<void> {
 		logger.info('Adapters initialized successfully');
 	} catch (error) {
 		logger.error(`Error initializing adapters: ${(error as Error).message}`, { error });
-		initializationPromise = null;
-		throw error;
+		isInitialized = false; // Reset initialization flag on error
+		throw error; // Re-throw the error to be caught by the promise
 	}
 }
 
