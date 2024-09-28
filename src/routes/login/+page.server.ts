@@ -190,7 +190,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				if (!needSignIn && user && user._id) {
 					// Create session and set cookie
-					const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+					const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 					const session = await auth.createSession({ user_id: user._id, expires });
 					logger.debug(`Session created: ${JSON.stringify(session)}`);
 					const sessionCookie = auth.createSessionCookie(session);
@@ -306,7 +306,8 @@ export const actions: Actions = {
 			});
 
 			// Ensure the session is created and the cookie is set
-			const session = await auth.createSession({ user_id: resp.user._id, expires: new Date(Date.now() + 3600 * 1000) });
+			const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
+			const session = await auth.createSession({ user_id: resp.user._id, expires });
 			const sessionCookie = auth.createSessionCookie(session);
 			event.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 
@@ -333,26 +334,38 @@ export const actions: Actions = {
 		const lang = signUpOAuthForm.data.lang;
 		logger.debug(`lang: ${lang}`);
 
+		const googleAuthClient = await googleAuth();
+		if (!googleAuthClient) {
+			logger.error('Google OAuth client is not initialized');
+			return fail(500, { message: 'Google OAuth is not available' });
+		}
+
 		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
 
 		try {
-			const redirectUrl = googleAuth!.generateAuthUrl({
+			const authUrl = googleAuthClient.generateAuthUrl({
 				access_type: 'offline',
-				scope: scopes,
-				redirect_uri: 'http://localhost:5173/login/oauth'
+				scope: scopes.join(' '), // Join scopes with a space
+				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 			});
-			logger.debug(`Generated redirect URL: ${redirectUrl}`);
 
-			if (!redirectUrl) {
+			logger.debug(`Generated redirect URL: ${authUrl}`);
+
+			if (!authUrl) {
 				logger.error('Error during OAuth callback: Redirect URL not generated');
-				throw error(500, 'Failed to generate redirect URL.');
+				return fail(500, { message: 'Failed to generate redirect URL.' });
 			} else {
-				logger.debug(`Redirecting to: ${redirectUrl}`);
-				throw redirect(307, redirectUrl);
+				// Instead of redirecting, render the OAuth page
+				return {
+					status: 200,
+					body: {
+						authUrl
+					}
+				};
 			}
 		} catch (err) {
-			logger.error(`Error in OAuth action: ${err}`);
-			throw error(500, 'An error occurred during OAuth initialization');
+			logger.error(`Error in OAuth action: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
+			return fail(500, { message: 'An error occurred during OAuth initialization' });
 		}
 	},
 
@@ -500,9 +513,11 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			}
 
 			// Create User Session
-			const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+			const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 			const session = await auth.createSession({ user_id: user._id, expires });
 			logger.debug(`Session created: ${JSON.stringify(session)}`);
+
+			// Set the credentials cookie
 			const sessionCookie = auth.createSessionCookie(session);
 			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
 			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'password' });
@@ -539,7 +554,7 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 		if (result.status) {
 			try {
 				// Create User Session
-				const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+				const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 				const session = await auth.createSession({ user_id: user._id, expires });
 				logger.debug(`Session created: ${JSON.stringify(session)}`);
 				const sessionCookie = auth.createSessionCookie(session);
@@ -560,10 +575,12 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 // Function create First admin USER account and creating a session.
 async function FirstUsersignUp(username: string, email: string, password: string, cookies: Cookies) {
 	logger.debug(`FirstUsersignUp called with username: ${username}, email: ${email}`);
+
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
+
 	try {
 		// Check if a user already exists
 		const userCount = await auth.getUserCount();
@@ -600,9 +617,14 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Failed to create user' };
 		}
 
-		const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+		const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id, expires });
+		const session = await auth.createSession({
+			user_id: user._id,
+			expires
+		});
+
+		// Set session cookie
 		if (!session || !session._id) {
 			logger.error('Session creation failed');
 			return { status: false, message: 'Failed to create session' };
@@ -642,9 +664,12 @@ async function finishRegistration(username: string, email: string, password: str
 			isRegistered: true
 		});
 
-		const expires = new Date(Date.now() + 3600 * 1000); // Add 1 hour to current time
+		const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 		// Create User Session
-		const session = await auth.createSession({ user_id: user._id.toString(), expires });
+		const session = await auth.createSession({
+			user_id: user._id.toString(),
+			expires
+		});
 		const sessionCookie = auth.createSessionCookie(session);
 		// Set the credentials cookie
 		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);

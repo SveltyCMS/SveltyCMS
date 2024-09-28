@@ -1,3 +1,8 @@
+<!-- 
+@src/routes/login/oauth/+page.svelte
+@description OAuth login page 
+-->
+
 <script lang="ts">
 	import type { PageData } from './$types';
 
@@ -9,13 +14,10 @@
 	import * as m from '@src/paraglide/messages';
 
 	export let data: PageData;
-
-	// Use data here, for example for conditional rendering:
 	let isLoading = true;
 
 	if (data) {
-		isLoading = false;
-		// Process or display data
+		isLoading = false; // Process or display data
 	}
 </script>
 
@@ -23,7 +25,7 @@
 	{#if isLoading}
 		<Loading />
 	{:else}
-		<form class="card m-2 flex flex-col items-center gap-2 rounded border p-2 sm:p-6" method="post">
+		<form class="card m-2 flex flex-col items-center gap-2 rounded border p-2 sm:p-6" method="post" action="?/OAuth">
 			<!-- CSS Logo -->
 			<SveltyCMSLogoFull />
 
