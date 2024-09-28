@@ -140,14 +140,14 @@ export interface User {
 	locale?: string; // Locale of the user
 	avatar?: string; // URL of the user's avatar image
 	lastAuthMethod?: string; // The last authentication method used by the user
-	lastActiveAt?: number; // The last time the user was active (Unix timestamp in seconds)
-	expiresAt?: number; // When the reset token expires (Unix timestamp in seconds)
+	lastActiveAt?: Date; // The last time the user was active (ISO date string)
+	expiresAt?: Date; // When the reset token expires (ISO date string)
 	isRegistered?: boolean; // Indicates if the user has completed registration
 	failedAttempts?: number; // Tracks the number of consecutive failed login attempts
 	blocked?: boolean; // Indicates if the user is blocked
-	resetRequestedAt?: number; // The last time the user requested a password reset (Unix timestamp in seconds)
+	resetRequestedAt?: Date; // The last time the user requested a password reset (ISO date string)
 	resetToken?: string; // Token for resetting the user's password
-	lockoutUntil?: number | null; // Time until which the user is locked out of their account (Unix timestamp in seconds)
+	lockoutUntil?: Date | null; // Time until which the user is locked out of their account (ISO date string)
 	is2FAEnabled?: boolean; // Indicates if the user has enabled two-factor authentication
 	permissions: string[]; // Set of permissions associated with the user
 }
@@ -156,7 +156,7 @@ export interface User {
 export interface Session {
 	_id: string; // Unique identifier for the session
 	user_id: string; // The ID of the user who owns the session
-	expires: number; // When the session expires (Unix timestamp in seconds)
+	expires: Date; // When the session expires (ISO date string)
 }
 
 // Token Interface
@@ -165,9 +165,8 @@ export interface Token {
 	user_id: string; // The ID of the user who owns the token
 	token: string; // The token string
 	email: string; // Email associated with the token
-	expires: number; // When the token expires (Unix timestamp in seconds)
+	expires: Date; // When the session expires (ISO date string)
 	type: string; // Type of the token (e.g., 'create', 'register', 'reset')
-
 }
 
 // Collection Interface
@@ -186,7 +185,7 @@ export type Cookie = {
 		sameSite: boolean | 'lax' | 'strict' | 'none' | undefined;
 		path: string;
 		httpOnly: boolean;
-		expires: number; // Expiration date of the cookie as a Unix timestamp in seconds
+		expires: Date; // Expiration date of the cookie (ISO date string)
 		secure: boolean;
 	};
 };
@@ -198,7 +197,7 @@ export interface RateLimit {
 	limit: number; // Maximum allowed actions
 	windowMs: number; // Time window in milliseconds
 	current: number; // Current count of actions performed
-	lastActionAt: number; // Last action timestamp (Unix timestamp in seconds)
+	lastActionAt: string; // Last action timestamp (ISO date string)
 }
 
 // Icon and Color Mapping for Permissions

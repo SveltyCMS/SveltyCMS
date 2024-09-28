@@ -14,32 +14,32 @@
 import type { User, Session, Token } from './types';
 
 // Pagination and Sorting Options Types
-type SortOption = { [key: string]: 1 | -1 } | [string, 1 | -1][];
-type PaginationOption = { limit?: number; skip?: number; sort?: SortOption; filter?: object };
+type SortOption = { [key: string]: 'asc' | 'desc' } | [string, 'asc' | 'desc'][];
+type PaginationOption = { limit?: number; offset?: number; sort?: SortOption; filter?: Record<string, unknown> };
 
 export interface authDBInterface {
 	// User Management Methods
-	createUser(userData: Partial<User>): Promise<User>;
-	updateUserAttributes(user_id: string, userData: Partial<User>): Promise<User>;
-	deleteUser(user_id: string): Promise<void>;
-	getUserById(user_id: string): Promise<User | null>;
-	getUserByEmail(email: string): Promise<User | null>;
-	getAllUsers(options?: PaginationOption): Promise<User[]>;
-	getUserCount(filter?: object): Promise<number>;
+	createUser(userData: Partial<User>): Promise<User>; // Create a new user
+	updateUserAttributes(user_id: string, userData: Partial<User>): Promise<User>; // Edit a user
+	deleteUser(user_id: string): Promise<void>; // Delete a user
+	getUserById(user_id: string): Promise<User | null>; // Get a user by ID
+	getUserByEmail(email: string): Promise<User | null>; // Get a user by email
+	getAllUsers(options?: PaginationOption): Promise<User[]>; // Get all users
+	getUserCount(filter?: Record<string, unknown>): Promise<number>; // Get the count of users
 
 	// Session Management Methods
-	createSession(sessionData: { user_id: string; expires: number }): Promise<Session>; // Expires is now Unix timestamp (number)
-	updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session>; // Expires is now Unix timestamp (number)
-	deleteSession(session_id: string): Promise<void>;
-	deleteExpiredSessions(): Promise<number>; // Return number of deleted sessions
-	validateSession(session_id: string): Promise<User | null>;
-	invalidateAllUserSessions(user_id: string): Promise<void>;
-	getActiveSessions(user_id: string): Promise<Session[]>;
+	createSession(sessionData: { user_id: string; expires: Date }): Promise<Session>; // Create a new session
+	updateSessionExpiry(session_id: string, newExpiry: Date): Promise<Session>; // Update the expiry of an existing session
+	deleteSession(session_id: string): Promise<void>; // Delete a session
+	deleteExpiredSessions(): Promise<number>; // Delete expired sessions
+	validateSession(session_id: string): Promise<User | null>; // Validate a session
+	invalidateAllUserSessions(user_id: string): Promise<void>; // Invalidate all sessions for a user
+	getActiveSessions(user_id: string): Promise<Session[]>; // Get active sessions for a user
 
 	// Token Management Methods
-	createToken(data: { user_id: string; email: string; expires: number; type: string }): Promise<string>;
-	validateToken(token: string, user_id: string, type: string): Promise<{ success: boolean; message: string }>;
-	consumeToken(token: string, user_id: string, type: string): Promise<{ status: boolean; message: string }>;
-	getAllTokens(filter?: object): Promise<Token[]>;
-	deleteExpiredTokens(): Promise<number>;
+	createToken(data: { user_id: string; email: string; expires: Date; type: string }): Promise<string>; // Create a new token
+	validateToken(token: string, user_id?: string, type?: string): Promise<{ success: boolean; message: string; email?: string }>; // Validate a token
+	consumeToken(token: string, user_id?: string, type?: string): Promise<{ status: boolean; message: string }>; // Consume a token
+	getAllTokens(filter?: Record<string, unknown>): Promise<Token[]>; // Get all tokens
+	deleteExpiredTokens(): Promise<number>; // Delete expired tokens
 }

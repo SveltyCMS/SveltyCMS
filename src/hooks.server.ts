@@ -135,13 +135,15 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<any
 		try {
 			user = await auth.validateSession({ session_id });
 			if (user) {
-				await cacheStore.set(session_id, user, Math.floor(Date.now() / 1000) + 3600); // Cache for 1 hour, using Unix timestamp
+				const expiresAt = new Date(Date.now() + 3600 * 1000); // Cache for 1 hour
+				await cacheStore.set(session_id, user, expiresAt);
 			}
 		} catch (error) {
 			logger.error(`Session validation error: ${error}`);
 		}
 	} else {
-		await cacheStore.set(session_id, user, Math.floor(Date.now() / 1000) + 3600); // Refresh cache expiration, using Unix timestamp
+		const expiresAt = new Date(Date.now() + 3600 * 1000); // Refresh cache expiration
+		await cacheStore.set(session_id, user, expiresAt);
 	}
 	return user;
 };
@@ -280,7 +282,8 @@ const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: str
 	const response = await resolve(event);
 	const responseData = await response.json();
 
-	await cacheStore.set(cacheKey, responseData, 300); // Cache for 5 minutes
+	const expiresAt = new Date(Date.now() + 300 * 1000); // Cache for 5 minutes
+	await cacheStore.set(cacheKey, responseData, expiresAt);
 
 	return createJsonResponse(responseData, 200);
 };

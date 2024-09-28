@@ -86,7 +86,7 @@ export class Auth {
 	}
 
 	// Create a new user with hashed password
-	async createUser(userData: Omit<Partial<User>, '_id'>): Promise<User> {
+	async createUser(userData: Partial<User>): Promise<User> {
 		try {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
 
@@ -116,7 +116,6 @@ export class Auth {
 				lastAuthMethod,
 				isRegistered,
 				failedAttempts: 0
-				// No need to set createdAt or updatedAt
 			});
 
 			if (!user || !user._id) {
@@ -147,7 +146,6 @@ export class Auth {
 			if (attributes.email === null) {
 				attributes.email = undefined;
 			}
-			// No need to manually set updatedAt, MongoDB will handle this automatically
 			await this.db.updateUserAttributes(user_id, attributes);
 			logger.info(`User attributes updated for user ID: ${user_id}`);
 		} catch (error) {
@@ -172,11 +170,11 @@ export class Auth {
 	// Create a session, valid for 1 hour by default
 	async createSession({
 		user_id,
-		expires = Math.floor(Date.now() / 1000) + (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS),
+		expires = new Date(Date.now() + (privateEnv.SESSION_EXPIRATION_SECONDS ?? DEFAULT_SESSION_EXPIRATION_SECONDS) * 1000),
 		isExtended = false
 	}: {
 		user_id: string;
-		expires?: number;
+		expires?: Date;
 		isExtended?: boolean;
 	}): Promise<Session> {
 		if (!user_id) {
@@ -186,19 +184,27 @@ export class Auth {
 
 		logger.debug(`Creating session for user ID: ${user_id}`);
 
+		// Ensure expires is a Date object
+		if (!(expires instanceof Date)) {
+			expires = new Date(expires);
+		}
+
 		// Adjust expiration time if the session is extended
-		expires = isExtended ? expires * 2 : expires;
-		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires}`);
+		if (isExtended) {
+			expires.setTime(expires.getTime() * 2);
+		}
+		logger.info(`Creating new session for user ID: ${user_id} with expiry: ${expires.toISOString()}`);
 
 		const session = await this.db.createSession({
 			user_id,
-			expires // Passes the Unix timestamp for expiration
+			expires
 		});
 
 		const user = await this.db.getUserById(user_id);
 		if (user) {
 			// Store the session with the same expiry in the session store
-			await this.sessionStore.set(session._id, user, expires);
+			const expirationInSeconds = Math.floor((expires.getTime() - Date.now()) / 1000);
+			await this.sessionStore.set(session._id, user, expirationInSeconds);
 		} else {
 			logger.error(`User not found for ID: ${user_id}`);
 			throw new Error(`User not found for ID: ${user_id}`);
@@ -413,45 +419,45 @@ export class Auth {
 					: `permissions: ${JSON.stringify(cur.permissions, null, 2)}`;
 
 				return `{
-				_id: '${cur._id}',
-				name: '${cur.name}',
-				description: '${cur.description}',
-				${isAdminString}
-				${permissionsString}
-			}`;
+			_id: '${cur._id}',
+			name: '${cur.name}',
+			description: '${cur.description}',
+			${isAdminString}
+			${permissionsString}
+		}`;
 			})
 			.join(',\n');
 
 		// Construct the file content
 		const content = `
-	/**
-	* @file config/roles.ts
-    * @description  Role configuration file
-    */
-	
-	import type { Role } from '../src/auth/types';
-	import { permissions } from './permissions';
-	
-	export const roles: Role[] = [
-	${rolesArrayString}
-	];
-	
-	// Function to register a new role
-	export function registerRole(newRole: Role): void {
-		const exists = roles.some((role) => role._id === newRole._id); 
-		if (!exists) {
-			roles.push(newRole);
-		}
+/**
+* @file config/roles.ts
+* @description  Role configuration file
+*/
+
+import type { Role } from '../src/auth/types';
+import { permissions } from './permissions';
+
+export const roles: Role[] = [
+${rolesArrayString}
+];
+
+// Function to register a new role
+export function registerRole(newRole: Role): void {
+	const exists = roles.some((role) => role._id === newRole._id); 
+	if (!exists) {
+		roles.push(newRole);
 	}
-	
-	// Function to register new permissions, ensuring only unique permissions are added
-	export function setPermissions(newPermissions: Permission[]): void {
-		const uniquePermissions = newPermissions.filter((newPermission) =>
-			!permissions.some((existingPermission) => existingPermission._id === newPermission._id)
-		);
-		permissions = [...permissions, ...uniquePermissions];
-	}
-	`.trim();
+}
+
+// Function to register new permissions, ensuring only unique permissions are added
+export function setPermissions(newPermissions: Permission[]): void {
+	const uniquePermissions = newPermissions.filter((newPermission) =>
+		!permissions.some((existingPermission) => existingPermission._id === newPermission._id)
+	);
+	permissions = [...permissions, ...uniquePermissions];
+}
+`.trim();
 
 		try {
 			await fs.writeFile(configPath, content, 'utf8');
@@ -474,7 +480,7 @@ export class Auth {
 	}
 
 	// Get all tokens
-	async getAllTokens(filter?: object): Promise<Token[]> {
+	async getAllTokens(filter?: Record<string, unknown>): Promise<Token[]> {
 		try {
 			const tokens = await this.db.getAllTokens(filter);
 			logger.debug('All tokens retrieved');
@@ -517,11 +523,11 @@ export class Auth {
 			name: SESSION_COOKIE_NAME,
 			value: session._id,
 			attributes: {
-				sameSite: 'lax',
+				sameSite: 'lax', // Secure by default
 				path: '/',
 				httpOnly: true,
-				expires: Math.floor(session.expires), // Convert to number if it's not already
-				secure: process.env.NODE_ENV === 'production' // This should already be correct
+				expires: session.expires,
+				secure: process.env.NODE_ENV === 'production' // Production by default
 			}
 		};
 	}
@@ -550,7 +556,7 @@ export class Auth {
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
 				if (failedAttempts >= 5) {
-					const lockoutUntil = Math.floor(Date.now() / 1000) + 30 * 60; // lockout for 30 minutes
+					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // lockout for 30 minutes
 					await this.db.updateUserAttributes(user._id, { failedAttempts, lockoutUntil });
 					logger.warn(`User locked out due to too many failed attempts: ${user._id}`);
 					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
@@ -605,7 +611,7 @@ export class Auth {
 	}
 
 	// Create a token, default expires in 1 hour
-	async createToken(user_id: string, expires = 60 * 60 * 1000, type = 'access'): Promise<string> {
+	async createToken(user_id: string, expires = new Date(Date.now() + 60 * 60 * 1000), type = 'access'): Promise<string> {
 		try {
 			const user = await this.db.getUserById(user_id);
 			if (!user) throw new Error('User not found');
@@ -613,7 +619,7 @@ export class Auth {
 			const token = await this.db.createToken({
 				user_id,
 				email: user.email,
-				expires: Math.floor(Date.now() / 1000) + expires / 1000, // Store as Unix timestamp in seconds
+				expires,
 				type
 			});
 			logger.info(`Token created for user ID: ${user_id}`);

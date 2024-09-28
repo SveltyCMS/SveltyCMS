@@ -61,7 +61,7 @@
 
 	// Login Form
 	export let FormSchemaLogin: PageData['loginForm'];
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaLogin, {
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaLogin, {
 		id: 'login',
 		validators: zod(loginFormSchema),
 		// Clear form on success.
@@ -116,7 +116,7 @@
 		errors: forgotErrors,
 		enhance: forgotEnhance,
 		delayed: forgotDelayed
-	} = superForm(FormSchemaForgot, {
+	} = superForm<any>(FormSchemaForgot, {
 		id: 'forgot',
 		validators: zod(forgotFormSchema),
 		// Clear form on success.
@@ -214,7 +214,7 @@
 		errors: resetErrors,
 		enhance: resetEnhance,
 		delayed: resetDelayed
-	} = superForm(FormSchemaReset, {
+	} = superForm<any>(FormSchemaReset, {
 		id: 'reset',
 		validators: zod(resetFormSchema),
 		// Clear form on success.

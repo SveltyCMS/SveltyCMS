@@ -53,15 +53,17 @@ export class RedisCacheStore implements SessionStore {
 	// Set data in Redis
 	async set(key: string, data: User, expirationInSeconds: number): Promise<void> {
 		try {
-			// Encrypt and store data in Redis with expiration
-			const encryptedData = encrypt(JSON.stringify(data));
+			// Set expiration and store data in Redis
+			const expiresAt = new Date(Date.now() + expirationInSeconds * 1000);
+			const dataWithExpiration = { ...data, expiresAt };
+			const encryptedData = encrypt(JSON.stringify(dataWithExpiration));
 			await this.redisClient.set(key, encryptedData, {
 				EX: expirationInSeconds
 			});
 			logger.info(`Data stored in Redis: ${key}`);
 		} catch (error) {
 			logger.error(`Error storing data in Redis: ${error}`);
-			throw error; // Rethrow to ensure the caller is aware of the issue
+			throw error;
 		}
 	}
 
@@ -74,6 +76,12 @@ export class RedisCacheStore implements SessionStore {
 				return null;
 			}
 			const data = JSON.parse(decrypt(encryptedData));
+			const expiresAt = new Date(data.expiresAt);
+			if (expiresAt < new Date()) {
+				await this.delete(key);
+				logger.info(`Expired data removed from Redis: ${key}`);
+				return null;
+			}
 			logger.info(`Data retrieved from Redis: ${key}`);
 			return data;
 		} catch (error) {

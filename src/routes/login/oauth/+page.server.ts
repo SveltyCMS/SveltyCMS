@@ -7,20 +7,20 @@ import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-
 // Auth
 import { google } from 'googleapis';
 import { auth, initializationPromise, googleAuth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth'; // Ensure consistent session cookie usage
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import type { User } from '@src/auth/types';
 
 import { getCollections } from '@src/collections';
+import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 
 // Stores
 import { systemLanguage } from '@stores/store';
+
 // System Logger
 import logger from '@src/utils/logger';
-// Import saveAvatarImage
-import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
@@ -131,10 +131,11 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		logger.debug(`User found or created with ID: ${user._id}`);
 
-		// Create User Session
-		const session = await auth.createSession({ user_id: user._id.toString(), expires: 3600000 });
+		// Create User Session with ISO date string
+		const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
+		const session = await auth.createSession({ user_id: user._id.toString(), expires: expiresAt });
 		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(SESSION_COOKIE_NAME, sessionCookie.value, sessionCookie.attributes); // Consistent cookie handling
+		cookies.set(SESSION_COOKIE_NAME, sessionCookie.value, sessionCookie.attributes);
 
 		// Update user attributes
 		await auth.updateUserAttributes(user._id.toString(), {

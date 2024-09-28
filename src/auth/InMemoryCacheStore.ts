@@ -28,7 +28,7 @@ import logger from '@src/utils/logger';
 
 // In-memory cache store
 export class InMemorySessionStore implements SessionStore {
-	private sessions: Map<string, { user: User; expiresAt: number }> = new Map();
+	private sessions: Map<string, { user: User; expiresAt: Date }> = new Map();
 	private cleanupInterval: NodeJS.Timeout;
 
 	constructor() {
@@ -38,7 +38,7 @@ export class InMemorySessionStore implements SessionStore {
 
 	// Cleanup expired sessions
 	private cleanup() {
-		const now = Math.floor(Date.now() / 1000); // Use Unix timestamp in seconds
+		const now = new Date();
 		for (const [key, session] of this.sessions) {
 			if (session.expiresAt < now) {
 				this.sessions.delete(key);
@@ -50,7 +50,7 @@ export class InMemorySessionStore implements SessionStore {
 	// Get a session by ID
 	async get(session_id: string): Promise<User | null> {
 		const session = this.sessions.get(session_id);
-		if (!session || session.expiresAt < Math.floor(Date.now() / 1000)) {
+		if (!session || session.expiresAt < new Date()) {
 			return null;
 		}
 		return session.user;
@@ -58,10 +58,8 @@ export class InMemorySessionStore implements SessionStore {
 
 	// Set a session with expiration
 	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
-		this.sessions.set(session_id, {
-			user,
-			expiresAt: Math.floor(Date.now() / 1000) + expirationInSeconds // Unix timestamp in seconds
-		});
+		const expiresAt = new Date(Date.now() + expirationInSeconds * 1000);
+		this.sessions.set(session_id, { user, expiresAt });
 		this.evictOldestSession(privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000);
 	}
 
@@ -70,7 +68,7 @@ export class InMemorySessionStore implements SessionStore {
 		if (this.sessions.size <= maxSessions) return;
 
 		let oldestKey: string | null = null;
-		let oldestTimestamp = Infinity;
+		let oldestTimestamp = new Date();
 
 		for (const [key, session] of this.sessions) {
 			if (session.expiresAt < oldestTimestamp) {

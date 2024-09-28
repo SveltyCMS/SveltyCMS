@@ -19,7 +19,6 @@
 
 import type { Model, Token } from './types';
 import crypto from 'crypto';
-
 // System Logger
 import logger from '@src/utils/logger';
 
@@ -37,15 +36,15 @@ function log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additi
 }
 
 // Function to check if the current time is within the token expiration time
-function isWithinExpiration(expiresAt: number): boolean {
-	// Unix timestamp in seconds
-	const currentTime = Math.floor(Date.now() / 1000); // Current time in seconds
-	const bufferTime = 5 * 60; // 5 minutes buffer in seconds
-	return currentTime < expiresAt - bufferTime;
+function isWithinExpiration(expiresAt: string): boolean {
+	const currentTime = new Date();
+	const expirationTime = new Date(expiresAt);
+	const bufferTime = 5 * 60 * 1000; // 5 minutes buffer in milliseconds
+	return currentTime < new Date(expirationTime.getTime() - bufferTime);
 }
 
 // Function to create a new token
-export async function createNewToken(TokenModel: Model<Token>, user_id: string, email: string, expires: number): Promise<string> {
+export async function createNewToken(TokenModel: Model<Token>, user_id: string, email: string, expiresInSeconds: number): Promise<string> {
 	log('debug', 'Creating new token', { user_id, email });
 
 	try {
@@ -60,10 +59,10 @@ export async function createNewToken(TokenModel: Model<Token>, user_id: string, 
 
 		// Generate a random token string using crypto.randomBytes
 		const token = crypto.randomBytes(32).toString('hex'); // 256-bit random token
-		const expiresIn = Math.floor(Date.now() / 1000) + expires; // Unix timestamp in seconds
+		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString(); // Calculate expiration time
 
 		// Insert the new token into the database
-		await TokenModel.create({ user_id, token, email, expires: expiresIn });
+		await TokenModel.create({ user_id, token, email, expires: expiresAt });
 
 		log('info', 'New token created', { user_id });
 		return token; // Return the created token

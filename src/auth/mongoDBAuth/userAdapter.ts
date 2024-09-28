@@ -43,14 +43,14 @@ export const UserSchema = new Schema(
 		locale: String, // Locale of the user
 		avatar: String, // URL of the user's avatar, optional field
 		lastAuthMethod: String, // Last authentication method used by the user, optional field
-		lastActiveAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // Last time the user was active as Unix timestamp, optional field
-		expiresAt: { type: Number }, // Expiry timestamp for the user in seconds, optional field
+		lastActiveAt: { type: Date, default: Date.now }, // Last time the user was active as ISO string, optional field
+		expiresAt: { type: Date }, // Expiration timestamp as ISO string, optional field
 		isRegistered: Boolean, // Registration status of the user, optional field
 		failedAttempts: { type: Number, default: 0 }, // Number of failed login attempts, optional field
 		blocked: Boolean, // Whether the user is blocked, optional field
-		resetRequestedAt: { type: Number }, // Last time the user requested a password reset as Unix timestamp, optional field
+		resetRequestedAt: { type: Date }, // Timestamp for when the user requested a password reset, optional field
 		resetToken: String, // Token for resetting the user's password, optional field
-		lockoutUntil: { type: Number }, // Lockout timestamp for the user as Unix timestamp, optional field
+		lockoutUntil: { type: Date }, // Timestamp for when the user is locked out, optional field
 		is2FAEnabled: Boolean // Whether the user has 2FA enabled, optional field
 	},
 	{
@@ -187,7 +187,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Block a user
 	async blockUser(user_id: string): Promise<void> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, { blocked: true });
+			await this.UserModel.findByIdAndUpdate(user_id, {
+				blocked: true,
+				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
+			});
 			logger.info(`User blocked: ${user_id}`);
 		} catch (error) {
 			logger.error(`Failed to block user: ${(error as Error).message}`);
@@ -198,7 +201,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 	// Unblock a user
 	async unblockUser(user_id: string): Promise<void> {
 		try {
-			await this.UserModel.findByIdAndUpdate(user_id, { blocked: false });
+			await this.UserModel.findByIdAndUpdate(user_id, {
+				blocked: false,
+				lockoutUntil: null // Clear lockoutUntil
+			});
 			logger.info(`User unblocked: ${user_id}`);
 		} catch (error) {
 			logger.error(`Failed to unblock user: ${(error as Error).message}`);
@@ -388,6 +394,45 @@ export class UserAdapter implements Partial<authDBInterface> {
 			return false;
 		} catch (error) {
 			logger.error(`Failed to check user role: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	//  update lastActiveAt
+	async updateLastActiveAt(user_id: string): Promise<void> {
+		try {
+			await this.UserModel.findByIdAndUpdate(user_id, {
+				lastActiveAt: new Date()
+			});
+			logger.debug(`Updated lastActiveAt for user: ${user_id}`);
+		} catch (error) {
+			logger.error(`Failed to update lastActiveAt: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+
+	// Set expiration date
+	async setUserExpiration(user_id: string, expirationDate: Date): Promise<void> {
+		try {
+			await this.UserModel.findByIdAndUpdate(user_id, {
+				expiresAt: expirationDate
+			});
+			logger.debug(`Set expiration date for user: ${user_id}`);
+		} catch (error) {
+			logger.error(`Failed to set user expiration: ${(error as Error).message}`);
+			throw error;
+		}
+	}
+	// check if a user is expired
+	async isUserExpired(user_id: string): Promise<boolean> {
+		try {
+			const user = await this.UserModel.findById(user_id).lean();
+			if (user && user.expiresAt) {
+				return new Date(user.expiresAt) < new Date();
+			}
+			return false;
+		} catch (error) {
+			logger.error(`Failed to check user expiration: ${(error as Error).message}`);
 			throw error;
 		}
 	}

@@ -42,7 +42,7 @@
 	const activeOauth = false;
 	let response: any;
 
-	const { form, constraints, allErrors, errors, enhance, delayed } = superForm(FormSchemaSignUp, {
+	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaSignUp, {
 		id: 'signup',
 		validators: firstUserExists ? zod(signUpFormSchema) : zod(signUpFormSchema.innerType().omit({ token: true })),
 		// Clear form on success.

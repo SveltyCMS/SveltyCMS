@@ -30,10 +30,10 @@ import { UserAdapter } from './userAdapter';
 // Define the Session schema
 export const SessionSchema = new Schema(
 	{
-		user_id: { type: String, required: true }, // ID of the user who owns the session, required field
-		expires: { type: Number, required: true } // Expiry date of the session, required field
+		user_id: { type: String, required: true, index: true }, // User identifier
+		expires: { type: Date, required: true, index: true } // Expiry timestamp
 	},
-	{ timestamps: true }
+	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
 
 export class SessionAdapter implements Partial<authDBInterface> {
@@ -47,36 +47,31 @@ export class SessionAdapter implements Partial<authDBInterface> {
 	}
 
 	// Create a new session
-	async createSession(sessionData: { user_id: string; expires: number }): Promise<Session> {
+	async createSession(sessionData: { user_id: string; expires: Date }): Promise<Session> {
 		try {
-			// Create a new session with the provided data
 			const session = new this.SessionModel(sessionData);
 			await session.save();
 			logger.info(`Session created for user: ${sessionData.user_id}`);
-			const savedSession = session.toObject();
-			savedSession._id = savedSession._id.toString();
-			return savedSession as Session;
+			return this.formatSession(session.toObject());
 		} catch (error) {
 			logger.error('Failed to create session', { error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
 	// Update the expiry of an existing session
-	async updateSessionExpiry(session_id: string, newExpiry: number): Promise<Session> {
+	async updateSessionExpiry(session_id: string, newExpiry: Date): Promise<Session> {
 		try {
-			// Update the session's expiry date
 			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { new: true }).lean();
 			if (!session) {
 				logger.warn('Session not found', { session_id });
 				throw new Error('Session not found');
 			}
-			session._id = session._id.toString();
 			logger.debug('Session expiry updated', { session_id });
-			return session as Session;
+			return this.formatSession(session);
 		} catch (error) {
 			logger.error('Failed to update session expiry', { session_id, error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
@@ -87,19 +82,19 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			logger.info(`Session deleted: ${session_id}`);
 		} catch (error) {
 			logger.error('Failed to delete session', { session_id, error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
 	// Delete expired sessions
 	async deleteExpiredSessions(): Promise<number> {
 		try {
-			const result = await this.SessionModel.deleteMany({ expires: { $lte: Math.floor(Date.now() / 1000) } });
+			const result = await this.SessionModel.deleteMany({ expires: { $lte: new Date() } });
 			logger.info('Expired sessions deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
 		} catch (error) {
 			logger.error('Failed to delete expired sessions', { error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
@@ -112,11 +107,8 @@ export class SessionAdapter implements Partial<authDBInterface> {
 				return null;
 			}
 
-			session._id = session._id.toString();
-			const currentTimestamp = Math.floor(Date.now() / 1000); // Current Unix timestamp in seconds
-
-			if (session.expires <= currentTimestamp) {
-				await this.SessionModel.findByIdAndDelete(session_id); // Clean up expired session
+			if (new Date(session.expires) <= new Date()) {
+				await this.SessionModel.findByIdAndDelete(session_id);
 				logger.warn('Expired session', { session_id });
 				return null;
 			}
@@ -125,7 +117,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			return await this.userAdapter.getUserById(session.user_id);
 		} catch (error) {
 			logger.error('Failed to validate session', { session_id, error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
@@ -136,7 +128,7 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			logger.debug('All sessions invalidated for user', { user_id });
 		} catch (error) {
 			logger.error('Failed to invalidate all user sessions', { user_id, error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
 	}
 
@@ -145,16 +137,21 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		try {
 			const sessions = await this.SessionModel.find({
 				user_id,
-				expires: { $gt: Math.floor(Date.now() / 1000) } // Compare with current timestamp
+				expires: { $gt: new Date() }
 			}).lean();
 			logger.debug('Active sessions retrieved for user', { user_id });
-			return sessions.map((session) => {
-				session._id = session._id.toString();
-				return session as Session;
-			});
+			return sessions.map(this.formatSession);
 		} catch (error) {
 			logger.error('Failed to get active sessions', { user_id, error: (error as Error).message });
-			throw error; // Rethrow the original error after logging
+			throw error;
 		}
+	}
+
+	private formatSession(session: any): Session {
+		return {
+			...session,
+			_id: session._id.toString(),
+			expires: new Date(session.expires) // Ensure expires is a Date object
+		};
 	}
 }

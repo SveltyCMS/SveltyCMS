@@ -7,11 +7,11 @@
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
-
 // Collections
 import { getCollections } from '@src/collections';
+import type { Collections } from '@src/types'; // Assuming you have a type for collections
 
-// System Logs
+// System Loggers
 import logger from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ locals }) => {
@@ -23,11 +23,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 	logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
 	logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
 
-	if (!locals.user) {
+	if (!user) {
+		logger.info('User not authenticated, redirecting to login');
 		throw redirect(302, '/login');
 	}
 
-	let collections;
+	let collections: Collections;
 
 	if (!locals.collections) {
 		try {
@@ -38,12 +39,12 @@ export const load: PageServerLoad = async ({ locals }) => {
 			throw error(500, 'Error fetching collections');
 		}
 	} else {
-		collections = locals.collections;
+		collections = locals.collections as Collections;
 	}
 
 	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
 
-	if (collections && typeof collections === 'object' && Object.keys(collections).length > 0) {
+	if (collections && Object.keys(collections).length > 0) {
 		const firstCollectionKey = Object.keys(collections)[0];
 		const firstCollection = collections[firstCollectionKey];
 

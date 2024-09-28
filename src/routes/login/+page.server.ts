@@ -2,6 +2,7 @@
  * @file src/routes/login/+page.server.ts
  * @description Server-side logic for the login page.
  */
+
 import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 
@@ -22,16 +23,17 @@ import { zod } from 'sveltekit-superforms/adapters';
 import { auth, googleAuth, initializationPromise } from '@src/databases/db';
 import { google } from 'googleapis';
 import type { User } from '@src/auth/types';
+import type { Cookies } from '@sveltejs/kit';
 
 // Stores
 import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
 
-// System Logs
-import logger from '@src/utils/logger';
-
 // Import roles
 import { roles } from '@root/config/roles';
+
+// System Logs
+import logger from '@src/utils/logger';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -119,7 +121,6 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.error('Error fetching user count:', err instanceof Error ? err.message : JSON.stringify(err));
 			throw error(500, 'Could not verify user count');
 		}
-		logger.debug(`First user exists: ${firstUserExists}`);
 
 		const code = url.searchParams.get('code');
 		logger.debug(`Authorization code: ${code}`);
@@ -190,11 +191,13 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 				if (!needSignIn && user && user._id) {
 					// Create session and set cookie
-					const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
-					const session = await auth.createSession({ user_id: user._id, expires });
+					const expiresAt = new Date(Date.now() + 3600 * 1000).toISOString();
+					const session = await auth.createSession({ user_id: user._id, expires: expiresAt });
 					logger.debug(`Session created: ${JSON.stringify(session)}`);
+
 					const sessionCookie = auth.createSessionCookie(session);
 					cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
 
 					throw redirect(303, '/');
@@ -305,11 +308,8 @@ export const actions: Actions = {
 				})
 			});
 
-			// Ensure the session is created and the cookie is set
-			const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
-			const session = await auth.createSession({ user_id: resp.user._id, expires });
-			const sessionCookie = auth.createSessionCookie(session);
-			event.cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			//
+			await createSessionAndSetCookie(resp.user._id, event.cookies);
 
 			// Return message if form is submitted successfully
 			message(signUpForm, 'SignUp User form submitted');
@@ -345,7 +345,7 @@ export const actions: Actions = {
 		try {
 			const authUrl = googleAuthClient.generateAuthUrl({
 				access_type: 'offline',
-				scope: scopes.join(' '), // Join scopes with a space
+				scope: scopes.join(' '),
 				redirect_uri: `${dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD}/login/oauth`
 			});
 
@@ -493,7 +493,22 @@ export const actions: Actions = {
 	}
 };
 
+// Helper function to Create session and set cookie
+async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
+	const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
+
+	const session = await auth.createSession({
+		user_id,
+		expires: expiresAt
+	});
+
+	logger.debug(`Session created: ${JSON.stringify(session)}`);
+	const sessionCookie = auth.createSessionCookie(session);
+	cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+}
+
 // SignIn user with email and password, create session and set cookie
+
 async function signIn(email: string, password: string, isToken: boolean, cookies: Cookies): Promise<{ status: boolean; message?: string }> {
 	logger.debug(`signIn called with email: ${email}, isToken: ${isToken}`);
 
@@ -505,7 +520,6 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 	if (!isToken) {
 		try {
 			const user = await auth.login(email, password);
-			logger.debug(`User returned from login: ${JSON.stringify(user)}`);
 
 			if (!user || !user._id) {
 				logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
@@ -513,13 +527,7 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			}
 
 			// Create User Session
-			const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
-			const session = await auth.createSession({ user_id: user._id, expires });
-			logger.debug(`Session created: ${JSON.stringify(session)}`);
-
-			// Set the credentials cookie
-			const sessionCookie = auth.createSessionCookie(session);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+			await createSessionAndSetCookie(user._id, cookies);
 			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'password' });
 
 			// Fetch collections and redirect to the first available collection
@@ -527,10 +535,15 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 			if (collections && Object.keys(collections).length > 0) {
 				const firstCollectionKey = Object.keys(collections)[0];
 				const firstCollection = collections[firstCollectionKey];
-				const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-				const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
-				logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-				throw redirect(303, redirectUrl);
+				if (firstCollection && firstCollection.name) {
+					const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+					const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+					logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+					throw redirect(303, redirectUrl);
+				} else {
+					logger.error('First collection is invalid or missing name');
+					throw error(500, 'Invalid collection data');
+				}
 			} else {
 				logger.error('No collections found to redirect');
 				throw error(404, 'No collections found');
@@ -554,11 +567,7 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 		if (result.status) {
 			try {
 				// Create User Session
-				const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
-				const session = await auth.createSession({ user_id: user._id, expires });
-				logger.debug(`Session created: ${JSON.stringify(session)}`);
-				const sessionCookie = auth.createSessionCookie(session);
-				cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+				await createSessionAndSetCookie(user._id, cookies);
 				await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
 				return { status: true };
 			} catch (error) {
@@ -617,23 +626,8 @@ async function FirstUsersignUp(username: string, email: string, password: string
 			return { status: false, message: 'Failed to create user' };
 		}
 
-		const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 		// Create User Session
-		const session = await auth.createSession({
-			user_id: user._id,
-			expires
-		});
-
-		// Set session cookie
-		if (!session || !session._id) {
-			logger.error('Session creation failed');
-			return { status: false, message: 'Failed to create session' };
-		}
-		logger.info(`Session created with ID: ${session._id} for user ID: ${user._id}`);
-
-		// Create session cookie and set it
-		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		await createSessionAndSetCookie(user._id, cookies);
 
 		return { status: true, message: 'User created successfully', user: user };
 	} catch (error) {
@@ -664,15 +658,8 @@ async function finishRegistration(username: string, email: string, password: str
 			isRegistered: true
 		});
 
-		const expires = Math.floor(Date.now() / 1000) + 3600; // Add 1 hour to current time in seconds
 		// Create User Session
-		const session = await auth.createSession({
-			user_id: user._id.toString(),
-			expires
-		});
-		const sessionCookie = auth.createSessionCookie(session);
-		// Set the credentials cookie
-		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+		await createSessionAndSetCookie(user._id.toString(), cookies);
 
 		return { status: true };
 	} else {
@@ -686,7 +673,7 @@ interface ForgotPWCheckResult {
 	success?: boolean;
 	message: string;
 	token?: string;
-	expiresIn?: number;
+	expiresIn?: date;
 }
 
 // Function for handling the Forgotten Password
@@ -704,7 +691,8 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const token = await auth.createToken(user._id.toString(), expiresIn);
+		const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
+		const token = await auth.createToken(user._id.toString(), expiresAt);
 
 		return { success: true, message: 'Password reset token sent by Email', token, expiresIn };
 	} catch (err: any) {
@@ -733,8 +721,9 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 
 		if (validate.status) {
 			// Check token expiration
-			const currentTime = Math.floor(Date.now() / 1000);
-			if (currentTime >= expiresIn) {
+			const currentTime = new Date();
+			const expirationTime = new Date(currentTime.getTime() + expiresIn * 1000);
+			if (currentTime >= expirationTime) {
 				logger.warn('Token has expired');
 				return { status: false, message: 'Token has expired' };
 			}
