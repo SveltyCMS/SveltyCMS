@@ -119,8 +119,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 		// Prompt for the database name
 		dbName = await text({
 			message: 'Enter the database name:',
-			placeholder: 'SvelteCMS',
-			initialValue: privateConfigData.DB_NAME || 'SvelteCMS',
+			placeholder: 'SveltyCMS',
+			initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
 			required: true
 		});
 
@@ -178,8 +178,8 @@ export async function configureMongoDB(privateConfigData = {}) {
 		// Database Name
 		dbName = await text({
 			message: 'Enter the database name:',
-			placeholder: 'SvelteCMS',
-			initialValue: privateConfigData.DB_NAME || 'SvelteCMS',
+			placeholder: 'SveltyCMS',
+			initialValue: privateConfigData.DB_NAME || 'SveltyCMS',
 			required: true
 		});
 

@@ -38,15 +38,15 @@ export const startOrInstallPrompt = async () => {
 		// Update Existing Setup
 		message = pc.green('Configuration found. What would you like to do?');
 		options = [
-			{ value: 'install', label: 'Configure SvelteCMS', hint: 'Setup/Configure SvelteCMS' },
-			{ value: 'start', label: 'Start SvelteCMS', hint: 'Launch your SvelteCMS' },
+			{ value: 'install', label: 'Configure SveltyCMS', hint: 'Setup/Configure SveltyCMS' },
+			{ value: 'start', label: 'Start SveltyCMS', hint: 'Launch your SveltyCMS' },
 			{ value: 'exit', label: 'Exit', hint: 'Exit the CLI installer' }
 		];
 	} else {
 		// Fresh Setup
 		message = pc.yellow("No configuration files found. Let's get started with your setup.");
 		options = [
-			{ value: 'install', label: 'Setup your SvelteCMS', hint: 'Setup/Configure SvelteCMS' },
+			{ value: 'install', label: 'Setup your SveltyCMS', hint: 'Setup/Configure SveltyCMS' },
 			{ value: 'exit', label: 'Exit', hint: 'Exit the CLI installer' }
 		];
 	}

@@ -61,7 +61,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		pc.green('Database Configuration:')
 	);
 
-	// Configure SvelteCMS
+	// Configure SveltyCMS
 	const projectDatabase = await select({
 		message: 'Choose your database option:',
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
