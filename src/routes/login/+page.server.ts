@@ -386,13 +386,13 @@ export const actions: Actions = {
 
 		const resp = await signIn(email, password, isToken, event.cookies);
 
-		if (resp.status) {
+		if (resp && resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
 			throw redirect(303, '/');
 		} else {
 			// Handle the case when resp is undefined or when status is false
-			const errorMessage = resp.message || 'An error occurred during sign-in.';
+			const errorMessage = resp?.message || 'An error occurred during sign-in.';
 			logger.warn(`Sign-in failed: ${errorMessage}`);
 			return { form: signInForm, message: errorMessage };
 		}
@@ -508,8 +508,12 @@ async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Pro
 }
 
 // SignIn user with email and password, create session and set cookie
-
-async function signIn(email: string, password: string, isToken: boolean, cookies: Cookies): Promise<{ status: boolean; message?: string }> {
+async function signIn(
+	email: string,
+	password: string,
+	isToken: boolean,
+	cookies: Cookies
+): Promise<{ status: boolean; message?: string; user?: User }> {
 	logger.debug(`signIn called with email: ${email}, isToken: ${isToken}`);
 
 	if (!auth) {
@@ -517,67 +521,42 @@ async function signIn(email: string, password: string, isToken: boolean, cookies
 		return { status: false, message: 'Authentication system unavailable' };
 	}
 
-	if (!isToken) {
-		try {
-			const user = await auth.login(email, password);
-
-			if (!user || !user._id) {
-				logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
-				return { status: false, message: 'Invalid credentials' };
-			}
-
-			// Create User Session
-			await createSessionAndSetCookie(user._id, cookies);
-			await auth.updateUserAttributes(user._id, { lastAuthMethod: 'password' });
-
-			// Fetch collections and redirect to the first available collection
-			const collections = await getCollections();
-			if (collections && Object.keys(collections).length > 0) {
-				const firstCollectionKey = Object.keys(collections)[0];
-				const firstCollection = collections[firstCollectionKey];
-				if (firstCollection && firstCollection.name) {
-					const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-					const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
-					logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-					throw redirect(303, redirectUrl);
-				} else {
-					logger.error('First collection is invalid or missing name');
-					throw error(500, 'Invalid collection data');
-				}
-			} else {
-				logger.error('No collections found to redirect');
-				throw error(404, 'No collections found');
-			}
-		} catch (error) {
-			logger.error(`Failed to create session or redirect: ${error}`);
-			return { status: false, message: 'Failed to create session or redirect' };
-		}
-	} else {
-		// User is registered, and credentials are provided as a token
-		const token = password;
-		const user = await auth.checkUser({ email });
-
-		if (!user) {
-			logger.warn('User does not exist');
-			return { status: false, message: 'User does not exist' };
-		}
-
-		const result = await auth.consumeToken(token, user._id);
-
-		if (result.status) {
-			try {
-				// Create User Session
-				await createSessionAndSetCookie(user._id, cookies);
-				await auth.updateUserAttributes(user._id, { lastAuthMethod: 'token' });
-				return { status: true };
-			} catch (error) {
-				logger.error(`Failed to create session: ${error}`);
-				return { status: false, message: 'Failed to create session' };
-			}
+	try {
+		let user: User | null;
+		if (!isToken) {
+			user = await auth.login(email, password);
 		} else {
-			logger.warn(`Token consumption failed: ${result.message}`);
-			return { status: false, message: result.message };
+			const token = password;
+			user = await auth.checkUser({ email });
+			if (!user) {
+				logger.warn('User does not exist');
+				return { status: false, message: 'User does not exist' };
+			}
+			const result = await auth.consumeToken(token, user._id);
+			if (!result.status) {
+				logger.warn(`Token consumption failed: ${result.message}`);
+				return { status: false, message: result.message };
+			}
 		}
+
+		if (!user || !user._id) {
+			logger.warn(`User does not exist or login failed. User object: ${JSON.stringify(user)}`);
+			return { status: false, message: 'Invalid credentials' };
+		}
+
+		// Create User Session
+		const session = await auth.createSession({ user_id: user._id });
+		const sessionCookie = auth.createSessionCookie(session);
+		cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
+		await auth.updateUserAttributes(user._id, { lastAuthMethod: isToken ? 'token' : 'password' });
+
+		logger.info(`User logged in: ${user._id}`);
+		return { status: true, message: 'Login successful', user };
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Login error: ${err.message}`);
+		return { status: false, message: err.message };
 	}
 }
 
