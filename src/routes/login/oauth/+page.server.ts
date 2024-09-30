@@ -7,6 +7,7 @@ import { dev } from '$app/environment';
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
+
 // Auth
 import { google } from 'googleapis';
 import { auth, initializationPromise, googleAuth } from '@src/databases/db';

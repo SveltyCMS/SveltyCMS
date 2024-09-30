@@ -12,7 +12,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collectionValue, mode, collections, collection, contentLanguage } from '@stores/store';
+	import { contentLanguage } from '@stores/store';
+	import { collectionValue, mode, collections, collection } from '@stores/collectionStore';
 
 	// Components
 	import Fields from '@components/Fields.svelte';

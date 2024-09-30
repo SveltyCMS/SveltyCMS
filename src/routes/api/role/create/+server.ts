@@ -23,6 +23,7 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 import { initializationPromise, authAdapter } from '@src/databases/db';
+
 // System Logs
 import logger from '@src/utils/logger';
 

@@ -15,10 +15,11 @@
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Skeleton Stores
+	// Stores
+	import { collectionValue, targetWidget } from '@src/stores/collectionStore';
+
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
-	import { collectionValue, targetWidget } from '@src/stores/store';
 
 	let tabSet: number = 0;
 

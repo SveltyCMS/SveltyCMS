@@ -4,9 +4,9 @@
 -->
 
 <script lang="ts">
-	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/store';
-	import { saveFormData } from '@src/utils/utils';
 	import { page } from '$app/stores';
+	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/collectionStore';
+	import { saveFormData } from '@src/utils/utils';
 
 	// Auth
 	import type { User } from '@src/auth/types';

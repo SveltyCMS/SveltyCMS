@@ -9,7 +9,8 @@
 	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
-	import { mode, collectionValue, validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// zod validation
 	import * as z from 'zod';

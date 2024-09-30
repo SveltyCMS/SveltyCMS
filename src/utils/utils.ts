@@ -36,7 +36,8 @@ import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
-import { translationProgress, contentLanguage, collectionValue, mode, collection } from '@stores/store';
+import { translationProgress, contentLanguage } from '@stores/store';
+import { collectionValue, mode, collection } from '@stores/collectionStore';
 
 // System Logger
 import logger from './logger';
@@ -675,5 +676,3 @@ function hex(buffer) {
 
 	return digest;
 }
-
-

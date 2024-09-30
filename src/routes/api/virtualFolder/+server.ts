@@ -42,8 +42,9 @@ export const GET: RequestHandler = async ({ url }) => {
 			const folders = await dbAdapter.getVirtualFolders();
 			return json({ success: true, folders });
 		}
-	} catch (error) {
-		logger.error('Error fetching folders:', error);
+	} catch (err) {
+		const message = err instanceof Error ? err.message : String(err); // Ensure message is a string
+		logger.error('Error fetching folders:', message); // Log the error
 		return json({ success: false, error: 'Failed to fetch folders or contents' }, { status: 500 });
 	}
 };

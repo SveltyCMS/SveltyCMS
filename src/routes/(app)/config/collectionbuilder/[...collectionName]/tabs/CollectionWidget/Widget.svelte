@@ -7,7 +7,8 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collectionValue, tabSet, targetWidget } from '@stores/store';
+	import { tabSet } from '@stores/store';
+	import { collectionValue, targetWidget } from '@stores/collectionStore';
 
 	// Componets
 	import widgets from '@src/components/widgets';

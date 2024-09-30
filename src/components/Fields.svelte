@@ -23,7 +23,8 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { contentLanguage, collection, collectionValue, tabSet, validationStore, mode } from '@stores/store';
+	import { contentLanguage, tabSet, validationStore } from '@stores/store';
+	import { collection, collectionValue, mode } from '@stores/collectionStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -7,6 +7,7 @@
 import { publicEnv } from '@root/config/public';
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+
 // Collections
 import { getCollections } from '@src/collections';
 import type { Collections } from '@src/types'; // Assuming you have a type for collections

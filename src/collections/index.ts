@@ -9,7 +9,7 @@ import { createCategories } from './config';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 
 // Stores
-import { categories, collections, unAssigned } from '@stores/store';
+import { categories, collections, unAssigned } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components

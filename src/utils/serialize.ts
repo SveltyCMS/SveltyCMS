@@ -3,10 +3,12 @@
  * @description Helper functions to serialize and deserialize data.
  */
 
-// Interface representing a serializable object
-interface Serializable {
-	[key: string]: string | number | boolean | Date | object | null | undefined;
-}
+import type { User } from '@src/auth/types';
+
+// Define the Serializable type
+export type Serializable = {
+	[key: string]: string | number | boolean | null | Serializable | Serializable[];
+};
 
 // Serializes a single user object by converting non-serializable fields to strings
 export function serializeUser(user: User): Serializable {
@@ -28,9 +30,11 @@ export function serializeUser(user: User): Serializable {
 }
 
 // Interface representing an entry object
-interface Entry {
-	// Define properties of your entry object here
-	// e.g., _id: string, name: string, createdAt: Date, etc.
+export interface Entry {
+	_id?: string | { toString(): string };
+	// Define other properties of your entry object here
+	// e.g., name: string, createdAt: Date, etc.
+	[key: string]: any; // Allow for any additional properties
 }
 
 // Serializes a single entry by converting ObjectId fields to strings
@@ -43,6 +47,12 @@ export function serializeEntry(entry: Entry): Serializable {
 	}
 
 	// Serialize other non-serializable fields as needed
+	// Example: Convert Date objects to ISO strings
+	for (const key in serializedEntry) {
+		if (serializedEntry[key] instanceof Date) {
+			serializedEntry[key] = serializedEntry[key].toISOString();
+		}
+	}
 
 	return serializedEntry;
 }
@@ -50,4 +60,9 @@ export function serializeEntry(entry: Entry): Serializable {
 // Serializes an array of entries
 export function serializeEntries(entries: Entry[]): Serializable[] {
 	return entries.map((entry) => serializeEntry(entry));
+}
+
+// Serializes an array of users
+export function serializeUsers(users: User[]): Serializable[] {
+	return users.map((user) => serializeUser(user));
 }

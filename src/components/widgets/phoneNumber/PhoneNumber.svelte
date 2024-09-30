@@ -8,7 +8,8 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { mode, collectionValue, validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	import { getFieldName } from '@utils/utils';
 

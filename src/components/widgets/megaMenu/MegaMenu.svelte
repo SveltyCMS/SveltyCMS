@@ -5,7 +5,8 @@
 
 <script lang="ts">
 	// Stores
-	import { collectionValue, mode, saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
+	import { saveFunction, translationProgress, shouldShowNextButton, validationStore } from '@stores/store';
+	import { collectionValue, mode } from '@stores/collectionStore';
 
 	// Components
 	import Fields from '@components/Fields.svelte';

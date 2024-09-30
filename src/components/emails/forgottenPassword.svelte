@@ -6,6 +6,8 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+
+	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
@@ -128,7 +130,7 @@
 						alt="{publicEnv.SITE_NAME} logo"
 						width="150"
 						height="auto"
-						style={{ display: 'block', margin: '0 auto' }}
+						style={{ display: 'block', margin: '0 auto', textAlign: 'center' }}
 					/>
 				</Link>
 			</Section>

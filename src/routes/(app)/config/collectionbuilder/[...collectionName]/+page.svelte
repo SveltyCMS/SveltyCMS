@@ -10,7 +10,8 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collectionValue, tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

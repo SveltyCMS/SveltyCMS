@@ -27,7 +27,7 @@
 import { privateEnv } from '@root/config/private';
 
 // Stores
-import { collections } from '@stores/store';
+import { collections } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@src/stores/userPreferences';

@@ -10,19 +10,19 @@
 
 	// Stores
 	import { page } from '$app/stores';
+	import { systemLanguage } from '@src/stores/store';
+
+	// ParaglideJS
+	import * as m from '@src/paraglide/messages';
 
 	// Auth
 	import type { User } from '@src/auth/types';
 	const username: User = $page.data.user.username;
 
-	// ParaglideJS
-	import * as m from '@src/paraglide/messages';
-
 	export let tokenLink = dev ? publicEnv.HOST_DEV : publicEnv.HOST_PROD;
 
 	// svelty-email
 	import { Container, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';
-	import { systemLanguage } from '@src/stores/store';
 
 	const fontFamily = '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Oxygen-Sans,Ubuntu,Cantarell,"Helvetica Neue",sans-serif';
 

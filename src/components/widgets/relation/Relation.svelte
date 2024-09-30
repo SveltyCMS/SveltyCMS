@@ -5,7 +5,8 @@
 
 <script lang="ts">
 	// Stores
-	import { collectionValue, mode, contentLanguage, collection, collections, saveFunction, validationStore } from '@stores/store';
+	import { contentLanguage, saveFunction, validationStore } from '@stores/store';
+	import { collectionValue, mode, collection, collections } from '@stores/collectionStore';
 
 	// Components
 	import DropDown from './DropDown.svelte';

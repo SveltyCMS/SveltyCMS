@@ -22,9 +22,9 @@
 
 import { privateEnv } from '@root/config/private';
 import { createRandomID } from '@src/utils/utils';
-import { collections } from '@stores/store';
+import { collections } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
-import type { dbInterface, CollectionModel } from './dbInterface';
+import type { dbInterface } from './dbInterface';
 import { drizzle, sql } from 'drizzle-orm';
 import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';

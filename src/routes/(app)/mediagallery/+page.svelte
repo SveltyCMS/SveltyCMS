@@ -22,7 +22,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import MediaTable from './MediaTable.svelte';
 
 	// Stores
-	import { mode } from '@src/stores/store';
+	import { mode } from '@src/stores/collectionStore';
 
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';

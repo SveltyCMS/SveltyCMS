@@ -27,12 +27,11 @@ import { _GET } from '@api/query/GET';
 // Auth
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
+import { validateUserPermission } from '@src/auth/permissionManager';
 
 // Stores
-import { collections } from '@src/stores/store';
 import { get } from 'svelte/store';
-
-import { validateUserPermission } from '@src/auth/permissionManager';
+import { collections } from '@src/stores/collectionStore';
 
 // System Logger
 import logger from '@src/utils/logger';

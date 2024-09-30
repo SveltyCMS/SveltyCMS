@@ -11,7 +11,8 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, mode, validationStore } from '@stores/store';
+	import { validationStore } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
 	import type { MediaImage } from '@src/utils/media/mediaModels';

@@ -2,7 +2,8 @@
 	import type { FieldType } from '.';
 
 	// Stores
-	import { contentLanguage, collection, collectionValue } from '@stores/store';
+	import { contentLanguage } from '@stores/store';
+	import { collection, collectionValue } from '@stores/collectionStore';
 
 	export let dropDownData: any[] = [];
 	export let selected: { display: any; _id: any } | undefined = undefined;

@@ -5,9 +5,10 @@
 
 <script lang="ts">
 	// Stores
-	import { collection, mode, modifyEntry, saveLayerStore, shouldShowNextButton, collectionValue, validationStore } from '@stores/store';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { page } from '$app/stores';
+	import { saveLayerStore, shouldShowNextButton, validationStore } from '@stores/store';
+	import { collection, mode, modifyEntry, collectionValue } from '@stores/collectionStore';
+	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { saveFormData, convertTimestampToDateString, getFieldName } from '@utils/utils';
 
 	// Auth

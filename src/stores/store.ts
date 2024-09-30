@@ -5,93 +5,33 @@
  * This module sets up various Svelte stores for managing:
  * - System and content languages
  * - Internationalization messages
- * - Collection categories and schemas
  * - Save functionality
  * - Table headers and UI components
- *
- * Key features:
- * - Initialization of language stores with default values from environment
- * - Management of collection categories and schemas
- * - Integration with ParaglideJS for internationalization
- * - Stores for UI-related data like table headers and action buttons
- * - Reactive language setting with automatic message updates
- *
- * @requires svelte/store - For creating and managing Svelte stores
- * @requires @root/config/public - For accessing public environment variables
- * @requires @src/collections/types - For collection-related type definitions
- * @requires @src/paraglide/messages - For internationalization messages
- * @requires @src/paraglide/runtime - For language tag management
- *
- * @exports various Svelte stores including systemLanguage, contentLanguage, categories, collections, etc.
  */
-
 import { writable, type Writable } from 'svelte/store';
 import { publicEnv } from '@root/config/public';
-import type { CollectionNames, Schema } from '@src/collections/types';
 
 // Paraglidejs
 import * as m from '@src/paraglide/messages.js';
 import { setLanguageTag, type AvailableLanguageTag } from '@src/paraglide/runtime';
 
-//  Categories
-export const categories: Writable<
-	Array<{
-		name: string;
-		icon: string;
-		collections: Array<Schema>;
-	}>
-> = writable();
-export const collections = writable({}) as Writable<{ [key in CollectionNames]: Schema }>;
-export const unAssigned: Writable<Array<Schema>> = writable();
-export const collection: Writable<Schema> = writable();
-export const targetWidget: Writable<any> = writable({});
-
-//  Collections data of collection
-export const collectionValue: Writable<any> = writable({});
-
-// selected entries
-export const selectedEntries = writable<string[]>([]);
-
-// collective crud
-export const mode: Writable<'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media'> = writable('view');
-// collective status
-export const statusMap = {
-	delete: 'deleted',
-	publish: 'published',
-	unpublish: 'unpublished',
-	schedule: 'scheduled',
-	clone: 'cloned',
-	test: 'testing'
-};
-
-// Create an empty writable store for modifyEntry
-export const modifyEntry: Writable<(status: keyof typeof statusMap) => Promise<void>> = writable();
-
-//  Store ListboxValue
-export const storeListboxValue: Writable<string> = writable('create');
-
-// Store image data while editing
-export const file = writable<File | null>(null);
-export const saveEditedImage: Writable<boolean> = writable(false);
-
-// Languages
-// Create a writable store for contentLanguage with initial value of PublicEnv.DEFAULT_CONTENT_LANGUAGE
+// System and Content Language Stores
+export const systemLanguage: Writable<AvailableLanguageTag> = writable(publicEnv.DEFAULT_SYSTEM_LANGUAGE);
 export const contentLanguage: Writable<string> = writable(publicEnv.DEFAULT_CONTENT_LANGUAGE);
 
-// Create a writable store for systemLanguage with initial value of PublicEnv.DEFAULT_SYSTEM_LANGUAGE
-export const systemLanguage: Writable<AvailableLanguageTag> = writable(publicEnv.DEFAULT_SYSTEM_LANGUAGE) as any;
-
+// Internationalization messages store with ParaglideJS messages
 // Set the language tag
 export const messages: Writable<typeof m> = writable({ ...m });
+
+// Subscribe to systemLanguage store changes to set the language tag and update messages
 systemLanguage.subscribe((val) => {
 	setLanguageTag(val);
 	messages.set({ ...m });
 });
 
-// Content Translation Completion Status
+// Translation Completion Status
 export const translationStatus = writable({});
 export const completionStatus = writable(0);
-
 // TranslationStatus.svelte modal
 export const translationStatusOpen = writable(false);
 export const translationProgress: Writable<{ [key: string]: { total: Set<any>; translated: Set<any> } } | { show: boolean }> = writable({
@@ -101,27 +41,37 @@ export const translationProgress: Writable<{ [key: string]: { total: Set<any>; t
 // Tab skeleton store
 export const tabSet: Writable<number> = writable(0);
 
-// Cancel/Reload HeaderButton
-export const headerActionButton: Writable<boolean> = writable(true);
+// Initialize header action button store
+export const headerActionButton: Writable<ConstructorOfATypedSvelteComponent | string> = writable();
 export const headerActionButton2: Writable<ConstructorOfATypedSvelteComponent | string> = writable();
-export const drawerExpanded: Writable<boolean> = writable(true);
+export const tableHeaders = ['id', 'email', 'username', 'role', 'createdAt'] as const;
 
-// Create a writable store for Avatar
-export const avatarSrc: Writable<string> = writable();
-
-// Git Version check
+// Git Version store
 export const pkgBgColor = writable('variant-filled-primary');
 
-// loading indicator
+// Loading indicator
 export const loadingProgress = writable(0);
 export const isLoading: Writable<boolean> = writable(false);
 
-// MegaMenu Save Layer Store & trigger
+// Store for save function and layer saving triggers
 export const saveFunction: Writable<{ fn: (args: any) => any; reset: () => any }> = writable({ fn: () => {}, reset: () => {} });
 export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
 
-export const tableHeaders = ['_id', 'email', 'username', 'role', 'createdAt'] as const;
+// Avatar Image store
+export const avatarSrc: Writable<string> = writable();
+
+// Store image data while editing
+export const file = writable<File | null>(null);
+export const saveEditedImage: Writable<boolean> = writable(false);
+
+// Define indexer, currently set to undefined for ....
+export const indexer = undefined;
+
+export const drawerExpanded: Writable<boolean> = writable(true);
+
+//  Store ListboxValue
+export const storeListboxValue: Writable<string> = writable('create');
 
 // Widget store
 
@@ -129,7 +79,6 @@ export const tableHeaders = ['_id', 'email', 'username', 'role', 'createdAt'] as
 interface ValidationErrors {
 	[fieldName: string]: string | null;
 }
-
 // Create a writable store for validation errors
 export const validationStore = (() => {
 	const { subscribe, update } = writable<ValidationErrors>({});
@@ -144,7 +93,6 @@ export const validationStore = (() => {
 			return rest;
 		});
 	};
-
 	const getError = (fieldName: string): string | null => {
 		let error: string | null = null;
 		subscribe((errors) => {

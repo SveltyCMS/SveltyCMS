@@ -4,7 +4,7 @@
 -->
 
 <script lang="ts">
-	import { collection, collectionValue } from '@src/stores/store';
+	import { collection, collectionValue } from '@src/stores/collectionStore';
 	import { convertTimestampToDateString } from '@src/utils/utils';
 
 	// Convert timestamp to Date string

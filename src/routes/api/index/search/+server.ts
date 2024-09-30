@@ -23,7 +23,7 @@
  * Ensure that this executable is available and properly configured.
  */
 
-import { indexer } from '@src/stores/load.js';
+import { indexer } from '@src/stores/store';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 
 // Auth

@@ -9,7 +9,8 @@
 	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { contentLanguage, mode, collectionValue, validationStore } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	export let field: FieldType;
 

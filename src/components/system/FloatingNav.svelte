@@ -15,7 +15,7 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode } from '@src/stores/store';
+	import { mode } from '@src/stores/collectionStore';
 	import { handleSidebarToggle } from '@src/stores/sidebarStore';
 
 	// Skeleton

@@ -21,7 +21,7 @@
 
 	// 	import type { MediaImage } from '@src/utils/media/mediaModels';
 	// import { meta_data, getFieldName } from '@src/utils/utils';
-	// import { mode } from '@src/stores/store';
+	// import { mode } from '@src/stores/collectionStore';
 	// import axios from 'axios';
 
 	// // Components

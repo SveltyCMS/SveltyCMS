@@ -9,7 +9,8 @@
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { mode, collectionValue, modifyEntry, statusMap, contentLanguage, collection, categories, systemLanguage } from '@src/stores/store';
+	import { contentLanguage, systemLanguage } from '@src/stores/store';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@src/stores/collectionStore';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 

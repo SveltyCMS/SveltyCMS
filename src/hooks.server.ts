@@ -13,6 +13,7 @@
  */
 
 import { privateEnv } from '@root/config/private';
+import { dev } from '$app/environment';
 import { redirect, error, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
@@ -42,6 +43,13 @@ const limiter = new RateLimiter({
 		preflight: true
 	}
 });
+
+// Color codes
+const ORANGE = '\x1b[38;5;208m';
+const RED = '\x1b[31m';
+const GREEN = '\x1b[32m';
+const YELLOW = '\x1b[33m';
+const RESET = '\x1b[0m';
 
 // Initialize session store (also used for API caching)
 const cacheStore = privateEnv.USE_REDIS ? new RedisCacheStore() : new InMemorySessionStore();
@@ -182,6 +190,36 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
+// Performance logging handler
+const handlePerformanceLogging: Handle = async ({ event, resolve }) => {
+	if (!dev) {
+		return resolve(event);
+	}
+
+	const start = performance.now();
+	const response = await resolve(event);
+	const end = performance.now();
+
+	const responseTime = end - start;
+	const route = event.url.pathname;
+
+	let emoji, timeColor;
+	if (responseTime > 2000) {
+		emoji = '🐢';
+		timeColor = RED;
+	} else if (responseTime < 1000) {
+		emoji = '🚀';
+		timeColor = GREEN;
+	} else {
+		emoji = '⏱️';
+		timeColor = YELLOW;
+	}
+
+	logger.debug(`${ORANGE}${route}${RESET} - ${timeColor}${responseTime.toFixed(2)} ms${RESET} ${emoji}`);
+
+	return response;
+};
+
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
@@ -307,7 +345,7 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 };
 
 // Combine all hooks
-export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit, handleAuth, addSecurityHeaders);
+export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit, handleAuth, addSecurityHeaders, handlePerformanceLogging);
 
 // Helper function to invalidate API cache
 export async function invalidateApiCache(apiEndpoint: string, userId: string): Promise<void> {

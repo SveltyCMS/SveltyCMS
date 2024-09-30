@@ -13,7 +13,8 @@ import widgets, { type ModifyRequestParams } from '..';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
-import { collectionValue, mode, headerActionButton2 } from '@src/stores/store';
+import { headerActionButton2 } from '@src/stores/store';
+import { collectionValue, mode } from '@src/stores/collectionStore';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';
@@ -103,7 +104,9 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 					(result as Array<any>).push(children[index]);
 				}
 			}
-			children[index].children.length > 0 && field.fields[level + 1]?.length > 0 && process_OldData(children[index].children, level + 1, result);
+			if (children[index].children.length > 0 && field.fields[level + 1]?.length > 0) {
+				process_OldData(children[index].children, level + 1, result);
+			}
 		}
 		return result;
 	};
@@ -150,7 +153,9 @@ widget.modifyRequest = async ({ collection, field, data, user, type, id }: Modif
 				}
 			}
 
-			children[index].children.length > 0 && field.fields[level + 1]?.length > 0 && (await cleanChildren(children[index].children, level + 1));
+			if (children[index].children.length > 0 && field.fields[level + 1]?.length > 0) {
+				await cleanChildren(children[index].children, level + 1);
+			}
 		}
 	};
 

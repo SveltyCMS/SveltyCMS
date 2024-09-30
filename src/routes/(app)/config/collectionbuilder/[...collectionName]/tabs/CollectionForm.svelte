@@ -6,7 +6,8 @@
 <script lang="ts">
 	// Stores
 	import { page } from '$app/stores';
-	import { mode, collectionValue, collections, tabSet } from '@stores/store';
+	import { tabSet } from '@stores/store';
+	import { mode, collectionValue, collections } from '@stores/collectionStore';
 
 	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';

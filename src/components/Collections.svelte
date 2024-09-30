@@ -7,11 +7,12 @@
 	import { goto } from '$app/navigation';
 
 	// Stores
+	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
-	import { mode, collection, categories, shouldShowNextButton } from '@stores/store';
+	import { shouldShowNextButton } from '@stores/store';
+	import { mode, collection, categories } from '@stores/collectionStore';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
-	import { get } from 'svelte/store';
 
 	// Auth
 	import type { User } from '@src/auth/types';

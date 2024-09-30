@@ -7,7 +7,7 @@
 	import { goto } from '$app/navigation';
 
 	// Stores
-	import { categories, collectionValue, mode, unAssigned } from '@stores/store';
+	import { categories, collectionValue, mode, unAssigned } from '@stores/collectionStore';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';

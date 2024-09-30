@@ -8,7 +8,8 @@
 	import { getFieldName } from '@src/utils/utils';
 
 	// Stores
-	import { collectionValue, contentLanguage, translationStatusOpen, translationProgress, mode, collection } from '@stores/store';
+	import { contentLanguage, translationStatusOpen, translationProgress } from '@stores/store';
+	import { collectionValue, mode, collection } from '@stores/collectionStore';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';

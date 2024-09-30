@@ -12,7 +12,7 @@
 
 	// Stores
 	import { contentLanguage } from '@stores/store';
-	import { mode, collectionValue } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	export let field: FieldType;
 

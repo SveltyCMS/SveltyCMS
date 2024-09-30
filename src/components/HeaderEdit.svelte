@@ -44,22 +44,10 @@
 	// Stores
 	import { get } from 'svelte/store';
 	import { page } from '$app/stores';
+	import { contentLanguage, saveLayerStore, headerActionButton, shouldShowNextButton, tabSet, validationStore } from '@stores/store';
+	import { collection, categories, collectionValue, mode, modifyEntry } from '@stores/collectionStore';
 	import { toggleSidebar, sidebarState, handleSidebarToggle } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
-
-	import {
-		collection,
-		categories,
-		collectionValue,
-		mode,
-		modifyEntry,
-		contentLanguage,
-		saveLayerStore,
-		headerActionButton,
-		shouldShowNextButton,
-		tabSet,
-		validationStore
-	} from '@stores/store';
 
 	// Auth
 	import type { User } from '@src/auth/types';

@@ -11,7 +11,8 @@
 	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@src/utils/utils';
 
 	// Stores
-	import { collectionValue, mode, contentLanguage } from '@src/stores/store';
+	import { contentLanguage } from '@src/stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
 	import DropDown from './components/DropDown.svelte';

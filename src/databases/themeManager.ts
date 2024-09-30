@@ -107,7 +107,7 @@ export class ThemeManager {
 		}
 
 		try {
-			await this.db.storeThemes(theme);
+			await this.db.storeThemes([theme]);
 			this.currentTheme = theme;
 			logger.info(`Theme updated to: ${theme.name}`);
 		} catch (error) {

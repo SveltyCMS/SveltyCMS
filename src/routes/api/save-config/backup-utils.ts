@@ -27,7 +27,7 @@ import path from 'path';
 import util from 'util';
 import { exec } from 'child_process';
 
-// System Logs
+// System Logger
 import logger from '@src/utils/logger';
 
 // Promisify exec for async usage

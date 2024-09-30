@@ -24,6 +24,7 @@
  */
 
 import { privateEnv } from '@root/config/private';
+
 // Svelty-email
 import { render } from 'svelty-email';
 

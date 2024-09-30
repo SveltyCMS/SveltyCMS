@@ -20,15 +20,14 @@ Key features:
 
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { error } from '@sveltejs/kit';
 
-	import type { Schema } from '@collections/types';
 	import { getTextDirection } from '@src/utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
 	import { page } from '$app/stores';
-	import { collections, collection, collectionValue, contentLanguage, systemLanguage, isLoading } from '@stores/store';
+	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
+	import { collection, collections, collectionValue } from '@stores/collectionStore';
 	import { sidebarState } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
@@ -240,4 +239,3 @@ Key features:
 		<footer class="bg-blue-500">Footer</footer>
 	{/if}
 </div>
->

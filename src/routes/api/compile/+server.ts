@@ -19,6 +19,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
+
 // System Logs
 import logger from '@src/utils/logger';
 

@@ -8,7 +8,8 @@
 	import { publicEnv } from '@root/config/public';
 
 	// Stores
-	import { mode, collectionValue, contentLanguage, validationStore } from '@stores/store';
+	import { contentLanguage, validationStore } from '@stores/store';
+	import { mode, collectionValue } from '@stores/collectionStore';
 
 	import { getFieldName } from '@utils/utils';
 	export let field: FieldType;

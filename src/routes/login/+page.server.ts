@@ -26,8 +26,8 @@ import type { User } from '@src/auth/types';
 import type { Cookies } from '@sveltejs/kit';
 
 // Stores
-import { systemLanguage } from '@stores/store';
 import { get } from 'svelte/store';
+import { systemLanguage } from '@stores/store';
 
 // Import roles
 import { roles } from '@root/config/roles';
@@ -232,7 +232,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			signUpForm
 		};
 	} catch (err) {
-		logger.error('Error in load function:', err instanceof Error ? err.message : JSON.stringify(err));
+		logger.error('Error in load function:', err instanceof Error ? err.message : String(err));
 
 		// Return a minimal set of data to allow the page to render
 		return {
@@ -505,6 +505,8 @@ export const actions: Actions = {
 async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
 	const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
+	if (!auth) throw new Error('Auth is not initialized');
+
 	const session = await auth.createSession({
 		user_id,
 		expires: expiresAt
@@ -679,7 +681,7 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 
 		// Create a new token
 		const expiresAt = new Date(Date.now() + expiresIn * 1000);
-		const token = await auth.createToken(user._id.toString(), expiresAt.toISOString());
+		const token = await auth.createToken(user._id.toString(), expiresAt);
 
 		return { success: true, message: 'Password reset token sent by Email', token, expiresIn: expiresAt };
 	} catch (err: any) {

@@ -7,7 +7,8 @@
 	import { createEventDispatcher } from 'svelte';
 
 	// Stores
-	import { mode, modifyEntry, storeListboxValue } from '@stores/store';
+	import { storeListboxValue } from '@stores/store';
+	import { mode, modifyEntry } from '@stores/collectionStore';
 	import { handleSidebarToggle } from '@stores/sidebarStore';
 
 	// Components

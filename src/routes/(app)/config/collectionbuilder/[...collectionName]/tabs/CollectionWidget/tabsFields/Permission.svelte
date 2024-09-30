@@ -12,7 +12,8 @@
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
-	import { targetWidget } from '@src/stores/store';
+	// Stores
+	import { targetWidget } from '@src/stores/collectionStore';
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;

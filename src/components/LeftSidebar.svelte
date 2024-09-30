@@ -12,7 +12,8 @@
 	import { SESSION_COOKIE_NAME } from '@src/auth';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
-	import { avatarSrc, mode, pkgBgColor, systemLanguage } from '@src/stores/store';
+	import { avatarSrc, pkgBgColor, systemLanguage } from '@src/stores/store';
+	import { mode } from '@src/stores/collectionStore';
 	import { toggleSidebar, sidebarState, userPreferredState, handleSidebarToggle } from '@src/stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 

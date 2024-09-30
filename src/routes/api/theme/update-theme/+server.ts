@@ -10,7 +10,7 @@ import type { Theme } from '@src/databases/dbInterface';
 import { authorizeAdmin } from '@src/auth';
 import { json } from '@sveltejs/kit';
 
-// System Logs
+// System Logger
 import logger from '@src/utils/logger';
 
 // Initialize ThemeManager singleton

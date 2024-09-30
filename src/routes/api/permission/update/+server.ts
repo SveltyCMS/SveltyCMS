@@ -23,8 +23,10 @@
 import type { RequestHandler } from './$types';
 import { json } from '@sveltejs/kit';
 
-// System Logs
+// Authorization
 import { initializationPromise, authAdapter } from '@src/databases/db';
+
+// System Logger
 import logger from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request, locals }) => {

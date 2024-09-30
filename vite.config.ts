@@ -76,7 +76,7 @@ export default defineConfig({
 			async handleHotUpdate({ file, server }) {
 				if (/config[/\\](permissions|roles)\.ts$/.test(file)) {
 					// Clear module cache to force re-import
-					const permissionsPath = resolve(__dirname, 'config', 'permissions.ts');
+					const permissionsPath = resolve(__dirname, 'config');
 					const rolesPath = resolve(__dirname, 'config', 'roles.ts');
 
 					delete require.cache[require.resolve(permissionsPath)];

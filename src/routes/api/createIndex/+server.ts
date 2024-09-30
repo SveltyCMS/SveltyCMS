@@ -32,8 +32,8 @@ import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores
-import { collections } from '@src/stores/store';
 import { get } from 'svelte/store';
+import { collections } from '@src/stores/collectionStore';
 
 // Components
 import widgets from '@src/components/widgets';
