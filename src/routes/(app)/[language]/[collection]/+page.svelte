@@ -6,7 +6,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 -->
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onDestroy } from 'svelte';
+	import { onMount, onDestroy } from 'svelte';
+	import { browser } from '$app/environment';
 	import type { Schema } from '@collections/types';
 
 	// Stores
@@ -23,7 +24,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Reactive re-computation for setting collection based on route parameters
 	$: if ($collections && $page.params.collection) {
-		const selectedCollection = $collections[$page.params.collection as string];
+		const selectedCollection = $collections[$page.params.collection];
 		if (selectedCollection) {
 			collection.set(selectedCollection as Schema);
 			initialLoadComplete = true;
@@ -34,20 +35,24 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	}
 
 	// Handle browser history navigation
-	window.onpopstate = () => {
-		forwardBackward = true;
-		const selectedCollection = $collections[$page.params.collection as string];
-		if (selectedCollection) {
-			collection.set(selectedCollection as Schema);
-		} else {
-			console.error('Collection not found during browser navigation:', $page.params.collection);
-			goto('/404'); // Handle error or redirect
+	onMount(() => {
+		if (browser) {
+			window.onpopstate = () => {
+				forwardBackward = true;
+				const selectedCollection = $collections[$page.params.collection];
+				if (selectedCollection) {
+					collection.set(selectedCollection as Schema);
+				} else {
+					console.error('Collection not found during browser navigation:', $page.params.collection);
+					goto('/404'); // Handle error or redirect
+				}
+			};
 		}
-	};
+	});
 
 	// Subscribe and handle collection changes
 	const unsubscribe = collection.subscribe(($collection) => {
-		if ($collection && $collection.name) {
+		if ($collection?.name) {
 			// Reset collection value
 			$collectionValue = {};
 			if (!forwardBackward) {
@@ -62,16 +67,18 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	});
 
 	// Handle language changes reactively
-	$: if (!forwardBackward && $collection && $collection.name) {
+	$: if (!forwardBackward && $collection?.name) {
 		goto(`/${$contentLanguage}/${$collection.name}`);
-	} else if (!forwardBackward && initialLoadComplete) {
+	} else if (!forwardBackward && initialLoadComplete && !$collection?.name) {
 		console.error('Collection or collection name is undefined after language change.');
 		goto('/404'); // Handle error or redirect
 	}
 
 	// Reactive SEO metadata
-	$: document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
-	$: document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
+	$: if (browser) {
+		document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
+		document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
+	}
 </script>
 
 <div class="content">

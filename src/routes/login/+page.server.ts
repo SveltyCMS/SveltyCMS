@@ -7,7 +7,7 @@ import { privateEnv } from '@root/config/private';
 import { publicEnv } from '@root/config/public';
 
 import { dev } from '$app/environment';
-import { error, redirect } from '@sveltejs/kit';
+import { error, redirect, type Actions } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 import { getCollections } from '@src/collections';
 
@@ -59,6 +59,29 @@ function calculatePasswordStrength(password: string): number {
 	return 0;
 }
 
+// Helper function to fetch and redirect to the first collection
+async function fetchAndRedirectToFirstCollection() {
+	try {
+		const collections = await getCollections();
+		logger.info('Fetched collections:', collections);
+		if (collections && Object.keys(collections).length > 0) {
+			const firstCollectionKey = Object.keys(collections)[0];
+			const firstCollection = collections[firstCollectionKey];
+			if (firstCollection && firstCollection.name) {
+				logger.info(`Redirecting to first collection: ${firstCollection.name}`);
+				return `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`;
+			} else {
+				logger.warn('First collection found but name is missing', firstCollection);
+			}
+		} else {
+			logger.warn('No collections found');
+		}
+	} catch (err) {
+		logger.error('Error fetching collections:', err);
+	}
+	return '/';
+}
+
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {
 	try {
 		// Ensure initialization is complete
@@ -79,26 +102,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		// Check if user is already authenticated
 		if (locals.user) {
 			logger.debug('User is already authenticated, attempting to redirect to collection');
-			try {
-				const collections = await getCollections();
-				if (collections && Object.keys(collections).length > 0) {
-					const first_collection_key = Object.keys(collections)[0];
-					const first_collection = collections[first_collection_key];
-					if (first_collection && first_collection.name) {
-						logger.debug(`Redirecting to first collection: ${first_collection.name}`);
-						throw redirect(302, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${first_collection.name}`);
-					} else {
-						logger.warn('First collection found but name is missing');
-					}
-				} else {
-					logger.warn('No collections found');
-				}
-			} catch (err) {
-				logger.error('Error while fetching collections:', err instanceof Error ? err.message : JSON.stringify(err));
-			}
-			// If no collections are found or an error occurred, redirect to the root
-			logger.debug('Redirecting to root');
-			throw redirect(302, '/');
+			const redirectPath = await fetchAndRedirectToFirstCollection();
+			throw redirect(302, redirectPath);
 		}
 
 		// Rate limiter preflight check
@@ -313,7 +318,10 @@ export const actions: Actions = {
 
 			// Return message if form is submitted successfully
 			message(signUpForm, 'SignUp User form submitted');
-			throw redirect(303, `/${publicEnv.DEFAULT_CONTENT_LANGUAGE}/${firstCollection.name}`);
+
+			// Fetch collections and redirect to the first one if available
+			const redirectPath = await fetchAndRedirectToFirstCollection();
+			throw redirect(303, redirectPath);
 		} else {
 			logger.warn(`Sign-up failed: ${resp.message}`);
 			return { form: signUpForm, message: resp.message || 'Unknown error' };
@@ -652,7 +660,7 @@ interface ForgotPWCheckResult {
 	success?: boolean;
 	message: string;
 	token?: string;
-	expiresIn?: date;
+	expiresIn?: Date;
 }
 
 // Function for handling the Forgotten Password
@@ -670,10 +678,10 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		if (!user) return { success: false, message: 'User does not exist' };
 
 		// Create a new token
-		const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-		const token = await auth.createToken(user._id.toString(), expiresAt);
+		const expiresAt = new Date(Date.now() + expiresIn * 1000);
+		const token = await auth.createToken(user._id.toString(), expiresAt.toISOString());
 
-		return { success: true, message: 'Password reset token sent by Email', token, expiresIn };
+		return { success: true, message: 'Password reset token sent by Email', token, expiresIn: expiresAt };
 	} catch (err: any) {
 		logger.error('An error occurred:', err);
 		return { success: false, message: 'An error occurred' };

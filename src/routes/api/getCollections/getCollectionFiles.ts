@@ -23,8 +23,8 @@ import path from 'path';
 // System Logger
 import logger from '@src/utils/logger';
 
-// Retrieve the collections folder path from environment variables
-const collectionsFolder = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
+// Use process.env for server-side environment variables
+const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
 
 // This function returns a list of all the collection files in the specified directory.
 export function getCollectionFiles(): string[] {
@@ -43,6 +43,6 @@ export function getCollectionFiles(): string[] {
 		return filteredFiles;
 	} catch (error) {
 		logger.error('Error reading collection files', { message: (error as Error).message, stack: (error as Error).stack });
-		throw new Error(`Failed to read collection files: ${(error as Error).message}`); // Provide a user-friendly error message
+		throw new Error(`Failed to read collection files: ${(error as Error).message}`);
 	}
 }

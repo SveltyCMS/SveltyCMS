@@ -223,6 +223,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		return resolve(event);
 	}
 
+	// Redirect unauthenticated users away from public routes
 	if (!user && !isPublicRoute) {
 		logger.debug('User not authenticated and not on public route, redirecting to login');
 		return isApiRequest ? createJsonResponse({ error: 'Unauthorized' }, 401) : redirect(302, '/login');
