@@ -19,7 +19,7 @@ import { initWidgets } from '@components/widgets';
 import type { Schema, CollectionNames } from './types';
 
 // System logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Cache for collection models
 let importsCache: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;

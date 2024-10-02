@@ -11,7 +11,7 @@ import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	await initializationPromise;

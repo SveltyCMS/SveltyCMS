@@ -39,7 +39,7 @@ import { collections } from '@src/stores/collectionStore';
 import widgets from '@src/components/widgets';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const INDEXES_DIR = './indexes';
 

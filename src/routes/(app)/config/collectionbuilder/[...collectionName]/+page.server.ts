@@ -33,7 +33,7 @@ import { auth, getCollectionModels } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 

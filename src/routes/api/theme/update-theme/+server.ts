@@ -11,7 +11,7 @@ import { authorizeAdmin } from '@src/auth';
 import { json } from '@sveltejs/kit';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();

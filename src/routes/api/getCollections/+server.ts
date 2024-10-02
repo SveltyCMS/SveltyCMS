@@ -22,7 +22,7 @@ import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { getCollectionFiles } from './getCollectionFiles'; // Utility function to get all collection files
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async ({ url }) => {

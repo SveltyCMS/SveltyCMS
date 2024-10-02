@@ -27,7 +27,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const { cpu, drive, mem, os } = osu;
 

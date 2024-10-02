@@ -26,7 +26,7 @@ import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 interface Collection {
 	name: string;

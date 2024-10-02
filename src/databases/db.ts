@@ -47,7 +47,7 @@ import { SessionAdapter } from '@src/auth/mongoDBAuth/sessionAdapter';
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;

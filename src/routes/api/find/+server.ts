@@ -20,7 +20,7 @@ import type { RequestHandler } from './$types';
 import { collectionsModels } from '@src/databases/db';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async ({ url }) => {
 	// Retrieve collection name and query parameters from the URL

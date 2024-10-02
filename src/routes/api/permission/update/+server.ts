@@ -27,7 +27,7 @@ import { json } from '@sveltejs/kit';
 import { initializationPromise, authAdapter } from '@src/databases/db';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Authorization check (example, ensure you have proper authentication in place)

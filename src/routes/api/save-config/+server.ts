@@ -29,7 +29,7 @@ import { promisify } from 'util';
 import { backupConfigFiles } from './backup-utils';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const execAsync = promisify(exec);
 

@@ -18,7 +18,7 @@
  */
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Types
 import type { dbInterface } from '@src/databases/dbInterface';

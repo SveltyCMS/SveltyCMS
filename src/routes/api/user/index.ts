@@ -30,7 +30,7 @@ import { addUserTokenSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async () => {
 	try {

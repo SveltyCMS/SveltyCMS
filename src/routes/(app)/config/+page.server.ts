@@ -14,7 +14,7 @@ import { permissionConfigs } from '@src/auth/permissionManager';
 import { permissions as allPermissions } from '@root/config/permissions';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	if (!auth) {

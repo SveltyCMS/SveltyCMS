@@ -34,7 +34,7 @@ import { get } from 'svelte/store';
 import { collections } from '@src/stores/collectionStore';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async ({ cookies }) => {
 	try {

@@ -13,7 +13,7 @@ import { getCollections } from '@src/collections';
 import type { Collections } from '@src/types'; // Assuming you have a type for collections
 
 // System Loggers
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	logger.debug('Load function started in +page.server.ts');

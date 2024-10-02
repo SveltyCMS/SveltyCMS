@@ -10,10 +10,10 @@
  * - API response caching using existing session store
  * - Security headers
  * - OAuth route handling
+ * - Performance logging
  */
 
 import { privateEnv } from '@root/config/private';
-import { dev } from '$app/environment';
 import { redirect, error, type Handle } from '@sveltejs/kit';
 import { sequence } from '@sveltejs/kit/hooks';
 
@@ -30,7 +30,7 @@ import { InMemorySessionStore } from '@src/auth/InMemoryCacheStore';
 import { RedisCacheStore } from '@src/auth/RedisCacheStore';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Initialize rate limiter
 const limiter = new RateLimiter({
@@ -43,13 +43,6 @@ const limiter = new RateLimiter({
 		preflight: true
 	}
 });
-
-// Color codes
-const ORANGE = '\x1b[38;5;208m';
-const RED = '\x1b[31m';
-const GREEN = '\x1b[32m';
-const YELLOW = '\x1b[33m';
-const RESET = '\x1b[0m';
 
 // Initialize session store (also used for API caching)
 const cacheStore = privateEnv.USE_REDIS ? new RedisCacheStore() : new InMemorySessionStore();
@@ -190,42 +183,14 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 	return resolve(event);
 };
 
-// Performance logging handler
-const handlePerformanceLogging: Handle = async ({ event, resolve }) => {
-	if (!dev) {
-		return resolve(event);
-	}
-
-	const start = performance.now();
-	const response = await resolve(event);
-	const end = performance.now();
-
-	const responseTime = end - start;
-	const route = event.url.pathname;
-
-	let emoji, timeColor;
-	if (responseTime > 2000) {
-		emoji = '🐢';
-		timeColor = RED;
-	} else if (responseTime < 1000) {
-		emoji = '🚀';
-		timeColor = GREEN;
-	} else {
-		emoji = '⏱️';
-		timeColor = YELLOW;
-	}
-
-	logger.debug(`${ORANGE}${route}${RESET} - ${timeColor}${responseTime.toFixed(2)} ms${RESET} ${emoji}`);
-
-	return response;
-};
-
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
 	if (isStaticAsset(pathname)) {
 		return resolve(event);
 	}
+
+	const start = performance.now();
 
 	logger.debug('Starting handleAuth function');
 	await initializationPromise;
@@ -237,7 +202,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-	logger.debug(`Session ID from cookie: ${session_id ? session_id : 'Not present'}`);
+	logger.debug(`Session ID from cookie: ${session_id || 'Not present'}`);
 
 	if (session_id) {
 		logger.debug(`Session cookie value: ${session_id}`);
@@ -253,12 +218,32 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const isPublicRoute = isPublicOrOAuthRoute(pathname);
 	const isApiRequest = pathname.startsWith('/api/');
 
-	logger.debug(`Route info: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}, pathname=${pathname}`);
+	const response = await resolve(event);
+	const end = performance.now();
+	const responseTime = end - start;
+
+	let emoji;
+	if (responseTime < 100) {
+		emoji = '🚀';
+	} else if (responseTime < 500) {
+		emoji = '⚡';
+	} else if (responseTime < 1000) {
+		emoji = '⏱️';
+	} else if (responseTime < 3000) {
+		emoji = '🕰️';
+	} else {
+		emoji = '🐢';
+	}
+
+	logger.debug('This is a debug message', { email: 'test@example.com', password: 'secret' });
+	logger.error('An error occurred', { errorCode: 500 });
+
+	logger.debug(`Route ${pathname} - ${responseTime.toFixed(2)}ms ${emoji}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`);
 
 	// Allow OAuth routes to pass through without redirection
 	if (isOAuthRoute(pathname)) {
 		logger.debug('OAuth route detected, passing through');
-		return resolve(event);
+		return response;
 	}
 
 	// Redirect unauthenticated users away from public routes
@@ -280,7 +265,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	}
 
 	logger.debug('Proceeding with normal request handling');
-	return resolve(event);
+	return response;
 };
 
 // Handle API requests, including permission checks and caching
@@ -315,18 +300,20 @@ const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: str
 	const cachedResponse = await cacheStore.get(cacheKey);
 
 	if (cachedResponse) {
+		logger.debug(`Cache hit for ${cacheKey}`);
 		return createJsonResponse(cachedResponse, 200);
 	}
 
+	logger.debug(`Cache miss for ${cacheKey}, resolving request`);
 	const response = await resolve(event);
 	const responseData = await response.json();
 
 	const expiresAt = new Date(Date.now() + 300 * 1000); // Cache for 5 minutes
 	await cacheStore.set(cacheKey, responseData, expiresAt);
+	logger.debug(`Stored ${cacheKey} in cache`);
 
 	return createJsonResponse(responseData, 200);
 };
-
 // Add security headers to the response
 const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
@@ -345,7 +332,7 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 };
 
 // Combine all hooks
-export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit, handleAuth, addSecurityHeaders, handlePerformanceLogging);
+export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit, handleAuth, addSecurityHeaders);
 
 // Helper function to invalidate API cache
 export async function invalidateApiCache(apiEndpoint: string, userId: string): Promise<void> {

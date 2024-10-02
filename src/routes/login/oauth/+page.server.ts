@@ -21,7 +21,7 @@ import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 import { systemLanguage } from '@stores/store';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {

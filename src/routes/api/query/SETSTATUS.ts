@@ -23,7 +23,7 @@ import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Function to handle SETSTATUS requests for a specified collection
 export const _SETSTATUS = async ({ data, schema }: { data: FormData; schema: Schema }) => {

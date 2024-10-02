@@ -29,7 +29,7 @@ import { modifyRequest } from './modifyRequest';
 import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Function to handle DELETE requests for a specified collection
 export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

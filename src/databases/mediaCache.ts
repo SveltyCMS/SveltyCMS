@@ -6,7 +6,7 @@
 import { privateEnv } from '@root/config/private'; // Import private environment configuration
 import { browser } from '$app/environment'; // Detect if the code is running in a browser
 import type { MediaType } from '@utils/media/mediaModels'; // Import MediaType for type safety
-import logger from '@src/utils/logger'; // Custom logger utility
+import { logger } from '@src/utils/logger'; // Custom logger utility
 
 // Interface for the cache storage methods
 interface CacheStore {

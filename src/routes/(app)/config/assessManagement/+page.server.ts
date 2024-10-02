@@ -13,7 +13,7 @@ import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from '@src/auth/permissionManager';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ cookies }) => {
 	logger.debug('Starting load function for assess management page');

@@ -34,7 +34,7 @@ import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 
 // Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Import the checkUserPermission function to check permissions
 import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';

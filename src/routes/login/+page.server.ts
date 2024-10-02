@@ -33,7 +33,7 @@ import { systemLanguage } from '@stores/store';
 import { roles } from '@root/config/roles';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP

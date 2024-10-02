@@ -34,7 +34,7 @@ import nodemailer from 'nodemailer';
 import { languageTag } from '@src/paraglide/runtime';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Email templates
 import userToken from '@components/emails/userToken.svelte';

@@ -7,7 +7,7 @@ import mime from 'mime-types';
 import { sha256, removeExtension, sanitize } from '@src/utils/utils';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Convert File to Image Element
 async function fileToImage(file: File): Promise<HTMLImageElement> {

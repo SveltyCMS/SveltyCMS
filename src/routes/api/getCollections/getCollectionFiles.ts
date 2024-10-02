@@ -22,7 +22,7 @@ import fs from 'fs';
 import path from 'path';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Use process.env for server-side environment variables
 const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';

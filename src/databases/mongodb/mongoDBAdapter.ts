@@ -41,7 +41,7 @@ import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Media
 import type { MediaBase, MediaType } from '@src/utils/media/mediaModels';

@@ -1,7 +1,7 @@
 import { dbAdapter } from '@src/databases/db';
 import { promises as fs } from 'fs';
 import path from 'path';
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Path to widgets directory
 const WIDGETS_DIR = path.resolve('src/components/widgets');

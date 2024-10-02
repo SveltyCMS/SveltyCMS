@@ -28,7 +28,7 @@ import type { User } from './types';
 import { createClient } from 'redis';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Redis cache store
 export class RedisCacheStore implements SessionStore {

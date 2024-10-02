@@ -20,7 +20,7 @@
 import type { Model, Token } from './types';
 import crypto from 'crypto';
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Custom Error class for Token-related operations
 class TokenError extends Error {

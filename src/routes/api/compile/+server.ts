@@ -21,7 +21,7 @@ import { updateCollections } from '@collections';
 import { compile } from './compile';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Handles GET requests to the `/compile` endpoint.
 export const GET: RequestHandler = async () => {

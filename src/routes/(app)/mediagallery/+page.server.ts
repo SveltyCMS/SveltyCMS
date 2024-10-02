@@ -25,7 +25,7 @@ import { auth, dbAdapter } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {

@@ -24,7 +24,7 @@ import { dbAdapter } from '@src/databases/db';
 import type { Role } from '@src/auth/types';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Default max file size (100MB) if not specified in publicEnv
 const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024; // 100MB in bytes
