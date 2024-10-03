@@ -12,14 +12,14 @@ async function ensureWidgetFiles(widgetName: string): Promise<void> {
 	try {
 		await fs.access(widgetPath);
 	} catch (error) {
-		throw new Error(`Widget files for ${widgetName} do not exist.`);
+		throw Error(`Widget files for ${widgetName} do not exist.`);
 	}
 }
 
 // Ensure necessary widgets are installed and activated
 export async function ensureNecessaryWidgets(usedWidgets: string[]) {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 
 	for (const widgetName of usedWidgets) {
@@ -39,7 +39,7 @@ export async function ensureNecessaryWidgets(usedWidgets: string[]) {
 // Initialize widgets during startup
 export async function initializeWidgets() {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 
 	try {
@@ -60,7 +60,7 @@ export async function initializeWidgets() {
 // Fetch all widgets
 export async function getAllWidgets(): Promise<any[]> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	return await dbAdapter.getAllWidgets();
 }
@@ -68,7 +68,7 @@ export async function getAllWidgets(): Promise<any[]> {
 // Fetch active widgets
 export async function getActiveWidgets(): Promise<string[]> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	return await dbAdapter.getActiveWidgets();
 }
@@ -76,7 +76,7 @@ export async function getActiveWidgets(): Promise<string[]> {
 // we have to change this function I just duplicate the about as this was missing but imported
 export async function getInstalledWidgets(): Promise<string[]> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	return await dbAdapter.getActiveWidgets();
 }
@@ -84,19 +84,19 @@ export async function getInstalledWidgets(): Promise<string[]> {
 // Activate a widget by name
 export async function activateWidget(widgetName: string): Promise<void> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	if (await checkWidgetFilesExist(widgetName)) {
 		return await dbAdapter.activateWidget(widgetName);
 	} else {
-		throw new Error(`Widget files for ${widgetName} do not exist.`);
+		throw Error(`Widget files for ${widgetName} do not exist.`);
 	}
 }
 
 // Deactivate a widget by name
 export async function deactivateWidget(widgetName: string): Promise<void> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	return await dbAdapter.deactivateWidget(widgetName);
 }
@@ -104,7 +104,7 @@ export async function deactivateWidget(widgetName: string): Promise<void> {
 // Update the configuration of an existing widget
 export async function updateWidget(widgetName: string, updateData: any): Promise<void> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw Error('Database adapter not initialized');
 	}
 	return await dbAdapter.updateWidget(widgetName, updateData);
 }

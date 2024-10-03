@@ -53,14 +53,14 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 	const user_id = data.get('user_id') as string;
 
 	if (!auth) {
-		throw new Error('Auth is not initialized');
+		throw Error('Auth is not initialized');
 	}
 
 	// Authenticate user based on user ID or session ID
 	const user = user_id ? ((await auth.checkUser({ _id: user_id })) as User) : ((await auth.validateSession({ session_id })) as User);
 
 	if (!user) {
-		throw new Error('Unauthorized');
+		throw Error('Unauthorized');
 	}
 
 	// Retrieve the collection name from the form data
@@ -68,13 +68,13 @@ async function checkUserPermissions(data: FormData, cookies: any) {
 
 	// Get the schema for the specified collection
 	if (!isCollectionName(collectionName)) {
-		throw new Error('Invalid collection name');
+		throw Error('Invalid collection name');
 	}
 
 	const collection_schema = (await getCollections())[collectionName] as Schema;
 
 	if (!collection_schema) {
-		throw new Error('Collection not found');
+		throw Error('Collection not found');
 	}
 
 	// Check read and write permissions for the user

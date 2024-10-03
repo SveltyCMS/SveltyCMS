@@ -10,57 +10,70 @@ import type { PageServerLoad } from './$types';
 
 // Collections
 import { getCollections } from '@src/collections';
-import type { Collections } from '@src/types'; // Assuming you have a type for collections
+import type { Collections } from '@src/types';
 
 // System Loggers
 import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ locals }) => {
-	logger.debug('Load function started in +page.server.ts');
+	try {
+		logger.debug('Load function started in +page.server.ts');
 
-	const user = locals.user;
-	const permissions = locals.permissions;
+		const user = locals.user;
+		const permissions = locals.permissions;
 
-	logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
-	logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
+		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
+		logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
 
-	if (!user) {
-		logger.info('User not authenticated, redirecting to login');
-		throw redirect(302, '/login');
-	}
-
-	let collections: Collections;
-
-	if (!locals.collections) {
-		try {
-			collections = await getCollections();
-			locals.collections = collections;
-		} catch (err) {
-			logger.error('Error fetching collections:', err);
-			throw error(500, 'Error fetching collections');
-		}
-	} else {
-		collections = locals.collections as Collections;
-	}
-
-	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
-
-	if (collections && Object.keys(collections).length > 0) {
-		const firstCollectionKey = Object.keys(collections)[0];
-		const firstCollection = collections[firstCollectionKey];
-
-		if (!firstCollection || !firstCollection.name) {
-			logger.error('First collection or its name is undefined');
-			throw error(500, 'Invalid collection data');
+		if (!user) {
+			logger.info('User not authenticated, redirecting to login');
+			throw redirect(302, '/login');
 		}
 
-		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+		let collections: Collections;
 
-		logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-		throw redirect(302, redirectUrl);
-	} else {
-		logger.error('No collections found to redirect');
-		throw error(404, 'No collections found');
+		if (!locals.collections) {
+			try {
+				collections = await getCollections();
+				locals.collections = collections;
+			} catch (err) {
+				const message = `Error in load.getCollections: ${err instanceof Error ? err.message : String(err)}`;
+				logger.error(message);
+				throw error(500, message);
+			}
+		} else {
+			collections = locals.collections as Collections;
+		}
+
+		logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
+
+		if (collections && Object.keys(collections).length > 0) {
+			const firstCollectionKey = Object.keys(collections)[0];
+			const firstCollection = collections[firstCollectionKey];
+
+			if (!firstCollection || !firstCollection.name) {
+				const message = 'First collection or its name is undefined';
+				logger.error(message);
+				throw error(500, message);
+			}
+
+			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+			const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+
+			logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+			throw redirect(302, redirectUrl);
+		} else {
+			const message = 'No collections found to redirect';
+			logger.error(message);
+			throw error(404, message);
+		}
+	} catch (err) {
+		if (err instanceof Error && 'status' in err) {
+			// This is likely a redirect or an error we've already handled
+			throw err;
+		}
+		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };

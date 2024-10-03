@@ -5,13 +5,14 @@
  * Provides a function to check user permissions based on their role and the required permissions for a specific action or resource.
  */
 
+import { error } from '@sveltejs/kit';
 import type { User, ContextType, Permission } from './types';
 import { PermissionAction, PermissionType } from '../../config/permissions';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from './permissionManager';
 
 // System Logger
-import logger from '@utils/logger';
+import { logger } from '@utils/logger';
 
 export interface PermissionConfig {
 	contextId: string;
@@ -75,20 +76,27 @@ export async function checkUserPermission(user: User, config: PermissionConfig):
 		}
 
 		return { hasPermission, isRateLimited: false };
-	} catch (error) {
-		logger.error(`Error checking user permission: ${(error as Error).message}`);
-		return { hasPermission: false, isRateLimited: false };
+	} catch (err) {
+		const message = `Error in checkUserPermission: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { user: user.email, config });
+		throw error(500, message);
 	}
 }
 
 // Loads all permissions for the specified user based on their role.
 export async function loadUserPermissions(user: User): Promise<Permission[]> {
-	const userRole = configRoles.find((role) => role._id === user.role);
-	if (!userRole) {
-		logger.warn(`Role ${user.role} not found for user ${user.email}`);
-		return [];
-	}
+	try {
+		const userRole = configRoles.find((role) => role._id === user.role);
+		if (!userRole) {
+			logger.warn(`Role ${user.role} not found for user ${user.email}`);
+			return [];
+		}
 
-	const allPermissions = await getAllPermissions();
-	return allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
+		const allPermissions = await getAllPermissions();
+		return allPermissions.filter((permission) => userRole.permissions.includes(permission._id));
+	} catch (err) {
+		const message = `Error in loadUserPermissions: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message, { user: user.email });
+		throw error(500, message);
+	}
 }

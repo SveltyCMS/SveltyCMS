@@ -23,7 +23,8 @@ import { RateLimiter } from 'sveltekit-rate-limiter/server';
 // Auth and Database Adapters
 import { auth, initializationPromise } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { checkUserPermission, getAllPermissions } from '@src/auth/permissionManager';
+import { checkUserPermission } from '@src/auth/permissionCheck';
+import { getAllPermissions } from '@src/auth/permissionManager';
 
 // Cache
 import { InMemorySessionStore } from '@src/auth/InMemoryCacheStore';
@@ -44,23 +45,24 @@ const limiter = new RateLimiter({
 	}
 });
 
+// Get a stricter rate limiter for API requests
+const apiLimiter = new RateLimiter({
+	IP: [100, 'm'],
+	IPUA: [50, 'm']
+});
+
 // Initialize session store (also used for API caching)
 const cacheStore = privateEnv.USE_REDIS ? new RedisCacheStore() : new InMemorySessionStore();
 
 // Check if a given pathname is a static asset
-const isStaticAsset = (pathname: string): boolean => {
-	return pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css');
-};
+const isStaticAsset = (pathname: string): boolean =>
+	pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css');
 
 // Check if the given IP is localhost
-const isLocalhost = (ip: string): boolean => {
-	return ip === '::1' || ip === '127.0.0.1';
-};
+const isLocalhost = (ip: string): boolean => ip === '::1' || ip === '127.0.0.1';
 
 // Check if a route is an OAuth route
-const isOAuthRoute = (pathname: string): boolean => {
-	return pathname.startsWith('/login') && pathname.includes('OAuth');
-};
+const isOAuthRoute = (pathname: string): boolean => pathname.startsWith('/login') && pathname.includes('OAuth');
 
 // Check if the route is public or an OAuth route
 const isPublicOrOAuthRoute = (pathname: string): boolean => {
@@ -68,26 +70,9 @@ const isPublicOrOAuthRoute = (pathname: string): boolean => {
 	return publicRoutes.some((route) => pathname.startsWith(route)) || isOAuthRoute(pathname);
 };
 
-// Get a stricter rate limiter for API requests
-const getApiLimiter = (): RateLimiter => {
-	return new RateLimiter({
-		IP: [100, 'm'], // 100 requests per minute for API
-		IPUA: [50, 'm'] // 50 requests per minute per IP+User-Agent for API
-	});
-};
-
-// Create a JSON response
-const createJsonResponse = (data: any, status: number): Response => {
-	return new Response(JSON.stringify(data), {
-		status,
-		headers: { 'Content-Type': 'application/json' }
-	});
-};
-
 // Create an HTML response for rate limiting
-const createHtmlResponse = (message: string, status: number): Response => {
-	const html = `
-        <!DOCTYPE html>
+const createHtmlResponse = (message: string, status: number): never => {
+	const html = `<!DOCTYPE html>
         <html lang="en">
             <head>
                 <meta charset="UTF-8">
@@ -122,37 +107,32 @@ const createHtmlResponse = (message: string, status: number): Response => {
                 <h1>${message}</h1>
                 <p>Please try again later.</p>
             </body>
-        </html>
-    `;
-	return new Response(html, { status, headers: { 'Content-Type': 'text/html' } });
+        </html>`;
+	throw error(status, html);
 };
 
 // Get user from session ID, using cache if available
 const getUserFromSessionId = async (session_id: string | undefined): Promise<any> => {
 	if (!session_id) return null;
-
 	let user = await cacheStore.get(session_id);
 	if (!user) {
 		try {
 			user = await auth.validateSession({ session_id });
 			if (user) {
-				const expiresAt = new Date(Date.now() + 3600 * 1000); // Cache for 1 hour
-				await cacheStore.set(session_id, user, expiresAt);
+				await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
 			}
-		} catch (error) {
-			logger.error(`Session validation error: ${error}`);
+		} catch (err) {
+			logger.error(`Session validation error: ${err}`);
 		}
 	} else {
-		const expiresAt = new Date(Date.now() + 3600 * 1000); // Refresh cache expiration
-		await cacheStore.set(session_id, user, expiresAt);
+		await cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
 	}
 	return user;
 };
 
 // Handle static asset caching
 const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
-	const pathname = event.url.pathname;
-	if (isStaticAsset(pathname)) {
+	if (isStaticAsset(event.url.pathname)) {
 		const response = await resolve(event);
 		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
 		return response;
@@ -162,22 +142,16 @@ const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 
 // Handle rate limiting
 const handleRateLimit: Handle = async ({ event, resolve }) => {
-	const pathname = event.url.pathname;
-	if (isStaticAsset(pathname)) {
+	if (isStaticAsset(event.url.pathname) || isLocalhost(event.getClientAddress())) {
 		return resolve(event);
 	}
 
-	const clientIP = event.getClientAddress();
-	if (isLocalhost(clientIP)) {
-		return resolve(event);
-	}
-
-	const isApiRequest = pathname.startsWith('/api/');
-	const currentLimiter = isApiRequest ? getApiLimiter() : limiter;
+	const isApiRequest = event.url.pathname.startsWith('/api/');
+	const currentLimiter = isApiRequest ? apiLimiter : limiter;
 
 	if (await currentLimiter.isLimited(event)) {
-		logger.warn(`Rate limit exceeded for IP: ${clientIP}, endpoint: ${pathname}`);
-		return isApiRequest ? createJsonResponse({ error: 'Too Many Requests' }, 429) : createHtmlResponse('Too Many Requests', 429);
+		logger.warn(`Rate limit exceeded for IP: ${event.getClientAddress()}, endpoint: ${event.url.pathname}`);
+		throw error(429, isApiRequest ? 'Too Many Requests' : createHtmlResponse('Too Many Requests', 429));
 	}
 
 	return resolve(event);
@@ -185,13 +159,9 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 
 // Handle authentication, authorization, and API caching
 const handleAuth: Handle = async ({ event, resolve }) => {
-	const pathname = event.url.pathname;
-	if (isStaticAsset(pathname)) {
-		return resolve(event);
-	}
+	if (isStaticAsset(event.url.pathname)) return resolve(event);
 
 	const start = performance.now();
-
 	logger.debug('Starting handleAuth function');
 	await initializationPromise;
 	logger.debug('Database initialization complete');
@@ -204,61 +174,37 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const session_id = event.cookies.get(SESSION_COOKIE_NAME);
 	logger.debug(`Session ID from cookie: ${session_id || 'Not present'}`);
 
-	if (session_id) {
-		logger.debug(`Session cookie value: ${session_id}`);
-		logger.debug(`Session cookie attributes: ${JSON.stringify(event.cookies.get(SESSION_COOKIE_NAME, { decode: (value) => value }))}`);
-	}
-
 	const user = await getUserFromSessionId(session_id);
 	logger.debug(`User from session: ${user ? JSON.stringify(user) : 'Not found'}`);
 
 	event.locals.user = user;
-	event.locals.permissions = user ? user.permissions : [];
+	event.locals.permissions = user?.permissions || [];
 
-	const isPublicRoute = isPublicOrOAuthRoute(pathname);
-	const isApiRequest = pathname.startsWith('/api/');
+	const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
+	const isApiRequest = event.url.pathname.startsWith('/api/');
 
 	const response = await resolve(event);
-	const end = performance.now();
-	const responseTime = end - start;
+	const responseTime = performance.now() - start;
 
-	let emoji;
-	if (responseTime < 100) {
-		emoji = '🚀';
-	} else if (responseTime < 500) {
-		emoji = '⚡';
-	} else if (responseTime < 1000) {
-		emoji = '⏱️';
-	} else if (responseTime < 3000) {
-		emoji = '🕰️';
-	} else {
-		emoji = '🐢';
-	}
+	logger.debug(
+		`Route ${event.url.pathname} - ${responseTime.toFixed(2)}ms ${getPerformanceEmoji(responseTime)}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`
+	);
 
-	logger.debug('This is a debug message', { email: 'test@example.com', password: 'secret' });
-	logger.error('An error occurred', { errorCode: 500 });
-
-	logger.debug(`Route ${pathname} - ${responseTime.toFixed(2)}ms ${emoji}: isPublicRoute=${isPublicRoute}, isApiRequest=${isApiRequest}`);
-
-	// Allow OAuth routes to pass through without redirection
-	if (isOAuthRoute(pathname)) {
+	if (isOAuthRoute(event.url.pathname)) {
 		logger.debug('OAuth route detected, passing through');
 		return response;
 	}
 
-	// Redirect unauthenticated users away from public routes
 	if (!user && !isPublicRoute) {
 		logger.debug('User not authenticated and not on public route, redirecting to login');
-		return isApiRequest ? createJsonResponse({ error: 'Unauthorized' }, 401) : redirect(302, '/login');
+		throw isApiRequest ? error(401, 'Unauthorized') : redirect(302, '/login');
 	}
 
-	// Redirect authenticated users away from public routes
-	if (user && isPublicRoute && !isOAuthRoute(pathname)) {
+	if (user && isPublicRoute && !isOAuthRoute(event.url.pathname)) {
 		logger.debug('Authenticated user on public route, redirecting to home');
 		return redirect(302, '/');
 	}
 
-	// Handle API requests
 	if (isApiRequest && user) {
 		logger.debug('Handling API request for authenticated user');
 		return handleApiRequest(event, resolve, user);
@@ -270,28 +216,27 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 // Handle API requests, including permission checks and caching
 const handleApiRequest = async (event: any, resolve: any, user: any): Promise<Response> => {
-	const pathname = event.url.pathname;
-	const apiEndpoint = pathname.split('/')[2];
+	const apiEndpoint = event.url.pathname.split('/')[2];
 	const permissionId = `api:${apiEndpoint}`;
 
 	const allPermissions = await getAllPermissions();
-	const requiredPermission = allPermissions.find((p) => p.contextId === permissionId);
+	const requiredPermission = allPermissions.find((p) => p._id === permissionId);
 
 	// Check permissions for API access
 	if (requiredPermission) {
-		const { hasPermission } = await checkUserPermission(user, requiredPermission);
+		const { hasPermission } = await checkUserPermission(user, {
+			contextId: permissionId,
+			name: `Access ${apiEndpoint} API`,
+			action: requiredPermission.action,
+			contextType: requiredPermission.type
+		});
 		if (!hasPermission) {
 			logger.warn(`User ${user._id} attempted to access ${apiEndpoint} API without permission`);
-			return createJsonResponse({ error: 'Forbidden' }, 403);
+			throw error(403, 'Forbidden');
 		}
 	}
 
-	// API caching for GET requests
-	if (event.request.method === 'GET') {
-		return handleCachedApiRequest(event, resolve, apiEndpoint, user._id);
-	}
-
-	return resolve(event);
+	return event.request.method === 'GET' ? handleCachedApiRequest(event, resolve, apiEndpoint, user._id) : resolve(event);
 };
 
 // Handle cached API requests
@@ -301,27 +246,37 @@ const handleCachedApiRequest = async (event: any, resolve: any, apiEndpoint: str
 
 	if (cachedResponse) {
 		logger.debug(`Cache hit for ${cacheKey}`);
-		return createJsonResponse(cachedResponse, 200);
+		return new Response(JSON.stringify(cachedResponse), {
+			status: 200,
+			headers: { 'Content-Type': 'application/json' }
+		});
 	}
 
 	logger.debug(`Cache miss for ${cacheKey}, resolving request`);
 	const response = await resolve(event);
 	const responseData = await response.json();
 
-	const expiresAt = new Date(Date.now() + 300 * 1000); // Cache for 5 minutes
-	await cacheStore.set(cacheKey, responseData, expiresAt);
+	await cacheStore.set(cacheKey, responseData, new Date(Date.now() + 300 * 1000)); // Cache for 5 minutes
 	logger.debug(`Stored ${cacheKey} in cache`);
 
-	return createJsonResponse(responseData, 200);
+	return new Response(JSON.stringify(responseData), {
+		status: 200,
+		headers: { 'Content-Type': 'application/json' }
+	});
 };
+
 // Add security headers to the response
 const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	const response = await resolve(event);
-	response.headers.set('X-Frame-Options', 'SAMEORIGIN');
-	response.headers.set('X-XSS-Protection', '1; mode=block');
-	response.headers.set('X-Content-Type-Options', 'nosniff');
-	response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-	response.headers.set('Permissions-Policy', 'geolocation=(), microphone=()');
+	const headers = {
+		'X-Frame-Options': 'SAMEORIGIN',
+		'X-XSS-Protection': '1; mode=block',
+		'X-Content-Type-Options': 'nosniff',
+		'Referrer-Policy': 'strict-origin-when-cross-origin',
+		'Permissions-Policy': 'geolocation=(), microphone=()'
+	};
+
+	Object.entries(headers).forEach(([key, value]) => response.headers.set(key, value));
 
 	// Only set HSTS header on HTTPS connections
 	if (event.url.protocol === 'https:') {
@@ -331,12 +286,20 @@ const addSecurityHeaders: Handle = async ({ event, resolve }) => {
 	return response;
 };
 
+const getPerformanceEmoji = (responseTime: number): string => {
+	if (responseTime < 100) return '🚀';
+	if (responseTime < 500) return '⚡';
+	if (responseTime < 1000) return '⏱️';
+	if (responseTime < 3000) return '🕰️';
+	return '🐢';
+};
+
 // Combine all hooks
 export const handle: Handle = sequence(handleStaticAssetCaching, handleRateLimit, handleAuth, addSecurityHeaders);
 
 // Helper function to invalidate API cache
-export async function invalidateApiCache(apiEndpoint: string, userId: string): Promise<void> {
+export const invalidateApiCache = async (apiEndpoint: string, userId: string): Promise<void> => {
 	const cacheKey = `api:${apiEndpoint}:${userId}`;
 	await cacheStore.delete(cacheKey);
 	logger.debug(`Invalidated cache for ${cacheKey}`);
-}
+};

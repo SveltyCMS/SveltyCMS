@@ -7,61 +7,41 @@ import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, initializationPromise } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 import { roles as configRoles } from '@root/config/roles';
 import { getAllPermissions } from '@src/auth/permissionManager';
+import { checkUserPermission } from '@src/auth/permissionCheck';
+import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logs
 import { logger } from '@src/utils/logger';
 
-export const load: PageServerLoad = async ({ cookies }) => {
-	logger.debug('Starting load function for assess management page');
-
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		// Wait for the initialization promise to resolve
-		await initializationPromise;
-		logger.debug('Initialization complete.');
+		logger.debug('Starting load function for assess management page');
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error: Auth system not initialized');
-		}
-
-		// Secure this page with session cookie
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		logger.debug(`Session ID retrieved: ${session_id}`);
-
-		if (!session_id) {
-			logger.warn('No session ID found, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		// Validate the session and retrieve the associated user
-		const user = await auth.validateSession({ session_id });
-		logger.debug(`Session validation result: ${user ? 'Valid' : 'Invalid'}`);
+		const { user } = locals;
 
 		if (!user) {
-			logger.warn(`Invalid session for session_id: ${session_id}`);
+			logger.warn('User not authenticated, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
-		logger.debug(`User session validated successfully for user: ${user._id}`);
+		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
-		// Make sure the user's role is correctly loaded
-		const userRole = user.role;
-		if (!userRole) {
-			logger.warn(`User role is missing for user ${user.email}`);
-			throw error(403, 'User role is missing');
+		if (!user.role) {
+			const message = `User role is missing for user ${user.email}`;
+			logger.warn(message);
+			throw error(403, message);
 		}
 
-		// Always allow access for admins
-		const roleConfig = configRoles.find((role) => role._id === userRole);
-		if (roleConfig?.isAdmin) {
-			logger.debug(`User ${user._id} has admin access to Assess Management`);
-		} else {
-			logger.warn(`User ${user._id} does not have permission to access Assess Management`);
-			throw error(403, "You don't have permission to access this page");
+		// Check user permission for assess management
+		const assessManagementConfig = permissionConfigs.accessManagement;
+		const permissionCheck = await checkUserPermission(user, assessManagementConfig);
+
+		if (!permissionCheck.hasPermission) {
+			const message = `User ${user._id} does not have permission to access assess management`;
+			logger.warn(message);
+			throw error(403, message);
 		}
 
 		// Fetch roles and permissions in parallel
@@ -85,15 +65,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 			permissions
 		};
 	} catch (err) {
-		logger.error('Error in assess management load function:', err);
-
-		// Handle redirects separately
-		if (err instanceof redirect) {
+		if (err instanceof Error && 'status' in err) {
+			// This is likely a redirect or an error we've already handled
 			throw err;
-		} else if (err instanceof Error) {
-			throw error(500, `Internal Server Error: ${err.message}`);
-		} else {
-			throw error(500, 'An unexpected error occurred');
 		}
+		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };

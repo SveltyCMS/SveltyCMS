@@ -141,7 +141,7 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 		resolvers.Query[collection.name] = async (_: any, args: { pagination: { page: number; limit: number } }) => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
-				throw new Error('Database adapter is not initialized');
+				throw Error('Database adapter is not initialized');
 			}
 
 			const { page = 1, limit = 50 } = args.pagination || {};

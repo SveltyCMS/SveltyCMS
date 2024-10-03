@@ -111,7 +111,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
@@ -137,7 +137,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				files = Array.isArray(result.contents.mediaFiles) ? result.contents.mediaFiles : [];
 				console.log('Fetched media files:', files);
 			} else {
-				throw new Error(result.error || 'Unknown error');
+				throw Error(result.error || 'Unknown error');
 			}
 		} catch (error) {
 			console.error('Error fetching media files:', error);
@@ -190,7 +190,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh folder list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
@@ -243,7 +243,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				console.log('Updated folders:', updatedFolders);
 				return updatedFolders;
 			} else {
-				throw new Error(result.error || 'Failed to fetch folders');
+				throw Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
@@ -276,7 +276,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
@@ -337,7 +337,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				await fetchMediaFiles();
 			} else {
-				throw new Error('Failed to delete image');
+				throw Error('Failed to delete image');
 			}
 		} catch (error) {
 			console.error('Error deleting image:', error);

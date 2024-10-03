@@ -86,7 +86,7 @@ export class DrizzleDBAdapter implements dbInterface {
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';
 					logger.error(errorMsg);
-					throw new Error(errorMsg);
+					throw Error(errorMsg);
 				}
 
 				await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -144,7 +144,7 @@ export class DrizzleDBAdapter implements dbInterface {
 			case 'date':
 				return 'DATE';
 			default:
-				throw new Error(`Unsupported field type: ${fieldType}`);
+				throw Error(`Unsupported field type: ${fieldType}`);
 		}
 	}
 

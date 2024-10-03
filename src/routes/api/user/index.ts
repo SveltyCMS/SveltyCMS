@@ -115,7 +115,7 @@ async function sendUserToken(email: string, token: string, role: string, expires
 		});
 
 		if (!response.ok) {
-			throw new Error(`Failed to send email: ${response.statusText}`);
+			throw Error(`Failed to send email: ${response.statusText}`);
 		}
 
 		logger.info('User token email sent successfully', { email });

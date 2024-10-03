@@ -29,7 +29,7 @@
 				}));
 				console.log('Fetched virtual folders:', folders);
 			} else {
-				throw new Error(result.error || 'Failed to fetch folders');
+				throw Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
@@ -63,7 +63,7 @@
 				newFolderName = '';
 				await fetchVirtualFolders();
 			} else {
-				throw new Error(result.error || 'Failed to create folder');
+				throw Error(result.error || 'Failed to create folder');
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
@@ -93,7 +93,7 @@
 				});
 				await fetchVirtualFolders();
 			} else {
-				throw new Error(result.error || 'Failed to update folder');
+				throw Error(result.error || 'Failed to update folder');
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
@@ -123,7 +123,7 @@
 				});
 				await fetchVirtualFolders();
 			} else {
-				throw new Error(result.error || 'Failed to delete folder');
+				throw Error(result.error || 'Failed to delete folder');
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);

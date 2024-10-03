@@ -83,7 +83,7 @@ async function saveConfigFile(configData: { [key: string]: any }, isPrivate: boo
 		}
 	} catch (error) {
 		logger.error('Error executing configuration script:', error);
-		throw new Error('Failed to execute configuration script');
+		throw Error('Failed to execute configuration script');
 	}
 }
 
@@ -97,6 +97,6 @@ async function triggerServerRestart(): Promise<void> {
 		}
 	} catch (error) {
 		logger.error('Error executing server restart command:', error);
-		throw new Error('Failed to execute server restart command');
+		throw Error('Failed to execute server restart command');
 	}
 }

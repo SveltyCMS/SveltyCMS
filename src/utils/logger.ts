@@ -236,23 +236,34 @@ const formatValue = (value: LoggableValue): string => {
 };
 
 // Enhanced processLog function
+
 const processLog = async (level: LogLevel, message: string, ...args: LoggableValue[]): Promise<void> => {
 	if (!isLogLevelEnabled(level)) return;
 
 	const timestamp = getTimestamp();
 	const levelStr = `[${level.toUpperCase()}]`;
-	const errorMessage = args.length > 0 ? formatErrorMessage(args[0]) : '';
 
 	let formattedMessage: string;
 
 	if (customFormatter) {
 		formattedMessage = customFormatter(level, message, args);
 	} else {
-		formattedMessage = `${timestamp} ${applyColor(level, levelStr)}: ${message}${errorMessage ? ` ${applyColor('warn', errorMessage)}` : ''}`;
+		const colonIndex = message.indexOf(':');
+		if (level === 'error') {
+			if (colonIndex !== -1) {
+				const prefix = message.slice(0, colonIndex + 1);
+				const errorMessage = message.slice(colonIndex + 1).trim();
+				formattedMessage = `${timestamp} ${applyColor(level, levelStr)}: ${prefix}${errorMessage ? ' ' + applyColor('warn', errorMessage) : ''}`;
+			} else {
+				formattedMessage = `${timestamp} ${applyColor(level, levelStr)}: ${applyColor('warn', message)}`;
+			}
+		} else {
+			formattedMessage = `${timestamp} ${applyColor(level, levelStr)}: ${message}`;
+		}
 	}
 
 	if (browser) {
-		console.log(formattedMessage, BROWSER_STYLES[level], 'color: inherit;', 'color: orange;');
+		console.log(formattedMessage, BROWSER_STYLES[level]);
 		return;
 	}
 

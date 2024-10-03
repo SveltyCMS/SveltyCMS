@@ -78,7 +78,7 @@ async function findById(collection: any, id: string) {
 		const document = await collection.findById(id);
 		if (!document) {
 			logger.warn(`Document not found with ID: ${id}`);
-			throw new Error('Document not found');
+			throw Error('Document not found');
 		}
 		logger.info(`Document found by ID: ${id}`);
 		return document;
@@ -99,7 +99,7 @@ async function findByQuery(collection: any, queryParam: string) {
 			queryParam,
 			error: error instanceof Error ? error.message : error
 		});
-		throw new Error(`Invalid JSON query: ${error instanceof Error ? error.message : 'Unknown error'}`);
+		throw Error(`Invalid JSON query: ${error instanceof Error ? error.message : 'Unknown error'}`);
 	}
 
 	try {
@@ -110,7 +110,7 @@ async function findByQuery(collection: any, queryParam: string) {
 		const documents = await collection.find(query).skip(skip).limit(limit);
 		if (documents.length === 0) {
 			logger.warn(`No documents found matching query: ${JSON.stringify(query)}`);
-			throw new Error('No documents found');
+			throw Error('No documents found');
 		}
 
 		const totalDocuments = await collection.countDocuments(query);

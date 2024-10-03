@@ -74,7 +74,7 @@ const widgets = {
 // 		return module.default;
 // 	} catch (error) {
 // 		logger.error(`Failed to import widget: ${widgetName}`, error as Error);
-// 		throw new Error(`Widget module for ${widgetName} not found.`);
+// 		throw Error(`Widget module for ${widgetName} not found.`);
 // 	}
 // }
 // Initialize widgets

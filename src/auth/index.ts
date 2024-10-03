@@ -43,7 +43,7 @@ if (typeof window === 'undefined') {
 // Default expiration time (1 hour in seconds)
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
-// System Logs
+// System Logger
 import { logger } from '@src/utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
@@ -77,7 +77,7 @@ export class Auth {
 	constructor(dbAdapter: authDBInterface, sessionStore: SessionStore = defaultSessionStore) {
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
-			throw new Error('Database adapter is required but was not initialized');
+			throw Error('Database adapter is required but was not initialized');
 		}
 
 		this.db = dbAdapter;
@@ -91,14 +91,14 @@ export class Auth {
 			const { email, password, username, role, lastAuthMethod, isRegistered } = userData;
 
 			if (!email || !password) {
-				throw new Error('Email and password are required to create a user');
+				throw Error('Email and password are required to create a user');
 			}
 
 			// Hash the password
 			let hashedPassword: string | undefined;
 			if (password) {
 				if (!argon2) {
-					throw new Error('Argon2 is not available in this environment');
+					throw Error('Argon2 is not available in this environment');
 				}
 				hashedPassword = await argon2.hash(password, {
 					...argon2Attributes,
@@ -119,14 +119,14 @@ export class Auth {
 			});
 
 			if (!user || !user._id) {
-				throw new Error('User creation failed: No user ID returned');
+				throw Error('User creation failed: No user ID returned');
 			}
 			logger.info(`User created: ${user._id}`);
 			return user;
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to create user: ${err.message}`, { userData });
-			throw new Error(`Failed to create user: ${err.message}`);
+			throw Error(`Failed to create user: ${err.message}`);
 		}
 	}
 
@@ -135,7 +135,7 @@ export class Auth {
 		try {
 			if (attributes.password && typeof window === 'undefined') {
 				if (!argon2) {
-					throw new Error('Argon2 is not available in this environment');
+					throw Error('Argon2 is not available in this environment');
 				}
 				// Hash the password with argon2
 				attributes.password = await argon2.hash(attributes.password, {
@@ -151,7 +151,7 @@ export class Auth {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to update user attributes: ${err.message}`);
-			throw new Error(`Failed to update user attributes: ${err.message}`);
+			throw Error(`Failed to update user attributes: ${err.message}`);
 		}
 	}
 
@@ -163,7 +163,7 @@ export class Auth {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to delete user: ${err.message}`);
-			throw new Error(`Failed to delete user: ${err.message}`);
+			throw Error(`Failed to delete user: ${err.message}`);
 		}
 	}
 
@@ -179,7 +179,7 @@ export class Auth {
 	}): Promise<Session> {
 		if (!user_id) {
 			logger.error('user_id is required to create a session');
-			throw new Error('user_id is required to create a session');
+			throw Error('user_id is required to create a session');
 		}
 
 		logger.debug(`Creating session for user ID: ${user_id}`);
@@ -207,7 +207,7 @@ export class Auth {
 			await this.sessionStore.set(session._id, user, expirationInSeconds);
 		} else {
 			logger.error(`User not found for ID: ${user_id}`);
-			throw new Error(`User not found for ID: ${user_id}`);
+			throw Error(`User not found for ID: ${user_id}`);
 		}
 
 		logger.info(`Session created with ID: ${session._id} for user ID: ${user_id}`);
@@ -219,12 +219,12 @@ export class Auth {
 		try {
 			if (fields.email) {
 				if (typeof fields.email !== 'string') {
-					throw new Error('Invalid email format');
+					throw Error('Invalid email format');
 				}
 				return await this.db.getUserByEmail(fields.email);
 			} else if (fields.user_id) {
 				if (typeof fields.user_id !== 'string') {
-					throw new Error('Invalid user_id format');
+					throw Error('Invalid user_id format');
 				}
 				return await this.db.getUserById(fields.user_id);
 			} else {
@@ -234,7 +234,7 @@ export class Auth {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to check user: ${err.message}`, { fields });
-			throw new Error(`Failed to check user: ${err.message}`);
+			throw Error(`Failed to check user: ${err.message}`);
 		}
 	}
 
@@ -245,7 +245,7 @@ export class Auth {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to get user count: ${err.message}`);
-			throw new Error(`Failed to get user count: ${err.message}`);
+			throw Error(`Failed to get user count: ${err.message}`);
 		}
 	}
 
@@ -256,15 +256,15 @@ export class Auth {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to get user by ID: ${err.message}`);
-			throw new Error(`Failed to get user by ID: ${err.message}`);
+			throw Error(`Failed to get user by ID: ${err.message}`);
 		}
 	}
 
 	// Create a new role
 	async createRole(roleData: Partial<Role>, current_user_id: string): Promise<Role> {
-		if (!roleData.name) throw new Error('Role name is required');
+		if (!roleData.name) throw Error('Role name is required');
 
-		if (this.roles.has(roleData.name)) throw new Error('Role with this name already exists');
+		if (this.roles.has(roleData.name)) throw Error('Role with this name already exists');
 
 		const newRole: Role = {
 			_id: roleData._id!,
@@ -282,7 +282,7 @@ export class Auth {
 	// Update role
 	async updateRole(role_id: string, roleData: Partial<Role>, current_user_id: string): Promise<void> {
 		const role = this.roles.get(role_id);
-		if (!role) throw new Error('Role not found');
+		if (!role) throw Error('Role not found');
 
 		this.roles.set(role_id, { ...role, ...roleData });
 		await this.syncConfigFile();
@@ -291,7 +291,7 @@ export class Auth {
 
 	// Delete role
 	async deleteRole(role_id: string, current_user_id: string): Promise<void> {
-		if (!this.roles.has(role_id)) throw new Error('Role not found');
+		if (!this.roles.has(role_id)) throw Error('Role not found');
 
 		this.roles.delete(role_id);
 		await this.syncConfigFile();
@@ -352,10 +352,10 @@ export class Auth {
 	// Assign a permission to a role
 	async assignPermissionToRole(role_name: string, permission_name: string, current_user_id: string): Promise<void> {
 		const role = [...this.roles.values()].find((r) => r.name === role_name);
-		if (!role) throw new Error('Role not found');
+		if (!role) throw Error('Role not found');
 
 		const permission = await getPermissionByName(permission_name);
-		if (!permission) throw new Error('Permission not found');
+		if (!permission) throw Error('Permission not found');
 
 		if (!role.permissions.includes(permission_name)) {
 			role.permissions.push(permission_name);
@@ -367,7 +367,7 @@ export class Auth {
 	// Remove a permission from a role
 	async deletePermissionFromRole(role_name: string, permission_name: string, current_user_id: string): Promise<void> {
 		const role = [...this.roles.values()].find((r) => r.name === role_name);
-		if (!role) throw new Error('Role not found');
+		if (!role) throw Error('Role not found');
 
 		const permissionIndex = role.permissions.indexOf(permission_name);
 		if (permissionIndex > -1) {
@@ -464,7 +464,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 			logger.info('Config file updated with new roles and permissions');
 		} catch (error) {
 			logger.error(`Failed to update config file: ${(error as Error).message}`);
-			throw new Error('Failed to update config file');
+			throw Error('Failed to update config file');
 		}
 	}
 
@@ -475,7 +475,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to get all users: ${err.message}`);
-			throw new Error(`Failed to get all users: ${err.message}`);
+			throw Error(`Failed to get all users: ${err.message}`);
 		}
 	}
 
@@ -488,7 +488,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to get all tokens: ${err.message}`);
-			throw new Error(`Failed to get all tokens: ${err.message}`);
+			throw Error(`Failed to get all tokens: ${err.message}`);
 		}
 	}
 
@@ -501,7 +501,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to destroy session: ${err.message}`);
-			throw new Error(`Failed to destroy session: ${err.message}`);
+			throw Error(`Failed to destroy session: ${err.message}`);
 		}
 	}
 
@@ -513,7 +513,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to clean up expired sessions: ${err.message}`);
-			throw new Error(`Failed to clean up expired sessions: ${err.message}`);
+			throw Error(`Failed to clean up expired sessions: ${err.message}`);
 		}
 	}
 
@@ -542,12 +542,12 @@ export function setPermissions(newPermissions: Permission[]): void {
 
 		if (user.lockoutUntil && new Date(user.lockoutUntil) > new Date()) {
 			logger.warn(`Login attempt for locked out account: ${email}`);
-			throw new Error('Account is temporarily locked. Please try again later.');
+			throw Error('Account is temporarily locked. Please try again later.');
 		}
 
 		try {
 			if (!argon2) {
-				throw new Error('Argon2 is not available in this environment');
+				throw Error('Argon2 is not available in this environment');
 			}
 			if (await argon2.verify(user.password, password)) {
 				await this.db.updateUserAttributes(user._id, { failedAttempts: 0, lockoutUntil: null });
@@ -559,11 +559,11 @@ export function setPermissions(newPermissions: Permission[]): void {
 					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // lockout for 30 minutes
 					await this.db.updateUserAttributes(user._id, { failedAttempts, lockoutUntil });
 					logger.warn(`User locked out due to too many failed attempts: ${user._id}`);
-					throw new Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
+					throw Error('Account is temporarily locked due to too many failed attempts. Please try again later.');
 				} else {
 					await this.db.updateUserAttributes(user._id, { failedAttempts });
 					logger.warn(`Invalid login attempt for user: ${user._id}`);
-					throw new Error('Invalid credentials. Please try again.');
+					throw Error('Invalid credentials. Please try again.');
 				}
 			}
 		} catch (error) {
@@ -582,7 +582,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to log out: ${err.message}`);
-			throw new Error(`Failed to log out: ${err.message}`);
+			throw Error(`Failed to log out: ${err.message}`);
 		}
 	}
 
@@ -592,7 +592,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 			logger.info(`Validating session with ID: ${session_id}`);
 			if (!session_id) {
 				logger.error('Session ID is undefined');
-				throw new Error('Session ID is undefined');
+				throw Error('Session ID is undefined');
 			}
 			const user = await this.db.validateSession(session_id);
 
@@ -606,7 +606,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 			// Convert error to a readable format
 			const err = error instanceof Error ? error.message : JSON.stringify(error);
 			logger.error(`Failed to validate session: ${err}`);
-			throw new Error(`Failed to validate session: ${err}`);
+			throw Error(`Failed to validate session: ${err}`);
 		}
 	}
 
@@ -614,7 +614,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 	async createToken(user_id: string, expires = new Date(Date.now() + 60 * 60 * 1000), type = 'access'): Promise<string> {
 		try {
 			const user = await this.db.getUserById(user_id);
-			if (!user) throw new Error('User not found');
+			if (!user) throw Error('User not found');
 
 			const token = await this.db.createToken({
 				user_id,
@@ -627,7 +627,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to create token: ${err.message}`);
-			throw new Error(`Failed to create token: ${err.message}`);
+			throw Error(`Failed to create token: ${err.message}`);
 		}
 	}
 
@@ -639,7 +639,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to validate token: ${err.message}`);
-			throw new Error(`Failed to validate token: ${err.message}`);
+			throw Error(`Failed to validate token: ${err.message}`);
 		}
 	}
 
@@ -653,7 +653,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to consume token: ${err.message}`);
-			throw new Error(`Failed to consume token: ${err.message}`);
+			throw Error(`Failed to consume token: ${err.message}`);
 		}
 	}
 
@@ -665,7 +665,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Failed to invalidate all sessions for user ID: ${user_id}. Error: ${err.message}`);
-			throw new Error(`Failed to invalidate all sessions for user ID: ${user_id}. Error: ${err.message}`);
+			throw Error(`Failed to invalidate all sessions for user ID: ${user_id}. Error: ${err.message}`);
 		}
 	}
 
@@ -678,7 +678,7 @@ export function setPermissions(newPermissions: Permission[]): void {
 				return { status: false, message: 'User not found' };
 			}
 			if (!argon2) {
-				throw new Error('Argon2 is not available in this environment');
+				throw Error('Argon2 is not available in this environment');
 			}
 			const hashedPassword = await argon2.hash(newPassword, argon2Attributes);
 			await this.db.updateUserAttributes(user._id!, { password: hashedPassword });

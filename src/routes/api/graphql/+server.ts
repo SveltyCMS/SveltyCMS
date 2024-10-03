@@ -34,7 +34,8 @@ import { dbAdapter } from '@src/databases/db';
 import { createClient } from 'redis';
 
 // Permission Management
-import { registerPermission, checkUserPermission, PermissionConfig } from '@src/auth/permissionManager';
+import { checkUserPermission, PermissionConfig } from '@src/auth/permissionCheck';
+import { registerPermission } from '@src/auth/permissionManager';
 import { PermissionAction, PermissionType } from '@root/config/permissions';
 
 // System Logger
@@ -122,11 +123,11 @@ async function setupGraphQL() {
 				accessManagementPermission: async (_, __, context) => {
 					const { user } = context;
 					if (!user) {
-						throw new Error('Unauthorized');
+						throw Error('Unauthorized');
 					}
 					const { hasPermission } = await checkUserPermission(user, accessManagementPermission);
 					if (!hasPermission) {
-						throw new Error('Forbidden');
+						throw Error('Forbidden');
 					}
 					return accessManagementPermission;
 				}

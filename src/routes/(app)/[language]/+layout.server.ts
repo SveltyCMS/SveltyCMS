@@ -46,8 +46,9 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 
 		// Validate the requested language
 		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
-			logger.warn(`The language '${language}' is not available.`);
-			throw error(404, `The language '${language}' is not available.`);
+			const message = `The language '${language}' is not available.`;
+			logger.warn(message);
+			throw error(404, message);
 		}
 
 		return {
@@ -58,7 +59,12 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 			}
 		};
 	} catch (err) {
-		logger.error(`Unexpected error in load function: ${err instanceof Error ? err.message : String(err)}`);
-		throw err;
+		if (err instanceof Error && 'status' in err) {
+			// This is likely a redirect or an error we've already handled
+			throw err;
+		}
+		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };

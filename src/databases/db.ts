@@ -11,16 +11,12 @@
  * - Configuring Google OAuth2 client if credentials are provided
  *
  * Key Features:
- * - **Dynamic Adapter Loading:** Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
- * - **Database Connection:** Implements a retry mechanism to handle connection failures and attempts reconnections.
- * - **Initialization Management:** Manages initialization state to prevent redundant setup processes. Asynchronous initialization with promise-based error handling.
- * - **Theme Initialization:** Handles default theme setup and ensures it's marked as default if not already.
- * - **Authentication and Authorization:** Configures and initializes authentication adapters, including user, role, permission, session, and token management.
- * - **Google OAuth2 Integration:** Optionally sets up Google OAuth2 client if the client ID and secret are provided.
- *
- * Usage:
- * This module is typically imported and utilized in the startup phase of the application to ensure that database and authentication systems
- * are properly set up and ready to handle incoming requests.
+ * - Dynamic Adapter Loading: Supports MongoDB and SQL-based adapters (MariaDB, PostgreSQL) with dynamic import.
+ * - Database Connection: Implements a retry mechanism to handle connection failures and attempts reconnections.
+ * - Initialization Management: Manages initialization state to prevent redundant setup processes.
+ * - Theme Initialization: Handles default theme setup and ensures it's marked as default if not already.
+ * - Authentication and Authorization: Configures and initializes authentication adapters.
+ * - Google OAuth2 Integration: Optionally sets up Google OAuth2 client if the client ID and secret are provided.
  */
 
 import { dev } from '$app/environment';
@@ -29,6 +25,7 @@ import { privateEnv } from '@root/config/private';
 import fs from 'fs/promises';
 import path from 'path';
 import { browser } from '$app/environment';
+import { error } from '@sveltejs/kit';
 
 // Auth
 import { Auth } from '@src/auth';
@@ -49,6 +46,9 @@ import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
 // System Logger
 import { logger } from '@src/utils/logger';
 
+// Theme
+import { DEFAULT_THEME } from '@src/databases/themeManager';
+
 // Database and authentication adapters
 let dbAdapter: dbInterface | null = null;
 let authAdapter: authDBInterface | null = null;
@@ -59,9 +59,6 @@ let initializationPromise: Promise<void> | null = null;
 
 const MAX_RETRIES = 5; // Maximum number of DB connection retries
 const RETRY_DELAY = 5000; // 5 seconds
-
-// Theme
-import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // Load database and authentication adapters
 async function loadAdapters() {
@@ -111,18 +108,19 @@ async function loadAdapters() {
 			logger.debug('Implement & Loading SQL adapters...');
 			// Implement SQL adapters loading here
 		} else {
-			throw new Error(`Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
+			throw error(500, `Unsupported DB_TYPE: ${privateEnv.DB_TYPE}`);
 		}
-	} catch (error) {
-		logger.error(`Error loading adapters: ${(error as Error).message}`, { error });
-		throw error;
+	} catch (err) {
+		const message = `Error in loadAdapters: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
 // Connect to the database
 async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw error(500, 'Database adapter not initialized');
 	}
 
 	logger.info(`\x1b[33m\x1b[5mTrying to connect to your defined ${privateEnv.DB_NAME} database ...\x1b[0m`);
@@ -132,13 +130,14 @@ async function connectToDatabase(retries = MAX_RETRIES): Promise<void> {
 			await dbAdapter.connect();
 			logger.info(`\x1b[32mConnection to ${privateEnv.DB_NAME} database successful!\x1b[0m ===> Enjoying your \x1b[31m${publicEnv.SITE_NAME}\x1b[0m`);
 			return;
-		} catch (error) {
-			logger.error(`\x1b[31m Error connecting to database:\x1b[0m (attempt ${attempt}/${retries}): ${(error as Error).message}`, { error });
+		} catch (err) {
+			const message = `Error connecting to database (attempt ${attempt}/${retries}): ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(`\x1b[31m ${message}\x1b[0m`);
 			if (attempt < retries) {
 				logger.info(`Retrying in ${RETRY_DELAY / 1000} seconds...`);
 				await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY));
 			} else {
-				throw new Error('Failed to connect to the database after maximum retries');
+				throw error(500, 'Failed to connect to the database after maximum retries');
 			}
 		}
 	}
@@ -157,9 +156,10 @@ async function initializeDefaultTheme(dbAdapter: dbInterface): Promise<void> {
 		} else {
 			logger.info('Themes already exist in the database. Skipping default theme initialization.');
 		}
-	} catch (error) {
-		logger.error(`Error initializing default theme: ${(error as Error).message}`, { error });
-		throw new Error(`Error initializing default theme: ${(error as Error).message}`);
+	} catch (err) {
+		const message = `Error in initializeDefaultTheme: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
@@ -182,7 +182,7 @@ async function initializeMediaFolder() {
 // Initialize virtual folders
 async function initializeVirtualFolders() {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw error(500, 'Database adapter not initialized');
 	}
 
 	try {
@@ -198,9 +198,10 @@ async function initializeVirtualFolders() {
 		} else {
 			logger.info(`Found ${virtualFolders.length} virtual folders.`);
 		}
-	} catch (error) {
-		logger.error(`Error initializing virtual folders: ${(error as Error).message}`);
-		throw error;
+	} catch (err) {
+		const message = `Error in initializeVirtualFolders: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
@@ -221,10 +222,10 @@ async function initializeAdapters(): Promise<void> {
 			const collections = await getCollections();
 
 			if (Object.keys(collections).length === 0) {
-				throw new Error('No collections found after initialization');
+				throw error(500, 'No collections found after initialization');
 			}
 			if (!dbAdapter) {
-				throw new Error('Database adapter not initialized');
+				throw error(500, 'Database adapter not initialized');
 			}
 
 			await initializeDefaultTheme(dbAdapter);
@@ -240,7 +241,7 @@ async function initializeAdapters(): Promise<void> {
 		}
 
 		if (!authAdapter) {
-			throw new Error('Authentication adapter not initialized');
+			throw error(500, 'Authentication adapter not initialized');
 		}
 
 		auth = new Auth(authAdapter);
@@ -248,17 +249,18 @@ async function initializeAdapters(): Promise<void> {
 
 		isInitialized = true;
 		logger.info('Adapters initialized successfully');
-	} catch (error) {
-		logger.error(`Error initializing adapters: ${(error as Error).message}`, { error });
+	} catch (err) {
+		const message = `Error in initializeAdapters: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
 		isInitialized = false; // Reset initialization flag on error
-		throw error; // Re-throw the error to be caught by the promise
+		throw error(500, message); // Re-throw the error to be caught by the promise
 	}
 }
 
 // Initialize revisions
 async function initializeRevisions() {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw error(500, 'Database adapter not initialized');
 	}
 
 	// Implement any revision-specific initialization logic here
@@ -269,8 +271,9 @@ async function initializeRevisions() {
 if (!initializationPromise) {
 	initializationPromise = initializeAdapters()
 		.then(() => logger.debug('Initialization completed successfully.'))
-		.catch((error) => {
-			logger.error(`Initialization promise rejected with error: ${(error as Error).message}`, { error });
+		.catch((err) => {
+			const message = `Initialization promise rejected with error: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
 			initializationPromise = null;
 		});
 }
@@ -281,7 +284,7 @@ const collectionsModels: { [key: string]: any } = {};
 // Export collections
 export async function getCollectionModels() {
 	if (!dbAdapter) {
-		throw new Error('Database adapter not initialized');
+		throw error(500, 'Database adapter not initialized');
 	}
 
 	try {
@@ -289,7 +292,6 @@ export async function getCollectionModels() {
 
 		// Fetch all collection models
 		const models = await dbAdapter.getCollectionModels();
-
 		// Assign the models to collectionsModels object
 		Object.assign(collectionsModels, models);
 
@@ -298,9 +300,10 @@ export async function getCollectionModels() {
 		logger.debug('Collection models fetched successfully', { modelCount });
 
 		return collectionsModels;
-	} catch (error) {
-		logger.error(`Error fetching collection models: ${(error as Error).message}`, { error });
-		throw error;
+	} catch (err) {
+		const message = `Error in getCollectionModels: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 

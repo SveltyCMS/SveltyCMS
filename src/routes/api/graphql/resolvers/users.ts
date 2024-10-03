@@ -87,7 +87,7 @@ export function userResolvers(dbAdapter: dbInterface) {
 	const fetchWithPagination = async (collectionName: string, pagination: { page: number; limit: number }) => {
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
-			throw new Error('Database adapter is not initialized');
+			throw Error('Database adapter is not initialized');
 		}
 
 		const { page = 1, limit = 10 } = pagination || {};
@@ -99,7 +99,7 @@ export function userResolvers(dbAdapter: dbInterface) {
 			return users;
 		} catch (error) {
 			logger.error(`Error fetching data for ${collectionName}:`, error);
-			throw new Error(`Failed to fetch data for ${collectionName}`);
+			throw Error(`Failed to fetch data for ${collectionName}`);
 		}
 	};
 

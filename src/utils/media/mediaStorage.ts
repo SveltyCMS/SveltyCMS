@@ -69,7 +69,7 @@ export async function saveFileToDisk(buffer: Buffer, url: string): Promise<void>
 				})
 				.promise();
 		} else {
-			throw new Error('S3 client is not available. Unable to save file to cloud storage.');
+			throw Error('S3 client is not available. Unable to save file to cloud storage.');
 		}
 	} else {
 		// Save to local storage
@@ -95,7 +95,7 @@ export async function saveRemoteMedia(
 ): Promise<{ id: string; fileInfo: MediaRemoteVideo }> {
 	try {
 		const response = await fetch(fileUrl);
-		if (!response.ok) throw new Error(`Failed to fetch file: ${response.statusText}`);
+		if (!response.ok) throw Error(`Failed to fetch file: ${response.statusText}`);
 
 		const buffer = Buffer.from(await response.arrayBuffer());
 		const hash = await hashFileContent(buffer);
@@ -143,7 +143,7 @@ export async function saveRemoteMedia(
 		if (!dbAdapter) {
 			const errorMessage = 'Database adapter is not initialized';
 			logger.error(errorMessage);
-			throw new Error(errorMessage);
+			throw Error(errorMessage);
 		}
 
 		const existingFile = await dbAdapter.findOne('media_remote_videos', { hash });
@@ -275,7 +275,7 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		if (!dbAdapter) {
 			const errorMessage = 'Database adapter is not initialized';
 			logger.error(errorMessage);
-			throw new Error(errorMessage);
+			throw Error(errorMessage);
 		}
 
 		await dbAdapter.insertMany('media_images', [imageData]);
@@ -288,7 +288,7 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		return fileUrl;
 	} catch (err) {
 		logger.error('Error in saveAvatarImage:', err as Error);
-		throw new Error('Failed to save avatar image');
+		throw Error('Failed to save avatar image');
 	}
 }
 
@@ -297,7 +297,7 @@ export async function moveMediaToTrash(id: string, collection: string): Promise<
 	try {
 		const mediaItem = await getMediaById(id, collection);
 		if (!mediaItem) {
-			throw new Error('Media not found');
+			throw Error('Media not found');
 		}
 
 		const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash', collection);

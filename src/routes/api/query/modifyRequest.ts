@@ -100,6 +100,6 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		const errorStack = error instanceof Error ? error.stack : '';
 		logger.error(`Error in modifyRequest: ${errorMessage}`, { stack: errorStack });
-		throw new Error(errorMessage);
+		throw Error(errorMessage);
 	}
 }

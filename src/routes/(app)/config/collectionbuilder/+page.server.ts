@@ -1,56 +1,63 @@
 /**
- *  @files src/routes/(app)/config/collectionbuilder/+page.server.ts
- *  @description Server-side logic for Collection Builder page authentication and authorization.
+ * @file src/routes/(app)/config/collectionbuilder/+page.server.ts
+ * @description Server-side logic for Collection Builder page authentication and authorization.
+ *
+ * Handles user authentication and role-based access control for the Collection Builder page.
+ * Redirects unauthenticated users to the login page and restricts access based on user permissions.
+ *
+ * Responsibilities:
+ * - Checks for authenticated user in locals (set by hooks.server.ts).
+ * - Checks user permissions for collection builder access.
+ * - Returns user data if authentication and authorization are successful.
+ * - Handles cases of unauthenticated users or insufficient permissions.
  */
 
 import { redirect, error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth, initializationPromise } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { checkUserPermission } from '@src/auth/permissionCheck';
+import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
 import { logger } from '@src/utils/logger';
 
-export const load: PageServerLoad = async ({ cookies }) => {
-	await initializationPromise;
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
+export const load: PageServerLoad = async ({ locals }) => {
+	try {
+		const { user } = locals;
 
-	// Secure this page with session cookie
-	let session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	// If no session ID is found, create a new session
-	if (!session_id) {
-		try {
-			const newSession = await auth.createSession({ user_id: 'guestuser_id' });
-			const sessionCookie = auth.createSessionCookie(newSession);
-			cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
-			session_id = sessionCookie.value;
-		} catch (e) {
-			logger.error('Failed to create a new session:', e);
-			throw error(500, 'Internal Server Error');
+		if (!user) {
+			logger.warn('User not authenticated, redirecting to login');
+			throw redirect(302, '/login');
 		}
-	}
 
-	// Validate the user's session
-	const user = await auth.validateSession({ session_id });
+		logger.debug(`User authenticated successfully for user: ${user._id}`);
 
-	// If validation fails, redirect the user to the login page
-	if (!user) {
-		throw redirect(302, `/login`);
-	}
+		// Check user permission for collection builder
+		const collectionBuilderConfig = permissionConfigs.collectionbuilder;
+		const permissionCheck = await checkUserPermission(user, collectionBuilderConfig);
 
-	const { _id, ...rest } = user;
-
-	// Return user data with proper typing
-	return {
-		user: {
-			id: _id.toString(),
-			...rest
+		if (!permissionCheck.hasPermission) {
+			const message = `User ${user._id} does not have permission to access collection builder`;
+			logger.warn(message);
+			throw error(403, 'Insufficient permissions');
 		}
-	};
+
+		// Return user data
+		const { _id, ...rest } = user;
+		return {
+			user: {
+				id: _id.toString(),
+				...rest
+			}
+		};
+	} catch (err) {
+		if (err instanceof Error && 'status' in err) {
+			// This is likely a redirect or an error we've already handled
+			throw err;
+		}
+		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
+	}
 };

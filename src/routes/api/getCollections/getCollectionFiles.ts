@@ -44,6 +44,6 @@ export function getCollectionFiles(): string[] {
 		return filteredFiles;
 	} catch (error) {
 		logger.error('Error reading collection files', { message: (error as Error).message, stack: (error as Error).stack });
-		throw new Error(`Failed to read collection files: ${(error as Error).message}`);
+		throw Error(`Failed to read collection files: ${(error as Error).message}`);
 	}
 }

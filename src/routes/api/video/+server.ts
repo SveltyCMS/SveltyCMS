@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
 			const videoId = getYouTubeVideoId(url);
 			if (!videoId) {
-				throw new Error('Invalid YouTube URL');
+				throw Error('Invalid YouTube URL');
 			}
 			videoData = await youtube(videoId);
 		} else if (hostname.includes('vimeo.com')) {

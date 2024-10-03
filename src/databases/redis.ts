@@ -2,7 +2,7 @@
  * @file src/databases/redis.ts
  * @description Redis client initialization and caching operations for the CMS.
  *
- * This module provides functionality for:
+  * This module provides functionality for:
  * - Initializing and managing a Redis client connection
  * - Caching and retrieving data using Redis
  * - Handling session caching specifically for user sessions
@@ -26,11 +26,13 @@
  * This module is used throughout the application for caching purposes,
  * particularly for improving the performance of frequently accessed data
  * and managing user sessions.
+
  */
 
 // Import necessary modules
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
+import { error } from '@sveltejs/kit';
 
 // Auth
 import type { User } from '@src/auth/types';
@@ -85,9 +87,9 @@ export async function initializeRedis(retries = redisConfig.retryAttempts, delay
 
 			redisClient.on('error', (err) => logger.error('Redis Client Error', err));
 			return; // Exit function if connection is successful
-		} catch (error) {
-			const errMessage = error instanceof Error ? error.message : String(error);
-			logger.error(`Failed to initialize Redis client: ${errMessage}. Attempt ${attempt} of ${retries}.`);
+		} catch (err) {
+			const message = `Error in initializeRedis: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
 
 			redisClient = null;
 
@@ -95,7 +97,7 @@ export async function initializeRedis(retries = redisConfig.retryAttempts, delay
 				logger.info(`Retrying Redis connection in ${delay / 1000} seconds...`);
 				await new Promise((resolve) => setTimeout(resolve, delay));
 			} else {
-				throw new Error('Failed to initialize Redis after maximum retries.');
+				throw error(500, message);
 			}
 		}
 	}
@@ -104,27 +106,20 @@ export async function initializeRedis(retries = redisConfig.retryAttempts, delay
 // Ensures that the Redis client is initialized before performing any operations.
 async function ensureRedisInitialized() {
 	if (browser) {
-		throw new Error('Redis operations are not available in browser environment');
+		const message = 'Error in ensureRedisInitialized: Redis operations are not available in browser environment';
+		logger.error(message);
+		throw error(500, message);
 	}
 	if (!redisClient) {
-		throw new Error('Redis client is not initialized');
+		const message = 'Error in ensureRedisInitialized: Redis client is not initialized';
+		logger.error(message);
+		throw error(500, message);
 	}
 	await redisClient.connect(); // Ensure that the connection is established.
 }
 
-// Handles Redis operation errors by logging them with a clear message.
-function handleRedisError(error: unknown, operation: string, key: string): void {
-	const errorMessage = error instanceof Error ? error.message : String(error);
-	logger.error(`Redis ${operation} error for key ${key}: ${errorMessage}`);
-}
-
 // Retrieves a cached value from Redis, with optional decompression.
 export async function getCache<T>(key: string): Promise<T | null> {
-	if (browser) {
-		logger.warn('Attempt to use Redis caching in a browser environment');
-		return null;
-	}
-
 	try {
 		await ensureRedisInitialized();
 		const value = await redisClient!.get(key);
@@ -136,57 +131,46 @@ export async function getCache<T>(key: string): Promise<T | null> {
 			return JSON.parse(value) as T;
 		}
 		return null;
-	} catch (error) {
-		handleRedisError(error, 'get', key);
-		return null;
+	} catch (err) {
+		const message = `Error in getCache: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
 // Sets a value in Redis with optional compression and expiration time.
 export async function setCache<T>(key: string, value: T, expirationInSeconds: number = 3600): Promise<void> {
-	if (browser) {
-		logger.warn('Attempt to use Redis caching in a browser environment');
-		return;
-	}
-
-	if (!redisClient) {
-		logger.warn('Redis client is not initialized. Skipping cache set.');
-		return;
-	}
-
 	try {
+		await ensureRedisInitialized();
 		const jsonValue = JSON.stringify(value);
 		if (compress) {
 			const compressedValue = await compress(Buffer.from(jsonValue));
-			await redisClient.set(key, compressedValue, {
+			await redisClient!.set(key, compressedValue, {
 				EX: expirationInSeconds
 			});
 		} else {
-			await redisClient.set(key, jsonValue, {
+			await redisClient!.set(key, jsonValue, {
 				EX: expirationInSeconds
 			});
 		}
-	} catch (error) {
-		handleRedisError(error, 'set', key);
+		logger.debug('Cache set', { key });
+	} catch (err) {
+		const message = `Error in setCache: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
 // Deletes a cached value from Redis.
 export async function clearCache(key: string): Promise<void> {
-	if (browser) {
-		logger.warn('Attempt to use Redis caching in a browser environment');
-		return;
-	}
-
-	if (!redisClient) {
-		logger.warn('Redis client is not initialized. Skipping cache clear.');
-		return;
-	}
-
 	try {
-		await redisClient.del(key);
-	} catch (error) {
-		handleRedisError(error, 'delete', key);
+		await ensureRedisInitialized();
+		await redisClient!.del(key);
+		logger.debug('Cache cleared', { key });
+	} catch (err) {
+		const message = `Error in clearCache: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
@@ -207,17 +191,14 @@ export async function clearCachedSession(session_id: string): Promise<void> {
 
 // Closes the Redis client connection gracefully.
 export async function closeRedisConnection(): Promise<void> {
-	if (browser) {
-		logger.warn('Attempt to close Redis connection in a browser environment');
-		return;
-	}
-
 	if (redisClient) {
 		try {
 			await redisClient.quit();
 			logger.info('Redis connection closed');
-		} catch (error) {
-			handleRedisError(error, 'quit', '');
+		} catch (err) {
+			const message = `Error in closeRedisConnection: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 }

@@ -39,8 +39,8 @@ import { get } from 'svelte/store';
 import { translationProgress, contentLanguage } from '@stores/store';
 import { collectionValue, mode, collection } from '@stores/collectionStore';
 
-// System Logger
-import logger from './logger';
+// System Logs
+import { logger } from '@src/utils/logger';
 
 export const config = {
 	headers: {
@@ -226,7 +226,7 @@ export async function saveFormData({
 
 	if (_mode === 'edit' && !id) {
 		logger.error('ID is required for edit mode.');
-		throw new Error('ID is required for edit mode.');
+		throw Error('ID is required for edit mode.');
 	}
 
 	if (!formData) {
@@ -285,12 +285,12 @@ export async function saveFormData({
 
 			default:
 				logger.error(`Unhandled mode: ${$mode}`);
-				throw new Error(`Unhandled mode: ${$mode}`);
+				throw Error(`Unhandled mode: ${$mode}`);
 		}
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Failed to save data in mode: ${err.message}`);
-		throw new Error(`Failed to save data in mode: ${err.message}`);
+		throw Error(`Failed to save data in mode: ${err.message}`);
 	}
 }
 
@@ -305,7 +305,7 @@ export async function deleteData({ data, collectionName }: { data: FormData; col
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Error deleting data: ${err.message}`);
-		throw new Error(`Error deleting data: ${err.message}`);
+		throw Error(`Error deleting data: ${err.message}`);
 	}
 }
 
@@ -324,7 +324,7 @@ export async function extractData(fieldsData: any): Promise<{ [key: string]: any
  */
 export function formatBytes(bytes: number): string {
 	if (bytes < 0) {
-		throw new Error('Input size cannot be negative');
+		throw Error('Input size cannot be negative');
 	}
 
 	const units = ['bytes', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB'];

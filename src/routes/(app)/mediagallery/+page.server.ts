@@ -112,8 +112,9 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		return returnData;
 	} catch (err) {
-		logger.error('Error in media gallery load function:', err instanceof Error ? err.message : String(err));
-		throw error(500, 'Internal Server Error');
+		const message = `Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };
 
@@ -168,8 +169,9 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error('Error during file upload:', (err as Error).message);
-			return { success: false, error: 'File upload failed' };
+			const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 };
