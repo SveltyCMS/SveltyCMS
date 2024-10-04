@@ -3,7 +3,6 @@
  * @description Server-side logic for the media gallery page.
  *
  * This module handles:
- * - User authentication and session validation
  * - Fetching media files from various collections (images, documents, audio, video)
  * - Fetching virtual folders
  * - File upload processing for different media types
@@ -15,14 +14,13 @@
  */
 import { publicEnv } from '@root/config/public';
 
-import { redirect, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { saveImage, saveDocument, saveAudio, saveVideo } from '@src/utils/media/mediaProcessing';
 import { constructUrl } from '@src/utils/media/mediaUtils';
 
 // Auth
-import { auth, dbAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { dbAdapter } from '@src/databases/db';
 
 // System Logs
 import { logger } from '@src/utils/logger';
@@ -54,22 +52,16 @@ function convertIdToString(obj: any): any {
 	return result;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) {
-		logger.warn('No session ID found, redirecting to login');
-		throw redirect(302, '/login');
-	}
-
-	if (!auth || !dbAdapter) {
-		logger.error('Authentication system or database adapter is not initialized');
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
 	try {
-		const user = await auth.validateSession({ session_id });
+		const user = locals.user;
 		if (!user) {
-			logger.warn('Invalid session, redirecting to login');
+			logger.warn('No user found in locals, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
@@ -105,7 +97,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
 		logger.info('Media gallery data and virtual folders loaded successfully');
-		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders, theme };
+		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders };
 
 		// Added Debugging: Log the returnData
 		logger.debug('Returning data from load function:', returnData);
@@ -119,22 +111,16 @@ export const load: PageServerLoad = async ({ cookies }) => {
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session ID found during file upload, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		if (!auth || !dbAdapter) {
-			logger.error('Authentication system or database adapter is not initialized');
+	default: async ({ request, locals }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
 		try {
-			const user = await auth.validateSession({ session_id });
+			const user = locals.user;
 			if (!user) {
-				logger.warn('Invalid session during file upload, redirecting to login');
+				logger.warn('No user found in locals during file upload');
 				throw redirect(302, '/login');
 			}
 
@@ -152,6 +138,19 @@ export const actions: Actions = {
 				multipart: saveDocument,
 				text: saveDocument,
 				video: saveVideo
+			};
+
+			const collection_names: Record<string, string> = {
+				application: 'media_documents',
+				audio: 'media_audio',
+				font: 'media_documents',
+				example: 'media_documents',
+				image: 'media_images',
+				message: 'media_documents',
+				model: 'media_documents',
+				multipart: 'media_documents',
+				text: 'media_documents',
+				video: 'media_videos'
 			};
 
 			for (const file of files) {

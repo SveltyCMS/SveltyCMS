@@ -183,6 +183,40 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
 	const isApiRequest = event.url.pathname.startsWith('/api/');
 
+	// Check if this is the first user, regardless of session
+	const userCount = await auth.getUserCount();
+	const isFirstUser = userCount === 0;
+	event.locals.isFirstUser = isFirstUser;
+	logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
+
+	if (user) {
+		// Fetch user roles
+		event.locals.roles = await auth.getAllRoles();
+		logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
+
+		// Check for admin permissions
+		const manageUsersPermissionConfig = {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		};
+		const { hasPermission } = await checkUserPermission(user, manageUsersPermissionConfig);
+		event.locals.hasManageUsersPermission = hasPermission;
+		logger.debug(`User ${user.email} has manage users permission: ${hasPermission}`);
+
+		// Fetch admin data if user has permission
+		if (user.isAdmin || hasPermission) {
+			try {
+				event.locals.allUsers = await auth.getAllUsers();
+				event.locals.allTokens = await auth.getAllTokens();
+				logger.debug(`Retrieved ${event.locals.allUsers.length} users and ${event.locals.allTokens.length} tokens for admin`);
+			} catch (fetchError) {
+				logger.error(`Error fetching admin data: ${(fetchError as Error).message}`);
+			}
+		}
+	}
+
 	const response = await resolve(event);
 	const responseTime = performance.now() - start;
 
@@ -195,7 +229,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		return response;
 	}
 
-	if (!user && !isPublicRoute) {
+	if (!user && !isPublicRoute && !isFirstUser) {
 		logger.debug('User not authenticated and not on public route, redirecting to login');
 		throw isApiRequest ? error(401, 'Unauthorized') : redirect(302, '/login');
 	}

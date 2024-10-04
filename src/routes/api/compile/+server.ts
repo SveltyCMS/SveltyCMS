@@ -19,6 +19,7 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
+import { error } from '@sveltejs/kit';
 
 // System Logs
 import { logger } from '@src/utils/logger';
@@ -40,11 +41,9 @@ export const GET: RequestHandler = async () => {
 
 		// Return a successful response with status 200
 		return new Response(null, { status: 200 });
-	} catch (error) {
-		// Log any errors that occur during the GET request
-		logger.error('Error during GET /compile:', error);
-
-		// Return an error response with status 500
-		return new Response(null, { status: 500 });
+	} catch (err) {
+		const message = `Error in [functionName]: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };

@@ -206,7 +206,8 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
 
-					throw redirect(303, '/');
+					const redirectPath = await fetchAndRedirectToFirstCollection();
+					throw redirect(303, redirectPath);
 				}
 
 				return { needSignIn };
@@ -401,7 +402,10 @@ export const actions: Actions = {
 		if (resp && resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
-			throw redirect(303, '/');
+
+			// Fetch collections and redirect to the first one if available
+			const redirectPath = await fetchAndRedirectToFirstCollection();
+			throw redirect(303, redirectPath);
 		} else {
 			// Handle the case when resp is undefined or when status is false
 			const errorMessage = resp?.message || 'An error occurred during sign-in.';

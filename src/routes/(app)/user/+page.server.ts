@@ -3,29 +3,23 @@
  * @description Server-side logic for the user page in the application.
  *
  * This module handles the server-side operations for the user page, including:
- * - User authentication and session management
- * - Role retrieval
  * - Form validation for adding users and changing passwords
- * - First user detection
- * - Dynamic permission registration
+ * - Preparing data for client-side rendering
  *
  * Features:
- * - Session validation using cookies
- * - User and role information retrieval
+ * - User and role information retrieval from event.locals
  * - Form handling with Superforms
  * - Error logging and handling
  *
  * Usage:
  * This file is used as the server-side counterpart for the user page in a SvelteKit application.
- * It prepares data and handles authentication for the client-side rendering.
+ * It prepares data and handles form validation for the client-side rendering.
  */
 
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User, Role, Token } from '@src/auth/types';
 
 // Superforms
@@ -36,79 +30,20 @@ import { zod } from 'sveltekit-superforms/adapters';
 // Logger
 import { logger } from '@src/utils/logger';
 
-// Import the checkUserPermission function to check permissions
-import { checkUserPermission, type PermissionConfig } from '@src/auth/permissionCheck';
+// Import the PermissionConfig type
+import type { PermissionConfig } from '@src/auth/permissionCheck';
 
 export const load: PageServerLoad = async (event) => {
 	try {
-		const session_id = event.cookies.get(SESSION_COOKIE_NAME);
-		logger.debug(`Session ID from cookie: ${session_id}`);
+		const user: User | null = event.locals.user;
+		const roles: Role[] = event.locals.roles || [];
+		const isFirstUser: boolean = event.locals.isFirstUser;
+		const hasManageUsersPermission: boolean = event.locals.hasManageUsersPermission;
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
-
-		let user: User | null = null;
-		let roles: Role[] = [];
-		let isFirstUser = false;
-		let allUsers: User[] = [];
-		let allTokens: Token[] = [];
-
-		// Check if this is the first user, regardless of session
-		const userCount = await auth.getUserCount();
-		isFirstUser = userCount === 0;
-		logger.debug(`Is first user: ${isFirstUser}, Total users: ${userCount}`);
-
-		if (session_id) {
-			try {
-				user = await auth.validateSession({ session_id });
-				logger.debug(`User from session: ${JSON.stringify(user)}`);
-
-				if (user) {
-					logger.debug(`Fetching all roles for user: ${user.email}`);
-					roles = await auth.getAllRoles();
-					logger.debug(`Roles retrieved: ${JSON.stringify(roles)}`);
-
-					// Define permission configuration for user management
-					const manageUsersPermissionConfig: PermissionConfig = {
-						contextId: 'config/userManagement',
-						requiredRole: 'admin',
-						action: 'manage',
-						contextType: 'system'
-					};
-
-					// Check if the user has the required permissions
-					const hasManageUsersPermission = await checkUserPermission(user, manageUsersPermissionConfig);
-					logger.debug(`User ${user.email} has manage users permission: ${hasManageUsersPermission.hasPermission}`);
-
-					// If the user is an admin or has permission, fetch all users and tokens
-					if (user.isAdmin || hasManageUsersPermission.hasPermission) {
-						try {
-							allUsers = await auth.getAllUsers();
-							logger.debug(`Retrieved ${allUsers.length} users for admin: ${JSON.stringify(allUsers)}`);
-						} catch (userError) {
-							logger.error(`Error fetching all users: ${(userError as Error).message}`);
-						}
-
-						try {
-							allTokens = await auth.getAllTokens();
-							logger.debug(`Retrieved ${allTokens.length} tokens for admin: ${JSON.stringify(allTokens)}`);
-						} catch (tokenError) {
-							logger.error(`Error fetching all tokens: ${(tokenError as Error).message}`);
-						}
-					} else {
-						logger.warn(`User ${user.email} does not have permission to manage users.`);
-					}
-				} else {
-					logger.warn('Session is valid but user not found');
-				}
-			} catch (validationError) {
-				logger.error(`Session validation error: ${(validationError as Error).message}`);
-			}
-		} else {
-			logger.warn('No session found');
-		}
+		logger.debug(`User from event.locals: ${JSON.stringify(user)}`);
+		logger.debug(`Roles from event.locals: ${JSON.stringify(roles)}`);
+		logger.debug(`Is first user: ${isFirstUser}`);
+		logger.debug(`Has manage users permission: ${hasManageUsersPermission}`);
 
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
@@ -122,30 +57,41 @@ export const load: PageServerLoad = async (event) => {
 				}
 			: null;
 
-		// Format users and tokens for the admin area
-		const formattedUsers = allUsers.map((user) => ({
-			_id: user._id.toString(),
-			blocked: user.blocked || false,
-			avatar: user.avatar || null,
-			email: user.email,
-			username: user.username || null,
-			role: user.role,
-			activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
-			lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
-			createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
-			updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
-		}));
-		logger.debug(`Formatted users: ${JSON.stringify(formattedUsers)}`);
+		let adminData = null;
+		if (user?.isAdmin || hasManageUsersPermission) {
+			const allUsers: User[] = event.locals.allUsers || [];
+			const allTokens: Token[] = event.locals.allTokens || [];
 
-		const formattedTokens = allTokens.map((token) => ({
-			user_id: token.user_id,
-			blocked: false, // Assuming tokens don't have a 'blocked' status
-			email: token.email || '',
-			expiresIn: token.expires ? new Date(token.expires).toISOString() : null,
-			createdAt: new Date(token.token_id).toISOString(), // Assuming token_id is a timestamp
-			updatedAt: new Date(token.token_id).toISOString() // Assuming tokens are not updated
-		}));
-		logger.debug(`Formatted tokens: ${JSON.stringify(formattedTokens)}`);
+			// Format users and tokens for the admin area
+			const formattedUsers = allUsers.map((user) => ({
+				_id: user._id.toString(),
+				blocked: user.blocked || false,
+				avatar: user.avatar || null,
+				email: user.email,
+				username: user.username || null,
+				role: user.role,
+				activeSessions: user.lastActiveAt ? 1 : 0, // Placeholder for active sessions
+				lastAccess: user.lastActiveAt ? new Date(user.lastActiveAt).toISOString() : null,
+				createdAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+				updatedAt: user.updatedAt ? new Date(user.updatedAt).toISOString() : null
+			}));
+
+			const formattedTokens = allTokens.map((token) => ({
+				user_id: token.user_id,
+				blocked: false, // Assuming tokens don't have a 'blocked' status
+				email: token.email || '',
+				expiresIn: token.expires ? new Date(token.expires).toISOString() : null,
+				createdAt: new Date(token.token_id).toISOString(), // Assuming token_id is a timestamp
+				updatedAt: new Date(token.token_id).toISOString() // Assuming tokens are not updated
+			}));
+
+			adminData = {
+				users: formattedUsers,
+				tokens: formattedTokens
+			};
+
+			logger.debug(`Admin data prepared: ${JSON.stringify(adminData)}`);
+		}
 
 		// Provide manageUsersPermissionConfig to the client
 		const manageUsersPermissionConfig: PermissionConfig = {
@@ -154,8 +100,9 @@ export const load: PageServerLoad = async (event) => {
 			action: 'manage',
 			contextType: 'system'
 		};
+
 		logger.debug(
-			`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify({ users: formattedUsers, tokens: formattedTokens })}`
+			`Returning data to client: user=${JSON.stringify(safeUser)}, roles=${JSON.stringify(roles)}, isFirstUser=${isFirstUser}, adminData=${JSON.stringify(adminData)}`
 		);
 
 		return {
@@ -167,17 +114,11 @@ export const load: PageServerLoad = async (event) => {
 			addUserForm,
 			changePasswordForm,
 			isFirstUser,
-			manageUsersPermissionConfig: manageUsersPermissionConfig,
-			adminData:
-				user?.role === 'admin' || hasManageUsersPermission.hasPermission
-					? {
-							users: formattedUsers,
-							tokens: formattedTokens
-						}
-					: null
+			manageUsersPermissionConfig,
+			adminData
 		};
 	} catch (err) {
 		logger.error('Error during load function:', err);
-		return { user: null, roles: [], addUserForm: null, changePasswordForm: null, isFirstUser: false, adminData: null };
+		throw error(500, 'Internal Server Error');
 	}
 };

@@ -108,7 +108,7 @@
 		"@mapbox/mapbox-gl-geocoder": "^5.0.3",
 		"@mapbox/mapbox-gl-language": "^1.0.1",
 		"@testing-library/jest-dom": "^6.5.0",
-		"@testing-library/svelte": "^5.2.2",
+		"@testing-library/svelte": "^5.2.3",
 		"@tiptap/core": "^2.8.0",
 		"@tiptap/extension-bullet-list": "^2.8.0",
 		"@tiptap/extension-color": "^2.8.0",
@@ -158,6 +158,6 @@
 		"svelte-grid-extended": "^1.2.1",
 		"svelte-lexical": "^0.4.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.2"
+		"tailwind-merge": "^2.5.3"
 	}
 }

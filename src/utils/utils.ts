@@ -24,22 +24,22 @@
  */
 
 import { publicEnv } from '@root/config/public';
-
+import { error } from '@sveltejs/kit';
 import axios from 'axios';
+import type { z } from 'zod';
 
+// Auth
 import type { User } from '@src/auth/types';
-
 import { addData, updateData, handleRequest } from '@src/utils/data';
 
 import type { CollectionNames, Schema } from '@collections/types';
-import type { z } from 'zod';
 
 // Stores
 import { get } from 'svelte/store';
 import { translationProgress, contentLanguage } from '@stores/store';
 import { collectionValue, mode, collection } from '@stores/collectionStore';
 
-// System Logs
+// System Logger
 import { logger } from '@src/utils/logger';
 
 export const config = {
@@ -88,7 +88,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	const data = {};
 
 	// Debugging: Log the initial object state
-	console.log('Initial data object:', getData);
+	logger.debug('Initial data object:', getData);
 
 	const parseFiles = async (object: any) => {
 		for (const key in object) {
@@ -123,9 +123,9 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	}
 
 	// Debugging: Log FormData entries
-	console.log('FormData entries:');
+	logger.debug('FormData entries:');
 	for (const [key, value] of formData.entries()) {
-		console.log(`FormData key: ${key}, value: ${value}`);
+		logger.debug(`FormData key: ${key}, value: ${value}`);
 	}
 
 	if (!formData.entries().next().value) {
@@ -155,7 +155,7 @@ export function parse(obj: any) {
 				obj[key] = JSON.parse(obj[key]);
 			}
 		} catch (e) {
-			logger.error(e as string);
+			logger.error(`Error parsing JSON for key ${key}:`, e);
 		}
 
 		if (typeof obj[key] != 'string') {
@@ -177,15 +177,51 @@ export const fieldsToSchema = (fields: Array<any>) => {
 
 // Finds documents in collection that match query
 export async function find(query: object, collectionName: string) {
-	if (!collectionName) return;
+	if (!collectionName) {
+		logger.warn('find called without a collection name');
+		return;
+	}
 	const _query = JSON.stringify(query);
-	return (await axios.get(`/api/find?collection=${collectionName}&query=${_query}`)).data;
+	try {
+		logger.debug(`Calling /api/find for collection: ${collectionName} with query: ${_query}`);
+		const response = await axios.get(`/api/find?collection=${collectionName}&query=${_query}`);
+		logger.debug(`Received response from /api/find for collection: ${collectionName}`);
+		return response.data;
+	} catch (err) {
+		logger.error(`Error in find function for collection ${collectionName}:`, err);
+		if (axios.isAxiosError(err)) {
+			logger.error('Axios error details:', {
+				response: err.response?.data,
+				status: err.response?.status,
+				headers: err.response?.headers
+			});
+		}
+		throw err; // Re-throw the error after logging
+	}
 }
 
 // Finds document in collection with specified ID
 export async function findById(id: string, collectionName: string) {
-	if (!id || !collectionName) return;
-	return (await axios.get(`/api/find?collection=${collectionName}&id=${id}`)).data;
+	if (!id || !collectionName) {
+		logger.warn(`findById called with invalid parameters. ID: ${id}, Collection: ${collectionName}`);
+		return;
+	}
+	try {
+		logger.debug(`Calling /api/find for collection: ${collectionName} with ID: ${id}`);
+		const response = await axios.get(`/api/find?collection=${collectionName}&id=${id}`);
+		logger.debug(`Received response from /api/find for collection: ${collectionName} with ID: ${id}`);
+		return response.data;
+	} catch (err) {
+		logger.error(`Error in findById function for collection ${collectionName} and ID ${id}:`, err);
+		if (axios.isAxiosError(err)) {
+			logger.error('Axios error details:', {
+				response: err.response?.data,
+				status: err.response?.status,
+				headers: err.response?.headers
+			});
+		}
+		throw err; // Re-throw the error after logging
+	}
 }
 
 // Returns field's database field name or label
@@ -225,16 +261,19 @@ export async function saveFormData({
 	const formData = data instanceof FormData ? data : await col2formData(data);
 
 	if (_mode === 'edit' && !id) {
-		logger.error('ID is required for edit mode.');
-		throw Error('ID is required for edit mode.');
+		const message = 'ID is required for edit mode.';
+		logger.error(message);
+		throw error(400, message);
 	}
 
 	if (!formData) {
-		logger.error('FormData is empty, unable to save.');
-		return;
+		const message = 'FormData is empty, unable to save.';
+		logger.error(message);
+		throw error(400, message);
 	}
 
 	// Debugging: Log the generated FormData
+	logger.debug('Generated FormData:');
 	for (const [key, value] of formData.entries()) {
 		logger.debug(`FormData key: ${key}, value: ${value}`);
 	}
@@ -283,14 +322,16 @@ export async function saveFormData({
 
 				return await updateData({ data: formData, collectionName: $collection.name as any });
 
-			default:
-				logger.error(`Unhandled mode: ${$mode}`);
-				throw Error(`Unhandled mode: ${$mode}`);
+			default: {
+				const message = `Unhandled mode: ${$mode}`;
+				logger.error(message);
+				throw error(400, message);
+			}
 		}
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Failed to save data in mode: ${err.message}`);
-		throw Error(`Failed to save data in mode: ${err.message}`);
+	} catch (err) {
+		const message = `Failed to save data in mode ${$mode}: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 }
 
@@ -300,12 +341,21 @@ export async function deleteData({ data, collectionName }: { data: FormData; col
 	data.append('method', 'DELETE');
 
 	try {
+		logger.debug(`Deleting data for collection: ${collectionName}`);
 		const response = await axios.post(`/api/query`, data, config);
+		logger.debug(`Data deleted successfully for collection: ${collectionName}`);
 		return response.data;
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error deleting data: ${err.message}`);
-		throw Error(`Error deleting data: ${err.message}`);
+	} catch (err) {
+		const message = `Error deleting data for collection ${collectionName}: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		if (axios.isAxiosError(err)) {
+			logger.error('Axios error details:', {
+				response: err.response?.data,
+				status: err.response?.status,
+				headers: err.response?.headers
+			});
+		}
+		throw error(500, message);
 	}
 }
 
@@ -565,12 +615,18 @@ export const get_elements_by_id = {
 		this.store = {};
 		for (const collection in store) {
 			const ids = Object.keys(store[collection]);
-			const data = await dbAdapter.findOne(collection, { _id: { $in: ids } });
+			try {
+				logger.debug(`Fetching documents for collection: ${collection}, IDs: ${ids.join(', ')}`);
+				const data = await dbAdapter.findOne(collection, { _id: { $in: ids } });
+				logger.debug(`Fetched ${data.length} documents for collection: ${collection}`);
 
-			for (const doc of data) {
-				for (const callback of store[collection][doc._id.toString()]) {
-					callback(doc);
+				for (const doc of data) {
+					for (const callback of store[collection][doc._id.toString()]) {
+						callback(doc);
+					}
 				}
+			} catch (err) {
+				logger.error(`Error fetching documents for collection ${collection}:`, err);
 			}
 		}
 	}

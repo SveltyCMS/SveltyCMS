@@ -19,17 +19,13 @@
  * GET /api/createIndex
  * Requires: Admin authentication
  */
-
 import fs from 'fs/promises';
 import path from 'path';
 import type { RequestHandler } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 
 import { _GET } from '../query/GET';
 import { getFieldName } from '@src/utils/utils';
-
-// Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Stores
 import { get } from 'svelte/store';
@@ -44,54 +40,38 @@ import { logger } from '@src/utils/logger';
 const INDEXES_DIR = './indexes';
 
 // Define the GET request handler
-export const GET: RequestHandler = async ({ cookies }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		// Create the indexes directory if it doesn't exist
+		// Check if the user has admin role (assuming 'admin' permission is required)
+		if (!locals.permissions.includes('admin')) {
+			logger.warn('Non-admin access attempt for createIndex.');
+			throw error(403, 'Forbidden: Admin access required');
+		}
+
 		await fs.mkdir(INDEXES_DIR, { recursive: true });
 		logger.debug('Indexes directory ensured to exist.');
-
-		// Retrieve the session ID from cookies
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session ID found in cookies.');
-			return new Response('Unauthorized', { status: 401 });
-		}
-		logger.debug('Session ID retrieved');
-
-		// Check if the authentication system is initialized
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			return new Response('Internal Server Error', { status: 500 });
-		}
-
-		// Validate the session
-		const user = await auth.validateSession({ session_id });
-		if (!user) {
-			logger.warn('Invalid session.');
-			return new Response('Unauthorized', { status: 401 });
-		}
-		logger.debug('User validated');
-
-		// Check if the user has admin role
-		if (user.role !== 'admin') {
-			logger.warn('Non-admin access attempt.');
-			return new Response('Forbidden', { status: 403 });
-		}
 
 		// Retrieve collections from the store
 		const $collections = get(collections);
 		logger.debug('Collections retrieved from store.');
 
 		// Process all collections concurrently
-		await Promise.all(Object.values($collections).map((collection) => processCollection(collection, user)));
+		await Promise.all(Object.values($collections).map((collection) => processCollection(collection, locals.user)));
 
 		// Return a success response
 		logger.info('Index files creation completed successfully.');
 		return new Response('Index files created successfully', { status: 200 });
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		logger.error('Error during index creation:', { error: errorMessage });
-		return new Response('Internal Server Error', { status: 500 });
+	} catch (err) {
+		if (err.status && err.body) {
+			// This is likely an error thrown by the `error` function
+			logger.error(`Error during index creation: ${err.body.message}`);
+			throw err; // Re-throw the SvelteKit error
+		} else {
+			// This is an unexpected error
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			logger.error('Unexpected error during index creation:', { error: errorMessage });
+			throw error(500, 'Internal Server Error during index creation');
+		}
 	}
 };
 
@@ -126,9 +106,10 @@ async function processCollection(collection: any, user: any) {
 			await fs.writeFile(filePath, text);
 			logger.debug(`Index file written: ${filePath}`);
 		}
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+	} catch (err) {
+		const errorMessage = err instanceof Error ? err.message : 'Unknown error';
 		logger.error(`Error processing collection ${collection.name}:`, { error: errorMessage });
+		// We don't throw here to allow other collections to be processed
 	}
 }
 

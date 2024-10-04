@@ -24,11 +24,6 @@ import type { RequestHandler } from './$types';
 import { publicEnv } from '@root/config/public';
 import { _GET } from '@api/query/GET';
 
-// Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-import { validateUserPermission } from '@src/auth/permissionManager';
-
 // Stores
 import { get } from 'svelte/store';
 import { collections } from '@src/stores/collectionStore';
@@ -36,70 +31,48 @@ import { collections } from '@src/stores/collectionStore';
 // System Logger
 import { logger } from '@src/utils/logger';
 
-export const GET: RequestHandler = async ({ cookies }) => {
+export const GET: RequestHandler = async ({ locals }) => {
 	try {
-		// Retrieve the session ID from cookies.
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session ID found in cookies.');
-			return new Response('Unauthorized', { status: 401 });
+		// Check if the user has the necessary permissions
+		if (!locals.permissions.includes('data:export') && !locals.user.isAdmin) {
+			logger.warn('User lacks required permission: data:export');
+			throw error(403, 'Forbidden: Insufficient permissions');
 		}
-		logger.debug('Session ID retrieved.');
+		logger.debug('User has permission to export data');
 
-		// Check if the authentication system is initialized.
-		if (!auth) {
-			logger.error('Authentication system is not initialized.');
-			return new Response('Internal Server Error', { status: 500 });
-		}
-
-		// Validate the session and retrieve the user.
-		const user = await auth.validateSession({ session_id });
-		if (!user) {
-			logger.warn('Invalid session.');
-			return new Response('Unauthorized', { status: 401 });
-		}
-		logger.debug('User validated.');
-
-		// Check if the user is an admin or has the necessary permissions
-		if (!user.isAdmin) {
-			const requiredPermission = 'data:export';
-			const userPermissions = user.permissions || [];
-
-			if (!validateUserPermission(userPermissions, requiredPermission)) {
-				logger.warn(`User lacks required permission: ${requiredPermission}`);
-				return new Response('Forbidden', { status: 403 });
-			}
-			logger.debug(`User has permission: ${requiredPermission}`);
-		} else {
-			logger.debug('User is an admin.');
-		}
-
-		// Retrieve collections from the store.
+		// Retrieve collections from the store
 		const $collections = get(collections);
-		logger.debug('Collections retrieved from store.');
+		logger.debug('Collections retrieved from store');
 
-		// Fetch data from all collections concurrently.
-		const data = await fetchAllCollectionData($collections, user);
+		// Fetch data from all collections concurrently
+		const data = await fetchAllCollectionData($collections, locals.user);
 
-		// Ensure the EXTRACT_DATA_PATH environment variable is configured.
+		// Ensure the EXTRACT_DATA_PATH environment variable is configured
 		if (!publicEnv.EXTRACT_DATA_PATH) {
-			logger.error('EXTRACT_DATA_PATH not configured.');
-			return new Response('EXTRACT_DATA_PATH not configured', { status: 500 });
+			logger.error('EXTRACT_DATA_PATH not configured');
+			throw error(500, 'Server configuration error: EXTRACT_DATA_PATH not set');
 		}
 
-		// Write the fetched data to the specified file.
+		// Write the fetched data to the specified file
 		await writeDataToFile(data, publicEnv.EXTRACT_DATA_PATH);
-		logger.info(`Data successfully written to ${publicEnv.EXTRACT_DATA_PATH}.`);
+		logger.info(`Data successfully written to ${publicEnv.EXTRACT_DATA_PATH}`);
 
 		return new Response('Data export completed successfully', { status: 200 });
-	} catch (error: unknown) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-		logger.error('Error during data export:', { error: errorMessage });
-		return new Response('Internal Server Error', { status: 500 });
+	} catch (err) {
+		if (err.status && err.body) {
+			// This is likely an error thrown by the `error` function
+			logger.error(`Error during data export: ${err.body.message}`);
+			throw err; // Re-throw the SvelteKit error
+		} else {
+			// This is an unexpected error
+			const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+			logger.error('Unexpected error during data export:', { error: errorMessage });
+			throw error(500, 'Internal Server Error during data export');
+		}
 	}
 };
 
-// Fetches data from all collections concurrently.
+// Fetches data from all collections concurrently
 async function fetchAllCollectionData(collections: any, user: any) {
 	const fetchPromises = Object.values(collections).map(async (collection: any) => {
 		const name = collection.name as string;
@@ -113,7 +86,7 @@ async function fetchAllCollectionData(collections: any, user: any) {
 	return Object.fromEntries(results);
 }
 
-// Writes the provided data to a file at the specified file path.
+// Writes the provided data to a file at the specified file path
 async function writeDataToFile(data: any, filePath: string) {
 	const jsonData = JSON.stringify(data).replace(/\/media/g, 'media');
 	await fs.writeFile(path.resolve(filePath), jsonData);
