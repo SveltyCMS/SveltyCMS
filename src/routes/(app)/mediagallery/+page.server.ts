@@ -171,5 +171,34 @@ export const actions: Actions = {
 			logger.error('Error during file upload:', (err as Error).message);
 			return { success: false, error: 'File upload failed' };
 		}
+	},
+	deleteMedia: async ({ request }) => {
+		logger.warn("Request Body", await request.json())
+		const image = (await request.json())?.image;
+
+		if (!image || !image._id) {
+			logger.error('Invalid image data received');
+			throw error(400, 'Invalid image data received');
+		}
+
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			throw error(500, 'Internal Server Error');
+		}
+
+		try {
+			logger.info(`Deleting image: ${image._id}`);
+			const success = await dbAdapter.deleteMedia(image._id.toString());
+
+			if (success) {
+				logger.info('Image deleted successfully');
+				return { success: false }
+			} else {
+				throw error(500, 'Failed to delete image');
+			}
+		} catch (error) {
+			console.error('Error deleting image:', error);
+			throw error(500, 'Internal Server Error');
+		}
 	}
 };

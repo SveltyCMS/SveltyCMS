@@ -29,6 +29,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { browser } from '$app/environment';
 
 	let showPassword = false;
 
@@ -44,7 +45,7 @@
 	const firstUserExists = pageData.firstUserExists;
 
 	// Redirect from email to restore password page
-	const current_url = window.location.href;
+	const current_url = browser ? window.location.href : "";
 
 	if (current_url.includes('/login') && current_url.search('token') > -1) {
 		// Set flags and extract token/email for password reset flow

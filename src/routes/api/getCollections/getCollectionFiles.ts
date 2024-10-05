@@ -25,7 +25,11 @@ import path from 'path';
 import logger from '@src/utils/logger';
 
 // Use process.env for server-side environment variables
-const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+let collectionsFolder = "";
+var process;
+if (process) {
+	collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+}
 
 // This function returns a list of all the collection files in the specified directory.
 export function getCollectionFiles(): string[] {

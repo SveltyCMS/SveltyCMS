@@ -42,10 +42,11 @@ Key features:
 
 	// Skeleton
 	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
+	import { browser } from '$app/environment';
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
@@ -65,7 +66,7 @@ Key features:
 		$collectionValue = {};
 		if (!ForwardBackward && initial != true) {
 			// If ForwardBackward is false and the current route is a collection route
-			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String($collection.name)}`);
+			browser && goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String($collection.name)}`);
 		}
 		initial = false;
 		// Reset ForwardBackward to false
@@ -79,10 +80,12 @@ Key features:
 		if (!dir) return;
 
 		// This need be replace with svelte equivalent code
-		const rootNode = document.body?.parentElement;
-		if (!rootNode) return;
-		document.documentElement.dir = dir;
-		document.documentElement.lang = lang;
+		if (browser) {
+			const rootNode = document.body?.parentElement;
+			if (!rootNode) return;
+			document.documentElement.dir = dir;
+			document.documentElement.lang = lang;
+		}
 	});
 
 	// On page load get the saved theme
@@ -128,6 +131,7 @@ Key features:
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
+
 
 <svelte:head>
 	<!-- darkmode -->

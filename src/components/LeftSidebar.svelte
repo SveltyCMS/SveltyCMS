@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
 	import { goto, invalidateAll } from '$app/navigation';
-	import axios from 'axios';
+	import axios, { AxiosError } from 'axios';
 
 	// Import necessary utilities and types
 	import { SESSION_COOKIE_NAME } from '@src/auth';
@@ -64,6 +64,7 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
+	import logger from '@src/utils/logger';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
@@ -102,7 +103,7 @@
 	}
 
 	// GitHub version and theme toggle
-	const pkg = __VERSION__;
+	const pkg = __VERSION__ || "";
 	let githubVersion = '';
 
 	axios
@@ -118,8 +119,8 @@
 				$pkgBgColor = 'variant-filled-error';
 			}
 		})
-		.catch((error) => {
-			console.error('Error von Github Release found:', error);
+		.catch((error: AxiosError) => {
+			logger.error('Error von Github Release found:', error.toJSON());
 			githubVersion = pkg;
 			$pkgBgColor = 'variant-filled-tertiary';
 		});

@@ -8,7 +8,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { dbAdapter } from '@src/databases/db';
 
 	// Media
 	import { MediaTypeEnum, type MediaImage, type MediaType } from '@src/utils/media/mediaModels';
@@ -17,7 +16,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import Breadcrumb from '@components/Breadcrumb.svelte';
-	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
 
@@ -27,6 +25,8 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import logger from '@src/utils/logger';
+	import Error from '../+error.svelte';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
@@ -307,29 +307,13 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
-		const image = event.detail;
-
-		if (!image || !image._id) {
-			console.error('Invalid image data received');
-			return;
-		}
-
-		if (!dbAdapter) {
-			console.error('Database adapter is not initialized.');
-			toastStore.trigger({
-				message: 'Error: Database adapter is not initialized',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-			return;
-		}
-
 		try {
-			console.log(`Deleting image: ${image._id}`);
-			const success = await dbAdapter.deleteMedia(image._id.toString());
-
-			if (success) {
-				console.log('Image deleted successfully');
+			const response = await fetch("?/api/mediagallery/deleteMedia", {
+				method: "POST",
+				body: JSON.stringify({ image: event.detail })
+			})
+			const result = await response.json();
+			if (result?.success) {
 				toastStore.trigger({
 					message: 'Image deleted successfully.',
 					background: 'variant-filled-success',
@@ -337,15 +321,15 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				await fetchMediaFiles();
 			} else {
-				throw new Error('Failed to delete image');
+				throw new Error(result.error || "Failed to delete image");
 			}
 		} catch (error) {
-			console.error('Error deleting image:', error);
+			logger.error("Error deleting image: ", error);
 			toastStore.trigger({
-				message: 'Error deleting image',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+				message: "Error deleting image",
+				background: "variant-filled-error",
+				timeout: 3000,
+			})
 		}
 	}
 

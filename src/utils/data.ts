@@ -72,7 +72,7 @@ export async function getData(query: {
 		};
 	} catch (error) {
 		if (error instanceof AxiosError) {
-			logger.error("AxiosError in POST request:", "status:", error.response?.status);
+			logger.error(`AxiosError in POST request: ${error.response?.status}`);
 		} else {
 			logger.error('Error in POST request:', error);
 		}

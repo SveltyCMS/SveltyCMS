@@ -6,6 +6,7 @@
 <script lang="ts">
 	// Stores
 	import { systemLanguage } from '@stores/store';
+	import { browser } from '$app/environment';
 
 	import { languageTag, onSetLanguageTag, setLanguageTag } from '@src/paraglide/runtime';
 	// initialize the language tag
@@ -20,7 +21,7 @@
 
 	systemLanguage.subscribe((value: any) => {
 		setLanguageTag(value); // Update the language tag
-		globalThis.localStorage.setItem('systemLanguage', value);
+		browser && globalThis.localStorage.setItem('systemLanguage', value);
 	});
 </script>
 

@@ -37,6 +37,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { browser } from '$app/environment';
 
 	const flipDurationMs = 300;
 
@@ -59,7 +60,7 @@
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
 	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection.name}`;
-	let entryListPaginationSettings: any = localStorage.getItem(entryListPaginationSettingsKey)
+	let entryListPaginationSettings: any = browser && localStorage.getItem(entryListPaginationSettingsKey)
 		? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
 		: {
 				collectionName: $collection.name,
@@ -160,7 +161,7 @@
 		}
 
 		// Update tableData and options
-		if (data) {
+		if (data && data.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
@@ -242,7 +243,7 @@
 			rowsPerPage,
 			displayTableHeaders
 		};
-		localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
+		browser && localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
 	}
 
 	$: {
@@ -299,7 +300,7 @@
 	});
 
 	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = browser && localStorage.getItem('sorting')
 		? JSON.parse(localStorage.getItem('sorting') as string)
 		: {
 				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
