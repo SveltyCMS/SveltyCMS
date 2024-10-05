@@ -57,8 +57,10 @@ export class InMemorySessionStore implements SessionStore {
 	}
 
 	// Set a session with expiration
-	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
-		const expiresAt = new Date(Date.now() + expirationInSeconds * 1000);
+	async set(session_id: string, user: User, expiresAt: number | Date): Promise<void> {
+		if (typeof expiresAt === 'number') {
+			expiresAt = new Date(Date.now() + expiresAt * 1000);
+		}
 		this.sessions.set(session_id, { user, expiresAt });
 		this.evictOldestSession(privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000);
 	}

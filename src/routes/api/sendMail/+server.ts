@@ -45,6 +45,7 @@ import updatedPassword from '@components/emails/updatedPassword.svelte';
 // Types
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
+import type Mail from 'nodemailer/lib/mailer';
 
 interface EmailProps {
 	sitename?: string;
@@ -67,7 +68,7 @@ const templates: Record<string, ComponentType> = {
 export const POST: RequestHandler = async ({ request }) => {
 	const { email, subject, message, templateName, props } = await request.json();
 	const userLanguage = languageTag(); // Get the user's language
-	logger.debug('Received email request', { email, subject, templateName });
+	logger.info('Received email request', { email, subject, templateName });
 
 	try {
 		await sendMail(email, subject, message, templateName, props, userLanguage);
@@ -82,11 +83,16 @@ export const POST: RequestHandler = async ({ request }) => {
 async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
 	const transporter = nodemailer.createTransport({
 		host: privateEnv.SMTP_HOST,
-		port: privateEnv.SMTP_PORT,
 		secure: true,
+		tls: {
+			ciphers: "SSLv3",
+		},
+		requireTLS: true,
+		port: 465,
+		debug: true,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
-			pass: privateEnv.SMTP_PASSWORD
+			pass: privateEnv.SMTP_PASSWORD,
 		}
 	});
 
@@ -95,8 +101,11 @@ async function sendMail(email: string, subject: string, message: string, templat
 		props: { ...props, languageTag: lang }
 	});
 
-	const mailOptions = {
-		from: privateEnv.SMTP_EMAIL,
+	const mailOptions: Mail.Options = {
+		from: {
+			address: privateEnv.SMTP_EMAIL!,
+			name: "Svelty CMS",
+		},
 		to: email,
 		subject,
 		text: message,

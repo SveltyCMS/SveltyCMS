@@ -2,7 +2,7 @@
 	import type { Schema } from '@collections/types';
 
 	// Stores
-	import { collections } from '@stores/store';
+	import { collections } from '@stores/collectionStore';
 
 	// Components
 	import DropDown from '@components/system/dropDown/DropDown.svelte';

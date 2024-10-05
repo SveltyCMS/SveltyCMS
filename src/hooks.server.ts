@@ -159,24 +159,23 @@ const getUserFromSessionId = async (session_id: string | undefined): Promise<any
 // Handle static asset caching
 const handleStaticAssetCaching: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
+	const response = await resolve(event);
 	if (isStaticAsset(pathname)) {
-		const response = await resolve(event);
 		response.headers.set('Cache-Control', 'public, max-age=31536000, immutable');
-		return response;
 	}
-	return resolve(event);
+	return response;
 };
 
 // Handle rate limiting
 const handleRateLimit: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
 	if (isStaticAsset(pathname)) {
-		return resolve(event);
+		return await resolve(event);
 	}
 
 	const clientIP = event.getClientAddress();
 	if (isLocalhost(clientIP)) {
-		return resolve(event);
+		return await resolve(event);
 	}
 
 	const isApiRequest = pathname.startsWith('/api/');
@@ -186,14 +185,13 @@ const handleRateLimit: Handle = async ({ event, resolve }) => {
 		logger.warn(`Rate limit exceeded for IP: ${clientIP}, endpoint: ${pathname}`);
 		return isApiRequest ? createJsonResponse({ error: 'Too Many Requests' }, 429) : createHtmlResponse('Too Many Requests', 429);
 	}
-
-	return resolve(event);
+	return await resolve(event);
 };
 
 // Performance logging handler
 const handlePerformanceLogging: Handle = async ({ event, resolve }) => {
 	if (!dev) {
-		return resolve(event);
+		return await resolve(event);
 	}
 
 	const start = performance.now();
@@ -224,7 +222,7 @@ const handlePerformanceLogging: Handle = async ({ event, resolve }) => {
 const handleAuth: Handle = async ({ event, resolve }) => {
 	const pathname = event.url.pathname;
 	if (isStaticAsset(pathname)) {
-		return resolve(event);
+		return await resolve(event);
 	}
 
 	logger.debug('Starting handleAuth function');
@@ -258,10 +256,10 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	// Allow OAuth routes to pass through without redirection
 	if (isOAuthRoute(pathname)) {
 		logger.debug('OAuth route detected, passing through');
-		return resolve(event);
+		return await resolve(event);
 	}
 
-	// Redirect unauthenticated users away from public routes
+	// Redirect unauthenticated users away from non-public routes
 	if (!user && !isPublicRoute) {
 		logger.debug('User not authenticated and not on public route, redirecting to login');
 		return isApiRequest ? createJsonResponse({ error: 'Unauthorized' }, 401) : redirect(302, '/login');
@@ -276,11 +274,11 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	// Handle API requests
 	if (isApiRequest && user) {
 		logger.debug('Handling API request for authenticated user');
-		return handleApiRequest(event, resolve, user);
+		return await handleApiRequest(event, resolve, user);
 	}
 
 	logger.debug('Proceeding with normal request handling');
-	return resolve(event);
+	return await resolve(event);
 };
 
 // Handle API requests, including permission checks and caching
@@ -306,7 +304,7 @@ const handleApiRequest = async (event: any, resolve: any, user: any): Promise<Re
 		return handleCachedApiRequest(event, resolve, apiEndpoint, user._id);
 	}
 
-	return resolve(event);
+	return await resolve(event);
 };
 
 // Handle cached API requests

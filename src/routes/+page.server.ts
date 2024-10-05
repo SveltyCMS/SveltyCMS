@@ -35,7 +35,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		try {
 			collections = await getCollections();
 			locals.collections = collections;
-		} catch (err) {
+		} catch (err: any) {
 			logger.error('Error fetching collections:', err);
 			throw error(500, 'Error fetching collections');
 		}
@@ -44,7 +44,6 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
-
 	if (collections && Object.keys(collections).length > 0) {
 		const firstCollectionKey = Object.keys(collections)[0];
 		const firstCollection = collections[firstCollectionKey];
