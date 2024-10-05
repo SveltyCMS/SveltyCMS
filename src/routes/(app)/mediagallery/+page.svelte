@@ -26,7 +26,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import logger from '@src/utils/logger';
+	import { config, toFormData } from '@src/utils/utils';
 	import Error from '../+error.svelte';
+	import axios from 'axios';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
@@ -308,11 +310,12 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
 		try {
-			const response = await fetch("?/api/mediagallery/deleteMedia", {
-				method: "POST",
-				body: JSON.stringify({ image: event.detail })
+			const q = toFormData({ method: "POST", image: event.detail?._id });
+			const response = await axios.post("?/api/mediaHandler/", q, {
+				...config,
+				withCredentials: true // This ensures cookies are sent with the request
 			})
-			const result = await response.json();
+			const result = response.data;
 			if (result?.success) {
 				toastStore.trigger({
 					message: 'Image deleted successfully.',
