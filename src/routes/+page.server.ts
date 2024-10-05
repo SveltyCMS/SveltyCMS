@@ -16,73 +16,63 @@ import type { Collections } from '@src/types';
 import { logger } from '@src/utils/logger';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
-	try {
-		logger.debug('Load function started in +page.server.ts');
+	logger.debug('Load function started in +page.server.ts');
 
-		const user = locals.user;
-		const permissions = locals.permissions;
+	const user = locals.user;
+	const permissions = locals.permissions;
 
-		logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
-		logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
+	logger.debug(`User loaded: ${user ? 'Yes' : 'No'}`);
+	logger.debug(`Permissions loaded: ${permissions && permissions.length > 0 ? 'Yes' : 'No'}`);
 
-		if (!user) {
-			logger.info('User not authenticated, redirecting to login');
-			throw redirect(302, '/login');
-		}
+	if (!user) {
+		logger.info('User not authenticated, redirecting to login');
+		throw redirect(302, '/login');
+	}
 
-		// If we're already on a specific route (not the root), don't redirect
-		if (url.pathname !== '/') {
-			logger.debug(`Already on a specific route: ${url.pathname}, not redirecting`);
-			return { user, permissions };
-		}
+	// If we're already on a specific route (not the root), don't redirect
+	if (url.pathname !== '/') {
+		logger.debug(`Already on a specific route: ${url.pathname}, not redirecting`);
+		return { user, permissions };
+	}
 
-		let collections: Collections;
+	let collections: Collections;
 
-		if (!locals.collections) {
-			try {
-				collections = await getCollections();
-				if (!collections) {
-					throw new Error('getCollections returned undefined');
-				}
-				locals.collections = collections;
-			} catch (err) {
-				const message = `Error in load.getCollections: ${err instanceof Error ? err.message : String(err)}`;
-				logger.error(message);
-				throw error(500, { message });
+	if (!locals.collections) {
+		try {
+			collections = await getCollections();
+			if (!collections) {
+				throw new Error('getCollections returned undefined');
 			}
-		} else {
-			collections = locals.collections as Collections;
-		}
-
-		logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
-
-		if (collections && Object.keys(collections).length > 0) {
-			const firstCollectionKey = Object.keys(collections)[0];
-			const firstCollection = collections[firstCollectionKey];
-
-			if (!firstCollection || !firstCollection.name) {
-				const message = 'First collection or its name is undefined';
-				logger.error(message);
-				throw error(500, { message });
-			}
-
-			const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
-			const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
-
-			logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
-			throw redirect(302, redirectUrl);
-		} else {
-			const message = 'No collections found to redirect';
+			locals.collections = collections;
+		} catch (err) {
+			const message = `Error in load.getCollections: ${err instanceof Error ? err.message : String(err)}`;
 			logger.error(message);
-			throw error(404, { message });
+			throw error(500, { message });
 		}
-	} catch (err) {
-		if (err instanceof Error && 'status' in err) {
-			// This is likely a redirect or an error we've already handled
-			throw err;
+	} else {
+		collections = locals.collections as Collections;
+	}
+
+	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
+
+	if (collections && Object.keys(collections).length > 0) {
+		const firstCollectionKey = Object.keys(collections)[0];
+		const firstCollection = collections[firstCollectionKey];
+
+		if (!firstCollection || !firstCollection.name) {
+			const message = 'First collection or its name is undefined';
+			logger.error(message);
+			throw error(500, { message });
 		}
-		const message = `Unexpected error in load function: ${err instanceof Error ? err.message : JSON.stringify(err)}`;
+
+		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
+		const redirectUrl = `/${defaultLanguage}/${firstCollection.name}`;
+
+		logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
+		throw redirect(302, redirectUrl);
+	} else {
+		const message = 'No collections found to redirect';
 		logger.error(message);
-		throw error(500, { message });
+		throw error(404, { message });
 	}
 };

@@ -26,45 +26,35 @@ import { logger } from '@src/utils/logger';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {
-	try {
-		const { user, theme } = locals;
-		const { language } = params;
+	const { user, theme } = locals;
+	const { language } = params;
 
-		logger.debug(`Layout server load started. Language: ${language}`);
+	logger.debug(`Layout server load started. Language: ${language}`);
 
-		// Ensure the user is authenticated (this should already be handled by hooks.server.ts)
-		if (!user) {
-			logger.warn('User not authenticated, redirecting to login.');
-			throw redirect(302, '/login');
-		}
-
-		// Redirect to user page if lastAuthMethod is token
-		if (user.lastAuthMethod === 'token') {
-			logger.debug('User authenticated with token, redirecting to user page.');
-			throw redirect(302, '/user');
-		}
-
-		// Validate the requested language
-		if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
-			const message = `The language '${language}' is not available.`;
-			logger.warn(message);
-			throw error(404, message);
-		}
-
-		return {
-			theme: theme || DEFAULT_THEME,
-			language,
-			user: {
-				role: user.role
-			}
-		};
-	} catch (err) {
-		if (err instanceof Error && 'status' in err) {
-			// This is likely a redirect or an error we've already handled
-			throw err;
-		}
-		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+	// Ensure the user is authenticated (this should already be handled by hooks.server.ts)
+	if (!user) {
+		logger.warn('User not authenticated, redirecting to login.');
+		throw redirect(302, '/login');
 	}
+
+	// Redirect to user page if lastAuthMethod is token
+	if (user.lastAuthMethod === 'token') {
+		logger.debug('User authenticated with token, redirecting to user page.');
+		throw redirect(302, '/user');
+	}
+
+	// Validate the requested language
+	if (!publicEnv.AVAILABLE_CONTENT_LANGUAGES.includes(language)) {
+		const message = `The language '${language}' is not available.`;
+		logger.warn(message);
+		throw error(404, message);
+	}
+
+	return {
+		theme: theme || DEFAULT_THEME,
+		language,
+		user: {
+			role: user.role
+		}
+	};
 };
