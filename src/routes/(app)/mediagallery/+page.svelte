@@ -27,7 +27,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
 	import logger from '@src/utils/logger';
 	import { config, toFormData } from '@src/utils/utils';
-	import Error from '../+error.svelte';
 	import axios from 'axios';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
@@ -54,7 +53,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		if (data && data.virtualFolders) {
 			folders = data.virtualFolders.map((folder) => ({
 				...folder,
-				path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+				path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/')
 			}));
 			console.log('Processed folders:', folders); // Ensure the structure is as expected
 		} else {
@@ -129,20 +128,18 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	async function fetchMediaFiles() {
 		try {
 			const folderId = currentFolder ? currentFolder._id : 'root';
-			console.log(`Fetching media files for folder: ${folderId}`);
+			logger.info(`Fetching media files for folder: ${folderId}`);
 
-			const response = await fetch(`/api/virtualFolder/${folderId}`);
-			const result = await response.json();
-
-			if (result.success) {
+			const { data } = await axios.get(`/api/virtualFolder/${folderId}`);
+			if (data.success) {
 				// Correctly assign mediaFiles to files
-				files = Array.isArray(result.contents.mediaFiles) ? result.contents.mediaFiles : [];
+				files = Array.isArray(data.contents.mediaFiles) ? data.contents.mediaFiles : [];
 				console.log('Fetched media files:', files);
 			} else {
-				throw new Error(result.error || 'Unknown error');
+				throw new Error(data.error || 'Unknown error');
 			}
 		} catch (error) {
-			console.error('Error fetching media files:', error);
+			logger.error(`Error fetching media files: ${error}`);
 			toastStore.trigger({
 				message: 'Error fetching media files',
 				background: 'variant-filled-error',
@@ -240,7 +237,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			if (result.success && result.folders) {
 				const updatedFolders = result.folders.map((folder) => ({
 					...folder,
-					path: Array.isArray(folder.path) ? folder.path : folder.path.split('/') // Ensure path is always an array
+					path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/') // Ensure path is always an array
 				}));
 				console.log('Updated folders:', updatedFolders);
 				return updatedFolders;
@@ -348,7 +345,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Initialize user preferences
 	const userPreference = getUserPreferenceFromLocalStorageOrCookie();
 	if (userPreference) {
-		const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
+		const [preferredView, preferredGridSize, preferredTableSize] = userPreference?.split('/');
 		view = preferredView as 'grid' | 'table';
 		gridSize = preferredGridSize as 'small' | 'medium' | 'large';
 		tableSize = preferredTableSize as 'small' | 'medium' | 'large';

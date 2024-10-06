@@ -37,7 +37,7 @@ import mongoose, { Schema, Model, Document, type FilterQuery, type UpdateQuery }
 import type { dbInterface, Draft, Revision, Theme, Widget, SystemVirtualFolder } from '../dbInterface';
 
 import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
-import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { MediaSchema, TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
 // System Logs
@@ -362,7 +362,7 @@ export class MongoDBAdapter implements dbInterface {
 		} catch (error) {
 			const err = error as Error;
 			logger.error(`Error in findOne for collection ${collection}: ${err.message}`, { error: err });
-			throw err;
+			return null;
 		}
 	}
 
@@ -379,6 +379,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing insertOne method
 	async insertOne<T extends Document>(collection: string, doc: Partial<T>): Promise<T> {
+		this.setupModel(collection, MediaSchema);
 		const model = mongoose.models[collection] as Model<T>;
 		if (!model) {
 			logger.error(`insertOne failed. Collection ${collection} does not exist.`);
@@ -396,12 +397,17 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Implementing insertMany method
 	async insertMany(collection: string, docs: Partial<Document>[]): Promise<any[]> {
+		this.setupModel(collection, MediaSchema);
 		const model = mongoose.models[collection];
 		if (!model) {
 			logger.error(`insertMany failed. Collection ${collection} does not exist.`);
 			throw new Error(`insertMany failed. Collection ${collection} does not exist.`);
 		}
 		try {
+			docs = docs.map((doc) => ({
+				// remove undefined values
+				...Object.fromEntries(Object.entries(doc).filter(([_, v]) => v !== undefined))
+			}))
 			const result = await model.insertMany(docs);
 			return result;
 		} catch (error) {

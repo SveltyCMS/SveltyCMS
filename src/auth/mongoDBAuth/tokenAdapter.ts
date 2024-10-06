@@ -37,6 +37,15 @@ export const TokenSchema = new Schema(
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 );
+export const MediaSchema = new Schema(
+	{
+		name: { type: String, required: true }, // Name of the media file, required field
+		type: { type: String, required: true }, // MIME type of the media file, required field
+		size: { type: Number, required: true }, // Size of the media file in bytes, required field
+		data: { type: Buffer, required: false }, // Binary data of the media file, required field
+	},
+	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
+)
 // Custom Error class for Token-related errors
 class TokenError extends Error {
 	constructor(message: string) {
