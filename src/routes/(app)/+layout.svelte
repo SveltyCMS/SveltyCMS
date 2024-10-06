@@ -1,12 +1,14 @@
 <!--
 @file src/routes/(app)/+layout.svelte
-@description: This component renders the entire app.
+@description: This component renders the entire app with improved loading strategy.
 
 Key features:
 -     Skeleton UI framework for SvelteKit
 -     Dynamic theme management based on user preferences or defaults
 -     SEO optimization with Open Graph and Twitter Card metadata for enhanced social sharing
 -     Initialization of Skeleton stores for UI components
+-     Granular loading strategy
+-     Asynchronous loading of non-critical data
 -->
 
 <script lang="ts">
@@ -15,12 +17,9 @@ Key features:
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
-
 	import { publicEnv } from '@root/config/public';
-
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-
 	import { getTextDirection } from '@src/utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
@@ -42,17 +41,36 @@ Key features:
 
 	// Skeleton
 	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
-	// Instead of using PageData, we'll use any for now
 	export let data: any;
 
 	$: contentLanguage.set(data.language);
+
+	let isCollectionsLoaded = false;
+	let isNonCriticalDataLoaded = false;
+
+	// Function to load critical data (collections)
+	async function loadCriticalData() {
+		try {
+			const { getCollections } = await import('@collections');
+			await getCollections();
+			isCollectionsLoaded = true;
+		} catch (error) {
+			console.error('Error loading critical data:', error);
+		}
+	}
+
+	// Function to load non-critical data
+	async function loadNonCriticalData() {
+		// Simulate loading of additional data
+		await new Promise((resolve) => setTimeout(resolve, 2000));
+		isNonCriticalDataLoaded = true;
+	}
 
 	// Function to handle collection changes
 	function handleCollectionChange(newCollection) {
@@ -72,7 +90,6 @@ Key features:
 		if (!lang) return;
 		const dir = getTextDirection(lang);
 		if (!dir) return;
-
 		// This need be replace with svelte equivalent code
 		const rootNode = document.body?.parentElement;
 		if (!rootNode) return;
@@ -112,6 +129,9 @@ Key features:
 		// Keyboard event listener for toggling search visibility
 		document.addEventListener('keydown', onKeyDown);
 
+		loadCriticalData();
+		loadNonCriticalData();
+
 		return () => {
 			// Cleanup: remove event listener and subscription
 			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
@@ -125,11 +145,13 @@ Key features:
 </script>
 
 <svelte:head>
-	<!-- darkmode -->
+	<!-- Dark Mode -->
 	{@html '<script>(' + setInitialClassState.toString() + ')();</script>'}
+
 	<!--Basic SEO-->
 	<title>{SeoTitle}</title>
 	<meta name="description" content={SeoDescription} />
+
 	<!-- Open Graph -->
 	<meta property="og:title" content={SeoTitle} />
 	<meta property="og:description" content={SeoDescription} />
@@ -138,6 +160,7 @@ Key features:
 	<meta property="og:image:width" content="1200" />
 	<meta property="og:image:height" content="630" />
 	<meta property="og:site_name" content={$page.url.origin} />
+
 	<!-- Open Graph : Twitter-->
 	<meta name="twitter:card" content="summary_large_image" />
 	<meta name="twitter:title" content={SeoTitle} />
@@ -159,15 +182,19 @@ Key features:
 		{#if $sidebarState.left !== 'hidden'}
 			<aside
 				class="max-h-dvh {$sidebarState.left === 'full'
-					? 'w-[220px] '
+					? 'w-[220px]'
 					: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 			>
-				<LeftSidebar />
+				{#if isCollectionsLoaded}
+					<LeftSidebar />
+				{:else}
+					<div>Loading sidebar...</div>
+				{/if}
 			</aside>
 		{/if}
 
 		<!-- Content Area -->
-		<main class="realative w-full flex-1 overflow-hidden">
+		<main class="relative w-full flex-1 overflow-hidden">
 			<!-- Page Header -->
 			{#if $sidebarState.pageheader !== 'hidden'}
 				<header class="sticky top-0 z-10 w-full">
@@ -175,11 +202,12 @@ Key features:
 				</header>
 			{/if}
 			<!-- Router Slot -->
+
 			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
 			<div
 				on:keydown={onKeyDown}
 				role="main"
-				class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'}  {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
+				class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
 			>
 				{#key $page.url}
 					<Toast />
@@ -193,14 +221,17 @@ Key features:
 					{#if $isSearchVisible}
 						<SearchComponent />
 					{/if}
+
 					{#if $isLoading}
 						<div class="flex h-screen items-center justify-center">
 							<Loading />
 						</div>
-					{/if}
-					<slot />
+					{:else if !isCollectionsLoaded}
+						<div>Loading content...</div>
+					{:else}
+						<slot />
 
-					<!--<div>mode : {$mode}</div>							
+						<!--<div>mode : {$mode}</div>							
 							<div>screenSize : {$screenSize}</div>
 							<div>sidebarState.left : {$sidebarState.left}</div>
 							<div>sidebarState.right : {$sidebarState.right}</div>
@@ -208,6 +239,11 @@ Key features:
 							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
 							<div>sidebarState.header : {$sidebarState.header}</div>
 							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
+					{/if}
+
+					{#if isNonCriticalDataLoaded}
+						<!-- Render components that depend on non-critical data -->
+					{/if}
 				{/key}
 			</div>
 
@@ -224,7 +260,11 @@ Key features:
 		<!-- Sidebar Right -->
 		{#if $sidebarState.right !== 'hidden'}
 			<aside class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
-				<RightSidebar />
+				{#if isCollectionsLoaded}
+					<RightSidebar />
+				{:else}
+					<div>Loading sidebar...</div>
+				{/if}
 			</aside>
 		{/if}
 	</div>

@@ -245,8 +245,8 @@ export async function saveFormData({
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
 	user?: User;
-	dbAdapter?: any;
-	authAdapter?: any;
+	// dbAdapter?: any;
+	// authAdapter?: any;
 }) {
 	logger.debug('saveFormData was called');
 

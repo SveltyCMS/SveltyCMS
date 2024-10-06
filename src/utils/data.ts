@@ -21,7 +21,7 @@
  * via the API endpoint.
  */
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { config, toFormData } from './utils';
 
 import type { CollectionNames } from '@src/collections/types';
@@ -72,7 +72,11 @@ export async function getData(query: {
 			pagesCount: number;
 		};
 	} catch (error) {
-		logger.error('Error in GET request:', error as Error);
+		if (error instanceof AxiosError) {
+			logger.error(`AxiosError in POST request: ${error.response?.status}`);
+		} else {
+			logger.error('Error in POST request:', error);
+		}
 		throw error;
 	}
 }
