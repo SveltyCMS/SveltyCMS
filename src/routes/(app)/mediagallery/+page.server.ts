@@ -29,29 +29,48 @@ import logger from '@src/utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {
-	if (obj === null || typeof obj !== 'object') {
-		return obj;
-	}
+	const stack: any[] = [{ parent: null, key: '', value: obj }];
+	const seen = new WeakSet();
+	const root = Array.isArray(obj) ? [] : {};
 
-	if (Array.isArray(obj)) {
-		return obj.map(convertIdToString);
-	}
+	while (stack.length) {
+		const { parent, key, value } = stack.pop();
 
-	const result: any = {};
-	for (const key in obj) {
-		if (obj[key] === null) {
-			result[key] = null;
-		} else if (key === '_id' || key === 'parent') {
-			result[key] = obj[key]?.toString() || null; // Use optional chaining and provide a fallback
-		} else if (Buffer.isBuffer(obj[key])) {
-			result[key] = obj[key].toString('hex'); // Convert Buffer to hex string
-		} else if (typeof obj[key] === 'object') {
-			result[key] = convertIdToString(obj[key]); // Recursively convert nested objects
-		} else {
-			result[key] = obj[key];
+		// If value is not an object, assign directly
+		if (value === null || typeof value !== 'object') {
+			if (parent) parent[key] = value;
+			continue;
+		}
+
+		// Handle circular references
+		if (seen.has(value)) {
+			if (parent) parent[key] = value;
+			continue;
+		}
+		seen.add(value);
+
+		// Initialize object or array
+		const result = Array.isArray(value) ? [] : {};
+		if (parent) parent[key] = result;
+
+		// Process each key/value pair or array element
+		for (const k in value) {
+			if (value[k] === null) {
+				result[k] = null;
+			} else if (k === '_id' || k === 'parent') {
+				result[k] = value[k]?.toString() || null; // Convert _id or parent to string
+			} else if (Buffer.isBuffer(value[k])) {
+				result[k] = value[k].toString('hex'); // Convert Buffer to hex string
+			} else if (typeof value[k] === 'object') {
+				// Add object to the stack for further processing
+				stack.push({ parent: result, key: k, value: value[k] });
+			} else {
+				result[k] = value[k]; // Assign primitive values
+			}
 		}
 	}
-	return result;
+
+	return root;
 }
 
 export const load: PageServerLoad = async ({ cookies }) => {
@@ -81,12 +100,12 @@ export const load: PageServerLoad = async ({ cookies }) => {
 		const media_types = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
 		const media_promises = media_types.map((type) => {
 			const query = type === 'media_remote' ? { folder: folderIdentifier } : {};
-			return dbAdapter.findMany(type, query);
+			return dbAdapter && dbAdapter.findMany(type, query);
 		});
 
 		let results = await Promise.all(media_promises);
 		results = results.map((arr, index) =>
-			arr.map((item) =>
+			arr && arr.map((item) =>
 				convertIdToString({
 					...item,
 					type: media_types[index].split('_')[1],
@@ -104,15 +123,14 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
-		logger.info('Media gallery data and virtual folders loaded successfully');
-		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders, theme };
+		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders };
 
 		// Added Debugging: Log the returnData
 		logger.debug('Returning data from load function:', returnData);
 
 		return returnData;
 	} catch (err) {
-		logger.error('Error in media gallery load function:', err instanceof Error ? err.message : String(err));
+		logger.error(`Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`);
 		throw error(500, 'Internal Server Error');
 	}
 };
