@@ -105,7 +105,7 @@ async function sendMail(email: string, subject: string, message: string, templat
 	const mailOptions: Mail.Options = {
 		from: {
 			address: privateEnv.SMTP_EMAIL!,
-			name: publicEnv.SITENAME
+			name: publicEnv.SITE_NAME
 		},
 		to: email,
 		subject,

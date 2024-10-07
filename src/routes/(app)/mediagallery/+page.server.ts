@@ -132,92 +132,91 @@ export const load: PageServerLoad = async ({ locals }) => {
 };
 
 export const actions: Actions = {
-	
 	// Default action for file upload
-   default: async ({ request, cookies }) => {
-	   const session_id = cookies.get(SESSION_COOKIE_NAME);
-	   if (!session_id) {
-		   logger.warn('No session ID found during file upload, redirecting to login');
-		   throw redirect(302, '/login');
-	   }
+	default: async ({ request, cookies }) => {
+		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		if (!session_id) {
+			logger.warn('No session ID found during file upload, redirecting to login');
+			throw redirect(302, '/login');
+		}
 
-	   if (!auth || !dbAdapter) {
-		   logger.error('Authentication system or database adapter is not initialized');
-		   throw error(500, 'Internal Server Error');
-	   }
+		if (!auth || !dbAdapter) {
+			logger.error('Authentication system or database adapter is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
 
-	   try {
-		   const user = await auth.validateSession({ session_id });
-		   if (!user) {
-			   logger.warn('Invalid session during file upload, redirecting to login');
-			   throw redirect(302, '/login');
-		   }
+		try {
+			const user = await auth.validateSession({ session_id });
+			if (!user) {
+				logger.warn('Invalid session during file upload, redirecting to login');
+				throw redirect(302, '/login');
+			}
 
-		   const formData = await request.formData();
-		   const files = formData.getAll('files');
+			const formData = await request.formData();
+			const files = formData.getAll('files');
 
-		   // Map of file types to their respective save functions
-		   const save_media_file = {
-			   application: saveDocument,
-			   audio: saveAudio,
-			   font: saveDocument,
-			   example: saveDocument,
-			   image: saveImage,
-			   message: saveDocument,
-			   model: saveDocument,
-			   multipart: saveDocument,
-			   text: saveDocument,
-			   video: saveVideo
-		   };
+			// Map of file types to their respective save functions
+			const save_media_file = {
+				application: saveDocument,
+				audio: saveAudio,
+				font: saveDocument,
+				example: saveDocument,
+				image: saveImage,
+				message: saveDocument,
+				model: saveDocument,
+				multipart: saveDocument,
+				text: saveDocument,
+				video: saveVideo
+			};
 
-		   for (const file of files) {
-			   if (file instanceof File) {
-				   const [type] = file.type.split('/') as [keyof typeof save_media_file];
-				   if (type in save_media_file) {
-					   const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id);
-					   await dbAdapter.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
-					   logger.info(`File uploaded successfully: ${file.name}`);
-				   } else {
-					   logger.warn(`Unsupported file type: ${file.type}`);
-				   }
-			   }
-		   }
+			for (const file of files) {
+				if (file instanceof File) {
+					const [type] = file.type.split('/') as [keyof typeof save_media_file];
+					if (type in save_media_file) {
+						const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id);
+						await dbAdapter.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
+						logger.info(`File uploaded successfully: ${file.name}`);
+					} else {
+						logger.warn(`Unsupported file type: ${file.type}`);
+					}
+				}
+			}
 
-		   return { success: true };
-	   } catch (err) {
-		   logger.error('Error during file upload:', err instanceof Error ? err.message : String(err));
-		   return { success: false, error: 'File upload failed' };
-	   }
-   },
-
+			return { success: true };
+		} catch (err) {
+			logger.error('Error during file upload:', err instanceof Error ? err.message : String(err));
+			return { success: false, error: 'File upload failed' };
+		}
+	},
 
 	// Action to delete a media file
 	deleteMedia: async ({ request }) => {
-        try {
-            const { image } = await request.json();
-            logger.info('Received delete request for image:', image);
+		try {
+			const { image } = await request.json();
+			logger.info('Received delete request for image:', image);
 
-            if (!image?._id) {
-                logger.error('Invalid image data received');
-                throw error(400, 'Invalid image data received');
-            }
+			if (!image?._id) {
+				logger.error('Invalid image data received');
+				throw error(400, 'Invalid image data received');
+			}
 
-            if (!dbAdapter) {
-                logger.error('Database adapter is not initialized.');
-                throw error(500, 'Internal Server Error');
-            }
+			if (!dbAdapter) {
+				logger.error('Database adapter is not initialized.');
+				throw error(500, 'Internal Server Error');
+			}
 
-            logger.info(`Deleting image: ${image._id}`);
-            const success = await dbAdapter.deleteMedia(image._id.toString());
+			logger.info(`Deleting image: ${image._id}`);
+			const success = await dbAdapter.deleteMedia(image._id.toString());
 
-            if (success) {
-                logger.info('Image deleted successfully');
-                return { success: true };
-            } else {
-                throw error(500, 'Failed to delete image');
-            }
-        } catch (err) {
-            logger.error('Error deleting image:', err instanceof Error ? err.message : String(err));
-            throw error(500, 'Internal Server Error');
-        }
+			if (success) {
+				logger.info('Image deleted successfully');
+				return { success: true };
+			} else {
+				throw error(500, 'Failed to delete image');
+			}
+		} catch (err) {
+			logger.error('Error deleting image:', err instanceof Error ? err.message : String(err));
+			throw error(500, 'Internal Server Error');
+		}
+	}
 };
