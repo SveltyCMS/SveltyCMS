@@ -64,9 +64,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 		}
 
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
-		await auth.updateUserAttributes(user.id, { avatar: avatarUrl });
+		await auth.updateUserAttributes(user._id, { avatar: avatarUrl });
 
-		logger.info(`Avatar saved successfully for user ID: ${user.id}`);
+		logger.info(`Avatar saved successfully for user ID: ${user._id}`);
 		return new Response(JSON.stringify({ success: true, url: avatarUrl }), { status: 200 });
 	} catch (err) {
 		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';

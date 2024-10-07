@@ -52,6 +52,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 // Define the media schema for different media types
 const mediaSchema = new Schema(
 	{
+		hash: { type: String, required: true }, // The hash of the media
 		url: { type: String, required: true }, // The URL of the media
 		altText: { type: String, required: true }, // The alt text for the media
 		createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the media was created
