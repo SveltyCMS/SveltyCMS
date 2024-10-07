@@ -12,12 +12,12 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 		try {
 			// Construct the MongoDB connection string dynamically
 			let connectionString;
-			if (host.includes('mongodb.net')) {
-				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}/${database}?retryWrites=true&w=majority`;
+			if (host.startsWith('mongodb+srv://')) {
+				// Atlas connection
+				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb+srv://', '')}/${database}?retryWrites=true&w=majority`;
 			} else {
-				// Use the provided host directly
-				connectionString =
-					user && password ? `${host}:${port}/${database}?retryWrites=true&w=majority` : `${host}:${port}/${database}?retryWrites=true&w=majority`;
+				// Local connection
+				connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?authSource=admin&retryWrites=true&w=majority`;
 			}
 			console.log('Connecting to MongoDB with connection string:', connectionString);
 
@@ -66,9 +66,9 @@ export async function configureDatabase(privateConfigData = {}) {
 		message: 'Choose your database option:',
 		initialValue: privateConfigData.DB_TYPE || 'mongodb',
 		options: [
-			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' },
-			{ value: 'mariadb', label: 'MariaDB (Alpha)', hint: 'Supports Docker and Local - Not ready for production' },
-			{ value: 'other', label: 'Other', hint: 'More databases will be available soon' }
+			{ value: 'mongodb', label: 'MongoDB', hint: 'Recommended - Supports MongoDB Atlas, Docker, and Local' }
+			// { value: 'mariadb', label: 'MariaDB (Alpha)', hint: 'Supports Docker and Local - Not ready for production' },
+			// { value: 'other', label: 'Other', hint: 'More databases will be available soon' }
 		],
 		required: true
 	});

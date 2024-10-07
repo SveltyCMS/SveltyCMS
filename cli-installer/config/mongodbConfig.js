@@ -2,7 +2,6 @@
 @file cli-installer/config/mongodbConfig.js
 @description Configuration prompts for the MongoDB section
 */
-
 import { text, note, isCancel, cancel, select, confirm } from '@clack/prompts';
 import pc from 'picocolors';
 import { configurationPrompt } from '../configuration.js';
@@ -36,6 +35,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 		}
 
 		return {
+			DB_TYPE,
 			DB_HOST,
 			DB_PORT,
 			DB_NAME,
@@ -101,12 +101,14 @@ export async function configureMongoDB(privateConfigData = {}) {
 		// Parse the connection string to extract the username and hostname
 		const url = new URL(connectionString);
 		dbUser = url.username;
-		dbHost = url.hostname;
+		dbPassword = decodeURIComponent(url.password); // Decode the password
+		dbHost = `mongodb+srv://${url.hostname}`;
+		dbPort = '';
 
-		// Atlas Password
+		// Confirm the Atlas password
 		const password = await text({
-			message: `Enter the database password for ${pc.green(dbUser)}:`,
-			required: true
+			message: `Is this password correct for ${pc.green(dbUser)}:`,
+			initialValue: dbPassword
 		});
 
 		if (isCancel(password)) {
@@ -115,6 +117,7 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
+		dbPassword = password;
 
 		// Prompt for the database name
 		dbName = await text({
@@ -130,11 +133,9 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
-
 		// MongoDB Atlas does not expose a port in the connection string, default to 27017
 		dbPort = '27017';
 		dbPassword = password;
-
 		// Reconstruct the connection string with the password
 	} else if (mongoOption === 'docker-local') {
 		note(
@@ -219,16 +220,10 @@ export async function configureMongoDB(privateConfigData = {}) {
 			await configurationPrompt();
 			return;
 		}
-
-		// Reconstruct the connection string if user and password are set
-		if (dbUser !== '' && dbPassword !== '') {
-			connectionString = `mongodb://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}@${dbHost}:${dbPort}/${dbName}`;
-		} else {
-			connectionString = `mongodb://${dbHost}:${dbPort}/${dbName}`;
-		}
 	}
 
 	return {
+		DB_TYPE: 'mongodb',
 		DB_HOST: dbHost,
 		DB_PORT: dbPort,
 		DB_NAME: dbName,

@@ -186,12 +186,15 @@ export class MongoDBAdapter implements dbInterface {
 	// Connect to MongoDB
 	async connect(attempts: number = privateEnv.DB_RETRY_ATTEMPTS || 3): Promise<void> {
 		logger.debug('Attempting to connect to MongoDB...');
-		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv');
+		const isAtlas = privateEnv.DB_HOST.startsWith('mongodb+srv://');
 
 		// Construct the connection string
-		const connectionString = isAtlas
-			? privateEnv.DB_HOST // Use full connection string for Atlas
-			: `${privateEnv.DB_HOST}:${privateEnv.DB_PORT}`; // Local/Docker connection
+		let connectionString: string;
+		if (isAtlas) {
+			connectionString = `${privateEnv.DB_HOST}/${privateEnv.DB_NAME}`;
+		} else {
+			connectionString = `${privateEnv.DB_HOST}${privateEnv.DB_PORT ? `:${privateEnv.DB_PORT}` : ''}/${privateEnv.DB_NAME}`;
+		}
 
 		// Set connection options
 		const options: mongoose.ConnectOptions = {
