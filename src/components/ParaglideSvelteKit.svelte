@@ -4,6 +4,8 @@
 -->
 
 <script lang="ts">
+	import { browser } from '$app/environment';
+
 	// Stores
 	import { systemLanguage } from '@stores/store';
 
@@ -20,7 +22,7 @@
 
 	systemLanguage.subscribe((value: any) => {
 		setLanguageTag(value); // Update the language tag
-		globalThis.localStorage.setItem('systemLanguage', value);
+		browser && globalThis.localStorage.setItem('systemLanguage', value);
 	});
 </script>
 

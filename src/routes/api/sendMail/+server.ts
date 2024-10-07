@@ -24,11 +24,13 @@
  */
 
 import { privateEnv } from '@root/config/private';
+import { publicEnv } from '@root/config/public';
 
 // Svelty-email
 import { render } from 'svelty-email';
 
 import nodemailer from 'nodemailer';
+import type Mail from 'nodemailer/lib/mailer';
 
 // ParaglideJS
 import { languageTag } from '@src/paraglide/runtime';
@@ -82,8 +84,13 @@ export const POST: RequestHandler = async ({ request }) => {
 async function sendMail(email: string, subject: string, message: string, templateName: keyof typeof templates, props: EmailProps, lang: string) {
 	const transporter = nodemailer.createTransport({
 		host: privateEnv.SMTP_HOST,
-		port: privateEnv.SMTP_PORT,
 		secure: true,
+		tls: {
+			ciphers: 'SSLv3'
+		},
+		requireTLS: true,
+		port: 465,
+		debug: true,
 		auth: {
 			user: privateEnv.SMTP_EMAIL,
 			pass: privateEnv.SMTP_PASSWORD
@@ -95,8 +102,11 @@ async function sendMail(email: string, subject: string, message: string, templat
 		props: { ...props, languageTag: lang }
 	});
 
-	const mailOptions = {
-		from: privateEnv.SMTP_EMAIL,
+	const mailOptions: Mail.Options = {
+		from: {
+			address: privateEnv.SMTP_EMAIL!,
+			name: publicEnv.SITENAME
+		},
 		to: email,
 		subject,
 		text: message,

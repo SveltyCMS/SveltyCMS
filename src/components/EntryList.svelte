@@ -3,6 +3,8 @@
 @description  EntryList component to display collections.
 -->
 <script lang="ts">
+	import { browser } from '$app/environment';
+
 	// Utils
 	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
 	import { deleteData, getData, setStatus } from '@src/utils/data';
@@ -59,17 +61,18 @@
 
 	// Retrieve entryListPaginationSettings from local storage or set default values for each collection
 	const entryListPaginationSettingsKey = `entryListPaginationSettings_${$collection.name}`;
-	let entryListPaginationSettings: any = localStorage.getItem(entryListPaginationSettingsKey)
-		? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
-		: {
-				collectionName: $collection.name,
-				density: 'normal',
-				sorting: { sortedBy: '', isSorted: 0 },
-				currentPage: 1,
-				rowsPerPage: 10,
-				filters: {},
-				displayTableHeaders: []
-			};
+	let entryListPaginationSettings: any =
+		browser && localStorage.getItem(entryListPaginationSettingsKey)
+			? JSON.parse(localStorage.getItem(entryListPaginationSettingsKey) as string)
+			: {
+					collectionName: $collection.name,
+					density: 'normal',
+					sorting: { sortedBy: '', isSorted: 0 },
+					currentPage: 1,
+					rowsPerPage: 10,
+					filters: {},
+					displayTableHeaders: []
+				};
 
 	let density: string = entryListPaginationSettings.density || 'normal'; // Retrieve density from local storage or set to 'normal' if it doesn't exist
 	let selectAllColumns = true; // Initialize to true to show all columns by default
@@ -160,7 +163,7 @@
 		}
 
 		// Update tableData and options
-		if (data) {
+		if (data && data.entryList && Array.isArray(data.entryList)) {
 			tableData = await Promise.all(
 				data.entryList.map(async (entry) => {
 					const obj: { [key: string]: any } = {};
@@ -242,7 +245,7 @@
 			rowsPerPage,
 			displayTableHeaders
 		};
-		localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
+		browser && localStorage.setItem(entryListPaginationSettingsKey, JSON.stringify(entryListPaginationSettings)); // Update local storage using the entryListPaginationSettingsKey
 	}
 
 	$: {
@@ -299,12 +302,13 @@
 	});
 
 	// Columns Sorting
-	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = localStorage.getItem('sorting')
-		? JSON.parse(localStorage.getItem('sorting') as string)
-		: {
-				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
-				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
-			};
+	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } =
+		browser && localStorage.getItem('sorting')
+			? JSON.parse(localStorage.getItem('sorting') as string)
+			: {
+					sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+					isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
+				};
 
 	// Tick Row - modify STATUS of an Entry
 	$modifyEntry = async (status: keyof typeof statusMap) => {

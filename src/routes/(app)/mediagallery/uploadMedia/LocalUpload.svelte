@@ -98,7 +98,7 @@
 		});
 
 		try {
-			const response = await fetch('/api/media/saveMedia', {
+			const response = await fetch('/api/mediaHandler/saveMedia', {
 				method: 'POST',
 				body: formData
 			});

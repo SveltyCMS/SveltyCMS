@@ -3,6 +3,8 @@
 
 <script lang="ts">
 	import { privateEnv } from '@root/config/private';
+	import { browser } from '$app/environment';
+
 	import type { PageData } from '../$types';
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -74,7 +76,7 @@
 		}
 	});
 
-	const params = new URL(window.location.href).searchParams;
+	const params = browser ? new URL(window.location.href).searchParams : new URLSearchParams('');
 
 	if (params.has('regToken')) {
 		active = 1;
@@ -97,7 +99,6 @@
 >
 	{#if active == 1}
 		<!-- CSS Logo -->
-
 		<div class="hidden xl:block"><SveltyCMSLogoFull /></div>
 
 		<div class="mx-auto mb-[5%] mt-[15%] w-full p-4 lg:w-1/2" class:hide={active != 1}>

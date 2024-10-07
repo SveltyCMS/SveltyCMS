@@ -3,6 +3,7 @@
 @description - Index file for collections.
 */
 
+import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
 import axios from 'axios';
 import { createCategories } from './config';
@@ -83,7 +84,9 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 				_categories = newCreateCategories(imports);
 				logger.debug('New categories created successfully');
 			} catch (importError) {
-				logger.error('Error importing new createCategories function:', importError);
+				const message = `Error importing new createCategories function: ${importError instanceof Error ? importError.message : String(importError)}`;
+				logger.error(message);
+				throw error(500, { message });
 				// Fallback to using the original categories
 			}
 		}
@@ -118,21 +121,25 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 				await getCollectionModels();
 				logger.debug('Collection models fetched successfully');
 			} catch (dbError) {
-				logger.error('Error fetching collection models:', dbError);
-				throw new Error('Failed to fetch collection models');
+				const message = `Error fetching collection models: ${dbError instanceof Error ? dbError.message : String(dbError)}`;
+				logger.error(message);
+				throw error(500, { message });
 			}
 		}
 
 		logger.info(`Collections updated successfully. Number of collections: ${Object.keys(_collections).length}`);
-	} catch (error) {
-		logger.error('Error updating collections:', error);
-		throw new Error(`Failed to update collections: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	} catch (err) {
+		const message = `Error in updateCollections: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, { message });
 	}
 };
 
 // Initialize collections and handle errors
-updateCollections().catch((error) => {
-	logger.error('Failed to initialize collections:', error);
+updateCollections().catch((err) => {
+	const message = `Failed to initialize collections: ${err instanceof Error ? err.message : String(err)}`;
+	logger.error(message);
+	throw error(500, { message });
 });
 
 // Function to get imports based on environment
@@ -197,9 +204,10 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 
 		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
-	} catch (error) {
-		logger.error('Error in getImports:', error);
-		throw new Error(`Failed to get imports: ${error instanceof Error ? error.message : 'Unknown error'}`);
+	} catch (err) {
+		const message = `Error in getImports: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, { message });
 	}
 }
 

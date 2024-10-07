@@ -59,23 +59,6 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { authAdapter, dbAdapter } from '@src/databases/db';
-
-	function handleChange(event: any) {
-		const selectedLanguage = event.target.value.toLowerCase();
-		tempData[previousLanguage] = { ...get(collectionValue) };
-		contentLanguage.set(selectedLanguage);
-		// Set collectionValue to either tempData or initialize with existing values
-		if (tempData[selectedLanguage]) {
-			collectionValue.set(tempData[selectedLanguage]);
-		} else {
-			collectionValue.set({}); // If no data, start with an empty object
-		}
-		previousLanguage = selectedLanguage;
-
-		// Trigger translation progress recalculation
-		collectionValue.update((n) => n); // Forces a reactive update
-	}
 
 	$: {
 		if ($tabSet !== previousTabSet) {

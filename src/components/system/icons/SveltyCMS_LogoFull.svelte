@@ -1,3 +1,8 @@
+<!-- 
+@file src/components/system/icons/SveltyCMS_LogoFull.svelte
+@description - Dynamic SveltyCMS_LogoFull component 
+-->
+
 <script lang="ts">
 	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';

@@ -1,8 +1,3 @@
-<!-- 
-@file src/components/LeftSidebar.svelte
-@description Collections component.
--->
-
 <script lang="ts">
 	import { goto } from '$app/navigation';
 
@@ -13,6 +8,9 @@
 	import { mode, collection, categories } from '@stores/collectionStore';
 	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
+
+	// Types
+	import type { Schema, CollectionNames } from '@src/collections/types';
 
 	// Auth
 	import type { User } from '@src/auth/types';
@@ -46,26 +44,20 @@
 		open?: boolean;
 	}
 
-	interface Collection {
+	interface Collection extends Omit<Schema, 'name'> {
 		id: number;
-		name: string;
-		permissions?: any;
-		icon?: string;
-		slug?: string;
-		fields: any[];
-		strict?: boolean;
-		status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
+		name: CollectionNames;
 	}
 
 	// Define filteredCategories variable as an array of Category objects
 	let filteredCategories: Category[] = ($categories as Category[]) || [];
 
 	// Define filterCategories function
-	function filterCategories(search: any, categories: any) {
+	function filterCategories(search: string, categories: Category[]) {
 		// Reduce $categories array to create new array of filtered categories
-		filteredCategories = categories.reduce((acc: any, category: any) => {
+		filteredCategories = categories.reduce((acc: Category[], category: Category) => {
 			// Filter collections in current category by name
-			const filteredCollections = category.collections.filter((collection: any) => {
+			const filteredCollections = category.collections.filter((collection: Collection) => {
 				// Check if collection and collection.name are not undefined before accessing the name property
 				return collection && collection.name && collection.name.toLowerCase().includes(search.toLowerCase());
 			});

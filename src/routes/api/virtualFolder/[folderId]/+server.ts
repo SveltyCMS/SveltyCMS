@@ -23,11 +23,13 @@
  * @throws {Error} 400 - Returns a 400 status code with an error message if required parameters are missing.
  */
 
+import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
-import { logger } from '@src/utils/logger';
-import { publicEnv } from '@root/config/public';
+
+// System Logger
+import logger from '@src/utils/logger';
 
 // Interface representing a Virtual Folder
 interface VirtualFolder {
@@ -41,9 +43,14 @@ export const GET: RequestHandler = async ({ params }) => {
 	let { folderId } = params;
 
 	try {
+		if (dbAdapter === null) {
+			logger.error('Database adapter is not initialized');
+			return json({ success: false, error: 'Internal server error' }, { status: 500 });
+		}
 		// Handle 'root' as a special case by fetching the root folder based on MEDIA_FOLDER from config
 		if (folderId === 'root') {
-			const rootFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
+			logger.warn('Fetching root folder contents');
+			const rootFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
 				name: publicEnv.MEDIA_FOLDER,
 				parent: null
 			});
@@ -77,6 +84,10 @@ export const POST: RequestHandler = async ({ params, request }) => {
 	let { folderId } = params;
 
 	try {
+		if (dbAdapter === null) {
+			logger.error('Database adapter is not initialized');
+			return json({ success: false, error: 'Internal server error' }, { status: 500 });
+		}
 		const { name } = await request.json();
 
 		// Validate request data
@@ -90,7 +101,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 
 		if (folderId === 'root') {
 			// Fetch the root folder
-			const rootFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
+			const rootFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
 				name: publicEnv.MEDIA_FOLDER,
 				parent: null
 			});
@@ -104,7 +115,7 @@ export const POST: RequestHandler = async ({ params, request }) => {
 			parentPath = rootFolder.path;
 		} else {
 			// Fetch the parent folder to get its path
-			const parentFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
+			const parentFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
 				_id: folderId
 			});
 

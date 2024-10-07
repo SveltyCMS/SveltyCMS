@@ -15,7 +15,6 @@
  * Usage:
  * In-memory cache store for session and access data, with optional Redis fallback.
  */
-
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
 import { error } from '@sveltejs/kit';
@@ -64,14 +63,13 @@ export class InMemorySessionStore implements SessionStore {
 	}
 
 	// Set a session with expiration
-	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
+	async set(session_id: string, user: User, expiration: Date): Promise<void> {
 		try {
-			const expiresAt = new Date(Date.now() + expirationInSeconds * 1000);
-			this.sessions.set(session_id, { user, expiresAt });
+			this.sessions.set(session_id, { user, expiresAt: expiration });
 			this.evictOldestSession(privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000);
 		} catch (err) {
 			const message = `Error in InMemorySessionStore.set: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { session_id, expirationInSeconds });
+			logger.error(message, { session_id, expiration });
 			throw error(500, message);
 		}
 	}
@@ -184,15 +182,15 @@ export class OptionalRedisSessionStore implements SessionStore {
 	}
 
 	// Set a user session with expiration
-	async set(session_id: string, user: User, expirationInSeconds: number): Promise<void> {
+	async set(session_id: string, user: User, expiration: Date): Promise<void> {
 		try {
 			if (this.redisStore) {
-				await this.redisStore.set(session_id, user, expirationInSeconds);
+				await this.redisStore.set(session_id, user, expiration);
 			}
-			await this.fallbackStore.set(session_id, user, expirationInSeconds);
+			await this.fallbackStore.set(session_id, user, expiration);
 		} catch (err) {
 			const message = `Error in OptionalRedisSessionStore.set: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { session_id, expirationInSeconds });
+			logger.error(message, { session_id, expiration });
 			throw error(500, message);
 		}
 	}

@@ -1,6 +1,10 @@
 <script lang="ts">
 	import { privateEnv } from '@root/config/private';
+	import { browser } from '$app/environment';
+
+	// Stores
 	import { page } from '$app/stores';
+
 	import type { PageData } from '../$types';
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
@@ -44,7 +48,7 @@
 	const firstUserExists = pageData.firstUserExists;
 
 	// Redirect from email to restore password page
-	const current_url = window.location.href;
+	const current_url = browser ? window.location.href : '';
 
 	if (current_url.includes('/login') && current_url.search('token') > -1) {
 		// Set flags and extract token/email for password reset flow

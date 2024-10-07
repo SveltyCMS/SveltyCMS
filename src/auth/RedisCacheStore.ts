@@ -52,19 +52,19 @@ export class RedisCacheStore implements SessionStore {
 	}
 
 	// Set data in Redis
-	async set(key: string, data: User, expirationInSeconds: number): Promise<void> {
+	async set(key: string, data: User, expiration: Date): Promise<void> {
 		try {
 			// Set expiration and store data in Redis
-			const expiresAt = new Date(Date.now() + expirationInSeconds * 1000);
-			const dataWithExpiration = { ...data, expiresAt };
+			const dataWithExpiration = { ...data, expiresAt: expiration };
 			const encryptedData = encrypt(JSON.stringify(dataWithExpiration));
+			const expirationInSeconds = Math.max(0, Math.floor((expiration.getTime() - Date.now()) / 1000));
 			await this.redisClient.set(key, encryptedData, {
 				EX: expirationInSeconds
 			});
 			logger.info(`Data stored in Redis: ${key}`);
 		} catch (err) {
 			const message = `Error in RedisCacheStore.set: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message, { key, expirationInSeconds });
+			logger.error(message, { key, expiration });
 			throw error(500, message);
 		}
 	}
@@ -115,7 +115,8 @@ export class RedisCacheStore implements SessionStore {
 					await this.delete(key);
 					return null;
 				}
-				await this.set(key, dbData, privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600);
+				const expiration = new Date(Date.now() + (privateEnv.SESSION_EXPIRATION_SECONDS ?? 3600) * 1000);
+				await this.set(key, dbData, expiration);
 				return dbData;
 			}
 			return this.get(key);

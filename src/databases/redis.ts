@@ -139,10 +139,12 @@ export async function getCache<T>(key: string): Promise<T | null> {
 }
 
 // Sets a value in Redis with optional compression and expiration time.
-export async function setCache<T>(key: string, value: T, expirationInSeconds: number = 3600): Promise<void> {
+export async function setCache<T>(key: string, value: T, expiration: Date): Promise<void> {
 	try {
 		await ensureRedisInitialized();
 		const jsonValue = JSON.stringify(value);
+		const expirationInSeconds = Math.max(0, Math.floor((expiration.getTime() - Date.now()) / 1000));
+
 		if (compress) {
 			const compressedValue = await compress(Buffer.from(jsonValue));
 			await redisClient!.set(key, compressedValue, {
@@ -153,7 +155,7 @@ export async function setCache<T>(key: string, value: T, expirationInSeconds: nu
 				EX: expirationInSeconds
 			});
 		}
-		logger.debug('Cache set', { key });
+		logger.debug('Cache set', { key, expiration: expiration.toISOString() });
 	} catch (err) {
 		const message = `Error in setCache: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);
@@ -179,9 +181,9 @@ export async function getCachedSession(session_id: string): Promise<User | null>
 	return getCache<User>(`session:${session_id}`);
 }
 
-// Stores a user session in Redis with an expiration time.
-export async function setCachedSession(session_id: string, user: User, expirationInSeconds: number = 3600): Promise<void> {
-	await setCache(`session:${session_id}`, user, expirationInSeconds);
+// Stores a user session in Redis with an expiration date.
+export async function setCachedSession(session_id: string, user: User, expiration: Date): Promise<void> {
+	await setCache(`session:${session_id}`, user, expiration);
 }
 
 // Deletes a user session from Redis.

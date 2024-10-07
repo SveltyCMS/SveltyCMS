@@ -17,6 +17,7 @@ Key features:
 
 	// Icons from https://icon-sets.iconify.design/
 	import 'iconify-icon';
+
 	import { publicEnv } from '@root/config/public';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';

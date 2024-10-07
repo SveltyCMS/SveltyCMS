@@ -10,7 +10,7 @@
 
 	// Auth
 	import type { User } from '@src/auth/types';
-	import { authAdapter, dbAdapter } from '@src/databases/db';
+
 	const user: User = $page.data.user;
 
 	//ParaglideJS
@@ -38,10 +38,6 @@
 	//Create a custom submit function to pass the response and close the modal.
 	async function onFormSubmit(): Promise<void> {
 		if (!scheduleDate) return;
-		if (!authAdapter || !dbAdapter) {
-			console.error('Auth adapter or DB adapter is not initialized');
-			return;
-		}
 
 		const scheduledTime = new Date(scheduleDate).getTime();
 
@@ -60,9 +56,6 @@
 				_collection: $collection,
 				_mode: 'edit',
 				id: entryId,
-				dbAdapter: dbAdapter,
-				authAdapter: authAdapter,
-				user_id: user._id,
 				user: user
 			});
 		}
@@ -108,10 +101,10 @@
 		</form>
 
 		<footer class="modal-footer {parent.regionFooter}">
-			<button class="btn {parent.buttonNeutral}" on:click={parent.onClose}>
+			<button class="btn {parent?.buttonNeutral}" on:click={parent?.onClose}>
 				{m.button_cancel()}
 			</button>
-			<button class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
+			<button class="btn {parent?.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>
 		</footer>
 	</div>
 {/if}
