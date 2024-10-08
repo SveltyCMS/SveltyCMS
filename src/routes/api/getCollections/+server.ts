@@ -2,64 +2,76 @@
  * @file src/routes/api/getCollections/+server.ts
  * @description
  * API endpoint for retrieving collection files or a specific collection file.
- *
- * This module handles GET requests to either fetch all collection files or a specific collection
- * file based on the presence of a query parameter. The endpoint supports both functionalities:
- * - If `fileName` query parameter is present, it returns the specified collection file.
- * - If `fileName` query parameter is absent, it returns a list of all collection files.
- *
- * Features:
- * - Handles both single file retrieval and multiple file listings
- * - Error handling and logging
- * - JSON response formatting
- *
- * Usage:
- * GET /api/getCollections?fileName=<filename> - Returns a specific collection file
- * GET /api/getCollections - Returns a JSON array of collection files
  */
 
 import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { getCollectionFiles } from './getCollectionFiles'; // Utility function to get all collection files
-
-// System Logger
+import { getCollectionFiles } from './getCollectionFiles';
 import { logger } from '@src/utils/logger';
+import path from 'path';
+import fs from 'fs/promises';
 
-// Define the GET request handler
+// Set the collections folder path, use environment variable if available
+const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+
 export const GET: RequestHandler = async ({ url }) => {
+	// Get the fileName query parameter
 	const fileNameQuery = url.searchParams.get('fileName');
 
-	// If the `fileName` query parameter is provided, return the specific file
 	if (fileNameQuery) {
-		const fileName = fileNameQuery.split('?')[0];
+		// If fileName is provided, handle single file request
+		return await handleSingleFileRequest(fileNameQuery);
+	} else {
+		// If no fileName, return all collection files
+		return await handleAllFilesRequest();
+	}
+};
 
-		try {
-			// Dynamically import the specified collection file
-			const result = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${fileName}`);
-			logger.info(`Retrieved collection file: ${fileName}`);
-			return json(result, {
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-		} catch (err) {
-			logger.error(`Failed to import the file: ${fileName}`, err);
-			return error(500, `Failed to import the file: ${(err as Error).message}`);
-		}
+async function handleSingleFileRequest(fileNameQuery: string) {
+	// Extract just the filename to prevent directory traversal
+	const fileName = path.basename(fileNameQuery);
+	// Construct the full file path
+	const filePath = path.join(path.resolve(collectionsFolder), fileName);
+
+	// Security check: Ensure the file is within the collections folder
+	if (!filePath.startsWith(path.resolve(collectionsFolder))) {
+		logger.warn(`Attempted directory traversal: ${fileName}`);
+		return error(400, 'Invalid file name');
 	}
 
-	// If no `fileName` query parameter is provided, return the list of all collection files
 	try {
-		// Retrieve the collection files using the getCollectionFiles function
+		// Ensure only .js files are processed
+		if (path.extname(fileName) !== '.js') {
+			throw new Error('Invalid file type');
+		}
+
+		// Read the file content
+		const fileContent = await fs.readFile(filePath, 'utf-8');
+		// Parse the file content (Note: ensure all files are trusted)
+		const result = { default: eval(`(${fileContent})`) };
+
+		logger.info(`Retrieved collection file: ${fileName}`);
+		// Return the file content as JSON
+		return json(result, {
+			headers: { 'Content-Type': 'application/json' }
+		});
+	} catch (err) {
+		logger.error(`Failed to read the file: ${fileName}`, err);
+		return error(500, `Failed to read the file: ${(err as Error).message}`);
+	}
+}
+
+async function handleAllFilesRequest() {
+	try {
+		// Get all collection files
 		const files = await getCollectionFiles();
 		logger.info('Collection files retrieved successfully');
 
-		// Return the collection files as a JSON response
+		// Return the list of files as JSON
 		return json(files, {
 			headers: { 'Content-Type': 'application/json' }
 		});
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error retrieving collection files:', { error: errorMessage });
-		return json({ success: false, error: `Error retrieving collection files: ${error.message}` }, { status: 500 });
+	} catch (err) {
+		logger.error('Error retrieving collection files:', err);
+		return error(500, `Error retrieving collection files: ${(err as Error).message}`);
 	}
-};
+}

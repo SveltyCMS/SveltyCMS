@@ -25,25 +25,30 @@ import { error } from '@sveltejs/kit';
 import { logger } from '@utils/logger';
 
 // Handles GET requests to the `/compile` endpoint.
-export const GET: RequestHandler = async () => {
+
+export const GET: RequestHandler = async ({ url }) => {
+	// Extract 'force' query parameter to determine if update should be forced
+	const forceUpdate = url.searchParams.get('force') === 'true';
+
 	try {
 		// Log the start of the compilation process
-		logger.debug('Starting compilation...');
+		logger.info('Starting compilation process');
 
-		// Execute the compile function to initiate compilation
+		// Execute the compilation function
 		await compile();
+		// Log successful compilation
+		logger.debug('Compilation completed successfully');
 
-		// Update the collections after compilation
-		await updateCollections(true);
+		// Update collections, using the forceUpdate parameter
+		await updateCollections(forceUpdate);
+		// Log successful collection update
+		logger.info('Collections updated successfully');
 
-		// Log the successful update of collections
-		logger.debug('Collections updated.');
-
-		// Return a successful response with status 200
-		return new Response(null, { status: 200 });
+		// Return a JSON response indicating success
+		return json({ success: true, message: 'Compilation and collection update completed' });
 	} catch (err) {
-		const message = `Error in [functionName]: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+		const errorMessage = err instanceof Error ? err.message : String(err);
+		logger.error('Error during compilation process', { error: errorMessage });
+		throw error(500, 'Compilation process failed: ' + errorMessage);
 	}
 };
