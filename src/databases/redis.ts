@@ -42,7 +42,7 @@ import type { RedisClientType } from 'redis';
 let redisClient: RedisClientType | null = null;
 
 // System logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Centralized Redis configuration
 const redisConfig = {

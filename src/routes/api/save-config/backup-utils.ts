@@ -28,7 +28,7 @@ import util from 'util';
 import { exec } from 'child_process';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Promisify exec for async usage
 const execAsync = util.promisify(exec);

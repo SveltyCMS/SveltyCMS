@@ -1,6 +1,6 @@
 <script lang="ts">
-	import XIcon from '@src/components/system/icons/XIcon.svelte';
-	import FloatingInput from '@src/components/system/inputs/floatingInput.svelte';
+	import XIcon from '@components/system/icons/XIcon.svelte';
+	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import type { Editor } from '@tiptap/core';
 
 	export let show = false;

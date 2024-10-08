@@ -1,7 +1,9 @@
 import { dbAdapter } from '@src/databases/db';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { logger } from '@src/utils/logger';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Path to widgets directory
 const WIDGETS_DIR = path.resolve('src/components/widgets');
@@ -12,6 +14,7 @@ async function ensureWidgetFiles(widgetName: string): Promise<void> {
 	try {
 		await fs.access(widgetPath);
 	} catch (error) {
+		logger.error(`Error accessing widget files for ${widgetName}: ${error.message}`);
 		throw Error(`Widget files for ${widgetName} do not exist.`);
 	}
 }

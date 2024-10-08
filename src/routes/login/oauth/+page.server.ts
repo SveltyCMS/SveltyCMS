@@ -15,13 +15,13 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { User } from '@src/auth/types';
 
 import { getCollections } from '@src/collections';
-import { saveAvatarImage } from '@src/utils/media/mediaStorage';
+import { saveAvatarImage } from '@utils/media/mediaStorage';
 
 // Stores
 import { systemLanguage } from '@stores/store';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {

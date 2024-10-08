@@ -16,14 +16,16 @@ import { publicEnv } from '@root/config/public';
 
 import { error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
-import { saveImage, saveDocument, saveAudio, saveVideo } from '@src/utils/media/mediaProcessing';
-import { constructUrl } from '@src/utils/media/mediaUtils';
+
+// Utils
+import { saveImage, saveDocument, saveAudio, saveVideo } from '@utils/media/mediaProcessing';
+import { constructUrl } from '@utils/media/mediaUtils';
 
 // Auth
 import { dbAdapter } from '@src/databases/db';
 
-// System Logs
-import { logger } from '@src/utils/logger';
+// System Logger
+import { logger } from '@utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {

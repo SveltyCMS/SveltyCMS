@@ -4,13 +4,13 @@
 -->
 
 <script lang="ts">
-	import { asAny } from '@src/utils/utils';
-	import type { MediaImage } from '@src/utils/media/mediaModels';
+	import { asAny } from '@utils/utils';
+	import type { MediaImage } from '@utils/media/mediaModels';
 	import { createEventDispatcher } from 'svelte';
 	import { twMerge } from 'tailwind-merge';
 
 	// Component
-	import Media from '@src/components/Media.svelte';
+	import Media from '@components/Media.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

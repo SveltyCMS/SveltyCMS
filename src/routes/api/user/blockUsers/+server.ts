@@ -27,7 +27,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 
 // System logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 interface UserToBlock {
 	id: string;

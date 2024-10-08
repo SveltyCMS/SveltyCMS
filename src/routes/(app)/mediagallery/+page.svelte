@@ -10,12 +10,12 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import { onMount } from 'svelte';
 	import axios from 'axios';
 
-	// Utils
-	import { config, toFormData } from '@src/utils/utils';
+	// Stores
+	import { mode } from '@stores/collectionStore';
 
-	// Media
-	import { MediaTypeEnum, type MediaImage, type MediaType } from '@src/utils/media/mediaModels';
-	import { SIZES } from '@src/utils/utils';
+	// Utils & Media
+	import { config, toFormData, SIZES } from '@utils/utils';
+	import { MediaTypeEnum, type MediaImage, type MediaType } from '@utils/media/mediaModels';
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
@@ -23,10 +23,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
-
-	// Stores
-	import { mode } from '@src/stores/collectionStore';
-
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';

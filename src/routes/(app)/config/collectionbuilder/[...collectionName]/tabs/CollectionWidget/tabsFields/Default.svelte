@@ -15,7 +15,7 @@
 	const modalStore = getModalStore();
 
 	// Stores
-	import { targetWidget } from '@src/stores/collectionStore';
+	import { targetWidget } from '@stores/collectionStore';
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;

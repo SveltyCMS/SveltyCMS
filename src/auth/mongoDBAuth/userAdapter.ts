@@ -29,7 +29,7 @@ import type { Permission, Role, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Define the User schema
 export const UserSchema = new Schema(

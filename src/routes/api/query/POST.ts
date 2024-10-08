@@ -33,7 +33,7 @@ import { modifyRequest } from './modifyRequest';
 import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Function to handle POST requests for a specified collection
 export const _POST = async ({ data, schema, user }: { data: FormData; schema: Schema; user: User }) => {

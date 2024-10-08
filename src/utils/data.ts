@@ -27,7 +27,7 @@ import { config, toFormData } from './utils';
 import type { CollectionNames } from '@src/collections/types';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string) {

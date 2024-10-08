@@ -6,7 +6,7 @@
 <script lang="ts">
 	import { page } from '$app/stores';
 	import { modifyEntry, selectedEntries, collectionValue, collection } from '@stores/collectionStore';
-	import { saveFormData } from '@src/utils/utils';
+	import { saveFormData } from '@utils/utils';
 
 	// Auth
 	import type { User } from '@src/auth/types';

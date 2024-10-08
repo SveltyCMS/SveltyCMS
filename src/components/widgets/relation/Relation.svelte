@@ -15,8 +15,8 @@
 	import type { FieldType } from '.';
 
 	// Utils
-	import { getData } from '@src/utils/data';
-	import { extractData, findById, getFieldName, saveFormData } from '@src/utils/utils';
+	import { getData } from '@utils/data';
+	import { extractData, findById, getFieldName, saveFormData } from '@utils/utils';
 
 	export let field: FieldType;
 	const fieldName = getFieldName(field);

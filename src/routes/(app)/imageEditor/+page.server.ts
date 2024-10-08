@@ -11,11 +11,10 @@
  * - Handles cases of unauthenticated users.
  */
 
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	// Check if user is authenticated

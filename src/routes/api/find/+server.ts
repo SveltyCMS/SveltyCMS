@@ -23,7 +23,7 @@ import { collectionsModels, initializationPromise } from '@src/databases/db';
 import { validateUserPermission } from '@src/auth/permissionManager';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const GET: RequestHandler = async ({ url, locals }) => {
 	const collectionName = url.searchParams.get('collection');

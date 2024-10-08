@@ -12,8 +12,8 @@ import { getAllPermissions } from '@src/auth/permissionManager';
 import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
 
-// System Logs
-import { logger } from '@src/utils/logger';
+// System Logger
+import { logger } from '@utils/logger';
 
 export const load: PageServerLoad = async ({ locals }) => {
 	try {

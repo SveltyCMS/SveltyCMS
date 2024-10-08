@@ -22,7 +22,7 @@ import crypto from 'crypto';
 import { error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Helper function for centralized logging
 function log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additionalInfo: any = {}) {

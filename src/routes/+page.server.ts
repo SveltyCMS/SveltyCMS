@@ -12,8 +12,8 @@ import type { PageServerLoad } from './$types';
 import { getCollections } from '@src/collections';
 import type { Collections } from '@src/types';
 
-// System Loggers
-import { logger } from '@src/utils/logger';
+// System Logger
+import { logger } from '@utils/logger';
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug('Load function started in +page.server.ts');

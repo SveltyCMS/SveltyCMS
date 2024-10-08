@@ -31,7 +31,7 @@ import { InMemorySessionStore } from '@src/auth/InMemoryCacheStore';
 import { RedisCacheStore } from '@src/auth/RedisCacheStore';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Initialize rate limiter
 const limiter = new RateLimiter({

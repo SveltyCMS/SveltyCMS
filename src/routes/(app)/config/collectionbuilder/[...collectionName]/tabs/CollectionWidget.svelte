@@ -8,10 +8,10 @@
 	import { page } from '$app/stores';
 	import { tabSet } from '@stores/store';
 	import { collectionValue, targetWidget } from '@stores/collectionStore';
-	import { getGuiFields } from '@src/utils/utils';
+	import { getGuiFields } from '@utils/utils';
 
 	// Components
-	import widgets from '@src/components/widgets';
+	import widgets from '@components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 
 	// ParaglideJS

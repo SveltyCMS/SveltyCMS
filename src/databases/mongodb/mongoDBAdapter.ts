@@ -30,7 +30,7 @@ import { privateEnv } from '@root/config/private';
 import { collections } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
 import type { ScreenSize } from '@stores/screenSizeStore';
-import type { UserPreferences, WidgetPreference } from '@src/stores/userPreferences';
+import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
 
 // Database
 import mongoose, { Schema, Model, Document, type FilterQuery, type UpdateQuery } from 'mongoose';
@@ -40,11 +40,11 @@ import { UserSchema } from '@src/auth/mongoDBAuth/userAdapter';
 import { TokenSchema } from '@src/auth/mongoDBAuth/tokenAdapter';
 import { SessionSchema } from '@src/auth/mongoDBAuth/sessionAdapter';
 
-// System Logs
-import { logger } from '@src/utils/logger';
+// System Logger
+import { logger } from '@utils/logger';
 
 // Media
-import type { MediaBase, MediaType } from '@src/utils/media/mediaModels';
+import type { MediaBase, MediaType } from '@utils/media/mediaModels';
 
 // Theme
 import { DEFAULT_THEME } from '@src/databases/themeManager';

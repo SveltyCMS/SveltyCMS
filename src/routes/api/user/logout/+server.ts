@@ -20,7 +20,7 @@ import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const POST: RequestHandler = async ({ cookies, locals }) => {
 	if (!auth) {

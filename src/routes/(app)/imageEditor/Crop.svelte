@@ -133,7 +133,12 @@
 		}
 
 		// Draw the cropped area of the image onto the canvas
-		cropContext.drawImage(imageNode.image(), cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+		const image = imageNode.image();
+		if (image) {
+			cropContext.drawImage(image, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+		} else {
+			console.error('Image is not loaded yet');
+		}
 
 		// Update the Konva imageNode with the cropped image
 		const croppedImage = new Image();

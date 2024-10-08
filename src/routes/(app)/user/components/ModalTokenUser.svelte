@@ -64,6 +64,7 @@
 
 		onResult: async ({ result, cancel }) => {
 			cancel();
+			let response: string | undefined;
 			if (result.type == 'success') {
 				response = result.data?.message;
 				modalStore.close();

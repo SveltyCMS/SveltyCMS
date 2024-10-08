@@ -6,15 +6,15 @@
 const WIDGET_NAME = 'MegaMenu' as const;
 import Text from '../text';
 
-import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 
 import widgets, { type ModifyRequestParams } from '..';
 
 // Stores
 import { writable, type Writable } from 'svelte/store';
-import { headerActionButton2 } from '@src/stores/store';
-import { collectionValue, mode } from '@src/stores/collectionStore';
+import { headerActionButton2 } from '@stores/store';
+import { collectionValue, mode } from '@stores/collectionStore';
 
 //ParaglideJS
 import * as m from '@src/paraglide/messages';

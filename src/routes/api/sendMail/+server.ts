@@ -36,7 +36,7 @@ import type Mail from 'nodemailer/lib/mailer';
 import { languageTag } from '@src/paraglide/runtime';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Email templates
 import userToken from '@components/emails/userToken.svelte';
@@ -47,6 +47,9 @@ import updatedPassword from '@components/emails/updatedPassword.svelte';
 // Types
 import type { ComponentType } from 'svelte';
 import type { RequestHandler } from './$types';
+
+// Svelte error handling
+import { error } from '@sveltejs/kit';
 
 interface EmailProps {
 	sitename?: string;
@@ -74,9 +77,10 @@ export const POST: RequestHandler = async ({ request }) => {
 	try {
 		await sendMail(email, subject, message, templateName, props, userLanguage);
 		return new Response('Email sent successfully', { status: 200 });
-	} catch (error) {
-		logger.error('Error sending email:', error);
-		return new Response('Failed to send email', { status: 500 });
+	} catch (err) {
+		const message = `Error sending email: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, { message });
 	}
 };
 
@@ -116,8 +120,9 @@ async function sendMail(email: string, subject: string, message: string, templat
 	try {
 		const info = await transporter.sendMail(mailOptions);
 		logger.info('Email sent successfully', { email, subject, messageId: info.messageId });
-	} catch (error) {
-		logger.error('Error sending email:', error);
-		throw error;
+	} catch (err) {
+		const message = `Error sending email: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, { message });
 	}
 }

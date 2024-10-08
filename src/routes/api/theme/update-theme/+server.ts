@@ -10,16 +10,15 @@ import type { Theme } from '@src/databases/dbInterface';
 import { json, error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	// Authenticate and authorize the user
-	const user = locals.user;
-	if (!user || !(await authorizeAdmin(user))) {
-		logger.warn(`Unauthorized attempt to update theme by user: ${user ? user.id : 'unknown'}`);
+	if (!locals.user || !locals.hasManageUsersPermission) {
+		logger.warn(`Unauthorized attempt to update theme by user: ${locals.user ? locals.user.id : 'unknown'}`);
 		throw error(401, 'Unauthorized');
 	}
 
@@ -32,6 +31,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 	}
 
 	try {
+		if (!dbAdapter) {
+			throw new Error('Database adapter is not initialized');
+		}
+
 		// Fetch the theme from the database to ensure it exists
 		const selectedTheme: Theme | null = await dbAdapter.findOne('themes', { name: themeName });
 
@@ -49,7 +52,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		// Fetch the updated default theme to confirm the change
 		const updatedTheme: Theme = themeManager.getTheme();
 
-		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${user.id}'.`);
+		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${locals.user.id}'.`);
 
 		return json({ success: true, theme: updatedTheme });
 	} catch (err) {

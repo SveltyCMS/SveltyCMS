@@ -19,7 +19,7 @@ import { validateMediaFile, constructMediaUrl } from './mediaUtils';
 import { validateUserPermission as checkMediaAccess } from '@src/auth/permissionManager';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';

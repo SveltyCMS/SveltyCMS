@@ -4,5 +4,6 @@
 	"workbench.editor.enablePreview": true,
 	"[svelte]": {
 		"editor.defaultFormatter": "svelte.svelte-vscode"
-	}
+	},
+	"cSpell.enableFiletypes": ["svelte"]
 }

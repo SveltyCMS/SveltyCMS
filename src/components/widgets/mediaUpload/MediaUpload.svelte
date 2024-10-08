@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import type { FieldType } from '.';
-	import { convertTimestampToDateString, getFieldName, meta_data } from '@src/utils/utils';
+	import { convertTimestampToDateString, getFieldName, meta_data } from '@utils/utils';
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -15,8 +15,8 @@
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
-	import type { MediaImage } from '@src/utils/media/mediaModels';
-	import FileInput from '@src/components/system/inputs/FileInput.svelte';
+	import type { MediaImage } from '@utils/media/mediaModels';
+	import FileInput from '@components/system/inputs/FileInput.svelte';
 
 	let isFlipped = false; // State variable to track flip button
 

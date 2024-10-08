@@ -23,7 +23,7 @@
  * Ensure that this executable is available and properly configured.
  */
 
-import { indexer } from '@src/stores/store';
+import { indexer } from '@stores/store';
 import { spawn, type ChildProcessWithoutNullStreams } from 'child_process';
 
 // Auth
@@ -32,7 +32,7 @@ import { SESSION_COOKIE_NAME } from '@src/auth';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Define the POST request handler
 export const POST: RequestHandler = async ({ cookies, request }) => {

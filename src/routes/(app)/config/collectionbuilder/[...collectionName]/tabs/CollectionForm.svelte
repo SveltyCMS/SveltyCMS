@@ -18,7 +18,7 @@
 	// Skeleton
 	import { popup } from '@skeletonlabs/skeleton';
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
-	import type { Schema } from '@src/collections/types';
+	import type { Schema, CollectionNames } from '@src/collections/types';
 
 	import { createEventDispatcher } from 'svelte';
 	import { getCollections } from '@src/collections';
@@ -27,13 +27,17 @@
 
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
-	//check if collection Name exists set mode edit or create
-	if (Object.values($collections).find((x) => x.name === collectionName)) {
+
+	// Check if collection Name exists set mode edit or create
+	const collectionExists = Object.values($collections).some((x) => x.name === collectionName);
+	if (collectionExists) {
 		// fetch the collection from the API
-		getCollections().then((data) => {
+		getCollections().then((data: Record<CollectionNames, Schema>) => {
 			mode.set('edit');
-			const collection = data.find((x: any) => x.name === collectionName) as Schema;
-			collectionValue.set(collection); // current collection
+			const collection = Object.values(data).find((x) => x.name === collectionName);
+			if (collection) {
+				collectionValue.set(collection); // current collection
+			}
 		});
 	} else {
 		collectionValue.set({

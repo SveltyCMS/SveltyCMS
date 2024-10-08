@@ -21,15 +21,15 @@
  * if they need to perform custom modifications.
  */
 
-import widgets from '@src/components/widgets';
-import { getFieldName } from '@src/utils/utils';
+import widgets from '@components/widgets';
+import { getFieldName } from '@utils/utils';
 
 // Types
 import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Define Field type locally if not available in @src/collections/types
 interface Field {

@@ -6,14 +6,14 @@
 	import { browser } from '$app/environment';
 
 	// Utils
-	import { asAny, debounce, getFieldName, meta_data } from '@src/utils/utils';
-	import { deleteData, getData, setStatus } from '@src/utils/data';
+	import { asAny, debounce, getFieldName, meta_data } from '@utils/utils';
+	import { deleteData, getData, setStatus } from '@utils/data';
 
 	// Stores
 	import { get } from 'svelte/store';
-	import { contentLanguage, systemLanguage } from '@src/stores/store';
-	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@src/stores/collectionStore';
-	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@src/stores/sidebarStore';
+	import { contentLanguage, systemLanguage } from '@stores/store';
+	import { mode, collectionValue, modifyEntry, statusMap, collection, categories } from '@stores/collectionStore';
+	import { handleSidebarToggle, sidebarState, toggleSidebar } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
 	// ParaglideJS
@@ -22,7 +22,7 @@
 	// Components
 	import EntryListMultiButton from './EntryList_MultiButton.svelte';
 	import TranslationStatus from '@components/TranslationStatus.svelte';
-	import TableIcons from '@src/components/system/table/TableIcons.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import TablePagination from '@components/system/table/TablePagination.svelte';

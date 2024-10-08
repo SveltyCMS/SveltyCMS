@@ -35,7 +35,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 type fields = ReturnType<WidgetType[keyof WidgetType]>;
 

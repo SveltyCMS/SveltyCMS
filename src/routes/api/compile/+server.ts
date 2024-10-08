@@ -8,7 +8,7 @@
  * - RequestHandler: Type from `@sveltejs/kit` used for typing the GET request handler.
  * - updateCollections: Function imported from `@collections` to update collections post-compilation.
  * - compile: Function imported from `./compile` to handle the compilation logic.
- * - logger: Logger utility from `@src/utils/logger` to record system logs for debugging and error handling.
+ * - logger: Logger utility from `@utils/logger` to record system logs for debugging and error handling.
  *
  * @function GET
  * @description The GET request handler executes the `compile` function and updates
@@ -22,7 +22,7 @@ import { compile } from './compile';
 import { error } from '@sveltejs/kit';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Handles GET requests to the `/compile` endpoint.
 export const GET: RequestHandler = async () => {

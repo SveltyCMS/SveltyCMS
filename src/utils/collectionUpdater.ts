@@ -12,14 +12,14 @@
  *
  * @requires child_process - For executing shell commands
  * @requires fs - File system module
- * @requires @src/utils/logger - Custom logging utility
+ * @requires @utils/logger - Custom logging utility
  */
 
 import { exec } from 'child_process';
 import fs from 'fs';
 
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 let files: Array<string> = [];
 let saveFiles: Array<string> = [];

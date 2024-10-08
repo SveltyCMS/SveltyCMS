@@ -6,14 +6,14 @@
 <script lang="ts">
 	// Components
 	import widgets from '@components/widgets';
-	import PermissionsSetting from '@src/components/PermissionsSetting.svelte';
+	import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 	// Skeleton Stores
 	import { getModalStore } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
 
 	// Stores
-	import { targetWidget } from '@src/stores/collectionStore';
+	import { targetWidget } from '@stores/collectionStore';
 
 	// Get the keys of the widgets object
 	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;

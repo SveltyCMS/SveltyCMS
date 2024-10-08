@@ -18,7 +18,7 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { encrypt, decrypt } from '@src/utils/encryption';
+import { encrypt, decrypt } from '@utils/encryption';
 import { error } from '@sveltejs/kit';
 
 // Types
@@ -29,7 +29,7 @@ import type { User } from './types';
 import { createClient } from 'redis';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Redis cache store
 export class RedisCacheStore implements SessionStore {

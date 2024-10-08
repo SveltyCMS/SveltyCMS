@@ -10,7 +10,7 @@
 	import { theme } from '@stores/themeStore';
 
 	// Components
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 	import CPUWidget from './widgets/CPUWidget.svelte';
 	import DiskWidget from './widgets/DiskWidget.svelte';
 	import MemoryWidget from './widgets/MemoryWidget.svelte';

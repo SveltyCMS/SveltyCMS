@@ -4,8 +4,8 @@
 -->
 
 <script lang="ts">
-	import { collection, collectionValue } from '@src/stores/collectionStore';
-	import { convertTimestampToDateString } from '@src/utils/utils';
+	import { collection, collectionValue } from '@stores/collectionStore';
+	import { convertTimestampToDateString } from '@utils/utils';
 
 	// Convert timestamp to Date string
 	$: dates = {

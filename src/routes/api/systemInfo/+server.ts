@@ -27,7 +27,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 const { cpu, drive, mem, os } = osu;
 
@@ -53,8 +53,8 @@ const fetchCPUInfo = async () => {
 
 		return { cpuUsage: cpuData, timeStamps };
 	} catch (error) {
-		logger.error('Error fetching CPU info:', error);
-		throw Error('Failed to fetch CPU information');
+		logger.error('Error fetching CPU info:', error instanceof Error ? error.message : String(error));
+		throw new Error('Failed to fetch CPU information');
 	}
 };
 
@@ -71,16 +71,15 @@ const fetchDiskInfo = async () => {
 				freePercentage: diskUsage.freePercentage
 			};
 		} else {
-			throw Error('Disk usage information is not available');
+			throw new Error('Disk usage information is not available');
 		}
 	} catch (error) {
-		logger.error('Error fetching disk info:', error);
-		throw Error('Failed to fetch disk information');
+		logger.error('Error fetching disk info:', error instanceof Error ? error.message : String(error));
+		throw new Error('Failed to fetch disk information');
 	}
 };
 
 // Fetches memory usage information
-
 const fetchMemoryInfo = async () => {
 	try {
 		const memoryInfo = await mem.info();
@@ -92,8 +91,8 @@ const fetchMemoryInfo = async () => {
 			freeMemPercentage: memoryInfo.freeMemPercentage
 		};
 	} catch (error) {
-		logger.error('Error fetching memory info:', error);
-		throw Error('Failed to fetch memory information');
+		logger.error('Error fetching memory info:', error instanceof Error ? error.message : String(error));
+		throw new Error('Failed to fetch memory information');
 	}
 };
 
@@ -113,8 +112,8 @@ const getSystemInfo = async () => {
 
 		return { cpuInfo, diskInfo, memoryInfo, osInfo };
 	} catch (error) {
-		logger.error('Error fetching system info:', error);
-		throw Error('Failed to fetch system information');
+		logger.error('Error fetching system info:', error instanceof Error ? error.message : String(error));
+		throw new Error('Failed to fetch system information');
 	}
 };
 
@@ -131,7 +130,7 @@ export const GET: RequestHandler = async () => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
-		logger.error('Error fetching system info:', error);
+		logger.error('Error fetching system info:', error instanceof Error ? error.message : String(error));
 
 		// Return an error response in case of failure
 		return new Response(JSON.stringify({ error: 'Internal Server Error' }), {

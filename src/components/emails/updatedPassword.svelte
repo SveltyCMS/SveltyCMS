@@ -6,11 +6,13 @@
 <script lang="ts">
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
+
+	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// Stores
 	import { page } from '$app/stores';
-	import { systemLanguage } from '@src/stores/store';
+	import { systemLanguage } from '@stores/store';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

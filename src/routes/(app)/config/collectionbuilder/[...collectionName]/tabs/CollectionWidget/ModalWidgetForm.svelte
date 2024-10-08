@@ -1,6 +1,7 @@
 <!-- 
 @files src/routes/(app)/config/collectionbuilder/[...collectionName]/tabs/CollectionWidget/ModalWidgetForm.svelte
-@description The ModalWidgetForm component is used to display the form for the selected widget. It is used in the CollectionWidget component. 
+@description The ModalWidgetForm component is used to display and manage the form for the selected widget in the CollectionWidget component. 
+It handles widget configuration, permissions, and specific options.
 -->
 
 <script lang="ts">
@@ -16,7 +17,7 @@
 	import * as m from '@src/paraglide/messages';
 
 	// Stores
-	import { collectionValue, targetWidget } from '@src/stores/collectionStore';
+	import { collectionValue, targetWidget } from '@stores/collectionStore';
 
 	import { getModalStore, TabGroup, Tab } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
@@ -28,12 +29,13 @@
 	export let parent: SvelteComponent;
 
 	// Local variables
-	let modalData = $modalStore[0];
-	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	let guiSchema = widgets[modalData?.value?.widget?.key]?.GuiSchema || widgets;
+	$: modalData = $modalStore[0];
+	$: widgetKey = modalData?.value?.widget?.key as keyof typeof widgets;
+	$: guiSchema = widgets[widgetKey]?.GuiSchema || widgets;
 
-	const options = guiSchema ? Object.keys(guiSchema) : [];
-	const specificOptions = options.filter(
+	// Derive options from guiSchema
+	$: options = guiSchema ? Object.keys(guiSchema) : [];
+	$: specificOptions = options.filter(
 		(option) => !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(option)
 	);
 
@@ -50,9 +52,8 @@
 		const confirmDelete = confirm('Are you sure you want to delete this widget?');
 		if (confirmDelete) {
 			// Perform deletion logic here
-			const updatedFields = $collectionValue.fields.filter((field: any) => field.id !== modalData?.value.id);
 			collectionValue.update((c) => {
-				c.fields = updatedFields;
+				c.fields = c.fields.filter((field: any) => field.id !== modalData?.value.id);
 				return c;
 			});
 			modalStore.close();
@@ -77,7 +78,7 @@
 		<!-- Tabs Headers -->
 		<form class={cForm}>
 			<TabGroup justify="justify-between lg:justify-start">
-				<!-- Default -->
+				<!-- Default Tab -->
 				<Tab bind:group={tabSet} name="tab1" value={0}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:required" width="24" class="text-tertiary-500 dark:text-primary-500" />
@@ -85,7 +86,7 @@
 					</div>
 				</Tab>
 
-				<!-- Permissions -->
+				<!-- Permissions Tab -->
 				<Tab bind:group={tabSet} name="tab2" value={1}>
 					<div class="flex items-center gap-1">
 						<iconify-icon icon="mdi:security-lock" width="24" class="text-tertiary-500 dark:text-primary-500" />
@@ -93,7 +94,7 @@
 					</div>
 				</Tab>
 
-				<!-- Specific -->
+				<!-- Specific Tab (only shown if there are specific options) -->
 				{#if specificOptions.length > 0}
 					<Tab bind:group={tabSet} name="tab3" value={2}>
 						<div class="flex items-center gap-1">
@@ -111,10 +112,11 @@
 		<footer class="{parent.regionFooter} justify-between">
 			<!-- Delete Button -->
 			<button type="button" on:click={deleteWidget} class="variant-filled-error btn">
-				<iconify-icon icon="icomoon-free:bin" width="24" /><span class="hidden sm:block">{m.button_delete()}</span>
+				<iconify-icon icon="icomoon-free:bin" width="24" />
+				<span class="hidden sm:block">{m.button_delete()}</span>
 			</button>
 
-			<!-- Cancel & Save Button -->
+			<!-- Cancel & Save Buttons -->
 			<div class="flex justify-between gap-4">
 				<button type="button" class="btn {parent.buttonNeutral}" on:click={parent.onClose}>{m.button_cancel()}</button>
 				<button type="button" class="btn {parent.buttonPositive}" on:click={onFormSubmit}>{m.button_save()}</button>

@@ -8,10 +8,10 @@
 	import { onMount, onDestroy, tick } from 'svelte';
 	import type { ComponentProps } from 'svelte';
 	import type { FieldType } from '.';
-	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@src/utils/utils';
+	import { meta_data, createRandomID, debounce, getFieldName, updateTranslationProgress } from '@utils/utils';
 
 	// Stores
-	import { contentLanguage } from '@src/stores/store';
+	import { contentLanguage } from '@stores/store';
 	import { mode, collectionValue } from '@stores/collectionStore';
 
 	// Components
@@ -19,7 +19,7 @@
 	import ColorSelector from './components/ColorSelector.svelte';
 	import ImageResize from './extensions/ImageResize';
 	import ImageDescription from './components/ImageDescription.svelte';
-	import FileInput from '@src/components/system/inputs/FileInput.svelte';
+	import FileInput from '@components/system/inputs/FileInput.svelte';
 	import VideoDialog from './components/VideoDialog.svelte';
 
 	// Skeleton

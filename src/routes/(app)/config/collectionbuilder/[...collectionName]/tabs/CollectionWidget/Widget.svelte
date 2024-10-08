@@ -3,7 +3,7 @@
 @description  The Widget component is used to display the widget form. It is used in the CollectionWidget component.
 -->
 <script lang="ts">
-	import { getGuiFields } from '@src/utils/utils';
+	import { getGuiFields } from '@utils/utils';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -11,7 +11,7 @@
 	import { collectionValue, targetWidget } from '@stores/collectionStore';
 
 	// Componets
-	import widgets from '@src/components/widgets';
+	import widgets from '@components/widgets';
 	import VerticalList from '@components/VerticalList.svelte';
 	import ModalWidgetForm from './ModalWidgetForm.svelte';
 	import ModalSelectWidget from './ModalSelectWidget.svelte';

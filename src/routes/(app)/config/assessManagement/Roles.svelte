@@ -40,7 +40,7 @@ It provides the following functionality:
 	// Svelte DND-actions
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { createRandomID } from '@src/utils/utils';
+	import { createRandomID } from '@utils/utils';
 
 	const flipDurationMs = 100;
 

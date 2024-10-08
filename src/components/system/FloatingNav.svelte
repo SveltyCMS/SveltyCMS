@@ -7,7 +7,7 @@
 	import { createEventDispatcher } from 'svelte';
 	import { tick, onMount, onDestroy } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { motion } from '@src/utils/utils';
+	import { motion } from '@utils/utils';
 	import { fade } from 'svelte/transition';
 
 	// Auth
@@ -15,8 +15,8 @@
 
 	// Stores
 	import { page } from '$app/stores';
-	import { mode } from '@src/stores/collectionStore';
-	import { handleSidebarToggle } from '@src/stores/sidebarStore';
+	import { mode } from '@stores/collectionStore';
+	import { handleSidebarToggle } from '@stores/sidebarStore';
 
 	// Skeleton
 	import { getModalStore } from '@skeletonlabs/skeleton';

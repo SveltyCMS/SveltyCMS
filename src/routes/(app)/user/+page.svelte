@@ -15,7 +15,7 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import PermissionGuard from '@src/components/PermissionGuard.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
 	import AdminArea from './components/AdminArea.svelte';
 
 	// Import the permissionConfigs

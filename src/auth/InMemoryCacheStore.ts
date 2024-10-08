@@ -24,7 +24,7 @@ import type { SessionStore } from './index';
 import type { User } from './types';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // In-memory cache store
 export class InMemorySessionStore implements SessionStore {

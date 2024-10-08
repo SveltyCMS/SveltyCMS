@@ -128,8 +128,8 @@
 	}
 
 	function resetTextOverlay() {
-		layer.find('Text').each((textNode) => textNode.destroy());
-		layer.find('Transformer').each((transformer) => transformer.destroy());
+		layer.find('Text').forEach((textNode) => textNode.destroy());
+		layer.find('Transformer').forEach((transformer) => transformer.destroy());
 		layer.draw();
 
 		text = '';

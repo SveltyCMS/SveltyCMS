@@ -11,9 +11,11 @@ Key features:
 -->
 
 <script lang="ts">
-	import { formatBytes } from '@src/utils/utils';
-	import { getMediaUrl } from '@src/utils/media/mediaUtils';
 	import { createEventDispatcher } from 'svelte';
+
+	// Utils
+	import { formatBytes } from '@utils/utils';
+	import { getMediaUrl } from '@utils/media/mediaUtils';
 
 	export let filteredFiles;
 	export let tableSize;

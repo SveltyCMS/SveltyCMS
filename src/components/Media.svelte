@@ -4,8 +4,8 @@
 -->
 
 <script lang="ts">
-	import type { MediaImage } from '@src/utils/media/mediaModels';
-	import { SIZES, formatBytes, debounce } from '@src/utils/utils';
+	import type { MediaImage } from '@utils/media/mediaModels';
+	import { SIZES, formatBytes, debounce } from '@utils/utils';
 	import axios from 'axios';
 
 	// ParaglideJS
@@ -61,8 +61,8 @@
 
 							<script lang="ts">
 								// Import the updated MediaImage type
-								import type { MediaImage } from '@src/utils/media/mediaModels';
-								import { SIZES, formatBytes, debounce } from '@src/utils/utils';
+								import type { MediaImage } from '@utils/media/mediaModels';
+								import { SIZES, formatBytes, debounce } from '@utils/utils';
 								import axios from 'axios';
 
 								// ParaglideJS

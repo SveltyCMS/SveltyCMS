@@ -19,14 +19,14 @@
 	// // Notes: Use `w-screen h-screen` to fit the visible canvas size.
 	// const cBase = 'bg-surface-100-800-token w-screen h-screen p-4 flex justify-center items-center';
 
-	// 	import type { MediaImage } from '@src/utils/media/mediaModels';
-	// import { meta_data, getFieldName } from '@src/utils/utils';
-	// import { mode } from '@src/stores/collectionStore';
+	// 	import type { MediaImage } from '@utils/media/mediaModels';
+	// import { meta_data, getFieldName } from '@utils/utils';
+	// import { mode } from '@stores/collectionStore';
 	// import axios from 'axios';
 
 	// // Components
-	// import Media from '@src/components/Media.svelte';
-	// import PageTitle from '@src/components/PageTitle.svelte';
+	// import Media from '@components/Media.svelte';
+	// import PageTitle from '@components/PageTitle.svelte';
 
 	// // Konva
 	// // import type { Image as KonvaImage } from 'konva/lib/shapes/Image';

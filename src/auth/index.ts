@@ -45,7 +45,7 @@ if (typeof window === 'undefined') {
 const DEFAULT_SESSION_EXPIRATION_SECONDS = 3600; // 1 hour
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const SESSION_COOKIE_NAME = 'auth_sessions';
 

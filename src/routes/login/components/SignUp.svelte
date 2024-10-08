@@ -24,12 +24,12 @@
 	import { zod } from 'sveltekit-superforms/adapters';
 
 	// Components
-	import SiteName from '@components/SiteName.svelte';
 	import SignupIcon from './icons/SignupIcon.svelte';
+	import SiteName from '@components/SiteName.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
-	import PasswordStrength from '@src/components/PasswordStrength.svelte';
+	import PasswordStrength from '@components/PasswordStrength.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	// Stores
-	import { page } from '$app/stores'; // Import SvelteKit's page store to access data from the server
+	import { page } from '$app/stores';
 
 	// Component
 	import PageTitle from '@components/PageTitle.svelte';

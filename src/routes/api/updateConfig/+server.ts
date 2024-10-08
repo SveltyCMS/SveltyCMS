@@ -28,7 +28,7 @@ import crypto from 'crypto';
 import type { RequestHandler } from './$types';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const POST: RequestHandler = async ({ request }) => {
 	try {

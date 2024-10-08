@@ -25,17 +25,17 @@ import type { RequestHandler } from '@sveltejs/kit';
 import { error } from '@sveltejs/kit';
 
 import { _GET } from '../query/GET';
-import { getFieldName } from '@src/utils/utils';
+import { getFieldName } from '@utils/utils';
 
 // Stores
 import { get } from 'svelte/store';
-import { collections } from '@src/stores/collectionStore';
+import { collections } from '@stores/collectionStore';
 
 // Components
-import widgets from '@src/components/widgets';
+import widgets from '@components/widgets';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 const INDEXES_DIR = './indexes';
 

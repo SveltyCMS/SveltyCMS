@@ -10,9 +10,11 @@
 
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
-import type { MediaType } from '@utils/media/mediaModels';
-import { logger } from '@src/utils/logger';
 import { error } from '@sveltejs/kit';
+import type { MediaType } from '@utils/media/mediaModels';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Interface defining the methods required for a cache store
 interface CacheStore {

@@ -39,7 +39,7 @@ import { registerPermission } from '@src/auth/permissionManager';
 import { PermissionAction, PermissionType } from '@root/config/permissions';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Define and register the access management permission
 const accessManagementPermission: PermissionConfig = {

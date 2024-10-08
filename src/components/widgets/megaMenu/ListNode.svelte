@@ -2,8 +2,8 @@
 	import { onMount, tick } from 'svelte';
 	import type { CustomDragEvent } from './types';
 	import { currentChild } from '.';
-	import XIcon from '@src/components/system/icons/XIcon.svelte';
-	import { debounce } from '@src/utils/utils';
+	import XIcon from '@components/system/icons/XIcon.svelte';
+	import { debounce } from '@utils/utils';
 
 	// Stores
 	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';

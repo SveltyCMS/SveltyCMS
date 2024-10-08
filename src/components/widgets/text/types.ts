@@ -4,13 +4,13 @@
 */
 
 import { publicEnv } from '@root/config/public';
-import { toStringHelper } from '@src/utils/utils';
+import { toStringHelper } from '@utils/utils';
 
 // Components
 import IconifyPicker from '@components/IconifyPicker.svelte';
-import Input from '@src/components/system/inputs/Input.svelte';
+import Input from '@components/system/inputs/Input.svelte';
 import Toggles from '@components/system/inputs/Toggles.svelte';
-import PermissionsSetting from '@src/components/PermissionsSetting.svelte';
+import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 // Auth
 import type { Permission } from '@src/auth/types';

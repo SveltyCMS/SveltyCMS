@@ -30,12 +30,12 @@ import type { Schema } from '@src/collections/types';
 import type { User } from '@src/auth/types';
 import { dbAdapter, getCollectionModels } from '@src/databases/db';
 import { modifyRequest } from './modifyRequest';
-import widgets from '@src/components/widgets';
-import { getFieldName, get_elements_by_id } from '@src/utils/utils';
+import widgets from '@components/widgets';
+import { getFieldName, get_elements_by_id } from '@utils/utils';
 import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({

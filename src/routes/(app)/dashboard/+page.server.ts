@@ -7,7 +7,7 @@ import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Auth
 import { auth } from '@src/databases/db';

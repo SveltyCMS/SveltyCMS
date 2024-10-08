@@ -6,7 +6,7 @@
 <script lang="ts">
 	import type { FieldType } from '.';
 	import { publicEnv } from '@root/config/public';
-	import { updateTranslationProgress, getFieldName } from '@src/utils/utils';
+	import { updateTranslationProgress, getFieldName } from '@utils/utils';
 
 	// Stores
 	import { contentLanguage, validationStore } from '@stores/store';

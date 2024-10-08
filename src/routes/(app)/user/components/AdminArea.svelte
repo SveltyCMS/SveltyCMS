@@ -6,14 +6,14 @@
 	// Components
 	import Multibutton from './Multibutton.svelte';
 	import MultibuttonToken from './MultibuttonToken.svelte';
-	import TableIcons from '@src/components/system/table/TableIcons.svelte';
+	import TableIcons from '@components/system/table/TableIcons.svelte';
 	import TableFilter from '@components/system/table/TableFilter.svelte';
 	import Boolean from '@components/system/table/Boolean.svelte';
 	import Role from '@components/system/table/Role.svelte';
 	import Loading from '@components/Loading.svelte';
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
-	import TablePagination from '@src/components/system/table/TablePagination.svelte';
-	import PermissionGuard from '@src/components/PermissionGuard.svelte';
+	import TablePagination from '@components/system/table/TablePagination.svelte';
+	import PermissionGuard from '@components/PermissionGuard.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

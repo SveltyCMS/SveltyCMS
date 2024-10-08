@@ -5,9 +5,9 @@
 
 const WIDGET_NAME = 'ImageUpload' as const; // Defines ImageUpload widget Parameters
 
-import type { MediaImage } from '@src/utils/media/mediaModels'; // Updated import
-import { getFieldName, getGuiFields, get_elements_by_id, meta_data } from '@src/utils/utils';
-import { MediaService } from '@src/utils/media/MediaService'; // Import the MediaService class
+import type { MediaImage } from '@utils/media/mediaModels'; // Updated import
+import { getFieldName, getGuiFields, get_elements_by_id, meta_data } from '@utils/utils';
+import { MediaService } from '@utils/media/MediaService'; // Import the MediaService class
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import { type ModifyRequestParams } from '..';
 import { dbAdapter } from '@src/databases/db'; // Import your database adapter

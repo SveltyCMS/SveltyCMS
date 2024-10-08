@@ -32,12 +32,13 @@
 	import PermissionGuard from '@components/PermissionGuard.svelte';
 
 	import type { PermissionConfig } from '@src/auth/permissionCheck';
+	import { PermissionAction } from '@root/config/permissions';
 
 	// Define permissions for different contexts
 	const modaleEditFormConfig: PermissionConfig = {
 		contextId: '/user/modaleEditForm',
-		requiredRole: 'admin',
-		action: 'read',
+		name: 'admin',
+		action: PermissionAction.READ,
 		contextType: 'user'
 	};
 

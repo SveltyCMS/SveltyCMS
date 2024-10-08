@@ -21,7 +21,9 @@ Key features:
 	import { publicEnv } from '@root/config/public';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { getTextDirection } from '@src/utils/utils';
+
+	// Utils
+	import { getTextDirection } from '@utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
 
 	// Stores
@@ -32,12 +34,13 @@ Key features:
 	import { screenSize } from '@stores/screenSizeStore';
 
 	// Components
+	import { getCollections } from '@collections';
 	import Loading from '@components/Loading.svelte';
 	import SearchComponent from '@components/SearchComponent.svelte';
-	import LeftSidebar from '@src/components/LeftSidebar.svelte';
-	import RightSidebar from '@src/components/RightSidebar.svelte';
+	import LeftSidebar from '@components/LeftSidebar.svelte';
+	import RightSidebar from '@components/RightSidebar.svelte';
 	import HeaderEdit from '@components/HeaderEdit.svelte';
-	import PageFooter from '@src/components/PageFooter.svelte';
+	import PageFooter from '@components/PageFooter.svelte';
 	import FloatingNav from '@components/system/FloatingNav.svelte';
 
 	// Skeleton
@@ -45,6 +48,7 @@ Key features:
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
@@ -171,68 +175,79 @@ Key features:
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
 
-<!-- Body -->
-<div class="flex h-lvh flex-col">
-	<!-- Header -->
-	{#if $sidebarState.header !== 'hidden'}
-		<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
-	{/if}
-
-	<div class="flex flex-1 overflow-hidden">
-		<!-- Sidebar Left -->
-		{#if $sidebarState.left !== 'hidden'}
-			<aside
-				class="max-h-dvh {$sidebarState.left === 'full'
-					? 'w-[220px]'
-					: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
-			>
-				{#if isCollectionsLoaded}
-					<LeftSidebar />
-				{:else}
-					<div>Loading sidebar...</div>
-				{/if}
-			</aside>
-		{/if}
-
-		<!-- Content Area -->
-		<main class="relative w-full flex-1 overflow-hidden">
-			<!-- Page Header -->
-			{#if $sidebarState.pageheader !== 'hidden'}
-				<header class="sticky top-0 z-10 w-full">
-					<HeaderEdit />
-				</header>
+<!-- Wait for dynamic Collection import -->
+<!-- TODO: Optimize this as this is not needed for ever page -->
+{#await getCollections()}
+	<div class="flex h-lvh items-center justify-between lg:justify-start">
+		<Loading />
+	</div>
+{:then}
+	<!-- hack as root +layout cannot be overwritten ? -->
+	{#if $page.url.pathname === '/login'}
+		<slot />
+	{:else}
+		<!-- Body -->
+		<div class="flex h-lvh flex-col">
+			<!-- Header -->
+			{#if $sidebarState.header !== 'hidden'}
+				<header class="sticky top-0 z-10 bg-tertiary-500">Header</header>
 			{/if}
-			<!-- Router Slot -->
 
-			<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
-			<div
-				on:keydown={onKeyDown}
-				role="main"
-				class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
-			>
-				{#key $page.url}
-					<Toast />
-					<Modal />
+			<div class="flex flex-1 overflow-hidden">
+				<!-- Sidebar Left -->
+				{#if $sidebarState.left !== 'hidden'}
+					<aside
+						class="max-h-dvh {$sidebarState.left === 'full'
+							? 'w-[220px]'
+							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
+					>
+						{#if isCollectionsLoaded}
+							<LeftSidebar />
+						{:else}
+							<div>Loading sidebar...</div>
+						{/if}
+					</aside>
+				{/if}
 
-					{#if $screenSize !== 'lg'}
-						<FloatingNav />
+				<!-- Content Area -->
+				<main class="relative w-full flex-1 overflow-hidden">
+					<!-- Page Header -->
+					{#if $sidebarState.pageheader !== 'hidden'}
+						<header class="sticky top-0 z-10 w-full">
+							<HeaderEdit />
+						</header>
 					{/if}
+					<!-- Router Slot -->
 
-					<!-- Show globalSearchIndex  -->
-					{#if $isSearchVisible}
-						<SearchComponent />
-					{/if}
+					<!-- svelte-ignore a11y-no-noninteractive-element-interactions -->
+					<div
+						on:keydown={onKeyDown}
+						role="main"
+						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
+					>
+						{#key $page.url}
+							<Toast />
+							<Modal />
 
-					{#if $isLoading}
-						<div class="flex h-screen items-center justify-center">
-							<Loading />
-						</div>
-					{:else if !isCollectionsLoaded}
-						<div>Loading content...</div>
-					{:else}
-						<slot />
+							{#if $screenSize !== 'lg'}
+								<FloatingNav />
+							{/if}
 
-						<!--<div>mode : {$mode}</div>							
+							<!-- Show globalSearchIndex  -->
+							{#if $isSearchVisible}
+								<SearchComponent />
+							{/if}
+
+							{#if $isLoading}
+								<div class="flex h-screen items-center justify-center">
+									<Loading />
+								</div>
+							{:else if !isCollectionsLoaded}
+								<div>Loading content...</div>
+							{:else}
+								<slot />
+
+								<!--<div>mode : {$mode}</div>							
 							<div>screenSize : {$screenSize}</div>
 							<div>sidebarState.left : {$sidebarState.left}</div>
 							<div>sidebarState.right : {$sidebarState.right}</div>
@@ -240,38 +255,46 @@ Key features:
 							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
 							<div>sidebarState.header : {$sidebarState.header}</div>
 							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
-					{/if}
+							{/if}
 
-					{#if isNonCriticalDataLoaded}
-						<!-- Render components that depend on non-critical data -->
+							{#if isNonCriticalDataLoaded}
+								<!-- Render components that depend on non-critical data -->
+							{/if}
+						{/key}
+					</div>
+
+					<!-- Page Footer -->
+					{#if $sidebarState.pagefooter !== 'hidden'}
+						<footer
+							class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+						>
+							<PageFooter />
+						</footer>
 					{/if}
-				{/key}
+				</main>
+
+				<!-- Sidebar Right -->
+				{#if $sidebarState.right !== 'hidden'}
+					<aside
+						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
+					>
+						{#if isCollectionsLoaded}
+							<RightSidebar />
+						{:else}
+							<div>Loading sidebar...</div>
+						{/if}
+					</aside>
+				{/if}
 			</div>
 
-			<!-- Page Footer -->
-			{#if $sidebarState.pagefooter !== 'hidden'}
-				<footer
-					class="sticky left-0 top-[calc(100%-51px)] z-10 w-full border-t bg-surface-50 bg-gradient-to-b px-1 text-center dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
-				>
-					<PageFooter />
-				</footer>
+			<!-- Footer -->
+			{#if $sidebarState.footer !== 'hidden'}
+				<footer class="bg-blue-500">Footer</footer>
 			{/if}
-		</main>
-
-		<!-- Sidebar Right -->
-		{#if $sidebarState.right !== 'hidden'}
-			<aside class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900">
-				{#if isCollectionsLoaded}
-					<RightSidebar />
-				{:else}
-					<div>Loading sidebar...</div>
-				{/if}
-			</aside>
-		{/if}
-	</div>
-
-	<!-- Footer -->
-	{#if $sidebarState.footer !== 'hidden'}
-		<footer class="bg-blue-500">Footer</footer>
+		</div>
 	{/if}
-</div>
+{:catch error}
+	<div class="text-error-500">
+		An error occurred: {error.message}
+	</div>
+{/await}

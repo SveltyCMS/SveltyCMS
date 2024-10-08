@@ -30,7 +30,7 @@ import type { z } from 'zod';
 
 // Auth
 import type { User } from '@src/auth/types';
-import { addData, updateData, handleRequest } from '@src/utils/data';
+import { addData, updateData, handleRequest } from '@utils/data';
 
 import type { CollectionNames, Schema } from '@collections/types';
 
@@ -40,7 +40,7 @@ import { translationProgress, contentLanguage } from '@stores/store';
 import { collectionValue, mode, collection } from '@stores/collectionStore';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const config = {
 	headers: {

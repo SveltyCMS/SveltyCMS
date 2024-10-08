@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { saveFormData, getFieldName } from '@src/utils/utils';
+	import { saveFormData, getFieldName } from '@utils/utils';
 	import type { FieldType } from '.';
 
 	// Stores
@@ -14,7 +14,9 @@
 
 	// Components
 	import Fields from '@components/Fields.svelte';
-	import VerticalList from '@src/components/VerticalList.svelte';
+	import VerticalList from '@components/VerticalList.svelte';
+
+	// Skeleton
 	import { FileDropzone, ProgressBar, Avatar } from '@skeletonlabs/skeleton';
 
 	// zod validation

@@ -4,6 +4,7 @@
 -->
 
 <script lang="ts">
+	// Components
 	import SiteName from '@components/SiteName.svelte';
 	import Logo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import Seasons from './Seasons.svelte';

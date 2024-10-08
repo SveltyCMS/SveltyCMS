@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { getFieldName } from '@src/utils/utils';
+	import { getFieldName } from '@utils/utils';
 
 	// Stores
 	import { contentLanguage, translationStatusOpen, translationProgress } from '@stores/store';

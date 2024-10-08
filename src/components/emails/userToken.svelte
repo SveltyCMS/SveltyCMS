@@ -7,11 +7,12 @@
 	import { dev } from '$app/environment';
 	import { publicEnv } from '@root/config/public';
 
+	// Components
 	import SiteName from '@components/SiteName.svelte';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { systemLanguage } from '@src/stores/store';
+	import { systemLanguage } from '@stores/store';
 
 	// Svelty-email
 	import { Button, Container, Column, Head, Hr, Html, Img, Link, Preview, Section, Text } from 'svelty-email';

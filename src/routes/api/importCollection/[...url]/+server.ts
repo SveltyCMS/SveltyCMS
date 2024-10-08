@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 import { join } from 'path';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Define the GET request handler
 export const GET: RequestHandler = async ({ params }) => {

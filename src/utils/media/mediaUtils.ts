@@ -6,7 +6,7 @@
 import mime from 'mime-types';
 import Path from 'path';
 import { publicEnv } from '@root/config/public';
-import { sanitize, formatBytes, SIZES } from '@src/utils/utils';
+import { sanitize, formatBytes, SIZES } from '@utils/utils';
 import type { MediaBase } from '@utils/media/mediaModels';
 
 // Constructs the full media URL based on the environment.

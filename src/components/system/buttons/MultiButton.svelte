@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { mode, modifyEntry } from '@src/stores/collectionStore';
+	import { mode, modifyEntry } from '@stores/collectionStore';
 
 	export let buttons = {
 		Create: {

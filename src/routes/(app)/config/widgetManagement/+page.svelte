@@ -42,16 +42,20 @@
 	async function toggleWidgetStatus(widget: Widget) {
 		const newStatus = widget.status === 'active' ? 'inactive' : 'active';
 		try {
-			if (newStatus === 'active') {
-				await activeWidgets(widget.name); // Replace with actual implementation
-			} else {
-				await activeWidgets(widget.name); // Replace with actual implementation
-			}
+			// Implement your logic to update the widget status
+			await updateWidgetStatus(widget.name, newStatus);
 			widget.status = newStatus;
 		} catch (error) {
 			console.error(`Failed to update widget status for ${widget.name}:`, error);
 			// Display an informative message to the user about the failure
 		}
+	}
+
+	// Example implementation of updateWidgetStatus
+	async function updateWidgetStatus(widgetName: string, newStatus: string) {
+		// Implement your logic to update the widget status
+		// This might involve calling an API endpoint or updating a local data store
+		console.log(`Updating widget status for ${widgetName} to ${newStatus}`);
 	}
 </script>
 

@@ -5,7 +5,7 @@
 
 <script lang="ts">
 	import { publicEnv } from '@root/config/public';
-	import { signUpFormSchema } from '@src/utils/formSchemas';
+	import { signUpFormSchema } from '@utils/formSchemas';
 	import type { z } from 'zod';
 
 	export let password: string = '';

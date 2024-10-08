@@ -6,7 +6,8 @@
 	import axios from 'axios';
 	import { onMount } from 'svelte';
 	import { goto } from '$app/navigation';
-	import { obj2formData } from '@src/utils/utils';
+
+	import { obj2formData } from '@utils/utils';
 
 	// Stores
 	import { page } from '$app/stores';
@@ -19,7 +20,7 @@
 	// Components
 	import CollectionWidget from './tabs/CollectionWidget.svelte';
 	import CollectionForm from './tabs/CollectionForm.svelte';
-	import PageTitle from '@src/components/PageTitle.svelte';
+	import PageTitle from '@components/PageTitle.svelte';
 
 	// Skeleton
 	import { Tab, TabGroup, getToastStore } from '@skeletonlabs/skeleton';

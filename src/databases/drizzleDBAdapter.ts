@@ -21,14 +21,21 @@
  */
 
 import { privateEnv } from '@root/config/private';
-import { createRandomID } from '@src/utils/utils';
+
+import { createRandomID } from '@utils/utils';
+import type { dbInterface } from './dbInterface';
+
+//Stores
 import { collections } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
-import type { dbInterface } from './dbInterface';
+
+// Drizzel
 import { drizzle, sql } from 'drizzle-orm';
 import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
-import { logger } from '@src/utils/logger';
+
+// System Logger
+import { logger } from '@utils/logger';
 
 // Define connection configuration for MariaDB and PostgreSQL
 const dbConfig = {

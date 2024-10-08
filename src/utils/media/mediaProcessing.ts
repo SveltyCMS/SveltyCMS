@@ -4,11 +4,11 @@
  */
 
 import mime from 'mime-types';
-import { sha256, removeExtension, sanitize } from '@src/utils/utils';
+import { sha256, removeExtension, sanitize } from '@utils/utils';
 import { error } from '@sveltejs/kit';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 // Convert File to Image Element
 async function fileToImage(file: File): Promise<HTMLImageElement> {

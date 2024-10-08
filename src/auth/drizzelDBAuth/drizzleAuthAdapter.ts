@@ -24,7 +24,7 @@ import type { User, Role, Permission, Session, Token } from '../types';
 import { db } from '@src/databases/drizzleDBAdapter';
 
 // Import logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export class DrizzleAuthAdapter implements authDBInterface {
 	// Initialize default roles and permissions from configuration

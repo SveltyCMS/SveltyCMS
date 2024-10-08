@@ -22,7 +22,7 @@
 
 import { dbAdapter } from '@src/databases/db';
 // System Logs
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 // Registers collection schemas dynamically.
 export function mediaTypeDefs() {
 	return `

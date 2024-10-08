@@ -4,8 +4,8 @@
 	// Components
 	import widgets from '@components/widgets';
 	import DropDown from '@components/system/dropDown/DropDown.svelte';
-	import InputSwitch from './InputSwitch.svelte';
 	import PageTitle from '@components/PageTitle.svelte';
+	import InputSwitch from './InputSwitch.svelte';
 
 	export let fields: Array<any> = [];
 	export let addField: boolean = false;

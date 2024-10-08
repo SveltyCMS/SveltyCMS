@@ -5,11 +5,11 @@
 
 const WIDGET_NAME = 'Relation' as const;
 
-import { getFieldName, getGuiFields } from '@src/utils/utils';
+import { getFieldName, getGuiFields } from '@utils/utils';
 import { type Params, GuiSchema, GraphqlSchema } from './types';
 import type { CollectionContent, CollectionNames, Schema } from '@src/collections/types';
 import { getCollections } from '@src/collections';
-import widgets, { type ModifyRequestParams } from '@src/components/widgets';
+import widgets, { type ModifyRequestParams } from '@components/widgets';
 import deepmerge from 'deepmerge';
 
 // ParaglideJS

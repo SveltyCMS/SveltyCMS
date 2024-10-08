@@ -27,8 +27,8 @@ import { superValidate } from 'sveltekit-superforms/server';
 import { addUserTokenSchema, changePasswordSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 
-// Logger
-import { logger } from '@src/utils/logger';
+// System Logger
+import { logger } from '@utils/logger';
 
 // Import the PermissionConfig type
 import type { PermissionConfig } from '@src/auth/permissionCheck';

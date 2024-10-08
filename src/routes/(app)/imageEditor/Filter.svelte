@@ -50,6 +50,10 @@
 	function exitFilters() {
 		dispatch('exitFilters');
 	}
+
+	function exitShapeOverlay() {
+		dispatch('exitShapeOverlay');
+	}
 </script>
 
 <!-- Filter Controls UI -->

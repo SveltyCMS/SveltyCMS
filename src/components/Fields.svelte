@@ -44,7 +44,7 @@ Key features:
 	let isLoading = true;
 
 	// Dynamic import of widget components
-	const modules = import.meta.glob('@src/components/widgets/*/*.svelte');
+	const modules = import.meta.glob('@components/widgets/*/*.svelte');
 
 	// Lifecycle
 	onMount(async () => {

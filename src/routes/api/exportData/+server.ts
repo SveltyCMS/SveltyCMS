@@ -26,10 +26,10 @@ import { _GET } from '@api/query/GET';
 
 // Stores
 import { get } from 'svelte/store';
-import { collections } from '@src/stores/collectionStore';
+import { collections } from '@stores/collectionStore';
 
 // System Logger
-import { logger } from '@src/utils/logger';
+import { logger } from '@utils/logger';
 
 export const GET: RequestHandler = async ({ locals }) => {
 	try {

@@ -7,7 +7,7 @@
 	import widgets from '@components/widgets';
 	import InputSwitch from './InputSwitch.svelte';
 
-	import { asAny, debounce } from '@src/utils/utils';
+	import { asAny, debounce } from '@utils/utils';
 	import AddWidget from './AddWidget.svelte';
 
 	export let fields: Array<any> = [];
