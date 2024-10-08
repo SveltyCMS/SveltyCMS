@@ -1,65 +1,49 @@
 /**
- * @file src/routes/api/getCollections/+server.ts
+ * @file src/routes/api/getCollections/getCollectionFiles.ts
  * @description
- * API endpoint for retrieving collection files or a specific collection file.
+ * Utility function for retrieving collection files.
  *
- * This module handles GET requests to either fetch all collection files or a specific collection
- * file based on the presence of a query parameter. The endpoint supports both functionalities:
- * - If `fileName` query parameter is present, it returns the specified collection file.
- * - If `fileName` query parameter is absent, it returns a list of all collection files.
+ * This module provides a function to:
+ * - Read all files from the collections directory
+ * - Filter out specific files (config.js and types.js)
+ * - Return a list of valid collection files
  *
  * Features:
- * - Handles both single file retrieval and multiple file listings
+ * - Synchronous file reading for simplicity
+ * - Filtering of non-collection files
  * - Error handling and logging
- * - JSON response formatting
  *
  * Usage:
- * GET /api/getCollections?fileName=<filename> - Returns a specific collection file
- * GET /api/getCollections - Returns a JSON array of collection files
+ * import { getCollectionFiles } from './getCollectionFiles';
+ * const collectionFiles = getCollectionFiles();
  */
 
-import { error, json, type RequestHandler } from '@sveltejs/kit';
-import { getCollectionFiles } from './getCollectionFiles'; // Utility function to get all collection files
+import fs from 'fs';
+import path from 'path';
 
 // System Logger
 import { logger } from '@src/utils/logger';
 
-// Define the GET request handler
-export const GET: RequestHandler = async ({ url }) => {
-	const fileNameQuery = url.searchParams.get('fileName');
+// Use process.env for server-side environment variables
+const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
 
-	// If the `fileName` query parameter is provided, return the specific file
-	if (fileNameQuery) {
-		const fileName = fileNameQuery.split('?')[0];
-
-		try {
-			// Dynamically import the specified collection file
-			const result = await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${fileName}`);
-			logger.info(`Retrieved collection file: ${fileName}`);
-			return json(result, {
-				headers: {
-					'Content-Type': 'application/json'
-				}
-			});
-		} catch (err) {
-			logger.error(`Failed to import the file: ${fileName}`, err);
-			return error(500, `Failed to import the file: ${(err as Error).message}`);
-		}
-	}
-
-	// If no `fileName` query parameter is provided, return the list of all collection files
+// This function returns a list of all the collection files in the specified directory.
+export function getCollectionFiles(): string[] {
 	try {
-		// Retrieve the collection files using the getCollectionFiles function
-		const files = await getCollectionFiles();
-		logger.info('Collection files retrieved successfully');
+		// Ensure the collections folder path is absolute
+		const directoryPath = path.resolve(collectionsFolder);
 
-		// Return the collection files as a JSON response
-		return json(files, {
-			headers: { 'Content-Type': 'application/json' }
-		});
+		// Get the list of all files in the collections directory
+		const files = fs.readdirSync(directoryPath);
+		logger.debug('Files read from directory', { directory: directoryPath, files });
+
+		// Filter the list to only include files that are not config.js or types.js
+		const filteredFiles = files.filter((file) => !['config.js', 'types.js'].includes(file));
+		logger.info('Filtered collection files', { filteredFiles });
+
+		return filteredFiles;
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error retrieving collection files:', { error: errorMessage });
-		return json({ success: false, error: `Error retrieving collection files: ${error.message}` }, { status: 500 });
+		logger.error('Error reading collection files', { message: (error as Error).message, stack: (error as Error).stack });
+		throw Error(`Failed to read collection files: ${(error as Error).message}`);
 	}
-};
+}
