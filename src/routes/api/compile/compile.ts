@@ -7,7 +7,7 @@
  * - Content hashing for change detection.
  * - Concurrent file operations for improved performance.
  * - Modular functions for cleaner, maintainable code.
- * - Error handling and logging.
+ * - Error handling and logging using console.log.
  *
  * Usage:
  * import { compile } from './compile';
@@ -69,7 +69,7 @@ async function compileFile(file: string, srcFolder: string, destFolder: string):
 		const code = await transpileCode(content, tsFilePath);
 		await writeCompiledFile(jsFilePath, code, content);
 
-		console.log(`Compiled and wrote \x1b[34m${shortPath}\x1b[0m`); // Log the short path in blue
+		console.log(`Compiled and wrote \x1b[34m${shortPath}\x1b[0m`);
 	} catch (error) {
 		console.error(`Error compiling ${file}: ${error instanceof Error ? error.message : String(error)}`);
 	}

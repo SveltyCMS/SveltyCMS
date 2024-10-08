@@ -12,6 +12,9 @@
  * - MIME type detection using mime-types library
  * - Error handling for file not found scenarios
  * - Logging of file access and errors
+ * - File caching to improve performance
+ * - Cache invalidation mechanism
+ * - ETag support for efficient caching
  *
  * Usage:
  * GET /api/importCollection/[...url]
@@ -25,39 +28,60 @@ import { promises as fsPromises } from 'fs';
 import mime from 'mime-types';
 import type { RequestHandler } from './$types';
 import { join } from 'path';
+import { createHash } from 'crypto';
 
 // System Logger
 import { logger } from '@utils/logger';
 
-// Define the GET request handler
-export const GET: RequestHandler = async ({ params }) => {
+const fileCache = new Map<string, { content: Buffer; lastModified: number; etag: string }>();
+
+export const GET: RequestHandler = async ({ params, request }) => {
 	// Construct the file path from the base directory and the URL parameter
 	const filePath = join(import.meta.env.collectionsFolderJS, params.url);
-	logger.debug(`Attempting to read file: ${filePath}`);
+	logger.debug(`Attempting to serve file: ${filePath}`);
 
 	try {
 		// Read the file asynchronously from the collections folder using the provided URL parameter
-		const data = await fsPromises.readFile(filePath);
-		logger.info('File read successfully', { filePath });
+		const fileStats = await fsPromises.stat(filePath);
+		let fileContent: Buffer;
+		let etag: string;
 
-		// Determine the Content-Type based on the file extension
+		const cachedFile = fileCache.get(filePath);
+		if (cachedFile && cachedFile.lastModified >= fileStats.mtimeMs) {
+			fileContent = cachedFile.content;
+			etag = cachedFile.etag;
+		} else {
+			fileContent = await fsPromises.readFile(filePath);
+			etag = createHash('md5').update(fileContent).digest('hex');
+			fileCache.set(filePath, { content: fileContent, lastModified: fileStats.mtimeMs, etag });
+		}
+
+		const ifNoneMatch = request.headers.get('If-None-Match');
+		if (ifNoneMatch === etag) {
+			return new Response(null, { status: 304 }); // Not Modified
+		}
+
 		const contentType = mime.lookup(params.url) || 'application/octet-stream';
-
-		// Return the file data in the response with the appropriate MIME type
-		return new Response(data, {
+		return new Response(fileContent, {
 			headers: {
-				'Content-Type': contentType
+				'Content-Type': contentType,
+				'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+				'Last-Modified': fileStats.mtime.toUTCString(),
+				ETag: etag
 			}
 		});
 	} catch (error) {
-		// Handle the case where the file is not found
 		if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
 			logger.warn('File not found:', { filePath });
 			return new Response('File not found', { status: 404 });
-		} else {
-			// Log and respond with a generic error message for other issues
-			logger.error('Error reading file:', error);
-			return new Response('Internal Server Error', { status: 500 });
 		}
+		logger.error('Error serving file:', { error, filePath });
+		return new Response('Internal Server Error', { status: 500 });
 	}
+};
+
+export const POST: RequestHandler = async () => {
+	fileCache.clear();
+	logger.info('Collection file cache cleared');
+	return new Response('Cache cleared', { status: 200 });
 };

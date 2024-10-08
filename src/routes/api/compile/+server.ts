@@ -19,34 +19,47 @@
 import type { RequestHandler } from '@sveltejs/kit';
 import { updateCollections } from '@collections';
 import { compile } from './compile';
-import { error } from '@sveltejs/kit';
-
-// System Logs
+import { error, json } from '@sveltejs/kit';
+// System Logger
 import { logger } from '@utils/logger';
 
-// Handles GET requests to the `/compile` endpoint.
+let isCompiling = false;
+let lastCompileTime = 0;
+const COMPILE_COOLDOWN = 60000; // 1 minute cooldown
 
 export const GET: RequestHandler = async ({ url }) => {
 	// Extract 'force' query parameter to determine if update should be forced
 	const forceUpdate = url.searchParams.get('force') === 'true';
+	const currentTime = Date.now();
+
+	if (isCompiling) {
+		return json({ success: true, message: 'Compilation already in progress' });
+	}
+
+	if (!forceUpdate && currentTime - lastCompileTime < COMPILE_COOLDOWN) {
+		return json({ success: true, message: 'Compilation skipped due to cooldown' });
+	}
+
+	isCompiling = true;
+	lastCompileTime = currentTime;
 
 	try {
-		// Log the start of the compilation process
-		logger.info('Starting compilation process');
+		logger.info('Starting compilation process', { forceUpdate });
 
-		// Execute the compilation function
-		await compile();
-		// Log successful compilation
-		logger.debug('Compilation completed successfully');
+		// Only compile if forced or if it's been a while since the last compilation
+		if (forceUpdate || currentTime - lastCompileTime > COMPILE_COOLDOWN) {
+			await compile();
+			logger.debug('Compilation completed successfully');
+		}
 
-		// Update collections, using the forceUpdate parameter
+		// Always update collections, but only recompile if forced
 		await updateCollections(forceUpdate);
-		// Log successful collection update
 		logger.info('Collections updated successfully');
 
-		// Return a JSON response indicating success
+		isCompiling = false;
 		return json({ success: true, message: 'Compilation and collection update completed' });
 	} catch (err) {
+		isCompiling = false;
 		const errorMessage = err instanceof Error ? err.message : String(err);
 		logger.error('Error during compilation process', { error: errorMessage });
 		throw error(500, 'Compilation process failed: ' + errorMessage);
