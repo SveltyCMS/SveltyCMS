@@ -93,10 +93,10 @@ export const POST: RequestHandler = async ({ request }) => {
 		await sendUserToken(email, token, role, expirationTime);
 
 		return json(newUser);
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : String(err);
-		logger.error('Error creating user:', { error: errorMessage });
-		throw error(500, 'Internal Server Error');
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error creating user', { error: errorMessage });
+		return json({ success: false, error: `Error creating user: ${error.message}` }, { status: 500 });
 	}
 };
 

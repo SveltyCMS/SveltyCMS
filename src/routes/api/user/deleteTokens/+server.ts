@@ -42,9 +42,9 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		await auth.invalidateAllUserSessions(user_id);
 		logger.info(`All tokens deleted successfully for user ID: ${user_id}`);
 		return new Response(JSON.stringify({ success: true, message: 'All tokens deleted successfully' }), { status: 200 });
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to delete tokens: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to delete tokens' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to delete tokens:', { error: errorMessage });
+		return json({ success: false, error: `Failed to delete tokens: ${error.message}` }, { status: 500 });
 	}
 };

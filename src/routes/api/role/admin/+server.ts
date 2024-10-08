@@ -66,8 +66,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info(`Role ${roleId} set as admin successfully`);
 		return json({ success: true }, { status: 200 });
-	} catch (error: any) {
-		logger.error('Error updating role configuration:', error);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error updating role configuration:', { error: errorMessage });
 		return json({ success: false, error: `Error updating role configuration: ${error.message}` }, { status: 500 });
 	}
 };

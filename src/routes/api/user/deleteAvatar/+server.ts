@@ -79,9 +79,9 @@ export const DELETE: RequestHandler = async ({ request, cookies }) => {
 
 		logger.info(`Avatar deleted successfully for user ID: ${user.id}`);
 		return new Response(JSON.stringify({ success: true, message: 'Avatar deleted successfully' }), { status: 200 });
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to delete avatar: ${errorMessage}`);
-		return new Response(JSON.stringify({ message: 'Failed to delete avatar' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to delete avatar:', { error: errorMessage });
+		return json({ success: false, error: `Failed to delete avatar: ${error.message}` }, { status: 500 });
 	}
 };

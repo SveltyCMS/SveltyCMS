@@ -52,8 +52,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info('Roles updated successfully');
 		return json({ success: true }, { status: 200 });
-	} catch (error: any) {
-		logger.error('Error creating/updating roles:', error);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error creating/updating roles:', { error: errorMessage });
 		return json({ success: false, error: `Error creating/updating roles: ${error.message}` }, { status: 500 });
 	}
 };

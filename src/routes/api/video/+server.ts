@@ -75,7 +75,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('Video data retrieved successfully', { platform: hostname });
 		return json(videoData);
 	} catch (error) {
-		logger.error('Error processing video URL', error);
-		return json({ error: 'An error occurred while processing the video URL' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error processing video URL', { error: errorMessage });
+		return json({ success: false, error: `An error occurred while processing the video URL: ${error.message}` }, { status: 500 });
 	}
 };

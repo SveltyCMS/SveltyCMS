@@ -26,8 +26,9 @@ export const GET: RequestHandler = async ({ locals }) => {
 		} else {
 			return new Response(JSON.stringify({ error: 'No active theme found.' }), { status: 404 });
 		}
-	} catch (error: any) {
-		logger.error('Error fetching current theme:', error.message);
-		return new Response(JSON.stringify({ error: error.message }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error fetching current theme:', { error: errorMessage });
+		return json({ success: false, error: `Error fetching current theme: ${error.message}` }, { status: 500 });
 	}
 };

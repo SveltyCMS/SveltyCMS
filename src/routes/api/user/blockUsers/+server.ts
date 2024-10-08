@@ -65,8 +65,8 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('Users blocked successfully.', { blockedCount: users.length });
 		return new Response(JSON.stringify({ success: true, message: `${users.length} users blocked successfully` }), { status: 200 });
 	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
-		logger.error(`Error blocking users: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: errorMessage }), { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error blocking user:', { error: errorMessage });
+		return json({ success: false, error: `An error occurred for blocking the user: ${error.message}` }, { status: 500 });
 	}
 };

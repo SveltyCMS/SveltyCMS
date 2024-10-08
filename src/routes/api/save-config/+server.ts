@@ -53,8 +53,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		logger.info('Configuration saved and server restart triggered successfully');
 		return json({ success: true }, { status: 200 });
 	} catch (error) {
-		logger.error('Error saving config:', error);
-		return json({ success: false, error: 'Failed to save configuration' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error saving config:', { error: errorMessage });
+		return json({ success: false, error: `Failed to save configuration: ${error.message}` }, { status: 500 });
 	}
 };
 

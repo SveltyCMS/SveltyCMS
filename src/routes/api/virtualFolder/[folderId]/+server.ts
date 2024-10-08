@@ -74,8 +74,9 @@ export const GET: RequestHandler = async ({ params }) => {
 
 		return json({ success: true, contents }, { status: 200 });
 	} catch (error) {
-		logger.error(`Error fetching folder contents for folderId ${folderId}:`, error);
-		return json({ success: false, error: 'Failed to fetch folder contents' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to fetch folder contents', { error: errorMessage });
+		return json({ success: false, error: `Failed to fetch folder contents: ${error.message}` }, { status: 500 });
 	}
 };
 

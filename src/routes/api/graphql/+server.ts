@@ -167,8 +167,9 @@ const handler = async (event: RequestEvent) => {
 			headers: response.headers
 		});
 	} catch (error) {
-		logger.error('Error handling GraphQL request: ', error);
-		return new Response('Internal Server Error', { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error handling GraphQL request:', { error: errorMessage });
+		return json({ success: false, error: `Error handling GraphQL request: ${error.message}` }, { status: 500 });
 	}
 };
 

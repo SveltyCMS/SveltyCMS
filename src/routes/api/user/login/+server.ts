@@ -55,11 +55,9 @@ export const POST: RequestHandler = async ({ request, cookies, locals }) => {
 
 		logger.info(`User logged in successfully: ${user._id}`);
 		return json({ success: true, message: 'Login successful' });
-	} catch (err) {
-		if (err.status === 401) {
-			throw err;
-		}
-		logger.error(`Login error: ${err.message}`);
-		throw error(500, 'An error occurred during login');
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Login error:', { error: errorMessage });
+		return json({ success: false, error: `An error occurred during login: ${error.message}` }, { status: 500 });
 	}
 };

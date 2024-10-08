@@ -61,9 +61,10 @@ export const POST: RequestHandler = async ({ request }) => {
 			logger.info('Config file does not need an update');
 			return new Response(null, { status: 304 });
 		}
-	} catch (error: any) {
-		logger.error('Error updating config file:', error);
-		return new Response(`Error updating config file: ${error.message}`, { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error updating config file:', { error: errorMessage });
+		return json({ success: false, error: `Error updating config file: ${error.message}` }, { status: 500 });
 	}
 };
 

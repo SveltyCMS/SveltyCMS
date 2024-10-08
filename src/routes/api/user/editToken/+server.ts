@@ -43,9 +43,9 @@ export const PUT: RequestHandler = async ({ request }) => {
 		await auth.updateToken(tokenId, newTokenData);
 		logger.info(`Token edited successfully with token ID: ${tokenId}`);
 		return new Response(JSON.stringify({ success: true, message: 'Token updated successfully' }), { status: 200 });
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to edit token: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to edit token' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to edit token:', { error: errorMessage });
+		return json({ success: false, error: `Failed to edit token: ${error.message}` }, { status: 500 });
 	}
 };

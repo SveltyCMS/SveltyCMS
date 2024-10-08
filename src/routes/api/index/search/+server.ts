@@ -104,7 +104,8 @@ export const POST: RequestHandler = async ({ cookies, request }) => {
 			headers: { 'Content-Type': 'application/json' }
 		});
 	} catch (error) {
-		logger.error('Error during search:', error);
-		return new Response('Internal Server Error', { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error during search:', { error: errorMessage });
+		return json({ success: false, error: `Error during search: ${error.message}` }, { status: 500 });
 	}
 };

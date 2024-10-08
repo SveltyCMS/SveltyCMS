@@ -55,9 +55,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${locals.user.id}'.`);
 
 		return json({ success: true, theme: updatedTheme });
-	} catch (err) {
-		const message = `Error updating theme: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error updating theme:', { error: errorMessage });
+		return json({ success: false, error: `Error updating theme: ${error.message}` }, { status: 500 });
 	}
 };

@@ -120,9 +120,9 @@ async function sendMail(email: string, subject: string, message: string, templat
 	try {
 		const info = await transporter.sendMail(mailOptions);
 		logger.info('Email sent successfully', { email, subject, messageId: info.messageId });
-	} catch (err) {
-		const message = `Error sending email: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, { message });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error sending email:', { error: errorMessage });
+		return json({ success: false, error: `Error sending email: ${error.message}` }, { status: 500 });
 	}
 }

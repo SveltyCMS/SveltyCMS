@@ -35,7 +35,7 @@ export const POST: RequestHandler = async () => {
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Error restarting server:', { error: errorMessage });
-		return json({ success: false, error: 'Failed to restart server' }, { status: 500 });
+		return json({ success: false, error: `Failed to restart server: ${error.message}` }, { status: 500 });
 	}
 };
 

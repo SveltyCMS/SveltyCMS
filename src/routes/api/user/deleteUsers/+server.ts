@@ -51,9 +51,9 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		return new Response(JSON.stringify({ success: true, message: `${deletedUsers.length} users deleted successfully`, deletedUsers }), {
 			status: 200
 		});
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to delete users: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to delete users' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to delete users:', { error: errorMessage });
+		return json({ success: false, error: `Failed to delete users: ${error.message}` }, { status: 500 });
 	}
 };

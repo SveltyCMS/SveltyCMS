@@ -68,9 +68,9 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
 
 		logger.info(`Avatar saved successfully for user ID: ${user._id}`);
 		return new Response(JSON.stringify({ success: true, url: avatarUrl }), { status: 200 });
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to save avatar: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to save avatar' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to save avatar:', { error: errorMessage });
+		return json({ success: false, error: `Failed to save avatar: ${error.message}` }, { status: 500 });
 	}
 };

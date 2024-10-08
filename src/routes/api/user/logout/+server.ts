@@ -49,8 +49,9 @@ export const POST: RequestHandler = async ({ cookies, locals }) => {
 
 		logger.info(`User logged out successfully: ${session_id}`);
 		return json({ success: true, message: 'Logged out successfully' });
-	} catch (err) {
-		logger.error(`Logout error: ${err.message}`);
-		throw error(500, 'An error occurred during logout');
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Logout error:', { error: errorMessage });
+		return json({ success: false, error: `An error occurred during logout: ${error.message}` }, { status: 500 });
 	}
 };

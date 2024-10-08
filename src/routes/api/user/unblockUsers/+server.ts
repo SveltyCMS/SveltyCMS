@@ -56,9 +56,9 @@ export const PUT: RequestHandler = async ({ request }) => {
 			}),
 			{ status: 200 }
 		);
-	} catch (err) {
-		const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
-		logger.error(`Failed to unblock users: ${errorMessage}`);
-		return new Response(JSON.stringify({ success: false, message: 'Failed to unblock users' }), { status: 500 });
+	} catch (error) {
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Failed to unblock users:', { error: errorMessage });
+		return json({ success: false, error: `Failed to unblock users: ${error.message}` }, { status: 500 });
 	}
 };

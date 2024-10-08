@@ -73,8 +73,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		const result = await dbAdapter.createVirtualFolder({ name, parent, path });
 		return json({ success: true, folder: result });
 	} catch (error) {
-		logger.error('Error creating folder:', error);
-		return json({ success: false, error: 'Failed to create folder' }, { status: 500 });
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		logger.error('Error creating folder:', { error: errorMessage });
+		return json({ success: false, error: `Failed to creating folder: ${error.message}` }, { status: 500 });
 	}
 };
 
