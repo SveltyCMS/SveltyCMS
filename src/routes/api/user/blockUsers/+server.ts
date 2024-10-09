@@ -11,49 +11,72 @@
  * - Bulk user blocking
  * - Session invalidation for blocked users
  * - Admin count check to ensure at least one admin remains
+ * - Permission checking
+ * - Input validation using Zod
  * - Error handling and logging
  *
  * Usage:
  * POST /api/user/blockUsers
  * Body: JSON array of user objects with 'id' and 'role' properties
  *
- * Note: This endpoint performs sensitive operations and should be
- * properly secured with authentication and authorization checks.
+ * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
+import { permissionCheck } from '@src/auth/permissionCheck';
 
 // System logger
 import { logger } from '@utils/logger';
 
-interface UserToBlock {
-	id: string;
-	role: string;
-}
+// Input validation
+import { z } from 'zod';
 
-export const POST: RequestHandler = async ({ request }) => {
+const blockUsersSchema = z.array(
+	z.object({
+		id: z.string(),
+		role: z.string()
+	})
+);
+
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const users: UserToBlock[] = await request.json();
-		logger.info('Received request to block users', { userIds: users.map((user) => user.id) });
+		// Check if the user has permission to block users
+		const hasPermission = await permissionCheck(locals.user, {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		});
 
-		if (!auth) {
-			logger.error('Auth is not initialized');
-			return new Response(JSON.stringify({ success: false, message: 'Auth is not initialized' }), { status: 500 });
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to block users');
 		}
+
+		// Ensure the authentication system is initialized
+		if (!auth) {
+			logger.error('Authentication system is not initialized');
+			throw error(500, 'Internal Server Error');
+		}
+
+		const body = await request.json();
+
+		// Validate input
+		const users = blockUsersSchema.parse(body);
 
 		const allUsers = await auth.getAllUsers();
 		const adminCount = allUsers.filter((user) => user.isAdmin).length;
 		let remainingAdminCount = adminCount;
 
 		for (const user of users) {
-			if (user.isAdmin) {
+			if (user.role === 'admin') {
 				remainingAdminCount--;
 				if (remainingAdminCount === 0) {
 					logger.warn('Attempt to block the last remaining admin.');
-					return new Response(JSON.stringify({ success: false, message: 'Cannot block all admins' }), { status: 400 });
+					throw error(400, 'Cannot block all admins');
 				}
 			}
 
@@ -63,10 +86,16 @@ export const POST: RequestHandler = async ({ request }) => {
 		}
 
 		logger.info('Users blocked successfully.', { blockedCount: users.length });
-		return new Response(JSON.stringify({ success: true, message: `${users.length} users blocked successfully` }), { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Error blocking user:', { error: errorMessage });
-		return json({ success: false, error: `An error occurred for blocking the user: ${error.message}` }, { status: 500 });
+		return json({
+			success: true,
+			message: `${users.length} users blocked successfully`
+		});
+	} catch (err) {
+		if (err instanceof z.ZodError) {
+			logger.warn('Invalid input for blockUsers API:', err.errors);
+			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		}
+		logger.error('Error in blockUsers API:', err);
+		throw error(500, 'Failed to block users');
 	}
 };

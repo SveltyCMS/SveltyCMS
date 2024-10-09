@@ -7,44 +7,73 @@
  *
  * Features:
  * - User-specific session invalidation
+ * - Permission checking
+ * - Input validation
  * - Error handling and logging
  *
  * Usage:
  * DELETE /api/user/deleteTokens
  * Body: JSON object with 'user_id' property
  *
- * Note: This endpoint should be properly secured with authentication and authorization checks.
+ * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@src/databases/db';
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { permissionCheck } from '@src/auth/permissionCheck';
 
 // System Logger
 import { logger } from '@utils/logger';
 
-export const DELETE: RequestHandler = async ({ request }) => {
+// Input validation
+import { z } from 'zod';
+
+const deleteTokensSchema = z.object({
+	user_id: z.string()
+});
+
+export const DELETE: RequestHandler = async ({ request, locals }) => {
 	try {
-		const { user_id } = await request.json();
+		// Check if the user has permission to delete tokens
+		const hasPermission = await permissionCheck(locals.user, {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		});
 
-		if (!user_id) {
-			logger.warn('Delete tokens attempt without user_id');
-			return new Response(JSON.stringify({ message: 'User ID is required' }), { status: 400 });
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to delete user tokens');
 		}
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
+		const body = await request.json();
 
-		await auth.invalidateAllUserSessions(user_id);
-		logger.info(`All tokens deleted successfully for user ID: ${user_id}`);
-		return new Response(JSON.stringify({ success: true, message: 'All tokens deleted successfully' }), { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Failed to delete tokens:', { error: errorMessage });
-		return json({ success: false, error: `Failed to delete tokens: ${error.message}` }, { status: 500 });
+		// Validate input
+		const validatedData = deleteTokensSchema.parse(body);
+
+		const tokenAdapter = new TokenAdapter();
+
+		// Delete all tokens for the user
+		await tokenAdapter.deleteAllUserTokens(validatedData.user_id);
+
+		logger.info('All tokens deleted successfully', {
+			user_id: validatedData.user_id
+		});
+
+		return json({
+			success: true,
+			message: 'All tokens deleted successfully'
+		});
+	} catch (err) {
+		if (err instanceof z.ZodError) {
+			logger.warn('Invalid input for deleteTokens API:', err.errors);
+			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		}
+		logger.error('Error in deleteTokens API:', err);
+		throw error(500, 'Failed to delete tokens');
 	}
 };

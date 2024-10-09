@@ -7,58 +7,79 @@
  *
  * Features:
  * - Bulk user unblocking
+ * - Permission checking
+ * - Input validation using Zod
  * - Error handling and logging
  *
  * Usage:
  * PUT /api/user/unblockUsers
  * Body: JSON object with 'user_ids' property (array of user IDs)
  *
- * Note: This endpoint performs sensitive operations and should be
- * properly secured with authentication and authorization checks.
+ * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
+import { permissionCheck } from '@src/auth/permissionCheck';
 
-// Import logger
+// System logger
 import { logger } from '@utils/logger';
 
-export const PUT: RequestHandler = async ({ request }) => {
-	try {
-		const { user_ids } = await request.json();
+// Input validation
+import { z } from 'zod';
 
-		if (!Array.isArray(user_ids) || user_ids.length === 0) {
-			logger.warn('Unblock users attempt with invalid user_ids');
-			return new Response(JSON.stringify({ success: false, message: 'Valid user IDs array is required' }), { status: 400 });
+const unblockUsersSchema = z.object({
+	user_ids: z.array(z.string()).nonempty()
+});
+
+export const PUT: RequestHandler = async ({ request, locals }) => {
+	try {
+		// Check if the user has permission to unblock users
+		const hasPermission = await permissionCheck(locals.user, {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		});
+
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to unblock users');
 		}
 
+		// Ensure the authentication system is initialized
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
+		const body = await request.json();
+
+		// Validate input
+		const { user_ids } = unblockUsersSchema.parse(body);
+
 		const unblockedUsers = await Promise.all(
 			user_ids.map(async (user_id) => {
 				await auth.updateUserAttributes(user_id, { blocked: false });
-				logger.info(`User unblocked successfully with user ID: ${user_id}`);
+				logger.info(`User unblocked successfully`, { userId: user_id });
 				return user_id;
 			})
 		);
 
-		return new Response(
-			JSON.stringify({
-				success: true,
-				message: `${unblockedUsers.length} users unblocked successfully`,
-				unblockedUsers
-			}),
-			{ status: 200 }
-		);
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Failed to unblock users:', { error: errorMessage });
-		return json({ success: false, error: `Failed to unblock users: ${error.message}` }, { status: 500 });
+		logger.info('Users unblocked successfully', { unblockedCount: unblockedUsers.length });
+		return json({
+			success: true,
+			message: `${unblockedUsers.length} users unblocked successfully`,
+			unblockedUsers
+		});
+	} catch (err) {
+		if (err instanceof z.ZodError) {
+			logger.warn('Invalid input for unblockUsers API:', err.errors);
+			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		}
+		logger.error('Error in unblockUsers API:', err);
+		throw error(500, 'Failed to unblock users');
 	}
 };

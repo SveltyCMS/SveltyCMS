@@ -1,76 +1,79 @@
 /**
  * @file src/routes/api/user/saveAvatar/+server.ts
- * @description API endpoint for saving user avatars.
+ * @description API endpoint for saving a user's avatar image.
  *
  * This module provides functionality to:
- * - Save a new avatar image for an authenticated user
+ * - Save a new avatar image for a user
  * - Update the user's profile with the new avatar URL
  *
  * Features:
- * - Session-based authentication
  * - File upload handling
- * - Avatar image saving
+ * - Avatar image processing and storage
  * - User profile update
+ * - Permission checking
  * - Error handling and logging
  *
  * Usage:
  * POST /api/user/saveAvatar
  * Body: FormData with 'avatar' file
- * Requires: Valid session cookie
  *
- * Note: Ensure proper file type and size validation before saving the avatar.
+ * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
-import { error } from '@sveltejs/kit';
+import { error, json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { permissionCheck } from '@src/auth/permissionCheck';
 
-// Import logger
+// System logger
 import { logger } from '@utils/logger';
 
-// Import saveAvatarImage function
+// Media storage
 import { saveAvatarImage } from '@utils/media/mediaStorage';
 
-export const POST: RequestHandler = async ({ request, cookies }) => {
+export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
+		// Check if the user has permission to update their avatar
+		const hasPermission = await permissionCheck(locals.user, {
+			contextId: 'user/profile',
+			requiredRole: 'user',
+			action: 'update',
+			contextType: 'user'
+		});
 
-		if (!session_id) {
-			logger.warn('Avatar save attempt without session cookie');
-			return new Response(JSON.stringify({ success: false, message: 'Authentication required' }), { status: 401 });
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to update avatar');
 		}
 
+		// Ensure the authentication system is initialized
 		if (!auth) {
 			logger.error('Authentication system is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
-		const user = await auth.validateSession({ session_id });
-
-		if (!user) {
-			logger.warn(`Invalid session for avatar save attempt: ${session_id}`);
-			return new Response(JSON.stringify({ success: false, message: 'Invalid session' }), { status: 403 });
-		}
-
-		const data = await request.formData();
-		const avatarFile = data.get('avatar') as File | null;
+		const formData = await request.formData();
+		const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
-			logger.warn('No avatar file provided in the request');
-			return new Response(JSON.stringify({ success: false, message: 'No avatar file provided' }), { status: 400 });
+			throw error(400, 'No avatar file provided');
 		}
 
+		// Save the avatar image
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
-		await auth.updateUserAttributes(user._id, { avatar: avatarUrl });
 
-		logger.info(`Avatar saved successfully for user ID: ${user._id}`);
-		return new Response(JSON.stringify({ success: true, url: avatarUrl }), { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Failed to save avatar:', { error: errorMessage });
-		return json({ success: false, error: `Failed to save avatar: ${error.message}` }, { status: 500 });
+		// Update the user's profile with the new avatar URL
+		await auth.updateUserAttributes(locals.user.id, { avatar: avatarUrl });
+
+		logger.info('Avatar saved successfully', { userId: locals.user.id });
+		return json({
+			success: true,
+			message: 'Avatar saved successfully',
+			avatarUrl
+		});
+	} catch (err) {
+		logger.error('Error in saveAvatar API:', err);
+		throw error(500, 'Failed to save avatar');
 	}
 };

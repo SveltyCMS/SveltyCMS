@@ -7,45 +7,79 @@
  *
  * Features:
  * - Token data modification
+ * - Permission checking
+ * - Input validation
  * - Error handling and logging
  *
  * Usage:
  * PUT /api/user/editToken
  * Body: JSON object with 'tokenId' and 'newTokenData' properties
  *
- * Note: Ensure proper validation of newTokenData before applying changes.
- * This endpoint should be secured with appropriate authentication and authorization.
+ * Note: This endpoint is secured with appropriate authentication and authorization.
  */
 
-import type { RequestHandler } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
 import { error } from '@sveltejs/kit';
 
 // Auth
-import { auth } from '@src/databases/db';
+import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
+import { permissionCheck } from '@src/auth/permissionCheck';
 
 // System Logger
 import { logger } from '@utils/logger';
 
-export const PUT: RequestHandler = async ({ request }) => {
+// Input validation
+import { z } from 'zod';
+
+const editTokenSchema = z.object({
+	tokenId: z.string(),
+	newTokenData: z.object({
+		email: z.string().email().optional(),
+		expires: z.date().optional(),
+		type: z.string().optional()
+	})
+});
+
+export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
-		const { tokenId, newTokenData } = await request.json();
+		// Check if the user has permission to edit tokens
+		const hasPermission = await permissionCheck(locals.user, {
+			contextId: 'config/userManagement',
+			requiredRole: 'admin',
+			action: 'manage',
+			contextType: 'system'
+		});
 
-		if (!tokenId || !newTokenData) {
-			logger.warn('Edit token attempt with missing data');
-			return new Response(JSON.stringify({ message: 'Token ID and new token data are required' }), { status: 400 });
+		if (!hasPermission) {
+			throw error(403, 'Unauthorized to edit registration tokens');
 		}
 
-		if (!auth) {
-			logger.error('Authentication system is not initialized');
-			throw error(500, 'Internal Server Error');
-		}
+		const body = await request.json();
 
-		await auth.updateToken(tokenId, newTokenData);
-		logger.info(`Token edited successfully with token ID: ${tokenId}`);
-		return new Response(JSON.stringify({ success: true, message: 'Token updated successfully' }), { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Failed to edit token:', { error: errorMessage });
-		return json({ success: false, error: `Failed to edit token: ${error.message}` }, { status: 500 });
+		// Validate input
+		const validatedData = editTokenSchema.parse(body);
+
+		const tokenAdapter = new TokenAdapter();
+
+		// Update the token
+		await tokenAdapter.updateToken(validatedData.tokenId, validatedData.newTokenData);
+
+		logger.info('Token updated successfully', {
+			tokenId: validatedData.tokenId,
+			newData: validatedData.newTokenData
+		});
+
+		return json({
+			success: true,
+			message: 'Token updated successfully'
+		});
+	} catch (err) {
+		if (err instanceof z.ZodError) {
+			logger.warn('Invalid input for editToken API:', err.errors);
+			throw error(400, 'Invalid input: ' + err.errors.map((e) => e.message).join(', '));
+		}
+		logger.error('Error in editToken API:', err);
+		throw error(500, 'Failed to update token');
 	}
 };
