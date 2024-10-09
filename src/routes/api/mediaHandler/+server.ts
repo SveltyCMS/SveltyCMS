@@ -1,5 +1,5 @@
 import type { RequestHandler } from '@sveltejs/kit';
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 import { dbAdapter } from "@src/databases/db";
 
 export const POST: RequestHandler = async ({ request }) => {

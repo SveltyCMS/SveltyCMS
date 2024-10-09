@@ -25,7 +25,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import logger from '@src/utils/logger';
+	import { logger } from '@src/utils/logger';
 	import { config, toFormData } from '@src/utils/utils';
 	import axios from 'axios';
 	const toastStore = getToastStore();

@@ -64,7 +64,7 @@
 	// Language and messaging setup
 	import * as m from '@src/paraglide/messages';
 	import { languageTag } from '@src/paraglide/runtime';
-	import logger from '@src/utils/logger';
+	import { logger } from '@src/utils/logger';
 
 	let _languageTag = languageTag(); // Get the current language tag
 
