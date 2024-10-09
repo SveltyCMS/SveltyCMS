@@ -19,7 +19,7 @@ import { validateMediaFile, constructMediaUrl } from './mediaUtils';
 import { validateUserPermission as checkMediaAccess } from '@src/auth/permissionManager';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Media Cache
 import { mediaCache } from '@src/databases/mediaCache';
@@ -38,7 +38,7 @@ export class MediaService {
 		const validation = validateMediaFile(file, allowedTypes);
 
 		if (!validation.isValid) {
-			throw new Error(validation.message);
+			throw Error(validation.message);
 		}
 
 		// Process the file
@@ -133,13 +133,13 @@ export class MediaService {
 		const media = await this.db.findOne('media_collection', { _id: this.db.convertId(id) });
 
 		if (!media) {
-			throw new Error('Media not found');
+			throw Error('Media not found');
 		}
 
 		const hasAccess = checkMediaAccess(userRoles, 'some_permission'); // Replace 'some_permission' with the actual permission required
 
 		if (!hasAccess) {
-			throw new Error('Access denied');
+			throw Error('Access denied');
 		}
 
 		// Cache the media for future requests
@@ -195,7 +195,7 @@ export class MediaService {
 		} else if (mimeType === 'application/pdf') {
 			return MediaTypeEnum.Document;
 		} else {
-			throw new Error(`Unsupported media type: ${mimeType}`);
+			throw Error(`Unsupported media type: ${mimeType}`);
 		}
 	}
 }

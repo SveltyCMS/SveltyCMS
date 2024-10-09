@@ -21,7 +21,7 @@ import { saveAvatarImage } from '@src/utils/media/mediaStorage';
 import { systemLanguage } from '@stores/store';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Send welcome email
 async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>, email: string, username: string) {
@@ -62,7 +62,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	try {
 		const googleAuthClient = await googleAuth();
 		if (!googleAuthClient) {
-			throw new Error('Google OAuth is not initialized');
+			throw Error('Google OAuth is not initialized');
 		}
 
 		logger.debug('Fetching tokens using authorization code...');
@@ -78,7 +78,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const email = googleUser.email;
 		if (!email) {
 			logger.error('Google did not return an email address.');
-			throw new Error('Google did not return an email address.');
+			throw Error('Google did not return an email address.');
 		}
 
 		const locale = googleUser.locale;
@@ -117,7 +117,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			user = await auth.checkUser({ email });
 			if (!user) {
 				logger.error('User creation failed, user not found after creation.');
-				throw new Error('User creation failed');
+				throw Error('User creation failed');
 			}
 
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
@@ -127,7 +127,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 
 		if (!user._id) {
 			logger.error('User ID is missing after creation or retrieval');
-			throw new Error('User ID is missing');
+			throw Error('User ID is missing');
 		}
 
 		logger.debug(`User found or created with ID: ${user._id}`);
@@ -189,7 +189,7 @@ export const actions: Actions = {
 			const googleAuthClient = await googleAuth();
 
 			if (!googleAuthClient) {
-				throw new Error('Google OAuth is not initialized');
+				throw Error('Google OAuth is not initialized');
 			}
 
 			// Verify the token

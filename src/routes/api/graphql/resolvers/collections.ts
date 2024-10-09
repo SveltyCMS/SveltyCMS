@@ -26,7 +26,7 @@ import deepmerge from 'deepmerge';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 interface Collection {
 	name: string;
@@ -141,7 +141,7 @@ export async function collectionsResolvers(redisClient: any, privateEnv: any) {
 		resolvers.Query[collection.name] = async (_: any, args: { pagination: { page: number; limit: number } }) => {
 			if (!dbAdapter) {
 				logger.error('Database adapter is not initialized');
-				throw new Error('Database adapter is not initialized');
+				throw Error('Database adapter is not initialized');
 			}
 
 			const { page = 1, limit = 50 } = args.pagination || {};

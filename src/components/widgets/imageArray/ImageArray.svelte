@@ -9,7 +9,8 @@
 	import type { FieldType } from '.';
 
 	// Stores
-	import { loadingProgress, mode, validationStore } from '@stores/store';
+	import { loadingProgress, validationStore } from '@stores/store';
+	import { mode } from '@stores/collectionStore';
 
 	// Components
 	import Fields from '@components/Fields.svelte';

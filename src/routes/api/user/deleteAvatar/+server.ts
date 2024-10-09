@@ -30,7 +30,7 @@ import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Mocked function to delete image model
 async function deleteImageModel(hash: string): Promise<boolean> {

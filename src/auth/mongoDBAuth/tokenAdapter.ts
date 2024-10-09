@@ -18,15 +18,16 @@
  */
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import crypto from 'crypto';
+import { error } from '@sveltejs/kit';
+
 // Types
 import type { Token } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import logger from '@utils/logger';
+import { logger } from '@utils/logger';
 
 // Define the Token schema
-
 export const TokenSchema = new Schema(
 	{
 		user_id: { type: String, required: true }, // ID of the user who owns the token, required field
@@ -46,13 +47,6 @@ export const MediaSchema = new Schema(
 	},
 	{ timestamps: true } // Automatically adds `createdAt` and `updatedAt` fields
 )
-// Custom Error class for Token-related errors
-class TokenError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'TokenError';
-	}
-}
 
 export class TokenAdapter implements Partial<authDBInterface> {
 	private TokenModel: Model<Token & Document>;
@@ -74,9 +68,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 			await newToken.save();
 			this.log('debug', 'Token created', { user_id: data.user_id, type: data.type });
 			return token;
-		} catch (error) {
-			this.log('error', 'Failed to create token', { error: (error as Error).message });
-			throw new TokenError('Failed to create token');
+		} catch (err) {
+			const message = `Error in TokenAdapter.createToken: ${err instanceof Error ? err.message : String(err)}`;
+			this.log('error', message, { user_id: data.user_id, type: data.type });
+			throw error(500, message);
 		}
 	}
 
@@ -100,9 +95,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 				this.log('warn', 'Expired token', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 				return { success: false, message: 'Token is expired' };
 			}
-		} catch (error) {
-			this.log('error', 'Failed to validate token', { error: (error as Error).message });
-			throw new TokenError('Failed to validate token');
+		} catch (err) {
+			const message = `Error in TokenAdapter.validateToken: ${err instanceof Error ? err.message : String(err)}`;
+			this.log('error', message, { token, user_id, type });
+			throw error(500, message);
 		}
 	}
 
@@ -126,9 +122,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 				this.log('warn', 'Expired token consumed', { user_id: tokenDoc.user_id, type: tokenDoc.type });
 				return { status: false, message: 'Token is expired' };
 			}
-		} catch (error) {
-			this.log('error', 'Failed to consume token', { error: (error as Error).message });
-			throw new TokenError('Failed to consume token');
+		} catch (err) {
+			const message = `Error in TokenAdapter.consumeToken: ${err instanceof Error ? err.message : String(err)}`;
+			this.log('error', message, { token, user_id, type });
+			throw error(500, message);
 		}
 	}
 
@@ -138,9 +135,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 			const tokens = await this.TokenModel.find(filter || {}).lean();
 			this.log('debug', 'All tokens retrieved', { count: tokens.length });
 			return tokens.map(this.formatToken);
-		} catch (error) {
-			this.log('error', 'Failed to get all tokens', { error: (error as Error).message });
-			throw new TokenError('Failed to get all tokens');
+		} catch (err) {
+			const message = `Error in TokenAdapter.getAllTokens: ${err instanceof Error ? err.message : String(err)}`;
+			this.log('error', message, { filter });
+			throw error(500, message);
 		}
 	}
 
@@ -150,9 +148,10 @@ export class TokenAdapter implements Partial<authDBInterface> {
 			const result = await this.TokenModel.deleteMany({ expires: { $lte: new Date() } });
 			this.log('info', 'Expired tokens deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
-		} catch (error) {
-			this.log('error', 'Failed to delete expired tokens', { error: (error as Error).message });
-			throw new TokenError('Failed to delete expired tokens');
+		} catch (err) {
+			const message = `Error in TokenAdapter.deleteExpiredTokens: ${err instanceof Error ? err.message : String(err)}`;
+			this.log('error', message);
+			throw error(500, message);
 		}
 	}
 

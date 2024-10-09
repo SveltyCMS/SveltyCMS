@@ -18,13 +18,14 @@
 
 import { privateEnv } from '@root/config/private';
 import { browser } from '$app/environment';
+import { error } from '@sveltejs/kit';
 
 // Types
 import type { SessionStore } from './index';
 import type { User } from './types';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // In-memory cache store
 export class InMemorySessionStore implements SessionStore {
@@ -49,20 +50,32 @@ export class InMemorySessionStore implements SessionStore {
 
 	// Get a session by ID
 	async get(session_id: string): Promise<User | null> {
-		const session = this.sessions.get(session_id);
-		if (!session || session.expiresAt < new Date()) {
-			return null;
+		try {
+			const session = this.sessions.get(session_id);
+			if (!session || session.expiresAt < new Date()) {
+				return null;
+			}
+			return session.user;
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.get: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
 		}
-		return session.user;
 	}
 
 	// Set a session with expiration
 	async set(session_id: string, user: User, expiresAt: number | Date): Promise<void> {
-		if (typeof expiresAt === 'number') {
-			expiresAt = new Date(Date.now() + expiresAt * 1000);
+		try {
+			if (typeof expiresAt === 'number') {
+				expiresAt = new Date(Date.now() + expiresAt * 1000);
+			}
+			this.sessions.set(session_id, { user, expiresAt });
+			this.evictOldestSession(privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000);
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.set: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id, expirationInSeconds });
+			throw error(500, message);
 		}
-		this.sessions.set(session_id, { user, expiresAt });
-		this.evictOldestSession(privateEnv.MAX_IN_MEMORY_SESSIONS ?? 10000);
 	}
 
 	// Evict the oldest session to maintain size limit
@@ -87,25 +100,43 @@ export class InMemorySessionStore implements SessionStore {
 
 	// Delete a session by ID
 	async delete(session_id: string): Promise<void> {
-		this.sessions.delete(session_id);
+		try {
+			this.sessions.delete(session_id);
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.delete: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
+		}
 	}
 
 	// Validate session with optional database check
 	async validateWithDB(session_id: string, dbValidationFn: (session_id: string) => Promise<User | null>): Promise<User | null> {
-		if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
-			const dbUser = await dbValidationFn(session_id);
-			if (!dbUser) {
-				this.delete(session_id);
-				return null;
+		try {
+			if (Math.random() < (privateEnv.DB_VALIDATION_PROBABILITY ?? 0.1)) {
+				const dbUser = await dbValidationFn(session_id);
+				if (!dbUser) {
+					this.delete(session_id);
+					return null;
+				}
+				return dbUser;
 			}
-			return dbUser;
+			return this.get(session_id);
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.validateWithDB: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
 		}
-		return this.get(session_id);
 	}
 
 	// Close the session store and clear intervals
 	async close() {
-		clearInterval(this.cleanupInterval);
+		try {
+			clearInterval(this.cleanupInterval);
+		} catch (err) {
+			const message = `Error in InMemorySessionStore.close: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
+		}
 	}
 }
 
@@ -136,9 +167,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 			const { RedisCacheStore } = await import('./RedisCacheStore');
 			this.redisStore = new RedisCacheStore();
 			logger.info('Redis session store initialized');
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Failed to initialize Redis, using fallback session store: ${err.message}`);
+		} catch (err) {
+			const message = `Failed to initialize Redis, using fallback session store: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -146,9 +178,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 	async get(session_id: string): Promise<User | null> {
 		try {
 			return this.redisStore ? this.redisStore.get(session_id) : this.fallbackStore.get(session_id);
-		} catch (error) {
-			logger.error(`Error getting session: ${error}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in OptionalRedisSessionStore.get: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
 		}
 	}
 
@@ -159,9 +192,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 				await this.redisStore.set(session_id, user, expirationInSeconds);
 			}
 			await this.fallbackStore.set(session_id, user, expirationInSeconds);
-		} catch (error) {
-			logger.error(`Error setting session: ${error}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in OptionalRedisSessionStore.set: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id, expirationInSeconds });
+			throw error(500, message);
 		}
 	}
 
@@ -172,9 +206,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 				await this.redisStore.delete(session_id);
 			}
 			await this.fallbackStore.delete(session_id);
-		} catch (error) {
-			logger.error(`Error deleting session: ${error}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in OptionalRedisSessionStore.delete: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
 		}
 	}
 
@@ -185,9 +220,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 				return this.redisStore.validateWithDB(session_id, dbValidationFn);
 			}
 			return this.fallbackStore.validateWithDB(session_id, dbValidationFn);
-		} catch (error) {
-			logger.error(`Error validating session: ${error}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in OptionalRedisSessionStore.validateWithDB: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { session_id });
+			throw error(500, message);
 		}
 	}
 
@@ -198,8 +234,10 @@ export class OptionalRedisSessionStore implements SessionStore {
 				await this.redisStore.close();
 			}
 			await this.fallbackStore.close();
-		} catch (error) {
-			logger.error(`Error closing session store: ${error}`);
+		} catch (err) {
+			const message = `Error in OptionalRedisSessionStore.close: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 }

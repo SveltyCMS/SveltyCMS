@@ -7,38 +7,37 @@ import type { RequestHandler } from './$types';
 import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 import type { Theme } from '@src/databases/dbInterface';
-import { authorizeAdmin } from '@src/auth';
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Initialize ThemeManager singleton
 const themeManager = ThemeManager.getInstance();
 
 export const POST: RequestHandler = async ({ request, locals }) => {
+	// Authenticate and authorize the user
+	const user = locals.user;
+	if (!user || !(await authorizeAdmin(user))) {
+		logger.warn(`Unauthorized attempt to update theme by user: ${user ? user.id : 'unknown'}`);
+		throw error(401, 'Unauthorized');
+	}
+
+	// Parse the request body
+	const { themeName } = await request.json();
+
+	if (!themeName || typeof themeName !== 'string') {
+		logger.warn(`Invalid theme name provided: ${themeName}`);
+		throw error(400, 'Invalid theme name.');
+	}
+
 	try {
-		// Authenticate and authorize the user
-		const user = locals.user;
-		if (!user || !(await authorizeAdmin(user))) {
-			logger.warn(`Unauthorized attempt to update theme by user: ${user ? user.id : 'unknown'}`);
-			return json({ success: false, error: 'Unauthorized' }, { status: 401 });
-		}
-
-		// Parse the request body
-		const { themeName } = await request.json();
-
-		if (!themeName || typeof themeName !== 'string') {
-			logger.warn(`Invalid theme name provided: ${themeName}`);
-			return json({ success: false, error: 'Invalid theme name.' }, { status: 400 });
-		}
-
 		// Fetch the theme from the database to ensure it exists
 		const selectedTheme: Theme | null = await dbAdapter.findOne('themes', { name: themeName });
 
 		if (!selectedTheme) {
 			logger.warn(`Theme '${themeName}' does not exist.`);
-			return json({ success: false, error: `Theme '${themeName}' does not exist.` }, { status: 404 });
+			throw error(404, `Theme '${themeName}' does not exist.`);
 		}
 
 		// Set the selected theme as the default in the database
@@ -52,9 +51,10 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		logger.info(`Theme successfully updated to '${updatedTheme.name}' by user '${user.id}'.`);
 
-		return json({ success: true, theme: updatedTheme }, { status: 200 });
-	} catch (error: any) {
-		logger.error(`Error updating theme: ${error.message}`);
-		return json({ success: false, error: 'Internal Server Error' }, { status: 500 });
+		return json({ success: true, theme: updatedTheme });
+	} catch (err) {
+		const message = `Error updating theme: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };

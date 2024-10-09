@@ -19,6 +19,7 @@
  */
 import mongoose, { Schema, Document, Model } from 'mongoose';
 import { roles as configRoles } from '@root/config/roles';
+import { error } from '@sveltejs/kit';
 
 // Adapter
 import { getPermissionByName, getAllPermissions } from '../permissionManager';
@@ -28,7 +29,7 @@ import type { Permission, Role, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import logger from '@utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define the User schema
 export const UserSchema = new Schema(
@@ -74,9 +75,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const savedUser = user.toObject();
 			savedUser._id = savedUser._id.toString();
 			return savedUser as User;
-		} catch (error) {
-			logger.error(`Failed to create user: ${userData.email}`, { error });
-			throw new Error(`Failed to create user: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+		} catch (err) {
+			const message = `Error in UserAdapter.createUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { email: userData.email });
+			throw error(500, message);
 		}
 	}
 
@@ -85,14 +87,15 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			const user = await this.UserModel.findByIdAndUpdate(user_id, userData, { new: true }).lean();
 			if (!user) {
-				throw new Error(`User not found for ID: ${user_id}`);
+				throw error(404, `User not found for ID: ${user_id}`);
 			}
 			user._id = user._id.toString();
 			logger.debug(`User attributes updated: ${user_id}`);
 			return user as User;
-		} catch (error) {
-			logger.error(`Failed to update user attributes for user ID: ${user_id}`, { error });
-			throw new Error(`Failed to update user attributes: ${error instanceof Error ? error.message : JSON.stringify(error)}`);
+		} catch (err) {
+			const message = `Error in UserAdapter.updateUserAttributes: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -101,14 +104,15 @@ export class UserAdapter implements Partial<authDBInterface> {
 		const permission = getPermissionByName(permissionName);
 		if (!permission) {
 			logger.warn(`Permission not found: ${permissionName}`);
-			throw new Error('Permission not found');
+			throw error(404, `Permission not found: ${permissionName}`);
 		}
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $addToSet: { permissions: permissionName } });
 			logger.info(`Permission ${permissionName} assigned to user ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to assign permission to user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.assignPermissionToUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, permissionName });
+			throw error(500, message);
 		}
 	}
 
@@ -117,9 +121,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $pull: { permissions: permissionName } });
 			logger.info(`Permission ${permissionName} removed from user ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to remove permission from user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.deletePermissionFromUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, permissionName });
+			throw error(500, message);
 		}
 	}
 
@@ -143,9 +148,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			logger.debug(`Permissions retrieved for user: ${user_id}`);
 			return uniquePermissions;
-		} catch (error) {
-			logger.error(`Failed to get permissions for user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getPermissionsForUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -167,9 +173,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			logger.debug(`User ${user_id} does not have permission: ${permissionName}`);
 			return false;
-		} catch (error) {
-			logger.error(`Failed to check user permission: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.checkUserPermission: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, permissionName });
+			throw error(500, message);
 		}
 	}
 
@@ -178,9 +185,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { password: newPassword });
 			logger.info(`Password changed for user: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to change password: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.changePassword: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -192,9 +200,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				lockoutUntil: new Date().toISOString() // Set lockoutUntil to current time
 			});
 			logger.info(`User blocked: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to block user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.blockUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -206,9 +215,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				lockoutUntil: null // Clear lockoutUntil
 			});
 			logger.info(`User unblocked: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to unblock user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.unblockUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -217,9 +227,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			await this.UserModel.findByIdAndDelete(user_id);
 			logger.info(`User deleted: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to delete user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.deleteUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -234,9 +245,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 			} else {
 				return null;
 			}
-		} catch (error) {
-			logger.error(`Failed to get user by ID: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getUserById: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -251,9 +263,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 			} else {
 				return null;
 			}
-		} catch (error) {
-			logger.error(`Failed to get user by email: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getUserByEmail: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { email });
+			throw error(500, message);
 		}
 	}
 
@@ -283,9 +296,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				user._id = user._id.toString();
 				return user as User;
 			});
-		} catch (error) {
-			logger.error(`Failed to get all users: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getAllUsers: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { options });
+			throw error(500, message);
 		}
 	}
 
@@ -295,9 +309,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 			const count = await this.UserModel.countDocuments(filter || {});
 			logger.debug(`User count retrieved: ${count}`);
 			return count;
-		} catch (error) {
-			logger.error(`Failed to get user count: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getUserCount: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { filter });
+			throw error(500, message);
 		}
 	}
 
@@ -310,9 +325,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				user._id = user._id.toString();
 				return user as User;
 			});
-		} catch (error) {
-			logger.error(`Failed to get users with permission: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getUsersWithPermission: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { permissionName });
+			throw error(500, message);
 		}
 	}
 
@@ -321,9 +337,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { role });
 			logger.info(`Role ${role} assigned to user ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to assign role to user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.assignRoleToUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, role });
+			throw error(500, message);
 		}
 	}
 
@@ -332,9 +349,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 		try {
 			await this.UserModel.findByIdAndUpdate(user_id, { $unset: { role: '' } });
 			logger.info(`Role removed from user ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to remove role from user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.removeRoleFromUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -357,9 +375,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 
 			logger.debug(`Roles retrieved for user ID: ${user_id}`);
 			return [role];
-		} catch (error) {
-			logger.error(`Failed to get roles for user: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getRolesForUser: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -377,9 +396,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				user._id = user._id.toString();
 				return user as User;
 			});
-		} catch (error) {
-			logger.error(`Failed to retrieve recent user activities: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.getRecentUserActivities: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -392,9 +412,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				return user.role === role_name;
 			}
 			return false;
-		} catch (error) {
-			logger.error(`Failed to check user role: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.checkUserRole: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, role_name });
+			throw error(500, message);
 		}
 	}
 
@@ -405,9 +426,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				lastActiveAt: new Date()
 			});
 			logger.debug(`Updated lastActiveAt for user: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to update lastActiveAt: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.updateLastActiveAt: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 
@@ -418,11 +440,13 @@ export class UserAdapter implements Partial<authDBInterface> {
 				expiresAt: expirationDate
 			});
 			logger.debug(`Set expiration date for user: ${user_id}`);
-		} catch (error) {
-			logger.error(`Failed to set user expiration: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.setUserExpiration: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id, expirationDate });
+			throw error(500, message);
 		}
 	}
+
 	// check if a user is expired
 	async isUserExpired(user_id: string): Promise<boolean> {
 		try {
@@ -431,9 +455,10 @@ export class UserAdapter implements Partial<authDBInterface> {
 				return new Date(user.expiresAt) < new Date();
 			}
 			return false;
-		} catch (error) {
-			logger.error(`Failed to check user expiration: ${(error as Error).message}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in UserAdapter.isUserExpired: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { user_id });
+			throw error(500, message);
 		}
 	}
 }

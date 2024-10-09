@@ -30,7 +30,7 @@ import { addUserTokenSchema } from '@utils/formSchemas';
 import { zod } from 'sveltekit-superforms/adapters';
 import { error } from '@sveltejs/kit';
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const GET: RequestHandler = async () => {
 	try {
@@ -115,7 +115,7 @@ async function sendUserToken(email: string, token: string, role: string, expires
 		});
 
 		if (!response.ok) {
-			throw new Error(`Failed to send email: ${response.statusText}`);
+			throw Error(`Failed to send email: ${response.statusText}`);
 		}
 
 		logger.info('User token email sent successfully', { email });

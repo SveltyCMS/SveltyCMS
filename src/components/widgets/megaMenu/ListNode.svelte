@@ -6,7 +6,8 @@
 	import { debounce } from '@src/utils/utils';
 
 	// Stores
-	import { translationProgress, mode, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { mode } from '@stores/collectionStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

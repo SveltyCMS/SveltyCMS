@@ -33,7 +33,7 @@ import { systemLanguage } from '@stores/store';
 import { roles } from '@root/config/roles';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const limiter = new RateLimiter({
 	IP: [200, 'h'], // 200 requests per hour per IP
@@ -122,9 +122,10 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 		try {
 			firstUserExists = (await auth.getUserCount()) !== 0;
 			logger.debug(`First user exists: ${firstUserExists}`);
-		} catch (err) {
-			logger.error('Error fetching user count:', err instanceof Error ? err.message : JSON.stringify(err));
-			throw error(500, 'Could not verify user count');
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error fetching user count: ${err.message}`);
+			throw Error(`Error fetching user count: ${err.message}`);
 		}
 
 		const code = url.searchParams.get('code');
@@ -135,7 +136,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			logger.debug('Entering OAuth flow in load function');
 			try {
 				if (!googleAuth) {
-					throw new Error('Google OAuth is not initialized');
+					throw Error('Google OAuth is not initialized');
 				}
 
 				logger.debug('Fetching tokens using authorization code...');
@@ -149,7 +150,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 				const getUser = async (): Promise<[User | null, boolean]> => {
 					const email = googleUser.email;
 					if (!email) {
-						throw new Error('Google did not return an email address.');
+						throw Error('Google did not return an email address.');
 					}
 
 					const existingUser = await auth.checkUser({ email });
@@ -161,7 +162,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 					if (isFirst) {
 						const adminRole = roles.find((role) => role._id === 'admin');
 						if (!adminRole) {
-							throw new Error('Admin role not found in roles configuration');
+							throw Error('Admin role not found in roles configuration');
 						}
 
 						const user = await auth.createUser({
@@ -205,13 +206,15 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 
 					await auth.updateUserAttributes(user._id, { lastAuthMethod: 'google' });
 
-					throw redirect(303, '/');
+					const redirectPath = await fetchAndRedirectToFirstCollection();
+					throw redirect(303, redirectPath);
 				}
 
 				return { needSignIn };
-			} catch (err) {
-				logger.error('Error during login process:', err instanceof Error ? err.message : JSON.stringify(err));
-				return { error: 'An error occurred during the login process. Please try again.' };
+			} catch (error) {
+				const err = error as Error;
+				logger.error(`Error during login process: ${err.message}`);
+				throw Error(`Error during login process: ${err.message}`);
 			}
 		}
 
@@ -231,8 +234,9 @@ export const load: PageServerLoad = async ({ url, cookies, fetch, request, local
 			resetForm,
 			signUpForm
 		};
-	} catch (err) {
-		logger.error('Error in load function:', err instanceof Error ? err.message : String(err));
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Error in load function: ${err.message}`);
 
 		// Return a minimal set of data to allow the page to render
 		return {
@@ -371,9 +375,10 @@ export const actions: Actions = {
 					}
 				};
 			}
-		} catch (err) {
-			logger.error(`Error in OAuth action: ${err instanceof Error ? err.message : JSON.stringify(err)}`);
-			return fail(500, { message: 'An error occurred during OAuth initialization' });
+		} catch (error) {
+			const err = error as Error;
+			logger.error(`Error in OAuth action: ${err.message}`);
+			throw Error(`Error in OAuth action: ${err.message}`);
 		}
 	},
 
@@ -397,7 +402,10 @@ export const actions: Actions = {
 		if (resp && resp.status) {
 			// Return message if form is submitted successfully
 			message(signInForm, 'SignIn form submitted');
-			throw redirect(303, '/');
+
+			// Fetch collections and redirect to the first one if available
+			const redirectPath = await fetchAndRedirectToFirstCollection();
+			throw redirect(303, redirectPath);
 		} else {
 			// Handle the case when resp is undefined or when status is false
 			const errorMessage = resp?.message || 'An error occurred during sign-in.';
@@ -505,7 +513,7 @@ export const actions: Actions = {
 async function createSessionAndSetCookie(user_id: string, cookies: Cookies): Promise<void> {
 	const expiresAt = new Date(Date.now() + 3600 * 1000); // 1 hour from now
 
-	if (!auth) throw new Error('Auth is not initialized');
+	if (!auth) throw Error('Auth is not initialized');
 
 	const session = await auth.createSession({
 		user_id,
@@ -566,7 +574,7 @@ async function signIn(
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Login error: ${err.message}`);
-		return { status: false, message: err.message };
+		throw Error(`Login error: ${err.message}`);
 	}
 }
 
@@ -590,7 +598,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 		const adminRole = roles.find((role) => role.isAdmin === true);
 		if (!adminRole) {
 			logger.error('Admin role not found in roles configuration');
-			throw new Error('Admin role not found in roles configuration');
+			throw Error('Admin role not found in roles configuration');
 		}
 
 		// Check password strength
@@ -622,7 +630,7 @@ async function FirstUsersignUp(username: string, email: string, password: string
 	} catch (error) {
 		const err = error as Error;
 		logger.error(`Failed to create first user: ${err.message}`);
-		return { status: false, message: `Failed to create user: ${err.message}` };
+		throw Error(`Failed to create first user: ${err.message}`);
 	}
 }
 
@@ -684,9 +692,10 @@ async function forgotPWCheck(email: string): Promise<ForgotPWCheckResult> {
 		const token = await auth.createToken(user._id.toString(), expiresAt);
 
 		return { success: true, message: 'Password reset token sent by Email', token, expiresIn: expiresAt };
-	} catch (err: any) {
-		logger.error('An error occurred:', err);
-		return { success: false, message: 'An error occurred' };
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Check Forgotten Password failed: ${err.message}`);
+		throw Error(`Check Forgotten Password failed: ${err.message}`);
 	}
 }
 
@@ -737,8 +746,9 @@ async function resetPWCheck(password: string, token: string, email: string, expi
 			logger.warn(`Token consumption failed: ${validate.message}`);
 			return { status: false, message: validate.message };
 		}
-	} catch (err: any) {
-		logger.error('Password reset failed:', err);
-		return { status: false, message: 'An error occurred' };
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Password reset failed: ${err.message}`);
+		throw Error(`Password reset failed: ${err.message}`);
 	}
 }

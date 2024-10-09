@@ -23,7 +23,7 @@ import { error } from '@sveltejs/kit';
 import { auth } from '@src/databases/db';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const DELETE: RequestHandler = async ({ request }) => {
 	try {

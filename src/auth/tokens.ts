@@ -19,16 +19,10 @@
 
 import type { Model, Token } from './types';
 import crypto from 'crypto';
-// System Logger
-import logger from '@src/utils/logger';
+import { error } from '@sveltejs/kit';
 
-// Custom Error class for Token-related operations
-class TokenError extends Error {
-	constructor(message: string) {
-		super(message);
-		this.name = 'TokenError';
-	}
-}
+// System Logger
+import { logger } from '@src/utils/logger';
 
 // Helper function for centralized logging
 function log(level: 'info' | 'debug' | 'warn' | 'error', message: string, additionalInfo: any = {}) {
@@ -59,16 +53,17 @@ export async function createNewToken(TokenModel: Model<Token>, user_id: string, 
 
 		// Generate a random token string using crypto.randomBytes
 		const token = crypto.randomBytes(32).toString('hex'); // 256-bit random token
-		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000).toISOString(); // Calculate expiration time
+		const expiresAt = new Date(Date.now() + expiresInSeconds * 1000); // Calculate expiration time
 
 		// Insert the new token into the database
 		await TokenModel.create({ user_id, token, email, expires: expiresAt });
 
 		log('info', 'New token created', { user_id });
 		return token; // Return the created token
-	} catch (error) {
-		log('error', 'Failed to create new token', { user_id, error: (error as Error).message });
-		throw new TokenError('Failed to create new token');
+	} catch (err) {
+		const message = `Error in createNewToken: ${err instanceof Error ? err.message : String(err)}`;
+		log('error', message, { user_id, email });
+		throw error(500, message);
 	}
 }
 
@@ -80,7 +75,7 @@ export async function validateToken(TokenModel: Model<Token>, token: string, use
 		const result = await TokenModel.findOne({ user_id, token });
 
 		if (result) {
-			if (isWithinExpiration(result.expires)) {
+			if (isWithinExpiration(result.expires.toISOString())) {
 				log('info', 'Token is valid', { user_id });
 				return { success: true, message: 'Token is valid' };
 			} else {
@@ -91,9 +86,10 @@ export async function validateToken(TokenModel: Model<Token>, token: string, use
 			log('warn', 'Token does not exist', { user_id });
 			return { success: false, message: 'Token does not exist' };
 		}
-	} catch (error) {
-		log('error', 'Failed to validate token', { user_id, error: (error as Error).message });
-		throw new TokenError('Failed to validate token');
+	} catch (err) {
+		const message = `Error in validateToken: ${err instanceof Error ? err.message : String(err)}`;
+		log('error', message, { user_id, token });
+		throw error(500, message);
 	}
 }
 
@@ -108,7 +104,7 @@ export async function consumeToken(TokenModel: Model<Token>, token: string, user
 			await TokenModel.deleteOne({ user_id, token });
 			log('info', 'Token deleted', { user_id });
 
-			if (isWithinExpiration(result.expires)) {
+			if (isWithinExpiration(result.expires.toISOString())) {
 				log('info', 'Token is valid and consumed', { user_id });
 				return { status: true, message: 'Token is valid' };
 			} else {
@@ -119,8 +115,9 @@ export async function consumeToken(TokenModel: Model<Token>, token: string, user
 			log('warn', 'Token does not exist', { user_id });
 			return { status: false, message: 'Token does not exist' };
 		}
-	} catch (error) {
-		log('error', 'Failed to consume token', { user_id, error: (error as Error).message });
-		throw new TokenError('Failed to consume token');
+	} catch (err) {
+		const message = `Error in consumeToken: ${err instanceof Error ? err.message : String(err)}`;
+		log('error', message, { user_id, token });
+		throw error(500, message);
 	}
 }

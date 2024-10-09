@@ -10,12 +10,12 @@ import type { PageServerLoad } from './$types';
 
 // Collections
 import { getCollections } from '@src/collections';
-import type { Collections } from '@src/types'; // Assuming you have a type for collections
+import type { Collections } from '@src/types';
 
 // System Loggers
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
-export const load: PageServerLoad = async ({ locals }) => {
+export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug('Load function started in +page.server.ts');
 
 	const user = locals.user;
@@ -29,15 +29,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 		throw redirect(302, '/login');
 	}
 
+	// If we're already on a specific route (not the root), don't redirect
+	if (url.pathname !== '/') {
+		logger.debug(`Already on a specific route: ${url.pathname}, not redirecting`);
+		return { user, permissions };
+	}
+
 	let collections: Collections;
 
 	if (!locals.collections) {
 		try {
 			collections = await getCollections();
+			if (!collections) {
+				throw new Error('getCollections returned undefined');
+			}
 			locals.collections = collections;
-		} catch (err: any) {
-			logger.error('Error fetching collections:', err);
-			throw error(500, 'Error fetching collections');
+		} catch (err) {
+			const message = `Error in load.getCollections: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, { message });
 		}
 	} else {
 		collections = locals.collections as Collections;
@@ -49,8 +59,9 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const firstCollection = collections[firstCollectionKey];
 
 		if (!firstCollection || !firstCollection.name) {
-			logger.error('First collection or its name is undefined');
-			throw error(500, 'Invalid collection data');
+			const message = 'First collection or its name is undefined';
+			logger.error(message);
+			throw error(500, { message });
 		}
 
 		const defaultLanguage = publicEnv.DEFAULT_CONTENT_LANGUAGE || 'en';
@@ -59,7 +70,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.info(`Redirecting to first collection: ${firstCollection.name} with URL: ${redirectUrl}`);
 		throw redirect(302, redirectUrl);
 	} else {
-		logger.error('No collections found to redirect');
-		throw error(404, 'No collections found');
+		const message = 'No collections found to redirect';
+		logger.error(message);
+		throw error(404, { message });
 	}
 };

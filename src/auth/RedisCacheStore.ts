@@ -19,6 +19,7 @@
 
 import { privateEnv } from '@root/config/private';
 import { encrypt, decrypt } from '@src/utils/encryption';
+import { error } from '@sveltejs/kit';
 
 // Types
 import type { SessionStore } from './index';
@@ -28,7 +29,7 @@ import type { User } from './types';
 import { createClient } from 'redis';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Redis cache store
 export class RedisCacheStore implements SessionStore {
@@ -46,7 +47,7 @@ export class RedisCacheStore implements SessionStore {
 
 		// Connect to Redis
 		this.redisClient.connect().catch((err) => {
-			logger.error('Failed to connect to Redis:', err);
+			logger.error(`Failed to connect to Redis: ${err instanceof Error ? err.message : String(err)}`);
 		});
 	}
 
@@ -67,9 +68,10 @@ export class RedisCacheStore implements SessionStore {
 				EX: Number(expirationInSeconds)
 			});
 			logger.info(`Data stored in Redis: ${key}`);
-		} catch (error) {
-			logger.error(`Error storing data in Redis: ${error}`);
-			throw error;
+		} catch (err) {
+			const message = `Error in RedisCacheStore.set: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { key, expirationInSeconds });
+			throw error(500, message);
 		}
 	}
 
@@ -90,9 +92,10 @@ export class RedisCacheStore implements SessionStore {
 			}
 			logger.info(`Data retrieved from Redis: ${key}`);
 			return data;
-		} catch (error) {
-			logger.error(`Error retrieving data from Redis: ${error}`);
-			return null;
+		} catch (err) {
+			const message = `Error in RedisCacheStore.get: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { key });
+			throw error(500, message);
 		}
 	}
 
@@ -100,9 +103,11 @@ export class RedisCacheStore implements SessionStore {
 	async delete(key: string): Promise<void> {
 		try {
 			await this.redisClient.del(key);
-		} catch (error) {
-			const err = error as Error;
-			logger.error(`Error clearing data from Redis: ${err.message}`);
+			logger.info(`Data deleted from Redis: ${key}`);
+		} catch (err) {
+			const message = `Error in RedisCacheStore.delete: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { key });
+			throw error(500, message);
 		}
 	}
 
@@ -120,9 +125,10 @@ export class RedisCacheStore implements SessionStore {
 				return dbData;
 			}
 			return this.get(key);
-		} catch (error) {
-			logger.error(`Error validating data with DB: ${error}`);
-			return null;
+		} catch (err) {
+			const message = `Error in RedisCacheStore.validateWithDB: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message, { key });
+			throw error(500, message);
 		}
 	}
 
@@ -131,8 +137,10 @@ export class RedisCacheStore implements SessionStore {
 		try {
 			await this.redisClient.quit();
 			logger.info('Redis connection closed');
-		} catch (error) {
-			logger.error(`Error closing Redis connection: ${error}`);
+		} catch (err) {
+			const message = `Error in RedisCacheStore.close: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 }

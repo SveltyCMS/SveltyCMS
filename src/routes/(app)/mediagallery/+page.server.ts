@@ -3,7 +3,6 @@
  * @description Server-side logic for the media gallery page.
  *
  * This module handles:
- * - User authentication and session validation
  * - Fetching media files from various collections (images, documents, audio, video)
  * - Fetching virtual folders
  * - File upload processing for different media types
@@ -15,17 +14,16 @@
  */
 import { publicEnv } from '@root/config/public';
 
-import { redirect, error } from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { saveImage, saveDocument, saveAudio, saveVideo } from '@src/utils/media/mediaProcessing';
 import { constructUrl } from '@src/utils/media/mediaUtils';
 
 // Auth
-import { auth, dbAdapter } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { dbAdapter } from '@src/databases/db';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {
@@ -73,22 +71,16 @@ function convertIdToString(obj: any): any {
 	return root;
 }
 
-export const load: PageServerLoad = async ({ cookies }) => {
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-	if (!session_id) {
-		logger.warn('No session ID found, redirecting to login');
-		throw redirect(302, '/login');
-	}
-
-	if (!auth || !dbAdapter) {
-		logger.error('Authentication system or database adapter is not initialized');
+export const load: PageServerLoad = async ({ locals }) => {
+	if (!dbAdapter) {
+		logger.error('Database adapter is not initialized');
 		throw error(500, 'Internal Server Error');
 	}
 
 	try {
-		const user = await auth.validateSession({ session_id });
+		const user = locals.user;
 		if (!user) {
-			logger.warn('Invalid session, redirecting to login');
+			logger.warn('No user found in locals, redirecting to login');
 			throw redirect(302, '/login');
 		}
 
@@ -123,6 +115,7 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
+		logger.info('Media gallery data and virtual folders loaded successfully');
 		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders };
 
 		// Added Debugging: Log the returnData
@@ -130,28 +123,23 @@ export const load: PageServerLoad = async ({ cookies }) => {
 
 		return returnData;
 	} catch (err) {
-		logger.error(`Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`);
-		throw error(500, 'Internal Server Error');
+		const message = `Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
 };
 
 export const actions: Actions = {
-	default: async ({ request, cookies }) => {
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session ID found during file upload, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		if (!auth || !dbAdapter) {
-			logger.error('Authentication system or database adapter is not initialized');
+	default: async ({ request, locals }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
 		try {
-			const user = await auth.validateSession({ session_id });
+			const user = locals.user;
 			if (!user) {
-				logger.warn('Invalid session during file upload, redirecting to login');
+				logger.warn('No user found in locals during file upload');
 				throw redirect(302, '/login');
 			}
 
@@ -171,6 +159,19 @@ export const actions: Actions = {
 				video: saveVideo
 			};
 
+			const collection_names: Record<string, string> = {
+				application: 'media_documents',
+				audio: 'media_audio',
+				font: 'media_documents',
+				example: 'media_documents',
+				image: 'media_images',
+				message: 'media_documents',
+				model: 'media_documents',
+				multipart: 'media_documents',
+				text: 'media_documents',
+				video: 'media_videos'
+			};
+
 			for (const file of files) {
 				if (file instanceof File) {
 					const type = file.type.split('/')[0] as keyof typeof save_media_file;
@@ -186,8 +187,9 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error('Error during file upload:', (err as Error).message);
-			return { success: false, error: 'File upload failed' };
+			const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	},
 	deleteMedia: async ({ request }) => {
@@ -214,9 +216,9 @@ export const actions: Actions = {
 			} else {
 				throw error(500, 'Failed to delete image');
 			}
-		} catch (error) {
-			console.error('Error deleting image:', error);
+		} catch (err) {
+			console.error('Error deleting image:', err);
 			throw error(500, 'Internal Server Error');
 		}
-	}
+	},
 };

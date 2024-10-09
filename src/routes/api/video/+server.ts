@@ -26,7 +26,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { tiktok, twitch, vimeo, youtube } from '@components/widgets/remoteVideo/video';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Extracts the video ID from a YouTube URL
 function getYouTubeVideoId(url: string): string | null {
@@ -56,7 +56,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		if (hostname.includes('youtube.com') || hostname.includes('youtu.be')) {
 			const videoId = getYouTubeVideoId(url);
 			if (!videoId) {
-				throw new Error('Invalid YouTube URL');
+				throw Error('Invalid YouTube URL');
 			}
 			videoData = await youtube(videoId);
 		} else if (hostname.includes('vimeo.com')) {

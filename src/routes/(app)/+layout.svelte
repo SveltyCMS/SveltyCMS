@@ -18,8 +18,8 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	import { getTextDirection } from '@src/utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
@@ -27,7 +27,7 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collections, collectionValue } from '@stores/collectionStore';
+	import { collection, collectionValue } from '@stores/collectionStore';
 	import { sidebarState } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
@@ -53,25 +53,20 @@ Key features:
 	// Instead of using PageData, we'll use any for now
 	export let data: any;
 
-	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
-	let ForwardBackward: boolean = false;
-	let initial = true;
-
 	$: contentLanguage.set(data.language);
 
-	// Subscribe to changes in the collection store and do redirects
-	collection.subscribe(() => {
-		if (!$collection) return;
-		// Reset the value of the collectionValue store
+	// Function to handle collection changes
+	function handleCollectionChange(newCollection) {
+		if (!newCollection) return;
 		$collectionValue = {};
-		if (!ForwardBackward && initial != true) {
-			// If ForwardBackward is false and the current route is a collection route
-			browser && goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String($collection.name)}`);
+		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
+		if ($page.url.pathname !== newPath) {
+			browser && goto(newPath);
 		}
-		initial = false;
-		// Reset ForwardBackward to false
-		ForwardBackward = false;
-	});
+	}
+
+	// Subscribe to changes in the collection store
+	$: handleCollectionChange($collection);
 
 	// Subscribe to Setup System language
 	systemLanguage.subscribe((lang) => {

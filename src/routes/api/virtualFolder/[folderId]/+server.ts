@@ -26,7 +26,7 @@
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 import { publicEnv } from '@root/config/public';
 
 // Interface representing a Virtual Folder

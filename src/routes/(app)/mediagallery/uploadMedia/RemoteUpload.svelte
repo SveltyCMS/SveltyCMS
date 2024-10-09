@@ -34,7 +34,7 @@
 			});
 
 			if (!response.ok) {
-				throw new Error('Upload failed');
+				throw Error('Upload failed');
 			}
 
 			const result = await response.json();
@@ -46,7 +46,7 @@
 				});
 				remoteUrls = []; // Clear the remote URLs array after successful upload
 			} else {
-				throw new Error(result.error || 'Upload failed');
+				throw Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			console.error('Error uploading URLs:', error);

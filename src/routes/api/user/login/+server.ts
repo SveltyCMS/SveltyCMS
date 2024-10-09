@@ -1,41 +1,65 @@
 /**
- * @file src/routes/api/user/logout/+server.ts
- * @description API endpoint for user logout
- *
- * This endpoint handles user logout by destroying the current session.
- * It requires the session token to be sent in the request body.
- *
- * @route POST /api/user/logout
- * @param {Object} request.body
- * @param {string} request.body.sessionToken - The current session token
- * @returns {Object} JSON response
- * @returns {boolean} response.success - Indicates if the logout was successful
- * @returns {string} response.message - Status message
+ * @file src/routes/api/user/login/+server.ts
+ * @description API endpoint for user login
+ * 
+ * This endpoint handles user authentication:
+ * - Validates user credentials (email and password)
+ * - Creates a new session for authenticated users
+ * - Sets a session cookie for persistent authentication
+ * 
+ * The endpoint integrates with the SvelteKit error handling system
+ * and respects the authentication flow established in hooks.server.ts.
+ * 
+ * @throws {error} 401 - Invalid credentials
+ * @throws {error} 400 - Already authenticated
+ * @throws {error} 500 - Internal server error or authentication system unavailable
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
-
 import { auth } from '@src/databases/db';
+import { logger } from '@src/utils/logger';
 
-export const POST: RequestHandler = async ({ request }) => {
-	const { sessionToken } = await request.json();
+export const POST: RequestHandler = async ({ request, cookies, locals }) => {
+    if (!auth) {
+        logger.error('Authentication system is not initialized');
+        throw error(500, 'Internal Server Error');
+    }
 
-	if (!auth) {
-		return json({ success: false, message: 'Authentication system unavailable' }, { status: 500 });
-	}
+    // Check if user is already authenticated
+    if (locals.user) {
+        logger.warn('Already authenticated user attempting to log in');
+        throw error(400, 'Already authenticated');
+    }
 
-	if (!sessionToken) {
-		return json({ success: false, message: 'No session token provided' }, { status: 400 });
-	}
+    const { email, password } = await request.json();
 
-	try {
-		// Destroy the session
-		await auth.destroySession(sessionToken);
+    try {
+        const user = await auth.getUserByEmail(email);
+        if (!user || !user.password) {
+            logger.warn(`Login attempt failed: User not found or password not set for email: ${email}`);
+            throw error(401, 'Invalid credentials');
+        }
 
-		return json({ success: true, message: 'Logged out successfully' });
-	} catch (error) {
-		console.error('Logout error:', error);
-		return json({ success: false, message: 'An error occurred during logout' }, { status: 500 });
-	}
+        const argon2 = await import('argon2');
+        const isValidPassword = await argon2.verify(user.password, password);
+
+        if (!isValidPassword) {
+            logger.warn(`Login attempt failed: Invalid password for user: ${email}`);
+            throw error(401, 'Invalid credentials');
+        }
+
+        const session = await auth.createSession({ user_id: user._id, expires: new Date(Date.now() + 3600 * 1000) });
+        const sessionCookie = auth.createSessionCookie(session);
+        cookies.set(sessionCookie.name, sessionCookie.value, sessionCookie.attributes);
+
+        logger.info(`User logged in successfully: ${user._id}`);
+        return json({ success: true, message: 'Login successful' });
+    } catch (err) {
+        if (err.status === 401) {
+            throw err;
+        }
+        logger.error(`Login error: ${err.message}`);
+        throw error(500, 'An error occurred during login');
+    }
 };

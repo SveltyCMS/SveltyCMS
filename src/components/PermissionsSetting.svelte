@@ -36,7 +36,7 @@
 			// Wait for the initialization promise to resolve
 			await initializationPromise;
 			if (!authAdapter) {
-				throw new Error('Auth adapter is not initialized');
+				throw Error('Auth adapter is not initialized');
 			}
 
 			const fetchedRoles = await authAdapter.getAllRoles();
