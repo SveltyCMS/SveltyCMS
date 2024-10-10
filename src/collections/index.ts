@@ -151,7 +151,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 	try {
 		if (dev || building) {
 			logger.debug('Running in dev or building mode');
-			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./Auth.ts', '!./config.ts']);
+			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./config.ts']);
 			for (const [modulePath, moduleImport] of Object.entries(modules)) {
 				const rawName = modulePath.replace(/\.ts$/, '').replace('./', '');
 				const name = rawName; // 'name' is a string
