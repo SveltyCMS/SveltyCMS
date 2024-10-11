@@ -46,6 +46,9 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	await initializationPromise; // Ensure initialization is complete
 
+	logger.debug('OAuth load function called');
+	logger.debug(`Full URL: ${url.toString()}`);
+
 	if (!auth || !googleAuth) {
 		logger.error('Authentication system is not initialized');
 		throw error(500, 'Authentication system is not available');
@@ -55,6 +58,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	logger.debug(`Authorization code from URL: ${code}`);
 
 	if (!code) {
+		logger.warn('No authorization code found in URL');
 		// If there's no code, we just return and let the page render
 		return {};
 	}
@@ -93,7 +97,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		let avatarUrl: string | null = null;
 
 		if (!existingUser) {
-			// Fetch  & Save the Google user’s avatar
+			// Fetch  & Save the Google user's avatar
 			if (googleUser.picture) {
 				const response = await fetch(googleUser.picture);
 				const avatarFile = new File([await response.blob()], 'avatar.jpg', { type: 'image/jpeg' });

@@ -340,21 +340,21 @@ export const actions: Actions = {
 			return fail(429, { message: 'Too many requests. Please try again later.' });
 		}
 
-		const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
-		logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
-
-		const lang = signUpOAuthForm.data.lang;
-		logger.debug(`lang: ${lang}`);
-
-		const googleAuthClient = await googleAuth();
-		if (!googleAuthClient) {
-			logger.error('Google OAuth client is not initialized');
-			return fail(500, { message: 'Google OAuth is not available' });
-		}
-
-		const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
-
 		try {
+			const signUpOAuthForm = await superValidate(event, zod(signUpOAuthFormSchema));
+			logger.debug(`signUpOAuthForm: ${JSON.stringify(signUpOAuthForm)}`);
+
+			const lang = signUpOAuthForm.data.lang;
+			logger.debug(`lang: ${lang}`);
+
+			const googleAuthClient = await googleAuth();
+			if (!googleAuthClient) {
+				logger.error('Google OAuth client is not initialized');
+				return fail(500, { message: 'Google OAuth client initialization failed' });
+			}
+
+			const scopes = ['https://www.googleapis.com/auth/userinfo.profile', 'https://www.googleapis.com/auth/userinfo.email', 'openid'];
+
 			const authUrl = googleAuthClient.generateAuthUrl({
 				access_type: 'offline',
 				scope: scopes.join(' '),
@@ -366,19 +366,21 @@ export const actions: Actions = {
 			if (!authUrl) {
 				logger.error('Error during OAuth callback: Redirect URL not generated');
 				return fail(500, { message: 'Failed to generate redirect URL.' });
-			} else {
-				// Instead of redirecting, render the OAuth page
-				return {
-					status: 200,
-					body: {
-						authUrl
-					}
-				};
 			}
+
+			// Add this line to invalidate all user sessions before redirecting
+			if (auth && event.locals.user) {
+				await auth.invalidateAllUserSessions(event.locals.user._id);
+			}
+
+			// Redirect to the Google OAuth URL
+			logger.debug('Redirecting to Google OAuth URL');
+			return { status: 302, headers: { Location: authUrl } };
 		} catch (error) {
 			const err = error as Error;
-			logger.error(`Error in OAuth action: ${err.message}`);
-			throw Error(`Error in OAuth action: ${err.message}`);
+			logger.error(`Detailed error in OAuth action: ${err.message}`);
+			logger.error(`Error stack: ${err.stack}`);
+			return fail(500, { message: `OAuth error: ${err.message}` });
 		}
 	},
 

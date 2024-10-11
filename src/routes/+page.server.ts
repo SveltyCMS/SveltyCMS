@@ -10,10 +10,13 @@ import type { PageServerLoad } from './$types';
 
 // Collections
 import { getCollections } from '@src/collections';
-import type { Collections } from '@src/types';
+import type { Schema, CollectionNames } from '@src/collections/types';
 
 // System Logger
 import { logger } from '@utils/logger';
+
+// Define the Collections type
+type Collections = Record<CollectionNames, Schema>;
 
 export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug('Load function started in +page.server.ts');
@@ -56,7 +59,7 @@ export const load: PageServerLoad = async ({ locals, url }) => {
 	logger.debug(`Collections retrieved: ${collections ? Object.keys(collections).join(', ') : 'None'}`);
 
 	if (collections && Object.keys(collections).length > 0) {
-		const firstCollectionKey = Object.keys(collections)[0];
+		const firstCollectionKey = Object.keys(collections)[0] as CollectionNames;
 		const firstCollection = collections[firstCollectionKey];
 
 		if (!firstCollection || !firstCollection.name) {

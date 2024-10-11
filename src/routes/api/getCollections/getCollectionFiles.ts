@@ -25,8 +25,8 @@ import path from 'path';
 // System Logger
 import { logger } from '@src/utils/logger';
 
-// Use process.env for server-side environment variables
-const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+// Use import.meta.env for environment variables
+const collectionsFolder = import.meta.env.VITE_COLLECTIONS_FOLDER || './collections';
 
 // Custom error type for collection-related errors
 class CollectionError extends Error {
