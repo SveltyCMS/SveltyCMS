@@ -218,8 +218,8 @@ async function initializeAdapters(): Promise<void> {
 		if (!browser) {
 			await initializeMediaFolder();
 			await connectToDatabase();
-			// await updateCollections();
-			// const collections = await getCollections();
+			await updateCollections();
+			const collections = await getCollections();
 
 			if (Object.keys(collections).length === 0) {
 				throw error(500, 'No collections found after initialization');
