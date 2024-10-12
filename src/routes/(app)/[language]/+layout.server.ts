@@ -23,6 +23,7 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 
 // System Logger
 import { logger } from '@src/utils/logger';
+import { serializeCollections } from '@src/utils/serialize';
 
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {
@@ -50,11 +51,14 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		throw error(404, message);
 	}
 
+	const collections = serializeCollections(locals.collections)
+
 	return {
 		theme: theme || DEFAULT_THEME,
 		language,
 		user: {
 			role: user.role
-		}
+		},
+		collections,
 	};
 };

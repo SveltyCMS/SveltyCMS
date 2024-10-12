@@ -32,6 +32,7 @@ import { RedisCacheStore } from '@src/auth/RedisCacheStore';
 
 // System Logger
 import { logger } from '@src/utils/logger';
+import { getCollections } from './collections';
 
 // Initialize rate limiter
 const limiter = new RateLimiter({
@@ -198,6 +199,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 	if (user) {
 		// Fetch user roles
 		event.locals.roles = await auth.getAllRoles();
+		event.locals.collections = await getCollections();
 		logger.debug(`Roles retrieved for user ${user.email}: ${JSON.stringify(event.locals.roles)}`);
 
 		// Check for admin permissions
