@@ -15,8 +15,6 @@
 
 import { browser, dev } from '$app/environment'; // Detects if the code is running in the browser
 import { publicEnv } from '@root/config/public'; // Import environment configuration
-import fs from 'fs';
-import path from 'path';
 
 // Define the possible log levels
 type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
@@ -82,9 +80,9 @@ const isLogLevelEnabled = (level: LogLevel): boolean => {
 	return LOG_LEVEL_MAP[level].priority <= LOG_LEVEL_MAP[currentLogLevel].priority;
 };
 
-const applyColor = (level: LogLevel, message: string): string | [string, string] => {
+const applyColor = (level: LogLevel, message: string): string => {
 	if (browser) {
-		return [`%c${message}`, BROWSER_STYLES[level]];
+		return `%c${message}%c`;
 	} else {
 		const color = TERMINAL_COLORS[LOG_LEVEL_MAP[level].color];
 		return `${color}${message}${TERMINAL_COLORS.reset}`;
@@ -143,7 +141,7 @@ const formatValue = (value: LoggableValue): string => {
 			if (typeof parsed === 'object' && parsed !== null) {
 				return formatValue(parsed);
 			}
-		} catch (e) {
+		} catch {
 			// Not a valid JSON, continue with string formatting
 		}
 		// Color numbers and booleans within strings
@@ -193,17 +191,21 @@ const processLog = async (level: LogLevel, message: string, ...args: LoggableVal
 	const fullMessage = `${timestamp} ${coloredLevelStr}: ${formattedMessage} ${formattedArgs}`;
 
 	if (browser) {
-		console.log(fullMessage);
+		console.log(fullMessage, BROWSER_STYLES[level], '');
 	} else {
 		process.stdout.write(`${fullMessage}\n`);
 
 		// File logging (without colors)
-		try {
-			const logFile = path.join(config.logDirectory, config.logFileName);
-			const plainMessage = `${new Date().toISOString()} ${levelStr}: ${message} ${args.map(String).join(' ')}\n`;
-			fs.appendFileSync(logFile, plainMessage);
-		} catch (error) {
-			console.error('Failed to write to log file:', error);
+		if (!browser) {
+			try {
+				const { writeFile } = await import('fs/promises');
+				const { join } = await import('path');
+				const logFile = join(config.logDirectory, config.logFileName);
+				const plainMessage = `${new Date().toISOString()} ${levelStr}: ${message} ${args.map(String).join(' ')}\n`;
+				await writeFile(logFile, plainMessage, { flag: 'a' });
+			} catch (error) {
+				console.error('Failed to write to log file:', error);
+			}
 		}
 	}
 
@@ -218,13 +220,28 @@ const log = (level: LogLevel, message: string, ...args: LoggableValue[]): void =
 
 // Initialize log file on import
 if (!browser) {
-	if (!fs.existsSync(config.logDirectory)) {
-		fs.mkdirSync(config.logDirectory, { recursive: true });
-	}
-	const logFilePath = path.join(config.logDirectory, config.logFileName);
-	if (!fs.existsSync(logFilePath)) {
-		fs.writeFileSync(logFilePath, '');
-	}
+	(async () => {
+		try {
+			const { mkdir, writeFile, access } = await import('fs/promises');
+			const { join } = await import('path');
+			const { constants } = await import('fs');
+
+			try {
+				await access(config.logDirectory, constants.F_OK);
+			} catch {
+				await mkdir(config.logDirectory, { recursive: true });
+			}
+
+			const logFilePath = join(config.logDirectory, config.logFileName);
+			try {
+				await access(logFilePath, constants.F_OK);
+			} catch {
+				await writeFile(logFilePath, '');
+			}
+		} catch (error) {
+			console.error('Failed to initialize log file:', error);
+		}
+	})();
 }
 
 export const logger = {
@@ -243,9 +260,14 @@ export const logger = {
 	setLogDirectory: (directory: string) => {
 		config.logDirectory = directory;
 		if (!browser) {
-			if (!fs.existsSync(config.logDirectory)) {
-				fs.mkdirSync(config.logDirectory, { recursive: true });
-			}
+			(async () => {
+				try {
+					const { mkdir } = await import('fs/promises');
+					await mkdir(config.logDirectory, { recursive: true });
+				} catch (error) {
+					console.error('Failed to create log directory:', error);
+				}
+			})();
 		}
 	},
 	setLogFileName: (fileName: string) => {
