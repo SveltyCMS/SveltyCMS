@@ -29,7 +29,7 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collectionValue } from '@stores/collectionStore';
+	import { collection, collectionValue, collections } from '@stores/collectionStore';
 	import { sidebarState } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
@@ -58,15 +58,16 @@ Key features:
 
 	let isCollectionsLoaded = false;
 	let isNonCriticalDataLoaded = false;
+	let loadError: Error | null = null;
 
 	// Function to load critical data (collections)
-	async function loadCriticalData() {
+	async function initializeCollections() {
 		try {
-			const { getCollections } = await import('@collections');
 			await getCollections();
 			isCollectionsLoaded = true;
 		} catch (error) {
-			console.error('Error loading critical data:', error);
+			console.error('Error loading collections:', error);
+			loadError = error instanceof Error ? error : new Error('Unknown error occurred while loading collections');
 		}
 	}
 
@@ -134,15 +135,19 @@ Key features:
 		// Keyboard event listener for toggling search visibility
 		document.addEventListener('keydown', onKeyDown);
 
-		loadCriticalData();
+		initializeCollections();
 		loadNonCriticalData();
 
 		return () => {
-			// Cleanup: remove event listener and subscription
+			// Cleanup: remove event listeners
 			mediaQuery.removeEventListener('change', updateThemeBasedOnSystemPreference);
 			document.removeEventListener('keydown', onKeyDown);
 		};
 	});
+
+	$: if ($collections && Object.keys($collections).length > 0) {
+		isCollectionsLoaded = true;
+	}
 
 	// SEO
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
@@ -175,13 +180,15 @@ Key features:
 	<meta property="twitter:url" content={$page.url.href} />
 </svelte:head>
 
-<!-- Wait for dynamic Collection import -->
-<!-- TODO: Optimize this as this is not needed for ever page -->
-{#await getCollections()}
+{#if loadError}
+	<div class="text-error-500">
+		An error occurred: {loadError.message}
+	</div>
+{:else if !isCollectionsLoaded}
 	<div class="flex h-lvh items-center justify-between lg:justify-start">
 		<Loading />
 	</div>
-{:then}
+{:else}
 	<!-- hack as root +layout cannot be overwritten ? -->
 	{#if $page.url.pathname === '/login'}
 		<slot />
@@ -201,11 +208,7 @@ Key features:
 							? 'w-[220px]'
 							: 'w-fit'} relative border-r bg-white !px-2 text-center dark:border-surface-500 dark:bg-gradient-to-r dark:from-surface-700 dark:to-surface-900"
 					>
-						{#if isCollectionsLoaded}
-							<LeftSidebar />
-						{:else}
-							<div>Loading sidebar...</div>
-						{/if}
+						<LeftSidebar />
 					</aside>
 				{/if}
 
@@ -242,19 +245,17 @@ Key features:
 								<div class="flex h-screen items-center justify-center">
 									<Loading />
 								</div>
-							{:else if !isCollectionsLoaded}
-								<div>Loading content...</div>
 							{:else}
 								<slot />
 
 								<!--<div>mode : {$mode}</div>							
-							<div>screenSize : {$screenSize}</div>
-							<div>sidebarState.left : {$sidebarState.left}</div>
-							<div>sidebarState.right : {$sidebarState.right}</div>
-							<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
-							<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
-							<div>sidebarState.header : {$sidebarState.header}</div>
-							<div>sidebarState.footer : {$sidebarState.footer}</div> -->
+								<div>screenSize : {$screenSize}</div>
+								<div>sidebarState.left : {$sidebarState.left}</div>
+								<div>sidebarState.right : {$sidebarState.right}</div>
+								<div>sidebarState.pageheader : {$sidebarState.pageheader}</div>
+								<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
+								<div>sidebarState.header : {$sidebarState.header}</div>
+								<div>sidebarState.footer : {$sidebarState.footer}</div> -->
 							{/if}
 
 							{#if isNonCriticalDataLoaded}
@@ -278,11 +279,7 @@ Key features:
 					<aside
 						class="max-h-dvh w-[220px] border-l bg-surface-50 bg-gradient-to-r dark:border-surface-500 dark:from-surface-700 dark:to-surface-900"
 					>
-						{#if isCollectionsLoaded}
-							<RightSidebar />
-						{:else}
-							<div>Loading sidebar...</div>
-						{/if}
+						<RightSidebar />
 					</aside>
 				{/if}
 			</div>
@@ -293,8 +290,4 @@ Key features:
 			{/if}
 		</div>
 	{/if}
-{:catch error}
-	<div class="text-error-500">
-		An error occurred: {error.message}
-	</div>
-{/await}
+{/if}

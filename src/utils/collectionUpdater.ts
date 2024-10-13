@@ -1,99 +1,80 @@
 /**
  * @file collectionUpdater.ts
- * @description Utility functions for updating collection imports in a SvelteKit CMS project.
+ * @description Lazy-load collections using dynamic imports in a SvelteKit CMS project.
  *
  * This file contains two main functions:
  * 1. updateImports(): Updates the imports in the index file of the collections directory.
- *    It reads the collection files, generates import statements, and updates the allCollections object.
- * 2. compare(): A helper function to compare two arrays for equality.
+ *    It now supports lazy-loading using dynamic imports.
+ * 2. getCollection(): Function to dynamically import a specific collection when needed.
  *
- * The updateImports function checks for changes in the collections directory and updates the index.ts file accordingly.
+ * The updateImports function updates the index.ts file to enable dynamic collection loading.
  * It also runs Prettier on the updated file to ensure consistent formatting.
  *
  * @requires child_process - For executing shell commands
- * @requires fs - File system module
+ * @requires fs/promises - File system module with promise-based API
+ * @requires path - Path manipulation utility
  * @requires @utils/logger - Custom logging utility
  */
-
 import { exec } from 'child_process';
-import fs from 'fs';
-
-// System Logs
+import fs from 'fs/promises';
+import path from 'path';
 import { logger } from '@utils/logger';
 
-let files: Array<string> = [];
-let saveFiles: Array<string> = [];
+const COLLECTIONS_DIR = './src/collections';
+const INDEX_FILE = path.join(COLLECTIONS_DIR, 'index.ts');
+const EXCLUDED_FILES = new Set(['index.ts', 'types.ts', 'Auth.ts']);
 
-// This function updates the imports in the index file of the collections directory
-export async function updateImports() {
+// Update the index.ts file to include dynamic imports for collections
+export async function updateImports(): Promise<void> {
 	try {
-		// Read the files in the collections directory and filter out specific files
-		files = fs.readdirSync('./src/collections').filter((x) => !['index.ts', 'types.ts', 'Auth.ts'].includes(x));
+		const files = await getCollectionFiles();
+		const updatedContent = generateUpdatedContent(files);
 
-		// Read the contents of the index file
-		let indexFile = fs.readFileSync('./src/collections/index.ts', 'utf-8');
-
-		// Remove existing import statements and allCollections declaration from the index file
-		indexFile = indexFile.replace(/import \w+ from ["']\.\/.*;\s?/g, '').replace(/const allCollections\s?=\s?.*/g, '');
-
-		// Initialize variables to store import statements and allCollections declaration
-		let imports = '';
-		let allCollections = 'const allCollections={';
-		// Loop through the files and generate import statements and allCollections declaration
-		for (const file of files) {
-			const name = file.replace('.ts', '');
-			imports += `import ${name} from './${name}';\n`;
-			allCollections += `${name},`;
-		}
-
-		// Remove trailing comma and close the array declaration
-		allCollections = allCollections.substring(0, allCollections.length - 1) + '}';
-
-		// Check if the files have changed and update the index file if necessary
-		if (!compare(files, saveFiles)) {
-			fs.writeFileSync('./src/collections/index.ts', imports + '\n' + allCollections + '\n' + indexFile);
-			saveFiles = files;
-			logger.info('Updated index.ts file with new imports and collections');
-			exec('npx prettier  ./src/collections --write', (error, stdout, stderr) => {
-				if (error) {
-					logger.error('Error running prettier:', error);
-					return;
-				}
-				logger.info('Prettier output:', { stdout, stderr });
-			});
-		} else {
-			logger.info('No changes detected in the collections, index.ts file not updated');
-		}
+		// Write the updated content to the index.ts file
+		await fs.writeFile(INDEX_FILE, updatedContent);
+		logger.info('Updated index.ts file with lazy loading for collections');
+		await runPrettier();
 	} catch (error) {
-		logger.error('Error updating imports:', error as Error);
+		logger.error('Error updating imports:', error);
 		throw error;
 	}
 }
 
-// Function to compare two arrays for equality
-function compare(arr1: any, arr2: any) {
-	try {
-		// Sort both arrays
-		arr1.sort();
-		arr2.sort();
+// Retrieve all collection files excluding certain files
+async function getCollectionFiles(): Promise<string[]> {
+	const allFiles = await fs.readdir(COLLECTIONS_DIR);
+	return allFiles.filter((file) => !EXCLUDED_FILES.has(file) && file.endsWith('.ts'));
+}
 
-		// Check if the arrays have the same length
-		if (arr1.length !== arr2.length) {
-			return false;
-		}
+// Generate dynamic import content for lazy loading collections
+function generateUpdatedContent(files: string[]): string {
+	const allCollections = `const allCollections = {\n${files
+		.map((file) => {
+			const name = path.basename(file, '.ts');
+			return `  ${name}: () => import('./${name}'),`;
+		})
+		.join('\n')}\n};`;
 
-		// Compare the elements of both arrays
-		for (let i = 0; i < arr1.length; i++) {
-			if (arr1[i] !== arr2[i]) {
-				return false;
+	return `${allCollections}\n\nexport async function getCollection(name: string) {
+  if (name in allCollections) {
+    const collectionModule = await allCollections[name]();
+    return collectionModule.default;
+  }
+  throw new Error(\`Collection "\${name}" not found\`);
+}\n`;
+}
+
+// Run Prettier for consistent formatting
+async function runPrettier(): Promise<void> {
+	return new Promise((resolve, reject) => {
+		exec('npx prettier ./src/collections --write', (error, stdout, stderr) => {
+			if (error) {
+				logger.error('Error running prettier:', error);
+				reject(error);
+			} else {
+				logger.info('Prettier output:', { stdout, stderr });
+				resolve();
 			}
-		}
-
-		// Return true if the arrays are equal
-		return true;
-	} catch (error) {
-		// Handle any errors that might occur
-		logger.error('Error comparing arrays:', error as Error);
-		return false;
-	}
+		});
+	});
 }

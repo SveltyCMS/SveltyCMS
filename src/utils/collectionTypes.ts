@@ -8,77 +8,83 @@
  *
  * These functions read from and write to the 'src/collections' directory and update the 'types.ts' file.
  *
- * @requires fs - File system module
+ * @requires fs/promises - File system module with promise-based API
+ * @requires path - Path manipulation utility
  * @requires typescript - TypeScript compiler API
  */
 
-import fs from 'fs';
-
+import fs from 'fs/promises';
+import path from 'path';
 import ts from 'typescript';
 
-// This function generates TypeScript types for collections in a SvelteKit CMS project.
-export async function generateCollectionTypes() {
-	const files = fs.readdirSync('src/collections').filter((x) => {
-		return !['index.ts', 'types.ts', 'config.ts'].includes(x);
-	});
+const COLLECTIONS_DIR = 'src/collections';
+const TYPES_FILE = path.join(COLLECTIONS_DIR, 'types.ts');
+const EXCLUDED_FILES = new Set(['index.ts', 'types.ts', 'config.ts']);
 
-	// Read the src/collections directory and filter out files named index.ts, types.ts, and config.ts
-	// For each remaining file, remove the .ts extension and wrap the filename in single quotes
-	// Join these filenames together with a pipe (|), forming a TypeScript union type
-	const collections =
-		'export type CollectionNames = ' +
-		files
-			.map((x) => `'${x.replace('.ts', '')}'`)
-			.join('|')
-			.replaceAll(/\n/g, '') +
-		';';
+// Generates TypeScript union type of collection names
+export async function generateCollectionTypes(): Promise<void> {
+	try {
+		const files = await getCollectionFiles();
+		const collections = `export type CollectionNames = ${files.map((file) => `'${path.basename(file, '.ts')}'`).join('|')};`;
 
-	// console.log(collectionSchemas);
+		let types = await fs.readFile(TYPES_FILE, 'utf-8');
+		types = types.replace(/export\s+type\s+CollectionNames\s?=\s?.*?;/gms, '');
+		types += collections;
 
-	// Read the existing types from the types.ts file
-	let types = fs.readFileSync('src/collections/types.ts', 'utf-8');
-
-	// Replace the existing CollectionLabels type with an empty string
-	types = types.replace(/export\s+type\s+CollectionNames\s?=\s?.*?;/gms, '');
-
-	// Append the new CollectionLabels type to the types
-	types += collections;
-
-	// Write the updated types back to the types.ts file
-	fs.writeFileSync('src/collections/types.ts', types);
+		await fs.writeFile(TYPES_FILE, types);
+	} catch (error) {
+		console.error('Error generating collection types:', error);
+		throw error;
+	}
 }
 
-export async function generateCollectionFieldTypes() {
-	const files = fs.readdirSync('src/collections').filter((x) => {
-		return !['index.ts', 'types.ts', 'config.ts'].includes(x);
-	});
-	const collections = {};
-	for (const file of files) {
-		let content = fs.readFileSync('./src/collections/' + file, 'utf8');
-		const widgets = new Set();
-		for (const match of content.matchAll(/widgets.(.*?)\(/g)) {
-			widgets.add(match[1]);
-		}
-		content = content.replace(/widgets\./g, '');
-		content =
-			`${Array.from(widgets)
-				.map((widget) => `let  ${widget} = (args: any) =>args;`)
-				.join('\n')}` + content;
-		content = ts.transpile(content, {
-			target: ts.ScriptTarget.ESNext,
-			module: ts.ModuleKind.ESNext
-		});
-		const data = (await import('data:text/javascript,' + content)).default;
-		const collection: string[] = [];
+// Generates TypeScript types for fields in each collection.
+export async function generateCollectionFieldTypes(): Promise<void> {
+	try {
+		const files = await getCollectionFiles();
+		const collections: Record<string, string> = {};
 
-		for (const field of data.fields) {
-			const fieldName = field.db_fieldName || field.label;
-			collection.push(fieldName);
+		for (const file of files) {
+			const content = await fs.readFile(path.join(COLLECTIONS_DIR, file), 'utf-8');
+			const { fields } = await processCollectionFile(content);
+			collections[path.basename(file, '.ts')] = fields.join('|');
 		}
-		collections[file.replace('.ts', '')] = collection.join('|');
+
+		let types = await fs.readFile(TYPES_FILE, 'utf-8');
+		types = types.replace(/\n*export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
+		types += `\nexport type CollectionContent = ${JSON.stringify(collections).replace(/"/g, '')};`;
+
+		await fs.writeFile(TYPES_FILE, types);
+	} catch (error) {
+		console.error('Error generating collection field types:', error);
+		throw error;
 	}
-	let types = fs.readFileSync('src/collections/types.ts', 'utf-8');
-	types = types.replace(/\n*export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
-	types += '\n' + 'export type CollectionContent = ' + JSON.stringify(collections).replaceAll('|', `"|"`) + ';';
-	fs.writeFileSync('src/collections/types.ts', types);
+}
+
+async function getCollectionFiles(): Promise<string[]> {
+	const allFiles = await fs.readdir(COLLECTIONS_DIR);
+	return allFiles.filter((file) => !EXCLUDED_FILES.has(file) && file.endsWith('.ts'));
+}
+
+async function processCollectionFile(content: string): Promise<{ fields: string[] }> {
+	const widgets = new Set<string>();
+	content.match(/widgets\.(\w+)\(/g)?.forEach((match) => widgets.add(match.slice(8, -1)));
+
+	const processedContent = `
+    ${Array.from(widgets)
+			.map((widget) => `const ${widget} = (args: any) => args;`)
+			.join('\n')}
+    ${content.replace(/widgets\./g, '')}
+  `;
+
+	const transpiledContent = ts.transpile(processedContent, {
+		target: ts.ScriptTarget.ESNext,
+		module: ts.ModuleKind.ESNext
+	});
+
+	const { default: data } = await import('data:text/javascript,' + transpiledContent);
+
+	return {
+		fields: data.fields.map((field: any) => field.db_fieldName || field.label)
+	};
 }

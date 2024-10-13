@@ -1,7 +1,7 @@
-/** 
-@file src/collections/index.ts
-@description - Index file for collections.
-*/
+/**
+ * @file src/collections/index.ts
+ * @description Index file for collections. Manages collection loading, caching, and updates.
+ */
 
 import { error } from '@sveltejs/kit';
 import { browser, building, dev } from '$app/environment';
@@ -10,24 +10,23 @@ import { createCategories } from './config';
 import { getCollectionFiles } from '@api/getCollections/getCollectionFiles';
 
 // Stores
-import { categories, collections, unAssigned } from '@stores/collectionStore';
+import { categories, collections, unAssigned, collection, collectionValue, mode } from '@stores/collectionStore';
 import type { Unsubscriber } from 'svelte/store';
 
 // Components
 import { initWidgets } from '@components/widgets';
 
-// Types for schemas and collection names
+// Types
 import type { Schema, CollectionNames } from './types';
 
 // System logger
 import { logger } from '@utils/logger';
 
 // Cache for collection models
-let importsCache: Record<CollectionNames, Schema> = {} as Record<CollectionNames, Schema>;
-let unsubscribe: Unsubscriber | undefined; // Store unsubscriber handler
-
+let importsCache: Partial<Record<CollectionNames, Schema>> = {};
+let unsubscribe: Unsubscriber | undefined;
 // Cache for collection models
-let collectionModelsCache: Record<string, any> | null = null;
+let collectionModelsCache: Partial<Record<CollectionNames, Schema>> | null = null;
 
 // Type Guard Function to validate collection names
 export function isCollectionName(name: string): name is CollectionNames {
@@ -35,19 +34,18 @@ export function isCollectionName(name: string): name is CollectionNames {
 }
 
 // Function to get collections with cache support
-export async function getCollections(): Promise<Record<CollectionNames, Schema>> {
+export async function getCollections(): Promise<Partial<Record<CollectionNames, Schema>>> {
 	logger.debug('Starting getCollections');
 	// Initialize widgets
 	initWidgets();
 
 	// Return cached collections if available
 	if (collectionModelsCache) {
-		logger.debug(`Returning cached collections. Number of collections: ${Object.keys(collectionModelsCache).length}`);
+		logger.debug(`Returning cached collections. Count: ${Object.keys(collectionModelsCache).length}`);
 		return collectionModelsCache;
 	}
 
-	// Set up a promise to resolve collections from the store
-	return new Promise<Record<CollectionNames, Schema>>((resolve) => {
+	return new Promise<Partial<Record<CollectionNames, Schema>>>((resolve) => {
 		unsubscribe = collections.subscribe((cols) => {
 			if (Object.keys(cols).length > 0) {
 				unsubscribe?.();
@@ -63,54 +61,43 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 	logger.debug('Starting updateCollections');
 
 	if (recompile) {
-		importsCache = {} as Record<CollectionNames, Schema>; // Clear cache with type
+		importsCache = {}; // Clear cache
 	}
 
 	try {
 		const imports = await getImports(recompile);
-		logger.debug(`Imports fetched successfully. Number of imports: ${Object.keys(imports).length}`);
+		logger.debug(`Imports fetched. Count: ${Object.keys(imports).length}`);
 
-		let _categories = createCategories(imports);
-		logger.debug('Categories created');
+		const fullImports = imports as Record<CollectionNames, Schema>;
+		let _categories = createCategories(fullImports);
 
 		if (!dev && !building) {
 			logger.debug('Fetching new createCategories function');
-			const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Unique identifier for caching
 			try {
+				const config = `config.js?${Math.floor(Date.now() / 1000)}`; // Update cache timestamp
 				const { createCategories: newCreateCategories } = browser
 					? await import(/* @vite-ignore */ `/api/importCollection/${config}`)
-					: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${config}`);
-				_categories = newCreateCategories(imports);
+					: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${config}`);
+				_categories = newCreateCategories(fullImports);
 				logger.debug('New categories created successfully');
 			} catch (importError) {
-				const message = `Error importing new createCategories function: ${importError instanceof Error ? importError.message : String(importError)}`;
-				logger.error(message);
-				throw error(500, { message });
-				// Fallback to using the original categories
+				logger.error(`Error importing new createCategories function: ${importError}`);
 			}
 		}
 
-		_categories = _categories.map((category) => ({
-			...category,
-			collections: category.collections.filter(Boolean)
-		}));
+		const _collections: Partial<Record<CollectionNames, Schema>> = {};
+		_categories.forEach((category) => {
+			category.collections.forEach((col) => {
+				if (col.name && isCollectionName(col.name)) {
+					_collections[col.name] = col;
+				}
+			});
+		});
 
-		const _collections = _categories.reduce(
-			(acc, category) => {
-				category.collections.forEach((collection) => {
-					if (collection && collection.name && isCollectionName(collection.name)) {
-						acc[collection.name] = collection;
-					}
-				});
-				return acc;
-			},
-			{} as Record<CollectionNames, Schema>
-		);
-
-		logger.debug(`Collections processed. Number of collections: ${Object.keys(_collections).length}`);
+		logger.debug(`Collections processed. Count: ${Object.keys(_collections).length}`);
 
 		categories.set(_categories);
-		collections.set(_collections);
+		collections.set(_collections as Record<CollectionNames, Schema>);
 		unAssigned.set(Object.values(imports).filter((x) => !Object.values(_collections).includes(x)));
 
 		if (typeof window === 'undefined') {
@@ -120,29 +107,30 @@ export const updateCollections = async (recompile: boolean = false): Promise<voi
 				await getCollectionModels();
 				logger.debug('Collection models fetched successfully');
 			} catch (dbError) {
-				const message = `Error fetching collection models: ${dbError instanceof Error ? dbError.message : String(dbError)}`;
-				logger.error(message);
-				throw error(500, { message });
+				logger.error(`Error fetching collection models: ${dbError}`);
+				throw error(500, `Failed to fetch collection models: ${dbError}`);
 			}
 		}
 
-		logger.info(`Collections updated successfully. Number of collections: ${Object.keys(_collections).length}`);
+		collection.set({} as Schema);
+		collectionValue.set({});
+		mode.set('view');
+
+		logger.info(`Collections updated successfully. Count: ${Object.keys(_collections).length}`);
 	} catch (err) {
-		const message = `Error in updateCollections: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, { message });
+		logger.error(`Error in updateCollections: ${err}`);
+		throw error(500, `Failed to update collections: ${err}`);
 	}
 };
 
-// Initialize collections and handle errors
+// Initialize collections
 updateCollections().catch((err) => {
-	const message = `Failed to initialize collections: ${err instanceof Error ? err.message : String(err)}`;
-	logger.error(message);
-	throw error(500, { message });
+	logger.error(`Failed to initialize collections: ${err}`);
+	throw error(500, `Failed to initialize collections: ${err}`);
 });
 
 // Function to get imports based on environment
-async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
+async function getImports(recompile: boolean = false): Promise<Partial<Record<CollectionNames, Schema>>> {
 	logger.debug('Starting getImports function');
 
 	// Return from cache if available
@@ -186,7 +174,7 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 				const collectionModule =
 					typeof window !== 'undefined'
 						? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
-						: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${Math.floor(Date.now() / 1000)}`);
+						: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${file}?${Math.floor(Date.now() / 1000)}`);
 
 				await processModule(name, collectionModule);
 			}
@@ -195,9 +183,8 @@ async function getImports(recompile: boolean = false): Promise<Record<Collection
 		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
 	} catch (err) {
-		const message = `Error in getImports: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, { message });
+		logger.error(`Error in getImports: ${err}`);
+		throw error(500, `Failed to get imports: ${err}`);
 	}
 }
 
