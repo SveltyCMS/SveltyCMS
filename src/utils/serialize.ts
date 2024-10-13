@@ -4,6 +4,7 @@
  */
 
 import type { User } from '@src/auth/types';
+import type { Schema } from '@collections/types';
 
 // Define the Serializable type
 export type Serializable = {
@@ -27,6 +28,34 @@ export function serializeUser(user: User): Serializable {
 
 	// Add more serialization logic for other fields if necessary
 	return serializedUser;
+}
+
+function serializeCollection(collection: Schema) {
+	function serialize(obj: any) {
+		if (obj instanceof Date) {
+			return obj.toISOString();
+		}
+		if (typeof obj === 'function') {
+			return obj.toString();
+		}
+		// For arrays, serialize each element
+		if (Array.isArray(obj)) {
+			return obj.map((item) => serialize(item));
+		}
+		// For nested objects, serialize recursively
+		if (typeof obj === 'object') {
+			return Object.keys(obj).reduce((acc, key) => {
+				acc[key] = serialize(obj[key]);
+				return acc;
+			}, {});
+		}
+		return obj;
+	}
+
+	// Serialize fields
+	collection.fields = collection.fields.map((field) => serialize(field));
+
+	return collection;
 }
 
 // Interface representing an entry object
@@ -65,4 +94,16 @@ export function serializeEntries(entries: Entry[]): Serializable[] {
 // Serializes an array of users
 export function serializeUsers(users: User[]): Serializable[] {
 	return users.map((user) => serializeUser(user));
+}
+
+export function serializeCollections(collections: { [key: string]: Schema }) {
+	const serializedArray = Object.keys(collections).map((col) => serializeCollection(collections[col]));
+	const response = {};
+	for (let i = 0; i < serializedArray.length; i++) {
+		const serializedCollection = serializedArray[i];
+		if (serializedCollection && serializedCollection.name) {
+			response[serializedCollection.name] = serializedCollection;
+		}
+	}
+	return response;
 }

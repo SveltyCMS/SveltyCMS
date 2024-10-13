@@ -135,22 +135,16 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 export const actions: Actions = {
 	// Default action for file upload
-	default: async ({ request, cookies }) => {
-		const session_id = cookies.get(SESSION_COOKIE_NAME);
-		if (!session_id) {
-			logger.warn('No session ID found during file upload, redirecting to login');
-			throw redirect(302, '/login');
-		}
-
-		if (!auth || !dbAdapter) {
-			logger.error('Authentication system or database adapter is not initialized');
+	default: async ({ request, locals }) => {
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized');
 			throw error(500, 'Internal Server Error');
 		}
 
 		try {
-			const user = await auth.validateSession({ session_id });
+			const user = locals.user;
 			if (!user) {
-				logger.warn('Invalid session during file upload, redirecting to login');
+				logger.warn('No user found in locals during file upload');
 				throw redirect(302, '/login');
 			}
 
@@ -171,9 +165,22 @@ export const actions: Actions = {
 				video: saveVideo
 			};
 
+			const collection_names: Record<string, string> = {
+				application: 'media_documents',
+				audio: 'media_audio',
+				font: 'media_documents',
+				example: 'media_documents',
+				image: 'media_images',
+				message: 'media_documents',
+				model: 'media_documents',
+				multipart: 'media_documents',
+				text: 'media_documents',
+				video: 'media_videos'
+			};
+
 			for (const file of files) {
 				if (file instanceof File) {
-					const [type] = file.type.split('/') as [keyof typeof save_media_file];
+					const type = file.type.split('/')[0] as keyof typeof save_media_file;
 					if (type in save_media_file) {
 						const { fileInfo } = await save_media_file[type](file, collection_names[type], user._id);
 						await dbAdapter.insertMany(collection_names[type], [{ ...fileInfo, user: user._id }]);
@@ -186,38 +193,40 @@ export const actions: Actions = {
 
 			return { success: true };
 		} catch (err) {
-			logger.error('Error during file upload:', err instanceof Error ? err.message : String(err));
-			return { success: false, error: 'File upload failed' };
+			const message = `Error during file upload: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	},
 
 	// Action to delete a media file
 	deleteMedia: async ({ request }) => {
+		logger.warn('Request Body', await request.json());
+		const image = (await request.json())?.image;
+		logger.debug('Received delete request for image:', image);
+
+		if (!image || !image._id) {
+			logger.error('Invalid image data received');
+			throw error(400, 'Invalid image data received');
+		}
+
+		if (!dbAdapter) {
+			logger.error('Database adapter is not initialized.');
+			throw error(500, 'Internal Server Error');
+		}
+
 		try {
-			const { image } = await request.json();
-			logger.info('Received delete request for image:', image);
-
-			if (!image?._id) {
-				logger.error('Invalid image data received');
-				throw error(400, 'Invalid image data received');
-			}
-
-			if (!dbAdapter) {
-				logger.error('Database adapter is not initialized.');
-				throw error(500, 'Internal Server Error');
-			}
-
 			logger.info(`Deleting image: ${image._id}`);
 			const success = await dbAdapter.deleteMedia(image._id.toString());
 
 			if (success) {
 				logger.info('Image deleted successfully');
-				return { success: true };
+				return { success: false };
 			} else {
 				throw error(500, 'Failed to delete image');
 			}
 		} catch (err) {
-			logger.error('Error deleting image:', err instanceof Error ? err.message : String(err));
+			logger.error('Error deleting image:', err);
 			throw error(500, 'Internal Server Error');
 		}
 	}

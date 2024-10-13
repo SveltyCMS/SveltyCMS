@@ -37,7 +37,6 @@ export function isCollectionName(name: string): name is CollectionNames {
 // Function to get collections with cache support
 export async function getCollections(): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getCollections');
-
 	// Initialize widgets
 	initWidgets();
 
@@ -146,59 +145,50 @@ updateCollections().catch((err) => {
 async function getImports(recompile: boolean = false): Promise<Record<CollectionNames, Schema>> {
 	logger.debug('Starting getImports function');
 
-	if (!recompile && Object.keys(importsCache).length) return importsCache;
+	// Return from cache if available
+	if (!recompile && Object.keys(importsCache).length) {
+		logger.debug('Returning from cache');
+		return importsCache;
+	}
 
 	try {
+		const processModule = async (name: string, module: any) => {
+			if (!isCollectionName(name)) {
+				logger.error(`Invalid collection name: ${name}`);
+				return; // Skip invalid module
+			}
+			const collection = (module as { schema: Schema })?.schema ?? {};
+			if (collection) {
+				collection.name = name;
+				collection.icon = collection.icon || 'iconoir:info-empty';
+				importsCache[name] = collection;
+			} else {
+				logger.error(`Error importing collection: ${name}`);
+			}
+		};
+
+		// Development/Building mode
 		if (dev || building) {
 			logger.debug('Running in dev or building mode');
 			const modules = import.meta.glob(['./*.ts', '!./index.ts', '!./types.ts', '!./config.ts']);
 			for (const [modulePath, moduleImport] of Object.entries(modules)) {
-				const rawName = modulePath.replace(/\.ts$/, '').replace('./', '');
-				const name = rawName; // 'name' is a string
-
-				if (!isCollectionName(name)) {
-					logger.error(`Invalid collection name: ${name}`);
-					continue; // Skip this module
-				}
-
+				const name = modulePath.replace(/\.ts$/, '').replace('./', '');
 				const module = await moduleImport();
-				const collection = (module as { schema: Schema }).schema ?? {}; // Access the named export 'schema'
-
-				if (collection) {
-					collection.name = name; // Assigning string to collection.name
-					collection.icon = collection.icon || 'iconoir:info-empty';
-					importsCache[name] = collection;
-				} else {
-					logger.error(`Error importing collection: ${name}`);
-				}
+				await processModule(name, module);
 			}
 		} else {
+			// Production mode
 			logger.debug('Running in production mode');
 			const files = browser ? (await axios.get('/api/getCollections')).data : getCollectionFiles();
 
 			for (const file of files) {
-				const rawName = file.replace(/\.js$/, '');
-				const name = rawName; // 'name' is a string
-
-				if (!isCollectionName(name)) {
-					logger.error(`Invalid collection name: ${name}`);
-					continue; // Skip this module
-				}
-
+				const name = file.replace(/\.js$/, '');
 				const collectionModule =
 					typeof window !== 'undefined'
 						? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
 						: await import(/* @vite-ignore */ `${import.meta.env.collectionsFolderJS}${file}?${Math.floor(Date.now() / 1000)}`);
 
-				const collection = (collectionModule as { schema: Schema })?.schema; // Access the named export 'schema'
-
-				if (collection) {
-					collection.name = name; // Assigning string to collection.name
-					collection.icon = collection.icon || 'iconoir:info-empty';
-					importsCache[name] = collection;
-				} else {
-					logger.error(`Error importing collection: ${name}`);
-				}
+				await processModule(name, collectionModule);
 			}
 		}
 

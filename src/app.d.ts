@@ -34,6 +34,7 @@ declare global {
 			collections?: any; // Replace 'any' with your actual Collections type if available
 			permissions?: any[]; // Replace 'any' with your actual Permissions type if available
 			theme: Theme | null; // Ensure 'theme' is correctly typed
+			collections?: any; // Replace 'any' with your actual Collections type if available
 		}
 	}
 
