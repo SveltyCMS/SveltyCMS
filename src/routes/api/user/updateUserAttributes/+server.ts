@@ -23,7 +23,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { permissionCheck } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -46,9 +46,9 @@ const updateUserAttributesSchema = z.object({
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to update user attributes
-		const hasPermission = await permissionCheck(locals.user, {
+		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'config/userManagement',
-			requiredRole: 'admin',
+			name: 'Update User Attributes',
 			action: 'manage',
 			contextType: 'system'
 		});

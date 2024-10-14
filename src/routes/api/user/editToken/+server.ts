@@ -24,7 +24,7 @@ import { error } from '@sveltejs/kit';
 
 // Auth
 import { TokenAdapter } from '@src/auth/mongoDBAuth/tokenAdapter';
-import { permissionCheck } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -44,9 +44,9 @@ const editTokenSchema = z.object({
 export const PUT: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to edit tokens
-		const hasPermission = await permissionCheck(locals.user, {
+		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'config/userManagement',
-			requiredRole: 'admin',
+			name: 'Edit Token',
 			action: 'manage',
 			contextType: 'system'
 		});

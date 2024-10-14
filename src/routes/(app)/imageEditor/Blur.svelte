@@ -2,7 +2,6 @@
 @file src/routes/(app)/imageEditor/Blur.svelte
 @description This component allows users to apply a blur effect to a specific region of an image within a Konva stage.
 -->
-
 <script lang="ts">
 	import Konva from 'konva';
 	import { onMount, createEventDispatcher } from 'svelte';
@@ -11,70 +10,131 @@
 	export let layer: Konva.Layer;
 	export let imageNode: Konva.Image;
 
-	let blurAmount = 10;
-	let overlayType = 'circle';
-	let overlayNode: Konva.Shape | null = null;
+	let mosaicStrength = 10;
+	let blurRegion: Konva.Rect;
 	let transformer: Konva.Transformer;
-	let isBlurActive = true;
+	let isSelecting = false;
+	let startPoint: { x: number; y: number } | null = null;
+	let mosaicOverlay: Konva.Image;
 
 	const dispatch = createEventDispatcher();
 
 	onMount(() => {
-		transformer = new Konva.Transformer({
-			enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
-			rotateEnabled: false,
-			boundBoxFunc: (oldBox, newBox) => {
-				if (newBox.width < 30 || newBox.height < 30) {
-					return oldBox;
-				}
-				return newBox;
-			}
-		});
-		layer.add(transformer);
-		layer.draw();
+		stage.on('mousedown touchstart', handleMouseDown);
+		stage.on('mousemove touchmove', handleMouseMove);
+		stage.on('mouseup touchend', handleMouseUp);
+		stage.container().style.cursor = 'crosshair';
 
-		// Add initial blur overlay
-		addBlurOverlay();
+		return () => {
+			stage.off('mousedown touchstart');
+			stage.off('mousemove touchmove');
+			stage.off('mouseup touchend');
+		};
 	});
 
-	function addBlurOverlay() {
-		clearBlurs();
-		isBlurActive = true;
+	function handleMouseDown(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+		if (blurRegion) return;
 
-		const overlayOptions: Konva.ShapeConfig = {
-			x: stage.width() / 2 - 50, // Center the overlay
-			y: stage.height() / 2 - 50, // Center the overlay
-			width: 100, // Reduced initial size
-			height: 100, // Reduced initial size
-			draggable: true,
-			stroke: 'white',
-			strokeWidth: 2,
-			name: 'blurOverlay'
-		};
-
-		if (overlayType === 'circle') {
-			overlayNode = new Konva.Circle({
-				...overlayOptions,
-				radius: 50 // Reduced initial radius
-			});
-		} else {
-			overlayNode = new Konva.Rect(overlayOptions);
-		}
-
-		overlayNode.on('transform', () => {
-			applyBlur(true);
-		});
-
-		layer.add(overlayNode);
-		transformer.nodes([overlayNode]);
-		layer.add(transformer);
-		layer.draw();
-
-		applyBlur(true); // Apply initial blur
+		isSelecting = true;
+		const pos = stage.getPointerPosition();
+		startPoint = pos ? { x: pos.x, y: pos.y } : null;
 	}
 
-	function applyBlur(preview = false) {
-		if (!overlayNode) return;
+	function handleMouseMove(e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) {
+		if (!isSelecting || !startPoint) return;
+
+		const pos = stage.getPointerPosition();
+		if (!pos) return;
+
+		if (!blurRegion) {
+			blurRegion = new Konva.Rect({
+				x: startPoint.x,
+				y: startPoint.y,
+				width: pos.x - startPoint.x,
+				height: pos.y - startPoint.y,
+				stroke: 'white',
+				strokeWidth: 1,
+				dash: [5, 5],
+				draggable: true
+			});
+			layer.add(blurRegion);
+		} else {
+			blurRegion.width(pos.x - startPoint.x);
+			blurRegion.height(pos.y - startPoint.y);
+		}
+		layer.batchDraw();
+	}
+
+	function handleMouseUp() {
+		if (!isSelecting) return;
+
+		isSelecting = false;
+
+		if (blurRegion) {
+			const width = Math.abs(blurRegion.width());
+			const height = Math.abs(blurRegion.height());
+			blurRegion.width(width);
+			blurRegion.height(height);
+			if (blurRegion.x() > blurRegion.x() + width) {
+				blurRegion.x(blurRegion.x() - width);
+			}
+			if (blurRegion.y() > blurRegion.y() + height) {
+				blurRegion.y(blurRegion.y() - height);
+			}
+
+			transformer = new Konva.Transformer({
+				nodes: [blurRegion],
+				rotateEnabled: true,
+				borderDash: [5, 5],
+				borderStrokeWidth: 1,
+				borderStroke: 'white',
+				anchorStroke: '#0000FF',
+				anchorFill: '#0000FF',
+				anchorSize: 12, // Increased size
+				anchorCornerRadius: 6,
+				enabledAnchors: ['top-left', 'top-right', 'bottom-left', 'bottom-right'],
+				rotateAnchorOffset: 30,
+				rotateEnabled: false // Disable default rotate anchor
+			});
+
+			// Add custom rotate anchor at the bottom
+			const rotateAnchor = new Konva.Circle({
+				x: blurRegion.width() / 2,
+				y: blurRegion.height() + 30,
+				radius: 8,
+				fill: '#0000FF',
+				stroke: '#0000FF',
+				strokeWidth: 2,
+				draggable: true,
+				dragBoundFunc: function (pos) {
+					const center = {
+						x: blurRegion.x() + blurRegion.width() / 2,
+						y: blurRegion.y() + blurRegion.height() / 2
+					};
+					const angle = Math.atan2(pos.y - center.y, pos.x - center.x);
+					blurRegion.rotation((angle * 180) / Math.PI);
+					applyMosaic();
+					return {
+						x: center.x + Math.cos(angle) * (blurRegion.height() / 2 + 30),
+						y: center.y + Math.sin(angle) * (blurRegion.height() / 2 + 30)
+					};
+				}
+			});
+
+			transformer.add(rotateAnchor);
+			layer.add(transformer);
+
+			blurRegion.on('transform', applyMosaic);
+			blurRegion.on('dragmove', applyMosaic);
+
+			layer.batchDraw();
+
+			applyMosaic();
+		}
+	}
+
+	function applyMosaic() {
+		if (!blurRegion) return;
 
 		const canvas = document.createElement('canvas');
 		canvas.width = stage.width();
@@ -82,93 +142,86 @@
 		const context = canvas.getContext('2d');
 
 		if (context && imageNode.image()) {
-			context.drawImage(imageNode.image() as CanvasImageSource, 0, 0, stage.width(), stage.height());
+			context.drawImage(imageNode.image(), 0, 0, canvas.width, canvas.height);
 
-			context.filter = `blur(${blurAmount}px)`;
-			context.globalCompositeOperation = 'source-in';
+			const rect = blurRegion.getClientRect({ relativeTo: stage });
 
-			if (overlayType === 'circle' && overlayNode instanceof Konva.Circle) {
-				context.beginPath();
-				context.arc(overlayNode.x(), overlayNode.y(), overlayNode.radius(), 0, Math.PI * 2);
-				context.closePath();
-			} else if (overlayType === 'rectangle' && overlayNode instanceof Konva.Rect) {
-				context.beginPath();
-				context.rect(overlayNode.x(), overlayNode.y(), overlayNode.width() * overlayNode.scaleX(), overlayNode.height() * overlayNode.scaleY());
-				context.closePath();
+			context.save();
+			context.beginPath();
+			context.rect(rect.x, rect.y, rect.width, rect.height);
+			context.clip();
+
+			const tileSize = Math.max(1, Math.floor(mosaicStrength));
+			for (let y = rect.y; y < rect.y + rect.height; y += tileSize) {
+				for (let x = rect.x; x < rect.x + rect.width; x += tileSize) {
+					const pixelData = context.getImageData(x, y, 1, 1).data;
+					context.fillStyle = `rgb(${pixelData[0]}, ${pixelData[1]}, ${pixelData[2]})`;
+					context.fillRect(x, y, tileSize, tileSize);
+				}
 			}
 
-			context.fill();
+			context.restore();
 
-			const blurredImage = new Image();
-			blurredImage.src = canvas.toDataURL();
+			if (mosaicOverlay) {
+				mosaicOverlay.destroy();
+			}
 
-			blurredImage.onload = () => {
-				const blurOverlay = new Konva.Image({
-					image: blurredImage,
-					x: 0,
-					y: 0,
-					width: stage.width(),
-					height: stage.height(),
-					opacity: preview ? 0.5 : 1
-				});
+			mosaicOverlay = new Konva.Image({
+				image: canvas,
+				x: 0,
+				y: 0,
+				width: stage.width(),
+				height: stage.height()
+			});
 
-				layer.add(blurOverlay);
-				if (!preview) {
-					layer.draw();
-					dispatch('blurApplied');
-					isBlurActive = false;
-				}
-			};
+			layer.add(mosaicOverlay);
+			mosaicOverlay.moveToBottom();
+			mosaicOverlay.moveUp();
+			layer.batchDraw();
 		}
 	}
 
-	function clearBlurs() {
-		if (overlayNode) {
-			overlayNode.destroy();
-			transformer.nodes([]);
+	function updateMosaicStrength() {
+		applyMosaic();
+	}
+
+	function resetMosaic() {
+		if (blurRegion) {
+			blurRegion.destroy();
 		}
-		layer.find('.blurOverlay').forEach((node) => node.destroy());
-		layer.draw();
-		isBlurActive = false;
-	}
-
-	function updateBlurStrength() {
-		applyBlur(true);
-	}
-
-	function resetBlur() {
-		clearBlurs();
-		addBlurOverlay(); // Start fresh with a new blur overlay
+		if (transformer) {
+			transformer.destroy();
+		}
+		if (mosaicOverlay) {
+			mosaicOverlay.destroy();
+		}
+		layer.batchDraw();
 		dispatch('blurReset');
+	}
+
+	function applyFinalMosaic() {
+		applyMosaic();
+		dispatch('blurApplied');
 	}
 </script>
 
-<!-- Blur Controls UI -->
 <div class="wrapper">
 	<div class="flex items-center justify-around space-x-4">
 		<div class="flex flex-col space-y-2">
-			<label for="blur-strength" class="text-sm font-medium">Blur Strength:</label>
+			<label for="mosaic-strength" class="text-sm font-medium">Mosaic Strength:</label>
 			<input
-				id="blur-strength"
+				id="mosaic-strength"
 				type="range"
-				min="0"
-				max="40"
-				bind:value={blurAmount}
-				on:input={updateBlurStrength}
+				min="1"
+				max="50"
+				bind:value={mosaicStrength}
+				on:input={updateMosaicStrength}
 				class="h-2 w-full cursor-pointer rounded-full bg-gray-300"
 			/>
 		</div>
-		<div class="flex flex-col space-y-2">
-			<label for="blur-shape" class="text-center text-sm font-medium">Shape:</label>
-			<select id="blur-shape" bind:value={overlayType} on:change={addBlurOverlay} class="select-bordered select">
-				<option value="circle">Circle</option>
-				<option value="rectangle">Rectangle</option>
-			</select>
-		</div>
 	</div>
 	<div class="mt-4 flex justify-around gap-4">
-		<button on:click={clearBlurs} class="variant-filled-error btn">Cancel</button>
-		<button on:click={resetBlur} class="variant-outline btn">Reset</button>
-		<button on:click={() => applyBlur(false)} class="variant-filled-primary btn">Apply</button>
+		<button on:click={resetMosaic} class="variant-filled-error btn">Reset</button>
+		<button on:click={applyFinalMosaic} class="variant-filled-primary btn">Apply</button>
 	</div>
 </div>

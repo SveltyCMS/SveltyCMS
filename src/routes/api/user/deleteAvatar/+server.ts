@@ -23,7 +23,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { permissionCheck } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System logger
 import { logger } from '@utils/logger';
@@ -34,9 +34,9 @@ import { moveMediaToTrash } from '@utils/media/mediaStorage';
 export const DELETE: RequestHandler = async ({ locals }) => {
 	try {
 		// Check if the user has permission to delete their avatar
-		const hasPermission = await permissionCheck(locals.user, {
+		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'user/profile',
-			requiredRole: 'user',
+			name: 'Delete Avatar',
 			action: 'update',
 			contextType: 'user'
 		});

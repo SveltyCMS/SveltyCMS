@@ -2,7 +2,7 @@
  * @file src/auth/permissionCheck.ts
  * @description User permission checking utility for server-side routes.
  *
- * Provides a function to check user permissions based on their role and the required permissions for a specific action or resource.
+ * Provides functions to check user permissions based on their role and the required permissions for a specific action or resource.
  */
 
 import { error } from '@sveltejs/kit';

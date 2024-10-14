@@ -29,7 +29,7 @@ import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import logger from '@utils/logger';
+import { logger } from '@utils/logger';
 
 // Interface representing a Virtual Folder
 interface VirtualFolder {

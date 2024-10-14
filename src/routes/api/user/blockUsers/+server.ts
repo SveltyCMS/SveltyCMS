@@ -27,7 +27,7 @@ import type { RequestHandler } from './$types';
 
 // Auth
 import { auth } from '@src/databases/db';
-import { permissionCheck } from '@src/auth/permissionCheck';
+import { checkUserPermission } from '@src/auth/permissionCheck';
 
 // System logger
 import { logger } from '@utils/logger';
@@ -45,9 +45,9 @@ const blockUsersSchema = z.array(
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
 		// Check if the user has permission to block users
-		const hasPermission = await permissionCheck(locals.user, {
+		const { hasPermission } = await checkUserPermission(locals.user, {
 			contextId: 'config/userManagement',
-			requiredRole: 'admin',
+			name: 'Block Users',
 			action: 'manage',
 			contextType: 'system'
 		});
