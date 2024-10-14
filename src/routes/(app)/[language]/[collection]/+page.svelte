@@ -56,7 +56,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if ($collection?.name) {
 			// Reset collection value
 			$collectionValue = {};
-			if (!forwardBackward) {
+			if (!forwardBackward ) {
 				goto(`/${$contentLanguage}/${$collection.name}`);
 			}
 		}
