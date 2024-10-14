@@ -36,7 +36,7 @@
 			on:keydown={(e) => e.key === 'Enter'}
 			class="input outline-none transition-all duration-500 ease-in-out"
 		/>
-		{#if globalSearchValue}
+		{#if searchShow}
 			<button
 				on:click={() => {
 					globalSearchValue = '';
