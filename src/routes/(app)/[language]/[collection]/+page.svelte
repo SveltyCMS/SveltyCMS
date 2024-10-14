@@ -90,8 +90,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
 				<Fields />
 			</div>
-		{:else if $mode === 'media'}
-			<MediaGallery data={{}} />
+		<!-- {:else if $mode === 'media'}
+			<MediaGallery data={{}} /> -->
 		{/if}
 	{:else}
 		<div class="error">Error: Collection data not available.</div>

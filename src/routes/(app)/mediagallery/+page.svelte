@@ -152,7 +152,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Create virtual folder with existence check
 	async function createFolder(name: string) {
 		try {
-			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder._id) : null;
+			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder?._id) : null;
 			const newPath = parentFolder ? `${parentFolder.path.join('/')}/${name}` : `${publicEnv.MEDIA_FOLDER}/${name}`;
 
 			// Check if the folder already exists
@@ -300,7 +300,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
 		try {
-			const q = toFormData({ method: 'POST', image: event.detail?._id });
+			const q = toFormData({ method: 'POST', image: event.detail?._id  ?? "" });
 			const response = await axios.post('?/api/mediaHandler/', q, {
 				...config,
 				withCredentials: true // This ensures cookies are sent with the request
