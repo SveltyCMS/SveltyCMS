@@ -125,8 +125,9 @@ export class Auth {
 			logger.info(`User created: ${user._id}`);
 			return user;
 		} catch (err) {
-			logger.error(`Failed to create user: ${err instanceof Error ? err.message : String(err)}`, { userData });
-			throw error(500, `Failed to create user: ${err instanceof Error ? err.message : String(err)}`);
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to create user: ${errMsg}`);
+			throw error(500, `Failed to create user: ${errMsg}`);
 		}
 	}
 
@@ -149,8 +150,9 @@ export class Auth {
 			await this.db.updateUserAttributes(user_id, attributes);
 			logger.info(`User attributes updated for user ID: ${user_id}`);
 		} catch (err) {
-			logger.error(`Failed to update user attributes: ${err instanceof Error ? err.message : String(err)}`);
-			throw error(500, `Failed to update user attributes: ${err instanceof Error ? err.message : String(err)}`);
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to update user attributes: ${errMsg}`);
+			throw error(500, `Failed to update user attributes: ${errMsg}`);
 		}
 	}
 
@@ -160,8 +162,9 @@ export class Auth {
 			await this.db.deleteUser(user_id);
 			logger.info(`User deleted: ${user_id}`);
 		} catch (err) {
-			logger.error(`Failed to delete user: ${err instanceof Error ? err.message : String(err)}`);
-			throw error(500, `Failed to delete user: ${err instanceof Error ? err.message : String(err)}`);
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to delete user: ${errMsg}`);
+			throw error(500, `Failed to delete user: ${errMsg}`);
 		}
 	}
 
@@ -229,8 +232,9 @@ export class Auth {
 				return null;
 			}
 		} catch (err) {
-			logger.error(`Failed to check user: ${err instanceof Error ? err.message : String(err)}`, { fields });
-			throw error(500, `Failed to check user: ${err instanceof Error ? err.message : String(err)}`);
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to check user: ${errMsg}`);
+			throw error(500, `Failed to check user: ${errMsg}`);
 		}
 	}
 
@@ -239,8 +243,9 @@ export class Auth {
 		try {
 			return await this.db.getUserCount();
 		} catch (err) {
-			logger.error(`Failed to get user count: ${(err as Error).message}`);
-			throw error(500, 'Failed to retrieve user count.');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to get user count: ${errMsg}`);
+			throw error(500, `Failed to get user count: ${errMsg}`);
 		}
 	}
 
@@ -249,8 +254,9 @@ export class Auth {
 		try {
 			return await this.db.getUserById(user_id);
 		} catch (err) {
-			logger.error(`Failed to get user by ID: ${(err as Error).message}`);
-			throw error(500, 'Failed to retrieve user by ID.');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to get user by ID: ${errMsg}`);
+			throw error(500, `Failed to get user by ID: ${errMsg}`);
 		}
 	}
 
@@ -388,8 +394,9 @@ export class Auth {
 			await this.syncConfigFile();
 			logger.info('Roles synced with configuration successfully');
 		} catch (err) {
-			logger.error(`Failed to sync roles with config: ${err.message}`);
-			throw error(500, 'Failed to sync roles with configuration');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to sync roles with config: ${errMsg}`);
+			throw error(500, `Failed to sync roles with config: ${errMsg}`);
 		}
 	}
 
@@ -400,8 +407,9 @@ export class Auth {
 			await this.syncConfigFile();
 			logger.info('Roles set and config file synced successfully');
 		} catch (err) {
-			logger.error(`Failed to set roles and sync config: ${err.message}`);
-			throw error(500, 'Failed to set roles and sync config');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to set roles and sync config: ${errMsg}`);
+			throw error(500, `Failed to set roles and sync config: ${errMsg}`);
 		}
 	}
 	// Sync the config file with the default roles and permissions
@@ -457,8 +465,9 @@ export class Auth {
 			await fs.writeFile(configPath, content, 'utf8');
 			logger.info('Config file updated with new roles and permissions');
 		} catch (err) {
-			logger.error(`Failed to update config file: ${err.message}`);
-			throw error(500, 'Failed to update config file');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to update config file: ${errMsg}`);
+			throw error(500, `Failed to update config file: ${errMsg}`);
 		}
 	}
 
@@ -467,20 +476,23 @@ export class Auth {
 		try {
 			return await this.db.getAllUsers();
 		} catch (err) {
-			logger.error(`Failed to get all users: ${err.message}`);
-			throw error(500, 'Failed to retrieve all users');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to get all user: ${errMsg}`);
+			throw error(500, `Failed to get all user: ${errMsg}`);
 		}
 	}
 
 	// Get all tokens
-	async getAllTokens(filter?: Record<string, unknown>): Promise<Token[]> {
+	async getAllTokens(filter?: Record<string, unknown>): Promise<{ tokens: Token[]; count: number }> {
 		try {
 			const tokens = await this.db.getAllTokens(filter);
-			logger.debug('All tokens retrieved');
-			return tokens;
+			const count = tokens.length;
+			logger.debug(`index.ts:getAllTokens Retrieved ${count} tokens`);
+			return { tokens, count };
 		} catch (err) {
-			logger.error(`Failed to get all tokens: ${err.message}`);
-			throw error(500, 'Failed to retrieve tokens');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to get all tokens: ${errMsg}`);
+			throw error(500, `Failed to get all tokens: ${errMsg}`);
 		}
 	}
 
@@ -491,8 +503,9 @@ export class Auth {
 			await this.sessionStore.delete(session_id);
 			logger.info(`Session destroyed: ${session_id}`);
 		} catch (err) {
-			logger.error(`Failed to destroy session: ${err.message}`);
-			throw error(500, 'Failed to destroy session');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to destroy session: ${errMsg}`);
+			throw error(500, `Failed to destroy session: ${errMsg}`);
 		}
 	}
 
@@ -502,8 +515,9 @@ export class Auth {
 			const deletedCount = await this.db.deleteExpiredSessions();
 			logger.info(`Cleaned up ${deletedCount} expired sessions`);
 		} catch (err) {
-			logger.error(`Failed to clean up expired sessions: ${err.message}`);
-			throw error(500, 'Failed to clean up expired sessions');
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to clean up expired sessions: ${errMsg}`);
+			throw error(500, `Failed to clean up expired sessions: ${errMsg}`);
 		}
 	}
 
@@ -549,7 +563,7 @@ export class Auth {
 			} else {
 				const failedAttempts = (user.failedAttempts || 0) + 1;
 				if (failedAttempts >= 5) {
-					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // Lockout for 30 minutes
+					const lockoutUntil = new Date(Date.now() + 30 * 60 * 1000); // Lockout for 30 minutes
 					await this.db.updateUserAttributes(user._id, { failedAttempts, lockoutUntil });
 					const message = `User locked out due to too many failed attempts: ${user._id}`;
 					logger.warn(message);
@@ -561,11 +575,10 @@ export class Auth {
 					throw error(401, { message: 'Invalid credentials. Please try again.' });
 				}
 			}
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Login error: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Use a generic 500 error for unexpected errors
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Login error: ${errMsg}`);
+			throw error(500, `Login error: ${errMsg}`);
 		}
 	}
 
@@ -575,11 +588,10 @@ export class Auth {
 			await this.db.deleteSession(session_id);
 			await this.sessionStore.delete(session_id);
 			logger.info(`User logged out: ${session_id}`);
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Failed to log out: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Return a 500 error on failure
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to log out: ${errMsg}`);
+			throw error(500, `Failed to log out: ${errMsg}`);
 		}
 	}
 
@@ -601,11 +613,10 @@ export class Auth {
 				logger.warn(message);
 			}
 			return user; // Return the user or null if session is invalid
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : JSON.stringify(error);
-			const message = `Failed to validate session: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Generic error for unexpected failures
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to validate session: ${errMsg}`);
+			throw error(500, `Failed to validate session: ${errMsg}`);
 		}
 	}
 
@@ -623,11 +634,10 @@ export class Auth {
 			});
 			logger.info(`Token created for user ID: ${user_id}`);
 			return token; // Return the created token
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Failed to create token: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Generic error for unexpected failures
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to create token: ${errMsg}`);
+			throw error(500, `Failed to create token: ${errMsg}`);
 		}
 	}
 
@@ -636,11 +646,10 @@ export class Auth {
 		try {
 			logger.info(`Validating token: ${token} for user ID: ${user_id} of type: ${type}`);
 			return await this.db.validateToken(token, user_id, type); // Return validation result
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Failed to validate token: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Generic error for unexpected failures
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to create token: ${errMsg}`);
+			throw error(500, `Failed to create token: ${errMsg}`);
 		}
 	}
 
@@ -651,11 +660,10 @@ export class Auth {
 			const consumption = await this.db.consumeToken(token, user_id, type);
 			logger.info(`Token consumption result: ${consumption.message}`);
 			return consumption; // Return consumption result
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Failed to consume token: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Generic error for unexpected failures
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to consume token: ${errMsg}`);
+			throw error(500, `Failed to consume token: ${errMsg}`);
 		}
 	}
 
@@ -664,11 +672,10 @@ export class Auth {
 		try {
 			await this.db.invalidateAllUserSessions(user_id);
 			logger.info(`Invalidated all sessions for user ID: ${user_id}`);
-		} catch (error) {
-			const errMsg = error instanceof Error ? error.message : String(error);
-			const message = `Failed to invalidate all sessions for user ID: ${user_id}. Error: ${errMsg}`;
-			logger.error(message);
-			throw error(500, { message }); // Generic error for unexpected failures
+		} catch (err) {
+			const errMsg = err instanceof Error ? err.message : String(err);
+			logger.error(`Failed to invalidate all sessions for user ID: ${errMsg}`);
+			throw error(500, `Failed to invalidate all sessions for user ID: ${errMsg}`);
 		}
 	}
 

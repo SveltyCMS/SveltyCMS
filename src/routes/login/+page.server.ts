@@ -75,11 +75,12 @@ async function fetchAndRedirectToFirstCollection() {
 			}
 		} else {
 			logger.warn('No collections found');
+			return '/'; // Redirect to home if no collections are found
 		}
 	} catch (err) {
 		logger.error('Error fetching collections:', err);
+		return '/'; // Redirect to home in case of error
 	}
-	return '/';
 }
 
 export const load: PageServerLoad = async ({ url, cookies, fetch, request, locals }) => {

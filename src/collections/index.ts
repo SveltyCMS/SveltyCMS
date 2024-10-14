@@ -55,7 +55,6 @@ export async function getCollections(): Promise<Partial<Record<CollectionNames, 
 		});
 	});
 }
-
 // Function to update collections
 export const updateCollections = async (recompile: boolean = false): Promise<void> => {
 	logger.debug('Starting updateCollections');
