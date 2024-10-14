@@ -243,7 +243,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		logger.debug('Handling API request for authenticated user');
 		return handleApiRequest(event, resolve, user);
 	}
-	
+
 	const response = await resolve(event);
 	logger.debug('Proceeding with normal request handling');
 	return response;

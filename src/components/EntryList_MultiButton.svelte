@@ -120,7 +120,7 @@
 </script>
 
 <!-- Multibutton group-->
-<div class="variant-filled-token btn-group z-20 mt-1 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
+<div class="variant-filled-token relative overflow-visible btn-group z-20 mt-1 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
 	<!-- Left button -->
 	<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass}`} on:click|preventDefault={handleButtonClick}>
 		<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
@@ -143,7 +143,7 @@
 
 	{#if dropdownOpen}
 		<ul
-			class="drops absolute right-2 top-full z-50 mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
+			class="drops absolute z-50 right-2 top-full mt-1 max-h-[300px] divide-y divide-white overflow-y-auto rounded bg-surface-400 dark:bg-surface-700 rtl:left-2 rtl:right-auto"
 		>
 			{#each Object.keys(buttonMap) as type}
 				{#if $storeListboxValue !== type}
