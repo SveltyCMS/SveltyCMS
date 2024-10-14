@@ -10,6 +10,9 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 	if (dbType === 'mongodb') {
 		const mongoose = await import('mongoose');
 		try {
+			// Log connection parameters for debugging
+			//console.log('Connection parameters:', { host, port, user,password, database });
+
 			// Construct the MongoDB connection string dynamically
 			let connectionString;
 			if (host.startsWith('mongodb+srv://')) {
@@ -17,7 +20,11 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 				connectionString = `mongodb+srv://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb+srv://', '')}/${database}?retryWrites=true&w=majority`;
 			} else {
 				// Local connection
-				connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?authSource=admin&retryWrites=true&w=majority`;
+				if (user && password) {
+					connectionString = `mongodb://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?authSource=admin&retryWrites=true&w=majority`;
+				} else {
+					connectionString = `mongodb://${host.replace('mongodb://', '')}${port ? `:${port}` : ''}/${database}?retryWrites=true&w=majority`;
+				}
 			}
 			console.log('Connecting to MongoDB with connection string:', connectionString);
 
@@ -26,6 +33,7 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 			await mongoose.default.connection.db.admin().ping();
 			return true;
 		} catch (error) {
+			console.error('MongoDB connection error:', error);
 			throw Error(`MongoDB connection failed: ${error.message}`);
 		}
 	} else if (dbType === 'mariadb') {
@@ -164,6 +172,10 @@ export async function configureDatabase(privateConfigData = {}) {
 	const s = spinner();
 	try {
 		s.start(`Testing ${projectDatabase} connection...`);
+		// Ensure all required parameters are provided
+		if (!dbConfig.DB_HOST || !dbConfig.DB_NAME) {
+			throw new Error('Missing required database configuration');
+		}
 		isConnectionSuccessful = await testDatabaseConnection(projectDatabase, {
 			host: dbConfig.DB_HOST,
 			port: dbConfig.DB_PORT,
@@ -174,6 +186,7 @@ export async function configureDatabase(privateConfigData = {}) {
 		s.stop();
 	} catch (error) {
 		s.stop();
+		console.error('Database connection error:', error);
 		note(
 			`${pc.red(`${projectDatabase} connection failed:`)} ${error.message}\n` + 'Please check your connection details and try again.',
 			pc.red('Connection Error')
