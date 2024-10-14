@@ -164,7 +164,7 @@
 	}
 </script>
 
-<div class="bg-base-200 absolute bottom-4 left-4 z-50 rounded-md p-4 shadow-lg">
+<div class="wrapper">
 	<h3 class="mb-4 text-lg font-bold">Watermark Settings</h3>
 
 	<div class="mb-4">

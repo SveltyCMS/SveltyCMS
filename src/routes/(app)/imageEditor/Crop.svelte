@@ -178,7 +178,7 @@
 </script>
 
 <!-- Crop Controls UI -->
-<div class="wrapper bg-base-800 fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4 text-white shadow-lg">
+<div class="wrapper">
 	<div class="flex items-center justify-around space-x-4">
 		<div class="flex flex-col space-y-2">
 			<label for="cropShape" class="text-sm font-medium">Crop Shape:</label>

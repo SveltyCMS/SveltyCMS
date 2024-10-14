@@ -65,9 +65,11 @@
 	// Function to toggle the status
 	function toggleStatus() {
 		isPublished = !isPublished;
-		$collectionValue.status = isPublished ? 'published' : 'unpublished';
-		$collectionValue.updatedAt = new Date();
-		$collectionValue.save();
+		collectionValue.update((cv) => ({
+			...cv,
+			status: isPublished ? 'published' : 'unpublished',
+			updatedAt: new Date()
+		}));
 	}
 
 	// Convert timestamps to date strings

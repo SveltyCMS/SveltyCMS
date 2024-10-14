@@ -113,7 +113,7 @@
 	}
 </script>
 
-<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4">
+<div class="wrapper">
 	<div class="flex items-center justify-around">
 		<button on:click={rotateLeft} class="btn flex flex-col items-center" aria-label="Rotate Left">
 			<iconify-icon icon="mdi:rotate-left" width="24" />

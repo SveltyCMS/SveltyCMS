@@ -83,7 +83,7 @@ export async function getAllPermissions(): Promise<AuthPermission[]> {
 		const centralized = configPermissions.map(convertToAuthPermission);
 		const decentralized = decentralizedPermissions.map(convertToAuthPermission);
 		const allPermissions = [...centralized, ...decentralized];
-		logger.debug(`All aggregated permissions: ${JSON.stringify(allPermissions)}`);
+		//logger.debug(`All aggregated permissions: ${JSON.stringify(allPermissions)}`);
 		return allPermissions;
 	} catch (err) {
 		const message = `Error in getAllPermissions: ${err instanceof Error ? err.message : String(err)}`;

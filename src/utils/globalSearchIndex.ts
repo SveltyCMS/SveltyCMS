@@ -173,11 +173,19 @@ export const globalSearchIndex = writable<SearchData[]>([
 		}
 	},
 	{
-		title: 'Theme',
+		title: 'Theme Management',
 		description: 'Customize the look and feel of your site.',
 		keywords: ['theme', 'appearance', 'design', 'colors', 'layout'],
 		triggers: {
-			'Customize Theme': { path: '/config/theme', action: [() => {}] }
+			'Customize Theme': { path: '/config/themeManagement', action: [() => {}] }
+		}
+	},
+	{
+		title: 'Widget Management',
+		description: 'Extend the functionality of your site.',
+		keywords: ['widget', 'extension', 'customization'],
+		triggers: {
+			'Customize Widget': { path: '/config/widgetManagement', action: [() => {}] }
 		}
 	}
 ]);

@@ -57,7 +57,7 @@
 </script>
 
 <!-- Filter Controls UI -->
-<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-2">
+<div class="wrapper">
 	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Filter</h3>
 
 	<button on:click={exitShapeOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>

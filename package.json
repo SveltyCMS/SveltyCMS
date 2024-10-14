@@ -97,7 +97,7 @@
 		"tailwindcss": "^3.4.13",
 		"tslib": "^2.7.0",
 		"typescript": "^5.6.3",
-		"vite": "^5.4.8",
+		"vite": "^5.4.9",
 		"vite-plugin-tailwind-purgecss": "^0.3.3",
 		"zod": "^3.23.8"
 	},
@@ -157,6 +157,6 @@
 		"svelte-grid-extended": "^1.2.1",
 		"svelte-lexical": "^0.4.2",
 		"svelty-email": "^0.0.11",
-		"tailwind-merge": "^2.5.3"
+		"tailwind-merge": "^2.5.4"
 	}
 }

@@ -66,7 +66,7 @@ export async function _GET({
 
 		// Validate the collection name using the type guard
 		if (!schema.name || !isCollectionName(schema.name)) {
-			logger.error('Invalid or undefined schema name.');
+			logger.error(`Invalid or undefined schema name: ${schema.name}`);
 			return new Response('Invalid or undefined schema name.', { status: 400 });
 		}
 
@@ -92,46 +92,76 @@ export async function _GET({
 				const _sort = sort[fieldName];
 
 				if (widget.aggregations?.filters && _filter) {
-					const _aggregations = await widget.aggregations.filters({
-						field,
-						contentLanguage,
-						filter: _filter
-					});
-					aggregations.push(..._aggregations);
+					try {
+						const _aggregations = await widget.aggregations.filters({
+							field,
+							contentLanguage,
+							filter: _filter
+						});
+						aggregations.push(..._aggregations);
+					} catch (error) {
+						logger.error(`Error in widget filter aggregation for field ${fieldName}: ${error}`);
+						// Continue with other fields instead of breaking the entire request
+					}
 				}
 				if (widget.aggregations?.sorts && _sort) {
-					const _aggregations = await widget.aggregations.sorts({
-						field,
-						contentLanguage,
-						sort: _sort
-					});
-					aggregations.push(..._aggregations);
+					try {
+						const _aggregations = await widget.aggregations.sorts({
+							field,
+							contentLanguage,
+							sort: _sort
+						});
+						aggregations.push(..._aggregations);
+					} catch (error) {
+						logger.error(`Error in widget sort aggregation for field ${fieldName}: ${error}`);
+						// Continue with other fields instead of breaking the entire request
+					}
 				}
 			}
 		}
 
 		// Execute the aggregation pipeline
-		const [{ entries, totalCount }] = await collection.aggregate([
-			{
-				$facet: {
-					entries: [...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])],
-					totalCount: [...aggregations, { $count: 'total' }]
+		let entries, totalCount;
+		try {
+			[{ entries, totalCount }] = await collection.aggregate([
+				{
+					$facet: {
+						entries: [...aggregations, { $skip: skip }, ...(limit ? [{ $limit: limit }] : [])],
+						totalCount: [...aggregations, { $count: 'total' }]
+					}
 				}
-			}
-		]);
+			]);
+			logger.debug(
+				`Aggregation pipeline executed successfully. Entries: ${entries.length}, Total count: ${totalCount.length > 0 ? totalCount[0].total : 0}`
+			);
+		} catch (error) {
+			logger.error(`Error executing aggregation pipeline: ${error}`);
+			return new Response('Error executing database query', { status: 500 });
+		}
 
 		// Modify request with the retrieved entries
-		await modifyRequest({
-			data: entries,
-			collection,
-			fields: schema.fields,
-			user,
-			type: 'GET'
-		});
-		logger.debug(`Request modified for ${entries.length} entries`);
+		try {
+			await modifyRequest({
+				data: entries,
+				collection,
+				fields: schema.fields,
+				user,
+				type: 'GET'
+			});
+			logger.debug(`Request modified for ${entries.length} entries`);
+		} catch (error) {
+			logger.error(`Error in modifyRequest: ${error}`);
+			// Continue with the original entries if modifyRequest fails
+		}
 
 		// Get all collected IDs and modify request
-		await get_elements_by_id.getAll(dbAdapter);
+		try {
+			await get_elements_by_id.getAll(dbAdapter);
+			logger.debug('get_elements_by_id.getAll executed successfully');
+		} catch (error) {
+			logger.error(`Error in get_elements_by_id.getAll: ${error}`);
+			// Continue even if this step fails
+		}
 
 		// Calculate total count and pages count
 		const total = totalCount[0]?.total ?? 0;

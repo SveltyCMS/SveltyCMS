@@ -140,7 +140,7 @@
 </script>
 
 <!-- Focal Point Controls UI -->
-<div class="wrapper bg-base-800 fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4 text-white shadow-lg">
+<div class="wrapper">
 	<div class="flex flex-col items-center justify-around space-y-2">
 		<p class="text-sm font-medium">Focal Point Position:</p>
 		<div class="flex space-x-4">

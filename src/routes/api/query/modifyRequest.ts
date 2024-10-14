@@ -56,6 +56,8 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 			const widget = widgets[field.widget.Name];
 			const fieldName = getFieldName(field);
 
+			logger.debug(`Processing field: ${fieldName}, widget: ${field.widget.Name}`);
+
 			if (widget && 'modifyRequest' in widget) {
 				data = await Promise.all(
 					data.map(async (entry: any) => {
@@ -70,15 +72,24 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 								}
 							};
 
-							await widget.modifyRequest({
-								collection,
-								field,
-								data: dataAccessor,
-								user,
-								type,
-								id: entryCopy._id,
-								meta_data: entryCopy.meta_data
-							});
+							logger.debug(`Calling modifyRequest for entry: ${entryCopy._id}, field: ${fieldName}`);
+
+							try {
+								await widget.modifyRequest({
+									collection,
+									field,
+									data: dataAccessor,
+									user,
+									type,
+									id: entryCopy._id,
+									meta_data: entryCopy.meta_data
+								});
+							} catch (widgetError) {
+								const errorMessage = widgetError instanceof Error ? widgetError.message : 'Unknown error occurred in widget';
+								const errorStack = widgetError instanceof Error ? widgetError.stack : '';
+								logger.error(`Error in widget.modifyRequest for field ${fieldName}: ${errorMessage}`, { stack: errorStack });
+								// Don't rethrow the error, just log it and continue with the next entry
+							}
 
 							return entryCopy;
 						} catch (error) {

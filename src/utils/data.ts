@@ -66,7 +66,9 @@ export async function getData(query: {
 			...config,
 			withCredentials: true // This ensures cookies are sent with the request
 		});
-		logger.debug('Successfully completed GET request', { data: response.data });
+		logger.debug('Successfully completed GET request', {
+			data: JSON.stringify(response.data)
+		});
 		return response.data as {
 			entryList: [any];
 			pagesCount: number;
@@ -75,7 +77,7 @@ export async function getData(query: {
 		if (error instanceof AxiosError) {
 			logger.error(`AxiosError in POST request: ${error.response?.status}`);
 		} else {
-			logger.error('Error in POST request:', error);
+			logger.error('Error in POST request:', error as Error);
 		}
 		throw error;
 	}

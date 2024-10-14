@@ -119,7 +119,7 @@
 </div>
 
 <!-- Resize and Exit Controls -->
-<div class="wrapper fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4">
+<div class="wrapper">
 	<div class="flex items-center justify-around space-x-2">
 		<label class="label text-center">
 			Width:

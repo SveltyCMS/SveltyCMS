@@ -240,7 +240,6 @@
 <div class="my-4">
 	<div class="wrapper !bg-error-500 text-center">
 		<p>Current in Development!!! For testing purposes only</p>
-		<p>Environment Data is only shown to role admin</p>
 	</div>
 </div>
 
@@ -260,11 +259,13 @@
 </div>
 
 <!-- Image Editor Container -->
-<div class="mb-2 flex h-[calc(100vh-225px)] flex-col items-center justify-center overflow-hidden" bind:this={containerRef}>
+<div class="flex h-[calc(100vh-315px)] flex-col items-center justify-center overflow-hidden border-2 border-tertiary-500" bind:this={containerRef}>
 	{#if !imageFile}
-		<p class="mb-4 text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
+		<p class=" text-center text-tertiary-500 dark:text-primary-500">Please upload an image to start editing.</p>
 	{/if}
+</div>
 
+<div class="relative">
 	{#if stage && layer && imageNode && imageFile}
 		<!-- Conditionally display the tool components based on the active state -->
 		{#if activeState === 'rotate'}
@@ -317,7 +318,7 @@
 
 		<!-- Tool Controls -->
 		{#if activeState === ''}
-			<div class="wrapper mt-4 flex flex-wrap items-center justify-center gap-2">
+			<div class="relative mt-1 flex flex-wrap items-center justify-center gap-2">
 				<button on:click={() => toggleTool('rotate')} aria-label="Rotate" class="mx-2">
 					<iconify-icon icon="mdi:rotate-right" width="24" class="text-tertiary-600" />
 					Rotate

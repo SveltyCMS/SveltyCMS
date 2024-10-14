@@ -147,7 +147,7 @@
 </script>
 
 <!-- Text Overlay Controls UI -->
-<div class="wrapper bg-base-800 fixed bottom-0 left-0 right-0 z-50 flex flex-col space-y-4 p-4 text-white shadow-lg">
+<div class="wrapper">
 	<h3 class=" relative text-center text-lg font-bold text-tertiary-500 dark:text-primary-500">Text Overlay</h3>
 
 	<button on:click={exitTextOverlay} class="variant-ghost-primary btn-icon absolute -top-2 right-2 font-bold"> Exit </button>
