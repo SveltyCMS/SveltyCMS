@@ -25,7 +25,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 
 	// Reactive re-computation for setting collection based on route parameters
 	$: if ($collections && $page.params.collection) {
-		collections.set($page.data.collections);
 		const selectedCollection = $collections[$page.params.collection];
 		if (selectedCollection) {
 			collection.set(selectedCollection as Schema);
@@ -92,7 +91,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 				<Fields />
 			</div>
 		{:else if $mode === 'media'}
-			<MediaGallery />
+			<MediaGallery data={{}} />
 		{/if}
 	{:else}
 		<div class="error">Error: Collection data not available.</div>

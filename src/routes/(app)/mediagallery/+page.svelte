@@ -30,7 +30,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	const modalStore = getModalStore();
 
 	// Prop to receive data from the server
-	export let data;
+	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = undefined;
 
 	let files: MediaImage[] = [];
 
@@ -56,6 +56,8 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			console.log('Processed folders:', folders); // Ensure the structure is as expected
 		} else {
 			console.error('Virtual folders data is missing or in unexpected format');
+			folders = [];
+
 			toastStore.trigger({
 				message: 'Error loading folder structure',
 				background: 'variant-filled-error',
@@ -287,16 +289,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	// Update breadcrumb
 	function updateBreadcrumb() {
-		if (currentFolder) {
-			// Start with the root folder
-			breadcrumb = [publicEnv.MEDIA_FOLDER];
-
-			// Add the rest of the path
-			if (currentFolder.path) {
-				breadcrumb = breadcrumb.concat(currentFolder.path.slice(1));
-			}
+		if (currentFolder && currentFolder.path) {
+			breadcrumb = [publicEnv.MEDIA_FOLDER, ...currentFolder.path.slice(1)];
 		} else {
-			// Only show the root folder if no current folder is selected
 			breadcrumb = [publicEnv.MEDIA_FOLDER];
 		}
 		console.log('Updated breadcrumb:', breadcrumb);
