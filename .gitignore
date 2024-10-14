@@ -54,3 +54,6 @@ src/routes/(app)/dashboard/widgets/Last5MediaWidget.svelte
 src/routes/(app)/dashboard/widgets/MemoryWidget.svelte
 src/routes/(app)/dashboard/widgets/SystemMessagesWidget.svelte
 src/routes/(app)/dashboard/widgets/UserActivityWidget.svelte
+
+#paraglide.js
+src/paraglide/**/*.js
