@@ -9,7 +9,6 @@
 	import axios from 'axios';
 
 	// Import necessary utilities and types
-	import { SESSION_COOKIE_NAME } from '@src/auth';
 	import { page } from '$app/stores';
 	import { get } from 'svelte/store';
 	import { avatarSrc, pkgBgColor, systemLanguage } from '@stores/store';
@@ -90,19 +89,34 @@
 	async function signOut() {
 		try {
 			console.log('Starting sign-out process...');
-			document.cookie = `${SESSION_COOKIE_NAME}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-			console.log('Session cookie cleared');
+
+			// Call the logout API endpoint
+			const response = await axios.post(
+				'/api/user/logout',
+				{},
+				{
+					withCredentials: true // This is important to include cookies
+				}
+			);
+
+			console.log('Logout response:', response.data);
+
+			// Always invalidate and redirect, even if the server response isn't as expected
 			await invalidateAll();
 			console.log('All data invalidated');
 			await goto('/login');
 			console.log('Redirected to login page');
-		} catch (error: unknown) {
+		} catch (error) {
 			console.error('Error during sign-out:', error instanceof Error ? error.message : 'Unknown error');
+
+			// Even if there's an error, we should still invalidate and redirect
+			await invalidateAll();
+			await goto('/login');
 		}
 	}
 
 	// GitHub version and theme toggle
-	const pkg = __VERSION__;
+	const pkg = __VERSION__ || '';
 	let githubVersion = '';
 
 	axios

@@ -15,8 +15,7 @@
  * @throws {error} 400 - No active session
  * @throws {error} 500 - Internal server error or authentication system unavailable
  */
-
-import { json, error } from '@sveltejs/kit';
+import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
@@ -25,33 +24,31 @@ import { logger } from '@utils/logger';
 export const POST: RequestHandler = async ({ cookies, locals }) => {
 	if (!auth) {
 		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
-
-	if (!locals.user) {
-		logger.warn('Unauthenticated user attempting to log out');
-		throw error(401, 'Not authenticated');
+		return json({ success: false, message: 'Internal Server Error' }, { status: 500 });
 	}
 
 	const session_id = cookies.get(SESSION_COOKIE_NAME);
 
-	if (!session_id) {
-		logger.warn('No active session found during logout attempt');
-		throw error(400, 'No active session');
-	}
-
 	try {
-		// Destroy the session in the database and any in-memory stores
-		await auth.destroySession(session_id);
+		if (session_id) {
+			// Destroy the session in the database and any in-memory stores
+			await auth.destroySession(session_id);
+			logger.info(`Session destroyed: ${session_id}`);
+		} else {
+			logger.warn('No active session found during logout attempt');
+		}
 
-		// Clear the session cookie
+		// Always clear the session cookie, even if there wasn't an active session
 		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
 
-		logger.info(`User logged out successfully: ${session_id}`);
+		// Clear the user from locals
+		locals.user = null;
+
+		logger.info('User logged out successfully');
 		return json({ success: true, message: 'Logged out successfully' });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
 		logger.error('Logout error:', { error: errorMessage });
-		return json({ success: false, error: `An error occurred during logout: ${error.message}` }, { status: 500 });
+		return json({ success: false, message: 'An error occurred during logout' }, { status: 500 });
 	}
 };
