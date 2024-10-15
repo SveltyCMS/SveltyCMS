@@ -5,11 +5,6 @@
 
 <script lang="ts">
 	import { createEventDispatcher } from 'svelte';
-	import Konva from 'konva';
-
-	export let stage: Konva.Stage;
-	export let layer: Konva.Layer;
-	export let imageNode: Konva.Image;
 
 	const dispatch = createEventDispatcher();
 
