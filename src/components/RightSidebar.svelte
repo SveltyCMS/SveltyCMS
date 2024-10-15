@@ -28,7 +28,6 @@
 	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
 	import { logger } from "@src/utils/logger";
-	import { logger } from "@src/utils/logger";
 
 	const modalStore = getModalStore();
 
