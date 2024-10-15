@@ -166,24 +166,38 @@ async function getImports(recompile: boolean = false): Promise<Partial<Record<Co
 		} else {
 			// Production mode
 			logger.debug('Running in production mode');
-			const files = browser ? (await axios.get('/api/getCollections')).data : getCollectionFiles();
+			let files: string[] = [];
+			try {
+				files = browser ? (await axios.get('/api/getCollections')).data : await getCollectionFiles();
+				if (!Array.isArray(files)) {
+					logger.error(`Files is not an array: ${JSON.stringify(files)}`);
+					files = [];
+				}
+			} catch (error) {
+				logger.error(`Error fetching collection files: ${error instanceof Error ? error.message : String(error)}`);
+				files = [];
+			}
 
 			for (const file of files) {
 				const name = file.replace(/\.js$/, '');
-				const collectionModule =
-					typeof window !== 'undefined'
-						? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
-						: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${file}?${Math.floor(Date.now() / 1000)}`);
+				try {
+					const collectionModule =
+						typeof window !== 'undefined'
+							? (await axios.get(`/api/getCollection?fileName=${file}?${Math.floor(Date.now() / 1000)}`)).data
+							: await import(/* @vite-ignore */ `${import.meta.env.VITE_COLLECTIONS_FOLDER_JS}${file}?${Math.floor(Date.now() / 1000)}`);
 
-				await processModule(name, collectionModule);
+					await processModule(name, collectionModule);
+				} catch (moduleError) {
+					logger.error(`Error processing module ${name}: ${moduleError instanceof Error ? moduleError.message : String(moduleError)}`);
+				}
 			}
 		}
 
 		logger.debug('Imported collections:', { collections: Object.keys(importsCache) });
 		return importsCache;
 	} catch (err) {
-		logger.error(`Error in getImports: ${err}`);
-		throw error(500, `Failed to get imports: ${err}`);
+		logger.error(`Error in getImports: ${err instanceof Error ? err.message : String(err)}`);
+		throw error(500, `Failed to get imports: ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 

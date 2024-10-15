@@ -23,9 +23,6 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	// Export the data prop
-	export let data;
-
 	// Modal Trigger - New Category
 	function modalAddCategory(): void {
 		const modalComponent: ModalComponent = {
