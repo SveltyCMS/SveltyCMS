@@ -84,17 +84,17 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
 	}
 
-	$: logger.debug('Collection:', $page.params.collection);
+	$: console.debug('Store values :',$collectionValue);
 </script>
 
 {#if  $page.params.collection}
-	<div class="content">
+	<div class="content h-full">
 		{#if $collection}
 			{#if $mode === 'view' || $mode === 'modify'}
 				<EntryList />
 			{:else if ['edit', 'create'].includes($mode)}
 				<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-					<Fields />
+					<Fields fields={$collection.fields} mode={$mode} fieldsData={$collectionValue} root={false} />
 				</div>
 			{:else if $mode === 'media' && $page.params.collection}
 				<MediaGallery data={{}} />

@@ -59,7 +59,7 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $collectionValue?.status === 'published';
+	let isPublished = $collectionValue?.status.toUpperCase() === 'PUBLISHED';
 	let inputPopupUser = '';
 	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
 
@@ -110,7 +110,7 @@
 				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
 
 				await saveFormData({
-					data:	new FormData($collectionValue) ,
+					data:	$collectionValue,
 					_collection: $collection,
 					_mode: $mode,
 					id: $collectionValue._id ?? "",
