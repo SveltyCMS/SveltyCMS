@@ -41,11 +41,17 @@ export const statusMap = {
 	test: 'testing'
 };
 
+interface Collection extends Omit<Schema, 'name'> {
+		id: number;
+		name: CollectionNames;
+	}
+
 //  Initialize categories store with an array structure
 export const categories: Writable<
 	Array<{
+		id: number;
 		name: string;
 		icon: string;
-		collections: Array<Schema>;
+		collections: Array<Collection>;
 	}>
 > = writable();

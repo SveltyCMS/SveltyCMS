@@ -229,9 +229,9 @@
 		<button
 			class="btn mt-1 flex w-full flex-row items-center justify-start bg-surface-400 py-2 pl-2 text-white dark:bg-surface-500"
 			on:click={() => {
-				mode.set('media');
 				// Navigate to the media gallery route
 				goto('/mediagallery');
+				// mode.set('media');
 				// Optionally, close the sidebar if it's on mobile
 				if (get(screenSize) === 'sm') {
 					toggleSidebar('left', 'hidden');
@@ -246,9 +246,10 @@
 		<button
 			class="btn mt-2 flex w-full flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
 			on:click={() => {
-				mode.set('media');
 				// Navigate to the media gallery route
 				goto('/mediagallery');
+				// mode.set('media');
+
 				// Optionally, close the sidebar if it's on mobile
 				handleSidebarToggle();
 				if (get(screenSize) === 'sm') {

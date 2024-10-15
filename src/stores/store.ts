@@ -89,8 +89,9 @@ export const validationStore = (() => {
 
 	const clearError = (fieldName: string) => {
 		update((errors) => {
-			const { [fieldName]: _, ...rest } = errors;
-			return rest;
+			delete errors[fieldName];
+			return errors;
+
 		});
 	};
 	const getError = (fieldName: string): string | null => {

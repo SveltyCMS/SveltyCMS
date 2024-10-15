@@ -45,7 +45,7 @@
 	 * to avoid limiting type declarations.
 	 */
 	"includes": ["src/**/*.ts", "src/**/*.svelte", "types/**/*.ts"],
-
+	"exclude": [".svelte-kit", "node_modules"],
 	"noUnusedLocals": true,
 	"noUnusedParameters": true
 	// Path aliases are handled by https://kit.svelte.dev/docs/configuration#alias

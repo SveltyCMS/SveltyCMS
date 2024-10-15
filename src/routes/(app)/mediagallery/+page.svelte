@@ -26,11 +26,16 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { logger } from "@src/utils/logger";
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// Prop to receive data from the server
-	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = undefined;
+	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = {
+		user: undefined,
+		media :[],
+		virtualFolders: []
+	};
 
 	let files: MediaImage[] = [];
 
@@ -156,6 +161,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			const newPath = parentFolder ? `${parentFolder.path.join('/')}/${name}` : `${publicEnv.MEDIA_FOLDER}/${name}`;
 
 			// Check if the folder already exists
+			console.debug(`Checking if folder exists: ${newPath}  currentFolder:`, folders);
 			const existingFolder = folders.find((folder) => folder.path.join('/') === newPath);
 			if (existingFolder) {
 				console.log('Folder already exists:', existingFolder);
