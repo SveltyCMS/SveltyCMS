@@ -59,7 +59,7 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $collectionValue?.status.toUpperCase() === 'PUBLISHED';
+	let isPublished = $collectionValue?.status === 'PUBLISHED';
 	let inputPopupUser = '';
 	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
 
