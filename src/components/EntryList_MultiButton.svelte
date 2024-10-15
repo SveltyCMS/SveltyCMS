@@ -120,26 +120,28 @@
 </script>
 
 <!-- Multibutton group-->
-<div class="variant-filled-token btn-group z-20 mt-1 rounded-l-full rounded-r-md font-medium text-white rtl:rounded rtl:rounded-r-full">
-	<!-- Left button -->
-	<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass}`} on:click|preventDefault={handleButtonClick}>
-		<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
-			<iconify-icon icon={iconValue} width="24" class="text-white" />
-			<span class="hidden text-left md:block">{actionname}</span>
-		</span>
-	</button>
+<div class="relative z-20 mt-1 font-medium text-white">
+	<div class="variant-filled-token btn-group flex overflow-hidden rounded-l-full rounded-r-md rtl:rounded rtl:rounded-r-full">
+		<!-- Left button -->
+		<button type="button" class={`w-[60px] md:w-auto rtl:rotate-180 ${buttonClass} rounded-l-full`} on:click|preventDefault={handleButtonClick}>
+			<span class="grid grid-cols-[24px_auto] items-center gap-2 rtl:rotate-180">
+				<iconify-icon icon={iconValue} width="24" class="text-white" />
+				<span class="hidden text-left md:block">{actionname}</span>
+			</span>
+		</button>
 
-	<!-- White line -->
-	<div class="border-l-[3px] border-white" />
+		<!-- White line -->
+		<div class="border-l-[3px] border-white" />
 
-	<!-- Dropdown button -->
-	<button
-		type="button"
-		class="flex w-[42px] items-center justify-center bg-surface-400 dark:bg-surface-600"
-		on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}
-	>
-		<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
-	</button>
+		<!-- Dropdown button -->
+		<button
+			type="button"
+			class="flex w-[42px] items-center justify-center rounded-r-md bg-surface-400 dark:bg-surface-600"
+			on:click|preventDefault={() => (dropdownOpen = !dropdownOpen)}
+		>
+			<iconify-icon icon="mdi:chevron-down" width="24" class="text-white" />
+		</button>
+	</div>
 
 	{#if dropdownOpen}
 		<ul

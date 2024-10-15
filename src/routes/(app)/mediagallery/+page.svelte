@@ -26,11 +26,16 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { logger } from "@src/utils/logger";
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// Prop to receive data from the server
-	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = undefined;
+	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = {
+		user: undefined,
+		media :[],
+		virtualFolders: []
+	};
 
 	let files: MediaImage[] = [];
 
@@ -152,10 +157,11 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Create virtual folder with existence check
 	async function createFolder(name: string) {
 		try {
-			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder._id) : null;
+			const parentFolder = currentFolder ? folders.find((f) => f._id === currentFolder?._id) : null;
 			const newPath = parentFolder ? `${parentFolder.path.join('/')}/${name}` : `${publicEnv.MEDIA_FOLDER}/${name}`;
 
 			// Check if the folder already exists
+			console.debug(`Checking if folder exists: ${newPath}  currentFolder:`, folders);
 			const existingFolder = folders.find((folder) => folder.path.join('/') === newPath);
 			if (existingFolder) {
 				console.log('Folder already exists:', existingFolder);
@@ -300,7 +306,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
 		try {
-			const q = toFormData({ method: 'POST', image: event.detail?._id });
+			const q = toFormData({ method: 'POST', image: event.detail?._id  ?? "" });
 			const response = await axios.post('?/api/mediaHandler/', q, {
 				...config,
 				withCredentials: true // This ensures cookies are sent with the request

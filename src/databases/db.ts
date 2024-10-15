@@ -298,7 +298,7 @@ export async function getCollectionModels() {
 		const modelCount = Object.keys(collectionsModels).length;
 		logger.debug('Collection models fetched successfully', { modelCount });
 
-		return collectionsModels;
+		return models;
 	} catch (err) {
 		const message = `Error in getCollectionModels: ${err instanceof Error ? err.message : String(err)}`;
 		logger.error(message);

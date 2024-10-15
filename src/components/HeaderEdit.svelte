@@ -59,6 +59,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { logger } from "@src/utils/logger";
 
 	$: {
 		if ($tabSet !== previousTabSet) {
@@ -70,6 +71,10 @@
 	$: {
 		if ($mode === 'view') {
 			tempData = {};
+		}
+		if ($mode === 'edit' && $collectionValue.status === 'PUBLISHED') {
+			$modifyEntry('unpublish')
+
 		}
 	}
 
@@ -101,10 +106,12 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
+				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
 				await saveFormData({
 					data: $collectionValue,
 					_collection: $collection,
 					_mode: $mode,
+					id: $collectionValue._id ?? '',
 					user
 				});
 
@@ -236,7 +243,7 @@
 
 		<!-- Clone Content -->
 		{#if $mode == 'edit'}
-			{#if $modifyEntry('unpublish')}
+			{#if $collectionValue.status == 'UNPUBLISHED'}
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"

@@ -40,7 +40,7 @@ import { translationProgress, contentLanguage } from '@stores/store';
 import { collectionValue, mode, collection } from '@stores/collectionStore';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger, type LoggableValue } from '@utils/logger';
 
 export const config = {
 	headers: {
@@ -88,7 +88,7 @@ export const col2formData = async (getData: { [Key: string]: () => any }) => {
 	const data = {};
 
 	// Debugging: Log the initial object state
-	logger.debug('Initial data object:', getData);
+	logger.debug('Initial data object:', `${JSON.stringify(getData)}`);
 
 	const parseFiles = async (object: any) => {
 		for (const key in object) {
@@ -155,7 +155,7 @@ export function parse(obj: any) {
 				obj[key] = JSON.parse(obj[key]);
 			}
 		} catch (e) {
-			logger.error(`Error parsing JSON for key ${key}:`, e);
+			logger.error(`Error parsing JSON for key ${key}:`, e as LoggableValue);
 		}
 
 		if (typeof obj[key] != 'string') {
@@ -188,7 +188,7 @@ export async function find(query: object, collectionName: string) {
 		logger.debug(`Received response from /api/find for collection: ${collectionName}`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in find function for collection ${collectionName}:`, err);
+		logger.error(`Error in find function for collection ${collectionName}:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,
@@ -212,7 +212,7 @@ export async function findById(id: string, collectionName: string) {
 		logger.debug(`Received response from /api/find for collection: ${collectionName} with ID: ${id}`);
 		return response.data;
 	} catch (err) {
-		logger.error(`Error in findById function for collection ${collectionName} and ID ${id}:`, err);
+		logger.error(`Error in findById function for collection ${collectionName} and ID ${id}:`, err as LoggableValue);
 		if (axios.isAxiosError(err)) {
 			logger.error('Axios error details:', {
 				response: err.response?.data,
@@ -238,10 +238,10 @@ export async function saveFormData({
 	_collection,
 	_mode,
 	id,
-	user_id,
+	// user_id,
 	user
 }: {
-	data: any;
+	data: FormData |{ [Key: string]: () => any };
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
@@ -628,7 +628,7 @@ export const get_elements_by_id = {
 					}
 				}
 			} catch (err) {
-				logger.error(`Error fetching documents for collection ${collection}:`, err);
+				logger.error(`Error fetching documents for collection ${collection}:`, err as LoggableValue);
 			}
 		}
 	}

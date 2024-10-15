@@ -66,7 +66,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 		}
 
 		// Convert IDs using the dbAdapter, ensuring it's non-null
-		const idsArray = JSON.parse(ids as string).map((id: string) => dbAdapter.convertId(id));
+		const idsArray = JSON.parse(ids as string).map((id: string) => dbAdapter?.convertId(id));
 
 		if (!idsArray.length) {
 			logger.error('No valid IDs provided for deletion');
@@ -86,7 +86,7 @@ export const _DELETE = async ({ data, schema, user }: { data: FormData; schema: 
 				logger.debug(`Request modified for ID: ${id}`);
 
 				const linkedDeletions = (schema.links || []).map((link) =>
-					dbAdapter!.deleteMany(link, {
+					dbAdapter!.deleteMany(link.toString(), {
 						_link_id: id,
 						_linked_collection: schema.name
 					})

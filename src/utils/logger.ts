@@ -20,7 +20,7 @@ import { publicEnv } from '@root/config/public'; // Import environment configura
 type LogLevel = (typeof publicEnv.LOG_LEVELS)[number];
 
 // Define a type for loggable values
-type LoggableValue = string | number | boolean | null | undefined | Date | RegExp | object;
+export type LoggableValue = string | number | boolean | null | undefined | Date | RegExp | object;
 
 // Define a type that can be either an array or an object
 type LoggableData = LoggableValue[] | Record<string, LoggableValue>;
