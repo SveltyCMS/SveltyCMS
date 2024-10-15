@@ -16,6 +16,7 @@
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
+	import { logger } from "@src/utils/logger";
 
 	let isOpen = false;
 	let translations = {};
@@ -98,7 +99,8 @@
 
 	$: {
 		checkTranslations();
-	}
+		logger.debug('Translation status updated:', `${JSON.stringify(translations)}`);
+	}	
 
 	mode.subscribe(() => {
 		if ($mode !== 'view') {
@@ -152,7 +154,11 @@
 								<span class="text-xs">
 									{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
 										{Math.round((translations[lang].translated / translations[lang].total) * 100)}%
+									{:else}
+									 0%
 									{/if}
+
+
 								</span>
 							</div>
 

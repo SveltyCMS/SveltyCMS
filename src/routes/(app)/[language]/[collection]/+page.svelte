@@ -19,6 +19,9 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
+	//logger
+	import { logger } from '@utils/logger';
+
 
 	let forwardBackward = false; // Track if using browser history
 	let initialLoadComplete = false; // Track initial load
@@ -80,20 +83,25 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
 		document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
 	}
+
+	$: logger.debug('Collection:', $page.params.collection);
 </script>
 
-<div class="content">
-	{#if $collection}
-		{#if $mode === 'view' || $mode === 'modify'}
-			<EntryList />
-		{:else if ['edit', 'create'].includes($mode)}
-			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields />
-			</div>
-		<!-- {:else if $mode === 'media'}
-			<MediaGallery data={{}} /> -->
+{#if  $page.params.collection}
+	<div class="content">
+		{#if $collection}
+			{#if $mode === 'view' || $mode === 'modify'}
+				<EntryList />
+			{:else if ['edit', 'create'].includes($mode)}
+				<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
+					<Fields />
+				</div>
+			{:else if $mode === 'media' && $page.params.collection}
+				<MediaGallery data={{}} />
+			{/if}
+		{:else}
+			<div class="error">Error: Collection data not available.</div>
 		{/if}
-	{:else}
-		<div class="error">Error: Collection data not available.</div>
-	{/if}
-</div>
+	</div>
+	
+{/if}

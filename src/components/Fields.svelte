@@ -53,7 +53,7 @@ Key features:
 	});
 
 	afterUpdate(() => {
-		if (root) $collectionValue = fieldsData;
+		// if (root) $collectionValue = fieldsData;
 	});
 
 	// Reactive statements

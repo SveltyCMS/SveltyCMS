@@ -240,6 +240,7 @@ export class MongoDBAdapter implements dbInterface {
 		return new mongoose.Types.ObjectId(id);
 	}
 
+
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<any>>> {
 		logger.debug('getCollectionModels called');
@@ -943,7 +944,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Get all virtual folders
 	async getVirtualFolders(): Promise<Document[]> {
 		try {
-			const folders = await SystemVirtualFolderModel.find().exec();
+			const folders = await SystemVirtualFolderModel.find({}).exec();
 			logger.info(`Fetched ${folders.length} virtual folders.`);
 			return folders;
 		} catch (error) {

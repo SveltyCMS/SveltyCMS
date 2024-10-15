@@ -27,6 +27,7 @@
 	// Skeleton
 	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
+	import { logger } from "@src/utils/logger";
 
 	const modalStore = getModalStore();
 
@@ -106,10 +107,13 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
+				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
+
 				await saveFormData({
-					data: $collectionValue,
+					data:	new FormData($collectionValue) ,
 					_collection: $collection,
 					_mode: $mode,
+					id: $collectionValue._id ?? "",
 					user
 				});
 
