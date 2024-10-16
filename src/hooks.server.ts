@@ -39,7 +39,7 @@ const limiter = new RateLimiter({
 	IPUA: [150, 'm'], // 150 requests per minute per IP+User-Agent
 	cookie: {
 		name: 'sveltycms_ratelimit',
-		secret: privateEnv.JWT_SECRET_KEY,
+		secret: privateEnv.JWT_SECRET_KEY as string,
 		rate: [500, 'm'], // 500 requests per minute per cookie
 		preflight: true
 	}
@@ -217,7 +217,6 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		}
 	}
 
-	const response = await resolve(event);
 	const responseTime = performance.now() - start;
 
 	logger.debug(
@@ -226,6 +225,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	if (isOAuthRoute(event.url.pathname)) {
 		logger.debug('OAuth route detected, passing through');
+		const response = await resolve(event);
 		return response;
 	}
 
@@ -244,6 +244,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 		return handleApiRequest(event, resolve, user);
 	}
 
+	const response = await resolve(event);
 	logger.debug('Proceeding with normal request handling');
 	return response;
 };
@@ -270,7 +271,13 @@ const handleApiRequest = async (event: any, resolve: any, user: any): Promise<Re
 		}
 	}
 
-	return event.request.method === 'GET' ? handleCachedApiRequest(event, resolve, apiEndpoint, user._id) : resolve(event);
+	// Handle both GET and POST requests
+	if (event.request.method === 'GET') {
+		return handleCachedApiRequest(event, resolve, apiEndpoint, user._id);
+	} else {
+		// For POST, PUT, DELETE, etc., just resolve the event
+		return resolve(event);
+	}
 };
 
 // Handle cached API requests

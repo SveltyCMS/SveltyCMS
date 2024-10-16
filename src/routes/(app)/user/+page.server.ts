@@ -16,7 +16,6 @@
  * It prepares data and handles form validation for the client-side rendering.
  */
 
-import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
 
 // Auth
@@ -59,8 +58,8 @@ export const load: PageServerLoad = async (event) => {
 
 		let adminData = null;
 		if (user?.isAdmin || hasManageUsersPermission) {
-			const allUsers: User[] = event.locals.allUsers || [];
-			const allTokens: Token[] = event.locals.allTokens || [];
+			const allUsers: User[] = event.locals?.allUsers ?? [];
+			const allTokens: Token[] = event.locals?.allTokens?.tokens ?? [];
 
 			// Format users and tokens for the admin area
 			const formattedUsers = allUsers.map((user) => ({
@@ -117,8 +116,9 @@ export const load: PageServerLoad = async (event) => {
 			manageUsersPermissionConfig,
 			adminData
 		};
-	} catch (err) {
-		logger.error('Error during load function:', err);
-		throw error(500, 'Internal Server Error');
+	} catch (error) {
+		const err = error as Error;
+		logger.error(`Error during load function: ${err.message}`);
+		throw Error(`Error during load function:: ${err.message}`);
 	}
 };

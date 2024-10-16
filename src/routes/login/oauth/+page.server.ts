@@ -209,7 +209,8 @@ export const actions: Actions = {
 			logger.debug(`Generated redirect URL: ${authUrl}`);
 			throw redirect(302, authUrl);
 		} catch (err) {
-			logger.error('Error during OAuth initialization:', err as Error);
+			const error = err as Error;
+			logger.error(`Error during OAuth initialization: ${error.message}`);
 			return { success: false, message: 'Failed to initialize OAuth' };
 		}
 	}

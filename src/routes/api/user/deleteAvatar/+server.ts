@@ -1,21 +1,26 @@
 /**
  * @file src/routes/api/user/deleteAvatar/+server.ts
- * @description API endpoint for deleting a user's avatar image.
+ * @description API endpoint for moving a user's avatar image to trash.
  *
  * This module provides functionality to:
- * - Delete the current avatar image for a user
+ * - Move the current avatar image for a user to the trash folder
  * - Update the user's profile to remove the avatar URL
+ * - Prepare the avatar for future deletion (after 30 days in trash)
  *
  * Features:
- * - Avatar image deletion
- * - User profile update
- * - Permission checking
- * - Error handling and logging
+ * - Avatar image moved to trash instead of immediate deletion
+ * - User profile update to remove avatar reference
+ * - Permission checking to ensure user authorization
+ * - Error handling and comprehensive logging
+ * - Integration with trash cleanup system for eventual deletion
  *
  * Usage:
  * DELETE /api/user/deleteAvatar
  *
- * Note: This endpoint is secured with appropriate authentication and authorization.
+ * Note:
+ * - This endpoint is secured with appropriate authentication and authorization.
+ * - Actual deletion of the avatar file occurs after 30 days via a separate cleanup process.
+ * - The user's profile is immediately updated to reflect the removal of the avatar.
  */
 
 import { error, json } from '@sveltejs/kit';
@@ -52,24 +57,32 @@ export const DELETE: RequestHandler = async ({ locals }) => {
 		}
 
 		// Get the current user's avatar URL
-		const user = await auth.getUserById(locals.user.id);
+		const user = await auth.getUserById(locals.user._id);
+
 		if (!user || !user.avatar) {
 			throw error(404, 'User or avatar not found');
 		}
 
-		// Move the avatar to trash
-		await moveMediaToTrash(user.avatar, 'media_images');
+		if (user.avatar) {
+			try {
+				await moveMediaToTrash(user.avatar, 'media_images');
+				logger.info('Avatar moved to trash successfully', { userId: user._id });
+			} catch (moveError) {
+				logger.error(`Failed to move avatar to trash: ${moveError.message}`, { userId: user._id });
+				// If the file doesn't exist, we'll just log it and continue
+				if (!moveError.message.includes('Source file does not exist')) {
+					throw error(500, `Failed to move avatar to trash: ${moveError.message}`);
+				}
+			}
+		} else {
+			logger.info('No avatar to move to trash', { userId: user._id });
+		}
 
 		// Update the user's profile to remove the avatar URL
-		await auth.updateUserAttributes(locals.user.id, { avatar: null });
-
-		logger.info('Avatar deleted successfully', { userId: locals.user.id });
-		return json({
-			success: true,
-			message: 'Avatar deleted successfully'
-		});
-	} catch (err) {
-		logger.error('Error in deleteAvatar API:', err);
-		throw error(500, 'Failed to delete avatar');
+		await auth.updateUserAttributes(locals.user._id, { avatar: null });
+		return json({ success: true, message: 'Avatar removed successfully' });
+	} catch (error) {
+		console.error('Error deleting avatar:', error);
+		return json({ error: 'Failed to delete avatar' }, { status: 500 });
 	}
 };

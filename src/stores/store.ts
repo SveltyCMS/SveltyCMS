@@ -59,7 +59,7 @@ export const saveLayerStore = writable(async () => {});
 export const shouldShowNextButton = writable(false);
 
 // Avatar Image store
-export const avatarSrc: Writable<string> = writable();
+export const avatarSrc = writable<string>('/Default_User.svg');
 
 // Store image data while editing
 export const file = writable<File | null>(null);

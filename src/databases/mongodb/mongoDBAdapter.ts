@@ -53,8 +53,17 @@ import { DEFAULT_THEME } from '@src/databases/themeManager';
 const mediaSchema = new Schema(
 	{
 		hash: { type: String, required: true }, // The hash of the media
-		url: { type: String, required: true }, // The URL of the media
-		altText: { type: String, required: true }, // The alt text for the media
+		thumbnail: {
+			url: { type: String, required: true }, // The URL of the media
+			altText: { type: String }, // The alt text for the media
+			name: { type: String }, // The name for the media
+			type: { type: String }, // The type for the media
+			size: { type: Number }, // The size for the media
+			width: { type: Number }, // The width for the media
+			height: { type: Number } // The height for the media
+		}, // The thumbnails of media
+		// url: { type: String, required: true }, // The URL of the media
+		// altText: { type: String, required: true }, // The alt text for the media
 		createdAt: { type: Number, default: () => Math.floor(Date.now() / 1000) }, // The date the media was created
 		updatedAt: { type: Number, default: () => Math.floor(Date.now() / 1000) } // The date the media was last updated
 	},
@@ -943,7 +952,7 @@ export class MongoDBAdapter implements dbInterface {
 	// Get all virtual folders
 	async getVirtualFolders(): Promise<Document[]> {
 		try {
-			const folders = await SystemVirtualFolderModel.find().exec();
+			const folders = await SystemVirtualFolderModel.find({}).exec();
 			logger.info(`Fetched ${folders.length} virtual folders.`);
 			return folders;
 		} catch (error) {

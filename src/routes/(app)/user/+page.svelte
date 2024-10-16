@@ -1,3 +1,8 @@
+<!-- 
+@file src/routes/(app)/user/+page.svelte
+@description This file sets up and displays the user page. It provides a user-friendly interface for managing user accounts and settings. 
+-->
+
 <script lang="ts">
 	import type { PageData } from './$types';
 	import axios from 'axios';
@@ -10,7 +15,6 @@
 	// Stores
 	import '@stores/store';
 	import { avatarSrc } from '@stores/store';
-
 	import { triggerActionStore } from '@utils/globalSearchIndex';
 
 	// Components
@@ -20,9 +24,6 @@
 
 	// Import the permissionConfigs
 	import { permissionConfigs } from '@src/auth/permissionManager';
-
-	export let data: PageData;
-	const { user, isFirstUser } = data;
 
 	// Skeleton
 	import { Avatar } from '@skeletonlabs/skeleton';
@@ -35,7 +36,13 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	avatarSrc.set(user?.avatar || '/Default_User.svg');
+	export let data: PageData;
+	$: ({ user, isFirstUser } = data);
+
+	// Initialize avatarSrc with user's avatar or default
+	$: if (user) {
+		avatarSrc.set(user.avatar || '/Default_User.svg');
+	}
 
 	// Define password as 'hash-password'
 	let password = 'hash-password';
@@ -43,7 +50,6 @@
 	// Function to execute actions
 	function executeActions() {
 		const actions = $triggerActionStore;
-
 		if (actions.length === 1) {
 			actions[0]();
 		} else {
@@ -51,7 +57,6 @@
 				action();
 			}
 		}
-
 		triggerActionStore.set([]);
 	}
 
@@ -60,8 +65,6 @@
 		if ($triggerActionStore.length > 0) {
 			executeActions();
 		}
-
-		avatarSrc.subscribe(() => {});
 	});
 
 	// Modal Trigger - User Form
@@ -110,7 +113,7 @@
 			title: m.usermodaluser_settingtitle(),
 			body: m.usermodaluser_settingbody(),
 			component: modalComponent,
-			response: (r: { dataURL: string }) => {
+			response: async (r: { dataURL: string }) => {
 				if (r) {
 					avatarSrc.set(r.dataURL);
 					const t = {
@@ -120,6 +123,7 @@
 						classes: 'border-1 !rounded-md'
 					};
 					toastStore.trigger(t);
+					await invalidateAll(); // Reload the page data to get the updated user object
 				}
 			}
 		};
@@ -159,7 +163,7 @@
 		<div class="grid grid-cols-1 grid-rows-2 gap-1 overflow-hidden md:grid-cols-2 md:grid-rows-1">
 			<!-- Avatar with user info -->
 			<div class="relative flex flex-col items-center justify-center gap-1">
-				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} initials="AV" rounded-none class="w-32" />
+				<Avatar src={`${$avatarSrc}?t=${Date.now()}`} initials="AV" rounded-none class="w-32" />
 
 				<!-- Edit button -->
 				<button on:click={modalEditAvatar} class="gradient-primary w-30 badge absolute top-8 text-white sm:top-4">{m.userpage_editavatar()}</button>

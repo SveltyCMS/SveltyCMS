@@ -1,22 +1,18 @@
 <!-- 
-@files src/components/user/ModalEditAvatar.svelte
+@file src/components/user/ModalEditAvatar.svelte
 @description Modal for editing user avatar.
 -->
 
 <script lang="ts">
 	import axios from 'axios';
+	import { invalidateAll } from '$app/navigation';
+
+	// Stores
 	import { page } from '$app/stores';
+	import { avatarSrc } from '@stores/store';
 
-	// Auth
-	import type { User } from '@src/auth/types';
-	const user: User = $page.data.user;
-
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
-
-	// Props
-	/** Exposes parent props to this component. */
-	export let parent: any;
 
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
@@ -26,29 +22,14 @@
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
-	export let avatarSrc: any;
+	// Props
+	export let parent: any;
 
 	let files: FileList;
-	let _avatarSrc: undefined | string = undefined;
 
-	function onChange(e: Event) {
-		files = (e.target as HTMLInputElement).files!;
-
-		const lastFile = files[files.length - 1];
-		const fileReader = new FileReader();
-
-		fileReader.onload = (e) => {
-			if (e.target instanceof FileReader) {
-				_avatarSrc = e.target.result as string;
-			}
-		};
-
-		fileReader.readAsDataURL(lastFile as Blob);
-	}
-
-	// Zod validation
+	// Zod validation schema
 	import z from 'zod';
-	const imageTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
+	const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/avif', 'image/svg+xml', 'image/gif'];
 
 	const avatarSchema = z.object({
 		file: z
@@ -62,104 +43,117 @@
 							message: m.modaledit_avatarfilesize()
 						});
 					}
-
-					if (!imageTypes.includes(val.type)) {
-						ctx.addIssue({
-							code: z.ZodIssueCode.custom,
-							message: m.modaledit_avatarunsupported()
-						});
+					const lastFile = val;
+					if (imageTypes.includes(lastFile.type)) {
+						const fileReader = new FileReader();
+						fileReader.onload = (e) => {
+							if (e.target instanceof FileReader) {
+								avatarSrc.set(e.target.result as string);
+							}
+						};
+						fileReader.readAsDataURL(lastFile as Blob);
 					}
 				}
 			})
 	});
 
-	//Create a custom submit function to pass the response and close the modal.
+	// Handle file input change
+	function onChange(e: Event) {
+		files = (e.target as HTMLInputElement).files!;
+		const lastFile = files[files.length - 1];
+		console.log('Selected file:', lastFile);
+
+		const fileReader = new FileReader();
+		fileReader.onload = (e) => {
+			if (e.target instanceof FileReader) {
+				avatarSrc.set(e.target.result as string);
+			}
+		};
+		fileReader.readAsDataURL(lastFile as Blob);
+	}
+
+	// Handle form submit
 	async function onFormSubmit(): Promise<void> {
-		// Check if files were selected
-		if (!files) return;
+		if (!files || files.length === 0) return;
 
 		const file = files[0];
 
 		try {
-			avatarSchema.parse({
-				file
-			});
+			avatarSchema.parse({ file });
 		} catch (error) {
 			console.error((error as Error).message);
 			return;
 		}
 
-		// Upload the image to the server
-		const formData = new FormData();
-		if (file) {
-			formData.append('avatar', file);
-			formData.append('user_id', user._id);
-		}
-		const response = await axios.post(
-			'?/saveAvatar',
-
-			formData,
-
-			{
-				headers: {
-					'content-type': 'multipart/form-data'
-				}
-			}
-		);
-		if (response.status === 200) {
-			$avatarSrc = response.data.url;
-		}
-
-		// Pass the response to the parent component and close the modal
-		if ($modalStore[0].response) {
-			$modalStore[0].response({ dataURL: $avatarSrc, response });
-		}
-		modalStore.close();
+		await uploadAvatar(file);
 	}
 
-	// Function to delete the user's avatar
-	async function deleteAvatar() {
+	// Upload avatar
+	async function uploadAvatar(file: File): Promise<void> {
 		try {
 			const formData = new FormData();
-			formData.append('user_id', user._id);
+			formData.append('avatar', file);
+			formData.append('user_id', $page.data.user._id);
 
-			const response = await axios.post('?/deleteAvatar', formData, {
-				headers: {
-					'content-type': 'multipart/form-data'
-				}
+			const response = await axios.post('/api/user/saveAvatar', formData, {
+				headers: { 'Content-Type': 'multipart/form-data' }
 			});
 
 			if (response.status === 200) {
-				// Clear the _avatarSrc variable and update the avatarSrc store
-				_avatarSrc = undefined;
-				avatarSrc.set('/Default_User.svg'); // Set default avatar or empty
+				avatarSrc.set(response.data.avatarUrl);
+				toastStore.trigger({
+					message: 'Avatar updated successfully!',
+					background: 'gradient-primary',
+					timeout: 3000
+				});
+				modalStore.close();
+				await invalidateAll();
+			}
+		} catch (error) {
+			console.error('Error uploading avatar:', error);
+			toastStore.trigger({
+				message: 'Failed to update avatar',
+				background: 'gradient-error',
+				timeout: 3000
+			});
+		}
+	}
 
-				// Trigger the toast
-				const t = {
+	// Delete avatar
+	async function deleteAvatar(): Promise<void> {
+		try {
+			const response = await axios.delete('/api/user/deleteAvatar');
+
+			if (response.status === 200) {
+				avatarSrc.set('/Default_User.svg');
+
+				toastStore.trigger({
 					message: '<iconify-icon icon="radix-icons:avatar" color="white" width="24" class="mr-1"></iconify-icon> Avatar Deleted',
-
-					// Provide any utility or variant background style:
 					background: 'gradient-error',
 					timeout: 3000,
-					// Add your custom classes here:
 					classes: 'border-1 !rounded-md'
-				};
-				toastStore.trigger(t);
+				});
 
-				// Close the modal after successful deletion
 				modalStore.close();
+				await invalidateAll(); // Reload the page data to get the updated user object
 			}
 		} catch (error) {
 			console.error('Error deleting avatar:', error);
+			toastStore.trigger({
+				message: '<iconify-icon icon="radix-icons:cross-2" color="white" width="24" class="mr-1"></iconify-icon> Failed to delete avatar',
+				background: 'gradient-error',
+				timeout: 3000,
+				classes: 'border-1 !rounded-md'
+			});
 		}
 	}
+
 	// Base Classes
 	const cBase = 'card p-4 w-modal shadow-xl space-y-4 bg-white';
 	const cHeader = 'text-2xl font-bold';
 	const cForm = 'border border-surface-500 p-4 space-y-4 rounded-container-token';
 </script>
 
-<!-- @component This example creates a simple form modal. -->
 {#if $modalStore[0]}
 	<div class="modal-avatar {cBase}">
 		<header class={`text-center text-primary-500 ${cHeader}`}>
@@ -172,14 +166,14 @@
 		<form class="modal-form {cForm}">
 			<div class="grid grid-cols-1 grid-rows-{$avatarSrc ? '1' : '2'} items-center justify-center">
 				<!-- Avatar Thumbnail -->
-				<Avatar src={_avatarSrc ? _avatarSrc : $avatarSrc ? $avatarSrc : '/Default_User.svg'} rounded-full class="mx-auto mb-3 w-32" />
-
+				<Avatar src={$avatarSrc ? $avatarSrc : '/Default_User.svg'} alt="User avatar" loading="lazy" rounded-full class="mx-auto mb-3 w-32" />
 				<!-- FileDropzone Area-->
 				<FileDropzone
 					on:change={onChange}
 					required
 					name="Avatar Upload"
 					accept="image/jpeg,image/png,image/webp,image/avif,image/svg+xml,image/gif"
+					aria-label="Upload avatar"
 					slotLead="flex flex-col justify-center items-center"
 				>
 					<svelte:fragment slot="lead">

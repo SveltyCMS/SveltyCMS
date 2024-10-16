@@ -287,60 +287,53 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 
 		return fileUrl;
 	} catch (err) {
-		logger.error('Error in saveAvatarImage:', err as Error);
-		throw Error('Failed to save avatar image');
+		const error = err as Error;
+		logger.error(`Error in saveAvatarImage: ${error.message}`);
+		throw error(500, `Failed to save avatar image: ${error.message}`);
 	}
 }
 
 // Moves media to the trash directory.
-export async function moveMediaToTrash(id: string, collection: string): Promise<void> {
+export async function moveMediaToTrash(mediaPath: string, collection: string): Promise<void> {
 	try {
-		const mediaItem = await getMediaById(id, collection);
-		if (!mediaItem) {
-			throw Error('Media not found');
-		}
-
 		const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash', collection);
+		await fs.promises.mkdir(trashFolder, { recursive: true });
 
-		// Create trash folder if it doesn't exist
-		await new Promise<void>((resolve, reject) => {
-			fs.mkdir(trashFolder, { recursive: true }, (err) => {
-				if (err && err.code !== 'EEXIST') reject(err);
-				else resolve();
-			});
-		});
+		// Remove any redundant 'mediaFiles' from the path
+		const cleanMediaPath = mediaPath.replace(/^mediaFiles\//, '');
+		const fileName = Path.basename(cleanMediaPath);
+		const sourcePath = Path.join(publicEnv.MEDIA_FOLDER, cleanMediaPath);
+		const trashPath = Path.join(trashFolder, fileName);
 
-		const filePaths = await getMediaFilePaths(mediaItem);
-
-		for (const filePath of filePaths) {
-			const fileName = Path.basename(filePath);
-			const trashPath = Path.join(trashFolder, fileName);
-			await new Promise<void>((resolve, reject) => {
-				fs.rename(filePath, trashPath, (err) => {
-					if (err) reject(err);
-					else resolve();
-				});
-			});
+		// Check if the source file exists
+		try {
+			await fs.promises.access(sourcePath);
+		} catch (err) {
+			const error = err as Error;
+			logger.error(`Source file does not exist: ${error.message}`);
+			throw error(500, `Source file does not exist: ${error.message}`);
 		}
+
+		// Move the file to the trash folder
+		await fs.promises.rename(sourcePath, trashPath);
 
 		// Update database record to mark as trashed
 		if (dbAdapter) {
-			await dbAdapter.updateOne(collection, { _id: id }, { $set: { trashed: true, trashedAt: Math.floor(Date.now() / 1000) } });
-		} else {
-			logger.warn('dbAdapter is not available. Database not updated for trashed media.');
+			await dbAdapter.updateOne(collection, { url: mediaPath }, { $set: { trashed: true, trashedAt: new Date() } });
 		}
 
-		logger.info(`Moved media to trash: ${id}`, { collection });
-	} catch (error) {
-		logger.error('Error moving media to trash:', error as Error);
-		throw error;
+		logger.info(`Moved media to trash: ${mediaPath}`, { collection });
+	} catch (err) {
+		const error = err instanceof Error ? err : new Error(String(err));
+		logger.error(`Error moving media to trash: ${error.message}`);
+		throw error(500, `Failed to move media to trash: ${error.message}`);
 	}
 }
 
 // Cleans up old files from the trash directory.
 export async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 	const trashFolder = Path.join(publicEnv.MEDIA_FOLDER, 'trash');
-	const now = Math.floor(Date.now() / 1000); // Unix timestamp
+	const now = Date.now();
 
 	try {
 		const collections = await fs.promises.readdir(trashFolder);
@@ -352,7 +345,7 @@ export async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 				const filePath = Path.join(collectionPath, file);
 				const stats = await fs.promises.stat(filePath);
 
-				const daysInTrash = (now - Math.floor(stats.mtime.getTime() / 1000)) / (60 * 60 * 24);
+				const daysInTrash = (now - stats.mtime.getTime()) / (1000 * 60 * 60 * 24);
 
 				if (daysInTrash > daysOld) {
 					await fs.promises.unlink(filePath);
@@ -363,20 +356,18 @@ export async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 
 		// Clean up database records
 		if (dbAdapter) {
-			const cutoffDate = now - daysOld * 24 * 60 * 60; // Unix timestamp
-			const mediaCollections = ['media_images', 'media_documents', 'media_audio', 'media_videos'];
-
-			for (const collection of mediaCollections) {
-				await dbAdapter.deleteMany(collection, { trashed: true, trashedAt: { $lt: cutoffDate } });
-			}
-
-			logger.info('Cleanup of trashed media completed');
-		} else {
-			logger.warn('dbAdapter is not available. Database cleanup skipped.');
+			const cutoffDate = new Date(now - daysOld * 24 * 60 * 60 * 1000);
+			await dbAdapter.deleteMany('media_images', { trashed: true, trashedAt: { $lt: cutoffDate } });
+			await dbAdapter.deleteMany('media_documents', { trashed: true, trashedAt: { $lt: cutoffDate } });
+			await dbAdapter.deleteMany('media_audio', { trashed: true, trashedAt: { $lt: cutoffDate } });
+			await dbAdapter.deleteMany('media_videos', { trashed: true, trashedAt: { $lt: cutoffDate } });
 		}
-	} catch (error) {
-		logger.error('Error during trash cleanup:', error as Error);
-		throw error;
+
+		logger.info('Cleanup of trashed media completed');
+	} catch (err) {
+		const error = err as Error;
+		logger.error(`Error during trash cleanup: ${error.message}`);
+		throw error(500, `Error during trash cleanup: ${error.message}`);
 	}
 }
 

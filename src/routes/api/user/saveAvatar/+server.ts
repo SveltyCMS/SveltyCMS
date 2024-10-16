@@ -62,18 +62,18 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 
 		// Save the avatar image
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
-
 		// Update the user's profile with the new avatar URL
-		await auth.updateUserAttributes(locals.user.id, { avatar: avatarUrl });
-
+		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
 		logger.info('Avatar saved successfully', { userId: locals.user.id });
+
 		return json({
 			success: true,
 			message: 'Avatar saved successfully',
 			avatarUrl
 		});
-	} catch (err) {
-		logger.error('Error in saveAvatar API:', err);
-		throw error(500, 'Failed to save avatar');
+	} catch (error) {
+		const err = error instanceof Error ? error : new Error(String(error));
+		logger.error(`Error in saveAvatar API: ${err.message}`);
+		return json({ success: false, message: err.message }, { status: 500 });
 	}
 };
