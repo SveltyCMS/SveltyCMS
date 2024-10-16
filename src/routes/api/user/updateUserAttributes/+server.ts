@@ -40,7 +40,7 @@ const updateUserAttributesSchema = z.object({
 			role: z.string().optional()
 			// Add other fields as needed, matching your User type
 		})
-		.strict()
+	// .strict()
 });
 
 export const PUT: RequestHandler = async ({ request, locals }) => {

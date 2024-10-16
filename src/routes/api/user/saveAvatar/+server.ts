@@ -64,9 +64,9 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
 
 		// Update the user's profile with the new avatar URL
-		await auth.updateUserAttributes(locals.user.id, { avatar: avatarUrl });
+		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
 
-		logger.info('Avatar saved successfully', { userId: locals.user.id });
+		logger.info('Avatar saved successfully', { userId: locals.user._id });
 		return json({
 			success: true,
 			message: 'Avatar saved successfully',
