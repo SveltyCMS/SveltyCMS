@@ -79,7 +79,7 @@
 			response: async (r: any) => {
 				if (r) {
 					console.log('Response:', r);
-					const data = { user_id: user?._id, newUserData: r };
+					const data = { user_id: user?._id, userData: r };
 					const res = await axios.put('/api/user/updateUserAttributes', data);
 					const t = {
 						message: '<iconify-icon icon="mdi:check-outline" color="white" width="26" class="mr-1"></iconify-icon> User Data Updated',

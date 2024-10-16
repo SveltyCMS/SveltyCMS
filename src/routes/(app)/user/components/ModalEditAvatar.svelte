@@ -96,7 +96,7 @@
 			formData.append('user_id', user._id);
 		}
 		const response = await axios.post(
-			'?/saveAvatar',
+			'/api/user/saveAvatar',
 
 			formData,
 
