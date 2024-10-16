@@ -98,13 +98,13 @@
 		});
 
 		try {
-			const response = await fetch('/api/media/saveMedia', {
+			const response = await fetch('/api/mediaHandler/saveMedia', {
 				method: 'POST',
 				body: formData
 			});
 
 			if (!response.ok) {
-				throw new Error('Upload failed');
+				throw Error('Upload failed');
 			}
 
 			const result = await response.json();
@@ -116,7 +116,7 @@
 				});
 				files = []; // Clear the files array after successful upload
 			} else {
-				throw new Error(result.error || 'Upload failed');
+				throw Error(result.error || 'Upload failed');
 			}
 		} catch (error) {
 			console.error('Error uploading files:', error);

@@ -8,7 +8,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	import { publicEnv } from '@root/config/public';
 	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
-	import { dbAdapter } from '@src/databases/db';
 
 	// Media
 	import { MediaTypeEnum, type MediaImage, type MediaType } from '@src/utils/media/mediaModels';
@@ -17,7 +16,6 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
 	import Breadcrumb from '@components/Breadcrumb.svelte';
-	import Filter from './Filter.svelte';
 	import MediaGrid from './MediaGrid.svelte';
 	import MediaTable from './MediaTable.svelte';
 
@@ -27,6 +25,9 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
+	import { logger } from '@src/utils/logger';
+	import { config, toFormData } from '@src/utils/utils';
+	import axios from 'axios';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
@@ -52,7 +53,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		if (data && data.virtualFolders) {
 			folders = data.virtualFolders.map((folder) => ({
 				...folder,
-				path: Array.isArray(folder.path) ? folder.path : folder.path.split('/')
+				path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/')
 			}));
 			console.log('Processed folders:', folders); // Ensure the structure is as expected
 		} else {
@@ -111,7 +112,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error updating folder:', error);
@@ -127,20 +128,18 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	async function fetchMediaFiles() {
 		try {
 			const folderId = currentFolder ? currentFolder._id : 'root';
-			console.log(`Fetching media files for folder: ${folderId}`);
+			logger.info(`Fetching media files for folder: ${folderId}`);
 
-			const response = await fetch(`/api/virtualFolder/${folderId}`);
-			const result = await response.json();
-
-			if (result.success) {
+			const { data } = await axios.get(`/api/virtualFolder/${folderId}`);
+			if (data.success) {
 				// Correctly assign mediaFiles to files
-				files = Array.isArray(result.contents.mediaFiles) ? result.contents.mediaFiles : [];
+				files = Array.isArray(data.contents.mediaFiles) ? data.contents.mediaFiles : [];
 				console.log('Fetched media files:', files);
 			} else {
-				throw new Error(result.error || 'Unknown error');
+				throw new Error(data.error || 'Unknown error');
 			}
 		} catch (error) {
-			console.error('Error fetching media files:', error);
+			logger.error(`Error fetching media files: ${error}`);
 			toastStore.trigger({
 				message: 'Error fetching media files',
 				background: 'variant-filled-error',
@@ -190,7 +189,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh folder list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error creating folder:', error);
@@ -238,12 +237,12 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 			if (result.success && result.folders) {
 				const updatedFolders = result.folders.map((folder) => ({
 					...folder,
-					path: Array.isArray(folder.path) ? folder.path : folder.path.split('/') // Ensure path is always an array
+					path: Array.isArray(folder.path) ? folder.path : folder?.path?.split('/') // Ensure path is always an array
 				}));
 				console.log('Updated folders:', updatedFolders);
 				return updatedFolders;
 			} else {
-				throw new Error(result.error || 'Failed to fetch folders');
+				throw Error(result.error || 'Failed to fetch folders');
 			}
 		} catch (error) {
 			console.error('Error fetching folders:', error);
@@ -276,7 +275,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				folders = await fetchUpdatedFolders(); // Refresh the folders list
 			} else {
-				throw new Error(result.error);
+				throw Error(result.error);
 			}
 		} catch (error) {
 			console.error('Error deleting folder:', error);
@@ -307,29 +306,14 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
-		const image = event.detail;
-
-		if (!image || !image._id) {
-			console.error('Invalid image data received');
-			return;
-		}
-
-		if (!dbAdapter) {
-			console.error('Database adapter is not initialized.');
-			toastStore.trigger({
-				message: 'Error: Database adapter is not initialized',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
-			return;
-		}
-
 		try {
-			console.log(`Deleting image: ${image._id}`);
-			const success = await dbAdapter.deleteMedia(image._id.toString());
-
-			if (success) {
-				console.log('Image deleted successfully');
+			const q = toFormData({ method: "POST", image: event.detail?._id });
+			const response = await axios.post("?/api/mediaHandler/", q, {
+				...config,
+				withCredentials: true // This ensures cookies are sent with the request
+			})
+			const result = response.data;
+			if (result?.success) {
 				toastStore.trigger({
 					message: 'Image deleted successfully.',
 					background: 'variant-filled-success',
@@ -337,15 +321,15 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				});
 				await fetchMediaFiles();
 			} else {
-				throw new Error('Failed to delete image');
+				throw new Error(result.error || "Failed to delete image");
 			}
 		} catch (error) {
-			console.error('Error deleting image:', error);
+			logger.error("Error deleting image: ", error);
 			toastStore.trigger({
-				message: 'Error deleting image',
-				background: 'variant-filled-error',
-				timeout: 3000
-			});
+				message: "Error deleting image",
+				background: "variant-filled-error",
+				timeout: 3000,
+			})
 		}
 	}
 
@@ -361,7 +345,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Initialize user preferences
 	const userPreference = getUserPreferenceFromLocalStorageOrCookie();
 	if (userPreference) {
-		const [preferredView, preferredGridSize, preferredTableSize] = userPreference.split('/');
+		const [preferredView, preferredGridSize, preferredTableSize] = userPreference?.split('/');
 		view = preferredView as 'grid' | 'table';
 		gridSize = preferredGridSize as 'small' | 'medium' | 'large';
 		tableSize = preferredTableSize as 'small' | 'medium' | 'large';

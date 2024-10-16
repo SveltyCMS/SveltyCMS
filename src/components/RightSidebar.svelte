@@ -134,7 +134,7 @@
 
 	function onPopupUserSelect(event: CustomEvent) {
 		console.log(event.detail);
-		throw new Error('Function not implemented.');
+		throw Error('Function not implemented.');
 	}
 </script>
 

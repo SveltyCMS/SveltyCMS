@@ -1,40 +1,56 @@
 /**
  * @file src/routes/api/user/logout/+server.ts
  * @description API endpoint for user logout
- *
- * This endpoint handles user logout by destroying all active sessions for the user.
- * It requires the user_id to be sent in the request body.
- *
- * @route POST /api/user/logout
- * @param {Object} request.body
- * @param {string} request.body.user_id - The ID of the user logging out
- * @returns {Object} JSON response
- * @returns {boolean} response.success - Indicates if the logout was successful
- * @returns {string} response.message - Status message
+ * 
+ * This endpoint handles user logout operations:
+ * - Destroys the user's active session in the database
+ * - Removes the session from any in-memory stores
+ * - Clears the session cookie from the client
+ * 
+ * The endpoint ensures complete cleanup of session data both server-side and client-side.
+ * It integrates with the SvelteKit error handling system and respects the authentication
+ * flow established in hooks.server.ts.
+ * 
+ * @throws {error} 401 - Not authenticated
+ * @throws {error} 400 - No active session
+ * @throws {error} 500 - Internal server error or authentication system unavailable
  */
 
-import { json } from '@sveltejs/kit';
+import { json, error } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { auth } from '@src/databases/db';
+import { SESSION_COOKIE_NAME } from '@src/auth';
+import { logger } from '@src/utils/logger';
 
-export const POST: RequestHandler = async ({ request }) => {
-    const { user_id } = await request.json();
-
+export const POST: RequestHandler = async ({ cookies, locals }) => {
     if (!auth) {
-        return json({ success: false, message: 'Authentication system unavailable' }, { status: 500 });
+        logger.error('Authentication system is not initialized');
+        throw error(500, 'Internal Server Error');
     }
 
-    if (!user_id) {
-        return json({ success: false, message: 'No user ID provided' }, { status: 400 });
+    if (!locals.user) {
+        logger.warn('Unauthenticated user attempting to log out');
+        throw error(401, 'Not authenticated');
+    }
+
+    const session_id = cookies.get(SESSION_COOKIE_NAME);
+
+    if (!session_id) {
+        logger.warn('No active session found during logout attempt');
+        throw error(400, 'No active session');
     }
 
     try {
-        // Destroy all sessions for the user
-        await auth.destroyAllUserSessions(user_id);
+        // Destroy the session in the database and any in-memory stores
+        await auth.destroySession(session_id);
 
-        return json({ success: true, message: 'Logged out successfully from all sessions' });
-    } catch (error) {
-        console.error('Logout error:', error);
-        return json({ success: false, message: 'An error occurred during logout' }, { status: 500 });
+        // Clear the session cookie
+        cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
+
+        logger.info(`User logged out successfully: ${session_id}`);
+        return json({ success: true, message: 'Logged out successfully' });
+    } catch (err) {
+        logger.error(`Logout error: ${err.message}`);
+        throw error(500, 'An error occurred during logout');
     }
 };

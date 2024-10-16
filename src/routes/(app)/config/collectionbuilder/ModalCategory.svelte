@@ -9,8 +9,11 @@
 	export let existingCategory: any = { name: '', icon: '' };
 
 	// Stores
+	import { categories, unAssigned } from '@stores/collectionStore';
 	import { getModalStore, type ModalSettings } from '@skeletonlabs/skeleton';
 	const modalStore = getModalStore();
+
+	// Components
 	import IconifyPicker from '@components/IconifyPicker.svelte';
 
 	//ParaglideJS
@@ -27,9 +30,6 @@
 		if ($modalStore[0].response) $modalStore[0].response(formData);
 		modalStore.close();
 	}
-
-	// Assuming $categories is a writable store
-	import { categories, unAssigned } from '@stores/store';
 
 	function deleteCategory(): void {
 		if (existingCategory.collections === undefined || existingCategory.collections.length === 0) {

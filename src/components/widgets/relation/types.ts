@@ -75,7 +75,7 @@ export const GraphqlSchema: GraphqlSchema = ({ field, collection }) => {
 			[collection.name]: {
 				async [getFieldName(field)](parent: any) {
 					if (!dbAdapter) {
-						throw new Error('Database adapter is not initialized.');
+						throw Error('Database adapter is not initialized.');
 					}
 
 					// Fetch related document using dbAdapter

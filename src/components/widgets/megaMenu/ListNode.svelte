@@ -6,7 +6,8 @@
 	import { debounce } from '@src/utils/utils';
 
 	// Stores
-	import { translationProgress, mode, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { translationProgress, contentLanguage, shouldShowNextButton, headerActionButton2 } from '@stores/store';
+	import { mode } from '@stores/collectionStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
@@ -174,7 +175,7 @@
 							})
 							.filter((el) => el.el != clone);
 						const parents = [...document.getElementsByClassName(`level-${level - 1}`)]
-							.filter((el) => parseInt(el.getAttribute('data-children') as string) == 0)
+							.filter((el) => parseInt(el?.getAttribute('data-children') as string) == 0)
 							.map((el) => {
 								const rect = el.getElementsByClassName('header')[0].getBoundingClientRect();
 								return { el: el as HTMLElement, center: rect.top + rect.height / 2, isParent: true };
@@ -189,8 +190,8 @@
 						}
 
 						if (closest.el == node) return;
-						const closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-						const clone_index = parseInt(clone.getAttribute('data-index') as string);
+						const closest_index = parseInt(closest?.el?.getAttribute('data-index') as string);
+						const clone_index = parseInt(clone?.getAttribute('data-index') as string);
 
 						if (e.clientY > closest.center && clone_index - closest_index != 1 && !closest.isParent) {
 							closest.el.style.paddingBottom = cloneHeight;
@@ -223,8 +224,8 @@
 
 					if (closest.el == node) return;
 
-					let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-					const clone_index = parseInt(clone.getAttribute('data-index') as string);
+					let closest_index = parseInt(closest?.el?.getAttribute('data-index') as string);
+					const clone_index = parseInt(clone?.getAttribute('data-index') as string);
 					const dragged_item = self.children.splice(clone_index, 1)[0];
 					if (clone_index < closest_index && !closest.isParent) {
 						closest_index--;

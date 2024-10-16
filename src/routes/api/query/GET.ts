@@ -35,7 +35,7 @@ import { getFieldName, get_elements_by_id } from '@src/utils/utils';
 import { isCollectionName } from '@src/collections/index'; // Import the type guard function
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Function to handle GET requests for a specified collection
 export async function _GET({

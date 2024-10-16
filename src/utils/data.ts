@@ -21,13 +21,13 @@
  * via the API endpoint.
  */
 
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { config, toFormData } from './utils';
 
 import type { CollectionNames } from '@src/collections/types';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Helper function to handle API requests
 export async function handleRequest(data: FormData, method: string) {
@@ -66,13 +66,16 @@ export async function getData(query: {
 			...config,
 			withCredentials: true // This ensures cookies are sent with the request
 		});
-		logger.debug('Successfully completed GET request', { data: response.data });
 		return response.data as {
 			entryList: [any];
 			pagesCount: number;
 		};
 	} catch (error) {
-		logger.error('Error in GET request:', error as Error);
+		if (error instanceof AxiosError) {
+			logger.error(`AxiosError in POST request: ${error.response?.status}`);
+		} else {
+			logger.error('Error in POST request:', error);
+		}
 		throw error;
 	}
 }

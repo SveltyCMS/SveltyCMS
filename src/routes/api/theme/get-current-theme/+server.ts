@@ -8,7 +8,7 @@ import { ThemeManager } from '@src/databases/themeManager';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Get the singleton ThemeManager instance
 const themeManager = ThemeManager.getInstance(dbAdapter);

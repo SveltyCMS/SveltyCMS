@@ -28,7 +28,7 @@ import type { dbInterface } from './dbInterface';
 import { drizzle, sql } from 'drizzle-orm';
 import * as mariadb from 'drizzle-orm/mariadb';
 import * as postgres from 'drizzle-orm/postgres';
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define connection configuration for MariaDB and PostgreSQL
 const dbConfig = {
@@ -86,7 +86,7 @@ export class DrizzleDBAdapter implements dbInterface {
 				if (attempts <= 0) {
 					const errorMsg = 'Failed to connect to the database after maximum retries.';
 					logger.error(errorMsg);
-					throw new Error(errorMsg);
+					throw Error(errorMsg);
 				}
 
 				await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -144,7 +144,7 @@ export class DrizzleDBAdapter implements dbInterface {
 			case 'date':
 				return 'DATE';
 			default:
-				throw new Error(`Unsupported field type: ${fieldType}`);
+				throw Error(`Unsupported field type: ${fieldType}`);
 		}
 	}
 

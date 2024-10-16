@@ -18,8 +18,8 @@ Key features:
 
 	import { publicEnv } from '@root/config/public';
 
-	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
+	import { goto } from '$app/navigation';
 
 	import { getTextDirection } from '@src/utils/utils';
 	import { isSearchVisible } from '@utils/globalSearchIndex';
@@ -27,7 +27,7 @@ Key features:
 	// Stores
 	import { page } from '$app/stores';
 	import { contentLanguage, systemLanguage, isLoading } from '@stores/store';
-	import { collection, collections, collectionValue } from '@stores/collectionStore';
+	import { collection, collectionValue } from '@stores/collectionStore';
 	import { sidebarState } from '@stores/sidebarStore';
 	import { screenSize } from '@stores/screenSizeStore';
 
@@ -42,35 +42,31 @@ Key features:
 
 	// Skeleton
 	import { initializeStores, Modal, Toast, setModeUserPrefers, setModeCurrent, setInitialClassState } from '@skeletonlabs/skeleton';
-
+	import { browser } from '$app/environment';
 	// Required for popups to function
 	import { computePosition, autoUpdate, offset, shift, flip, arrow } from '@floating-ui/dom';
 	import { storePopup } from '@skeletonlabs/skeleton';
+
 	storePopup.set({ computePosition, autoUpdate, offset, shift, flip, arrow });
 	initializeStores();
 
 	// Instead of using PageData, we'll use any for now
 	export let data: any;
 
-	// Declare a ForwardBackward variable to track whether the user is navigating using the browser's forward or backward buttons
-	let ForwardBackward: boolean = false;
-	let initial = true;
-
 	$: contentLanguage.set(data.language);
 
-	// Subscribe to changes in the collection store and do redirects
-	collection.subscribe(() => {
-		if (!$collection) return;
-		// Reset the value of the collectionValue store
+	// Function to handle collection changes
+	function handleCollectionChange(newCollection) {
+		if (!newCollection) return;
 		$collectionValue = {};
-		if (!ForwardBackward && initial != true) {
-			// If ForwardBackward is false and the current route is a collection route
-			goto(`/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${String($collection.name)}`);
+		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
+		if ($page.url.pathname !== newPath) {
+			browser && goto(newPath);
 		}
-		initial = false;
-		// Reset ForwardBackward to false
-		ForwardBackward = false;
-	});
+	}
+
+	// Subscribe to changes in the collection store
+	$: handleCollectionChange($collection);
 
 	// Subscribe to Setup System language
 	systemLanguage.subscribe((lang) => {
@@ -79,10 +75,12 @@ Key features:
 		if (!dir) return;
 
 		// This need be replace with svelte equivalent code
-		const rootNode = document.body?.parentElement;
-		if (!rootNode) return;
-		document.documentElement.dir = dir;
-		document.documentElement.lang = lang;
+		if (browser) {
+			const rootNode = document.body?.parentElement;
+			if (!rootNode) return;
+			document.documentElement.dir = dir;
+			document.documentElement.lang = lang;
+		}
 	});
 
 	// On page load get the saved theme
@@ -128,6 +126,7 @@ Key features:
 	const SeoTitle = `${publicEnv.SITE_NAME} - powered with sveltekit`;
 	const SeoDescription = `${publicEnv.SITE_NAME} - a modern, powerful, and easy-to-use CMS powered by SvelteKit. Manage your content with ease & take advantage of the latest web technologies.`;
 </script>
+
 
 <svelte:head>
 	<!-- darkmode -->

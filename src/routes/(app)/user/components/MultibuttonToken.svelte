@@ -110,7 +110,7 @@
 				modalButtonText = m.multibuttontoken_unblockbutton();
 				break;
 			default:
-				throw new Error(`Invalid action ${action}`);
+				throw Error(`Invalid action ${action}`);
 		}
 
 		//console.log('entered');

@@ -4,7 +4,7 @@
 -->
 <script lang="ts">
 	// Stores
-	import { mode, categories } from '@stores/store';
+	import { mode, categories } from '@stores/collectionStore';
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';

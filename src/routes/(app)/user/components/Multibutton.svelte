@@ -102,7 +102,7 @@
 				toastBackground = 'gradient-primary';
 				break;
 			default:
-				throw new Error(`Invalid action ${action}`);
+				throw Error(`Invalid action ${action}`);
 		}
 
 		const d: ModalSettings = {

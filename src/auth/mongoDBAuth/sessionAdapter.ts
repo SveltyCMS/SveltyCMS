@@ -18,13 +18,14 @@
  */
 
 import mongoose, { Schema, Document, Model } from 'mongoose';
+import { error } from '@sveltejs/kit';
 
 // Types
 import type { Session, User } from '../types';
 import type { authDBInterface } from '../authDBInterface';
 
 // System Logging
-import logger from '@utils/logger';
+import { logger } from '@utils/logger';
 import { UserAdapter } from './userAdapter';
 
 // Define the Session schema
@@ -53,9 +54,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			await session.save();
 			logger.info(`Session created for user: ${sessionData.user_id}`);
 			return this.formatSession(session.toObject());
-		} catch (error) {
-			logger.error('Failed to create session', { error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.createSession: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -64,14 +66,14 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		try {
 			const session = await this.SessionModel.findByIdAndUpdate(session_id, { expires: newExpiry }, { new: true }).lean();
 			if (!session) {
-				logger.warn('Session not found', { session_id });
-				throw new Error('Session not found');
+				throw error(404, `Session not found: ${session_id}`);
 			}
 			logger.debug('Session expiry updated', { session_id });
 			return this.formatSession(session);
-		} catch (error) {
-			logger.error('Failed to update session expiry', { session_id, error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.updateSessionExpiry: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -80,9 +82,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		try {
 			await this.SessionModel.findByIdAndDelete(session_id);
 			logger.info(`Session deleted: ${session_id}`);
-		} catch (error) {
-			logger.error('Failed to delete session', { session_id, error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.deleteSession: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -92,9 +95,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			const result = await this.SessionModel.deleteMany({ expires: { $lte: new Date() } });
 			logger.info('Expired sessions deleted', { deletedCount: result.deletedCount });
 			return result.deletedCount;
-		} catch (error) {
-			logger.error('Failed to delete expired sessions', { error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.deleteExpiredSessions: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -115,9 +119,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 
 			logger.debug('Session validated', { session_id });
 			return await this.userAdapter.getUserById(session.user_id);
-		} catch (error) {
-			logger.error('Failed to validate session', { session_id, error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.validateSession: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -126,9 +131,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 		try {
 			await this.SessionModel.deleteMany({ user_id });
 			logger.debug('All sessions invalidated for user', { user_id });
-		} catch (error) {
-			logger.error('Failed to invalidate all user sessions', { user_id, error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.invalidateAllUserSessions: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 
@@ -141,9 +147,10 @@ export class SessionAdapter implements Partial<authDBInterface> {
 			}).lean();
 			logger.debug('Active sessions retrieved for user', { user_id });
 			return sessions.map(this.formatSession);
-		} catch (error) {
-			logger.error('Failed to get active sessions', { user_id, error: (error as Error).message });
-			throw error;
+		} catch (err) {
+			const message = `Error in SessionAdapter.getActiveSessions: ${err instanceof Error ? err.message : String(err)}`;
+			logger.error(message);
+			throw error(500, message);
 		}
 	}
 

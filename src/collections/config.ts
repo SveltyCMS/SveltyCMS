@@ -12,12 +12,12 @@ export function createCategories(collections: { [key in CollectionNames]: Schema
 		{
 			name: 'Collections',
 			icon: 'bi:collection',
-			collections: [collections.Names, collections.Posts, collections.Media, collections.ImageArray, collections.Relation, collections.WidgetTest]
+			collections: [collections?.Names, collections?.Posts, collections?.Media, collections?.ImageArray, collections?.Relation, collections?.WidgetTest]
 		},
 		{
 			name: 'Menus',
 			icon: 'bi:menu-button-wide',
-			collections: [collections.Menu]
+			collections: [collections?.Menu]
 		}
 	];
 }

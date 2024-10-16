@@ -27,7 +27,7 @@ import type { RequestHandler } from '@sveltejs/kit';
 import osu from 'node-os-utils';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 const { cpu, drive, mem, os } = osu;
 
@@ -54,7 +54,7 @@ const fetchCPUInfo = async () => {
 		return { cpuUsage: cpuData, timeStamps };
 	} catch (error) {
 		logger.error('Error fetching CPU info:', error);
-		throw new Error('Failed to fetch CPU information');
+		throw Error('Failed to fetch CPU information');
 	}
 };
 
@@ -71,11 +71,11 @@ const fetchDiskInfo = async () => {
 				freePercentage: diskUsage.freePercentage
 			};
 		} else {
-			throw new Error('Disk usage information is not available');
+			throw Error('Disk usage information is not available');
 		}
 	} catch (error) {
 		logger.error('Error fetching disk info:', error);
-		throw new Error('Failed to fetch disk information');
+		throw Error('Failed to fetch disk information');
 	}
 };
 
@@ -93,7 +93,7 @@ const fetchMemoryInfo = async () => {
 		};
 	} catch (error) {
 		logger.error('Error fetching memory info:', error);
-		throw new Error('Failed to fetch memory information');
+		throw Error('Failed to fetch memory information');
 	}
 };
 
@@ -114,7 +114,7 @@ const getSystemInfo = async () => {
 		return { cpuInfo, diskInfo, memoryInfo, osInfo };
 	} catch (error) {
 		logger.error('Error fetching system info:', error);
-		throw new Error('Failed to fetch system information');
+		throw Error('Failed to fetch system information');
 	}
 };
 

@@ -29,7 +29,7 @@ import type { User } from '@src/auth/types';
 import type { CollectionModel } from '@src/databases/dbInterface';
 
 // System logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Define Field type locally if not available in @src/collections/types
 interface Field {
@@ -100,6 +100,6 @@ export async function modifyRequest({ data, fields, collection, user, type }: Mo
 		const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
 		const errorStack = error instanceof Error ? error.stack : '';
 		logger.error(`Error in modifyRequest: ${errorMessage}`, { stack: errorStack });
-		throw new Error(errorMessage);
+		throw Error(errorMessage);
 	}
 }

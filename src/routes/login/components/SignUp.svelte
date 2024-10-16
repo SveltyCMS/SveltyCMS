@@ -31,6 +31,7 @@
 
 	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
+	import { browser } from '$app/environment';
 
 	export let active: undefined | 0 | 1 = undefined;
 	export let FormSchemaSignUp: PageData['signUpForm'];
@@ -74,7 +75,7 @@
 		}
 	});
 
-	const params = new URL(window.location.href).searchParams;
+	const params = browser ? new URL(window.location.href).searchParams : new URLSearchParams("");
 
 	if (params.has('regToken')) {
 		active = 1;

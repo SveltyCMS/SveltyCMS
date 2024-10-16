@@ -25,7 +25,7 @@ import { exec } from 'child_process';
 import type { RequestHandler } from '@sveltejs/kit';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 export const POST: RequestHandler = async () => {
 	try {

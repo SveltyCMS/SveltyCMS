@@ -20,7 +20,7 @@
 
 import { get, writable } from 'svelte/store';
 import { screenSize, ScreenSize } from './screenSizeStore'; // Import from screenSizeStore
-import { mode } from './store';
+import { mode } from './collectionStore';
 
 // Interface for sidebar states
 export interface SidebarState {

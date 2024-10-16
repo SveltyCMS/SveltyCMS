@@ -7,7 +7,7 @@ import type { Model, User, WidgetId } from '@src/auth/types';
 // import { getActiveWidgets } from '@src/routes/(app)/config/widgetManagement/widgetManager';
 
 // System logger
-// import logger from '@src/utils/logger';
+// import { logger } from '@src/utils/logger';
 
 // Widgets
 import Address from './address';
@@ -74,7 +74,7 @@ const widgets = {
 // 		return module.default;
 // 	} catch (error) {
 // 		logger.error(`Failed to import widget: ${widgetName}`, error as Error);
-// 		throw new Error(`Widget module for ${widgetName} not found.`);
+// 		throw Error(`Widget module for ${widgetName} not found.`);
 // 	}
 // }
 // Initialize widgets

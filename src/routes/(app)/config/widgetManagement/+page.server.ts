@@ -1,66 +1,64 @@
 /**
  * @file src/routes/(app)/config/widgetManagement/+page.server.ts
- * @description Server-side logic for Access Management page authentication and authorization.
+ * @description Server-side logic for Widget Management page authentication and authorization.
  *
- * Handles session validation, user authentication, and role-based access control for the Access Management page.
+ * Handles user authentication and role-based access control for the Widget Management page.
  * Redirects unauthenticated users to the login page and restricts access based on user permissions.
  *
  * Responsibilities:
- * - Checks for a valid session cookie.
- * - Validates the user's session using the authentication service.
- * - Checks user permissions using RBAC middleware.
+ * - Checks for authenticated user in locals (set by hooks.server.ts).
+ * - Checks user permissions for widget management access.
  * - Returns user data if authentication and authorization are successful.
- * - Handles session expiration, invalid session cases, and insufficient permissions.
+ * - Handles cases of unauthenticated users or insufficient permissions.
  */
 
 import { redirect, error } from '@sveltejs/kit';
+import type { PageServerLoad } from './$types';
 
 // Auth
-import { auth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
+import { checkUserPermission } from '@src/auth/permissionCheck';
+import { permissionConfigs } from '@src/auth/permissionManager';
 
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
-export async function load({ cookies }) {
-	if (!auth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Internal Server Error');
-	}
-
-	// Secure this page with session cookie
-	const session_id = cookies.get(SESSION_COOKIE_NAME);
-
-	if (!session_id) {
-		logger.debug('No session ID found, redirecting to login');
-		throw redirect(302, `/login`);
-	}
-
+export const load: PageServerLoad = async ({ locals }) => {
 	try {
-		// Validate the user's session
-		const user = await auth.validateSession({ session_id });
+		const { user } = locals;
 
 		// If validation fails, redirect the user to the login page
 		if (!user) {
-			logger.warn(`Invalid session for session_id: ${session_id}`);
-			throw redirect(302, `/login`);
+			logger.warn('User not authenticated, redirecting to login');
+			throw redirect(302, '/login');
 		}
 
-		// Log successful session validation
-		logger.debug(`User session validated successfully for user: ${user._id}`);
-		const { _id, ...rest } = user;
+		logger.debug(`User authenticated successfully for user: ${user._id}`);
+
+		// Check user permission for widget management
+		const widgetManagementConfig = permissionConfigs.widgetManagement;
+		const permissionCheck = await checkUserPermission(user, widgetManagementConfig);
+
+		if (!permissionCheck.hasPermission) {
+			const message = `User ${user._id} does not have permission to access widget management`;
+			logger.warn(message);
+			throw error(403, 'Insufficient permissions');
+		}
 
 		// Return user data
+		const { _id, ...rest } = user;
 		return {
 			user: {
 				_id: _id.toString(),
 				...rest
 			}
 		};
-	} catch (e) {
-		logger.error('Error validating session:', e);
-		// Instead of immediately redirecting, you might want to clear the invalid session
-		cookies.delete(SESSION_COOKIE_NAME, { path: '/' });
-		throw redirect(302, `/login`);
+	} catch (err) {
+		if (err instanceof Error && 'status' in err) {
+			// This is likely a redirect or an error we've already handled
+			throw err;
+		}
+		const message = `Error in load function: ${err instanceof Error ? err.message : String(err)}`;
+		logger.error(message);
+		throw error(500, message);
 	}
-}
+};

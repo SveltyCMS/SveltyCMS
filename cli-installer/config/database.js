@@ -26,7 +26,7 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 			await mongoose.default.connection.db.admin().ping();
 			return true;
 		} catch (error) {
-			throw new Error(`MongoDB connection failed: ${error.message}`);
+			throw Error(`MongoDB connection failed: ${error.message}`);
 		}
 	} else if (dbType === 'mariadb') {
 		const mariadb = await import('mariadb');
@@ -41,7 +41,7 @@ async function testDatabaseConnection(dbType, { host, port, user, password, data
 			await connection.end();
 			return true;
 		} catch (error) {
-			throw new Error(`MariaDB connection failed: ${error.message}`);
+			throw Error(`MariaDB connection failed: ${error.message}`);
 		}
 	}
 	return false;

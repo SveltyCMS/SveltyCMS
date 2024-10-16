@@ -29,7 +29,7 @@ import { auth } from '@src/databases/db';
 import { SESSION_COOKIE_NAME } from '@src/auth';
 
 // Import logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Import saveAvatarImage function
 import { saveAvatarImage } from '@src/utils/media/mediaStorage';

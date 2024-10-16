@@ -73,8 +73,8 @@
 					targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 					const closest = targets[0];
 					if (closest.el == node) return;
-					const closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-					const clone_index = parseInt(clone.getAttribute('data-index') as string);
+					const closest_index = parseInt(closest?.el?.getAttribute('data-index') as string);
+					const clone_index = parseInt(clone?.getAttribute('data-index') as string);
 
 					if (old_closest) {
 						old_closest.style.removeProperty('border-color');
@@ -94,8 +94,8 @@
 				clone.releasePointerCapture(pointerID);
 				targets.sort((a, b) => (Math.abs(b.center - e.clientY) < Math.abs(a.center - e.clientY) ? 1 : -1));
 				const closest = targets[0];
-				let closest_index = parseInt(closest.el.getAttribute('data-index') as string);
-				const clone_index = parseInt(clone.getAttribute('data-index') as string);
+				let closest_index = parseInt(closest?.el?.getAttribute('data-index') as string);
+				const clone_index = parseInt(clone?.getAttribute('data-index') as string);
 				const dragged_item = fields.splice(clone_index, 1)[0];
 
 				if (clone_index < closest_index) {

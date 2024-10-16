@@ -22,7 +22,7 @@
 
 import { dbAdapter } from '@src/databases/db';
 // System Logs
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 // Registers collection schemas dynamically.
 export function mediaTypeDefs() {
 	return `
@@ -73,7 +73,7 @@ export function mediaResolvers() {
 	const fetchWithPagination = async (collectionName: string, pagination: { page: number; limit: number }) => {
 		if (!dbAdapter) {
 			logger.error('Database adapter is not initialized');
-			throw new Error('Database adapter is not initialized');
+			throw Error('Database adapter is not initialized');
 		}
 
 		const { page = 1, limit = 50 } = pagination || {};
@@ -85,7 +85,7 @@ export function mediaResolvers() {
 			return result;
 		} catch (error) {
 			logger.error(`Error fetching data for ${collectionName}:`, error);
-			throw new Error(`Failed to fetch data for ${collectionName}`);
+			throw Error(`Failed to fetch data for ${collectionName}`);
 		}
 	};
 

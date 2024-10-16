@@ -22,10 +22,14 @@ import fs from 'fs';
 import path from 'path';
 
 // System Logger
-import logger from '@src/utils/logger';
+import { logger } from '@src/utils/logger';
 
 // Use process.env for server-side environment variables
-const collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+let collectionsFolder = "";
+var process;
+if (process) {
+	collectionsFolder = process.env.VITE_COLLECTIONS_FOLDER || './collections';
+}
 
 // This function returns a list of all the collection files in the specified directory.
 export function getCollectionFiles(): string[] {
@@ -44,6 +48,6 @@ export function getCollectionFiles(): string[] {
 		return filteredFiles;
 	} catch (error) {
 		logger.error('Error reading collection files', { message: (error as Error).message, stack: (error as Error).stack });
-		throw new Error(`Failed to read collection files: ${(error as Error).message}`);
+		throw Error(`Failed to read collection files: ${(error as Error).message}`);
 	}
 }

@@ -65,7 +65,7 @@ const widget = (params: Params) => {
 
 widget.modifyRequest = async ({ data, type, collection, id, meta_data, user }: ModifyRequestParams<typeof widget>) => {
 	if (!dbAdapter) {
-		throw new Error('Database adapter is not initialized.');
+		throw Error('Database adapter is not initialized.');
 	}
 
 	switch (type) {
