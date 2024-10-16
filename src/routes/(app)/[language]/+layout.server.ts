@@ -28,7 +28,7 @@ import { serializeCollections } from '@src/utils/serialize';
 // Server-side load function for the layout
 export const load: LayoutServerLoad = async ({ locals, params }) => {
 	const { user, theme } = locals;
-	const { language } = params;
+	const language = params.language && params.language !== "undefined" ? params.language : "en";
 
 	logger.debug(`Layout server load started. Language: ${language}`);
 

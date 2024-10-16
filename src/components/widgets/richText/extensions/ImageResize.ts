@@ -43,15 +43,15 @@ const ImageResize = ImageExtension.extend({
 			},
 			storage_image: {
 				default: null,
-				parseHTML: (element) => (element.querySelector('img') as HTMLElement).getAttribute('storage_image')
+				parseHTML: (element) => (element.querySelector('img') as HTMLElement)?.getAttribute('storage_image')
 			},
 			src: {
 				default: null,
-				parseHTML: (element) => (element.querySelector('img') as HTMLElement).getAttribute('src')
+				parseHTML: (element) => (element.querySelector('img') as HTMLElement)?.getAttribute('src')
 			},
 			alt: {
 				default: null,
-				parseHTML: (element) => (element.querySelector('img') as HTMLElement).getAttribute('alt')
+				parseHTML: (element) => (element.querySelector('img') as HTMLElement)?.getAttribute('alt')
 			},
 			float: {
 				default: 'unset',

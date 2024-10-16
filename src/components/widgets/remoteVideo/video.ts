@@ -177,7 +177,7 @@ export async function tiktok(url: string) {
 	const videoTitle = titleElement ? titleElement.textContent : '';
 
 	const thumbnailElement = doc.querySelector('.tiktok-j6dmhd-ImgPoster');
-	const videoThumbnail = thumbnailElement ? thumbnailElement.getAttribute('src') : '';
+	const videoThumbnail = thumbnailElement ? thumbnailElement?.getAttribute('src') : '';
 
 	return {
 		videoTitle: videoTitle,

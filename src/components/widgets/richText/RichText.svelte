@@ -309,7 +309,7 @@
 		<div class="sticky top-0 z-10 flex w-full items-center justify-center gap-1">
 			<!-- textTypes -->
 			<!-- <button class="variant-filled btn w-48 items-center justify-between" use:popup={popupCombobox}>
-				<span class="capitalize">{textTypes[editor.getAttributes('textTypes').textType] ?? 'Types'}</span>
+				<span class="capitalize">{textTypes[editor?.getAttributes('textTypes')?.textType] ?? 'Types'}</span>
 				<span><iconify-icon icon="mdi:chevron-down" width="20" /></span>
 			</button>
 
@@ -328,7 +328,7 @@
 
 			<!-- fonts -->
 			<!-- <button class="variant-filled btn w-48 justify-between" use:popup={popupCombobox}>
-				<span class="capitalize">{fonts.find((font) => font.name === editor.getAttributes('fonts').fontName)?.name ?? 'Fonts'}</span>
+				<span class="capitalize">{fonts.find((font) => font.name === editor?.getAttributes('fonts')?.fontName)?.name ?? 'Fonts'}</span>
 
 				<span><iconify-icon icon="mdi:chevron-down" width="20" /></span>
 			</button>
@@ -355,7 +355,7 @@
 				key="color"
 				bind:active={active_dropDown}
 				show={show('color')}
-				color={editor.getAttributes('textStyle').color || '#000000'}
+				color={editor?.getAttributes('textStyle')?.color || '#000000'}
 				on:change={(e) => editor.chain().focus().setColor(e.detail).run()}
 			/>
 
@@ -429,7 +429,7 @@
 				bind:active={active_dropDown}
 				key="description"
 				show={show('description')}
-				value={editor.getAttributes('image').description}
+				value={editor?.getAttributes('image')?.description}
 				on:submit={(e) => {
 					editor.chain().focus().setImageDescription(e.detail).run();
 				}}

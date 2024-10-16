@@ -81,9 +81,9 @@
 
 	// Initialize displayTableHeaders with the values from entryListPaginationSettings or default to tableHeaders
 	let displayTableHeaders: { label: string; name: string; id: string; visible: boolean }[] =
-		entryListPaginationSettings.displayTableHeaders.length > 0
-			? entryListPaginationSettings.displayTableHeaders
-			: tableHeaders.map((header) => ({ ...header, visible: true }));
+		entryListPaginationSettings?.displayTableHeaders?.length > 0
+			? entryListPaginationSettings?.displayTableHeaders
+			: tableHeaders?.map((header) => ({ ...header, visible: true }));
 
 	// Tick row logic
 	let SelectAll = false;
@@ -202,12 +202,12 @@
 		tableHeaders.push({ label: 'createdAt', name: 'createdAt' }, { label: 'updatedAt', name: 'updatedAt' }, { label: 'status', name: 'status' });
 
 		// Update displayTableHeaders based on entryListPaginationSettings
-		if (entryListPaginationSettings.displayTableHeaders.length > 0) {
-			displayTableHeaders = entryListPaginationSettings.displayTableHeaders.map((header) => ({
+		if (entryListPaginationSettings?.displayTableHeaders?.length > 0) {
+			displayTableHeaders = entryListPaginationSettings?.displayTableHeaders?.map((header) => ({
 				...header,
 				id: crypto.randomUUID() // Add unique id for each header (optional)
 			}));
-		} else if (tableHeaders.length > 0) {
+		} else if (tableHeaders?.length > 0) {
 			// If no saved settings, use tableHeaders with initial visibility
 			displayTableHeaders = tableHeaders.map((header) => ({
 				...header,
@@ -303,7 +303,7 @@
 	let sorting: { sortedBy: string; isSorted: 0 | 1 | -1 } = browser && localStorage.getItem('sorting')
 		? JSON.parse(localStorage.getItem('sorting') as string)
 		: {
-				sortedBy: tableData.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
+				sortedBy: tableData?.length > 0 ? Object.keys(tableData[0])[0] : '', // Set default sortedBy based on first key in tableData (if available)
 				isSorted: 1 // 1 for ascending order, -1 for descending order and 0 for not sorted
 			};
 
@@ -317,7 +317,7 @@
 			selectedMap[item] && modifyList.push(tableData[item]._id);
 		}
 		// If no rows are selected, return
-		if (modifyList.length === 0) return;
+		if (modifyList?.length === 0) return;
 
 		// Function to handle confirmation modal response
 		const handleConfirmation = async (confirm: boolean) => {
@@ -366,7 +366,7 @@
 		};
 
 		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'delete') {
+		if (modifyList?.length > 1 || status === 'delete') {
 			const modalData: ModalSettings = {
 				type: 'confirm',
 				title: m.entrylist_title(),
@@ -385,7 +385,7 @@
 		}
 	};
 
-	$: isCollectionEmpty = tableData.length === 0;
+	$: isCollectionEmpty = tableData?.length === 0;
 </script>
 
 <!--Table -->
@@ -410,8 +410,8 @@
 			<!-- Collection type with icon -->
 			<!-- TODO: Translate Collection Name -->
 			<div class="mr-1 flex flex-col {!$sidebarState.left ? 'ml-2' : 'ml-1 sm:ml-2'}">
-				{#if $categories.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
-						{$categories[0].name}
+				{#if $categories?.length}<div class="mb-2 text-xs capitalize text-surface-500 dark:text-surface-300 rtl:text-left">
+						{$categories?.[0]?.name}
 					</div>
 				{/if}
 				<div class="-mt-2 flex justify-start text-sm font-bold uppercase dark:text-white md:text-2xl lg:text-xl">
@@ -447,7 +447,7 @@
 	</div>
 
 	<!-- Table -->
-	{#if tableData.length > 0}
+	{#if tableData?.length > 0}
 		{#if expand}
 			<div class="mb-2 flex items-center justify-center">
 				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
@@ -560,7 +560,7 @@
 						<tr class="divide-x divide-surface-400">
 							<th>
 								<!-- Clear All Filters Button -->
-								{#if Object.keys(filters).length > 0}
+								{#if Object.keys(filters)?.length > 0}
 									<button
 										class="variant-outline btn-icon"
 										on:click={() => {
