@@ -249,6 +249,7 @@ export class MongoDBAdapter implements dbInterface {
 		return new mongoose.Types.ObjectId(id);
 	}
 
+
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, Model<any>>> {
 		logger.debug('getCollectionModels called');

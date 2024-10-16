@@ -10,9 +10,6 @@ import type { Actions, PageServerLoad } from './$types';
 
 // Auth
 import { google } from 'googleapis';
-import { auth, initializationPromise, googleAuth } from '@src/databases/db';
-import { SESSION_COOKIE_NAME } from '@src/auth';
-import type { User } from '@src/auth/types';
 
 import { getCollections } from '@src/collections';
 import { saveAvatarImage } from '@utils/media/mediaStorage';
@@ -43,16 +40,10 @@ async function sendWelcomeEmail(fetchFn: (input: RequestInfo | URL, init?: Reque
 	}
 }
 
-export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
+export const load: PageServerLoad = async ({ url, cookies, fetch, locals }) => {
 	await initializationPromise; // Ensure initialization is complete
-
 	logger.debug('OAuth load function called');
 	logger.debug(`Full URL: ${url.toString()}`);
-
-	if (!auth || !googleAuth) {
-		logger.error('Authentication system is not initialized');
-		throw error(500, 'Authentication system is not available');
-	}
 
 	const code = url.searchParams.get('code');
 	logger.debug(`Authorization code from URL: ${code}`);
@@ -66,7 +57,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 	try {
 		const googleAuthClient = await googleAuth();
 		if (!googleAuthClient) {
-			throw Error('Google OAuth is not initialized');
+			throw new Error('Google OAuth is not initialized');
 		}
 
 		logger.debug('Fetching tokens using authorization code...');
@@ -82,21 +73,20 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 		const email = googleUser.email;
 		if (!email) {
 			logger.error('Google did not return an email address.');
-			throw Error('Google did not return an email address.');
+			throw new Error('Google did not return an email address.');
 		}
 
-		const locale = googleUser.locale;
-		if (locale) {
-			systemLanguage.set(locale);
+		if (googleUser.locale) {
+			systemLanguage.set(googleUser.locale);
 		}
 
-		// Fetch or create the user
-		const existingUser = await auth.checkUser({ email });
-		const isFirst = (await auth.getUserCount()) === 0;
-		let user: User | null = null;
-		let avatarUrl: string | null = null;
+		// Check if user exists
+		let user = await auth.checkUser({ email });
+		const isFirst = locals.isFirstUser;
 
-		if (!existingUser) {
+		if (!user) {
+			// Handle new user creation
+			let avatarUrl: string | null = null;
 			// Fetch  & Save the Google user's avatar
 			if (googleUser.picture) {
 				const response = await fetch(googleUser.picture);
@@ -117,30 +107,27 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 				blocked: false
 			});
 
-			// Verify the new user creation
-			user = await auth.checkUser({ email });
-			if (!user) {
-				logger.error('User creation failed, user not found after creation.');
-				throw Error('User creation failed');
-			}
-
 			await sendWelcomeEmail(fetch, email, googleUser.name || '');
-		} else {
-			user = existingUser;
 		}
 
-		if (!user._id) {
-			logger.error('User ID is missing after creation or retrieval');
-			throw Error('User ID is missing');
+		if (!user?._id) {
+			throw new Error('User ID is missing after creation or retrieval');
 		}
 
-		logger.debug(`User found or created with ID: ${user._id}`);
+		// Create User Session
+		const { user: authenticatedUser, sessionId } = await handleLogin(email, '', true); // Using empty password for OAuth
 
-		// Create User Session with ISO date string
-		const expiresAt = new Date(Date.now() + 3600000).toISOString(); // 1 hour from now
-		const session = await auth.createSession({ user_id: user._id.toString(), expires: expiresAt });
-		const sessionCookie = auth.createSessionCookie(session);
-		cookies.set(SESSION_COOKIE_NAME, sessionCookie.value, sessionCookie.attributes);
+		if (!authenticatedUser) {
+			throw new Error('Failed to authenticate user');
+		}
+
+		cookies.set(SESSION_COOKIE_NAME, sessionId, {
+			path: '/',
+			httpOnly: true,
+			secure: !dev,
+			sameSite: 'strict',
+			maxAge: 30 * 24 * 60 * 60 // 30 days
+		});
 
 		// Update user attributes
 		await auth.updateUserAttributes(user._id.toString(), {
@@ -149,9 +136,7 @@ export const load: PageServerLoad = async ({ url, cookies, fetch }) => {
 			lastName: googleUser.family_name,
 			avatar: avatarUrl ?? googleUser.picture
 		});
-
 		logger.info('Successfully created session and set cookie');
-
 		// Redirect to the first collection
 		const collections = await getCollections();
 		if (collections && Object.keys(collections).length > 0) {
@@ -181,19 +166,11 @@ export const actions: Actions = {
 			return { errors: ['Token not found'], success: false, message: 'Invalid token' };
 		}
 
-		await initializationPromise; // Ensure initialization is complete
-
-		if (!auth || !googleAuth) {
-			logger.error('Authentication system is not initialized');
-			return { success: false, message: 'Internal Server Error' };
-		}
-
 		try {
 			// Verify the token
 			const googleAuthClient = await googleAuth();
-
 			if (!googleAuthClient) {
-				throw Error('Google OAuth is not initialized');
+				throw new Error('Google OAuth is not initialized');
 			}
 
 			// Verify the token

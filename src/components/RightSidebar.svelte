@@ -27,6 +27,7 @@
 	// Skeleton
 	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
+	import { logger } from "@src/utils/logger";
 
 	const modalStore = getModalStore();
 
@@ -58,7 +59,7 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $collectionValue?.status === 'published';
+	let isPublished = $collectionValue?.status === 'PUBLISHED';
 	let inputPopupUser = '';
 	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
 
@@ -106,10 +107,15 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
+				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
+
+				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
+
 				await saveFormData({
-					data: $collectionValue,
+					data:	$collectionValue,
 					_collection: $collection,
 					_mode: $mode,
+					id: $collectionValue._id ?? "",
 					user
 				});
 

@@ -152,37 +152,28 @@
 	});
 </script>
 
-<!-- Virtual Folders UI -->
-<div class="mb-4">
-	<input type="text" bind:value={newFolderName} placeholder="New folder name" class="input variant-form-material" />
-	<button on:click={createFolder} class="variant-filled-primary btn">Create Folder</button>
-</div>
-
 {#if folders.length > 0}
-	<div class="flex flex-col space-y-2">
+	<div class="relative flex">
 		{#each folders.filter((f) => !currentFolder || f.parent === currentFolder._id) as folder (folder._id)}
-			<div class="relative flex flex-col space-y-2">
+			<div class="btn-group">
 				<!-- Folder Button -->
-				<button on:click={() => openFolder(folder._id)} class="variant-outline-secondary btn">
+				<button on:click={() => openFolder(folder._id)} class="btn">
 					<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
 					<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
 				</button>
 				<!-- Edit and Delete buttons -->
-				<div class="absolute right-0 top-0 flex space-x-2">
-					<button
-						on:click={() => updateFolder(folder._id, prompt('Enter new folder name', folder.name) || folder.name)}
-						class="variant-filled-warning btn btn-sm"
-					>
-						Edit
+				<div class="absolute right-0 top-0 flex">
+					<button on:click={() => updateFolder(folder._id, prompt('Enter new folder name', folder.name) || folder.name)} class="btn">
+						<iconify-icon icon="mdi:pencil" width="18" class="text-white" />
 					</button>
-					<button on:click={() => deleteFolder(folder._id)} class="variant-filled-error btn btn-sm"> Delete </button>
+					<button on:click={() => deleteFolder(folder._id)} class="btn"> <iconify-icon icon="mdi:delete" width="18" class="text-white" /> </button>
 				</div>
 			</div>
 		{/each}
 	</div>
 {:else}
 	<!-- No Folders Found Message -->
-	<div class="text-center">
+	<div class="w-full pt-1 text-center">
 		<p class="variant-outline-secondary btn text-warning-500">No folders</p>
 	</div>
 {/if}

@@ -43,10 +43,13 @@ export const load: PageServerLoad = async (event) => {
 		logger.debug(`Roles from event.locals: ${JSON.stringify(roles)}`);
 		logger.debug(`Is first user: ${isFirstUser}`);
 		logger.debug(`Has manage users permission: ${hasManageUsersPermission}`);
+		logger.debug(`event ${JSON.stringify(event, null, 2)}`);
 
 		const addUserForm = await superValidate(event, zod(addUserTokenSchema));
 		const changePasswordForm = await superValidate(event, zod(changePasswordSchema));
 
+		logger.debug(`addUserForm: ${JSON.stringify(addUserForm)}`);
+		logger.debug(`changePasswordForm: ${JSON.stringify(changePasswordForm)}`);
 		// Prepare user object for return, ensuring _id is a string
 		const safeUser = user
 			? {
@@ -116,9 +119,9 @@ export const load: PageServerLoad = async (event) => {
 			manageUsersPermissionConfig,
 			adminData
 		};
-	} catch (error) {
-		const err = error as Error;
-		logger.error(`Error during load function: ${err.message}`);
-		throw Error(`Error during load function:: ${err.message}`);
+	} catch (err) {
+		logger.error('Error during load function:', err);
+		console.log(err);
+		throw error(500, 'Internal Server Error');
 	}
 };

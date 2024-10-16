@@ -80,7 +80,7 @@ Key features:
 
 	// Function to handle collection changes
 	function handleCollectionChange(newCollection) {
-		if (!newCollection) return;
+		if (!newCollection || !newCollection.name) return;
 		$collectionValue = {};
 		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
 		if ($page.url.pathname !== newPath) {
@@ -231,7 +231,7 @@ Key features:
 					<div
 						on:keydown={onKeyDown}
 						role="main"
-						class="relative flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
+						class="relative flex-grow overflow-auto h-full {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
 					>
 						{#key $page.url}
 							<Toast />

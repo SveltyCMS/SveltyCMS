@@ -53,7 +53,7 @@ Key features:
 	});
 
 	afterUpdate(() => {
-		if (root) $collectionValue = fieldsData;
+		// if (root) $collectionValue = fieldsData;
 	});
 
 	// Reactive statements
@@ -148,7 +148,7 @@ Key features:
 		<svelte:fragment slot="panel">
 			{#if $tabSet === 0}
 				<div class="mb-2 text-center text-xs text-error-500">{m.fields_required()}</div>
-				<div class="wrapper">
+				<div class="rounded-md border bg-white px-4 py-6 drop-shadow-2xl dark:border-surface-500 dark:bg-surface-900">
 					<div class="flex flex-wrap items-center justify-center gap-1 overflow-auto">
 						{#each filteredFields as field (field.db_fieldName || field.id || field.label || field.name)}
 							{#if field.widget}

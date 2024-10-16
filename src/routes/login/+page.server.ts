@@ -369,7 +369,7 @@ export const actions: Actions = {
 				return fail(500, { message: 'Failed to generate redirect URL.' });
 			}
 
-			// Add this line to invalidate all user sessions before redirecting
+			// Invalidate all user sessions before redirecting
 			if (auth && event.locals.user) {
 				await auth.invalidateAllUserSessions(event.locals.user._id);
 			}

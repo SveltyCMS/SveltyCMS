@@ -39,6 +39,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
+	import { logger } from "@src/utils/logger";
 
 	const flipDurationMs = 300;
 
@@ -657,8 +658,9 @@
 							{#each tableHeaders as header}
 								<td
 									on:click={() => {
+
 										collectionValue.set(data?.entryList[index]);
-										// logger.debug(data);
+										logger.debug("Edit datas: ",`${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
 										handleSidebarToggle();
 									}}
@@ -666,7 +668,7 @@
 								>
 									{#if header.name === 'status'}
 										<!-- Use the Status component to display the Status -->
-										<Status value={row[header.name]} />
+										<Status value={row['status']} />
 									{:else}
 										{@html row[header.name]}
 									{/if}
