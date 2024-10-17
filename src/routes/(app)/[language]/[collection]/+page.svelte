@@ -87,21 +87,19 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	$: console.debug('Store values :',$collectionValue);
 </script>
 
-{#if  $page.params.collection}
-	<div class="content h-full">
-		{#if $collection}
-			{#if $mode === 'view' || $mode === 'modify'}
-				<EntryList />
-			{:else if ['edit', 'create'].includes($mode)}
-				<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-					<Fields fields={$collection.fields} mode={$mode} fieldsData={$collectionValue} root={false} />
-				</div>
-			{:else if $mode === 'media' && $page.params.collection}
-				<MediaGallery data={{}} />
-			{/if}
-		{:else}
-			<div class="error">Error: Collection data not available.</div>
+<div class="content h-full">
+	{#if $collection}
+		{#if $mode === 'view' || $mode === 'modify'}
+			<EntryList />
+		{:else if ['edit', 'create'].includes($mode)}
+			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
+				<Fields fields={$collection.fields} mode={$mode} fieldsData={$collectionValue} root={false} />
+			</div>
+		{:else if $mode === 'media' && $page.params.collection}
+			<MediaGallery />
 		{/if}
-	</div>
+	{:else}
+		<div class="error">Error: Collection data not available.</div>
+	{/if}
+</div>
 	
-{/if}

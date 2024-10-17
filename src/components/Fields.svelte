@@ -53,7 +53,7 @@ Key features:
 	});
 
 	afterUpdate(() => {
-		// if (root) $collectionValue = fieldsData;
+		if (root) $collectionValue = fieldsData;
 	});
 
 	// Reactive statements
@@ -193,10 +193,10 @@ Key features:
 											{...$$props}
 										/>
 
-										<!-- Display validation error below the widget if any -->
+										<!-- Display validation error below the widget if any
 										{#if $validationStore[getFieldName(field)]}
 											<p class="text-center text-sm text-error-500">{$validationStore[getFieldName(field)]}</p>
-										{/if}
+										{/if} -->
 									{/await}
 								</div>
 							{/if}

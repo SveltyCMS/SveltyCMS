@@ -109,8 +109,6 @@
 			try {
 				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
 
-				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
-
 				await saveFormData({
 					data:	$collectionValue,
 					_collection: $collection,

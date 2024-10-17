@@ -233,7 +233,7 @@ Key features:
 						role="main"
 						class="relative flex-grow overflow-auto h-full {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
 					>
-						{#key $page.url}
+						<!-- {#key $page.url} -->
 							<Toast />
 							<Modal />
 
@@ -266,7 +266,7 @@ Key features:
 							{#if isNonCriticalDataLoaded}
 								<!-- Render components that depend on non-critical data -->
 							{/if}
-						{/key}
+						<!-- {/key} -->
 					</div>
 
 					<!-- Page Footer -->
