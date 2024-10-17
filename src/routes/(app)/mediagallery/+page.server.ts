@@ -14,7 +14,7 @@
  */
 import { publicEnv } from '@root/config/public';
 
-import { error } from '@sveltejs/kit';
+import { error, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
 // Utils

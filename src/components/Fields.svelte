@@ -53,7 +53,8 @@ Key features:
 	});
 
 	afterUpdate(() => {
-		// if (root) $collectionValue = fieldsData;
+		// logger.debug("afterUPdtdaed: ", `${JSON.stringify({"collectionValue": $collectionValue, fieldsData})}`);
+		if (root) collectionValue.set({ ...collectionValue, ...fieldsData });
 	});
 
 	// Reactive statements
@@ -96,6 +97,7 @@ Key features:
 	}
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
+	
 </script>
 
 {#if isLoading}
@@ -189,14 +191,14 @@ Key features:
 											this={asAny(widget).default}
 											field={asAny(field)}
 											bind:WidgetData={fieldsData[getFieldName(field)]}
-											value={customData[getFieldName(field)]}
+											bind:value={customData[getFieldName(field)]}
 											{...$$props}
 										/>
 
-										<!-- Display validation error below the widget if any -->
+										<!-- Display validation error below the widget if any
 										{#if $validationStore[getFieldName(field)]}
 											<p class="text-center text-sm text-error-500">{$validationStore[getFieldName(field)]}</p>
-										{/if}
+										{/if} -->
 									{/await}
 								</div>
 							{/if}

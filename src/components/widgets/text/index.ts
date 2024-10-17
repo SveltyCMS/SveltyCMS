@@ -97,5 +97,6 @@ widget.aggregations = {
 } as Aggregations;
 
 // Export FieldType interface and widget function
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
 export interface FieldType extends ReturnType<typeof widget> {}
 export default widget;

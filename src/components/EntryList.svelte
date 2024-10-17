@@ -191,8 +191,8 @@
 					}
 
 					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(entry.createdAt).toLocaleString($systemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(entry.updatedAt).toLocaleString($systemLanguage) : 'N/A';
+					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt)*1000).toLocaleString($systemLanguage) : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt)*1000).toLocaleString($systemLanguage) : 'N/A';
 					obj._id = entry._id; // Add _id property
 
 					return obj;
