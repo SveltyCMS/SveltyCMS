@@ -31,7 +31,6 @@ Key features:
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
-	import { logger } from '@src/utils/logger';
 
 	// Props
 	export let fields: typeof $collection.fields | undefined = undefined;
@@ -99,7 +98,6 @@ Key features:
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
 	
-	$: console.debug(customData)
 </script>
 
 {#if isLoading}

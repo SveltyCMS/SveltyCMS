@@ -88,7 +88,7 @@
 	}
 
 	// Export WidgetData for data binding with Fields.svelte
-	export const WidgetData = async () => value;
+	export const WidgetData = async () => _data;
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">

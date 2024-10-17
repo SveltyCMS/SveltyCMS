@@ -590,7 +590,7 @@ export function updateTranslationProgress(data, field) {
 			$translationProgress[lang] = { total: new Set(), translated: new Set() };
 		}
 
-		if (field.translated)  {
+		if (field?.translated)  {
 			$translationProgress[lang].total.add(field);
 			if (data[lang]) {
 				$translationProgress[lang].translated.add(field);
