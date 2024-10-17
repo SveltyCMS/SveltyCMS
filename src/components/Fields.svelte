@@ -99,6 +99,7 @@ Key features:
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
 	
+	$: console.debug(customData)
 </script>
 
 {#if isLoading}

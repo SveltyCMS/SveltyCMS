@@ -583,13 +583,14 @@ export function getEditDistance(a: string, b: string): number | undefined {
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	const $translationProgress = get(translationProgress);
+	
 
 	for (const lang of languages) {
 		if (!$translationProgress[lang]) {
 			$translationProgress[lang] = { total: new Set(), translated: new Set() };
 		}
 
-		if (field?.translated) {
+		if (field.translated)  {
 			$translationProgress[lang].total.add(field);
 			if (data[lang]) {
 				$translationProgress[lang].translated.add(field);
@@ -598,7 +599,6 @@ export function updateTranslationProgress(data, field) {
 			}
 		}
 	}
-
 	translationProgress.set($translationProgress);
 }
 

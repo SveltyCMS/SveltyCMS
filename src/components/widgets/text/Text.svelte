@@ -46,7 +46,6 @@
 
 	// zod validation
 	import * as z from 'zod';
-	import { logger } from "@src/utils/logger";
 
 	// Define the validation schema for the text field
 	const widgetSchema = z.object({
@@ -89,7 +88,7 @@
 	}
 
 	// Export WidgetData for data binding with Fields.svelte
-	export const WidgetData = async () => _data;
+	export const WidgetData = async () => value;
 </script>
 
 <div class="variant-filled-surface btn-group flex w-full rounded">
