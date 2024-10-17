@@ -31,6 +31,7 @@ Key features:
 
 	// Skeleton
 	import { TabGroup, Tab, CodeBlock, clipboard } from '@skeletonlabs/skeleton';
+	import { logger } from '@src/utils/logger';
 
 	// Props
 	export let fields: typeof $collection.fields | undefined = undefined;
@@ -53,7 +54,8 @@ Key features:
 	});
 
 	afterUpdate(() => {
-		if (root) $collectionValue = fieldsData;
+		// logger.debug("afterUPdtdaed: ", `${JSON.stringify({"collectionValue": $collectionValue, fieldsData})}`);
+		if (root) collectionValue.set({ ...collectionValue, ...fieldsData });
 	});
 
 	// Reactive statements
@@ -96,6 +98,7 @@ Key features:
 	}
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
+	
 </script>
 
 {#if isLoading}
@@ -189,7 +192,7 @@ Key features:
 											this={asAny(widget).default}
 											field={asAny(field)}
 											bind:WidgetData={fieldsData[getFieldName(field)]}
-											value={customData[getFieldName(field)]}
+											bind:value={customData[getFieldName(field)]}
 											{...$$props}
 										/>
 

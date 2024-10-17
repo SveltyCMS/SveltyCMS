@@ -16,7 +16,7 @@
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 
 	let isOpen = false;
 	let translations = {};
@@ -64,11 +64,12 @@
 			if (data && typeof data === 'object') {
 				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
 					const field = $collection.fields.find((x) => getFieldName(x) === key);
-					if (!field || ('translated' in field && !field.translated)) continue;
+					if (!field) continue;
 					if (!translations[lang]) translations[lang] = { total: 0, translated: 0 };
 
 					// Check if the language key exists in data
-					if (data[lang] === undefined || data[lang] === null) {
+					console.debug('Checking if language key exists in data:', lang, key, data[lang]);
+					if (data[lang] === undefined || data[lang] === null || !data[lang]) {
 						translations[lang].total++;
 					} else {
 						translations[lang].translated++;
@@ -83,11 +84,6 @@
 			const langData = translations[lang];
 			totalTranslated += langData.translated;
 			totalEntries += langData.total;
-			if (langData.total > 0) {
-				langData.completion = Math.round((langData.translated / langData.total) * 100);
-			} else {
-				langData.completion = 0;
-			}
 		}
 
 		if (totalEntries > 0) {
@@ -95,12 +91,18 @@
 		} else {
 			completionStatus = 0;
 		}
+
 	}
 
 	$: {
 		checkTranslations();
-		logger.debug('Translation status updated:', `${JSON.stringify(translations)}`);
-	}	
+		// logger.debug('Translation status updated:', `${JSON.stringify(translations)}`);
+	}
+
+	collectionValue.subscribe((collectionValue) => {
+		checkTranslations();
+		logger.debug('Translation status sunsrivber updated:', `${JSON.stringify(translations)} ${JSON.stringify(collectionValue)}`);
+	});
 
 	mode.subscribe(() => {
 		if ($mode !== 'view') {
@@ -155,10 +157,8 @@
 									{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
 										{Math.round((translations[lang].translated / translations[lang].total) * 100)}%
 									{:else}
-									 0%
+										0%
 									{/if}
-
-
 								</span>
 							</div>
 

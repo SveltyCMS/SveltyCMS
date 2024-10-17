@@ -25,7 +25,6 @@
 
 import type { ScreenSize } from '@stores/screenSizeStore';
 import type { UserPreferences, WidgetPreference } from '@stores/userPreferences';
-import type { Model } from "mongoose";
 
 // Define a Theme type for better type safety
 export interface Theme {
@@ -76,13 +75,21 @@ export interface Revision {
 }
 
 // Collection interface
-export type CollectionModel = Model<any>
-
+export interface CollectionModel {
+	modelName: string;
+	find(query: object): Promise<any[]>;
+	updateOne(query: object, update: object): Promise<any>;
+	updateMany(query: object, update: object): Promise<any>;
+	insertMany(docs: object[]): Promise<any[]>;
+	deleteOne(query: object): Promise<number>;
+	deleteMany(query: object): Promise<number>;
+	countDocuments(query?: object): Promise<number>;
+}
 // Define the dbInterface with specific return types
 export interface dbInterface {
 	// Database Connection and Setup Methods
 	connect(): Promise<void>; // Connect to the database and return a promise that resolves when connected.
-	getCollectionModels(): Promise<Record<string, Model<any>>>; // Return a promise that resolves with an object containing all the CollectionModels.
+	getCollectionModels(): Promise<Record<string, CollectionModel>>; // Return a promise that resolves with an object containing all the CollectionModels.
 	setupAuthModels(): void; // Set up the auth models.
 	setupMediaModels(): void; // Set up the media models.
 

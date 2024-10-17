@@ -81,7 +81,8 @@ Key features:
 	// Function to handle collection changes
 	function handleCollectionChange(newCollection) {
 		if (!newCollection || !newCollection.name) return;
-		$collectionValue = {};
+		// $collectionValue = {};
+		// collectionValue.set({})
 		const newPath = `/${$contentLanguage || publicEnv.DEFAULT_CONTENT_LANGUAGE}/${newCollection.name}`;
 		if ($page.url.pathname !== newPath) {
 			goto(newPath);

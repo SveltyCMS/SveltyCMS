@@ -58,7 +58,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	const unsubscribe = collection.subscribe(($collection) => {
 		if ($collection?.name) {
 			// Reset collection value
-			$collectionValue = {};
+			// collectionValue.set({});
 			if (!forwardBackward ) {
 				goto(`/${$contentLanguage}/${$collection.name}`);
 			}
@@ -83,8 +83,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		document.title = `${$collection?.name || 'Loading...'} - Your Site Title`;
 		document.querySelector('meta[name="description"]')?.setAttribute('content', `View and manage entries for ${$collection?.name || '...'}.`);
 	}
-
-	$: console.debug('Store values :',$collectionValue);
+	$: logger.debug(`Page view $collectionValue: ${JSON.stringify($collectionValue)}`);
 </script>
 
 <div class="content h-full">
@@ -93,7 +92,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 			<EntryList />
 		{:else if ['edit', 'create'].includes($mode)}
 			<div id="fields_container" class="fields max-h-[calc(100vh-60px)] overflow-y-auto max-md:max-h-[calc(100vh-120px)]">
-				<Fields fields={$collection.fields} mode={$mode} fieldsData={$collectionValue} root={false} />
+				<Fields fields={$collection.fields} mode={$mode} fieldsData={$collection.fields} bind:customData={$collectionValue} root={false} />
 			</div>
 		{:else if $mode === 'media' && $page.params.collection}
 			<MediaGallery />

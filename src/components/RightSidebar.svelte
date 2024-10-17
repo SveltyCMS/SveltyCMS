@@ -27,7 +27,7 @@
 	// Skeleton
 	import { getModalStore, Autocomplete, popup } from '@skeletonlabs/skeleton';
 	import type { AutocompleteOption, ModalComponent, ModalSettings, PopupSettings } from '@skeletonlabs/skeleton';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 
 	const modalStore = getModalStore();
 
@@ -68,7 +68,7 @@
 		isPublished = !isPublished;
 		collectionValue.update((cv) => ({
 			...cv,
-			status: isPublished ? 'published' : 'unpublished',
+			status: isPublished ? 'PUBLISHED' : 'UNPUBLISHED',
 			updatedAt: new Date()
 		}));
 	}
@@ -90,7 +90,7 @@
 
 		// Access the fields property of the collection
 		const fields = $collection.fields;
-
+		const data = {};
 		// Validate all fields
 		for (const field of fields) {
 			if (hasValidateWidget(field.widget)) {
@@ -100,20 +100,22 @@
 					validationPassed = false;
 				} else {
 					validationStore.clearError(getFieldName(field));
+					data[getFieldName(field)] = $collectionValue[getFieldName(field)];
 				}
 			}
+			data[getFieldName(field)] = $collection.fields[getFieldName(field)];
 		}
 
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
+				logger.debug('Saving data...', `${JSON.stringify({ collectionValue: $collectionValue, data: data })}`);
 
 				await saveFormData({
-					data:	$collectionValue,
+					data: data,
 					_collection: $collection,
 					_mode: $mode,
-					id: $collectionValue._id ?? "",
+					id: $collectionValue._id ?? '',
 					user
 				});
 
