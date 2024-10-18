@@ -25,7 +25,7 @@ import { constructUrl } from '@utils/media/mediaUtils';
 import { dbAdapter } from '@src/databases/db';
 
 // System Logger
-import { logger } from '@utils/logger';
+import { logger, type LoggableValue } from '@utils/logger';
 
 // Helper function to convert _id and other nested objects to string
 function convertIdToString(obj: any): any {
@@ -98,6 +98,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		});
 
 		let results = await Promise.all(media_promises);
+		console.debug(results);
 		results = results.map(
 			(arr, index) =>
 				arr &&
@@ -105,8 +106,8 @@ export const load: PageServerLoad = async ({ locals }) => {
 					convertIdToString({
 						...item,
 						type: media_types[index].split('_')[1],
-						url: constructUrl('global', item.hash, item.name, item.name.split('.').pop(), media_types[index]),
-						thumbnailUrl: constructUrl('global', item.hash, `${item.name}-thumbnail`, item.name.split('.').pop(), media_types[index])
+						url: constructUrl('global', item.thumbnail.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index]),
+						thumbnailUrl: constructUrl('global', item.hash, `${item.thumbnail.name}-thumbnail`, item.thumbnail.name.split('.').pop(), media_types[index])
 					})
 				)
 		);
@@ -128,6 +129,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		return returnData;
 	} catch (err) {
 		const message = `Error in media gallery load function: ${err instanceof Error ? err.message : String(err)}`;
+		console.error(err);
 		logger.error(message);
 		throw error(500, message);
 	}
@@ -226,7 +228,7 @@ export const actions: Actions = {
 				throw error(500, 'Failed to delete image');
 			}
 		} catch (err) {
-			logger.error('Error deleting image:', err);
+			logger.error('Error deleting image:', err as LoggableValue);
 			throw error(500, 'Internal Server Error');
 		}
 	}

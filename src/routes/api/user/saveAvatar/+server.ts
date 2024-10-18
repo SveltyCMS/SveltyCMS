@@ -32,6 +32,7 @@ import { logger } from '@utils/logger';
 
 // Media storage
 import { saveAvatarImage } from '@utils/media/mediaStorage';
+import { cacheStore } from "@src/cacheStore/index.server";
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -44,6 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		if (!hasPermission) {
+			logger.error('Unauthorized to update avatar')
 			throw error(403, 'Unauthorized to update avatar');
 		}
 
@@ -57,6 +59,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const avatarFile = formData.get('avatar') as File | null;
 
 		if (!avatarFile) {
+			logger.error('No avatar file provided');
 			throw error(400, 'No avatar file provided');
 		}
 
@@ -64,6 +67,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		const avatarUrl = await saveAvatarImage(avatarFile, 'avatars');
 		// Update the user's profile with the new avatar URL
 		await auth.updateUserAttributes(locals.user._id, { avatar: avatarUrl });
+
+		const session_id = locals.session_id;
+
+		const user = await auth.validateSession({ session_id });
+		cacheStore.set(session_id, user, new Date(Date.now() + 3600 * 1000));
 		logger.info('Avatar saved successfully', { userId: locals.user.id });
 
 		return json({
