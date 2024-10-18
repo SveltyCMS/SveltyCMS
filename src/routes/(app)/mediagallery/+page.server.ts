@@ -106,8 +106,14 @@ export const load: PageServerLoad = async ({ locals }) => {
 					convertIdToString({
 						...item,
 						type: media_types[index].split('_')[1],
-						url: constructUrl('global', item.thumbnail.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index]),
-						thumbnailUrl: constructUrl('global', item.hash, `${item.thumbnail.name}-thumbnail`, item.thumbnail.name.split('.').pop(), media_types[index])
+						url: constructUrl('global', item.hash, item.thumbnail.name, item.thumbnail.name.split('.').pop(), media_types[index]),
+						thumbnailUrl: constructUrl(
+							'global',
+							item.hash,
+							`${item.thumbnail.name}-thumbnail`,
+							item.thumbnail.name.split('.').pop(),
+							media_types[index]
+						)
 					})
 				)
 		);
@@ -121,7 +127,15 @@ export const load: PageServerLoad = async ({ locals }) => {
 		logger.info(`Fetched ${serializedVirtualFolders.length} virtual folders`);
 
 		logger.debug('Media gallery data and virtual folders loaded successfully');
-		const returnData = { user: serializedUser, media, virtualFolders: serializedVirtualFolders };
+		const returnData = {
+			user: {
+				role: user.role,
+				_id: user._id,
+				avatar: user.avatar
+			},
+			media,
+			virtualFolders: serializedVirtualFolders
+		};
 
 		// Added Debugging: Log the returnData
 		logger.debug('Returning data from load function:', returnData);
