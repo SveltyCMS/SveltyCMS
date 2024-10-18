@@ -23,7 +23,7 @@ Key features:
 	const user = $page.data.user;
 
 	// Stores
-	import { contentLanguage, tabSet, validationStore } from '@stores/store';
+	import { contentLanguage, tabSet, validationStore, translationProgress } from '@stores/store';
 	import { collection, collectionValue, mode } from '@stores/collectionStore';
 
 	// ParaglideJS
@@ -40,7 +40,6 @@ Key features:
 
 	// Local state
 	let apiUrl = '';
-	let translationProgress: Record<string, number> = {};
 	let isLoading = true;
 
 	// Dynamic import of widget components
@@ -48,7 +47,6 @@ Key features:
 
 	// Lifecycle
 	onMount(async () => {
-		await loadTranslationProgress();
 		isLoading = false;
 	});
 
@@ -65,15 +63,15 @@ Key features:
 	}
 
 	// Functions and helpers
-	async function loadTranslationProgress() {
-		translationProgress = {};
-		fields?.forEach((field) => {
-			if ((field as any).translated) {
-				// Type assertion
-				translationProgress[getFieldName(field)] = Math.random(); // Simulated progress
-			}
-		});
-	}
+	// async function loadTranslationProgress() {
+	// 	translationProgress = {};
+	// 	fields?.forEach((field) => {
+	// 		if ((field as any).translated) {
+	// 			// Type assertion
+	// 			translationProgress[getFieldName(field)] = Math.random(); // Simulated progress
+	// 		}
+	// 	});
+	// }
 
 	function handleRevert() {
 		// Implement revert logic
@@ -97,7 +95,7 @@ Key features:
 	}
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
-	
+	$: console.debug($translationProgress)
 </script>
 
 {#if isLoading}
@@ -174,7 +172,7 @@ Key features:
 													</div>
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
-														({Math.round((translationProgress[getFieldName(field)] ?? 0) * 100)}%)
+														({Math.round(($translationProgress[$contentLanguage]?.translated.has(`${$collection?.name}.${getFieldName(field)}`) ? 1 : 0) * 100)}%)
 													</div>
 												</div>
 											{/if}

@@ -4,7 +4,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-
+import {error} from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
 import mime from 'mime-types';
@@ -286,10 +286,10 @@ export async function saveAvatarImage(file: File, path: 'avatars' | string): Pro
 		}
 
 		return fileUrl;
-	} catch (err) {
-		const error = err as Error;
-		logger.error(`Error in saveAvatarImage: ${error.message}`);
-		throw error(500, `Failed to save avatar image: ${error.message}`);
+	} catch (e) {
+		const err = e as Error;
+		logger.error(`Error in saveAvatarImage: ${err.message}`);
+		throw error(500, `Failed to save avatar image: ${err.message}`);
 	}
 }
 
@@ -309,9 +309,9 @@ export async function moveMediaToTrash(mediaPath: string, collection: string): P
 		try {
 			await fs.promises.access(sourcePath);
 		} catch (err) {
-			const error = err as Error;
-			logger.error(`Source file does not exist: ${error.message}`);
-			throw error(500, `Source file does not exist: ${error.message}`);
+			const e = err as Error;
+			logger.error(`Source file does not exist: ${e.message}`);
+			throw error(500, `Source file does not exist: ${e.message}`);
 		}
 
 		// Move the file to the trash folder
@@ -324,9 +324,9 @@ export async function moveMediaToTrash(mediaPath: string, collection: string): P
 
 		logger.info(`Moved media to trash: ${mediaPath}`, { collection });
 	} catch (err) {
-		const error = err instanceof Error ? err : new Error(String(err));
-		logger.error(`Error moving media to trash: ${error.message}`);
-		throw error(500, `Failed to move media to trash: ${error.message}`);
+		const e = err instanceof Error ? err : new Error(String(err));
+		logger.error(`Error moving media to trash: ${e.message}`);
+		throw error(500, `Failed to move media to trash: ${e.message}`);
 	}
 }
 
@@ -365,9 +365,9 @@ export async function cleanupTrashedMedia(daysOld: number = 30): Promise<void> {
 
 		logger.info('Cleanup of trashed media completed');
 	} catch (err) {
-		const error = err as Error;
-		logger.error(`Error during trash cleanup: ${error.message}`);
-		throw error(500, `Error during trash cleanup: ${error.message}`);
+		const e = err as Error;
+		logger.error(`Error during trash cleanup: ${e.message}`);
+		throw error(500, `Error during trash cleanup: ${e.message}`);
 	}
 }
 

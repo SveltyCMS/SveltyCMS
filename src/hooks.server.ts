@@ -27,8 +27,7 @@ import { checkUserPermission } from '@src/auth/permissionCheck';
 import { getAllPermissions } from '@src/auth/permissionManager';
 
 // Cache
-import { InMemorySessionStore } from '@src/auth/InMemoryCacheStore';
-import { RedisCacheStore } from '@src/auth/RedisCacheStore';
+import { cacheStore } from '@src/cacheStore/index.server';
 
 // System Logger
 import { logger } from '@utils/logger';
@@ -51,8 +50,6 @@ const apiLimiter = new RateLimiter({
 	IPUA: [50, 'm']
 });
 
-// Initialize session store (also used for API caching)
-const cacheStore = privateEnv.USE_REDIS ? new RedisCacheStore() : new InMemorySessionStore();
 
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
@@ -179,6 +176,7 @@ const handleAuth: Handle = async ({ event, resolve }) => {
 
 	event.locals.user = user;
 	event.locals.permissions = user?.permissions || [];
+	event.locals.session_id = session_id;
 
 	const isPublicRoute = isPublicOrOAuthRoute(event.url.pathname);
 	const isApiRequest = event.url.pathname.startsWith('/api/');

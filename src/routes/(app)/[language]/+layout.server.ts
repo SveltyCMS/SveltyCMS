@@ -61,7 +61,9 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		theme: theme || DEFAULT_THEME,
 		language,
 		user: {
-			role: user.role
+			role: user.role,
+			avatar: user.avatar,
+			
 		}
 	};
 };
