@@ -29,7 +29,7 @@
 
 		<!-- Background -->
 		<div class="block h-8 w-14 rounded-full bg-surface-400 peer-checked:bg-primary-500">
-			<span class="absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white">
+			<span class={`absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white ${value? 'text-right' : 'text-left'}`}>
 				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
 			</span>
 		</div>

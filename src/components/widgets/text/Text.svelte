@@ -19,7 +19,7 @@
 
 	const _data = $mode === 'create' ? {} : value;
 
-	$: _language = field?.translated ? $contentLanguage : publicEnv.DEFAULT_CONTENT_LANGUAGE;
+	$: _language = field?.translated ? $contentLanguage.toLowerCase() : publicEnv.DEFAULT_CONTENT_LANGUAGE.toLowerCase();
 	$: updateTranslationProgress(_data, field);
 
 	let validationError: string | null = null;
@@ -69,6 +69,8 @@
 			return null; // No error
 		} catch (error) {
 			if (error instanceof z.ZodError) {
+
+				console.debug("Validation error : ", error);
 				const errorMessage = error.errors[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;
@@ -81,7 +83,7 @@
 	function validateInput() {
 		if (debounceTimeout) clearTimeout(debounceTimeout);
 		debounceTimeout = window.setTimeout(() => {
-			validationError = validateSchema(widgetSchema, { value: _data[_language] });
+			validationError = validateSchema(widgetSchema, { value: _data[_language], db_fieldName: getFieldName(field) });
 		}, 300);
 	}
 

@@ -240,9 +240,9 @@ export class MongoDBAdapter implements dbInterface {
 	}
 
 	// Generate an ID using ObjectId
-	generateId(): string {
-		return new mongoose.Types.ObjectId().toString();
-	}
+	generateId(): string | mongoose.Types.ObjectId {
+		return new mongoose.Types.ObjectId();  //required for MongoDB id as ObjectId
+	} 
 
 	// Convert a string ID to a MongoDB ObjectId
 	convertId(id: string): mongoose.Types.ObjectId {
@@ -251,7 +251,7 @@ export class MongoDBAdapter implements dbInterface {
 
 
 	// Get collection models
-	async getCollectionModels(): Promise<Record<string, Model<any>>> {
+	async getCollectionModels(): Promise<Record<string, any>> {
 		logger.debug('getCollectionModels called');
 
 		if (this.collectionsInitialized) {
@@ -433,7 +433,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`updateOne failed. Collection ${collection} does not exist.`);
 		}
 		try {
-			const result = await model.updateOne(query, update).exec();
+			const result = await model.updateOne(query, update, {strict: false}); // strict: false for now to avoid schema errors
 			return result;
 		} catch (error) {
 			const err = error as Error;

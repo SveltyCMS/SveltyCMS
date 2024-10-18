@@ -16,10 +16,9 @@
 
 	// Skeleton
 	import { ProgressBar } from '@skeletonlabs/skeleton';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 
 	let isOpen = false;
-	let translations = {};
 	let completionStatus = 0;
 
 	// Handles the language change
@@ -51,57 +50,23 @@
 		}
 	}
 
-	// Function to determine the color based on the value
-	async function checkTranslations() {
-		translations = {};
-
-		let totalTranslated = 0;
-		let totalEntries = 0;
-
-		for (const key in $collectionValue) {
-			const data = $collectionValue[key]; // Access data directly, assuming it's not a function
-
-			if (data && typeof data === 'object') {
-				for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-					const field = $collection.fields.find((x) => getFieldName(x) === key);
-					if (!field || ('translated' in field && !field.translated)) continue;
-					if (!translations[lang]) translations[lang] = { total: 0, translated: 0 };
-
-					// Check if the language key exists in data
-					if (data[lang] === undefined || data[lang] === null) {
-						translations[lang].total++;
-					} else {
-						translations[lang].translated++;
-						translations[lang].total++;
-					}
-				}
+	translationProgress.subscribe(() => {
+		
+		if ($translationProgress.show) {
+			let total = 0;
+			let totalTranslated = 0;
+			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
+				if(!$translationProgress[lang]) continue;
+				totalTranslated += $translationProgress[lang].translated.size;
+				total += $translationProgress[lang].total.size;
 			}
-		}
 
-		// Calculate the overall completion status
-		for (const lang in translations) {
-			const langData = translations[lang];
-			totalTranslated += langData.translated;
-			totalEntries += langData.total;
-			if (langData.total > 0) {
-				langData.completion = Math.round((langData.translated / langData.total) * 100);
-			} else {
-				langData.completion = 0;
-			}
-		}
-
-		if (totalEntries > 0) {
-			completionStatus = Math.round((totalTranslated / totalEntries) * 100);
+			completionStatus = Math.round((totalTranslated / total) * 100);
 		} else {
 			completionStatus = 0;
 		}
-	}
-
-	$: {
-		checkTranslations();
-		logger.debug('Translation status updated:', `${JSON.stringify(translations)}`);
-	}	
-
+	});
+		
 	mode.subscribe(() => {
 		if ($mode !== 'view') {
 			$translationProgress = { show: true };
@@ -152,25 +117,23 @@
 							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
 								<span class="text-xs">
-									{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
-										{Math.round((translations[lang].translated / translations[lang].total) * 100)}%
+									{#if $translationProgress[lang] && $translationProgress[lang].translated  && $translationProgress[lang].total}
+										{Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}%
 									{:else}
-									 0%
+										0%
 									{/if}
-
-
 								</span>
 							</div>
 
-							{#if translations[lang] && typeof translations[lang].translated !== 'undefined' && typeof translations[lang].total !== 'undefined'}
+							{#if $translationProgress[lang] &&  $translationProgress[lang].translated && $translationProgress[lang].total}
 								<ProgressBar
-									value={Math.round((translations[lang].translated / translations[lang].total) * 100)}
+									value={Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}
 									labelledby={lang.toUpperCase()}
 									min={0}
 									max={100}
 									rounded="none"
 									height="h-1"
-									meter={getColor(Math.round((translations[lang].translated / translations[lang].total) * 100))}
+									meter={getColor(Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100))}
 									track="bg-surface-300 dark:bg-surface-300 transition-all"
 								/>
 							{/if}

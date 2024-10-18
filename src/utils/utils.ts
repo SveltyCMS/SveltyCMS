@@ -241,7 +241,7 @@ export async function saveFormData({
 	// user_id,
 	user
 }: {
-	data: FormData |{ [Key: string]: () => any };
+	data: FormData | { [Key: string]: () => any };
 	_collection?: Schema;
 	_mode?: 'view' | 'edit' | 'create' | 'delete' | 'modify' | 'media';
 	id?: string;
@@ -284,7 +284,7 @@ export async function saveFormData({
 		formData.append('_meta_data', JSON.stringify(meta_data.get()));
 	}
 
-	formData.append('status', $collection.status || 'unpublished');
+	formData.append('status', $collectionValue.status || 'UNPUBLISHED');
 
 	const username = user ? user.username : 'Unknown';
 
@@ -292,6 +292,9 @@ export async function saveFormData({
 		switch ($mode) {
 			case 'create':
 				logger.debug('Saving data in create mode.');
+				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
+				formData.append('updatedAt', formData.get('createdAt') as string);
+				
 				return await addData({ data: formData, collectionName: $collection.name as any });
 
 			case 'edit':
@@ -580,13 +583,14 @@ export function getEditDistance(a: string, b: string): number | undefined {
 export function updateTranslationProgress(data, field) {
 	const languages = publicEnv.AVAILABLE_CONTENT_LANGUAGES;
 	const $translationProgress = get(translationProgress);
+	
 
 	for (const lang of languages) {
 		if (!$translationProgress[lang]) {
 			$translationProgress[lang] = { total: new Set(), translated: new Set() };
 		}
 
-		if (field?.translated) {
+		if (field?.translated)  {
 			$translationProgress[lang].total.add(field);
 			if (data[lang]) {
 				$translationProgress[lang].translated.add(field);
@@ -595,7 +599,6 @@ export function updateTranslationProgress(data, field) {
 			}
 		}
 	}
-
 	translationProgress.set($translationProgress);
 }
 
