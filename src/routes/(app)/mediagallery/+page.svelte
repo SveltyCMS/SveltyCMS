@@ -162,7 +162,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 
 			// Check if the folder already exists
 			logger.debug(`Checking if folder exists: ${newPath}  currentFolder:`, folders);
-			const existingFolder = folders.find((folder) => folder.path.join('/') === newPath);
+			const existingFolder = folders.find((folder) => folder?.path?.join('/') === newPath);
 			if (existingFolder) {
 				console.log('Folder already exists:', existingFolder);
 				toastStore.trigger({
