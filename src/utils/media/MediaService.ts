@@ -81,8 +81,20 @@ export class MediaService {
 			(media as any).thumbnails = thumbnails;
 		}
 
+		const media_collection = {
+			hash: media.hash,
+			thumbnail: {
+				url: media?.thumbnails?.thumbnail?.url,
+				name: media?.name,
+				type: media?.type,
+				size: media?.size,
+				width: media?.thumbnails?.thumbnail?.width,
+				height: media?.thumbnails?.thumbnail?.height,
+			},
+		}
+
 		// Save media to the database
-		const mediaId = await this.db.insertOne('media_collection', media);
+		const mediaId = await this.db.insertOne('media_collection', media_collection);
 
 		// Retrieve the saved media with its ID
 		const savedMedia = await this.db.findOne('media_collection', { _id: mediaId });

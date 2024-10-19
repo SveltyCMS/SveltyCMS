@@ -344,7 +344,14 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Set up media models
 	setupMediaModels(): void {
-		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const mediaSchemas = [
+			'media_images',
+			'media_documents',
+			'media_audio',
+			'media_videos',
+			'media_remote',
+			'media_collection'
+		];
 		mediaSchemas.forEach((schemaName) => {
 			this.setupModel(schemaName, mediaSchema);
 		});
