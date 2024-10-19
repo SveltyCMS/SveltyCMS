@@ -40,6 +40,7 @@
 	let highlightedPart: string;
 
 	$: {
+		// Set the base page title according to the mode
 		if ($mode === 'edit') {
 			pageTitle = `Edit ${collectionName} Collection`;
 		} else if (collectionName) {
@@ -47,7 +48,14 @@
 		} else {
 			pageTitle = 'Create new Collection';
 		}
+
+		// Ensure the highlighted part (e.g., collectionName) is unique in the title
 		highlightedPart = collectionName || 'new';
+
+		// Avoid repeating the collectionName if it's already included in the string
+		if (pageTitle.includes(highlightedPart)) {
+			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
+		}
 	}
 
 	function handlePageTitleUpdate(e: CustomEvent<string>) {
@@ -165,7 +173,7 @@
 </div>
 
 {#if $mode == 'edit'}
-	<div class="flex justify-end gap-3">
+	<div class="flex justify-center gap-3">
 		<button
 			type="button"
 			on:click={handleCollectionDelete}
