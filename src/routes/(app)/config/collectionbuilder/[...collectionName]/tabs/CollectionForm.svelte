@@ -20,8 +20,8 @@
 	import type { PopupSettings } from '@skeletonlabs/skeleton';
 	import type { Schema, CollectionNames } from '@src/collections/types';
 
-	import { createEventDispatcher } from 'svelte';
 	import { getCollections } from '@src/collections';
+	import { createEventDispatcher } from 'svelte';
 
 	const dispatch = createEventDispatcher();
 
@@ -32,9 +32,10 @@
 	const collectionExists = Object.values($collections).some((x) => x.name === collectionName);
 	if (collectionExists) {
 		// fetch the collection from the API
-		getCollections().then((data: Record<CollectionNames, Schema>) => {
+		getCollections().then((data: Partial<Record<CollectionNames, Schema>>) => {
 			mode.set('edit');
-			const collection = Object.values(data).find((x) => x.name === collectionName);
+			// Safely access the collection, allowing for undefined values
+			const collection = Object.values(data).find((x) => x?.name === collectionName);
 			if (collection) {
 				collectionValue.set(collection); // current collection
 			}
@@ -86,7 +87,7 @@
 			window.history.replaceState({}, '', `/collection/${$collectionValue.name}`);
 
 			// Update the page title
-			dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$collectionValue.name} </span> Collection`);
+			dispatch('updatePageTitle', $collectionValue.name);
 
 			// Update the linked slug input
 			$collectionValue.slug = $collectionValue.name.toLowerCase().replace(/\s+/g, '_');
@@ -111,18 +112,18 @@
 
 	$: {
 		if ($collectionValue) {
-			// Update DBName  lowercase and replace Spaces
+			// Update DBName lowercase and replace Spaces
 			DBName = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			// Automatically update slug when name changes
 			if (autoUpdateSlug) {
 				$collectionValue.slug = $collectionValue.name ? $collectionValue.name.toLowerCase().replace(/ /g, '_') : '';
 			}
 			if ($mode == 'edit') {
-				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$collectionValue.name} </span> Collection`);
+				dispatch('updatePageTitle', `Edit <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
 			} else if ($collectionValue.name) {
-				dispatch('updatePageTitle', `Create <span class="text-primary-500"> ${$collectionValue.name} </span> Collection`);
+				dispatch('updatePageTitle', `Create <span class="text-primary-500">${$collectionValue.name}</span> Collection`);
 			} else {
-				dispatch('updatePageTitle', `Create <span class="text-primary-500"> new </span> Collection`);
+				dispatch('updatePageTitle', `Create <span class="text-primary-500">new</span> Collection`);
 			}
 		}
 	}
