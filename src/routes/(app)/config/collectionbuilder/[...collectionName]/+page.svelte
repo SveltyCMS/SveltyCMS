@@ -36,15 +36,27 @@
 	const name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
 
 	// Page title
-	let pageTitle =
-		$mode == 'edit'
-			? `Edit <span class="text-tertiary-500 dark:text-primary-500">${collectionName} </span> Collection`
-			: collectionName
-				? `Create <span class="text-tertiary-500 dark:text-primary-500"> ${collectionName} </span> Collection`
-				: `Create <span class="text-tertiary-500 dark:text-primary-500"> new </span> Collection`;
+	let pageTitle: string;
+	let highlightedPart: string;
 
-	function handlePageTitleUpdate(e: any) {
-		pageTitle = e.detail;
+	$: {
+		if ($mode === 'edit') {
+			pageTitle = `Edit ${collectionName} Collection`;
+		} else if (collectionName) {
+			pageTitle = `Create ${collectionName} Collection`;
+		} else {
+			pageTitle = 'Create new Collection';
+		}
+		highlightedPart = collectionName || 'new';
+	}
+
+	function handlePageTitleUpdate(e: CustomEvent<string>) {
+		highlightedPart = e.detail;
+		if ($mode === 'edit') {
+			pageTitle = `Edit ${highlightedPart} Collection`;
+		} else {
+			pageTitle = `Create ${highlightedPart} Collection`;
+		}
 	}
 
 	// Function to save data by sending a POST request
@@ -144,7 +156,7 @@
 
 <!-- Page Title -->
 <div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name={pageTitle} icon="ic:baseline-build" />
+	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
 	<!-- Back -->
 	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">

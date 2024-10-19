@@ -59,7 +59,7 @@
 
 	//ParaglideJS
 	import * as m from '@src/paraglide/messages';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 
 	$: {
 		if ($tabSet !== previousTabSet) {
@@ -73,8 +73,7 @@
 			tempData = {};
 		}
 		if ($mode === 'edit' && $collectionValue.status === 'PUBLISHED') {
-			$modifyEntry('unpublish')
-
+			$modifyEntry('unpublish');
 		}
 	}
 
@@ -106,7 +105,7 @@
 		// If validation passed, save the data
 		if (validationPassed) {
 			try {
-				logger.debug('Saving data...' , `${JSON.stringify($collectionValue)}`);
+				logger.debug('Saving data...', `${JSON.stringify($collectionValue)}`);
 				await saveFormData({
 					data: $collectionValue,
 					_collection: $collection,
@@ -130,7 +129,7 @@
 	}
 
 	function handleReload() {
-		mode.set('view');
+		mode.set('edit');
 	}
 
 	export let showMore = false;
