@@ -157,16 +157,22 @@
 		{#each folders.filter((f) => !currentFolder || f.parent === currentFolder._id) as folder (folder._id)}
 			<div class="btn-group">
 				<!-- Folder Button -->
-				<button on:click={() => openFolder(folder._id)} class="btn">
-					<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500" />
+				<button on:click={() => openFolder(folder._id)} class="btn" aria-label={folder.name}>
+					<iconify-icon icon="mdi:folder" width="28" class="text-yellow-500"> </iconify-icon>
 					<span class="flex-1 overflow-hidden text-ellipsis text-left text-sm">{folder.name}</span>
 				</button>
 				<!-- Edit and Delete buttons -->
 				<div class="absolute right-0 top-0 flex">
-					<button on:click={() => updateFolder(folder._id, prompt('Enter new folder name', folder.name) || folder.name)} class="btn">
-						<iconify-icon icon="mdi:pencil" width="18" class="text-white" />
+					<button
+						on:click={() => updateFolder(folder._id, prompt('Enter new folder name', folder.name) || folder.name)}
+						class="btn"
+						aria-label="Edit"
+					>
+						<iconify-icon icon="mdi:pencil" width="18" class="text-white"> </iconify-icon>
 					</button>
-					<button on:click={() => deleteFolder(folder._id)} class="btn"> <iconify-icon icon="mdi:delete" width="18" class="text-white" /> </button>
+					<button on:click={() => deleteFolder(folder._id)} class="btn" aria-label="Delete">
+						<iconify-icon icon="mdi:delete" width="18" class="text-white"> </iconify-icon>
+					</button>
 				</div>
 			</div>
 		{/each}

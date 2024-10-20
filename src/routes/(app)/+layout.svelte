@@ -232,29 +232,31 @@ Key features:
 					<div
 						on:keydown={onKeyDown}
 						role="main"
-						class="relative flex-grow overflow-auto h-full {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg' ? 'mb-2' : 'mb-16'}"
+						class="relative h-full flex-grow overflow-auto {$sidebarState.left === 'full' ? 'mx-2' : 'mx-1'} {$screenSize === 'lg'
+							? 'mb-2'
+							: 'mb-16'}"
 					>
 						<!-- {#key $page.url} -->
-							<Toast />
-							<Modal />
+						<Toast />
+						<Modal />
 
-							{#if $screenSize !== 'lg'}
-								<FloatingNav />
-							{/if}
+						{#if $screenSize !== 'lg'}
+							<FloatingNav />
+						{/if}
 
-							<!-- Show globalSearchIndex  -->
-							{#if $isSearchVisible}
-								<SearchComponent />
-							{/if}
+						<!-- Show globalSearchIndex  -->
+						{#if $isSearchVisible}
+							<SearchComponent />
+						{/if}
 
-							{#if $isLoading}
-								<div class="flex h-screen items-center justify-center">
-									<Loading />
-								</div>
-							{:else}
-								<slot />
+						{#if $isLoading}
+							<div class="flex h-screen items-center justify-center">
+								<Loading />
+							</div>
+						{:else}
+							<slot />
 
-								<!--<div>mode : {$mode}</div>							
+							<!--<div>mode : {$mode}</div>							
 								<div>screenSize : {$screenSize}</div>
 								<div>sidebarState.left : {$sidebarState.left}</div>
 								<div>sidebarState.right : {$sidebarState.right}</div>
@@ -262,11 +264,11 @@ Key features:
 								<div>sidebarState.pagefooter : {$sidebarState.pagefooter}</div>
 								<div>sidebarState.header : {$sidebarState.header}</div>
 								<div>sidebarState.footer : {$sidebarState.footer}</div> -->
-							{/if}
+						{/if}
 
-							{#if isNonCriticalDataLoaded}
-								<!-- Render components that depend on non-critical data -->
-							{/if}
+						{#if isNonCriticalDataLoaded}
+							<!-- Render components that depend on non-critical data -->
+						{/if}
 						<!-- {/key} -->
 					</div>
 

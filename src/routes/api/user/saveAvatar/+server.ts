@@ -32,7 +32,7 @@ import { logger } from '@utils/logger';
 
 // Media storage
 import { saveAvatarImage } from '@utils/media/mediaStorage';
-import { cacheStore } from "@src/cacheStore/index.server";
+import { cacheStore } from '@src/cacheStore/index.server';
 
 export const POST: RequestHandler = async ({ request, locals }) => {
 	try {
@@ -45,7 +45,7 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		});
 
 		if (!hasPermission) {
-			logger.error('Unauthorized to update avatar')
+			logger.error('Unauthorized to update avatar');
 			throw error(403, 'Unauthorized to update avatar');
 		}
 

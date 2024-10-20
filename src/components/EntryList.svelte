@@ -39,7 +39,7 @@
 	// Svelte-dnd-action
 	import { flip } from 'svelte/animate';
 	import { dndzone } from 'svelte-dnd-action';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 
 	const flipDurationMs = 300;
 
@@ -191,8 +191,8 @@
 					}
 
 					// Add createdAt and updatedAt properties localized to the system language
-					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt)*1000).toLocaleString($systemLanguage) : 'N/A';
-					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt)*1000).toLocaleString($systemLanguage) : 'N/A';
+					obj.createdAt = entry.createdAt ? new Date(Number(entry.createdAt) * 1000).toLocaleString($systemLanguage) : 'N/A';
+					obj.updatedAt = entry.updatedAt ? new Date(Number(entry.updatedAt) * 1000).toLocaleString($systemLanguage) : 'N/A';
 					obj._id = entry._id; // Add _id property
 
 					return obj;
@@ -658,9 +658,8 @@
 							{#each tableHeaders as header}
 								<td
 									on:click={() => {
-
 										collectionValue.set(data?.entryList[index]);
-										logger.debug("Edit datas: ",`${JSON.stringify(data?.entryList[index])}`);
+										logger.debug('Edit datas: ', `${JSON.stringify(data?.entryList[index])}`);
 										mode.set('edit');
 										handleSidebarToggle();
 									}}

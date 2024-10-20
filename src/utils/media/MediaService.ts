@@ -50,8 +50,7 @@ export class MediaService {
 
 		// Extract metadata using the File object, not the Buffer
 		// const metadata = await extractMetadata(file);
-		
-		
+
 		// Combine path and file info into one string
 		const urlPath = `${hash}_${fileNameWithoutExt}.${ext}`;
 		// Create media object
@@ -89,9 +88,9 @@ export class MediaService {
 				type: media?.type,
 				size: media?.size,
 				width: media?.thumbnails?.thumbnail?.width,
-				height: media?.thumbnails?.thumbnail?.height,
-			},
-		}
+				height: media?.thumbnails?.thumbnail?.height
+			}
+		};
 
 		// Save media to the database
 		const mediaId = await this.db.insertOne('media_collection', media_collection);

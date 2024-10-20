@@ -34,10 +34,9 @@ export const translationStatus = writable({});
 export const completionStatus = writable(0);
 // TranslationStatus.svelte modal
 export const translationStatusOpen = writable(false);
-export const translationProgress: Writable<{ [key: string]: { total: Set<any>; translated: Set<any> } } | { show: boolean; }> =
-	writable({
-		show: false
-	});
+export const translationProgress: Writable<{ [key: string]: { total: Set<any>; translated: Set<any> } } | { show: boolean }> = writable({
+	show: false
+});
 
 // Tab skeleton store
 export const tabSet: Writable<number> = writable(0);

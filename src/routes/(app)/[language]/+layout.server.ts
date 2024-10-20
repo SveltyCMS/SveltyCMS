@@ -32,7 +32,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 	logger.debug(`Layout server load started. Language: ${language}`);
 
 	// ensure language exist :
-	if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection ) {
+	if (!language || !publicEnv.AVAILABLE_SYSTEM_LANGUAGES.includes(language) || !collection) {
 		const message = 'The language parameter is missing.';
 		logger.warn(message);
 		throw error(404, message);
@@ -62,8 +62,7 @@ export const load: LayoutServerLoad = async ({ locals, params }) => {
 		language,
 		user: {
 			role: user.role,
-			avatar: user.avatar,
-			
+			avatar: user.avatar
 		}
 	};
 };

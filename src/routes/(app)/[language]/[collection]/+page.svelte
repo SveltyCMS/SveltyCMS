@@ -22,7 +22,6 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	//logger
 	import { logger } from '@utils/logger';
 
-
 	let forwardBackward = false; // Track if using browser history
 	let initialLoadComplete = false; // Track initial load
 
@@ -59,7 +58,7 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		if ($collection?.name) {
 			// Reset collection value
 			// collectionValue.set({});
-			if (!forwardBackward ) {
+			if (!forwardBackward) {
 				goto(`/${$contentLanguage}/${$collection.name}`);
 			}
 		}
@@ -101,4 +100,3 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 		<div class="error">Error: Collection data not available.</div>
 	{/if}
 </div>
-	

@@ -4,7 +4,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import {error} from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
 import mime from 'mime-types';

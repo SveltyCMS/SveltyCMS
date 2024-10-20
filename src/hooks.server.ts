@@ -50,7 +50,6 @@ const apiLimiter = new RateLimiter({
 	IPUA: [50, 'm']
 });
 
-
 // Check if a given pathname is a static asset
 const isStaticAsset = (pathname: string): boolean =>
 	pathname.startsWith('/static/') || pathname.startsWith('/_app/') || pathname.endsWith('.js') || pathname.endsWith('.css');

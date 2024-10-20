@@ -26,14 +26,14 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Skeleton
 	import { getToastStore, getModalStore } from '@skeletonlabs/skeleton';
 	import type { ModalSettings } from '@skeletonlabs/skeleton';
-	import { logger } from "@src/utils/logger";
+	import { logger } from '@src/utils/logger';
 	const toastStore = getToastStore();
 	const modalStore = getModalStore();
 
 	// Prop to receive data from the server
 	export let data: { user: any; media: any[]; virtualFolders: any[] } | undefined = {
 		user: undefined,
-		media :[],
+		media: [],
 		virtualFolders: []
 	};
 
@@ -306,7 +306,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 	// Handle delete image
 	async function handleDeleteImage(event: CustomEvent<MediaType>) {
 		try {
-			const q = toFormData({ method: 'POST', image: event.detail?._id  ?? "" });
+			const q = toFormData({ method: 'POST', image: event.detail?._id ?? '' });
 			const response = await axios.post('?/api/mediaHandler/', q, {
 				...config,
 				withCredentials: true // This ensures cookies are sent with the request
@@ -535,7 +535,7 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 		<div class="mb-8 flex flex-col justify-center gap-1 text-center">
 			<label for="sortButton">Sort</label>
 			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
-				<iconify-icon icon="flowbite:sort-outline" width="24" />
+				<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
 			</button>
 		</div>
 
@@ -544,23 +544,26 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				Display
 				<div class="flex divide-x divide-gray-500">
 					<button
-						class="px-2"
 						on:click={() => {
 							view = 'grid';
 							storeUserPreference(view, gridSize, tableSize);
 						}}
+						class="px-2"
+						aria-label="Grid"
 					>
 						<iconify-icon icon="material-symbols:grid-view-rounded" height="40" style={`color: ${view === 'grid' ? 'black dark:white' : 'grey'}`} />
 						<br /> <span class="text-tertiary-500 dark:text-primary-500">Grid</span>
 					</button>
 					<button
-						class="px-2"
 						on:click={() => {
 							view = 'table';
 							storeUserPreference(view, gridSize, tableSize);
 						}}
+						class="px-2"
+						aria-label="Table"
 					>
-						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`} />
+						<iconify-icon icon="material-symbols:list-alt-outline" height="40" style={`color: ${view === 'table' ? 'black dark:white' : 'grey'}`}>
+						</iconify-icon>
 						<br /><span class="text-tertiary-500 dark:text-primary-500">Table</span>
 					</button>
 				</div>
@@ -570,18 +573,18 @@ It provides a user-friendly interface for searching, filtering, and navigating t
 				Size
 				<div class="flex divide-x divide-gray-500">
 					{#if (view === 'grid' && gridSize === 'small') || (view === 'table' && tableSize === 'small')}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40" />
+						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Small">
+							<iconify-icon icon="material-symbols:background-grid-small-sharp" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Small</span>
 						</button>
 					{:else if (view === 'grid' && gridSize === 'medium') || (view === 'table' && tableSize === 'medium')}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-on-sharp" height="40" />
+						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Medium">
+							<iconify-icon icon="material-symbols:grid-on-sharp" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Medium</span>
 						</button>
 					{:else}
-						<button type="button" class="px-1 md:px-2" on:click={handleClick}>
-							<iconify-icon icon="material-symbols:grid-view" height="40" />
+						<button on:click={handleClick} type="button" class="px-1 md:px-2" aria-label="Large">
+							<iconify-icon icon="material-symbols:grid-view" height="40"> </iconify-icon>
 							<br /><span class="text-tertiary-500 dark:text-primary-500">Large</span>
 						</button>
 					{/if}

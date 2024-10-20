@@ -95,7 +95,7 @@ Key features:
 	}
 
 	$: filteredFields = filterFieldsByPermission(fields || $collection.fields, user.role);
-	$: console.debug($translationProgress)
+	$: console.debug($translationProgress);
 </script>
 
 {#if isLoading}
@@ -172,7 +172,9 @@ Key features:
 													</div>
 													<!-- Display translation progress -->
 													<div class="text-xs font-normal">
-														({Math.round(($translationProgress[$contentLanguage]?.translated.has(`${$collection?.name}.${getFieldName(field)}`) ? 1 : 0) * 100)}%)
+														({Math.round(
+															($translationProgress[$contentLanguage]?.translated.has(`${$collection?.name}.${getFieldName(field)}`) ? 1 : 0) * 100
+														)}%)
 													</div>
 												</div>
 											{/if}

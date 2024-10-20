@@ -35,7 +35,7 @@ export const GET: RequestHandler = async ({ url }) => {
 
 	try {
 		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 })
+			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
 		}
 
 		if (folderId) {
@@ -60,7 +60,7 @@ export const POST: RequestHandler = async ({ request }) => {
 		const { name, parent } = await request.json();
 
 		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 })
+			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
 		}
 
 		if (!name) {
@@ -80,7 +80,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 		const path = `${parentPath}/${name}`;
 		const result = await dbAdapter.createVirtualFolder({ name, parent, path });
-		await createDirectory(result?._id?.toString?.())
+		await createDirectory(result?._id?.toString?.());
 		return json({ success: true, folder: result });
 	} catch (error) {
 		const errorMessage = error instanceof Error ? error.message : String(error);
@@ -95,7 +95,7 @@ export const PATCH: RequestHandler = async ({ request }) => {
 		const { folderId, name, parent } = await request.json();
 
 		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 })
+			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
 		}
 
 		if (!folderId) {
@@ -104,12 +104,12 @@ export const PATCH: RequestHandler = async ({ request }) => {
 
 		const updateData: { name?: string | undefined; parent?: string | undefined } = {
 			name: name || undefined,
-			parent: parent || undefined,
+			parent: parent || undefined
 		};
 
 		const updatedFolder = await dbAdapter.updateVirtualFolder(folderId, updateData);
-		await deleteDirectory(folderId)
-		await createDirectory(updatedFolder?._id?.toString?.())
+		await deleteDirectory(folderId);
+		await createDirectory(updatedFolder?._id?.toString?.());
 		if (!updatedFolder) {
 			return json({ success: false, error: 'Folder update failed' }, { status: 404 });
 		}
@@ -127,7 +127,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		const { folderId } = await request.json();
 
 		if (!dbAdapter) {
-			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 })
+			return json({ success: false, error: "DB Adapter isn't initialized" }, { status: 424 });
 		}
 
 		if (!folderId) {
@@ -135,7 +135,7 @@ export const DELETE: RequestHandler = async ({ request }) => {
 		}
 
 		const success = await dbAdapter.deleteVirtualFolder(folderId);
-		await deleteDirectory(folderId)
+		await deleteDirectory(folderId);
 		if (!success) {
 			return json({ success: false, error: 'Folder deletion failed' }, { status: 404 });
 		}

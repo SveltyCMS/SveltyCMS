@@ -10,7 +10,8 @@
 	const dispatch = createEventDispatcher();
 
 	// Function to handle the "Back" button click
-	function handleBack() {
+	function handleBack(event: Event) {
+		event.stopPropagation();
 		dispatch('back');
 	}
 
@@ -26,6 +27,7 @@
 	import FloatingInput from '@components/system/inputs/floatingInput.svelte';
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 	import SveltyCMSLogoFull from '@components/system/icons/SveltyCMS_LogoFull.svelte';
+	import PasswordStrength from '@components/PasswordStrength.svelte';
 
 	// Skeleton
 	import { Toast, getToastStore } from '@skeletonlabs/skeleton';
@@ -288,11 +290,6 @@
 		email: hide_email,
 		token: registration_token
 	};
-
-	// Function to handle the "Back" button click
-	function goBack() {
-		active = undefined; // Change to the state you want to represent the login view
-	}
 </script>
 
 <Toast />
@@ -331,7 +328,7 @@
 			<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
 				{m.form_required()}
 
-				<button on:click|stopPropagation={handleBack} class="variant-outline-secondary btn-icon">
+				<button on:click={handleBack} class="variant-outline-secondary btn-icon" aria-label="Back">
 					<iconify-icon icon="ri:arrow-right-line" width="20" class="text-black"></iconify-icon>
 				</button>
 			</div>
@@ -373,7 +370,7 @@
 						<div class="mt-4 flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
 							<!-- Row 1 -->
 							<div class="flex w-full justify-between gap-2 sm:w-auto">
-								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
+								<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label={m.form_signin()}>
 									{m.form_signin()}
 									<!-- Loading indicators -->
 									{#if $delayed}
@@ -383,8 +380,8 @@
 
 								{#if privateEnv.USE_GOOGLE_OAUTH == true}
 									<form method="post" action="?/OAuth" class="flex w-full sm:w-auto">
-										<button type="submit" class="variant-filled-surface btn w-full sm:w-auto">
-											<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1" />
+										<button type="submit" class="variant-filled-surface btn w-full sm:w-auto" aria-label="OAuth">
+											<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mt-1"></iconify-icon>
 											<p>OAuth</p>
 										</button>
 									</form>
@@ -396,6 +393,7 @@
 								<button
 									type="button"
 									class="variant-ringed-surface btn w-full text-black sm:w-auto"
+									aria-label={m.signin_forgottenpassword()}
 									on:click={() => {
 										PWforgot = true;
 										PWreset = false;
@@ -441,7 +439,7 @@
 						<!-- <input type="hidden" name="lang" bind:value={$forgotForm.lang} hidden /> -->
 
 						<div class="mt-4 flex items-center justify-between">
-							<button type="submit" class="variant-filled-surface btn">
+							<button type="submit" class="variant-filled-surface btn" aria-label={m.form_resetpassword()}>
 								{m.form_resetpassword()}
 							</button>
 
@@ -454,12 +452,13 @@
 							<button
 								type="button"
 								class="variant-filled-surface btn-icon"
+								aria-label="Back"
 								on:click={() => {
 									PWforgot = false;
 									PWreset = false;
 								}}
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width="38" />
+								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
 							</button>
 						</div>
 					</form>
@@ -508,6 +507,9 @@
 							</span>
 						{/if}
 
+						<!-- Password Strength Indicator -->
+						<PasswordStrength password={$resetForm.password} confirmPassword={$resetForm.confirm_password} />
+
 						<!-- Registration Token -->
 						<FloatingInput
 							id="tokenresetPW"
@@ -549,12 +551,13 @@
 							<button
 								type="button"
 								class="variant-filled-surface btn-icon"
+								aria-label="Back"
 								on:click={() => {
 									PWforgot = false;
 									PWreset = false;
 								}}
 							>
-								<iconify-icon icon="mdi:arrow-left-circle" width="38" />
+								<iconify-icon icon="mdi:arrow-left-circle" width="38"></iconify-icon>
 							</button>
 						</div>
 					</form>

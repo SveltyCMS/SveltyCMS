@@ -17,8 +17,8 @@
 	<div class="input-group input-group-divider grid max-w-md grid-cols-[auto_1fr_auto]">
 		<input id="globalSearch" type="text" placeholder="Search" class="input" bind:value={globalSearchValue} />
 		{#if globalSearchValue}
-			<button on:click={clearSearch} class="variant-filled-surface w-12">
-				<iconify-icon icon="ic:outline-search-off" width="24" />
+			<button on:click={clearSearch} class="variant-filled-surface w-12" aria-label="Clear">
+				<iconify-icon icon="ic:outline-search-off" width="24"> </iconify-icon>
 			</button>
 		{/if}
 	</div>
@@ -30,7 +30,7 @@
 				{#each mediaTypes as type}
 					<option value={type.value}>
 						<p class="flex items-center gap-2">
-							<iconify-icon icon={type.icon} width="24" class="text-primary-500" />
+							<iconify-icon icon={type.icon} width="24" class="text-primary-500"> </iconify-icon>
 							<span class="uppercase">{type.value}</span>
 						</p>
 					</option>
@@ -41,7 +41,7 @@
 		<div class="flex flex-col text-center">
 			<label for="sortButton">Sort</label>
 			<button id="sortButton" class="variant-ghost-surface btn" aria-label="Sort">
-				<iconify-icon icon="flowbite:sort-outline" width="24" />
+				<iconify-icon icon="flowbite:sort-outline" width="24"> </iconify-icon>
 			</button>
 		</div>
 	</div>

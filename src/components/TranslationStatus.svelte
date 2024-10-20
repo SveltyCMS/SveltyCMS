@@ -51,12 +51,11 @@
 	}
 
 	translationProgress.subscribe(() => {
-		
 		if ($translationProgress.show) {
 			let total = 0;
 			let totalTranslated = 0;
 			for (const lang of publicEnv.AVAILABLE_CONTENT_LANGUAGES) {
-				if(!$translationProgress[lang]) continue;
+				if (!$translationProgress[lang]) continue;
 				totalTranslated += $translationProgress[lang].translated.size;
 				total += $translationProgress[lang].total.size;
 			}
@@ -66,7 +65,7 @@
 			completionStatus = 0;
 		}
 	});
-		
+
 	mode.subscribe(() => {
 		if ($mode !== 'view') {
 			$translationProgress = { show: true };
@@ -117,7 +116,7 @@
 							<div class="flex items-center justify-between gap-1">
 								<span class="font-bold">{lang.toUpperCase()}</span>
 								<span class="text-xs">
-									{#if $translationProgress[lang] && $translationProgress[lang].translated  && $translationProgress[lang].total}
+									{#if $translationProgress[lang] && $translationProgress[lang].translated && $translationProgress[lang].total}
 										{Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}%
 									{:else}
 										0%
@@ -125,7 +124,7 @@
 								</span>
 							</div>
 
-							{#if $translationProgress[lang] &&  $translationProgress[lang].translated && $translationProgress[lang].total}
+							{#if $translationProgress[lang] && $translationProgress[lang].translated && $translationProgress[lang].total}
 								<ProgressBar
 									value={Math.round(($translationProgress[lang].translated.size / $translationProgress[lang].total.size) * 100)}
 									labelledby={lang.toUpperCase()}
