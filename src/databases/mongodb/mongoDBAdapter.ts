@@ -241,14 +241,13 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Generate an ID using ObjectId
 	generateId(): string | mongoose.Types.ObjectId {
-		return new mongoose.Types.ObjectId();  //required for MongoDB id as ObjectId
-	} 
+		return new mongoose.Types.ObjectId(); //required for MongoDB id as ObjectId
+	}
 
 	// Convert a string ID to a MongoDB ObjectId
 	convertId(id: string): mongoose.Types.ObjectId {
 		return new mongoose.Types.ObjectId(id);
 	}
-
 
 	// Get collection models
 	async getCollectionModels(): Promise<Record<string, any>> {
@@ -344,7 +343,7 @@ export class MongoDBAdapter implements dbInterface {
 
 	// Set up media models
 	setupMediaModels(): void {
-		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote'];
+		const mediaSchemas = ['media_images', 'media_documents', 'media_audio', 'media_videos', 'media_remote', 'media_collection'];
 		mediaSchemas.forEach((schemaName) => {
 			this.setupModel(schemaName, mediaSchema);
 		});
@@ -433,7 +432,7 @@ export class MongoDBAdapter implements dbInterface {
 			throw Error(`updateOne failed. Collection ${collection} does not exist.`);
 		}
 		try {
-			const result = await model.updateOne(query, update, {strict: false}); // strict: false for now to avoid schema errors
+			const result = await model.updateOne(query, update, { strict: false }); // strict: false for now to avoid schema errors
 			return result;
 		} catch (error) {
 			const err = error as Error;

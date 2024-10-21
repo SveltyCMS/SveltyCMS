@@ -81,7 +81,7 @@ Key features:
 					<td>{file.type || 'Unknown'}</td>
 					<td>{file.path}</td>
 					<td>
-						<button class="variant-filled-primary btn btn-sm" on:click={() => handleDelete(file)}> Delete </button>
+						<button on:click={() => handleDelete(file)} class="variant-filled-primary btn btn-sm" aria-label="Delete"> Delete </button>
 					</td>
 				</tr>
 			{/each}

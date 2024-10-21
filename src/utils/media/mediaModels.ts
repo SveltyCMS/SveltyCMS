@@ -54,13 +54,13 @@ export interface MediaBase {
 	mimeType: string;
 	size: number;
 	user: string;
-	createdAt: number; // Unix timestamp
-	updatedAt: number; // Unix timestamp
+	createdAt: Date; // Unix timestamp
+	updatedAt: Date; // Unix timestamp
 	metadata?: Record<string, any>;
 	isDeleted?: boolean;
 	deletedAt?: number; // Unix timestamp
 	versions: MediaVersion[];
-	access: MediaAccess[];
+	access: MediaAccess;
 }
 
 // Represents an image media item

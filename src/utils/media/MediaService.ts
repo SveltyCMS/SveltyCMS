@@ -32,7 +32,7 @@ export class MediaService {
 	}
 
 	// Saves a media file and its associated data
-	public async saveMedia(file: File, userId: string, access: MediaAccess[] = []): Promise<MediaType> {
+	public async saveMedia(file: File, userId: string, access: MediaAccess): Promise<MediaType> {
 		// Validate the file
 		const allowedTypes = ['image/jpeg', 'image/png', 'video/mp4', 'application/pdf'];
 		const validation = validateMediaFile(file, allowedTypes);
@@ -46,32 +46,31 @@ export class MediaService {
 		const hash = await hashFileContent(buffer);
 		const { fileNameWithoutExt, ext } = getSanitizedFileName(file.name);
 		const mimeType = file.type || mime.lookup(file.name) || 'application/octet-stream'; // Using mime.lookup
-		const path = 'uploads'; // Define your storage path logic
-
-		// Combine path and file info into one string
-		const urlPath = `${path}/${hash}_${fileNameWithoutExt}.${ext}`;
-		const url = constructMediaUrl(urlPath); // Pass as a single argument
+		const path = 'global'; // Define your storage path logic
 
 		// Extract metadata using the File object, not the Buffer
-		const metadata = await extractMetadata(file);
+		// const metadata = await extractMetadata(file);
 
+		// Combine path and file info into one string
+		const urlPath = `${hash}_${fileNameWithoutExt}.${ext}`;
 		// Create media object
 		const media: MediaBase = {
 			type: this.getMediaType(mimeType),
 			hash,
 			name: file.name,
 			path,
-			url,
+			url: urlPath,
 			mimeType,
 			size: file.size,
 			user: userId,
-			createdAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
-			updatedAt: Math.floor(Date.now() / 1000), // Unix timestamp in seconds
-			metadata,
+			createdAt: new Date(Date.now()), // ISO 8601 date string
+			updatedAt: new Date(Date.now()), // Unix timestamp in seconds
+			metadata: {},
 			versions: [],
 			access
 		};
-
+		// const url = constructMediaUrl(media); // Pass as a single argument
+		const url = urlPath;
 		// Save the file
 		await saveFileToDisk(buffer, url);
 
@@ -81,8 +80,20 @@ export class MediaService {
 			(media as any).thumbnails = thumbnails;
 		}
 
+		const media_collection = {
+			hash: media.hash,
+			thumbnail: {
+				url: media?.thumbnails?.thumbnail?.url,
+				name: media?.name,
+				type: media?.type,
+				size: media?.size,
+				width: media?.thumbnails?.thumbnail?.width,
+				height: media?.thumbnails?.thumbnail?.height
+			}
+		};
+
 		// Save media to the database
-		const mediaId = await this.db.insertOne('media_collection', media);
+		const mediaId = await this.db.insertOne('media_collection', media_collection);
 
 		// Retrieve the saved media with its ID
 		const savedMedia = await this.db.findOne('media_collection', { _id: mediaId });

@@ -294,7 +294,7 @@ export async function saveFormData({
 				logger.debug('Saving data in create mode.');
 				formData.append('createdAt', Math.floor(Date.now() / 1000).toString());
 				formData.append('updatedAt', formData.get('createdAt') as string);
-				
+
 				return await addData({ data: formData, collectionName: $collection.name as any });
 
 			case 'edit':
@@ -590,7 +590,7 @@ export function updateTranslationProgress(data, field) {
 			$translationProgress[lang] = { total: new Set(), translated: new Set() };
 		}
 
-		if (field?.translated)  {
+		if (field?.translated) {
 			$translationProgress[lang].total.add(`${$collection.name}.${getFieldName(field)}`);
 			if (data[lang]) {
 				$translationProgress[lang].translated.add(`${$collection.name}.${getFieldName(field)}`);

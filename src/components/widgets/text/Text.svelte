@@ -69,8 +69,7 @@
 			return null; // No error
 		} catch (error) {
 			if (error instanceof z.ZodError) {
-
-				console.debug("Validation error : ", error);
+				console.debug('Validation error : ', error);
 				const errorMessage = error.errors[0]?.message || 'Invalid input';
 				validationStore.setError(fieldName, errorMessage);
 				return errorMessage;

@@ -42,9 +42,9 @@ export const statusMap = {
 };
 
 interface Collection extends Omit<Schema, 'name'> {
-		id: number;
-		name: CollectionNames;
-	}
+	id: number;
+	name: CollectionNames;
+}
 
 //  Initialize categories store with an array structure
 export const categories: Writable<

@@ -36,15 +36,35 @@
 	const name = $mode == 'edit' ? ($collectionValue ? $collectionValue.name : collectionName) : collectionName;
 
 	// Page title
-	let pageTitle =
-		$mode == 'edit'
-			? `Edit <span class="text-tertiary-500 dark:text-primary-500">${collectionName} </span> Collection`
-			: collectionName
-				? `Create <span class="text-tertiary-500 dark:text-primary-500"> ${collectionName} </span> Collection`
-				: `Create <span class="text-tertiary-500 dark:text-primary-500"> new </span> Collection`;
+	let pageTitle: string;
+	let highlightedPart: string;
 
-	function handlePageTitleUpdate(e: any) {
-		pageTitle = e.detail;
+	$: {
+		// Set the base page title according to the mode
+		if ($mode === 'edit') {
+			pageTitle = `Edit ${collectionName} Collection`;
+		} else if (collectionName) {
+			pageTitle = `Create ${collectionName} Collection`;
+		} else {
+			pageTitle = 'Create new Collection';
+		}
+
+		// Ensure the highlighted part (e.g., collectionName) is unique in the title
+		highlightedPart = collectionName || 'new';
+
+		// Avoid repeating the collectionName if it's already included in the string
+		if (pageTitle.includes(highlightedPart)) {
+			pageTitle = pageTitle.replace(new RegExp(`\\b${highlightedPart}\\b`, 'g'), highlightedPart);
+		}
+	}
+
+	function handlePageTitleUpdate(e: CustomEvent<string>) {
+		highlightedPart = e.detail;
+		if ($mode === 'edit') {
+			pageTitle = `Edit ${highlightedPart} Collection`;
+		} else {
+			pageTitle = `Create ${highlightedPart} Collection`;
+		}
 	}
 
 	// Function to save data by sending a POST request
@@ -144,7 +164,7 @@
 
 <!-- Page Title -->
 <div class="my-2 flex items-center justify-between gap-2">
-	<PageTitle name={pageTitle} icon="ic:baseline-build" />
+	<PageTitle name={pageTitle} highlight={highlightedPart} icon="ic:baseline-build" />
 
 	<!-- Back -->
 	<button on:click={() => history.back()} class="variant-outline-primary btn-icon">
@@ -153,7 +173,7 @@
 </div>
 
 {#if $mode == 'edit'}
-	<div class="flex justify-end gap-3">
+	<div class="flex justify-center gap-3">
 		<button
 			type="button"
 			on:click={handleCollectionDelete}

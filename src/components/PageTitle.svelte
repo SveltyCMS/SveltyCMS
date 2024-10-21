@@ -4,6 +4,7 @@
 
 Functions
 @prop {string} name - The name of the page
+@prop {string} highlight - The part of the name to be highlighted
 @prop {string} icon - The icon of the page
 @prop {string} iconColor - The color of the icon
 @prop {string} iconSize - The size of the icon
@@ -21,6 +22,7 @@ Functions
 
 	interface PageTitleProps {
 		name: string;
+		highlight?: string;
 		icon?: string;
 		iconColor?: string;
 		iconSize?: string;
@@ -29,13 +31,15 @@ Functions
 	}
 
 	export let name: PageTitleProps['name'];
+	export let highlight: PageTitleProps['highlight'] = '';
 	export let icon: PageTitleProps['icon'];
 	export let iconColor: PageTitleProps['iconColor'] = 'text-tertiary-500 dark:text-primary-500';
 	export let iconSize: PageTitleProps['iconSize'] = '32';
 	export let showBackButton: PageTitleProps['showBackButton'] = false;
 	export let backUrl: PageTitleProps['backUrl'] = '';
 
-	let calculatedTitle = name;
+	let calculatedTitle: string;
+	let titleParts: string[];
 
 	// Function to handle back button click
 	function handleBackClick() {
@@ -60,6 +64,16 @@ Functions
 
 		// Truncate the title if it exceeds the maxChars
 		calculatedTitle = name.length > maxChars ? name.slice(0, maxChars - 3) + '...' : name;
+		updateTitleParts();
+	}
+
+	function updateTitleParts() {
+		if (highlight && calculatedTitle.toLowerCase().includes(highlight.toLowerCase())) {
+			const regex = new RegExp(`(${highlight})`, 'gi');
+			titleParts = calculatedTitle.split(regex);
+		} else {
+			titleParts = [calculatedTitle];
+		}
 	}
 
 	onMount(() => {
@@ -67,7 +81,11 @@ Functions
 		window.addEventListener('resize', calculateMaxChars);
 	});
 
-	$: calculateMaxChars(); // Recalculate when the title or screen size changes
+	$: {
+		name; // reactive dependency
+		highlight; // reactive dependency
+		calculateMaxChars(); // Recalculate when the title or screen size changes
+	}
 </script>
 
 <div class="my-1 flex w-full items-center justify-between">
@@ -92,7 +110,15 @@ Functions
 				<iconify-icon {icon} width={iconSize} class={`mr-1 ${iconColor} sm:mr-2`} />
 			{/if}
 			<!-- Title -->
-			<span>{calculatedTitle}</span>
+			<span>
+				{#each titleParts as part, i}
+					{#if i % 2 === 1}
+						<span class="text-tertiary-500 dark:text-primary-500">{part}</span>
+					{:else}
+						{part}
+					{/if}
+				{/each}
+			</span>
 		</h1>
 	</div>
 

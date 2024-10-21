@@ -113,7 +113,7 @@ export const _POST = async ({ data, schema, user }: { data: FormData; schema: Sc
 		logger.debug(`Updated body: ${JSON.stringify(body)} `);
 
 		// Insert the new document into the collection
-		const result = await collection.insertMany([body], {lean: true}); // No scehema validation with lean: true
+		const result = await collection.insertMany([body], { lean: true }); // No scehema validation with lean: true
 
 		logger.info(`Document inserted with ID: ${result[0]._id}`);
 		// Return the result as a JSON response

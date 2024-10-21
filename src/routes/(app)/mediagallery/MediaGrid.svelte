@@ -56,7 +56,7 @@ Key features:
 				class="card border border-surface-300 dark:border-surface-500"
 			>
 				<header class="m-2 flex w-auto items-center justify-between">
-					<button class="btn-icon" use:popup={FileTooltip}>
+					<button use:popup={FileTooltip} class="btn-icon" aria-label="File Info">
 						<iconify-icon icon="raphael:info" width="24" class="text-tertiary-500 dark:text-primary-500"></iconify-icon>
 					</button>
 
@@ -95,11 +95,11 @@ Key features:
 							<div class="variant-filled arrow" />
 						</table>
 					</div>
-					<button class="btn-icon">
-						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500" />
+					<button class="btn-icon" aria-label="Edit">
+						<iconify-icon icon="mdi:pen" width="24" class="data:text-primary-500 text-tertiary-500"> </iconify-icon>
 					</button>
-					<button class="btn-icon" on:click={() => handleDelete(file)}>
-						<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500" />
+					<button on:click={() => handleDelete(file)} class="btn-icon" aria-label="Delete">
+						<iconify-icon icon="icomoon-free:bin" width="24" class="text-error-500"> </iconify-icon>
 					</button>
 				</header>
 

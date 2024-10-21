@@ -4,7 +4,7 @@
  */
 
 import { publicEnv } from '@root/config/public';
-import {error} from '@sveltejs/kit';
+import { error } from '@sveltejs/kit';
 import fs from 'fs';
 import Path from 'path';
 import mime from 'mime-types';
@@ -177,7 +177,7 @@ export async function saveResizedImages(
 
 	const format =
 		publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format === 'original'
-			? (ext.slice(1) as keyof sharp.FormatEnum)
+			? (ext as keyof sharp.FormatEnum)
 			: (publicEnv.MEDIA_OUTPUT_FORMAT_QUALITY.format as keyof sharp.FormatEnum);
 
 	const thumbnails: Record<string, { url: string; width: number; height: number }> = {};

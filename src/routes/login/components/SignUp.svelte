@@ -9,11 +9,6 @@
 	import { createEventDispatcher } from 'svelte';
 	const dispatch = createEventDispatcher();
 
-	// Function to handle the "Back" button click
-	function handleBack() {
-		dispatch('back');
-	}
-
 	// Stores
 	import { page } from '$app/stores';
 
@@ -43,6 +38,12 @@
 	let tabIndex = 1;
 	const activeOauth = false;
 	let response: any;
+
+	// Function to handle the "Back" button click
+	function handleBack(event: Event) {
+		event.stopPropagation();
+		dispatch('back');
+	}
 
 	const { form, constraints, allErrors, errors, enhance, delayed } = superForm<any>(FormSchemaSignUp, {
 		id: 'signup',
@@ -123,7 +124,7 @@
 			<div class="-mt-2 flex items-center justify-end gap-2 text-right text-xs text-error-500">
 				{m.form_required()}
 
-				<button on:click|stopPropagation={handleBack} class="variant-outline-secondary btn-icon">
+				<button on:click={handleBack} class="variant-outline-secondary btn-icon" aria-label="Back">
 					<iconify-icon icon="ri:arrow-left-line" width="20" class="text-white"></iconify-icon>
 				</button>
 			</div>
@@ -188,8 +189,6 @@
 					<span class="text-xs text-error-500">{$errors.password}</span>
 				{/if}
 
-				<PasswordStrength password={$form.password} />
-
 				<!-- Password Confirm -->
 				<FloatingInput
 					id="confirm_passwordsignUp"
@@ -212,7 +211,8 @@
 					<span class="text-xs text-error-500">{$errors.confirm_password}</span>
 				{/if}
 
-				<PasswordStrength password={$form.confirm_password} />
+				<!-- Password Strength Indicator -->
+				<PasswordStrength password={$form.password} confirmPassword={$form.confirm_password} />
 
 				{#if firstUserExists == true}
 					<!-- Registration Token -->
@@ -243,7 +243,7 @@
 
 				{#if privateEnv.USE_GOOGLE_OAUTH === false}
 					<!-- Email signin only -->
-					<button type="submit" class="variant-filled btn mt-4 uppercase">
+					<button type="submit" class="variant-filled btn mt-4 uppercase" aria-label={m.form_signup()}>
 						{m.form_signup()}
 						{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 					</button>
@@ -251,15 +251,15 @@
 					<!-- Email + Oauth signin  -->
 				{:else if privateEnv.USE_GOOGLE_OAUTH === true && !activeOauth}
 					<div class="btn-group mt-4 border border-secondary-500 text-white [&>*+*]:border-secondary-500">
-						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white">
+						<button type="submit" class="btn w-3/4 bg-surface-200 text-black hover:text-white" aria-label={m.form_signup()}>
 							<span class="w-full text-black hover:text-white">{m.form_signup()}</span>
 							<!-- Loading indicators -->
 							{#if $delayed}<img src="/Spinner.svg" alt="Loading.." class="ml-4 h-6" />{/if}
 						</button>
 
 						<form method="post" action="?/OAuth" class="w-1/4">
-							<button type="submit" class="btn flex w-full items-center justify-center">
-								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2" />
+							<button type="submit" class="btn flex w-full items-center justify-center" aria-label="OAuth">
+								<iconify-icon icon="flat-color-icons:google" color="white" width="20" class="mr-0.5 sm:mr-2"></iconify-icon>
 								<span class="">OAuth</span>
 							</button>
 						</form>

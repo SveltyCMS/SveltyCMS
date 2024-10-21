@@ -41,7 +41,8 @@ export function constructUrl(path: string, hash: string, fileName: string, forma
 		return `${publicEnv.MEDIASERVER_URL}/files/${urlPath}`;
 	} else {
 		// If MEDIA_FOLDER is intended to be a URL path
-		return Path.posix.join(publicEnv.MEDIA_FOLDER, urlPath);
+		// return Path.posix.join(publicEnv.MEDIA_FOLDER, urlPath);
+		return urlPath;
 
 		// If MEDIA_FOLDER is a filesystem path and you need a file path instead:
 		// return Path.join(publicEnv.MEDIA_FOLDER, urlPath);
