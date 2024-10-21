@@ -1,18 +1,23 @@
 <!-- 
-@files src/components/Loading.svelte
-@description Loading component. 
--->
+@file src/components/Loading.svelte
+@description  Loading component with animated circles and customizable text
 
+Features:
+Animated loading circles, customizable text, timed animation, performance optimizations
+
+Usage:
+<Loading customTopText="Please wait" customBottomText="Loading..." />
+-->
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 
 	// Components
 	import SveltyCMSLogo from '@components/system/icons/SveltyCMS_Logo.svelte';
 
-	//ParaglideJS
+	// ParaglideJS
 	import * as m from '@src/paraglide/messages';
 
-	// Add props for custom text
+	// Props for custom text
 	export let customTopText: string | undefined = undefined;
 	export let customBottomText: string | undefined = undefined;
 
@@ -35,7 +40,12 @@
 	});
 </script>
 
-<div class="absolute inset-0 flex items-center justify-center bg-black shadow-2xl" role="status" aria-live="polite">
+<div
+	class="absolute inset-0 flex items-center justify-center bg-black shadow-2xl"
+	role="status"
+	aria-live="polite"
+	aria-label="Loading content, please wait"
+>
 	{#if isAnimating}
 		<div class="relative h-[150px] w-[150px] rounded-full border-[7px] border-error-500 border-x-transparent" id="loader" />
 		<div class="absolute h-[170px] w-[170px] rounded-full border-[6px] border-success-400 border-x-transparent" id="loader2" />

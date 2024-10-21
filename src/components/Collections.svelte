@@ -117,6 +117,7 @@
 					searchShow = true;
 				}}
 				class="input btn mb-2 w-full"
+				aria-label="Search Collections"
 			>
 				<iconify-icon icon="ic:outline-search" width="24" />
 			</button>
@@ -146,6 +147,7 @@
 							}
 						}}
 						class="variant-filled-surface w-12"
+						aria-label="Clear search"
 					>
 						<iconify-icon icon="ic:outline-search-off" width="24" />
 					</button>
@@ -295,29 +297,12 @@
 					}
 				}}
 			>
-				<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="px-2 py-1 text-primary-600 rtl:ml-2" />
+				<iconify-icon icon="bi:collection" width="24" class="px-2 py-1 text-error-500 rtl:ml-2" />
 				<p class="mr-auto text-center uppercase">Collections</p>
 			</button>
 		{:else}
-			<!-- Sidebar Collapsed -->
-			<button
-				class="btn mt-2 flex w-full flex-col items-center bg-surface-400 py-1 pl-2 hover:!bg-surface-400 hover:text-white dark:bg-surface-500 dark:text-white"
-				on:click={() => {
-					// Switch back to collections mode
-					mode.set('view'); // or the appropriate mode for collections
-					// Optionally, close the sidebar if it's on mobile
-					handleSidebarToggle();
-					if (get(screenSize) === 'sm') {
-						toggleSidebar('left', 'hidden');
-					}
-				}}
-			>
-				<p class="text-xs uppercase text-white">Collections</p>
-				<iconify-icon icon="mdi:folder-multiple-outline" width="24" class="text-primary-500" />
-			</button>
+			<!-- Display Virtual Folders -->
+			<VirtualFolders />
 		{/if}
-
-		<!-- Display Virtual Folders -->
-		<VirtualFolders />
 	{/if}
 </div>

@@ -1,6 +1,9 @@
 <!-- 
 @file src/components/IconifyPicker.svelte
-@description IconifyPicker component
+@description IconifyPicker component for selecting icons from Iconify libraries
+@features Search icons, pagination, library selection, icon preview
+@dependencies @iconify/svelte, ParaglideJS
+@usage <IconifyPicker bind:iconselected />
 -->
 
 <script lang="ts">
@@ -10,26 +13,24 @@
 	// Import loadIcons function from Iconify Svelte library
 	import { loadIcons } from '@iconify/svelte';
 
-	let icons = []; // array of icon names
-	let start = 0; // Declare a variable for the start index and initialize it to 0
+	let icons = []; // Array of icon names
+	let start = 0; // Start index for pagination
 	let selectedLibrary = 'ic'; // Default library is 'ic - Google Material Icons'
 	let librariesLoaded = false;
 	let iconLibraries = {};
-	let page = 0; // Initialize page counter
+	let page = 0; // Page counter for pagination
 	let showDropdown = false;
 
 	export const icon: string = '';
 	export let iconselected: string;
 	export let searchQuery: string = '';
 
-	// function to fetch icons from Iconify API
+	// Fetch icons from Iconify API
 	async function searchIcons(query: string, libraryCategory: string) {
 		// Calculate start index based on current page number
 		start = page * 50; // Use page variable instead of start variable
-
 		showDropdown = true;
 		try {
-			// Use search API query with prefix and limit parameters
 			const response = await fetch(
 				`https://api.iconify.design/search?query=${encodeURIComponent(searchQuery)}&prefix=${libraryCategory ? libraryCategory : 'ic'}&start=${start}`
 			);
@@ -41,48 +42,44 @@
 				loadIcons(icons.map((icon) => `${data.prefix}:${icon}`));
 			}
 		} catch (error) {
-			// Display error message
 			console.error('An error occurred while fetching icons:', error);
 		}
 	}
 
-	// Function to go to the next page of results
+	// Go to the next page of results
 	function nextPage() {
 		page += 1;
 		searchIcons(searchQuery, selectedLibrary);
 	}
 
-	// Function to go to the previous page of results
+	// Go to the previous page of results
 	function prevPage() {
 		page -= 1;
 		if (page < 0) page = 0;
 		searchIcons(searchQuery, selectedLibrary);
 	}
 
-	// function to select an icon
+	// Select an icon and close the dropdown
 	function selectIcon(icon: string) {
 		iconselected = icon; // update selected icon name
 		showDropdown = false; // close the dropdown after selection
 	}
 
+	// Remove the selected icon
 	const removeIcon = () => {
 		iconselected = '';
 	};
 
-	// Function to fetch available icon libraries
+	// Fetch available icon libraries
 	async function getIconLibraries() {
 		try {
 			const response = await fetch('https://api.iconify.design/collections');
-
 			if (!response.ok) {
 				console.error(`Failed to fetch icon libraries: ${response.status}`);
 				return;
 			}
-
 			const data = await response.json();
-
 			iconLibraries = data;
-
 			librariesLoaded = true;
 			console.log('Successfully fetched icon libraries'); // Optional success message
 		} catch (error) {
@@ -90,7 +87,7 @@
 		}
 	}
 
-	// Function to show dropdown and fetch libraries
+	// Show dropdown and fetch libraries
 	function showLibrariesAndDropdown() {
 		getIconLibraries();
 		showDropdown = true;
@@ -125,7 +122,7 @@
 		on:focus={showLibrariesAndDropdown}
 	/>
 
-	<!-- dropdown section -->
+	<!-- Dropdown section -->
 	{#if showDropdown}
 		<div class="dropdown">
 			<!-- Library filter dropdown -->
@@ -149,7 +146,7 @@
 				</select>
 			</div>
 
-			<!-- Render your dropdown content here -->
+			<!-- Icon selection buttons -->
 			{#each icons as icon}
 				<button on:click={() => selectIcon(icon)}>
 					<iconify-icon {icon} width="24" class="hover:rounded hover:bg-primary-500" />

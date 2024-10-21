@@ -1,6 +1,15 @@
 <!--
 @file  src/components/EntryList.svelte
 @description  EntryList component to display collections.
+
+Features:
+- Search
+- Pagination
+- Multi-select
+- Sorting
+- Status
+- Icons
+- Filter
 -->
 <script lang="ts">
 	import { browser } from '$app/environment';
@@ -429,24 +438,32 @@
 			</div>
 		</div>
 
-		<!-- Expand/Collapse -->
-		<button type="button" on:keydown on:click={() => (expand = !expand)} class="variant-ghost-surface btn-icon mt-1 sm:hidden">
-			<iconify-icon icon="material-symbols:filter-list-rounded" width="30" />
-		</button>
+		<div class="flex items-center justify-between gap-1">
+			<!-- Expand/Collapse -->
+			<button
+				type="button"
+				on:keydown
+				on:click={() => (expand = !expand)}
+				class="variant-ghost-surface btn-icon sm:hidden"
+				aria-label="Expand/Collapse"
+			>
+				<iconify-icon icon="material-symbols:filter-list-rounded" width="30"> </iconify-icon>
+			</button>
 
-		<!-- Content Language -->
-		<div class="mt-1 sm:hidden">
-			<TranslationStatus />
-		</div>
+			<!-- Content Language -->
+			<div class="mt-1 sm:hidden">
+				<TranslationStatus />
+			</div>
 
-		<!-- Table Filter -->
-		<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
-			<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
-			<TranslationStatus />
-		</div>
-		<!-- MultiButton -->
-		<div class="mt-2 w-full sm:mt-0 sm:w-auto">
-			<EntryListMultiButton {isCollectionEmpty} />
+			<!-- Table Filter -->
+			<div class="relative mt-1 hidden items-center justify-center gap-2 sm:flex">
+				<TableFilter bind:globalSearchValue bind:filterShow bind:columnShow bind:density />
+				<TranslationStatus />
+			</div>
+			<!-- MultiButton -->
+			<div class="mt-2 w-full sm:mt-0 sm:w-auto">
+				<EntryListMultiButton {isCollectionEmpty} />
+			</div>
 		</div>
 	</div>
 

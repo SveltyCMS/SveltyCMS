@@ -1,37 +1,26 @@
 /**
  * @file src/routes/api/virtualFolder/[folderId]/+server.ts
- * @description API endpoint to manage a specific virtual folder and its contents, including subfolders and media files.
+ * @description API endpoint to manage virtual folders and their contents within a media gallery system.
  *
- * @method GET
- * @method POST
- * @method PATCH
- * @method DELETE
+ * Features:
+ * - GET: Retrieve contents of a specific folder
+ * - POST: Create a new subfolder within a specified folder
+ * - PATCH: Update folder details (name, parent)
+ * - DELETE: Remove a folder and its contents
  *
- * @param {Object} request - The request object containing the following properties:
- *  - folderId: string (required) - The ID of the virtual folder to manage.
- *  - name: string (required for POST and PATCH) - The name of the folder to create or update.
- *  - parent: string (optional for PATCH) - The ID of the new parent folder (for moving).
- *
- * @returns {Object} JSON response containing:
- *  - success: boolean - Indicates whether the operation was successful.
- *  - contents: object (optional) - Contains folder details and its contents (for GET).
- *  - folder: object (optional) - Contains updated folder details (for PATCH and POST).
- *  - error: string (optional) - Error message if the operation fails.
- *
- * @throws {Error} 500 - Returns a 500 status code with an error message if an operation fails.
- * @throws {Error} 404 - Returns a 404 status code if a folder is not found during update or delete operations.
- * @throws {Error} 400 - Returns a 400 status code with an error message if required parameters are missing.
+ * Usage:
+ * - Use 'root' as folderId to interact with the root folder
+ * - Ensure dbAdapter is properly initialized before using this endpoint
+ * - Handle ARIA labels in frontend for improved accessibility
  */
 
 import { publicEnv } from '@root/config/public';
 import { json } from '@sveltejs/kit';
 import type { RequestHandler } from './$types';
 import { dbAdapter } from '@src/databases/db';
-
-// System Logger
 import { logger } from '@utils/logger';
 
-// Interface representing a Virtual Folder
+// Define the structure of a virtual folder
 interface VirtualFolder {
 	_id: string;
 	name: string;
@@ -39,227 +28,232 @@ interface VirtualFolder {
 	path: string;
 }
 
-export const GET: RequestHandler = async ({ params }) => {
-	let { folderId } = params;
+// Define the structure of folder contents
+interface FolderContents {
+	subfolders: VirtualFolder[];
+	mediaFiles: any[]; // Replace 'any' with a more specific type if available
+}
 
-	try {
-		if (dbAdapter === null) {
-			logger.error('Database adapter is not initialized');
-			return json({ success: false, error: 'Internal server error' }, { status: 500 });
-		}
-		// Handle 'root' as a special case by fetching the root folder based on MEDIA_FOLDER from config
-		if (folderId === 'root') {
-			logger.warn('Fetching root folder contents');
-			const rootFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
-				name: publicEnv.MEDIA_FOLDER,
-				parent: null
-			});
+// Retrieve or create the root folder
+async function getRootFolder(): Promise<VirtualFolder> {
+	const rootFolder = await dbAdapter.findOne('VirtualFolder', {
+		name: publicEnv.MEDIA_FOLDER,
+		parent: null
+	});
 
-			if (!rootFolder) {
-				logger.error('Root virtual folder not found');
-				return json({ success: false, error: 'Root folder does not exist' }, { status: 500 });
-			}
-
-			folderId = rootFolder._id.toString();
-		}
-
-		// Fetch the contents of the folder (subfolders and mediaFiles)
-		const contents = await dbAdapter.getVirtualFolderContents(folderId);
-
-		// Validate the structure of contents
-		if (!contents || typeof contents !== 'object' || !Array.isArray(contents.subfolders) || !Array.isArray(contents.mediaFiles)) {
-			logger.warn('Invalid contents structure received:', contents);
-			return json({ success: true, contents: { subfolders: [], mediaFiles: [] } }, { status: 200 });
-		}
-
-		return json({ success: true, contents }, { status: 200 });
-	} catch (error) {
-		const errorMessage = error instanceof Error ? error.message : String(error);
-		logger.error('Failed to fetch folder contents', { error: errorMessage });
-		return json({ success: false, error: `Failed to fetch folder contents: ${error.message}` }, { status: 500 });
+	if (!rootFolder) {
+		// Create root folder if it doesn't exist
+		return await dbAdapter.createVirtualFolder({
+			name: publicEnv.MEDIA_FOLDER,
+			parent: null,
+			path: publicEnv.MEDIA_FOLDER
+		});
 	}
-};
 
-// POST: Create a subfolder within the specified virtual folder
-export const POST: RequestHandler = async ({ params, request }) => {
-	let { folderId } = params;
+	return rootFolder;
+}
+
+// Generate a standardized error response
+function errorResponse(message: string, status: number = 500) {
+	logger.error(message);
+	return json({ success: false, error: message }, { status });
+}
+
+// Recursively update paths of child folders
+async function updateChildPaths(folderId: string, newParentPath: string) {
+	const children = await dbAdapter.find('VirtualFolder', { parent: folderId });
+	for (const child of children) {
+		const newPath = `${newParentPath}/${child.name}`;
+		await dbAdapter.updateVirtualFolder(child._id, { path: newPath });
+		await updateChildPaths(child._id, newPath);
+	}
+}
+
+// GET: Retrieve folder contents
+export const GET: RequestHandler = async ({ params }) => {
+	const { folderId } = params;
 
 	try {
-		if (dbAdapter === null) {
-			logger.error('Database adapter is not initialized');
-			return json({ success: false, error: 'Internal server error' }, { status: 500 });
-		}
-		const { name } = await request.json();
-
-		// Validate request data
-		if (!name) {
-			logger.warn('Folder name is missing in POST request');
-			return json({ success: false, error: 'Folder name is required' }, { status: 400 });
+		if (!dbAdapter) {
+			return errorResponse('Database adapter is not initialized', 500);
 		}
 
-		// Determine the parent folder's path
-		let parentPath = '';
+		// Handle root folder specially
+		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
 
-		if (folderId === 'root') {
-			// Fetch the root folder
-			const rootFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
-				name: publicEnv.MEDIA_FOLDER,
-				parent: null
-			});
-
-			if (!rootFolder) {
-				logger.error('Root virtual folder not found');
-				return json({ success: false, error: 'Root folder does not exist' }, { status: 500 });
-			}
-
-			folderId = rootFolder._id.toString();
-			parentPath = rootFolder.path;
-		} else {
-			// Fetch the parent folder to get its path
-			const parentFolder: VirtualFolder = await dbAdapter.findOne('VirtualFolder', {
-				_id: folderId
-			});
-
-			if (!parentFolder) {
-				logger.error(`Parent folder with ID ${folderId} not found`);
-				return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
-			}
-
-			parentPath = parentFolder.path;
+		if (!folder) {
+			return errorResponse('Folder not found', 404);
 		}
 
-		// Construct the path for the new folder
-		const newPath = `${parentPath}/${name}`;
+		// Fetch folder contents
+		let contents: FolderContents;
+		try {
+			contents = await dbAdapter.getVirtualFolderContents(folder._id.toString());
+		} catch (error) {
+			logger.warn('Error fetching folder contents:', error);
+			contents = { subfolders: [], mediaFiles: [] };
+		}
 
-		// Create the new virtual folder
-		const newFolderData = {
-			name,
-			parent: folderId,
-			path: newPath
+		// Ensure contents has the correct structure
+		const safeContents: FolderContents = {
+			subfolders: Array.isArray(contents?.subfolders) ? contents.subfolders : [],
+			mediaFiles: Array.isArray(contents?.mediaFiles) ? contents.mediaFiles : []
 		};
 
-		const newFolder = await dbAdapter.createVirtualFolder(newFolderData);
-
-		logger.info(`Subfolder created: ${name} under folderId ${folderId}`);
-
-		return json({ success: true, folder: newFolder }, { status: 201 });
+		// Return folder info and contents
+		return json({
+			success: true,
+			contents: safeContents,
+			folder: {
+				id: folder._id,
+				name: folder.name,
+				path: folder.path,
+				ariaLabel: `Folder: ${folder.name}`
+			}
+		});
 	} catch (error) {
-		logger.error('Error creating subfolder:', error);
-		return json({ success: false, error: 'Failed to create subfolder' }, { status: 500 });
+		return errorResponse(`Failed to fetch folder contents: ${error}`, 500);
 	}
 };
 
-// PATCH: Update a specific virtual folder's details
+// POST: Create a new subfolder
+export const POST: RequestHandler = async ({ params, request }) => {
+	const { folderId } = params;
+
+	try {
+		if (!dbAdapter) {
+			return errorResponse('Database adapter is not initialized', 500);
+		}
+
+		const { name } = await request.json();
+
+		if (!name) {
+			return errorResponse('Folder name is required', 400);
+		}
+
+		// Get parent folder (root or specified)
+		const parentFolder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+
+		if (!parentFolder) {
+			return errorResponse('Parent folder not found', 404);
+		}
+
+		// Create new folder
+		const newPath = `${parentFolder.path}/${name}`;
+		const newFolder = await dbAdapter.createVirtualFolder({
+			name,
+			parent: parentFolder._id,
+			path: newPath
+		});
+
+		logger.info(`Subfolder created: ${name} under folderId ${parentFolder._id}`);
+
+		// Return new folder info
+		return json(
+			{
+				success: true,
+				folder: {
+					...newFolder,
+					ariaLabel: `New folder: ${name}`
+				}
+			},
+			{ status: 201 }
+		);
+	} catch (error) {
+		return errorResponse(`Failed to create subfolder: ${error}`, 500);
+	}
+};
+
+// PATCH: Update folder details
 export const PATCH: RequestHandler = async ({ params, request }) => {
 	const { folderId } = params;
 
 	try {
 		const { name, parent } = await request.json();
 
-		// Validate request data
 		if (!name) {
-			logger.warn('Folder name is missing in PATCH request');
-			return json({ success: false, error: 'Folder name is required' }, { status: 400 });
+			return errorResponse('Folder name is required', 400);
 		}
 
-		// If parent is being updated, handle 'root' or validate new parent
-		let updatedParent = parent;
+		// Get folder to update
+		const folder = folderId === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: folderId });
 
+		if (!folder) {
+			return errorResponse('Folder not found', 404);
+		}
+
+		// Handle parent folder change
+		let newParent: VirtualFolder | null = null;
 		if (parent) {
-			if (parent === 'root') {
-				// Fetch the root folder
-				const rootFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
-					name: publicEnv.MEDIA_FOLDER,
-					parent: null
-				});
-
-				if (!rootFolder) {
-					logger.error('Root virtual folder not found');
-					return json({ success: false, error: 'Root folder does not exist' }, { status: 500 });
-				}
-
-				updatedParent = rootFolder._id.toString();
-			} else {
-				// Validate the new parent folder
-				const newParentFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
-					_id: parent
-				});
-
-				if (!newParentFolder) {
-					logger.error(`New parent folder with ID ${parent} not found`);
-					return json({ success: false, error: 'New parent folder not found' }, { status: 404 });
-				}
+			newParent = parent === 'root' ? await getRootFolder() : await dbAdapter.findOne('VirtualFolder', { _id: parent });
+			if (!newParent) {
+				return errorResponse('New parent folder not found', 404);
 			}
 		}
 
-		// Update the virtual folder's name and parent
-		const updateData = {
-			name,
-			parent: updatedParent || null // If parent is undefined, set to null
-		};
-
-		const updatedFolder = await dbAdapter.updateVirtualFolder(folderId, updateData);
-
-		if (!updatedFolder) {
-			logger.warn(`Failed to update folder with ID ${folderId}`);
-			return json({ success: false, error: 'Folder update failed' }, { status: 404 });
-		}
-
-		// Reconstruct the path based on the new parent
-		let newPath = '';
-
-		if (updatedFolder.parent) {
-			const parentFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
-				_id: updatedFolder.parent
-			});
-
-			if (!parentFolder) {
-				logger.error(`Parent folder with ID ${updatedFolder.parent} not found`);
-				return json({ success: false, error: 'Parent folder not found' }, { status: 404 });
-			}
-
-			newPath = `${parentFolder.path}/${updatedFolder.name}`;
+		// Prepare update data
+		const updateData: Partial<VirtualFolder> = { name };
+		if (newParent) {
+			updateData.parent = newParent._id;
+			updateData.path = `${newParent.path}/${name}`;
 		} else {
-			// If parent is null, it's the root folder
-			newPath = publicEnv.MEDIA_FOLDER;
+			updateData.path = `${folder.path.split('/').slice(0, -1).join('/')}/${name}`;
 		}
 
-		// Update the path of the current folder
-		await dbAdapter.updateVirtualFolder(folderId, { path: newPath });
+		// Update folder
+		const updatedFolder = await dbAdapter.updateVirtualFolder(folder._id, updateData);
 
-		// For simplicity, this example does not handle recursive path updates
+		// Update child paths if parent changed
+		if (newParent) {
+			await updateChildPaths(folder._id, updatedFolder.path);
+		}
 
-		logger.info(`Folder with ID ${folderId} updated successfully`);
+		logger.info(`Folder with ID ${folder._id} updated successfully`);
 
-		// Fetch the updated folder details
-		const refreshedFolder = await dbAdapter.findOne<VirtualFolder>('VirtualFolder', {
-			_id: folderId
+		// Return updated folder info
+		return json({
+			success: true,
+			folder: {
+				...updatedFolder,
+				ariaLabel: `Updated folder: ${updatedFolder.name}`
+			}
 		});
-
-		return json({ success: true, folder: refreshedFolder }, { status: 200 });
 	} catch (error) {
-		logger.error('Error updating folder:', error);
-		return json({ success: false, error: 'Failed to update folder' }, { status: 500 });
+		return errorResponse(`Failed to update folder: ${error}`, 500);
 	}
 };
 
-// DELETE: Delete a specific virtual folder and its contents, including subfolders
+// DELETE: Remove a folder and its contents
 export const DELETE: RequestHandler = async ({ params }) => {
 	const { folderId } = params;
 
 	try {
-		// Attempt to delete the virtual folder
+		if (folderId === 'root') {
+			return errorResponse('Cannot delete root folder', 400);
+		}
+
+		// Find folder to delete
+		const folder = await dbAdapter.findOne('VirtualFolder', { _id: folderId });
+		if (!folder) {
+			return errorResponse('Folder not found', 404);
+		}
+
+		// Delete folder
 		const success = await dbAdapter.deleteVirtualFolder(folderId);
 
 		if (!success) {
-			logger.warn(`Folder deletion failed for folderId ${folderId}`);
-			return json({ success: false, error: 'Folder deletion failed' }, { status: 404 });
+			return errorResponse('Folder deletion failed', 500);
 		}
 
 		logger.info(`Folder with ID ${folderId} deleted successfully`);
-		return json({ success: true }, { status: 200 });
+
+		// Return success message
+		return json({
+			success: true,
+			message: `Folder "${folder.name}" deleted successfully`,
+			ariaLabel: `Deleted folder: ${folder.name}`
+		});
 	} catch (error) {
-		logger.error('Error deleting folder:', error);
-		return json({ success: false, error: 'Failed to delete folder' }, { status: 500 });
+		return errorResponse(`Failed to delete folder: ${error}`, 500);
 	}
 };

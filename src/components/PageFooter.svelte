@@ -1,6 +1,12 @@
 <!-- 
 @file src/components/PageFooter.svelte
-@description PageFooter component
+@description PageFooter component displaying collection information using Tailwind CSS
+
+Features: 
+Displays collection name, creation and update dates
+
+Usage:
+<PageFooter />
 -->
 
 <script lang="ts">
@@ -23,6 +29,7 @@
 	{#each Object.keys(dates) as key}
 		<div class="capitalize">{key}:</div>
 	{/each}
+
 	<!-- Data -->
 	{#each Object.values(dates) as value}
 		<div class="text-tertiary-500 dark:text-primary-500">{value}</div>
