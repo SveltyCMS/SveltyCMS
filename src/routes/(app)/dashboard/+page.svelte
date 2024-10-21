@@ -223,6 +223,6 @@
 			{/each}
 		</Grid>
 	{:else}
-		<p class="text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
+		<p class="text-center text-tertiary-500 dark:text-primary-500">No widgets added yet. Use the "Add" button to add widgets.</p>
 	{/if}
 </div>

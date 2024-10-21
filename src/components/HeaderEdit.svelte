@@ -1,7 +1,20 @@
 <!-- 
  @file  src/components/HeaderEdit.svelte
- @description  HeaderEdit component.
- -->
+ @description  HeaderEdit component manages the collection entry header for both "edit" and "view" modes. It provides functionality for toggling sidebar visibility, saving form data, handling modal dialogs for scheduling, and managing language or tab-specific temporary data. The header also adapts to mobile/desktop views and offers options for actions like publishing, deleting, or scheduling entries, while maintaining accessibility and responsive design.
+
+ Features:
+ - Sidebar toggle (for mobile/desktop)
+ - Collection entry management with mode switching (view/edit)
+ - Save form data with validation
+ - Modal dialogs for scheduling entries
+ - Language and tab-specific temporary data management
+ - Responsive UI with adaptive actions for mobile and desktop
+ - Role-based permissions handling for actions (publish, delete, etc.)
+ - Accessible icons and buttons using ARIA attributes
+ - Debounced "Show More" actions for performance optimization
+ - Cancel and reload functionality for editing mode
+ - Full dark mode support with theme-based styling
+-->
 
 <script lang="ts">
 	import { getFieldName, saveFormData } from '@utils/utils';
@@ -218,7 +231,7 @@
 
 		<!-- TODO: fix button icon switch -->
 		<!-- Cancel/Reload -->
-		{#if $headerActionButton}
+		{#if !$headerActionButton}
 			<button type="button" on:click={handleCancel} class="variant-ghost-surface btn-icon">
 				<iconify-icon icon="material-symbols:close" width="24" />
 			</button>

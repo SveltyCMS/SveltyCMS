@@ -2,7 +2,7 @@
  * @file src/databases/redis.ts
  * @description Redis client initialization and caching operations for the CMS.
  *
-  * This module provides functionality for:
+ * This module provides functionality for:
  * - Initializing and managing a Redis client connection
  * - Caching and retrieving data using Redis
  * - Handling session caching specifically for user sessions
@@ -21,12 +21,12 @@
  * - Type safety for Redis client
  * - Optional data compression/decompression
  * - Graceful connection closure
+ * - CMS-specific caching utilities
  *
  * Usage:
  * This module is used throughout the application for caching purposes,
  * particularly for improving the performance of frequently accessed data
- * and managing user sessions.
-
+ * managing user sessions, and caching CMS-specific content.
  */
 
 // Import necessary modules
@@ -50,10 +50,11 @@ const redisConfig = {
 	password: privateEnv.REDIS_PASSWORD || undefined,
 	useRedis: privateEnv.USE_REDIS,
 	retryAttempts: 3,
-	retryDelay: 2000
+	retryDelay: 2000, // 2 seconds
+	defaultTTL: 3600 // 1 hour default TTL
 };
 
-// Initialize compression/decompression only on server-side
+// Compression utilities (server-side only)
 let compress: (buffer: Buffer) => Promise<Buffer>;
 let decompress: (buffer: Buffer) => Promise<Buffer>;
 
@@ -68,13 +69,13 @@ if (!browser) {
 }
 
 // Initializes the Redis client with retry mechanism.
-export async function initializeRedis(retries = redisConfig.retryAttempts, delay = redisConfig.retryDelay): Promise<void> {
+export async function initializeRedis(): Promise<void> {
 	if (browser || !redisConfig.useRedis) {
 		logger.info('Redis is disabled or running in a browser environment');
 		return;
 	}
 
-	for (let attempt = 1; attempt <= retries; attempt++) {
+	for (let attempt = 1; attempt <= redisConfig.retryAttempts; attempt++) {
 		try {
 			const { createClient } = await import('redis');
 			redisClient = createClient({
@@ -82,40 +83,39 @@ export async function initializeRedis(retries = redisConfig.retryAttempts, delay
 				password: redisConfig.password
 			});
 
+			redisClient.on('error', (err) => logger.error('Redis Client Error', err));
+			redisClient.on('reconnecting', () => logger.info('Reconnecting to Redis...'));
+
 			await redisClient.connect();
 			logger.info('Redis client connected successfully');
-
-			redisClient.on('error', (err) => logger.error('Redis Client Error', err));
-			return; // Exit function if connection is successful
+			return;
 		} catch (err) {
-			const message = `Error in initializeRedis: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message);
+			logger.error(`Redis connection attempt ${attempt} failed: ${err instanceof Error ? err.message : String(err)}`);
 
-			redisClient = null;
-
-			if (attempt < retries) {
-				logger.info(`Retrying Redis connection in ${delay / 1000} seconds...`);
-				await new Promise((resolve) => setTimeout(resolve, delay));
-			} else {
-				throw error(500, message);
+			if (attempt === redisConfig.retryAttempts) {
+				throw error(500, `Failed to initialize Redis after ${redisConfig.retryAttempts} attempts`);
 			}
+
+			await new Promise((resolve) => setTimeout(resolve, redisConfig.retryDelay));
 		}
 	}
 }
 
-// Ensures that the Redis client is initialized before performing any operations.
-async function ensureRedisInitialized() {
+// Ensure Redis is initialized before operations
+async function ensureRedisInitialized(): Promise<void> {
 	if (browser) {
-		const message = 'Error in ensureRedisInitialized: Redis operations are not available in browser environment';
-		logger.error(message);
-		throw error(500, message);
+		throw error(500, 'Redis operations are not available in browser environment');
 	}
 	if (!redisClient) {
-		const message = 'Error in ensureRedisInitialized: Redis client is not initialized';
-		logger.error(message);
-		throw error(500, message);
+		throw error(500, 'Redis client is not initialized');
 	}
-	await redisClient.connect(); // Ensure that the connection is established.
+	if (!redisClient.isOpen) {
+		try {
+			await redisClient.connect();
+		} catch (err) {
+			throw error(500, `Failed to connect to Redis: ${err instanceof Error ? err.message : String(err)}`);
+		}
+	}
 }
 
 // Retrieves a cached value from Redis, with optional decompression.
@@ -132,34 +132,26 @@ export async function getCache<T>(key: string): Promise<T | null> {
 		}
 		return null;
 	} catch (err) {
-		const message = `Error in getCache: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+		logger.error(`Error in getCache: ${err instanceof Error ? err.message : String(err)}`);
+		return null;
 	}
 }
 
-// Sets a value in Redis with optional compression and expiration time.
-export async function setCache<T>(key: string, value: T, expiration: Date): Promise<void> {
+// Sets a value in Redis with optional compression and TTL.
+export async function setCache<T>(key: string, value: T, ttl: number = redisConfig.defaultTTL): Promise<void> {
 	try {
 		await ensureRedisInitialized();
 		const jsonValue = JSON.stringify(value);
-		const expirationInSeconds = Math.max(0, Math.floor((expiration.getTime() - Date.now()) / 1000));
 
 		if (compress) {
 			const compressedValue = await compress(Buffer.from(jsonValue));
-			await redisClient!.set(key, compressedValue, {
-				EX: expirationInSeconds
-			});
+			await redisClient!.set(key, compressedValue, { EX: ttl });
 		} else {
-			await redisClient!.set(key, jsonValue, {
-				EX: expirationInSeconds
-			});
+			await redisClient!.set(key, jsonValue, { EX: ttl });
 		}
-		logger.debug('Cache set', { key, expiration: expiration.toISOString() });
+		logger.debug('Cache set', { key, ttl });
 	} catch (err) {
-		const message = `Error in setCache: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+		logger.error(`Error in setCache: ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 
@@ -170,9 +162,7 @@ export async function clearCache(key: string): Promise<void> {
 		await redisClient!.del(key);
 		logger.debug('Cache cleared', { key });
 	} catch (err) {
-		const message = `Error in clearCache: ${err instanceof Error ? err.message : String(err)}`;
-		logger.error(message);
-		throw error(500, message);
+		logger.error(`Error in clearCache: ${err instanceof Error ? err.message : String(err)}`);
 	}
 }
 
@@ -181,9 +171,9 @@ export async function getCachedSession(session_id: string): Promise<User | null>
 	return getCache<User>(`session:${session_id}`);
 }
 
-// Stores a user session in Redis with an expiration date.
-export async function setCachedSession(session_id: string, user: User, expiration: Date): Promise<void> {
-	await setCache(`session:${session_id}`, user, expiration);
+// Stores a user session in Redis with a TTL.
+export async function setCachedSession(session_id: string, user: User, ttl: number = redisConfig.defaultTTL): Promise<void> {
+	await setCache(`session:${session_id}`, user, ttl);
 }
 
 // Deletes a user session from Redis.
@@ -198,14 +188,37 @@ export async function closeRedisConnection(): Promise<void> {
 			await redisClient.quit();
 			logger.info('Redis connection closed');
 		} catch (err) {
-			const message = `Error in closeRedisConnection: ${err instanceof Error ? err.message : String(err)}`;
-			logger.error(message);
-			throw error(500, message);
+			logger.error(`Error in closeRedisConnection: ${err instanceof Error ? err.message : String(err)}`);
 		}
 	}
 }
 
-// Checks if Redis is enabled and initialized.
+// Checks if Redis is enabled and initialized
 export function isRedisEnabled(): boolean {
-	return !!redisClient;
+	return !!redisClient && redisClient.isOpen;
+}
+
+// Caches page content in Redis
+export async function cachePageContent(pageId: string, content: string, ttl: number = redisConfig.defaultTTL): Promise<void> {
+	await setCache(`page:${pageId}`, content, ttl);
+}
+
+// Retrieves cached page content from Redis
+export async function getCachedPageContent(pageId: string): Promise<string | null> {
+	return getCache<string>(`page:${pageId}`);
+}
+
+// Clears cached page content from Redis
+export async function clearPageCache(pageId: string): Promise<void> {
+	await clearCache(`page:${pageId}`);
+}
+
+// Caches an API response in Redis
+export async function cacheApiResponse(endpoint: string, response: any, ttl: number = 60): Promise<void> {
+	await setCache(`api:${endpoint}`, response, ttl);
+}
+
+// Retrieves a cached API response from Redis
+export async function getCachedApiResponse(endpoint: string): Promise<any | null> {
+	return getCache(`api:${endpoint}`);
 }

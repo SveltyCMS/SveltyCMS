@@ -19,7 +19,8 @@ It also handles navigation, mode switching (view, edit, create, media), and SEO 
 	import Fields from '@components/Fields.svelte';
 	import EntryList from '@components/EntryList.svelte';
 	import MediaGallery from '@src/routes/(app)/mediagallery/+page.svelte';
-	//logger
+
+	//System logger
 	import { logger } from '@utils/logger';
 
 	let forwardBackward = false; // Track if using browser history
