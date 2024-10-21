@@ -199,7 +199,7 @@ async function goThrough(object: any, fields): Promise<string> {
 							}
 						}
 
-						field[key] = `🗑️widgets.${field[key].widget.Name}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
+						field[key] = `🗑️widgets.${field[key].widget.key}(${JSON.stringify(field[key].widget.GuiFields, (k, value) =>
 							typeof value === 'string' ? String(value.replace(/\s*🗑️\s*/g, '🗑️').trim()) : value
 						)})🗑️`;
 
