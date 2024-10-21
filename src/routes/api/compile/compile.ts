@@ -18,6 +18,7 @@ import fs from 'fs/promises';
 import crypto from 'crypto';
 import path from 'path';
 import * as ts from 'typescript';
+import { publicEnv } from "../../../../config/public";
 
 // Cache for transpiled modules to avoid recompiling unchanged files
 const cache = new Map<string, string>();
@@ -29,7 +30,7 @@ interface CompileOptions {
 
 export async function compile(options: CompileOptions = {}): Promise<void> {
 	// Destructure options with default values from environment variables
-	const { collectionsFolderJS = process.env.COLLECTIONS_FOLDER_JS, collectionsFolderTS = process.env.COLLECTIONS_FOLDER_TS } = options;
+	const { collectionsFolderJS = publicEnv.COLLECTIONS_FOLDER_JS, collectionsFolderTS = publicEnv.COLLECTIONS_FOLDER_TS } = options;
 
 	// Validate that folder paths are provided
 	if (!collectionsFolderJS || !collectionsFolderTS) {
