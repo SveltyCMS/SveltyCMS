@@ -28,6 +28,8 @@ It handles widget configuration, permissions, and specific options.
 	/** Exposes parent props to this component. */
 	export let parent: SvelteComponent;
 
+
+	$: console.debug('modalData:', modalData, widgets[widgetKey]);
 	// Local variables
 	$: modalData = $modalStore[0];
 	$: widgetKey = modalData?.value?.widget?.key as keyof typeof widgets;

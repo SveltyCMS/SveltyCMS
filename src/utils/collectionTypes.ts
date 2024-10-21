@@ -50,6 +50,7 @@ export async function generateCollectionFieldTypes(): Promise<void> {
 			collections[path.basename(file, '.ts')] = fields.join('|');
 		}
 
+		console.debug("Generate Types: ",collections);
 		let types = await fs.readFile(TYPES_FILE, 'utf-8');
 		types = types.replace(/\n*export\s+type\s+CollectionContent\s?=\s?.*?};/gms, '');
 		types += `\nexport type CollectionContent = ${JSON.stringify(collections).replace(/"/g, '')};`;

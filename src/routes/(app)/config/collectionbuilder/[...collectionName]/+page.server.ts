@@ -102,17 +102,10 @@ export const actions: Actions = {
 		import widgets from '@components/widgets';
 		import type { Schema } from '@src/collections/types';
 		export const schema: Schema = {
-			// Collection Name coming from filename so not needed
-
-			// Optional & Icon, status, slug
-			// See for possible Icons https://icon-sets.iconify.design/
 			icon: '${collectionIcon}',
 			status: '${collectionStatus}',
 			description: '${collectionDescription}',
 			slug: '${collectionSlug}',
-
-			// Defined Fields that are used in your Collection
-			// Widget fields can be inspected for individual options
 			fields: ${JSON.stringify(fields)}
 		};`;
 

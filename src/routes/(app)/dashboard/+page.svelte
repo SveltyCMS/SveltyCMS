@@ -11,12 +11,12 @@
 
 	// Components
 	import PageTitle from '@components/PageTitle.svelte';
-	import CPUWidget from './widgets/CPUWidget.svelte';
-	import DiskWidget from './widgets/DiskWidget.svelte';
-	import MemoryWidget from './widgets/MemoryWidget.svelte';
-	import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
-	import UserActivityWidget from './widgets/UserActivityWidget.svelte';
-	import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
+	// import CPUWidget from './widgets/CPUWidget.svelte';
+	// import DiskWidget from './widgets/DiskWidget.svelte';
+	// import MemoryWidget from './widgets/MemoryWidget.svelte';
+	// import Last5MediaWidget from './widgets/Last5MediaWidget.svelte';
+	// import UserActivityWidget from './widgets/UserActivityWidget.svelte';
+	// import SystemMessagesWidget from './widgets/SystemMessagesWidget.svelte';
 
 	// Svelte-grid
 	import { fade } from 'svelte/transition';
