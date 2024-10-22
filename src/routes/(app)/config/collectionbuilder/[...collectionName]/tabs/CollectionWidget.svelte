@@ -31,14 +31,31 @@
 	// Extract the collection name from the URL
 	const collectionName = $page.params.collectionName;
 
-	// fields
+	// Fields
 	let fields = $collectionValue.fields.map((field, index) => {
+		//console.log('Processing field:', field); // Debug log
+
+		// Try to detect widget type from all possible locations
+		const widgetType =
+			field.widget?.key || // For new widgets
+			field.widget?.Name || // For existing widgets
+			field.__type || // For schema-defined widgets
+			field.type || // Backup type field
+			Object.keys(widgets).find((key) => field[key]) || // Check if field has widget property
+			'Unknown Widget'; // Fallback
+
+		// console.log('Detected widget type:', widgetType); // Debug log
+
 		return {
-			id: index + 1, // Add the id property first
-			...field // Copy all existing properties
+			id: index + 1,
+			...field,
+			widget: {
+				key: widgetType,
+				Name: widgetType,
+				...field.widget
+			}
 		};
 	});
-
 	// Collection headers
 	const headers = ['Id', 'Icon', 'Name', 'DBName', 'Widget'];
 
@@ -149,9 +166,17 @@
 
 	$: {
 		fields = $collectionValue.fields.map((field, index) => {
+			const widgetType =
+				field.widget?.key || field.widget?.Name || field.__type || field.type || Object.keys(widgets).find((key) => field[key]) || 'Unknown Widget';
+
 			return {
-				id: index + 1, // Add the id property first
-				...field // Copy all existing properties
+				id: index + 1,
+				...field,
+				widget: {
+					key: widgetType,
+					Name: widgetType,
+					...field.widget
+				}
 			};
 		});
 	}
@@ -177,9 +202,9 @@
 					<iconify-icon icon={field.icon} width="24" class="text-tertiary-500" />
 					<div class="font-bold dark:text-primary-500">{field.label}</div>
 					<div class=" ">{field?.db_fieldName ? field.db_fieldName : '-'}</div>
-					<div class=" ">{field.widget?.key}</div>
+					<div class=" ">{field.widget?.key || field.__type || 'Unknown Widget'}</div>
 
-					<button type="button" class="variant-ghost-primary btn-icon ml-auto" on:click={() => modalWidgetForm(field)}>
+					<button on:click={() => modalWidgetForm(field)} type="button" aria-label={m.button_edit()} class="variant-ghost-primary btn-icon ml-auto">
 						<iconify-icon icon="ic:baseline-edit" width="24" class="dark:text-white" />
 					</button>
 				</div>
@@ -188,13 +213,18 @@
 	</div>
 	<div>
 		<div class="mt-2 flex items-center justify-center gap-3">
-			<button on:click={() => modalSelectWidget(null)} class="variant-filled-tertiary btn">{m.collection_widgetfield_addFields()} </button>
+			<button on:click={() => modalSelectWidget(null)} class="variant-filled-tertiary btn" aria-label={m.collection_widgetfield_addFields()}>
+				{m.collection_widgetfield_addFields()}
+			</button>
 		</div>
 		<div class=" flex items-center justify-between">
-			<button type="button" on:click={() => ($tabSet = 0)} class="variant-filled-secondary btn mt-2 justify-end">{m.button_previous()}</button>
+			<button on:click={() => ($tabSet = 0)} type="button" aria-label={m.button_previous()} class="variant-filled-secondary btn mt-2 justify-end">
+				{m.button_previous()}
+			</button>
 			<button
-				type="button"
 				on:click={handleCollectionSave}
+				type="button"
+				aria-label={m.button_save()}
 				class="variant-filled-tertiary btn mt-2 justify-end dark:variant-filled-primary dark:text-black">{m.button_save()}</button
 			>
 		</div>

@@ -30,7 +30,7 @@ declare global {
 				id: string;
 				role: string;
 				// Add other relevant user properties here
-			};
+			} | null;
 			collections?: any; // Replace 'any' with your actual Collections type if available
 			permissions?: any[]; // Replace 'any' with your actual Permissions type if available
 			theme: Theme | null; // Ensure 'theme' is correctly typed

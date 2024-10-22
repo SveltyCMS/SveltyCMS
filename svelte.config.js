@@ -7,6 +7,11 @@ const config = {
 	// for more information about preprocessors
 	preprocess: vitePreprocess(),
 
+	// Enable runes mode across your entire SvelteKit app
+	// compilerOptions: {
+	// 	runes: true
+	// },
+
 	kit: {
 		// See https://kit.svelte.dev/docs/adapters for more information about adapters.
 		adapter: adapter({
@@ -22,6 +27,7 @@ const config = {
 			routes: 'src/routes' // Make sure routes are in a folder named 'routes'
 		},
 		alias: {
+			'@root': './',
 			'@src': './src/*',
 			'@api': './src/routes/api/*',
 			'@components': './src/components/*',
@@ -29,7 +35,6 @@ const config = {
 			'@utils': './src/utils/*',
 			'@stores': './src/stores/*',
 			'@static': 'static/',
-			'@root': './',
 			$paraglide: './src/paraglide'
 		}
 	},

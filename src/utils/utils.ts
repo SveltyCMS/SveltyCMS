@@ -62,23 +62,29 @@ export const getGuiFields = (fieldParams: { [key: string]: any }, GuiSchema: { [
 };
 
 // Function to convert an object to form data
-export const obj2formData = (obj: any) => {
+export const obj2formData = (obj: Record<string, any>) => {
 	const formData = new FormData();
+
 	for (const key in obj) {
-		const data = JSON.stringify(obj[key], (key, val) => {
+		const value = obj[key];
+
+		const data = JSON.stringify(value, (k, val) => {
+			// Early return for specific conditions
 			if (!val && val !== false) return undefined;
-			else if (key == 'schema') return undefined;
-			else if (key == 'display' && val.default == true) return undefined;
-			else if (key == 'display') return ('🗑️' + val + '🗑️').replaceAll('display', 'function display');
-			else if (key == 'widget') return { key: val.key, GuiFields: val.GuiFields };
-			else if (typeof val === 'function') {
-				return '🗑️' + val + '🗑️';
-			}
+			if (k === 'schema') return undefined;
+			if (k === 'display' && val?.default) return undefined;
+			if (k === 'display') return `🗑️${val}🗑️`.replace(/display/g, 'function display');
+			if (k === 'widget') return { key: val.key, GuiFields: val.GuiFields };
+			if (typeof val === 'function') return `🗑️${val}🗑️`;
+
 			return val;
 		});
-		if (!data) continue;
-		formData.append(key, data);
+
+		if (data) {
+			formData.append(key, data);
+		}
 	}
+
 	return formData;
 };
 

@@ -4,20 +4,17 @@
 -->
 
 <script lang="ts">
-	// Components
-	import widgets from '@components/widgets';
-	import PermissionsSetting from '@components/PermissionsSetting.svelte';
+	import { page } from '$app/stores';
 
-	// Skeleton Stores
-	import { getModalStore } from '@skeletonlabs/skeleton';
-	const modalStore = getModalStore();
+	// Components
+	import PermissionsSetting from '@components/PermissionsSetting.svelte';
 
 	// Stores
 	import { targetWidget } from '@stores/collectionStore';
 
-	// Get the keys of the widgets object
-	const widget_keys = Object.keys(widgets) as unknown as keyof typeof widgets;
-	export let guiSchema: (typeof widgets)[typeof widget_keys]['GuiSchema'];
+	// Skeleton Stores
+	import { getModalStore } from '@skeletonlabs/skeleton';
+	const modalStore = getModalStore();
 
 	// Function to handle permission updates
 	function handlePermissionUpdate(event: CustomEvent) {
@@ -29,5 +26,5 @@
 </script>
 
 {#if $modalStore[0]}
-	<PermissionsSetting permissions={$targetWidget['permissions']} on:update={handlePermissionUpdate} />
+	<PermissionsSetting roles={$page.data.roles} permissions={$targetWidget['permissions']} on:update={handlePermissionUpdate} />
 {/if}

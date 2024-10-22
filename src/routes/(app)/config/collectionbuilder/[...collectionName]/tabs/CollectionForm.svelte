@@ -84,7 +84,7 @@
 	function handleNameInput() {
 		if ($collectionValue.name) {
 			// Update the URL
-			window.history.replaceState({}, '', `/collection/${$collectionValue.name}`);
+			window.history.replaceState({}, '', `/config/collectionbuilder/${$collectionValue.name}`);
 
 			// Update the page title
 			dispatch('updatePageTitle', $collectionValue.name);
