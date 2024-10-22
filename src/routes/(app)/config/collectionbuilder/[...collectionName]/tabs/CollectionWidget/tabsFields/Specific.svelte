@@ -27,17 +27,26 @@
 			return w;
 		});
 	}
+
+	// Get current widget schema
+	$: currentWidgetName = $modalStore[0]?.value?.widget?.Name;
+	$: currentGuiSchema = currentWidgetName ? widgets[currentWidgetName]?.GuiSchema : null;
+
+	// Get specific fields (excluding default fields)
+	const defaultFields = ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'];
+
+	$: specificFields = currentGuiSchema ? Object.keys(currentGuiSchema).filter((key) => !defaultFields.includes(key)) : [];
 </script>
 
-{#if $modalStore[0]}
-	{#each Object.keys(guiSchema[$modalStore[0].value.widget.Name].GuiSchema) as property}
-		{#if !['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width', 'permissions'].includes(property)}
-			<InputSwitch
-				bind:value={$targetWidget[property]}
-				on:toggle={(e) => handleToggle(e, property)}
-				widget={asAny(guiSchema[$modalStore[0].value.widget.Name].GuiSchema[property]?.widget)}
-				key={property}
-			/>
-		{/if}
+{#if $modalStore[0] && currentGuiSchema && specificFields.length > 0}
+	{#each specificFields as property}
+		<InputSwitch
+			bind:value={$targetWidget[property]}
+			on:toggle={(e) => handleToggle(e, property)}
+			widget={asAny(currentGuiSchema[property]?.widget)}
+			key={property}
+		/>
 	{/each}
+{:else if $modalStore[0] && currentWidgetName}
+	<div class="text-center text-sm text-gray-500">No specific options for this widget type</div>
 {/if}

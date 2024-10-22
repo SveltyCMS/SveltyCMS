@@ -42,11 +42,7 @@
 	<div class="options-table">
 		{#each ['label', 'display', 'db_fieldName', 'required', 'translated', 'icon', 'helper', 'width'] as property}
 			{#if property === 'icon'}
-				<InputSwitch
-					bind:iconselected={$targetWidget[property]}
-					widget={asAny(guiSchema[property]?.widget)}
-					key={property}
-				/>
+				<InputSwitch bind:iconselected={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
 			{:else if property === 'translated' || property === 'required'}
 				<InputSwitch
 					bind:value={$targetWidget[property]}
@@ -55,11 +51,7 @@
 					on:toggle={(e) => handleToggle(e, property)}
 				/>
 			{:else}
-				<InputSwitch
-					bind:value={$targetWidget[property]}
-					widget={asAny(guiSchema[property]?.widget)}
-					key={property}
-				/>
+				<InputSwitch bind:value={$targetWidget[property]} widget={asAny(guiSchema[property]?.widget)} key={property} />
 			{/if}
 		{/each}
 	</div>
