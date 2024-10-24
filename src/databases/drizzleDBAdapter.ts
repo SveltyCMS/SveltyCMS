@@ -31,7 +31,7 @@ import type { Unsubscriber } from 'svelte/store';
 
 // Drizzel
 import { drizzle, sql } from 'drizzle-orm';
-import * as mariadb from 'drizzle-orm/mariadb';
+import * as mariadb from 'drizzle-orm/mysql2';
 import * as postgres from 'drizzle-orm/postgres';
 
 // System Logger

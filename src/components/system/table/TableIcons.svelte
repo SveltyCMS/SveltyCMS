@@ -12,7 +12,7 @@
 	const dispatch = createEventDispatcher();
 
 	export let checked = false;
-	export let iconStatus = undefined;
+	export let iconStatus: string | undefined;
 
 	function handleIconClick() {
 		checked = !checked;
@@ -35,10 +35,10 @@
 		aria-labelledby={checked ? 'true' : 'false'}
 		role="checkbox"
 		class="flex h-[26px] w-[26px] items-center justify-center rounded border-[3px] bg-white dark:bg-transparent
-        {iconStatus === 'UNPUBLISHED' ? 'border-yellow-500' : ''}
-        {iconStatus === 'PUBLISHED' ? 'border-primary-500' : ''}
-        {iconStatus === 'SCHEDULED' ? 'border-pink-500' : ''}
-        {iconStatus === 'TESTING' ? 'border-red-500' : ''}
+        {iconStatus === 'unpublished' ? 'border-yellow-500' : ''}
+        {iconStatus === 'published' ? 'border-primary-500' : ''}
+        {iconStatus === 'scheduled' ? 'border-pink-500' : ''}
+        {iconStatus === 'testing' ? 'border-red-500' : ''}
         {iconStatus === undefined ? 'border-surface-800' : ''} 
         {!iconStatus ? 'dark:border-surface-400' : ''}
     "

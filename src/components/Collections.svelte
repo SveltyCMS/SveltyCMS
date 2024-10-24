@@ -60,7 +60,7 @@
 		slug?: string;
 		fields: any[];
 		strict?: boolean;
-		status?: 'published' | 'unpublished' | 'draft' | 'schedule' | 'cloned';
+		status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
 	}
 
 	// Define filteredCategories variable as an array of Category objects

@@ -93,8 +93,8 @@
 
 	export let field: any = undefined;
 	export let value = {
-		latitude: null,
-		longitude: null,
+		latitude: 0,
+		longitude: 0,
 		name: '',
 		street: '',
 		zip: '',
@@ -104,8 +104,8 @@
 
 	$: if (!value) {
 		value = {
-			latitude: null,
-			longitude: null,
+			latitude: 0,
+			longitude: 0,
 			name: '',
 			street: '',
 			zip: '',

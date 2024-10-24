@@ -12,7 +12,7 @@
 		},
 		Delete: {
 			fn: () => {
-				$modifyEntry('delete');
+				$modifyEntry('deleted');
 			},
 			icon: 'tdesign:delete-1',
 			bg_color: 'red',
@@ -20,7 +20,7 @@
 		},
 		Publish: {
 			fn: () => {
-				$modifyEntry('publish');
+				$modifyEntry('published');
 			},
 			icon: '',
 			bg_color: 'lime',
@@ -28,7 +28,7 @@
 		},
 		Unpublish: {
 			fn: () => {
-				$modifyEntry('unpublish');
+				$modifyEntry('unpublished');
 			},
 			icon: '',
 			bg_color: 'orange',
@@ -36,7 +36,7 @@
 		},
 		Test: {
 			fn: () => {
-				$modifyEntry('test');
+				$modifyEntry('testing');
 			},
 			icon: '',
 			bg_color: 'brown',

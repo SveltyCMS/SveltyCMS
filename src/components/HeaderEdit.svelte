@@ -85,8 +85,8 @@
 		if ($mode === 'view') {
 			tempData = {};
 		}
-		if ($mode === 'edit' && $collectionValue.status === 'PUBLISHED') {
-			$modifyEntry('unpublish');
+		if ($mode === 'edit' && $collectionValue.status === 'published') {
+			$modifyEntry('unpublished');
 		}
 	}
 
@@ -248,18 +248,18 @@
 		<div class="flex flex-col items-center justify-center">
 			<!-- Delete Content -->
 			<!-- disabled={!$collection?.permissions?.[userRole]?.delete} -->
-			<button type="button" on:click={() => $modifyEntry('delete')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
+			<button type="button" on:click={() => $modifyEntry('deleted')} class="gradient-error gradient-error-hover gradient-error-focus btn-icon">
 				<iconify-icon icon="icomoon-free:bin" width="24" />
 			</button>
 		</div>
 
 		<!-- Clone Content -->
 		{#if $mode == 'edit'}
-			{#if $collectionValue.status == 'UNPUBLISHED'}
+			{#if $collectionValue.status == 'unpublished'}
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						on:click={() => $modifyEntry('publish')}
+						on:click={() => $modifyEntry('published')}
 						disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 						class="gradient-tertiary gradient-tertiary-hover gradient-tertiary-focus btn-icon"
 					>
@@ -281,7 +281,7 @@
 				<div class="flex flex-col items-center justify-center">
 					<button
 						type="button"
-						on:click={() => $modifyEntry('unpublish')}
+						on:click={() => $modifyEntry('unpublished')}
 						disabled={!$collection?.permissions?.[user.role]?.write}
 						class="gradient-yellow gradient-yellow-hover gradient-yellow-focus btn-icon"
 					>
@@ -293,7 +293,7 @@
 			<div class="flex flex-col items-center justify-center">
 				<button
 					type="button"
-					on:click={() => $modifyEntry('schedule')}
+					on:click={() => $modifyEntry('scheduled')}
 					disabled={!$collection?.permissions?.[user.role]?.write}
 					class="gradient-pink gradient-pink-hover gradient-pink-focus btn-icon"
 				>
@@ -304,7 +304,7 @@
 			<div class="flex flex-col items-center justify-center">
 				<button
 					type="button"
-					on:click={() => $modifyEntry('clone')}
+					on:click={() => $modifyEntry('cloned')}
 					disabled={!($collection?.permissions?.[user.role]?.write && $collection?.permissions?.[user.role]?.create)}
 					class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn-icon"
 				>

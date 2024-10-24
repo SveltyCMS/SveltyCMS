@@ -5,7 +5,7 @@
 
 	export let value: boolean;
 	export let label: string = '';
-	export let icon: any = null;
+	export const icon: any = null;
 	export let labelColor: string = 'text-primary-500'; // Default label color
 	export let iconOn: string = 'wpf:invisible'; // Default icon when toggle is on
 	export let iconOff: string = 'gridicons:not-visible'; // Default icon when toggle is off
@@ -20,7 +20,7 @@
 </script>
 
 <label for="toggleSwitch{random}" class="text-dark flex cursor-pointer select-none items-center text-white">
-	<span class="mr-3 flex items-center gap-2 {value ? 'text-primary-500' : labelColor}">
+	<span class="mr-3 flex items-center gap-2 capitalize {value ? 'text-primary-500' : labelColor}">
 		{label}
 	</span>
 
@@ -32,7 +32,7 @@
 			<span
 				class={`absolute inset-0 flex items-center justify-end rounded-full border-2 pr-[25px] text-right text-white ${value ? 'text-right' : 'text-left'}`}
 			>
-				{value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'}
+				<!-- {value ? (icon ? '' : 'ON') : icon ? '' : 'OFF'} -->
 			</span>
 		</div>
 

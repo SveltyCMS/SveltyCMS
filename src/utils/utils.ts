@@ -290,7 +290,7 @@ export async function saveFormData({
 		formData.append('_meta_data', JSON.stringify(meta_data.get()));
 	}
 
-	formData.append('status', $collectionValue.status || 'UNPUBLISHED');
+	formData.append('status', $collectionValue.status || 'unpublished');
 
 	const username = user ? user.username : 'Unknown';
 

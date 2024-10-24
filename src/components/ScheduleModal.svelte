@@ -33,16 +33,16 @@ Ensure that the necessary stores and utility functions are available.
 
 	const user: User = $page.data.user;
 
-	type ActionType = 'publish' | 'unpublish' | 'delete' | 'schedule' | 'clone' | 'test';
+	type ActionType = 'published' | 'unpublished' | 'deleted' | 'scheduled' | 'cloned' | 'testing';
 
 	let scheduleDate: string = '';
 	let action: ActionType = ($modalStore[0]?.meta?.initialAction as ActionType) || 'schedule';
 	let errorMessage: string = '';
 
 	const actionOptions: Array<{ value: ActionType; label: string }> = [
-		{ value: 'publish', label: m.entrylist_multibutton_publish() },
-		{ value: 'unpublish', label: m.entrylist_multibutton_unpublish() },
-		{ value: 'delete', label: m.button_delete() }
+		{ value: 'published', label: m.entrylist_multibutton_publish() },
+		{ value: 'unpublished', label: m.entrylist_multibutton_unpublish() },
+		{ value: 'deleted', label: m.button_delete() }
 	];
 
 	$: isFormValid = scheduleDate !== '' && action !== undefined;

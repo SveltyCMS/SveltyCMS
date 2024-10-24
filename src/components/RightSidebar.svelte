@@ -59,7 +59,7 @@
 	});
 
 	// Map the status to boolean
-	let isPublished = $collectionValue?.status === 'PUBLISHED';
+	let isPublished = $collectionValue?.status === 'published';
 	let inputPopupUser = '';
 	let schedule = $collectionValue._scheduled ? new Date($collectionValue._scheduled).toISOString().slice(0, 16) : '';
 
@@ -68,7 +68,7 @@
 		isPublished = !isPublished;
 		collectionValue.update((cv) => ({
 			...cv,
-			status: isPublished ? 'PUBLISHED' : 'UNPUBLISHED',
+			status: isPublished ? 'published' : 'unpublished',
 			updatedAt: new Date()
 		}));
 	}
@@ -172,7 +172,7 @@
 				<!-- Publish/Unpublish -->
 				<div class="gradient-secondary btn w-full gap-2">
 					<Toggles
-						label={isPublished ? 'Published' : 'Unpublished'}
+						label={isPublished ? 'published' : 'unpublished'}
 						labelColor={isPublished ? 'text-primary-500' : 'text-error-500'}
 						iconOn="ic:baseline-check-circle"
 						iconOff="material-symbols:close"
@@ -185,7 +185,7 @@
 					<!-- Clone button -->
 					<button
 						type="button"
-						on:click={() => $modifyEntry('clone')}
+						on:click={() => $modifyEntry('cloned')}
 						disabled={!$collection?.permissions?.[user.role]?.write || !$collection?.permissions?.[user.role]?.create}
 						class="gradient-secondary gradient-secondary-hover gradient-secondary-focus btn w-full gap-2 text-white"
 						aria-label="Clone entry"
@@ -196,7 +196,7 @@
 					<!-- Delete button -->
 					<button
 						type="button"
-						on:click={() => $modifyEntry('delete')}
+						on:click={() => $modifyEntry('deleted')}
 						disabled={$collection?.permissions?.[user.role]?.delete === false}
 						class="variant-filled-error btn w-full"
 						aria-label="Delete entry"

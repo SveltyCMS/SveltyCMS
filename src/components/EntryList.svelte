@@ -337,18 +337,18 @@ Features:
 			try {
 				// Call the appropriate API endpoint based on the status
 				switch (status) {
-					case 'delete':
-						// If the status is 'Delete', call the delete endpoint
+					case 'deleted':
+						// If the status is 'deleted', call the delete endpoint
 						await deleteData({ data: formData, collectionName: $collection.name as any });
 						break;
-					case 'publish':
-					case 'unpublish':
-					case 'test':
-						// If the status is 'Publish', 'Unpublish', 'Schedule', or 'Clone', call the patch endpoint
+					case 'published':
+					case 'unpublished':
+					case 'testing':
+						// If the status is 'testing', call the publish endpoint
 						await setStatus({ data: formData, collectionName: $collection.name as any });
 						break;
-					case 'clone':
-					case 'schedule':
+					case 'cloned':
+					case 'scheduled':
 						// Trigger a toast message indicating that the feature is not yet implemented
 						const toast = {
 							message: 'Feature not yet implemented.',
@@ -370,7 +370,7 @@ Features:
 		};
 
 		// If more than one row is selected or the status is 'delete', show confirmation modal
-		if (modifyList.length > 1 || status === 'delete') {
+		if (modifyList.length > 1 || status === 'deleted') {
 			const modalData: ModalSettings = {
 				type: 'confirm',
 				title: m.entrylist_title(),

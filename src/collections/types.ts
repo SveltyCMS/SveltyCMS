@@ -16,7 +16,7 @@ export interface Schema {
 	links?: Array<keyof CollectionNames>; // Ensure links are valid collection names
 	icon?: string; // Optional icon for the collection
 	description?: string; // Optional description for the collection
-	status?: 'draft' | 'published' | 'unpublished' | 'schedule' | 'cloned';
+	status?: 'draft' | 'published' | 'unpublished' | 'scheduled' | 'cloned';
 	permissions?: Permission; // Optional permission restrictions
 	fields: ReturnType<(typeof widgets)[keyof typeof widgets]>[]; // Array of fields
 	strict?: boolean; // Optional strict mode

@@ -12,33 +12,34 @@
 </script>
 
 <!-- Display different badges for different statuses -->
+{value}
 <div
 	class=" grid w-full max-w-full grid-cols-1 items-center justify-start overflow-hidden rounded py-1.5 text-left sm:grid-cols-2
-		{value.toUpperCase() === 'PUBLISHED'
+		{value === 'published'
 		? 'gradient-primary'
-		: value.toUpperCase() === 'UNPUBLISHED'
+		: value === 'unpublished'
 			? 'gradient-yellow'
-			: value.toUpperCase() === 'SCHEDULE'
+			: value === 'schedule'
 				? 'gradient-pink'
-				: value.toUpperCase() === 'CLONE'
+				: value === 'clone'
 					? 'gradient-secondary'
-					: value.toUpperCase() === 'TESTING'
+					: value === 'testing'
 						? 'gradient-error'
 						: 'badge'} rounded text-center"
 >
-	{#if value.toUpperCase() == 'PUBLISHED'}
+	{#if value == 'published'}
 		<iconify-icon icon="bi:hand-thumbs-up-fill" width="20" class=" mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_publish()}</p>
-	{:else if value.toUpperCase() == 'UNPUBLISHED'}
+	{:else if value == 'unpublished'}
 		<iconify-icon icon="bi:pause-circle" width="20" class="mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_unpublish()}</p>
-	{:else if value.toUpperCase() == 'SCHEDULE'}
+	{:else if value == 'schedule'}
 		<iconify-icon icon="bi:clock" width="20" class="mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_schedule()}</p>
-	{:else if value.toUpperCase() == 'CLONE'}
+	{:else if value == 'clone'}
 		<iconify-icon icon="bi:clipboard-data-fill" width="20" class="mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_clone()}</p>
-	{:else if value.toUpperCase() == 'TESTING'}
+	{:else if value == 'testing'}
 		<iconify-icon icon="icon-park-outline:preview-open" width="20" class="mx-auto" />
 		<p class="hidden sm:block">{m.entrylist_multibutton_testing()}</p>
 	{/if}
